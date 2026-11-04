@@ -17,7 +17,16 @@ internal data class FlowScene(
     val model: FlowModel, val arrangement: FlowArrangement, val texts: Map<YPath, TextLayoutResult>,
     val bodies: Map<YPath, DiagramBody>, val edgeVisuals: Map<YPath, DiagramEdgeVisual>,
     val colors: DiagramColors, val selectedColor: Color,
-)
+    /** 線の中央のラベルを隠す（選んだ線のラベルは出す）。端のラベルは残す。 */
+    val hideLabels: Boolean = false,
+) {
+    /** その線の中央のラベルを描くか。 */
+    fun showsLabel(output: YPath, selected: YPath? = null) = !hideLabels || output == selected
+
+    /** 描く端・中央のラベルの見え方（隠すときは中央を外す）。 */
+    fun visualFor(output: YPath, selected: YPath? = null): DiagramEdgeVisual? =
+        edgeVisuals[output]?.let { if (showsLabel(output, selected)) it else it.withoutCenterLabel() }
+}
 
 /** 画面とPNGは同じ計測結果と描画を使う。 */
 internal fun DrawScope.drawFlow(scene: FlowScene, selected: YPath? = null) {
@@ -47,11 +56,12 @@ internal fun DrawScope.drawFlow(scene: FlowScene, selected: YPath? = null) {
     // 後続の接続線で条件の文字を上書きしないよう、ラベルは線の後にまとめて描く。
     arrangement.edges.forEach { route ->
         val r = route.label
-        val visual = edgeVisuals[route.output]
+        val visual = scene.visualFor(route.output, selected)
         if (visual != null) {
             drawDiagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(r.center.x, r.center.y))
             return@forEach
         }
+        if (!scene.showsLabel(route.output, selected)) return@forEach
         drawRect(if (route.output == selected) selectedColor else surface, Offset(r.x, r.y), Size(r.width, r.height))
         texts[route.output]?.let { drawText(it, topLeft = Offset(r.x + 6, r.y + 6)) }
     }
@@ -81,8 +91,9 @@ internal fun DrawScope.drawFlow(scene: FlowScene, selected: YPath? = null) {
 
 internal fun flowBounds(scene: FlowScene): Rect {
     val a = scene.arrangement
-    val boxes = (a.nodes.values + a.lanes.values + a.edges.map { it.label }).map { Rect(it.x, it.y, it.right, it.bottom) }
-    val labels = a.edges.flatMap { route -> scene.edgeVisuals[route.output]?.let {
+    val centers = a.edges.filter { scene.showsLabel(it.output) && it.output !in scene.edgeVisuals }.map { it.label }
+    val boxes = (a.nodes.values + a.lanes.values + centers).map { Rect(it.x, it.y, it.right, it.bottom) }
+    val labels = a.edges.flatMap { route -> scene.visualFor(route.output)?.let {
         diagramEdgeLabels(it, route.points.map { p -> Offset(p.x, p.y) }, Offset(route.label.center.x, route.label.center.y)).map { label -> label.bounds }
     }.orEmpty() }
     return diagramBounds(boxes + labels, a.edges.flatMap { it.points }.map { Offset(it.x, it.y) })

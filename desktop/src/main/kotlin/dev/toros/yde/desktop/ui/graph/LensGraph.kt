@@ -66,6 +66,11 @@ data class LensSelectParams(
     val depth: Int = 2,
     /** 利用者が開いた（true）・畳んだ（false）箱。無い箱は既定（起点の近傍だけ開く）。 */
     val expanded: Map<String, Boolean> = emptyMap(),
+    /**
+     * 起点の近傍を辿るとき、線が [LensGraphs.HUB_EDGES] 本以上ある箱（起点を除く）は見せるが、その先へは辿らない。
+     * 多くの箱が同じ 1 つの箱を参照するデータで、深さ 2 が全体に広がるのを防ぐ。
+     */
+    val stopAtHubs: Boolean = false,
 )
 
 /** 見える節点 1 つ。parent は絞り込み後の入れ子の親（隠した型・隠した関係で切れた親は無い）。 */
@@ -82,6 +87,9 @@ data class LensSelection(val nodes: List<LensVisibleNode>, val edges: List<LensG
     val sources: Map<LensGraphEdge, List<DiagramLinkSource>> = emptyMap())
 
 object LensGraphs {
+    /** 「線の多い箱の先は辿らない」で線の多い箱とみなす本数（絞り込み後の参照・保有の線。同じエンティティを結ぶ点線は数えない）。 */
+    const val HUB_EDGES = 30
+
     private fun sourcesOf(nodes: List<LensNode>, edges: Collection<LensGraphEdge>, refs: Map<LensGraphEdge, List<DiagramLinkSource>>): Map<LensGraphEdge, List<DiagramLinkSource>> {
         val ids = nodes.associate { it.key to it.id }
         return edges.associateWith { edge -> refs[edge]?.distinct() ?: listOf(DiagramLinkSource(
@@ -256,10 +264,12 @@ object LensGraphs {
             edges.forEach { link(it.from, it.to) }
             parentOf.forEach { (child, parent) -> link(child, parent) }
             val seeds = present.values.filter { it.id == origin }.map { it.key }.sorted()
+            val hubs = if (!params.stopAtHubs) emptySet() else edges.filter { it.kind != LensEdgeKind.TIE }
+                .flatMap { listOf(it.from, it.to) }.groupingBy { it }.eachCount().filter { it.value >= HUB_EDGES }.keys - seeds.toSet()
             val reached = LinkedHashSet(seeds)
             var frontier = seeds
             repeat(params.depth) {
-                frontier = frontier.flatMap { adjacency[it].orEmpty() }.filter(reached::add).sorted()
+                frontier = frontier.filter { it !in hubs }.flatMap { adjacency[it].orEmpty() }.filter(reached::add).sorted()
             }
             // 着いた箱の外側の箱も残す
             val withAncestors = LinkedHashSet(reached)

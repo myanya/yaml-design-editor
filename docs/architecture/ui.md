@@ -87,7 +87,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `InitWizardHost` | ui/shell/InitWizard.kt | 初期化ウィザード（新しいワークスペースを作る浮いたパネル＝場所・始め方・内容・確認の 4 歩と、問いの素朴な入力欄。計画はカーネルの `WorkspaceInit`、[workspace](workspace.md)） |
 | `FileTreePane` / `SourcePane` / `DiffPane` / `SchemaEditor` / `IdCrossView` / `ViewGridPane` / `WorkspaceViews` / `AiGenerationDialog` / `AutomationPanel` / `ImprovementPanel` / `SkillsPanel` | ui/ | 各ペイン |
 | `GraphLensView` | ui/graph/GraphLensView.kt | グラフレンズ（配置の切替・箱の入れ子と矢印・ひし形・点線の描画・クリックでエンティティページへ着地し、配置は背景で計算し、できるまで前の絵を出す）と操作（ホイール拡縮・箱のドラッグ＝`withMovedNested`・見出しの印で開く・畳む・ホバー強調・右クリック・PNG 保存・ミニマップ）。節点と辺の決め方は ui/graph/LensGraph.kt（[graph-query](graph-query.md)） |
-| `GraphLayouts` / `LensLayoutKind` / `LensArrangement` / `fitViewport` | ui/common/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
+| `GraphLayouts` / `LensLayoutKind` / `LensLayoutOption` / `LensArrangement` / `fitViewport` | ui/common/GraphLayouts.kt | 節点と辺の配置（放射・階層・応力はライブラリ ELK を包み、力学は `GraphLayout`）と画面に収める倍率の計算（Compose に依存しない純ロジック） |
 | `SourceHighlight` / `SourceMerge` / `SourceEditing` / `GraphLayout` / `DiffPane.calculateDiff` | ui/source・ui/common | テスト可能な純ロジック（YAML トークナイザ・行差分と 3 者マージ・ソースの基本操作と検索・軽い力学レイアウト・差分） |
 
 ## UI シェル

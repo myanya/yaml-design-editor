@@ -208,6 +208,47 @@ class FlowLayoutsTest {
         }
     }
 
+    @Test
+    fun `配置の調整で間隔とラベルの席と長い一本道を変えられる`() {
+        val chain = FlowModel((0..11).map { node(it) }, (0..10).map { edge(it, it, it + 1, "条件$it を満たしたとき") }, emptyList())
+        val texts = texts(chain)
+        val sizes = texts.mapValues { measure(it.value) }
+        val base = GraphLayouts.arrangeFlow(chain, sizes, "right")
+        fun arranged(vararg options: FlowLayoutOption) = GraphLayouts.arrangeFlow(chain, sizes, "right", options = options.toSet())
+        val seatless = arranged(FlowLayoutOption.NO_LABEL_SEATS)
+        render(chain, seatless, texts, "options-seatless-right")
+        assertTrue(seatless.size.width < base.size.width, "ラベルの席を取らないと列の間が詰まる: ${seatless.size} / ${base.size}")
+        assertTrue(seatless.edges.all { it.points.size >= 2 && it.label.width > 0f }, "ラベルの場所は配置の後で決まる")
+        val occupied = seatless.nodes.values + seatless.edges.map { it.label }
+        occupied.forEachIndexed { i, a -> occupied.drop(i + 1).forEach { b -> assertFalse(overlap(a, b), "席を取らないラベルも重ねない: $a / $b") } }
+        assertTrue(arranged(FlowLayoutOption.COMPACT).size.width < base.size.width, "間隔を詰める")
+        val wrapped = arranged(FlowLayoutOption.WRAP)
+        render(chain, wrapped, texts, "options-wrap-right")
+        assertTrue(wrapped.size.width < base.size.width && wrapped.size.height > base.size.height, "長い一本道を折り返す: ${wrapped.size} / ${base.size}")
+        wrapped.nodes.values.toList().let { boxes -> boxes.forEachIndexed { i, a -> boxes.drop(i + 1).forEach { b -> assertFalse(overlap(a, b)) } } }
+        // 折り返しと戻り線が重なっても、すべての線に経路がある（ELK が経路を返さない線は直交線で引く）
+        val cyclic = chain.copy(edges = chain.edges + edge(11, 11, 0, "最初に戻る") + edge(12, 7, 2, "やり直す"))
+        for (options in listOf(setOf(FlowLayoutOption.WRAP), setOf(FlowLayoutOption.WRAP, FlowLayoutOption.NO_LABEL_SEATS))) {
+            val folded = GraphLayouts.arrangeFlow(cyclic, sizes, "right", options = options)
+            assertTrue(folded.edges.all { it.points.size >= 2 && it.label.width > 0f }, "$options: ${folded.edges.filter { it.points.size < 2 }}")
+        }
+        // 短い図は折り返さない
+        val short = FlowModel((0..2).map { node(it) }, listOf(edge(0, 0, 1), edge(1, 1, 2)), emptyList())
+        assertEquals(GraphLayouts.arrangeFlow(short, sizes, "right"), GraphLayouts.arrangeFlow(short, sizes, "right", options = setOf(FlowLayoutOption.WRAP)))
+
+        // どの表示・方向・組み合わせでも、工程と遷移を保ち、同じ入力で同じ結果
+        val laned = FlowModel(listOf(node(0, lane = 0), node(1, lane = 1), node(2, lane = 1), node(3)),
+            listOf(edge(0, 0, 1), edge(1, 1, 2), edge(2, 2, 0), edge(3, 2, 3)),
+            (0..1).map { FlowLane(listOf("lanes", it), "L$it", "主体$it") })
+        val combos = listOf(emptySet(), FlowLayoutOption.entries.toSet()) + FlowLayoutOption.entries.map { setOf(it) }
+        for (mode in FlowLayoutMode.entries) for (direction in listOf("down", "right")) for (options in combos) {
+            val result = GraphLayouts.arrangeFlow(laned, emptyMap(), direction, mode, options = options)
+            assertEquals(laned.nodes.map { it.output }.toSet(), result.nodes.keys, "$mode $direction $options")
+            assertTrue(result.edges.all { it.points.size >= 2 }, "$mode $direction $options")
+            assertEquals(result, GraphLayouts.arrangeFlow(laned, emptyMap(), direction, mode, options = options))
+        }
+    }
+
     private val font = Font("Dialog", Font.PLAIN, 14)
     private val metrics = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics().let {
         try { it.font = font; it.fontMetrics } finally { it.dispose() }

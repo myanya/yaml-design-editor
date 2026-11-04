@@ -150,6 +150,15 @@ class ScreenMemory {
     /** レンズの配置の種類（`LensLayoutKind` の名前）。起点の有無ごとに、利用者が選んだときだけ覚える。無ければ画面の既定。 */
     val lensLayoutKind = mutableStateMapOf<Boolean, String>()
 
+    /** レンズの自動配置の調整（`LensLayoutOption` の名前）。選んだものだけ持ち、知らない名前は読まない。 */
+    val lensLayoutOptions = mutableStateMapOf<String, Boolean>()
+
+    /** レンズの近傍で、線の多い箱の先は辿らない（`LensSelectParams.stopAtHubs`）。 */
+    var lensStopAtHubs by mutableStateOf(false)
+
+    /** レンズで線の中央のラベルを隠す（描き方だけ。配置と位置の記録には効かない）。 */
+    var lensHideLabels by mutableStateOf(false)
+
     /** レンズの「側面で分ける」（箱＝出現）。既定は一体（箱＝エンティティ）。 */
     var lensSplitOccurrences by mutableStateOf(false)
 
@@ -249,6 +258,9 @@ class ScreenMemory {
         lensHiddenRelations.clear()
         lensDepth = 2
         lensLayoutKind.clear()
+        lensLayoutOptions.clear()
+        lensStopAtHubs = false
+        lensHideLabels = false
         lensSplitOccurrences = false
         lensExpanded.clear()
         lensPanelTab = 0

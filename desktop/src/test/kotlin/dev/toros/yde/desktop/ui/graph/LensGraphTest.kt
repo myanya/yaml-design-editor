@@ -241,4 +241,29 @@ class LensGraphTest {
         assertNull(cut.nodes.first { it.node.key == "SI-1" }.parent)
         assertEquals(0, cut.nodes.first { it.node.key == "SCR-1" }.hiddenChildren)
     }
+
+    @Test
+    fun `線の多い箱の先は辿らない設定では その箱は見せて先の箱を出さない`() {
+        // 多くの箱が同じ環境を参照する（AWS の inEnvironment のような）データ
+        val leaves = (1..LensGraphs.HUB_EDGES).map { "R-$it" }
+        fun n(id: String) = LensNode(id, id, null, null, null)
+        fun ref(from: String, to: String) = LensGraphEdge(from, to, "uses", LensEdgeKind.REF)
+        val g = LensGraph(LensMode.ENTITY, (listOf("O", "A", "B", "ENV") + leaves).map(::n),
+            listOf(ref("O", "A"), ref("A", "B"), ref("O", "ENV")) + leaves.map { ref(it, "ENV") })
+        val all = LensGraphs.select(g, LensSelectParams({ "t" }, origin = "O", depth = 2))
+        assertEquals(4 + leaves.size, all.nodes.size, "既定では環境を通って全体に広がる")
+        val stopped = LensGraphs.select(g, LensSelectParams({ "t" }, origin = "O", depth = 2, stopAtHubs = true))
+        assertEquals(setOf("O", "A", "B", "ENV"), stopped.nodes.map { it.node.key }.toSet(), "線の多い箱は出すが、その先は辿らない")
+        assertTrue(ref("O", "ENV") in stopped.edges)
+        // 起点が線の多い箱なら、起点からは辿る
+        val fromHub = LensGraphs.select(g, LensSelectParams({ "t" }, origin = "ENV", depth = 1, stopAtHubs = true))
+        assertEquals(2 + leaves.size, fromHub.nodes.size)
+        // 線の数は絞り込みの後で数える（型を隠して線が減れば、線の多い箱ではなくなり先へ辿る）
+        val withC = g.copy(nodes = g.nodes + n("C"), edges = g.edges + ref("ENV", "C"))
+        val typeOf: (String) -> String = { if (it.startsWith("R-")) "leaf" else "t" }
+        val beforeHide = LensGraphs.select(withC, LensSelectParams(typeOf, origin = "O", depth = 2, stopAtHubs = true))
+        assertTrue(beforeHide.nodes.none { it.node.key == "C" }, "環境が線の多い箱のうちは C へ辿らない")
+        val afterHide = LensGraphs.select(withC, LensSelectParams(typeOf, hiddenTypes = setOf("leaf"), origin = "O", depth = 2, stopAtHubs = true))
+        assertEquals(setOf("O", "A", "B", "ENV", "C"), afterHide.nodes.map { it.node.key }.toSet())
+    }
 }

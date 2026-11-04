@@ -9,9 +9,12 @@ import org.eclipse.elk.alg.force.options.StressOptions
 import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider
 import org.eclipse.elk.alg.layered.options.LayeredOptions
 import org.eclipse.elk.alg.layered.options.CycleBreakingStrategy
+import org.eclipse.elk.alg.layered.options.NodePlacementStrategy
+import org.eclipse.elk.alg.layered.options.WrappingStrategy
 import org.eclipse.elk.alg.radial.options.RadialMetaDataProvider
 import org.eclipse.elk.alg.radial.options.RadialOptions
 import org.eclipse.elk.alg.spore.options.SporeMetaDataProvider
+import org.eclipse.elk.alg.spore.options.SporeOverlapRemovalOptions
 import org.eclipse.elk.core.RecursiveGraphLayoutEngine
 import org.eclipse.elk.core.data.LayoutMetaDataService
 import org.eclipse.elk.core.options.CoreOptions
@@ -39,6 +42,22 @@ enum class LensLayoutKind(val label: String, val description: String) {
     LAYERED("階層", "参照の向きに沿って上から下へ並べる"),
     STRESS("応力", "つながりの近さを距離に映す（${GraphLayouts.STRESS_MAX_NODES} 節点まで）"),
     FORCE("力学", "軽い力学配置（計算が速い）"),
+}
+
+/**
+ * レンズの自動配置の調整（既定はどれも選ばない）。`kinds` はその調整が効く配置の種類。
+ * key は配置の記録を分ける選択条件に入れる名前で、効く種類を選んでいるときだけ入れる。
+ */
+enum class LensLayoutOption(val key: String, val label: String, val description: String, val kinds: Set<LensLayoutKind>) {
+    COMPACT("compact", "間隔を詰める", "箱どうしと線の通り道の余白を小さくする",
+        setOf(LensLayoutKind.RADIAL, LensLayoutKind.LAYERED, LensLayoutKind.STRESS)),
+    SHORT_EDGES("short-edges", "線を短めに", "応力配置で、つながった箱どうしの距離の目安を短くする", setOf(LensLayoutKind.STRESS)),
+    NO_LABEL_SEATS("no-label-seats", "ラベルの席を取らない", "階層配置で線のラベルの場所を確保せず、配置の後で線の近くへ置く",
+        setOf(LensLayoutKind.LAYERED)),
+    ;
+
+    /** 選んだ種類で効くか。放射から応力への代替のように実際の種類が変わっても、選んだ種類で決める。 */
+    fun appliesTo(kind: LensLayoutKind) = kind in kinds
 }
 
 /** 配置に渡す節点。大きさは文字を計測した px。 */
@@ -121,6 +140,12 @@ object GraphLayouts {
 
     /** 応力配置を許す節点数の上限（全対の計算で、これを超えると数十秒かかる）。 */
     const val STRESS_MAX_NODES = 150
+    /** 「長い一本道を折り返す」で目指す図の横÷縦。 */
+    private const val WRAP_ASPECT_RATIO = 1.6
+    /** 「長い一本道を折り返す」で折り返す長さ（流れの向きの長さ÷横の幅がこれを超えたら）。 */
+    private const val WRAP_TRIGGER = 3.0f
+    /** 「長い一本道を折り返す」で折り返す長さの下限（px）。これより短い図は 1 列のまま。 */
+    private const val WRAP_MIN_LENGTH = 2000f
     private const val MARGIN = 24f
     private const val PARALLEL_GAP = 14f
     private val lock = Any()
@@ -134,26 +159,56 @@ object GraphLayouts {
         true
     }
 
-    /** フローの循環・レーン・条件ラベルを同じ配置問題として解く。ELKの型はこの窓口の外へ出さない。 */
+    /**
+     * フローの循環・レーン・条件ラベルを同じ配置問題として解く。ELKの型はこの窓口の外へ出さない。
+     * `options` は自動配置の調整。保存済みの位置から組み立てる配置（`pins`・`lanePositions` があるとき）には効かない。
+     */
     @JvmOverloads
     fun arrangeFlow(model: FlowModel, labels: Map<YPath, FlowSize>, direction: String = "down",
                     mode: FlowLayoutMode = FlowLayoutMode.GROUPED, nodeSizes: Map<YPath, FlowSize> = emptyMap(),
-                    pins: Map<YPath, FlowPoint> = emptyMap(), lanePositions: Map<YPath, FlowPoint> = emptyMap()): FlowArrangement {
+                    pins: Map<YPath, FlowPoint> = emptyMap(), lanePositions: Map<YPath, FlowPoint> = emptyMap(),
+                    options: Set<FlowLayoutOption> = emptySet()): FlowArrangement {
         if (pins.isNotEmpty() || lanePositions.isNotEmpty()) return PinnedFlow.arrange(model, labels, direction, mode, nodeSizes, pins, lanePositions)
         if (mode == FlowLayoutMode.SWIMLANES) {
-            val seed = arrangeFlow(model, labels, direction, FlowLayoutMode.PLAIN, nodeSizes)
+            val seed = arrangeFlow(model, labels, direction, FlowLayoutMode.PLAIN, nodeSizes, options = options)
             return FlowSwimlanes.arrange(model, labels, seed, direction)
         }
+        val straight = layeredFlow(model, labels, direction, mode, nodeSizes, options, wrap = false)
+        if (FlowLayoutOption.WRAP !in options) return straight
+        // 流れの向きに長く、画面に収まらない図だけを折り返す（短い図を折り返すと、線が遠回りになるだけ）
+        val size = straight.size
+        val length = if (direction == "right") size.width else size.height
+        val stretch = length / (if (direction == "right") size.height else size.width).coerceAtLeast(1f)
+        return if (length > WRAP_MIN_LENGTH && stretch > WRAP_TRIGGER) layeredFlow(model, labels, direction, mode, nodeSizes, options, wrap = true)
+        else straight
+    }
+
+    /** ELK の階層配置で 1 回配置する。`wrap` は長い図を縦横の比 [WRAP_ASPECT_RATIO] に近づくよう折り返す。 */
+    private fun layeredFlow(model: FlowModel, labels: Map<YPath, FlowSize>, direction: String, mode: FlowLayoutMode,
+                            nodeSizes: Map<YPath, FlowSize>, options: Set<FlowLayoutOption>, wrap: Boolean): FlowArrangement {
+        val compact = FlowLayoutOption.COMPACT in options
+        val seats = FlowLayoutOption.NO_LABEL_SEATS !in options
         return synchronized(lock) {
             val graph = newGraph()
             graph.setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.layered")
             graph.setProperty(CoreOptions.DIRECTION, if (direction == "right") Direction.RIGHT else Direction.DOWN)
             graph.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
             graph.setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL)
-            graph.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, 64.0)
-            graph.setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, 24.0)
+            graph.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, if (compact) 40.0 else 64.0)
+            graph.setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, if (compact) 12.0 else 24.0)
             graph.setProperty(CoreOptions.SPACING_EDGE_LABEL, 8.0)
-            graph.setProperty(CoreOptions.SPACING_EDGE_NODE, 24.0)
+            graph.setProperty(CoreOptions.SPACING_EDGE_NODE, if (compact) 12.0 else 24.0)
+            if (compact) {
+                graph.setProperty(CoreOptions.SPACING_NODE_NODE, 24.0)
+                graph.setProperty(CoreOptions.SPACING_EDGE_EDGE, 6.0)
+                graph.setProperty(LayeredOptions.SPACING_EDGE_EDGE_BETWEEN_LAYERS, 6.0)
+            }
+            // 相手との線がまっすぐになる置き方。多くの線を持つ箱が相手の並びの中ほどに来る
+            graph.setProperty(LayeredOptions.NODE_PLACEMENT_STRATEGY, NodePlacementStrategy.NETWORK_SIMPLEX)
+            if (wrap) {
+                graph.setProperty(LayeredOptions.WRAPPING_STRATEGY, WrappingStrategy.MULTI_EDGE)
+                graph.setProperty(LayeredOptions.ASPECT_RATIO, WRAP_ASPECT_RATIO)
+            }
             graph.setProperty(LayeredOptions.THOROUGHNESS, 10)
             graph.setProperty(LayeredOptions.CYCLE_BREAKING_STRATEGY, CycleBreakingStrategy.DEPTH_FIRST)
             graph.setProperty(CoreOptions.RANDOM_SEED, 1)
@@ -191,11 +246,15 @@ object GraphLayouts {
                 edge.output to if (from == null || to == null) null else {
                     ElkGraphUtil.createSimpleEdge(from, to).apply {
                         identifier = edge.key
-                        val text = size(edge.output)
-                        ElkGraphUtil.createLabel(edge.label ?: "", this).apply {
-                            width = text.width + 12.0
-                            height = text.height + 12.0
-                            setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.CENTER)
+                        // ラベルの席: ELK は線ごとにラベルの場所を列（段）として確保する。取らないときは配置の後で線の近くへ置く
+                        if (seats) {
+                            val text = size(edge.output)
+                            // ELK は文字が空のラベルを無視して席を取らない。記法が描くラベル（edge.label が無い）にも席を取るよう、空にしない
+                            ElkGraphUtil.createLabel(edge.label?.takeIf { it.isNotEmpty() } ?: edge.key?.takeIf { it.isNotEmpty() } ?: "label", this).apply {
+                                width = text.width + 12.0
+                                height = text.height + 12.0
+                                setProperty(CoreOptions.EDGE_LABELS_PLACEMENT, EdgeLabelPlacement.CENTER)
+                            }
                         }
                     }
                 }
@@ -214,6 +273,8 @@ object GraphLayouts {
                 return FlowRect(p.x, p.y, node.width.toFloat(), node.height.toFloat())
             }
             var unresolvedY = graph.height.toFloat() + MARGIN * 2
+            val placed = mutableListOf<FlowRect>()
+            val allBoxes by lazy { nodes.values.map(::box) }
             val diamonds = model.nodes.filter { it.displayShape == "diamond" }.map { it.output }.toSet()
             // ELKの接続点は外接矩形上。直交線の向きを保ったまま菱形の輪郭まで延ばす。
             fun outline(path: YPath?, point: FlowPoint): FlowPoint {
@@ -238,13 +299,23 @@ object GraphLayouts {
                             section.bendPoints.map { FlowPoint(it.x.toFloat(), it.y.toFloat()) } +
                             FlowPoint(section.endX.toFloat(), section.endY.toFloat())
                     }.map { FlowPoint(it.x + origin.x, it.y + origin.y) }.toMutableList()
+                    // ELK が経路を返さない線（折り返しと閉路が重なるときなど）は、箱を避けた直交線で引く
+                    val missing = points.size < 2 && source.from.target != source.to.target
+                    if (missing) {
+                        val a = box(nodes[source.from.target]!!); val b = box(nodes[source.to.target]!!)
+                        points.clear()
+                        points += OrthogonalRouting.route(a.lens(), b.lens(), allBoxes.map { it.lens() }, direction == "right")
+                            .map { FlowPoint(it.x, it.y) }
+                    }
                     if (points.size >= 2) {
                         points[0] = outline(source.from.target, points.first())
                         points[points.lastIndex] = outline(source.to.target, points.last())
                     }
-                    val label = edge.labels.single()
-                    FlowRoute(source.output, points, FlowRect(origin.x + label.x.toFloat(), origin.y + label.y.toFloat(),
+                    val label = edge.labels.singleOrNull()?.takeIf { !missing }
+                    if (label != null) FlowRoute(source.output, points, FlowRect(origin.x + label.x.toFloat(), origin.y + label.y.toFloat(),
                         label.width.toFloat(), label.height.toFloat()))
+                    else FlowRoute(source.output, points, seatlessLabel(points, size(source.output), allBoxes, placed))
+                        .also { placed += it.label }
                 }
             }
             val boxes = nodes.mapValues { box(it.value) }
@@ -257,15 +328,28 @@ object GraphLayouts {
         }
     }
 
+    private fun FlowRect.lens() = LensBox(x, y, width, height)
+
+    /** 席を取らなかったラベルの仮の場所。線の近くで箱と置いたラベルを避ける（画面は配線の後でもう一度置き直す）。 */
+    private fun seatlessLabel(points: List<FlowPoint>, text: FlowSize, boxes: List<FlowRect>, placed: List<FlowRect>): FlowRect {
+        val size = LensNodeSize("", text.width + 12f, text.height + 12f)
+        val line = points.map { LensPoint(it.x, it.y) }
+        val middle = midpoint(line) ?: LensPoint(MARGIN, MARGIN)
+        val box = OrthogonalRouting.label(line, size, (boxes + placed).map { LensBox(it.x, it.y, it.width, it.height) }, middle)
+        return FlowRect(box.x, box.y, box.width, box.height)
+    }
+
     /**
      * 節点と辺を配置する。`origin` は起点の添字（放射配置の中心）。
      * 放射は起点が無ければ応力に、応力は節点が [STRESS_MAX_NODES] を超えれば階層に代替する。ELK が失敗したら軽い力学配置に戻す。
+     * `options` は自動配置の調整で、実際に使う種類に効くものだけを当てる。
      */
     fun arrange(
         nodes: List<LensNodeSize>,
         edges: List<LensEdgeSpec>,
         kind: LensLayoutKind,
         origin: Int? = null,
+        options: Set<LensLayoutOption> = emptySet(),
     ): LensArrangement {
         if (nodes.isEmpty()) return LensArrangement(kind, emptyList(), emptyList(), 0f, 0f)
         // 範囲外・自己参照の辺は配置に渡さず、経路を空にする
@@ -282,12 +366,13 @@ object GraphLayouts {
             note = "節点が $STRESS_MAX_NODES を超えるので階層配置にしました（応力配置は $STRESS_MAX_NODES 節点まで）"
         }
         if (effective == LensLayoutKind.FORCE) return simpleForce(nodes, valid, note)
+        val applied = options.filter { it.appliesTo(effective) }.toSet()
         return try {
             synchronized(lock) {
                 when (effective) {
-                    LensLayoutKind.LAYERED -> layered(nodes, valid)
-                    LensLayoutKind.STRESS -> stress(nodes, valid)
-                    LensLayoutKind.RADIAL -> radial(nodes, valid, root!!)
+                    LensLayoutKind.LAYERED -> layered(nodes, valid, applied)
+                    LensLayoutKind.STRESS -> stress(nodes, valid, applied)
+                    LensLayoutKind.RADIAL -> radial(nodes, valid, root!!, applied)
                     LensLayoutKind.FORCE -> error("力学配置は ELK を使わない")
                 }
             }.copy(note = note)
@@ -324,6 +409,7 @@ object GraphLayouts {
         kind: LensLayoutKind,
         origin: Int? = null,
         pins: Map<String, LensPoint> = emptyMap(),
+        options: Set<LensLayoutOption> = emptySet(),
     ): LensArrangement {
         if (nodes.isEmpty()) return LensArrangement(kind, emptyList(), emptyList(), 0f, 0f)
         // 親の添字（範囲外・自分自身・循環は無視して外側の箱にする）
@@ -339,7 +425,7 @@ object GraphLayouts {
         if (parent.all { it < 0 }) {
             if (pins.isNotEmpty()) return PinnedLayout.lens(nodes.map { LensNodeSize(it.id, it.width, it.height) }, edges,
                 nodes.mapIndexedNotNull { i, n -> pins[n.id]?.let { i to it } }.toMap(), kind)
-            return arrange(nodes.map { LensNodeSize(it.id, it.width, it.height) }, edges, kind, origin)
+            return arrange(nodes.map { LensNodeSize(it.id, it.width, it.height) }, edges, kind, origin, options)
         }
         val children = List(nodes.size) { mutableListOf<Int>() }
         nodes.indices.forEach { i -> if (parent[i] >= 0) children[parent[i]] += i }
@@ -381,7 +467,7 @@ object GraphLayouts {
             val sizes = members.map { m -> LensNodeSize(nodes[m].id, size[m].first, size[m].second) }
             val fixed = members.mapIndexedNotNull { i, m -> pins[nodes[m].id]?.let { i to it } }.toMap()
             return (if (pins.isNotEmpty()) PinnedLayout.lens(sizes, localEdges, fixed, kind, inside = level >= 0)
-                else arrange(sizes, localEdges, kind, localOrigin))
+                else arrange(sizes, localEdges, kind, localOrigin, options))
                 .also { a ->
                     if (level >= 0) {
                         // 箱の大きさ = 見出しと、中の配置（余白込み）を収める大きさ
@@ -498,14 +584,18 @@ object GraphLayouts {
 
     // ---------------------------------------------------------------- 各配置
 
-    /** 階層（Sugiyama 系）。辺の経路とラベルの位置は ELK の結果を使う。 */
-    private fun layered(nodes: List<LensNodeSize>, edges: List<LensEdgeSpec?>): LensArrangement {
+    /**
+     * 階層（Sugiyama 系）。辺の経路は ELK の結果を使う。ラベルは席を取るなら ELK の位置、取らないなら配置の後で線の近くへ置く。
+     */
+    private fun layered(nodes: List<LensNodeSize>, edges: List<LensEdgeSpec?>, options: Set<LensLayoutOption>): LensArrangement {
+        val compact = LensLayoutOption.COMPACT in options
+        val seats = LensLayoutOption.NO_LABEL_SEATS !in options
         val graph = newGraph()
         val elkNodes = nodes.map { createNode(graph, it) }
         val elkEdges = edges.map { e ->
             e?.let {
                 val edge = ElkGraphUtil.createSimpleEdge(elkNodes[it.from], elkNodes[it.to])
-                if (it.labelWidth > 0f) {
+                if (seats && it.labelWidth > 0f) {
                     ElkGraphUtil.createLabel("label", edge).apply {
                         width = it.labelWidth.toDouble()
                         height = it.labelHeight.toDouble()
@@ -517,25 +607,44 @@ object GraphLayouts {
         }
         graph.setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.layered")
         graph.setProperty(CoreOptions.DIRECTION, Direction.DOWN)
-        graph.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, 70.0)
-        graph.setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, 30.0)
+        graph.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, if (compact) 40.0 else 70.0)
+        graph.setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, if (compact) 12.0 else 30.0)
+        if (compact) graph.setProperty(CoreOptions.SPACING_NODE_NODE, 24.0)
         graph.setProperty(LayeredOptions.EDGE_ROUTING, EdgeRouting.SPLINES)
+        graph.setProperty(LayeredOptions.NODE_PLACEMENT_STRATEGY, NodePlacementStrategy.NETWORK_SIMPLEX)
         graph.setProperty(LayeredOptions.THOROUGHNESS, 10)
         run(graph)
         val boxes = elkNodes.map { it.box() }
         val routes = elkEdges.map { edge -> edge?.let(::routeOf) ?: LensRoute(emptyList(), null) }
-        return normalized(LensLayoutKind.LAYERED, boxes, routes)
+        return normalized(LensLayoutKind.LAYERED, boxes, if (seats) routes else withPlacedLabels(boxes, edges, routes))
     }
 
-    /** 応力（stress majorization）。配置のあとに重なり除去を当て、辺は箱の縁から縁への直線。 */
-    private fun stress(nodes: List<LensNodeSize>, edges: List<LensEdgeSpec?>): LensArrangement {
+    /** 席を取らなかったラベルを、線の近くで箱と先に置いたラベルを避けて置く。ラベルの無い辺は線の中ほど。 */
+    private fun withPlacedLabels(boxes: List<LensBox>, edges: List<LensEdgeSpec?>, routes: List<LensRoute>): List<LensRoute> {
+        val placed = mutableListOf<LensBox>()
+        return routes.mapIndexed { i, route ->
+            val e = edges.getOrNull(i)
+            val center = midpoint(route.points) ?: return@mapIndexed route
+            if (e == null || e.labelWidth <= 0f) return@mapIndexed route.copy(label = center)
+            val label = OrthogonalRouting.label(route.points, LensNodeSize("", e.labelWidth, e.labelHeight), boxes + placed, center)
+            placed += label
+            route.copy(label = LensPoint(label.centerX, label.centerY))
+        }
+    }
+
+    /**
+     * 応力（stress majorization）のあとに重なり除去を当て、辺は箱の縁から縁への直線。
+     * 重なり除去は下の配置として応力を指定して 1 回で走らせる（同じグラフで 2 回走らせると、ELK は 1 回目に決めた配置の種類を
+     * 覚えていて、2 回目も応力配置になり重なり除去が走らない）。
+     */
+    private fun stress(nodes: List<LensNodeSize>, edges: List<LensEdgeSpec?>, options: Set<LensLayoutOption>): LensArrangement {
         val graph = newGraph()
         val elkNodes = nodes.map { createNode(graph, it) }
         edges.forEach { e -> e?.let { ElkGraphUtil.createSimpleEdge(elkNodes[it.from], elkNodes[it.to]) } }
-        graph.setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.stress")
-        graph.setProperty(StressOptions.DESIRED_EDGE_LENGTH, 200.0)
-        run(graph)
         graph.setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.sporeOverlap")
+        graph.setProperty(SporeOverlapRemovalOptions.UNDERLYING_LAYOUT_ALGORITHM, "org.eclipse.elk.stress")
+        graph.setProperty(StressOptions.DESIRED_EDGE_LENGTH, if (LensLayoutOption.SHORT_EDGES in options) 120.0 else 200.0)
+        if (LensLayoutOption.COMPACT in options) graph.setProperty(CoreOptions.SPACING_NODE_NODE, 24.0)
         run(graph)
         val boxes = elkNodes.map { it.box() }
         return normalized(LensLayoutKind.STRESS, boxes, straightRoutes(boxes, edges))
@@ -545,7 +654,7 @@ object GraphLayouts {
      * 放射。配置は木を前提にするので、起点からの幅優先の木（最短の道すじ）だけを渡し、木に入らない辺は直線で描く。
      * 起点から辿れない節点は配置の下に 1 列に並べる。
      */
-    private fun radial(nodes: List<LensNodeSize>, edges: List<LensEdgeSpec?>, root: Int): LensArrangement {
+    private fun radial(nodes: List<LensNodeSize>, edges: List<LensEdgeSpec?>, root: Int, options: Set<LensLayoutOption>): LensArrangement {
         val tree = spanningTree(nodes.size, edges, root)
         val reached = setOf(root) + tree.map { it.second }
         val graph = newGraph()
@@ -554,7 +663,7 @@ object GraphLayouts {
         tree.forEach { (parent, child) -> ElkGraphUtil.createSimpleEdge(elkNodes.getValue(parent), elkNodes.getValue(child)) }
         graph.setProperty(CoreOptions.ALGORITHM, "org.eclipse.elk.radial")
         graph.setProperty(RadialOptions.CENTER_ON_ROOT, true)
-        graph.setProperty(CoreOptions.SPACING_NODE_NODE, 30.0)
+        graph.setProperty(CoreOptions.SPACING_NODE_NODE, if (LensLayoutOption.COMPACT in options) 12.0 else 30.0)
         run(graph)
         val placed = elkNodes.mapValues { it.value.box() }
         val bottom = placed.values.maxOf { it.y + it.height } + 60f

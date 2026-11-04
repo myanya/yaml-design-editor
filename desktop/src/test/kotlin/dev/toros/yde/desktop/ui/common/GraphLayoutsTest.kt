@@ -202,4 +202,73 @@ class GraphLayoutsTest {
         assertEquals(400f, small.panX)
         assertEquals(LensViewport(1f, 0f, 0f), fitViewport(0f, 0f, 100f, 100f))
     }
+
+    // ---------------------------------------------------------------- 重なり除去と配置の調整
+
+    private fun area(a: LensArrangement) = a.width * a.height
+    private fun meanDistance(a: LensArrangement, edges: List<LensEdgeSpec>) = edges.map { e ->
+        hypot(a.boxes[e.from].centerX - a.boxes[e.to].centerX, a.boxes[e.from].centerY - a.boxes[e.to].centerY)
+    }.average()
+
+    @Test
+    fun `stress really removes overlaps of wide boxes`() {
+        // 幅の大きい記法の箱（ER の表など）が多くつながると、応力配置だけでは重なる（UX-248）
+        val wide = (0 until 14).map { LensNodeSize("T-$it", 300f, 160f) }
+        val edges = (1 until 14).map { LensEdgeSpec(0, it) } + (1 until 13).map { LensEdgeSpec(it, it + 1) }
+        for (options in listOf(emptySet(), setOf(LensLayoutOption.SHORT_EDGES), setOf(LensLayoutOption.SHORT_EDGES, LensLayoutOption.COMPACT))) {
+            val result = GraphLayouts.arrange(wide, edges, LensLayoutKind.STRESS, options = options)
+            assertEquals(LensLayoutKind.STRESS, result.kind)
+            assertWellFormed(result, 14, edges.size)
+            assertApart(result, "応力 $options")
+        }
+    }
+
+    @Test
+    fun `layout options make each kind tighter`() {
+        val edges = chain(12) + star(8) + listOf(LensEdgeSpec(3, 9, 90f, 14f), LensEdgeSpec(5, 11, 90f, 14f))
+        val stress = GraphLayouts.arrange(nodes(12), edges, LensLayoutKind.STRESS)
+        val short = GraphLayouts.arrange(nodes(12), edges, LensLayoutKind.STRESS, options = setOf(LensLayoutOption.SHORT_EDGES))
+        assertTrue(meanDistance(short, edges) < meanDistance(stress, edges), "線を短めにすると、つながった箱が近づく")
+        assertApart(short, "応力・線を短めに")
+
+        val layered = GraphLayouts.arrange(nodes(12), edges, LensLayoutKind.LAYERED)
+        val seatless = GraphLayouts.arrange(nodes(12), edges, LensLayoutKind.LAYERED, options = setOf(LensLayoutOption.NO_LABEL_SEATS))
+        assertTrue(seatless.height < layered.height, "ラベルの席を取らないと段の間が詰まる: ${seatless.height} / ${layered.height}")
+        assertTrue(seatless.routes.all { it.label != null }, "ラベルの位置は配置の後で決まる")
+        edges.forEachIndexed { i, e ->
+            val c = seatless.routes[i].label!!
+            val label = LensBox(c.x - e.labelWidth / 2, c.y - e.labelHeight / 2, e.labelWidth, e.labelHeight)
+            assertTrue(seatless.boxes.none { b -> label.x < b.x + b.width && b.x < label.x + label.width && label.y < b.y + b.height && b.y < label.y + label.height },
+                "席を取らないラベルも箱に重ねない: $label")
+        }
+        val compactLayered = GraphLayouts.arrange(nodes(12), edges, LensLayoutKind.LAYERED, options = setOf(LensLayoutOption.COMPACT))
+        assertTrue(area(compactLayered) < area(layered), "階層で間隔を詰める")
+
+        val radial = GraphLayouts.arrange(nodes(12), star(12), LensLayoutKind.RADIAL, origin = 0)
+        val compactRadial = GraphLayouts.arrange(nodes(12), star(12), LensLayoutKind.RADIAL, origin = 0, options = setOf(LensLayoutOption.COMPACT))
+        assertTrue(area(compactRadial) < area(radial), "放射で間隔を詰める")
+        assertApart(compactRadial, "放射・間隔を詰める")
+    }
+
+    @Test
+    fun `layout options are deterministic and ignored by kinds they do not apply to`() {
+        val edges = chain(10) + star(6)
+        LensLayoutKind.entries.forEach { kind ->
+            val all = LensLayoutOption.entries.toSet()
+            assertEquals(GraphLayouts.arrange(nodes(10), edges, kind, 0, all), GraphLayouts.arrange(nodes(10), edges, kind, 0, all), "$kind は同じ入力で同じ結果")
+            val unrelated = LensLayoutOption.entries.filter { !it.appliesTo(kind) }.toSet()
+            assertEquals(GraphLayouts.arrange(nodes(10), edges, kind, 0), GraphLayouts.arrange(nodes(10), edges, kind, 0, unrelated),
+                "$kind に効かない調整は結果を変えない")
+        }
+        val nested = nodes(4).mapIndexed { i, n -> LensNestedNode(n.id, n.width, n.height) }
+        assertEquals(GraphLayouts.arrange(nodes(4), chain(4), LensLayoutKind.STRESS, options = setOf(LensLayoutOption.SHORT_EDGES)),
+            GraphLayouts.arrangeNested(nested, chain(4), LensLayoutKind.STRESS, options = setOf(LensLayoutOption.SHORT_EDGES)), "入れ子の無い配置にも調整を渡す")
+    }
+
+    @Test
+    fun `layout options split the position record only when chosen`() {
+        val selection = mapOf("mode" to listOf("grouped"), "direction" to listOf("down"))
+        assertEquals(selection, withLayoutOptionSelection(selection, emptyList()), "調整が無ければ今の記録のまま")
+        assertEquals(selection + ("options" to listOf("compact", "wrap")), withLayoutOptionSelection(selection, listOf("wrap", "compact", "wrap")))
+    }
 }

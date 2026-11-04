@@ -202,10 +202,11 @@ private fun rememberLensModel(state: AppState): LensModel {
         if (level == LensLevel.TYPE) state.memory.lensTypeOrigin?.takeIf { schemaGraph.typeMap.containsKey(it) }
         else state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
     // 絞り込み: 型・関係・起点の近傍・畳み（LensGraphs.select）。起点は型フィルタの対象外（起点自身が消えると意味を失う）
-    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth) {
+    val stopAtHubs = state.memory.lensStopAtHubs && origin != null && depth >= 2
+    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth, stopAtHubs) {
         LensGraphs.select(
             lensGraph,
-            LensSelectParams(typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap()),
+            LensSelectParams(typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap(), stopAtHubs),
         )
     }
     val visibleEdges = remember(selection, hiddenRelations.toMap()) {
@@ -243,7 +244,9 @@ fun GraphLensView(state: AppState) {
     val hiddenTypes = state.memory.lensHiddenTypes
     val expandedBoxes = state.memory.lensExpanded
     val depth = state.memory.lensDepth
-    val edgeRenderings = remember(model, state.indexVersion, state.editVersion, state.relations) {
+    // rememberLensModel と同じ条件（深さ 2 で起点があるときだけ効く）。効くときだけ配置の記録を分ける
+    val stopAtHubs = state.memory.lensStopAtHubs && origin != null && depth >= 2
+    val edgeRenderings =remember(model, state.indexVersion, state.editVersion, state.relations) {
         val profile = model.profile
         if (profile == null) emptyMap() else visibleEdges.filter { it.kind != LensEdgeKind.TIE }.mapNotNull { edge ->
             val bindings = profile.appearance?.edge(edge.relation).orEmpty()
@@ -275,12 +278,15 @@ fun GraphLensView(state: AppState) {
         ?.let { name -> LensLayoutKind.entries.firstOrNull { it.name == name } }
         ?.takeIf { it != LensLayoutKind.RADIAL || origin != null }
         ?: if (origin != null) LensLayoutKind.RADIAL else LensLayoutKind.STRESS
+    // 配置の調整: 覚えた選択のうち、選んだ配置の種類に効くものだけを配置と記録の区別に使う
+    val layoutOptions = LensLayoutOption.entries.filter { state.memory.lensLayoutOptions[it.name] == true && it.appliesTo(layoutKind) }.toSet()
 
     val density = LocalDensity.current
     val context = DiagramContext(mapOf("kind" to "lens", "level" to level.name.lowercase(), "mode" to mode.name.lowercase()),
-        mapOf("layout" to listOf(layoutKind.name.lowercase()), "origin" to listOfNotNull(origin), "depth" to listOf(depth.toString()),
+        withLayoutOptionSelection(mapOf("layout" to listOf(layoutKind.name.lowercase()), "origin" to listOfNotNull(origin), "depth" to listOf(depth.toString()),
             "hiddenTypes" to hiddenTypes.keys.sorted(), "hiddenRelations" to state.memory.lensHiddenRelations.keys.sorted(),
-            "appearance" to listOfNotNull(state.memory.lensAppearanceId)))
+            "appearance" to listOfNotNull(state.memory.lensAppearanceId)) + (if (stopAtHubs) mapOf("hubs" to listOf("stop")) else emptyMap()),
+            layoutOptions.map { it.key }))
     val positionMemory = remember(state.workspace, context) { state.diagramPositions(context) }
     fun nodeId(n: LensNode) = if (level == LensLevel.TYPE) DiagramNodeId("type", n.id)
         else n.occurrence?.let { DiagramNodeId("occurrence", n.id, it.document.value, it.path.pretty()) }
@@ -398,7 +404,7 @@ fun GraphLensView(state: AppState) {
         LensEdgeSpec(e.from, e.to, label?.let { it.size.width + 6f } ?: 0f, label?.size?.height?.toFloat() ?: 0f)
     }
     val computing = nodes.isNotEmpty() && arrangedFor != (input to layoutKind)
-    LaunchedEffect(input, layoutKind, bodies, edgeIndices, retained, positionMemory.positions, positionMemory.ready, rearrange) {
+    LaunchedEffect(input, layoutKind, layoutOptions, bodies, edgeIndices, retained, positionMemory.positions, positionMemory.ready, rearrange) {
         if (!positionMemory.ready) { arranging = false; return@LaunchedEffect }
         val reflow = rearrange != appliedRearrange
         val candidate = arranged?.let { a -> a.copy(result = GraphLayouts.withMovedNested(a.result, a.nested,
@@ -409,7 +415,7 @@ fun GraphLensView(state: AppState) {
             return@LaunchedEffect
         }
         arranging = true
-        val result = withContext(Dispatchers.Default) { runCatching { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin, if (reflow) fixed else retained) } }
+        val result = withContext(Dispatchers.Default) { runCatching { GraphLayouts.arrangeNested(input.nodes, input.edges, layoutKind, input.origin, if (reflow) fixed else retained, layoutOptions) } }
         result.onSuccess {
             val next = LensArranged(nodes, input.nodes, edgeIndices, it, bodies)
             arranged = next
@@ -453,10 +459,11 @@ fun GraphLensView(state: AppState) {
         LensAdjacency(neighbors, incident)
     }
     val originKeys = remember(nodes, origin) { nodes.filter { it.node.id == origin }.map { it.node.key }.toSet() }
-    val scene = remember(effective, originKeys, typeColors, idTexts, titleTexts, subTexts, labelTexts, paint) {
+    val hideLabels = state.memory.lensHideLabels
+    val scene = remember(effective, originKeys, typeColors, idTexts, titleTexts, subTexts, labelTexts, paint, hideLabels) {
         effective?.let { a ->
             val typeOfKey = a.nodes.associate { it.node.key to typeOf(it.node.id) }
-            LensScene(a, originKeys, { key -> typeColors[typeOfKey[key]] ?: paint.primary }, idTexts, titleTexts, subTexts, labelTexts, paint)
+            LensScene(a, originKeys, { key -> typeColors[typeOfKey[key]] ?: paint.primary }, idTexts, titleTexts, subTexts, labelTexts, paint, hideLabels)
         }
     }
 
@@ -592,6 +599,10 @@ fun GraphLensView(state: AppState) {
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
                     Text("深さ $depth", fontSize = 11.sp)
                 }
+                // 深さ 2 で、多くの箱から参照される箱を経由して全体へ広がるのを止める
+                if (depth >= 2) LensFilterItem(state.memory.lensStopAtHubs, { state.memory.lensStopAtHubs = it }) {
+                    Text("線が${LensGraphs.HUB_EDGES}本以上の箱の先は辿らない", fontSize = 11.sp)
+                }
                 TextButton(onClick = { if (level == LensLevel.TYPE) state.memory.lensTypeOrigin = null else state.lensOriginId = null },
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)) {
                     Text("起点を解除", fontSize = 11.sp)
@@ -665,6 +676,15 @@ fun GraphLensView(state: AppState) {
                     )
                 }
             }
+            DiagramLayoutOptionsMenu(LensLayoutOption.entries.map { option ->
+                val applies = option.appliesTo(layoutKind)
+                DiagramLayoutChoice(option.key, option.label, option.description, state.memory.lensLayoutOptions[option.name] == true, applies,
+                    if (applies) null else "${option.kinds.sortedBy { it.ordinal }.joinToString("・") { it.label }}配置で効きます")
+            }) { key, checked ->
+                val option = LensLayoutOption.entries.first { it.key == key }
+                if (checked) state.memory.lensLayoutOptions[option.name] = true else state.memory.lensLayoutOptions.remove(option.name)
+            }
+            DiagramLabelToggle(!state.memory.lensHideLabels) { state.memory.lensHideLabels = !it }
             Spacer(Modifier.width(8.dp))
             Text(if (fixed.isEmpty()) layoutKind.description else "再配置では未固定ノードだけを並べ直します（固定 ${fixed.size} 件）", fontSize = 10.sp, color = Palette.SubText)
             arranged?.result?.note?.let { note ->

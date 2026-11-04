@@ -72,6 +72,9 @@ private fun middle(points: List<Offset>): Offset {
     return points.firstOrNull() ?: Offset.Zero
 }
 
+/** 中央のラベルだけを外した見え方（「線のラベル」を隠すとき）。端の多重度などは記法の意味なので残す。 */
+internal fun DiagramEdgeVisual.withoutCenterLabel(): DiagramEdgeVisual = copy(style = style.copy(label = null), labelText = null)
+
 /** 端ラベルは論理的な始点・終点に合わせたstyleを使い、線と記号の横へ離す。 */
 internal fun diagramEdgeLabels(visual: DiagramEdgeVisual, raw: List<Offset>, center: Offset? = null): List<DiagramEdgeLabel> {
     val points = cleanPoints(raw)

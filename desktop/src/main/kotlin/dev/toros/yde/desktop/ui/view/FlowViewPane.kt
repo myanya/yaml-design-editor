@@ -180,6 +180,17 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
                 buttonText = "方向: ${directions.first { it.first == (display.direction ?: "default") }.second}") {
                 state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to display.copy(direction = it.takeUnless { it == "default" }))
             }
+            Spacer(Modifier.width(8.dp))
+            DiagramLayoutOptionsMenu(FlowLayoutOption.entries.map { DiagramLayoutChoice(it.key, it.label, it.description, it in display.options) }) { key, checked ->
+                val option = FlowLayoutOption.entries.first { it.key == key }
+                val current = state.flowDisplayOptions[displayKey] ?: display
+                state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to current.copy(
+                    options = if (checked) current.options + option else current.options - option))
+            }
+            DiagramLabelToggle(!display.hideLabels) { shown ->
+                val current = state.flowDisplayOptions[displayKey] ?: display
+                state.flowDisplayOptions = state.flowDisplayOptions + (displayKey to current.copy(hideLabels = !shown))
+            }
         }
         if (display.mode == FlowLayoutMode.SWIMLANES && model != null) {
             Text(if (model.lanes.isEmpty()) "レーンの定義がないため、担当別の帯は表示されません。"
@@ -190,7 +201,9 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
             if (model != null) FlowCanvas(state, model, display.directionOrDefault(view.direction), display.mode,
                 selected, Modifier.weight(1f).fillMaxHeight(), DiagramContext(
                     mapOf("kind" to "flow", "view" to view.id, "document" to document.value),
-                    mapOf("mode" to listOf(display.mode.name.lowercase()), "direction" to listOf(display.directionOrDefault(view.direction)))), choose)
+                    withLayoutOptionSelection(
+                        mapOf("mode" to listOf(display.mode.name.lowercase()), "direction" to listOf(display.directionOrDefault(view.direction))),
+                        display.options.map { it.key })), display.options, display.hideLabels, choose)
             else Text("フローを表示できません", color = Palette.ErrorRed, modifier = Modifier.weight(1f))
             Column(Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
                 val detail = when (selection?.kind) {
@@ -255,6 +268,8 @@ private fun FlowDetailForm(state: AppState, detail: FlowDetail) {
 internal fun FlowCanvas(
     state: AppState, model: FlowModel, direction: String, mode: FlowLayoutMode, selected: YPath?, modifier: Modifier,
     context: DiagramContext,
+    options: Set<FlowLayoutOption> = emptySet(),
+    hideLabels: Boolean = false,
     choose: (FlowElementKind, YPath) -> Unit,
 ) {
     val memory = remember(state.workspace, context) { state.diagramPositions(context) }
@@ -297,7 +312,7 @@ internal fun FlowCanvas(
     var computing by remember(context) { mutableStateOf(false) }
     var rearrange by remember(context) { mutableStateOf(0) }
     var appliedRearrange by remember(context) { mutableStateOf(0) }
-    val input = listOf(model, direction, mode, labelSizes, bodies)
+    val input = listOf(model, direction, mode, labelSizes, bodies, options)
     var layoutFor by remember(context) { mutableStateOf<List<Any>?>(null) }
     fun snapshot(a: FlowArrangement, pin: YPath? = null) =
         flowPositionSnapshot(model, mode, direction, labelSizes, a, density.density, memory.positions, pin)
@@ -315,7 +330,7 @@ internal fun FlowCanvas(
         layout = withContext(Dispatchers.Default) {
             runCatching { GraphLayouts.arrangeFlow(model,
                 labelSizes, direction, mode, bodies.mapValues { FlowSize(it.value.size.width, it.value.size.height) },
-                if (reflow) fixed else retained, if (reflow) emptyMap() else lanePositions) }
+                if (reflow) fixed else retained, if (reflow) emptyMap() else lanePositions, options) }
         }
         layoutFor = input; appliedRearrange = rearrange
         if (reflow) layout?.getOrNull()?.let { state.saveDiagramPositions(context, memory.positions + snapshot(it)) }
@@ -345,8 +360,8 @@ internal fun FlowCanvas(
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     val colors = diagramColors()
-    val scene = remember(model, routed, texts, bodies, edgeVisuals, colors, labelMeasures) {
-        withFlowLabels(FlowScene(model, routed, texts, bodies, edgeVisuals, colors, Palette.Selected), labelMeasures)
+    val scene = remember(model, routed, texts, bodies, edgeVisuals, colors, labelMeasures, hideLabels) {
+        withFlowLabels(FlowScene(model, routed, texts, bodies, edgeVisuals, colors, Palette.Selected, hideLabels), labelMeasures)
     }
     val arrangement = scene.arrangement
     fun fit() {
@@ -367,6 +382,8 @@ internal fun FlowCanvas(
     val latestChoose by rememberUpdatedState(choose)
     val latestBodies by rememberUpdatedState(bodies)
     val latestArrangement by rememberUpdatedState(arrangement)
+    val latestScene by rememberUpdatedState(scene)
+    val latestSelected by rememberUpdatedState(selected)
     val latestBase by rememberUpdatedState(base)
     fun laneContent(path: YPath, r: FlowRect): LensBox {
         val inset = PinnedFlow.inset(labelSizes, path, mode, direction, model.lanes.map { it.output })
@@ -466,7 +483,8 @@ internal fun FlowCanvas(
                     if (location != null) state.openFile(location.document, location.path) else latestChoose(FlowElementKind.NODE, node.key)
                 }
                 else latestArrangement.edges.lastOrNull { route ->
-                    route.label.contains(p) || scene.edgeVisuals[route.output]?.let { visual ->
+                    (latestScene.showsLabel(route.output, latestSelected) && route.output !in latestScene.edgeVisuals && route.label.contains(p)) ||
+                        latestScene.visualFor(route.output, latestSelected)?.let { visual ->
                         diagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) }, Offset(route.label.center.x, route.label.center.y))
                             .any { it.bounds.contains(Offset(p.x, p.y)) }
                     } == true || route.points.zipWithNext().any { (a, b) -> nearSegment(p, a, b, 8f / zoom) }

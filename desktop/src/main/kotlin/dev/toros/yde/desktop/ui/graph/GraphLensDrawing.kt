@@ -46,7 +46,13 @@ internal class LensScene(
     val subTexts: Map<String, TextLayoutResult>,
     val labelTexts: Map<String, TextLayoutResult>,
     val paint: LensPaint,
-)
+    /** 線の中央のラベルを隠す（ホバーした箱につながる線のラベルは出す）。端のラベルは残す。 */
+    val hideLabels: Boolean = false,
+) {
+    /** 辺 i の描く見え方（中央のラベルを隠すときは外す）。 */
+    fun visualFor(i: Int, shown: Boolean): DiagramEdgeVisual? =
+        arranged.edges.getOrNull(i)?.visual?.let { if (shown) it else it.withoutCenterLabel() }
+}
 
 // ================================================================ 描画（画面と PNG で共通）
 
@@ -158,7 +164,7 @@ internal fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, ad
                 drawPath(arrow, markColor, alpha = alpha)
             }
         }
-        if (zoom >= 0.5f) {
+        if (zoom >= 0.5f && (!scene.hideLabels || incident?.contains(i) == true)) {
             val text = edge?.label?.let { scene.labelTexts[it] } ?: return@forEachIndexed
             val c = route.label ?: return@forEachIndexed
             val w = text.size.width.toFloat()
@@ -168,7 +174,7 @@ internal fun DrawScope.drawLens(scene: LensScene, zoom: Float, hovered: Int?, ad
         }
     }
     if (zoom >= 0.5f) result.routes.forEachIndexed { i, route ->
-        a.edges.getOrNull(i)?.visual?.let { visual -> drawDiagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) },
+        scene.visualFor(i, !scene.hideLabels || incident?.contains(i) == true)?.let { visual -> drawDiagramEdgeLabels(visual, route.points.map { Offset(it.x, it.y) },
             route.label?.let { Offset(it.x, it.y) }, edgeAlpha(i)) }
     }
 }
@@ -179,8 +185,9 @@ internal fun lensBounds(scene: LensScene): androidx.compose.ui.geometry.Rect {
     val rectangles = result.boxes.map { androidx.compose.ui.geometry.Rect(it.x, it.y, it.x + it.width, it.y + it.height) }
     val labels = result.routes.flatMapIndexed { i, route ->
         val edge = scene.arranged.edges.getOrNull(i)
-        if (edge?.visual != null) diagramEdgeLabels(edge.visual, route.points.map { Offset(it.x, it.y) },
+        if (edge?.visual != null) diagramEdgeLabels(scene.visualFor(i, !scene.hideLabels)!!, route.points.map { Offset(it.x, it.y) },
             route.label?.let { Offset(it.x, it.y) }).map { it.bounds }
+        else if (scene.hideLabels) emptyList()
         else {
             val text = edge?.label?.let { scene.labelTexts[it] }
             val at = route.label
