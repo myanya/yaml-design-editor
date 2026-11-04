@@ -1,0 +1,31 @@
+id: RES-SCAN-RULE
+name: 添付検査結果ルール
+purpose: GuardDutyのS3マルウェア検査結果をWorkerへ渡す。
+resourceType: AWS::Events::Rule
+environment: ENV-PROD
+stack: STK-APP
+logicalId: ScanRule
+properties:
+  Name: portal-malware-results
+  State: ENABLED
+  EventPattern:
+    source:
+      - aws.guardduty
+    detail-type:
+      - GuardDuty Malware Protection Object Scan Result
+    detail:
+      s3ObjectDetails:
+        bucketName:
+          - ref: RES-S3-QUARANTINE
+  Targets:
+    - Id: ScanQueue
+      Arn:
+        ref: RES-QUEUE-SCAN
+        attribute: Arn
+      RetryPolicy:
+        MaximumEventAgeInSeconds: 3600
+        MaximumRetryAttempts: 10
+      DeadLetterConfig:
+        Arn:
+          ref: RES-DLQ-EVENT
+          attribute: Arn

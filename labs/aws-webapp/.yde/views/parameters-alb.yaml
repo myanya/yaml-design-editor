@@ -1,0 +1,36 @@
+id: parameters-alb
+name: ALBの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::ElasticLoadBalancingV2::LoadBalancer
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: Type
+    path: properties.Type
+    editable: true
+  - label: Scheme
+    path: properties.Scheme
+    editable: true
+  - label: IpAddressType
+    path: properties.IpAddressType
+    editable: true
+  - label: Subnets
+    path: properties.Subnets
+  - label: SecurityGroups
+    path: properties.SecurityGroups
+  - label: LoadBalancerAttributes
+    path: properties.LoadBalancerAttributes
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

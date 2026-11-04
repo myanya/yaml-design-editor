@@ -1,0 +1,26 @@
+id: RES-CLUSTER
+name: ECS Cluster
+purpose: APIとWorkerを実行する。
+resourceType: AWS::ECS::Cluster
+environment: ENV-PROD
+stack: STK-APP
+logicalId: Cluster
+properties:
+  ClusterSettings:
+    - Name: containerInsights
+      Value: enhanced
+  CapacityProviders:
+    - FARGATE
+  DefaultCapacityProviderStrategy:
+    - CapacityProvider: FARGATE
+      Weight: 1
+      Base: 2
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

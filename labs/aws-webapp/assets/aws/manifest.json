@@ -1,0 +1,127 @@
+﻿[
+    {
+        "file":  "cloudfront.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Networking-Content-Delivery/64/Arch_Amazon-CloudFront_64.svg",
+        "sha256":  "664919982792a69058077eaf39240afd320bbcbd082d36a9148184ec32708cd5"
+    },
+    {
+        "file":  "s3.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Storage/64/Arch_Amazon-Simple-Storage-Service_64.svg",
+        "sha256":  "b92c5101cc6565dd12df37655802279f8fba0c719279f62f93106d26750b36c6"
+    },
+    {
+        "file":  "alb.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Networking-Content-Delivery/64/Arch_Elastic-Load-Balancing_64.svg",
+        "sha256":  "eaaf3465e26d6e7cfae47d2da7bb8d727fe1bd3a118ed06614349e07039f8caa"
+    },
+    {
+        "file":  "fargate.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Containers/64/Arch_AWS-Fargate_64.svg",
+        "sha256":  "003cc5280deebfdd044db0a393be0cd7c35fd376013dd72950d7e5b60c7c1917"
+    },
+    {
+        "file":  "ecs.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Containers/64/Arch_Amazon-Elastic-Container-Service_64.svg",
+        "sha256":  "768688ef725e0e02c5817b218d2cb9dda45c1b76921872f607253da91d881552"
+    },
+    {
+        "file":  "aurora.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Databases/64/Arch_Amazon-Aurora_64.svg",
+        "sha256":  "0cbdccc29da3a25d4954dee4ac7afa4c2ae53dca9238bc4d995c3692e905ed4b"
+    },
+    {
+        "file":  "elasticache.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Databases/64/Arch_Amazon-ElastiCache_64.svg",
+        "sha256":  "d7f3d85f54a818a33d0772c56688cdd0453558295a39ec9894f4d107ea7ebef5"
+    },
+    {
+        "file":  "cognito.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_Amazon-Cognito_64.svg",
+        "sha256":  "cf9c55baa325d5d07aea0054115b1b24d68c1d7e046a4f8a360ccdefbba507e9"
+    },
+    {
+        "file":  "sqs.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Application-Integration/64/Arch_Amazon-Simple-Queue-Service_64.svg",
+        "sha256":  "bbab2545dccba2e11aff74e42c7f8078a9051b14b16114e539da1c4b09bdbdcd"
+    },
+    {
+        "file":  "ses.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Business-Applications/64/Arch_Amazon-Simple-Email-Service_64.svg",
+        "sha256":  "5c0e6fac68ba71af3febf40540aba7b177ae152a571ce1e15312f47bfef0c60e"
+    },
+    {
+        "file":  "vpc.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Networking-Content-Delivery/64/Arch_Amazon-Virtual-Private-Cloud_64.svg",
+        "sha256":  "4a2c292527ce28a95d9038ab7e6be818751ffef0a91aabb5de2e61045150a98d"
+    },
+    {
+        "file":  "route53.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Networking-Content-Delivery/64/Arch_Amazon-Route-53_64.svg",
+        "sha256":  "24c50725731048a342c329ad400a08e820b5832af04e5890a7b93d7f39e7fc56"
+    },
+    {
+        "file":  "acm.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_AWS-Certificate-Manager_64.svg",
+        "sha256":  "ec7c5df9ea77015288adcc2cb7c84395c04361c3b0e5f05c68da99e10e6c54da"
+    },
+    {
+        "file":  "waf.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_AWS-WAF_64.svg",
+        "sha256":  "3bfa7a5af38e550346b1828bead1cd3a35436fa19e1bf82f6cf6a366250cf65a"
+    },
+    {
+        "file":  "eventbridge.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Application-Integration/64/Arch_Amazon-EventBridge_64.svg",
+        "sha256":  "7e8eed6f3d27692c6abbfa2b04095760b727ba23a37d54129ef3530c001a9a1d"
+    },
+    {
+        "file":  "secrets.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_AWS-Secrets-Manager_64.svg",
+        "sha256":  "c3941b75fe0ad1181696c1dbbd5f9d1fe4561879e195b1e68bb6dc35a99da6b3"
+    },
+    {
+        "file":  "kms.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_AWS-Key-Management-Service_64.svg",
+        "sha256":  "5b3ed298ae380707f77ca21c2f417d0a7a36e70e59bfe9a5d8f281b8447ae750"
+    },
+    {
+        "file":  "iam.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_AWS-Identity-and-Access-Management_64.svg",
+        "sha256":  "3135793557c065d0481a3985ccc0574b36278d56a2e2c5d59107d0d28f51b827"
+    },
+    {
+        "file":  "cloudwatch.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Management-Tools/64/Arch_Amazon-CloudWatch_64.svg",
+        "sha256":  "a84b5b88172ab39170eaa6154345332d755758a37cda6a5580981cf679e01c0b"
+    },
+    {
+        "file":  "ecr.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Containers/64/Arch_Amazon-Elastic-Container-Registry_64.svg",
+        "sha256":  "bec34a867cb424de91592470a14e82556dd9b041231b5e070ca846752d1c719f"
+    },
+    {
+        "file":  "pipeline.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Developer-Tools/64/Arch_AWS-CodePipeline_64.svg",
+        "sha256":  "df45199990a2fe4f60f6cf8ef5dc9cc49890066a58dc42bf8c128a264910be67"
+    },
+    {
+        "file":  "build.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Developer-Tools/64/Arch_AWS-CodeBuild_64.svg",
+        "sha256":  "4bf05b39b350a75ba7fca996644badf46919b16c46a08c1271efcd8a1515f5ff"
+    },
+    {
+        "file":  "securityhub.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Security-Identity/64/Arch_AWS-Security-Hub_64.svg",
+        "sha256":  "859a10c10cbcf52e21baa1b7b98f8b50fd467c3616ec673f53a265fa3df8d8e5"
+    },
+    {
+        "file":  "backup.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Storage/64/Arch_AWS-Backup_64.svg",
+        "sha256":  "edd0a9be3690f4a122939cd22bf7e7773c84ed8181ce8ab0f5159d4c5c1b41a8"
+    },
+    {
+        "file":  "sns.svg",
+        "original":  "Architecture-Service-Icons_07312026/Arch_Application-Integration/64/Arch_Amazon-Simple-Notification-Service_64.svg",
+        "sha256":  "f0781cd57174dd2ddfe2d2033566c73f5c0bf8192610eec5194e7a7756187dfe"
+    }
+]

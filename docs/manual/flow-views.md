@@ -1,6 +1,6 @@
 # フロービュー
 
-`kind: flow`で、1文書をノード・辺・レーンへ変換できます。台帳の「フロー」タブ、文書フォームへの埋め込み、CLIとエージェントの`read_view`で利用できます。
+`kind: flow`で、文書の内容や複数文書のクエリ結果をノード・辺・レーンへ変換できます。台帳の「フロー」タブ、文書フォームへの埋め込み、CLIとエージェントの`read_view`で利用できます。
 
 図の「PNG に保存」で、表示中の配置を画像に書き出せます。記法の画像・区画・端点記号も含まれます。
 ノード内のカラムなどへ線を接続する場合は、共通の[ポート](diagram-notations.md#ポートで行へ接続する)を記法で指定します。
@@ -71,6 +71,45 @@ projection:
         to: {$copy: to}
         detail: {$copy: .}
 ```
+
+## 複数文書の設定から図を導く
+
+`sources`にクエリ変換を並べると、各変換の結果がその`id`の配列として`projection`へ渡ります。
+たとえばサービスの設定が個別の文書に分かれていても、設定の参照を辿って構成図を作れます。図のための接続文書や転記は要りません。
+
+```yaml
+sources:
+  - id: services
+    from:
+      match: [{node: {entity: service, bind: service}}]
+      limit: 1000
+    build: {$copy: .}
+projection:
+  id: services-diagram
+  build:
+    nodes:
+      $each: services
+      $build:
+        key: {$copy: id}
+        label: {$copy: name}
+        detail: {$copy: .}
+    edges:
+      $each: services
+      $build:
+        $when: {path: target, exists: true}
+        from: {$copy: id}
+        to: {$copy: target}
+        detail: {$copy: .}
+```
+
+`match`・`schemaId`は図を開く対象文書を選びます。sourcesがある場合、その文書は`document`というキーで入力に残ります。
+sourcesを省略すると、従来どおり対象文書そのものが入力です。
+
+- 各sourceは既存の[変換](../architecture/transform.md)で、`from`が必須です。外部`params`とsources間の参照は使えません。
+- sourceのIDは英字から始まる英数字・`_`・`-`で、重複と予約名`document`は使えません。
+- 未保存の設定変更も同じ索引と原本から解決し、Undoも通常の編集経路を使います。
+- 丸ごと写した単一原本をeachで表示する詳細は、その原本を編集できます。複数原本を結合した詳細は出どころへの移動で確認します。
+- クエリの打切りや、未解決参照で経路を辿れない場合は診断に出ます。空の図や一部の辺だけを見て設定の正しさを判断せず、ワークスペースの検証も実行してください。
 
 ## 実行
 

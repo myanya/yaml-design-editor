@@ -1,0 +1,18 @@
+id: RES-EIP-A
+name: NAT用EIP A
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::EC2::EIP
+environment: ENV-PROD
+stack: STK-NET
+logicalId: EipA
+properties:
+  Domain: vpc
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

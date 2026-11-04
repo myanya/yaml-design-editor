@@ -1,0 +1,28 @@
+id: ALM-MAIL
+name: メール苦情率
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmMail
+properties:
+  AlarmName: portal-alm-mail
+  AlarmDescription: メール苦情率
+  Namespace: AWS/SES
+  MetricName: Reputation.ComplaintRate
+  Dimensions: []
+  Statistic: Average
+  Threshold: 0.001
+  Period: 300
+  EvaluationPeriods: 1
+  DatapointsToAlarm: 1
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-QUEUE
+  attribute: Literal

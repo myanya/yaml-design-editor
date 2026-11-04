@@ -1,0 +1,18 @@
+id: RES-SCALE-POLICY-WORKER
+name: WORKERのCPU追従スケール
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ApplicationAutoScaling::ScalingPolicy
+environment: ENV-PROD
+stack: STK-APP
+logicalId: ScalePolicyWorker
+properties:
+  PolicyName: portal-worker-cpu
+  PolicyType: TargetTrackingScaling
+  ScalingTargetId:
+    ref: RES-SCALE-WORKER
+  TargetTrackingScalingPolicyConfiguration:
+    TargetValue: 60
+    ScaleInCooldown: 300
+    ScaleOutCooldown: 60
+    PredefinedMetricSpecification:
+      PredefinedMetricType: ECSServiceAverageCPUUtilization

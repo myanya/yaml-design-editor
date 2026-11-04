@@ -1,0 +1,16 @@
+id: SETTING-ECR-SCAN
+name: ECRレジストリの拡張スキャン
+service: ecr
+action: PutRegistryScanningConfiguration
+account:
+  ref: INPUT-PROD-ACCOUNT
+  attribute: Parameter
+region: ap-northeast-1
+request:
+  scanType: ENHANCED
+  rules:
+    - scanFrequency: CONTINUOUS_SCAN
+      repositoryFilters:
+        - filter: '*'
+          filterType: WILDCARD
+verification: GetRegistryScanningConfigurationでENHANCEDとCONTINUOUS_SCANを照合する。

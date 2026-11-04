@@ -26,7 +26,7 @@ import java.util.Locale
 data class TransformOrigin(val output: YPath, val document: DocumentId?, val path: YPath)
 
 /** 変換の結果: 組み立てた項（何も得られなければ null）と、値の出どころ。 */
-class TransformResult(val term: YNode?, val origins: List<TransformOrigin>)
+class TransformResult(val term: YNode?, val origins: List<TransformOrigin>, val query: SemanticQueryResult? = null)
 
 /**
  * 「YAML から YAML への変換」の評価器（P27 段C。計算体系の6つ目の体系「組み立て」＝CORE-CALCULUS §26）。宣言は schema.TransformDef。
@@ -87,7 +87,8 @@ object SemanticTransform {
         val spec = def.from ?: error("変換「${def.id}」は、呼び出し側が入力の項を渡す定義です（from がありません）")
         val trees = HashMap<DocumentId, YNode?>()
         fun tree(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
-        val rows = SemanticQuery.run(ids, refs, graph, spec, loader = ::tree).rows
+        val query = SemanticQuery.run(ids, refs, graph, spec, loader = ::tree)
+        val rows = query.rows
         val origins = mutableListOf<TransformOrigin>()
         val items = mutableListOf<YNode>()
         for (row in rows) {
@@ -100,7 +101,7 @@ object SemanticTransform {
             items += built
             origins += run.origins
         }
-        return TransformResult(YNode.Seq(items), origins)
+        return TransformResult(YNode.Seq(items), origins, query)
     }
 
     /** 束縛の要素の場所: エンティティは、文書の指定に合う出現のうち定義した側を優先して1つ・文書はそのルート。 */

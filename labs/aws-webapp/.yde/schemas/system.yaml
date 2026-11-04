@@ -1,0 +1,76 @@
+id: aws-system
+name: aws-system
+kind: document
+match: model/system.yaml
+root:
+  type: object
+  unknownFields: error
+  entity:
+    type: system
+    defines: true
+  fields:
+    - key: id
+      label: システムID
+      type: id
+      required: true
+    - key: name
+      label: 名称
+      type: string
+      role: title
+      required: true
+    - key: environment
+      label: 環境
+      type: ref
+      idPattern: ENV-*
+      relation: inEnvironment
+      required: true
+    - key: publicUrl
+      label: 利用者の公開URL
+      type: string
+      required: true
+    - key: description
+      label: 説明
+      type: text
+      required: true
+    - key: publicDns
+      label: 公開URLのDNSレコード
+      type: binding
+      required: true
+definitions:
+  binding:
+    type: object
+    unknownFields: error
+    fields:
+      - key: ref
+        label: 参照先
+        type: ref
+        relation: uses
+      - key: attribute
+        label: 展開する属性
+        type: string
+        default: Ref
+      - key: suffix
+        label: 属性に付ける末尾
+        type: string
+      - key: literal
+        label: 固定文字列
+        type: string
+    constraints:
+      - id: binding-present
+        description: 参照先か固定文字列のいずれかを指定する
+        where:
+          - path: ref
+            exists: false
+          - path: literal
+            exists: false
+        expect: absent
+        level: error
+      - id: binding-exclusive
+        description: 参照先と固定文字列を同時に指定しない
+        where:
+          - path: ref
+            exists: true
+          - path: literal
+            exists: true
+        expect: absent
+        level: error

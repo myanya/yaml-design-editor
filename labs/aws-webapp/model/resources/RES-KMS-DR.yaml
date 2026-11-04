@@ -1,0 +1,65 @@
+id: RES-KMS-DR
+name: 復旧保管CMK
+purpose: 暗号化と鍵管理者の責務を分離。
+resourceType: AWS::KMS::Key
+environment: ENV-DR
+stack: STK-DR
+logicalId: KmsDr
+properties:
+  Description: Portal res-kms-dr
+  EnableKeyRotation: true
+  RotationPeriodInDays: 365
+  KeyUsage: ENCRYPT_DECRYPT
+  KeySpec: SYMMETRIC_DEFAULT
+  Enabled: true
+  PendingWindowInDays: 30
+  KeyPolicy:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: AccountAdministration
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-BACKUP-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:*
+        Resource:
+          - '*'
+      - Sid: ProductionBackupCopy
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-PROD-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:Encrypt
+          - kms:Decrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          - kms:DescribeKey
+        Resource:
+          - '*'
+      - Sid: GrantForProductionBackup
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-PROD-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:CreateGrant
+        Resource:
+          - '*'
+        Condition:
+          Bool:
+            kms:GrantIsForAWSResource: 'true'
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: dr
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

@@ -1,0 +1,31 @@
+id: RES-QUEUE-EVENT-POLICY
+name: 検査イベントのQueue配送権限
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::SQS::QueuePolicy
+environment: ENV-PROD
+stack: STK-APP
+logicalId: QueueEventPolicy
+properties:
+  Queues:
+    - ref: RES-QUEUE-SCAN
+    - ref: RES-DLQ-EVENT
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: EventBridgeSend
+        Effect: Allow
+        Action:
+          - sqs:SendMessage
+        Resource:
+          - ref: RES-QUEUE-SCAN
+            attribute: Arn
+          - ref: RES-DLQ-EVENT
+            attribute: Arn
+        Principal:
+          Service:
+            - events.amazonaws.com
+        Condition:
+          ArnEquals:
+            aws:SourceArn:
+              ref: RES-SCAN-RULE
+              attribute: Arn

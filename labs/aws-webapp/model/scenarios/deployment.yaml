@@ -1,0 +1,43 @@
+id: SCN-DEPLOYMENT
+name: 配備の承認と切戻し
+description: 設計入力からリリース成果物までを追跡する。
+steps:
+  - id: STEP-DEPLOYMENT-1
+    name: ビルドと検査
+    lane: platform
+    resources:
+      - RES-BUILD
+      - RES-ECR-API
+      - RES-ECR-WORKER
+    behavior: 試験・SBOM・脆弱性検査を通しdigestを確定。
+    failure: 重大な脆弱性の例外は期限と責任者を記録。
+    next:
+      - STEP-DEPLOYMENT-2
+  - id: STEP-DEPLOYMENT-2
+    name: 差分の承認
+    lane: operations
+    resources:
+      - RES-PIPELINE
+    behavior: ChangeSet・IAM/ネットワーク差分・DB migrationをレビュー。
+    failure: 生成入力と完成したCFnテンプレートを取り違えない。
+    next:
+      - STEP-DEPLOYMENT-3
+  - id: STEP-DEPLOYMENT-3
+    name: 段階的更新
+    lane: platform
+    resources:
+      - RES-SERVICE-API
+      - RES-SERVICE-WORKER
+    behavior: rolling更新、drain、circuit breakerで健全性を確認。
+    failure: 異常時は直前のdigestへrollback。
+    next:
+      - STEP-DEPLOYMENT-4
+  - id: STEP-DEPLOYMENT-4
+    name: 利用者経路を確認
+    lane: operations
+    resources:
+      - RES-CANARY
+      - RES-CDN
+    behavior: 認証から業務処理までスモークしreleaseIdを記録。
+    failure: 破壊的DB migrationのrollbackを自動化できたと仮定しない。
+    next: []

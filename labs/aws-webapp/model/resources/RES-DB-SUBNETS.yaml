@@ -1,0 +1,21 @@
+id: RES-DB-SUBNETS
+name: AuroraのSubnet Group
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::RDS::DBSubnetGroup
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: DbSubnets
+properties:
+  DBSubnetGroupDescription: Aurora private data subnets
+  SubnetIds:
+    - ref: RES-SUB-DATA-A
+    - ref: RES-SUB-DATA-B
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

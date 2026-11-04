@@ -1,0 +1,66 @@
+id: parameters-alarms
+name: CloudWatch Alarmの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::CloudWatch::Alarm
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: AlarmName
+    path: properties.AlarmName
+    editable: true
+  - label: AlarmDescription
+    path: properties.AlarmDescription
+    editable: true
+  - label: Namespace
+    path: properties.Namespace
+    editable: true
+  - label: MetricName
+    path: properties.MetricName
+    editable: true
+  - label: Dimensions
+    path: properties.Dimensions
+  - label: Statistic
+    path: properties.Statistic
+    editable: true
+  - label: Threshold
+    path: properties.Threshold
+    editable: true
+  - label: Period
+    path: properties.Period
+    editable: true
+  - label: EvaluationPeriods
+    path: properties.EvaluationPeriods
+    editable: true
+  - label: DatapointsToAlarm
+    path: properties.DatapointsToAlarm
+    editable: true
+  - label: ComparisonOperator
+    path: properties.ComparisonOperator
+    editable: true
+  - label: TreatMissingData
+    path: properties.TreatMissingData
+    editable: true
+  - label: ActionsEnabled
+    path: properties.ActionsEnabled
+    editable: true
+  - label: AlarmActions
+    path: properties.AlarmActions
+  - label: OKActions
+    path: properties.OKActions
+  - label: ExtendedStatistic
+    path: properties.ExtendedStatistic
+    editable: true
+  - label: Metrics
+    path: properties.Metrics
+  - label: 採用理由
+    path: designNote

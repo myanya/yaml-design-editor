@@ -1,0 +1,31 @@
+id: parameters-subnets
+name: Subnetの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::EC2::Subnet
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: VpcId
+    path: properties.VpcId
+  - label: CidrBlock
+    path: properties.CidrBlock
+    editable: true
+  - label: AvailabilityZoneId
+    path: properties.AvailabilityZoneId
+  - label: MapPublicIpOnLaunch
+    path: properties.MapPublicIpOnLaunch
+    editable: true
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

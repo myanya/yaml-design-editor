@@ -1,0 +1,51 @@
+id: aws-operations
+name: ログ・監視・バックアップ・対応手順
+kind: document
+match: model/operations.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: runbooks
+      label: 運用手順
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: trigger
+            label: 開始条件
+            type: text
+            required: true
+          - key: owner
+            label: 担当
+            type: line
+            required: true
+          - key: steps
+            label: 手順
+            type: array
+            required: true
+            item:
+              type: text
+          - key: success
+            label: 終了判定
+            type: text
+            required: true
+          - key: escalation
+            label: エスカレーション
+            type: text
+            required: true
+        entity:
+          type: runbook
+          defines: true
+constraints: []

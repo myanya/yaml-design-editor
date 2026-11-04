@@ -1,0 +1,17 @@
+id: RES-SESSION-USER
+name: セッション専用Valkeyユーザー
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ElastiCache::User
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: SessionUser
+properties:
+  UserId: portal-session
+  UserName: portal-session
+  Engine: valkey
+  AccessString: on ~session:* -@all +get +set +del +expire +pexpire +ttl +pttl +ping
+  AuthenticationMode:
+    Type: password
+    Passwords:
+      - ref: RES-SECRET-SESSION
+        attribute: SecretString:password

@@ -1,0 +1,35 @@
+id: ALM-TASK
+name: API稼働タスクが2未満
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmTask
+properties:
+  AlarmName: portal-alm-task
+  AlarmDescription: API稼働タスクが2未満
+  Namespace: ECS/ContainerInsights
+  MetricName: RunningTaskCount
+  Dimensions:
+    - Name: ClusterName
+      Value:
+        ref: RES-CLUSTER
+    - Name: ServiceName
+      Value:
+        ref: RES-SERVICE-API
+        attribute: Name
+  Statistic: Average
+  Threshold: 2
+  Period: 60
+  EvaluationPeriods: 5
+  DatapointsToAlarm: 5
+  ComparisonOperator: LessThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

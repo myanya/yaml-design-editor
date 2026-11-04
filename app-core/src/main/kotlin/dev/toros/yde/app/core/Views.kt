@@ -186,6 +186,8 @@ object Views {
             override val notations get() = loaded?.notations ?: dev.toros.yde.workspace.DiagramDefinitions.builtins
             override fun grid(id: String): VirtualGridDef? = loaded?.view(id)
             override fun rows(grid: VirtualGridDef): List<VirtualRow> = resolve(grid, index, loader, schemaFor)
+            override fun transform(def: dev.toros.yde.semantic.schema.TransformDef): dev.toros.yde.semantic.TransformResult =
+                dev.toros.yde.semantic.SemanticTransform.run(def, index.entries, index.refs, index.graph, loader = loader)
             override val document: DocumentId? = document
             override fun tree(document: DocumentId): YNode? = loader(document)
             override fun schemaId(document: DocumentId): String? = schemaFor(document)?.id

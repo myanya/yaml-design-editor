@@ -1,0 +1,12 @@
+id: RES-CONFIG-RULE-RDS-PUBLIC
+name: RDS_INSTANCE_PUBLIC_ACCESS_CHECK
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Config::ConfigRule
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: ConfigRuleRdsPublic
+properties:
+  ConfigRuleName: portal-rds-public
+  Source:
+    Owner: AWS
+    SourceIdentifier: RDS_INSTANCE_PUBLIC_ACCESS_CHECK

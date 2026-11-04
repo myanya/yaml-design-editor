@@ -1,0 +1,55 @@
+id: SCN-RESTORE
+name: 大阪への復元演習
+description: バックアップの存在から、業務を再開できることの実証へ進む。
+steps:
+  - id: STEP-RESTORE-1
+    name: 復旧点と宣言
+    lane: operations
+    resources:
+      - RES-VAULT-DR
+      - RES-DB
+    behavior: 最後に成功した復元点と影響範囲を確定する。
+    failure: 書込停止と二重稼働防止を決める。
+    next:
+      - STEP-RESTORE-2
+  - id: STEP-RESTORE-2
+    name: 基盤を再構築
+    lane: operations
+    resources:
+      - RES-PIPELINE
+      - RES-KMS-DR
+    behavior: 大阪へIaC・コンテナ・IdP設定・Secretsを再構築する。
+    failure: CFn入力の生成だけでは復旧できない。完全な展開器と手順を別途完成させる。
+    next:
+      - STEP-RESTORE-3
+  - id: STEP-RESTORE-3
+    name: データを復元
+    lane: platform
+    resources:
+      - RES-VAULT-DR
+      - RES-S3-FILES
+      - RES-DB
+    behavior: DBとS3を復元して添付versionの参照整合を検査。
+    failure: 復旧先ID/ARNの差替えとCMK権限を確認。
+    next:
+      - STEP-RESTORE-4
+  - id: STEP-RESTORE-4
+    name: 業務を確認
+    lane: application
+    resources:
+      - RES-SESSION
+      - RES-COGNITO
+      - RES-SERVICE-API
+    behavior: 空のセッションから再ログインし申請/認可/帳票を試験。
+    failure: 既存セッションをコピーして復活させない。
+    next:
+      - STEP-RESTORE-5
+  - id: STEP-RESTORE-5
+    name: 切替と計測
+    lane: operations
+    resources:
+      - RES-DNS
+      - RES-CDN
+    behavior: 承認後に切替し、復元点時刻とRTO/RPO実測を記録。
+    failure: 8時間/24時間を未実測で達成済みとしない。
+    next: []

@@ -1,0 +1,5 @@
+ledger:
+  - model
+files:
+  outside: error
+  missing: error

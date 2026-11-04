@@ -1,0 +1,13 @@
+id: RES-COGNITO-DOMAIN
+name: Cognitoログインのドメイン
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Cognito::UserPoolDomain
+environment: ENV-PROD
+stack: STK-IDENTITY
+logicalId: CognitoDomain
+properties:
+  UserPoolId:
+    ref: RES-COGNITO
+  Domain:
+    ref: INPUT-COGNITO-DOMAIN
+    attribute: Parameter

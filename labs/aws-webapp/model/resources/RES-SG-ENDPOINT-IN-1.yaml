@@ -1,0 +1,15 @@
+id: RES-SG-ENDPOINT-IN-1
+name: Endpoint Security Group 受信 1
+purpose: SGの具体的な通信規則。SG本体の相互依存を避けて個別に管理する。
+resourceType: AWS::EC2::SecurityGroupIngress
+environment: ENV-PROD
+stack: STK-NET
+logicalId: SgEndpointIn1
+properties:
+  GroupId:
+    ref: RES-SG-ENDPOINT
+  IpProtocol: tcp
+  FromPort: 443
+  ToPort: 443
+  SourceSecurityGroupId:
+    ref: RES-SG-APP

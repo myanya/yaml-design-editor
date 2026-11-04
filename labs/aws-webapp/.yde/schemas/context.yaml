@@ -1,0 +1,221 @@
+id: aws-context
+name: 組織・環境・配備単位
+kind: document
+match: model/context.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: accounts
+      label: AWSアカウント
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: role
+            label: 役割
+            type: enum
+            values:
+              - management
+              - security
+              - log-archive
+              - production
+              - staging
+              - development
+              - backup
+            required: true
+          - key: owner
+            label: 管理責任者
+            type: line
+            required: true
+          - key: accountIdInput
+            label: 実Account IDの入力
+            type: ref
+            required: true
+            idPattern: INPUT-*
+            relation: uses
+          - key: policy
+            label: 責務・境界
+            type: text
+            required: true
+        entity:
+          type: account
+          defines: true
+    - key: environments
+      label: 環境
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: account
+            label: AWSアカウント
+            type: ref
+            idPattern: ACC-*
+            relation: inAccount
+            required: true
+          - key: region
+            label: 主リージョン
+            type: word
+            required: true
+          - key: stage
+            label: 段階
+            type: enum
+            values:
+              - prod
+              - stg
+              - dev
+              - shared
+            required: true
+          - key: azCount
+            label: AZ数
+            type: int
+            required: true
+            min: 1
+            max: 3
+          - key: policy
+            label: 環境方針
+            type: text
+            required: true
+        entity:
+          type: environment
+          defines: true
+    - key: zones
+      label: AZ
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: environment
+            label: 環境
+            type: ref
+            idPattern: ENV-*
+            relation: inEnvironment
+            required: true
+          - key: availabilityZoneIdInput
+            label: AZ IDの入力
+            type: ref
+            required: true
+            idPattern: INPUT-*
+            relation: uses
+          - key: selectionPolicy
+            label: 選定条件
+            type: text
+            required: true
+        entity:
+          type: zone
+          defines: true
+    - key: stacks
+      label: 配備単位
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: environment
+            label: 環境
+            type: ref
+            idPattern: ENV-*
+            relation: inEnvironment
+            required: true
+          - key: account
+            label: アカウント
+            type: ref
+            idPattern: ACC-*
+            relation: inAccount
+            required: true
+          - key: region
+            label: リージョン
+            type: word
+            required: true
+          - key: ownership
+            label: 管理範囲
+            type: enum
+            values:
+              - application
+              - platform
+            required: true
+          - key: prerequisites
+            label: 前提Stack
+            type: array
+            item:
+              type: ref
+              idPattern: STK-*
+              relation: stackDependsOn
+          - key: deploymentPolicy
+            label: 適用順序・境界
+            type: text
+            required: true
+        entity:
+          type: stack
+          defines: true
+    - key: externals
+      label: 外部サービス
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: provider
+            label: 提供者
+            type: line
+            required: true
+          - key: contract
+            label: 接続・責任分界
+            type: text
+            required: true
+        entity:
+          type: external
+          defines: true

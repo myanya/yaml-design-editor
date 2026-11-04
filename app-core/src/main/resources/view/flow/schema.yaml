@@ -6,6 +6,18 @@ kind:
   label: フロービュー
   description: 文書をprojectionでノード・辺・レーンへ変換する
 fields:
+  - key: sources
+    label: 複数文書からの入力
+    type: array
+    description: クエリ変換の結果をid名の配列としてprojectionへ渡す。元の文書はdocumentから読む
+    item:
+      type: object
+      fields:
+        - {key: id, label: 入力名, type: string, required: true}
+        - {key: description, label: 説明, type: text}
+        - {key: from, label: 選ぶクエリ, type: any, required: true}
+        - {key: build, label: 入力のひな型, type: any, required: true}
+        - {key: rules, label: 子に当てる規則, type: array, item: {type: any}}
   - key: layout
     label: フローの配置
     type: object

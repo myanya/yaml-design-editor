@@ -1,0 +1,27 @@
+id: RES-S3-QUARANTINE-POLICY
+name: アップロード隔離のBucket Policy
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::S3::BucketPolicy
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: S3QuarantinePolicy
+properties:
+  Bucket:
+    ref: RES-S3-QUARANTINE
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyInsecureTransport
+        Effect: Deny
+        Principal: '*'
+        Action:
+          - s3:*
+        Resource:
+          - ref: RES-S3-QUARANTINE
+            attribute: Arn
+          - ref: RES-S3-QUARANTINE
+            attribute: Arn
+            suffix: /*
+        Condition:
+          Bool:
+            aws:SecureTransport: 'false'

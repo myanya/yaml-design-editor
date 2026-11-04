@@ -1,0 +1,24 @@
+id: RES-ACM-EDGE
+name: CloudFront証明書
+purpose: 公開ドメインのTLS終端。
+resourceType: AWS::CertificateManager::Certificate
+environment: ENV-PROD
+stack: STK-EDGE-CERT
+logicalId: AcmEdge
+properties:
+  DomainName: portal.example.com
+  ValidationMethod: DNS
+  DomainValidationOptions:
+    - DomainName: portal.example.com
+      HostedZoneId:
+        ref: INPUT-HOSTED-ZONE
+        attribute: Parameter
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

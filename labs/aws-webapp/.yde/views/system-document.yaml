@@ -1,0 +1,13 @@
+id: system-document
+name: WEBアプリの構成設計
+kind: document
+schemaId: aws-system
+sections:
+  - label: システム
+    fields: {}
+  - label: 全体構成
+    flow:
+      view: architecture-flow
+  - label: 入口の詳細
+    flow:
+      view: entry-flow

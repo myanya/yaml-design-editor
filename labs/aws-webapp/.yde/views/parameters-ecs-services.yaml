@@ -1,0 +1,55 @@
+id: parameters-ecs-services
+name: ECS Serviceの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::ECS::Service
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: Cluster
+    path: properties.Cluster
+  - label: TaskDefinition
+    path: properties.TaskDefinition
+  - label: LaunchType
+    path: properties.LaunchType
+    editable: true
+  - label: PlatformVersion
+    path: properties.PlatformVersion
+    editable: true
+  - label: DesiredCount
+    path: properties.DesiredCount
+    editable: true
+  - label: AvailabilityZoneRebalancing
+    path: properties.AvailabilityZoneRebalancing
+    editable: true
+  - label: EnableExecuteCommand
+    path: properties.EnableExecuteCommand
+    editable: true
+  - label: NetworkConfiguration
+    path: properties.NetworkConfiguration
+  - label: DeploymentConfiguration
+    path: properties.DeploymentConfiguration
+  - label: HealthCheckGracePeriodSeconds
+    path: properties.HealthCheckGracePeriodSeconds
+    editable: true
+  - label: LoadBalancers
+    path: properties.LoadBalancers
+  - label: PropagateTags
+    path: properties.PropagateTags
+    editable: true
+  - label: EnableECSManagedTags
+    path: properties.EnableECSManagedTags
+    editable: true
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

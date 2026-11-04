@@ -1,0 +1,70 @@
+id: RES-ROLE-BACKUP
+name: 保護対象を取得するBackup Role
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: RoleBackup
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: BackupService
+        Effect: Allow
+        Principal:
+          Service:
+            - backup.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  ManagedPolicyArns:
+    - arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup
+    - arn:aws:iam::aws:policy/AWSBackupServiceRolePolicyForS3Backup
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+  Policies:
+    - PolicyName: portal-cross-account-copy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CopyVaults
+            Effect: Allow
+            Action:
+              - backup:CopyFromBackupVault
+              - backup:CopyIntoBackupVault
+            Resource:
+              - ref: RES-VAULT-PRIMARY
+                attribute: BackupVaultArn
+              - ref: RES-VAULT-DR
+                attribute: BackupVaultArn
+          - Sid: CopyKeys
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource:
+              - ref: RES-KMS-DATA
+                attribute: Arn
+              - ref: RES-KMS-DR
+                attribute: Arn
+          - Sid: CopyGrants
+            Effect: Allow
+            Action:
+              - kms:CreateGrant
+            Resource:
+              - ref: RES-KMS-DATA
+                attribute: Arn
+              - ref: RES-KMS-DR
+                attribute: Arn
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'

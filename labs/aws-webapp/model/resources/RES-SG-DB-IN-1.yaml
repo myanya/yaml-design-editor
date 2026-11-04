@@ -1,0 +1,15 @@
+id: RES-SG-DB-IN-1
+name: DB Security Group 受信 1
+purpose: SGの具体的な通信規則。SG本体の相互依存を避けて個別に管理する。
+resourceType: AWS::EC2::SecurityGroupIngress
+environment: ENV-PROD
+stack: STK-NET
+logicalId: SgDbIn1
+properties:
+  GroupId:
+    ref: RES-SG-DB
+  IpProtocol: tcp
+  FromPort: 5432
+  ToPort: 5432
+  SourceSecurityGroupId:
+    ref: RES-SG-APP

@@ -95,4 +95,19 @@ class FlowViewDefinitionsTest {
         assertTrue(result.errors.single().contains("example"))
         assertTrue(ViewDefinitions.lintDocument(YamlIO.parse(flow), source, schemas, kinds).single().contains("example"))
     }
+
+    @Test
+    fun `クエリ入力の重複と予約名と外部入力と文書変換を拒否する`() {
+        val input = "{id: items, from: {match: [{node: {bind: item}}]}, build: {${'$'}copy: .}}"
+        val good = ViewDefinitions.load(listOf(source to (flow + "\nsources: [$input]")), kinds = kinds)
+        assertTrue(good.errors.isEmpty(), good.errors.toString())
+        assertEquals("items", (good.extensionViews.single() as VirtualFlowDef).sources.single().id)
+        listOf("[]", "{}", "[$input, $input]", "[${input.replace("id: items", "id: document")}]",
+            "[${input.replace("id: items", "id: 'a.b'")}]", "[{id: items, build: []}]",
+            "[${input.replace("id: items", "id: items, params: [environment]")}]").forEach { sources ->
+            val result = ViewDefinitions.load(listOf(source to (flow + "\nsources: $sources")), kinds = kinds)
+            assertTrue(result.errors.isNotEmpty(), sources)
+            assertTrue(result.extensionViews.isEmpty(), sources)
+        }
+    }
 }

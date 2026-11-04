@@ -1,0 +1,22 @@
+id: RES-CACHE-API
+name: API・認証のキャッシュ無効
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudFront::CachePolicy
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: CacheApi
+properties:
+  CachePolicyConfig:
+    Name: portal-no-cache
+    MinTTL: 0
+    DefaultTTL: 0
+    MaxTTL: 0
+    ParametersInCacheKeyAndForwardedToOrigin:
+      EnableAcceptEncodingGzip: false
+      EnableAcceptEncodingBrotli: false
+      CookiesConfig:
+        CookieBehavior: none
+      HeadersConfig:
+        HeaderBehavior: none
+      QueryStringsConfig:
+        QueryStringBehavior: none

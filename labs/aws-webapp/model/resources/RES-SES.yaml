@@ -1,0 +1,14 @@
+id: RES-SES
+name: 通知メールドメイン
+purpose: 申請・承認・帳票完成を通知する。
+resourceType: AWS::SES::EmailIdentity
+environment: ENV-PROD
+stack: STK-APP
+logicalId: Ses
+properties:
+  EmailIdentity: example.com
+  DkimAttributes:
+    SigningEnabled: true
+  ConfigurationSetAttributes:
+    ConfigurationSetName:
+      ref: RES-SES-CONFIG

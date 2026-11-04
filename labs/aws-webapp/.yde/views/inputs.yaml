@@ -1,0 +1,22 @@
+id: inputs
+name: 実環境に束縛する入力
+kind: grid
+rows:
+  match:
+    - node:
+        entity: deployment-input
+        bind: r
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: 状態
+    path: state
+    editable: true
+  - label: 束縛値
+    path: value
+    editable: true
+  - label: 入力例
+    path: example
+  - label: 機密
+    path: secret

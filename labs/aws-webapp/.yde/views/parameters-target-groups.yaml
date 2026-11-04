@@ -1,0 +1,60 @@
+id: parameters-target-groups
+name: Target Groupの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::ElasticLoadBalancingV2::TargetGroup
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: VpcId
+    path: properties.VpcId
+  - label: TargetType
+    path: properties.TargetType
+    editable: true
+  - label: Protocol
+    path: properties.Protocol
+    editable: true
+  - label: Port
+    path: properties.Port
+    editable: true
+  - label: ProtocolVersion
+    path: properties.ProtocolVersion
+    editable: true
+  - label: HealthCheckProtocol
+    path: properties.HealthCheckProtocol
+    editable: true
+  - label: HealthCheckPort
+    path: properties.HealthCheckPort
+    editable: true
+  - label: HealthCheckPath
+    path: properties.HealthCheckPath
+    editable: true
+  - label: HealthCheckIntervalSeconds
+    path: properties.HealthCheckIntervalSeconds
+    editable: true
+  - label: HealthCheckTimeoutSeconds
+    path: properties.HealthCheckTimeoutSeconds
+    editable: true
+  - label: HealthyThresholdCount
+    path: properties.HealthyThresholdCount
+    editable: true
+  - label: UnhealthyThresholdCount
+    path: properties.UnhealthyThresholdCount
+    editable: true
+  - label: Matcher
+    path: properties.Matcher
+  - label: TargetGroupAttributes
+    path: properties.TargetGroupAttributes
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

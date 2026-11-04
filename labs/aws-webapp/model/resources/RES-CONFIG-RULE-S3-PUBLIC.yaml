@@ -1,0 +1,12 @@
+id: RES-CONFIG-RULE-S3-PUBLIC
+name: S3_BUCKET_PUBLIC_READ_PROHIBITED
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Config::ConfigRule
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: ConfigRuleS3Public
+properties:
+  ConfigRuleName: portal-s3-public
+  Source:
+    Owner: AWS
+    SourceIdentifier: S3_BUCKET_PUBLIC_READ_PROHIBITED

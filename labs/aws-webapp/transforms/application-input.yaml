@@ -1,0 +1,10 @@
+id: aws-application-input
+description: Taskが使用する実行設定。生成側でシンボルを束縛してAPP_CONFIGへシリアライズする。
+from:
+  match:
+    - node:
+        entity: application-settings
+        bind: app
+  limit: 10000
+build:
+  $copy: .

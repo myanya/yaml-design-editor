@@ -1,0 +1,12 @@
+id: RES-CONFIG-RULE-TRAIL
+name: CLOUD_TRAIL_ENABLED
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Config::ConfigRule
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: ConfigRuleTrail
+properties:
+  ConfigRuleName: portal-trail
+  Source:
+    Owner: AWS
+    SourceIdentifier: CLOUD_TRAIL_ENABLED

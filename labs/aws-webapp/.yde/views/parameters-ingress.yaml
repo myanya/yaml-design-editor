@@ -1,0 +1,34 @@
+id: parameters-ingress
+name: SG受信規則の全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::EC2::SecurityGroupIngress
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: GroupId
+    path: properties.GroupId
+  - label: IpProtocol
+    path: properties.IpProtocol
+    editable: true
+  - label: FromPort
+    path: properties.FromPort
+    editable: true
+  - label: ToPort
+    path: properties.ToPort
+    editable: true
+  - label: SourcePrefixListId
+    path: properties.SourcePrefixListId
+  - label: SourceSecurityGroupId
+    path: properties.SourceSecurityGroupId
+  - label: 採用理由
+    path: designNote

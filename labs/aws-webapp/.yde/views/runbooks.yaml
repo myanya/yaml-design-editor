@@ -1,0 +1,17 @@
+id: runbooks
+name: 運用手順
+kind: grid
+rows:
+  match:
+    - node:
+        entity: runbook
+        bind: r
+columns:
+  - label: 名称
+    path: name
+  - label: 開始条件
+    path: trigger
+  - label: 担当
+    path: owner
+  - label: 終了判定
+    path: success

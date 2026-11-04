@@ -1,0 +1,23 @@
+id: RES-NAT-B
+name: NAT B
+purpose: 外部IdP/外部API等への外向きHTTPS。
+resourceType: AWS::EC2::NatGateway
+environment: ENV-PROD
+stack: STK-NET
+logicalId: NatB
+properties:
+  AllocationId:
+    ref: RES-EIP-B
+    attribute: AllocationId
+  SubnetId:
+    ref: RES-SUB-PUB-B
+  ConnectivityType: public
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

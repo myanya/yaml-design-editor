@@ -1,0 +1,47 @@
+id: RES-CANARY
+name: 利用者経路の合成監視
+purpose: DNS・TLS・配信・認証・APIを利用者視点で確かめる。
+resourceType: AWS::Synthetics::Canary
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: Canary
+properties:
+  Name: portal-home
+  RuntimeVersion: syn-nodejs-puppeteer-18.0
+  ExecutionRoleArn:
+    ref: RES-ROLE-CANARY
+    attribute: Arn
+  ArtifactS3Location:
+    ref: RES-S3-CANARY
+    attribute: S3Uri
+    suffix: /canary
+  Schedule:
+    Expression: rate(1 minute)
+  RunConfig:
+    TimeoutInSeconds: 45
+    MemoryInMB: 1024
+  SuccessRetentionPeriod: 7
+  FailureRetentionPeriod: 31
+  StartCanaryAfterCreation: true
+  Code:
+    Handler: index.handler
+    Script: |
+      const https = require('https');
+      exports.handler = async () => new Promise((resolve, reject) => {
+        const r = https.get('https://portal.example.com/', res => {
+          res.resume();
+          res.on('end', () => res.statusCode === 200 ? resolve() : reject(new Error('status=' + res.statusCode)));
+        });
+        r.setTimeout(15000, () => r.destroy(new Error('timeout')));
+        r.on('error', reject);
+      });
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: 公開トップページのHTTP到達を検査する。ログイン後の業務機能の正常性は別の機能試験で確認する。

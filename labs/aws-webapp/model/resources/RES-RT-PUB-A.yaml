@@ -1,0 +1,19 @@
+id: RES-RT-PUB-A
+name: PUB経路 A
+purpose: 層ごとの通信境界。
+resourceType: AWS::EC2::RouteTable
+environment: ENV-PROD
+stack: STK-NET
+logicalId: RtPubA
+properties:
+  VpcId:
+    ref: RES-VPC
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

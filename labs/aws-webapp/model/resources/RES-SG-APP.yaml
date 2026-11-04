@@ -1,0 +1,26 @@
+id: RES-SG-APP
+name: API Security Group
+purpose: 最小の送受信規則。
+resourceType: AWS::EC2::SecurityGroup
+environment: ENV-PROD
+stack: STK-NET
+logicalId: SgApp
+properties:
+  GroupDescription: portal app
+  VpcId:
+    ref: RES-VPC
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+  SecurityGroupEgress:
+    - IpProtocol: tcp
+      FromPort: 1
+      ToPort: 1
+      CidrIp: 127.0.0.1/32
+designNote: 443の外向き通信はNAT/Endpointを経由。DB・セッション・Endpointのegressは既定全許可を作らないダミー拒否先。応答はSGのステートフル性で許可。

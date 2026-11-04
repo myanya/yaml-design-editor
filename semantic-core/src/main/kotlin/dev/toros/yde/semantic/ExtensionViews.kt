@@ -1,6 +1,7 @@
 package dev.toros.yde.semantic
 
 import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
@@ -51,6 +52,9 @@ interface ViewContext {
 
     /** 表の行。 */
     fun rows(grid: VirtualGridDef): List<VirtualRow>
+
+    /** 同じ索引と未保存優先の原本でクエリ変換を実行する。結果の来歴・打切り・未解決も渡す。 */
+    fun transform(def: TransformDef): TransformResult = error("クエリ変換の入力が提供されていません")
 
     /** 文書に縛られる種類が解決する対象の文書（null＝渡されていない）。 */
     val document: DocumentId? get() = null

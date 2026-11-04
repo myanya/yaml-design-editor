@@ -1,0 +1,234 @@
+accounts:
+  - id: ACC-MGMT
+    name: 組織管理
+    role: management
+    owner: クラウド基盤チーム
+    policy: Organizations・SCP・請求のみ。業務ワークロードを置かない。
+    accountIdInput: INPUT-MGMT-ACCOUNT
+  - id: ACC-SEC
+    name: セキュリティ管理
+    role: security
+    owner: セキュリティ統括
+    policy: 委任管理者として検出結果を集約し、業務運用者と分離する。
+    accountIdInput: INPUT-SECURITY-ACCOUNT
+  - id: ACC-LOG
+    name: ログアーカイブ
+    role: log-archive
+    owner: クラウド基盤チーム
+    policy: 組織証跡の保管。発生元に削除権限を渡さない。
+    accountIdInput: INPUT-LOG-ACCOUNT
+  - id: ACC-PROD
+    name: 本番
+    role: production
+    owner: クラウド基盤チーム
+    policy: 本番の業務データ。個人IAMユーザーを作らず短期資格情報を使う。
+    accountIdInput: INPUT-PROD-ACCOUNT
+  - id: ACC-STG
+    name: 検証
+    role: staging
+    owner: クラウド基盤チーム
+    policy: 本番相当の試験。実データを持ち込まず合成データを使う。
+    accountIdInput: INPUT-STG-ACCOUNT
+  - id: ACC-DEV
+    name: 開発
+    role: development
+    owner: クラウド基盤チーム
+    policy: 開発専用。夜間停止と予算の上限通知を設ける。
+    accountIdInput: INPUT-DEV-ACCOUNT
+  - id: ACC-BACKUP
+    name: 復旧保管
+    role: backup
+    owner: クラウド基盤チーム
+    policy: 本番運用者から分離したバックアップ保管と復旧先。
+    accountIdInput: INPUT-BACKUP-ACCOUNT
+environments:
+  - id: ENV-PROD
+    name: 本番・東京
+    account: ACC-PROD
+    region: ap-northeast-1
+    stage: prod
+    azCount: 2
+    policy: この題材で具体的なAWS資源を設計する環境。数値は初期設計値であり性能保証ではない。
+  - id: ENV-STG
+    name: 検証・東京
+    account: ACC-STG
+    region: ap-northeast-1
+    stage: stg
+    azCount: 2
+    policy: 境界とAZ数を本番に合わせる。具体的な資源一式と差分適用は今後の展開対象。
+  - id: ENV-DEV
+    name: 開発・東京
+    account: ACC-DEV
+    region: ap-northeast-1
+    stage: dev
+    azCount: 1
+    policy: 費用を抑える別アカウント。HAの評価対象外。具体的な資源一式は今後の展開対象。
+  - id: ENV-SEC
+    name: 組織セキュリティ
+    account: ACC-SEC
+    region: ap-northeast-1
+    stage: shared
+    azCount: 1
+    policy: 委任管理者で集約する。
+  - id: ENV-LOG
+    name: 組織ログ
+    account: ACC-LOG
+    region: ap-northeast-1
+    stage: shared
+    azCount: 1
+    policy: 書込専用の配送権限と閲覧・管理権限を分離する。
+  - id: ENV-MGMT
+    name: 組織管理
+    account: ACC-MGMT
+    region: us-east-1
+    stage: shared
+    azCount: 1
+    policy: Organizationsと請求管理のみ。
+  - id: ENV-DR
+    name: 復旧・大阪
+    account: ACC-BACKUP
+    region: ap-northeast-3
+    stage: shared
+    azCount: 2
+    policy: コールドリストア。常時稼働の第二サイトは用意しない。
+zones:
+  - id: AZ-PROD-A
+    name: 本番 AZ A
+    environment: ENV-PROD
+    selectionPolicy: >-
+      利用アカウントでAZ IDを確定する。A/Bは論理名で、ap-northeast-1a等を固定しない。CloudFront VPC Origin非対応のapne1-az3を除外し、A/Bで異なるAZ
+      IDを選ぶ。
+    availabilityZoneIdInput: INPUT-AZ-A
+  - id: AZ-PROD-B
+    name: 本番 AZ B
+    environment: ENV-PROD
+    selectionPolicy: >-
+      利用アカウントでAZ IDを確定する。A/Bは論理名で、ap-northeast-1a等を固定しない。CloudFront VPC Origin非対応のapne1-az3を除外し、A/Bで異なるAZ
+      IDを選ぶ。
+    availabilityZoneIdInput: INPUT-AZ-B
+stacks:
+  - id: STK-ORG
+    name: 組織統制
+    environment: ENV-MGMT
+    account: ACC-MGMT
+    region: us-east-1
+    ownership: platform
+    prerequisites: []
+    deploymentPolicy: 組織基盤チームが先に作成し、アプリには契約を公開する。
+  - id: STK-LOG
+    name: 監査保管
+    environment: ENV-LOG
+    account: ACC-LOG
+    region: ap-northeast-1
+    ownership: platform
+    prerequisites:
+      - STK-ORG
+    deploymentPolicy: 配送先バケット・鍵・ポリシーを先に準備する。
+  - id: STK-SEC
+    name: セキュリティ統合
+    environment: ENV-SEC
+    account: ACC-SEC
+    region: ap-northeast-1
+    ownership: platform
+    prerequisites:
+      - STK-ORG
+      - STK-LOG
+    deploymentPolicy: 委任管理・有効化対象リージョンを確認する。
+  - id: STK-DR
+    name: 大阪復旧保管
+    environment: ENV-DR
+    account: ACC-BACKUP
+    region: ap-northeast-3
+    ownership: platform
+    prerequisites:
+      - STK-ORG
+    deploymentPolicy: コピー対応表とCMK、Organizationsの前提を確認して有効化する。
+  - id: STK-NET
+    name: 本番ネットワーク
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: platform
+    prerequisites:
+      - STK-ORG
+    deploymentPolicy: VPC→Subnet→経路→Endpoint→SG。VPC Origin用にIGWをアタッチする。
+  - id: STK-DATA
+    name: 本番データ
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: application
+    prerequisites:
+      - STK-NET
+      - STK-DR
+    deploymentPolicy: 鍵・Secrets・Subnet Group・Parameter Group・DB・Valkey・S3を、各資源の設定と依存を確認して配備する。
+  - id: STK-OPS
+    name: 本番運用
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: platform
+    prerequisites:
+      - STK-LOG
+      - STK-NET
+    deploymentPolicy: ロググループ、通知、監視、バックアップ。監視の最終紐付けはアプリ配備後。
+  - id: STK-IDENTITY
+    name: 本番認証
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: application
+    prerequisites:
+      - STK-ORG
+    deploymentPolicy: 企業IdPのメタデータ・Client設定・コールバックURLを別途供給する。
+  - id: STK-APP
+    name: 本番アプリ
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: application
+    prerequisites:
+      - STK-NET
+      - STK-DATA
+      - STK-OPS
+      - STK-IDENTITY
+    deploymentPolicy: IAM・キュー・コンテナ・ALBを配備。イメージdigestは配備入力。
+  - id: STK-EDGE-CERT
+    name: エッジ証明書とWAF
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: us-east-1
+    ownership: application
+    prerequisites:
+      - STK-LOG
+    deploymentPolicy: CloudFront用ACMとCLOUDFRONT WAFをus-east-1に作成する。ARNを別リージョンへ明示的に引き渡す。
+  - id: STK-EDGE
+    name: 配信とDNS
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: application
+    prerequisites:
+      - STK-APP
+      - STK-DATA
+      - STK-EDGE-CERT
+    deploymentPolicy: VPC Origin作成→Distribution→DNS。DNS切替はスモークテスト後。
+  - id: STK-DELIVERY
+    name: 配備パイプライン
+    environment: ENV-PROD
+    account: ACC-PROD
+    region: ap-northeast-1
+    ownership: platform
+    prerequisites:
+      - STK-ORG
+      - STK-DATA
+    deploymentPolicy: 最初のECR・イメージ登録はbootstrap。アプリ稼働後に自己配備を有効にする。
+externals:
+  - id: EXT-IDP
+    name: 企業IdP
+    provider: 企業のSAML 2.0 IdP
+    contract: MFA・入退社管理はIdP側。subjectの安定性、属性更新、停止時の業務側セッション失効を接続契約に含める。
+  - id: EXT-GIT
+    name: ソース管理
+    provider: GitHub Enterprise等
+    contract: 保護ブランチ・必須レビュー・署名・短期接続資格情報。リポジトリ名と接続ARNは配備時に供給する。

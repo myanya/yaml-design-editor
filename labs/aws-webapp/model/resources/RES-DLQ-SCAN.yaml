@@ -1,0 +1,26 @@
+id: RES-DLQ-SCAN
+name: SCAN Dead Letter Queue
+purpose: 失敗を隔離して原因確認後に再駆動する。
+resourceType: AWS::SQS::Queue
+environment: ENV-PROD
+stack: STK-APP
+logicalId: DlqScan
+properties:
+  QueueName: portal-dlq-scan
+  VisibilityTimeout: 300
+  MessageRetentionPeriod: 1209600
+  ReceiveMessageWaitTimeSeconds: 20
+  MaximumMessageSize: 262144
+  KmsMasterKeyId:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  KmsDataKeyReusePeriodSeconds: 300
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

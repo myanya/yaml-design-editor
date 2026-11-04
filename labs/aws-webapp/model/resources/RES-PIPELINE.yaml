@@ -1,0 +1,125 @@
+id: RES-PIPELINE
+name: 本番配備パイプライン
+purpose: 承認付きで再現可能な配備を行う。
+resourceType: AWS::CodePipeline::Pipeline
+environment: ENV-PROD
+stack: STK-DELIVERY
+logicalId: Pipeline
+properties:
+  Name: portal-production
+  RoleArn:
+    ref: RES-ROLE-PIPELINE
+    attribute: Arn
+  PipelineType: V2
+  ExecutionMode: QUEUED
+  RestartExecutionOnUpdate: false
+  ArtifactStore:
+    Type: S3
+    Location:
+      ref: RES-S3-ARTIFACT
+    EncryptionKey:
+      Type: KMS
+      Id:
+        ref: RES-KMS-DATA
+        attribute: Arn
+  Stages:
+    - Name: Source
+      Actions:
+        - Name: Source
+          ActionTypeId:
+            Category: Source
+            Owner: AWS
+            Provider: CodeStarSourceConnection
+            Version: '1'
+          Configuration:
+            ConnectionArn:
+              ref: INPUT-SOURCE-CONNECTION
+              attribute: Parameter
+            FullRepositoryId:
+              ref: INPUT-SOURCE-REPOSITORY
+              attribute: Parameter
+            BranchName: main
+            DetectChanges: 'true'
+          InputArtifacts: []
+          OutputArtifacts:
+            - Name: Source
+          RunOrder: 1
+    - Name: BuildAndTest
+      Actions:
+        - Name: Build
+          ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: '1'
+          Configuration:
+            ProjectName:
+              ref: RES-BUILD
+          InputArtifacts:
+            - Name: Source
+          OutputArtifacts:
+            - Name: Images
+          RunOrder: 1
+    - Name: ProductionApproval
+      Actions:
+        - Name: Approve
+          ActionTypeId:
+            Category: Approval
+            Owner: AWS
+            Provider: Manual
+            Version: '1'
+          Configuration:
+            NotificationArn:
+              ref: RES-ALERTS
+            CustomData: テスト・イメージ検査・設定差分と切戻し手順を確認する
+          InputArtifacts: []
+          OutputArtifacts: []
+          RunOrder: 1
+    - Name: Deploy
+      Actions:
+        - Name: DeployAPI
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: ECS
+            Version: '1'
+          Configuration:
+            ClusterName:
+              ref: RES-CLUSTER
+            ServiceName:
+              ref: RES-SERVICE-API
+              attribute: Name
+            FileName: api-imagedefinitions.json
+            DeploymentTimeout: '15'
+          InputArtifacts:
+            - Name: Images
+          OutputArtifacts: []
+          RunOrder: 1
+        - Name: DeployWORKER
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: ECS
+            Version: '1'
+          Configuration:
+            ClusterName:
+              ref: RES-CLUSTER
+            ServiceName:
+              ref: RES-SERVICE-WORKER
+              attribute: Name
+            FileName: worker-imagedefinitions.json
+            DeploymentTimeout: '15'
+          InputArtifacts:
+            - Name: Images
+          OutputArtifacts: []
+          RunOrder: 1
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: 初回Task用イメージは入力で束縛する。以後のPipelineはコミットSHAの不変Tagを配備し、ECSのdigest解決で固定する。承認にはInspectorの検査結果も含める。

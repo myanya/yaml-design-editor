@@ -1,0 +1,76 @@
+id: parameters-sessions
+name: Valkeyの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::ElastiCache::ReplicationGroup
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: ReplicationGroupDescription
+    path: properties.ReplicationGroupDescription
+    editable: true
+  - label: Engine
+    path: properties.Engine
+    editable: true
+  - label: EngineVersion
+    path: properties.EngineVersion
+    editable: true
+  - label: CacheNodeType
+    path: properties.CacheNodeType
+    editable: true
+  - label: NumCacheClusters
+    path: properties.NumCacheClusters
+    editable: true
+  - label: MultiAZEnabled
+    path: properties.MultiAZEnabled
+    editable: true
+  - label: AutomaticFailoverEnabled
+    path: properties.AutomaticFailoverEnabled
+    editable: true
+  - label: CacheSubnetGroupName
+    path: properties.CacheSubnetGroupName
+  - label: CacheParameterGroupName
+    path: properties.CacheParameterGroupName
+  - label: SecurityGroupIds
+    path: properties.SecurityGroupIds
+  - label: Port
+    path: properties.Port
+    editable: true
+  - label: TransitEncryptionEnabled
+    path: properties.TransitEncryptionEnabled
+    editable: true
+  - label: TransitEncryptionMode
+    path: properties.TransitEncryptionMode
+    editable: true
+  - label: AtRestEncryptionEnabled
+    path: properties.AtRestEncryptionEnabled
+    editable: true
+  - label: KmsKeyId
+    path: properties.KmsKeyId
+  - label: UserGroupIds
+    path: properties.UserGroupIds
+  - label: SnapshotRetentionLimit
+    path: properties.SnapshotRetentionLimit
+    editable: true
+  - label: SnapshotWindow
+    path: properties.SnapshotWindow
+    editable: true
+  - label: PreferredMaintenanceWindow
+    path: properties.PreferredMaintenanceWindow
+    editable: true
+  - label: AutoMinorVersionUpgrade
+    path: properties.AutoMinorVersionUpgrade
+    editable: true
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

@@ -1,0 +1,24 @@
+id: foundation
+name: 組織・サービスのAPI設定
+kind: grid
+rows:
+  match:
+    - node:
+        entity: service-setting
+        bind: r
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: サービス
+    path: service
+  - label: 操作
+    path: action
+  - label: Account
+    path: account
+  - label: Region
+    path: region
+  - label: 要求設定
+    path: request
+  - label: 確認方法
+    path: verification

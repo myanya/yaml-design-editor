@@ -1,0 +1,24 @@
+id: RES-ACM-ALB
+name: ALB証明書
+purpose: CloudFrontから内部ALBまでTLSで保護。
+resourceType: AWS::CertificateManager::Certificate
+environment: ENV-PROD
+stack: STK-APP
+logicalId: AcmAlb
+properties:
+  DomainName: origin.portal.example.com
+  ValidationMethod: DNS
+  DomainValidationOptions:
+    - DomainName: origin.portal.example.com
+      HostedZoneId:
+        ref: INPUT-HOSTED-ZONE
+        attribute: Parameter
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

@@ -1,0 +1,14 @@
+id: RES-CONFIG-DELIVERY
+name: Configの配送先
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Config::DeliveryChannel
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: ConfigDelivery
+properties:
+  Name: portal-delivery
+  S3BucketName:
+    ref: RES-S3-ORG-LOG
+  S3KeyPrefix: config
+  ConfigSnapshotDeliveryProperties:
+    DeliveryFrequency: TwentyFour_Hours

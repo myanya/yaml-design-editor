@@ -1,0 +1,75 @@
+id: parameters-db
+name: Aurora Clusterの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::RDS::DBCluster
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: Engine
+    path: properties.Engine
+    editable: true
+  - label: EngineVersion
+    path: properties.EngineVersion
+    editable: true
+  - label: EngineMode
+    path: properties.EngineMode
+    editable: true
+  - label: DatabaseName
+    path: properties.DatabaseName
+    editable: true
+  - label: Port
+    path: properties.Port
+    editable: true
+  - label: DBSubnetGroupName
+    path: properties.DBSubnetGroupName
+  - label: DBClusterParameterGroupName
+    path: properties.DBClusterParameterGroupName
+  - label: VpcSecurityGroupIds
+    path: properties.VpcSecurityGroupIds
+  - label: MasterUsername
+    path: properties.MasterUsername
+    editable: true
+  - label: ManageMasterUserPassword
+    path: properties.ManageMasterUserPassword
+    editable: true
+  - label: MasterUserSecret
+    path: properties.MasterUserSecret
+  - label: StorageEncrypted
+    path: properties.StorageEncrypted
+    editable: true
+  - label: KmsKeyId
+    path: properties.KmsKeyId
+  - label: BackupRetentionPeriod
+    path: properties.BackupRetentionPeriod
+    editable: true
+  - label: PreferredBackupWindow
+    path: properties.PreferredBackupWindow
+    editable: true
+  - label: PreferredMaintenanceWindow
+    path: properties.PreferredMaintenanceWindow
+    editable: true
+  - label: DeletionProtection
+    path: properties.DeletionProtection
+    editable: true
+  - label: EnableCloudwatchLogsExports
+    path: properties.EnableCloudwatchLogsExports
+  - label: CopyTagsToSnapshot
+    path: properties.CopyTagsToSnapshot
+    editable: true
+  - label: Tags
+    path: properties.Tags
+  - label: DBClusterIdentifier
+    path: properties.DBClusterIdentifier
+    editable: true
+  - label: 採用理由
+    path: designNote

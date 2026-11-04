@@ -1,0 +1,78 @@
+id: RES-KMS-DATA
+name: 業務データCMK
+purpose: 暗号化と鍵管理者の責務を分離。
+resourceType: AWS::KMS::Key
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: KmsData
+properties:
+  Description: Portal res-kms-data
+  EnableKeyRotation: true
+  RotationPeriodInDays: 365
+  KeyUsage: ENCRYPT_DECRYPT
+  KeySpec: SYMMETRIC_DEFAULT
+  Enabled: true
+  PendingWindowInDays: 30
+  KeyPolicy:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: AccountAdministration
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-PROD-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:*
+        Resource:
+          - '*'
+      - Sid: EventBridgeQueueEncryption
+        Effect: Allow
+        Principal:
+          Service:
+            - events.amazonaws.com
+        Action:
+          - kms:GenerateDataKey
+          - kms:Decrypt
+        Resource:
+          - '*'
+        Condition:
+          StringEquals:
+            aws:SourceAccount:
+              ref: INPUT-PROD-ACCOUNT
+              attribute: Parameter
+      - Sid: ShareForBackupCopy
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-BACKUP-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:Decrypt
+          - kms:ReEncryptFrom
+          - kms:DescribeKey
+        Resource:
+          - '*'
+      - Sid: GrantForBackupCopy
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-BACKUP-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:CreateGrant
+        Resource:
+          - '*'
+        Condition:
+          Bool:
+            kms:GrantIsForAWSResource: 'true'
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

@@ -1,0 +1,13 @@
+id: RES-HUB
+name: SecurityHubCSPM
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::SecurityHub::Hub
+environment: ENV-SEC
+stack: STK-SEC
+logicalId: Hub
+properties:
+  EnableDefaultStandards: true
+  AutoEnableControls: true
+  ControlFindingGenerator: SECURITY_CONTROL
+  Tags:
+    System: approval-portal

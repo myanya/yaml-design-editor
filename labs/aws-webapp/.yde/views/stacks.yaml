@@ -1,0 +1,22 @@
+id: stacks
+name: 配備単位とリージョン
+kind: grid
+rows:
+  match:
+    - node:
+        entity: stack
+        bind: r
+columns:
+  - label: 名称
+    path: name
+  - label: 環境
+    path: environment
+  - label: アカウント
+    path: account
+  - label: リージョン
+    path: region
+  - label: 前提
+    path: prerequisites
+  - label: 配備方針
+    path: deploymentPolicy
+    editable: true

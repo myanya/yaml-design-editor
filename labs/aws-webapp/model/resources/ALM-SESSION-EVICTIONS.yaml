@@ -1,0 +1,34 @@
+id: ALM-SESSION-EVICTIONS
+name: セッションの追い出し
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmSessionEvictions
+properties:
+  AlarmName: portal-alm-session-evictions
+  AlarmDescription: セッションの追い出し
+  Namespace: AWS/ElastiCache
+  MetricName: Evictions
+  Dimensions:
+    - Name: CacheClusterId
+      Value:
+        ref: INPUT-CACHE-PRIMARY-ID
+        attribute: Parameter
+    - Name: CacheNodeId
+      Value: '0001'
+  Statistic: Sum
+  Threshold: 0
+  Period: 60
+  EvaluationPeriods: 1
+  DatapointsToAlarm: 1
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-SESSION
+  attribute: Literal

@@ -1,0 +1,22 @@
+id: RES-CACHE-STATIC
+name: 静的ファイルのキャッシュ
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudFront::CachePolicy
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: CacheStatic
+properties:
+  CachePolicyConfig:
+    Name: portal-static-cache
+    MinTTL: 0
+    DefaultTTL: 3600
+    MaxTTL: 86400
+    ParametersInCacheKeyAndForwardedToOrigin:
+      EnableAcceptEncodingGzip: true
+      EnableAcceptEncodingBrotli: true
+      CookiesConfig:
+        CookieBehavior: none
+      HeadersConfig:
+        HeaderBehavior: none
+      QueryStringsConfig:
+        QueryStringBehavior: none

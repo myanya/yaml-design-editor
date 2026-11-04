@@ -1,0 +1,17 @@
+id: RES-VPC-ORIGIN
+name: CloudFront VPC Origin
+purpose: 内部ALBをCloudFrontのオリジンとして接続する。
+resourceType: AWS::CloudFront::VpcOrigin
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: VpcOrigin
+properties:
+  VpcOriginEndpointConfig:
+    Name: portal-private-origin
+    Arn:
+      ref: RES-ALB
+    HTTPPort: 80
+    HTTPSPort: 443
+    OriginProtocolPolicy: https-only
+    OriginSSLProtocols:
+      - TLSv1.2

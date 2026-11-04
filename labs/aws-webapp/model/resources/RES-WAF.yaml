@@ -1,0 +1,76 @@
+id: RES-WAF
+name: エッジWAF
+purpose: 既知の攻撃と過剰な要求を軽減する。
+resourceType: AWS::WAFv2::WebACL
+environment: ENV-PROD
+stack: STK-EDGE-CERT
+logicalId: Waf
+properties:
+  Name: portal-edge
+  Scope: CLOUDFRONT
+  DefaultAction:
+    Allow: {}
+  VisibilityConfig:
+    CloudWatchMetricsEnabled: true
+    SampledRequestsEnabled: false
+    MetricName: portal-waf
+  Rules:
+    - Name: AWSManagedRulesCommonRuleSet
+      Priority: 1
+      OverrideAction:
+        None: {}
+      Statement:
+        ManagedRuleGroupStatement:
+          VendorName: AWS
+          Name: AWSManagedRulesCommonRuleSet
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        SampledRequestsEnabled: false
+        MetricName: AWSManagedRulesCommonRuleSet
+    - Name: AWSManagedRulesKnownBadInputsRuleSet
+      Priority: 2
+      OverrideAction:
+        None: {}
+      Statement:
+        ManagedRuleGroupStatement:
+          VendorName: AWS
+          Name: AWSManagedRulesKnownBadInputsRuleSet
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        SampledRequestsEnabled: false
+        MetricName: AWSManagedRulesKnownBadInputsRuleSet
+    - Name: AWSManagedRulesAmazonIpReputationList
+      Priority: 3
+      OverrideAction:
+        None: {}
+      Statement:
+        ManagedRuleGroupStatement:
+          VendorName: AWS
+          Name: AWSManagedRulesAmazonIpReputationList
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        SampledRequestsEnabled: false
+        MetricName: AWSManagedRulesAmazonIpReputationList
+    - Name: RateLimitPerIp
+      Priority: 100
+      Action:
+        Block: {}
+      Statement:
+        RateBasedStatement:
+          AggregateKeyType: IP
+          Limit: 2000
+          EvaluationWindowSec: 300
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        SampledRequestsEnabled: false
+        MetricName: portal-rate-limit
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: サンプルはBlockを採用。公開前に検証環境でCount評価と誤検知調整を行う。

@@ -1,0 +1,49 @@
+id: RES-TRAIL
+name: CloudTrail
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::CloudTrail::Trail
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: Trail
+properties:
+  TrailName: portal-organization-trail
+  IsLogging: true
+  IsMultiRegionTrail: true
+  IsOrganizationTrail: true
+  IncludeGlobalServiceEvents: true
+  EnableLogFileValidation: true
+  S3BucketName:
+    ref: RES-S3-ORG-LOG
+  S3KeyPrefix: cloudtrail
+  AdvancedEventSelectors:
+    - Name: Management
+      FieldSelectors:
+        - Field: eventCategory
+          Equals:
+            - Management
+    - Name: Attachments
+      FieldSelectors:
+        - Field: eventCategory
+          Equals:
+            - Data
+        - Field: resources.type
+          Equals:
+            - AWS::S3::Object
+        - Field: resources.ARN
+          StartsWith:
+            - ref: RES-S3-FILES
+              attribute: Arn
+              suffix: /
+            - ref: RES-S3-QUARANTINE
+              attribute: Arn
+              suffix: /
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: mgmt
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: 組織管理側で適用する証跡。対象外のS3データイベントは収集しない。

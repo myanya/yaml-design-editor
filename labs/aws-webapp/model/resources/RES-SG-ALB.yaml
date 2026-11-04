@@ -1,0 +1,26 @@
+id: RES-SG-ALB
+name: ALB Security Group
+purpose: 最小の送受信規則。
+resourceType: AWS::EC2::SecurityGroup
+environment: ENV-PROD
+stack: STK-NET
+logicalId: SgAlb
+properties:
+  GroupDescription: portal alb
+  VpcId:
+    ref: RES-VPC
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+  SecurityGroupEgress:
+    - IpProtocol: tcp
+      FromPort: 1
+      ToPort: 1
+      CidrIp: 127.0.0.1/32
+designNote: VPC Origin作成前に適用できるAWS管理Prefix Listを採用。作成後のサービス管理SGへの限定は追加手順。

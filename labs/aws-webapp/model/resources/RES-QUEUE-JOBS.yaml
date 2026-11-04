@@ -1,0 +1,31 @@
+id: RES-QUEUE-JOBS
+name: 業務ジョブキュー
+purpose: 処理と配送を分離して再試行可能にする。
+resourceType: AWS::SQS::Queue
+environment: ENV-PROD
+stack: STK-APP
+logicalId: QueueJobs
+properties:
+  QueueName: portal-queue-jobs
+  VisibilityTimeout: 300
+  MessageRetentionPeriod: 345600
+  ReceiveMessageWaitTimeSeconds: 20
+  MaximumMessageSize: 262144
+  KmsMasterKeyId:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  KmsDataKeyReusePeriodSeconds: 300
+  RedrivePolicy:
+    deadLetterTargetArn:
+      ref: RES-DLQ-JOBS
+      attribute: Arn
+    maxReceiveCount: 5
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

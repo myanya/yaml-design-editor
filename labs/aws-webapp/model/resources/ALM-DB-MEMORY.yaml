@@ -1,0 +1,31 @@
+id: ALM-DB-MEMORY
+name: DB空きメモリ
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmDbMemory
+properties:
+  AlarmName: portal-alm-db-memory
+  AlarmDescription: DB空きメモリ
+  Namespace: AWS/RDS
+  MetricName: FreeableMemory
+  Dimensions:
+    - Name: DBInstanceIdentifier
+      Value:
+        ref: RES-DB-A
+  Statistic: Average
+  Threshold: 1073741824
+  Period: 300
+  EvaluationPeriods: 3
+  DatapointsToAlarm: 3
+  ComparisonOperator: LessThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

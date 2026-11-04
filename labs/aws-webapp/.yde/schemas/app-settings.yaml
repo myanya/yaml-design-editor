@@ -1,0 +1,631 @@
+id: aws-app-settings
+name: aws-app-settings
+kind: document
+match: model/apps/*.yaml
+root:
+  type: object
+  unknownFields: error
+  entity:
+    type: application-settings
+    defines: true
+  fields:
+    - key: id
+      label: 設定ID
+      type: id
+      required: true
+    - key: name
+      label: 名称
+      type: string
+      role: title
+      required: true
+    - key: profile
+      label: アプリの種類
+      type: enum
+      values:
+        - api
+        - worker
+      required: true
+      cases:
+        api:
+          - key: settings
+            label: アプリに渡す設定
+            required: true
+            type: object
+            unknownFields: error
+            fields:
+              - key: database
+                label: database
+                type: object
+                unknownFields: error
+                fields:
+                  - key: cluster
+                    label: cluster
+                    type: binding
+                    required: true
+                  - key: port
+                    label: port
+                    type: int
+                    required: true
+                  - key: database
+                    label: database
+                    type: string
+                    required: true
+                  - key: secret
+                    label: 機密入力
+                    type: binding
+                    required: true
+                  - key: sslMode
+                    label: sslMode
+                    type: string
+                    required: true
+                  - key: poolMaximum
+                    label: poolMaximum
+                    type: int
+                    required: true
+                  - key: connectTimeoutSeconds
+                    label: connectTimeoutSeconds
+                    type: int
+                    required: true
+                  - key: statementTimeoutSeconds
+                    label: statementTimeoutSeconds
+                    type: int
+                    required: true
+                  - key: credentialsEnvironmentVariable
+                    label: credentialsEnvironmentVariable
+                    type: string
+                    required: true
+                required: true
+              - key: session
+                label: session
+                type: object
+                unknownFields: error
+                fields:
+                  - key: store
+                    label: store
+                    type: binding
+                    required: true
+                  - key: port
+                    label: port
+                    type: int
+                    required: true
+                  - key: secret
+                    label: 機密入力
+                    type: binding
+                    required: true
+                  - key: tls
+                    label: tls
+                    type: boolean
+                    required: true
+                  - key: keyPrefix
+                    label: keyPrefix
+                    type: string
+                    required: true
+                  - key: idleTtlSeconds
+                    label: idleTtlSeconds
+                    type: int
+                    required: true
+                  - key: absoluteTtlSeconds
+                    label: absoluteTtlSeconds
+                    type: int
+                    required: true
+                  - key: failureMode
+                    label: failureMode
+                    type: string
+                    required: true
+                  - key: cookie
+                    label: cookie
+                    type: object
+                    unknownFields: error
+                    fields:
+                      - key: name
+                        label: 名称
+                        type: string
+                        required: true
+                      - key: secure
+                        label: secure
+                        type: boolean
+                        required: true
+                      - key: httpOnly
+                        label: httpOnly
+                        type: boolean
+                        required: true
+                      - key: sameSite
+                        label: sameSite
+                        type: string
+                        required: true
+                      - key: path
+                        label: path
+                        type: string
+                        required: true
+                    required: true
+                  - key: rotateOnLogin
+                    label: rotateOnLogin
+                    type: boolean
+                    required: true
+                  - key: invalidateOnLogout
+                    label: invalidateOnLogout
+                    type: boolean
+                    required: true
+                  - key: credentialsEnvironmentVariable
+                    label: credentialsEnvironmentVariable
+                    type: string
+                    required: true
+                required: true
+              - key: identity
+                label: identity
+                type: object
+                unknownFields: error
+                fields:
+                  - key: userPool
+                    label: userPool
+                    type: binding
+                    required: true
+                  - key: client
+                    label: client
+                    type: binding
+                    required: true
+                  - key: domain
+                    label: domain
+                    type: binding
+                    required: true
+                  - key: pkceMethod
+                    label: pkceMethod
+                    type: string
+                    required: true
+                  - key: validateState
+                    label: validateState
+                    type: boolean
+                    required: true
+                  - key: validateNonce
+                    label: validateNonce
+                    type: boolean
+                    required: true
+                  - key: csrfProtection
+                    label: csrfProtection
+                    type: string
+                    required: true
+                required: true
+              - key: attachments
+                label: attachments
+                type: object
+                unknownFields: error
+                fields:
+                  - key: quarantineBucket
+                    label: quarantineBucket
+                    type: binding
+                    required: true
+                  - key: cleanBucket
+                    label: cleanBucket
+                    type: binding
+                    required: true
+                  - key: uploadMode
+                    label: uploadMode
+                    type: string
+                    required: true
+                  - key: signedUrlExpiresSeconds
+                    label: signedUrlExpiresSeconds
+                    type: int
+                    required: true
+                  - key: maximumBytes
+                    label: maximumBytes
+                    type: int
+                    required: true
+                  - key: requireChecksum
+                    label: requireChecksum
+                    type: boolean
+                    required: true
+                  - key: downloadOnlyMatchedCleanVersion
+                    label: downloadOnlyMatchedCleanVersion
+                    type: boolean
+                    required: true
+                  - key: uploadKeyPrefix
+                    label: uploadKeyPrefix
+                    type: string
+                    required: true
+                required: true
+              - key: jobs
+                label: jobs
+                type: object
+                unknownFields: error
+                fields:
+                  - key: queue
+                    label: queue
+                    type: binding
+                    required: true
+                  - key: publishFromCommittedOutbox
+                    label: publishFromCommittedOutbox
+                    type: boolean
+                    required: true
+                required: true
+              - key: logging
+                label: logging
+                type: object
+                unknownFields: error
+                fields:
+                  - key: format
+                    label: format
+                    type: string
+                    required: true
+                  - key: fields
+                    label: fields
+                    type: array
+                    item:
+                      type: string
+                    required: true
+                  - key: redact
+                    label: redact
+                    type: array
+                    item:
+                      type: string
+                    required: true
+                required: true
+              - key: telemetry
+                label: telemetry
+                type: object
+                unknownFields: error
+                fields:
+                  - key: enabled
+                    label: enabled
+                    type: boolean
+                    required: true
+                  - key: protocol
+                    label: protocol
+                    type: string
+                    required: true
+                  - key: collectorEndpoint
+                    label: collectorEndpoint
+                    type: string
+                    required: true
+                  - key: samplingRatio
+                    label: samplingRatio
+                    type: number
+                    required: true
+                required: true
+        worker:
+          - key: settings
+            label: アプリに渡す設定
+            required: true
+            type: object
+            unknownFields: error
+            fields:
+              - key: database
+                label: database
+                type: object
+                unknownFields: error
+                fields:
+                  - key: cluster
+                    label: cluster
+                    type: binding
+                    required: true
+                  - key: port
+                    label: port
+                    type: int
+                    required: true
+                  - key: database
+                    label: database
+                    type: string
+                    required: true
+                  - key: secret
+                    label: 機密入力
+                    type: binding
+                    required: true
+                  - key: sslMode
+                    label: sslMode
+                    type: string
+                    required: true
+                  - key: poolMaximum
+                    label: poolMaximum
+                    type: int
+                    required: true
+                  - key: connectTimeoutSeconds
+                    label: connectTimeoutSeconds
+                    type: int
+                    required: true
+                  - key: statementTimeoutSeconds
+                    label: statementTimeoutSeconds
+                    type: int
+                    required: true
+                  - key: credentialsEnvironmentVariable
+                    label: credentialsEnvironmentVariable
+                    type: string
+                    required: true
+                required: true
+              - key: jobs
+                label: jobs
+                type: object
+                unknownFields: error
+                fields:
+                  - key: queue
+                    label: queue
+                    type: binding
+                    required: true
+                  - key: waitTimeSeconds
+                    label: waitTimeSeconds
+                    type: int
+                    required: true
+                  - key: maximumBatch
+                    label: maximumBatch
+                    type: int
+                    required: true
+                  - key: visibilityHeartbeatSeconds
+                    label: visibilityHeartbeatSeconds
+                    type: int
+                    required: true
+                  - key: idempotencyTable
+                    label: idempotencyTable
+                    type: string
+                    required: true
+                  - key: deleteAfterCommit
+                    label: deleteAfterCommit
+                    type: boolean
+                    required: true
+                required: true
+              - key: scan
+                label: scan
+                type: object
+                unknownFields: error
+                fields:
+                  - key: queue
+                    label: queue
+                    type: binding
+                    required: true
+                  - key: quarantineBucket
+                    label: quarantineBucket
+                    type: binding
+                    required: true
+                  - key: cleanBucket
+                    label: cleanBucket
+                    type: binding
+                    required: true
+                  - key: acceptResult
+                    label: acceptResult
+                    type: string
+                    required: true
+                  - key: requireVersionMatch
+                    label: requireVersionMatch
+                    type: boolean
+                    required: true
+                  - key: onFailedOrMissingScan
+                    label: onFailedOrMissingScan
+                    type: string
+                    required: true
+                  - key: copyExactVersion
+                    label: copyExactVersion
+                    type: boolean
+                    required: true
+                required: true
+              - key: mail
+                label: mail
+                type: object
+                unknownFields: error
+                fields:
+                  - key: identity
+                    label: identity
+                    type: binding
+                    required: true
+                  - key: configurationSet
+                    label: configurationSet
+                    type: binding
+                    required: true
+                  - key: from
+                    label: from
+                    type: string
+                    required: true
+                required: true
+              - key: audit
+                label: audit
+                type: object
+                unknownFields: error
+                fields:
+                  - key: bucket
+                    label: bucket
+                    type: binding
+                    required: true
+                  - key: flushOutboxSeconds
+                    label: flushOutboxSeconds
+                    type: int
+                    required: true
+                required: true
+              - key: logging
+                label: logging
+                type: object
+                unknownFields: error
+                fields:
+                  - key: format
+                    label: format
+                    type: string
+                    required: true
+                  - key: fields
+                    label: fields
+                    type: array
+                    item:
+                      type: string
+                    required: true
+                  - key: redact
+                    label: redact
+                    type: array
+                    item:
+                      type: string
+                    required: true
+                required: true
+              - key: telemetry
+                label: telemetry
+                type: object
+                unknownFields: error
+                fields:
+                  - key: enabled
+                    label: enabled
+                    type: boolean
+                    required: true
+                  - key: protocol
+                    label: protocol
+                    type: string
+                    required: true
+                  - key: collectorEndpoint
+                    label: collectorEndpoint
+                    type: string
+                    required: true
+                  - key: samplingRatio
+                    label: samplingRatio
+                    type: number
+                    required: true
+                required: true
+              - key: metrics
+                label: metrics
+                type: object
+                unknownFields: error
+                fields:
+                  - key: namespace
+                    label: namespace
+                    type: string
+                    required: true
+                  - key: environment
+                    label: 環境
+                    type: string
+                    required: true
+                  - key: intervalSeconds
+                    label: intervalSeconds
+                    type: int
+                    required: true
+                  - key: oldestUnscanned
+                    label: oldestUnscanned
+                    type: object
+                    unknownFields: error
+                    fields:
+                      - key: metricName
+                        label: metricName
+                        type: string
+                        required: true
+                      - key: unit
+                        label: unit
+                        type: string
+                        required: true
+                      - key: source
+                        label: source
+                        type: string
+                        required: true
+                    required: true
+                  - key: auditOutboxOldest
+                    label: auditOutboxOldest
+                    type: object
+                    unknownFields: error
+                    fields:
+                      - key: metricName
+                        label: metricName
+                        type: string
+                        required: true
+                      - key: unit
+                        label: unit
+                        type: string
+                        required: true
+                      - key: source
+                        label: source
+                        type: string
+                        required: true
+                    required: true
+                required: true
+              - key: reports
+                label: reports
+                type: object
+                unknownFields: error
+                fields:
+                  - key: bucket
+                    label: bucket
+                    type: binding
+                    required: true
+                  - key: objectKeyPrefix
+                    label: objectKeyPrefix
+                    type: string
+                    required: true
+                  - key: maximumRows
+                    label: maximumRows
+                    type: int
+                    required: true
+                required: true
+definitions:
+  binding:
+    type: object
+    unknownFields: error
+    fields:
+      - key: ref
+        label: 参照先
+        type: ref
+        relation: uses
+      - key: attribute
+        label: 展開する属性
+        type: string
+        default: Ref
+      - key: suffix
+        label: 属性に付ける末尾
+        type: string
+      - key: literal
+        label: 固定文字列
+        type: string
+    constraints:
+      - id: binding-present
+        description: 参照先か固定文字列のいずれかを指定する
+        where:
+          - path: ref
+            exists: false
+          - path: literal
+            exists: false
+        expect: absent
+        level: error
+      - id: binding-exclusive
+        description: 参照先と固定文字列を同時に指定しない
+        where:
+          - path: ref
+            exists: true
+          - path: literal
+            exists: true
+        expect: absent
+        level: error
+constraints:
+  - id: session-expiry
+    description: 無操作TTLを最大TTL以下にする
+    match:
+      - node:
+          entity: application-settings
+          bind: a
+    where:
+      - of: a
+        path: profile
+        equals: api
+    check:
+      - lte:
+          - of: a
+            path: settings.session.idleTtlSeconds
+          - of: a
+            path: settings.session.absoluteTtlSeconds
+      - eq:
+          - of: a
+            path: settings.session.tls
+          - 'true'
+      - eq:
+          - of: a
+            path: settings.session.cookie.secure
+          - 'true'
+      - eq:
+          - of: a
+            path: settings.session.cookie.httpOnly
+          - 'true'
+    level: error
+  - id: database-port
+    description: アプリとAuroraのDB接続ポートを一致させる
+    match:
+      - node:
+          entity: application-settings
+          bind: a
+      - edge:
+          via: database.cluster.ref
+          dir: out
+      - node:
+          entity: aws-resource
+          bind: db
+    check:
+      - eq:
+          - of: a
+            path: settings.database.port
+          - of: db
+            path: properties.Port
+    level: error

@@ -1,0 +1,38 @@
+id: RES-COGNITO-CLIENT
+name: 認可コード＋PKCEのClient
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Cognito::UserPoolClient
+environment: ENV-PROD
+stack: STK-IDENTITY
+logicalId: CognitoClient
+properties:
+  UserPoolId:
+    ref: RES-COGNITO
+  ClientName: portal-bff
+  GenerateSecret: false
+  AllowedOAuthFlowsUserPoolClient: true
+  AllowedOAuthFlows:
+    - code
+  AllowedOAuthScopes:
+    - openid
+    - email
+    - profile
+  SupportedIdentityProviders:
+    - ref: RES-IDP
+  CallbackURLs:
+    - https://portal.example.com/auth/callback
+  LogoutURLs:
+    - https://portal.example.com/
+  DefaultRedirectURI: https://portal.example.com/auth/callback
+  AccessTokenValidity: 15
+  IdTokenValidity: 15
+  RefreshTokenValidity: 8
+  TokenValidityUnits:
+    AccessToken: minutes
+    IdToken: minutes
+    RefreshToken: hours
+  EnableTokenRevocation: true
+  PreventUserExistenceErrors: ENABLED
+  ExplicitAuthFlows:
+    - ALLOW_REFRESH_TOKEN_AUTH
+designNote: PKCE S256、state、nonceをBFFで検証する。Public ClientのためClient Secretは作らない。

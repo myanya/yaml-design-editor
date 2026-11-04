@@ -1,0 +1,17 @@
+id: RES-IGW
+name: Internet Gateway
+purpose: NAT経由の外向き通信とVPC Originの前提。
+resourceType: AWS::EC2::InternetGateway
+environment: ENV-PROD
+stack: STK-NET
+logicalId: Igw
+properties:
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

@@ -1,0 +1,43 @@
+id: RES-ROLE-FLOWLOG
+name: VPC Flow Logsの配送Role
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: RoleFlowlog
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: TrustService
+        Effect: Allow
+        Principal:
+          Service:
+            - vpc-flow-logs.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  MaxSessionDuration: 3600
+  Policies:
+    - PolicyName: portal-scope
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: FlowLogsWrite
+            Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+            Resource:
+              - ref: RES-LOG-FLOW
+                attribute: Arn
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

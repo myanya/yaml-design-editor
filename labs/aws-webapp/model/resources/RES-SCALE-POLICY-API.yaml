@@ -1,0 +1,18 @@
+id: RES-SCALE-POLICY-API
+name: APIのCPU追従スケール
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ApplicationAutoScaling::ScalingPolicy
+environment: ENV-PROD
+stack: STK-APP
+logicalId: ScalePolicyApi
+properties:
+  PolicyName: portal-api-cpu
+  PolicyType: TargetTrackingScaling
+  ScalingTargetId:
+    ref: RES-SCALE-API
+  TargetTrackingScalingPolicyConfiguration:
+    TargetValue: 60
+    ScaleInCooldown: 300
+    ScaleOutCooldown: 60
+    PredefinedMetricSpecification:
+      PredefinedMetricType: ECSServiceAverageCPUUtilization

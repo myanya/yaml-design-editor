@@ -1,0 +1,19 @@
+id: RES-ANOMALY-SUBSCRIPTION
+name: 費用異常の通知
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CE::AnomalySubscription
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: AnomalySubscription
+properties:
+  SubscriptionName: portal-daily-cost-anomaly
+  Frequency: DAILY
+  MonitorArnList:
+    - ref: RES-ANOMALY
+  ThresholdExpression: >-
+    {"Dimensions":{"Key":"ANOMALY_TOTAL_IMPACT_ABSOLUTE","MatchOptions":["GREATER_THAN_OR_EQUAL"],"Values":["100"]}}
+  Subscribers:
+    - Type: EMAIL
+      Address:
+        ref: INPUT-OPERATIONS-EMAIL
+        attribute: Parameter

@@ -1,0 +1,27 @@
+id: RES-S3-ARTIFACT-POLICY
+name: 配備成果物のBucket Policy
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::S3::BucketPolicy
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: S3ArtifactPolicy
+properties:
+  Bucket:
+    ref: RES-S3-ARTIFACT
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyInsecureTransport
+        Effect: Deny
+        Principal: '*'
+        Action:
+          - s3:*
+        Resource:
+          - ref: RES-S3-ARTIFACT
+            attribute: Arn
+          - ref: RES-S3-ARTIFACT
+            attribute: Arn
+            suffix: /*
+        Condition:
+          Bool:
+            aws:SecureTransport: 'false'

@@ -1,0 +1,19 @@
+id: RES-IDP
+name: 企業SAML IdP連携
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Cognito::UserPoolIdentityProvider
+environment: ENV-PROD
+stack: STK-IDENTITY
+logicalId: Idp
+properties:
+  UserPoolId:
+    ref: RES-COGNITO
+  ProviderName: CorporateSaml
+  ProviderType: SAML
+  ProviderDetails:
+    MetadataURL:
+      ref: INPUT-IDP-METADATA
+      attribute: Parameter
+    IDPSignout: 'true'
+  AttributeMapping:
+    email: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress

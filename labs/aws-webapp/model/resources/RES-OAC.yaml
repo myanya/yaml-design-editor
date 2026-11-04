@@ -1,0 +1,13 @@
+id: RES-OAC
+name: 静的S3用Origin Access Control
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudFront::OriginAccessControl
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: Oac
+properties:
+  OriginAccessControlConfig:
+    Name: portal-static-oac
+    OriginAccessControlOriginType: s3
+    SigningBehavior: always
+    SigningProtocol: sigv4

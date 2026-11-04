@@ -1,0 +1,12 @@
+id: SETTING-CONFIG-START
+name: Config記録の開始
+service: config
+action: StartConfigurationRecorder
+account:
+  ref: INPUT-PROD-ACCOUNT
+  attribute: Parameter
+region: ap-northeast-1
+request:
+  ConfigurationRecorderName:
+    ref: RES-CONFIG
+verification: DeliveryChannelを作成後に適用し、DescribeConfigurationRecorderStatusでrecording=true・lastStatus=SUCCESSを確認する。

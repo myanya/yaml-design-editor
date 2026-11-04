@@ -1,0 +1,42 @@
+id: RES-SCP
+name: 業務Accountの監査・検出停止の制限
+purpose: 業務運用Roleによる組織離脱と監査・検出の停止を防ぐ。例外Roleは別途承認して束縛する。
+resourceType: AWS::Organizations::Policy
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: Scp
+properties:
+  Name: PortalWorkloadGuardrails
+  Description: Protect audit and security services in workload accounts
+  Type: SERVICE_CONTROL_POLICY
+  TargetIds:
+    - ref: INPUT-WORKLOAD-OU
+      attribute: Parameter
+  Content:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyLeaveOrganization
+        Effect: Deny
+        Action:
+          - organizations:LeaveOrganization
+        Resource:
+          - '*'
+      - Sid: ProtectAuditAndDetection
+        Effect: Deny
+        Action:
+          - cloudtrail:StopLogging
+          - cloudtrail:DeleteTrail
+          - config:StopConfigurationRecorder
+          - config:DeleteConfigurationRecorder
+          - guardduty:DeleteDetector
+          - guardduty:UpdateDetector
+          - securityhub:DisableSecurityHub
+          - kms:ScheduleKeyDeletion
+        Resource:
+          - '*'
+        Condition:
+          ArnNotLike:
+            aws:PrincipalArn:
+              ref: INPUT-SECURITY-MAINTENANCE-ROLE
+              attribute: Parameter
+designNote: SCPは権限を付与しない。既存OUに適用する前に、運用・復元・緊急手順が成立することを検証する。

@@ -1,0 +1,75 @@
+id: RES-KMS-LOG
+name: 監査CMK
+purpose: 暗号化と鍵管理者の責務を分離。
+resourceType: AWS::KMS::Key
+environment: ENV-LOG
+stack: STK-LOG
+logicalId: KmsLog
+properties:
+  Description: Portal res-kms-log
+  EnableKeyRotation: true
+  RotationPeriodInDays: 365
+  KeyUsage: ENCRYPT_DECRYPT
+  KeySpec: SYMMETRIC_DEFAULT
+  Enabled: true
+  PendingWindowInDays: 30
+  KeyPolicy:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: AccountAdministration
+        Effect: Allow
+        Principal:
+          AWS:
+            - ref: INPUT-PROD-ROOT-ARN
+              attribute: Parameter
+        Action:
+          - kms:*
+        Resource:
+          - '*'
+      - Sid: CloudWatchLogs
+        Effect: Allow
+        Principal:
+          Service:
+            - logs.ap-northeast-1.amazonaws.com
+        Action:
+          - kms:Encrypt
+          - kms:Decrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          - kms:DescribeKey
+        Resource:
+          - '*'
+        Condition:
+          ArnLike:
+            kms:EncryptionContext:aws:logs:arn:
+              - ref: INPUT-LOG-CONTEXT-ARN
+                attribute: Parameter
+              - ref: INPUT-RDS-LOG-CONTEXT-ARN
+                attribute: Parameter
+      - Sid: MonitoringTopicEncryption
+        Effect: Allow
+        Principal:
+          Service:
+            - cloudwatch.amazonaws.com
+            - events.amazonaws.com
+            - ses.amazonaws.com
+        Action:
+          - kms:GenerateDataKey
+          - kms:Decrypt
+        Resource:
+          - '*'
+        Condition:
+          StringEquals:
+            aws:SourceAccount:
+              ref: INPUT-PROD-ACCOUNT
+              attribute: Parameter
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: log
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

@@ -1,0 +1,70 @@
+id: RES-S3-ALB-LOG-POLICY
+name: ALBアクセスログのBucket Policy
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::S3::BucketPolicy
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: S3AlbLogPolicy
+properties:
+  Bucket:
+    ref: RES-S3-ALB-LOG
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyInsecureTransport
+        Effect: Deny
+        Principal: '*'
+        Action:
+          - s3:*
+        Resource:
+          - ref: RES-S3-ALB-LOG
+            attribute: Arn
+          - ref: RES-S3-ALB-LOG
+            attribute: Arn
+            suffix: /*
+        Condition:
+          Bool:
+            aws:SecureTransport: 'false'
+      - Sid: AlbLogDelivery
+        Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource:
+          - ref: RES-S3-ALB-LOG
+            attribute: Arn
+            suffix: /portal/alb/AWSLogs/*
+        Principal:
+          Service:
+            - logdelivery.elasticloadbalancing.amazonaws.com
+        Condition:
+          StringEquals:
+            aws:SourceAccount:
+              ref: INPUT-PROD-ACCOUNT
+              attribute: Parameter
+      - Sid: CloudFrontV2LogDelivery
+        Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource:
+          - ref: RES-S3-ALB-LOG
+            attribute: Arn
+            suffix: /cloudfront/*
+        Principal:
+          Service:
+            - delivery.logs.amazonaws.com
+        Condition:
+          StringEquals:
+            aws:SourceAccount:
+              ref: INPUT-PROD-ACCOUNT
+              attribute: Parameter
+            s3:x-amz-acl: bucket-owner-full-control
+      - Sid: CloudFrontV2AclCheck
+        Effect: Allow
+        Action:
+          - s3:GetBucketAcl
+        Resource:
+          - ref: RES-S3-ALB-LOG
+            attribute: Arn
+        Principal:
+          Service:
+            - delivery.logs.amazonaws.com

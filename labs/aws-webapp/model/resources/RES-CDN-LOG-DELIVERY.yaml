@@ -1,0 +1,29 @@
+id: RES-CDN-LOG-DELIVERY
+name: CloudFrontログ配送
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Logs::Delivery
+environment: ENV-PROD
+stack: STK-EDGE-CERT
+logicalId: CdnLogDelivery
+properties:
+  DeliverySourceName:
+    ref: RES-CDN-LOG-SOURCE
+    attribute: ConfiguredName
+  DeliveryDestinationArn:
+    ref: RES-CDN-LOG-DESTINATION
+    attribute: Arn
+  RecordFields:
+    - date
+    - time
+    - x-edge-location
+    - sc-bytes
+    - c-ip
+    - cs-method
+    - cs(Host)
+    - cs-uri-stem
+    - sc-status
+    - x-edge-result-type
+    - x-edge-request-id
+    - time-taken
+  S3SuffixPath: /cloudfront
+designNote: CookieとQueryを記録対象から外す。配備時にサービス配送権限を設定・検査する。

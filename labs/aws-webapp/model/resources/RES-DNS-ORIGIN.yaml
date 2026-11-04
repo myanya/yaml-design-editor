@@ -1,0 +1,21 @@
+id: RES-DNS-ORIGIN
+name: Originの証明書と一致するALB名
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Route53::RecordSet
+environment: ENV-PROD
+stack: STK-APP
+logicalId: DnsOrigin
+properties:
+  HostedZoneId:
+    ref: INPUT-HOSTED-ZONE
+    attribute: Parameter
+  Name: origin.portal.example.com.
+  Type: A
+  AliasTarget:
+    DNSName:
+      ref: RES-ALB
+      attribute: DNSName
+    HostedZoneId:
+      ref: RES-ALB
+      attribute: CanonicalHostedZoneID
+    EvaluateTargetHealth: false

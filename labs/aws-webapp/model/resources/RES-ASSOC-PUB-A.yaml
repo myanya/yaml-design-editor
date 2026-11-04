@@ -1,0 +1,12 @@
+id: RES-ASSOC-PUB-A
+name: PUB Subnet Aの経路表関連付け
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::EC2::SubnetRouteTableAssociation
+environment: ENV-PROD
+stack: STK-NET
+logicalId: AssocPubA
+properties:
+  SubnetId:
+    ref: RES-SUB-PUB-A
+  RouteTableId:
+    ref: RES-RT-PUB-A

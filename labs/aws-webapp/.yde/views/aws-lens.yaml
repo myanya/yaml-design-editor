@@ -1,0 +1,157 @@
+id: aws-lens
+name: AWS設定の参照を辿る
+kind: lens
+appearance:
+  nodes:
+    - level: entity
+      entityType: aws-resource
+      notation: aws-card
+      inputs:
+        title:
+          $copy: data.name
+        service:
+          $map:
+            $copy: data.resourceType
+          $using:
+            AWS::EC2::VPC: vpc
+            AWS::EC2::InternetGateway: vpc
+            AWS::EC2::VPCGatewayAttachment: vpc
+            AWS::EC2::EIP: vpc
+            AWS::EC2::NatGateway: vpc
+            AWS::EC2::Subnet: vpc
+            AWS::EC2::RouteTable: vpc
+            AWS::EC2::SubnetRouteTableAssociation: vpc
+            AWS::EC2::Route: vpc
+            AWS::EC2::SecurityGroup: vpc
+            AWS::EC2::VPCEndpoint: vpc
+            AWS::S3::Bucket: bucket
+            AWS::CloudFront::OriginAccessControl: cloudfront
+            AWS::CertificateManager::Certificate: certificate
+            AWS::ElasticLoadBalancingV2::LoadBalancer: alb
+            AWS::ElasticLoadBalancingV2::TargetGroup: alb
+            AWS::ElasticLoadBalancingV2::Listener: alb
+            AWS::ElasticLoadBalancingV2::ListenerRule: alb
+            AWS::CloudFront::VpcOrigin: cloudfront
+            AWS::CloudFront::CachePolicy: cloudfront
+            AWS::CloudFront::OriginRequestPolicy: cloudfront
+            AWS::CloudFront::ResponseHeadersPolicy: cloudfront
+            AWS::CloudFront::Distribution: cloudfront
+            AWS::Route53::RecordSet: dns-record
+            AWS::ECS::Cluster: ecs-service
+            AWS::Logs::LogGroup: log-group
+            AWS::ECR::Repository: ecr
+            AWS::ECS::TaskDefinition: ecs-service
+            AWS::ECS::Service: ecs-service
+            AWS::ApplicationAutoScaling::ScalableTarget: ecs-service
+            AWS::ApplicationAutoScaling::ScalingPolicy: ecs-service
+            AWS::RDS::DBSubnetGroup: db-cluster
+            AWS::RDS::DBClusterParameterGroup: db-cluster
+            AWS::RDS::DBCluster: db-cluster
+            AWS::RDS::DBInstance: db-cluster
+            AWS::ElastiCache::SubnetGroup: session-store
+            AWS::ElastiCache::ParameterGroup: session-store
+            AWS::ElastiCache::User: session-store
+            AWS::ElastiCache::UserGroup: session-store
+            AWS::ElastiCache::ReplicationGroup: session-store
+            AWS::SecretsManager::Secret: secret
+            AWS::Cognito::UserPool: cognito
+            AWS::Cognito::UserPoolIdentityProvider: cognito
+            AWS::Cognito::UserPoolClient: cognito
+            AWS::Cognito::UserPoolDomain: cognito
+            AWS::SQS::Queue: sqs
+            AWS::Events::Rule: event-rule
+            AWS::Scheduler::Schedule: schedule
+            AWS::SES::EmailIdentity: ses
+            AWS::SES::ConfigurationSet: ses
+            AWS::SES::ConfigurationSetEventDestination: ses
+            AWS::SNS::Topic: notification-topic
+            AWS::SNS::Subscription: notification-topic
+            AWS::KMS::Key: kms-key
+            AWS::IAM::Role: role
+            AWS::SQS::QueuePolicy: sqs
+            AWS::S3::BucketPolicy: bucket
+            AWS::WAFv2::WebACL: waf
+            AWS::WAFv2::LoggingConfiguration: waf
+            AWS::GuardDuty::MalwareProtectionPlan: security-control
+            AWS::Organizations::Organization: security-control
+            AWS::SSO::PermissionSet: role
+            AWS::SSO::Assignment: role
+            AWS::CloudTrail::Trail: security-control
+            AWS::GuardDuty::Detector: security-control
+            AWS::SecurityHub::Hub: security-control
+            AWS::Config::ConfigurationRecorder: security-control
+            AWS::Config::DeliveryChannel: security-control
+            AWS::Config::ConfigRule: security-control
+            AWS::Budgets::Budget: security-control
+            AWS::CE::AnomalyMonitor: security-control
+            AWS::CE::AnomalySubscription: security-control
+            AWS::EC2::FlowLog: vpc
+            AWS::Logs::DeliverySource: log-group
+            AWS::Logs::DeliveryDestination: log-group
+            AWS::Logs::Delivery: log-group
+            AWS::Synthetics::Canary: canary
+            AWS::CloudWatch::Alarm: log-group
+            AWS::Backup::BackupVault: backup-vault
+            AWS::Backup::BackupPlan: backup-vault
+            AWS::Backup::BackupSelection: backup-vault
+            AWS::SNS::TopicPolicy: notification-topic
+            AWS::CodeBuild::Project: build
+            AWS::CodePipeline::Pipeline: pipeline
+            AWS::EC2::SecurityGroupIngress: vpc
+            AWS::EC2::SecurityGroupEgress: vpc
+            AWS::Organizations::Policy: security-control
+        subtitle:
+          $copy: data.id
+    - level: entity
+      entityType: origin
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: cloudfront
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id
+    - level: entity
+      entityType: cache-behavior
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: cloudfront
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id
+    - level: entity
+      entityType: system
+      notation: aws-card
+      inputs:
+        title: 利用者
+        service: client
+        subtitle:
+          $copy: data.publicUrl
+    - level: entity
+      entityType: application-settings
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: fargate
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id

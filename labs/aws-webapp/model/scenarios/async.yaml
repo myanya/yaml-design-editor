@@ -1,0 +1,56 @@
+id: SCN-ASYNC
+name: 業務更新と非同期処理
+description: DBとキューの二重書込問題をOutboxで扱う。
+steps:
+  - id: STEP-ASYNC-1
+    name: 業務を確定
+    lane: application
+    resources:
+      - RES-SERVICE-API
+      - RES-DB
+    behavior: 申請更新・監査・ジョブOutboxを同一transactionでcommit。
+    failure: commit失敗時には何も送らない。
+    next:
+      - STEP-ASYNC-2
+  - id: STEP-ASYNC-2
+    name: Outboxを配送
+    lane: application
+    resources:
+      - RES-SERVICE-WORKER
+      - RES-DB
+      - RES-QUEUE-JOBS
+    behavior: 未配送をポーリングし、eventId付きで送信。
+    failure: 送信後の状態更新失敗は重複配送になり得る。
+    next:
+      - STEP-ASYNC-3
+  - id: STEP-ASYNC-3
+    name: ジョブを実行
+    lane: application
+    resources:
+      - RES-SERVICE-WORKER
+      - RES-DB
+      - RES-SES
+      - RES-S3-REPORTS
+    behavior: eventIdの一意制約で冪等化し、処理完了後にDelete。
+    failure: visibility延長・外部副作用の防止キー・再試行上限。
+    next:
+      - STEP-ASYNC-4
+  - id: STEP-ASYNC-4
+    name: 失敗を隔離
+    lane: platform
+    resources:
+      - RES-DLQ-JOBS
+      - RES-ALERTS
+    behavior: 受信回数上限後にDLQへ移し当番に通知。
+    failure: 毒メッセージの無限再実行を避ける。
+    next:
+      - STEP-ASYNC-5
+  - id: STEP-ASYNC-5
+    name: 原因修正と再駆動
+    lane: operations
+    resources:
+      - RES-QUEUE-JOBS
+      - RES-DLQ-JOBS
+    behavior: 原因を修正して少量ずつredrive、件数を照合。
+    failure: 重複メールや二重の業務状態更新がないことを確認。
+    next: []

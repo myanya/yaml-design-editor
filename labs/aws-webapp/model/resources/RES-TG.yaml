@@ -1,0 +1,38 @@
+id: RES-TG
+name: API Target Group
+purpose: FargateのIPターゲットを管理する。
+resourceType: AWS::ElasticLoadBalancingV2::TargetGroup
+environment: ENV-PROD
+stack: STK-APP
+logicalId: Tg
+properties:
+  VpcId:
+    ref: RES-VPC
+  TargetType: ip
+  Protocol: HTTP
+  Port: 8080
+  ProtocolVersion: HTTP1
+  HealthCheckProtocol: HTTP
+  HealthCheckPort: traffic-port
+  HealthCheckPath: /health/ready
+  HealthCheckIntervalSeconds: 30
+  HealthCheckTimeoutSeconds: 5
+  HealthyThresholdCount: 2
+  UnhealthyThresholdCount: 3
+  Matcher:
+    HttpCode: '200'
+  TargetGroupAttributes:
+    - Key: deregistration_delay.timeout_seconds
+      Value: '60'
+    - Key: stickiness.enabled
+      Value: 'false'
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: ALBからアプリまではプライベートSubnetのHTTP/8080。SGでALBのみを許可。全区間TLSを要する用途ではコンテナのTLS終端まで変更する。

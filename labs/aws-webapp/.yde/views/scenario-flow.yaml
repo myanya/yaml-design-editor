@@ -1,0 +1,66 @@
+id: scenario-flow
+name: 処理と運用の流れ
+kind: flow
+schemaId: aws-scenario
+layout:
+  direction: down
+projection:
+  id: aws-scenario-projection
+  build:
+    nodes:
+      $each: steps
+      $build:
+        key:
+          $copy: id
+        label:
+          $copy: name
+        entityType: scenario-step
+        lane:
+          $copy: lane
+        detail:
+          $copy: .
+    edges:
+      $each: steps
+      $bind: src
+      $flatten: true
+      $build:
+        $each: next
+        $build:
+          key:
+            $format: '{s}/{t}'
+            $with:
+              s:
+                $copy: id
+                $of: src
+              t:
+                $copy: .
+          from:
+            $copy: id
+            $of: src
+          to:
+            $copy: .
+          relation: nextStep
+          detail:
+            to:
+              $copy: .
+    lanes:
+      - key: user
+        label: 利用者
+      - key: application
+        label: アプリケーション
+      - key: platform
+        label: AWS / 配信基盤
+      - key: operations
+        label: 運用担当
+appearance:
+  nodes:
+    - entityType: scenario-step
+      notation: aws-scenario-card
+      inputs:
+        title:
+          $copy: data.name
+        resources:
+          $copy: data.resources
+  edges:
+    - relation: nextStep
+      notation: directed-link

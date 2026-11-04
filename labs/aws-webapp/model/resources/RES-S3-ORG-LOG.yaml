@@ -1,0 +1,42 @@
+id: RES-S3-ORG-LOG
+name: 組織証跡アーカイブ
+purpose: 別アカウントで証跡を保管。
+resourceType: AWS::S3::Bucket
+environment: ENV-LOG
+stack: STK-LOG
+logicalId: S3OrgLog
+properties:
+  PublicAccessBlockConfiguration:
+    BlockPublicAcls: true
+    IgnorePublicAcls: true
+    BlockPublicPolicy: true
+    RestrictPublicBuckets: true
+  OwnershipControls:
+    Rules:
+      - ObjectOwnership: BucketOwnerEnforced
+  VersioningConfiguration:
+    Status: Enabled
+  BucketEncryption:
+    ServerSideEncryptionConfiguration:
+      - ServerSideEncryptionByDefault:
+          SSEAlgorithm: AES256
+        BucketKeyEnabled: false
+  LifecycleConfiguration:
+    Rules:
+      - Id: RetainObjects
+        Status: Enabled
+        ExpirationInDays: 365
+        NoncurrentVersionExpiration:
+          NoncurrentDays: 365
+        AbortIncompleteMultipartUpload:
+          DaysAfterInitiation: 1
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: log
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

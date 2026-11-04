@@ -1,0 +1,12 @@
+id: RES-IGW-ATTACH
+name: IGWのVPCアタッチ
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::EC2::VPCGatewayAttachment
+environment: ENV-PROD
+stack: STK-NET
+logicalId: IgwAttach
+properties:
+  VpcId:
+    ref: RES-VPC
+  InternetGatewayId:
+    ref: RES-IGW

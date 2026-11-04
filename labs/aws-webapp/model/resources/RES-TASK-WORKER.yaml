@@ -1,0 +1,109 @@
+id: RES-TASK-WORKER
+name: 非同期Worker Task
+purpose: 実行イメージ・権限・ログを定義する。
+resourceType: AWS::ECS::TaskDefinition
+environment: ENV-PROD
+stack: STK-APP
+logicalId: TaskWorker
+properties:
+  Family: portal-worker
+  RequiresCompatibilities:
+    - FARGATE
+  NetworkMode: awsvpc
+  Cpu: '1024'
+  Memory: '2048'
+  RuntimePlatform:
+    CpuArchitecture: ARM64
+    OperatingSystemFamily: LINUX
+  ExecutionRoleArn:
+    ref: RES-ROLE-EXEC
+    attribute: Arn
+  TaskRoleArn:
+    ref: RES-ROLE-WORKER
+    attribute: Arn
+  EphemeralStorage:
+    SizeInGiB: 21
+  Volumes:
+    - Name: tmp
+  ContainerDefinitions:
+    - Name: worker
+      Image:
+        ref: INPUT-IMAGE-WORKER
+        attribute: Parameter
+      Essential: true
+      ReadonlyRootFilesystem: true
+      User: '10001'
+      StopTimeout: 90
+      Environment:
+        - Name: APP_CONFIG
+          Value:
+            ref: APP-WORKER
+            attribute: ApplicationSettings
+      Secrets:
+        - Name: DB_CREDENTIALS
+          ValueFrom:
+            ref: RES-SECRET-DB-WORKER
+      LogConfiguration:
+        LogDriver: awslogs
+        Options:
+          awslogs-group:
+            ref: RES-LOG-WORKER
+          awslogs-region: ap-northeast-1
+          awslogs-stream-prefix: app
+          mode: non-blocking
+          max-buffer-size: 25m
+      HealthCheck:
+        Command:
+          - CMD-SHELL
+          - test -f /tmp/worker-ready || exit 1
+        Interval: 30
+        Timeout: 5
+        Retries: 3
+        StartPeriod: 60
+      MountPoints:
+        - SourceVolume: tmp
+          ContainerPath: /tmp
+          ReadOnly: false
+    - Name: otel-collector
+      Image:
+        ref: INPUT-IMAGE-OTEL
+        attribute: Parameter
+      Essential: true
+      MemoryReservation: 256
+      Command:
+        - '--config=env:AOT_CONFIG_CONTENT'
+      Environment:
+        - Name: AOT_CONFIG_CONTENT
+          Value: |
+            receivers:
+              otlp:
+                protocols:
+                  http:
+                    endpoint: 0.0.0.0:4318
+            processors:
+              batch: {}
+            exporters:
+              awsxray:
+                region: ap-northeast-1
+            service:
+              pipelines:
+                traces:
+                  receivers: [otlp]
+                  processors: [batch]
+                  exporters: [awsxray]
+      LogConfiguration:
+        LogDriver: awslogs
+        Options:
+          awslogs-group:
+            ref: RES-LOG-OTEL
+          awslogs-region: ap-northeast-1
+          awslogs-stream-prefix: collector
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

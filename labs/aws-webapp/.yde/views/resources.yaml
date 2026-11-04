@@ -1,0 +1,26 @@
+id: resources
+name: サービス一覧 → 各資源の全設定
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+    editable: true
+  - label: AWS型
+    path: resourceType
+  - label: 環境
+    path: environment
+  - label: 配備単位
+    path: stack
+  - label: 目的
+    path: purpose
+    editable: true
+  - label: 全設定
+    path: properties
+  - label: 採用理由
+    path: designNote

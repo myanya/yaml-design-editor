@@ -1,0 +1,111 @@
+id: aws-home
+name: AWS WEBアプリの構成設計
+kind: dashboard
+default: true
+placement: auto
+description: サービス一覧から資源を開くと全設定を確認・編集できます。図は台帳のフロー、全設定の持ち出しはレポート「全サービスのパラメータ設計書」です。
+sections:
+  - id: resources
+    label: サービス一覧
+    group: 入口
+    view: resources
+  - id: alb
+    label: ALBの全設定
+    group: WEBの入口
+    view: parameters-alb
+  - id: listeners
+    label: Listenerの全設定
+    group: WEBの入口
+    view: parameters-listeners
+  - id: rules
+    label: 転送Ruleの全設定
+    group: WEBの入口
+    view: parameters-rules
+  - id: target-groups
+    label: Target Groupの全設定
+    group: WEBの入口
+    view: parameters-target-groups
+  - id: cloudfront
+    label: CloudFrontの全設定
+    group: WEBの入口
+    view: parameters-cloudfront
+  - id: ecs-services
+    label: ECS Serviceの全設定
+    group: サービス設定
+    view: parameters-ecs-services
+  - id: ecs-tasks
+    label: Task Definitionの全設定
+    group: サービス設定
+    view: parameters-ecs-tasks
+  - id: db
+    label: Aurora Clusterの全設定
+    group: サービス設定
+    view: parameters-db
+  - id: db-instances
+    label: Aurora Instanceの全設定
+    group: サービス設定
+    view: parameters-db-instances
+  - id: sessions
+    label: Valkeyの全設定
+    group: サービス設定
+    view: parameters-sessions
+  - id: buckets
+    label: S3の全設定
+    group: サービス設定
+    view: parameters-buckets
+  - id: alarms
+    label: CloudWatch Alarmの全設定
+    group: サービス設定
+    view: parameters-alarms
+  - id: logs
+    label: Log Groupの全設定
+    group: サービス設定
+    view: parameters-logs
+  - id: backups
+    label: Backup Planの全設定
+    group: サービス設定
+    view: parameters-backups
+  - id: queues
+    label: SQSの全設定
+    group: サービス設定
+    view: parameters-queues
+  - id: subnets
+    label: Subnetの全設定
+    group: サービス設定
+    view: parameters-subnets
+  - id: ingress
+    label: SG受信規則の全設定
+    group: サービス設定
+    view: parameters-ingress
+  - id: egress
+    label: SG送信規則の全設定
+    group: サービス設定
+    view: parameters-egress
+  - id: apps
+    label: API・Workerの実行設定
+    group: アプリ
+    view: app-settings
+  - id: inputs
+    label: 配備時の入力
+    group: 配備
+    view: inputs
+  - id: foundation
+    label: 組織・サービス設定
+    group: 配備
+    view: foundation
+  - id: stacks
+    label: 配備単位
+    group: 配備
+    view: stacks
+  - id: requirements
+    label: 非機能要件
+    group: 設計判断
+    view: requirements
+  - id: decisions
+    label: 採用理由と未決事項
+    group: 設計判断
+    view: decisions
+  - id: runbooks
+    label: 運用手順
+    group: 運用
+    view: runbooks

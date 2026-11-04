@@ -1,0 +1,15 @@
+id: aws-schema-lens
+name: AWS設計モデルの型
+kind: lens
+appearance:
+  nodes:
+    - level: type
+      notation: uml-class
+      inputs:
+        title:
+          $copy: title
+        stereotype: 設計エンティティ
+        attributes:
+          $each: data.attributes
+          $build:
+            $format: '{key}: {type}'

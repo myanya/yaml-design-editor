@@ -1,0 +1,10 @@
+id: aws-foundation-input
+description: AWS APIで適用する組織・サービス設定。CloudFormation Resourceとは別に出力する。
+from:
+  match:
+    - node:
+        entity: service-setting
+        bind: setting
+  limit: 10000
+build:
+  $copy: .

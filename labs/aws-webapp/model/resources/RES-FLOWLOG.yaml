@@ -1,0 +1,29 @@
+id: RES-FLOWLOG
+name: VPC通信のログ設定
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::EC2::FlowLog
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: Flowlog
+properties:
+  ResourceId:
+    ref: RES-VPC
+  ResourceType: VPC
+  TrafficType: ALL
+  LogDestinationType: cloud-watch-logs
+  LogDestination:
+    ref: RES-LOG-FLOW
+    attribute: Arn
+  DeliverLogsPermissionArn:
+    ref: RES-ROLE-FLOWLOG
+    attribute: Arn
+  MaxAggregationInterval: 60
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

@@ -1,0 +1,15 @@
+id: RES-SG-SESSION-IN-1
+name: Session Security Group 受信 1
+purpose: SGの具体的な通信規則。SG本体の相互依存を避けて個別に管理する。
+resourceType: AWS::EC2::SecurityGroupIngress
+environment: ENV-PROD
+stack: STK-NET
+logicalId: SgSessionIn1
+properties:
+  GroupId:
+    ref: RES-SG-SESSION
+  IpProtocol: tcp
+  FromPort: 6379
+  ToPort: 6379
+  SourceSecurityGroupId:
+    ref: RES-SG-APP

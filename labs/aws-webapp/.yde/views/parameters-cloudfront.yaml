@@ -1,0 +1,23 @@
+id: parameters-cloudfront
+name: CloudFrontの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::CloudFront::Distribution
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: DistributionConfig
+    path: properties.DistributionConfig
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

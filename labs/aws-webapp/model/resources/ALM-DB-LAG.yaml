@@ -1,0 +1,31 @@
+id: ALM-DB-LAG
+name: Auroraレプリカ遅延
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmDbLag
+properties:
+  AlarmName: portal-alm-db-lag
+  AlarmDescription: Auroraレプリカ遅延
+  Namespace: AWS/RDS
+  MetricName: AuroraReplicaLag
+  Dimensions:
+    - Name: DBInstanceIdentifier
+      Value:
+        ref: RES-DB-B
+  Statistic: Maximum
+  Threshold: 1000
+  Period: 60
+  EvaluationPeriods: 5
+  DatapointsToAlarm: 5
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

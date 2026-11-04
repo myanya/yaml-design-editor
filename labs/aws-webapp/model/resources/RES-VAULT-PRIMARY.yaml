@@ -1,0 +1,19 @@
+id: RES-VAULT-PRIMARY
+name: 東京バックアップ
+purpose: 業務データを復旧可能な形で保管する。
+resourceType: AWS::Backup::BackupVault
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: VaultPrimary
+properties:
+  BackupVaultName: portal-primary
+  EncryptionKeyArn:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  LockConfiguration:
+    MinRetentionDays: 35
+    MaxRetentionDays: 365
+  BackupVaultTags:
+    System: approval-portal
+deletionPolicy: Retain
+designNote: ChangeableForDaysを指定しないガバナンスモード。復元・コピー試験前に不可逆なコンプライアンスロックを確定しない。

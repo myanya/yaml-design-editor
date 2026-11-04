@@ -1,0 +1,23 @@
+id: RES-LOG-BUILD
+name: ビルドログ
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Logs::LogGroup
+environment: ENV-PROD
+stack: STK-DELIVERY
+logicalId: LogBuild
+properties:
+  LogGroupName: /portal/build
+  RetentionInDays: 90
+  KmsKeyId:
+    ref: RES-KMS-LOG
+    attribute: Arn
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

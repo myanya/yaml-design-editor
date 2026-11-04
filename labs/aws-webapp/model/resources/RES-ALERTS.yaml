@@ -1,0 +1,21 @@
+id: RES-ALERTS
+name: 運用通知
+purpose: 当番とチケット管理へ重大障害を届ける。
+resourceType: AWS::SNS::Topic
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: Alerts
+properties:
+  DisplayName: Portal operations
+  KmsMasterKeyId:
+    ref: RES-KMS-LOG
+    attribute: Arn
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

@@ -1,0 +1,21 @@
+id: RES-SSO-ASSIGNMENT
+name: 監査担当の本番Account割当
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::SSO::Assignment
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: SsoAssignment
+properties:
+  InstanceArn:
+    ref: INPUT-SSO-INSTANCE
+    attribute: Parameter
+  PermissionSetArn:
+    ref: RES-SSO
+  PrincipalType: GROUP
+  PrincipalId:
+    ref: INPUT-SSO-AUDIT-GROUP
+    attribute: Parameter
+  TargetType: AWS_ACCOUNT
+  TargetId:
+    ref: INPUT-PROD-ACCOUNT
+    attribute: Parameter

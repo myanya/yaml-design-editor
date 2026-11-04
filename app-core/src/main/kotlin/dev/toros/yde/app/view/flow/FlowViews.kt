@@ -5,6 +5,7 @@ import dev.toros.yde.semantic.ExtensionViewDef
 import dev.toros.yde.semantic.ExtensionViewResult
 import dev.toros.yde.semantic.SemanticTransform
 import dev.toros.yde.semantic.TransformOrigin
+import dev.toros.yde.semantic.TransformResult
 import dev.toros.yde.semantic.ViewContext
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.RefTarget
@@ -36,6 +37,7 @@ data class VirtualFlowDef(
     val direction: String = "down",
     val projection: TransformDef,
     val appearance: DiagramAppearance? = null,
+    val sources: List<TransformDef> = emptyList(),
 ) : ExtensionViewDef {
     private val regex by lazy { match?.let(::globToRegex) }
 
@@ -59,9 +61,9 @@ data class VirtualFlowDef(
     override fun resolve(context: ViewContext): FlowViewResult {
         val document = context.document ?: error("フロービュー「$id」は対象の文書を指定して開きます")
         val input = context.tree(document)
-        val resolution = FlowViews.resolve(this, document, context.schemaId(document), input, context.notations) { location, key ->
-            val field = if (location.document == document && input != null) context.fieldAt(document, location.path) else null
-            val ref = context.refsAt(document, location.path).singleOrNull { it.targetId == key }
+        val resolution = FlowViews.resolve(this, document, context.schemaId(document), input, context.notations, context::transform) { location, key ->
+            val field = context.fieldAt(location.document, location.path)
+            val ref = context.refsAt(location.document, location.path).singleOrNull { it.targetId == key }
             if (field?.type != FieldType.REF || ref == null || ref.targetKind != RefTarget.ENTITY) FlowConnectionState.UNKNOWN
             else if (!context.resolves(ref)) FlowConnectionState.UNRESOLVED else FlowConnectionState.OUTSIDE
         }
@@ -145,6 +147,7 @@ internal object FlowViews {
         schemaId: String?,
         input: YNode?,
         notations: List<VirtualDiagramNotationDef> = dev.toros.yde.workspace.DiagramDefinitions.builtins,
+        sourceLoader: (TransformDef) -> TransformResult = { error("クエリ変換の入力が提供されていません") },
         referenceState: (FlowLocation, String) -> FlowConnectionState = { _, _ -> FlowConnectionState.UNKNOWN },
     ): FlowResolution {
         fun failure(code: String, message: String, location: FlowLocation) = FlowResolution(
@@ -154,7 +157,27 @@ internal object FlowViews {
             "not-applicable", "文書がフロービューのmatch / schemaIdに適合しません", FlowLocation(view.source, emptyList()),
         )
         if (input == null) return failure("input-missing", "フローの原本文書を読み取れません", FlowLocation(document, emptyList()))
-        val transformed = runCatching { SemanticTransform.run(view.projection, input, document) }.getOrElse {
+        val sourceDiagnostics = mutableListOf<FlowDiagnostic>()
+        val inputPlace = if (view.sources.isEmpty()) SemanticTransform.TemplatePlace(input, document, emptyList()) else {
+            val fields = linkedMapOf<String, YNode>("document" to input)
+            val origins = mutableListOf(TransformOrigin(listOf("document"), document, emptyList()))
+            view.sources.forEachIndexed { i, source ->
+                val location = FlowLocation(view.source, listOf("sources", i))
+                val result = runCatching { sourceLoader(source) }.getOrElse {
+                    return failure("source-failed", "入力「${source.id}」: ${it.message}", location)
+                }
+                fields[source.id] = result.term ?: YNode.Seq()
+                origins += result.origins.map { it.copy(output = listOf(source.id) + it.output) }
+                result.query?.let { query ->
+                    if (query.total > query.rows.size) sourceDiagnostics += FlowDiagnostic("source-truncated", Severity.WARNING,
+                        "入力「${source.id}」は${query.total}件中${query.rows.size}件です。from.limitを確認してください", listOf("sources", i), listOf(location))
+                    if (query.unknownDropped) sourceDiagnostics += FlowDiagnostic("source-unresolved", Severity.WARNING,
+                        "入力「${source.id}」には未解決参照のため辿れなかった経路があります", listOf("sources", i), listOf(location))
+                }
+            }
+            DiagramInputPlace(YNode.Map(fields), origins)
+        }
+        val transformed = runCatching { SemanticTransform.runAt(view.projection, inputPlace) }.getOrElse {
             return failure("transform-failed", it.message ?: "フローへの変換に失敗しました", FlowLocation(view.source, listOf("projection")))
         }
         val term = transformed.term ?: return failure(
@@ -178,6 +201,7 @@ internal object FlowViews {
             val message = it.message + if (it.path.lastOrNull() == "shape") "（boxで表示します）" else ""
             FlowDiagnostic("structure-${it.kind.name.lowercase()}", it.severity, message, it.path, diagnosticLocations(it.path))
         }
+        diagnostics.addAll(0, sourceDiagnostics)
         fun report(code: String, message: String, path: YPath) {
             diagnostics += FlowDiagnostic(code, Severity.ERROR, message, path, diagnosticLocations(path))
         }
@@ -222,10 +246,15 @@ internal object FlowViews {
         fun detail(kind: String, i: Int, node: YNode, expected: List<YPath>?): FlowDetail {
             val origin = locations(listOf(kind, i, "detail"))
             return FlowDetail((node as? YNode.Map)?.entries?.get("detail"), origin,
-                expected?.getOrNull(i)?.let { origin == listOf(FlowLocation(document, it)) } == true)
+                expected?.getOrNull(i)?.let { path ->
+                    // 組み立てた複数原本の部分木は編集先を決めない。丸ごと写した単一原本だけを許可する。
+                    inputPlace.at(path)?.copyOrigins(emptyList())?.singleOrNull()?.takeIf { it.output.isEmpty() }?.let {
+                        it.document?.let { sourceDocument -> origin == listOf(FlowLocation(sourceDocument, it.path)) } == true
+                    }
+                } == true)
         }
-        val editableNodes = editablePaths(build?.entries?.find { it.first == "nodes" }?.second, input)
-        val editableEdges = editablePaths(build?.entries?.find { it.first == "edges" }?.second, input)
+        val editableNodes = editablePaths(build?.entries?.find { it.first == "nodes" }?.second, inputPlace.node)
+        val editableEdges = editablePaths(build?.entries?.find { it.first == "edges" }?.second, inputPlace.node)
         fun rendering(node: YNode, path: YPath, target: String): DiagramRendering? {
             val bindings = if (target == "node") view.appearance?.node("entity", text(node, "entityType")) else view.appearance?.edge(text(node, "relation"))
             val result = DiagramNotations.resolve(notations, bindings.orEmpty(), diagramInput(node, path, transformed.origins), view.source, target)

@@ -1,0 +1,81 @@
+id: RES-BUILD
+name: CodeBuild
+purpose: アプリとインフラのビルド・検査を行う。
+resourceType: AWS::CodeBuild::Project
+environment: ENV-PROD
+stack: STK-DELIVERY
+logicalId: Build
+properties:
+  Name: portal-images
+  ServiceRole:
+    ref: RES-ROLE-BUILD
+    attribute: Arn
+  EncryptionKey:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  TimeoutInMinutes: 30
+  QueuedTimeoutInMinutes: 60
+  ConcurrentBuildLimit: 1
+  Artifacts:
+    Type: CODEPIPELINE
+  Source:
+    Type: CODEPIPELINE
+    BuildSpec: |
+      version: '0.2'
+      phases:
+        pre_build:
+          commands:
+            - >-
+              aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login
+              --username AWS --password-stdin "${API_REPOSITORY_URI%%/*}"
+            - export IMAGE_TAG="$CODEBUILD_RESOLVED_SOURCE_VERSION"
+        build:
+          commands:
+            - ./scripts/test.sh
+            - docker build -t "$API_REPOSITORY_URI:$IMAGE_TAG" ./api
+            - docker build -t "$WORKER_REPOSITORY_URI:$IMAGE_TAG" ./worker
+        post_build:
+          commands:
+            - docker push "$API_REPOSITORY_URI:$IMAGE_TAG"
+            - docker push "$WORKER_REPOSITORY_URI:$IMAGE_TAG"
+            - >-
+              printf '[{"name":"api","imageUri":"%s:%s"}]' "$API_REPOSITORY_URI"
+              "$IMAGE_TAG" > api-imagedefinitions.json
+            - >-
+              printf '[{"name":"worker","imageUri":"%s:%s"}]' "$WORKER_REPOSITORY_URI"
+              "$IMAGE_TAG" > worker-imagedefinitions.json
+      artifacts:
+        files:
+          - api-imagedefinitions.json
+          - worker-imagedefinitions.json
+  Environment:
+    Type: ARM_CONTAINER
+    ComputeType: BUILD_GENERAL1_MEDIUM
+    Image: aws/codebuild/amazonlinux-aarch64-standard:3.0
+    PrivilegedMode: true
+    EnvironmentVariables:
+      - Name: API_REPOSITORY_URI
+        Type: PLAINTEXT
+        Value:
+          ref: RES-ECR-API
+          attribute: RepositoryUri
+      - Name: WORKER_REPOSITORY_URI
+        Type: PLAINTEXT
+        Value:
+          ref: RES-ECR-WORKER
+          attribute: RepositoryUri
+  LogsConfig:
+    CloudWatchLogs:
+      Status: ENABLED
+      GroupName:
+        ref: RES-LOG-BUILD
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: 接続するアプリRepositoryにapi/workerのDockerfileとscripts/test.shが必要。インフラを配備する生成器はこのビルドに含めない。

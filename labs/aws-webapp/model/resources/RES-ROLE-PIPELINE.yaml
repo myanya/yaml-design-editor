@@ -1,0 +1,109 @@
+id: RES-ROLE-PIPELINE
+name: 承認・アプリ配備Pipeline Role
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-DELIVERY
+logicalId: RolePipeline
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: TrustService
+        Effect: Allow
+        Principal:
+          Service:
+            - codepipeline.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  MaxSessionDuration: 3600
+  Policies:
+    - PolicyName: portal-scope
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PipelineArtifacts
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+            Resource:
+              - ref: RES-S3-ARTIFACT
+                attribute: Arn
+                suffix: /*
+          - Sid: PipelineBucket
+            Effect: Allow
+            Action:
+              - s3:GetBucketVersioning
+              - s3:GetBucketLocation
+            Resource:
+              - ref: RES-S3-ARTIFACT
+                attribute: Arn
+          - Sid: PipelineEncryption
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - ref: RES-KMS-DATA
+                attribute: Arn
+          - Sid: SourceConnection
+            Effect: Allow
+            Action:
+              - codeconnections:UseConnection
+            Resource:
+              - ref: INPUT-SOURCE-CONNECTION
+                attribute: Parameter
+          - Sid: RunBuild
+            Effect: Allow
+            Action:
+              - codebuild:StartBuild
+              - codebuild:BatchGetBuilds
+            Resource:
+              - ref: RES-BUILD
+                attribute: Arn
+          - Sid: DescribeDeploy
+            Effect: Allow
+            Action:
+              - ecs:DescribeTaskDefinition
+              - ecs:RegisterTaskDefinition
+            Resource:
+              - '*'
+          - Sid: UpdateServices
+            Effect: Allow
+            Action:
+              - ecs:DescribeServices
+              - ecs:UpdateService
+            Resource:
+              - ref: RES-SERVICE-API
+              - ref: RES-SERVICE-WORKER
+          - Sid: PassTaskRoles
+            Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - ref: RES-ROLE-EXEC
+                attribute: Arn
+              - ref: RES-ROLE-API
+                attribute: Arn
+              - ref: RES-ROLE-WORKER
+                attribute: Arn
+            Condition:
+              StringEquals:
+                iam:PassedToService: ecs-tasks.amazonaws.com
+          - Sid: ApprovalNotice
+            Effect: Allow
+            Action:
+              - sns:Publish
+            Resource:
+              - ref: RES-ALERTS
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

@@ -1,0 +1,15 @@
+id: RES-INSPECTOR
+name: InspectorによるECR継続検査
+service: inspector2
+action: Enable
+account:
+  ref: INPUT-PROD-ACCOUNT
+  attribute: Parameter
+region: ap-northeast-1
+request:
+  resourceTypes:
+    - ECR
+  accountIds:
+    - ref: INPUT-PROD-ACCOUNT
+      attribute: Parameter
+verification: BatchGetAccountStatusでECRがENABLED。脆弱性FindingがSecurity Hubへ集約される。

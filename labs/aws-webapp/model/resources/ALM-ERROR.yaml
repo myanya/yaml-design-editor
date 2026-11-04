@@ -1,0 +1,63 @@
+id: ALM-ERROR
+name: WEBエラー率
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmError
+properties:
+  AlarmName: portal-http-errors
+  AlarmDescription: 100要求以上の5分区間で5xx比率が1%超
+  ComparisonOperator: GreaterThanThreshold
+  Threshold: 1
+  EvaluationPeriods: 2
+  DatapointsToAlarm: 2
+  TreatMissingData: notBreaching
+  AlarmActions:
+    - ref: RES-ALERTS
+  Metrics:
+    - Id: requests
+      ReturnData: false
+      MetricStat:
+        Metric:
+          Namespace: AWS/ApplicationELB
+          MetricName: RequestCount
+          Dimensions:
+            - Name: LoadBalancer
+              Value:
+                ref: RES-ALB
+                attribute: LoadBalancerFullName
+        Period: 300
+        Stat: Sum
+    - Id: targeterrors
+      ReturnData: false
+      MetricStat:
+        Metric:
+          Namespace: AWS/ApplicationELB
+          MetricName: HTTPCode_Target_5XX_Count
+          Dimensions:
+            - Name: LoadBalancer
+              Value:
+                ref: RES-ALB
+                attribute: LoadBalancerFullName
+        Period: 300
+        Stat: Sum
+    - Id: lberrors
+      ReturnData: false
+      MetricStat:
+        Metric:
+          Namespace: AWS/ApplicationELB
+          MetricName: HTTPCode_ELB_5XX_Count
+          Dimensions:
+            - Name: LoadBalancer
+              Value:
+                ref: RES-ALB
+                attribute: LoadBalancerFullName
+        Period: 300
+        Stat: Sum
+    - Id: rate
+      Expression: IF(requests>=100,100*(FILL(targeterrors,0)+FILL(lberrors,0))/requests,0)
+      ReturnData: true
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

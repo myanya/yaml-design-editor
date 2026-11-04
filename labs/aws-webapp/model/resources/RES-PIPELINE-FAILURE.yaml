@@ -1,0 +1,28 @@
+id: RES-PIPELINE-FAILURE
+name: Pipeline失敗の通知
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Events::Rule
+environment: ENV-PROD
+stack: STK-DELIVERY
+logicalId: PipelineFailure
+properties:
+  Name: portal-pipeline-failure
+  State: ENABLED
+  EventPattern:
+    source:
+      - aws.codepipeline
+    detail-type:
+      - CodePipeline Pipeline Execution State Change
+    detail:
+      pipeline:
+        - ref: RES-PIPELINE
+      state:
+        - FAILED
+        - CANCELED
+  Targets:
+    - Id: Operations
+      Arn:
+        ref: RES-ALERTS
+runbook:
+  ref: RUN-DEPLOY
+  attribute: Literal

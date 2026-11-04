@@ -1,0 +1,47 @@
+id: parameters-ecs-tasks
+name: Task Definitionの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::ECS::TaskDefinition
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: Family
+    path: properties.Family
+    editable: true
+  - label: RequiresCompatibilities
+    path: properties.RequiresCompatibilities
+  - label: NetworkMode
+    path: properties.NetworkMode
+    editable: true
+  - label: Cpu
+    path: properties.Cpu
+    editable: true
+  - label: Memory
+    path: properties.Memory
+    editable: true
+  - label: RuntimePlatform
+    path: properties.RuntimePlatform
+  - label: ExecutionRoleArn
+    path: properties.ExecutionRoleArn
+  - label: TaskRoleArn
+    path: properties.TaskRoleArn
+  - label: EphemeralStorage
+    path: properties.EphemeralStorage
+  - label: Volumes
+    path: properties.Volumes
+  - label: ContainerDefinitions
+    path: properties.ContainerDefinitions
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

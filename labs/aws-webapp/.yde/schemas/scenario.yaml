@@ -1,0 +1,72 @@
+id: aws-scenario
+name: 運用・処理シナリオ
+kind: document
+match: model/scenarios/*.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: id
+      label: シナリオID
+      type: id
+      required: true
+    - key: name
+      label: 名称
+      type: line
+      required: true
+      role: title
+    - key: description
+      label: 目的
+      type: text
+      required: true
+    - key: steps
+      label: 手順
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: lane
+            label: 担当
+            type: enum
+            values:
+              - user
+              - application
+              - platform
+              - operations
+            required: true
+          - key: resources
+            label: 利用する資源
+            type: array
+            item:
+              type: ref
+              idPattern: RES-*
+              relation: usesResource
+          - key: behavior
+            label: 実施内容
+            type: text
+            required: true
+          - key: failure
+            label: 失敗時の扱い
+            type: text
+            required: true
+          - key: next
+            label: 次の手順
+            type: array
+            item:
+              type: ref
+              idPattern: STEP-*
+              relation: nextStep
+        entity:
+          type: scenario-step
+          defines: true

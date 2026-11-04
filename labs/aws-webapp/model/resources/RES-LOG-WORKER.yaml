@@ -1,0 +1,24 @@
+id: RES-LOG-WORKER
+name: Worker構造化ログ
+purpose: 診断に必要な情報を用途別に保持する。
+resourceType: AWS::Logs::LogGroup
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: LogWorker
+properties:
+  LogGroupName: /portal/worker
+  RetentionInDays: 30
+  KmsKeyId:
+    ref: RES-KMS-LOG
+    attribute: Arn
+  LogGroupClass: STANDARD
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

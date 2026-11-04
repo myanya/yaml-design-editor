@@ -1,0 +1,23 @@
+id: RES-DB-PARAMETERS
+name: Auroraのクラスタパラメータ
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::RDS::DBClusterParameterGroup
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: DbParameters
+properties:
+  Description: Portal Aurora PostgreSQL 17
+  Family: aurora-postgresql17
+  Parameters:
+    rds.force_ssl: '1'
+    log_min_duration_statement: '1000'
+    log_statement: ddl
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

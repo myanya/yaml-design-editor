@@ -1,0 +1,108 @@
+id: RES-ROLE-WORKER
+name: Worker Task Role
+purpose: コンテナ実行と業務APIの権限を分離。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-APP
+logicalId: RoleWorker
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: TrustService
+        Effect: Allow
+        Principal:
+          Service:
+            - ecs-tasks.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  MaxSessionDuration: 3600
+  Policies:
+    - PolicyName: portal-scope
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: WorkerSecret
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - ref: RES-SECRET-DB-WORKER
+          - Sid: PollJobs
+            Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueAttributes
+            Resource:
+              - ref: RES-QUEUE-JOBS
+                attribute: Arn
+              - ref: RES-QUEUE-SCAN
+                attribute: Arn
+          - Sid: ReadScannedVersion
+            Effect: Allow
+            Action:
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionTagging
+            Resource:
+              - ref: RES-S3-QUARANTINE
+                attribute: Arn
+                suffix: /*
+          - Sid: WriteApproved
+            Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource:
+              - ref: RES-S3-FILES
+                attribute: Arn
+                suffix: /*
+              - ref: RES-S3-REPORTS
+                attribute: Arn
+                suffix: /*
+              - ref: RES-S3-AUDIT
+                attribute: Arn
+                suffix: /*
+          - Sid: SendMail
+            Effect: Allow
+            Action:
+              - ses:SendEmail
+            Resource:
+              - ref: RES-SES
+                attribute: SesIdentityArn
+            Condition:
+              StringEquals:
+                ses:FromAddress: noreply@example.com
+          - Sid: WorkerDataEncryption
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - ref: RES-KMS-DATA
+                attribute: Arn
+          - Sid: WorkerTraceWrite
+            Effect: Allow
+            Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Resource:
+              - '*'
+          - Sid: BusinessMetrics
+            Effect: Allow
+            Action:
+              - cloudwatch:PutMetricData
+            Resource:
+              - '*'
+            Condition:
+              StringEquals:
+                cloudwatch:namespace: Portal/Business
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

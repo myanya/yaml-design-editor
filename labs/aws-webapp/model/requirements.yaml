@@ -1,0 +1,139 @@
+requirements:
+  - id: REQ-AVAIL
+    name: 可用性
+    category: availability
+    target: 利用者向け月間SLO 99.9%。AZ障害時に縮退して継続。計画停止の扱いは契約で確定。
+    verification: 合成監視とSLIを集計し、AZ障害を模擬して切替を計測。
+    status: design-target
+    owner: サービスオーナー
+  - id: REQ-PERF
+    name: 性能
+    category: performance
+    target: '初期の負荷試験条件: 同時利用500、API 100 req/s、通常API p95 500 ms。'
+    verification: DB接続上限とオートスケール遅延を含む負荷試験。数値は未検証の設計目標。
+    status: design-target
+    owner: サービスオーナー
+  - id: REQ-SESSION
+    name: セッション保護
+    category: security
+    target: 無操作30分・最大8時間。権限変更・退職・ログアウトで失効。セッション欠落は再認証。
+    verification: 固定化・CSRF・Cookie属性・再送・IdP停止・Valkey切替を試験。
+    status: design-target
+    owner: セキュリティ統括
+  - id: REQ-DATA
+    name: データ保護
+    category: security
+    target: >-
+      外部通信・DB・セッション・AWS
+      APIと保管を暗号化。ALBからAPIへのVPC内HTTPは明示的な例外承認が必要で、未承認ならHTTPSへ変更。S3は非公開。秘密値をYAML・ログ・ビルド成果物へ入れない。
+    verification: IAM Access Analyzer、実行権限試験、ログの秘密情報検査。内部HTTPの例外が許容される契約かも確認。
+    status: design-target
+    owner: セキュリティ統括
+  - id: REQ-UPLOAD
+    name: 添付の安全性
+    category: security
+    target: 検査結果が明示的にクリーンの指定バージョンだけを公開する。
+    verification: 悪性・未対応・失敗・タイムアウト・イベント重複・上書きを試験。
+    status: design-target
+    owner: セキュリティ統括
+  - id: REQ-AUDIT
+    name: 業務監査
+    category: audit
+    target: 業務監査と組織証跡を365日オンライン保管。長期保管年数は法務と合意する。
+    verification: 業務確定とOutboxの原子性、重複排除、配送遅延、改変・削除権限を試験。
+    status: design-target
+    owner: サービスオーナー
+  - id: REQ-DR
+    name: 復旧
+    category: recovery
+    target: 'リージョン災害: RPO 24時間・RTO 8時間を目標。DBの同一リージョンPITRは別途復元点を確認。'
+    verification: 四半期に大阪の分離環境へDB・S3を復元し、参照整合・認証・DNS切替を計測。
+    status: design-target
+    owner: サービスオーナー
+  - id: REQ-OPS
+    name: 運用
+    category: operations
+    target: 重大障害を5分以内に検知し、当番が15分以内に着手する目標。
+    verification: Canary障害注入、通知配送・未応答のエスカレーションを月次に確認。
+    status: design-target
+    owner: サービスオーナー
+  - id: REQ-COST
+    name: 費用
+    category: cost
+    target: NAT、Endpoint、ログ、DB、Valkeyを含めた月額を事前承認。固定予算は見積後に確定。
+    verification: 実トラフィック・保存量・AZ数をPricing Calculatorへ入力し、予算通知を試験。
+    status: design-target
+    owner: サービスオーナー
+decisions:
+  - id: DEC-COMPUTE
+    name: Fargateを採用
+    status: adopted
+    decision: Kubernetes運用を必要としない一般的なWEBアプリとしてECS Fargateを選ぶ。
+    rationale: 負荷と実行時間の要件が変わった場合はLambda/EKS等を再評価。
+    requirements:
+      - REQ-PERF
+    owner: サービスオーナー
+  - id: DEC-SIZE
+    name: 容量とエンジン版
+    status: open
+    decision: ECS 1vCPU/2GiB、Aurora db.r6g.large、Valkey cache.t4g.smallを初期候補とする。
+    rationale: 利用リージョンの対応版・価格・負荷試験結果・接続数で確定する。
+    requirements:
+      - REQ-PERF
+    owner: サービスオーナー
+  - id: DEC-DR
+    name: 復旧方式と契約
+    status: open
+    decision: 日次コピーによるコールドリストアでRPO24時間/RTO8時間を目指す。
+    rationale: コピー完了遅延もRPOに含める。達成できなければ頻度増加・Global Database等を比較。
+    requirements:
+      - REQ-DR
+    owner: サービスオーナー
+  - id: DEC-DOMAIN
+    name: ドメイン・証明書・AZ
+    status: open
+    decision: portal.example.comを仮名とする。実ドメイン、Hosted Zone、アカウント番号、AZ IDは配備時に供給。
+    rationale: CloudFront用証明書はus-east-1、ALB用は東京。VPC Originが使える2AZを選ぶ。
+    requirements:
+      - REQ-AVAIL
+    owner: サービスオーナー
+  - id: DEC-RETENTION
+    name: 保持・個人情報
+    status: open
+    decision: 365日を監査保持の例とする。アクセスログ90日、アプリログ30日。
+    rationale: 法務・契約・削除請求・Object Lockの衝突を整理して確定する。
+    requirements:
+      - REQ-AUDIT
+    owner: サービスオーナー
+  - id: DEC-IDENTITY
+    name: フェデレーション失効
+    status: open
+    decision: IdP MFAとCognitoのSAML連携。業務認可をアプリ側で管理する。
+    rationale: IdP停止/退職時に既存セッションを止めるイベント経路・猶予を決める。
+    requirements:
+      - REQ-SESSION
+    owner: サービスオーナー
+  - id: DEC-EGRESS
+    name: 外向き通信
+    status: open
+    decision: AZごとのNATとVPC Endpointを採用。外部HTTPSを必要最小限にする。
+    rationale: SGだけではFQDN制限できない。契約次第でNetwork Firewallやプロキシを追加。
+    requirements:
+      - REQ-DATA
+    owner: サービスオーナー
+  - id: DEC-TRANSPORT
+    name: 内部通信のTLS境界
+    status: open
+    decision: 現在の例はALB→FargateだけVPC内HTTP:8080。その他の外部通信・DB・セッション・AWS APIはTLS。
+    rationale: 例外の承認を得るか、TargetGroup/コンテナ/ヘルスチェック/SGをHTTPSへそろえ、証明書の配布・更新・検証方針を追加する。
+    requirements:
+      - REQ-DATA
+    owner: サービスオーナー
+  - id: DEC-COST
+    name: 月額見積
+    status: open
+    decision: この例は最小費用構成ではない。DR保管、セキュリティ、NAT/Endpoint、ログを含む。
+    rationale: 金額を推測で固定しない。負荷・保持期間・リージョンの見積を承認する。
+    requirements:
+      - REQ-COST
+    owner: サービスオーナー

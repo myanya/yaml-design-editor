@@ -1,0 +1,15 @@
+id: RES-EP-S3
+name: s3 Endpoint
+purpose: AWS APIへのプライベート経路。
+resourceType: AWS::EC2::VPCEndpoint
+environment: ENV-PROD
+stack: STK-NET
+logicalId: EpS3
+properties:
+  VpcId:
+    ref: RES-VPC
+  ServiceName: com.amazonaws.ap-northeast-1.s3
+  VpcEndpointType: Gateway
+  RouteTableIds:
+    - ref: RES-RT-APP-A
+    - ref: RES-RT-APP-B

@@ -1,0 +1,148 @@
+id: aws-foundation
+name: aws-foundation
+kind: document
+match: model/foundation/*.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: id
+      label: 設計ID
+      type: id
+      required: true
+    - key: name
+      label: 名称
+      type: string
+      required: true
+      role: title
+    - key: service
+      label: service
+      type: string
+      required: true
+    - key: action
+      label: action
+      type: string
+      required: true
+    - key: account
+      label: account
+      type: binding
+      required: true
+    - key: region
+      label: region
+      type: string
+      required: true
+    - key: request
+      label: request
+      type: object
+      unknownFields: error
+      fields:
+        - key: resourceTypes
+          label: resourceTypes
+          type: array
+          item:
+            type: string
+        - key: accountIds
+          label: accountIds
+          type: array
+          item:
+            type: binding
+        - key: scanType
+          label: scanType
+          type: string
+        - key: rules
+          label: rules
+          type: array
+          item:
+            type: object
+            unknownFields: error
+            fields:
+              - key: scanFrequency
+                label: scanFrequency
+                type: string
+                required: true
+              - key: repositoryFilters
+                label: repositoryFilters
+                type: array
+                item:
+                  type: object
+                  unknownFields: error
+                  fields:
+                    - key: filter
+                      label: filter
+                      type: string
+                      required: true
+                    - key: filterType
+                      label: filterType
+                      type: string
+                      required: true
+                required: true
+        - key: detectorId
+          label: detectorId
+          type: binding
+        - key: autoEnableOrganizationMembers
+          label: autoEnableOrganizationMembers
+          type: string
+        - key: features
+          label: features
+          type: array
+          item:
+            type: object
+            unknownFields: error
+            fields:
+              - key: name
+                label: 名称
+                type: string
+                required: true
+              - key: autoEnable
+                label: autoEnable
+                type: string
+                required: true
+        - key: ConfigurationRecorderName
+          label: ConfigurationRecorderName
+          type: binding
+      required: true
+    - key: verification
+      label: verification
+      type: string
+      required: true
+  entity:
+    type: service-setting
+    defines: true
+definitions:
+  binding:
+    type: object
+    unknownFields: error
+    fields:
+      - key: ref
+        label: 参照先
+        type: ref
+        relation: uses
+      - key: attribute
+        label: 展開する属性
+        type: string
+        default: Ref
+      - key: suffix
+        label: 属性に付ける末尾
+        type: string
+      - key: literal
+        label: 固定文字列
+        type: string
+    constraints:
+      - id: binding-present
+        description: 参照先か固定文字列のいずれかを指定する
+        where:
+          - path: ref
+            exists: false
+          - path: literal
+            exists: false
+        expect: absent
+        level: error
+      - id: binding-exclusive
+        description: 参照先と固定文字列を同時に指定しない
+        where:
+          - path: ref
+            exists: true
+          - path: literal
+            exists: true
+        expect: absent
+        level: error

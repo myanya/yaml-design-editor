@@ -1,0 +1,13 @@
+id: RES-SESSION-USERS
+name: Valkeyアクセスユーザー群
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ElastiCache::UserGroup
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: SessionUsers
+properties:
+  UserGroupId: portal-session-users
+  Engine: valkey
+  UserIds:
+    - ref: RES-SESSION-USER
+    - ref: RES-SESSION-DEFAULT-USER

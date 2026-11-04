@@ -1,0 +1,22 @@
+id: decisions
+name: 設計判断・配備前の宿題
+kind: grid
+rows:
+  match:
+    - node:
+        entity: decision
+        bind: r
+columns:
+  - label: 名称
+    path: name
+  - label: 状態
+    path: status
+    editable: true
+  - label: 判断・候補
+    path: decision
+    editable: true
+  - label: 根拠
+    path: rationale
+    editable: true
+  - label: 責任者
+    path: owner

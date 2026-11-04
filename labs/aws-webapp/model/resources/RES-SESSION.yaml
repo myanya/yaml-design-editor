@@ -1,0 +1,45 @@
+id: RES-SESSION
+name: Valkey セッション
+purpose: ステートレスなAPIタスクから共通セッションを参照する。
+resourceType: AWS::ElastiCache::ReplicationGroup
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: Session
+properties:
+  ReplicationGroupDescription: Portal sessions
+  Engine: valkey
+  EngineVersion: '8.2'
+  CacheNodeType: cache.r7g.large
+  NumCacheClusters: 2
+  MultiAZEnabled: true
+  AutomaticFailoverEnabled: true
+  CacheSubnetGroupName:
+    ref: RES-SESSION-SUBNETS
+  CacheParameterGroupName:
+    ref: RES-SESSION-PARAMETERS
+  SecurityGroupIds:
+    - ref: RES-SG-SESSION
+  Port: 6379
+  TransitEncryptionEnabled: true
+  TransitEncryptionMode: required
+  AtRestEncryptionEnabled: true
+  KmsKeyId:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  UserGroupIds:
+    - ref: RES-SESSION-USERS
+  SnapshotRetentionLimit: 7
+  SnapshotWindow: 17:00-18:00
+  PreferredMaintenanceWindow: sun:19:00-sun:20:00
+  AutoMinorVersionUpgrade: true
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Snapshot
+designNote: 非同期レプリケーションのセッション欠落は再ログインで回復する。DBをセッションの代替保存先にせず、障害時は認証を閉じる。

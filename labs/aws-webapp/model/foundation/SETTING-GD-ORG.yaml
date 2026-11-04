@@ -1,0 +1,18 @@
+id: SETTING-GD-ORG
+name: GuardDutyの組織自動有効化
+service: guardduty
+action: UpdateOrganizationConfiguration
+account:
+  ref: INPUT-SECURITY-ACCOUNT
+  attribute: Parameter
+region: ap-northeast-1
+request:
+  detectorId:
+    ref: RES-GD
+  autoEnableOrganizationMembers: ALL
+  features:
+    - name: S3_DATA_EVENTS
+      autoEnable: ALL
+    - name: RDS_LOGIN_EVENTS
+      autoEnable: ALL
+verification: 委任管理者の登録後に適用。DescribeOrganizationConfigurationと本番AccountのDetectorを照合する。

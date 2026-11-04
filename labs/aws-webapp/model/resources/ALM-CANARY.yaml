@@ -1,0 +1,31 @@
+id: ALM-CANARY
+name: 外形監視の連続失敗
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmCanary
+properties:
+  AlarmName: portal-alm-canary
+  AlarmDescription: 外形監視の連続失敗
+  Namespace: CloudWatchSynthetics
+  MetricName: SuccessPercent
+  Dimensions:
+    - Name: CanaryName
+      Value:
+        ref: RES-CANARY
+  Statistic: Average
+  Threshold: 100
+  Period: 60
+  EvaluationPeriods: 3
+  DatapointsToAlarm: 3
+  ComparisonOperator: LessThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

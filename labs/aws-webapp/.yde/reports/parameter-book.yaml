@@ -1,0 +1,14 @@
+id: parameter-book
+name: 全サービスのパラメータ設計書
+description: 設定値・参照・配備先を原本から展開する。未束縛入力は例と区別する。
+build:
+  resources:
+    $view: resources
+  applications:
+    $view: app-settings
+  foundation:
+    $view: foundation
+  inputs:
+    $view: inputs
+template: parameter-book.md
+output: reports/parameter-book.md

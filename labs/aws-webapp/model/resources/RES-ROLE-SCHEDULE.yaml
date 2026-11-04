@@ -1,0 +1,50 @@
+id: RES-ROLE-SCHEDULE
+name: 定期処理の配送Role
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-APP
+logicalId: RoleSchedule
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: TrustService
+        Effect: Allow
+        Principal:
+          Service:
+            - scheduler.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  MaxSessionDuration: 3600
+  Policies:
+    - PolicyName: portal-scope
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SchedulePublish
+            Effect: Allow
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - ref: RES-QUEUE-JOBS
+                attribute: Arn
+              - ref: RES-DLQ-EVENT
+                attribute: Arn
+          - Sid: ScheduleEncryption
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - ref: RES-KMS-DATA
+                attribute: Arn
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

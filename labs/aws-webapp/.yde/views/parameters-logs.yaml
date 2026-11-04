@@ -1,0 +1,32 @@
+id: parameters-logs
+name: Log Groupの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::Logs::LogGroup
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: LogGroupName
+    path: properties.LogGroupName
+    editable: true
+  - label: RetentionInDays
+    path: properties.RetentionInDays
+    editable: true
+  - label: KmsKeyId
+    path: properties.KmsKeyId
+  - label: LogGroupClass
+    path: properties.LogGroupClass
+    editable: true
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

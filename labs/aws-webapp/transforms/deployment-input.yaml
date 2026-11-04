@@ -1,0 +1,34 @@
+id: aws-deployment-input
+description: 設定と配備先を結合したCloudFormation生成入力。シンボル束縛は保持し、実行可能テンプレートとは区別する。
+from:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+    - edge:
+        via: stack
+        dir: out
+    - node:
+        entity: stack
+        bind: s
+  limit: 10000
+build:
+  contractVersion: 2
+  designId:
+    $copy: id
+    $of: r
+  logicalId:
+    $copy: logicalId
+    $of: r
+  resourceType:
+    $copy: resourceType
+    $of: r
+  properties:
+    $copy: properties
+    $of: r
+  deletionPolicy:
+    $copy: deletionPolicy
+    $of: r
+  stack:
+    $copy: .
+    $of: s

@@ -74,15 +74,18 @@
 ## フローの解決
 
 `kind: flow`は文書の項目を、ノード・辺・任意のレーンへ射影する。差し込み口を通る組込みの種類で、文書に縛られる（`perDocument`。解決に対象の文書が要る）。GUI・CLI・read_viewは同じ解決（`Views.resolveExtension` に文書を渡す）を使う。
-`match`と`schemaId`をANDで適用し、`projection`は既存のTransformDefを読む。入力は呼び出し側が渡す1文書で、fromと外部paramsは認めない。
+`match`と`schemaId`をANDで適用し、`projection`は既存のTransformDefを読む。projection自身のfromと外部paramsは認めない。
+通常の入力は対象文書。任意の`sources`はfromを持つ変換の並びで、同じ索引・未保存優先loaderを使う`ViewContext.transform`へ委譲する。
+結果の配列をsourceのIDに、対象文書をdocumentに置いてprojectionへ渡す。source間の依存・外部params・名前の重複は認めない。
 
 - 値の導出はSemanticTransformに委譲し、FlowResolutionに表示モデル・TransformOrigin・診断を分けて返す。
+- sourcesの来歴は合成入力の場所へ移し、DiagramInputPlaceからprojectionへ伝える。TransformResultのクエリ結果から打切り・未解決経路を診断し、失敗した入力はエラーにする。
 - 型・必須・列挙値は組込みの構造スキーマで検査し、重複key・図内の接続・レーン対応は意味側で解決する。
 - 不完全な配列要素も出力位置で保持し、未知の形状はboxへ代替する。診断の位置は値の来歴、detailの来歴、定義の順で補う。
 - 図内に接続先がなくても、単なる文字列からワークスペース内の不存在を断定しない。
-  原本のref型と索引が裏付ける場合だけ、既存の参照解決で「表示対象外」と「未解決」を区別する。
+  来歴が指す文書のref型と索引が裏付ける場合だけ、既存の参照解決で「表示対象外」と「未解決」を区別する。
 - detailの編集適格性は、配列eachの通常マップ直下のcopy（パス`.`、of・inなし）と、そのeach同士のconcatに限定する。
-  出力番号・原本位置・来歴を照合し、条件付き・規則経由などは原本座標があっても編集不可とする。
+  出力番号・原本位置・来歴を照合し、合成入力では写した場所に単一の原本があることも確認する。条件付き・規則経由・複数原本の組立ては編集不可とする。
 - editableは射影上の適格性を表し、利用者の権限や閲覧専用状態を解除するものではない。
 - 解決は原本を書き換えず、図の派生データを保存しない。相対DocumentIdと、同じスナップショットの索引・原本loader・スキーマを渡す。
 

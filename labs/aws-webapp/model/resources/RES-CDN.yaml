@@ -1,0 +1,120 @@
+id: RES-CDN
+name: CloudFront Distribution
+purpose: ポータルの単一入口。
+resourceType: AWS::CloudFront::Distribution
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: Cdn
+properties:
+  DistributionConfig:
+    Enabled: true
+    Comment: Enterprise approval portal
+    Aliases:
+      - portal.example.com
+    DefaultRootObject: index.html
+    HttpVersion: http2and3
+    IPV6Enabled: true
+    PriceClass: PriceClass_All
+    WebACLId:
+      ref: RES-WAF
+      attribute: Arn
+    ViewerCertificate:
+      AcmCertificateArn:
+        ref: RES-ACM-EDGE
+      SslSupportMethod: sni-only
+      MinimumProtocolVersion: TLSv1.2_2021
+    Origins:
+      - Id: ORIGIN-STATIC
+        DomainName:
+          ref: RES-S3-STATIC
+          attribute: RegionalDomainName
+        OriginAccessControlId:
+          ref: RES-OAC
+        S3OriginConfig:
+          OriginAccessIdentity: ''
+      - Id: ORIGIN-API
+        DomainName:
+          literal: origin.portal.example.com
+        VpcOriginConfig:
+          VpcOriginId:
+            ref: RES-VPC-ORIGIN
+            attribute: Id
+          OriginKeepaliveTimeout: 5
+          OriginReadTimeout: 30
+    DefaultCacheBehavior:
+      id: BEHAVIOR-STATIC
+      TargetOriginId:
+        ref: ORIGIN-STATIC
+        attribute: Literal
+      ViewerProtocolPolicy: redirect-to-https
+      AllowedMethods:
+        - GET
+        - HEAD
+        - OPTIONS
+      CachedMethods:
+        - GET
+        - HEAD
+      CachePolicyId:
+        ref: RES-CACHE-STATIC
+      ResponseHeadersPolicyId:
+        ref: RES-RESPONSE-HEADERS
+      Compress: true
+    CacheBehaviors:
+      - id: BEHAVIOR-API
+        PathPattern: /api/*
+        TargetOriginId:
+          ref: ORIGIN-API
+          attribute: Literal
+        ViewerProtocolPolicy: redirect-to-https
+        AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          - PUT
+          - PATCH
+          - POST
+          - DELETE
+        CachedMethods:
+          - GET
+          - HEAD
+        CachePolicyId:
+          ref: RES-CACHE-API
+        OriginRequestPolicyId:
+          ref: RES-ORIGIN-REQUEST
+        ResponseHeadersPolicyId:
+          ref: RES-RESPONSE-HEADERS
+        Compress: true
+      - id: BEHAVIOR-AUTH
+        PathPattern: /auth/*
+        TargetOriginId:
+          ref: ORIGIN-API
+          attribute: Literal
+        ViewerProtocolPolicy: redirect-to-https
+        AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          - PUT
+          - PATCH
+          - POST
+          - DELETE
+        CachedMethods:
+          - GET
+          - HEAD
+        CachePolicyId:
+          ref: RES-CACHE-API
+        OriginRequestPolicyId:
+          ref: RES-ORIGIN-REQUEST
+        ResponseHeadersPolicyId:
+          ref: RES-RESPONSE-HEADERS
+        Compress: true
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+designNote: OriginのHostはorigin.portal.example.com。ALB証明書の名前と一致させる。API/認証を静的SPAの404置換に巻き込まない。

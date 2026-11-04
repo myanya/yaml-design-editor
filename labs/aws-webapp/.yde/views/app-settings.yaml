@@ -1,0 +1,16 @@
+id: app-settings
+name: API・Workerの実行設定
+kind: grid
+rows:
+  match:
+    - node:
+        entity: application-settings
+        bind: r
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: 種類
+    path: profile
+  - label: 全設定
+    path: settings

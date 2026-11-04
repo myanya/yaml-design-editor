@@ -1,0 +1,13 @@
+id: RES-ROUTE-APP-A
+name: APP Aの既定経路
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::EC2::Route
+environment: ENV-PROD
+stack: STK-NET
+logicalId: RouteAppA
+properties:
+  RouteTableId:
+    ref: RES-RT-APP-A
+  DestinationCidrBlock: 0.0.0.0/0
+  NatGatewayId:
+    ref: RES-NAT-A

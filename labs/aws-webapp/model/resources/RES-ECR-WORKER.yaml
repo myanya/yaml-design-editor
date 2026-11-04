@@ -1,0 +1,26 @@
+id: RES-ECR-WORKER
+name: WORKER Container Repository
+purpose: 署名・スキャン済みイメージを保管。
+resourceType: AWS::ECR::Repository
+environment: ENV-PROD
+stack: STK-DELIVERY
+logicalId: EcrWorker
+properties:
+  ImageTagMutability: IMMUTABLE
+  EncryptionConfiguration:
+    EncryptionType: KMS
+    KmsKey:
+      ref: RES-KMS-DATA
+      attribute: Arn
+  LifecyclePolicy:
+    LifecyclePolicyText: >-
+      {"rules":[{"rulePriority":1,"description":"未タグイメージの整理","selection":{"tagStatus":"untagged","countType":"sinceImagePushed","countUnit":"days","countNumber":7},"action":{"type":"expire"}}]}
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

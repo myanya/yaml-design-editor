@@ -1,0 +1,78 @@
+id: RES-S3-ORG-LOG-POLICY
+name: 組織証跡アーカイブのBucket Policy
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::S3::BucketPolicy
+environment: ENV-LOG
+stack: STK-LOG
+logicalId: S3OrgLogPolicy
+properties:
+  Bucket:
+    ref: RES-S3-ORG-LOG
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyInsecureTransport
+        Effect: Deny
+        Principal: '*'
+        Action:
+          - s3:*
+        Resource:
+          - ref: RES-S3-ORG-LOG
+            attribute: Arn
+          - ref: RES-S3-ORG-LOG
+            attribute: Arn
+            suffix: /*
+        Condition:
+          Bool:
+            aws:SecureTransport: 'false'
+      - Sid: TrailAclCheck
+        Effect: Allow
+        Action:
+          - s3:GetBucketAcl
+        Resource:
+          - ref: RES-S3-ORG-LOG
+            attribute: Arn
+        Principal:
+          Service:
+            - cloudtrail.amazonaws.com
+      - Sid: TrailLogDelivery
+        Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource:
+          - ref: RES-S3-ORG-LOG
+            attribute: Arn
+            suffix: /cloudtrail/AWSLogs/*
+        Principal:
+          Service:
+            - cloudtrail.amazonaws.com
+        Condition:
+          StringEquals:
+            s3:x-amz-acl: bucket-owner-full-control
+            aws:SourceArn:
+              ref: INPUT-TRAIL-ARN
+              attribute: Parameter
+      - Sid: ConfigDelivery
+        Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource:
+          - ref: RES-S3-ORG-LOG
+            attribute: Arn
+            suffix: /config/*
+        Principal:
+          AWS:
+            - ref: RES-ROLE-CONFIG
+              attribute: Arn
+      - Sid: ConfigAclCheck
+        Effect: Allow
+        Action:
+          - s3:GetBucketAcl
+          - s3:ListBucket
+        Resource:
+          - ref: RES-S3-ORG-LOG
+            attribute: Arn
+        Principal:
+          AWS:
+            - ref: RES-ROLE-CONFIG
+              attribute: Arn

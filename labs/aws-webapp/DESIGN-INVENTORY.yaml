@@ -1,0 +1,5 @@
+contractVersion: 2
+cloudFormationSpecification: 270.0.0
+resources: 211
+resourceTypes: 87
+inputs: 33

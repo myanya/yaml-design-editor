@@ -1,0 +1,24 @@
+id: RES-SUB-APP-B
+name: APP Subnet B
+purpose: PUB=NAT / APP=ALBとFargate / DATA=DBとValkey。
+resourceType: AWS::EC2::Subnet
+environment: ENV-PROD
+stack: STK-NET
+logicalId: SubAppB
+properties:
+  VpcId:
+    ref: RES-VPC
+  CidrBlock: 10.40.17.0/24
+  AvailabilityZoneId:
+    ref: INPUT-AZ-B
+    attribute: Parameter
+  MapPublicIpOnLaunch: false
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

@@ -1,0 +1,22 @@
+id: RES-BACKUP-SELECTION
+name: バックアップの保護対象
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Backup::BackupSelection
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: BackupSelection
+properties:
+  BackupPlanId:
+    ref: BKP-PORTAL
+  BackupSelection:
+    SelectionName: portal-data
+    IamRoleArn:
+      ref: RES-ROLE-BACKUP
+      attribute: Arn
+    Resources:
+      - ref: RES-DB
+        attribute: DBClusterArn
+      - ref: RES-S3-FILES
+        attribute: Arn
+      - ref: RES-S3-AUDIT
+        attribute: Arn

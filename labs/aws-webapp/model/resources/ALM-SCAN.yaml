@@ -1,0 +1,30 @@
+id: ALM-SCAN
+name: 未検査添付の滞留
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmScan
+properties:
+  AlarmName: portal-alm-scan
+  AlarmDescription: 未検査添付の滞留
+  Namespace: Portal/Business
+  MetricName: OldestUnscannedSeconds
+  Dimensions:
+    - Name: Environment
+      Value: prod
+  Statistic: Maximum
+  Threshold: 900
+  Period: 60
+  EvaluationPeriods: 5
+  DatapointsToAlarm: 5
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-UPLOAD
+  attribute: Literal

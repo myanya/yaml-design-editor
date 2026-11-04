@@ -1,0 +1,7 @@
+id: SYS-PORTAL
+name: 企業向け申請・承認ポータル
+environment: ENV-PROD
+publicUrl: https://portal.example.com/
+description: 東京2AZのWEBアプリ。各サービスの設定を原本として、構成図・設定表・配備入力へ射影する。
+publicDns:
+  ref: RES-DNS

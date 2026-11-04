@@ -1,0 +1,22 @@
+id: RES-LISTENER
+name: ALB HTTPS Listener
+purpose: TLS終端後にAPIへ転送。
+resourceType: AWS::ElasticLoadBalancingV2::Listener
+environment: ENV-PROD
+stack: STK-APP
+logicalId: Listener
+properties:
+  LoadBalancerArn:
+    ref: RES-ALB
+  Port: 443
+  Protocol: HTTPS
+  Certificates:
+    - CertificateArn:
+        ref: RES-ACM-ALB
+  SslPolicy: ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09
+  DefaultActions:
+    - Type: fixed-response
+      FixedResponseConfig:
+        StatusCode: '404'
+        ContentType: text/plain
+        MessageBody: Not Found

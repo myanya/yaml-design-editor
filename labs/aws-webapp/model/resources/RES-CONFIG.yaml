@@ -1,0 +1,18 @@
+id: RES-CONFIG
+name: Config
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::Config::ConfigurationRecorder
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: Config
+properties:
+  Name: portal-recorder
+  RoleARN:
+    ref: RES-ROLE-CONFIG
+    attribute: Arn
+  RecordingGroup:
+    AllSupported: true
+    IncludeGlobalResourceTypes: true
+  RecordingMode:
+    RecordingFrequency: CONTINUOUS
+designNote: Recorderの開始と全対象Account/Regionへの適用を共通基盤の適用手順で確認する。

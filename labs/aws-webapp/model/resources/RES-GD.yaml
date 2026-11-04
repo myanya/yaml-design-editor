@@ -1,0 +1,29 @@
+id: RES-GD
+name: GuardDuty
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::GuardDuty::Detector
+environment: ENV-SEC
+stack: STK-SEC
+logicalId: Gd
+properties:
+  Enable: true
+  FindingPublishingFrequency: FIFTEEN_MINUTES
+  Features:
+    - Name: S3_DATA_EVENTS
+      Status: ENABLED
+    - Name: RDS_LOGIN_EVENTS
+      Status: ENABLED
+    - Name: RUNTIME_MONITORING
+      Status: ENABLED
+      AdditionalConfiguration:
+        - Name: ECS_FARGATE_AGENT_MANAGEMENT
+          Status: ENABLED
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: sec
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

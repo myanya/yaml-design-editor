@@ -1,0 +1,12 @@
+id: RES-SESSION-PARAMETERS
+name: セッションのメモリ方針
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ElastiCache::ParameterGroup
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: SessionParameters
+properties:
+  Description: Session store no eviction
+  CacheParameterGroupFamily: valkey8
+  Properties:
+    maxmemory-policy: noeviction

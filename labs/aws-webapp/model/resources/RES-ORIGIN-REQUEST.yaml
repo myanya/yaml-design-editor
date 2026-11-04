@@ -1,0 +1,16 @@
+id: RES-ORIGIN-REQUEST
+name: 認証Cookie・Header・Queryの転送
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudFront::OriginRequestPolicy
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: OriginRequest
+properties:
+  OriginRequestPolicyConfig:
+    Name: portal-api-origin-request
+    CookiesConfig:
+      CookieBehavior: all
+    HeadersConfig:
+      HeaderBehavior: allViewerExceptHostHeader
+    QueryStringsConfig:
+      QueryStringBehavior: all

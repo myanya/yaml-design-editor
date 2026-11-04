@@ -1,0 +1,27 @@
+id: RES-S3-FILES-POLICY
+name: 添付ファイルのBucket Policy
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::S3::BucketPolicy
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: S3FilesPolicy
+properties:
+  Bucket:
+    ref: RES-S3-FILES
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyInsecureTransport
+        Effect: Deny
+        Principal: '*'
+        Action:
+          - s3:*
+        Resource:
+          - ref: RES-S3-FILES
+            attribute: Arn
+          - ref: RES-S3-FILES
+            attribute: Arn
+            suffix: /*
+        Condition:
+          Bool:
+            aws:SecureTransport: 'false'

@@ -1,0 +1,53 @@
+id: SCN-LOGIN
+name: 認証とセッション
+description: OIDCからサーバー側セッションを確立し、機密値をブラウザに保持させない。
+steps:
+  - id: STEP-LOGIN-1
+    name: 開始
+    lane: user
+    resources:
+      - RES-CDN
+      - RES-COGNITO
+    behavior: ログインを開始しPKCE/state/nonceを用意する。
+    failure: IdP到達不能ならログインを成立させない。
+    next:
+      - STEP-LOGIN-2
+  - id: STEP-LOGIN-2
+    name: 企業認証
+    lane: platform
+    resources:
+      - RES-COGNITO
+    behavior: SAML IdPのMFAを経て認証結果を受け取る。
+    failure: 署名・issuer・audience・有効期間を検証する。
+    next:
+      - STEP-LOGIN-3
+  - id: STEP-LOGIN-3
+    name: コード交換
+    lane: application
+    resources:
+      - RES-SERVICE-API
+      - RES-COGNITO-CLIENT
+    behavior: BFFがコードを交換し業務側の利用権限を照合する。
+    failure: state/nonce不一致・再利用・未登録主体は拒否。
+    next:
+      - STEP-LOGIN-4
+  - id: STEP-LOGIN-4
+    name: セッション発行
+    lane: application
+    resources:
+      - RES-SESSION
+      - RES-DB
+    behavior: IDを新規発行し、無操作/最大TTLと失効versionを格納する。
+    failure: Valkey障害時はfail closed。
+    next:
+      - STEP-LOGIN-5
+  - id: STEP-LOGIN-5
+    name: 利用と失効
+    lane: user
+    resources:
+      - RES-SERVICE-API
+      - RES-SESSION
+      - RES-DB
+    behavior: Secure/HttpOnly Cookieで利用し、認可とCSRFを毎回確認する。
+    failure: ログアウト・退職・権限変更で失効。欠落時は再認証。
+    next: []

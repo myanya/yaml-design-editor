@@ -1,0 +1,7 @@
+{
+  "retrievedAt": "2026-11-04",
+  "url": "https://d1uauaxba7bl26.cloudfront.net/latest/gzip/CloudFormationResourceSpecification.json",
+  "version": "270.0.0",
+  "scope": "採用したResourceTypeとそのPropertyTypes。DocumentationとUpdateTypeは省略。リージョンでの提供状況は判定しない。",
+  "sha256": "47db7a8c8b221b364d37d75a7b1a3fdd367c5c5d66bffe8236972252bba20863"
+}

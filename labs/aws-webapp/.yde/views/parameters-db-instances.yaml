@@ -1,0 +1,53 @@
+id: parameters-db-instances
+name: Aurora Instanceの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::RDS::DBInstance
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: Engine
+    path: properties.Engine
+    editable: true
+  - label: DBClusterIdentifier
+    path: properties.DBClusterIdentifier
+  - label: DBInstanceClass
+    path: properties.DBInstanceClass
+    editable: true
+  - label: AvailabilityZone
+    path: properties.AvailabilityZone
+  - label: PubliclyAccessible
+    path: properties.PubliclyAccessible
+    editable: true
+  - label: AutoMinorVersionUpgrade
+    path: properties.AutoMinorVersionUpgrade
+    editable: true
+  - label: PromotionTier
+    path: properties.PromotionTier
+    editable: true
+  - label: EnablePerformanceInsights
+    path: properties.EnablePerformanceInsights
+    editable: true
+  - label: PerformanceInsightsRetentionPeriod
+    path: properties.PerformanceInsightsRetentionPeriod
+    editable: true
+  - label: PerformanceInsightsKMSKeyId
+    path: properties.PerformanceInsightsKMSKeyId
+  - label: MonitoringInterval
+    path: properties.MonitoringInterval
+    editable: true
+  - label: MonitoringRoleArn
+    path: properties.MonitoringRoleArn
+  - label: Tags
+    path: properties.Tags
+  - label: 採用理由
+    path: designNote

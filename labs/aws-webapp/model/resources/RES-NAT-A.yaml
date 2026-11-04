@@ -1,0 +1,23 @@
+id: RES-NAT-A
+name: NAT A
+purpose: 外部IdP/外部API等への外向きHTTPS。
+resourceType: AWS::EC2::NatGateway
+environment: ENV-PROD
+stack: STK-NET
+logicalId: NatA
+properties:
+  AllocationId:
+    ref: RES-EIP-A
+    attribute: AllocationId
+  SubnetId:
+    ref: RES-SUB-PUB-A
+  ConnectivityType: public
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

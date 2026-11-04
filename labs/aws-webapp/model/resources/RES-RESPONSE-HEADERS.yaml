@@ -1,0 +1,27 @@
+id: RES-RESPONSE-HEADERS
+name: レスポンスのセキュリティヘッダー
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudFront::ResponseHeadersPolicy
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: ResponseHeaders
+properties:
+  ResponseHeadersPolicyConfig:
+    Name: portal-security-headers
+    SecurityHeadersConfig:
+      ContentTypeOptions:
+        Override: true
+      FrameOptions:
+        FrameOption: DENY
+        Override: true
+      ReferrerPolicy:
+        ReferrerPolicy: strict-origin-when-cross-origin
+        Override: true
+      StrictTransportSecurity:
+        AccessControlMaxAgeSec: 31536000
+        IncludeSubdomains: true
+        Preload: false
+        Override: true
+      ContentSecurityPolicy:
+        ContentSecurityPolicy: default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'
+        Override: false

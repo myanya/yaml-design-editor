@@ -1,0 +1,34 @@
+id: aws-scenario-card
+name: 処理・運用の手順カード
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - key: title
+      type: string
+      required: true
+    - key: resources
+      type: array
+      item:
+        type: string
+build:
+  kind: box
+  shape: rounded
+  width: 220
+  padding: 12
+  gap: 6
+  children:
+    - kind: text
+      text:
+        $copy: title
+      tone: accent
+    - kind: divider
+    - kind: group
+      children:
+        $each: resources
+        $build:
+          kind: text
+          text:
+            $copy: .
+          tone: muted

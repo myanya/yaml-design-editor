@@ -1,0 +1,48 @@
+id: RES-SERVICE-API
+name: 業務API Service
+purpose: 2AZへ分散し、負荷に応じて拡張する。
+resourceType: AWS::ECS::Service
+environment: ENV-PROD
+stack: STK-APP
+logicalId: ServiceApi
+properties:
+  Cluster:
+    ref: RES-CLUSTER
+  TaskDefinition:
+    ref: RES-TASK-API
+  LaunchType: FARGATE
+  PlatformVersion: 1.4.0
+  DesiredCount: 2
+  AvailabilityZoneRebalancing: ENABLED
+  EnableExecuteCommand: false
+  NetworkConfiguration:
+    AwsvpcConfiguration:
+      AssignPublicIp: DISABLED
+      Subnets:
+        - ref: RES-SUB-APP-A
+        - ref: RES-SUB-APP-B
+      SecurityGroups:
+        - ref: RES-SG-APP
+  DeploymentConfiguration:
+    MinimumHealthyPercent: 100
+    MaximumPercent: 200
+    DeploymentCircuitBreaker:
+      Enable: true
+      Rollback: true
+  HealthCheckGracePeriodSeconds: 90
+  LoadBalancers:
+    - TargetGroupArn:
+        ref: RES-TG
+      ContainerName: api
+      ContainerPort: 8080
+  PropagateTags: TASK_DEFINITION
+  EnableECSManagedTags: true
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

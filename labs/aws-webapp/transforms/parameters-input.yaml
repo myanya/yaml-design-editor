@@ -1,0 +1,10 @@
+id: aws-parameters-input
+description: 未束縛と実値を分けた配備時入力。例を暗黙に採用しない。
+from:
+  match:
+    - node:
+        entity: deployment-input
+        bind: input
+  limit: 10000
+build:
+  $copy: .

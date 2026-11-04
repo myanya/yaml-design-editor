@@ -1,0 +1,81 @@
+id: APP-WORKER
+name: Workerの実行設定
+profile: worker
+settings:
+  database:
+    cluster:
+      ref: RES-DB
+      attribute: Endpoint.Address
+    port: 5432
+    database: portal
+    secret:
+      ref: RES-SECRET-DB-WORKER
+    sslMode: verify-full
+    poolMaximum: 10
+    connectTimeoutSeconds: 5
+    statementTimeoutSeconds: 60
+    credentialsEnvironmentVariable: DB_CREDENTIALS
+  jobs:
+    queue:
+      ref: RES-QUEUE-JOBS
+    waitTimeSeconds: 20
+    maximumBatch: 5
+    visibilityHeartbeatSeconds: 60
+    idempotencyTable: processed_events
+    deleteAfterCommit: true
+  scan:
+    queue:
+      ref: RES-QUEUE-SCAN
+    quarantineBucket:
+      ref: RES-S3-QUARANTINE
+    cleanBucket:
+      ref: RES-S3-FILES
+    acceptResult: NO_THREATS_FOUND
+    requireVersionMatch: true
+    onFailedOrMissingScan: quarantine
+    copyExactVersion: true
+  mail:
+    identity:
+      ref: RES-SES
+    configurationSet:
+      ref: RES-SES-CONFIG
+    from: noreply@example.com
+  audit:
+    bucket:
+      ref: RES-S3-AUDIT
+    flushOutboxSeconds: 60
+  logging:
+    format: json
+    fields:
+      - timestamp
+      - level
+      - eventId
+      - traceId
+      - event
+      - durationMs
+    redact:
+      - password
+      - token
+      - body
+  telemetry:
+    enabled: true
+    protocol: otlp-http
+    collectorEndpoint: http://localhost:4318
+    samplingRatio: 0.1
+  metrics:
+    namespace: Portal/Business
+    environment: prod
+    intervalSeconds: 60
+    oldestUnscanned:
+      metricName: OldestUnscannedSeconds
+      unit: Seconds
+      source: attachment_scan_jobs
+    auditOutboxOldest:
+      metricName: AuditOutboxOldestSeconds
+      unit: Seconds
+      source: audit_outbox
+  reports:
+    bucket:
+      ref: RES-S3-REPORTS
+    objectKeyPrefix: reports/
+    maximumRows: 100000

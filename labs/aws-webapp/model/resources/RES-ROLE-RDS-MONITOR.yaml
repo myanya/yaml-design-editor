@@ -1,0 +1,29 @@
+id: RES-ROLE-RDS-MONITOR
+name: RDS拡張監視Role
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: RoleRdsMonitor
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: RdsMonitoring
+        Effect: Allow
+        Principal:
+          Service:
+            - monitoring.rds.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  ManagedPolicyArns:
+    - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

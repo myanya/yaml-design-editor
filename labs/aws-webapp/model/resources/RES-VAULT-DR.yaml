@@ -1,0 +1,32 @@
+id: RES-VAULT-DR
+name: 大阪分離保管
+purpose: 業務データを復旧可能な形で保管する。
+resourceType: AWS::Backup::BackupVault
+environment: ENV-DR
+stack: STK-DR
+logicalId: VaultDr
+properties:
+  BackupVaultName: portal-dr
+  EncryptionKeyArn:
+    ref: RES-KMS-DR
+    attribute: Arn
+  LockConfiguration:
+    MinRetentionDays: 35
+    MaxRetentionDays: 365
+  AccessPolicy:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: AcceptProductionCopy
+        Effect: Allow
+        Action:
+          - backup:CopyIntoBackupVault
+        Resource:
+          - '*'
+        Principal:
+          AWS:
+            - ref: INPUT-PROD-ROOT-ARN
+              attribute: Parameter
+  BackupVaultTags:
+    System: approval-portal
+deletionPolicy: Retain
+designNote: ChangeableForDaysを指定しないガバナンスモード。復元・コピー試験前に不可逆なコンプライアンスロックを確定しない。

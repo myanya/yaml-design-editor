@@ -1,0 +1,47 @@
+id: SCN-INCIDENT
+name: 検知から復旧
+description: 利用者視点と各サービスの監視を運用手順につなぐ。
+steps:
+  - id: STEP-INCIDENT-1
+    name: 異常を検知
+    lane: platform
+    resources:
+      - RES-CANARY
+      - RES-ALB
+      - RES-LOG-API
+    behavior: 到達性、5xx、遅延、依存サービスの状況を観測。
+    failure: 監視自体の欠測も通知する。
+    next:
+      - STEP-INCIDENT-2
+  - id: STEP-INCIDENT-2
+    name: 当番に通知
+    lane: platform
+    resources:
+      - RES-ALERTS
+    behavior: 重大度と対象・runbookを添えて通知。
+    failure: 未応答は15分でエスカレーション。
+    next:
+      - STEP-INCIDENT-3
+  - id: STEP-INCIDENT-3
+    name: 原因を切り分け
+    lane: operations
+    resources:
+      - RES-CDN
+      - RES-WAF
+      - RES-ALB
+      - RES-SERVICE-API
+      - RES-DB
+    behavior: traceId/requestIdと直近の変更を照合。
+    failure: 認証やWAFを全面無効化して回避しない。
+    next:
+      - STEP-INCIDENT-4
+  - id: STEP-INCIDENT-4
+    name: 切戻しと確認
+    lane: operations
+    resources:
+      - RES-PIPELINE
+      - RES-SERVICE-API
+      - RES-CANARY
+    behavior: 既知のdigestへ切戻し、業務スモークとSLOを確認。
+    failure: DBの破壊的変更は別の復旧計画が必要。
+    next: []

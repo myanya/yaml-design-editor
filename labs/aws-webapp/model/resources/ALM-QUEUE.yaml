@@ -1,0 +1,32 @@
+id: ALM-QUEUE
+name: 業務Queueの滞留
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmQueue
+properties:
+  AlarmName: portal-alm-queue
+  AlarmDescription: 業務Queueの滞留
+  Namespace: AWS/SQS
+  MetricName: ApproximateAgeOfOldestMessage
+  Dimensions:
+    - Name: QueueName
+      Value:
+        ref: RES-QUEUE-JOBS
+        attribute: QueueName
+  Statistic: Maximum
+  Threshold: 300
+  Period: 60
+  EvaluationPeriods: 5
+  DatapointsToAlarm: 5
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-QUEUE
+  attribute: Literal

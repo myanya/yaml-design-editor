@@ -1,0 +1,11 @@
+id: RES-ANOMALY
+name: CostAnomalyDetection
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::CE::AnomalyMonitor
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: Anomaly
+properties:
+  MonitorName: portal-services
+  MonitorType: DIMENSIONAL
+  MonitorDimension: SERVICE

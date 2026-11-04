@@ -1,0 +1,23 @@
+id: requirements
+name: 設計目標と検証方法
+kind: grid
+rows:
+  match:
+    - node:
+        entity: requirement
+        bind: r
+columns:
+  - label: 名称
+    path: name
+  - label: 分野
+    path: category
+  - label: 目標
+    path: target
+    editable: true
+  - label: 検証方法
+    path: verification
+    editable: true
+  - label: 確認状況
+    path: status
+  - label: 責任者
+    path: owner

@@ -1,0 +1,36 @@
+id: RES-COGNITO
+name: 企業連携User Pool
+purpose: 企業IdPのSAML認証を業務アプリへつなぐ。
+resourceType: AWS::Cognito::UserPool
+environment: ENV-PROD
+stack: STK-IDENTITY
+logicalId: Cognito
+properties:
+  UserPoolName: portal-users
+  AdminCreateUserConfig:
+    AllowAdminCreateUserOnly: true
+  DeletionProtection: ACTIVE
+  UsernameAttributes:
+    - email
+  AutoVerifiedAttributes:
+    - email
+  UsernameConfiguration:
+    CaseSensitive: false
+  MfaConfiguration: 'OFF'
+  Policies:
+    PasswordPolicy:
+      MinimumLength: 16
+      RequireLowercase: true
+      RequireUppercase: true
+      RequireNumbers: true
+      RequireSymbols: true
+      TemporaryPasswordValidityDays: 1
+  Schema:
+    - Name: email
+      AttributeDataType: String
+      Mutable: true
+      Required: true
+  UserPoolTags:
+    System: approval-portal
+    Environment: prod
+designNote: 通常ログインは企業IdP限定。MFAはIdPで必須にする。Cognitoローカル利用者のセルフ登録・パスワード認証フローは提供しない。

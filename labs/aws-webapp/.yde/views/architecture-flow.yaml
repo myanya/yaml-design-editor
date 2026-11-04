@@ -1,0 +1,1473 @@
+id: architecture-flow
+name: 01 WEBアプリの全体構成（設定から導出）
+kind: flow
+schemaId: aws-system
+layout:
+  direction: right
+sources:
+  - id: users
+    from:
+      match:
+        - node:
+            entity: system
+            bind: u
+      limit: 10000
+    build:
+      $copy: .
+  - id: services
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: r
+      where:
+        - or:
+            - of: r
+              path: resourceType
+              oneOf:
+                - AWS::CloudFront::Distribution
+                - AWS::ElasticLoadBalancingV2::LoadBalancer
+                - AWS::ECS::Service
+                - AWS::RDS::DBCluster
+                - AWS::ElastiCache::ReplicationGroup
+                - AWS::Cognito::UserPool
+                - AWS::SES::EmailIdentity
+            - of: r
+              path: id
+              oneOf:
+                - RES-S3-STATIC
+                - RES-S3-FILES
+                - RES-S3-QUARANTINE
+                - RES-S3-AUDIT
+                - RES-S3-REPORTS
+                - RES-QUEUE-JOBS
+                - RES-QUEUE-SCAN
+      limit: 10000
+    build:
+      $copy: .
+  - id: entry
+    from:
+      match:
+        - node:
+            entity: system
+            bind: user
+        - edge:
+            via: publicDns.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: dns
+        - edge:
+            via: AliasTarget.DNSName.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: cdn
+      limit: 10000
+    build:
+      key:
+        $format: entry/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: user
+          b:
+            $copy: id
+            $of: cdn
+      from:
+        $copy: id
+        $of: user
+      to:
+        $copy: id
+        $of: cdn
+      label:
+        $copy: publicUrl
+        $of: user
+      detail:
+        user:
+          $copy: .
+          $of: user
+        dns:
+          $copy: .
+          $of: dns
+        cdn:
+          $copy: .
+          $of: cdn
+  - id: static
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: cdn
+        - edge:
+            contains: true
+            dir: out
+        - node:
+            entity: origin
+            bind: origin
+        - edge:
+            via: DomainName.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: bucket
+      where:
+        - of: cdn
+          path: resourceType
+          oneOf:
+            - AWS::CloudFront::Distribution
+        - of: bucket
+          path: resourceType
+          oneOf:
+            - AWS::S3::Bucket
+      limit: 10000
+    build:
+      key:
+        $format: static/{origin}
+        $with:
+          origin:
+            $copy: Id
+            $of: origin
+      from:
+        $copy: id
+        $of: cdn
+      to:
+        $copy: id
+        $of: bucket
+      label: OAC / 静的ファイル
+      detail:
+        cdn:
+          $copy: .
+          $of: cdn
+        origin:
+          $copy: .
+          $of: origin
+        bucket:
+          $copy: .
+          $of: bucket
+  - id: originRoute
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: cdn
+        - edge:
+            contains: true
+            dir: out
+        - node:
+            entity: origin
+            bind: origin
+        - edge:
+            via: VpcOriginConfig.VpcOriginId.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: vpcOrigin
+        - edge:
+            via: VpcOriginEndpointConfig.Arn.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: alb
+      where:
+        - of: cdn
+          path: resourceType
+          oneOf:
+            - AWS::CloudFront::Distribution
+      limit: 10000
+    build:
+      key:
+        $format: originRoute/{origin}
+        $with:
+          origin:
+            $copy: Id
+            $of: origin
+      from:
+        $copy: id
+        $of: cdn
+      to:
+        $copy: id
+        $of: alb
+      label:
+        $format: VPC Origin / {protocol}
+        $with:
+          protocol:
+            $copy: properties.VpcOriginEndpointConfig.OriginProtocolPolicy
+            $of: vpcOrigin
+      detail:
+        cdn:
+          $copy: .
+          $of: cdn
+        origin:
+          $copy: .
+          $of: origin
+        vpcOrigin:
+          $copy: .
+          $of: vpcOrigin
+        alb:
+          $copy: .
+          $of: alb
+  - id: forwarding
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: alb
+        - edge:
+            via: LoadBalancerArn.ref
+            dir: in
+        - node:
+            entity: aws-resource
+            bind: listener
+        - edge:
+            via: ListenerArn.ref
+            dir: in
+        - node:
+            entity: aws-resource
+            bind: rule
+        - edge:
+            via: Actions.TargetGroupArn.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: tg
+        - edge:
+            via: LoadBalancers.TargetGroupArn.ref
+            dir: in
+        - node:
+            entity: aws-resource
+            bind: service
+      where:
+        - of: alb
+          path: resourceType
+          oneOf:
+            - AWS::ElasticLoadBalancingV2::LoadBalancer
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: forward/{rule}/{service}
+        $with:
+          rule:
+            $copy: id
+            $of: rule
+          service:
+            $copy: id
+            $of: service
+      from:
+        $copy: id
+        $of: alb
+      to:
+        $copy: id
+        $of: service
+      label:
+        $format: 優先度 {priority} / {protocol}:{port}
+        $with:
+          priority:
+            $copy: properties.Priority
+            $of: rule
+          protocol:
+            $copy: properties.Protocol
+            $of: tg
+          port:
+            $copy: properties.Port
+            $of: tg
+      detail:
+        alb:
+          $copy: .
+          $of: alb
+        listener:
+          $copy: .
+          $of: listener
+        rule:
+          $copy: .
+          $of: rule
+        tg:
+          $copy: .
+          $of: tg
+        service:
+          $copy: .
+          $of: service
+  - id: database
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.database.cluster.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: database/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: PostgreSQL / TLS
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: session
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.session.store.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: session/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: Valkey / TLS
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: identity
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.identity.userPool.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: identity/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: OIDC / PKCE
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: upload
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.attachments.quarantineBucket.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: upload/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 署名付きPUTの発行
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: download
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.attachments.cleanBucket.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: download/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 検査済みversionのGET
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: jobs
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.jobs.queue.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+        - of: app
+          path: profile
+          equals: api
+      limit: 10000
+    build:
+      key:
+        $format: jobs/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: Outbox → Queue
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: mail
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.mail.identity.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: mail/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: SES / 業務通知
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: audit
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.audit.bucket.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+      limit: 10000
+    build:
+      key:
+        $format: audit/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 監査Outbox
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: poll
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.jobs.queue.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+        - of: app
+          path: profile
+          equals: worker
+      limit: 10000
+    build:
+      key:
+        $format: poll/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 受信 / 再実行
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: scanPoll
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.scan.queue.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+        - of: app
+          path: profile
+          equals: worker
+      limit: 10000
+    build:
+      key:
+        $format: scanPoll/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 検査結果の受信
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: scanRead
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.scan.quarantineBucket.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+        - of: app
+          path: profile
+          equals: worker
+      limit: 10000
+    build:
+      key:
+        $format: scanRead/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 検査済みversionの読取
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: scanWrite
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.scan.cleanBucket.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+        - of: app
+          path: profile
+          equals: worker
+      limit: 10000
+    build:
+      key:
+        $format: scanWrite/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: 承認済みBucketへの保存
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+  - id: reportWrite
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: service
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: task
+        - edge:
+            via: Environment.Value.ref
+            dir: out
+        - node:
+            entity: application-settings
+            bind: app
+        - edge:
+            via: settings.reports.bucket.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: target
+      where:
+        - of: service
+          path: resourceType
+          oneOf:
+            - AWS::ECS::Service
+        - of: app
+          path: profile
+          equals: worker
+      limit: 10000
+    build:
+      key:
+        $format: reportWrite/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: service
+          b:
+            $copy: id
+            $of: target
+      from:
+        $copy: id
+        $of: service
+      to:
+        $copy: id
+        $of: target
+      label: レポート保存
+      detail:
+        service:
+          $copy: .
+          $of: service
+        task:
+          $copy: .
+          $of: task
+        app:
+          $copy: .
+          $of: app
+        target:
+          $copy: .
+          $of: target
+projection:
+  id: aws-overview
+  build:
+    nodes:
+      $concat:
+        - $each: users
+          $build:
+            key:
+              $copy: id
+            label: 利用者
+            entityType: system
+            detail:
+              $copy: .
+        - $each: services
+          $build:
+            key:
+              $copy: id
+            label:
+              $copy: name
+            entityType: aws-resource
+            detail:
+              $copy: .
+    edges:
+      $concat:
+        - $each: entry
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: static
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: originRoute
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: forwarding
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: database
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: session
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: identity
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: upload
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: download
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: jobs
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: mail
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: audit
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: poll
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: scanPoll
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: scanRead
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: scanWrite
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: reportWrite
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+appearance:
+  nodes:
+    - level: entity
+      entityType: aws-resource
+      notation: aws-card
+      inputs:
+        title:
+          $copy: data.name
+        service:
+          $map:
+            $copy: data.resourceType
+          $using:
+            AWS::EC2::VPC: vpc
+            AWS::EC2::InternetGateway: vpc
+            AWS::EC2::VPCGatewayAttachment: vpc
+            AWS::EC2::EIP: vpc
+            AWS::EC2::NatGateway: vpc
+            AWS::EC2::Subnet: vpc
+            AWS::EC2::RouteTable: vpc
+            AWS::EC2::SubnetRouteTableAssociation: vpc
+            AWS::EC2::Route: vpc
+            AWS::EC2::SecurityGroup: vpc
+            AWS::EC2::VPCEndpoint: vpc
+            AWS::S3::Bucket: bucket
+            AWS::CloudFront::OriginAccessControl: cloudfront
+            AWS::CertificateManager::Certificate: certificate
+            AWS::ElasticLoadBalancingV2::LoadBalancer: alb
+            AWS::ElasticLoadBalancingV2::TargetGroup: alb
+            AWS::ElasticLoadBalancingV2::Listener: alb
+            AWS::ElasticLoadBalancingV2::ListenerRule: alb
+            AWS::CloudFront::VpcOrigin: cloudfront
+            AWS::CloudFront::CachePolicy: cloudfront
+            AWS::CloudFront::OriginRequestPolicy: cloudfront
+            AWS::CloudFront::ResponseHeadersPolicy: cloudfront
+            AWS::CloudFront::Distribution: cloudfront
+            AWS::Route53::RecordSet: dns-record
+            AWS::ECS::Cluster: ecs-service
+            AWS::Logs::LogGroup: log-group
+            AWS::ECR::Repository: ecr
+            AWS::ECS::TaskDefinition: ecs-service
+            AWS::ECS::Service: ecs-service
+            AWS::ApplicationAutoScaling::ScalableTarget: ecs-service
+            AWS::ApplicationAutoScaling::ScalingPolicy: ecs-service
+            AWS::RDS::DBSubnetGroup: db-cluster
+            AWS::RDS::DBClusterParameterGroup: db-cluster
+            AWS::RDS::DBCluster: db-cluster
+            AWS::RDS::DBInstance: db-cluster
+            AWS::ElastiCache::SubnetGroup: session-store
+            AWS::ElastiCache::ParameterGroup: session-store
+            AWS::ElastiCache::User: session-store
+            AWS::ElastiCache::UserGroup: session-store
+            AWS::ElastiCache::ReplicationGroup: session-store
+            AWS::SecretsManager::Secret: secret
+            AWS::Cognito::UserPool: cognito
+            AWS::Cognito::UserPoolIdentityProvider: cognito
+            AWS::Cognito::UserPoolClient: cognito
+            AWS::Cognito::UserPoolDomain: cognito
+            AWS::SQS::Queue: sqs
+            AWS::Events::Rule: event-rule
+            AWS::Scheduler::Schedule: schedule
+            AWS::SES::EmailIdentity: ses
+            AWS::SES::ConfigurationSet: ses
+            AWS::SES::ConfigurationSetEventDestination: ses
+            AWS::SNS::Topic: notification-topic
+            AWS::SNS::Subscription: notification-topic
+            AWS::KMS::Key: kms-key
+            AWS::IAM::Role: role
+            AWS::SQS::QueuePolicy: sqs
+            AWS::S3::BucketPolicy: bucket
+            AWS::WAFv2::WebACL: waf
+            AWS::WAFv2::LoggingConfiguration: waf
+            AWS::GuardDuty::MalwareProtectionPlan: security-control
+            AWS::Organizations::Organization: security-control
+            AWS::SSO::PermissionSet: role
+            AWS::SSO::Assignment: role
+            AWS::CloudTrail::Trail: security-control
+            AWS::GuardDuty::Detector: security-control
+            AWS::SecurityHub::Hub: security-control
+            AWS::Config::ConfigurationRecorder: security-control
+            AWS::Config::DeliveryChannel: security-control
+            AWS::Config::ConfigRule: security-control
+            AWS::Budgets::Budget: security-control
+            AWS::CE::AnomalyMonitor: security-control
+            AWS::CE::AnomalySubscription: security-control
+            AWS::EC2::FlowLog: vpc
+            AWS::Logs::DeliverySource: log-group
+            AWS::Logs::DeliveryDestination: log-group
+            AWS::Logs::Delivery: log-group
+            AWS::Synthetics::Canary: canary
+            AWS::CloudWatch::Alarm: log-group
+            AWS::Backup::BackupVault: backup-vault
+            AWS::Backup::BackupPlan: backup-vault
+            AWS::Backup::BackupSelection: backup-vault
+            AWS::SNS::TopicPolicy: notification-topic
+            AWS::CodeBuild::Project: build
+            AWS::CodePipeline::Pipeline: pipeline
+            AWS::EC2::SecurityGroupIngress: vpc
+            AWS::EC2::SecurityGroupEgress: vpc
+            AWS::Organizations::Policy: security-control
+        subtitle:
+          $copy: data.id
+    - level: entity
+      entityType: origin
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: cloudfront
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id
+    - level: entity
+      entityType: cache-behavior
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: cloudfront
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id
+    - level: entity
+      entityType: system
+      notation: aws-card
+      inputs:
+        title: 利用者
+        service: client
+        subtitle:
+          $copy: data.publicUrl
+    - level: entity
+      entityType: application-settings
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: fargate
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id

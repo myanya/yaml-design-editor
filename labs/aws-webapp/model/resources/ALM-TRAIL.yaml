@@ -1,0 +1,34 @@
+id: ALM-TRAIL
+name: 監査設定の停止・変更
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Events::Rule
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmTrail
+properties:
+  Name: portal-alm-trail
+  State: ENABLED
+  EventPattern:
+    source:
+      - aws.cloudtrail
+    detail-type:
+      - AWS API Call via CloudTrail
+    detail:
+      eventName:
+        - StopLogging
+        - DeleteTrail
+        - UpdateTrail
+  Targets:
+    - Id: Operations
+      Arn:
+        ref: RES-ALERTS
+      RetryPolicy:
+        MaximumEventAgeInSeconds: 3600
+        MaximumRetryAttempts: 10
+      DeadLetterConfig:
+        Arn:
+          ref: RES-DLQ-EVENT
+          attribute: Arn
+runbook:
+  ref: RUN-SEC
+  attribute: Literal

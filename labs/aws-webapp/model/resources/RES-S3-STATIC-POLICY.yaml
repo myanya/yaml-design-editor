@@ -1,0 +1,43 @@
+id: RES-S3-STATIC-POLICY
+name: 静的フロントエンドのBucket Policy
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::S3::BucketPolicy
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: S3StaticPolicy
+properties:
+  Bucket:
+    ref: RES-S3-STATIC
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: DenyInsecureTransport
+        Effect: Deny
+        Principal: '*'
+        Action:
+          - s3:*
+        Resource:
+          - ref: RES-S3-STATIC
+            attribute: Arn
+          - ref: RES-S3-STATIC
+            attribute: Arn
+            suffix: /*
+        Condition:
+          Bool:
+            aws:SecureTransport: 'false'
+      - Sid: CloudFrontRead
+        Effect: Allow
+        Action:
+          - s3:GetObject
+        Resource:
+          - ref: RES-S3-STATIC
+            attribute: Arn
+            suffix: /*
+        Principal:
+          Service:
+            - cloudfront.amazonaws.com
+        Condition:
+          StringEquals:
+            AWS:SourceArn:
+              ref: RES-CDN
+              attribute: CloudFrontArn

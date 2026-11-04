@@ -1,0 +1,35 @@
+id: ALM-BACKUP
+name: Backupジョブ・コピー失敗
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Events::Rule
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmBackup
+properties:
+  Name: portal-alm-backup
+  State: ENABLED
+  EventPattern:
+    source:
+      - aws.backup
+    detail-type:
+      - Backup Job State Change
+      - Copy Job State Change
+    detail:
+      state:
+        - FAILED
+        - ABORTED
+        - EXPIRED
+  Targets:
+    - Id: Operations
+      Arn:
+        ref: RES-ALERTS
+      RetryPolicy:
+        MaximumEventAgeInSeconds: 3600
+        MaximumRetryAttempts: 10
+      DeadLetterConfig:
+        Arn:
+          ref: RES-DLQ-EVENT
+          attribute: Arn
+runbook:
+  ref: RUN-BACKUP
+  attribute: Literal

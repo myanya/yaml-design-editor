@@ -1,0 +1,38 @@
+id: RES-DB-A
+name: Aurora writer A
+purpose: 別AZの計算ノードで切替先を確保する。
+resourceType: AWS::RDS::DBInstance
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: DbA
+properties:
+  Engine: aurora-postgresql
+  DBClusterIdentifier:
+    ref: RES-DB
+  DBInstanceClass: db.r6g.large
+  AvailabilityZone:
+    ref: INPUT-AZ-NAME-A
+    attribute: Parameter
+  PubliclyAccessible: false
+  AutoMinorVersionUpgrade: true
+  PromotionTier: 0
+  EnablePerformanceInsights: true
+  PerformanceInsightsRetentionPeriod: 7
+  PerformanceInsightsKMSKeyId:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  MonitoringInterval: 60
+  MonitoringRoleArn:
+    ref: RES-ROLE-RDS-MONITOR
+    attribute: Arn
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain
+designNote: writer/readerはフェイルオーバーで交代する。AZ名は同じアカウントのSubnet AZ IDと照合して束縛する。

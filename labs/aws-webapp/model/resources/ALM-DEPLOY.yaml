@@ -1,0 +1,32 @@
+id: ALM-DEPLOY
+name: ECS配備失敗
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Events::Rule
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmDeploy
+properties:
+  Name: portal-alm-deploy
+  State: ENABLED
+  EventPattern:
+    source:
+      - aws.ecs
+    detail-type:
+      - ECS Deployment State Change
+    detail:
+      eventName:
+        - SERVICE_DEPLOYMENT_FAILED
+  Targets:
+    - Id: Operations
+      Arn:
+        ref: RES-ALERTS
+      RetryPolicy:
+        MaximumEventAgeInSeconds: 3600
+        MaximumRetryAttempts: 10
+      DeadLetterConfig:
+        Arn:
+          ref: RES-DLQ-EVENT
+          attribute: Arn
+runbook:
+  ref: RUN-DEPLOY
+  attribute: Literal

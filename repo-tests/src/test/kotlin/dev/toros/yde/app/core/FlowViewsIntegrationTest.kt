@@ -85,6 +85,115 @@ class FlowViewsIntegrationTest {
     }
 
     private lateinit var directory: Path
+
+    private fun prepareQuerySources(limit: Int = 100) {
+        write(".yde/schemas/flow.yaml", """
+            id: flow
+            match: flows/*.yaml
+            root:
+              type: object
+              fields:
+                - {key: id, type: id}
+                - {key: title, type: string}
+                - {key: from, type: ref}
+                - {key: to, type: ref}
+        """)
+        write("flows/one.yaml", "id: ITEM-A\ntitle: 入口")
+        write("flows/two.yaml", "id: ITEM-B\ntitle: 配送先")
+        write("flows/three.yaml", "id: ITEM-C\ntitle: 別の配送先")
+        write("flows/link.yaml", "id: LINK-ONE\nfrom: ITEM-A\nto: ITEM-B")
+        write(".yde/views/flow.yaml", """
+            id: diagram
+            kind: flow
+            schemaId: flow
+            sources:
+              - id: items
+                from: {match: [{node: {id: 'ITEM-*', bind: item}}], limit: $limit}
+                build: {${'$'}copy: .}
+              - id: links
+                from: {match: [{node: {id: 'LINK-*', bind: link}}]}
+                build: {${'$'}copy: .}
+              - id: paths
+                from:
+                  match:
+                    - node: {id: 'LINK-*', bind: link}
+                    - edge: {via: to}
+                    - node: {bind: target}
+                build:
+                  link: {${'$'}copy: ., ${'$'}of: link}
+                  target: {${'$'}copy: ., ${'$'}of: target}
+            projection:
+              id: model
+              build:
+                nodes:
+                  ${'$'}each: items
+                  ${'$'}build:
+                    key: {${'$'}copy: id}
+                    label: {${'$'}copy: title}
+                    detail: {${'$'}copy: .}
+                edges:
+                  ${'$'}each: links
+                  ${'$'}build:
+                    from: {${'$'}copy: from}
+                    to: {${'$'}copy: to}
+                    detail: {${'$'}copy: .}
+        """)
+    }
+
+    @Test
+    fun `複数文書の入力は原本座標を保ち参照の未保存変更とUndoに追随する`() {
+        prepareQuerySources()
+        val state = AppState().also { it.openWorkspace(directory) }
+        fun resolve(): FlowResolution {
+            val catalog = Views.load(directory, state.schemas, state.unsavedFirstTree())
+            assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
+            return resolveFlow(assertNotNull(catalog.flow("diagram")), DocumentId("flows/one.yaml"), state.overlayIndex(), state::schemaFor, state.unsavedFirstTree())
+        }
+        val first = resolve()
+        assertTrue(first.diagnostics.isEmpty(), first.diagnostics.toString())
+        val node = first.model!!.nodes.single { it.key == "ITEM-B" }
+        assertEquals(DocumentId("flows/two.yaml"), node.detail.origins.single().document)
+        assertTrue(node.detail.editable)
+        assertTrue(first.model!!.edges.single().detail.editable)
+        val link = state.ensureDoc(DocumentId("flows/link.yaml"))
+        FormCtx(state, link, emptyList()).setScalar(assertNotNull(slotAt(assertNotNull(link.root), listOf("to"))), "ITEM-C", dev.toros.yde.semantic.schema.FieldType.REF)
+        assertEquals("ITEM-C", resolve().model!!.edges.single().to.key)
+        assertTrue(Files.readString(directory.resolve("flows/link.yaml")).contains("ITEM-B"))
+        state.undo()
+        assertEquals("ITEM-B", resolve().model!!.edges.single().to.key)
+        val cli = YamlIO.parse(runCli(arrayOf("view", directory.toString(), "diagram", "flows/one.yaml")))
+        assertEquals("flows/link.yaml", scalarText(getAt(cli, parseYPath("model.edges[0].detail.origins[0].file"))))
+        val schema = assertNotNull(state.schemaFor(DocumentId(".yde/views/flow.yaml")))
+        val root = YamlIO.parse(Files.readString(directory.resolve(".yde/views/flow.yaml")))
+        assertTrue(dev.toros.yde.workspace.DerivedStructures(schema.tree).validate(root).isEmpty())
+    }
+
+    @Test
+    fun `入力の打切りと未解決経路を診断し他文書の参照型を使う`() {
+        prepareQuerySources(limit = 1)
+        write("flows/link.yaml", "id: LINK-ONE\nfrom: ITEM-A\nto: MISSING")
+        val ws = Workspace.open(directory)
+        val result = resolveFlow(assertNotNull(Views.load(directory, ws.schemas).flow("diagram")), DocumentId("flows/one.yaml"), ws.index, ws::schemaFor, ws::treeOf)
+        assertEquals(FlowConnectionState.UNRESOLVED, result.model!!.edges.single().to.state)
+        assertTrue(result.diagnostics.any { it.code == "source-truncated" })
+        assertTrue(result.diagnostics.any { it.code == "source-unresolved" })
+        assertEquals(DocumentId("flows/link.yaml"), result.diagnostics.single { it.code == "endpoint-unresolved" }.locations.single().document)
+    }
+
+    @Test
+    fun `結合して組み立てた詳細は複数原本を開示し直接編集しない`() {
+        prepareQuerySources()
+        val file = directory.resolve(".yde/views/flow.yaml")
+        Files.writeString(file, Files.readString(file).replace("${'$'}each: links", "${'$'}each: paths")
+            .replace("${'$'}copy: from", "${'$'}copy: link.from").replace("${'$'}copy: to}", "${'$'}copy: target.id}"))
+        val ws = Workspace.open(directory)
+        val result = resolveFlow(assertNotNull(Views.load(directory, ws.schemas).flow("diagram")), DocumentId("flows/one.yaml"), ws.index, ws::schemaFor, ws::treeOf)
+        assertTrue(result.diagnostics.isEmpty(), result.diagnostics.toString())
+        val edge = result.model!!.edges.single()
+        assertFalse(edge.detail.editable)
+        assertEquals(setOf("flows/link.yaml", "flows/two.yaml"), result.origins.filter { it.output.take(3) == listOf("edges", 0, "detail") }.map { it.document!!.value }.toSet())
+    }
+
     private fun write(path: String, text: String) {
         val file = directory.resolve(path)
         Files.createDirectories(file.parent)

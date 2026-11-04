@@ -1,0 +1,13 @@
+id: RES-CDN-LOG-SOURCE
+name: CloudFrontアクセスログの発生源
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Logs::DeliverySource
+environment: ENV-PROD
+stack: STK-EDGE-CERT
+logicalId: CdnLogSource
+properties:
+  Name: portal-cloudfront
+  ResourceArn:
+    ref: RES-CDN
+    attribute: CloudFrontArn
+  LogType: ACCESS_LOGS

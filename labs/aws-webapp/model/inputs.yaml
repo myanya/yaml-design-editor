@@ -1,0 +1,166 @@
+inputs:
+  - id: INPUT-AZ-A
+    name: 本番AZ ID A
+    example: apne1-az1
+    secret: false
+    state: unbound
+  - id: INPUT-AZ-B
+    name: 本番AZ ID B
+    example: apne1-az4
+    secret: false
+    state: unbound
+  - id: INPUT-CLOUDFRONT-PREFIX
+    name: CloudFront origin-facing Prefix List ID
+    example: pl-xxxxxxxx
+    secret: false
+    state: unbound
+  - id: INPUT-HOSTED-ZONE
+    name: 公開Hosted Zone ID
+    example: ZXXXXXXXXXXXX
+    secret: false
+    state: unbound
+  - id: INPUT-IMAGE-API
+    name: APIのdigest固定コンテナイメージ
+    example: repository-uri@sha256:<64桁>
+    secret: false
+    state: unbound
+  - id: INPUT-IMAGE-WORKER
+    name: WORKERのdigest固定コンテナイメージ
+    example: repository-uri@sha256:<64桁>
+    secret: false
+    state: unbound
+  - id: INPUT-AZ-NAME-A
+    name: 本番AZ名 A
+    example: ap-northeast-1a
+    secret: false
+    state: unbound
+  - id: INPUT-AZ-NAME-B
+    name: 本番AZ名 B
+    example: ap-northeast-1c
+    secret: false
+    state: unbound
+  - id: INPUT-IDP-METADATA
+    name: 企業SAML IdPのMetadata URL
+    example: https://idp.example.com/metadata
+    secret: false
+    state: unbound
+  - id: INPUT-COGNITO-DOMAIN
+    name: Cognitoドメインの一意なprefix
+    example: company-portal-prod
+    secret: false
+    state: unbound
+  - id: INPUT-OPERATIONS-EMAIL
+    name: 運用通知先メール
+    example: operations@example.com
+    secret: false
+    state: unbound
+  - id: INPUT-PROD-ROOT-ARN
+    name: 本番Accountのroot ARN（IAM委譲用）
+    example: arn:aws:iam::<prod-account>:root
+    secret: false
+    state: unbound
+  - id: INPUT-LOG-CONTEXT-ARN
+    name: 本番Log Group ARNの許可範囲
+    example: arn:aws:logs:ap-northeast-1:<prod-account>:log-group:/portal/*
+    secret: false
+    state: unbound
+  - id: INPUT-BACKUP-ROOT-ARN
+    name: 復旧保管Accountのroot ARN
+    example: arn:aws:iam::<backup-account>:root
+    secret: false
+    state: unbound
+  - id: INPUT-PROD-ACCOUNT
+    name: 本番Account ID
+    example: <prod-account>
+    secret: false
+    state: unbound
+  - id: INPUT-TRAIL-ARN
+    name: 組織証跡のARN
+    example: arn:aws:cloudtrail:us-east-1:<mgmt-account>:trail/portal-organization-trail
+    secret: false
+    state: unbound
+  - id: INPUT-GUARDDUTY-RULE-ARN
+    name: GuardDuty管理Rule ARN範囲
+    example: arn:aws:events:ap-northeast-1:<prod-account>:rule/DO-NOT-DELETE-AmazonGuardDutyMalwareProtectionS3*
+    secret: false
+    state: unbound
+  - id: INPUT-SSO-INSTANCE
+    name: IAM Identity Center Instance ARN
+    example: arn:aws:sso:::instance/ssoins-xxxxxxxx
+    secret: false
+    state: unbound
+  - id: INPUT-SSO-AUDIT-GROUP
+    name: 監査担当Identity Center Group ID
+    example: <group-id>
+    secret: false
+    state: unbound
+  - id: INPUT-SECURITY-ACCOUNT
+    name: セキュリティAccount ID
+    example: <security-account>
+    secret: false
+    state: unbound
+  - id: INPUT-IMAGE-OTEL
+    name: ADOT Collectorのdigest固定イメージ
+    example: public.ecr.aws/aws-observability/aws-otel-collector@sha256:<64桁>
+    secret: false
+    state: unbound
+  - id: INPUT-CANARY-LOG-ARN
+    name: Canaryログの許可ARN
+    example: arn:aws:logs:ap-northeast-1:<prod-account>:log-group:/aws/lambda/cwsyn-portal-*:*
+    secret: false
+    state: unbound
+  - id: INPUT-CACHE-PRIMARY-ID
+    name: Valkeyノードの実CacheClusterId
+    example: <describe-cache-clusters>
+    secret: false
+    state: unbound
+  - id: INPUT-SOURCE-CONNECTION
+    name: 承認済みCodeConnections接続ARN
+    example: arn:aws:codeconnections:ap-northeast-1:<prod-account>:connection/<uuid>
+    secret: false
+    state: unbound
+  - id: INPUT-SOURCE-REPOSITORY
+    name: アプリのRepository
+    example: organization/portal
+    secret: false
+    state: unbound
+  - id: INPUT-RDS-LOG-CONTEXT-ARN
+    name: RDS PostgreSQL Log Group ARN
+    example: arn:aws:logs:ap-northeast-1:<prod-account>:log-group:/aws/rds/cluster/portal-prod/postgresql
+    secret: false
+    state: unbound
+  - id: INPUT-WORKLOAD-OU
+    name: 既存のワークロードOU ID
+    example: ou-xxxx-xxxxxxxx
+    secret: false
+    state: unbound
+  - id: INPUT-SECURITY-MAINTENANCE-ROLE
+    name: 統制変更を承認して実行するRole ARN
+    example: arn:aws:iam::<prod-account>:role/approved-security-maintenance
+    secret: false
+    state: unbound
+  - id: INPUT-MGMT-ACCOUNT
+    name: 組織管理Account ID
+    example: <mgmt-account>
+    secret: false
+    state: unbound
+  - id: INPUT-LOG-ACCOUNT
+    name: ログアーカイブAccount ID
+    example: <log-account>
+    secret: false
+    state: unbound
+  - id: INPUT-STG-ACCOUNT
+    name: 検証Account ID
+    example: <stg-account>
+    secret: false
+    state: unbound
+  - id: INPUT-DEV-ACCOUNT
+    name: 開発Account ID
+    example: <dev-account>
+    secret: false
+    state: unbound
+  - id: INPUT-BACKUP-ACCOUNT
+    name: 復旧保管Account ID
+    example: <backup-account>
+    secret: false
+    state: unbound

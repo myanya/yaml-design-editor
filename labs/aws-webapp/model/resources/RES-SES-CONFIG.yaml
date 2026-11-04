@@ -1,0 +1,17 @@
+id: RES-SES-CONFIG
+name: 送信・抑制・評価設定
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::SES::ConfigurationSet
+environment: ENV-PROD
+stack: STK-IDENTITY
+logicalId: SesConfig
+properties:
+  Name: portal-mail
+  SendingOptions:
+    SendingEnabled: true
+  ReputationOptions:
+    ReputationMetricsEnabled: true
+  SuppressionOptions:
+    SuppressedReasons:
+      - BOUNCE
+      - COMPLAINT

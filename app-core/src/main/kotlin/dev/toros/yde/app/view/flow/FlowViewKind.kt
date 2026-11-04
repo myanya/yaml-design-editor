@@ -22,7 +22,7 @@ object FlowViewKind : ViewKind {
             .use { it.readBytes().decodeToString() }
     }
 
-    private val keys = setOf("id", "name", "description", "kind", "match", "schemaId", "layout", "projection", "appearance")
+    private val keys = setOf("id", "name", "description", "kind", "match", "schemaId", "layout", "sources", "projection", "appearance")
 
     /** 適用先（match か schemaId）・配置（layout.direction）・射影（projection＝変換定義。from と外部の params は書けない）。 */
     override fun parse(raw: Map<*, *>, source: DocumentId): VirtualFlowDef {
@@ -40,7 +40,16 @@ object FlowViewKind : ViewKind {
         require(direction in listOf("down", "right")) { "layout.direction は down / right で書きます" }
         val projection = TransformDef.parse(raw["projection"], "projection")
         require(projection.from == null && projection.params.isEmpty()) { "フローのprojectionには from・外部paramsを指定できません" }
-        return VirtualFlowDef(id, text("name") ?: id, text("description"), source, match, schemaId, direction!!, projection, dev.toros.yde.workspace.DiagramDefinitions.appearance(raw["appearance"]))
+        val sources = if (!raw.containsKey("sources")) emptyList() else {
+            val values = raw["sources"] as? List<*> ?: error("sources はクエリ変換の配列で書きます")
+            require(values.isNotEmpty()) { "sources は1件以上指定します。文書だけを使う場合は省略します" }
+            values.mapIndexed { i, value -> TransformDef.parse(value, "sources[$i]").also {
+                require(it.id.matches(Regex("[A-Za-z][A-Za-z0-9_-]*")) && it.id != "document") { "sources[$i].id は英字から始まる英数字・_・-で書きます。document は予約名です" }
+                require(it.from != null && it.params.isEmpty()) { "sources[$i] には from が必要です。外部paramsは指定できません" }
+            } }.also { definitions -> require(definitions.map { it.id }.distinct().size == definitions.size) { "sources のidが重複しています" } }
+        }
+        return VirtualFlowDef(id, text("name") ?: id, text("description"), source, match, schemaId, direction!!, projection,
+            dev.toros.yde.workspace.DiagramDefinitions.appearance(raw["appearance"]), sources)
     }
 
     override fun lint(def: ExtensionViewDef, all: List<dev.toros.yde.semantic.VirtualViewDefinition>, schemas: List<WorkspaceSchema>): List<String> =
@@ -60,6 +69,7 @@ object FlowViewKind : ViewKind {
     /** 投影の中の固定 ID・関係名・相対パスは参照型の裏付けが無いので、自動で書き換えず場所を開示する。適用先（schemaId・match）も。 */
     override fun mentionSites(raw: Map<*, *>, token: String): List<String> =
         DefinitionMentions.literal(raw["projection"], token, "projection") +
+            DefinitionMentions.literal(raw["sources"], token, "sources") +
             DefinitionMentions.literal(raw["appearance"], token, "appearance") +
             listOf("schemaId", "match").filter { key -> raw[key]?.toString()?.let { DefinitionMentions.tokenRegex(token).containsMatchIn(it) } == true }
 }

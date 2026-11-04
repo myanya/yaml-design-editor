@@ -1,0 +1,45 @@
+id: RES-S3-ARTIFACT
+name: 配備成果物
+purpose: 用途ごとに権限・保持期間・暗号化を分離する。
+resourceType: AWS::S3::Bucket
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: S3Artifact
+properties:
+  PublicAccessBlockConfiguration:
+    BlockPublicAcls: true
+    IgnorePublicAcls: true
+    BlockPublicPolicy: true
+    RestrictPublicBuckets: true
+  OwnershipControls:
+    Rules:
+      - ObjectOwnership: BucketOwnerEnforced
+  VersioningConfiguration:
+    Status: Enabled
+  BucketEncryption:
+    ServerSideEncryptionConfiguration:
+      - ServerSideEncryptionByDefault:
+          SSEAlgorithm: aws:kms
+          KMSMasterKeyID:
+            ref: RES-KMS-DATA
+            attribute: Arn
+        BucketKeyEnabled: true
+  LifecycleConfiguration:
+    Rules:
+      - Id: RetainObjects
+        Status: Enabled
+        ExpirationInDays: 90
+        NoncurrentVersionExpiration:
+          NoncurrentDays: 90
+        AbortIncompleteMultipartUpload:
+          DaysAfterInitiation: 1
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+deletionPolicy: Retain

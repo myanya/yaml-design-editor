@@ -1,0 +1,19 @@
+id: RES-DNS
+name: 公開DNS
+purpose: ポータル名を配信先へ向ける。
+resourceType: AWS::Route53::RecordSet
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: Dns
+properties:
+  HostedZoneId:
+    ref: INPUT-HOSTED-ZONE
+    attribute: Parameter
+  Name: portal.example.com.
+  Type: A
+  AliasTarget:
+    DNSName:
+      ref: RES-CDN
+      attribute: DomainName
+    HostedZoneId: Z2FDTNDATAQYW2
+    EvaluateTargetHealth: false

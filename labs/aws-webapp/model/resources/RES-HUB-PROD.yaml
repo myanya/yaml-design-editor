@@ -1,0 +1,13 @@
+id: RES-HUB-PROD
+name: 本番AccountのSecurity Hub
+purpose: 本番のFindingとセキュリティコントロールを有効化する。
+resourceType: AWS::SecurityHub::Hub
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: HubProd
+properties:
+  EnableDefaultStandards: true
+  AutoEnableControls: true
+  ControlFindingGenerator: SECURITY_CONTROL
+  Tags:
+    System: approval-portal

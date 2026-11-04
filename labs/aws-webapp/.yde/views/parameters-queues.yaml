@@ -1,0 +1,43 @@
+id: parameters-queues
+name: SQSの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::SQS::Queue
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: QueueName
+    path: properties.QueueName
+    editable: true
+  - label: VisibilityTimeout
+    path: properties.VisibilityTimeout
+    editable: true
+  - label: MessageRetentionPeriod
+    path: properties.MessageRetentionPeriod
+    editable: true
+  - label: ReceiveMessageWaitTimeSeconds
+    path: properties.ReceiveMessageWaitTimeSeconds
+    editable: true
+  - label: MaximumMessageSize
+    path: properties.MaximumMessageSize
+    editable: true
+  - label: KmsMasterKeyId
+    path: properties.KmsMasterKeyId
+  - label: KmsDataKeyReusePeriodSeconds
+    path: properties.KmsDataKeyReusePeriodSeconds
+    editable: true
+  - label: Tags
+    path: properties.Tags
+  - label: RedrivePolicy
+    path: properties.RedrivePolicy
+  - label: 採用理由
+    path: designNote

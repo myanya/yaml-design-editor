@@ -1,0 +1,12 @@
+id: RES-SESSION-SUBNETS
+name: セッションのSubnet Group
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ElastiCache::SubnetGroup
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: SessionSubnets
+properties:
+  Description: Session private data subnets
+  SubnetIds:
+    - ref: RES-SUB-DATA-A
+    - ref: RES-SUB-DATA-B

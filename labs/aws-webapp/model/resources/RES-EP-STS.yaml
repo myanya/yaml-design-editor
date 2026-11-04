@@ -1,0 +1,18 @@
+id: RES-EP-STS
+name: sts Endpoint
+purpose: AWS APIへのプライベート経路。
+resourceType: AWS::EC2::VPCEndpoint
+environment: ENV-PROD
+stack: STK-NET
+logicalId: EpSts
+properties:
+  VpcId:
+    ref: RES-VPC
+  ServiceName: com.amazonaws.ap-northeast-1.sts
+  VpcEndpointType: Interface
+  SubnetIds:
+    - ref: RES-SUB-APP-A
+    - ref: RES-SUB-APP-B
+  SecurityGroupIds:
+    - ref: RES-SG-ENDPOINT
+  PrivateDnsEnabled: true

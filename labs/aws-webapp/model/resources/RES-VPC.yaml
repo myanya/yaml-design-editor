@@ -1,0 +1,21 @@
+id: RES-VPC
+name: 本番VPC
+purpose: 業務ネットワークの境界。
+resourceType: AWS::EC2::VPC
+environment: ENV-PROD
+stack: STK-NET
+logicalId: Vpc
+properties:
+  CidrBlock: 10.40.0.0/16
+  EnableDnsSupport: true
+  EnableDnsHostnames: true
+  InstanceTenancy: default
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

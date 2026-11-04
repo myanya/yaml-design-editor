@@ -1,0 +1,64 @@
+id: SCN-UPLOAD
+name: 添付の隔離と安全確認
+description: 検査の前後を分け、曖昧な結果を公開許可として扱わない。
+steps:
+  - id: STEP-UPLOAD-1
+    name: アップロード予約
+    lane: application
+    resources:
+      - RES-SERVICE-API
+      - RES-DB
+    behavior: 業務IDとキー・サイズ上限・checksumを結び、署名URLを発行。
+    failure: 認可失敗や上限超過を拒否。
+    next:
+      - STEP-UPLOAD-2
+  - id: STEP-UPLOAD-2
+    name: 隔離へ保存
+    lane: user
+    resources:
+      - RES-S3-QUARANTINE
+    behavior: 短期署名URLでPUTしversionIdを確定する。
+    failure: 一般利用者のGETは禁止。中断は期限切れで清掃。
+    next:
+      - STEP-UPLOAD-3
+  - id: STEP-UPLOAD-3
+    name: マルウェア検査
+    lane: platform
+    resources:
+      - RES-MALWARE
+      - RES-S3-QUARANTINE
+    behavior: GuardDutyが指定オブジェクトを検査する。
+    failure: 感染・未対応・timeout・権限エラーは隔離維持。
+    next:
+      - STEP-UPLOAD-4
+  - id: STEP-UPLOAD-4
+    name: 結果を配送
+    lane: platform
+    resources:
+      - RES-SCAN-RULE
+      - RES-QUEUE-SCAN
+      - RES-DLQ-EVENT
+    behavior: bucket/key/versionId付きの結果をキューへ配送する。
+    failure: 重複と順序逆転を想定し、失敗はDLQ。
+    next:
+      - STEP-UPLOAD-5
+  - id: STEP-UPLOAD-5
+    name: 安全な版を昇格
+    lane: application
+    resources:
+      - RES-SERVICE-WORKER
+      - RES-S3-FILES
+      - RES-DB
+    behavior: クリーンの指定versionだけCopyし、成功後にDBを配信可へ更新。
+    failure: 別versionの結果や不明な状態を許可しない。
+    next:
+      - STEP-UPLOAD-6
+  - id: STEP-UPLOAD-6
+    name: 認可済み配信
+    lane: user
+    resources:
+      - RES-SERVICE-API
+      - RES-S3-FILES
+    behavior: 業務権限を再確認してversionId付きの短期URLで読む。
+    failure: 期限切れや権限失効時は新しいURLを発行しない。
+    next: []

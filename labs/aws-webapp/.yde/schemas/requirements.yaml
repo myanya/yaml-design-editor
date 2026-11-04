@@ -1,0 +1,105 @@
+id: aws-requirements
+name: 非機能要件と設計判断
+kind: document
+match: model/requirements.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: requirements
+      label: 要件
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: category
+            label: 分野
+            type: enum
+            values:
+              - availability
+              - performance
+              - security
+              - audit
+              - recovery
+              - operations
+              - cost
+            required: true
+          - key: target
+            label: 目標
+            type: text
+            required: true
+          - key: verification
+            label: 検証方法
+            type: text
+            required: true
+          - key: status
+            label: 確認状況
+            type: enum
+            values:
+              - design-target
+              - tested
+            required: true
+          - key: owner
+            label: 責任者
+            type: line
+            required: true
+        entity:
+          type: requirement
+          defines: true
+    - key: decisions
+      label: 未決事項・設計判断
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            label: 設計ID
+            type: id
+            required: true
+          - key: name
+            label: 名称
+            type: line
+            required: true
+            role: title
+          - key: status
+            label: 状態
+            type: enum
+            values:
+              - open
+              - adopted
+            required: true
+          - key: decision
+            label: 判断・候補
+            type: text
+            required: true
+          - key: rationale
+            label: 根拠・判断に必要な情報
+            type: text
+            required: true
+          - key: requirements
+            label: 関連要件
+            type: array
+            item:
+              type: ref
+              idPattern: REQ-*
+              relation: satisfies
+          - key: owner
+            label: 責任者
+            type: line
+            required: true
+        entity:
+          type: decision
+          defines: true

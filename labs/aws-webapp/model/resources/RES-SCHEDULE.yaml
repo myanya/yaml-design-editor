@@ -1,0 +1,29 @@
+id: RES-SCHEDULE
+name: 日次集計の起動
+purpose: 日次帳票作成をジョブとして配送。
+resourceType: AWS::Scheduler::Schedule
+environment: ENV-PROD
+stack: STK-APP
+logicalId: Schedule
+properties:
+  Name: portal-outbox-poll
+  ScheduleExpression: rate(1 minute)
+  ScheduleExpressionTimezone: Asia/Tokyo
+  State: ENABLED
+  FlexibleTimeWindow:
+    Mode: 'OFF'
+  Target:
+    Arn:
+      ref: RES-QUEUE-JOBS
+      attribute: Arn
+    RoleArn:
+      ref: RES-ROLE-SCHEDULE
+      attribute: Arn
+    Input: '{"type":"drain-outbox"}'
+    RetryPolicy:
+      MaximumEventAgeInSeconds: 300
+      MaximumRetryAttempts: 3
+    DeadLetterConfig:
+      Arn:
+        ref: RES-DLQ-EVENT
+        attribute: Arn

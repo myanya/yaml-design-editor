@@ -1,0 +1,31 @@
+id: ALM-DB-CONNECTIONS
+name: DB接続数の余裕
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmDbConnections
+properties:
+  AlarmName: portal-alm-db-connections
+  AlarmDescription: DB接続数の余裕
+  Namespace: AWS/RDS
+  MetricName: DatabaseConnections
+  Dimensions:
+    - Name: DBClusterIdentifier
+      Value:
+        ref: RES-DB
+  Statistic: Maximum
+  Threshold: 260
+  Period: 300
+  EvaluationPeriods: 3
+  DatapointsToAlarm: 3
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

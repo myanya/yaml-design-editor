@@ -1,0 +1,158 @@
+id: aws-relations
+name: AWS設計の関係
+kind: relations
+enforcement:
+  undeclaredRelation: error
+  definingUniqueness: error
+entities:
+  - type: aws-resource
+    label: AWSリソース
+  - type: component
+    label: 論理構成
+  - type: account
+    label: AWSアカウント
+  - type: environment
+    label: 環境
+  - type: zone
+    label: AZ
+  - type: stack
+    label: 配備単位
+  - type: external
+    label: 外部サービス
+  - type: requirement
+    label: 非機能要件
+  - type: decision
+    label: 設計判断
+  - type: log-stream
+    label: ログ
+  - type: alarm
+    label: 監視
+  - type: backup-policy
+    label: バックアップ
+  - type: runbook
+    label: 運用手順
+  - type: connection
+    label: 接続契約
+  - type: scenario-step
+    label: 処理・運用の手順
+  - type: origin
+    label: origin
+  - type: cache-behavior
+    label: cache-behavior
+  - type: application-settings
+    label: application-settings
+  - type: service-setting
+    label: service-setting
+  - type: deployment-input
+    label: deployment-input
+  - type: system
+    label: system
+relations:
+  - name: allowsFrom
+    label: 受信を許可するSG
+    inverseLabel: 接続を許可するSG
+  - name: assumesRole
+    label: 使用するRole
+    inverseLabel: Roleの利用元
+  - name: connectsTo
+    label: 通信先
+    inverseLabel: 通信元
+  - name: copiesTo
+    label: コピー先
+    inverseLabel: コピー元
+  - name: deadLettersTo
+    label: 失敗の隔離先
+    inverseLabel: 隔離元
+  - name: dependsOn
+    label: 作成前提
+    inverseLabel: 依存する資源
+  - name: deployedTo
+    label: 配備先スタック
+    inverseLabel: 配備する資源
+  - name: encryptedWith
+    label: 暗号鍵
+    inverseLabel: 鍵を使う資源
+  - name: federatesWith
+    label: 認証の連携先
+    inverseLabel: 連携する認証基盤
+  - name: fromResource
+    label: 送信元
+    inverseLabel: 送信する接続
+  - name: grantsOn
+    label: 権限の対象
+    inverseLabel: 対象への権限
+  - name: implements
+    label: 実現する機能
+    inverseLabel: 実現する資源
+  - name: inAccount
+    label: 所属アカウント
+    inverseLabel: アカウントに属する設計
+  - name: inEnvironment
+    label: 対象環境
+    inverseLabel: 環境に属する設計
+  - name: inSubnet
+    label: 利用するSubnet
+    inverseLabel: Subnetを利用する資源
+  - name: inVpc
+    label: 配置先VPC
+    inverseLabel: VPC内の資源
+  - name: inZone
+    label: 配置先AZ
+    inverseLabel: AZ内の資源
+  - name: invokes
+    label: 起動・配送先
+    inverseLabel: 起動・配送元
+  - name: logsTo
+    label: 保存先
+    inverseLabel: 保存するログ
+  - name: nextStep
+    label: 次の手順
+    inverseLabel: 前の手順
+  - name: notifies
+    label: 通知先
+    inverseLabel: 通知する監視
+  - name: observes
+    label: 監視対象
+    inverseLabel: 対象の監視
+  - name: protectedBy
+    label: 保護するWAF
+    inverseLabel: 保護される資源
+  - name: protects
+    label: 保護対象
+    inverseLabel: 対象の保護
+  - name: readsSecret
+    label: 参照する秘密情報
+    inverseLabel: 秘密情報の利用元
+  - name: records
+    label: 記録対象
+    inverseLabel: 対象のログ
+  - name: recordsWith
+    label: ログ設計
+    inverseLabel: ログの発生元
+  - name: respondsWith
+    label: 対応手順
+    inverseLabel: 手順の利用元
+  - name: routesTo
+    label: 転送先
+    inverseLabel: 転送元
+  - name: satisfies
+    label: 対応する要件
+    inverseLabel: 要件への対応
+  - name: securedBy
+    label: 適用するSG
+    inverseLabel: SGを使う資源
+  - name: stackDependsOn
+    label: 前提Stack
+    inverseLabel: 後続Stack
+  - name: toResource
+    label: 送信先
+    inverseLabel: 受信する接続
+  - name: usesExternal
+    label: 外部サービス
+    inverseLabel: 外部サービスの利用元
+  - name: usesResource
+    label: 利用する資源
+    inverseLabel: 資源の利用元
+  - name: uses
+    label: 設定で参照する
+    inverseLabel: 参照する設定

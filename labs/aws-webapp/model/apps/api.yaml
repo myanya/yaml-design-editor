@@ -1,0 +1,85 @@
+id: APP-API
+name: API/BFFの実行設定
+profile: api
+settings:
+  database:
+    cluster:
+      ref: RES-DB
+      attribute: Endpoint.Address
+    port: 5432
+    database: portal
+    secret:
+      ref: RES-SECRET-DB
+    sslMode: verify-full
+    poolMaximum: 20
+    connectTimeoutSeconds: 5
+    statementTimeoutSeconds: 30
+    credentialsEnvironmentVariable: DB_CREDENTIALS
+  session:
+    store:
+      ref: RES-SESSION
+      attribute: PrimaryEndPoint.Address
+    port: 6379
+    secret:
+      ref: RES-SECRET-SESSION
+    tls: true
+    keyPrefix: 'session:'
+    idleTtlSeconds: 1800
+    absoluteTtlSeconds: 28800
+    failureMode: deny-and-reauthenticate
+    cookie:
+      name: __Host-portal
+      secure: true
+      httpOnly: true
+      sameSite: Lax
+      path: /
+    rotateOnLogin: true
+    invalidateOnLogout: true
+    credentialsEnvironmentVariable: SESSION_CREDENTIALS
+  identity:
+    userPool:
+      ref: RES-COGNITO
+    client:
+      ref: RES-COGNITO-CLIENT
+    domain:
+      ref: RES-COGNITO-DOMAIN
+    pkceMethod: S256
+    validateState: true
+    validateNonce: true
+    csrfProtection: synchronizer-token
+  attachments:
+    quarantineBucket:
+      ref: RES-S3-QUARANTINE
+    cleanBucket:
+      ref: RES-S3-FILES
+    uploadMode: presigned-put
+    signedUrlExpiresSeconds: 300
+    maximumBytes: 10485760
+    requireChecksum: true
+    downloadOnlyMatchedCleanVersion: true
+    uploadKeyPrefix: uploads/
+  jobs:
+    queue:
+      ref: RES-QUEUE-JOBS
+    publishFromCommittedOutbox: true
+  logging:
+    format: json
+    fields:
+      - timestamp
+      - level
+      - requestId
+      - traceId
+      - event
+      - durationMs
+    redact:
+      - Authorization
+      - Cookie
+      - Set-Cookie
+      - password
+      - token
+      - body
+  telemetry:
+    enabled: true
+    protocol: otlp-http
+    collectorEndpoint: http://localhost:4318
+    samplingRatio: 0.1

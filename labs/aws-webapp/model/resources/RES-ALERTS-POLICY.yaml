@@ -1,0 +1,29 @@
+id: RES-ALERTS-POLICY
+name: 監視サービスからの通知権限
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::SNS::TopicPolicy
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlertsPolicy
+properties:
+  Topics:
+    - ref: RES-ALERTS
+  PolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: MonitoringPublish
+        Effect: Allow
+        Action:
+          - sns:Publish
+        Resource:
+          - ref: RES-ALERTS
+        Principal:
+          Service:
+            - cloudwatch.amazonaws.com
+            - events.amazonaws.com
+            - ses.amazonaws.com
+        Condition:
+          StringEquals:
+            AWS:SourceAccount:
+              ref: INPUT-PROD-ACCOUNT
+              attribute: Parameter

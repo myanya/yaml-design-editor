@@ -1,0 +1,14 @@
+id: RES-SESSION-DEFAULT-USER
+name: 既定ユーザーの無効化
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ElastiCache::User
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: SessionDefaultUser
+properties:
+  UserId: portal-disabled-default
+  UserName: default
+  Engine: valkey
+  AccessString: off ~* -@all
+  AuthenticationMode:
+    Type: no-password-required

@@ -1,0 +1,48 @@
+id: RES-DB
+name: Aurora PostgreSQL
+purpose: 申請・承認・認可・処理状態の正本。
+resourceType: AWS::RDS::DBCluster
+environment: ENV-PROD
+stack: STK-DATA
+logicalId: Db
+properties:
+  Engine: aurora-postgresql
+  EngineVersion: '17.7'
+  EngineMode: provisioned
+  DatabaseName: portal
+  Port: 5432
+  DBSubnetGroupName:
+    ref: RES-DB-SUBNETS
+  DBClusterParameterGroupName:
+    ref: RES-DB-PARAMETERS
+  VpcSecurityGroupIds:
+    - ref: RES-SG-DB
+  MasterUsername: portal_admin
+  ManageMasterUserPassword: true
+  MasterUserSecret:
+    KmsKeyId:
+      ref: RES-KMS-DATA
+      attribute: Arn
+  StorageEncrypted: true
+  KmsKeyId:
+    ref: RES-KMS-DATA
+    attribute: Arn
+  BackupRetentionPeriod: 35
+  PreferredBackupWindow: 17:00-18:00
+  PreferredMaintenanceWindow: sun:18:00-sun:19:00
+  DeletionProtection: true
+  EnableCloudwatchLogsExports:
+    - postgresql
+  CopyTagsToSnapshot: true
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
+  DBClusterIdentifier: portal-prod
+deletionPolicy: Snapshot
+designNote: サンプルの採用版は17.7。配備先の提供版・パッチ・拡張互換性を配備前に確認。管理者Secretをアプリへ渡さず、アプリDBユーザーを初期化する。

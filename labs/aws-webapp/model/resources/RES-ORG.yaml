@@ -1,0 +1,10 @@
+id: RES-ORG
+name: Organizations
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::Organizations::Organization
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: Org
+properties:
+  FeatureSet: ALL
+designNote: 組織共通基盤用の例。既存Organizationは取り込み/外部束縛とし、アプリの配備で新設しない。

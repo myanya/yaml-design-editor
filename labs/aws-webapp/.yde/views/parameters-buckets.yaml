@@ -1,0 +1,35 @@
+id: parameters-buckets
+name: S3の全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::S3::Bucket
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: PublicAccessBlockConfiguration
+    path: properties.PublicAccessBlockConfiguration
+  - label: OwnershipControls
+    path: properties.OwnershipControls
+  - label: VersioningConfiguration
+    path: properties.VersioningConfiguration
+  - label: BucketEncryption
+    path: properties.BucketEncryption
+  - label: LifecycleConfiguration
+    path: properties.LifecycleConfiguration
+  - label: Tags
+    path: properties.Tags
+  - label: CorsConfiguration
+    path: properties.CorsConfiguration
+  - label: NotificationConfiguration
+    path: properties.NotificationConfiguration
+  - label: 採用理由
+    path: designNote

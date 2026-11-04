@@ -1,0 +1,34 @@
+id: parameters-listeners
+name: Listenerの全設定表
+kind: grid
+rows:
+  match:
+    - node:
+        entity: aws-resource
+        bind: r
+  where:
+    - of: r
+      path: resourceType
+      oneOf:
+        - AWS::ElasticLoadBalancingV2::Listener
+  limit: 10000
+columns:
+  - label: 名称
+    path: name
+  - label: LoadBalancerArn
+    path: properties.LoadBalancerArn
+  - label: Port
+    path: properties.Port
+    editable: true
+  - label: Protocol
+    path: properties.Protocol
+    editable: true
+  - label: Certificates
+    path: properties.Certificates
+  - label: SslPolicy
+    path: properties.SslPolicy
+    editable: true
+  - label: DefaultActions
+    path: properties.DefaultActions
+  - label: 採用理由
+    path: designNote

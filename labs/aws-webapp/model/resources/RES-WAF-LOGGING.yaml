@@ -1,0 +1,20 @@
+id: RES-WAF-LOGGING
+name: WAFログのマスクと配送
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::WAFv2::LoggingConfiguration
+environment: ENV-PROD
+stack: STK-EDGE-CERT
+logicalId: WafLogging
+properties:
+  ResourceArn:
+    ref: RES-WAF
+    attribute: Arn
+  LogDestinationConfigs:
+    - ref: RES-LOG-WAF
+      attribute: Arn
+  RedactedFields:
+    - SingleHeader:
+        Name: authorization
+    - SingleHeader:
+        Name: cookie
+    - QueryString: {}

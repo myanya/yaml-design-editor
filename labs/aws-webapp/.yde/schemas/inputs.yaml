@@ -1,0 +1,93 @@
+id: deployment-inputs
+name: deployment-inputs
+kind: document
+match: model/inputs.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: inputs
+      label: 配備時の入力
+      type: array
+      item:
+        type: object
+        unknownFields: error
+        entity:
+          type: deployment-input
+          defines: true
+        fields:
+          - key: id
+            label: 入力ID
+            type: id
+            required: true
+          - key: name
+            label: 入力する値
+            type: string
+            role: title
+            required: true
+          - key: state
+            label: 束縛状態
+            type: enum
+            values:
+              - unbound
+              - bound
+            required: true
+          - key: value
+            label: 束縛した値
+            type: string
+          - key: example
+            label: 入力例（実際の値ではない）
+            type: string
+            required: true
+          - key: secret
+            label: 機密入力
+            type: boolean
+            required: true
+        constraints:
+          - id: bound-input-has-value
+            description: 束縛済みの入力には実際の値が必要
+            where:
+              - path: state
+                equals: bound
+              - path: value
+                empty: true
+            expect: absent
+            level: error
+definitions:
+  binding:
+    type: object
+    unknownFields: error
+    fields:
+      - key: ref
+        label: 参照先
+        type: ref
+        relation: uses
+      - key: attribute
+        label: 展開する属性
+        type: string
+        default: Ref
+      - key: suffix
+        label: 属性に付ける末尾
+        type: string
+      - key: literal
+        label: 固定文字列
+        type: string
+    constraints:
+      - id: binding-present
+        description: 参照先か固定文字列のいずれかを指定する
+        where:
+          - path: ref
+            exists: false
+          - path: literal
+            exists: false
+        expect: absent
+        level: error
+      - id: binding-exclusive
+        description: 参照先と固定文字列を同時に指定しない
+        where:
+          - path: ref
+            exists: true
+          - path: literal
+            exists: true
+        expect: absent
+        level: error

@@ -1,0 +1,21 @@
+id: RES-RULE-API
+name: API・認証経路の転送
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ElasticLoadBalancingV2::ListenerRule
+environment: ENV-PROD
+stack: STK-APP
+logicalId: RuleApi
+properties:
+  ListenerArn:
+    ref: RES-LISTENER
+  Priority: 100
+  Conditions:
+    - Field: path-pattern
+      PathPatternConfig:
+        Values:
+          - /api/*
+          - /auth/*
+  Actions:
+    - Type: forward
+      TargetGroupArn:
+        ref: RES-TG

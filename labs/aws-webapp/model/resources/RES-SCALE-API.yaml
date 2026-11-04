@@ -1,0 +1,15 @@
+id: RES-SCALE-API
+name: APIのスケール範囲
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::ApplicationAutoScaling::ScalableTarget
+environment: ENV-PROD
+stack: STK-APP
+logicalId: ScaleApi
+properties:
+  MinCapacity: 2
+  MaxCapacity: 10
+  ServiceNamespace: ecs
+  ScalableDimension: ecs:service:DesiredCount
+  ResourceId:
+    ref: RES-SERVICE-API
+    attribute: EcsServiceResourceId

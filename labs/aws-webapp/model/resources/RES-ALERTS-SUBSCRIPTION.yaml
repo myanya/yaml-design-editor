@@ -1,0 +1,15 @@
+id: RES-ALERTS-SUBSCRIPTION
+name: 運用通知の購読
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::SNS::Subscription
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlertsSubscription
+properties:
+  TopicArn:
+    ref: RES-ALERTS
+  Protocol: email
+  Endpoint:
+    ref: INPUT-OPERATIONS-EMAIL
+    attribute: Parameter
+designNote: メール購読は受信者の確認後に有効になる。検証環境で通知を確認する。

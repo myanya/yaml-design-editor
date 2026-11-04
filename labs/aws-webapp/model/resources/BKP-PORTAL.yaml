@@ -1,0 +1,31 @@
+id: BKP-PORTAL
+name: 日次保護と大阪別Accountコピー
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Backup::BackupPlan
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: BkpPortal
+properties:
+  BackupPlan:
+    BackupPlanName: portal-daily-copy
+    BackupPlanRule:
+      - RuleName: Daily
+        TargetBackupVault:
+          ref: RES-VAULT-PRIMARY
+        ScheduleExpression: cron(0 17 * * ? *)
+        StartWindowMinutes: 60
+        CompletionWindowMinutes: 240
+        Lifecycle:
+          DeleteAfterDays: 35
+        CopyActions:
+          - DestinationBackupVaultArn:
+              ref: RES-VAULT-DR
+              attribute: BackupVaultArn
+            Lifecycle:
+              DeleteAfterDays: 90
+  BackupPlanTags:
+    System: approval-portal
+designNote: コピー先はスナップショット。東京のPITRと同じ復元時点を保証しない。日次コピーのDR RPOは24時間＋ジョブ遅延を目標とする。
+runbook:
+  ref: RUN-RESTORE
+  attribute: Literal

@@ -1,0 +1,19 @@
+id: RES-DNS-AAAA
+name: ポータルのIPv6 Alias
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::Route53::RecordSet
+environment: ENV-PROD
+stack: STK-EDGE
+logicalId: DnsAaaa
+properties:
+  HostedZoneId:
+    ref: INPUT-HOSTED-ZONE
+    attribute: Parameter
+  Name: portal.example.com.
+  Type: AAAA
+  AliasTarget:
+    DNSName:
+      ref: RES-CDN
+      attribute: DomainName
+    HostedZoneId: Z2FDTNDATAQYW2
+    EvaluateTargetHealth: false

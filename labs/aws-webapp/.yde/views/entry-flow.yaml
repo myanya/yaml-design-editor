@@ -1,0 +1,703 @@
+id: entry-flow
+name: 02 入口の詳細（Behavior・転送条件・登録先）
+kind: flow
+schemaId: aws-system
+layout:
+  direction: right
+sources:
+  - id: resources
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: r
+      where:
+        - of: r
+          path: resourceType
+          oneOf:
+            - AWS::CloudFront::Distribution
+            - AWS::CloudFront::VpcOrigin
+            - AWS::ElasticLoadBalancingV2::LoadBalancer
+            - AWS::ElasticLoadBalancingV2::Listener
+            - AWS::ElasticLoadBalancingV2::ListenerRule
+            - AWS::ElasticLoadBalancingV2::TargetGroup
+            - AWS::ECS::Service
+            - AWS::ECS::TaskDefinition
+            - AWS::S3::Bucket
+        - of: r
+          path: id
+          notEquals: RES-SERVICE-WORKER
+        - of: r
+          path: id
+          notEquals: RES-TASK-WORKER
+        - or:
+            - of: r
+              path: resourceType
+              notEquals: AWS::S3::Bucket
+            - of: r
+              path: id
+              equals: RES-S3-STATIC
+      limit: 10000
+    build:
+      $copy: .
+  - id: origins
+    from:
+      match:
+        - node:
+            entity: origin
+            bind: o
+      limit: 10000
+    build:
+      $copy: .
+  - id: cacheBehaviors
+    from:
+      match:
+        - node:
+            entity: cache-behavior
+            bind: b
+      limit: 10000
+    build:
+      $copy: .
+  - id: behaviors
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+        - edge:
+            contains: true
+            dir: out
+        - node:
+            entity: cache-behavior
+            bind: b
+      limit: 10000
+    build:
+      key:
+        $format: behaviors/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: a
+          b:
+            $copy: id
+            $of: b
+      from:
+        $copy: id
+        $of: a
+      to:
+        $copy: id
+        $of: b
+      label:
+        $first:
+          - $copy: PathPattern
+            $of: b
+          - 既定のBehavior
+      detail:
+        a:
+          $copy: .
+          $of: a
+        b:
+          $copy: .
+          $of: b
+  - id: targetOrigins
+    from:
+      match:
+        - node:
+            entity: cache-behavior
+            bind: b
+      limit: 10000
+    build:
+      key:
+        $copy: id
+        $of: b
+      from:
+        $copy: id
+        $of: b
+      to:
+        $copy: TargetOriginId.ref
+        $of: b
+      label:
+        $first:
+          - $copy: PathPattern
+            $of: b
+          - 既定
+      detail:
+        $copy: .
+        $of: b
+  - id: originTargets
+    from:
+      match:
+        - node:
+            entity: origin
+            bind: o
+      limit: 10000
+    build:
+      key:
+        $copy: Id
+        $of: o
+      from:
+        $copy: Id
+        $of: o
+      to:
+        $first:
+          - $copy: VpcOriginConfig.VpcOriginId.ref
+            $of: o
+          - $copy: DomainName.ref
+            $of: o
+      label: Originの設定
+      detail:
+        $copy: .
+        $of: o
+  - id: vpcAlb
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+        - edge:
+            via: VpcOriginEndpointConfig.Arn.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: b
+      limit: 10000
+    build:
+      key:
+        $format: vpcAlb/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: a
+          b:
+            $copy: id
+            $of: b
+      from:
+        $copy: id
+        $of: a
+      to:
+        $copy: id
+        $of: b
+      label:
+        $format: HTTPS:{port}
+        $with:
+          port:
+            $copy: properties.VpcOriginEndpointConfig.HTTPSPort
+            $of: a
+      detail:
+        a:
+          $copy: .
+          $of: a
+        b:
+          $copy: .
+          $of: b
+  - id: albListener
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+        - edge:
+            via: LoadBalancerArn.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: b
+      limit: 10000
+    build:
+      key:
+        $format: albListener/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: b
+          b:
+            $copy: id
+            $of: a
+      from:
+        $copy: id
+        $of: b
+      to:
+        $copy: id
+        $of: a
+      label:
+        $format: '{protocol}:{port}'
+        $with:
+          protocol:
+            $copy: properties.Protocol
+            $of: a
+          port:
+            $copy: properties.Port
+            $of: a
+      detail:
+        a:
+          $copy: .
+          $of: a
+        b:
+          $copy: .
+          $of: b
+  - id: listenerRule
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+        - edge:
+            via: ListenerArn.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: b
+      limit: 10000
+    build:
+      key:
+        $format: listenerRule/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: b
+          b:
+            $copy: id
+            $of: a
+      from:
+        $copy: id
+        $of: b
+      to:
+        $copy: id
+        $of: a
+      label:
+        $format: 優先度 {priority}
+        $with:
+          priority:
+            $copy: properties.Priority
+            $of: a
+      detail:
+        a:
+          $copy: .
+          $of: a
+        b:
+          $copy: .
+          $of: b
+  - id: ruleTg
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+      where:
+        - of: a
+          path: resourceType
+          oneOf:
+            - AWS::ElasticLoadBalancingV2::ListenerRule
+      limit: 10000
+    build:
+      $each: properties.Actions
+      $build:
+        $when:
+          path: TargetGroupArn.ref
+          exists: true
+        key:
+          $format: rule/{rule}/{index}
+          $with:
+            rule:
+              $copy: id
+              $of: a
+            index: $index
+        from:
+          $copy: id
+          $of: a
+        to:
+          $copy: TargetGroupArn.ref
+        label: forward
+        detail:
+          rule:
+            $copy: .
+            $of: a
+          action:
+            $copy: .
+  - id: tgService
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+        - edge:
+            via: LoadBalancers.TargetGroupArn.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: b
+      limit: 10000
+    build:
+      key:
+        $format: tgService/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: b
+          b:
+            $copy: id
+            $of: a
+      from:
+        $copy: id
+        $of: b
+      to:
+        $copy: id
+        $of: a
+      label:
+        $format: '{container}:{port} / 登録'
+        $with:
+          container:
+            $copy: properties.LoadBalancers[0].ContainerName
+            $of: a
+          port:
+            $copy: properties.LoadBalancers[0].ContainerPort
+            $of: a
+      detail:
+        a:
+          $copy: .
+          $of: a
+        b:
+          $copy: .
+          $of: b
+  - id: serviceTask
+    from:
+      match:
+        - node:
+            entity: aws-resource
+            bind: a
+        - edge:
+            via: TaskDefinition.ref
+            dir: out
+        - node:
+            entity: aws-resource
+            bind: b
+      where:
+        - of: a
+          path: id
+          notEquals: RES-SERVICE-WORKER
+      limit: 10000
+    build:
+      key:
+        $format: serviceTask/{a}/{b}
+        $with:
+          a:
+            $copy: id
+            $of: a
+          b:
+            $copy: id
+            $of: b
+      from:
+        $copy: id
+        $of: a
+      to:
+        $copy: id
+        $of: b
+      label: Task Definition
+      detail:
+        a:
+          $copy: .
+          $of: a
+        b:
+          $copy: .
+          $of: b
+projection:
+  id: aws-entry
+  build:
+    nodes:
+      $concat:
+        - $each: resources
+          $build:
+            key:
+              $copy: id
+            label:
+              $copy: name
+            entityType: aws-resource
+            detail:
+              $copy: .
+        - $each: origins
+          $build:
+            key:
+              $copy: Id
+            label:
+              $copy: Id
+            entityType: origin
+            detail:
+              $copy: .
+        - $each: cacheBehaviors
+          $build:
+            key:
+              $copy: id
+            label:
+              $first:
+                - $copy: PathPattern
+                - $copy: id
+            entityType: cache-behavior
+            detail:
+              $copy: .
+    edges:
+      $concat:
+        - $each: behaviors
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: targetOrigins
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: originTargets
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: vpcAlb
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: albListener
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: listenerRule
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: ruleTg
+          $flatten: true
+          $build:
+            $each: .
+            $build:
+              key:
+                $copy: key
+              from:
+                $copy: from
+              to:
+                $copy: to
+              label:
+                $copy: label
+              detail:
+                $copy: detail
+        - $each: tgService
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+        - $each: serviceTask
+          $build:
+            key:
+              $copy: key
+            from:
+              $copy: from
+            to:
+              $copy: to
+            label:
+              $copy: label
+            detail:
+              $copy: detail
+appearance:
+  nodes:
+    - level: entity
+      entityType: aws-resource
+      notation: aws-card
+      inputs:
+        title:
+          $copy: data.name
+        service:
+          $map:
+            $copy: data.resourceType
+          $using:
+            AWS::EC2::VPC: vpc
+            AWS::EC2::InternetGateway: vpc
+            AWS::EC2::VPCGatewayAttachment: vpc
+            AWS::EC2::EIP: vpc
+            AWS::EC2::NatGateway: vpc
+            AWS::EC2::Subnet: vpc
+            AWS::EC2::RouteTable: vpc
+            AWS::EC2::SubnetRouteTableAssociation: vpc
+            AWS::EC2::Route: vpc
+            AWS::EC2::SecurityGroup: vpc
+            AWS::EC2::VPCEndpoint: vpc
+            AWS::S3::Bucket: bucket
+            AWS::CloudFront::OriginAccessControl: cloudfront
+            AWS::CertificateManager::Certificate: certificate
+            AWS::ElasticLoadBalancingV2::LoadBalancer: alb
+            AWS::ElasticLoadBalancingV2::TargetGroup: alb
+            AWS::ElasticLoadBalancingV2::Listener: alb
+            AWS::ElasticLoadBalancingV2::ListenerRule: alb
+            AWS::CloudFront::VpcOrigin: cloudfront
+            AWS::CloudFront::CachePolicy: cloudfront
+            AWS::CloudFront::OriginRequestPolicy: cloudfront
+            AWS::CloudFront::ResponseHeadersPolicy: cloudfront
+            AWS::CloudFront::Distribution: cloudfront
+            AWS::Route53::RecordSet: dns-record
+            AWS::ECS::Cluster: ecs-service
+            AWS::Logs::LogGroup: log-group
+            AWS::ECR::Repository: ecr
+            AWS::ECS::TaskDefinition: ecs-service
+            AWS::ECS::Service: ecs-service
+            AWS::ApplicationAutoScaling::ScalableTarget: ecs-service
+            AWS::ApplicationAutoScaling::ScalingPolicy: ecs-service
+            AWS::RDS::DBSubnetGroup: db-cluster
+            AWS::RDS::DBClusterParameterGroup: db-cluster
+            AWS::RDS::DBCluster: db-cluster
+            AWS::RDS::DBInstance: db-cluster
+            AWS::ElastiCache::SubnetGroup: session-store
+            AWS::ElastiCache::ParameterGroup: session-store
+            AWS::ElastiCache::User: session-store
+            AWS::ElastiCache::UserGroup: session-store
+            AWS::ElastiCache::ReplicationGroup: session-store
+            AWS::SecretsManager::Secret: secret
+            AWS::Cognito::UserPool: cognito
+            AWS::Cognito::UserPoolIdentityProvider: cognito
+            AWS::Cognito::UserPoolClient: cognito
+            AWS::Cognito::UserPoolDomain: cognito
+            AWS::SQS::Queue: sqs
+            AWS::Events::Rule: event-rule
+            AWS::Scheduler::Schedule: schedule
+            AWS::SES::EmailIdentity: ses
+            AWS::SES::ConfigurationSet: ses
+            AWS::SES::ConfigurationSetEventDestination: ses
+            AWS::SNS::Topic: notification-topic
+            AWS::SNS::Subscription: notification-topic
+            AWS::KMS::Key: kms-key
+            AWS::IAM::Role: role
+            AWS::SQS::QueuePolicy: sqs
+            AWS::S3::BucketPolicy: bucket
+            AWS::WAFv2::WebACL: waf
+            AWS::WAFv2::LoggingConfiguration: waf
+            AWS::GuardDuty::MalwareProtectionPlan: security-control
+            AWS::Organizations::Organization: security-control
+            AWS::SSO::PermissionSet: role
+            AWS::SSO::Assignment: role
+            AWS::CloudTrail::Trail: security-control
+            AWS::GuardDuty::Detector: security-control
+            AWS::SecurityHub::Hub: security-control
+            AWS::Config::ConfigurationRecorder: security-control
+            AWS::Config::DeliveryChannel: security-control
+            AWS::Config::ConfigRule: security-control
+            AWS::Budgets::Budget: security-control
+            AWS::CE::AnomalyMonitor: security-control
+            AWS::CE::AnomalySubscription: security-control
+            AWS::EC2::FlowLog: vpc
+            AWS::Logs::DeliverySource: log-group
+            AWS::Logs::DeliveryDestination: log-group
+            AWS::Logs::Delivery: log-group
+            AWS::Synthetics::Canary: canary
+            AWS::CloudWatch::Alarm: log-group
+            AWS::Backup::BackupVault: backup-vault
+            AWS::Backup::BackupPlan: backup-vault
+            AWS::Backup::BackupSelection: backup-vault
+            AWS::SNS::TopicPolicy: notification-topic
+            AWS::CodeBuild::Project: build
+            AWS::CodePipeline::Pipeline: pipeline
+            AWS::EC2::SecurityGroupIngress: vpc
+            AWS::EC2::SecurityGroupEgress: vpc
+            AWS::Organizations::Policy: security-control
+        subtitle:
+          $copy: data.id
+    - level: entity
+      entityType: origin
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: cloudfront
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id
+    - level: entity
+      entityType: cache-behavior
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: cloudfront
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id
+    - level: entity
+      entityType: system
+      notation: aws-card
+      inputs:
+        title: 利用者
+        service: client
+        subtitle:
+          $copy: data.publicUrl
+    - level: entity
+      entityType: application-settings
+      notation: aws-card
+      inputs:
+        title:
+          $first:
+            - $copy: data.name
+            - $copy: data.PathPattern
+            - $copy: data.Id
+            - $copy: data.id
+        service: fargate
+        subtitle:
+          $first:
+            - $copy: data.id
+            - $copy: data.Id

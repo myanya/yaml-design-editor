@@ -1,0 +1,28 @@
+id: setting-detail
+name: 全設定・参照元
+kind: document
+schemaId: aws-settings
+sections:
+  - label: 設計対象・配置
+    fields:
+      include:
+        - id
+        - name
+        - purpose
+        - resourceType
+        - environment
+        - stack
+        - logicalId
+        - deletionPolicy
+        - designNote
+  - label: サービスの設定（省略せず全項目）
+    fields:
+      path: properties
+  - label: この資源を設定で参照する箇所
+    backlinks:
+      relation: uses
+      columns:
+        - label: 名称
+          path: name
+        - label: AWS型
+          path: resourceType

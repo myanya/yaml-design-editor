@@ -1,0 +1,32 @@
+id: ALM-LATENCY
+name: ALB応答時間p95
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::CloudWatch::Alarm
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: AlmLatency
+properties:
+  AlarmName: portal-alm-latency
+  AlarmDescription: ALB応答時間p95
+  Namespace: AWS/ApplicationELB
+  MetricName: TargetResponseTime
+  Dimensions:
+    - Name: LoadBalancer
+      Value:
+        ref: RES-ALB
+        attribute: LoadBalancerFullName
+  Threshold: 0.5
+  Period: 300
+  EvaluationPeriods: 3
+  DatapointsToAlarm: 3
+  ComparisonOperator: GreaterThanThreshold
+  TreatMissingData: missing
+  ActionsEnabled: true
+  AlarmActions:
+    - ref: RES-ALERTS
+  OKActions:
+    - ref: RES-ALERTS
+  ExtendedStatistic: p95
+runbook:
+  ref: RUN-WEB
+  attribute: Literal

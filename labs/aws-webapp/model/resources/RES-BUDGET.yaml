@@ -1,0 +1,40 @@
+id: RES-BUDGET
+name: Budgets
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::Budgets::Budget
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: Budget
+properties:
+  Budget:
+    BudgetName: portal-monthly
+    BudgetType: COST
+    TimeUnit: MONTHLY
+    BudgetLimit:
+      Amount: 1500
+      Unit: USD
+    CostFilters:
+      TagKeyValue:
+        - user:System$approval-portal
+  NotificationsWithSubscribers:
+    - Notification:
+        NotificationType: ACTUAL
+        ComparisonOperator: GREATER_THAN
+        Threshold: 80
+        ThresholdType: PERCENTAGE
+      Subscribers:
+        - SubscriptionType: EMAIL
+          Address:
+            ref: INPUT-OPERATIONS-EMAIL
+            attribute: Parameter
+    - Notification:
+        NotificationType: FORECASTED
+        ComparisonOperator: GREATER_THAN
+        Threshold: 100
+        ThresholdType: PERCENTAGE
+      Subscribers:
+        - SubscriptionType: EMAIL
+          Address:
+            ref: INPUT-OPERATIONS-EMAIL
+            attribute: Parameter
+designNote: 1500 USDは通知用の例示予算であり、この構成の見積額ではない。

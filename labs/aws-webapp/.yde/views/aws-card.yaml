@@ -1,0 +1,85 @@
+id: aws-card
+name: AWSサービスカード
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - key: title
+      type: string
+      required: true
+    - key: service
+      type: string
+      required: true
+    - key: subtitle
+      type: string
+build:
+  kind: box
+  shape: rounded
+  width: 200
+  padding: 12
+  gap: 8
+  align: center
+  children:
+    - kind: image
+      source:
+        $map:
+          $copy: service
+        $using:
+          client: assets/local/user.svg
+          external: assets/local/external.svg
+          cloudfront: assets/aws/cloudfront.svg
+          s3: assets/aws/s3.svg
+          alb: assets/aws/alb.svg
+          fargate: assets/aws/fargate.svg
+          aurora: assets/aws/aurora.svg
+          elasticache: assets/aws/elasticache.svg
+          cognito: assets/aws/cognito.svg
+          sqs: assets/aws/sqs.svg
+          ses: assets/aws/ses.svg
+          vpc: assets/aws/vpc.svg
+          subnet: assets/aws/vpc.svg
+          internet-gateway: assets/aws/vpc.svg
+          nat-gateway: assets/aws/vpc.svg
+          route-table: assets/aws/vpc.svg
+          vpc-endpoint: assets/aws/vpc.svg
+          security-group: assets/aws/vpc.svg
+          listener: assets/aws/alb.svg
+          target-group: assets/aws/alb.svg
+          vpc-origin: assets/aws/cloudfront.svg
+          dns-record: assets/aws/route53.svg
+          certificate: assets/aws/acm.svg
+          waf: assets/aws/waf.svg
+          ecs-cluster: assets/aws/ecs.svg
+          task-definition: assets/aws/fargate.svg
+          ecs-service: assets/aws/fargate.svg
+          db-cluster: assets/aws/aurora.svg
+          db-instance: assets/aws/aurora.svg
+          session-store: assets/aws/elasticache.svg
+          bucket: assets/aws/s3.svg
+          user-pool: assets/aws/cognito.svg
+          queue: assets/aws/sqs.svg
+          schedule: assets/aws/eventbridge.svg
+          event-rule: assets/aws/eventbridge.svg
+          email-identity: assets/aws/ses.svg
+          secret: assets/aws/secrets.svg
+          kms-key: assets/aws/kms.svg
+          role: assets/aws/iam.svg
+          log-group: assets/aws/cloudwatch.svg
+          canary: assets/aws/cloudwatch.svg
+          ecr: assets/aws/ecr.svg
+          pipeline: assets/aws/pipeline.svg
+          build: assets/aws/build.svg
+          security-control: assets/aws/securityhub.svg
+          backup-vault: assets/aws/backup.svg
+          notification-topic: assets/aws/sns.svg
+      width: 48
+      height: 48
+      fit: contain
+    - kind: text
+      text:
+        $copy: title
+    - kind: text
+      text:
+        $copy: subtitle
+      tone: muted

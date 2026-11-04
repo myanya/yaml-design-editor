@@ -1,0 +1,29 @@
+id: RES-GD-PROD
+name: 本番AccountのGuardDuty
+purpose: 本番のS3・RDS・Fargateを監視する。組織の委任管理者から管理する。
+resourceType: AWS::GuardDuty::Detector
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: GdProd
+properties:
+  Enable: true
+  FindingPublishingFrequency: FIFTEEN_MINUTES
+  Features:
+    - Name: S3_DATA_EVENTS
+      Status: ENABLED
+    - Name: RDS_LOGIN_EVENTS
+      Status: ENABLED
+    - Name: RUNTIME_MONITORING
+      Status: ENABLED
+      AdditionalConfiguration:
+        - Name: ECS_FARGATE_AGENT_MANAGEMENT
+          Status: ENABLED
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL

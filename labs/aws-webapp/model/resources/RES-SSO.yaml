@@ -1,0 +1,16 @@
+id: RES-SSO
+name: IdentityCenter
+purpose: 組織とアプリの責任境界を含む統制設計。
+resourceType: AWS::SSO::PermissionSet
+environment: ENV-MGMT
+stack: STK-ORG
+logicalId: Sso
+properties:
+  InstanceArn:
+    ref: INPUT-SSO-INSTANCE
+    attribute: Parameter
+  Name: PortalAuditReadOnly
+  Description: Portal operation audit read-only
+  SessionDuration: PT4H
+  ManagedPolicies:
+    - arn:aws:iam::aws:policy/ReadOnlyAccess

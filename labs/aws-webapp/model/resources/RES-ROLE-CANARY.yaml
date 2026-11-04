@@ -1,0 +1,74 @@
+id: RES-ROLE-CANARY
+name: 外形監視の実行Role
+purpose: 関連するサービス設定を具体化する。
+resourceType: AWS::IAM::Role
+environment: ENV-PROD
+stack: STK-OPS
+logicalId: RoleCanary
+properties:
+  AssumeRolePolicyDocument:
+    Version: '2012-10-17'
+    Statement:
+      - Sid: TrustService
+        Effect: Allow
+        Principal:
+          Service:
+            - lambda.amazonaws.com
+        Action:
+          - sts:AssumeRole
+  MaxSessionDuration: 3600
+  Policies:
+    - PolicyName: portal-scope
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CanaryArtifacts
+            Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource:
+              - ref: RES-S3-CANARY
+                attribute: Arn
+                suffix: /*
+          - Sid: CanaryBucket
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+            Resource:
+              - ref: RES-S3-CANARY
+                attribute: Arn
+          - Sid: CanaryMetrics
+            Effect: Allow
+            Action:
+              - cloudwatch:PutMetricData
+            Resource:
+              - '*'
+            Condition:
+              StringEquals:
+                cloudwatch:namespace: CloudWatchSynthetics
+          - Sid: CanaryLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - ref: INPUT-CANARY-LOG-ARN
+                attribute: Parameter
+          - Sid: CanaryEncryption
+            Effect: Allow
+            Action:
+              - kms:GenerateDataKey
+              - kms:Decrypt
+            Resource:
+              - ref: RES-KMS-DATA
+                attribute: Arn
+  Tags:
+    - Key: System
+      Value: approval-portal
+    - Key: Environment
+      Value: prod
+    - Key: Owner
+      Value: platform-team
+    - Key: CostCenter
+      Value: IT-PORTAL
