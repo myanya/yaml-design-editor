@@ -427,7 +427,11 @@ class WorkspaceSession private constructor(
                 schemaId = WorkspaceReader.assignSchemaId(id.value, doc.document, nextSchemas, nextLayout),
                 inLedger = nextLayout.inLedger(id.value),
             ) }
-            val nextDerived = WorkspaceReader.derive(candidate, nextSchemas, nextDeclarations, nextLayout, version + 1)
+            val nextDerived = if (incrementalDerive && !definitionsChanged) {
+                // 構成と定義が同じなら、入れ替わった文書だけを導出し直す（取り込むのは外部で保存された数件が多い）
+                val touched = candidate.filter { (id, doc) -> workingDocuments[id] !== doc }.keys
+                deriveIncremental(candidate, touched, workingDocuments.keys - candidate.keys, version + 1)
+            } else WorkspaceReader.derive(candidate, nextSchemas, nextDeclarations, nextLayout, version + 1)
             workingDocuments = candidate
             schemas = nextSchemas
             declarations = nextDeclarations

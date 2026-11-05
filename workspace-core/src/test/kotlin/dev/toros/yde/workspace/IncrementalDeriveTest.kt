@@ -257,6 +257,29 @@ class IncrementalDeriveTest {
     }
 
     @Test
+    fun `外部版の取り込みで変わった文書だけを導出し直しても全再構築と一致する`() {
+        val store = newStore()
+        val s = WorkspaceSession(store, clock = { Instant.EPOCH })
+        // 未保存の編集と履歴を持たせる（取り込みは refreshFrom の経路になる）
+        assertTrue(edit(s, "items/a.yaml", "title", "A-local").ok)
+        // 外部で: 参照を切る・ID を変える・追加・削除
+        store.write(DocumentId("items/b.yaml"), "id: IT-002\ntitle: B\nlink: IT-404\n")
+        store.write(DocumentId("items/c.yaml"), "id: IT-030\ntitle: C\nlink: IT-002\n")
+        store.write(DocumentId("items/d.yaml"), "id: IT-004\ntitle: D\nlink: IT-003\n")
+        assertTrue(s.refreshFrom(WorkspaceSession(store, clock = { Instant.EPOCH })).ok)
+        assertMatchesOracle(s, "変更と追加の取り込み")
+        assertTrue(s.derived.semantic.issues.any { "IT-404" in it.message }, "${s.derived.semantic.issues}")
+        assertTrue(s.derived.semantic.issues.any { "IT-003" in it.message }, "${s.derived.semantic.issues}")
+        assertTrue(s.isDirty(DocumentId("items/a.yaml")), "未保存の編集は保つ")
+
+        store.delete(DocumentId("items/b.yaml"))
+        assertTrue(s.refreshFrom(WorkspaceSession(store, clock = { Instant.EPOCH })).ok)
+        assertMatchesOracle(s, "削除の取り込み")
+        assertTrue(s.undo().ok)
+        assertMatchesOracle(s, "取り込み後の undo")
+    }
+
+    @Test
     fun `増分導出を無効化しても同じ結果になる`() {
         val a = session(incremental = true)
         val b = session(incremental = false)
