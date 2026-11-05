@@ -42,6 +42,9 @@ interface DocumentStore {
     /** 文書を読む。存在しなければ null。 */
     fun read(id: DocumentId): StoredContent?
 
+    /** 複数の文書を一回の読込として読む（無い文書は null）。境界のように一回の読込で共有できる準備は実装がまとめる。 */
+    fun readAll(ids: Collection<DocumentId>): Map<DocumentId, StoredContent?> = ids.associateWith(::read)
+
     /** 文書を書く（無ければ作成。親ディレクトリは自動作成）。 */
     fun write(id: DocumentId, text: String)
 
@@ -164,6 +167,13 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
 
     override fun read(id: DocumentId): StoredContent? {
         return readFile(resolve(id))
+    }
+
+    /** 境界（ルートの実パス）はこの読込の間だけ共有し、対象の実パスは本文を読む直前に文書ごとに確かめる。 */
+    override fun readAll(ids: Collection<DocumentId>): Map<DocumentId, StoredContent?> {
+        if (ids.isEmpty()) return emptyMap()
+        val boundary = WorkspacePaths.ReadBoundary(root)
+        return ids.associateWith { readFile(boundary.resolve(it.value)) }
     }
 
     private fun readFile(file: Path): StoredContent? {

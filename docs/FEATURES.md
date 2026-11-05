@@ -13,7 +13,7 @@
 | W-01 | ワークスペース選択・履歴・開けない理由の通知と再試行 | `ui/shell/StartScreen.kt`・`WorkspaceOpenNotice.kt`・`ui/common/FilePickers.kt` | `WorkspaceOpenNoticeTest` | [ui](architecture/ui.md) |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/file/FileTreePane.kt`, `core/FileCatalog.kt` | `FileCatalogTest`・画面は手動 | [ui](architecture/ui.md) |
 | W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`, `FileArrangementJournal`, `FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | [workspace](architecture/workspace.md) |
-| W-04 | 外部監視と再読込（履歴保持・競合保護・確認付き破棄） | `session/DocumentSession.kt`（`reload`）, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest`・`DesktopRuntimeTest` | [workspace](architecture/workspace.md) |
+| W-04 | 外部監視と再読込（走査と照合は IO・履歴保持・競合保護・確認付き破棄） | `session/DocumentSession.kt`（`reload`）, `session/ExternalCheck.kt`, `WorkspaceSession.refreshFrom`, `ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest`・`ExternalCheckTest`・`DesktopRuntimeTest` | [workspace](architecture/workspace.md) |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `UiPreferences.kt`, `ui/shell/AppRoot.kt`, `ui/shell/AppToolbar.kt`, `ui/common/Common.kt` | 手動 | [ui](architecture/ui.md) |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | [ui](architecture/ui.md) |

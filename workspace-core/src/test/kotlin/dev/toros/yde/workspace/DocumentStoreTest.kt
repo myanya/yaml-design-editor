@@ -33,6 +33,11 @@ class DocumentStoreTest {
             assertFailsWith<IllegalArgumentException> { store.write(DocumentId("linked/new/deep.yaml"), "changed") }
             assertFailsWith<IllegalArgumentException> { store.delete(DocumentId("linked/marker.yaml")) }
             store.write(DocumentId("inside.yaml"), "inside")
+            assertEquals(mapOf(DocumentId("inside.yaml") to StoredContent("inside"), DocumentId("none.yaml") to null),
+                store.readAll(listOf(DocumentId("inside.yaml"), DocumentId("none.yaml"))))
+            assertFailsWith<IllegalArgumentException>("まとめて読んでも文書ごとに実パスを確かめる") {
+                store.readAll(listOf(DocumentId("inside.yaml"), DocumentId("linked/marker.yaml")))
+            }
             assertFailsWith<IllegalArgumentException> { store.move(DocumentId("inside.yaml"), DocumentId("linked/moved.yaml")) }
             assertEquals("original", Files.readString(marker))
             assertEquals(listOf("inside.yaml"), store.list().map { it.id.value })

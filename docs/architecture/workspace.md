@@ -13,6 +13,7 @@
 | `WorkspaceReader` | workspace-core | 読み込み（スキーマ・文書・派生状態の導出 `derive`） |
 | `EditBuffer` / `WorkspaceRecords` | core/Documents.kt | 文書キャッシュ層の中核（複数ドキュメントの再出力・保存内容との比較・一覧レコード・一括編集） |
 | `FileWatcher` | core/FileWatcher.kt | WatchService による再帰的なファイル監視。「変更があったか」のフラグだけを通知し、使えない環境では open() が null（ポーリングへフォールバック） |
+| `ExternalCheck` / `ExternalScan` | session/ExternalCheck.kt | 外部変更の確認の材料と結果。一覧の走査・本文の照合・再読込の候補の読込を IO 側で行うための、場所・更新時刻・不変の原文の写し |
 | `ChangeSet` / `FileChange` / `ChangeSets` | workspace-core/changeset/ChangeSets.kt | 変更セット（複数の文書への変更の束・base ハッシュ・YAML の読み取り） |
 | `ChangeSetApplier` / `ChangeSetApplication` | workspace-core/workspace/ChangeSetApplier.kt | 変更セットの適用の本体 |
 | `RefactoringImpact` | workspace-core/workspace/RefactoringImpact.kt | リファクタリングの計画のうち定義文書を見て決まる分 |
@@ -71,6 +72,11 @@
 
 - 保存・外部変更・変更セット適用のいずれも、`Workspace.noteDiskChanges` が「スキーマ（`_schemas/`）・構成ファイル・派生スキーマの導出元文書が変わったら全再構築、それ以外は変更ファイルだけの増分更新」を振り分ける。UI・CLI・エージェント経路が共有する。
 - 外部変更の検出は `FileWatcher` の変更フラグ（または 1 秒周期のフォールバック）から `pollExternalChanges`（セッション側）のスタンプ比較へ進む。編集・履歴がある場合は下記の候補取り込みを使い、それ以外は増分更新する。
+- 確認は 3 段に分かれる。所有スレッドの `prepareExternalCheck` が場所・更新時刻・保存済みの原文の写し（`ExternalCheck`）を作る。
+  `ExternalCheck.scan` が一覧の走査・本文の照合・再読込の候補の読込を行い、所有スレッドの `applyExternalCheck` が取り込む。
+- 画面の監視は scan を IO で行う。`pollExternalChanges` と `AppState.noteFileEvents` は 3 段をその場で続けて行う。
+- 確認の間に保存・取り込み・セッションの交換があれば、`applyExternalCheck` は古い結果で印や本文を戻さずに断り、次の確認に回す。同じ時刻の上書きとして見つけた文書は、取り込む前にいまの保存基準で比べ直す。
+- 一覧の走査（`WorkspaceScan`）とまとめた読込（`DocumentStore.readAll`）は、ルートの実パスを 1 回の走査・読込の間だけ共有し、項目ごとの実パスは毎回確かめる。
 
 - 自動化エンジンの監視もイベント駆動＋フォールバック（[agents.md「自動実行」](agents.md)）。
 

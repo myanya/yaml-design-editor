@@ -67,6 +67,8 @@ internal class DesktopRuntime(
     }
 
     init {
+        // 外部変更の走査と照合は監視の周期が IO で行う（WorkspaceJobs.poll）。
+        state.fileEventsInBackground = true
         state.workspaceOpener = { path ->
             scope.launch { openWorkspace(path) }
         }
@@ -197,8 +199,16 @@ internal class DesktopRuntime(
             }
         }
 
-        fun poll(paths: Set<Path>?) {
-            if (host.documents.workspace == root && job.isActive) state.noteFileEvents(paths)
+        /**
+         * 知らせの確認。所有スレッドで材料を作り、一覧の走査・本文の照合・再読込の候補の読込は IO で行い、
+         * 同じ世代のときだけ所有スレッドで取り込む。共有セッションは IO へ渡さない。
+         */
+        suspend fun poll(paths: Set<Path>?) {
+            if (host.documents.workspace != root || !job.isActive) return
+            val check = state.prepareFileEvents(paths) ?: return
+            val epoch = host.currentStatus().epoch
+            val scan = withContext(Dispatchers.IO) { check.scan() }
+            if (job.isActive && host.currentStatus().epoch == epoch && host.documents.workspace == root) state.applyFileEvents(scan)
         }
 
         fun cancel() {

@@ -76,12 +76,16 @@ object WorkspaceScan {
         return result.sortedBy { it.toString() }
     }
 
-    /** 隠しディレクトリの配下を枝刈りしながら歩く（構成ディレクトリ `.yde` だけ降りる）。 */
+    /**
+     * 隠しディレクトリの配下を枝刈りしながら歩く（構成ディレクトリ `.yde` だけ降りる）。
+     * 境界（ルートの実パス）は一回の走査で共有し、項目ごとの実パスは毎回確かめる。ルートを解決できなければ何も返さない。
+     */
     private fun walk(ws: Path, layout: WorkspaceLayout, includeFile: (Path) -> Boolean, visit: (Path) -> Unit) {
+        val boundary = runCatching { WorkspacePaths.ReadBoundary(ws) }.getOrNull() ?: return
         Files.walkFileTree(ws, object : java.nio.file.SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
                 if (dir != ws && layout.isState(IdIndex.relPathOf(ws, dir))) return java.nio.file.FileVisitResult.SKIP_SUBTREE
-                if (dir != ws && runCatching { WorkspacePaths.resolve(ws, ws.relativize(dir).toString()) }.isFailure) {
+                if (dir != ws && runCatching { boundary.resolve(ws.relativize(dir).toString()) }.isFailure) {
                     return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 }
                 if (dir != ws && dir.fileName.toString().startsWith(".")) {
@@ -93,7 +97,7 @@ object WorkspaceScan {
             }
 
             override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes): java.nio.file.FileVisitResult {
-                if (includeFile(file) && runCatching { WorkspacePaths.resolve(ws, ws.relativize(file).toString()) }.isSuccess) visit(file)
+                if (includeFile(file) && runCatching { boundary.resolve(ws.relativize(file).toString()) }.isSuccess) visit(file)
                 return java.nio.file.FileVisitResult.CONTINUE
             }
 
@@ -327,13 +331,14 @@ class Workspace private constructor(val root: Path) {
      * ディスク上のファイル変更（保存・外部変更・削除）をコアへ通知し、索引を更新する（R9-02）。
      * 増分か全再構築かの振り分け（スキーマ変更時のみ全再構築。architecture/index-references.md「索引の二層」）はここに一元化されており、
      * UI（AppState）の保存・外部変更検出もこの経路を通る。
+     * listed: 呼ぶ側が同じ構成で歩いた走査対象の一覧（あれば、ファイルが増減したときに歩き直さない）。
      */
-    fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList()) {
+    fun noteDiskChanges(changed: Collection<Path>, removed: Collection<Path> = emptyList(), listed: List<Path>? = null) {
         val contentChanged = changed.filterNot { layout.isState(relPath(it)) }
         val contentRemoved = removed.filterNot { layout.isState(relPath(it)) }
         if (contentChanged.isEmpty() && contentRemoved.isEmpty()) return
         if (contentChanged.size != changed.size || contentRemoved.size != removed.size) {
-            noteDiskChanges(contentChanged, contentRemoved)
+            noteDiskChanges(contentChanged, contentRemoved, listed)
             return
         }
         val rels = (changed + removed).map { relPath(it) }
@@ -348,7 +353,7 @@ class Workspace private constructor(val root: Path) {
             refresh()
             return
         }
-        if (changed.any { it !in files } || removed.isNotEmpty()) files = WorkspaceScan.yamlFiles(root, layout)
+        if (changed.any { it !in files } || removed.isNotEmpty()) files = listed ?: WorkspaceScan.yamlFiles(root, layout)
         // 増分取り込み（RA-01 の noteStoreChanges）→ 派生を写す。セッション側が全再読込へ降格しても結果は同じ。
         // 取り込みに失敗した場合は refresh（セッション開き直し）で回復する
         val s = session ?: run { refresh(); return }

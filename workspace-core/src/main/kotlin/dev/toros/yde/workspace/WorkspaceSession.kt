@@ -755,11 +755,15 @@ class WorkspaceSession private constructor(
      * ストア側の外部変更を検出する（保存済みの生テキストとストア内容の比較）。
      * 変更・削除された既知の文書を返す（新規ファイルは reload で取り込まれる）。
      */
-    fun externalChanges(ids: Collection<DocumentId> = workingDocuments.keys): List<DocumentId> =
-        ids.filter { id ->
-            val known = storeTexts[id]
-            known != null && store.read(id)?.text != known
-        }
+    fun externalChanges(ids: Collection<DocumentId> = workingDocuments.keys): List<DocumentId> {
+        val known = ids.filter { it in storeTexts }
+        val current = store.readAll(known)
+        return known.filter { id -> current[id]?.text != storeTexts[id] }
+    }
+
+    /** 外部変更の照合（externalChanges）を背景で行うための既知の原文の写し。working の文書に限る。 */
+    fun externalChangeBaseline(): Map<DocumentId, String> =
+        workingDocuments.keys.mapNotNull { id -> storeTexts[id]?.let { id to it } }.toMap()
 
     /**
      * 保存時に自動で入る値（印 `auto`。architecture/schema.md「保存時に自動で入る値」）を、保存の直前に当てる。

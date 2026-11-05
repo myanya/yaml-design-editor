@@ -104,14 +104,19 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     var workspace: Path? = null
         set(value) { field = value; changed() }
 
+    /** 外部変更の確認の基準の世代。更新時刻の印・コア・カーネルの差し替えで進み、背景の確認の古い結果を取り込まない。 */
+    private var diskGeneration = 0L
+
     /**
      * ヘッドレスコア。ファイル走査・スキーマ・索引の実体と更新方針（増分／全再構築の振り分け）は core.Workspace が持つ。
      * 置き換えは殻の再読込が行う（移行の途中。段階が進めば再読込もここへ移る）。
      */
     var core: dev.toros.yde.app.core.Workspace? = null
+        set(value) { field = value; diskGeneration++ }
 
     /** カーネルのセッション。読み経路の供給元で、編集・履歴・dirty の正。開けない場合は null のまま旧経路で動く。 */
     var kernel: WorkspaceSession? = null
+        set(value) { field = value; diskGeneration++ }
 
     // ---------------------------------------------------------------- コアからの写し
 
@@ -484,7 +489,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     /** 外部変更の検出に使うファイルの印（更新時刻）。 */
     var workspaceStamp: Map<Path, Long> = emptyMap()
-        private set
+        private set(value) { field = value; diskGeneration++ }
 
     fun snapshotFiles(ws: Path): Map<Path, Long> = WorkspaceScan.stamps(ws)
 
@@ -507,26 +512,17 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     /** 再読込の結果。existing は今あるファイル、protected は未保存の編集などで保護した文書。 */
     class ReloadOutcome(val ok: Boolean, val message: String?, val existing: Set<Path>, val protected: Set<DocumentId>)
 
-    /** 一覧の走査も交換前に済ませ、読込失敗で編集や履歴を半分だけ破棄しない。 */
-    fun prepareReload(ws: Path): ReloadCandidate {
-        require(Files.isDirectory(ws)) { "ワークスペースのフォルダーがありません: $ws" }
-        val cw = dev.toros.yde.app.core.Workspace.open(ws)
-        val listing = cw.loadedFiles
-        val indexed = cw.files.toSet()
-        val editorOnly = if (cw.layout.ledger.isEmpty()) emptyList() else listing.yamlTimes.keys
-            .filter { id -> id.value.split('/').none { it.startsWith(".") } }
-            .map { cw.root.resolve(it.value) }.filter { it !in indexed }
-            .sortedBy { it.toString() }
-        val stamps = cw.files.associateWith { listing.yamlTimes.getValue(cw.documentOf(it)) }
-        val markdown = listing.markdown.map { cw.root.resolve(it.value) }.sortedBy { it.toString() }
-        return ReloadCandidate(cw, markdown, editorOnly, stamps)
-    }
+    /** 一覧の走査も交換前に済ませ、読込失敗で編集や履歴を半分だけ破棄しない。セッションの状態を読まないので背景でも呼べる。 */
+    fun prepareReload(ws: Path): ReloadCandidate = loadReloadCandidate(ws)
 
     /** ディスク版を候補として読み、編集・下書き・履歴を保持できる場合だけ取り込む。 */
-    fun reload(): ReloadOutcome? {
+    fun reload(): ReloadOutcome? = reload(prepared = null)
+
+    /** prepared: 背景で読んだ候補（読込の失敗を含む）。無ければここで読む。 */
+    private fun reload(prepared: Result<ReloadCandidate>?): ReloadOutcome? {
         if (reloadAllowed?.invoke() == false) return null
         val ws = workspace ?: return null
-        val candidate = runCatching { prepareReload(ws) }.getOrElse {
+        val candidate = (prepared ?: runCatching { prepareReload(ws) }).getOrElse {
             return ReloadOutcome(false, "再読込に失敗しました: ${it.message}", emptySet(), emptySet()).also { o -> onReloaded?.invoke(o) }
         }
         val cw = candidate.workspace
@@ -662,31 +658,57 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     }
 
     /**
-     * 周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する。
+     * 周期処理・ファイル監視から呼び、外部での作成・変更・削除を検出する（走査と照合もこのスレッドで行う）。
      * eventHint = true（ファイル監視のイベント起点）では、更新時刻が不変でもセッションの content diff で既知文書の変更を確認する
      * （同一時刻での上書き等、時刻比較の盲点をカーネル検出で塞ぐ）。
+     * 画面の監視は走査と照合を IO で行う（prepareExternalCheck → ExternalCheck.scan → applyExternalCheck）。
      */
     fun pollExternalChanges(eventHint: Boolean = false) {
-        val ws = workspace ?: return
-        val cw = core ?: return
-        val next = snapshotFiles(ws)
+        prepareExternalCheck(eventHint)?.let { applyExternalCheck(it.scan()) }
+    }
+
+    /** 外部変更の確認を始める（所有スレッド）。走査と照合は返した材料の scan で行う。ワークスペースが無ければ null。 */
+    fun prepareExternalCheck(eventHint: Boolean = false): ExternalCheck? {
+        val ws = workspace ?: return null
+        if (core == null) return null
+        val s = kernel
+        return ExternalCheck(
+            root = ws, stamp = workspaceStamp,
+            known = if (eventHint) s?.externalChangeBaseline() else null,
+            // 全文書の書き出しを伴う dirtyDocuments は呼ばない。外れたら取り込みのときに候補を読む（reload）
+            retained = s?.let { it.canUndo() || it.canRedo() } == true || protectedDocumentIds().isNotEmpty(),
+            generation = diskGeneration, baseline = s?.storeBaseline().orEmpty(),
+        )
+    }
+
+    /**
+     * 確認の結果を取り込む（所有スレッド）。確認の間に保存・取り込み・セッションの交換で基準が変わっていたら、
+     * 古い走査で印や本文を戻さないよう何もせず false を返す（呼ぶ側が確認をやり直す）。
+     */
+    fun applyExternalCheck(scan: ExternalScan): Boolean {
+        val check = scan.check
+        val ws = workspace ?: return false
+        val cw = core ?: return false
+        if (ws != check.root || check.generation != diskGeneration || kernel?.storeBaseline().orEmpty() != check.baseline) return false
+        val next = scan.stamps
         if (next == workspaceStamp) {
-            if (eventHint) applyContentDetectedChanges(ws, cw)
-            return
+            if (scan.contentChanged.isNotEmpty()) applyContentDetectedChanges(ws, cw, scan)
+            return true
         }
         val changed = (next.keys + workspaceStamp.keys).filter { next[it] != workspaceStamp[it] }
         if (hasRetainedEdits()) {
-            reload()
+            reload(scan.candidate)
             workspaceStamp = next
-            return
+            return true
         }
         changed.forEach { file -> documentMap[file]?.let { reloadDocumentFromDisk(it, force = false) } }
         // 増分か全再構築か（スキーマ変更時のみ全再構築）の振り分けは core に一元化されている
         cw.noteDiskChanges(
             changed = changed.filter { it in next.keys },
             removed = changed.filter { it !in next.keys },
+            listed = next.keys.toList().takeIf { scan.layout == cw.layout },
         )
-        mirrorCore(cw)
+        mirrorScanned(cw, scan)
         syncSessionWithDisk(
             changed = changed.filter { it in next.keys },
             removed = changed.filter { it !in next.keys },
@@ -696,14 +718,26 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
         indexVersion++
         workspaceStamp = next
         onNotice?.invoke("外部での変更を検出しました（${changed.size} 件）")
+        return true
+    }
+
+    /** 背景で歩いた一覧があればそれを写す（構成が変わって台帳の有無が食い違うときだけ歩き直す）。 */
+    private fun mirrorScanned(cw: dev.toros.yde.app.core.Workspace, scan: ExternalScan) {
+        val editorOnly = when {
+            cw.layout.ledger.isEmpty() -> emptyList()
+            scan.editorYaml != null -> cw.files.toSet().let { indexed -> scan.editorYaml.filter { it !in indexed } }
+            else -> editorOnlyFilesOf(cw)
+        }
+        mirrorCore(cw, scan.markdown ?: WorkspaceScan.markdownFiles(cw.root), editorOnly)
     }
 
     /** 時刻が不変のときのカーネル検出: 既知文書の content diff で変更を取り込む。新規作成・削除は時刻比較の領分のまま。 */
-    private fun applyContentDetectedChanges(ws: Path, cw: dev.toros.yde.app.core.Workspace) {
+    private fun applyContentDetectedChanges(ws: Path, cw: dev.toros.yde.app.core.Workspace, scan: ExternalScan) {
         val s = kernel ?: return
-        val changedDocs = runCatching { s.externalChanges() }.getOrNull().orEmpty()
+        // 背景で変わっていた文書だけを、いまの保存基準でもう一度比べる
+        val changedDocs = runCatching { s.externalChanges(scan.contentChanged) }.getOrNull().orEmpty()
         if (changedDocs.isEmpty()) return
-        if (hasRetainedEdits()) { reload(); return }
+        if (hasRetainedEdits()) { reload(scan.candidate); return }
         val files = changedDocs.map { ws.resolve(it.value).normalize() }
         files.forEach { file ->
             documentMap[file]?.let { doc ->
@@ -713,7 +747,7 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
             }
         }
         cw.noteDiskChanges(changed = files)
-        mirrorCore(cw)
+        mirrorScanned(cw, scan)
         syncSessionWithDisk(changed = files)
         documentMap.values.forEach { it.schema = schemaFor(it.file) }
         indexVersion++

@@ -26,6 +26,8 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.app.session.DocumentSession
+import dev.toros.yde.app.session.ExternalCheck
+import dev.toros.yde.app.session.ExternalScan
 import dev.toros.yde.app.service.WorkspaceHost
 import dev.toros.yde.app.service.WorkspaceInUseException
 import dev.toros.yde.semantic.RefactoringPlan
@@ -152,24 +154,43 @@ class AppState(
      */
     internal val stateWrites = Mutex()
     private var deferredFileEvents = false
-    private fun drainFileEvents() { if (deferredFileEvents && !fileOperationBusy) noteFileEvents(null) }
+    private fun drainFileEvents() { if (deferredFileEvents && !fileOperationBusy && !fileEventsInBackground) noteFileEvents(null) }
     var fileTreeRevision by mutableStateOf(0)
     val activeFile: Path? get() = openDoc?.file ?: openMarkdown ?: openImage ?: openPreview
     fun refreshFileTree() { fileTreeRevision++ }
+    /** ファイル監視の知らせをその場で確かめる（走査と照合もこのスレッド）。監視の周期は prepare と apply の間を IO で行う。 */
     fun noteFileEvents(paths: Set<Path>?) {
+        val check = prepareFileEvents(paths) ?: return
+        applyFileEvents(check.scan())
+    }
+
+    /** 監視の周期が走査と照合を IO で行うとき true（処理中の後の確認も周期に任せ、所有スレッドで歩かない）。 */
+    internal var fileEventsInBackground = false
+
+    /**
+     * 知らせから外部変更の確認が要るかを決め、要るときは確認の材料を返す（所有スレッド）。
+     * 処理中は後回しにし、後回しがあれば知らせの中身によらず全体を確かめる。
+     */
+    internal fun prepareFileEvents(paths: Set<Path>?): ExternalCheck? {
         // 表示状態の書込は文書の外。外部変更の確認も後回しもせず、ファイル一覧だけ新しくする。
         val events = paths?.let { all ->
             all.filterNotTo(linkedSetOf()) { layout.isState(relPath(it)) }.also { if (it.size < all.size) fileTreeRevision++ }
         }
-        if (fileOperationBusy) { if (events == null || events.isNotEmpty()) deferredFileEvents = true; return }
-        if (deferredFileEvents) { deferredFileEvents = false; noteFileEvents(null); return }
-        if (events != null && events.isEmpty()) return
+        if (fileOperationBusy) { if (events == null || events.isNotEmpty()) deferredFileEvents = true; return null }
+        val deferred = deferredFileEvents
+        deferredFileEvents = false
+        if (!deferred && events != null && events.isEmpty()) return null
         fileTreeRevision++
-        val relevant = events == null || events.any { p ->
+        val relevant = deferred || events == null || events.any { p ->
             Files.isDirectory(p) || (yamlFiles + editorOnlyFiles).any { it.startsWith(p) } ||
                 p.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }
         }
-        if (relevant) pollExternalChanges(eventHint = true)
+        return if (relevant) documents.prepareExternalCheck(eventHint = true) else null
+    }
+
+    /** 確認の結果を取り込む（所有スレッド）。処理中か、確認の間に保存などで基準が変わっていたら、次の確認へ回す。 */
+    internal fun applyFileEvents(scan: ExternalScan) {
+        if (fileOperationBusy || !documents.applyExternalCheck(scan)) deferredFileEvents = true
     }
 
     private val workspaceState = mutableStateOf<Path?>(null)
