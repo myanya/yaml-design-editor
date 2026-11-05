@@ -11,6 +11,7 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** 図の対象と選択条件。開閉・選択・文書の版・表示中のノード集合は含めない。 */
@@ -196,7 +197,8 @@ fun AppState.saveDiagramPositions(context: DiagramContext, positions: Map<Diagra
     position.saving = true
     operationScope.launch {
         try {
-            host.exclusive("図の配置を保存") {
+            // 文書の排他は取らない（取ると置くたびに「処理しています」が出て編集・接続も止まる）。切替・終了は stateWrites で完了を待つ。
+            stateWrites.withLock {
                 check(workspace == root && layout == savedLayout && memory.diagramPositions[key] === position) { "ワークスペースが切り替わりました" }
                 val expected = position.text
                 val text = withContext(Dispatchers.IO) { store.save(key, positions, expected, savedGrid) }

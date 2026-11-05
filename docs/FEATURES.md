@@ -155,7 +155,7 @@
 | X-20 | クラスの区画・辺の端点記号と多重度・部品から原本へ移動 | `ui/common/DiagramEdges.kt`, `core/DiagramInputs.kt` | `DiagramEdgesTest`, `DiagramInputsTest`, `LensGraphTest` | [図の記法](architecture/diagram-notations.md) |
 | X-21 | 記法の条件・型の属性・CLIへの開示・レンズとフローのPNG | `semantic/SchemaGraph.kt`, `ui/view/FlowDrawing.kt`, `ui/common/DiagramPng.kt` | `SemanticSchemaGraphTest`, `DiagramDefinitionsTest`, `FlowDrawingTest` | [図の記法](architecture/diagram-notations.md) |
 | X-03 | グラフレンズ（近傍・線の多い箱で止める・型と関係の絞り込み・配置と配置の調整・線のラベルの表示切替・保有・側面・PNG・ミニマップ） | `ui/graph/GraphLensView.kt`, `ui/graph/LensGraph.kt`, `ui/common/GraphLayouts.kt`, `ui/common/DiagramLayoutOptionsMenu.kt` | `LensGraphTest`, `GraphLayoutsTest`, `DiagramLayoutOptionsUiTest`, `DiagramLabelVisibilityTest` | [graph-query](architecture/graph-query.md) |
-| X-22 | flow・lens の位置・固定と再配置 | `desktop/DiagramPositions.kt` | `DiagramPositionsTest`, `FlowPositionsTest`, `LensPositionsTest`, `DiagramPositionUiTest` | [手動位置](architecture/diagram-positions.md) |
+| X-22 | flow・lens の位置・固定と再配置 | `desktop/DiagramPositions.kt` | `DiagramPositionsTest`, `DiagramStateWriteTest`, `FlowPositionsTest`, `LensPositionsTest`, `DiagramPositionUiTest` | [手動位置](architecture/diagram-positions.md) |
 | X-23 | 直交配線・ラベル追従・フローの折り返し | `ui/common/OrthogonalRouting.kt`・`ui/view/FlowLabelLayout.kt` | `OrthogonalRoutingTest`, `FlowLabelLayoutTest` | [手動位置](architecture/diagram-positions.md) |
 | X-24 | flow・lens のグリッド吸着と設定保存 | `ui/common/DiagramGrid.kt` | `DiagramGridTest`, `DiagramPositionUiTest` | [手動位置](architecture/diagram-positions.md) |
 | X-25 | flow・lensの部品ポートと参照ごとの線 | `semantic/DiagramPorts.kt` | `DiagramPortsTest`, `FlowPortLayoutTest`, `LensPortsTest`, `LensPortsUiTest` | [図の記法](architecture/diagram-notations.md) |

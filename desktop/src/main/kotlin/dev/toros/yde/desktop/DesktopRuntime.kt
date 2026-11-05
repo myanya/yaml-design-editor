@@ -20,6 +20,7 @@ import java.awt.EventQueue
 import java.nio.file.Path
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withLock
 
 /** 監視の差し込み口。テストでは実時間・OS の通知に依存せず変更を投入する。 */
 internal interface WorkspaceMonitor : AutoCloseable {
@@ -81,7 +82,8 @@ internal class DesktopRuntime(
         if (stopping) return@withContext false
         state.dismissWorkspaceOpenFailure()
         try {
-            host.exclusive("ワークスペースの切替") {
+            // 表示状態の書込（図の配置）は文書の排他を取らないので、旧所有権を手放す前に完了を待つ。
+            host.exclusive("ワークスペースの切替") { state.stateWrites.withLock {
                 val root = path.toAbsolutePath().normalize()
                 val previous = lease
                 var next = previous
@@ -104,7 +106,7 @@ internal class DesktopRuntime(
                 } finally {
                     if (next !== lease) next?.close()
                 }
-            }
+            } }
             true
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) {
@@ -126,7 +128,7 @@ internal class DesktopRuntime(
             throw failure
         }
         host.status.first { it.busy == null }
-        host.exclusive("終了") { jobs?.stop(); jobs = null }
+        host.exclusive("終了") { state.stateWrites.withLock { jobs?.stop(); jobs = null } }
         state.workspaceOpener = null
         state.workspaceInitializer = null
         connectionSubscription.close()

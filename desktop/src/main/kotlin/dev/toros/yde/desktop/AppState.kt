@@ -48,6 +48,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.sync.Mutex
 
 /**
  * UIシェルのスペース（ROADMAP P12 / architecture/ui.md「UI シェル」）。
@@ -145,17 +146,26 @@ class AppState(
             finally { fileHistoryBusy = false; drainFileEvents() }
         }
     }
+    /**
+     * 表示状態（図の配置など）の書込の順番。文書の排他（host.exclusive）は取らないので、編集・接続を止めない。
+     * ワークスペースの切替と終了はこれを取り、書きかけの記録の完了を待つ。
+     */
+    internal val stateWrites = Mutex()
     private var deferredFileEvents = false
     private fun drainFileEvents() { if (deferredFileEvents && !fileOperationBusy) noteFileEvents(null) }
     var fileTreeRevision by mutableStateOf(0)
     val activeFile: Path? get() = openDoc?.file ?: openMarkdown ?: openImage ?: openPreview
     fun refreshFileTree() { fileTreeRevision++ }
     fun noteFileEvents(paths: Set<Path>?) {
-        if (fileOperationBusy) { if (paths == null || paths.isNotEmpty()) deferredFileEvents = true; return }
+        // 表示状態の書込は文書の外。外部変更の確認も後回しもせず、ファイル一覧だけ新しくする。
+        val events = paths?.let { all ->
+            all.filterNotTo(linkedSetOf()) { layout.isState(relPath(it)) }.also { if (it.size < all.size) fileTreeRevision++ }
+        }
+        if (fileOperationBusy) { if (events == null || events.isNotEmpty()) deferredFileEvents = true; return }
         if (deferredFileEvents) { deferredFileEvents = false; noteFileEvents(null); return }
-        if (paths != null && paths.isEmpty()) return
+        if (events != null && events.isEmpty()) return
         fileTreeRevision++
-        val relevant = paths == null || paths.any { p ->
+        val relevant = events == null || events.any { p ->
             Files.isDirectory(p) || (yamlFiles + editorOnlyFiles).any { it.startsWith(p) } ||
                 p.fileName.toString().let { it.endsWith(".yaml") || it.endsWith(".yml") }
         }

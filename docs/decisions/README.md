@@ -25,11 +25,12 @@
 | [ADR-0018](0018-connection-read-scopes.md) | 接続権限の全体閲覧と指定文書を分ける | 承認済み（一部を ADR-0019 で上書き） |
 | [ADR-0019](0019-external-work-commit-routes.md) | 外部作業の提案と直接確定を分ける | 承認済み |
 | [ADR-0020](0020-diagram-notation-definitions.md) | 図の記法を共有するYAML定義にする | 承認済み |
-| [ADR-0021](0021-workspace-diagram-positions.md) | 図の手動位置をワークスペースの表示状態に分離する | 承認済み（一部を ADR-0022 で上書き） |
+| [ADR-0021](0021-workspace-diagram-positions.md) | 図の手動位置をワークスペースの表示状態に分離する | 承認済み（一部を ADR-0022・ADR-0026 で上書き） |
 | [ADR-0022](0022-stable-diagram-positions.md) | 図の現在位置を保持し、再配置を明示操作にする | 承認済み |
 | [ADR-0023](0023-diagram-grid-editing.md) | グリッド編集補助を図の表示状態として保存する | 承認済み |
 | [ADR-0024](0024-diagram-ports.md) | ポートを図の表示モデルに導入する | 承認済み |
 | [ADR-0025](0025-flow-query-sources.md) | フローの入力をクエリ変換で合成する | 採用 |
+| [ADR-0026](0026-diagram-state-writes-without-document-lock.md) | 図の配置の保存は文書の排他を取らず、外部変更の確認も起こさない | 承認済み |
 
 関連文書:
 
