@@ -374,12 +374,16 @@ definitions:
         label: 見出し
         type: 一行の文
         required: true
-        description: FEATURES.md のリンクの文字（例 ui）。
+        description: 見出しを書かないとき、FEATURES.md のリンクの文字（例 ui）。
       - key: link
         label: 場所
         type: 一行の文
         required: true
-        description: docs/ からの相対パス（例 architecture/ui.md）。見出しまで指すときは、見出しの文字を label に書きます。
+        description: docs/ からの相対パス（例 architecture/ui.md）。
+      - key: heading
+        label: 見出し
+        type: 一行の文
+        description: その文書の見出しの文字（先頭からの一致でよい。例 UI シェル）。書くと FEATURES.md では「architecture/ui.md「UI シェル」」の形で出し、実在は DocReferencesTest が見ます。
 
   manual の参照:
     type: object

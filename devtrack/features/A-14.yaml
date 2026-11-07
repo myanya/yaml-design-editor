@@ -9,4 +9,5 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+  heading: AI 接続
 internal: true

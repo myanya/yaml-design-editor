@@ -11,4 +11,5 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+  heading: 評価は 1 回
 internal: true

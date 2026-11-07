@@ -10,6 +10,7 @@ tests:
 design:
 - label: 手動位置
   link: architecture/diagram-positions.md
+  heading: グリッド吸着
 manual:
 - link: manual/diagram-positions.md
   heading: グリッド吸着

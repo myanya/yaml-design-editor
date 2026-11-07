@@ -10,6 +10,7 @@ manual_check: true
 design:
 - label: ui
   link: architecture/ui.md
+  heading: UI シェル
 manual:
 - link: manual/README.md
   heading: ショートカット

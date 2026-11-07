@@ -8,6 +8,7 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+  heading: skill
 manual:
 - link: manual/cli.md
   heading: コマンド例

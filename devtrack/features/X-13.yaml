@@ -13,6 +13,7 @@ tests:
 design:
 - label: dashboards
   link: architecture/dashboards.md
+  heading: 概要
 manual:
 - link: manual/dashboards.md
   heading: ダッシュボード

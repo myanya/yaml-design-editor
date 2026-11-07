@@ -11,6 +11,7 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: ワークスペース構造と layout
 manual:
 - link: manual/README.md
   heading: .yde 構成

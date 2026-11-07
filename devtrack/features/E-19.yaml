@@ -12,8 +12,9 @@ tests:
 manual_check: true
 manual_check_note: 画面
 design:
-- label: ui
-  link: architecture/ui.md
+- label: UI 操作規則
+  link: architecture/ui-interactions.md
+  heading: 項目説明の予告と全文
 manual:
 - link: manual/README.md
   heading: 画面構成

@@ -7,8 +7,9 @@ tests:
 - name: SchemaAdditionalOutlineTest
 - name: SchemaAuthoringTest
 design:
-- label: 設計画面
-  link: manual/schema-editor.md
+- label: ui
+  link: architecture/ui.md
+  heading: スキーマ設計
 manual:
 - link: manual/schema-editor.md
   heading: スキーマ設計画面

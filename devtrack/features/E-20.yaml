@@ -14,6 +14,7 @@ manual_check_note: 画面
 design:
 - label: ui
   link: architecture/ui.md
+  heading: 構成ツリーとフォーム表示
 manual:
 - link: manual/README.md
   heading: フォームの表示方式

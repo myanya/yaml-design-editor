@@ -11,8 +11,9 @@ tests:
 - name: WorkspaceMcpTest
 - name: McpCallerTest
 design:
-- label: MCP
-  link: manual/local-mcp.md
+- label: ローカル接続
+  link: architecture/local-connections.md
+  heading: MCP のツールと寿命
 manual:
 - link: manual/local-mcp.md
   heading: 外部 AI からの MCP 接続

@@ -11,6 +11,7 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: クエリコア
 manual:
 - link: manual/checks.md
   heading: パターン制約

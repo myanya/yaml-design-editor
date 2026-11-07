@@ -10,6 +10,7 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+  heading: 準備完了レポート
 manual:
 - link: manual/cli.md
   heading: コマンド例

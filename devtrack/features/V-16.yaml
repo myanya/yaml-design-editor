@@ -13,6 +13,7 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: 線の意味
 manual:
 - link: manual/checks.md
   heading: パターン制約

@@ -9,6 +9,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 要求の認証
 manual:
 - link: manual/local-connections.md
   heading: トークンの発行と失効

@@ -12,6 +12,7 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: エディタ層と台帳層
 manual:
 - link: manual/README.md
   heading: .yde 構成

@@ -10,6 +10,7 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+  heading: ファイル一覧と参考資料
 manual:
 - link: manual/README.md
   heading: 参考資料の本文検索と構造

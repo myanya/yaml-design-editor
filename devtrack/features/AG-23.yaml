@@ -7,6 +7,7 @@ manual_check: true
 design:
 - label: agents
   link: architecture/agents.md
+  heading: 自己改善
 manual:
 - link: manual/ai.md
   heading: 自己改善

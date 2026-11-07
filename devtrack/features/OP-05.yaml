@@ -13,6 +13,7 @@ tests:
 design:
 - label: actions
   link: architecture/actions.md
+  heading: 入力準備と確認の有効期間
 manual:
 - link: manual/actions.md
   heading: 画面で使う

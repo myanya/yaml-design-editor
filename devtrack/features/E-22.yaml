@@ -12,6 +12,7 @@ manual_check_note: 画面
 design:
 - label: UI 操作規則
   link: architecture/ui-interactions.md
+  heading: フォーム入力からの退出
 manual:
 - link: manual/README.md
   heading: 画面構成

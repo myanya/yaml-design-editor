@@ -11,6 +11,7 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: 変更セットの適用
 manual:
 - link: manual/cli.md
   heading: コマンド例

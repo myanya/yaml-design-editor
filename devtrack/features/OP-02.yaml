@@ -10,6 +10,7 @@ tests:
 design:
 - label: actions
   link: architecture/actions.md
+  heading: 操作の共通規則
 manual:
 - link: manual/actions.md
   heading: アクション

@@ -9,6 +9,7 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+  heading: ビュー機構
 manual:
 - link: manual/cli.md
   heading: コマンド例

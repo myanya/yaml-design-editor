@@ -10,8 +10,9 @@ tests:
 - name: ConnectedCliIntegrationTest
 - name: LocalApiClientTest
 design:
-- label: 接続 CLI
-  link: manual/cli-connect.md
+- label: ローカル接続
+  link: architecture/local-connections.md
+  heading: CLI の明示接続
 manual:
 - link: manual/cli-connect.md
   heading: CLI の接続モード

@@ -8,6 +8,7 @@ tests:
 design:
 - label: actions
   link: architecture/actions.md
+  heading: 流れ
 manual:
 - link: manual/actions.md
   heading: 前提

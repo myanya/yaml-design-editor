@@ -12,6 +12,7 @@ manual_check_note: 長い選択一覧
 design:
 - label: UI 操作規則
   link: architecture/ui-interactions.md
+  heading: 選択一覧の現在値
 manual:
 - link: manual/README.md
   heading: 画面構成

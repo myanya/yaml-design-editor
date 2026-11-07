@@ -11,6 +11,7 @@ manual_check: true
 design:
 - label: ui
   link: architecture/ui.md
+  heading: UI シェル
 manual:
 - link: manual/ai.md
   heading: 外部からの提出を受信箱で確認する

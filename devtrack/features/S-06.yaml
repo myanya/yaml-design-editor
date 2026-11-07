@@ -9,6 +9,7 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+  heading: ひな型
 manual:
 - link: manual/schema-editor.md
   heading: 検証とプレビュー

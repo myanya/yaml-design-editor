@@ -11,6 +11,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 保存済みの読取 API
 manual:
 - link: manual/local-connections.md
   heading: API の読み取り

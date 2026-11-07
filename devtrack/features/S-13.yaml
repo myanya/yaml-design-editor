@@ -11,6 +11,7 @@ tests:
 design:
 - label: index-references
   link: architecture/index-references.md
+  heading: 表示解決
 manual:
 - link: manual/ids.md
   heading: 表示解決

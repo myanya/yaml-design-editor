@@ -9,6 +9,7 @@ manual_check: true
 design:
 - label: schema
   link: architecture/schema.md
+  heading: 構造スキーマの導出
 manual:
 - link: manual/schema.md
   heading: フィールド定義のプロパティ

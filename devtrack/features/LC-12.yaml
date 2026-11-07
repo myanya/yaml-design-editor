@@ -11,4 +11,5 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 要求の認証
 internal: true

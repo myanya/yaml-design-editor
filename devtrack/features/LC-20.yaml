@@ -6,8 +6,9 @@ implementation:
 tests:
 - name: CliOwnershipTest
 design:
-- label: CLI
-  link: manual/cli.md
+- label: ローカル接続
+  link: architecture/local-connections.md
+  heading: ワークスペースの所有
 manual:
 - link: manual/cli.md
   heading: ワークスペースの所有と書込

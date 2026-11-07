@@ -9,6 +9,7 @@ manual_check: true
 design:
 - label: agents
   link: architecture/agents.md
+  heading: AI 生成
 manual:
 - link: manual/ai.md
   heading: AIによる作成支援

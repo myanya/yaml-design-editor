@@ -12,8 +12,9 @@ tests:
 - name: WebBrowserCheck
   kind: check
 design:
-- label: 業務 Web
-  link: manual/local-web.md
+- label: ローカル接続
+  link: architecture/local-connections.md
+  heading: Web の配信と接続
 manual:
 - link: manual/local-web.md
   heading: 接続する

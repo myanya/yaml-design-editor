@@ -11,6 +11,7 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+  heading: 推測・メタスキーマ・派生
 manual:
 - link: manual/schema.md
   heading: スキーマ推測

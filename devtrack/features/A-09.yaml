@@ -10,6 +10,7 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+  heading: AI 接続
 manual:
 - link: manual/ai.md
   heading: AIによる作成支援

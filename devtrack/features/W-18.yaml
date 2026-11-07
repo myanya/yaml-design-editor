@@ -12,6 +12,7 @@ manual_check_note: 画面
 design:
 - label: ui
   link: architecture/ui.md
+  heading: ファイル一覧と参考資料
 manual:
 - link: manual/README.md
   heading: ファイルとフォルダーの整理

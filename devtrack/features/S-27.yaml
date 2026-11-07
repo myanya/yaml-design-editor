@@ -8,8 +8,9 @@ tests:
 - name: SchemaDefinitionCoverageTest
 - name: SchemaAuthoringHistoryTest
 design:
-- label: 設計画面
-  link: manual/schema-editor.md
+- label: ui
+  link: architecture/ui.md
+  heading: スキーマ設計
 manual:
 - link: manual/schema-editor.md
   heading: 条件と処理手順の入力

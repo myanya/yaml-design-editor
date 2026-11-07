@@ -17,6 +17,7 @@ tests:
 design:
 - label: transform
   link: architecture/transform.md
+  heading: 計算列と決定論的射影
 manual:
 - link: manual/views.md
   heading: ビューグリッドとビュー定義

@@ -12,6 +12,7 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: 線の意味
 manual:
 - link: manual/ids.md
   heading: 保有と所属

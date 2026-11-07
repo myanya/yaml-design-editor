@@ -9,6 +9,7 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+  heading: コンテキスト
 manual:
 - link: manual/ai.md
   heading: 安全性

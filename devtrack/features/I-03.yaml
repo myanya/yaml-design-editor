@@ -10,6 +10,7 @@ manual_check: true
 design:
 - label: ui
   link: architecture/ui.md
+  heading: 畳みとハイライト
 manual:
 - link: manual/ids.md
   heading: リンクの機能

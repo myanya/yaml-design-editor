@@ -8,6 +8,7 @@ manual_check: true
 design:
 - label: index-references
   link: architecture/index-references.md
+  heading: ID と参照の意味
 manual:
 - link: manual/ids.md
   heading: 参照（リンク）の認識

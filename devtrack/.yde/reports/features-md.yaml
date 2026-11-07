@@ -2,20 +2,20 @@ id: features-md
 name: 機能索引（docs/FEATURES.md）
 description: 機能から docs/FEATURES.md（エージェント向けの索引）を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は系統（ID の接頭辞）ごと。節の見出しと並びはここが正（新しい系統を足すときは、ここと common の 機能の系統・機能ID に足す）
+  # 節は系統（ID の接頭辞）ごと。節の見出し・接頭辞・範囲（冒頭の系統の表）と並びはここが正（新しい系統を足すときは、ここと common の 機能の系統・機能ID に足す）
   sections:
-    - { title: 1. ワークスペース・ファイル管理, rows: { $view: doc-features, $where: [ { path: id, startsWith: "W-" } ] } }
-    - { title: 2. 文書編集, rows: { $view: doc-features, $where: [ { path: id, startsWith: "E-" } ] } }
-    - { title: 3. スキーマ, rows: { $view: doc-features, $where: [ { path: id, startsWith: "S-" } ] } }
-    - { title: 4. 検証, rows: { $view: doc-features, $where: [ { path: id, startsWith: "V-" } ] } }
-    - { title: 5. ID・参照, rows: { $view: doc-features, $where: [ { path: id, startsWith: "I-" } ] } }
-    - { title: 6. ワークスペース横断ビュー, rows: { $view: doc-features, $where: [ { path: id, startsWith: "X-" } ] } }
-    - { title: 7. AI による作成支援, rows: { $view: doc-features, $where: [ { path: id, startsWith: "A-" } ] } }
-    - { title: 8. エージェント実行（アクティビティ）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "AG-" } ] } }
-    - { title: 9. コア API・CLI（エージェント基盤）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "C-" } ] } }
-    - { title: 10. skill（フォーマット適合）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "SK-" } ] } }
-    - { title: 11. 操作（型の操作とアクション）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "OP-" } ] } }
-    - { title: ローカル接続の基盤, rows: { $view: doc-features, $where: [ { path: id, startsWith: "LC-" } ] } }
+    - { title: 1. ワークスペース・ファイル管理, prefix: W, scope: ワークスペースの選択と構造・ファイルツリー・外部変更・画面の枠・配布, rows: { $view: doc-features, $where: [ { path: id, startsWith: "W-" } ] } }
+    - { title: 2. 文書編集, prefix: E, scope: フォーム・ソース・差分・保存と Undo・入力欄, rows: { $view: doc-features, $where: [ { path: id, startsWith: "E-" } ] } }
+    - { title: 3. スキーマ, prefix: S, scope: スキーマの読み込み・型・定義の部品・推測・派生・設計画面, rows: { $view: doc-features, $where: [ { path: id, startsWith: "S-" } ] } }
+    - { title: 4. 検証, prefix: V, scope: 構造と参照の検証・検査の定義と結果・準備完了, rows: { $view: doc-features, $where: [ { path: id, startsWith: "V-" } ] } }
+    - { title: 5. ID・参照, prefix: I, scope: ID の索引・参照・ジャンプ・エンティティページ・保有, rows: { $view: doc-features, $where: [ { path: id, startsWith: "I-" } ] } }
+    - { title: 6. ワークスペース横断ビュー, prefix: X, scope: 一覧・ビュー（グリッド・文書・クロス集計・チャート）・レンズ・ダッシュボード・レポート・図の記法と配置, rows: { $view: doc-features, $where: [ { path: id, startsWith: "X-" } ] } }
+    - { title: 7. AI による作成支援, prefix: A, scope: フォームの AI 生成（項目・文書・たたき台）とプロバイダ, rows: { $view: doc-features, $where: [ { path: id, startsWith: "A-" } ] } }
+    - { title: 8. エージェント実行（アクティビティ）, prefix: AG, scope: エージェントとアクティビティの定義・実行・自動化・評価・文脈, rows: { $view: doc-features, $where: [ { path: id, startsWith: "AG-" } ] } }
+    - { title: 9. コア API・CLI（エージェント基盤）, prefix: C, scope: ヘッドレス API と CLI・変更セット・クエリ・合成・変換・リファクタリング・フロー, rows: { $view: doc-features, $where: [ { path: id, startsWith: "C-" } ] } }
+    - { title: 10. skill（フォーマット適合）, prefix: SK, scope: skill（取り込み・書き出し・コード実行）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "SK-" } ] } }
+    - { title: 11. 操作（型の操作とアクション）, prefix: OP, scope: 型の操作とアクション（計画・CLI・画面・エージェント）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "OP-" } ] } }
+    - { title: ローカル接続の基盤, prefix: LC, scope: ローカル接続（API・MCP・Web・常駐・権限・資格情報）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "LC-" } ] } }
   # 自動のテストが無く、手動で確かめている機能
   manualOnly:
     $view: doc-features

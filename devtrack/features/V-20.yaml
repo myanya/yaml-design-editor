@@ -9,4 +9,5 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+  heading: 文書 1 つの検証
 internal: true

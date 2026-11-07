@@ -18,6 +18,7 @@ tests:
 design:
 - label: transform
   link: architecture/transform.md
+  heading: レポート
 manual:
 - link: manual/reports.md
   heading: レポート

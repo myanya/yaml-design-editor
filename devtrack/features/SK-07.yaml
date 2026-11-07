@@ -8,6 +8,7 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+  heading: skill
 manual:
 - link: manual/ai.md
   heading: コード実行skill

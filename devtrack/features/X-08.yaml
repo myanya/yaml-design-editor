@@ -10,6 +10,7 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+  heading: definition 参照とリント
 manual:
 - link: manual/views.md
   heading: 文書ビュー

@@ -9,6 +9,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: トレイと画面の寿命
 manual:
 - link: manual/local-connections.md
   heading: トレイ常駐と画面非表示での起動

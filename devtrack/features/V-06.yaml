@@ -9,6 +9,7 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+  heading: フェーズ
 manual:
 - link: manual/schema.md
   heading: フェーズ機構

@@ -11,6 +11,7 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+  heading: 定義層の 3 段
 manual:
 - link: manual/checks.md
   heading: 関係レジストリ

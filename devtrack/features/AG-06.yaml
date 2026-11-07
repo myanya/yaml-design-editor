@@ -10,6 +10,7 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+  heading: エージェント実行と Staging
 manual:
 - link: manual/ai.md
   heading: 安全性

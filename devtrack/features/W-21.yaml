@@ -15,6 +15,7 @@ manual_check_note: 画面
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: ワークスペースの初期化
 manual:
 - link: manual/README.md
   heading: 新しいワークスペースを作る

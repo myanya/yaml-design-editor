@@ -10,6 +10,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 外部作業と提出・承認
 manual:
 - link: manual/local-api-changes.md
   heading: 作業方式

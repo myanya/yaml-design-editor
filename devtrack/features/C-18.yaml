@@ -19,6 +19,7 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+  heading: フローの画面と配置
 manual:
 - link: manual/flow-views.md
   heading: 画面での操作

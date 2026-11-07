@@ -11,6 +11,7 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+  heading: 畳みとハイライト
 manual:
 - link: manual/README.md
   heading: 画面構成

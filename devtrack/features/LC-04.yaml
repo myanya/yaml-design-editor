@@ -11,6 +11,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 操作の計画と外部確定
 manual:
 - link: manual/local-api-changes.md
   heading: 作業方式

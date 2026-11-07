@@ -11,4 +11,5 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: 導出グラフ
 internal: true

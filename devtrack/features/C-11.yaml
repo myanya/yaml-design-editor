@@ -11,6 +11,7 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: リファクタリングの影響
 manual:
 - link: manual/checks.md
   heading: エンティティ操作

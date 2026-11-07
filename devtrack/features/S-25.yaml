@@ -13,6 +13,7 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+  heading: 規律
 manual:
 - link: manual/files.md
   heading: 書き方

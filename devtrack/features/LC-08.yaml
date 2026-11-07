@@ -11,6 +11,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 機能別の切替と停止
 manual:
 - link: manual/local-connections.md
   heading: 有効・無効と状態

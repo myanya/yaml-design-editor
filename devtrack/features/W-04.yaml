@@ -18,6 +18,7 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: 再読込と履歴の保持
 manual:
 - link: manual/README.md
   heading: 外部変更・競合・安全性

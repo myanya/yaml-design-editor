@@ -13,6 +13,7 @@ tests:
 design:
 - label: transform
   link: architecture/transform.md
+  heading: 変換
 manual:
 - link: manual/cli.md
   heading: コマンド例

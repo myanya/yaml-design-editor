@@ -8,6 +8,7 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 設定画面と保存
 manual:
 - link: manual/local-connections.md
   heading: 保存とエラー

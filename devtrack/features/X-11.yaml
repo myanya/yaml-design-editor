@@ -15,6 +15,7 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: スキーマレンズ
 manual:
 - link: manual/views.md
   heading: ビュー

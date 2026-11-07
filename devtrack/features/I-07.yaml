@@ -14,6 +14,7 @@ manual_check: true
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: エンティティページ
 manual:
 - link: manual/views.md
   heading: ビュー

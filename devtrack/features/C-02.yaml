@@ -12,6 +12,7 @@ tests:
 design:
 - label: yaml-model
   link: architecture/yaml-model.md
+  heading: 変更の基礎命令と 2 層
 manual:
 - link: manual/cli.md
   heading: コマンド例

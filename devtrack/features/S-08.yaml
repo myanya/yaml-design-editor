@@ -10,6 +10,7 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+  heading: エンティティ型と関係レジストリ
 manual:
 - link: manual/checks.md
   heading: 関係レジストリ

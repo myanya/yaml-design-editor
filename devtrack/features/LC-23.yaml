@@ -9,8 +9,9 @@ tests:
 - name: WriteApiTest
 - name: WorkspaceWorkTest
 design:
-- label: API による変更
-  link: manual/local-api-changes.md
+- label: ローカル接続
+  link: architecture/local-connections.md
+  heading: 変更 API
 manual:
 - link: manual/local-api-changes.md
   heading: API による変更

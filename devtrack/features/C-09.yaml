@@ -10,4 +10,5 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: 文書キャッシュと Workspace
 internal: true

@@ -9,4 +9,5 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+  heading: 共通状態と寿命
 internal: true

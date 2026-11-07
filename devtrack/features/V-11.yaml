@@ -8,6 +8,7 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+  heading: 検査の書き方
 manual:
 - link: manual/checks.md
   heading: 網羅マトリクス

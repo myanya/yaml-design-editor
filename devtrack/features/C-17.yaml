@@ -14,6 +14,7 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+  heading: フローの解決
 manual:
 - link: manual/flow-views.md
   heading: フロービュー

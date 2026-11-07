@@ -41,7 +41,10 @@ columns:
     schemaId: feature
     value:
       each: { path: design }
-      value: { format: "[{label}]({link})" }
+      value:
+        first:
+          - { format: "{link}「{heading}」" }
+          - { format: "[{label}]({link})" }
   # 操作の説明: manual の見出し（「ファイル名＋見出し」の形。実在は DocReferencesTest が見る）。内部の基盤は別の列の印
   - label: 操作の説明
     schemaId: feature

@@ -13,6 +13,7 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+  heading: 型の連鎖と狭める規則
 manual:
 - link: manual/schema.md
   heading: 型の定義

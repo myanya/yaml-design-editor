@@ -12,4 +12,5 @@ tests:
 design:
 - label: index-references
   link: architecture/index-references.md
+  heading: 場所は文書ID
 internal: true

@@ -11,6 +11,7 @@ manual_check: true
 design:
 - label: ui
   link: architecture/ui.md
+  heading: スキーマ設計
 manual:
 - link: manual/schema-editor.md
   heading: スキーマ設計画面

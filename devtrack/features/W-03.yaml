@@ -13,6 +13,7 @@ more_tests: true
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: ファイル配置の変更
 manual:
 - link: manual/README.md
   heading: ファイルとフォルダーの整理

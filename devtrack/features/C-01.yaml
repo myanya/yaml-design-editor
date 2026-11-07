@@ -10,6 +10,7 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+  heading: 文書キャッシュと Workspace
 manual:
 - link: manual/cli.md
   heading: ヘッドレス CLI

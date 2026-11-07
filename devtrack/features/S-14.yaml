@@ -12,6 +12,7 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+  heading: 表示のヒント
 manual:
 - link: manual/schema.md
   heading: enum のリッチ選択肢

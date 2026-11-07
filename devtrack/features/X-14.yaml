@@ -25,6 +25,7 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+  heading: ビュー機構
 manual:
 - link: manual/views.md
   heading: チャート
