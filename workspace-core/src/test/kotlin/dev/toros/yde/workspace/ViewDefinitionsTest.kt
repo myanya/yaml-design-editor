@@ -191,6 +191,7 @@ class ViewDefinitionsTest {
                   via: [uses]
                   entityType: item
                   where: { not: { path: data.status, oneOf: [resolved, declined] } }
+                  depth: 2
               - id: any-line
                 mode: hide
                 where: { path: data.draft, equals: true }
@@ -203,6 +204,8 @@ class ViewDefinitionsTest {
         assertEquals(setOf("uses"), keep.via)
         assertEquals("item", keep.entityType)
         assertEquals(1, keep.conditions.size)
+        assertEquals(2, keep.depth)
+        assertEquals(1, anyLine.keepIfLinked!!.depth, "depth の既定は 1 段")
         assertEquals(setOf("owns"), anyLine.keepIfLinked!!.via, "via は 1 つなら文字でも書ける")
         assertTrue(anyLine.keepIfLinked!!.conditions.isEmpty())
         // 関係レジストリがあれば、via の関係名の宣言を見る
@@ -214,8 +217,12 @@ class ViewDefinitionsTest {
             ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to lens), withRegistry).errors)
         // 誤り: 知らないキー・via の形
         val head = "id: l\nkind: lens\nfilters:\n  - id: a\n    mode: hide\n    where: { path: id, equals: x }\n"
-        assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to head + "    keepIfLinked: { depth: 2 }\n"), schemas()).errors
+        assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to head + "    keepIfLinked: { steps: 2 }\n"), schemas()).errors
             .any { "使えないキー" in it })
+        listOf("0", "1.5", "two").forEach { bad ->
+            assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to head + "    keepIfLinked: { depth: $bad }\n"), schemas()).errors
+                .any { "depth は 1 以上の整数" in it }, bad)
+        }
         assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to head + "    keepIfLinked: { via: [{ name: x }] }\n"), schemas()).errors
             .any { "via" in it })
     }

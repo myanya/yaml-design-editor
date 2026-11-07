@@ -100,4 +100,23 @@ class LensFiltersTest {
         assertEquals(setOf("UX-03", "UX-04"), LensFilters.hidden(listOf(show), "entity", boxes, links = links),
             "show にも書ける（UX-04 は状態が無くて決められず、つながりも無い）")
     }
+
+    @Test
+    fun `depth を増やすと via の線をその段数まで辿り 途中の箱は条件を問わない`() {
+        // UX-03（見送り）→ 関連 → UX-02（解決）→ 関連 → UX-01（未着手）。1 段では残らず、2 段で残る
+        val keep1 = LensFilterKeep(setOf("relates-to"), "item", conditions(open))
+        val keep2 = keep1.copy(depth = 2)
+        fun hide(keep: LensFilterKeep) = filter("closed", LensFilterMode.HIDE, closed, entityType = "item", keep = keep)
+        assertEquals(setOf("UX-03"), LensFilters.hidden(listOf(hide(keep1)), "entity", boxes, links = links))
+        val two = LensFilters.evaluate(listOf(hide(keep2)), "entity", boxes, links = links)
+        assertEquals(emptySet(), two.hidden)
+        assertEquals(setOf("UX-02", "UX-03"), two.kept)
+        // via の外の線は、何段でも辿らない（束ねの線で T-01 へ行っても先へは進まない）
+        val bundled = LensFilters.hidden(listOf(hide(LensFilterKeep(setOf("bundled-in"), "item", conditions(open), depth = 5))), "entity", boxes, links = links)
+        assertEquals(setOf("UX-02", "UX-03"), bundled)
+        // 自分自身は相手に数えない（輪になって戻っても）
+        val selfOnly = LensFilters.hidden(listOf(hide(LensFilterKeep(setOf("relates-to"), "item", conditions("{path: id, equals: UX-03}"), depth = 3))),
+            "entity", boxes, links = links)
+        assertEquals(setOf("UX-03"), selfOnly, "UX-02 は 1 段で UX-03 に着くので残る。UX-03 は自分に戻っても数えない")
+    }
 }

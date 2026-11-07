@@ -216,7 +216,7 @@ root:
           - key: keepIfLinked
             label: つながりで残す
             type: object
-            description: この絞り込みが隠す箱でも、線で直接つながる相手（1 段・向きは問わない）のどれかが合えば残す。相手は値で判定する（別の絞り込みで隠れていても数える）
+            description: この絞り込みが隠す箱でも、線で辿って着く相手（既定は 1 段＝直接つながる相手・向きは問わない）のどれかが合えば残す。相手は値で判定する（別の絞り込みで隠れていても数える）
             fields:
               - key: via
                 label: 見る線の関係名
@@ -228,6 +228,12 @@ root:
                 label: 相手の条件
                 type: any
                 description: "filters の where と同じ書き方で、相手の箱の材料を読む（例 {not: {path: data.status, oneOf: [resolved, declined]}}）。省くと、つながっていれば残す"
+              - key: depth
+                label: 辿る段数
+                type: int
+                min: 1
+                default: 1
+                description: 1 は直接つながる相手だけ。2 以上は via の線をその段数まで辿る（途中の箱は型・条件を問わない）。段を増やすほど残る箱が増える
     - key: cells
       label: セルの集計（matrix）
       type: object

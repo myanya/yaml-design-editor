@@ -337,7 +337,7 @@ object ViewDefinitions {
     }
 
     private val LENS_FILTER_KEYS = setOf("id", "label", "mode", "level", "entityType", "where", "default", "keepIfLinked")
-    private val LENS_KEEP_KEYS = setOf("via", "entityType", "where")
+    private val LENS_KEEP_KEYS = setOf("via", "entityType", "where", "depth")
 
     /** 箱の絞り込み（ADR-0027）。条件は変換の `$when` と同じ書き方（`TransformDef.parseConditions`）。 */
     private fun parseLensFilters(raw: Any?): List<LensFilter> {
@@ -360,7 +360,7 @@ object ViewDefinitions {
         }
     }
 
-    /** 絞り込みの例外「つながりで残す」（via＝見る線の関係名・相手の型・相手の条件。どれも省ける）。 */
+    /** 絞り込みの例外「つながりで残す」（via＝見る線の関係名・相手の型・相手の条件・辿る段数。どれも省ける）。 */
     private fun parseLensKeep(raw: Any?, where: String): LensFilterKeep? {
         if (raw == null) return null
         val m = raw as? Map<*, *> ?: error("$where は object で書きます（via・entityType・where）")
@@ -372,7 +372,8 @@ object ViewDefinitions {
             else -> error("$where.via は関係名の並びで書きます")
         }
         val type = m["entityType"]?.let { v -> v.toString().takeIf { it.isNotBlank() } ?: error("$where.entityType は空でない文字列で書きます") }
-        return LensFilterKeep(via.toSet(), type, TransformDef.parseConditions(m["where"], "$where.where"))
+        val depth = m["depth"]?.let { v -> (v as? Int ?: (v as? Long)?.toInt())?.takeIf { it >= 1 } ?: error("$where.depth は 1 以上の整数で書きます: $v") } ?: 1
+        return LensFilterKeep(via.toSet(), type, TransformDef.parseConditions(m["where"], "$where.where"), depth)
     }
 
     /** レンズの定義のリント: 関係レジストリがあれば、関係名が宣言されているか（レジストリが無ければ判定しない）。 */

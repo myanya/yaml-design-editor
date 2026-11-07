@@ -59,15 +59,20 @@ data class LensFilter(
 }
 
 /**
- * 「つながりで残す」の例外: 直接つながる相手（1 段・線の向きは問わない）のうち、via の関係の線（空＝全部の線）でつながり、
+ * 「つながりで残す」の例外: via の関係の線（空＝全部の線。向きは問わない）を depth 段まで辿って着く相手のうち、
  * 型（entityType。省略で全部）と条件（conditions。空＝いつも成り立つ）に合う相手が 1 つでもあれば残す。
+ * 途中の箱は型・条件を問わない（線で辿れればよい）。自分自身は相手に数えない。
  * 相手は値で判定する（相手が別の絞り込みで隠れていても、相手の値が合えば残す）。
  */
 data class LensFilterKeep(
     val via: Set<String> = emptySet(),
     val entityType: String? = null,
     val conditions: List<TemplateCondition> = emptyList(),
-)
+    /** 辿る段数（1 以上。1＝直接つながる相手だけ）。 */
+    val depth: Int = 1,
+) {
+    init { require(depth >= 1) { "depth は 1 以上です: $depth" } }
+}
 
 /** 箱から相手の箱への線 1 本（向きは問わない。relation は線の関係名。名前の無い参照は null）。 */
 data class LensLink(val relation: String?, val other: String)
@@ -112,10 +117,24 @@ object LensFilters {
         fun inputOf(c: Candidate) = inputs.getOrPut(c.id) { c.input() }
         fun holds(conditions: List<TemplateCondition>, c: Candidate): Boolean =
             conditions.isEmpty() || inputOf(c)?.let { SemanticTransform.holds(conditions, emptyMap(), it) } ?: false
-        fun keptByLink(keep: LensFilterKeep, c: Candidate): Boolean = links[c.id].orEmpty().any { link ->
-            val other = byId[link.other]?.takeIf { it.id != c.id } ?: return@any false
-            (keep.via.isEmpty() || link.relation in keep.via) &&
-                (keep.entityType == null || keep.entityType == other.type) && holds(keep.conditions, other)
+        val matches = HashMap<Pair<LensFilterKeep, String>, Boolean>()
+        fun target(keep: LensFilterKeep, other: Candidate): Boolean = matches.getOrPut(keep to other.id) {
+            (keep.entityType == null || keep.entityType == other.type) && holds(keep.conditions, other)
+        }
+        // 幅優先で depth 段まで（同じ箱は 2 度辿らない）。途中の箱は型・条件を問わない
+        fun keptByLink(keep: LensFilterKeep, c: Candidate): Boolean {
+            val seen = hashSetOf(c.id)
+            var frontier = listOf(c.id)
+            repeat(keep.depth) {
+                frontier = frontier.flatMap { id ->
+                    links[id].orEmpty().filter { keep.via.isEmpty() || it.relation in keep.via }
+                        .mapNotNull { link -> byId[link.other]?.takeIf { seen.add(it.id) } }
+                        .onEach { other -> if (target(keep, other)) return true }
+                        .map { it.id }
+                }
+                if (frontier.isEmpty()) return false
+            }
+            return false
         }
         val hidden = LinkedHashSet<String>()
         val kept = LinkedHashSet<String>()

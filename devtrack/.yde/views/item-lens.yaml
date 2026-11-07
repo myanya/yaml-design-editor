@@ -23,6 +23,7 @@ filters:
       via: [relates-to]
       entityType: backlog-item
       where: {not: {path: data.status, oneOf: [resolved, declined]}}
+      depth: 1   # 辿る段数。2 にすると、関連を 2 段たどった先に未解決があるものも残す
   - id: in-motion
     label: 議論待ち・対応中だけ
     mode: show
