@@ -48,7 +48,8 @@ class DiagramStateWriteTest {
                 val id = DiagramNodeId("flow", "受付")
                 val first = mapOf(id to DiagramPosition(id, null, 10f, 20f, true))
                 state.saveDiagramPositions(context, first)
-                assertTrue(memory.saving)
+                // 保存は呼んだ場で始まり、IO が先に終われば戻る前に完了する。保存中か、保存済みのどちらか。
+                assertTrue(memory.saving || memory.positions == first, "置いた配置の保存を始める")
                 assertFalse(state.fileOperationBusy, "置いたときに「処理しています」を出さない")
                 runtime.host.change { }
                 withTimeout(10_000) { while (memory.saving) delay(10) }

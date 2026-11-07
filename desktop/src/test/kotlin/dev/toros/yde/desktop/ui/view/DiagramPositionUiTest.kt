@@ -68,6 +68,8 @@ class DiagramPositionUiTest {
             runOnIdle { state.memory.diagramPositions.clear(); visible = true }
             waitUntil(timeoutMillis = 15_000) { state.diagramPositions(context).let { it.ready && it.positions.isNotEmpty() && !it.saving } }
             assertEquals(saved, state.diagramPositions(context).positions)
+            // 表示し直した図の操作行は、配置の計算の後に組み立てられる（負荷が高いと記録の読込より遅れる）。
+            waitForNode(hasTestTag("diagram-grid-spacing"))
             onNodeWithTag("diagram-grid-spacing").assertTextContains("間隔: 32")
             onNodeWithText("配置を初期化").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { state.diagramPositions(context).let { it.positions.isNotEmpty() && it.positions.values.none { p -> p.pinned } && !it.saving } }
@@ -125,7 +127,8 @@ class DiagramPositionUiTest {
             assertEquals(first, memory.positions[first.node], "背景パンは記録しない")
             runOnIdle { visible = false }; waitForIdle()
             runOnIdle { visible = true }; waitForIdle()
-            onNodeWithText("選択ノードの固定を解除").assertExists().performScrollTo().performClick()
+            waitForNode(hasText("選択ノードの固定を解除"))
+            onNodeWithText("選択ノードの固定を解除").performScrollTo().performClick()
             waitUntil(timeoutMillis = 10_000) { memory.positions.values.none { it.pinned } && !memory.saving }
             assertEquals(first.copy(pinned = false), memory.positions[first.node], "解除だけでは移動しない")
             assertEquals(otherBefore, memory.positions[otherBefore.node])
@@ -183,6 +186,7 @@ class DiagramPositionUiTest {
             assertEquals(saved, memory.positions)
             runOnIdle { visible = false }; waitForIdle()
             runOnIdle { visible = true }; waitForIdle()
+            waitForNode(hasText("再配置"))
             onNodeWithText("再配置").performScrollTo().performClick()
             waitForIdle()
             waitUntil(timeoutMillis = 10_000) { !memory.saving }
@@ -196,3 +200,8 @@ class DiagramPositionUiTest {
         }
     }
 }
+
+/** 図を表示し直した後、操作の部品が組み立てられるまで待つ（配置の計算は背景で進む）。 */
+@OptIn(ExperimentalTestApi::class)
+private fun ComposeUiTest.waitForNode(matcher: SemanticsMatcher) =
+    waitUntil(timeoutMillis = 15_000) { onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty() }
