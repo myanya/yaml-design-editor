@@ -301,14 +301,14 @@ definitions:
   モジュール:
     type: enum
     values: [yaml-core, semantic-core, workspace-core, app-core, agent, desktop, cli, local-server, format-office, web-ui, repo-tests]
-  # テストの種類: 単体（名前だけ）・UI（Compose の画面を組み立てるテスト）は ./gradlew test に含まれる。検査は別のタスクか手順
+  # テストの種類: 単体（名前だけ）・UI（Compose の画面を組み立てるテスト）は ./gradlew test に含まれる。検査は別のタスクか手順。
+  # 手動の確認はテストではなく、機能の印 manual_check で持つ
   テストの種類:
     type: enum
     values:
       - { value: unit, label: 単体（./gradlew test。名前のあるテストは省略できる） }
       - { value: ui, label: UI（Compose の画面を組み立てるテスト。./gradlew test に含まれる） }
       - { value: check, label: 検査（./gradlew test に含まれない別のタスクか手順） }
-      - { value: manual, label: 手動（画面は skill ui-check で確かめる） }
 
   実装の場所:
     type: object
@@ -351,11 +351,11 @@ definitions:
       - key: kind
         label: 種類
         type: テストの種類
-        description: 名前のあるテストは省くと単体。名前の無い行（「手動」「単体（一部）」）には必ず書きます。
+        description: 名前のあるテストは省くと単体。名前の無い行（「単体（一部）」）には必ず書きます。手動の確認は機能の manual_check に書きます。
       - key: note
         label: 補足
         type: 一行の文
-        description: 何を確かめるか（FEATURES.md では（）の中）。手動なら確かめる場面（例 画面）。
+        description: 何を確かめるか（FEATURES.md では（）の中）。
     constraints:
       - id: test-has-name-or-kind
         description: テストには、名前か種類のどちらかがあること
@@ -419,8 +419,16 @@ definitions:
       - key: tests
         label: テスト
         type: array
-        required: true
         item: { type: テスト }
+        description: 自動のテスト（単体・UI・検査）。手動の確認だけなら書かずに manual_check を true にします。
+      - key: manual_check
+        label: 手動で確かめる
+        type: boolean
+        description: 自動のテストで確かめきれず、手動で確かめている（FEATURES.md では「手動」。画面は skill ui-check）。
+      - key: manual_check_note
+        label: 手動で確かめる場面
+        type: 一行の文
+        description: 何を手動で確かめるか（例 画面。FEATURES.md では「手動（画面）」）。
       - key: more_tests
         label: ほかのテストもある
         type: boolean
@@ -442,15 +450,24 @@ definitions:
         description: 利用者が操作しない内部の基盤（FEATURES.md の操作の説明の欄は「—（内部）」）。
     constraints:
       - id: feature-has-places
-        description: 機能には、主な実装・テスト・設計がそれぞれ 1 つ以上あること（テストが無ければ種類「手動」の行を書く）
+        description: 機能には、主な実装と設計がそれぞれ 1 つ以上あること
         where:
           - or:
               - { path: implementation, empty: true }
-              - { path: tests, empty: true }
               - { path: design, empty: true }
         expect: absent
         level: error
-        message: "機能「{id}」の主な実装・テスト・設計のどれかが空です"
+        message: "機能「{id}」の主な実装か設計が空です"
+      - id: feature-has-tests-or-manual-check
+        description: 機能には、自動のテストか、手動で確かめる印（manual_check）のどちらかがあること
+        where:
+          - { path: tests, empty: true }
+          - or:
+              - { path: manual_check, exists: false }
+              - { path: manual_check, equals: false }
+        expect: absent
+        level: error
+        message: "機能「{id}」に、テストも手動で確かめる印（manual_check: true）もありません"
       - id: feature-has-manual-or-internal
         description: 機能には、操作の説明（manual の参照）か、内部の基盤の印（internal）のどちらかがあること
         where:

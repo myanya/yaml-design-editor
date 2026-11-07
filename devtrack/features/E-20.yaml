@@ -9,8 +9,8 @@ tests:
 - name: FormOutlineTest
 - name: FormPositionsTest
 - name: ScreenMemoryTest
-- kind: manual
-  note: 画面
+manual_check: true
+manual_check_note: 画面
 design:
 - label: ui
   link: architecture/ui.md

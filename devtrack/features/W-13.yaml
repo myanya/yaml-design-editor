@@ -6,8 +6,7 @@ implementation:
 - path: ui/common/Common.kt
   detail: '`AppFonts`'
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

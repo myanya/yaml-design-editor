@@ -319,6 +319,13 @@
 | LC-28 | Web のダッシュボード・表・チャート・業務詳細と共有入力・参照・対応外の案内 | `BusinessReadPresentation.kt`・`BusinessWorkspace.tsx` | `WebBusinessTest`・検査 `WebBrowserCheck` | [業務 Web](manual/local-web.md) | manual/local-web.md「ダッシュボードと詳細」 |  |
 | LC-29 | Web の業務操作・入力準備・変更確認・保存と結果照会 | `BusinessActionForms.kt`・`WebOperations.kt`・`BusinessOperations.tsx` | `WebOperationsTest`・`WorkspaceOperationsTest`・検査 `WebBrowserCheck` | [業務 Web](manual/local-web.md) | manual/local-web.md「業務操作」 |  |
 
+## 手動確認だけの機能
+
+自動のテストが無く、手動で確かめている機能。画面の確認は skill `ui-check`（[.claude/skills/ui-check/SKILL.md](../.claude/skills/ui-check/SKILL.md)）の手順で行う。
+テストを足したら、その機能の `tests` に書いて `manual_check` を外す。
+
+A-01・A-06・A-15・AG-07・AG-10・AG-18・AG-23・E-07・E-08・E-09・I-02・I-03・I-04・I-05・I-06・I-09・S-07・SK-06・V-02・V-03・V-04・W-05・W-06・W-07・W-10・W-13・X-04
+
 ## 公開サンプル
 
 [todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。

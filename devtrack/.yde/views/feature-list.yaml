@@ -1,0 +1,15 @@
+id: feature-list
+name: 機能の一覧
+description: 機能（docs/FEATURES.md の行）を ID の順に並べます。ダッシュボードの区画が絞ります。
+rows:
+  idPattern: "*-*"
+  schemaIds: [feature]
+order:
+  schemaId: feature
+  path: id
+  direction: asc
+# 機能の欄は行の ID の下に出る（role: title）ので、列にしない
+columns:
+  - { label: 手動で確かめる場面, schemaId: feature, path: manual_check_note }
+  - { label: 主な実装, schemaId: feature, path: implementation }
+  - { label: 操作の説明, schemaId: feature, path: manual }

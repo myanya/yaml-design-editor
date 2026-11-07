@@ -4,8 +4,7 @@ implementation:
 - path: ui/run/RunsSpace.kt
   detail: '`ReviewContent`, `RunController`'
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: agents
   link: architecture/agents.md

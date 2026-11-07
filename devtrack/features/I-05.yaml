@@ -5,8 +5,7 @@ implementation:
   module: app-core
 - path: ui/shell/SidePanel.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: index-references
   link: architecture/index-references.md

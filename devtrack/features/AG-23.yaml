@@ -3,8 +3,7 @@ title: 自己改善 UI（計測・評価タブ）
 implementation:
 - path: ui/run/ImprovementPanel.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: agents
   link: architecture/agents.md

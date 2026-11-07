@@ -82,3 +82,13 @@ sections:
       where:
         - { of: it, path: status, oneOf: [resolved, declined] }
       expect: exists
+  - id: manual-only-features
+    label: 手動確認だけの機能
+    view: feature-list
+    filter:
+      match:
+        - node: { entity: feature, bind: f }
+      where:
+        - { of: f, path: tests, empty: true }
+        - { of: f, path: manual_check, equals: true }
+      expect: exists

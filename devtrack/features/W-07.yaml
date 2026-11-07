@@ -2,8 +2,7 @@ id: W-07
 title: 未保存確認（終了時・ワークスペース切替時）
 implementation:
 - path: Main.kt
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

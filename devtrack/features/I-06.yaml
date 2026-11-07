@@ -3,8 +3,7 @@ title: ID 検索（コマンドパレット・ID とタイトルの部分一致�
 implementation:
 - path: ui/shell/CommandPalette.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

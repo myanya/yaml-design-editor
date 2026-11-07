@@ -7,7 +7,7 @@ implementation:
   module: desktop
 tests:
 - name: SchemaOutlineTest
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

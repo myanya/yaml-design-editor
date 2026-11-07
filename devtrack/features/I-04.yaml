@@ -4,8 +4,7 @@ implementation:
 - path: ui/form/RefEditors.kt
   detail: '`RefEditor`'
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

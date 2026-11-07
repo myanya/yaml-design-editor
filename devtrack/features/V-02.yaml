@@ -3,8 +3,7 @@ title: 参照解決の検証（未解決・パターンやスコープの対象�
 implementation:
 - path: validate/Validator.kt
   module: app-core
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: checks
   link: architecture/checks.md

@@ -6,8 +6,8 @@ implementation:
   detail: '`handleShortcut`'
 tests:
 - name: NavigationHistoryTest
-- kind: manual
-  note: 画面
+manual_check: true
+manual_check_note: 画面
 design:
 - label: ui
   link: architecture/ui.md

@@ -4,8 +4,7 @@ implementation:
 - path: index/IdIndex.kt
   detail: '`DocScanner`'
   module: app-core
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: index-references
   link: architecture/index-references.md

@@ -15,10 +15,17 @@
 | ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 | 未解決の指摘 |
 |---|---|---|---|---|---|---|
 {#each rows}
-| {id} | {values.機能:cell} | {#each values.主な実装}{.:cell}{#if more}・{/if}{/each} | {#each values.テスト}{.:cell}{#if more}・{/if}{/each}{#if values.ほか} ほか{/if} | {#each values.設計}{.:cell}{#if more}・{/if}{/each} | {#if values.内部}—（内部）{/if}{#if values.操作の説明}{#each values.操作の説明}{.:cell}{#if more}・{/if}{/each}{/if} | {#if values.未解決の指摘}{#each values.未解決の指摘}{.}{#if more}・{/if}{/each}{/if} |
+| {id} | {values.機能:cell} | {#each values.主な実装}{.:cell}{#if more}・{/if}{/each} | {#if values.テスト}{#each values.テスト}{.:cell}{#if more}・{/if}{/each}{/if}{#if values.手動}{#if values.テスト}・{/if}手動{#if values.手動の場面}（{values.手動の場面:cell}）{/if}{/if}{#if values.ほか} ほか{/if} | {#each values.設計}{.:cell}{#if more}・{/if}{/each} | {#if values.内部}—（内部）{/if}{#if values.操作の説明}{#each values.操作の説明}{.:cell}{#if more}・{/if}{/each}{/if} | {#if values.未解決の指摘}{#each values.未解決の指摘}{.}{#if more}・{/if}{/each}{/if} |
 {/each}
 
 {/each}
+## 手動確認だけの機能
+
+自動のテストが無く、手動で確かめている機能。画面の確認は skill `ui-check`（[.claude/skills/ui-check/SKILL.md](../.claude/skills/ui-check/SKILL.md)）の手順で行う。
+テストを足したら、その機能の `tests` に書いて `manual_check` を外す。
+
+{#each manualOnly}{id}{#if more}・{/if}{/each}
+
 ## 公開サンプル
 
 [todos](../samples/todos/README.md)と[テーブルモデル](../samples/todos-sysdev-tablemodel/README.md): 操作・詳細化・SQL生成の検討。

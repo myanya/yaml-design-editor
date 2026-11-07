@@ -32,8 +32,10 @@ columns:
           - { format: "`{name}`（{note}）" }
           - { format: "{mark} `{name}`", with: { mark: { map: { path: kind }, using: { ui: UI, check: 検査 } } } }
           - { format: "`{name}`" }
-          - { format: "{label}（{note}）", with: { label: { map: { path: kind }, using: { unit: 単体, manual: 手動 } } } }
-          - { format: "{label}", with: { label: { map: { path: kind }, using: { unit: 単体, manual: 手動 } } } }
+          - { format: "{label}（{note}）", with: { label: { map: { path: kind }, using: { unit: 単体 } } } }
+          - { format: "{label}", with: { label: { map: { path: kind }, using: { unit: 単体 } } } }
+  - { label: 手動, schemaId: feature, path: manual_check }
+  - { label: 手動の場面, schemaId: feature, path: manual_check_note }
   - { label: ほか, schemaId: feature, path: more_tests }
   - label: 設計
     schemaId: feature

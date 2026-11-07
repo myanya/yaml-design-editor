@@ -5,8 +5,7 @@ implementation:
   module: desktop
 - path: cli/AgentCommands.kt
   module: cli
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: agents
   link: architecture/agents.md

@@ -10,7 +10,7 @@ implementation:
 tests:
 - name: AspectTest
   note: 合成
-- kind: manual
+manual_check: true
 design:
 - label: graph-query
   link: architecture/graph-query.md

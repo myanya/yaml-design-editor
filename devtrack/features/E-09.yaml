@@ -4,8 +4,7 @@ implementation:
 - path: ui/form/FormView.kt
   detail: '`SameIdOccurrencesStrip`'
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

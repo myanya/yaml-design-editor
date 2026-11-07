@@ -3,8 +3,7 @@ title: ID インスペクタ（右パネルの検証・関係・出現の 3 タ�
 implementation:
 - path: ui/shell/SidePanel.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

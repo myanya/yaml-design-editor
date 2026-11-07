@@ -6,8 +6,7 @@ implementation:
   module: desktop
 - path: ui/run/AiGenerationDialog.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: agents
   link: architecture/agents.md

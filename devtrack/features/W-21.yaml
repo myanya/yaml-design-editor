@@ -10,8 +10,8 @@ implementation:
 tests:
 - name: WorkspaceInitTest
 - name: WorkspaceTemplatesTest
-- kind: manual
-  note: 画面
+manual_check: true
+manual_check_note: 画面
 design:
 - label: workspace
   link: architecture/workspace.md

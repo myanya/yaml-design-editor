@@ -5,8 +5,7 @@ implementation:
   module: desktop
 - path: ui/shell/EditorChrome.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: ui
   link: architecture/ui.md

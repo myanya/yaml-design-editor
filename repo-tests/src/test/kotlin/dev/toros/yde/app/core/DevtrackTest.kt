@@ -123,6 +123,9 @@ class DevtrackTest {
             val section = features.substringAfter("## ローカル接続の基盤").substringBefore("## 公開サンプル")
             assertTrue("| $feature | 試しの機能 | `server/LocalServer.kt` | 手動 | [ローカル接続](architecture/local-connections.md) | manual/local-connections.md「有効・無効と状態」 |" in section,
                 section.lines().last { it.startsWith("| LC-") })
+            // テスト名を省いた機能は手動確認だけで、FEATURES.md の末尾の一覧に出る
+            val manualOnly = features.substringAfter("## 手動確認だけの機能").substringBefore("## 公開サンプル")
+            assertTrue(feature in manualOnly, manualOnly)
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
         } finally {
             Files.walk(base).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }

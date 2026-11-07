@@ -5,8 +5,7 @@ implementation:
   module: app-core
 - path: index/IdIndex.kt
   module: app-core
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: schema
   link: architecture/schema.md

@@ -15,7 +15,7 @@ description: コード変更後にプロジェクトドキュメント（docs/RE
    - 機能の追加・変更・削除 → devtrack の `features/<ID>.yaml`（新機能は 1 件足す。`action devtrack register-feature` でも足せる。機能の欄は 200 字以内）。FEATURES.md は直接直さず `./gradlew devtrackDocs` で作り直す
    - 利用者から見える仕様・操作・UI・スキーマ定義構文 → manual/ の該当ファイル（その機能の FEATURES の行の「操作の説明」が指す見出し。節を足したら `features/<ID>.yaml` の `manual` も直す）
    - クラス／パッケージの追加・移動・責務変更、データフロー・設計方針の変更 → architecture/ の該当する主題（部品・流れ・規律・拡張ポイント）
-   - テストの追加 → その機能の `features/<ID>.yaml` の `tests`（UI のテストは `kind: ui`、`./gradlew test` に入らない検査は `kind: check`）
+   - テストの追加 → その機能の `features/<ID>.yaml` の `tests`（UI のテストは `kind: ui`、`./gradlew test` に入らない検査は `kind: check`。手動確認だけだった機能にテストを足したら `manual_check` を外す）
    - ロードマップのテーマの着手・完了 → ROADMAP の状態表と該当テーマ。完了したら本文を archive/roadmap-history.md へ移す
    - BACKLOG の指摘の登録・解決 → devtrack で行い（devtrack/README.md「運用」。関わる機能が分かれば `features` に ID を書く）、`./gradlew devtrackDocs` で docs/BACKLOG.md と archive/backlog-closed.md を作り直す
    - 規約・ビルド手順の変更 → CONVENTIONS、AGENTS.md のコマンド節

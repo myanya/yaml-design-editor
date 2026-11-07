@@ -3,8 +3,7 @@ title: 適用前の差分プレビューと適用後検証・Undo できる適�
 implementation:
 - path: ui/run/AiGenerationDialog.kt
   module: desktop
-tests:
-- kind: manual
+manual_check: true
 design:
 - label: agents
   link: architecture/agents.md

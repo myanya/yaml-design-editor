@@ -15,7 +15,7 @@ actions:
       - { key: title, label: 機能, type: common#一行の文, required: true, minLength: 1 }
       - { key: path, label: 主な実装の場所, type: common#一行の文, required: true, minLength: 1, description: 1 つ目の場所（ほかは文書に足します） }
       - { key: module, label: モジュール, type: common#モジュール }
-      - { key: test, label: テスト名, type: common#一行の文, description: 省くと「手動」になります }
+      - { key: test, label: テスト名, type: common#一行の文, description: 省くと「手動」（manual_check）になります }
       - { key: design_label, label: 設計の見出し, type: common#一行の文, required: true, minLength: 1, description: "例 ui" }
       - { key: design_link, label: 設計の場所, type: common#一行の文, required: true, minLength: 1, description: "例 architecture/ui.md" }
       - { key: manual_link, label: 操作の説明の場所, type: common#一行の文, description: "例 manual/views.md（利用者が操作しない内部の基盤なら省いて internal）" }
@@ -31,9 +31,11 @@ actions:
             implementation:
               - { path: $path, module: { $copy: module } }
             tests:
-              - $first:
-                  - { $when: { path: $test, exists: true }, $then: { name: $test } }
-                  - { kind: manual }
+              $when: { path: $test, exists: true }
+              $then: [ { name: $test } ]
+            manual_check:
+              $when: { path: $test, exists: false }
+              $then: true
             design:
               - { label: $design_label, link: $design_link }
             manual:

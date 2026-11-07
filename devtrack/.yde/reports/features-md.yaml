@@ -16,4 +16,10 @@ build:
     - { title: 10. skill（フォーマット適合）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "SK-" } ] } }
     - { title: 11. 操作（型の操作とアクション）, rows: { $view: doc-features, $where: [ { path: id, startsWith: "OP-" } ] } }
     - { title: ローカル接続の基盤, rows: { $view: doc-features, $where: [ { path: id, startsWith: "LC-" } ] } }
+  # 自動のテストが無く、手動で確かめている機能
+  manualOnly:
+    $view: doc-features
+    $where:
+      - { path: values.テスト, empty: true }
+      - { path: values.手動, equals: true }
 template: features-md.md

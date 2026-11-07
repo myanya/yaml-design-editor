@@ -9,8 +9,8 @@ implementation:
 tests:
 - name: FieldHelpPositionTest
 - name: LiteralAnglesTest
-- kind: manual
-  note: 画面
+manual_check: true
+manual_check_note: 画面
 design:
 - label: ui
   link: architecture/ui.md
