@@ -44,8 +44,17 @@ sealed interface ActionStep {
     /** 要素や値を消す。 */
     data class Delete(val site: StepSite, override val conditions: List<TemplateCondition>, override val origin: String) : ActionStep
 
-    /** 文書を作る（そのスキーマのルートの型の create）。 */
-    data class Create(val schemaId: String, val params: Template, override val conditions: List<TemplateCondition>, override val origin: String) : ActionStep
+    /**
+     * 文書を作る（そのスキーマのルートの型の create）。id は採番（受け取った値に ID が無ければ、接頭辞＋連番。
+     * 配列の追加の決まり・skill の取り込みと同じ綴りの {prefix, digits}。ID の項目は文書のスキーマから決まる）。
+     */
+    data class Create(
+        val schemaId: String,
+        val params: Template,
+        override val conditions: List<TemplateCondition>,
+        override val origin: String,
+        val id: IdNumbering? = null,
+    ) : ActionStep
 
     /** 要素の型の操作を呼ぶ。 */
     data class Call(
@@ -125,10 +134,16 @@ object ActionSteps {
             }
             "create" -> {
                 require(scope == StepScope.ACTION) { "$where.create: 文書を作るのはアクションだけです（型の操作は受け手の要素の中だけを書き換えます）" }
-                body.keys.map { it.toString() }.firstOrNull { it !in setOf("schema", "params") }
-                    ?.let { error("$where.create: 未知のキーです: $it（使えるキー: schema, params）") }
+                body.keys.map { it.toString() }.firstOrNull { it !in setOf("schema", "params", "id") }
+                    ?.let { error("$where.create: 未知のキーです: $it（使えるキー: schema, params, id）") }
                 val schemaId = body["schema"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.create.schema（作る文書のスキーマ ID）が必要です")
-                ActionStep.Create(schemaId, template("params", true)!!, conditions, where)
+                // 採番は {prefix, digits}。ID の項目は文書のスキーマが決めるので path は書かない
+                val id = body["id"]?.let { raw ->
+                    (raw as? Map<*, *>)?.keys?.map { it.toString() }?.firstOrNull { it !in setOf("prefix", "digits") }
+                        ?.let { error("$where.create.id: 未知のキーです: $it（使えるキー: prefix, digits。ID の項目は文書のスキーマから決まります）") }
+                    IdNumbering.parse(raw, "$where.create.id")
+                }
+                ActionStep.Create(schemaId, template("params", true)!!, conditions, where, id)
             }
             "call" -> {
                 require(scope == StepScope.ACTION) { "$where.call: 他の要素の操作を呼べるのはアクションだけです" }

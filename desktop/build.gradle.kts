@@ -85,6 +85,12 @@ tasks.withType<Test>().configureEach {
     workingDir = rootDir
 }
 
+// 画面の起動（run と Hot Reload の hotRun）も、作業ディレクトリをリポジトリの根にする（runCli と同じ）。
+// ./gradlew run --args="samples/todos" の相対パスを、文書の例のとおりリポジトリの根から解決する
+tasks.withType<JavaExec>().matching { it.name == "run" || it.name == "hotRun" }.configureEach {
+    workingDir = rootDir
+}
+
 // 常駐のネイティブ部分は対話セッションでだけ検査する（通常の test / CI では OS トレイを使わない）。
 tasks.register<JavaExec>("verifyDesktopTray") {
     group = "verification"

@@ -31,6 +31,7 @@ class DesktopRuntimeTest {
                 assertContains(b.state.status, "使用中")
                 assertTrue(b.connections.status.value.stopped)
                 assertTrue(b.openWorkspace(second))
+                assertContains(b.state.status, "「second」を開きました", message = "開いたら初期の案内や前の失敗の文言を残さない")
                 assertFalse(a.openWorkspace(second))
                 assertEquals(first, a.state.workspace)
                 assertFalse(a.openWorkspace(root.resolve("missing")))

@@ -123,7 +123,7 @@ internal object SchemaValueForms {
             "set" -> listOf("of", "in", "path", "value")
             "insert" -> listOf("of", "in", "path", "params", "value")
             "delete" -> listOf("of", "in", "path")
-            "create" -> listOf("schema", "params")
+            "create" -> listOf("schema", "params", "id")
             "call" -> listOf("of", "in", "method", "params")
             "each" -> listOf("of", "in", "path", "from", "match", "where", "also", "limit", "do")
             "node" -> listOf("entity", "schema", "id", "bind", "same", "not", "typed")

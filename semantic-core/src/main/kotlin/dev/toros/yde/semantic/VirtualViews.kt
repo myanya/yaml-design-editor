@@ -164,6 +164,11 @@ data class VirtualMatrixDef(
      * null＝行は rows.idPattern の論理 ID。
      */
     val rowsValue: ExpressionValue? = null,
+    /**
+     * 値の軸の行で、値が得られない要素の行の見出し（`rows.unclassified`。null＝出さない）。
+     * 書かなければ列の見出し（unclassified）と同じ。列は「列の軸に無い値」、行は「行の値が得られない」で意味が違うので分けて書ける。
+     */
+    val rowsUnclassified: String? = unclassified,
 ) {
     /** 行か列の軸を値の式で広げるか（軸は解決のときに値から決まり、ヘッダは解決した行の列から取る＝VirtualViews.columnsOf）。 */
     val usesPivot: Boolean get() = rowsValue != null || cells.key is VirtualMatrixKey.Expr
@@ -933,7 +938,7 @@ object VirtualViews {
                 VirtualRow(id = start.id, title = start.title, occurrences = ids[start.id].orEmpty(), cells = cellList, detailDocument = null, detailPath = null)
             } else {
                 VirtualRow(
-                    id = group.key ?: matrix.unclassified ?: "（未分類）", title = null, occurrences = emptyList(), cells = cellList,
+                    id = group.key ?: matrix.rowsUnclassified ?: "（未分類）", title = null, occurrences = emptyList(), cells = cellList,
                     detailDocument = null, detailPath = null, valueRow = true,
                 )
             }
@@ -943,7 +948,7 @@ object VirtualViews {
             // 値の軸の行は、集めた要素が 1 つも無ければ出さない（受け取る値で絞ったときに、空の月の行や棒が並ばないように）
             val keyed = groups.values.filter { it.key != null && it.items.isNotEmpty() }
             val kind = keyed.firstNotNullOfOrNull { it.kind }
-            val unclassifiedRow = groups[null]?.takeIf { it.items.isNotEmpty() && matrix.unclassified != null }
+            val unclassifiedRow = groups[null]?.takeIf { it.items.isNotEmpty() && matrix.rowsUnclassified != null }
             keyed.sortedWith(comparatorFor(kind) { it.key!! }).map(::rowOf) + listOfNotNull(unclassifiedRow?.let(::rowOf))
         } else {
             sortRows(lowered, groups.values.map(::rowOf), rel, tree, fieldAt)

@@ -127,6 +127,43 @@ class PivotViewsTest {
     }
 
     @Test
+    fun `値の軸の行の未分類は 列の未分類と別の見出しを付けられ false で出さない`() {
+        // 受付日の無い注文（行の値が得られない）と、列の軸に無い状態の注文（列の未分類）
+        write("orders/ORD-005.yaml", "orderId: ORD-005\nstatus: pending\ntotal: 100")
+        write("orders/ORD-006.yaml", "orderId: ORD-006\norderedAt: 2026-10-01\nstatus: lost\ntotal: 7")
+        fun view(id: String, rows: String) = write(
+            "_views/$id.yaml",
+            """
+            id: $id
+            kind: matrix
+            rows: $rows
+            unclassified: 決まった値でない状態
+            cells:
+              match: [ { node: { entity: order, bind: o } } ]
+              of: o
+              columns: { path: status, values: [ pending, shipped ] }
+            """,
+        )
+        view("named-rows", "{ value: { yearMonth: { path: orderedAt } }, unclassified: （受付日なし） }")
+        view("hidden-rows", "{ value: { yearMonth: { path: orderedAt } }, unclassified: false }")
+        view("shared-label", "{ value: { yearMonth: { path: orderedAt } } }")
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        fun resolve(id: String) = Views.resolve(loaded.view(id)!!, workspace.index, workspace::treeOf, workspace::schemaFor)
+        val named = resolve("named-rows")
+        assertEquals(listOf("2026-08", "2026-09", "2026-10", "（受付日なし）", "合計"), named.map { it.id })
+        assertEquals(listOf("pending", "shipped", "決まった値でない状態", "合計"), Views.columnsOf(loaded.view("named-rows")!!, named).map { it.label })
+        assertEquals(listOf("1", "0", "0", "1"), named.single { it.id == "（受付日なし）" }.cells.map(::text))
+        assertEquals(listOf("2026-08", "2026-09", "2026-10", "合計"), resolve("hidden-rows").map { it.id })
+        // 書かなければ、今までどおり列の見出しと同じ
+        assertTrue("決まった値でない状態" in resolve("shared-label").map { it.id })
+        // 値の軸でない行には書けない
+        write("_views/wrong.yaml", "id: wrong\nkind: matrix\nrows: { idPattern: \"ORD-*\", unclassified: x }\ncells:\n  match: [ { node: { entity: order, bind: o } } ]\n  of: o\n  columns: { path: status }\n")
+        assertTrue(Views.load(ws, workspace.schemas).errors.any { "rows.unclassified" in it })
+    }
+
+    @Test
     fun `列の軸を値の式にすると データに現れた値が列になる`() {
         val workspace = Workspace.open(ws)
         val loaded = Views.load(ws, workspace.schemas)

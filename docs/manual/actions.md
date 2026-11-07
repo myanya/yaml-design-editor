@@ -143,7 +143,7 @@ input:
 | `set` | `{of, in, path, value}` | 値を入れる（無ければ作る） |
 | `insert` | `{of, in, path, params}` または `{..., value}` | 配列の末尾へ足す（`params` は要素の型の `create` へ渡す値、`value` は要素そのもののひな型） |
 | `delete` | `{of, in, path}` | 要素や値を消す |
-| `create` | `{schema, params}` | そのスキーマの文書を作る（中身はルートの型の `create`、置き場所は `filePattern` か単純な `match`） |
+| `create` | `{schema, params, id}` | そのスキーマの文書を作る（中身はルートの型の `create`、置き場所は `filePattern` か単純な `match`）。`id: {prefix, digits}` を書くと、ID を渡さないときに採番する |
 | `call` | `{of, method, params}` | 要素の型の操作を呼ぶ |
 | `each` | `{from, match, where, do}` | 起点を固定した照合の解ごとに、中の手を当てる（`from` 省略時は受け手） |
 | `each` | `{of, in, path, do}` | 配列の要素ごとに、その要素を受け手として中の手を当てる |
@@ -151,6 +151,8 @@ input:
 - 手の対象は `of`（束縛名。受け手は `target` の `bind`、照合で付けた名前は `each` の中だけ）→ `in`（`{schemaId, fileGlob}` に合う文書がちょうど 1 つ）→ 受け手、の順で決まります。合う文書が複数あれば止まります（`fileGlob` で絞るか、`of` で要素を指します）。
 - 各手に `when:`（条件。クエリの `where` と同じ書き方）を添えると、合うときだけ当てます。条件の `path` は受け取った値を読み、`of: 束縛名` でその要素を読みます。
 - 手は上から順に、作業用の写しの上で当たります。後の手は前の手の結果を読めます。配列がまだ無ければ作ります。
+- `create` の採番（`id: {prefix: "UX-", digits: 2}`）は、配列の追加の採番と同じ数え方です。ワークスペースの既存の ID と、同じ操作で作った ID のうち、同じ接頭辞の最大の番号の次を振ります。
+  ID の項目は文書のスキーマが決めるので `path` は書きません。ID を渡せばその ID を使います。1 件 1 ファイルの台帳の登録で、CLI やエージェントが番号を調べずに済みます。
 
 ### 前提（`require`）
 

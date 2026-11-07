@@ -143,10 +143,15 @@ object SemanticExpression {
     }
 
     /**
-     * 四則演算（SP-10）。どれかが数値として読めない・0 で割る場合は null（得られない＝判定保留）。
+     * 四則演算（SP-10）と日付の差。どれかが数値（日付の差は日付）として読めない・0 で割る場合は null（得られない＝判定保留）。
      * 足し算と掛け算は左から順にまとめる。割り切れない割り算は有効桁16桁で丸める。
      */
     fun arith(op: ValueExpr.ArithOp, operands: List<String>): String? {
+        // 日付の差: [始まり, 終わり] の日数（終わり − 始まり）。どちらかが日付か日時として読めなければ得られない
+        if (op == ValueExpr.ArithOp.DAYS_BETWEEN) {
+            val (from, to) = operands.map { dateOf(it) ?: return null }
+            return java.time.temporal.ChronoUnit.DAYS.between(from, to).toString()
+        }
         val numbers = operands.map { numberOf(it) ?: return null }
         if (numbers.isEmpty()) return null
         val result = numbers.drop(1).fold(numbers.first()) { acc, n ->
@@ -155,6 +160,7 @@ object SemanticExpression {
                 ValueExpr.ArithOp.SUBTRACT -> acc - n
                 ValueExpr.ArithOp.MULTIPLY -> acc * n
                 ValueExpr.ArithOp.DIVIDE -> if (n.signum() == 0) return null else acc.divide(n, MathContext.DECIMAL64)
+                ValueExpr.ArithOp.DAYS_BETWEEN -> error("日付の差は上で計算する")
             }
         }
         return numberText(result)

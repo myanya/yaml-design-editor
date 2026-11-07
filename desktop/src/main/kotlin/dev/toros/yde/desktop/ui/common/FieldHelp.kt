@@ -100,7 +100,7 @@ internal fun FieldHelp(
                 if (showPreview) {
                     // 全文はポップアップで読む。長い説明が入力行の高さを支配しないようにする。
                     Box(Modifier.heightIn(max = 36.dp).clipToBounds()) {
-                        MarkdownView(description, compact = true)
+                        MarkdownView(description, compact = true, literalTags = true)
                     }
                 }
             }
@@ -144,6 +144,7 @@ internal fun FieldHelp(
                                 MarkdownView(
                                     description,
                                     Modifier.fillMaxWidth().verticalScroll(scroll).padding(end = 12.dp),
+                                    literalTags = true,
                                 )
                                 VerticalScrollbar(rememberScrollbarAdapter(scroll), Modifier.align(Alignment.CenterEnd))
                             }
@@ -165,6 +166,7 @@ private fun FieldHelpPreview(description: String) {
             Modifier.heightIn(max = 84.dp).verticalScroll(scroll, enabled = false),
             compact = true,
             onOpenLink = {},
+            literalTags = true,
         )
         Text(
             if (scroll.maxValue > 0 && scroll.maxValue != Int.MAX_VALUE) "… ⓘで全文表示" else "ⓘで全文表示",

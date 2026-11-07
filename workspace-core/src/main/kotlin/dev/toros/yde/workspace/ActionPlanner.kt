@@ -630,7 +630,14 @@ object ActionPlanner {
             val tree = schema.tree
             val rootDef = tree.resolve(tree.root) ?: tree.root
             val idKey = rootDef.fields.firstOrNull { (tree.resolve(it) ?: it).type == FieldType.ID }?.key ?: "id"
-            val id = scalarText(given.entries[idKey])?.takeIf { it.isNotBlank() } ?: fail("${s.origin}: 作る文書の ID（$idKey）が params にありません")
+            // 採番（create.id）: ID が渡されていなければ、接頭辞（受け取った値で埋めるひな型）＋連番。既存は索引の全 ID とこの計画で作った ID
+            scalarText(given.entries[idKey])?.takeIf { it.isNotBlank() } ?: s.id?.let { numbering ->
+                val prefix = SemanticTransform.build(numbering.prefix, emptyMap(), TemplatePlace(given, null, emptyList())).term?.let(::scalarText)
+                    ?: fail("${s.origin}: 採番の接頭辞が得られません")
+                given.entries[idKey] = YNode.Scalar(IdSeries.next(graph.entities.keys + newIds, prefix, numbering.digits))
+            }
+            val id = scalarText(given.entries[idKey])?.takeIf { it.isNotBlank() }
+                ?: fail("${s.origin}: 作る文書の ID（$idKey）が params にありません（採番するなら create に id: {prefix, digits} を書きます）")
             val pattern = DocumentScaffolds.filePatternOf(schema)
                 ?: fail("${s.origin}: スキーマ「${schema.id}」の文書の置き場所が決められません（filePattern を書くか、match を単純な形にします）")
             val relPath = DocumentScaffolds.pathFor(pattern, ScaffoldSource.idOnly(id))

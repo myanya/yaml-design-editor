@@ -356,11 +356,12 @@ object ViewDefinitions {
         if (rowsMap.containsKey("match")) error("kind: matrix の rows は idPattern か value で書きます（クエリ行は使えません）")
         // 行の軸: 論理 ID（idPattern）か、起点の要素ごとに計算した値（value。P46。同じ値を 1 行にまとめる）
         val rowsValue = rowsMap["value"]?.let { v ->
-            rowsMap.keys.map { it.toString() }.firstOrNull { it != "value" }
+            rowsMap.keys.map { it.toString() }.firstOrNull { it != "value" && it != "unclassified" }
                 ?.let { error("rows.value と rows.$it は一緒に書けません（行の軸は ID か値のどちらか）") }
             if (raw.containsKey("order")) error("行の軸が値（rows.value）のクロス集計に order は書けません（値の順に並びます）")
             ExpressionValue.of(v, "rows.value", "行")
         }
+        if (rowsValue == null && rowsMap.containsKey("unclassified")) error("rows.unclassified は rows.value（値の軸）と一緒に書きます（値が得られない要素の行の見出し）")
         val rowsDef = if (rowsValue != null) null else VirtualRowsDef(
             idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("rows.idPattern か rows.value が必要です"),
             schemaIds = stringList(rowsMap["schemaIds"]),
@@ -401,6 +402,12 @@ object ViewDefinitions {
             is String -> u.takeIf { it.isNotBlank() } ?: error("unclassified は見出しの文字か false で書きます")
             else -> error("unclassified は見出しの文字か false で書きます: $u")
         }
+        // 値の軸の行で、値が得られない要素の行の見出し（rows.unclassified）。無ければ列と同じ unclassified（false なら出さない）
+        val rowsUnclassified = if (!rowsMap.containsKey("unclassified")) unclassified else when (val u = rowsMap["unclassified"]) {
+            false -> null
+            is String -> u.takeIf { it.isNotBlank() } ?: error("rows.unclassified は見出しの文字か false で書きます")
+            else -> error("rows.unclassified は見出しの文字か false で書きます: $u")
+        }
         val display = runCatching { NumberDisplay.parse(raw["display"]?.toString()) }.getOrElse { error("display: ${it.message}") }
         return VirtualGridDef(
             id = id,
@@ -418,6 +425,7 @@ object ViewDefinitions {
                 unclassified = unclassified,
                 display = display,
                 rowsValue = rowsValue,
+                rowsUnclassified = rowsUnclassified,
             ),
         )
     }

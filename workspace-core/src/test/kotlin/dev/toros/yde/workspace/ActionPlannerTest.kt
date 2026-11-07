@@ -118,6 +118,26 @@ class ActionPlannerTest {
     }
 
     @Test
+    fun `文書を作る手は ID が無ければ採番し 同じ計画の中では続き番号になる`() {
+        val s = session()
+        // ID を渡さない: 既存（SCR-001・SCR-002）の最大の次、2 つ目はこの計画で作った ID の次
+        val numbered = plan(s, "add-screen-defs")
+        assertEquals(listOf("screens/SCR-003.yaml", "screens/SCR-004.yaml"), numbered.changeSet.changes.map { it.file })
+        val created = numbered.change("screens/SCR-003.yaml").content!!
+        assertEquals("SCR-003", scalarText(getAt(created, parseYPath("id"))))
+        assertEquals("/screens/SCR-003", scalarText(getAt(created, parseYPath("url"))), "ルートの型の create（build）は採番した ID を読む")
+        // ID を渡せばその ID。採番はそれも既存に数える
+        val given = plan(s, "add-screen-defs", null, "id" to "SCR-020")
+        assertEquals(listOf("screens/SCR-020.yaml", "screens/SCR-021.yaml"), given.changeSet.changes.map { it.file })
+        // 定義の誤り: ID の項目は文書のスキーマが決めるので、採番に path は書けない
+        val broken = files().also {
+            it["_schemas/broken.yaml"] = "id: broken\nkind: library\nactions:\n  - id: x\n    do:\n      - create: { schema: screen-def, params: {}, id: { path: code, prefix: X- } }\n"
+        }
+        val errors = WorkspaceSession(InMemoryDocumentStore(broken)).schemaErrors
+        assertTrue(errors.any { "create.id" in it && "path" in it }, errors.toString())
+    }
+
+    @Test
     fun `前提に反する操作は 理由を示して止まる`() {
         val s = session()
         val e = assertFailsWith<ActionFailure> { plan(s, "add-screen", null, "id" to "SCR-001", "name" to "重複") }
@@ -214,7 +234,7 @@ class ActionPlannerTest {
         assertEquals(listOf("deprecate-rule", "drop-rule-everywhere", "rule.deprecate"), ActionPlanner.forEntity(s, "BR-001").map { it.name })
         assertEquals(listOf("screen.retitle"), ActionPlanner.forEntity(s, "SCR-001").map { it.name })
         assertEquals(listOf("advance"), ActionPlanner.forDocument(s, "screen-list.yaml").map { it.name })
-        assertEquals(listOf("add-screen", "add-numbered"), ActionPlanner.forWorkspace(s.schemas).map { it.name })
+        assertEquals(listOf("add-screen", "add-numbered", "add-screen-defs"), ActionPlanner.forWorkspace(s.schemas).map { it.name })
         assertEquals(emptyList(), ActionPlanner.forEntity(s, "NO-SUCH").map { it.name })
     }
 

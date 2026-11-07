@@ -411,6 +411,10 @@ root:
           label: 値の式（クロス集計の行を値で広げる）
           type: any
           description: "kind: matrix のみ。照合の起点の要素ごとに計算した値を行にし、同じ値を 1 行にまとめる（例 {yearMonth: {path: orderedAt}}＝受付日の年月ごとの行）。idPattern とは一緒に書けない。行は値の順序の種類で並ぶ"
+        - key: unclassified
+          label: 値が得られない要素の行の見出し（クロス集計の値の軸）
+          type: any
+          description: "kind: matrix で rows.value と一緒に書く。値が得られない要素をまとめた行の見出し。false で出さない。省くと列の unclassified と同じ"
         - key: schemaIds
           label: 出現スキーマの限定
           type: array

@@ -74,7 +74,7 @@ UI シェルは「ダッシュボード・編集・台帳・実行・設計」�
 | `ReorderableList` / `ReorderRowScope` | ui/common/Reorder.kt | ドラッグで並べ替える縦リスト（取っ手からだけ掴める。ライブラリ Reorderable を包む） |
 | `TemporalPickerButton` / `TemporalPick` | ui/form/TemporalEditor.kt | 日付・時刻・日時のピッカー（ポップアップ）と、正準の文字列との変換（純ロジック） |
 | `FilePickers` / `rememberDirectoryChooser` / `rememberFileChooser` / `rememberFileSaver` / `LocalDialogParentWindow` | ui/common/FilePickers.kt | OS ネイティブのファイル・フォルダ選択と保存先の選択、最後に選んだ場所の記憶（ライブラリ FileKit を包む） |
-| `MarkdownView` / `openExternally` | ui/common/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包む。色と文字は Palette） |
+| `MarkdownView` / `openExternally` | ui/common/MarkdownView.kt | Markdown の描画（ライブラリ multiplatform-markdown-renderer を包み、色と文字は Palette・説明向けの `literalTags` は HTML として落ちる山括弧を文字で出す＝`literalAngles`） |
 | `MarkdownPane` / `resolveMarkdownLink` | ui/file/MarkdownPane.kt | Markdown 文書と内蔵ヘルプの表示（表示とソースの 2 タブ・リンクの行き先の判定は純ロジック） |
 | `Help` | desktop/Help.kt | 内蔵ヘルプの題目と本文（ビルド時に資源 `help/` へ入れた利用者マニュアル） |
 | `FileEditor` / `resolveFilePath` / `fileValueFor` | ui/file/FileEditor.kt | file 型の入力欄（選ぶ・OS で開く・解決した場所と有無の 1 行・画像なら下に表示）。場所の解決と選んだファイルの書き方は純ロジック |

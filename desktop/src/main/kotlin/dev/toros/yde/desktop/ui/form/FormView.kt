@@ -118,7 +118,7 @@ internal fun DocumentMetadataEditor(ctx: FormCtx, root: YNode.Map) {
             Modifier.fillMaxWidth().padding(bottom = 12.dp),
         ) {
             if (name.isNotBlank()) FormAnchor(listOf("_document", "name")) { Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold) }
-            if (description.isNotBlank()) FormAnchor(listOf("_document", "description")) { MarkdownView(description, compact = true) }
+            if (description.isNotBlank()) FormAnchor(listOf("_document", "description")) { MarkdownView(description, compact = true, literalTags = true) }
         }
         return
     }

@@ -282,7 +282,7 @@ object SemanticValues {
         /** 四則演算: 引数を先に評価し、スカラーだけを受け取る。結果は特定の 1 か所の値ではない（式を元の値として示す）。 */
         private fun arithOf(expr: ValueExpr.Arith): SemanticCheckSide? {
             val operands = expr.operands.map { eval(it) ?: return null }
-            if (operands.any { !it.isScalar }) return fail("四則演算はスカラーだけを受け取ります")
+            if (operands.any { !it.isScalar }) return fail(if (expr.op == ValueExpr.ArithOp.DAYS_BETWEEN) "日付の差はスカラーだけを受け取ります" else "四則演算はスカラーだけを受け取ります")
             val text = SemanticExpression.arith(expr.op, operands.map { it.text }) ?: return null
             // 計算結果は特定の1か所に書かれた値ではない——式（3 + 12）を元の値として示し、移動先は最初の値の場所
             val first = operands.firstOrNull { it.sourceDocument != null }

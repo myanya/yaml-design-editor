@@ -176,12 +176,16 @@ sealed interface ValueExpr {
         YEAR_MONTH("yearMonth", "年月"),
     }
 
-    /** 四則演算の種類。pairOnly は「ちょうど2つの値を取る」（引き算・割り算）。 */
+    /**
+     * 値から数を計算する種類（四則演算と日付の差）。pairOnly は「ちょうど2つの値を取る」（引き算・割り算・日付の差）。
+     * 日付の差（daysBetween）は [始まり, 終わり] の日数（終わり − 始まり。日付か日時の日付の部分で数える）。
+     */
     enum class ArithOp(val id: String, val symbol: String, val pairOnly: Boolean) {
         ADD("add", "+", false),
         SUBTRACT("subtract", "-", true),
         MULTIPLY("multiply", "×", false),
         DIVIDE("divide", "÷", true),
+        DAYS_BETWEEN("daysBetween", "〜", true),
     }
 
     /**

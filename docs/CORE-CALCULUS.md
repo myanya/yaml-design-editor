@@ -340,6 +340,7 @@ Workspace, Environment, σ ⊢ Expression ⇓ Value | Unknown
   Sum / Min / Max / Count(array)              -- 配列を受け取る。Count は件数。種類は項目の型か引数
   Length(string)  Upper  Lower  Number  Map(expr, dictionary)
   Add  Subtract  Multiply  Divide
+  DaysBetween(start, end)                     -- 日付の差（日数）。日付か日時として読めなければ Unknown
 形を受け取る語（自分の規則で評価する）:
   Format(template, scopes, with)  First(expr...)
   All(...)                                    -- 集合から配列へ（§9）

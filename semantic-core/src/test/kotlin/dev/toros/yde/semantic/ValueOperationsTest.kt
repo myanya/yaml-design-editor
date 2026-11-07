@@ -93,6 +93,20 @@ class ValueOperationsTest {
     }
 
     @Test
+    fun `日付の差は終わりから始まりを引いた日数で 日付として読めなければ得られない`() {
+        assertEquals("97", SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2026-08-02", "2026-11-07")))
+        assertEquals("-1", SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2026-11-07", "2026-11-06")))
+        assertEquals("0", SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2026-11-07", "2026-11-07")))
+        // 日時は日付の部分で数える。うるう年の 2 月をまたいでも暦の日数
+        assertEquals("1", SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2026-11-07 23:59", "2026-11-08 00:00")))
+        assertEquals("2", SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2028-02-28", "2028-03-01")))
+        // 正準の形でない表記・数・存在しない日付は読まない（表記から意味を決めない）
+        assertNull(SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2026/08/02", "2026-11-07")))
+        assertNull(SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("2026-02-30", "2026-11-07")))
+        assertNull(SemanticExpression.arith(ValueExpr.ArithOp.DAYS_BETWEEN, listOf("3", "12")))
+    }
+
+    @Test
     fun `空の判定は書かれていない値と空文字と空の入れ物`() {
         assertTrue(SemanticExpression.isEmpty(null))
         assertTrue(SemanticExpression.isEmpty(YNode.Scalar(null)))

@@ -43,6 +43,9 @@ class ValueExprTest {
         assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("add" to listOf(1)), "x") }
         assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("subtract" to listOf(1, 2, 3)), "x") }
         assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("divide" to listOf(1)), "x") }
+        // 日付の差は [始まり, 終わり] のちょうど 2 つ
+        assertFailsWith<IllegalArgumentException> { ValueExpr.parse(mapOf("daysBetween" to listOf("2026-11-07")), "x") }
+        assertEquals(ValueExpr.ArithOp.DAYS_BETWEEN, (ValueExpr.parse(mapOf("daysBetween" to listOf("2026-11-01", "2026-11-07")), "x") as ValueExpr.Arith).op)
     }
 
     @Test
