@@ -10,3 +10,5 @@ closed_on: 2026-10-12
 resolutions:
   - date: 2026-10-12
     kind: 解決
+features:
+  - W-16

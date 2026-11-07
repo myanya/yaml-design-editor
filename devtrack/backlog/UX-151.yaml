@@ -5,3 +5,6 @@ origin_on: 2026-10-11
 origin: P36 段階 1
 body: '**ビューグリッドのセルに日付ピッカーが出ない**（フォームの欄だけ。セルは `GridCell` の独自の入力欄）'
 memo: '`TemporalPickerButton` をセルの入力欄の右にも置く。列幅（`GridWidths` の日付の最小幅）との兼ね合いを見る'
+features:
+  - E-15
+  - X-06

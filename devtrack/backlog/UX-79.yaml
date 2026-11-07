@@ -15,3 +15,6 @@ resolutions:
 related:
   - UX-64
   - UX-69
+features:
+  - S-05
+  - S-18

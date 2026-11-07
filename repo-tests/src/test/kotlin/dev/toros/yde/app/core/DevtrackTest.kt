@@ -82,17 +82,19 @@ class DevtrackTest {
             fun kinds(id: String) = (item(id)["resolutions"] as List<*>).map { (it as Map<*, *>)["kind"] }
             // 登録: ID を省くと、使われている最大の番号の次を振る（create の採番）
             val next = "UX-" + (Files.list(dir.resolve("backlog")).use { s -> s.map { it.fileName.toString().removePrefix("UX-").removeSuffix(".yaml").toInt() }.toList() }.max() + 1)
-            act("register-item", null, mapOf("title" to "試しの指摘", "origin" to "DevtrackTest", "theme" to "T-03", "related" to listOf("UX-162")))
+            act("register-item", null, mapOf("title" to "試しの指摘", "origin" to "DevtrackTest", "theme" to "T-03", "related" to listOf("UX-162"),
+                "features" to listOf("X-12")))
             assertTrue(Files.isRegularFile(dir.resolve("backlog/$next.yaml")), "採番した $next のファイル")
             act("change-status", next, mapOf("status" to "in-progress"))
             act("record-progress", next, mapOf("date" to "2026-11-07", "note" to "一部を直した"))
-            act("resolve-item", next, mapOf("date" to "2026-11-08", "note" to "全部直した", "targets" to "DevtrackTest"))
+            act("resolve-item", next, mapOf("date" to "2026-11-08", "note" to "全部直した", "targets" to "DevtrackTest", "features" to listOf("X-12", "X-03")))
             var it = item(next)
             assertEquals("resolved", it["status"])
             assertEquals("2026-11-07", it["origin_on"].toString(), "起点の日は登録した日（auto: created）")
             assertEquals("2026-11-08", it["closed_on"].toString())
             assertEquals(listOf("一部", "解決"), kinds(next))
             assertEquals(listOf("UX-162"), it["related"])
+            assertEquals(listOf("X-12", "X-03"), it["features"], "解決で関わる機能を置き換える")
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
             // 解決した指摘は台帳から消え、記録の先頭に出る（状態の欄に記録の種類と内容）
             assertTrue("| $next |" !in render(ws, "backlog-md"))
@@ -105,6 +107,9 @@ class DevtrackTest {
             assertEquals(null, it["closed_on"])
             assertEquals(listOf("一部", "解決", "再開"), kinds(next))
             assertTrue("| $next |" in render(ws, "backlog-md"))
+            // 未解決に戻った指摘は、関わる機能の行の「未解決の指摘」に出る
+            val x12 = render(ws, "features-md").lines().first { line -> line.startsWith("| X-12 |") }
+            assertTrue(x12.trimEnd().endsWith("$next |") || "$next・" in x12 || "・$next |" in x12, x12)
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
             // 機能の登録: 系統の接頭辞の中で採番し、テスト名を省くと「手動」。FEATURES.md のその系統の節に出る
             val lastLc = Files.list(dir.resolve("features")).use { s -> s.map { it.fileName.toString() }.filter { it.startsWith("LC-") }

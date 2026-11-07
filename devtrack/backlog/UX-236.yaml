@@ -16,3 +16,5 @@ resolutions:
     section: labs/rpmz の試用
 related:
   - UX-239
+features:
+  - C-15

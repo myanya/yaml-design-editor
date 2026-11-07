@@ -5,3 +5,5 @@ origin_on: 2026-10-31
 origin: 表の横長対策（テーブルモデルのサンプル）
 body: '**レポートのひな形が空の文字（`""`）を `''''` と書き出す**（値の式の map で「0」を空にしたら、Markdown の表に `''''` が出た）'
 memo: '`TextTemplate.text` が `scalarText` の null（空の文字）で `YamlIO.dumpPlain` に落ちる。空の文字は空として書くよう分ける（null の値＝穴が埋まらない、とは区別する）。サンプルは「—」で回避した'
+features:
+  - X-15

@@ -8,3 +8,6 @@ body: '**「行を追加」が、3つのビュー（br-trace・screen-transition
 memo: '`ViewGridPane` の「行を追加」は `view.newRow != null` のときだけ描画。案内を出すなら、同じ場所に無効化したボタン＋tooltip か、ビューの定義文書を開くリンク。台本 §3.5 Q9 は、S1
   の課題台帳のビュー（`_views/issue-catalog.yaml`＝`newRow` あり）で試す手順に直した'
 targets: V-10・manual/views.md
+features:
+  - X-05
+  - X-06

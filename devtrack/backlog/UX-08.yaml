@@ -11,3 +11,6 @@ resolutions:
     kind: 解決
     note: 確認
     section: Undo 台帳の棚卸し
+features:
+  - E-05
+  - X-02

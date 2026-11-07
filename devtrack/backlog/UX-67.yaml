@@ -11,3 +11,5 @@ closed_on: 2026-10-18
 resolutions:
   - date: 2026-10-18
     kind: 解決
+features:
+  - E-18

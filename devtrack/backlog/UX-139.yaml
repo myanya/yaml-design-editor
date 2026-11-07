@@ -7,3 +7,5 @@ body: '**派生スキーマの型の写像（`derive.fields.type`）に、非修
 memo: '`SchemaDerivation.compile` にテンプレートの `definitionScope`（＝テンプレートの ID）で非修飾名を解決させる（導出スキーマはテンプレートのカタログを引き継ぐので、`typeName`
   を持つ `FieldDef` を作るだけで解決は効くはず）。あわせて写像の先が見つからない名前を、派生の展開の誤りとして報告する'
 targets: P33
+features:
+  - S-17

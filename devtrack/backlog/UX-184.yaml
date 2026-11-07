@@ -9,3 +9,5 @@ resolutions:
   - date: 2026-10-25
     kind: 解決
     section: TODOの操作対象
+features:
+  - OP-05

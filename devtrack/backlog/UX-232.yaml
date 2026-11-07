@@ -6,3 +6,5 @@ origin: P50 の画面確認
 body: '**連携（skill）の実行の欄の案内が古い**: 「定義は _skills/*.yaml に置きます」「_skills/*.yaml に import / export を定義します（README §14）」と出るが、今の置き場は
   `.yde/skills/`（レガシー構成だけが `_skills`）で、README に §14 は無い'
 memo: '`ui/shell/SkillsPanel.kt` の 2 つの文。置き場は `WorkspaceLayout` の `skillsDir` から出すか、置き場を書かずに manual/ai.md「skill」へ案内する'
+features:
+  - SK-06

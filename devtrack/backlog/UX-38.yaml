@@ -7,3 +7,5 @@ body: '**アクティビティ定義のサンプル外の項目は何がどう�
 memo: 組込みスキーマ（builtin-activity）の description 充実（フォームにそのまま出る）＋manual/ai.md の項目リファレンス見直し。「よくある形」のテンプレ選択も当たり（UX-33 のウィザードと同型）
 related:
   - UX-33
+features:
+  - AG-02

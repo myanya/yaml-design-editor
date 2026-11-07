@@ -4,3 +4,6 @@ status: todo
 origin_on: 2026-10-24
 origin: TODO操作サンプル
 memo: '`SchemaDefinitionChecks`のlibrary必須内容にactionsが含まれない；マニュアルとの整合を検討する'
+features:
+  - OP-02
+  - S-04

@@ -9,11 +9,12 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 
 - 状態: 📋 未着手 / 💬 議論待ち / 🚧 対応中 / ⏳ 必要になったら実装する（いずれ要ると分かっているが、需要が出るまで着手しない。実装の当たりを技術メモに残しておく）。解決（✅）と見送り（❌）にした指摘は[記録](archive/backlog-closed.md)に出る
 - 状態の欄の絵文字の後ろは解決の記録（日付・種類・内容）。未解決の指摘では、一部の解決（一部）と、解決や見送りを取り消した記録（再開）
+- 「関わる機能」は [FEATURES.md](FEATURES.md) の機能 ID（devtrack の `features`）。機能の行の「未解決の指摘」にも出る
 
-| ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
-|---|---|---|---|---|---|
+| ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 | 関わる機能 |
+|---|---|---|---|---|---|---|
 {#each items}
-| {id} | {#if values.起点の日}{values.起点の日}{#if values.起点} {/if}{/if}{#if values.起点}{values.起点:cell}{/if} | {values.指摘:cell} | {#if values.技術メモ}{values.技術メモ:cell}{/if} | {values.状態:cell}{#if values.解決の記録}{#each values.解決の記録} {date} {kind}{#if note}: {note:cell}{/if}{#if targets}（{targets:cell}）{/if}{/each}{/if} | {values.対応先:cell} |
+| {id} | {#if values.起点の日}{values.起点の日}{#if values.起点} {/if}{/if}{#if values.起点}{values.起点:cell}{/if} | {values.指摘:cell} | {#if values.技術メモ}{values.技術メモ:cell}{/if} | {values.状態:cell}{#if values.解決の記録}{#each values.解決の記録} {date} {kind}{#if note}: {note:cell}{/if}{#if targets}（{targets:cell}）{/if}{/each}{/if} | {values.対応先:cell} | {#if values.関わる機能}{#each values.関わる機能}{.}{#if more}・{/if}{/each}{/if} |
 {/each}
 
 ## テーマ管理（複数指摘が絡む横断課題）

@@ -66,7 +66,12 @@ run_checks() {
       case "$f" in docs/BACKLOG.md) skip_rows=1 ;; *) skip_rows=0 ;; esac
       awk -v f="$f" -v max="$MAX_LINE" -v skip="$skip_rows" 'length($0) > max && !(skip && $0 ~ /^\|/) { printf "LINE   %s:%d: %d 字\n", f, NR, length($0) }' "$f"
       if is_state_doc "$f"; then
-        grep -nE "$TICKET" "$f" | sed -E "s|^([0-9]+):.*|TICKET $f:\1|" | sort -u
+        # 例外: 生成物の FEATURES.md の表の最後の列（未解決の指摘）は devtrack から作り直すので古くならない。その列だけ外して見る
+        if [ "$f" = docs/FEATURES.md ]; then
+          sed -E '/^\| [A-Z]+-[0-9]+ \|/ s/\| [^|]*\|$/|/' "$f" | grep -nE "$TICKET" | sed -E "s|^([0-9]+):.*|TICKET $f:\1|" | sort -u
+        else
+          grep -nE "$TICKET" "$f" | sed -E "s|^([0-9]+):.*|TICKET $f:\1|" | sort -u
+        fi
         awk -v f="$f" '
           /^\|/ {
             n = split($0, cells, "|")

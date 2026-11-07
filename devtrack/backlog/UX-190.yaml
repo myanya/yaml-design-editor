@@ -10,3 +10,5 @@ resolutions:
   - date: 2026-10-25
     kind: 解決
     section: ダッシュボードの業務導線
+features:
+  - X-13

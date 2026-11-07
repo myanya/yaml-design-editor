@@ -11,3 +11,6 @@ resolutions:
   - date: 2026-11-03
     kind: 解決
     section: ワークスペースの読込
+features:
+  - C-01
+  - W-04

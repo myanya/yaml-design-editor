@@ -11,3 +11,5 @@ resolutions:
   - date: 2026-10-25
     kind: 解決
     section: ワークスペースの初期化ウィザード
+features:
+  - W-21

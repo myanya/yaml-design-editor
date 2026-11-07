@@ -10,3 +10,5 @@ memo: '`isDirty` は `persistedText` と `DefaultYamlCodec.dump(document)` を�
   の `disk.dirtyDocuments()`（読んだばかりの候補）と、`reload` が渡す保護対象との重複も見直す'
 related:
   - UX-256
+features:
+  - C-09

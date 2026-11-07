@@ -12,3 +12,6 @@ resolutions:
     kind: 一部
     note: レンズで動かした節点が画面を離れると戻る。flow と lens の固定位置を図・選択条件ごとにワークスペースへ保存。パン・ズームとスクロールは未対応のため元の台帳に残す
     targets: X-22・DiagramPositionUiTest
+features:
+  - W-16
+  - X-22

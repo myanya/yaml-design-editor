@@ -13,3 +13,5 @@ resolutions:
     kind: 解決
 related:
   - UX-95
+features:
+  - E-05

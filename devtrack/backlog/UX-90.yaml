@@ -5,3 +5,5 @@ origin_on: 2026-09-02
 origin: S1第2回
 memo: ①ラベル・description の見直し（例「書込を許すファイル（glob）」「文書内の書込を許すパス」）②新規作成時に推奨テンプレート（target/instruction/allowed*/limits/gates の典型形）を初期投入。BuiltinSchemas
   の default か作成ダイアログ側
+features:
+  - AG-02

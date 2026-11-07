@@ -10,3 +10,6 @@ resolutions:
   - date: 2026-11-04
     kind: 解決
     section: フローのラベル配置
+features:
+  - X-23
+  - X-25

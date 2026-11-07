@@ -6,3 +6,5 @@ origin: labs/rpmz 段階 4（操作）
 body: '**操作で作った文書のキーの並びが、スキーマの項目の順にならない**: 型の `create` は「必須の項目の初期値」の上に受け取った値を重ねるので、必須の項目が先に並ぶ（敵グループを作ると `id`・`members`・`name`
   の順、敵キャラは `id`・`params`・`name`）。手で書いた文書（`id`・`name`・`members`）と並びが違い、読みにくい'
 memo: '`ActionPlanner.kt` の `buildElement` で、重ねた後の object をスキーマの項目の順（`effectiveFields` の順。項目に無いキーは後ろ）に並べ直す。フォームの追加・新規行・詳細文書の作成も同じ道を通るので、既存のテストの並びを確かめる'
+features:
+  - OP-03

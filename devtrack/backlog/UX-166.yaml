@@ -7,3 +7,5 @@ body: '**操作の一覧と `型名.操作名` の型名は、スキーマの en
   になる）'
 memo: '型名の既定を決めるのは `ActionPlanner.typeNameOf`。object に `entity: {type}` を書けば今でも名前は決まる（オブジェクト型）。複数型のスキーマでは、ID の形（idPattern）から要素の型を引く後退を足すか、object
   に entity を書くよう案内するかを決める'
+features:
+  - OP-02

@@ -13,3 +13,5 @@ resolutions:
     kind: 解決
 related:
   - UX-29
+features:
+  - S-02

@@ -12,3 +12,5 @@ resolutions:
     kind: 解決
 related:
   - UX-64
+features:
+  - E-01

@@ -20,3 +20,9 @@ relations:
     source: [backlog-item]
     target: [backlog-item]
     description: 重複・派生・同じ原因など、一緒に見たい指摘を参照します
+  - name: concerns
+    label: 関わる機能
+    inverseLabel: 関わる指摘
+    source: [backlog-item]
+    target: [feature]
+    description: 指摘が関わる機能（docs/FEATURES.md の行）を参照します。機能の行に未解決の指摘として出ます

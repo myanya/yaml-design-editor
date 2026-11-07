@@ -12,3 +12,5 @@ resolutions:
     note: クロス集計の値の軸の行に、列と別の見出し rows.unclassified を足した（false で出さない。書かなければ従来どおり unclassified と同じ）
     targets: FEATURES X-17・PivotViewsTest
 targets: FEATURES X-17・PivotViewsTest
+features:
+  - X-17

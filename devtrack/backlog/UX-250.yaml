@@ -10,3 +10,5 @@ resolutions:
   - date: 2026-11-04
     kind: 解決
     section: 複数文書からの構成フロー
+features:
+  - C-17

@@ -9,3 +9,5 @@ memo: '前提基盤: `Issue` に安定識別子（どの規則の・どの対象
 targets: ROADMAP R18-02・R41-05 ✅（1 件ずつの起動は入った。残りの一括は R18-02）
 related:
   - UX-04
+features:
+  - AG-26

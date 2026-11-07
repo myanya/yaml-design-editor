@@ -10,3 +10,5 @@ resolutions:
   - date: 2026-10-25
     kind: 解決
     section: 配列行の削除確認
+features:
+  - E-25

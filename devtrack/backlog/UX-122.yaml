@@ -8,3 +8,5 @@ body: '**ビューのグリッドで、セルの場所（相対パス）の表�
 memo: '`ViewGridPane` のセル: 編集可能なセルは `Slot` の直接編集（場所の表示は無い）・計算列だけ `DropdownMenu` に場所を出す。足すなら、セルの tooltip（`TooltipArea`）か、行の先頭に「原本を開く
   ↗」を1つ（行の座標は `row.document`・`row.path`）。台本 §3.5 Q5 は「セルを押して原本へ飛ぶ・計算列のメニューで場所を見る」に直した'
 targets: V-10
+features:
+  - X-06

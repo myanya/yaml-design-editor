@@ -13,3 +13,5 @@ resolutions:
     kind: 解決
 related:
   - UX-79
+features:
+  - S-24

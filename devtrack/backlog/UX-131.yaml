@@ -11,3 +11,5 @@ closed_on: 2026-10-02
 resolutions:
   - date: 2026-10-02
     kind: 解決
+features:
+  - V-09

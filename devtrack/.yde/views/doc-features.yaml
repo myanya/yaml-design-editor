@@ -50,3 +50,16 @@ columns:
           - { format: "{link}「{heading}」" }
           - { path: link }
   - { label: 内部, schemaId: feature, path: internal }
+  # 未解決の指摘: この機能を「関わる機能」で参照する指摘のうち、解決でも見送りでもないもの（ID の並び）
+  - label: 未解決の指摘
+    schemaId: feature
+    value:
+      all:
+        of: x
+        path: id
+        match:
+          - node: { entity: feature, bind: f }
+          - edge: { relation: concerns, dir: in }
+          - node: { entity: backlog-item, bind: x }
+        where:
+          - { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] }

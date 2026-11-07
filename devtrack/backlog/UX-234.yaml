@@ -12,3 +12,5 @@ resolutions:
   - date: 2026-11-02
     kind: 解決
     section: labs/rpmz の試用
+features:
+  - E-11

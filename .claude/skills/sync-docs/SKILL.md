@@ -17,7 +17,7 @@ description: コード変更後にプロジェクトドキュメント（docs/RE
    - クラス／パッケージの追加・移動・責務変更、データフロー・設計方針の変更 → architecture/ の該当する主題（部品・流れ・規律・拡張ポイント）
    - テストの追加 → その機能の `features/<ID>.yaml` の `tests`（UI のテストは `kind: ui`、`./gradlew test` に入らない検査は `kind: check`）
    - ロードマップのテーマの着手・完了 → ROADMAP の状態表と該当テーマ。完了したら本文を archive/roadmap-history.md へ移す
-   - BACKLOG の指摘の登録・解決 → devtrack で行い（devtrack/README.md「運用」）、`./gradlew devtrackDocs` で docs/BACKLOG.md と archive/backlog-closed.md を作り直す
+   - BACKLOG の指摘の登録・解決 → devtrack で行い（devtrack/README.md「運用」。関わる機能が分かれば `features` に ID を書く）、`./gradlew devtrackDocs` で docs/BACKLOG.md と archive/backlog-closed.md を作り直す
    - 規約・ビルド手順の変更 → CONVENTIONS、AGENTS.md のコマンド節
    - 新しい造語・語の意味の変更・案内先の見出しの改名 → GLOSSARY の該当行
 3. **消し忘れ**を見る: 完了した計画・移した経緯が今の姿の文書に残っていないか。設計・マニュアル・規約・機能索引・用語集・AGENTS.md（モジュールのものも） にチケット番号や日付を書き足していないか。

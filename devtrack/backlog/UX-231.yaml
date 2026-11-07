@@ -23,3 +23,5 @@ resolutions:
     section: MCP の初期化セッションの取消
 related:
   - UX-229
+features:
+  - LC-26

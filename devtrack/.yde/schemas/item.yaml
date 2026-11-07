@@ -21,6 +21,7 @@ actions:
       - { key: theme, label: テーマ, type: common#テーマ参照 }
       - { key: related, label: 関連する指摘, type: array, item: { type: common#指摘参照 } }
       - { key: targets, label: 対応先, type: common#一行の文 }
+      - { key: features, label: 関わる機能, type: array, item: { type: common#機能参照 }, description: "FEATURES.md の機能 ID（例 [X-12]）" }
     # ID を渡したときに使われていれば、同じ名前のファイルがあるので作成が止まる
     do:
       - create:
@@ -36,6 +37,7 @@ actions:
             theme: { $copy: theme }
             related: { $copy: related }
             targets: { $copy: targets }
+            features: { $copy: features }
 
   - id: change-status
     label: 状態を変える
@@ -75,7 +77,7 @@ actions:
 
   - id: resolve-item
     label: 解決にする
-    description: 未解決の指摘を解決（または見送り）にし、解決の日と解決の記録を入れます。対応先を書くと指摘の対応先も置き換えます。
+    description: 未解決の指摘を解決（または見送り）にし、解決の日と解決の記録を入れます。対応先・関わる機能を書くと、指摘のものも置き換えます。
     input:
       initial:
         date: { $copy: today, $of: context }
@@ -85,6 +87,7 @@ actions:
       - { key: date, label: 解決の日, type: common#年月日, required: true }
       - { key: note, label: 内容, type: common#文章, required: true, minLength: 1, description: 何をしたか（見送りなら理由） }
       - { key: targets, label: 対応先, type: common#一行の文 }
+      - { key: features, label: 関わる機能, type: array, item: { type: common#機能参照 }, description: "手を入れた機能（FEATURES.md の ID。書くと指摘の関わる機能を置き換える）" }
     require:
       - match: [ { node: { entity: backlog-item, bind: x } } ]
         where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
@@ -103,6 +106,8 @@ actions:
             targets: { $copy: targets }
       - when: { path: targets, exists: true }
         set: { of: it, path: targets, value: $targets }
+      - when: { path: features, exists: true }
+        set: { of: it, path: features, value: $features }
 
   - id: reopen-item
     label: 再開する

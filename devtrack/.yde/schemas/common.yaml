@@ -77,6 +77,12 @@ definitions:
     scope:
       schemaIds: [item]
     relation: relates-to
+  # 参照の型: 指摘が関わる機能（FEATURES.md の行）。線の名前は concerns。機能の行に未解決の指摘として出ます
+  機能参照:
+    type: ref
+    scope:
+      schemaIds: [feature]
+    relation: concerns
   テーマの状態:
     type: enum
     values:
@@ -161,7 +167,12 @@ definitions:
       - key: targets
         label: 対応先
         type: 一行の文
-        description: 対応した・対応する先（ROADMAP・FEATURES の項目など）。ROADMAP を移すまでは文字のまま持ちます。
+        description: 対応した・対応する先（ROADMAP の項目・テスト名など）の記録の文字。機能は「関わる機能」に参照で書きます。ROADMAP を移すまでは文字のまま持ちます。
+      - key: features
+        label: 関わる機能
+        type: array
+        description: この指摘が関わる機能（FEATURES.md の行）。未解決の指摘は、機能の行の「未解決の指摘」に出ます。
+        item: { type: 機能参照 }
       - key: closed_on
         label: 解決の日
         type: 年月日

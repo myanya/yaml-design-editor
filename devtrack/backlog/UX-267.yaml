@@ -12,3 +12,5 @@ resolutions:
     note: 項目と文書の説明では、コードの外の山括弧を文字として出すようにした（MarkdownView の literalTags）
     targets: FEATURES W-14・LiteralAnglesTest
 targets: FEATURES W-14・LiteralAnglesTest
+features:
+  - W-14

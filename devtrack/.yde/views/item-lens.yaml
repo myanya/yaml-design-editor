@@ -29,3 +29,14 @@ filters:
     mode: show
     entityType: backlog-item
     where: {path: data.status, oneOf: [discussing, in-progress]}
+  # 機能の箱（250 個）は、未解決の指摘が「関わる機能」で指すものだけ残す
+  - id: features-with-open-items
+    label: 機能は未解決の指摘があるものだけ
+    mode: hide
+    entityType: feature
+    where: {path: id, exists: true}
+    keepIfLinked:
+      via: [concerns]
+      entityType: backlog-item
+      where: {not: {path: data.status, oneOf: [resolved, declined]}}
+    default: true

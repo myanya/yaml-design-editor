@@ -14,3 +14,7 @@ resolutions:
     kind: 解決
 related:
   - UX-03
+features:
+  - I-06
+  - X-01
+  - X-04

@@ -24,5 +24,6 @@ columns:
   - label: 対応先
     schemaId: item
     value: { first: [ { path: targets }, "—" ] }
+  - { label: 関わる機能, schemaId: item, path: features }
   - { label: 解決の日, schemaId: item, path: closed_on }
   - { label: 解決の記録, schemaId: item, path: resolutions }
