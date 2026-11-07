@@ -414,7 +414,7 @@ definitions:
         type: 一行の文
         role: title
         required: true
-        description: FEATURES.md の「機能」の欄。何ができるかを 1 行で。経緯は書きません。
+        description: FEATURES.md の「機能」の欄。何の機能かと、grep の手がかりになる語彙（バッククォートの名前）だけを 100 字前後で。振る舞いの説明は指し先の manual・architecture に書き、経緯は書きません。
       - key: implementation
         label: 主な実装
         type: array

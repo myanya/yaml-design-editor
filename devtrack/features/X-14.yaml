@@ -1,5 +1,5 @@
 id: X-14
-title: 'チャート（`kind: chart`＝元の表〔grid / matrix〕の行を横軸の項目・数の列を系列に。棒・積み上げ棒・横棒・積み上げ横棒・折れ線・面・積み上げ面・円・散布図〔`x` の数の列が横軸・`label` が点の名前・`scale` で軸を対数に〕。台帳のビュータブ・文書ビューの区画 `chart`・ダッシュボードの区画に置ける。文書ビューの区画では `rows` で開いた文書の配列から描ける〔`x`・`series` は要素のキー〕。押すとセルの材料〔集めた要素〕が出て詳細か原本へ。出し方は `drill`＝popup / below / right / none。項目の並びは `order`＝系列の値の順。CLI `view` と `read_view` は数を返す）'
+title: 'チャート（`kind: chart`＝元の表〔grid / matrix〕から・棒／折れ線／面／円／散布図ほか〔`x`・`label`・`scale`〕・置き場所はビュータブ・区画 `chart`〔`rows`・`series`〕・ダッシュボード・`drill`・`order`・CLI `view`・`read_view`）'
 implementation:
 - path: view/chart/ChartViewKind.kt
   module: app-core

@@ -1,5 +1,5 @@
 id: S-02
-title: '型システム: 基底の種類 14 種（表現の基底 9＋意味の基底型 `id` / `ref` / `date` / `time` / `datetime`。存在の検証）＋組込みの定義体 `text` / `line` / `word`'
+title: 型システム（基底の種類 14 種＝表現の基底 9 と意味の基底型 `id` / `ref` / `date` / `time` / `datetime`・組込みの定義体 `text` / `line` / `word`）
 implementation:
 - path: semantic-core/schema/Fields.kt
   module: semantic-core

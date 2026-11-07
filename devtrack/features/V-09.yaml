@@ -1,5 +1,5 @@
 id: V-09
-title: パターン制約（`constraints`・`match` / `also` / `where` / `expect` / `count` / `same` / `check`・否定と「または」・値の式・順序は型で・`repeat`・`forAll`）
+title: パターン制約（`constraints`・`match` / `also` / `where` / `expect` / `count` / `same` / `check`・否定と「または」・値の式・`repeat`・`forAll`）
 implementation:
 - path: semantic-core/schema/QuerySpec.kt
   module: semantic-core

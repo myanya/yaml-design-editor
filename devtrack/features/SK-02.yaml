@@ -1,5 +1,5 @@
 id: SK-02
-title: インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`・JSON を木のまま `input.tree`・行の番号 `$index`）
+title: インポート（xlsx / csv / json / markdown / docx → 変更セット・`mapping`・`build`・`target.path` / `target.id` / `target.key`・`input.columns`・`input.tree`・`$index`）
 implementation:
 - path: skill/Importer.kt
   module: app-core

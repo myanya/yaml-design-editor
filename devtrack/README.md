@@ -76,6 +76,7 @@ docs/FEATURES.md はエージェント向けの索引で、行の原本は `feat
 ./gradlew runCli -q --args="action devtrack register-feature --param family=LC --param title=機能の要約 --param path=server/LocalServer.kt --param module=local-server --param design_label=ローカル接続 --param design_link=architecture/local-connections.md --param manual_link=manual/local-connections.md --param manual_heading=有効・無効と状態 --apply"
 ```
 
+- 機能の欄（`title`）には、何の機能かと grep の手がかりになる語彙（バッククォートの名前）だけを 100 字前後で書きます。振る舞いの説明は、操作の説明と設計の指し先（manual・architecture）に書きます。
 - 登録で ID を省くと、その系統の接頭辞の中で最大の番号の次を振ります。テスト名（`test`）を省くと「手動」の行になります。2 つ目からの場所やテストは文書に足します。
 - 項目は、機能の欄（`title`）・主な実装（`implementation`。`path` と補足 `detail`・モジュール `module`、場所の形にならないものは `text`）・テスト（`tests`。`name`・種類 `kind`・補足 `note`）・手動で確かめる印（`manual_check`・場面 `manual_check_note`）・ほかのテストもある（`more_tests`）・設計（`design`。`label` と `link`）・操作の説明（`manual`。`link` と見出し `heading`）か内部の基盤の印（`internal: true`）です。
 - 操作の説明は、その機能を変えたら直す manual の見出しです。利用者が操作しない内部の基盤（共通状態・検証の組み立てなど）だけ、代わりに `internal: true` と書きます。

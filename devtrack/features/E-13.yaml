@@ -1,5 +1,5 @@
 id: E-13
-title: '配列と map のテーブル表示（適否の自動判定〔選択肢で項目が変わる要素は表にしない〕と `display: table / list`・セル編集・展開フォーム・列幅は見出しと値から・行の操作は取っ手と ⋯・参照セルは ID と参照先の名前）'
+title: '配列と map のテーブル表示（自動判定と `display: table / list`・セル編集・展開フォーム・列幅・行の操作は取っ手と ⋯・参照セルは名前つき）'
 implementation:
 - path: ui/form/FormTables.kt
   detail: '`ObjectTable`・`ArrayRowMenu`・`RefCell`'

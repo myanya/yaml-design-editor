@@ -1,5 +1,5 @@
 id: X-12
-title: 'レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き・画面で入れる箱の絞り込み `filters`（つながりで残す例外つき）・表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示）'
+title: 'レンズの見え方の定義（`_views` の `kind: lens`＝矢印の向き・箱の絞り込み `filters`〔つながりで残す `keepIfLinked`〕・関係名のリント・改名の警告）'
 implementation:
 - path: semantic-core/semantic/LensViews.kt
   module: semantic-core

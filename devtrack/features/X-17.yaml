@@ -1,5 +1,5 @@
 id: X-17
-title: 軸を値の式で広げるクロス集計（`rows.value`＝起点の要素ごとに計算した値を行に・`cells.columns.value`＝要素ごとに計算した値を列に〔`label` で見出しの式・`order` で先に並べる値〕。月の文書なしで受付日の年月ごとの集計。値の順序の種類で並ぶ・値の軸の行は原本を持たない・値が得られない行の見出し `rows.unclassified`・ヘッダは解決した行から `columnsOf`）
+title: 値の式で軸を広げるクロス集計（行 `rows.value`・列 `cells.columns.value`〔見出し `label`・並び `order`〕・未分類 `rows.unclassified`・見出しは `columnsOf`）
 implementation:
 - path: semantic-core/semantic/VirtualViews.kt
   detail: '`resolvePivot` / `columnsOf`'

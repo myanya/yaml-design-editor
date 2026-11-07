@@ -1,5 +1,5 @@
 id: E-01
-title: 'スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI）'
+title: 'スキーマ駆動フォーム（基底の種類別の編集欄・型のヒント〔複数行・入力欄の案内・`format`〕・必須・説明は Markdown・id の補完と連番の提案・桁区切り `display: grouped`・残留値の修復）'
 implementation:
 - path: ui/form/FormFields.kt
   module: desktop

@@ -1,5 +1,5 @@
 id: X-10
-title: 'クエリ行（`rows: match:` の束縛行・結合先ノードの値をセル化・行の同一性は束縛値の組・上限は `limit` を書いたときだけで打ち切りを示す・受け取る値 `params` を where に `$名前` で・`order` を書けば行キーの要素の出現で並べ、並べてから切る）'
+title: 'クエリ行（`rows: match:` の束縛行・結合先の値をセルに・上限 `limit`・受け取る値 `params`〔where に `$名前`〕・並び `order`）'
 implementation:
 - path: core/Views.kt
   detail: '`rowsQuery`'

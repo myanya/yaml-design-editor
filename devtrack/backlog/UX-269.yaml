@@ -1,0 +1,11 @@
+id: UX-269
+title: 機能索引（FEATURES.md）を系統ごとのファイルに分けるか
+status: discussing
+origin_on: 2026-11-07
+origin: FEATURES を devtrack へ移す作業（2b-4）でのオーナーとの議論
+body: '**機能索引を系統ごとのファイルに分けるか**: エージェントは grep で引くので長くても影響は少ないが、系統ごと（W・E・S …）に分けてもよいのでは、とオーナーが感じている。FEATURES の管理の運用がこなれてから議論する（2026-11-07
+  オーナー）'
+memo: 分けるなら docs/features/<系統>.md を生成し、FEATURES.md は系統の表と引き方だけにする。AGENTS.md・CONVENTIONS・docs/README.md の「FEATURES の該当行」の案内と、DocReferencesTest
+  の参照元を直す。生成はレポートを系統ごとに分けるか、出力先を受け取る値で変える
+related:
+  - UX-197

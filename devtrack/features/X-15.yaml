@@ -1,5 +1,5 @@
 id: X-15
-title: レポート（`.yde/reports`＝変換で値の一式を作り〔`$view` でビューの行・`$where`・`$one`〕、ひな形〔`{パス}`・`{パス:形}`・表のセル `{パス:cell}`・`{#each}`〔並びの区切り `more`〕・`{#if}`〕にはめ込んで Markdown などの文字にする。出力は派生物で `output` の場所へ。CLI `report`・台帳のビュータブ）
+title: レポート（`.yde/reports`＝変換〔`$view`・`$where`・`$one`〕→ ひな形〔`{パス}`・`{パス:形}`・`{パス:cell}`・`{#each}`〔`more`〕・`{#if}`〕・出力 `output`・CLI `report`・台帳のビュータブ）
 implementation:
 - path: semantic-core/semantic/TextTemplate.kt
   module: semantic-core
