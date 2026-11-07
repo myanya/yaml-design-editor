@@ -4,3 +4,6 @@ status: discussing
 origin_on: 2026-11-04
 origin: AWS設計ラボ
 memo: flowのレーンは1段、lensの入れ子は原本の保有。表示用の階層射影を原本の所有と区別して設計する（[不足の整理](../labs/aws-webapp/CAPABILITIES.md)）
+features:
+  - C-18
+  - X-03

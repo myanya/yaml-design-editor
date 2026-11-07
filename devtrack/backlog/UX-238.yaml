@@ -8,3 +8,5 @@ body: '**ひな型の小さな穴**: (1) 規則の `build: ~` が「build が無
 memo: 規則の読み込みで `build` のキーがあれば null も「null を出すひな型」とする
 related:
   - UX-236
+features:
+  - C-15

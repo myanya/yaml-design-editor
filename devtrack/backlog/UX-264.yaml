@@ -7,3 +7,5 @@ memo: '`WInputMethod.openCandidateWindow` の対象参照が null；実行 JDK�
   に UX-264 へ振り直した）'
 related:
   - UX-171
+features:
+  - E-22

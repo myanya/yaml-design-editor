@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-08-02
 origin: CLI確認
 memo: コンソールのコードページ問題。`chcp 65001` で回避可。恒久策はファイル出力オプション（`--out`）か起動スクリプトでのコードページ設定
+features:
+  - C-06

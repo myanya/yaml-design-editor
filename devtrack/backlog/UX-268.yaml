@@ -7,3 +7,5 @@ body: '**バージョン表示が manual に無い**: FEATURES の C-16（外部
   manual/README.md「ビルドと起動」を指している'
 memo: manual/README.md「ビルドと起動」にスタート画面の版の表示と CLI version を 1〜2 行足す
 targets: FEATURES-C-16
+features:
+  - C-16

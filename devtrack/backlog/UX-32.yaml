@@ -9,3 +9,6 @@ memo: 検証・フォームはディスクのスキーマ基準（UX-03 のオ�
 related:
   - UX-03
   - UX-07
+features:
+  - S-05
+  - V-04

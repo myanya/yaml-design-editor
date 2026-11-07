@@ -6,3 +6,5 @@ origin: labs/kakeibo の整備（計画 2-3）
 body: '**クロス集計の細部**: 列の軸を値（`columns: { path, values }`）にしたとき、`values` に label を書かないと見出しが値の文字のまま（enum の label を自動で使いたい）。行の軸はエンティティだけで、値（区分など）を行にした「区分×費目」が書けない'
 memo: '見出し: パースで `of` の束縛のエンティティ型からスキーマを引き、`path` の項目の enum の label を使う（リントの `idElements` / `staticFieldAt` と同じ引き方）。行の軸に値:
   行の集合を索引の ID からでなく決まった値から作る別の行の種類が要る（`VirtualRow` の id が値になる）。着手はオーナー判断'
+features:
+  - X-16

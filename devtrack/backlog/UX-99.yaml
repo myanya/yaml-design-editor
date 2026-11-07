@@ -9,3 +9,5 @@ memo: 'エラー級の出現側報告（UX-98 追補）で実用上は緩和済�
 targets: P28 候補
 related:
   - UX-98
+features:
+  - V-04

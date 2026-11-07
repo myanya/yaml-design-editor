@@ -4,3 +4,6 @@ status: discussing
 origin_on: 2026-10-15
 origin: 公開準備
 memo: CSV の式対策、リンク起動の許可、子プロセスの停止、外部 HTTP の制限。0.1 の前提は manual/limits.md
+features:
+  - SK-03
+  - SK-07

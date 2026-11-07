@@ -4,3 +4,6 @@ status: discussing
 origin_on: 2026-08-08
 origin: S1第1回
 memo: 決定論的推測（S-16）のドラフトを初期値として、メタスキーマのAI生成（A-03）へ渡す「AIで洗練」導線。推測ダイアログ・設計スペースにオプションを置く
+features:
+  - A-03
+  - S-16

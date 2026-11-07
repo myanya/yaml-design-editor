@@ -13,3 +13,6 @@ memo: '足りない部品は3つ: ①**検査の前提条件**（「開始画面
 targets: R29-14・R29-15（architecture/checks.md「定義層の 3 段」）
 related:
   - UX-110
+features:
+  - V-12
+  - V-14

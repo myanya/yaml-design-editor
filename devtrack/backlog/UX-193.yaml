@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-10-25
 origin: README 改訂
 memo: ダッシュボード追加時の直し漏れ；manual/README.md の文を 5 スペースにそろえる（FEATURES W-09 は 5 スペースと書いている）
+features:
+  - W-09

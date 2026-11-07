@@ -6,3 +6,5 @@ origin: ソース規則テストの実装中
 body: '**app.validate の `Readiness.kt` が `core.Workspace` を使い、validate と core が循環している**（設計は index・schema・validate を core より下に置く）'
 memo: '`Readiness` が要るものを core より下の型（索引・スキーマ・文書の読み出し）に絞って受け取るか、`Readiness` を core へ移す。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す'
 targets: P47
+features:
+  - V-13

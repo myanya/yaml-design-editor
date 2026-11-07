@@ -6,3 +6,5 @@ origin: テーブル定義書の検討（todos-sysdev-tablemodel）
 body: '**CLI の `view` の `--param` はダッシュボードの共有の入力だけで、グリッド（`params` を持つビュー）には渡らない**（`view ws tm-table-columns --param table=TBL-TODO`
   としても全行が返る。画面のビュータブは上の欄で渡せる）'
 memo: '`ViewCommand.kt` のグリッドの経路でも `--param` を読み、`Views.resolve` の `params` に渡す（ダッシュボードと同じ `stringFlags`）。レポートの `$view` にも値を渡す案は別の検討（テーブル定義書の提案）'
+features:
+  - C-07

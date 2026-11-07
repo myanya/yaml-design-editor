@@ -8,3 +8,6 @@ memo: ①システムプロンプトの allowedPaths 明示強化・書込拒否
   論点3）
 theme: T-01
 targets: T-01
+features:
+  - AG-04
+  - AG-13

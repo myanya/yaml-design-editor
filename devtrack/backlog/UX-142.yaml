@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-10-11
 origin: フロー設計レビュー
 memo: '`Cli.kt`で解決したPathをそのまま渡すため、WS内は絶対パスになる。WS内の相対化とWS外入力の扱いを分けて検討する'
+features:
+  - C-15

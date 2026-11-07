@@ -8,3 +8,5 @@ body: '**値の式で、配列の要素を条件で選べない**: 敵キャラ�
 memo: '案: `each` に `where`（いまの要素の条件。クエリの `where` と同じ書き方で `of` を省く）を足す。例 `{first: [ {max: {each: {path: traits}, where: [ {path:
   code, equals: 11}, {path: dataId, equals: $elm} ], value: {path: value}}}, 1 ]}` を、グリッドの「要素ごとに列を広げる」（`each: {idPattern:
   "ELM-*", bind: elm}`）に書く。Core Calculus の値の式（ADR-0010）に 1 語足すので、設計文書の「値の式」と CONVENTIONS §9 に沿って入れる'
+features:
+  - X-09

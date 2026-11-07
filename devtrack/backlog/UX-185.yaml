@@ -6,3 +6,5 @@ origin: TODO試用
 memo: 対象の選択・共通入力と個別入力・対象別の利用可否・確認・途中失敗・Undoの単位を検討する
 theme: T-03
 targets: T-03
+features:
+  - OP-05

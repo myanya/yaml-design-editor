@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-10-15
 origin: 公開準備
 memo: POI 更新に加え、サイズ・行数・処理時間の上限を検討。0.1 は内容を確認した入力を前提とする
+features:
+  - SK-02

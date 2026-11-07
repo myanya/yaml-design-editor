@@ -7,3 +7,5 @@ body: '**配列の書き出しで、要素のキーの並びを既存のファ�
   2 通り）。`build` は書いた順に並べるため、値が同じでも並びの違う要素の行が差分に出る（往復で States・Enemies だけがバイト単位で一致しない）'
 memo: '書き出し先の既存の JSON の同じ番号の要素（`output.index`）のキーの並びに、組み立てた object の並びを合わせる選択肢（`output.keyOrder: existing`）。`mode: merge`
   が既存のキーの位置を保つのと同じ考え方'
+features:
+  - SK-03

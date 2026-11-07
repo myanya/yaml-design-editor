@@ -4,3 +4,5 @@ status: discussing
 origin_on: 2026-11-04
 origin: AWS設計ラボ
 memo: '`$eachEntry`は既存キーを保持するため、動的キーと衝突検査を持つ変換が必要。型ごとのProperties・参照展開は別の生成契約として扱う（[生成入力](../labs/aws-webapp/GENERATION.md)）'
+features:
+  - C-15

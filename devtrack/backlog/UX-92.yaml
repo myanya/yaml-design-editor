@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-09-02
 origin: S1第2回
 memo: '実行記録（_runs）で頻度・文脈を確認してから: ツール応答の一覧提示形式・レシピ（P19）・read_document の不存在エラー文言（「一覧にあるファイルだけを指定」の案内）の改善候補'
+features:
+  - AG-05

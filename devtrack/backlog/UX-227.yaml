@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-10-31
 origin: 作業コピーの確認
 memo: '`WorkingCopy.applyOps` の索引破棄は正常終了時だけ。内部の部分成功方針とあわせて検討する。外部作業は要求全体を独立コピーで採否するため持ち越さない'
+features:
+  - AG-06

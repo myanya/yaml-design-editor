@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-09-02
 origin: S1第2回
 memo: '設計スペース「スキーマ」新規作成の雛形で `root.type: object` を初期値にする（推測経由のドラフトは既に object）'
+features:
+  - S-05

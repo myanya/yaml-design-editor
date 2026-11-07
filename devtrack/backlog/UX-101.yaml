@@ -11,3 +11,6 @@ memo: '原因の正体: **不足＝不在には座標がない**。R28-05a の�
 targets: UX-100・R28-05 系
 related:
   - UX-100
+features:
+  - V-04
+  - V-08

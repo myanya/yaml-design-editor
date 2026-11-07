@@ -8,3 +8,6 @@ memo: 手動実行では上限到達時の未提出ドラフトをレビュー�
   の失敗分類から設計
 theme: T-01
 targets: T-01
+features:
+  - AG-04
+  - AG-13

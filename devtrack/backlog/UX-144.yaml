@@ -4,3 +4,6 @@ status: todo
 origin_on: 2026-10-11
 origin: 関係一覧の作成
 memo: '`ComputedCellLink`が`cellText`を使うため、通常の参照配列のように内容を要約しない。来歴の遷移を保ちつつ値の要約表示を検討する'
+features:
+  - X-06
+  - X-09

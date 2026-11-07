@@ -9,3 +9,6 @@ memo: '条件の比べる値に入力の場所を書けるようにする（`{pa
 targets: UX-236
 related:
   - UX-236
+features:
+  - C-15
+  - SK-02

@@ -5,3 +5,6 @@ origin_on: 2026-08-09
 origin: R18-04実装
 body: '**リトライ待機中の進捗が見えない**: `AiHttp` の 429 自動リトライ（最大60秒/回）の間、実行ログはターン表示のまま止まって見え、待機なのかハングなのか区別できない'
 memo: '`AiHttp` に通知フック（例 `onRetry(status, waitMillis, attempt)`）を設け、`AutomationEngine` のログと実行ダイアログへ「レート制限のため n 秒待機中（再試行 m/3）」を表示する'
+features:
+  - A-13
+  - AG-18

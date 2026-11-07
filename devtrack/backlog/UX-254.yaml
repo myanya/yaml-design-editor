@@ -4,3 +4,5 @@ status: discussing
 origin_on: 2026-11-04
 origin: AWS設定のパラメータ表
 memo: 現在は資源ごとの全設定フォームとサービス別横表・設計書を使用。IDのない設定項目を原本へ対応付けて行へ展開する表示を検討する
+features:
+  - X-07
