@@ -1,0 +1,6 @@
+id: UX-226
+title: 変更セット YAML の `create.content` 内のコメントは読み込み時に失われる
+status: todo
+origin_on: 2026-10-31
+origin: 外部確定の入力コピー検証
+memo: '`ChangeSets.parse` は raw 値経由で組み直す。YAML 交換形式での表記保持は別途検討する。作業コピーの YNode を直接受ける外部確定ではコピー時に保持する'

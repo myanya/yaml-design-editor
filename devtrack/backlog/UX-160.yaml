@@ -1,0 +1,7 @@
+id: UX-160
+title: sysdev-template の画面導出チェックが外部連携・自動通知にも画面を要求する
+status: todo
+origin_on: 2026-10-12
+origin: ユースケース一覧整備
+body: '**sysdev-template の画面導出チェックが外部連携・自動通知にも画面を要求する**'
+memo: '`_schemas/usecase-list.yaml` の `uc-realized-by-screen` の対象を対話操作に絞り、非対話UCはAPI・処理への導出で検証する'

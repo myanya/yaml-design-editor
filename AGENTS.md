@@ -38,6 +38,7 @@ Web のビルドは Gradle が固定版の Node・npm を取得し、`web-ui/pac
 - 着手前に読むのは [docs/FEATURES.md](docs/FEATURES.md) の該当行と [docs/architecture/](docs/architecture/README.md) の該当する主題。
 - このプロジェクトで決めた語（定義体・保有・受け手・射影など）は [docs/GLOSSARY.md](docs/GLOSSARY.md) で引く。
 - 記録（[docs/archive/](docs/archive/README.md)）は経緯を調べるときだけ読む。
+- 開発管理を YDE で行う試行は [devtrack/](devtrack/README.md)。いまは docs/BACKLOG.md の写しで、指摘の原本は BACKLOG.md のまま（devtrack のファイルを直して済ませない）。
 
 ## ワークフロー
 

@@ -1,0 +1,7 @@
+id: UX-149
+title: Markdown をアプリ内で編集したい
+status: discussing
+origin_on: 2026-10-11
+origin: P36 段階 1
+body: '**Markdown をアプリ内で編集したい**（案 B。今は表示だけで、編集は「外部のエディタで開く」）'
+memo: Undo の履歴は YAML 文書前提（workspace-core の単一所有）。テキスト文書の履歴を足すか、保存までの簡単な取り消しに留めるかの設計判断が要る

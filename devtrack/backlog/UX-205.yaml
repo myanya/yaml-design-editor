@@ -1,0 +1,8 @@
+id: UX-205
+title: エージェントの `read_view` はダッシュボードの共有の入力を受け取れず、定義の default だけで解決する
+status: todo
+origin_on: 2026-10-26
+origin: ダッシュボードの共有の入力（inputs）を入れたとき
+body: '**エージェントの `read_view` はダッシュボードの共有の入力を受け取れず、定義の default だけで解決する**（CLI の `view` は `--param` で渡せる。画面も欄がある）'
+memo: '`read_view` に `params`（名前→値の辞書）を足し、`Dashboards.resolve(..., inputs)` へ渡す。空文字は「絞らない」。ツールの説明文にも inputs の名前を出す（`viewText`
+  のダッシュボード一覧に inputs を添える）'

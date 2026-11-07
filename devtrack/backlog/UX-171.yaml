@@ -1,0 +1,6 @@
+id: UX-171
+title: 'Windows の IME 候補表示で `NullPointerException: peer` が発生する'
+status: todo
+origin_on: 2026-10-18
+origin: フォーム編集のエラーログ
+memo: '`WInputMethod.openCandidateWindow` の対象参照が null；実行 JDK・IME・フォーカス移動の再現条件を確認し、配列描画の例外とは別に切り分ける'

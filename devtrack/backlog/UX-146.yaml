@@ -1,0 +1,8 @@
+id: UX-146
+title: '`TabRow` が非推奨'
+status: todo
+origin_on: 2026-10-11
+origin: P36 段階 0
+body: '**`TabRow` が非推奨**（`PrimaryTabRow` / `SecondaryTabRow` へ。台帳・実行・スキーマ設計・右パネル・エディタの 5 箇所）と **`LocalClipboardManager` が非推奨**（`LocalClipboard`＝suspend
+  版へ。スキーマ設計のコピー）'
+memo: 置き換えるとタブの下線の描き方が変わるため見た目を確かめて進める。クリップボードは `rememberCoroutineScope` 経由に

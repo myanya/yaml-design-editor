@@ -1,0 +1,139 @@
+id: common
+name: 共通の型
+kind: library
+description: 開発管理で使う型を 1 か所にまとめます。指摘とテーマの ID・状態・日付と文の型（値の型）と、指摘とテーマの形と検査（オブジェクト型）です。
+definitions:
+  # ---- 値の型 ----
+  指摘ID:
+    type: id
+    pattern: "^UX-[0-9]+$"
+    placeholder: UX-001
+    sample: UX-258
+    description: 「UX-」と番号。docs/BACKLOG.md の ID をそのまま使い、ファイル名（backlog/<ID>.yaml）にもなります。
+  テーマID:
+    type: id
+    pattern: "^T-[0-9]{2}$"
+    placeholder: T-01
+    sample: T-01
+    description: 「T-」と 2 桁の数字。複数の指摘が絡む横断課題の番号です。
+  # 参照の型: 候補と検証の対象をテーマに限定し、線の名前（関係）を bundled-in にします
+  テーマ参照:
+    type: ref
+    idPattern: "T-*"
+    scope:
+      schemaIds: [theme]
+    relation: bundled-in
+    description: この指摘を束ねるテーマ。テーマに入っていなければ省略します。
+  年月日:
+    type: date
+    format: "yyyy年M月d日"
+    description: YYYY-MM-DD 形式で入力します（例 2026-11-07）。
+  一行の文:
+    type: line
+  文章:
+    type: text
+    rows: 4
+  # 状態: 保存する値は英語、画面の表示は BACKLOG.md と同じ絵文字と語
+  指摘の状態:
+    type: enum
+    values:
+      - { value: todo, label: 📋 未着手 }
+      - { value: discussing, label: 💬 議論待ち }
+      - { value: in-progress, label: 🚧 対応中 }
+      - { value: when-needed, label: ⏳ 必要になったら }
+      - { value: resolved, label: ✅ 解決 }
+      - { value: declined, label: ❌ 見送り }
+  テーマの状態:
+    type: enum
+    values:
+      - { value: discussing, label: 議論待ち }
+      - { value: concept, label: 構想 }
+      - { value: on-hold, label: 保留 }
+
+  # ---- オブジェクト型 ----
+  # 指摘: 1 件 1 ファイル。この形の要素がエンティティ backlog-item の定義（誕生）
+  指摘:
+    type: object
+    label: 指摘
+    entity: { type: backlog-item, defines: true }
+    fields:
+      - key: id
+        label: ID
+        type: 指摘ID
+        required: true
+      - key: title
+        label: 件名
+        type: 一行の文
+        role: title
+        required: true
+        description: 1 行の要約。BACKLOG.md の「指摘」の欄の太字の部分（太字が無ければ欄の全体）です。
+      - key: status
+        label: 状態
+        type: 指摘の状態
+        required: true
+        default: todo
+      - key: origin_on
+        label: 起点の日
+        type: 年月日
+        required: true
+        description: 指摘を見つけた日。BACKLOG.md の「起点」の欄の先頭の日付です。
+      - key: origin
+        label: 起点
+        type: 一行の文
+        description: 指摘を見つけた場面（作業・試験・レビュー）。「起点」の欄の日付より後ろです。
+      - key: body
+        label: 指摘
+        type: 文章
+        description: 件名だけで足りないときの本文。BACKLOG.md の「指摘」の欄をそのまま写します（件名が欄の全体なら省きます）。
+      - key: memo
+        label: 技術メモ
+        type: 文章
+        description: 対応の当たり。BACKLOG.md の「技術メモ（対応の当たり）」の欄です。
+      - key: theme
+        label: テーマ
+        type: テーマ参照
+      - key: targets
+        label: 対応先
+        type: 一行の文
+        description: ROADMAP・FEATURES の項目など。いまは文字のまま持ちます（ROADMAP を移すまで参照にしません）。
+    # 型の検査: 指摘ごとに評価する。いまの BACKLOG.md の運用（docs/BACKLOG.md「運用」）をそのまま検査にしたもの
+    constraints:
+      - id: when-needed-has-memo
+        description: 「必要になったら」の指摘には、実装の当たりを技術メモに残すこと
+        where:
+          - { path: status, equals: when-needed }
+          - { path: memo, empty: true }
+        expect: absent
+        level: warning
+        message: "「必要になったら」の指摘「{id}」に、実装の当たり（技術メモ）がありません"
+      - id: closed-moved-to-record
+        description: 解決・見送りの指摘は台帳に残さず、記録（docs/archive/backlog-closed.md）へ移すこと
+        where:
+          - { path: status, oneOf: [resolved, declined] }
+        expect: absent
+        level: warning
+        message: "解決・見送りの指摘「{id}」が台帳に残っています。記録へ移します"
+
+  # テーマ: 複数の指摘が絡む横断課題。この形の要素がエンティティ theme の定義
+  テーマ:
+    type: object
+    label: テーマ
+    entity: { type: theme, defines: true }
+    fields:
+      - key: id
+        label: ID
+        type: テーマID
+        required: true
+      - key: title
+        label: 名前
+        type: 一行の文
+        role: title
+        required: true
+      - key: status
+        label: 状態
+        type: テーマの状態
+        required: true
+      - key: summary
+        label: 要旨
+        type: 文章
+        description: テーマの最初の段落。論点と方策の本文は docs/BACKLOG.md「テーマ管理」にあります。

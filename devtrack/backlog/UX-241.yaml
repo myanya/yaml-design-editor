@@ -1,0 +1,10 @@
+id: UX-241
+title: 値の式で、配列の要素を条件で選べない
+status: discussing
+origin_on: 2026-11-02
+origin: labs/rpmz 段階 4（敵 × 属性の有効度）
+body: '**値の式で、配列の要素を条件で選べない**: 敵キャラの特徴（`traits`）のうち「種類 11（属性有効度）で属性が ELM-03」の要素の倍率を読みたいが、値の式に要素を選ぶ書き方が無い（`each` は全要素に当てるだけ、`all`
+  の照合は ID のある要素だけ）。そのため、計画の見せ場「敵 × 属性の有効度」の表（行＝敵キャラ・列＝属性・セル＝倍率。書いていない属性は 100%）を作れない'
+memo: '案: `each` に `where`（いまの要素の条件。クエリの `where` と同じ書き方で `of` を省く）を足す。例 `{first: [ {max: {each: {path: traits}, where: [ {path:
+  code, equals: 11}, {path: dataId, equals: $elm} ], value: {path: value}}}, 1 ]}` を、グリッドの「要素ごとに列を広げる」（`each: {idPattern:
+  "ELM-*", bind: elm}`）に書く。Core Calculus の値の式（ADR-0010）に 1 語足すので、設計文書の「値の式」と CONVENTIONS §9 に沿って入れる'

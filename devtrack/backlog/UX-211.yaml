@@ -1,0 +1,7 @@
+id: UX-211
+title: カーネルの `RefactoringImpact.collectMentions`（フィールド改名の言及）が `projection` というキーを特別に扱っている
+status: todo
+origin_on: 2026-10-28
+origin: ビューの種類の差し込み口（R47-61 段 2）中
+body: '**カーネルの `RefactoringImpact.collectMentions`（フィールド改名の言及）が `projection` というキーを特別に扱っている**（flow のキー名。flow は差し込み口を通る種類になったが、ここは種類でなくキー名で見るので残した）'
+memo: フィールド改名の言及も差し込み口（`mentionSites` か、改名用の口）に寄せるかを決める。寄せるなら golden（FlowRefactoringGoldenTest）で同じ計画になることを確かめる

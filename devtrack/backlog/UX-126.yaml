@@ -1,0 +1,12 @@
+id: UX-126
+title: 公開前の残件
+status: in-progress
+origin_on: 2026-09-22
+origin: 公開準備
+body: '**公開前の残件**（2026-09-22 の棚卸し。済み: LICENSE〔MIT〕・Gradle Wrapper の追跡・`samples/`（公開用）と `labs/`（実験場）の用意・`specs/` への参照の削除。**2026-09-23
+  に済み**: memo.md の吸収と削除〔未登録の項目は無し＝UX-34・UX-64〜95・R9-08・所感メモに登録済み。幕6 の未評価はUX-SCENARIOS の実施履歴へ〕・バージョンの2層化〔外部 `appVersion`＝メジャー.マイナー.パッチ／内部＝yyyymmdd.ビルド番号を
+  git から算出。CONVENTIONS §5・FEATURES C-16〕・`.git/refs/codex/` の壊れた参照の削除〔ローカル〕・README の分割〔入口＋docs/MANUAL.md〕）: ①旧ディレクトリの削除（`sample-workspace/`・`software-template/`・`system-development-template/`・`specs/`・`scratchpad/`。削除したら
+  `.gitignore` の該当行も消す）②CI（`./gradlew test` を回す GitHub Actions）③CLAUDE.md の公開向け見直し（内部向けの作業指示を含む）④docs/ の移行台帳・計画書の扱い（開発記録と明記するか
+  docs/history/ へ寄せる）'
+memo: 各項目は独立。①は履歴に無いディレクトリなので削除だけで済む。`specs/20-semantics/calculus/` の 4 つの YAML（評価モデル・写像表・Rewrite・定義層）は設計判断の詳細を持つので、残すなら削除前に
+  docs/ へ写す

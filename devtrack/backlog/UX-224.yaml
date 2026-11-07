@@ -1,0 +1,8 @@
+id: UX-224
+title: ビューのメタスキーマ（`builtin-schemas/view.yaml`）の `rows.limit` の説明が「既定 100」のまま
+status: todo
+origin_on: 2026-10-31
+origin: クエリ行の並び
+body: '**ビューのメタスキーマ（`builtin-schemas/view.yaml`）の `rows.limit` の説明が「既定 100」のまま**（ビューのクエリ行は `limit` を書かなければ上限なし。100 はパターン制約や
+  CLI `query` の既定）'
+memo: 説明を「省略すると上限なし。書くと打ち切り、全行数を示す」に直す

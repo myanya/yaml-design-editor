@@ -1,0 +1,9 @@
+id: UX-210
+title: repo-tests のテストは拡張の登録をクラスごとに `Extensions.install(DesktopExtensions.registry)` で入れている
+status: todo
+origin_on: 2026-10-28
+origin: ビューの種類の差し込み口（R47-61）中
+body: '**repo-tests のテストは拡張の登録をクラスごとに `Extensions.install(DesktopExtensions.registry)` で入れている**（登録簿は大域。入れ忘れたテストクラスは同じ JVM
+  で先に走ったクラス次第で通ったり落ちたりしうる。2026-10-30 に chart・flow・文字の形式を組込みにした〔ADR-0015〕ので、入れるのは Excel・Word を使う ImportExportTest と WorkspaceTemplatesTest
+  だけになった）'
+memo: repo-tests のテストの起動時に desktop の一覧を 1 回入れる仕組み（JUnit Platform の起動の聞き手など）を検討する。入れない前提のテストは今のように空の登録簿を入れて後で戻す

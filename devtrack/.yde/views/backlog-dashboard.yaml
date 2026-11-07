@@ -1,0 +1,51 @@
+id: backlog-dashboard
+name: 開発管理
+kind: dashboard
+default: true
+description: 未解決の指摘を状態ごとに数え、一覧から指摘の個票へ進みます。段階 0 では docs/BACKLOG.md の写しです（直すのは BACKLOG.md）。
+sections:
+  - id: discussing
+    label: 議論待ち（オーナーの判断）
+    view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, equals: discussing }
+      expect: exists
+  - id: in-progress
+    label: 対応中
+    view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, equals: in-progress }
+      expect: exists
+  - id: todo
+    label: 未着手
+    view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, equals: todo }
+      expect: exists
+  - id: when-needed
+    label: 必要になったら
+    view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, equals: when-needed }
+      expect: exists
+  - id: by-month
+    label: 起点の月×状態
+    view: backlog-month-status
+  - id: themes
+    label: テーマ
+    view: theme-list
+  - id: all
+    label: すべての指摘
+    view: backlog-list

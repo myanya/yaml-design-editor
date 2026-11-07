@@ -1,0 +1,6 @@
+id: UX-247
+title: CLIの `view` 一覧に出るレンズをID指定で読むと「見つかりません」になる
+status: todo
+origin_on: 2026-11-03
+origin: ERサンプルの確認
+memo: '`ViewCommand` は `lensViews` を一覧に含めるが、ID指定の分岐がない。`view samples/diagrams er-lens` で再現。記法IDの読み取りとGUIのレンズは使える'

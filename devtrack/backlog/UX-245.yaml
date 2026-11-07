@@ -1,0 +1,7 @@
+id: UX-245
+title: 構成ファイルを同じ更新時刻で書き換えると、既存の取り込み経路が変更を見落としうる
+status: todo
+origin_on: 2026-11-03
+origin: 読込最適化の確認
+body: '**構成ファイルを同じ更新時刻で書き換えると、既存の取り込み経路が変更を見落としうる**'
+memo: '`pollExternalChanges` の時刻一致後の照合は `WorkspaceSession.externalChanges`（working 文書だけ）なので、対象外の `.yde/workspace.yaml` は含まれない。初回の背景照合で見つけても取り込み側で再び除外される。設定だけを変えてファイル集合が変わらない条件を再現し、構成変更も同じ経路で扱う'

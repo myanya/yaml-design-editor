@@ -1,0 +1,7 @@
+id: UX-195
+title: tutorial.md の 2.5〜6 章（整合性検証・派生スキーマ・ビュー・AI・段階的詳細化・知識体系）が見出しだけで本文が無い
+status: todo
+origin_on: 2026-10-25
+origin: README 改訂
+memo: README からは「文書の作成とスキーマ設計の手引き（以降の章は執筆中）」と案内した；新しいサンプルと対にして書く方針は UX-125
+targets: UX-125

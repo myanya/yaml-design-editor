@@ -1,0 +1,6 @@
+id: UX-181
+title: actionsだけを持つlibraryが実行できても定義検査ではエラーになる
+status: todo
+origin_on: 2026-10-24
+origin: TODO操作サンプル
+memo: '`SchemaDefinitionChecks`のlibrary必須内容にactionsが含まれない；マニュアルとの整合を検討する'

@@ -1,0 +1,8 @@
+id: item
+name: 指摘
+kind: document
+description: 未解決の指摘を 1 件 1 ファイルで持ちます。段階 0 では docs/BACKLOG.md の表から取り込んだ写しです。
+match: "backlog/*.yaml"
+filePattern: "backlog/{id}.yaml"
+# 文書のルートがオブジェクト型 指摘（同一性＝エンティティ backlog-item の定義・状態の検査つき）
+root: { type: common#指摘 }

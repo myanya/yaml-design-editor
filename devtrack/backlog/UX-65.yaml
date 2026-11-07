@@ -1,0 +1,8 @@
+id: UX-65
+title: 子文書が親を ref で指す構成では ID横ぐしが使えない
+status: discussing
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**子文書が親を ref で指す構成では ID横ぐしが使えない**。ref でも横ぐしに載せたい。ただし「純粋な参照」と「IDと参照の両義」の区別が要り、id の拡張か idref のような別型かの検討が必要'
+memo: '横ぐし合成（`Aspects.compose`）は同一IDの**出現**（type: id）だけを束ねる構造で、ref 出現はアスペクトに載らない。idref 型の新設は architecture/ の各主題の「拡張ポイント」 の変更箇所（4箇所以上）に波及。エンティティ宣言（R20-01
+  の defines / aspect）との役割整理が先'

@@ -1,0 +1,8 @@
+id: UX-183
+title: エンティティ参照の候補にないものを入力途中で追加したい
+status: discussing
+origin_on: 2026-10-24
+origin: 〜25 TODO試用
+memo: カテゴリを題材に、作成先・作成操作の選択・入力の保持・追加IDの返却・取消と保存の境界を検討する
+theme: T-03
+targets: T-03

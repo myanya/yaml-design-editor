@@ -1,0 +1,16 @@
+id: theme-list
+name: テーマの一覧
+description: テーマと、そのテーマを参照している指摘（束ねる指摘）を並べます。
+rows:
+  idPattern: "T-*"
+columns:
+  - label: 名前
+    schemaId: theme
+    path: title
+  - label: 状態
+    schemaId: theme
+    path: status
+  - label: 束ねる指摘
+    backlinks:
+      relation: bundled-in
+      schemaIds: [item]

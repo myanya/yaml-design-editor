@@ -1,0 +1,10 @@
+id: UX-124
+title: 「行を追加」が、3つのビュー（br-trace・screen-transition・test-matrix）のどれにも出ず、未実施
+status: todo
+origin_on: 2026-09-22
+origin: S1 第3回（オーナー。Q9）
+body: '**「行を追加」が、3つのビュー（br-trace・screen-transition・test-matrix）のどれにも出ず、未実施**——台本の不備: 「行を追加」は、ビュー定義に `newRow:`（追加先の一覧文書と行のひな型）があるときだけ出る。sysdev-template
+  の3つのビューはどれも `newRow` を持たない（読み取り専用の追跡・網羅のビュー）。**改善の余地**: `newRow` の無いビューでも、「このビューには行の追加先が定義されていません（`newRow:` で定義できます）」のような案内があると、機能があることに気づける'
+memo: '`ViewGridPane` の「行を追加」は `view.newRow != null` のときだけ描画。案内を出すなら、同じ場所に無効化したボタン＋tooltip か、ビューの定義文書を開くリンク。台本 §3.5 Q9 は、S1
+  の課題台帳のビュー（`_views/issue-catalog.yaml`＝`newRow` あり）で試す手順に直した'
+targets: V-10・manual/views.md

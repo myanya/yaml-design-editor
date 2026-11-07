@@ -1,0 +1,7 @@
+id: UX-148
+title: UI 用の可変幅フォントを同梱するか
+status: discussing
+origin_on: 2026-10-11
+origin: P36 段階 0
+body: '**UI 用の可変幅フォントを同梱するか**（等幅は Cica を同梱済み。見出し・本文は OS 任せのままで、Windows と mac で見た目が揃わない）'
+memo: 候補は Noto Sans JP / BIZ UDPGothic。同梱するなら `downloadFonts` と同じ経路で取得し `AppTheme` の `Typography` に当てる。オーナーの好みで決める

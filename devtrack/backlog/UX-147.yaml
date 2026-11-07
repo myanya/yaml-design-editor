@@ -1,0 +1,7 @@
+id: UX-147
+title: Material Icons（拡張）が 1.7.3 で凍結
+status: todo
+origin_on: 2026-10-11
+origin: P36 段階 0
+body: '**Material Icons（拡張）が 1.7.3 で凍結**され更新されない（CMP 1.8 以降の案内は Material Symbols＝ベクタ資源への移行）'
+memo: '`Icons.Default.*` の約 55 箇所が対象。Material Symbols へ移すか、必要なアイコンだけ SVG 資源にする。P36 段階 2（標準機能の活用）と合わせて'

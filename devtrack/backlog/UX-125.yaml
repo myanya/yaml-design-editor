@@ -1,0 +1,10 @@
+id: UX-125
+title: 利用者マニュアル（docs/manual/。旧 README.md）と関連文書が、消す予定の `sample-workspace/` を前提にしている
+status: in-progress
+origin_on: 2026-09-22
+origin: 公開準備
+body: '**利用者マニュアル（docs/manual/。旧 README.md）と関連文書が、消す予定の `sample-workspace/` を前提にしている**: マニュアルの CLI 例（§16 の約 28 箇所）とスキーマ・ビューの実例ポインタ（§4・§5
+  の `_schemas/todo-*.yaml`・`_views/entity-table-matrix.yaml` など）、FEATURES の実例（`entity-table-matrix`）、UX-SCENARIOS の台本（S1・S4
+  と §3.5 のエンティティページの手順が todos ワールド前提）、tutorial.md（todos の題材）。マニュアルは 188KB・約 1,600 行'
+memo: 'samples/ にテーマ別のサンプルを一から作る方針（オーナー 2026-09-22。チュートリアルへの案内も兼ねる）に合わせ、内容を精査しながら書き直す: ①CLI 例と実例ポインタを新しいサンプルへ付け替える ②台本と tutorial.md
+  は新しいサンプルと対にする ③英語版の要否はオーナー判断。**2026-09-23: README.md を短い入口（概要・クイックスタート・文書一覧・ライセンス）に分け、本文は docs/MANUAL.md へ移した（内容の精査はこれから）**'

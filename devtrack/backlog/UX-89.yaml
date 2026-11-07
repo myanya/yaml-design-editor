@@ -1,0 +1,6 @@
+id: UX-89
+title: スキーマ設計のゼロから作成で**毎回 root を object に選ぶ操作が面倒**。デフォルトで object にしておくと良いのでは
+status: todo
+origin_on: 2026-09-02
+origin: S1第2回
+memo: '設計スペース「スキーマ」新規作成の雛形で `root.type: object` を初期値にする（推測経由のドラフトは既に object）'

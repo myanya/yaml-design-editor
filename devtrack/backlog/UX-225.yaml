@@ -1,0 +1,6 @@
+id: UX-225
+title: 設計の技術スタックが「Kotlin (JVM 17)」のままで、ビルド要件の JDK 21 と一致しない
+status: todo
+origin_on: 2026-10-31
+origin: リリース準備
+memo: '`docs/architecture/README.md` と各モジュールの toolchain・JVM ターゲットの表記を照合する。配布手順は JDK 21 を案内済み'

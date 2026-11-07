@@ -1,0 +1,9 @@
+id: UX-221
+title: 外部キーの参照先を「categories.category_id」の 1 セルにできない
+status: discussing
+origin_on: 2026-10-31
+origin: 表の横長対策（テーブルモデルのサンプル）
+body: '**外部キーの参照先を「categories.category_id」の 1 セルにできない**（参照先のカラム名とテーブル名がどちらも `all` の配列で、値の式に配列から文字を作る手段が無い。`format` の穴はスカラーだけ）'
+memo: '案は 2 つ: ①値の式に `join`（配列を区切りつきの文字に。DDL-STUDY の「可変長配列を区切り付き文字列へ」と同じ）②ROADMAP P48 の R48-04（場所から要素へ）で外部キーの行から `via` で辿る。今のサンプルは
+  FK先テーブル と FK先カラム の 2 列'
+targets: ROADMAP P48（R48-04）

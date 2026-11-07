@@ -1,0 +1,8 @@
+id: UX-56
+title: 自動実行の巻き戻し対象を特定しづらく、受信箱から戻したい
+status: discussing
+origin_on: 2026-08-09
+origin: S2第1回
+memo: 既存の横断 Undo と整合する導線・後続適用と重ならない範囲の逆適用・git 連携を UX-51 と検討
+theme: T-01
+targets: T-01

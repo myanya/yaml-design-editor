@@ -1,0 +1,9 @@
+id: UX-129
+title: ビューの残り
+status: when-needed
+origin_on: 2026-09-24
+origin: ROADMAP 整理（P14 の残り）
+body: '**ビューの残り**: クエリセクションと、文書ビューのエクスポート'
+memo: '需要が出たら文書ビュー（kind: document）の拡張として足す。**2026-10-31**: クエリセクションは複合文書ビューの段階 2（`fields.from`＝開いた文書の要素から線を辿って着いた要素ごとの区画）として
+  ROADMAP P48 の R48-03 に起こした。段階 1（同じ ID の別の側面 `fields.in`・表の埋め込み `grid`）は完了'
+targets: ROADMAP P48（R48-03）

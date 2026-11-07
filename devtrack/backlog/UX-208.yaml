@@ -1,0 +1,8 @@
+id: UX-208
+title: '`core/KakeiboLabTest`（repo-tests）が `labs/kakeibo` を、cli の `ActionCliTest` が `labs/sysdev-template` を読んでいる'
+status: todo
+origin_on: 2026-10-27
+origin: app-core の切り出し（テストの移動）中
+body: '**`core/KakeiboLabTest`（repo-tests）が `labs/kakeibo` を、cli の `ActionCliTest` が `labs/sysdev-template` を読んでいる**（CONVENTIONS
+  §8「`labs/` 配下をテストから読まない」に反する。両モジュールのテストは作業ディレクトリをリポジトリの根にそろえて通している）'
+memo: 読む対象を `test-fixtures/` の複製に変えるか、labs の検証は labs 側の手順にする

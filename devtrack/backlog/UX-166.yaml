@@ -1,0 +1,9 @@
+id: UX-166
+title: 操作の一覧と `型名.操作名` の型名は、スキーマの entity 宣言が 1 つのときだけ導ける
+status: todo
+origin_on: 2026-10-14
+origin: P41 段階 1
+body: '**操作の一覧と `型名.操作名` の型名は、スキーマの entity 宣言が 1 つのときだけ導ける**（複数の型を ID の形で判別するスキーマで、その場の object に書いた操作は、名前が書かれた場所＝`root.items.item.xxx`
+  になる）'
+memo: '型名の既定を決めるのは `ActionPlanner.typeNameOf`。object に `entity: {type}` を書けば今でも名前は決まる（オブジェクト型）。複数型のスキーマでは、ID の形（idPattern）から要素の型を引く後退を足すか、object
+  に entity を書くよう案内するかを決める'

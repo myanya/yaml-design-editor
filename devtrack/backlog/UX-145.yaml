@@ -1,0 +1,9 @@
+id: UX-145
+title: Hot Reload の MCP 設定（`.mcp.json`）が Windows 向け
+status: todo
+origin_on: 2026-10-11
+origin: P36 段階 0
+body: '**Hot Reload の MCP 設定（`.mcp.json`）が Windows 向け**（2026-10-31 から `powershell … scripts/hot-mcp-server.ps1`。セッションと一緒に止めるのに
+  Windows のジョブを使う）で、mac / Linux では `./gradlew hotMcpServer` に読み替えが要る'
+memo: Claude Code の `.mcp.json` は OS ごとの切替を持たない。利用者側の設定で上書きするか、OS を判定する起動スクリプトを 1 枚挟む。mac / Linux でも、セッションが終わったときに Gradle
+  の子孫が残らないか（プロセスグループで止める）を確かめる

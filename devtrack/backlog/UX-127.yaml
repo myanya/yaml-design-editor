@@ -1,0 +1,10 @@
+id: UX-127
+title: スキーマの定義の点検には「警告」の区分が無く、注意（`filePattern` に `{id}` が無い＝同じ名前になる要素があり得る）も、読み込みエラーと同じ一覧（`schemaErrors`・CLI `validate` の
+  `schemaErrors`）に並ぶ
+status: todo
+origin_on: 2026-09-23
+origin: P31 実装中
+body: '**スキーマの定義の点検には「警告」の区分が無く、注意（`filePattern` に `{id}` が無い＝同じ名前になる要素があり得る）も、読み込みエラーと同じ一覧（`schemaErrors`・CLI `validate`
+  の `schemaErrors`）に並ぶ**'
+memo: '`SchemaIssue` / `loadErrors` に重大度を持たせ、アプリのスキーマの一覧・CLI の出力で「注意」を分けて見せる（ビューのリントも同じ一覧に混ざっている）。P31 では文面に「注意」の意図を書いて済ませた'
+targets: ROADMAP P31・architecture/schema.md「値の式」

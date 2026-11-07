@@ -1,0 +1,6 @@
+id: UX-228
+title: 既存の AppState テストが利用者の Preferences に最近のワークスペースを書き込む
+status: todo
+origin_on: 2026-10-31
+origin: 履歴からの読込失敗の画面テスト
+memo: テスト用 Preferences の注入・隔離を検討する。今回追加した通知テストは履歴を退避・復元する

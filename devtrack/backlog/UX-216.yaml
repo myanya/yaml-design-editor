@@ -1,0 +1,9 @@
+id: UX-216
+title: repo-tests に、試す対象は 1 つのモジュールなのに CLI や画面の確認が数件混じるため移せないテストが残っている
+status: todo
+origin_on: 2026-10-28
+origin: desktop と repo-tests のモジュール化（R47-27）中
+body: '**repo-tests に、試す対象は 1 つのモジュールなのに CLI や画面の確認が数件混じるため移せないテストが残っている**（ViewsTest・WorkspaceCliTest・QueryTest・SchemaInferenceTest・CheckDefinitionTest・WorkspaceLayoutTest・RelationRegistryTest
+  は app-core が対象で CLI の確認が少し。DashboardsTest は画面の試しが大半で CLI との突き合わせは 2 本。DashboardsTest のために `ui/action/ActionPane.kt` の `actionPanelContext`
+  を internal から公開にした）'
+memo: CLI の確認を cli のテストへ、画面の試しを desktop のテストへ分ければ、残りを対象のモジュールへ移せる。DashboardsTest を分けたら `actionPanelContext` を internal に戻す

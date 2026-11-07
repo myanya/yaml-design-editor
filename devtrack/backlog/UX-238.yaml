@@ -1,0 +1,8 @@
+id: UX-238
+title: ひな型の小さな穴
+status: todo
+origin_on: 2026-11-02
+origin: labs/rpmz 段階 2（MZ の JSON の取り込み）
+body: '**ひな型の小さな穴**: (1) 規則の `build: ~` が「build が無い」と読まれ、配列の要素に null（初期装備の空の欄）を出せない（`{$first: [~]}` で回避した）。(2) 条件の左辺に `$index`
+  を書けない、は UX-236 の対応で解決（`{path: $index, equals: 0}`）'
+memo: 規則の読み込みで `build` のキーがあれば null も「null を出すひな型」とする

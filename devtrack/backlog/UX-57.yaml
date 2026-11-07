@@ -1,0 +1,7 @@
+id: UX-57
+title: software-template の4ビュー（domains/apis/tables/services）の「種別」列が常に空
+status: todo
+origin_on: 2026-08-09
+origin: ビュー作成作業
+body: '**software-template の4ビュー（domains/apis/tables/services）の「種別」列が常に空**: 列 path `type` が各スキーマに存在しない（起動時のビュー一覧リントでもエラー4件として出ている）'
+memo: 各スキーマに `type` フィールドを足すか、列を実在キーへ修正／削除する。サンプルデータ整備の一環として一括対応

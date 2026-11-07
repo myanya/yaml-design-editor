@@ -1,0 +1,14 @@
+# 関係レジストリ: 開発管理の関係の語彙。表示名と、参照の向き・多重度の決まりを 1 か所に書きます
+id: devtrack-relations
+kind: relations
+entities:
+  - { type: backlog-item, label: 指摘 }
+  - { type: theme, label: テーマ }
+relations:
+  - name: bundled-in
+    label: テーマ
+    inverseLabel: 束ねる指摘
+    source: [backlog-item]
+    target: [theme]
+    cardinality: { outMax: 1 }
+    description: 指摘はテーマを 1 つまで参照します

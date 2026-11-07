@@ -1,0 +1,6 @@
+id: UX-189
+title: 共通フォームのmapキー削除にも確認なしの経路がある
+status: discussing
+origin_on: 2026-10-25
+origin: 配列削除の調査
+memo: '`MapTable`・mapのリスト／汎用表示の確認方針を検討する；配列の共通化には含めず、実装は別途承認を得る'

@@ -1,0 +1,9 @@
+id: UX-222
+title: Hot Reload の MCP サーバが、画面の確認をしないセッションでも 400〜550MB を使う
+status: todo
+origin_on: 2026-10-31
+origin: MCP サーバの後片付け
+body: '**Hot Reload の MCP サーバが、画面の確認をしないセッションでも 400〜550MB を使う**（セッションの開始時に `.mcp.json` から起動し、Gradle の呼び出し側・使い捨てのデーモン・MCP の本体の
+  3 つの Java ができる。VS Code の拡張は予備のセッションも起動するので、開いた直後に 3 組・約 1.3GB あった）'
+memo: '案は 2 つ: ①Gradle のタスクで MCP の本体の起動行（classpath と `compose.reload.pidFile`）を 1 回書き出し、起動スクリプトは Java を直接起動する（呼び出し側とデーモンが要らなくなり
+  1 つ・100〜160MB）②最初の要求が来てから Gradle を起動する（入出力の中継が要る）。Hot Reload の版が上がると起動行が変わるので、①は書き出しをビルドに含める'

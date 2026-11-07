@@ -1,0 +1,18 @@
+id: theme
+name: テーマ
+kind: document
+description: 複数の指摘が絡む横断課題を 1 件 1 ファイルで持ちます。段階 0 では docs/BACKLOG.md「テーマ管理」の見出しと最初の段落の写しです。
+match: "themes/*.yaml"
+filePattern: "themes/{id}.yaml"
+root: { type: common#テーマ }
+# 他の要素へ線を辿る検査は、型ではなくスキーマに書きます（テーマ ← 指摘）
+constraints:
+  - id: theme-has-items
+    description: テーマには、束ねる指摘が 1 件以上あること
+    match:
+      - node: { entity: theme, bind: th }
+      - edge: { relation: bundled-in, dir: in }
+      - node: { entity: backlog-item, bind: it }
+    expect: exists
+    level: warning
+    message: "テーマ「{th.id}」に束ねた指摘がありません"

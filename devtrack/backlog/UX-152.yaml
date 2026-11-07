@@ -1,0 +1,7 @@
+id: UX-152
+title: file 型の欄にワークスペース内のファイルの補完が無い
+status: todo
+origin_on: 2026-10-11
+origin: P37 第一弾
+body: '**file 型の欄にワークスペース内のファイルの補完が無い**（ID の補完と同じように前方一致で候補を出したい。AI の誤りを減らす仕組みの 1 つ）'
+memo: '`WorkspaceScan` の一覧（YAML 以外も）から前方一致。`IdEditor` の候補の出し方を流用'

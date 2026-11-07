@@ -1,0 +1,9 @@
+id: UX-49
+title: 承認待ち変更セットがある対象に再発火してしまう
+status: discussing
+origin_on: 2026-08-09
+origin: S2第1回
+body: '**承認待ち変更セットがある対象に再発火してしまう**: レビュー待ち中にエディタで編集保存するとトリガ起動し、2連続起動の1回目が base 競合で取込不能になる'
+memo: 発火抑止（pending がある対象は保留）かキュー保留か警告かの設計判断。`AutomationEngine.tick` で pendingReviews の対象ファイルと突合。UX-51（契機再設計）と関連
+theme: T-01
+targets: T-01

@@ -1,0 +1,8 @@
+id: UX-185
+title: 複数対象へ同じ操作を繰り返し実行するUIがほしい
+status: discussing
+origin_on: 2026-10-25
+origin: TODO試用
+memo: 対象の選択・共通入力と個別入力・対象別の利用可否・確認・途中失敗・Undoの単位を検討する
+theme: T-03
+targets: T-03

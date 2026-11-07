@@ -1,0 +1,6 @@
+id: UX-143
+title: '`type: line`等を含むスキーマの項目改名で組込み型の解決に失敗する'
+status: todo
+origin_on: 2026-10-11
+origin: フロー改名検証
+memo: '`lookupChild`の兄弟走査から`derefChain`へ入りbuiltin-typesが見つからないため、BZFLのactivities改名でも再現'

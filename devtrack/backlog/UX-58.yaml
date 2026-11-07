@@ -1,0 +1,8 @@
+id: UX-58
+title: software-template の 10-design 系4ビューの filePattern がIDプレフィクスを二重化
+status: todo
+origin_on: 2026-08-09
+origin: ビュー作成作業
+body: '**software-template の 10-design 系4ビューの filePattern がIDプレフィクスを二重化**: 例 api-list は `021-API-{id}.yaml` に行ID `API-001`
+  が入り `021-API-API-001.yaml` を生成。スキーマ match（`021-API-*`）には一致してしまうためリントに掛からない'
+memo: '`021-{id}.yaml` 形式へ修正（00-requirements 系ビューは正しい形）。リント側で代表IDによる二重プレフィクス検出を足すかも検討'

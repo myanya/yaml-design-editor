@@ -1,0 +1,6 @@
+id: UX-173
+title: 編集タブとソースの畳みの覚えがワークスペース切替・文書改名・削除に追随していない
+status: todo
+origin_on: 2026-10-19
+origin: UI 改善時のコード確認
+memo: '`ScreenMemory.editorTab` と `sourceFolds` が `clear` / `forgetDocument` / `renameDocument` の対象外；同じ相対パスの別ワークスペースへの持越しを確認する'

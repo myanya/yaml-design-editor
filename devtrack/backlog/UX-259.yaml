@@ -1,0 +1,8 @@
+id: UX-259
+title: Markdown の取り込みが、文書の中の表をすべて 1 つの表として読む
+status: todo
+origin_on: 2026-11-07
+origin: 開発管理の段階 0（devtrack の取り込み）
+body: '**Markdown の取り込みが、文書の中の表をすべて 1 つの表として読む**: 2 つ目以降の表の見出しの行と区切りの行もデータの行になる。docs/BACKLOG.md ではテーマ管理の節の表（8 行）が来るので、devtrack
+  の取り込みは ID の形で行を選んでいる'
+memo: '`MarkdownFormat.readMarkdown` が `|` で始まる行をすべて集め、先頭の区切りの行だけを落とす。docx の `input.table`（何番目の表か）と同じ指定を markdown にも足すか、空行と見出しで表を区切って最初の表だけを読む'

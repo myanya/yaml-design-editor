@@ -1,0 +1,9 @@
+id: UX-239
+title: 繰り返しの中から、入力の別の場所にある一覧を条件に使えない
+status: todo
+origin_on: 2026-11-02
+origin: labs/rpmz 段階 2（MZ の JSON の取り込み）
+body: '**繰り返しの中から、入力の別の場所にある一覧を条件に使えない**: MZ の System.json はスキルタイプの名前の並び（`skillTypes`）と、魔法スキルの番号の一覧（`magicSkills: [1]`）を別に持つ。スキルタイプごとに「自分の番号が一覧にあるか」を調べる書き方が無く、`magic`
+  を取り込んでいない（`$zip` は同じ番号の並びだけ）'
+memo: '条件の比べる値に入力の場所を書けるようにする（`{path: $index, oneOf: {$copy: magicSkills, $of: …}}`）か、繰り返しの中から入力の根を読む（UX-236 の案 B）。書き出しは今のひな型で書ける'
+targets: UX-236

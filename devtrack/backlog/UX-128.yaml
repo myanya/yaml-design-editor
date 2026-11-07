@@ -1,0 +1,7 @@
+id: UX-128
+title: 値型の残り
+status: when-needed
+origin_on: 2026-09-24
+origin: ROADMAP 整理（P16 の残り）
+body: '**値型の残り**: 文字列・enum 集合の包含判定と、複数文書一括の決定論的伝播'
+memo: 需要が出たら P16 の設計（architecture/transform.md「計算列と決定論的射影」）に沿って足す
