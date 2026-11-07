@@ -1,0 +1,10 @@
+id: UX-187
+title: 編集用アクションの入力欄へ対象の現在値を初期表示できない
+status: resolved
+resolved_on: 2026-10-25
+resolution: 2026-10-25
+origin_on: 2026-10-25
+origin: TODO編集操作
+memo: 差分入力と未入力保持・明示消去で運用し、対象や出現からの初期値・取得時点・対象変更時の再設定を検討する
+theme: T-03
+targets: T-03

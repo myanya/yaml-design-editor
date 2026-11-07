@@ -1,0 +1,9 @@
+id: UX-131
+title: 順序の比較に日付を
+status: resolved
+origin_on: 2026-09-27
+origin: R31-04（値の式の列）
+body: '**順序の比較に日付を**: 検査の `lt` / `lte` / `gt` / `gte` は数値だけで比べ、日付は比べられない（「開始日 ≦ 終了日」が書けない）。集計に足した順序の種類 `type: date` を、値の条件にも当てたい'
+memo: '`SemanticExpression.compare` は数値のみ。条件の項目に `type: date` を受け取り、`readable` / 文字の順の比較へ分岐する。書き方（条件の object に `type` を添える）は着手時に決める。**解決（2026-10-02）**:
+  比べ方は値を読んだ項目の型で決まる（`date` / `time` / `datetime` は値の表現で比べる）。決まった値どうしは `{lte: [左, 右], type: date}`'
+targets: P33 第二弾の残り（FEATURES V-09）

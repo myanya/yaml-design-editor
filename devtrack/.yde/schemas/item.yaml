@@ -4,5 +4,25 @@ kind: document
 description: 未解決の指摘を 1 件 1 ファイルで持ちます。段階 0 では docs/BACKLOG.md の表から取り込んだ写しです。
 match: "backlog/*.yaml"
 filePattern: "backlog/{id}.yaml"
-# 文書のルートがオブジェクト型 指摘（同一性＝エンティティ backlog-item の定義・状態の検査つき）
+# 文書のルートがオブジェクト型 指摘（同一性＝エンティティ backlog-item の定義）
 root: { type: common#指摘 }
+# 台帳（backlog/）の指摘だけの決まり。記録（closed/）の決まりは closed.yaml
+constraints:
+  - id: open-has-origin-date
+    description: 台帳の指摘には、起点の日があること
+    match:
+      - node: { entity: backlog-item, schema: item, bind: it }
+    where:
+      - { of: it, path: origin_on, exists: false }
+    expect: absent
+    level: error
+    message: "指摘「{it.id}」に起点の日がありません"
+  - id: closed-moved-to-record
+    description: 解決・見送りの指摘は台帳に残さず、記録（docs/archive/backlog-closed.md）へ移すこと
+    match:
+      - node: { entity: backlog-item, schema: item, bind: it }
+    where:
+      - { of: it, path: status, oneOf: [resolved, declined] }
+    expect: absent
+    level: warning
+    message: "解決・見送りの指摘「{it.id}」が台帳に残っています。記録へ移します"

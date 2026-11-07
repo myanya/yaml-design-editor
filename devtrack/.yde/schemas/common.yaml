@@ -72,11 +72,11 @@ definitions:
         type: 指摘の状態
         required: true
         default: todo
+      # 台帳の指摘には必須（item スキーマの検査）。記録には日付の無い行があるので、型では必須にしない
       - key: origin_on
         label: 起点の日
         type: 年月日
-        required: true
-        description: 指摘を見つけた日。BACKLOG.md の「起点」の欄の先頭の日付です。
+        description: 指摘を見つけた日。「起点」の欄の先頭の日付です。
       - key: origin
         label: 起点
         type: 一行の文
@@ -96,7 +96,17 @@ definitions:
         label: 対応先
         type: 一行の文
         description: ROADMAP・FEATURES の項目など。いまは文字のまま持ちます（ROADMAP を移すまで参照にしません）。
-    # 型の検査: 指摘ごとに評価する。いまの BACKLOG.md の運用（docs/BACKLOG.md「運用」）をそのまま検査にしたもの
+      # 解決・見送りの記録だけが持つ項目（docs/archive/backlog-closed.md の「状態」の欄）
+      - key: resolved_on
+        label: 解決の日
+        type: 年月日
+        description: 「状態」の欄に書かれた日付。書かれていない記録もあります。
+      - key: resolution
+        label: 解決の記録
+        type: 一行の文
+        description: 「状態」の欄の ✅ / ❌ より後ろの文字（日付・「解決」・経緯など）。
+    # 型の検査: 指摘ごとに評価する。いまの BACKLOG.md の運用（docs/BACKLOG.md「運用」）をそのまま検査にしたもの。
+    # 台帳と記録で決まりが違うもの（起点の日・状態）は、それぞれのスキーマ（item・closed-item）に書く
     constraints:
       - id: when-needed-has-memo
         description: 「必要になったら」の指摘には、実装の当たりを技術メモに残すこと
@@ -106,13 +116,6 @@ definitions:
         expect: absent
         level: warning
         message: "「必要になったら」の指摘「{id}」に、実装の当たり（技術メモ）がありません"
-      - id: closed-moved-to-record
-        description: 解決・見送りの指摘は台帳に残さず、記録（docs/archive/backlog-closed.md）へ移すこと
-        where:
-          - { path: status, oneOf: [resolved, declined] }
-        expect: absent
-        level: warning
-        message: "解決・見送りの指摘「{id}」が台帳に残っています。記録へ移します"
 
   # テーマ: 複数の指摘が絡む横断課題。この形の要素がエンティティ theme の定義
   テーマ:

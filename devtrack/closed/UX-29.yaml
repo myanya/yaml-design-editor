@@ -1,0 +1,10 @@
+id: UX-29
+title: date 型の検証と保存形式が不一致の疑い
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+body: '**date 型の検証と保存形式が不一致の疑い**: 検証は YYYY-MM-DD を期待するように見えるが、ファイルに保存される値がそうならないように見える。date / datetime / time の型分離も要検討'
+memo: '原因確定: 引用符なしの日付が SnakeYAML の timestamp タグで `java.util.Date` に型付けされ、検証の現在値が `Date.toString()`・保存で ISO 形式へ正規化されていた。TIMESTAMP
+  を暗黙解決しない `PlainDateResolver` を読み書き両側に導入し、日付・日時を素の文字列のまま往復させる修正で解消（2026-08-08。`YamlIOTest` で往復検証）。値が文字列で保持されるため date / datetime
+  / time の型分離は当面不要'
+targets: FEATURES E-06

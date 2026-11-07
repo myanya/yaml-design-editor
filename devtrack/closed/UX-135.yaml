@@ -1,0 +1,10 @@
+id: UX-135
+title: 'クロス集計ビュー（`kind: matrix`）'
+status: resolved
+resolution: 解決
+origin_on: 2026-09-27
+origin: samples/todos の集計表
+body: '**クロス集計ビュー（`kind: matrix`）**: 行の軸・列の軸・セルの集計を宣言するビューの種類。いまは値の式の `count: {all: {match}}` を状態の数だけ列に書く（列を手で書く・合計行が無い・参照の無い要素＝未分類の行が出ない）'
+memo: 行の軸＝クエリの束縛と参照先（無ければ「未分類」）、列の軸＝enum の値（label で見出し・宣言順）、セル＝`count` / `sum` / `min` / `max`、合計行・合計列は自動。`read_view`・CLI
+  `view`・export にも同じ表を出す。中間案として「enum の値ごとに列を展開する」書き方（`definition:` 列の展開と同じ仕組み）もある。着手はオーナー判断
+targets: 'ビュー `kind: matrix`（2026-09-28。行の軸は論理ID・列の軸は参照先か値・未分類と合計の列は自動・列を広げたグリッドへ下ろすので CLI と書き出しはそのまま）'

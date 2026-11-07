@@ -1,0 +1,7 @@
+id: UX-229
+title: MCP の上限拒否試験で、初期化直後の initialized 通知が一度 404 になった
+status: resolved
+origin_on: 2026-11-01
+origin: Web 業務閲覧の回帰試験
+memo: '`McpHttpTest` の上限拒否試験で 202 を期待した箇所が失敗した。全体の再実行では成功したが、セッション登録・終了の時機を再現確認する'
+targets: R49-70（本文送信後の HTTP 取消を失敗と取り違えないよう修正、取消の時機を固定した試験を追加）

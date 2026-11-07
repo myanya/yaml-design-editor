@@ -1,0 +1,23 @@
+id: closed-list
+name: 解決・見送りの一覧
+description: 記録（closed/）の指摘を、起点の日の新しい順に並べます。
+rows:
+  match:
+    - node: { entity: backlog-item, schema: closed-item, bind: it }
+order:
+  schemaId: closed-item
+  path: origin_on
+  direction: desc
+columns:
+  - label: 状態
+    path: status
+  - label: 解決の日
+    path: resolved_on
+  - label: 起点の日
+    path: origin_on
+  - label: 起点
+    path: origin
+  - label: 対応先
+    path: targets
+  - label: 解決の記録
+    path: resolution

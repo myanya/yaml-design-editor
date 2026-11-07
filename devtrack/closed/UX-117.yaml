@@ -1,0 +1,13 @@
+id: UX-117
+title: 中身が空の文書（0バイトのファイル）の扱いが、アプリとカーネル側の CLI で違う
+status: resolved
+origin_on: 2026-09-21
+origin: P27 段D の D-a の確認中（実測）
+body: '**中身が空の文書（0バイトのファイル）の扱いが、アプリとカーネル側の CLI で違う**（`sample-workspace` の `todos/11-screen-taskdelete.yaml` など3件: アプリと root
+  の CLI `validate` は「必須項目「画面定義ID」が未設定です」のエラーと、直せる場所への案内を出す。カーネル側の CLI `workspace validate` は、何も出さない。このためエラーの件数が 5 と 2 で食い違う）'
+memo: '事実: root の `Validator` は、空の文書を「値の無いルート」として構造の検証にかける。カーネルの `WorkspaceReader.validateOne` は、空の文書（`documents.firstOrNull()`
+  が null）を検証せずに飛ばし、意味解析（`semanticDocument`）にも載せない。どちらに揃えるかの判断が要る（空のファイルを「必須の項目が無い文書」とみなすのが、利用者には分かりやすい＝アプリの側に揃えるのが素直）。P27
+  段D の D-b（root の validate / apply を cli と同じ面に）で扱う。既存の挙動を変えるときは、先に意図的差分へ登録する **→ 解消（2026-09-21・P27 段D の D-b の1つ目＝R27-14・意図的差分
+  D-34）**: アプリの側に揃えた——カーネル側の CLI も、中身が空の文書を空のマップとして検証する（アプリの読み込み `YamlIO.parse` と同じ扱い。`sample-workspace` は、カーネル側でもエラー5・警告12
+  になった）。検証の組み立てそのものを、アプリとカーネルで1つの部品（`validate.DocumentValidator`）にしたため、台帳の外の文書の扱い（文書の中の ID の重複・相手の見つからない参照は情報レベル）も揃った'
+targets: ROADMAP R27-14（ARCHITECTURE §4.45）

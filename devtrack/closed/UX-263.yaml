@@ -1,0 +1,10 @@
+id: UX-263
+title: '`skill/Runner.kt` に生の NUL 文字が入っている'
+status: resolved
+origin_on: 2026-10-03
+origin: 改行コードの整理
+body: '**`skill/Runner.kt` に生の NUL 文字が入っている**: 56 行目の `joinToString(...)` の区切り文字が `"\u0000"` のエスケープでなく実際の NUL バイトで、git がこのファイルをバイナリとみなす（差分が「Binary
+  files differ」になり、`.gitattributes` の改行の正規化からも外れる）'
+memo: '`"\u0000"` のエスケープに直す（動きは同じ）。改行コードの規約（`.gitattributes` / `.editorconfig`）を入れるときに一緒に。**解決（2026-10-03）**: エスケープに直し、`.gitattributes`
+  / `.editorconfig` と CONVENTIONS「Git」の改行の決まりを足した（番号は UX-140 と重なっていたため、2026-11-07 に UX-263 へ振り直した）'
+targets: CONVENTIONS「Git」

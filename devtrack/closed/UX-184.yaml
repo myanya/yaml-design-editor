@@ -1,0 +1,6 @@
+id: UX-184
+title: 一覧の選択を操作対象へ引き継ぐ
+status: resolved
+origin: TODO試用
+memo: 明示選択した項目の所有要素を右ペインへ渡し、スクロール追従と分離
+targets: OP-05

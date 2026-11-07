@@ -1,0 +1,35 @@
+id: import-backlog-closed
+name: 指摘台帳の記録の取り込み（backlog-closed.md）
+description: docs/archive/backlog-closed.md の表（1 行 1 指摘）を closed/ の 1 件 1 ファイルへ取り込みます。取り込み直すと、取り込んだ項目だけを記録の値に合わせます。
+kind: import
+input: { format: markdown }
+target: { file: "closed/{id}.yaml" }
+build:
+  # 記録は節ごとに表があり、Markdown の取り込みは | で始まる行をすべて 1 つの表（最初の見出しの列）として読む。
+  # ID が UX- の番号の行だけを取り込む（L-nn の行・見出しの行・区切りの行・「UX-162（一部）」のような一部解決の行は飛ばす）
+  $when: { path: ID, matches: "^UX-[0-9]+$" }
+  $then:
+    id: { $copy: ID }
+    # 件名: 「指摘」の欄の先頭の太字。太字が無ければ欄の全体。
+    # 「FEATURES の解消済み制約」の節は 4 列の表（ID・内容・状態・備考）なので、「状態」の欄が無い行は 2 列目（起点の位置）が内容
+    title:
+      $first:
+        - { $copy: 起点, $when: { path: 状態, exists: false } }
+        - { $value: { extract: [ { path: 指摘 }, "^\\*\\*(.+?)\\*\\*" ] } }
+        - { $copy: 指摘 }
+    # 状態: 欄の先頭の ✅ / ❌ を値へ（4 列の表の行は 3 列目＝「指摘」の位置）
+    status:
+      $map: { $value: { extract: [ { first: [ { path: 状態 }, { path: 指摘 } ] }, "^(✅|❌)" ] } }
+      $using: { "✅": resolved, "❌": declined }
+    resolved_on: { $value: { extract: [ { first: [ { path: 状態 }, { path: 指摘 } ] }, "([0-9]{4}-[0-9]{2}-[0-9]{2})" ] } }
+    resolution: { $value: { extract: [ { first: [ { path: 状態 }, { path: 指摘 } ] }, "^(?:✅|❌)\\s*(.+)$" ] } }
+    # 起点: 先頭の日付と、その後ろの場面。日付の無い起点は欄の全体を場面にする（4 列の表の行には起点が無い）
+    origin_on: { $value: { extract: [ { path: 起点 }, "^([0-9]{4}-[0-9]{2}-[0-9]{2})" ] } }
+    origin:
+      $first:
+        - { $value: { extract: [ { path: 起点 }, "^[0-9]{4}-[0-9]{2}-[0-9]{2}\\s*(.+)$" ] } }
+        - { $copy: 起点, $when: { path: 状態, exists: true } }
+    body: { $copy: 指摘, $when: { path: 指摘, startsWith: "**" } }
+    memo: { $copy: 技術メモ（対応の当たり） }
+    theme: { $value: { extract: [ { path: 対応先 }, "(T-[0-9]{2})" ] } }
+    targets: { $copy: 対応先, $when: { path: 対応先, notEquals: "—" } }

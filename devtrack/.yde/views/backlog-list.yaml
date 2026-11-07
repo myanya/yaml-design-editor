@@ -1,8 +1,10 @@
 id: backlog-list
 name: 指摘の一覧
-description: 未解決の指摘を、起点の日の新しい順に並べます。
+description: 台帳（backlog/）の未解決の指摘を、起点の日の新しい順に並べます。
+# 行＝台帳の文書（スキーマ item）の指摘。記録（closed/）の指摘は closed-list
 rows:
-  idPattern: "UX-*"
+  match:
+    - node: { entity: backlog-item, schema: item, bind: it }
 order:
   schemaId: item
   path: origin_on
@@ -10,17 +12,12 @@ order:
 # 件名は行の ID の下に出る（件名の項目が role: title）ので、列にしない
 columns:
   - label: 状態
-    schemaId: item
     path: status
   - label: 起点の日
-    schemaId: item
     path: origin_on
   - label: 起点
-    schemaId: item
     path: origin
   - label: テーマ
-    schemaId: item
     path: theme
   - label: 対応先
-    schemaId: item
     path: targets

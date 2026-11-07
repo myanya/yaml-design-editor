@@ -1,0 +1,11 @@
+id: UX-63
+title: グラフ整合検証（V-08）の循環検出がファイル単位の検証ごとに全体グラフを再計算する
+status: resolved
+origin_on: 2026-08-10
+origin: P21実装
+body: '**グラフ整合検証（V-08）の循環検出がファイル単位の検証ごとに全体グラフを再計算する**: `GraphIntegrity.detectCycles` は per-file × per-acyclic-relation で SCC
+  を計算しキャッシュがない。CLI `validate`（全ファイル）や大規模ワークスペースの一括検証で O(ファイル数×グラフ規模) になる'
+memo: 'EntityGraph の graphCache と同様に、IdIndex（または EntityGraph）単位で relation 別の循環検出結果を lazy キャッシュする。索引更新（derive）で無効化すれば §4.5
+  の二層構造とも整合。大規模ワークスペースで検証が遅く感じられたら着手 **追記（2026-09-20）**: 名指ししている `GraphIntegrity.detectCycles` は P29 Phase 6 で無くなった（非循環はクエリの検査になった）。「全体検証が、文書ごとに同じ計算をやり直す」という一般の問題は
+  UX-116 へ引き継ぐ'
+targets: UX-116 へ統合

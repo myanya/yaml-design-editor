@@ -1,0 +1,7 @@
+id: UX-266
+title: 'クロス集計（`kind: matrix`）の `unclassified` の見出しが、列（列の軸に無い値）と、値の軸の行（値が得られない要素）の両方に使われ、別々の名前を付けられない（`false` も両方を消す）。devtrack
+  の「起点の月×状態」では、状態の誤りの列と起点の日が無い記録の行が同じ「（未分類）」になる'
+status: todo
+origin_on: 2026-11-07
+origin: devtrack の記録の取り込み
+memo: '`VirtualViews` の値の軸の行の名前が `matrix.unclassified` を共有している。行の側に `rows.unclassified` のような別の見出しを足すか、既定の行の名前を「（値なし）」に分ける'

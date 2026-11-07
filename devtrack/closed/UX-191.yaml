@@ -1,0 +1,7 @@
+id: UX-191
+title: 一覧の右側の詳細ペインが小さすぎる
+status: resolved
+origin_on: 2026-10-25
+origin: ダッシュボード試用
+memo: 現行は幅440dp固定；業務詳細の全面表示を主経路にし、分割表示の役割を検討する
+targets: P44・X-13

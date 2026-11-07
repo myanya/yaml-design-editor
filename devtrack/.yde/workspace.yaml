@@ -1,3 +1,3 @@
-# 開発管理のワークスペース。台帳（ID 索引・検証の集計）は指摘とテーマ
-# 段階 0: 原本は docs/BACKLOG.md で、ここはその取り込みの写し（README.md）
-ledger: [backlog, themes]
+# 開発管理のワークスペース。台帳（ID 索引・検証の集計）は指摘（未解決と解決済み）とテーマ
+# 段階 0: 原本は docs/BACKLOG.md と docs/archive/backlog-closed.md で、ここはその取り込みの写し（README.md）
+ledger: [backlog, closed, themes]

@@ -1,0 +1,9 @@
+id: UX-69
+title: IDのパターンマッチでなく、object 定義そのものに id / name を宣言し、オブジェクト一覧の特定と検索キーをスキーマ側へ寄せてはどうか
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**IDのパターンマッチでなく、object 定義そのものに id / name を宣言し、オブジェクト一覧の特定と検索キーをスキーマ側へ寄せてはどうか**という提案'
+memo: 'ID検出自体は既に type: id フィールド基準（`DocScanner`）。パターン依存が残るのはエンティティ型の判別（R20-01 entity 宣言の idPattern）と ref の候補絞り（idPatterns）。宣言主導へ寄せる場合の差分を整理してから議論。UX-79
+  と合同。**解決（2026-10-03）**: object（名前付きの型・その場の object）に entity を書けば、ID の形で見分けなくても要素の形で型が決まる。参照の候補の絞り込み（idPatterns）は参照の型で共通化できる'
+targets: P33 第三弾（オブジェクト型。object の `entity` で要素の形から型を決める。FEATURES S-24）

@@ -1,0 +1,7 @@
+id: UX-25
+title: ソースエディタで**タブキーがスペース挿入にならない**
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+memo: '`SourcePane` を TextFieldValue ベースへ変え、Tab でカーソル位置にスペース2個を挿入（2026-08-08）。Shift+Tab の逆インデントは需要が出たら追加'
+targets: FEATURES E-03

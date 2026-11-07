@@ -1,0 +1,11 @@
+id: UX-233
+title: 配列の表形式の自動判定が `cases` の項目を見ない
+status: resolved
+resolved_on: 2026-11-02
+resolution: 2026-11-02
+origin_on: 2026-11-02
+origin: labs/rpmz の試用（オーナー「種類はどれですか？」）
+body: '**配列の表形式の自動判定が `cases` の項目を見ない**。要素の object の列が少ないと自動で表になり、列は固定の項目だけなので、種類（enum）で変わる項目（dataId など）が表に出ない。種類を切り替えても表は何も変わらない'
+memo: '`DisplayCore.tableColumns` の自動判定で、`cases` を持つ項目があれば表にしない（明示の `display: table` は今のまま）か、列に cases の項目を足す。labs/rpmz は `display:
+  list` で避けた'
+targets: FEATURES E-13（`DisplayCore.tableColumns`）

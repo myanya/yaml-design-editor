@@ -1,0 +1,7 @@
+id: UX-230
+title: Web の候補は対応するビューだけなので、未対応ビューの名前と理由が見えない
+status: resolved
+origin_on: 2026-11-01
+origin: Web 業務閲覧のコード確認
+memo: '`BusinessWorkspace` の supported による絞込みに補足を付ける。未対応ビューだけの場合も、定義の不足と区別してデスクトップへ案内する'
+targets: R49-70（名前と理由を案内し選択を無効化、未対応のみ・混在・URL 指定を実ブラウザで検査）

@@ -1,0 +1,10 @@
+id: UX-28
+title: サンプルYAML生成で required 項目にサンプル値が入らず
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+body: '**サンプルYAML生成で required 項目にサンプル値が入らず**、プレビューが赤枠エラーになる'
+memo: '要再現（どの型で欠けるか）。サンプル値の生成は `Schema.kt` のサンプル生成系。required スカラーへ型別の例値（enum は先頭値等）を必ず入れる方向。**原因確定・修正（2026-08-12）**: 必須の string
+  / text / ref が空文字で生成され、`scalarText` が空文字を未設定扱いするため必須エラーになっていた。必須スカラーへ型別の例値（string=サンプル・ref=SAMPLE-001）を入れる修正（`SchemaLoaderTest`
+  で検証）'
+targets: R17-03（FEATURES S-06）

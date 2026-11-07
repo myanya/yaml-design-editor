@@ -1,0 +1,8 @@
+id: UX-36
+title: ビュー列の**壊れた path（title→titl）がリントで検出されなかった**
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+memo: '原因: 列パス検査が `schemaId` 指定列のみで `fileGlob` 列は対象外だった。glob の代表パス（ワイルドカード仮埋め）にマッチするスキーマで検査するよう拡張（通常列・計算列の source / lookup
+  とも。マッチするスキーマが無ければ判定しない＝誤検知回避。2026-08-08。`ViewsTest` で検証、sample-workspace への誤検知なしを確認）'
+targets: FEATURES X-08

@@ -1,4 +1,6 @@
-# 行＝起点の日の年月、列＝状態、セル＝指摘の件数。古い月に残る指摘と、決まった値でない状態（未分類の列）が見えます
+# 行＝起点の日の年月、列＝状態、セル＝指摘の件数（台帳と記録の両方）。
+# 月ごとに、見つけた指摘のうちどれだけが解決し、どれだけ残っているかが見えます。
+# 「（未分類）」の列は決まった値でない状態、「（未分類）」の行は起点の日が無い記録（見出しは行と列で共通）
 id: backlog-month-status
 name: 起点の月×状態
 kind: matrix
@@ -15,4 +17,5 @@ cells:
       - { value: discussing, label: 💬 議論待ち }
       - { value: in-progress, label: 🚧 対応中 }
       - { value: when-needed, label: ⏳ 必要になったら }
-unclassified: 決まった値でない状態
+      - { value: resolved, label: ✅ 解決 }
+      - { value: declined, label: ❌ 見送り }

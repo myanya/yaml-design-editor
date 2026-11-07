@@ -1,0 +1,12 @@
+id: UX-198
+title: テンプレート basic-list の README が「ID は自動で付きます」と書くが、置き方が「1 件 1 ファイル」のときは登録の操作で ID を自分で入れる
+status: resolved
+resolved_on: 2026-10-26
+resolution: 2026-10-26
+origin_on: 2026-10-25
+origin: samples/orders の確認
+body: '**テンプレート basic-list の README が「ID は自動で付きます」と書くが、置き方が「1 件 1 ファイル」のときは登録の操作で ID を自分で入れる**（アクションの description は正しく「未使用の番号を指定します」になっている。README
+  の文だけが一覧 1 ファイル前提）'
+memo: '`templates/basic-list/README.md`「次にできること」の 1 行目。Markdown は `{名前}` の穴埋めだけで `$when` が使えないので、置き方に依らない文（「ID は一覧では自動で付き、1
+  件 1 ファイルでは登録のときに入れます」）にするか、README も変換定義で組み立てられるようにする'
+targets: README の文を置き方に依らない形にした（一覧 1 ファイルでは自動・1 件 1 ファイルでは登録のときに入れる）

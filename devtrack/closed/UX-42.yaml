@@ -1,0 +1,9 @@
+id: UX-42
+title: プレースホルダーの見た目がばらばら
+status: resolved
+origin_on: 2026-08-08
+origin: 第1弾追試
+body: '**プレースホルダーの見た目がばらばら**（フェーズの例示が濃く大きい等。装飾済み 11〜13sp と無装飾＝本文色が混在）'
+memo: '`CompactTextField` が「入力テキストと同サイズ＋SubText 色」を一律に与える方式へ変更し、全呼び出し側（27箇所）の個別装飾を撤去（2026-08-08）。規約として CONVENTIONS §2 に追記。UX-26
+  も同時解消'
+targets: CONVENTIONS §2

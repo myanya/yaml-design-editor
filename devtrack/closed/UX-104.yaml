@@ -1,0 +1,10 @@
+id: UX-104
+title: ファイルの改名・削除・ディレクトリ作成を行うと、それまでの Undo 履歴が全て失われる
+status: resolved
+origin_on: 2026-09-19
+origin: R29-09 実装中
+body: '**ファイルの改名・削除・ディレクトリ作成を行うと、それまでの Undo 履歴が全て失われる**（`renamePath` / `deletePath` / `createDirectory` が適用後に `reload()` を呼び、セッションを開き直すため。改名は
+  MoveDocument の1トランザクションとして適用しているのに、直後の `reload` で Undo できなくなっている。削除はそもそもセッションを通らない直接削除）'
+memo: R29-09（文書の新規作成）と同じ流儀で直せる——改名は `reload` をやめて `refreshAfterSessionWrite`＋移動を含む履歴の確定（`afterHistoryStep` の対象を MoveDocument
+  へ広げる）、削除は `DeleteDocument` のトランザクション化（Undo で復活）、ディレクトリ作成はツリーの再走査だけにする。ディレクトリごとの削除（複数文書）と開いている文書の扱いに設計が要るため、RP-03 の範囲（新規作成）からは外した
+targets: R29-09・D-18

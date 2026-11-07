@@ -1,0 +1,8 @@
+id: UX-167
+title: 開いていない文書を含む横断 Undo の後、その文書を開くとディスクの内容（戻す前）が出る
+status: resolved
+origin_on: 2026-10-14
+origin: R41-04
+body: '**開いていない文書を含む横断 Undo の後、その文書を開くとディスクの内容（戻す前）が出る**（セッションは戻した内容を未保存として持ち、●は付くのに、フォームの中身はディスクのまま。操作の適用を Undo して書き換えた一覧を開くと気づく）'
+memo: '`AppState.loadDocument` がディスクを読む。セッションにその文書の未保存の working があれば、そこから木を写す（`refreshDocsFromSession` と同じ deep copy）。履歴の通知（UX-86）が指す文書を開く導線で最初に当たる'
+targets: HistoryConsistencyTest（2026-10-24）
