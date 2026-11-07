@@ -51,10 +51,26 @@ data class LensFilter(
     val entityType: String? = null,
     /** 定義を選んだとき、画面の覚えが無ければ入っているか。 */
     val default: Boolean = false,
+    /** この絞り込みが隠す箱でも、線でつながる相手のどれかが合えば残す（例外。無ければ例外なし）。 */
+    val keepIfLinked: LensFilterKeep? = null,
 ) {
     fun appliesTo(level: String, type: String?): Boolean =
         (this.level == null || this.level == level) && (entityType == null || entityType == type)
 }
+
+/**
+ * 「つながりで残す」の例外: 直接つながる相手（1 段・線の向きは問わない）のうち、via の関係の線（空＝全部の線）でつながり、
+ * 型（entityType。省略で全部）と条件（conditions。空＝いつも成り立つ）に合う相手が 1 つでもあれば残す。
+ * 相手は値で判定する（相手が別の絞り込みで隠れていても、相手の値が合えば残す）。
+ */
+data class LensFilterKeep(
+    val via: Set<String> = emptySet(),
+    val entityType: String? = null,
+    val conditions: List<TemplateCondition> = emptyList(),
+)
+
+/** 箱から相手の箱への線 1 本（向きは問わない。relation は線の関係名。名前の無い参照は null）。 */
+data class LensLink(val relation: String?, val other: String)
 
 /** レンズの見え方の定義（`kind: lens`）。記法も絞り込みも持たない定義（矢印だけ）は、全部を合わせて読む。 */
 data class VirtualLensDef(
@@ -78,21 +94,47 @@ object LensFilters {
     /** 箱 1 つの手がかり: ID・型・評価の入力（作れなければ null＝条件は成り立たない）。 */
     class Candidate(val id: String, val type: String?, val input: () -> SemanticTransform.TemplatePlace?)
 
+    /** 評価の結果: 隠す箱と、隠すはずだったが「つながりで残す」で残した箱（どちらも ID）。 */
+    data class Result(val hidden: Set<String>, val kept: Set<String>)
+
     /**
-     * 入れた絞り込み（active）のどれかが隠す箱の ID。段 level（entity / type）の対象の箱だけを調べ、起点（origin）は隠さない。
-     * 入力は箱ごとに一度だけ作る。
+     * 入れた絞り込み（filters）を当てる。段 level（entity / type）の対象の箱だけを調べ、起点（origin）は隠さない。
+     * どれかの絞り込みが隠す箱は隠す。絞り込みの例外（keepIfLinked）は、その絞り込みが隠す分だけを取り消す。
+     * links は箱ごとの線（相手は candidates の ID。候補に無い相手は数えない）。入力は箱ごとに一度だけ作る。
      */
-    fun hidden(filters: List<LensFilter>, level: String, candidates: List<Candidate>, origin: String? = null): Set<String> {
-        if (filters.isEmpty()) return emptySet()
-        return candidates.filter { c ->
-            if (c.id == origin) return@filter false
-            val relevant = filters.filter { it.appliesTo(level, c.type) }
-            if (relevant.isEmpty()) return@filter false
-            val input by lazy { c.input() }
-            relevant.any { f ->
-                val holds = input?.let { SemanticTransform.holds(f.conditions, emptyMap(), it) } ?: false
-                if (f.mode == LensFilterMode.HIDE) holds else !holds
+    fun evaluate(
+        filters: List<LensFilter>, level: String, candidates: List<Candidate>,
+        origin: String? = null, links: Map<String, List<LensLink>> = emptyMap(),
+    ): Result {
+        if (filters.isEmpty()) return Result(emptySet(), emptySet())
+        val byId = candidates.associateBy { it.id }
+        val inputs = HashMap<String, SemanticTransform.TemplatePlace?>()
+        fun inputOf(c: Candidate) = inputs.getOrPut(c.id) { c.input() }
+        fun holds(conditions: List<TemplateCondition>, c: Candidate): Boolean =
+            conditions.isEmpty() || inputOf(c)?.let { SemanticTransform.holds(conditions, emptyMap(), it) } ?: false
+        fun keptByLink(keep: LensFilterKeep, c: Candidate): Boolean = links[c.id].orEmpty().any { link ->
+            val other = byId[link.other]?.takeIf { it.id != c.id } ?: return@any false
+            (keep.via.isEmpty() || link.relation in keep.via) &&
+                (keep.entityType == null || keep.entityType == other.type) && holds(keep.conditions, other)
+        }
+        val hidden = LinkedHashSet<String>()
+        val kept = LinkedHashSet<String>()
+        candidates.forEach { c ->
+            if (c.id == origin) return@forEach
+            var hide = false
+            var rescued = false
+            filters.filter { it.appliesTo(level, c.type) }.forEach { f ->
+                val matches = holds(f.conditions, c)
+                if (if (f.mode == LensFilterMode.HIDE) matches else !matches) {
+                    if (f.keepIfLinked != null && keptByLink(f.keepIfLinked, c)) rescued = true else hide = true
+                }
             }
-        }.map { it.id }.toSet()
+            if (hide) hidden += c.id else if (rescued) kept += c.id
+        }
+        return Result(hidden, kept)
     }
+
+    /** 隠す箱の ID だけ（[evaluate] の hidden）。 */
+    fun hidden(filters: List<LensFilter>, level: String, candidates: List<Candidate>, origin: String? = null,
+        links: Map<String, List<LensLink>> = emptyMap()): Set<String> = evaluate(filters, level, candidates, origin, links).hidden
 }

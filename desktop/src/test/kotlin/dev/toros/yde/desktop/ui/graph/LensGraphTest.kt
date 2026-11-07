@@ -243,6 +243,17 @@ class LensGraphTest {
     }
 
     @Test
+    fun `つながりで残すが見る線は参照と入れ子を両方向に持ち 関係名を添える`() {
+        val links = LensGraphs.links(LensGraphs.build(snapshot.graph, snapshot.refs, LensMode.ENTITY))
+        assertTrue(dev.toros.yde.semantic.LensLink("source", "EA-1") in links.getValue("SI-1"), links.toString())
+        assertTrue(dev.toros.yde.semantic.LensLink("source", "SI-1") in links.getValue("EA-1"), "向きは問わない")
+        assertTrue(dev.toros.yde.semantic.LensLink("has-item", "SCR-1") in links.getValue("SI-1"), "箱の入れ子（保有）も線: $links")
+        // 側面で分けても、線は ID どうしで数え、同じエンティティの箱どうしの点線は数えない
+        val split = LensGraphs.links(LensGraphs.build(snapshot.graph, snapshot.refs, LensMode.OCCURRENCE))
+        assertTrue(split.all { (id, list) -> list.none { it.other == id } }, split.toString())
+    }
+
+    @Test
     fun `定義の絞り込みが隠す ID の箱は消え 線も消える 起点は消えない`() {
         val g = LensGraphs.build(snapshot.graph, snapshot.refs, LensMode.ENTITY)
         val hidden = LensGraphs.select(g, LensSelectParams(typeOf, hiddenIds = setOf("EA-1"), expanded = mapOf("SCR-1" to true)))

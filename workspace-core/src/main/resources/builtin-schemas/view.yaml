@@ -213,6 +213,21 @@ root:
             required: true
             description: "変換の $when と同じ書き方（path ＋ equals / oneOf / exists など。並べて「かつ」、or / not）。箱の材料 id・title・entityType・data を読む（例 {path: data.status, oneOf: [resolved, declined]}）"
           - { key: default, label: 最初から入れる, type: boolean, default: false }
+          - key: keepIfLinked
+            label: つながりで残す
+            type: object
+            description: この絞り込みが隠す箱でも、線で直接つながる相手（1 段・向きは問わない）のどれかが合えば残す。相手は値で判定する（別の絞り込みで隠れていても数える）
+            fields:
+              - key: via
+                label: 見る線の関係名
+                type: array
+                item: { type: string }
+                description: 省くと全部の線（参照・保有）
+              - { key: entityType, label: 相手のエンティティ型, type: string, description: 省くと全部の型 }
+              - key: where
+                label: 相手の条件
+                type: any
+                description: "filters の where と同じ書き方で、相手の箱の材料を読む（例 {not: {path: data.status, oneOf: [resolved, declined]}}）。省くと、つながっていれば残す"
     - key: cells
       label: セルの集計（matrix）
       type: object

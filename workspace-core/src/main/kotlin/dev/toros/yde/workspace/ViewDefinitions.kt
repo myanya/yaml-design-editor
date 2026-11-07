@@ -33,6 +33,7 @@ import dev.toros.yde.semantic.VirtualGridDef
 import dev.toros.yde.semantic.LensArrow
 import dev.toros.yde.semantic.LensFilter
 import dev.toros.yde.semantic.LensFilterMode
+import dev.toros.yde.semantic.LensFilterKeep
 import dev.toros.yde.semantic.VirtualDiagramNotationDef
 import dev.toros.yde.semantic.VirtualLensDef
 import dev.toros.yde.semantic.VirtualLensRelation
@@ -335,7 +336,8 @@ object ViewDefinitions {
             parseLensFilters(raw["filters"]))
     }
 
-    private val LENS_FILTER_KEYS = setOf("id", "label", "mode", "level", "entityType", "where", "default")
+    private val LENS_FILTER_KEYS = setOf("id", "label", "mode", "level", "entityType", "where", "default", "keepIfLinked")
+    private val LENS_KEEP_KEYS = setOf("via", "entityType", "where")
 
     /** 箱の絞り込み（ADR-0027）。条件は変換の `$when` と同じ書き方（`TransformDef.parseConditions`）。 */
     private fun parseLensFilters(raw: Any?): List<LensFilter> {
@@ -352,10 +354,25 @@ object ViewDefinitions {
             if (m["where"] == null) error("filters[$i].where（条件）が必要です")
             val conditions = TransformDef.parseConditions(m["where"], "filters[$i].where")
             val default = m["default"]?.let { it as? Boolean ?: error("filters[$i].default は true / false で書きます") } ?: false
-            LensFilter(id, text("label") ?: id, mode, conditions, level, text("entityType"), default)
+            LensFilter(id, text("label") ?: id, mode, conditions, level, text("entityType"), default, parseLensKeep(m["keepIfLinked"], "filters[$i].keepIfLinked"))
         }.also { filters ->
             filters.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("filters に絞り込み「$it」が重複しています") }
         }
+    }
+
+    /** 絞り込みの例外「つながりで残す」（via＝見る線の関係名・相手の型・相手の条件。どれも省ける）。 */
+    private fun parseLensKeep(raw: Any?, where: String): LensFilterKeep? {
+        if (raw == null) return null
+        val m = raw as? Map<*, *> ?: error("$where は object で書きます（via・entityType・where）")
+        m.keys.firstOrNull { it !in LENS_KEEP_KEYS }?.let { error("$where で使えないキーです: $it（使えるキー: ${LENS_KEEP_KEYS.joinToString(", ")}）") }
+        val via = when (val v = m["via"]) {
+            null -> emptyList()
+            is String -> listOf(v)
+            is List<*> -> v.map { e -> (e as? String)?.takeIf { it.isNotBlank() } ?: error("$where.via は関係名の並びで書きます") }
+            else -> error("$where.via は関係名の並びで書きます")
+        }
+        val type = m["entityType"]?.let { v -> v.toString().takeIf { it.isNotBlank() } ?: error("$where.entityType は空でない文字列で書きます") }
+        return LensFilterKeep(via.toSet(), type, TransformDef.parseConditions(m["where"], "$where.where"))
     }
 
     /** レンズの定義のリント: 関係レジストリがあれば、関係名が宣言されているか（レジストリが無ければ判定しない）。 */
@@ -364,7 +381,10 @@ object ViewDefinitions {
             .flatMap { s -> s.relations.map { it.name } }.toSet()
         if (declared.isEmpty()) return emptyList()
         return views.flatMap { view ->
-            view.relations.filter { it.name !in declared }.map { "${fileName(view.source)}: 関係「${it.name}」は関係レジストリに宣言されていません" }
+            view.relations.filter { it.name !in declared }.map { "${fileName(view.source)}: 関係「${it.name}」は関係レジストリに宣言されていません" } +
+                view.filters.flatMap { f -> f.keepIfLinked?.via.orEmpty().filter { it !in declared }.map {
+                    "${fileName(view.source)}: 絞り込み「${f.id}」の keepIfLinked.via の関係「$it」は関係レジストリに宣言されていません"
+                } }
         }
     }
 

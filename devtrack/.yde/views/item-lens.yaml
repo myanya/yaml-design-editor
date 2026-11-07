@@ -1,8 +1,8 @@
-# グラフレンズの「見え方」で選ぶ。指摘の箱を状態で描き分け、終わった指摘を隠す・残っている指摘だけを見せる絞り込みを持つ
+# グラフレンズの「見え方」で選ぶ。指摘の箱を状態で描き分け、終わった指摘を隠す（未解決とつながるものは残す）・残っている指摘だけを見せる絞り込みを持つ
 id: item-lens
 name: 指摘の状態
 kind: lens
-description: 指摘の箱を状態で描き分けます（解決・見送りは小さな札）。上の段の絞り込みで、終わった指摘を隠せます。
+description: 指摘の箱を状態で描き分けます（解決・見送りは小さな札）。上の段の絞り込みで、終わった指摘を隠せます（未解決の指摘と関連でつながるものは残します）。
 appearance:
   nodes:
     - level: entity
@@ -18,6 +18,11 @@ filters:
     mode: hide
     entityType: backlog-item
     where: {path: data.status, oneOf: [resolved, declined]}
+    # 関連する指摘の線で未解決の指摘と直接つながるものは、経緯として残す（小さな札のまま）
+    keepIfLinked:
+      via: [relates-to]
+      entityType: backlog-item
+      where: {not: {path: data.status, oneOf: [resolved, declined]}}
   - id: in-motion
     label: 議論待ち・対応中だけ
     mode: show

@@ -96,7 +96,7 @@ object RefactoringImpact {
     /**
      * 投影内の固定ID・関係名等は参照型の裏付けがないため、自動置換せず場所付きで開示する。
      * これは意味の評価ではなく保守的な言及の列挙。規則・条件・辞書キー・未知の指示も漏らさない。
-     * レンズの見え方（kind: lens）の関係名も同じ扱い（関係の改名で言及を開示する）。
+     * レンズの見え方（kind: lens）の関係名・記法・絞り込み（filters の via や条件の値）も同じ扱い（関係の改名で言及を開示する）。
      */
     internal fun viewMentionWarnings(session: WorkspaceSession, token: String): List<String> =
         viewDocuments(session).flatMap { file ->
@@ -106,7 +106,8 @@ object RefactoringImpact {
                 val relations = (raw["relations"] as? List<*>).orEmpty().mapIndexedNotNull { i, e ->
                     if ((e as? Map<*, *>)?.get("name") == token) "${file.value}: relations[${i + 1}].name に「$token」の言及があります（自動書換の対象外・要確認）" else null
                 }
-                return@flatMap relations + DefinitionMentions.literal(raw["appearance"], token, "appearance").map {
+                return@flatMap relations + (DefinitionMentions.literal(raw["appearance"], token, "appearance") +
+                    DefinitionMentions.literal(raw["filters"], token, "filters")).map {
                     "${file.value}: $it に「$token」の言及があります（自動書換の対象外・要確認）"
                 }
             }

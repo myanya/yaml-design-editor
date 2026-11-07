@@ -177,4 +177,46 @@ class ViewDefinitionsTest {
         assertTrue(errorsOf(head + "  - { id: a, mode: hide, level: doc, where: { path: id, equals: x } }\n").any { "level" in it })
         assertTrue(errorsOf(head + "  - { id: a, mode: hide, where: { path: id, between: x } }\n").isNotEmpty(), "条件の書き方は変換の \$when と同じ")
     }
+
+    @Test
+    fun `絞り込みの例外 つながりで残す は線の関係名と相手の型と条件を持ち 関係名はレジストリでリントする`() {
+        val lens = """
+            id: l
+            kind: lens
+            filters:
+              - id: hide-closed
+                mode: hide
+                where: { path: data.status, oneOf: [resolved, declined] }
+                keepIfLinked:
+                  via: [uses]
+                  entityType: item
+                  where: { not: { path: data.status, oneOf: [resolved, declined] } }
+              - id: any-line
+                mode: hide
+                where: { path: data.draft, equals: true }
+                keepIfLinked: { via: owns }
+        """.trimIndent()
+        val catalog = ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to lens), schemas())
+        assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
+        val (closed, anyLine) = catalog.lensViews.single().filters
+        val keep = closed.keepIfLinked!!
+        assertEquals(setOf("uses"), keep.via)
+        assertEquals("item", keep.entityType)
+        assertEquals(1, keep.conditions.size)
+        assertEquals(setOf("owns"), anyLine.keepIfLinked!!.via, "via は 1 つなら文字でも書ける")
+        assertTrue(anyLine.keepIfLinked!!.conditions.isEmpty())
+        // 関係レジストリがあれば、via の関係名の宣言を見る
+        val withRegistry = WorkspaceReader.load(InMemoryDocumentStore(mapOf(
+            "_schemas/screen.yaml" to screenSchema,
+            "_schemas/relations.yaml" to "id: relations\nkind: relations\nrelations:\n  - { name: uses, label: 利用する }\n",
+        ))).schemas
+        assertEquals(listOf("l.yaml: 絞り込み「any-line」の keepIfLinked.via の関係「owns」は関係レジストリに宣言されていません"),
+            ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to lens), withRegistry).errors)
+        // 誤り: 知らないキー・via の形
+        val head = "id: l\nkind: lens\nfilters:\n  - id: a\n    mode: hide\n    where: { path: id, equals: x }\n"
+        assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to head + "    keepIfLinked: { depth: 2 }\n"), schemas()).errors
+            .any { "使えないキー" in it })
+        assertTrue(ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to head + "    keepIfLinked: { via: [{ name: x }] }\n"), schemas()).errors
+            .any { "via" in it })
+    }
 }

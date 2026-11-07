@@ -8,8 +8,10 @@ import kotlin.test.assertEquals
 /** レンズの定義の箱の絞り込み（ADR-0027）: 向き・対象・起点・決められない条件の扱い。 */
 class LensFiltersTest {
 
-    private fun filter(id: String, mode: LensFilterMode, where: String, entityType: String? = null, level: String? = null) =
-        LensFilter(id, id, mode, TransformDef.parseConditions(YamlIO.parseToRaw(where), "where"), level, entityType)
+    private fun conditions(where: String?) = TransformDef.parseConditions(where?.let { YamlIO.parseToRaw(it) }, "where")
+
+    private fun filter(id: String, mode: LensFilterMode, where: String, entityType: String? = null, level: String? = null,
+        keep: LensFilterKeep? = null) = LensFilter(id, id, mode, conditions(where), level, entityType, keepIfLinked = keep)
 
     private fun box(id: String, type: String, data: Map<String, Any?>) = LensFilters.Candidate(id, type) {
         SemanticTransform.TemplatePlace(YamlIO.fromAny(mapOf("id" to id, "title" to id, "entityType" to type, "data" to data)), null, emptyList())
@@ -50,5 +52,52 @@ class LensFiltersTest {
         assertEquals(emptySet(), LensFilters.hidden(listOf(typeOnly), "entity", boxes))
         val byId = filter("id", LensFilterMode.SHOW, "[{path: entityType, equals: item}, {not: {path: id, equals: UX-01}}]")
         assertEquals(setOf("UX-01", "T-01"), LensFilters.hidden(listOf(byId), "entity", boxes))
+    }
+
+    // ---------------------------------------------------------------- つながりで残す（keepIfLinked）
+
+    private val open = "{not: {path: data.status, oneOf: [resolved, declined]}}"
+
+    /** UX-02（解決）は関連で UX-01（未着手）と、UX-03（見送り）は束ねで T-01 と、関連で UX-02 とつながる。 */
+    private val links = mapOf(
+        "UX-02" to listOf(LensLink("relates-to", "UX-01"), LensLink("relates-to", "UX-03")),
+        "UX-01" to listOf(LensLink("relates-to", "UX-02")),
+        "UX-03" to listOf(LensLink("bundled-in", "T-01"), LensLink("relates-to", "UX-02")),
+        "T-01" to listOf(LensLink("bundled-in", "UX-03")),
+    )
+
+    @Test
+    fun `つながる相手のどれかが条件に合えば隠さずに残し 残した箱を別に返す`() {
+        val hide = filter("closed", LensFilterMode.HIDE, closed, entityType = "item",
+            keep = LensFilterKeep(setOf("relates-to"), "item", conditions(open)))
+        val result = LensFilters.evaluate(listOf(hide), "entity", boxes, links = links)
+        assertEquals(setOf("UX-03"), result.hidden, "相手は 1 段だけ。UX-03 の関連の相手 UX-02 は解決なので残らない")
+        assertEquals(setOf("UX-02"), result.kept)
+    }
+
+    @Test
+    fun `見る線は via の関係だけで 相手の型と条件も合わせて見る`() {
+        val anyLine = filter("closed", LensFilterMode.HIDE, closed, entityType = "item", keep = LensFilterKeep())
+        assertEquals(emptySet(), LensFilters.hidden(listOf(anyLine), "entity", boxes, links = links), "via も条件も省けば、つながっていれば残す")
+        val bundled = filter("closed", LensFilterMode.HIDE, closed, entityType = "item", keep = LensFilterKeep(setOf("bundled-in"), "item"))
+        assertEquals(setOf("UX-02", "UX-03"), LensFilters.hidden(listOf(bundled), "entity", boxes, links = links), "束ねの相手 T-01 は型が違う")
+        val theme = filter("closed", LensFilterMode.HIDE, closed, entityType = "item", keep = LensFilterKeep(setOf("bundled-in"), "theme"))
+        assertEquals(setOf("UX-02"), LensFilters.hidden(listOf(theme), "entity", boxes, links = links))
+    }
+
+    @Test
+    fun `例外はその絞り込みが隠す分だけを取り消し 相手は別の絞り込みで隠れていても値で数える`() {
+        val keepOpen = LensFilterKeep(setOf("relates-to"), "item", conditions(open))
+        val hide = filter("closed", LensFilterMode.HIDE, closed, entityType = "item", keep = keepOpen)
+        val noTodo = filter("no-todo", LensFilterMode.HIDE, "{path: data.status, equals: todo}")
+        val result = LensFilters.evaluate(listOf(hide, noTodo), "entity", boxes, links = links)
+        assertEquals(setOf("UX-01", "UX-03"), result.hidden, "UX-01 は別の絞り込みで隠れるが、UX-02 は UX-01 の値で残る")
+        assertEquals(setOf("UX-02"), result.kept)
+        val resolvedHide = filter("resolved", LensFilterMode.HIDE, "{path: data.status, equals: resolved}", entityType = "item")
+        assertEquals(setOf("UX-02", "UX-03"), LensFilters.hidden(listOf(hide, resolvedHide), "entity", boxes, links = links),
+            "例外の無い絞り込みが隠す箱は隠す")
+        val show = filter("open-only", LensFilterMode.SHOW, open, entityType = "item", keep = keepOpen)
+        assertEquals(setOf("UX-03", "UX-04"), LensFilters.hidden(listOf(show), "entity", boxes, links = links),
+            "show にも書ける（UX-04 は状態が無くて決められず、つながりも無い）")
     }
 }

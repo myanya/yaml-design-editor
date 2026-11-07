@@ -13,7 +13,7 @@ import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** レンズの定義の箱の絞り込み（ADR-0027）: 見え方で選ぶと既定の絞り込みが入り、画面で外すと箱が戻る。 */
+/** レンズの定義の箱の絞り込み（ADR-0027）: 見え方で選ぶと既定の絞り込みが入り、画面で外すと箱が戻る。つながりで残した数も出る。 */
 @OptIn(ExperimentalTestApi::class)
 class LensFiltersUiTest {
     @Test fun `絞り込みを持つ見え方を選ぶと条件に合う人物だけになり 外すと全員に戻る`() = runComposeUiTest {
@@ -40,6 +40,14 @@ class LensFiltersUiTest {
                     entityType: person
                     where: {path: data.status, equals: active}
                     default: true
+                  - id: hide-away
+                    label: 不在を隠す
+                    mode: hide
+                    entityType: person
+                    where: {path: data.status, equals: away}
+                    keepIfLinked:
+                      via: [friend]
+                      where: {path: data.status, equals: active}
                 """.trimIndent() + "\n",
             )
             state.openWorkspace(root)
@@ -57,6 +65,10 @@ class LensFiltersUiTest {
             waitUntil(timeoutMillis = 20_000) { onAllNodesWithText("3 箱 / 3 辺").fetchSemanticsNodes().isNotEmpty() }
             onNodeWithText("☐ 在席だけ").assertExists()
             assertEquals(false, state.memory.lensFilters["people-active/active-only"], "外したことは画面の覚えに残る")
+            // 不在の蓮は、在席の葵・結衣と友人の線でつながるので残る
+            onNodeWithText("☐ 不在を隠す").performScrollTo().performClick()
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithText("0 件を隠し、1 件はつながりで残しています").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("3 箱 / 3 辺").assertExists()
         } finally {
             state.close()
             Files.walk(root).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }

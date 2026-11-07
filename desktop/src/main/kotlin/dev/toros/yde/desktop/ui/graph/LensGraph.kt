@@ -1,6 +1,7 @@
 package dev.toros.yde.desktop.ui.graph
 
 import dev.toros.yde.semantic.DiagramLinkSource
+import dev.toros.yde.semantic.LensLink
 import dev.toros.yde.semantic.ScannedId
 import dev.toros.yde.semantic.ScannedRef
 import dev.toros.yde.semantic.SemanticEntityGraph
@@ -99,6 +100,25 @@ object LensGraphs {
             ids[if (edge.reversed) edge.from else edge.to] ?: edge.to)) }
     }
 
+
+    /**
+     * 絞り込みの「つながりで残す」が見る線（ID ごと。ADR-0027）: 参照と保有の線（箱の入れ子を含む）を両方向に。
+     * 同じエンティティの箱どうしの点線と、自分自身への線は数えない。画面の関係のチェックには依らない（定義の via が決める）。
+     */
+    fun links(graph: LensGraph): Map<String, List<LensLink>> {
+        val idOf = graph.nodes.associate { it.key to it.id }
+        val out = LinkedHashMap<String, LinkedHashSet<LensLink>>()
+        fun link(a: String, b: String, relation: String?) {
+            val x = idOf[a] ?: a
+            val y = idOf[b] ?: b
+            if (x == y) return
+            out.getOrPut(x) { LinkedHashSet() } += LensLink(relation, y)
+            out.getOrPut(y) { LinkedHashSet() } += LensLink(relation, x)
+        }
+        graph.edges.filter { it.kind != LensEdgeKind.TIE }.forEach { link(it.from, it.to, it.relation) }
+        graph.nodes.forEach { n -> n.parent?.let { link(n.key, it, n.relation) } }
+        return out.mapValues { it.value.toList() }
+    }
 
     /** 出現の箱の鍵（ID・文書・パス）。 */
     fun occurrenceKey(e: ScannedId): String = "${e.id}@${e.document.value}#${e.path.pretty()}"

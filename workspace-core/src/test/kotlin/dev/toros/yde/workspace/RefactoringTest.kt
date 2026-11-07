@@ -28,6 +28,15 @@ class RefactoringTest {
         assertTrue(warnings.any { "card.yaml" in it && "build" in it })
     }
 
+    @Test fun `レンズの絞り込みの関係名と条件も改名時の言及として開示する`() {
+        val store = renameFieldStore()
+        store.write(DocumentId("_views/lens.yaml"), "id: lens\nkind: lens\nfilters:\n" +
+            "  - {id: a, mode: hide, where: {path: data.priority, equals: low}, keepIfLinked: {via: [uses], where: {path: data.priority, equals: high}}}\n")
+        val s = session(store)
+        assertTrue(RefactoringImpact.viewMentionWarnings(s, "uses").any { "lens.yaml" in it && "keepIfLinked.via" in it })
+        assertTrue(RefactoringImpact.viewMentionWarnings(s, "priority").count { "lens.yaml" in it } >= 2)
+    }
+
     private val a = DocumentId("items/a.yaml")
     private val b = DocumentId("items/b.yaml")
     private val c = DocumentId("items/c.yaml")
