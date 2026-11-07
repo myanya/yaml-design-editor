@@ -91,10 +91,13 @@ internal fun Application.localAuthentication(connections: LocalConnections, acce
             } else call.respondText(failure.message.orEmpty(), status = HttpStatusCode.fromValue(failure.status))
             finish()
         } finally {
-            // 送信完了後の HTTP 取消は MCP セッション終了ではない。ヘッダ確定だけでは成功とせず、本文の送信完了も確認する。
-            // SDK は認証で拒否された初期化も保持するため、未送信・拒否された応答は終了口へ戻す。
+            // 応答を確定した後の HTTP 取消は MCP セッション終了ではない。エンジンは本文を書き切ってから送信完了（isSent）を記すので、
+            // その間に HttpRequestLifecycle が取り消すと、セッション ID を受け取って先へ進んだクライアントのセッションを閉じてしまう。
+            // ヘッダを確定した成功の応答は届いたものとして扱う（本文が届かなかったセッションは無操作の期限で閉じる）。
+            // SDK は認証で拒否された初期化も保持するため、確定前・拒否された応答は終了口へ戻す。
             call.attributes.getOrNull(McpSessionHooksKey)?.let { hooks ->
-                val sent = call.response.isSent && (call.response.status()?.value ?: 0) in 200..299 && !call.attributes.contains(rejectedKey)
+                val sent = (call.response.isSent || call.response.isCommitted) &&
+                    (call.response.status()?.value ?: 0) in 200..299 && !call.attributes.contains(rejectedKey)
                 withContext(NonCancellable) { hooks.finish(completed || sent) }
             }
         }

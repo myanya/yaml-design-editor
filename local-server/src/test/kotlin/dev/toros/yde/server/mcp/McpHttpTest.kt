@@ -2,6 +2,9 @@ package dev.toros.yde.server.mcp
 
 import dev.toros.yde.app.service.OperationState
 import dev.toros.yde.server.*
+import dev.toros.yde.server.protocol.externalJson
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -151,6 +154,26 @@ class McpHttpTest {
         assertEquals(HttpStatusCode.OK, f.post(token, session, ping).status)
         assertEquals(HttpStatusCode.OK, f.terminate(token, session).status)
         assertEquals(HttpStatusCode.NotFound, f.post(token, session, ping).status)
+    }
+
+    @Test fun `初期化の応答を書き終えた後で送信完了の前にHTTPが取り消されてもMCPセッションを維持する`() = withMcpHttp(cancelAfterInitializationBody = true) { f ->
+        val token = f.access.issueBearer(f.register().id)
+        // 取り消した呼び出しの接続はサーバが閉じるので、後続の要求で使い回さないよう初期化だけ別のクライアントで送る。
+        val session = HttpClient(CIO).use { it.preparePost(f.url) {
+            bearerAuth(token.value)
+            contentType(ContentType.Application.Json)
+            header(HttpHeaders.Accept, "application/json, text/event-stream")
+            header("MCP-Protocol-Version", "2025-11-25")
+            setBody(externalJson(initialization).toString())
+        }.execute { response ->
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertNotNull(response.headers["Mcp-Session-Id"])
+        } }
+        withTimeout(5_000) { f.initializationEnded.await() }
+        val notification = f.post(token, session, mapOf("jsonrpc" to "2.0", "method" to "notifications/initialized"))
+        assertEquals(HttpStatusCode.Accepted, notification.status, notification.bodyAsText())
+        assertEquals(HttpStatusCode.OK, f.post(token, session, ping).status)
+        assertEquals(HttpStatusCode.OK, f.terminate(token, session).status)
     }
 
     @Test fun `確定中の取消とMCP停止は開始した保存と記録を待ち再接続後に同じ結果を返す`() {

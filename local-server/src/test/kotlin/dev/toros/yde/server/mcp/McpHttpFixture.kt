@@ -13,8 +13,12 @@ import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.http.content.OutgoingContent
 import io.ktor.server.application.*
+import io.ktor.server.request.httpMethod
 import io.ktor.server.response.*
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.writeFully
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpClientTransport
 import io.modelcontextprotocol.kotlin.sdk.types.*
@@ -29,6 +33,7 @@ import kotlin.time.Duration.Companion.minutes
 /** 製品と同じゲート・認証・アダプターを CIO の実ポートで組み立てる。一時領域以外は操作しない。 */
 internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: suspend () -> Unit = {},
     afterJournal: (OperationRecord) -> Unit = {}, cancelAfterInitializationResponse: Boolean = false,
+    cancelAfterInitializationBody: Boolean = false,
 ) {
     val root = Files.createTempDirectory("yde-mcp-http")
     private val owner = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -44,8 +49,15 @@ internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: 
             }
         })
     val operations = WorkspaceOperations(host, grants::operationGrant, { "wire" })
+    /** 最初の初期化（セッション指定の無い POST）の後始末（認証の終了処理を含む）が済んだ印。 */
+    val initializationEnded = CompletableDeferred<Unit>()
     val connections: LocalConnections = LocalConnections(scope, { _, connections ->
         LoopbackEngine(0) {
+            // 認証（Plugins の段）より外側で包み、その後始末の後に印を付ける。
+            intercept(ApplicationCallPipeline.Setup) {
+                val initialization = call.request.httpMethod == HttpMethod.Post && call.request.headers["Mcp-Session-Id"] == null
+                try { proceed() } finally { if (initialization) initializationEnded.complete(Unit) }
+            }
             localConnectionGate(connections)
             localAuthentication(connections, access)
             readApi(reads)
@@ -56,6 +68,29 @@ internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: 
                     currentCoroutineContext().cancel(CancellationException("試験: 本文を送信した直後の HTTP 終了"))
                     currentCoroutineContext().ensureActive()
                 }
+            }
+            // ヘッダを確定して本文を書き切った後、エンジンが送信完了（isSent）を記す前に取り消す。
+            // クライアントは応答を受け取って先へ進むが、サーバ側の HttpRequestLifecycle が呼び出しを取り消す時機。
+            if (cancelAfterInitializationBody) sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
+                if (call.request.httpMethod != HttpMethod.Post || call.request.headers["Mcp-Session-Id"] != null) return@intercept
+                val original = subject as? OutgoingContent ?: return@intercept
+                val write: suspend (ByteWriteChannel) -> Unit = when (original) {
+                    is OutgoingContent.ByteArrayContent -> { channel -> channel.writeFully(original.bytes()) }
+                    is OutgoingContent.WriteChannelContent -> { channel -> original.writeTo(channel) }
+                    else -> return@intercept
+                }
+                proceedWith(object : OutgoingContent.WriteChannelContent() {
+                    override val status get() = original.status
+                    override val contentType get() = original.contentType
+                    override val contentLength get() = original.contentLength
+                    override val headers get() = original.headers
+                    override suspend fun writeTo(channel: ByteWriteChannel) {
+                        write(channel)
+                        channel.flush()
+                        currentCoroutineContext().cancel(CancellationException("試験: 本文を書き切った後、送信完了の前の HTTP 終了"))
+                        currentCoroutineContext().ensureActive()
+                    }
+                })
             }
         }
     }, onDisabled = { access.featureStopped(it) })
@@ -160,9 +195,10 @@ internal fun changes(title: String) = listOf(mapOf("file" to "a.yaml", "ops" to 
 
 internal fun withMcpHttp(idleTimeout: Duration = 15.minutes, afterCapture: suspend () -> Unit = {},
     afterJournal: (OperationRecord) -> Unit = {}, cancelAfterInitializationResponse: Boolean = false,
+    cancelAfterInitializationBody: Boolean = false,
     block: suspend CoroutineScope.(McpHttpFixture) -> Unit,
 ): Unit = runBlocking {
-    val fixture = McpHttpFixture(idleTimeout, afterCapture, afterJournal, cancelAfterInitializationResponse)
+    val fixture = McpHttpFixture(idleTimeout, afterCapture, afterJournal, cancelAfterInitializationResponse, cancelAfterInitializationBody)
     try { withTimeout(30_000) { fixture.start(); block(fixture) } }
     finally { withContext(NonCancellable) { fixture.close() } }
 }
