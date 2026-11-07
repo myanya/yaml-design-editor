@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 
 /**
  * 開発管理（devtrack/）を CI で守る（devtrack/README.md「運用」）:
- * - 検証のエラーが無い（オーナーの判断で残している指摘を除く）。ビュー・ダッシュボード・レポートの定義が読める
+ * - 検証のエラーが無い。ビュー・ダッシュボード・レポートの定義が読める
  * - docs/BACKLOG.md と docs/archive/backlog-closed.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
  * - 業務の操作（登録・状態の変更・一部の解決・解決）が写しの上で通り、検証のエラーを増やさない
  */
@@ -26,14 +26,9 @@ class DevtrackTest {
 
     private val root: Path = Path.of("devtrack")
 
-    /** オーナーの判断で残している指摘（直すときはここから外す）。文書と、指摘の場所のパス */
-    private val knownErrors = setOf("backlog/UX-180.yaml" to "status")
-
     private fun errorsOf(ws: Workspace): List<String> = ws.files.flatMap { file ->
         val rel = ws.relPath(file)
-        ws.validate(rel).filter { it.severity == Severity.ERROR }
-            .filter { (rel to it.path.pretty()) !in knownErrors }
-            .map { "$rel ${it.path.pretty()}: ${it.message}" }
+        ws.validate(rel).filter { it.severity == Severity.ERROR }.map { "$rel ${it.path.pretty()}: ${it.message}" }
     }
 
     private fun render(ws: Workspace, report: String): String {
