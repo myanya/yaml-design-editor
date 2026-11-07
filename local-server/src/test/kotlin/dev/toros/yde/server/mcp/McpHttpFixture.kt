@@ -33,7 +33,7 @@ import kotlin.time.Duration.Companion.minutes
 /** 製品と同じゲート・認証・アダプターを CIO の実ポートで組み立てる。一時領域以外は操作しない。 */
 internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: suspend () -> Unit = {},
     afterJournal: (OperationRecord) -> Unit = {}, cancelAfterInitializationResponse: Boolean = false,
-    cancelAfterInitializationBody: Boolean = false,
+    holdInitializationAfterBody: Boolean = false,
 ) {
     val root = Files.createTempDirectory("yde-mcp-http")
     private val owner = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -69,9 +69,9 @@ internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: 
                     currentCoroutineContext().ensureActive()
                 }
             }
-            // ヘッダを確定して本文を書き切った後、エンジンが送信完了（isSent）を記す前に取り消す。
-            // クライアントは応答を受け取って先へ進むが、サーバ側の HttpRequestLifecycle が呼び出しを取り消す時機。
-            if (cancelAfterInitializationBody) sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
+            // ヘッダを確定して本文を書き切った後、エンジンが送信完了（isSent）を記す前の所で止める。
+            // クライアントが応答を受け取って接続を閉じると、SDK が入れた HttpRequestLifecycle がこの呼び出しを取り消す。
+            if (holdInitializationAfterBody) sendPipeline.intercept(ApplicationSendPipeline.After) { subject ->
                 if (call.request.httpMethod != HttpMethod.Post || call.request.headers["Mcp-Session-Id"] != null) return@intercept
                 val original = subject as? OutgoingContent ?: return@intercept
                 val write: suspend (ByteWriteChannel) -> Unit = when (original) {
@@ -87,8 +87,7 @@ internal class McpHttpFixture(idleTimeout: Duration = 15.minutes, afterCapture: 
                     override suspend fun writeTo(channel: ByteWriteChannel) {
                         write(channel)
                         channel.flush()
-                        currentCoroutineContext().cancel(CancellationException("試験: 本文を書き切った後、送信完了の前の HTTP 終了"))
-                        currentCoroutineContext().ensureActive()
+                        awaitCancellation()
                     }
                 })
             }
@@ -195,10 +194,10 @@ internal fun changes(title: String) = listOf(mapOf("file" to "a.yaml", "ops" to 
 
 internal fun withMcpHttp(idleTimeout: Duration = 15.minutes, afterCapture: suspend () -> Unit = {},
     afterJournal: (OperationRecord) -> Unit = {}, cancelAfterInitializationResponse: Boolean = false,
-    cancelAfterInitializationBody: Boolean = false,
+    holdInitializationAfterBody: Boolean = false,
     block: suspend CoroutineScope.(McpHttpFixture) -> Unit,
 ): Unit = runBlocking {
-    val fixture = McpHttpFixture(idleTimeout, afterCapture, afterJournal, cancelAfterInitializationResponse, cancelAfterInitializationBody)
+    val fixture = McpHttpFixture(idleTimeout, afterCapture, afterJournal, cancelAfterInitializationResponse, holdInitializationAfterBody)
     try { withTimeout(30_000) { fixture.start(); block(fixture) } }
     finally { withContext(NonCancellable) { fixture.close() } }
 }

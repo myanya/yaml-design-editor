@@ -156,9 +156,9 @@ class McpHttpTest {
         assertEquals(HttpStatusCode.NotFound, f.post(token, session, ping).status)
     }
 
-    @Test fun `初期化の応答を書き終えた後で送信完了の前にHTTPが取り消されてもMCPセッションを維持する`() = withMcpHttp(cancelAfterInitializationBody = true) { f ->
+    @Test fun `初期化の応答を読んだクライアントが送信完了の前に接続を閉じてもMCPセッションを維持する`() = withMcpHttp(holdInitializationAfterBody = true) { f ->
         val token = f.access.issueBearer(f.register().id)
-        // 取り消した呼び出しの接続はサーバが閉じるので、後続の要求で使い回さないよう初期化だけ別のクライアントで送る。
+        // 初期化だけ別のクライアントで送り、応答を読んだら閉じる。接続が閉じるとサーバ側の呼び出しが取り消される。
         val session = HttpClient(CIO).use { it.preparePost(f.url) {
             bearerAuth(token.value)
             contentType(ContentType.Application.Json)
@@ -167,6 +167,7 @@ class McpHttpTest {
             setBody(externalJson(initialization).toString())
         }.execute { response ->
             assertEquals(HttpStatusCode.OK, response.status)
+            assertContains(response.bodyAsText(), "protocolVersion")
             assertNotNull(response.headers["Mcp-Session-Id"])
         } }
         withTimeout(5_000) { f.initializationEnded.await() }
