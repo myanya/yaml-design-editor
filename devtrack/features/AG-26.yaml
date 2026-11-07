@@ -1,0 +1,13 @@
+id: AG-26
+title: '一括実行 `foreach`（source: view / issues / search / files / ids / query・1 件 = 1 実行のキュー展開・GUI と CLI）'
+implementation:
+- path: agent/auto/Foreach.kt
+  module: agent
+- path: agent/auto/Automation.kt
+  detail: '`enqueueForeach`'
+  module: agent
+tests:
+- name: ForeachTest
+design:
+- label: agents
+  link: architecture/agents.md

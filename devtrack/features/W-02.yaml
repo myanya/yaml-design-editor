@@ -1,0 +1,14 @@
+id: W-02
+title: ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地）
+implementation:
+- path: ui/file/FileTreePane.kt
+  module: desktop
+- path: core/FileCatalog.kt
+  module: app-core
+tests:
+- name: FileCatalogTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

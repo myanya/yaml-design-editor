@@ -1,0 +1,16 @@
+id: W-06
+title: UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化）
+implementation:
+- path: UiPreferences.kt
+  module: desktop
+- path: ui/shell/AppRoot.kt
+  module: desktop
+- path: ui/shell/AppToolbar.kt
+  module: desktop
+- path: ui/common/Common.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

@@ -1,0 +1,13 @@
+id: A-12
+title: 生成の入出力記録（システム指示・プロンプト・応答スキーマ・生出力を実行記録へ）
+implementation:
+- path: agent/llm/AiGenerator.kt
+  detail: '`AiExchange`'
+  module: agent
+- path: agent/run/RunLog.kt
+  module: agent
+tests:
+- name: GenerationRunTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,12 @@
+id: X-18
+title: 図の記法の定義・入力と表示契約の検査・変換をまたぐ原本座標
+implementation:
+- path: semantic/DiagramNotations.kt
+  module: semantic-core
+- path: workspace-core/workspace/DiagramDefinitions.kt
+  module: workspace-core
+tests:
+- name: DiagramDefinitionsTest
+design:
+- label: 図の記法
+  link: architecture/diagram-notations.md

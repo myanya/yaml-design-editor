@@ -1,0 +1,14 @@
+id: C-10
+title: エンティティ操作（rename / merge / delete を 1 つの計画に・1 トランザクションで Undo 1 回・CLI とパレットとエンティティページ）
+implementation:
+- path: semantic-core/semantic/Refactor.kt
+  module: semantic-core
+- path: workspace-core/workspace/WorkspaceSession.kt
+  detail: '`planRefactoring`'
+  module: workspace-core
+tests:
+- name: RefactoringTest
+- name: AppStateRefactorTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

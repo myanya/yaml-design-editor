@@ -1,0 +1,12 @@
+id: AG-06
+title: ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全）
+implementation:
+- path: tools/WorkingCopy.kt
+  module: app-core
+- path: agent/run/Staging.kt
+  module: agent
+tests:
+- name: StagingTest
+design:
+- label: agents
+  link: architecture/agents.md

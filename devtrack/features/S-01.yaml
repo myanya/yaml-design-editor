@@ -1,0 +1,15 @@
+id: S-01
+title: スキーマ読込（`match` glob 先勝ち・id 重複検出・読むのはカーネルの経路だけ・app-core の `SchemaDef` は薄い型）
+implementation:
+- path: workspace-core/workspace/SchemaDocuments.kt
+  module: workspace-core
+- path: WorkspaceReader.kt
+  module: workspace-core
+- path: schema/Schema.kt
+  module: app-core
+tests:
+- name: SchemaLoaderTest
+- name: KernelCheckLoadingTest
+design:
+- label: schema
+  link: architecture/schema.md

@@ -1,0 +1,42 @@
+# 生成用: docs/FEATURES.md（レポート features-md）の表の行。ID の順。
+# 各欄は値の式で FEATURES.md の文字に組み立てる（並びは、ひな形が「・」でつなぐ）。節への振り分けはレポートが ID の接頭辞で行う
+id: doc-features
+name: 生成用：機能索引の表
+rows:
+  idPattern: "*-*"
+  schemaIds: [feature]
+order:
+  schemaId: feature
+  path: id
+  direction: asc
+columns:
+  - { label: 機能, schemaId: feature, path: title }
+  # 場所はバッククォートで囲み、補足を（）に。場所の形にならないものは文のまま
+  - label: 主な実装
+    schemaId: feature
+    value:
+      each: { path: implementation }
+      value:
+        first:
+          - { format: "`{path}`（{detail}）" }
+          - { format: "`{path}`" }
+          - { path: text }
+  # 名前のあるテストは種類の印（UI・検査）＋名前（単体は印なし）、名前の無い行は種類の名前（単体・手動）。補足は（）に
+  - label: テスト
+    schemaId: feature
+    value:
+      each: { path: tests }
+      value:
+        first:
+          - { format: "{mark} `{name}`（{note}）", with: { mark: { map: { path: kind }, using: { ui: UI, check: 検査 } } } }
+          - { format: "`{name}`（{note}）" }
+          - { format: "{mark} `{name}`", with: { mark: { map: { path: kind }, using: { ui: UI, check: 検査 } } } }
+          - { format: "`{name}`" }
+          - { format: "{label}（{note}）", with: { label: { map: { path: kind }, using: { unit: 単体, manual: 手動 } } } }
+          - { format: "{label}", with: { label: { map: { path: kind }, using: { unit: 単体, manual: 手動 } } } }
+  - { label: ほか, schemaId: feature, path: more_tests }
+  - label: 設計
+    schemaId: feature
+    value:
+      each: { path: design }
+      value: { format: "[{label}]({link})" }

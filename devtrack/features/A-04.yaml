@@ -1,0 +1,12 @@
+id: A-04
+title: JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退）
+implementation:
+- path: tools/JsonSchemas.kt
+  detail: '`fieldToJsonSchema`'
+  module: app-core
+tests:
+- name: OpenAiGeneratorTest
+- name: MetaSchemaTest
+design:
+- label: agents
+  link: architecture/agents.md

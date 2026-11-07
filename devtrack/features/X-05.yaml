@@ -1,0 +1,12 @@
+id: X-05
+title: 'ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・`kind: document`）'
+implementation:
+- path: core/Views.kt
+  module: app-core
+- path: workspace-core/workspace/ViewDefinitions.kt
+  module: workspace-core
+tests:
+- name: ViewsTest
+design:
+- label: views
+  link: architecture/views.md

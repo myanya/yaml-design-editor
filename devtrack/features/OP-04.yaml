@@ -1,0 +1,10 @@
+id: OP-04
+title: CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`）
+implementation:
+- path: cli/ActionCommands.kt
+  module: cli
+tests:
+- name: ActionCliTest
+design:
+- label: actions
+  link: architecture/actions.md

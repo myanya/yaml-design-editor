@@ -1,0 +1,12 @@
+id: LC-06
+title: 外部作業の提案・直接確定・破棄と再起動後の結果復元
+implementation:
+- path: service/WorkspaceWork.kt
+  module: app-core
+- path: service/WorkJournal.kt
+  module: app-core
+tests:
+- name: WorkspaceWorkTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

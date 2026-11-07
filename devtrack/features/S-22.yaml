@@ -1,0 +1,11 @@
+id: S-22
+title: アスペクト宣言とエンティティ型レジストリ（`aspect` / `owns`・レジストリの `entities:` 節）
+implementation:
+- path: semantic-core/schema/Relations.kt
+  detail: '`EntityTypeDef`, `ownedFieldKeys`'
+  module: semantic-core
+tests:
+- name: AspectTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

@@ -264,3 +264,156 @@ definitions:
         type: 文章
         rows: 12
         description: 本文（Markdown）。台帳の節にそのまま出ます。
+
+  # ---- 機能（docs/FEATURES.md の行。エージェント向けの索引） ----
+  機能ID:
+    type: id
+    pattern: "^(W|E|S|V|I|X|A|AG|C|SK|OP|LC)-[0-9]{2,3}$"
+    placeholder: W-01
+    sample: LC-29
+    description: 系統の接頭辞（W・E・S・V・I・X・A・AG・C・SK・OP・LC）と番号。ファイル名（features/W-01.yaml の形）にもなります。
+  機能の系統:
+    type: enum
+    values:
+      - { value: W, label: W ワークスペース・ファイル管理 }
+      - { value: E, label: E 文書編集 }
+      - { value: S, label: S スキーマ }
+      - { value: V, label: V 検証 }
+      - { value: I, label: I ID・参照 }
+      - { value: X, label: X ワークスペース横断ビュー }
+      - { value: A, label: A AI による作成支援 }
+      - { value: AG, label: AG エージェント実行（アクティビティ） }
+      - { value: C, label: C コア API・CLI（エージェント基盤） }
+      - { value: SK, label: SK skill（フォーマット適合） }
+      - { value: OP, label: OP 操作（型の操作とアクション） }
+      - { value: LC, label: LC ローカル接続の基盤 }
+  モジュール:
+    type: enum
+    values: [yaml-core, semantic-core, workspace-core, app-core, agent, desktop, cli, local-server, format-office, web-ui, repo-tests]
+  # テストの種類: 単体（名前だけ）・UI（Compose の画面を組み立てるテスト）は ./gradlew test に含まれる。検査は別のタスクか手順
+  テストの種類:
+    type: enum
+    values:
+      - { value: unit, label: 単体（./gradlew test。名前のあるテストは省略できる） }
+      - { value: ui, label: UI（Compose の画面を組み立てるテスト。./gradlew test に含まれる） }
+      - { value: check, label: 検査（./gradlew test に含まれない別のタスクか手順） }
+      - { value: manual, label: 手動（画面は skill ui-check で確かめる） }
+
+  実装の場所:
+    type: object
+    label: 実装の場所
+    fields:
+      - key: path
+        label: 場所
+        type: 一行の文
+        description: ファイルの短い場所（モジュールの中のパッケージからのパス。例 ui/shell/StartScreen.kt）か、クラス・関数の名前。FEATURES.md ではバッククォートで囲んで出します。
+      - key: detail
+        label: 補足
+        type: 一行の文
+        description: 場所の中の関数名など（FEATURES.md では場所の後ろの（）の中）。
+      - key: module
+        label: モジュール
+        type: モジュール
+        description: その場所があるモジュール（FEATURES.md には出しません。場所を一意に引くため）。
+      - key: text
+        label: 文で書く場合
+        type: 一行の文
+        description: 場所の形にならないもの（例「資源 `view/chart/schema.yaml`」）。path の代わりに書き、そのまま出します。
+    constraints:
+      - id: place-has-path-or-text
+        description: 実装の場所には、場所（path）か文（text）のどちらかがあること
+        where:
+          - { path: path, exists: false }
+          - { path: text, exists: false }
+        expect: absent
+        level: error
+        message: "実装の場所に、場所（path）も文（text）もありません"
+
+  テスト:
+    type: object
+    label: テスト
+    fields:
+      - key: name
+        label: テスト名
+        type: 一行の文
+        description: テストのクラス名（例 WorkspaceInitTest）か検査の名前。./gradlew test --tests '*名前*' で絞って回せます。
+      - key: kind
+        label: 種類
+        type: テストの種類
+        description: 名前のあるテストは省くと単体。名前の無い行（「手動」「単体（一部）」）には必ず書きます。
+      - key: note
+        label: 補足
+        type: 一行の文
+        description: 何を確かめるか（FEATURES.md では（）の中）。手動なら確かめる場面（例 画面）。
+    constraints:
+      - id: test-has-name-or-kind
+        description: テストには、名前か種類のどちらかがあること
+        where:
+          - { path: name, exists: false }
+          - { path: kind, exists: false }
+        expect: absent
+        level: error
+        message: "テストに、名前（name）も種類（kind）もありません"
+
+  文書の参照:
+    type: object
+    label: 文書の参照
+    fields:
+      - key: label
+        label: 見出し
+        type: 一行の文
+        required: true
+        description: FEATURES.md のリンクの文字（例 ui）。
+      - key: link
+        label: 場所
+        type: 一行の文
+        required: true
+        description: docs/ からの相対パス（例 architecture/ui.md）。見出しまで指すときは、見出しの文字を label に書きます。
+
+  # 機能: 1 件 1 ファイル。この形の要素がエンティティ feature の定義
+  機能:
+    type: object
+    label: 機能
+    entity: { type: feature, defines: true }
+    fields:
+      - key: id
+        label: ID
+        type: 機能ID
+        required: true
+      - key: title
+        label: 機能
+        type: 一行の文
+        role: title
+        required: true
+        description: FEATURES.md の「機能」の欄。何ができるかを 1 行で。経緯は書きません。
+      - key: implementation
+        label: 主な実装
+        type: array
+        required: true
+        item: { type: 実装の場所 }
+      - key: tests
+        label: テスト
+        type: array
+        required: true
+        item: { type: テスト }
+      - key: more_tests
+        label: ほかのテストもある
+        type: boolean
+        description: 代表のテストだけを書いたとき（FEATURES.md では「ほか」）。
+      - key: design
+        label: 設計
+        type: array
+        required: true
+        item: { type: 文書の参照 }
+        description: 設計文書（architecture/ など）の主題。
+    constraints:
+      - id: feature-has-places
+        description: 機能には、主な実装・テスト・設計がそれぞれ 1 つ以上あること（テストが無ければ種類「手動」の行を書く）
+        where:
+          - or:
+              - { path: implementation, empty: true }
+              - { path: tests, empty: true }
+              - { path: design, empty: true }
+        expect: absent
+        level: error
+        message: "機能「{id}」の主な実装・テスト・設計のどれかが空です"

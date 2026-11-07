@@ -1,0 +1,15 @@
+id: W-01
+title: ワークスペース選択・履歴・開けない理由の通知と再試行
+implementation:
+- path: ui/shell/StartScreen.kt
+  module: desktop
+- path: WorkspaceOpenNotice.kt
+  module: desktop
+- path: ui/common/FilePickers.kt
+  module: desktop
+tests:
+- name: WorkspaceOpenNoticeTest
+  kind: ui
+design:
+- label: ui
+  link: architecture/ui.md

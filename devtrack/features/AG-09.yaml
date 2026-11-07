@@ -1,0 +1,13 @@
+id: AG-09
+title: 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録）
+implementation:
+- path: agent/run/RunLog.kt
+  module: agent
+- path: agent/run/Kernel.kt
+  module: agent
+tests:
+- name: KernelTest
+- name: AutoApplySafetyTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,11 @@
+id: AG-21
+title: 比較実験（`variants` でモデル・エージェント・指示を差し替えた A/B）
+implementation:
+- path: eval/EvalRunner.kt
+  detail: '`EvalRunner`'
+  module: agent
+tests:
+- name: EvalTest
+design:
+- label: agents
+  link: architecture/agents.md

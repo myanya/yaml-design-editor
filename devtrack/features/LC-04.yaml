@@ -1,0 +1,13 @@
+id: LC-04
+title: 外部操作の計画・厳格な検証・確定と履歴失効
+implementation:
+- path: service/WorkspaceOperations.kt
+  module: app-core
+- path: ChangeSetApplier.kt
+  module: workspace-core
+tests:
+- name: WorkspaceOperationsTest
+- name: ExternalCommitTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

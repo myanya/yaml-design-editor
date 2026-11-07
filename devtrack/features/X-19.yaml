@@ -1,0 +1,15 @@
+id: X-19
+title: 人物カード・画像・共通部品の計測描画・レンズとフローへの適用
+implementation:
+- path: core/DiagramInputs.kt
+  module: app-core
+- path: ui/common/DiagramBodies.kt
+  module: desktop
+tests:
+- name: DiagramBodiesTest
+  kind: ui
+- name: DiagramFlowTest
+- name: FileLocationsTest
+design:
+- label: 図の記法
+  link: architecture/diagram-notations.md

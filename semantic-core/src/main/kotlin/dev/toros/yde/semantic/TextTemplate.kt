@@ -15,7 +15,8 @@ import java.util.Locale
  * 書き方は 4 つだけ: 穴 `{パス}`（`{パス:形}` で数や日付の形。`{パス:cell}` は Markdown の表のセル）、繰り返し `{#each パス}…{/each}`、条件 `{#if パス}…{/if}`、
  * 文字の `{` `}` は `{{` `}}`。コードは書けず、同じ入力からは同じ文字ができる（決定的）。
  * 穴のパスは、いま見ている値（繰り返しの要素）→ その外側 → 根の順に探す。繰り返しの中では `{index}`（0 始まり）と
- * `{position}`（1 始まり）も使える。マップを繰り返すと要素は `{key}` と `{value}`。
+ * `{position}`（1 始まり）と、後ろにまだ要素があるか `more`（真偽。`{#if more}・{/if}` で並びを区切る）も使える。
+ * マップを繰り返すと要素は `{key}` と `{value}`。
  * タグだけの行は行ごと消える（表の行を繰り返しで書けるように）。埋まらなかった穴は空にして、名前を結果に残す。
  */
 object TextTemplate {
@@ -47,7 +48,9 @@ object TextTemplate {
             for (scope in scopes) getAt(scope, p)?.let { return it }
             return null
         }
-        fun loopVars(i: Int): YNode = YNode.Map(LinkedHashMap<String, YNode>().also { it["index"] = YNode.Scalar(i); it["position"] = YNode.Scalar(i + 1) })
+        fun loopVars(i: Int, size: Int): YNode = YNode.Map(LinkedHashMap<String, YNode>().also {
+            it["index"] = YNode.Scalar(i); it["position"] = YNode.Scalar(i + 1); it["more"] = YNode.Scalar(i < size - 1)
+        })
         fun emit(nodes: List<Node>, scopes: List<YNode>) {
             for (n in nodes) when (n) {
                 is Node.Text -> out.append(n.text)
@@ -56,10 +59,10 @@ object TextTemplate {
                     if (v == null) missing += n.path else out.append(text(v, n.format))
                 }
                 is Node.Each -> when (val v = lookup(n.path, scopes)) {
-                    is YNode.Seq -> v.items.forEachIndexed { i, item -> emit(n.body, listOf(item, loopVars(i)) + scopes) }
+                    is YNode.Seq -> v.items.forEachIndexed { i, item -> emit(n.body, listOf(item, loopVars(i, v.items.size)) + scopes) }
                     is YNode.Map -> v.entries.entries.forEachIndexed { i, (k, item) ->
                         val entry = YNode.Map(LinkedHashMap<String, YNode>().also { it["key"] = YNode.Scalar(k); it["value"] = item })
-                        emit(n.body, listOf(entry, loopVars(i)) + scopes)
+                        emit(n.body, listOf(entry, loopVars(i, v.entries.size)) + scopes)
                     }
                     null -> missing += n.path
                     else -> Unit

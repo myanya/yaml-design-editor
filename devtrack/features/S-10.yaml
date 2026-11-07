@@ -1,0 +1,14 @@
+id: S-10
+title: enum 値ごとの追加フィールド（`cases`・多段展開・フォーム・検証・索引・AI 生成・設計 UI）
+implementation:
+- path: schema/Schema.kt
+  detail: '`effectiveFields`'
+  module: app-core
+- path: ui/form/FormFields.kt
+  module: desktop
+tests:
+- name: SchemaLoaderTest
+- name: ValidatorTest
+design:
+- label: schema
+  link: architecture/schema.md

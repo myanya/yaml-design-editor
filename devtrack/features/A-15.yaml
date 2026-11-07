@@ -1,0 +1,13 @@
+id: A-15
+title: 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下）
+implementation:
+- path: desktop/AppState.kt
+  detail: '`AiRequest` / `requestAi`'
+  module: desktop
+- path: ui/run/AiGenerationDialog.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

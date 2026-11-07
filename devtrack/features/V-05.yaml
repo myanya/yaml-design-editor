@@ -1,0 +1,13 @@
+id: V-05
+title: カバレッジ検証（詳細文書の存在・組込み定義体・作成場所の併記と「詳細文書を作成」）
+implementation:
+- path: builtin-definitions/coverage.yaml
+  module: workspace-core
+- path: workspace-core/workspace/DocumentScaffold.kt
+  module: workspace-core
+tests:
+- name: CoverageTest
+- name: CoverageMessageTest
+design:
+- label: checks
+  link: architecture/checks.md

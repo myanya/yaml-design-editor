@@ -1,0 +1,11 @@
+id: C-08
+title: 性能ベンチマーク（カーネルの全再構築・増分更新の計測・CLI `workspace bench`）
+implementation:
+- path: cli/Commands.kt
+  module: cli
+tests:
+- name: CliTest
+- name: IdIndexIncrementalTest
+design:
+- label: workspace
+  link: architecture/workspace.md

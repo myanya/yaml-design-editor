@@ -1,0 +1,12 @@
+id: E-07
+title: 文書メタデータ `_document`（id・name・description）の編集とコンパクトな文書ヘッダー
+implementation:
+- path: ui/form/FormView.kt
+  module: desktop
+- path: ui/shell/EditorChrome.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

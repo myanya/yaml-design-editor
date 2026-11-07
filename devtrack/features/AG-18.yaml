@@ -1,0 +1,12 @@
+id: AG-18
+title: '自動実行 UI（自動化タブ: 監視・キュー・履歴・ログ）と CLI `watch`'
+implementation:
+- path: ui/run/AutomationPanel.kt
+  module: desktop
+- path: cli/AgentCommands.kt
+  module: cli
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

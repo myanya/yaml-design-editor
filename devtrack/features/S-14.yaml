@@ -1,0 +1,14 @@
+id: S-14
+title: enum のリッチ選択肢（`{value, label, description}`・label は表示専用）
+implementation:
+- path: schema/Schema.kt
+  detail: '`EnumOption`'
+  module: app-core
+- path: ui/form/ScalarEditors.kt
+  detail: '`EnumEditor`'
+  module: desktop
+tests:
+- name: DisplayTest
+design:
+- label: schema
+  link: architecture/schema.md

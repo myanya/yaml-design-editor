@@ -1,0 +1,12 @@
+id: X-24
+title: flow・lens のグリッド吸着と設定保存
+implementation:
+- path: ui/common/DiagramGrid.kt
+  module: desktop
+tests:
+- name: DiagramGridTest
+- name: DiagramPositionUiTest
+  kind: ui
+design:
+- label: 手動位置
+  link: architecture/diagram-positions.md

@@ -1,0 +1,14 @@
+id: I-13
+title: 保有と所属（入れ子で決まる関係に名前＝子を書く項目の `relation` かキー名・レジストリの宣言が効く・関係パネルと related・削除の注意事項）
+implementation:
+- path: semantic-core/semantic/Graph.kt
+  detail: '`SemanticHolding`'
+  module: semantic-core
+- path: semantic-core/semantic/Refactor.kt
+  module: semantic-core
+tests:
+- name: HoldingDeleteTest
+- name: SemanticEntityGraphTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

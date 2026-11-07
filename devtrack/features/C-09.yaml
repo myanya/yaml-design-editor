@@ -1,0 +1,12 @@
+id: C-09
+title: 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け）
+implementation:
+- path: core/Documents.kt
+  module: app-core
+- path: core/Workspace.kt
+  module: app-core
+tests:
+- name: DocumentsTest
+design:
+- label: workspace
+  link: architecture/workspace.md

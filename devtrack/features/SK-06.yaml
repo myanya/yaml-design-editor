@@ -1,0 +1,10 @@
+id: SK-06
+title: 'skill UI（設計スペースの連携: 一覧・エクスポート〔出力先のフォルダを選べる・まとめて書き出す上書きの一括確認〕・インポートのプレビューと適用・実行の承認）'
+implementation:
+- path: ui/shell/SkillsPanel.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,13 @@
+id: AG-14
+title: '自動承認 `approval: auto`（条件を欠くと承認待ちへ降格・導出元文書への書込も降格・適用前バックアップ）'
+implementation:
+- path: agent/auto/Automation.kt
+  module: agent
+- path: agent/auto/AutoApply.kt
+  module: agent
+tests:
+- name: AutomationTest
+- name: AutoApplySafetyTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,10 @@
+id: E-02
+title: 汎用ツリーエディタ（スキーマなし文書・スキーマ外キー・順序とコメントを保ったキー改名）
+implementation:
+- path: ui/form/GenericEditor.kt
+  module: desktop
+tests:
+- name: RenameKeyTest
+design:
+- label: ui
+  link: architecture/ui.md

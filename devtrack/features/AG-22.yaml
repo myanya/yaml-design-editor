@@ -1,0 +1,12 @@
+id: AG-22
+title: 'メタアクティビティ（`meta: true` で定義文書への提案・承認は human 固定）'
+implementation:
+- path: agent/Definitions.kt
+  module: agent
+- path: tools/Toolset.kt
+  module: app-core
+tests:
+- name: MetaActivityTest
+design:
+- label: agents
+  link: architecture/agents.md

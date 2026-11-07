@@ -1,0 +1,14 @@
+id: W-18
+title: 複数選択・キー操作・ドラッグ（固定案内・移動先強調）
+implementation:
+- path: ui/file/FileTreeSelection.kt
+  module: desktop
+- path: ui/file/FileTreePane.kt
+  module: desktop
+tests:
+- name: FileTreeSelectionTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

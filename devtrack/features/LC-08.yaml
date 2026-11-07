@@ -1,0 +1,13 @@
+id: LC-08
+title: API・MCP・Web の独立 ON/OFF・状態通知・世代失効・要求の取消と保存完了待ち
+implementation:
+- path: server/LocalConnections.kt
+  module: local-server
+- path: server/transport/LocalConnectionGate.kt
+  module: local-server
+tests:
+- name: LocalConnectionsTest
+- name: LocalConnectionGateTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

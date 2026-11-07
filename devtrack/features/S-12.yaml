@@ -1,0 +1,11 @@
+id: S-12
+title: 'スキーマ共通部品（`kind: library` と `moduleId#definition` の修飾 `$ref`・二段階ロード）'
+implementation:
+- path: schema/Schema.kt
+  detail: '`SchemaCatalog`'
+  module: app-core
+tests:
+- name: SchemaLoaderTest
+design:
+- label: schema
+  link: architecture/schema.md

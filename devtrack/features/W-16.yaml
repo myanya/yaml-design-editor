@@ -1,0 +1,10 @@
+id: W-16
+title: 画面の見え方の保持（タブ・畳み・選択・絞り込みは画面を離れても保持、ツリーの展開は永続化）
+implementation:
+- path: desktop/ScreenMemory.kt
+  module: desktop
+tests:
+- name: ScreenMemoryTest
+design:
+- label: ui
+  link: architecture/ui.md

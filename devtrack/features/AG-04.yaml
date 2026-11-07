@@ -1,0 +1,10 @@
+id: AG-04
+title: 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入）
+implementation:
+- path: agent/run/Kernel.kt
+  module: agent
+tests:
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

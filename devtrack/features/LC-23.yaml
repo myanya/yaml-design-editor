@@ -1,0 +1,13 @@
+id: LC-23
+title: 作業の提案・直接確定と定義済み操作の API、差分・結果照会と再送
+implementation:
+- path: server/api/WriteApi.kt
+  module: local-server
+- path: server/protocol/WriteReports.kt
+  module: local-server
+tests:
+- name: WriteApiTest
+- name: WorkspaceWorkTest
+design:
+- label: API による変更
+  link: manual/local-api-changes.md

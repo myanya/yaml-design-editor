@@ -1,0 +1,10 @@
+id: SK-04
+title: CLI（`skills` / `import` / `export`〔`--out` で書き出し先のフォルダ・`--dry-run` で今あるファイルとの行の違い・まとめて書き出す上書きは `--yes`〕 / `run-skill`）
+implementation:
+- path: cli/SkillCommands.kt
+  module: cli
+tests:
+- name: RunSkillTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,12 @@
+id: OP-01
+title: 型の操作（`methods`・作成・採番・引き継ぎ）
+implementation:
+- path: semantic-core/schema/Action.kt
+  module: semantic-core
+- path: schema/SchemaTree.kt
+  module: semantic-core
+tests:
+- name: ActionPlannerTest
+design:
+- label: actions
+  link: architecture/actions.md

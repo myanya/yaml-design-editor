@@ -1,0 +1,10 @@
+id: LC-10
+title: 接続者・ワークスペース別の指定文書／全体閲覧と、提案・直接確定・業務操作の権限
+implementation:
+- path: service/ConnectionGrants.kt
+  module: app-core
+tests:
+- name: ConnectionGrantsTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

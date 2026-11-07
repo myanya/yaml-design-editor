@@ -1,0 +1,14 @@
+id: X-20
+title: クラスの区画・辺の端点記号と多重度・部品から原本へ移動
+implementation:
+- path: ui/common/DiagramEdges.kt
+  module: desktop
+- path: core/DiagramInputs.kt
+  module: app-core
+tests:
+- name: DiagramEdgesTest
+- name: DiagramInputsTest
+- name: LensGraphTest
+design:
+- label: 図の記法
+  link: architecture/diagram-notations.md

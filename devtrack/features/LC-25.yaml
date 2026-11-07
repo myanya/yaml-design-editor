@@ -1,0 +1,15 @@
+id: LC-25
+title: MCP の参照・提案・直接確定・操作と、停止・失効・保存完了待ち
+implementation:
+- path: server/mcp/McpEndpoint.kt
+  module: local-server
+- path: McpTools.kt
+  module: local-server
+- path: McpSchemas.kt
+  module: local-server
+tests:
+- name: WorkspaceMcpTest
+- name: McpCallerTest
+design:
+- label: MCP
+  link: manual/local-mcp.md

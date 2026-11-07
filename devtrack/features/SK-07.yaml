@@ -1,0 +1,10 @@
+id: SK-07
+title: 'コード実行 skill（kind: run・人間の事前承認・定義変更で失効・エージェントからは起動不可）'
+implementation:
+- path: skill/Runner.kt
+  module: app-core
+tests:
+- name: RunSkillTest
+design:
+- label: agents
+  link: architecture/agents.md

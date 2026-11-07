@@ -1,0 +1,13 @@
+id: I-10
+title: 導出グラフ（走査結果から導出する読み取り専用のエンティティグラフ・索引の更新で無効化）
+implementation:
+- path: semantic-core/semantic/
+  detail: '`SemanticEntityGraph`'
+- path: index/IdIndex.kt
+  detail: '`graph`'
+  module: app-core
+tests:
+- name: EntityGraphTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

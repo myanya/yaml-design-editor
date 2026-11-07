@@ -1,0 +1,13 @@
+id: S-15
+title: 組込みメタスキーマ（`_schemas` 文書に適用・一般スキーマの match は及ばない）
+implementation:
+- path: schema/BuiltinSchemas.kt
+  module: app-core
+- path: core/Workspace.kt
+  detail: '`schemaFor`'
+  module: app-core
+tests:
+- name: MetaSchemaTest
+design:
+- label: schema
+  link: architecture/schema.md

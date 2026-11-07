@@ -1,0 +1,11 @@
+id: SK-01
+title: skill 定義 `_skills`（import / export の宣言型と run）
+implementation:
+- path: skill/Skills.kt
+  module: app-core
+tests:
+- name: ImportExportTest
+- name: RunSkillTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,10 @@
+id: C-05
+title: 構造検索 API（本文とキーの部分一致とスキーマ・glob 条件・参照検索・未解決参照）
+implementation:
+- path: core/Search.kt
+  module: app-core
+tests:
+- name: WorkspaceCliTest
+design:
+- label: index-references
+  link: architecture/index-references.md

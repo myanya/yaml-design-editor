@@ -1,0 +1,10 @@
+id: V-11
+title: 網羅マトリクス（`matrix`・行 × 列の全組合せに証人があること・組込み定義体で `forAll` へ展開）
+implementation:
+- path: builtin-definitions/matrix.yaml
+  module: workspace-core
+tests:
+- name: MatrixTest
+design:
+- label: checks
+  link: architecture/checks.md

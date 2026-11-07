@@ -1,0 +1,14 @@
+id: AG-25
+title: 段階的詳細化の導線（`related` が各出現の要約・フェーズ・進捗を 1 回で返す）
+implementation:
+- path: tools/Readouts.kt
+  detail: '`relatedText`'
+  module: app-core
+- path: core/Disclosure.kt
+  module: app-core
+tests:
+- name: ToolsTest
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

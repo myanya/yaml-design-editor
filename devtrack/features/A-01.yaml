@@ -1,0 +1,12 @@
+id: A-01
+title: フィールド単位の生成（✨）
+implementation:
+- path: ui/run/AiGenerationDialog.kt
+  module: desktop
+- path: ui/form/FormFields.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

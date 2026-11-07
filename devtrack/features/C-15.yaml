@@ -1,0 +1,14 @@
+id: C-15
+title: YAML から YAML への変換（選ぶ × 組み立てる × 規則を子に当てる・値をそろえる `$date` `$number`（`$as` で形）`$trim`・値の式で計算する `$value`・繰り返しの `$index` / `$position`（条件の `path` にも）・並んだ配列を同じ番号で組む `$zip`・出どころつき・保存しない・CLI `transform`）
+implementation:
+- path: semantic-core/schema/TransformDef.kt
+  module: semantic-core
+- path: semantic-core/semantic/Transform.kt
+  module: semantic-core
+tests:
+- name: SemanticTransformTest
+- name: TemplateValueTest
+- name: StructuralDerivationTransformTest
+design:
+- label: transform
+  link: architecture/transform.md

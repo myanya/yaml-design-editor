@@ -57,7 +57,7 @@
 |---|---|---|
 | `Template.ViewRows` | semantic-core/schema/TransformDef.kt | `{$view: ID, $where, $one}`。行は呼び出し側が渡し、条件は行の上で `holds` |
 | `ReportRows` | semantic-core/semantic/ReportRows.kt | 解決した行 → 項（`{id, title, key, cells: [{column, value}], values}`） |
-| `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・表のセル `{パス:cell}`・`{#each}`・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
+| `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・表のセル `{パス:cell}`・`{#each}`〔`index`・`position`・並びの区切りの `more`〕・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
 | `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |
 | `core/Reports` | core/Reports.kt | `.yde/reports` の読み込み（ひな形の点検も）・実行（`$view` は `Views.resolve` の行）・派生物の書き込み |
 | `ReportPane` | ui/view/ReportPane.kt | ビュータブの一覧から選ぶ。受け取る値の欄・表示（`MarkdownView`）・保存 |

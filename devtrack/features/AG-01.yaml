@@ -1,0 +1,10 @@
+id: AG-01
+title: エージェント定義 `_agents`（persona・観点・モデル設定・ツール許可）
+implementation:
+- path: agent/Definitions.kt
+  module: agent
+tests:
+- name: DefinitionsTest
+design:
+- label: agents
+  link: architecture/agents.md

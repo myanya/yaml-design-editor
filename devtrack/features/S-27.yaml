@@ -1,0 +1,12 @@
+id: S-27
+title: 条件・手順・式の構造編集と追従検査
+implementation:
+- path: ui/schema/SchemaValueEditor.kt
+  module: desktop
+tests:
+- name: SchemaValueFormsTest
+- name: SchemaDefinitionCoverageTest
+- name: SchemaAuthoringHistoryTest
+design:
+- label: 設計画面
+  link: manual/schema-editor.md

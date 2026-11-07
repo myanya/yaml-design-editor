@@ -1,0 +1,19 @@
+id: OP-08
+title: 作成経路の寄せ（追加ボタン・新規行・文書の作成を型の `create` と配列の `insert` で。追加のパネルからアクションへ橋渡し）
+implementation:
+- path: workspace-core/workspace/ActionPlanner.kt
+  module: workspace-core
+- path: workspace-core/workspace/DocumentScaffold.kt
+  module: workspace-core
+- path: session/DocumentSession.kt
+  detail: '`arrayInsert` / `insertArrayElement`'
+  module: app-core
+- path: desktop/AppState.kt
+  detail: '`addArrayElement`'
+  module: desktop
+tests:
+- name: ActionPlannerTest
+- name: AppStateActionTest
+design:
+- label: actions
+  link: architecture/actions.md

@@ -1,0 +1,11 @@
+id: A-03
+title: 文書全体の生成（`_document` は保持）
+implementation:
+- path: ui/run/AiGenerationDialog.kt
+  detail: '`replaceInClone`'
+  module: desktop
+tests:
+- name: AiProposalTest
+design:
+- label: agents
+  link: architecture/agents.md

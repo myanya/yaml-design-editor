@@ -1,0 +1,13 @@
+id: E-10
+title: 複数ドキュメント YAML（フォームは先頭・後続は保持して再出力・ソースは全体を編集可）
+implementation:
+- path: yaml-core/yaml/YamlIO.kt
+  detail: '`parseAll` / `dumpAll`'
+  module: yaml-core
+- path: app/OpenDocument
+  module: desktop
+tests:
+- name: OpenDocumentTest
+design:
+- label: yaml-model
+  link: architecture/yaml-model.md

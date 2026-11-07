@@ -1,0 +1,17 @@
+id: E-01
+title: 'スキーマ駆動フォーム（基底の種類別の編集欄・型から引き継ぐヒント＝複数行と入力欄の案内と表示の形 `format`・必須マーク・説明は Markdown・折りたたみ・id 型は既存 ID の補完と連番の提案と横ぐしへの直行・int / number の桁区切り表示 `display: grouped`・残留値の修復 UI）'
+implementation:
+- path: ui/form/FormFields.kt
+  module: desktop
+- path: ui/form/ScalarEditors.kt
+  detail: '`IdEditor`'
+  module: desktop
+- path: schema/IdSuggest.kt
+  module: app-core
+tests:
+- name: FormViewUiTest
+  kind: ui
+- name: IdSuggestTest
+design:
+- label: ui
+  link: architecture/ui.md

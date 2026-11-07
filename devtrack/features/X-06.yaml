@@ -1,0 +1,21 @@
+id: X-06
+title: ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列・列幅は見出しと値から・見出しの印）
+implementation:
+- path: ui/view/ViewGridPane.kt
+  module: desktop
+- path: ui/view/GridWidths.kt
+  module: desktop
+- path: ui/common/VirtualTable.kt
+  module: desktop
+- path: session/DocumentSession.kt
+  detail: '`createViewDetail` / `viewRowTarget`'
+  module: app-core
+- path: AppState.addViewRow
+  module: desktop
+tests:
+- name: ViewsTest
+- name: VirtualTableTest
+- name: GridWidthsTest
+design:
+- label: views
+  link: architecture/views.md

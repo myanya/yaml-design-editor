@@ -1,0 +1,17 @@
+id: X-21
+title: 記法の条件・型の属性・CLIへの開示・レンズとフローのPNG
+implementation:
+- path: semantic/SchemaGraph.kt
+  module: semantic-core
+- path: ui/view/FlowDrawing.kt
+  module: desktop
+- path: ui/common/DiagramPng.kt
+  module: desktop
+tests:
+- name: SemanticSchemaGraphTest
+- name: DiagramDefinitionsTest
+- name: FlowDrawingTest
+  kind: ui
+design:
+- label: 図の記法
+  link: architecture/diagram-notations.md

@@ -1,0 +1,14 @@
+id: W-10
+title: 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計）
+implementation:
+- path: ui/run/RunsSpace.kt
+  detail: '`InboxTab`'
+  module: desktop
+- path: ui/shell/AppRoot.kt
+  detail: '`StatusBar`'
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

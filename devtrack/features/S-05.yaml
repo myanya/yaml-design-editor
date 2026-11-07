@@ -1,0 +1,13 @@
+id: S-05
+title: スキーマ設計（三方式・型・必須・表示・フェーズ・同一性・プレビュー）
+implementation:
+- path: ui/schema/SchemaEditor.kt
+  module: desktop
+- path: ui/schema/SchemaDesignWorkspace.kt
+  module: desktop
+tests:
+- name: SchemaOutlineTest
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

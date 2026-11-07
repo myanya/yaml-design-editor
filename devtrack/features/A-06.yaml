@@ -1,0 +1,10 @@
+id: A-06
+title: 適用前の差分プレビューと適用後検証・Undo できる適用
+implementation:
+- path: ui/run/AiGenerationDialog.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

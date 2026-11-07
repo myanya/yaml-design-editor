@@ -1,0 +1,16 @@
+id: X-25
+title: flow・lensの部品ポートと参照ごとの線
+implementation:
+- path: semantic/DiagramPorts.kt
+  module: semantic-core
+tests:
+- name: DiagramPortsTest
+- name: FlowPortLayoutTest
+  kind: ui
+- name: LensPortsTest
+  kind: ui
+- name: LensPortsUiTest
+  kind: ui
+design:
+- label: 図の記法
+  link: architecture/diagram-notations.md

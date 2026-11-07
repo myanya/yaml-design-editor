@@ -1,0 +1,10 @@
+id: AG-03
+title: ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling）
+implementation:
+- path: agent/llm/ToolChat.kt
+  module: agent
+tests:
+- name: ToolChatParseTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,10 @@
+id: LC-13
+title: 接続・常駐設定の独立した保存と復元、接続者の登録・権限変更
+implementation:
+- path: connections/LocalConnectionController.kt
+  module: desktop
+tests:
+- name: LocalConnectionControllerTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

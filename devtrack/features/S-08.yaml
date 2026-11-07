@@ -1,0 +1,12 @@
+id: S-08
+title: '参照の関係種別（`type: ref` の `relation`）'
+implementation:
+- path: schema/Schema.kt
+  module: app-core
+- path: index/IdIndex.kt
+  module: app-core
+tests:
+- name: WorkspaceCliTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

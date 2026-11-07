@@ -1,0 +1,11 @@
+id: AG-24
+title: ビューの開示（`read_view`・行 × 列を原本座標つきで返し `apply_patch` の対象にできる）
+implementation:
+- path: tools/Readouts.kt
+  detail: '`viewText`'
+  module: app-core
+tests:
+- name: ViewsTest
+design:
+- label: agents
+  link: architecture/agents.md

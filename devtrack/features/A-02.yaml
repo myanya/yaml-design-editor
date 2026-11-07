@@ -1,0 +1,11 @@
+id: A-02
+title: 配列への候補追加と全体置き換え
+implementation:
+- path: ui/run/AiGenerationDialog.kt
+  detail: '`combineProposal`'
+  module: desktop
+tests:
+- name: AiProposalTest
+design:
+- label: agents
+  link: architecture/agents.md

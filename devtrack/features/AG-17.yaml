@@ -1,0 +1,11 @@
+id: AG-17
+title: サブエージェント委譲（`delegate`・読み取り専用の相談・深さ 1）
+implementation:
+- path: agent/run/Kernel.kt
+  detail: '`consult`'
+  module: agent
+tests:
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

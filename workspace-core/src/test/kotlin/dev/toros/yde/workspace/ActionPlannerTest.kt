@@ -129,6 +129,9 @@ class ActionPlannerTest {
         // ID を渡せばその ID。採番はそれも既存に数える
         val given = plan(s, "add-screen-defs", null, "id" to "SCR-020")
         assertEquals(listOf("screens/SCR-020.yaml", "screens/SCR-021.yaml"), given.changeSet.changes.map { it.file })
+        // 接頭辞のひな型は、操作の受け取った値（$名前）でも埋まる。系列ごとに数える
+        val series = plan(s, "add-screen-defs", null, "series" to "ADM")
+        assertEquals(listOf("screens/SCR-003.yaml", "screens/ADM-001.yaml"), series.changeSet.changes.map { it.file })
         // 定義の誤り: ID の項目は文書のスキーマが決めるので、採番に path は書けない
         val broken = files().also {
             it["_schemas/broken.yaml"] = "id: broken\nkind: library\nactions:\n  - id: x\n    do:\n      - create: { schema: screen-def, params: {}, id: { path: code, prefix: X- } }\n"

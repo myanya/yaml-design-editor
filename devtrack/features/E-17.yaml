@@ -1,0 +1,16 @@
+id: E-17
+title: file 型の入力欄と画像の表示（文字で書く 3 通りの書き方・「選ぶ」は OS 標準のダイアログでルート相対に書き込む・解決した場所と有無の 1 行・画像は欄の下に幅に合わせて表示し拡大率とドラッグで操作・小さい画像は枠も縮む・「拡大表示」で全面）
+implementation:
+- path: ui/file/FileEditor.kt
+  module: desktop
+- path: ui/file/ImagePane.kt
+  module: desktop
+- path: AppState.openImage
+  module: desktop
+tests:
+- name: FileEditorTest
+- name: ImageCanvasUiTest
+  kind: ui
+design:
+- label: ui
+  link: architecture/ui.md

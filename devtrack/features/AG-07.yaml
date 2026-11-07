@@ -1,0 +1,11 @@
+id: AG-07
+title: 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`）
+implementation:
+- path: ui/run/RunsSpace.kt
+  detail: '`ReviewContent`, `RunController`'
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

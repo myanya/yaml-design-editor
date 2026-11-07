@@ -1,0 +1,15 @@
+id: S-19
+title: エンティティ型宣言（`entity:` の `idPattern` / `idType`＝ID の形式で判別・object の `entity`＝要素の形で判別・`defines`・走査が型と役割を付与）
+implementation:
+- path: semantic-core/schema/Relations.kt
+  detail: '`EntityDecl`'
+  module: semantic-core
+- path: index/IdIndex.kt
+  module: app-core
+tests:
+- name: EntityDeclTest
+- name: DocScannerTest
+- name: TypeDefinitionsTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

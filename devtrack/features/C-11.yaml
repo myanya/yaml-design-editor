@@ -1,0 +1,13 @@
+id: C-11
+title: ファイル移動・改名の一級化（文書参照の書き換えと物理移動を 1 計画に・影響プレビュー）
+implementation:
+- path: semantic-core/semantic/Refactor.kt
+  module: semantic-core
+- path: workspace-core/workspace/RefactoringImpact.kt
+  module: workspace-core
+tests:
+- name: DocRefTest
+- name: RefactoringTest
+design:
+- label: workspace
+  link: architecture/workspace.md

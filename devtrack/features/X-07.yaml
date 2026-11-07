@@ -1,0 +1,19 @@
+id: X-07
+title: '文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・マッチしない文書は既定フォーム。複合文書ビュー＝同じ ID の別の側面の区画 `fields.in` と、文書の値を受け取る値にした表の埋め込み `grid`。区画は変換のひな型で評価し出どころで原本に結ぶ）'
+implementation:
+- path: core/Views.kt
+  detail: '`resolveDocument`'
+  module: app-core
+- path: semantic/VirtualViews.kt
+  detail: '`DocResolver`'
+  module: semantic-core
+- path: ui/form/FormDocView.kt
+  detail: '`DocViewSections`・`OccurrenceSection`・`GridSection`'
+  module: desktop
+tests:
+- name: ViewsTest
+- name: CompositeDocViewTest
+- name: CompositeDocViewDefinitionsTest
+design:
+- label: views
+  link: architecture/views.md

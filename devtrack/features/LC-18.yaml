@@ -1,0 +1,11 @@
+id: LC-18
+title: 常駐と非表示起動の設定、今回だけの常駐解除
+implementation:
+- path: ui/shell/ResidentSettingsPane.kt
+  module: desktop
+tests:
+- name: ResidentSettingsPaneTest
+  kind: ui
+design:
+- label: 接続の設定
+  link: manual/local-connections.md

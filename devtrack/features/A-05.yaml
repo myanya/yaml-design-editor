@@ -1,0 +1,11 @@
+id: A-05
+title: 参照候補の enum 制約（200 件超は省略）
+implementation:
+- path: tools/JsonSchemas.kt
+  detail: '`refCandidateIds`'
+  module: app-core
+tests:
+- name: AiGeneratorTest
+design:
+- label: agents
+  link: architecture/agents.md

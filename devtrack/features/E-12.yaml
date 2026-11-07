@@ -1,0 +1,12 @@
+id: E-12
+title: 閲覧専用モード（`FormCtx.readOnly`・入力欄はテキスト表示・書込は拒否・横ぐしとグリッドへ波及）
+implementation:
+- path: ui/form/FormCtx.kt
+  module: desktop
+- path: desktop/AppState.readOnlyMode
+  module: desktop
+tests:
+- name: ReadOnlyTest
+design:
+- label: ui
+  link: architecture/ui.md

@@ -1,0 +1,13 @@
+id: V-18
+title: 検査の評価の共有（同じ索引の上では検査 × 要素を 1 回だけ評価・全体の検証が文書数に比例）
+implementation:
+- path: semantic-core/semantic/CheckSession.kt
+  module: semantic-core
+- path: workspace-core/workspace/WorkspaceCheckRunner.kt
+  module: workspace-core
+tests:
+- name: KernelCheckLoadingTest
+- name: BenchTest
+design:
+- label: checks
+  link: architecture/checks.md

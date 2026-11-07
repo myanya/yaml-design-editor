@@ -1,0 +1,11 @@
+id: LC-16
+title: 常駐・非表示起動・復帰・終了確認とトレイ失敗時の画面表示
+implementation:
+- path: lifecycle/DesktopPresence.kt
+  module: desktop
+tests:
+- name: DesktopPresenceTest
+- name: DesktopRuntimeTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

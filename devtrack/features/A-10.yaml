@@ -1,0 +1,10 @@
+id: A-10
+title: 生成のカーネル統合（単発生成を 1 ターンで提出する特殊アクティビティとして実行）
+implementation:
+- path: agent/run/Generation.kt
+  module: agent
+tests:
+- name: GenerationRunTest
+design:
+- label: agents
+  link: architecture/agents.md

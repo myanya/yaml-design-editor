@@ -1,0 +1,12 @@
+id: W-19
+title: 参考資料の本文検索（範囲・容量上限・中止・行へ移動）
+implementation:
+- path: core/ReferenceSearch.kt
+  module: app-core
+tests:
+- name: ReferenceToolsTest
+- name: FileTreeBenchmark
+  kind: check
+design:
+- label: ui
+  link: architecture/ui.md

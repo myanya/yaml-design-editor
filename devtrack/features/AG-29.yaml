@@ -1,0 +1,13 @@
+id: AG-29
+title: 参照の名前解決とツール減量（参照の解決フッタ・タイトル注記・`limit` / `rows` / `columns` / `match` 引数）
+implementation:
+- path: tools/Readouts.kt
+  module: app-core
+- path: core/Views.kt
+  detail: '`refAnnotatedCellText`'
+  module: app-core
+tests:
+- name: ToolsTest
+design:
+- label: agents
+  link: architecture/agents.md

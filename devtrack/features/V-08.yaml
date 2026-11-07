@@ -1,0 +1,13 @@
+id: V-08
+title: グラフ整合検証（対象型・多重度・非循環・強制スイッチ・いずれも組込み定義体・「参照の追加先を開く」）
+implementation:
+- path: builtin-definitions/relations.yaml
+  module: workspace-core
+- path: semantic-core/schema/Relations.kt
+  detail: '`EnforcementDef`'
+  module: semantic-core
+tests:
+- name: GraphIntegrityTest
+design:
+- label: checks
+  link: architecture/checks.md

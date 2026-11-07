@@ -1,0 +1,11 @@
+id: S-04
+title: メタスキーマ検証と宣言のない関係名の点検（実体はカーネル・読み込みエラーへ足す）
+implementation:
+- path: workspace-core/workspace/SchemaDefinitionChecks.kt
+  module: workspace-core
+tests:
+- name: SchemaLoaderTest
+- name: KernelOnlyChecksTest
+design:
+- label: schema
+  link: architecture/schema.md

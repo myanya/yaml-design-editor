@@ -1,0 +1,11 @@
+id: A-14
+title: Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点）
+implementation:
+- path: agent/llm/ToolChat.kt
+  detail: '`AnthropicToolSession`'
+  module: agent
+tests:
+- name: ToolChatParseTest
+design:
+- label: agents
+  link: architecture/agents.md

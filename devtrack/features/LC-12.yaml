@@ -1,0 +1,13 @@
+id: LC-12
+title: HTTP の Host/Origin・認証・CSRF・要求量の検査と能力別の受付
+implementation:
+- path: server/transport/LocalAuthentication.kt
+  module: local-server
+- path: server/LocalServer.kt
+  module: local-server
+tests:
+- name: LocalAuthenticationTest
+- name: DesktopRuntimeTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

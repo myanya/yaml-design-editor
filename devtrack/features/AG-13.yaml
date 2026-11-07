@@ -1,0 +1,11 @@
+id: AG-13
+title: 無人リトライ（`retry.maxAttempts`・同一失敗の繰り返しは打ち切り）
+implementation:
+- path: agent/auto/Automation.kt
+  detail: '`handleFailure`'
+  module: agent
+tests:
+- name: AutomationTest
+design:
+- label: agents
+  link: architecture/agents.md

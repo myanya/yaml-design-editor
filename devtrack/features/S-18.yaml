@@ -1,0 +1,12 @@
+id: S-18
+title: 制約語彙（`minLength` / `maxLength` / `pattern` / `min` / `max`・AI 生成の JSON Schema へ伝搬）
+implementation:
+- path: schema/Schema.kt
+  module: app-core
+- path: yaml-core/structure/StructureValidator.kt
+  module: yaml-core
+tests:
+- name: ConstraintTest
+design:
+- label: schema
+  link: architecture/schema.md

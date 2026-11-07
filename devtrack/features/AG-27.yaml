@@ -1,0 +1,14 @@
+id: AG-27
+title: コンテキスト会計（初期文脈の区分別トークン・送信別実測・キャッシュ読取の正規化）
+implementation:
+- path: agent/run/Kernel.kt
+  detail: '`initialContextSections`'
+  module: agent
+- path: agent/run/RunLog.kt
+  module: agent
+tests:
+- name: KernelTest
+- name: MetricsTest
+design:
+- label: agents
+  link: architecture/agents.md

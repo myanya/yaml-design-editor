@@ -1,0 +1,13 @@
+id: C-14
+title: スキーマ・リファクタリング（12 操作・スキーマと文書とビューを 1 つの計画で追随・カーネルが計画を作る）
+implementation:
+- path: semantic-core/semantic/SchemaRefactor.kt
+  module: semantic-core
+- path: semantic-core/semantic/Rewrite.kt
+  module: semantic-core
+tests:
+- name: RefactoringTest
+- name: RefactoringPlanGoldenTest
+design:
+- label: schema
+  link: architecture/schema.md

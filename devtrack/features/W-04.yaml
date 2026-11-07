@@ -1,0 +1,20 @@
+id: W-04
+title: 外部監視と再読込（走査と照合は IO・履歴保持・競合保護・確認付き破棄）
+implementation:
+- path: session/DocumentSession.kt
+  detail: '`reload`'
+  module: app-core
+- path: session/ExternalCheck.kt
+  module: app-core
+- path: WorkspaceSession.refreshFrom
+  module: workspace-core
+- path: ReloadConfirmationDialog
+  module: desktop
+tests:
+- name: ReloadHistoryTest
+- name: SessionRefreshTest
+- name: ExternalCheckTest
+- name: DesktopRuntimeTest
+design:
+- label: workspace
+  link: architecture/workspace.md

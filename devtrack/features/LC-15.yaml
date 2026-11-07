@@ -1,0 +1,11 @@
+id: LC-15
+title: 接続設定と資格情報の管理・読込失敗の修復・トークン発行不可の理由と機能の選択
+implementation:
+- path: ui/shell/LocalConnectionSettingsPage.kt
+  module: desktop
+tests:
+- name: LocalConnectionSettingsPageTest
+  kind: ui
+design:
+- label: 接続の設定
+  link: manual/local-connections.md

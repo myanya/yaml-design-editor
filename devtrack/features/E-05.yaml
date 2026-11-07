@@ -1,0 +1,15 @@
+id: E-05
+title: Undo/Redo（横断履歴・編集元への復帰・通知・入力の区切り）
+implementation:
+- path: AppState
+  module: desktop
+- path: HistoryNoticeBanner
+  module: desktop
+tests:
+- name: HistoryLocationTest
+- name: HistoryNoticeTest
+- name: HistoryCoalescingTest
+more_tests: true
+design:
+- label: editing-history
+  link: architecture/editing-history.md

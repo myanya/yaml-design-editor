@@ -1,0 +1,10 @@
+id: LC-05
+title: 外部要求の永続記録・再送抑止・部分保存と結果不明の照合
+implementation:
+- path: service/OperationJournal.kt
+  module: app-core
+tests:
+- name: WorkspaceOperationsTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

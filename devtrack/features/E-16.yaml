@@ -1,0 +1,14 @@
+id: E-16
+title: 配列要素のドラッグ並べ替え（取っ手 ⋮⋮ からだけ掴める・ドロップで 1 回だけ木を動かす＝Undo 1 回・縦リスト／テーブル／汎用エディタ共通・上下ボタンも残す）
+implementation:
+- path: ui/common/Reorder.kt
+  detail: '`ReorderableList`'
+  module: desktop
+- path: ui/form/FormTables.kt
+  detail: '`moveSeqItem`'
+  module: desktop
+tests:
+- name: MoveSeqItemTest
+design:
+- label: ui
+  link: architecture/ui.md

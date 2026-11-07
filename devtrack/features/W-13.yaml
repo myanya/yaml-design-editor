@@ -1,0 +1,13 @@
+id: W-13
+title: 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す）
+implementation:
+- path: build.gradle.kts
+  detail: '`downloadFonts`'
+- path: ui/common/Common.kt
+  detail: '`AppFonts`'
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

@@ -59,14 +59,15 @@ actions:
       - { key: name, type: string, required: true }
     do:
       - insert: { in: { schemaId: screen-list }, path: screens, params: { name: $name } }
-  # 文書を採番して作る（create.id）。ID を渡せばその ID、無ければ接頭辞＋連番。2 つ目は続き番号
+  # 文書を採番して作る（create.id）。ID を渡せばその ID、無ければ接頭辞＋連番。2 つ目は続き番号で、接頭辞は受け取った値で決まる
   - id: add-screen-defs
     label: 画面定義を採番して作る
     params:
       - { key: id, type: id }
+      - { key: series, type: string, default: SCR }
     do:
       - create: { schema: screen-def, params: { id: { $copy: id } }, id: { prefix: "SCR-", digits: 3 } }
-      - create: { schema: screen-def, params: {}, id: { prefix: "SCR-", digits: 3 } }
+      - create: { schema: screen-def, params: {}, id: { prefix: { $format: "{s}-", $with: { s: $series } }, digits: 3 } }
   - id: advance
     label: 詳細設計へ進める
     target: { schema: screen-list }

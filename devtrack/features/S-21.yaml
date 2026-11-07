@@ -1,0 +1,15 @@
+id: S-21
+title: '属性付き参照（`type: ref` に `fields:` があるときだけ `{to, 属性...}` を許可・to の座標は従来と同じ）'
+implementation:
+- path: index/IdIndex.kt
+  detail: '`RefEntry.attributes`'
+  module: app-core
+- path: ui/form/RefEditors.kt
+  detail: '`RefEditor`'
+  module: desktop
+tests:
+- name: DocScannerTest
+- name: ValidatorTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

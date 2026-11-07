@@ -1,0 +1,13 @@
+id: V-14
+title: 検査の定義と語彙の定義（`constraints` の `use` ＋ `with`・`functions`・`vocabulary`・組込みは特権を持たない・CLI `checks`）
+implementation:
+- path: semantic-core/schema/CheckDefinitions.kt
+  module: semantic-core
+- path: workspace-core/workspace/CheckCatalog.kt
+  module: workspace-core
+tests:
+- name: CheckDefinitionsTest
+- name: CheckDefinitionTest
+design:
+- label: checks
+  link: architecture/checks.md

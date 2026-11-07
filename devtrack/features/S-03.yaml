@@ -1,0 +1,11 @@
+id: S-03
+title: 名前付き定義と再帰参照（`definitions` / `$ref`・狭める規則の合成）
+implementation:
+- path: semantic-core/schema/SchemaTree.kt
+  detail: '`resolve`'
+  module: semantic-core
+tests:
+- name: TypeDefinitionsTest
+design:
+- label: schema
+  link: architecture/schema.md

@@ -1,0 +1,13 @@
+id: V-22
+title: file 型の値の検査（書き方・拡張子・ワークスペースの外・無いファイル／外と無いファイルの扱いは `.yde/workspace.yaml` の `files:`＝許可／警告／違反と許す場所／存在はストアに聞く）
+implementation:
+- path: workspace-core/validate/CodedDocumentChecks.kt
+  detail: '`fileIssues`'
+  module: workspace-core
+- path: workspace-core/layout/FilePolicy.kt
+  module: workspace-core
+tests:
+- name: FileChecksTest
+design:
+- label: checks
+  link: architecture/checks.md

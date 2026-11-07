@@ -1,0 +1,11 @@
+id: AG-16
+title: 自動適用の巻き戻し（バックアップから復元・競合は拒否し `--force` で上書き）
+implementation:
+- path: agent/auto/AutoApply.kt
+  detail: '`revert`'
+  module: agent
+tests:
+- name: AutoApplySafetyTest
+design:
+- label: agents
+  link: architecture/agents.md

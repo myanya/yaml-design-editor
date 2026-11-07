@@ -1,0 +1,14 @@
+id: I-12
+title: 場所は文書 ID（索引・検証・ビュー・クエリの場所はワークスペース相対の `DocumentId`・app-core の型はカーネルの別名・編集用セッションは `fork`）
+implementation:
+- path: index/IdIndex.kt
+  module: app-core
+- path: workspace-core/workspace/WorkspaceSession.kt
+  detail: '`fork`'
+  module: workspace-core
+tests:
+- name: SessionForkTest
+- name: EditingSessionForkTest
+design:
+- label: index-references
+  link: architecture/index-references.md

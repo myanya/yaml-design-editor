@@ -1,0 +1,10 @@
+id: AG-19
+title: 実行メトリクス（提出率・採用率・却下ファイル率・トークン・CLI `metrics`）
+implementation:
+- path: agent/eval/Metrics.kt
+  module: agent
+tests:
+- name: MetricsTest
+design:
+- label: agents
+  link: architecture/agents.md

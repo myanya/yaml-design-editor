@@ -1,0 +1,10 @@
+id: C-04
+title: 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル）
+implementation:
+- path: core/Disclosure.kt
+  module: app-core
+tests:
+- name: WorkspaceCliTest
+design:
+- label: agents
+  link: architecture/agents.md

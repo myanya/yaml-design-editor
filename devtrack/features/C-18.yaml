@@ -1,0 +1,21 @@
+id: C-18
+title: フローの配置切替・配置の調整・線のラベルの表示切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響
+implementation:
+- path: ui/common/GraphLayouts.kt
+  module: desktop
+- path: ui/common/FlowSwimlanes.kt
+  module: desktop
+- path: ui/view/FlowViewPane.kt
+  module: desktop
+tests:
+- name: FlowLayoutsTest
+- name: DiagramLayoutOptionsUiTest
+  kind: ui
+- name: DiagramLabelVisibilityTest
+- name: FlowSelectionTest
+- name: NavigationHistoryTest
+- name: FlowRefactoringTest
+- name: FlowRefactoringGoldenTest
+design:
+- label: views
+  link: architecture/views.md

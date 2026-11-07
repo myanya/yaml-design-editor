@@ -1,0 +1,17 @@
+id: LC-29
+title: Web の業務操作・入力準備・変更確認・保存と結果照会
+implementation:
+- path: BusinessActionForms.kt
+  module: app-core
+- path: WebOperations.kt
+  module: local-server
+- path: BusinessOperations.tsx
+  module: web-ui
+tests:
+- name: WebOperationsTest
+- name: WorkspaceOperationsTest
+- name: WebBrowserCheck
+  kind: check
+design:
+- label: 業務 Web
+  link: manual/local-web.md

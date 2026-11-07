@@ -1,0 +1,14 @@
+id: LC-24
+title: CLI の明示接続・参照・変更と失敗時の迂回禁止
+implementation:
+- path: cli/ConnectedCli.kt
+  module: cli
+- path: server/client/LocalApiClient.kt
+  module: local-server
+tests:
+- name: ConnectedCliTest
+- name: ConnectedCliIntegrationTest
+- name: LocalApiClientTest
+design:
+- label: 接続 CLI
+  link: manual/cli-connect.md

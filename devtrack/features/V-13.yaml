@@ -1,0 +1,12 @@
+id: V-13
+title: 準備完了レポート（CLI `readiness`・指摘をエンティティへ帰属しエラー 0 で準備完了・型別とフェーズ別の集計）
+implementation:
+- path: validate/Readiness.kt
+  module: app-core
+- path: cli/ValidateCommands.kt
+  module: cli
+tests:
+- name: ReadinessTest
+design:
+- label: checks
+  link: architecture/checks.md

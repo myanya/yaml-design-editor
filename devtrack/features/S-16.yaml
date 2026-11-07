@@ -1,0 +1,13 @@
+id: S-16
+title: スキーマ推測（既存 YAML から型・参照・enum・必須を推測してドラフト生成・CLI `infer-schema`）
+implementation:
+- path: schema/SchemaInference.kt
+  module: app-core
+- path: session/DocumentSession.kt
+  detail: '`inferSchema`'
+  module: app-core
+tests:
+- name: SchemaInferenceTest
+design:
+- label: schema
+  link: architecture/schema.md

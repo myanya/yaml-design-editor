@@ -1,0 +1,21 @@
+id: X-12
+title: 'レンズの見え方の定義（`_views` の `kind: lens`＝関係ごとの矢印の向き・画面で入れる箱の絞り込み `filters`（つながりで残す例外つき）・表示だけ・レジストリに無い関係名はリント・関係の改名は警告で開示）'
+implementation:
+- path: semantic-core/semantic/LensViews.kt
+  module: semantic-core
+- path: workspace-core/workspace/ViewDefinitions.kt
+  detail: '`parseLensView`'
+  module: workspace-core
+- path: ui/graph/LensGraph.kt
+  module: desktop
+- path: ui/graph/GraphLensView.kt
+  module: desktop
+tests:
+- name: ViewDefinitionsTest
+- name: LensFiltersTest
+- name: LensGraphTest
+- name: LensFiltersUiTest
+  kind: ui
+design:
+- label: views
+  link: architecture/views.md

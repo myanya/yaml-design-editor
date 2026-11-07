@@ -1,0 +1,15 @@
+id: V-21
+title: 準備完了レポートの画面（台帳の「準備」タブ・件数のタイル・型別とフェーズ別の積み上げ棒・エンティティの表から横ぐしへ・保存済みの内容で判定）
+implementation:
+- path: ui/view/ReadinessPane.kt
+  module: desktop
+- path: ui/view/Charts.kt
+  detail: '`BarChart`'
+  module: desktop
+- path: AppState.readinessReport
+  module: desktop
+tests:
+- name: ReadinessChartTest
+design:
+- label: ui
+  link: architecture/ui.md

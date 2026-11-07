@@ -1,0 +1,14 @@
+id: E-22
+title: フォーム入力の Esc で内容を保持してフォーカス解除（IME・候補を優先）
+implementation:
+- path: ui/common/Common.kt
+  module: desktop
+- path: ui/common/TextFieldEscape.kt
+  module: desktop
+tests:
+- name: TextFieldEscapeTest
+- kind: manual
+  note: 画面
+design:
+- label: UI 操作規則
+  link: architecture/ui-interactions.md

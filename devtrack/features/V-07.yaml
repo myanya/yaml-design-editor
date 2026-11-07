@@ -1,0 +1,12 @@
+id: V-07
+title: 整合検証（`consistency`・導出した期待値と `assert` の関係・組込み定義体・来歴つきの指摘と「導出値を適用」）
+implementation:
+- path: builtin-definitions/consistency.yaml
+  module: workspace-core
+- path: workspace-core/validate/WorkspaceChecks.kt
+  module: workspace-core
+tests:
+- name: ConsistencyTest
+design:
+- label: checks
+  link: architecture/checks.md

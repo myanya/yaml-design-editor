@@ -12,10 +12,10 @@ description: コード変更後にプロジェクトドキュメント（docs/RE
 
 1. `git status` / `git diff`（必要なら `git log`）で変更内容を把握する。
 2. 変更を次の観点で分類し、docs/README.md の表で対応する文書の該当箇所を実際に開いて照合する:
-   - 機能の追加・変更・削除 → FEATURES の該当行（新機能は 1 行追加。1 行 200 字以内）
+   - 機能の追加・変更・削除 → devtrack の `features/<ID>.yaml`（新機能は 1 件足す。`action devtrack register-feature` でも足せる。機能の欄は 200 字以内）。FEATURES.md は直接直さず `./gradlew devtrackDocs` で作り直す
    - 利用者から見える仕様・操作・UI・スキーマ定義構文 → manual/ の該当ファイル
    - クラス／パッケージの追加・移動・責務変更、データフロー・設計方針の変更 → architecture/ の該当する主題（部品・流れ・規律・拡張ポイント）
-   - テストの追加 → FEATURES のテスト列
+   - テストの追加 → その機能の `features/<ID>.yaml` の `tests`（UI のテストは `kind: ui`、`./gradlew test` に入らない検査は `kind: check`）
    - ロードマップのテーマの着手・完了 → ROADMAP の状態表と該当テーマ。完了したら本文を archive/roadmap-history.md へ移す
    - BACKLOG の指摘の登録・解決 → devtrack で行い（devtrack/README.md「運用」）、`./gradlew devtrackDocs` で docs/BACKLOG.md と archive/backlog-closed.md を作り直す
    - 規約・ビルド手順の変更 → CONVENTIONS、AGENTS.md のコマンド節

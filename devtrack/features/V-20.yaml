@@ -1,0 +1,11 @@
+id: V-20
+title: 文書 1 つの検証の組み立て（構造 → ID と参照 → エンティティ型 → 関係名 → 定義体 → テンプレート → 案内・台帳外の降格と重複除去）
+implementation:
+- path: workspace-core/validate/DocumentValidator.kt
+  module: workspace-core
+tests:
+- name: KernelCheckLoadingTest
+- name: KernelOnlyChecksTest
+design:
+- label: checks
+  link: architecture/checks.md

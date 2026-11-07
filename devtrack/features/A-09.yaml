@@ -1,0 +1,12 @@
+id: A-09
+title: OpenAI 互換の接続先とプロキシ（Azure・ベース URL 上書き・Basic 認証）
+implementation:
+- path: agent/llm/Connection.kt
+  module: agent
+- path: agent/llm/Http.kt
+  module: agent
+tests:
+- name: ConnectionTest
+design:
+- label: agents
+  link: architecture/agents.md

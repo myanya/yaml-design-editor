@@ -1,0 +1,13 @@
+id: LC-09
+title: 全 OFF 時の非待受・他機能を残した停止・最後の停止で接続終了とポート解放
+implementation:
+- path: server/transport/LoopbackEngine.kt
+  module: local-server
+- path: DesktopRuntime.kt
+  module: desktop
+tests:
+- name: LocalListenerLifecycleTest
+- name: LocalConnectionAcceptanceTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

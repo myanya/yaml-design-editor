@@ -1,0 +1,11 @@
+id: V-10
+title: 重複所有の検証（同一エンティティの複数出現が同じフィールドを所有したら警告・双方に entity 宣言と `owns` があるときだけ）
+implementation:
+- path: workspace-core/validate/CodedDocumentChecks.kt
+  module: workspace-core
+tests:
+- name: AspectTest
+- name: KernelOnlyChecksTest
+design:
+- label: checks
+  link: architecture/checks.md

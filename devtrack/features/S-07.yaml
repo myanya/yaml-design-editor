@@ -1,0 +1,12 @@
+id: S-07
+title: 'スキーマ外キーの検証ポリシー（`unknownFields: allow / warning / error`）'
+implementation:
+- path: validate/Validator.kt
+  module: app-core
+- path: index/IdIndex.kt
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: schema
+  link: architecture/schema.md

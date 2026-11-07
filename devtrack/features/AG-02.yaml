@@ -1,0 +1,14 @@
+id: AG-02
+title: アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`）
+implementation:
+- path: agent/Definitions.kt
+  module: agent
+- path: tools/WorkingCopy.kt
+  detail: '`newErrors`'
+  module: app-core
+tests:
+- name: DefinitionsTest
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,14 @@
+id: AG-28
+title: 'コンテキストレシピ（`context.items`: catalog / phase / view / doc / related / sample・`when`・`budgetChars`・既定は空）'
+implementation:
+- path: agent/Definitions.kt
+  detail: '`ContextItemDef`'
+  module: agent
+- path: agent/run/Kernel.kt
+  module: agent
+tests:
+- name: DefinitionsTest
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

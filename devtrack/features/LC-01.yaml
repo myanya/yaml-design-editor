@@ -1,0 +1,14 @@
+id: LC-01
+title: 初期値 OFF の接続設定型と明示起動する loopback 待受
+implementation:
+- path: server/LocalConnectionSettings.kt
+  module: local-server
+- path: server/transport/LoopbackEngine.kt
+  module: local-server
+tests:
+- name: TransportCompatibilityTest
+- name: LocalServerDistributionSmoke
+  kind: check
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

@@ -1,0 +1,15 @@
+id: E-18
+title: フォームの複合値は全幅配置と上限付き字下げ・単一値は幅に応じた配置・文書情報と他文書の定義は開閉可能
+implementation:
+- path: ui/form/FormLayout.kt
+  module: desktop
+- path: ui/form/FormFields.kt
+  module: desktop
+tests:
+- name: FormLayoutTest
+- name: ScreenMemoryTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

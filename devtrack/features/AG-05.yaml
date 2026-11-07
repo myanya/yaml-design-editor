@@ -1,0 +1,14 @@
+id: AG-05
+title: ツールの一式（中核＝読む 8・書く 2・検証 1・許可した操作は app-core の `Toolset`。対話 2・管理 4 は agent。許可ツール名と書込権限を実行時に強制）
+implementation:
+- path: tools/Toolset.kt
+  module: app-core
+- path: agent/run/Tools.kt
+  module: agent
+tests:
+- name: ToolsetTest
+- name: KernelTest
+- name: ToolsTest
+design:
+- label: agents
+  link: architecture/agents.md

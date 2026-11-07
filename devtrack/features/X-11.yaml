@@ -1,0 +1,17 @@
+id: X-11
+title: スキーマレンズ（「型」の段＝箱は型・線は関係の宣言と導出・入れ子は保有の宣言。箱を押すとスキーマへ・CLI `schema-graph`）
+implementation:
+- path: semantic-core/semantic/SchemaGraph.kt
+  module: semantic-core
+- path: ui/graph/LensGraph.kt
+  detail: '`buildTypes`'
+  module: desktop
+- path: cli/SchemaCommands.kt
+  module: cli
+tests:
+- name: SemanticSchemaGraphTest
+- name: LensGraphTest
+- name: WorkspaceCliTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

@@ -1,0 +1,13 @@
+id: E-11
+title: 畳み込みサマリ（畳んだ要素の 1 行要約・参照の値は参照先の名前を添える・選択肢は label・既定はルートから 2 階層まで展開）
+implementation:
+- path: ui/form/CollectionEditors.kt
+  module: desktop
+- path: schema/Display.kt
+  module: app-core
+tests:
+- name: DisplayTest
+- name: DefaultExpandTest
+design:
+- label: ui
+  link: architecture/ui.md

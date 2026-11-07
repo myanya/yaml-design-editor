@@ -1,0 +1,15 @@
+id: V-16
+title: クエリの線の意味（参照を書いた要素は最も内側の ID を持つ要素・入れ子の線 `contains`・`via`・名前を書いた線は保有の線も辿る）
+implementation:
+- path: semantic-core/semantic/Graph.kt
+  detail: '`ownRefs`'
+  module: semantic-core
+- path: semantic-core/semantic/SemanticQuery.kt
+  detail: '`holdingSteps`'
+  module: semantic-core
+tests:
+- name: QueryNestingTest
+- name: PreviewValidationTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

@@ -1,0 +1,12 @@
+id: LC-14
+title: 設定保存の権限保護・Windows ACL 継承の停止・破損と不正権限の拒否
+implementation:
+- path: connections/ConnectionSettingsStore.kt
+  module: desktop
+- path: PrivateConnectionFiles.kt
+  module: desktop
+tests:
+- name: ConnectionSettingsStoreTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

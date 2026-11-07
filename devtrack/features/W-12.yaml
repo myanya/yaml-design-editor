@@ -1,0 +1,14 @@
+id: W-12
+title: エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ）
+implementation:
+- path: validate/Validator.kt
+  module: app-core
+- path: desktop/AppState.kt
+  detail: '`editorOnlyFiles`'
+  module: desktop
+tests:
+- name: WorkspaceLayoutTest
+- name: DocumentStoreTest
+design:
+- label: workspace
+  link: architecture/workspace.md

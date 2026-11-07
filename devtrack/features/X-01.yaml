@@ -1,0 +1,14 @@
+id: X-01
+title: 一覧ビュー（ID・タイトル・状態・担当・種別・絞り込み・未保存編集に追随・チェックと ID の列を左に固定）
+implementation:
+- path: ui/view/WorkspaceViews.kt
+  module: desktop
+- path: ui/common/VirtualTable.kt
+  module: desktop
+- path: AppState.workspaceRecords
+  module: desktop
+tests:
+- name: VirtualTableTest
+design:
+- label: views
+  link: architecture/views.md

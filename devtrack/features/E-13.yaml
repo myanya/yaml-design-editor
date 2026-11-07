@@ -1,0 +1,19 @@
+id: E-13
+title: '配列と map のテーブル表示（適否の自動判定〔選択肢で項目が変わる要素は表にしない〕と `display: table / list`・セル編集・展開フォーム・列幅は見出しと値から・行の操作は取っ手と ⋯・参照セルは ID と参照先の名前）'
+implementation:
+- path: ui/form/FormTables.kt
+  detail: '`ObjectTable`・`ArrayRowMenu`・`RefCell`'
+  module: desktop
+- path: ui/common/ColumnWidths.kt
+  module: desktop
+- path: schema/Display.kt
+  detail: '`tableColumns`'
+  module: app-core
+tests:
+- name: DisplayTest
+- name: ArrayTableTest
+- name: ColumnWidthsTest
+- name: RefTargetTitleTest
+design:
+- label: ui
+  link: architecture/ui.md

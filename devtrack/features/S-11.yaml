@@ -1,0 +1,11 @@
+id: S-11
+title: フェーズ機構（`phases`・`requiredFrom` の累積必須・`activeFrom` の判定保留）
+implementation:
+- path: schema/Schema.kt
+  detail: '`PhasesDef`, `requiredAt`'
+  module: app-core
+tests:
+- name: PhaseTest
+design:
+- label: schema
+  link: architecture/schema.md

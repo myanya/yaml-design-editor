@@ -1,0 +1,15 @@
+id: W-03
+title: ファイル・フォルダーの配置変更と Undo
+implementation:
+- path: FileArrangementPlanner
+  module: workspace-core
+- path: FileArrangementJournal
+- path: FileMoveDialog
+  module: desktop
+tests:
+- name: AppStateFileArrangementTest
+- name: DocumentCacheSnapshotTest
+more_tests: true
+design:
+- label: workspace
+  link: architecture/workspace.md

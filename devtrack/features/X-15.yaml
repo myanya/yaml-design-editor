@@ -1,0 +1,20 @@
+id: X-15
+title: レポート（`.yde/reports`＝変換で値の一式を作り〔`$view` でビューの行・`$where`・`$one`〕、ひな形〔`{パス}`・`{パス:形}`・表のセル `{パス:cell}`・`{#each}`〔並びの区切り `more`〕・`{#if}`〕にはめ込んで Markdown などの文字にする。出力は派生物で `output` の場所へ。CLI `report`・台帳のビュータブ）
+implementation:
+- path: semantic-core/semantic/TextTemplate.kt
+  module: semantic-core
+- path: semantic-core/semantic/ReportRows.kt
+  module: semantic-core
+- path: workspace-core/workspace/ReportDefinitions.kt
+  module: workspace-core
+- path: core/Reports.kt
+  module: app-core
+- path: ui/view/ReportPane.kt
+  module: desktop
+tests:
+- name: TextTemplateTest
+- name: ReportsTest
+- name: SemanticTransformTest
+design:
+- label: transform
+  link: architecture/transform.md

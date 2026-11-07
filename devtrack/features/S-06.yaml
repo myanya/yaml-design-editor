@@ -1,0 +1,11 @@
+id: S-06
+title: サンプル YAML 生成（プレビュー・コピー・新規ファイルの初期値・必須スカラーに型別の例値）
+implementation:
+- path: semantic-core/schema/SchemaScaffold.kt
+  module: semantic-core
+tests:
+- name: SchemaLoaderTest
+- name: DocumentScaffoldTest
+design:
+- label: schema
+  link: architecture/schema.md

@@ -1,0 +1,13 @@
+id: I-03
+title: リンクジャンプ（→ボタン・ハイライト・複数出現の選択）
+implementation:
+- path: AppState.navigateToId
+  module: desktop
+- path: ui/form/StructuredForm.kt
+  detail: '`Highlightable`'
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

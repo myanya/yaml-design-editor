@@ -1,0 +1,15 @@
+id: OP-05
+title: 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用
+implementation:
+- path: ui/action/ActionPane.kt
+  module: desktop
+- path: ui/form/DocumentFormWorkspace.kt
+  module: desktop
+- path: AppState.kt
+  module: desktop
+tests:
+- name: AppStateActionTest
+- name: FormOutlineTest
+design:
+- label: actions
+  link: architecture/actions.md

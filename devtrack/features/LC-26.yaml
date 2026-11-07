@@ -1,0 +1,14 @@
+id: LC-26
+title: MCP の実通信・再接続・取消・期限切れ・初期化拒否後の解放と Inspector との相互運用
+implementation:
+- path: server/mcp/McpEndpoint.kt
+  module: local-server
+- path: transport/LocalAuthentication.kt
+  module: local-server
+tests:
+- name: McpHttpTest
+- name: McpInspectorCheck
+  kind: check
+design:
+- label: 検査手順
+  link: ../local-server/README.md

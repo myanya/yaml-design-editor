@@ -1,0 +1,13 @@
+id: LC-02
+title: 画面から独立した共通状態と監視・実行・下書き解析
+implementation:
+- path: service/WorkspaceHost.kt
+  module: app-core
+- path: DesktopRuntime.kt
+  module: desktop
+tests:
+- name: WorkspaceHostTest
+- name: DesktopRuntimeTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

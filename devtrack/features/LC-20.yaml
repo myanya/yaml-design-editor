@@ -1,0 +1,10 @@
+id: LC-20
+title: 所有中の独立 CLI の書込拒否と参照・プレビューの継続
+implementation:
+- path: cli/CliOwnership.kt
+  module: cli
+tests:
+- name: CliOwnershipTest
+design:
+- label: CLI
+  link: manual/cli.md

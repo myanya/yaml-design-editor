@@ -1,0 +1,13 @@
+id: V-04
+title: 検証パネル（この文書／全体のスコープ切替・指摘のクリックは行き先の選択メニュー・スキーマ定義エラーとフェーズ進捗も表示）
+implementation:
+- path: ui/shell/SidePanel.kt
+  module: desktop
+- path: session/DocumentSession.kt
+  detail: '`validateWorkspace`'
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

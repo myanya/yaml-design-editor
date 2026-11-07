@@ -1,0 +1,14 @@
+id: E-25
+title: 配列行の削除確認・対象変更の拒否（リスト・表・汎用・設計の配列入力）
+implementation:
+- path: ui/form/ArrayDeleteButton.kt
+  module: desktop
+- path: ui/form/ArrayDeletion.kt
+  module: desktop
+tests:
+- name: ArrayDeletionTest
+- kind: manual
+  note: 画面
+design:
+- label: UI 操作規則
+  link: architecture/ui-interactions.md#配列要素の削除

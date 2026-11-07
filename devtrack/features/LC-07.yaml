@@ -1,0 +1,13 @@
+id: LC-07
+title: 受信箱の外部提出・差分再確認・承認保存・却下と文書別の結果
+implementation:
+- path: ExternalWorkController.kt
+  module: desktop
+- path: ui/run/ExternalWorkPane.kt
+  module: desktop
+tests:
+- name: ExternalWorkPaneTest
+  kind: ui
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

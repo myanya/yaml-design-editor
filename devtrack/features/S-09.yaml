@@ -1,0 +1,13 @@
+id: S-09
+title: カバレッジルール（`coverage` の `detailIn`＝詳細文書の存在。定義体で書き、配り方はカーネル）
+implementation:
+- path: builtin-definitions/coverage.yaml
+  module: workspace-core
+- path: workspace-core/validate/WorkspaceChecks.kt
+  module: workspace-core
+tests:
+- name: CoverageTest
+- name: CoverageMessageTest
+design:
+- label: checks
+  link: architecture/checks.md

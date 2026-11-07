@@ -1,0 +1,14 @@
+id: A-11
+title: 同一スキーマの参考文書を添付（最大 3 件を自動選択・上限つき）
+implementation:
+- path: agent/llm/AiGenerator.kt
+  detail: '`ReferenceDoc`'
+  module: agent
+- path: desktop/AppState.kt
+  detail: '`sameSchemaFiles`'
+  module: desktop
+tests:
+- name: AiGeneratorTest
+design:
+- label: agents
+  link: architecture/agents.md

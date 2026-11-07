@@ -1,0 +1,14 @@
+id: C-02
+title: YPath パッチ（set / insert / delete / move / rename / reorder）と YPath のパース
+implementation:
+- path: yaml-core/patch/Patch.kt
+  module: yaml-core
+- path: yaml-core/model/YNode.kt
+  detail: '`parseYPath`'
+  module: yaml-core
+tests:
+- name: PatchTest
+- name: YPathTest
+design:
+- label: yaml-model
+  link: architecture/yaml-model.md

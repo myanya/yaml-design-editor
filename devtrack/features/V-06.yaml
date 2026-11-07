@@ -1,0 +1,11 @@
+id: V-06
+title: フェーズ考慮の検証（`requiredFrom` は到達フェーズから・`activeFrom` は到達まで保留・フェーズ別進捗）
+implementation:
+- path: validate/Validator.kt
+  detail: '`phaseProgress`'
+  module: app-core
+tests:
+- name: PhaseTest
+design:
+- label: schema
+  link: architecture/schema.md

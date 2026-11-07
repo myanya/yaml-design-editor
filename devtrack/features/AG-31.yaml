@@ -1,0 +1,11 @@
+id: AG-31
+title: 評価セットの文脈レシピ A/B（`variants.context`・変異別のトークン）
+implementation:
+- path: agent/Evals.kt
+  detail: '`EvalVariant.contextItems`'
+  module: agent
+tests:
+- name: EvalTest
+design:
+- label: agents
+  link: architecture/agents.md

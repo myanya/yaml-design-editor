@@ -19,8 +19,8 @@ import kotlin.test.assertTrue
 /**
  * 開発管理（devtrack/）を CI で守る（devtrack/README.md「運用」）:
  * - 検証のエラーが無い。ビュー・ダッシュボード・レポートの定義が読める
- * - docs/BACKLOG.md と docs/archive/backlog-closed.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
- * - 業務の操作（登録〔採番〕・状態の変更・一部の解決・解決・再開）が写しの上で通り、検証のエラーを増やさない
+ * - docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
+ * - 業務の操作（指摘の登録〔採番〕・状態の変更・一部の解決・解決・再開と、機能の登録〔系統ごとの採番〕）が写しの上で通り、検証のエラーを増やさない
  */
 class DevtrackTest {
 
@@ -54,9 +54,9 @@ class DevtrackTest {
     }
 
     @Test
-    fun `docs の台帳と記録は devtrack から作り直したものと同じ`() {
+    fun `docs の台帳と記録と機能索引は devtrack から作り直したものと同じ`() {
         val ws = Workspace.open(root)
-        val stale = mapOf("backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md")
+        val stale = mapOf("backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md")
             .filter { (report, target) -> Path.of(target).readText() != render(ws, report) }
             .values
         assertTrue(stale.isEmpty(), "devtrack から作り直していない文書があります: $stale（./gradlew devtrackDocs で作り直してコミットする）")
@@ -105,6 +105,17 @@ class DevtrackTest {
             assertEquals(null, it["closed_on"])
             assertEquals(listOf("一部", "解決", "再開"), kinds(next))
             assertTrue("| $next |" in render(ws, "backlog-md"))
+            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            // 機能の登録: 系統の接頭辞の中で採番し、テスト名を省くと「手動」。FEATURES.md のその系統の節に出る
+            val lastLc = Files.list(dir.resolve("features")).use { s -> s.map { it.fileName.toString() }.filter { it.startsWith("LC-") }
+                .map { it.removePrefix("LC-").removeSuffix(".yaml").toInt() }.toList() }.max()
+            val feature = "LC-%02d".format(lastLc + 1)
+            act("register-feature", null, mapOf("family" to "LC", "title" to "試しの機能", "path" to "server/LocalServer.kt", "module" to "local-server",
+                "design_label" to "ローカル接続", "design_link" to "architecture/local-connections.md"))
+            assertTrue(Files.isRegularFile(dir.resolve("features/$feature.yaml")), "採番した $feature のファイル")
+            val features = render(ws, "features-md")
+            val section = features.substringAfter("## ローカル接続の基盤").substringBefore("## 公開サンプル")
+            assertTrue("| $feature | 試しの機能 | `server/LocalServer.kt` | 手動 | [ローカル接続](architecture/local-connections.md) |" in section, section.lines().last { it.startsWith("| LC-") })
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
         } finally {
             Files.walk(base).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }

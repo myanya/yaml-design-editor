@@ -1,0 +1,16 @@
+id: C-17
+title: フローの解決・複数文書sources・来歴・CLI
+implementation:
+- path: view/flow/FlowViewKind.kt
+  module: app-core
+- path: FlowViews.kt
+  module: app-core
+- path: FlowReports.kt
+  module: app-core
+tests:
+- name: FlowViewsTest
+- name: FlowViewDefinitionsTest
+- name: FlowViewsIntegrationTest
+design:
+- label: views
+  link: architecture/views.md

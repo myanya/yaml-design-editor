@@ -1,0 +1,13 @@
+id: S-13
+title: '表示解決（1 行要約・`role: title / subtitle` ＞ 予約語 ＞ id・同一 ID の他出現からタイトルを借りる）'
+implementation:
+- path: schema/Display.kt
+  module: app-core
+- path: index/IdIndex.kt
+  detail: '`DocScanner`'
+  module: app-core
+tests:
+- name: DisplayTest
+design:
+- label: index-references
+  link: architecture/index-references.md

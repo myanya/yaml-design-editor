@@ -1,0 +1,35 @@
+id: feature
+name: 機能
+kind: document
+description: 機能（docs/FEATURES.md の行）を 1 件 1 ファイルで持ちます。docs/FEATURES.md はここから生成します（エージェント向けの索引）。
+match: "features/*.yaml"
+filePattern: "features/{id}.yaml"
+root: { type: common#機能 }
+actions:
+  - id: register-feature
+    label: 機能を登録する
+    description: 新しい機能を 1 件 1 ファイルで作ります。ID を省くと、系統の接頭辞の中で使われている最大の番号の次を振ります。
+    params:
+      - { key: family, label: 系統, type: common#機能の系統, required: true }
+      - { key: id, label: ID, type: common#機能ID, description: 省くと採番します（系統の接頭辞の最大の番号の次） }
+      - { key: title, label: 機能, type: common#一行の文, required: true, minLength: 1 }
+      - { key: path, label: 主な実装の場所, type: common#一行の文, required: true, minLength: 1, description: 1 つ目の場所（ほかは文書に足します） }
+      - { key: module, label: モジュール, type: common#モジュール }
+      - { key: test, label: テスト名, type: common#一行の文, description: 省くと「手動」になります }
+      - { key: design_label, label: 設計の見出し, type: common#一行の文, required: true, minLength: 1, description: "例 ui" }
+      - { key: design_link, label: 設計の場所, type: common#一行の文, required: true, minLength: 1, description: "例 architecture/ui.md" }
+    do:
+      - create:
+          schema: feature
+          id: { prefix: { $format: "{family}-", $with: { family: $family } }, digits: 2 }
+          params:
+            id: { $copy: id }
+            title: $title
+            implementation:
+              - { path: $path, module: { $copy: module } }
+            tests:
+              - $first:
+                  - { $when: { path: $test, exists: true }, $then: { name: $test } }
+                  - { kind: manual }
+            design:
+              - { label: $design_label, link: $design_link }

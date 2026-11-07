@@ -1,0 +1,11 @@
+id: C-16
+title: バージョン表示（外部 `appVersion`・内部 `yyyymmdd.ビルド番号`・コミット・CLI `version` とスタート画面）
+implementation:
+- path: core/BuildInfo.kt
+  module: app-core
+- path: build.gradle.kts
+tests:
+- name: BuildInfoTest
+design:
+- label: workspace
+  link: architecture/workspace.md

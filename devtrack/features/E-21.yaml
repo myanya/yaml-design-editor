@@ -1,0 +1,14 @@
+id: E-21
+title: 表示方式のアイコン操作・固定／可変・ファイルの明示指定と確認・構成ペインの×
+implementation:
+- path: desktop/FormDisplayMemory.kt
+  module: desktop
+- path: ui/form/FormDisplayControls.kt
+  module: desktop
+tests:
+- name: FormDisplayMemoryTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

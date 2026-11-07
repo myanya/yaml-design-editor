@@ -1,0 +1,11 @@
+id: E-09
+title: 同一 ID の他文書出現ストリップ（相手側の情報の表示とジャンプ）
+implementation:
+- path: ui/form/FormView.kt
+  detail: '`SameIdOccurrencesStrip`'
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

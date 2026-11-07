@@ -1,0 +1,14 @@
+id: AG-12
+title: アクティビティ連鎖（`chain` の成功・失敗・規則による分岐・深さ上限と循環検出）
+implementation:
+- path: agent/auto/Automation.kt
+  detail: '`chainNext`'
+  module: agent
+- path: agent/Definitions.kt
+  detail: '`ChainDef`'
+  module: agent
+tests:
+- name: AutomationTest
+design:
+- label: agents
+  link: architecture/agents.md

@@ -1,0 +1,13 @@
+id: LC-19
+title: 待受しないワークスペース所有・競合拒否・終了後の引継ぎ
+implementation:
+- path: service/WorkspaceOwnership.kt
+  module: app-core
+- path: DesktopRuntime.kt
+  module: desktop
+tests:
+- name: WorkspaceOwnershipTest
+- name: DesktopRuntimeTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

@@ -1,0 +1,12 @@
+id: W-14
+title: Markdown の読取専用表示・相対リンク・外部変更の反映
+implementation:
+- path: ui/file/MarkdownPane.kt
+  module: desktop
+- path: ui/common/MarkdownView.kt
+  module: desktop
+tests:
+- name: MarkdownLinkTest
+design:
+- label: ui
+  link: architecture/ui.md

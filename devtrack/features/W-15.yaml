@@ -1,0 +1,14 @@
+id: W-15
+title: 内蔵ヘルプ（利用者マニュアルをビルド時に資源へ入れ、ヘルプメニューとコマンドパレットから文書として開く・題目間のリンクで移動）
+implementation:
+- path: desktop/Help.kt
+  module: desktop
+- path: build.gradle.kts
+  detail: '`copyHelp`'
+- path: ui/file/MarkdownPane.kt
+  module: desktop
+tests:
+- name: MarkdownLinkTest
+design:
+- label: ui
+  link: architecture/ui.md

@@ -1,0 +1,13 @@
+id: C-12
+title: パターン照合エンジン（クエリコア・`match` / `also` / `where` / `limit` / `same`・束縛の表・決定的）
+implementation:
+- path: semantic-core/schema/QuerySpec.kt
+  module: semantic-core
+- path: semantic-core/semantic/SemanticQuery.kt
+  module: semantic-core
+tests:
+- name: QueryTest
+- name: TraverseTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

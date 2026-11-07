@@ -1,0 +1,11 @@
+id: I-04
+title: 参照候補の補完（`idPatterns` / `scope` で絞り込み・解決先タイトルの併記・行き先の選択メニュー）
+implementation:
+- path: ui/form/RefEditors.kt
+  detail: '`RefEditor`'
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

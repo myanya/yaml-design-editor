@@ -1,0 +1,12 @@
+id: C-01
+title: ヘッドレスワークスペース API（開く・読む・保存・検証・相対パスの脱出防止）
+implementation:
+- path: core/Workspace.kt
+  module: app-core
+tests:
+- name: WorkspaceCliTest
+- name: WorkspaceLoadingTest
+- name: DocumentStoreTest
+design:
+- label: workspace
+  link: architecture/workspace.md

@@ -1,0 +1,14 @@
+id: X-23
+title: 直交配線・ラベル追従・フローの折り返し
+implementation:
+- path: ui/common/OrthogonalRouting.kt
+  module: desktop
+- path: ui/view/FlowLabelLayout.kt
+  module: desktop
+tests:
+- name: OrthogonalRoutingTest
+- name: FlowLabelLayoutTest
+  kind: ui
+design:
+- label: 手動位置
+  link: architecture/diagram-positions.md

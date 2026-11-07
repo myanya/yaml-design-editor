@@ -1,0 +1,11 @@
+id: C-07
+title: ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`）
+implementation:
+- path: core/Views.kt
+  module: app-core
+tests:
+- name: ViewsTest
+- name: VirtualViewsTest
+design:
+- label: views
+  link: architecture/views.md

@@ -1,0 +1,13 @@
+id: A-17
+title: 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ）
+implementation:
+- path: AiRequests.kt
+  detail: '`requestDocumentDraft`'
+  module: desktop
+- path: ui/run/AiGenerationDialog.kt
+  module: desktop
+tests:
+- name: GenerationRunTest
+design:
+- label: agents
+  link: architecture/agents.md

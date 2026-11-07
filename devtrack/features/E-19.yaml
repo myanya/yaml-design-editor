@@ -1,0 +1,16 @@
+id: E-19
+title: 項目説明の短い表示・項目名とⓘのホバーで小さな予告・説明ボタンで全文固定（編集・閲覧共通）・説明の山括弧は文字のまま
+implementation:
+- path: ui/common/FieldHelp.kt
+  module: desktop
+- path: ui/common/MarkdownView.kt
+  detail: '`literalAngles`'
+  module: desktop
+tests:
+- name: FieldHelpPositionTest
+- name: LiteralAnglesTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

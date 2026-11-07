@@ -1,0 +1,12 @@
+id: E-26
+title: ソースの基本操作（Ctrl+F / H / G の検索・置換・行へ移動、一致の強調と F3 の移動、Aa と .*、Enter の自動インデント、選択行の Tab / Shift+Tab、Ctrl+/ コメント、Alt+↑↓ 行の移動、Ctrl+D 複製、現在行の強調）
+implementation:
+- path: ui/source/SourceEditing.kt
+  module: desktop
+- path: ui/source/SourcePane.kt
+  module: desktop
+tests:
+- name: SourceEditingTest
+design:
+- label: editing-history
+  link: architecture/editing-history.md

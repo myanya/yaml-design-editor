@@ -1,0 +1,13 @@
+id: OP-09
+title: 現在値・本日の入力準備と変更分の送信
+implementation:
+- path: semantic-core/schema/ActionInput.kt
+  module: semantic-core
+- path: AppState.kt
+  module: desktop
+tests:
+- name: ActionInputTest
+- name: AppStateActionInputTest
+design:
+- label: actions
+  link: architecture/actions.md

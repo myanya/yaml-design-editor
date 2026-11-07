@@ -1,0 +1,11 @@
+id: S-26
+title: 設計画面の補完・操作入力・採番・子項目の構成
+implementation:
+- path: ui/schema/SchemaAdditionalOutline.kt
+  module: desktop
+tests:
+- name: SchemaAdditionalOutlineTest
+- name: SchemaAuthoringTest
+design:
+- label: 設計画面
+  link: manual/schema-editor.md

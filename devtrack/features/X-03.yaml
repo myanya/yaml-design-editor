@@ -1,0 +1,20 @@
+id: X-03
+title: グラフレンズ（近傍・線の多い箱で止める・型と関係の絞り込み・配置と配置の調整・線のラベルの表示切替・保有・側面・PNG・ミニマップ）
+implementation:
+- path: ui/graph/GraphLensView.kt
+  module: desktop
+- path: ui/graph/LensGraph.kt
+  module: desktop
+- path: ui/common/GraphLayouts.kt
+  module: desktop
+- path: ui/common/DiagramLayoutOptionsMenu.kt
+  module: desktop
+tests:
+- name: LensGraphTest
+- name: GraphLayoutsTest
+- name: DiagramLayoutOptionsUiTest
+  kind: ui
+- name: DiagramLabelVisibilityTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

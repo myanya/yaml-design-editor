@@ -1,0 +1,10 @@
+id: C-13
+title: エンティティ合成（全出現を決定的に並べ所有フィールドを原本座標つきでマージ・CLI `entity show`）
+implementation:
+- path: core/Aspects.kt
+  module: app-core
+tests:
+- name: AspectTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

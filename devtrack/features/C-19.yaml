@@ -1,0 +1,15 @@
+id: C-19
+title: 変換の局所名と可変長の連結（`$bind`・`$flatten`）
+implementation:
+- path: schema/TemplateBindings.kt
+  module: semantic-core
+- path: TransformDef.kt
+  module: semantic-core
+- path: semantic/Transform.kt
+  module: semantic-core
+tests:
+- name: NestedTransformTest
+- name: FlowViewsTest
+design:
+- label: transform
+  link: architecture/transform.md

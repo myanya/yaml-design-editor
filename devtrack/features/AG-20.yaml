@@ -1,0 +1,12 @@
+id: AG-20
+title: 評価セット `_evals`（ゴールデン入力と期待結果・サンドボックスコピー上で実行・CLI `eval`）
+implementation:
+- path: agent/Evals.kt
+  module: agent
+- path: eval/EvalRunner.kt
+  module: agent
+tests:
+- name: EvalTest
+design:
+- label: agents
+  link: architecture/agents.md

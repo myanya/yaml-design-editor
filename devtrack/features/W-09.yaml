@@ -1,0 +1,16 @@
+id: W-09
+title: UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替）
+implementation:
+- path: ui/shell/AppRoot.kt
+  module: desktop
+- path: ui/shell/AppToolbar.kt
+  module: desktop
+- path: ui/shell/Shell.kt
+  module: desktop
+tests:
+- name: NavigationHistoryTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

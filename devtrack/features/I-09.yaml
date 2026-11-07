@@ -1,0 +1,10 @@
+id: I-09
+title: ID インスペクタ（右パネルの検証・関係・出現の 3 タブ）
+implementation:
+- path: ui/shell/SidePanel.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

@@ -1,0 +1,15 @@
+id: A-16
+title: エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ）
+implementation:
+- path: agent/llm/AiGenerator.kt
+  detail: '`contextDocs`'
+  module: agent
+- path: AiRequests.kt
+  detail: '`mergeGenField`'
+  module: desktop
+tests:
+- name: AiGeneratorTest
+- name: AiProposalTest
+design:
+- label: agents
+  link: architecture/agents.md

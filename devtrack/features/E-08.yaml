@@ -1,0 +1,14 @@
+id: E-08
+title: 文書キャッシュ（ファイル切替時も未保存編集を保持）
+implementation:
+- path: AppState.docCache
+  detail: 殻
+  module: desktop
+- path: session/DocumentSession.kt
+  detail: 論理
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: editing-history
+  link: architecture/editing-history.md

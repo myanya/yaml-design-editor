@@ -1,0 +1,15 @@
+id: X-22
+title: flow・lens の位置・固定と再配置
+implementation:
+- path: desktop/DiagramPositions.kt
+  module: desktop
+tests:
+- name: DiagramPositionsTest
+- name: DiagramStateWriteTest
+- name: FlowPositionsTest
+- name: LensPositionsTest
+- name: DiagramPositionUiTest
+  kind: ui
+design:
+- label: 手動位置
+  link: architecture/diagram-positions.md

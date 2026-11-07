@@ -1,0 +1,13 @@
+id: I-08
+title: ナビゲーション履歴（戻る・進む・スペースとタブと ID とビューとハイライトとエディタのタブを復元・ショートカットはウィンドウで受ける）
+implementation:
+- text: '`AppState.goBack` / `goForward`'
+- path: Main.kt
+  detail: '`handleShortcut`'
+tests:
+- name: NavigationHistoryTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

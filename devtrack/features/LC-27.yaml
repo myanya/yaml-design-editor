@@ -1,0 +1,16 @@
+id: LC-27
+title: 同梱 Web・接続コード・Cookie・ログアウト・保存版概要
+implementation:
+- path: server/web
+- path: auth/WebLogins.kt
+  module: local-server
+- path: web-ui/src
+  module: web-ui
+tests:
+- name: WebLoginsTest
+- name: WebHttpTest
+- name: WebBrowserCheck
+  kind: check
+design:
+- label: 業務 Web
+  link: manual/local-web.md

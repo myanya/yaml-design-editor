@@ -1,0 +1,13 @@
+id: S-23
+title: 'スキーマの値に式（項目の印 `expression: true`・共通の読み取りと評価と文面・`filePattern` と `scaffold`）'
+implementation:
+- path: semantic-core/schema/ExpressionFields.kt
+  module: semantic-core
+- path: semantic-core/semantic/Values.kt
+  module: semantic-core
+tests:
+- name: ExpressionFieldsTest
+- name: SemanticValuesTest
+design:
+- label: schema
+  link: architecture/schema.md

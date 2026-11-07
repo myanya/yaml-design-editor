@@ -1,0 +1,10 @@
+id: V-02
+title: 参照解決の検証（未解決・パターンやスコープの対象外・未保存 ID の考慮）
+implementation:
+- path: validate/Validator.kt
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: checks
+  link: architecture/checks.md

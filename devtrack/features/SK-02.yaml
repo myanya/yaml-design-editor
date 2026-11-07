@@ -1,0 +1,29 @@
+id: SK-02
+title: インポート（xlsx / csv / json / markdown / docx → 変更セット。`mapping`・`build`・配列へ追記 `target.path`・採番 `target.id`・重複の `target.key`・文字コード・見出しの無い csv の `input.columns`・JSON を木のまま `input.tree`・行の番号 `$index`）
+implementation:
+- path: skill/Importer.kt
+  module: app-core
+- path: skill/Tables.kt
+  module: app-core
+- path: format/FormatCodec.kt
+  module: app-core
+- path: format/TextFormats.kt
+  module: app-core
+- path: format/JsonTree.kt
+  module: app-core
+- path: office/XlsxFormat.kt
+  module: format-office
+- path: office/DocxFormat.kt
+  module: format-office
+tests:
+- name: ImportExportTest
+- name: ArrayImportTest
+- name: TreeImportExportTest
+- name: TextFormatsTest
+- name: JsonTreeTest
+- name: XlsxFormatTest
+- name: DocxFormatTest
+- name: ExtensionsTest
+design:
+- label: agents
+  link: architecture/agents.md

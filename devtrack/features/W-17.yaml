@@ -1,0 +1,13 @@
+id: W-17
+title: Windows ZIP 配布（起動案内・サンプル・ビルド情報・SHA-256）
+implementation:
+- path: build.gradle.kts
+  detail: '`windowsRelease`'
+tests:
+- name: test-windows-zip.ps1
+  kind: check
+- name: DistributionSmoke
+  kind: check
+design:
+- label: 配布
+  link: releasing.md

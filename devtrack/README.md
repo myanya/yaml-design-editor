@@ -1,7 +1,7 @@
 # 開発管理（devtrack）
 
-YDE で YDE 自身の開発を管理するワークスペースです。指摘（未解決と、解決・見送り）・テーマ・所感メモの**原本**を、1 件 1 ファイルの YAML で持ちます。
-[docs/BACKLOG.md](../docs/BACKLOG.md)（未解決の指摘台帳）と [docs/archive/backlog-closed.md](../docs/archive/backlog-closed.md)（記録）は、ここから生成する派生物です。
+YDE で YDE 自身の開発を管理するワークスペースです。指摘（未解決と、解決・見送り）・テーマ・所感メモと機能（機能索引の行）の**原本**を、1 件 1 ファイルの YAML で持ちます。
+[docs/BACKLOG.md](../docs/BACKLOG.md)（未解決の指摘台帳）・[docs/archive/backlog-closed.md](../docs/archive/backlog-closed.md)（記録）・[docs/FEATURES.md](../docs/FEATURES.md)（エージェント向けの機能索引）は、ここから生成する派生物です。
 
 ## 中身
 
@@ -10,11 +10,13 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 | `backlog/UX-*.yaml` | 指摘。未解決も、解決・見送りも同じ場所で、状態・解決の日・解決の記録で見分けます |
 | `themes/T-*.yaml` | テーマ（複数の指摘が絡む横断課題）。指摘の側が `theme` で参照します（束ねる指摘） |
 | `notes/NOTE-*.yaml` | 台帳に添える文章。`NOTE-01` は所感メモ（良かった点・方向性の確認） |
-| `.yde/schemas/common.yaml` | 型（ID・状態・日付）と、指摘・解決の記録・テーマ・メモの形と検査 |
+| `features/<ID>.yaml` | 機能（docs/FEATURES.md の行）。ID は系統の接頭辞（W・E・S・V・I・X・A・AG・C・SK・OP・LC）と番号 |
+| `.yde/schemas/common.yaml` | 型（ID・状態・日付）と、指摘・解決の記録・テーマ・メモ・機能の形と検査 |
 | `.yde/schemas/item.yaml` | 指摘の文書と、業務の操作（登録・状態の変更・一部の解決・解決・再開） |
 | `.yde/schemas/theme.yaml`・`note.yaml`・`relations.yaml` | テーマとメモの文書、指摘からテーマへの関係（束ねる指摘）と指摘どうしの関係（関連する指摘） |
+| `.yde/schemas/feature.yaml` | 機能の文書と、操作「機能を登録する」（系統ごとの採番） |
 | `.yde/views/` | ダッシュボード「開発管理」と一覧・クロス集計。`doc-` で始まるものは生成用。`item-lens`（グラフレンズの見え方「指摘の状態」）と記法 `item-card` |
-| `.yde/reports/` | docs/BACKLOG.md と記録を作るレポート（定義とひな形） |
+| `.yde/reports/` | docs/BACKLOG.md・記録・docs/FEATURES.md を作るレポート（定義とひな形） |
 
 ## 運用
 
@@ -64,6 +66,19 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
   `item-lens.yaml` の `depth` を 2 にすると、関連を 2 段たどった先に未解決があるものも残します（いまは 17 件が 26 件になります）。
 - 絞り込みを増やすときは `.yde/views/item-lens.yaml` の `filters` に足します（書き方は [docs/manual/views.md](../docs/manual/views.md)「箱の絞り込み」）。
 
+### 機能を足す・直す
+
+docs/FEATURES.md はエージェント向けの索引で、行の原本は `features/<ID>.yaml` です。機能を足したら 1 件足し、直したらその文書を直して、`./gradlew devtrackDocs` で作り直します。
+
+```bash
+./gradlew runCli -q --args="action devtrack register-feature --param family=LC --param title=機能の要約 --param path=server/LocalServer.kt --param module=local-server --param design_label=ローカル接続 --param design_link=architecture/local-connections.md --apply"
+```
+
+- 登録で ID を省くと、その系統の接頭辞の中で最大の番号の次を振ります。テスト名（`test`）を省くと「手動」の行になります。2 つ目からの場所やテストは文書に足します。
+- 項目は、機能の欄（`title`）・主な実装（`implementation`。`path` と補足 `detail`・モジュール `module`、場所の形にならないものは `text`）・テスト（`tests`。`name`・種類 `kind`・補足 `note`）・ほかのテストもある（`more_tests`）・設計（`design`。`label` と `link`）です。
+- テストの種類は、名前のあるテストなら省くと単体です。Compose の画面を組み立てるテストは `ui`、`./gradlew test` に含まれない検査は `check`、手動確認は `manual`（名前なし）と書きます。
+- 節の並びと見出しは、レポート `features-md` が系統ごとに持ちます。行は節の中で ID の順です。新しい系統を足すときは、レポートと `common` の「機能の系統」「機能ID」に足します。
+
 ### 検査
 
 検証（`./gradlew runCli -q --args="validate devtrack"`）が、次の決まりを見ます。
@@ -71,6 +86,8 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 - ID の形（`UX-` と番号）と重複（同じ ID の定義が 2 つ）、状態の値、テーマの参照の切れ。
 - 未解決の指摘には起点の日があり、解決の日が無い。解決・見送りの指摘には解決の日がある。解決の日は起点の日以降。
 - 「必要になったら」の指摘には技術メモ（実装の当たり）がある。テーマには束ねる指摘がある。解決の記録には日付と種類がある。関連する指摘の参照が切れていない。
+- 機能の ID は系統の接頭辞と番号。主な実装・テスト・設計がそれぞれ 1 つ以上ある。実装の場所には場所か文が、テストには名前か種類がある。
+- docs/FEATURES.md に出る場所・テスト名・見出しの実在は、repo-tests の `DocReferencesTest` が生成物の上で見ます。
 
 ### 見る
 
@@ -85,10 +102,12 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 ## 生成のしくみ
 
 - レポート `backlog-md`（台帳）と `backlog-closed-md`（記録）が、生成用のビュー（`doc-items`・`doc-closed`・`doc-themes`・`doc-notes`）の行をひな形にはめ込みます。表のセルは `{パス:cell}` で `|` と改行を逃がします。
+- レポート `features-md`（機能索引）は、生成用のビュー `doc-features` の行を、ID の接頭辞で系統の節に振り分けます。並びの欄は値の式（`each` と `first`・`format`）で 1 件ずつ文字にし、ひな形が `{#if more}・{/if}` でつなぎます。
 - レポートの出力先はワークスペースの中に限られるので、`./gradlew devtrackDocs`（cli/build.gradle.kts）が CLI の `report --print` の文字を受けて docs/ へ書きます。
 
 ## 経緯
 
 - 段階 0（2026-11-07）: Markdown の台帳を原本のまま、取り込みの写しを作って画面と CLI で眺めた。番号の重なり 3 件を見つけて振り直した。
 - 段階 1（2026-11-07）: 原本を YAML に切り替えた。記録の解決の日は、状態の欄・技術メモ・節の見出しの日付から、無ければ git の履歴（状態が ✅ になったコミット）から補った。一部解決の記録は、その指摘の解決の記録へ移した。
-- 段階 2（ROADMAP の P52）: 2a（2026-11-07）で指摘どうしの関連・記録の種類・再開・登録の採番・長く手付かずの区画と、製品の改善（create の採番・日付の差など）を入れた。2b は FEATURES、2c は ROADMAP を devtrack へ移す（未着手）。
+- 段階 2（ROADMAP の P52）: 2a（2026-11-07）で指摘どうしの関連・記録の種類・再開・登録の採番・長く手付かずの区画と、製品の改善（create の採番・日付の差など）を入れた。
+  2b-1（2026-11-07）で FEATURES の原本を `features/` に切り替えた。取り込みでは欄の区切りを「・」にそろえ、テストに種類（単体・UI・検査・手動）を持たせ、節の中を ID の順に並べ直した。2c は ROADMAP を devtrack へ移す（未着手）。

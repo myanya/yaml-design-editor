@@ -1,0 +1,10 @@
+id: V-03
+title: ID 重複検出（同一文書内のみエラー・文書間は段階的詳細化）
+implementation:
+- path: validate/Validator.kt
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: checks
+  link: architecture/checks.md

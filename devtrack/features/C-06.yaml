@@ -1,0 +1,16 @@
+id: C-06
+title: CLI は 1 つ（カーネルの命令 `yaml …` / `workspace …` と、応用の命令＝探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・自動化・評価・skill・初期化・推測・移行・検査一覧・準備完了・計測・変換。命令ごとのファイル・全命令の `--format yaml|json|text`）
+implementation:
+- path: cli/Main.kt
+  module: cli
+- path: cli/AppCli.kt
+  module: cli
+- path: cli/ExploreCommands.kt
+  module: cli
+tests:
+- name: AppCliTest
+- name: CliTest
+- name: WorkspaceCliTest
+design:
+- label: workspace
+  link: architecture/workspace.md

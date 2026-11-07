@@ -1,0 +1,13 @@
+id: X-04
+title: コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存）
+implementation:
+- path: ui/shell/CommandPalette.kt
+  module: desktop
+- path: session/DocumentSession.kt
+  detail: '`searchContent`'
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

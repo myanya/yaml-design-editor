@@ -1,0 +1,16 @@
+id: E-20
+title: フォームの構成ツリーと三つの表示方式（選択項目・全体連動・全体のみ）
+implementation:
+- path: ui/form/StructuredForm.kt
+  module: desktop
+- path: ui/form/DocumentFormWorkspace.kt
+  module: desktop
+tests:
+- name: FormOutlineTest
+- name: FormPositionsTest
+- name: ScreenMemoryTest
+- kind: manual
+  note: 画面
+design:
+- label: ui
+  link: architecture/ui.md

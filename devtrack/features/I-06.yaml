@@ -1,0 +1,10 @@
+id: I-06
+title: ID 検索（コマンドパレット・ID とタイトルの部分一致・オーバーレイ索引）
+implementation:
+- path: ui/shell/CommandPalette.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

@@ -1,0 +1,13 @@
+id: AG-30
+title: 'グラフトラバース（`start` と `steps` の経路パターン・レシピ `kind: graph`・ツール `traverse`・CLI）'
+implementation:
+- path: core/Traverse.kt
+  module: app-core
+- path: tools/Readouts.kt
+  detail: '`traverseText`'
+  module: app-core
+tests:
+- name: TraverseTest
+design:
+- label: agents
+  link: architecture/agents.md

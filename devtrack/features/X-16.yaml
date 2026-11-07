@@ -1,0 +1,13 @@
+id: X-16
+title: 'クロス集計ビュー（`kind: matrix`・行の論理ID × 列の参照先か値・セルは行から集めた要素の集計・未分類と合計・列を広げたグリッドへ下ろす）と、グリッドの要素ごとに列を広げる列 `each`（`$名前` で列の要素の ID を指す）'
+implementation:
+- path: semantic-core/semantic/VirtualViews.kt
+  detail: '`lower`'
+  module: semantic-core
+- path: workspace-core/workspace/ViewDefinitions.kt
+  module: workspace-core
+tests:
+- name: ViewsTest
+design:
+- label: views
+  link: architecture/views.md

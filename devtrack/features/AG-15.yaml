@@ -1,0 +1,10 @@
+id: AG-15
+title: 実行キューと停止（直列実行・常時停止・承認待ちの耐久性）
+implementation:
+- path: agent/auto/Automation.kt
+  module: agent
+tests:
+- name: AutomationTest
+design:
+- label: agents
+  link: architecture/agents.md

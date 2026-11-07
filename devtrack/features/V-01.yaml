@@ -1,0 +1,13 @@
+id: V-01
+title: 構造の検証（必須・型・enum・date・case キー・利用者のスキーマから導出した最小の構造スキーマで行う）
+implementation:
+- path: yaml-core/structure/StructureValidator.kt
+  module: yaml-core
+- path: workspace-core/workspace/DerivedStructures.kt
+  module: workspace-core
+tests:
+- name: StructureValidatorTest
+- name: ValidatorTest
+design:
+- label: schema
+  link: architecture/schema.md

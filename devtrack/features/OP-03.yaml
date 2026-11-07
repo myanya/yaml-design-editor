@@ -1,0 +1,10 @@
+id: OP-03
+title: 操作の計画・前提評価・変更セット生成
+implementation:
+- path: workspace-core/workspace/ActionPlanner.kt
+  module: workspace-core
+tests:
+- name: ActionPlannerTest
+design:
+- label: actions
+  link: architecture/actions.md

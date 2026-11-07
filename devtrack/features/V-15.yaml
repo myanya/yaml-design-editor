@@ -1,0 +1,13 @@
+id: V-15
+title: 検査の結果の 4 つと指摘の出どころ（違反・充足・保留・対象外・`IssueSource`・保留は `withheld`・CLI `validate --sources`）
+implementation:
+- path: semantic-core/semantic/CheckResults.kt
+  module: semantic-core
+- path: workspace-core/validate/CodedChecks.kt
+  module: workspace-core
+tests:
+- name: SemanticRulesTest
+- name: CheckOutcomeTest
+design:
+- label: checks
+  link: architecture/checks.md

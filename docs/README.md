@@ -13,13 +13,13 @@
 | [.claude/skills/](../.claude/skills/) | エージェントの作業手順（skill）。文書の同期 `sync-docs`・画面の確認 `ui-check`・配布の準備と公開 `release` | その作業をするとき（Claude Code では skill として呼ぶ。ほかのエージェントは SKILL.md を読む） | 手順や道具（Gradle のタスク・MCP）の癖が変わったとき |
 | [manual/](manual/README.md) | 利用者マニュアル。主題ごとに 1 ファイル（画面・スキーマ定義・検証・ファイル・ビュー・ID・AI・CLI・既知の制約） | 利用者に見える仕様を確かめるとき | 利用者に見える仕様・操作・UI が変わったとき |
 | [tutorial.md](tutorial.md) | 利用者向けの手引き。タスク管理を題材に、文書の作成とスキーマ設計を順に説明する | 初めて使うとき | 操作手順やスキーマの書き方が変わったとき |
-| [FEATURES.md](FEATURES.md) | 機能索引。機能から実装ファイルとテストを引く | 着手前に対象機能の場所を引くとき | 機能の追加・削除・テストの追加 |
+| [FEATURES.md](FEATURES.md) | 機能索引（エージェント向け）。機能から実装ファイルとテストを引く（devtrack から生成） | 着手前に対象機能の場所を引くとき | 直接直さない。機能の追加・削除・テストの追加は devtrack の `features/` を直して作り直す |
 | [architecture/](architecture/README.md) | 設計。主題ごとに 1 ファイル（部品・流れ・規律・拡張ポイント） | 着手前に該当する主題を読む | クラス・責務・データフロー・方針が変わったとき |
 | [GLOSSARY.md](GLOSSARY.md) | 用語集。このプロジェクトで決めた語の 1 行の意味・近い一般の語・詳しい文書の見出し | 知らない語に会ったとき | 語を足した・意味が変わった・案内先の見出しが変わったとき |
 | [CONVENTIONS.md](CONVENTIONS.md) | 開発規約。スタイル・Compose・テスト・文書・UX フィードバック・モジュール・計算体系 | 実装中 | 規約を変えるとき |
 | [ROADMAP.md](ROADMAP.md) | ビジョンと未完のテーマ。全テーマの状態表 | テーマの目的と残りを確かめるとき | 方向性の変更、テーマの着手・完了。完了したら本文を archive へ |
 | [BACKLOG.md](BACKLOG.md) | 未解決の指摘台帳とテーマ（devtrack から生成） | 気になりポイントを確認するとき | 直接直さない。devtrack を直して作り直す |
-| [devtrack/](../devtrack/README.md) | 開発管理のワークスペース。指摘・テーマ・所感メモの原本 | 気になりポイントを登録・解決するとき | 気づいたとき即時。`./gradlew devtrackDocs` で台帳を作り直す |
+| [devtrack/](../devtrack/README.md) | 開発管理のワークスペース。指摘・テーマ・所感メモと機能索引の原本 | 気になりポイントを登録・解決するとき、機能を足す・直すとき | 気づいたとき即時。`./gradlew devtrackDocs` で台帳と機能索引を作り直す |
 | [UX-SCENARIOS.md](UX-SCENARIOS.md) | オーナーが操作して使用感を確かめるシナリオ | 使用感を確認するとき | 再利用する利用場面を追加するとき、既存シナリオの操作が変わったとき |
 | [CORE-CALCULUS.md](CORE-CALCULUS.md) | YAML に対する計算体系の設計方針 | 決定論的機能を足す前 | 体系の原則を変えるとき。ADR とセット |
 | [DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) | 設計チェックのパターン台帳 | 検査を足す前 | 検証機構の追加・変更 |

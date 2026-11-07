@@ -1,0 +1,13 @@
+id: LC-21
+title: 保存版の読取 API・原本座標・権限境界・OpenAPI 契約
+implementation:
+- path: service/WorkspaceReads.kt
+  module: app-core
+- path: server/api/ReadApi.kt
+  module: local-server
+tests:
+- name: WorkspaceReadsTest
+- name: ReadApiTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

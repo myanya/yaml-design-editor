@@ -1,0 +1,12 @@
+id: W-22
+title: テンプレート（`templates/` をビルド時に資源へ写し `WorkspaceTemplates` が読む・問いを持つテンプレートは答えを変換定義のひな型で組み立てる・全テンプレートの検証エラー 0 をテストで固定）
+implementation:
+- path: templates/
+- path: workspace-core/WorkspaceTemplates.kt
+  module: workspace-core
+tests:
+- name: WorkspaceInitTest
+- name: WorkspaceTemplatesTest
+design:
+- label: workspace
+  link: architecture/workspace.md

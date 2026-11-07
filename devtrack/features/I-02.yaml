@@ -1,0 +1,11 @@
+id: I-02
+title: '参照認識（`type: ref` と命名規約）'
+implementation:
+- path: index/IdIndex.kt
+  detail: '`DocScanner`'
+  module: app-core
+tests:
+- kind: manual
+design:
+- label: index-references
+  link: architecture/index-references.md

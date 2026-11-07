@@ -1,0 +1,14 @@
+id: I-11
+title: '文書参照（`target: document`・文書ノードへの参照・エンティティ参照とは混ぜない）'
+implementation:
+- path: index/IdIndex.kt
+  detail: '`RefEntry.targetKind`'
+  module: app-core
+- path: ui/form/RefEditors.kt
+  detail: '`DocRefScalarEditor`'
+  module: desktop
+tests:
+- name: DocRefTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

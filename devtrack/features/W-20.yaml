@@ -1,0 +1,13 @@
+id: W-20
+title: ソースの宣言候補の表示と YAML 保存
+implementation:
+- path: core/SourceOutline.kt
+  module: app-core
+- path: ui/file/FilePreviewPane.kt
+  module: desktop
+tests:
+- name: ReferenceToolsTest
+- name: AppStateFileArrangementTest
+design:
+- label: ui
+  link: architecture/ui.md

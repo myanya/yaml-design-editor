@@ -1,0 +1,12 @@
+id: V-17
+title: 規模の計測（CLI `bench`・合成ワークスペースで開く・検証・レポートの時間と伸び方を出す）
+implementation:
+- path: core/Bench.kt
+  module: app-core
+- path: cli/BenchCommand.kt
+  module: cli
+tests:
+- name: BenchTest
+design:
+- label: checks
+  link: architecture/checks.md

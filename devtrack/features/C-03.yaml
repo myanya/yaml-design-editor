@@ -1,0 +1,13 @@
+id: C-03
+title: 変更セット（複数ファイルのパッチ束と新規作成・base ハッシュの競合検出・適用後の姿の検証・`--require-valid`・適用の本体はカーネル）
+implementation:
+- path: workspace-core/changeset/ChangeSets.kt
+  module: workspace-core
+- path: workspace-core/workspace/ChangeSetApplier.kt
+  module: workspace-core
+tests:
+- name: ChangeSetApplierTest
+- name: WorkspaceCliTest
+design:
+- label: workspace
+  link: architecture/workspace.md

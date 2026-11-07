@@ -1,0 +1,11 @@
+id: LC-03
+title: 背景のファイル操作と履歴の独立実行・完了反映
+implementation:
+- path: WorkspaceSession.PendingFileOperation
+  module: workspace-core
+tests:
+- name: BackgroundFileOperationTest
+- name: AppStateFileArrangementTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

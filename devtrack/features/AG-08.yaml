@@ -1,0 +1,13 @@
+id: AG-08
+title: 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル）
+implementation:
+- path: agent/run/Kernel.kt
+  module: agent
+- path: ui/run/RunsSpace.kt
+  detail: '`QuestionCard`'
+  module: desktop
+tests:
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

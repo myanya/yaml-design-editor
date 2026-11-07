@@ -1,0 +1,17 @@
+id: E-29
+title: 編集画面のタブ（フォーム・ビュー・ソース・差分。ビューは当たる文書ビューを ▾ で選ぶ・当たらなければ押せない・開いたときのタブは直前のタブから）
+implementation:
+- path: desktop/EditorTab.kt
+  module: desktop
+- path: ui/shell/EditorChrome.kt
+  detail: '`EditorModeBar`'
+  module: desktop
+- path: AppState
+  detail: '`showFile`・`docViewsFor`・`landOnForm`'
+  module: desktop
+tests:
+- name: EditorTabTest
+- name: NavigationHistoryTest
+design:
+- label: ui
+  link: architecture/ui.md

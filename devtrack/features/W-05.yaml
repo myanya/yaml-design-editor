@@ -1,0 +1,10 @@
+id: W-05
+title: 最近開いたファイル履歴（12 件・ワークスペース単位で永続化）
+implementation:
+- path: AppState.recentFiles
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: ui
+  link: architecture/ui.md

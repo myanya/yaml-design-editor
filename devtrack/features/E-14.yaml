@@ -1,0 +1,14 @@
+id: E-14
+title: 保存時に自動で入る値（印 `auto`＝更新日・作成日・版。保存の直前の 1 トランザクション・変更セットの適用にも）
+implementation:
+- path: semantic-core/semantic/AutoValues.kt
+  module: semantic-core
+- path: workspace-core/workspace/WorkspaceSession.kt
+  module: workspace-core
+tests:
+- name: SemanticAutoValuesTest
+- name: AutoValuesKernelTest
+- name: AppStateAutoValuesTest
+design:
+- label: auto-values
+  link: architecture/auto-values.md

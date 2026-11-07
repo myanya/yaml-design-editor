@@ -1,0 +1,12 @@
+id: X-08
+title: ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示）
+implementation:
+- path: workspace-core/workspace/ViewDefinitions.kt
+  detail: '`lint`'
+  module: workspace-core
+tests:
+- name: ViewsTest
+- name: ViewDefinitionsTest
+design:
+- label: views
+  link: architecture/views.md

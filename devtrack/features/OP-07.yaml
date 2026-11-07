@@ -1,0 +1,15 @@
+id: OP-07
+title: エージェントのツール（アクティビティの `actions` で許可した操作が `action_名前` のツールに・引数は受け取る値の定義・ステージングを重ねて計画し積む・`allowedFiles` の外でも通る）
+implementation:
+- path: tools/Toolset.kt
+  detail: '`actionTools` / `runActionTool`'
+  module: app-core
+- path: agent/Definitions.kt
+  module: agent
+- path: builtin-schemas/activity.yaml
+  module: workspace-core
+tests:
+- name: ActionToolTest
+design:
+- label: actions
+  link: architecture/actions.md

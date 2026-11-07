@@ -1,0 +1,14 @@
+id: E-23
+title: 選択一覧の現在値・高さ制限・説明全文・検索
+implementation:
+- path: ui/common/ChoiceMenu.kt
+  module: desktop
+- path: ChoiceOptions.kt
+  module: desktop
+tests:
+- name: ChoiceOptionsTest
+- kind: manual
+  note: 長い選択一覧
+design:
+- label: UI 操作規則
+  link: architecture/ui-interactions.md

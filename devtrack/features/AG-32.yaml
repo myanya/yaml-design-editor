@@ -1,0 +1,14 @@
+id: AG-32
+title: 'エンティティ全体像の開示（`read_entity`・合成と両方向の関係と充足を 1 回で返す・レシピ `kind: entity`）'
+implementation:
+- path: tools/Readouts.kt
+  detail: '`entityText`'
+  module: app-core
+- path: core/Aspects.kt
+  module: app-core
+tests:
+- name: ToolsTest
+- name: KernelTest
+design:
+- label: agents
+  link: architecture/agents.md

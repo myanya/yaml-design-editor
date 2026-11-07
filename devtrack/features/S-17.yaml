@@ -1,0 +1,12 @@
+id: S-17
+title: 派生スキーマ（`derive:` で導出元文書から検証スキーマをコンパイル・導出元の変更は全再構築）
+implementation:
+- path: semantic-core/schema/SchemaDerivation.kt
+  module: semantic-core
+- path: core/Workspace.kt
+  module: app-core
+tests:
+- name: DerivedSchemasTest
+design:
+- label: schema
+  link: architecture/schema.md

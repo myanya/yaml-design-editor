@@ -1,0 +1,9 @@
+id: SK-05
+title: テンプレート「課題管理」（Excel 往復と棚卸しのエージェント・評価を含む出発点。展開の仕組みは W-21）
+implementation:
+- path: templates/issues/
+tests:
+- name: ImportExportTest
+design:
+- label: workspace
+  link: architecture/workspace.md

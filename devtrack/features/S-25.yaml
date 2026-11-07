@@ -1,0 +1,15 @@
+id: S-25
+title: 'ファイルの場所の型（`type: file`・接頭辞なし＝ルートから・`./` `../`＝文書から・絶対の 3 通り・`extensions` で拡張子を絞る・値は文字列のまま）'
+implementation:
+- path: semantic-core/schema/FilePath.kt
+  module: semantic-core
+- path: schema/Fields.kt
+  detail: '`FieldType.FILE`, `extensions`'
+  module: semantic-core
+- path: builtin-schemas/schema.yaml
+  module: workspace-core
+tests:
+- name: FilePathTest
+design:
+- label: schema
+  link: architecture/schema.md

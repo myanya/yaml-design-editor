@@ -1,0 +1,14 @@
+id: LC-28
+title: Web のダッシュボード・表・チャート・業務詳細と共有入力・参照・対応外の案内
+implementation:
+- path: BusinessReadPresentation.kt
+  module: app-core
+- path: BusinessWorkspace.tsx
+  module: web-ui
+tests:
+- name: WebBusinessTest
+- name: WebBrowserCheck
+  kind: check
+design:
+- label: 業務 Web
+  link: manual/local-web.md

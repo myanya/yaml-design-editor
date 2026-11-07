@@ -1,0 +1,11 @@
+id: E-15
+title: 日付・時刻・日時のピッカー（入力欄の右のボタンからポップアップにカレンダーと時刻入力・日付はクリックで即反映・値は正準の文字列のまま）
+implementation:
+- path: ui/form/TemporalEditor.kt
+  detail: '`TemporalPick`, `TemporalPickerButton`'
+  module: desktop
+tests:
+- name: TemporalPickTest
+design:
+- label: ui
+  link: architecture/ui.md

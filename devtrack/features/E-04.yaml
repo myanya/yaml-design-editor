@@ -1,0 +1,10 @@
+id: E-04
+title: 差分表示（保存済みと編集中の行整列・文字単位の強調）
+implementation:
+- path: ui/common/DiffPane.kt
+  module: desktop
+tests:
+- name: DiffPaneTest
+design:
+- label: ui
+  link: architecture/ui.md

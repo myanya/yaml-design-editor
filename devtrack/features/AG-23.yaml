@@ -1,0 +1,10 @@
+id: AG-23
+title: 自己改善 UI（計測・評価タブ）
+implementation:
+- path: ui/run/ImprovementPanel.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: agents
+  link: architecture/agents.md

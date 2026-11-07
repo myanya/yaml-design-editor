@@ -1,0 +1,18 @@
+id: SK-03
+title: エクスポート（glob × 行 × 列 → xlsx / csv / markdown / json / html・`source.view`・YAML 出力は拒否・`build` で JSON を木のまま組み立てる〔`mode`・`index`・`fill`・`style`〕・書き出し先を実行のときに選ぶ・中身が同じなら書かない・`include` でまとめて書き出す〔全部を計画してから書く・上書きは一括で確認〕）
+implementation:
+- path: skill/Exporter.kt
+  module: app-core
+- path: skill/Tables.kt
+  module: app-core
+- path: format/JsonTree.kt
+  module: app-core
+- path: ext/Extensions.kt
+  module: app-core
+tests:
+- name: ImportExportTest
+- name: TreeImportExportTest
+- name: JsonTreeTest
+design:
+- label: agents
+  link: architecture/agents.md

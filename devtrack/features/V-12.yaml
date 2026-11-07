@@ -1,0 +1,12 @@
+id: V-12
+title: 遷移検証（`flow`・到達不能・行き止まり・宣言外遷移・到達の計算は専用チェッカーで文面と重大度は定義体）
+implementation:
+- path: semantic-core/semantic/Flow.kt
+  module: semantic-core
+- path: builtin-definitions/flow.yaml
+  module: workspace-core
+tests:
+- name: FlowTest
+design:
+- label: checks
+  link: architecture/checks.md

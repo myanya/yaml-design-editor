@@ -1,0 +1,11 @@
+id: I-01
+title: 'ID 索引（ディスク基準・`type: id` とキー名 `id`・変更ファイルだけの増分更新）'
+implementation:
+- path: index/IdIndex.kt
+  detail: '`DocScanner`, `update`'
+  module: app-core
+tests:
+- name: IdIndexIncrementalTest
+design:
+- label: index-references
+  link: architecture/index-references.md

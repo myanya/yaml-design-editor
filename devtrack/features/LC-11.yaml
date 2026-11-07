@@ -1,0 +1,11 @@
+id: LC-11
+title: 機能別の資格情報・期限・失効と要求・MCP セッションの接続者への結付け
+implementation:
+- path: server/auth/LocalAccess.kt
+  module: local-server
+tests:
+- name: LocalAccessTest
+- name: LocalProtocolAuthenticationTest
+design:
+- label: ローカル接続
+  link: architecture/local-connections.md

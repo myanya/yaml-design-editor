@@ -1,0 +1,14 @@
+id: LC-17
+title: トレイの受信箱件数・画面と設定への移動・完全終了
+implementation:
+- path: ui/shell/DesktopTray.kt
+  module: desktop
+- path: InboxNavigation.kt
+  module: desktop
+tests:
+- name: DesktopTraySmoke
+  kind: check
+- name: DesktopRuntimeTest
+design:
+- label: 接続の設定
+  link: manual/local-connections.md

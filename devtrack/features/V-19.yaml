@@ -1,0 +1,12 @@
+id: V-19
+title: コードで実装された検査（ID パターンからの逸脱・重複所有・テンプレートの健全性・カーネルが配る）
+implementation:
+- path: workspace-core/validate/CodedDocumentChecks.kt
+  module: workspace-core
+- path: workspace-core/workspace/SchemaDefinitionChecks.kt
+  module: workspace-core
+tests:
+- name: KernelOnlyChecksTest
+design:
+- label: checks
+  link: architecture/checks.md

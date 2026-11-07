@@ -56,6 +56,14 @@ class TextTemplateTest {
     }
 
     @Test
+    fun `繰り返しの more は後ろにまだ要素があるときだけ真で 並びを区切れる`() {
+        val r = TextTemplate.render("{#each sales.cells}{column}{#if more}・{/if}{/each} / {#each tags}{key}{#if more}, {/if}{/each}", values)
+        assertEquals("文具・消耗品 / a, b", r.text)
+        val one = TextTemplate.render("[{#each xs}{.}{#if more}・{/if}{/each}]", YamlIO.parse("xs: [only]"))
+        assertEquals("[only]", one.text)
+    }
+
+    @Test
     fun `表のセルの形は 縦棒と改行を逃がして Markdown の表の行を崩さない`() {
         val cell = YamlIO.parse("memo: \"a | b\\nc\\r\\nd\"\nplain: \"x|y\"")
         val r = TextTemplate.render("| {memo:cell} | {plain} |", cell)

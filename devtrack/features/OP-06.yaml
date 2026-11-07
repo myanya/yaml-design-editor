@@ -1,0 +1,13 @@
+id: OP-06
+title: 検査の指摘から対象・値を指定して起動
+implementation:
+- path: workspace-core/validate/WorkspaceChecks.kt
+  module: workspace-core
+- path: ui/shell/SidePanel.kt
+  module: desktop
+tests:
+- name: ActionPlannerTest
+- name: AppStateActionTest
+design:
+- label: actions
+  link: architecture/actions.md

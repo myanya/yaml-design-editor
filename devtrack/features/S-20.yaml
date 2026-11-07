@@ -1,0 +1,13 @@
+id: S-20
+title: '関係レジストリ（`kind: relations` の関係語彙・label／inverseLabel・`enforcement`・CLI `infer-relations`）'
+implementation:
+- path: semantic-core/schema/Relations.kt
+  detail: '`RelationDef`'
+  module: semantic-core
+- path: core/Workspace.kt
+  module: app-core
+tests:
+- name: RelationRegistryTest
+design:
+- label: graph-query
+  link: architecture/graph-query.md

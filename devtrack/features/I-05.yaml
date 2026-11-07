@@ -1,0 +1,12 @@
+id: I-05
+title: バックリンク（被参照一覧・参照元の ID とタイトル）
+implementation:
+- path: IdIndex.backlinksTo
+  module: app-core
+- path: ui/shell/SidePanel.kt
+  module: desktop
+tests:
+- kind: manual
+design:
+- label: index-references
+  link: architecture/index-references.md

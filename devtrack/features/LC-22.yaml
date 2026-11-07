@@ -1,0 +1,14 @@
+id: LC-22
+title: 簡単な閲覧・変更設定と文書・操作名の選択、旧権限の維持
+implementation:
+- path: ConnectionPermissionEditor.kt
+  module: desktop
+- path: PermissionDocumentPicker.kt
+  module: desktop
+tests:
+- name: LocalConnectionSettingsPageTest
+  kind: ui
+- name: ConnectionSettingsStoreTest
+design:
+- label: 接続の設定
+  link: manual/local-connections.md

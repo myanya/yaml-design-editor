@@ -1,0 +1,13 @@
+id: A-07
+title: プロバイダ切替（OpenAI Responses・Anthropic Messages・Azure）・API キーはメモリのみ
+implementation:
+- path: agent/llm/OpenAiGenerator.kt
+  module: agent
+- path: agent/llm/AnthropicGenerator.kt
+  module: agent
+tests:
+- kind: unit
+  note: レスポンス解析
+design:
+- label: agents
+  link: architecture/agents.md

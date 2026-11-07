@@ -1,0 +1,11 @@
+id: A-13
+title: レート制限と一時エラーの自動リトライ（408 / 429 / 5xx・`retry-after` と指数バックオフ）
+implementation:
+- path: agent/llm/Http.kt
+  detail: '`retryLoop`'
+  module: agent
+tests:
+- name: HttpTest
+design:
+- label: agents
+  link: architecture/agents.md
