@@ -11,3 +11,6 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+manual:
+- link: manual/checks.md
+  heading: 検証パネル

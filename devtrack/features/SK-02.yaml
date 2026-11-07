@@ -27,3 +27,6 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+manual:
+- link: manual/ai.md
+  heading: インポート

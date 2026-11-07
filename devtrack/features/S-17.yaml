@@ -10,3 +10,6 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+manual:
+- link: manual/schema.md
+  heading: 派生スキーマ

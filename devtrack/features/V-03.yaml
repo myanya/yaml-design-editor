@@ -8,3 +8,6 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+manual:
+- link: manual/ids.md
+  heading: 段階的詳細化の規約

@@ -10,3 +10,6 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+manual:
+- link: manual/ids.md
+  heading: ID の索引化

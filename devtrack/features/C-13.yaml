@@ -8,3 +8,6 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+manual:
+- link: manual/cli.md
+  heading: コマンド例

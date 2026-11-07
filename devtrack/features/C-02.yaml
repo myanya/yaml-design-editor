@@ -12,3 +12,6 @@ tests:
 design:
 - label: yaml-model
   link: architecture/yaml-model.md
+manual:
+- link: manual/cli.md
+  heading: コマンド例

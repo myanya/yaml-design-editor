@@ -12,3 +12,6 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+manual:
+- link: manual/ai.md
+  heading: 外部からの提出を受信箱で確認する

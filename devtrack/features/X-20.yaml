@@ -12,3 +12,6 @@ tests:
 design:
 - label: 図の記法
   link: architecture/diagram-notations.md
+manual:
+- link: manual/diagram-notations.md
+  heading: クラス図を使う

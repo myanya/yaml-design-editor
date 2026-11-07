@@ -10,3 +10,6 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+manual:
+- link: manual/checks.md
+  heading: 遷移検証

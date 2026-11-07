@@ -12,3 +12,6 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+manual:
+- link: manual/schema.md
+  heading: enum 値ごとの追加フィールド

@@ -25,3 +25,6 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+manual:
+- link: manual/views.md
+  heading: チャート

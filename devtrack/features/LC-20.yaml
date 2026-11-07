@@ -8,3 +8,6 @@ tests:
 design:
 - label: CLI
   link: manual/cli.md
+manual:
+- link: manual/cli.md
+  heading: ワークスペースの所有と書込

@@ -111,11 +111,13 @@ class DevtrackTest {
                 .map { it.removePrefix("LC-").removeSuffix(".yaml").toInt() }.toList() }.max()
             val feature = "LC-%02d".format(lastLc + 1)
             act("register-feature", null, mapOf("family" to "LC", "title" to "試しの機能", "path" to "server/LocalServer.kt", "module" to "local-server",
-                "design_label" to "ローカル接続", "design_link" to "architecture/local-connections.md"))
+                "design_label" to "ローカル接続", "design_link" to "architecture/local-connections.md",
+                "manual_link" to "manual/local-connections.md", "manual_heading" to "有効・無効と状態"))
             assertTrue(Files.isRegularFile(dir.resolve("features/$feature.yaml")), "採番した $feature のファイル")
             val features = render(ws, "features-md")
             val section = features.substringAfter("## ローカル接続の基盤").substringBefore("## 公開サンプル")
-            assertTrue("| $feature | 試しの機能 | `server/LocalServer.kt` | 手動 | [ローカル接続](architecture/local-connections.md) |" in section, section.lines().last { it.startsWith("| LC-") })
+            assertTrue("| $feature | 試しの機能 | `server/LocalServer.kt` | 手動 | [ローカル接続](architecture/local-connections.md) | manual/local-connections.md「有効・無効と状態」 |" in section,
+                section.lines().last { it.startsWith("| LC-") })
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
         } finally {
             Files.walk(base).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }

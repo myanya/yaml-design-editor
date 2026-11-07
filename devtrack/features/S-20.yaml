@@ -11,3 +11,6 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+manual:
+- link: manual/checks.md
+  heading: 関係レジストリ

@@ -19,3 +19,8 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+manual:
+- link: manual/views.md
+  heading: レンズの見え方
+- link: manual/views.md
+  heading: 箱の絞り込み

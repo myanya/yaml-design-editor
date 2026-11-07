@@ -11,3 +11,4 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+internal: true

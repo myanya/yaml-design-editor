@@ -8,3 +8,6 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+manual:
+- link: manual/local-api-changes.md
+  heading: 作業と結果の取得

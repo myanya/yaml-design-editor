@@ -13,3 +13,6 @@ tests:
 design:
 - label: MCP
   link: manual/local-mcp.md
+manual:
+- link: manual/local-mcp.md
+  heading: 外部 AI からの MCP 接続

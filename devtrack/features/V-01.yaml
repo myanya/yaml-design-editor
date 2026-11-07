@@ -11,3 +11,6 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+manual:
+- link: manual/checks.md
+  heading: 検証パネル

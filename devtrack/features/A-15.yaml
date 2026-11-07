@@ -11,3 +11,4 @@ tests:
 design:
 - label: agents
   link: architecture/agents.md
+internal: true

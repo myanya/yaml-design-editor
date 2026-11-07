@@ -18,6 +18,9 @@ actions:
       - { key: test, label: テスト名, type: common#一行の文, description: 省くと「手動」になります }
       - { key: design_label, label: 設計の見出し, type: common#一行の文, required: true, minLength: 1, description: "例 ui" }
       - { key: design_link, label: 設計の場所, type: common#一行の文, required: true, minLength: 1, description: "例 architecture/ui.md" }
+      - { key: manual_link, label: 操作の説明の場所, type: common#一行の文, description: "例 manual/views.md（利用者が操作しない内部の基盤なら省いて internal）" }
+      - { key: manual_heading, label: 操作の説明の見出し, type: common#一行の文, description: "例 箱の絞り込み" }
+      - { key: internal, label: 内部の基盤, type: boolean, description: 操作の説明の代わりに「—（内部）」とする }
     do:
       - create:
           schema: feature
@@ -33,3 +36,8 @@ actions:
                   - { kind: manual }
             design:
               - { label: $design_label, link: $design_link }
+            manual:
+              $when: { path: $manual_link, exists: true }
+              $then:
+                - { link: $manual_link, heading: { $copy: manual_heading } }
+            internal: { $copy: internal }

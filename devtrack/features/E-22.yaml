@@ -12,3 +12,6 @@ tests:
 design:
 - label: UI 操作規則
   link: architecture/ui-interactions.md
+manual:
+- link: manual/README.md
+  heading: 画面構成

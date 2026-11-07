@@ -3,7 +3,7 @@
 <!-- この文書は devtrack から生成する（./gradlew devtrackDocs）。直接直さない。ひな形は devtrack/.yde/reports/features-md.md -->
 
 機能から実装ファイルとテストを引く索引。1 行 1 機能で、経緯は書かない（記録は [archive/](archive/README.md) と git log）。
-利用方法は [manual/](manual/README.md)、設計は [architecture/](architecture/README.md) が正。「設計」列は設計文書の主題。
+利用方法は [manual/](manual/README.md)、設計は [architecture/](architecture/README.md) が正。「設計」列は設計文書の主題、「操作の説明」列はその機能を説明する manual の見出し（機能を変えたらそこを直す。「—（内部）」は利用者が操作しない内部の基盤）。
 **原本は [devtrack/](../devtrack/README.md) の `features/`**（1 機能 1 ファイルの YAML）。足す・直すときは YAML を書き、`./gradlew devtrackDocs` で作り直す。
 
 - **テスト**: 印の無い名前は単体テスト（代表の名前。`./gradlew test --tests '*名前*'` で絞って回せる）。`UI` は Compose の画面を組み立てるテスト（`./gradlew test` に含まれる）。`検査` は `./gradlew test` に含まれない別の検査。`手動` は手動確認だけ（画面は skill `ui-check`）。「ほか」は代表の名前だけを書いたもの。
@@ -12,10 +12,10 @@
 {#each sections}
 ## {title}
 
-| ID | 機能 | 主な実装 | テスト | 設計 |
-|---|---|---|---|---|
+| ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 |
+|---|---|---|---|---|---|
 {#each rows}
-| {id} | {values.機能:cell} | {#each values.主な実装}{.:cell}{#if more}・{/if}{/each} | {#each values.テスト}{.:cell}{#if more}・{/if}{/each}{#if values.ほか} ほか{/if} | {#each values.設計}{.:cell}{#if more}・{/if}{/each} |
+| {id} | {values.機能:cell} | {#each values.主な実装}{.:cell}{#if more}・{/if}{/each} | {#each values.テスト}{.:cell}{#if more}・{/if}{/each}{#if values.ほか} ほか{/if} | {#each values.設計}{.:cell}{#if more}・{/if}{/each} | {#if values.内部}—（内部）{/if}{#if values.操作の説明}{#each values.操作の説明}{.:cell}{#if more}・{/if}{/each}{/if} |
 {/each}
 
 {/each}

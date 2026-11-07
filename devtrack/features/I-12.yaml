@@ -12,3 +12,4 @@ tests:
 design:
 - label: index-references
   link: architecture/index-references.md
+internal: true

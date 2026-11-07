@@ -11,3 +11,4 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+internal: true

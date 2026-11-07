@@ -11,3 +11,6 @@ tests:
 design:
 - label: 配布
   link: releasing.md
+manual:
+- link: manual/README.md
+  heading: ビルドと起動

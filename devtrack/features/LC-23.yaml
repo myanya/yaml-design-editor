@@ -11,3 +11,6 @@ tests:
 design:
 - label: API による変更
   link: manual/local-api-changes.md
+manual:
+- link: manual/local-api-changes.md
+  heading: API による変更

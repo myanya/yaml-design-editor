@@ -19,3 +19,8 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+manual:
+- link: manual/flow-views.md
+  heading: 画面での操作
+- link: manual/flow-views.md
+  heading: 文書への埋め込み

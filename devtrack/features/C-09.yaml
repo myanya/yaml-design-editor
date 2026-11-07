@@ -10,3 +10,4 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+internal: true

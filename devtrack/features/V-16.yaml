@@ -13,3 +13,8 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+manual:
+- link: manual/checks.md
+  heading: パターン制約
+- link: manual/ids.md
+  heading: 保有と所属

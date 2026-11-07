@@ -10,3 +10,6 @@ tests:
 design:
 - label: 図の記法
   link: architecture/diagram-notations.md
+manual:
+- link: manual/diagram-notations.md
+  heading: 記法を定義する

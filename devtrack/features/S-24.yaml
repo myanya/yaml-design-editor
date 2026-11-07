@@ -13,3 +13,8 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+manual:
+- link: manual/schema.md
+  heading: 型の定義
+- link: manual/schema.md
+  heading: オブジェクト型

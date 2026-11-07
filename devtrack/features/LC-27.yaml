@@ -14,3 +14,6 @@ tests:
 design:
 - label: 業務 Web
   link: manual/local-web.md
+manual:
+- link: manual/local-web.md
+  heading: 接続する

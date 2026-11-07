@@ -17,3 +17,8 @@ tests:
 design:
 - label: views
   link: architecture/views.md
+manual:
+- link: manual/views.md
+  heading: 文書ビュー
+- link: manual/views.md
+  heading: 複合文書ビュー

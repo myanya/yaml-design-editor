@@ -12,3 +12,6 @@ tests:
 design:
 - label: 手動位置
   link: architecture/diagram-positions.md
+manual:
+- link: manual/flow-views.md
+  heading: 画面での操作

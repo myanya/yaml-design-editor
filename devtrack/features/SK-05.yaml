@@ -7,3 +7,8 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+manual:
+- link: manual/ai.md
+  heading: skill を含む出発点
+- link: manual/README.md
+  heading: 新しいワークスペースを作る

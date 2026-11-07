@@ -10,3 +10,6 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+manual:
+- link: manual/local-connections.md
+  heading: 保存とエラー

@@ -15,3 +15,10 @@ tests:
 design:
 - label: 図の記法
   link: architecture/diagram-notations.md
+manual:
+- link: manual/diagram-notations.md
+  heading: 条件付き表示
+- link: manual/diagram-notations.md
+  heading: 型の属性を表示する
+- link: manual/diagram-notations.md
+  heading: 出力と定義の読み取り

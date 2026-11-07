@@ -14,3 +14,8 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+manual:
+- link: manual/files.md
+  heading: フォームでの操作
+- link: manual/files.md
+  heading: 画像の表示

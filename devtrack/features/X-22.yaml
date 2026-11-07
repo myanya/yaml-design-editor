@@ -13,3 +13,6 @@ tests:
 design:
 - label: 手動位置
   link: architecture/diagram-positions.md
+manual:
+- link: manual/diagram-positions.md
+  heading: 移動と解除

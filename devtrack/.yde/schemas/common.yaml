@@ -370,6 +370,20 @@ definitions:
         required: true
         description: docs/ からの相対パス（例 architecture/ui.md）。見出しまで指すときは、見出しの文字を label に書きます。
 
+  manual の参照:
+    type: object
+    label: manual の参照
+    fields:
+      - key: link
+        label: 場所
+        type: 一行の文
+        required: true
+        description: docs/ からの相対パス（例 manual/views.md）。
+      - key: heading
+        label: 見出し
+        type: 一行の文
+        description: その文書の見出しの文字（先頭からの一致でよい。例 箱の絞り込み）。FEATURES.md では「manual/views.md「箱の絞り込み」」の形で出し、実在は DocReferencesTest が見ます。
+
   # 機能: 1 件 1 ファイル。この形の要素がエンティティ feature の定義
   機能:
     type: object
@@ -406,6 +420,15 @@ definitions:
         required: true
         item: { type: 文書の参照 }
         description: 設計文書（architecture/ など）の主題。
+      - key: manual
+        label: 操作の説明
+        type: array
+        item: { type: manual の参照 }
+        description: 利用者向けの説明（manual/ の見出し）。この機能を変えたら、ここを直す。利用者が操作しない内部の基盤なら書かずに internal を true にします。
+      - key: internal
+        label: 内部の基盤
+        type: boolean
+        description: 利用者が操作しない内部の基盤（FEATURES.md の操作の説明の欄は「—（内部）」）。
     constraints:
       - id: feature-has-places
         description: 機能には、主な実装・テスト・設計がそれぞれ 1 つ以上あること（テストが無ければ種類「手動」の行を書く）
@@ -417,3 +440,21 @@ definitions:
         expect: absent
         level: error
         message: "機能「{id}」の主な実装・テスト・設計のどれかが空です"
+      - id: feature-has-manual-or-internal
+        description: 機能には、操作の説明（manual の参照）か、内部の基盤の印（internal）のどちらかがあること
+        where:
+          - { path: manual, empty: true }
+          - or:
+              - { path: internal, exists: false }
+              - { path: internal, equals: false }
+        expect: absent
+        level: error
+        message: "機能「{id}」に、操作の説明（manual）も内部の基盤の印（internal: true）もありません"
+      - id: internal-has-no-manual
+        description: 内部の基盤の印（internal）を付けた機能には、操作の説明を書かないこと
+        where:
+          - { path: internal, equals: true }
+          - { path: manual, empty: false }
+        expect: absent
+        level: warning
+        message: "機能「{id}」は内部の基盤の印があるのに、操作の説明（manual）があります"

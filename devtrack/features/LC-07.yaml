@@ -11,3 +11,6 @@ tests:
 design:
 - label: ローカル接続
   link: architecture/local-connections.md
+manual:
+- link: manual/ai.md
+  heading: 外部からの提出を受信箱で確認する

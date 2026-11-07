@@ -12,3 +12,6 @@ tests:
 design:
 - label: transform
   link: architecture/transform.md
+manual:
+- link: manual/cli.md
+  heading: コマンド例

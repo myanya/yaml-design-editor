@@ -11,3 +11,6 @@ tests:
 design:
 - label: schema
   link: architecture/schema.md
+manual:
+- link: manual/schema.md
+  heading: 新しい文書の置き場所とひな型

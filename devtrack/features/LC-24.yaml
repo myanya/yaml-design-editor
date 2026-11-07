@@ -12,3 +12,6 @@ tests:
 design:
 - label: 接続 CLI
   link: manual/cli-connect.md
+manual:
+- link: manual/cli-connect.md
+  heading: CLI の接続モード

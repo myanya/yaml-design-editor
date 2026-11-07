@@ -7,3 +7,6 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+manual:
+- link: manual/README.md
+  heading: 画面構成

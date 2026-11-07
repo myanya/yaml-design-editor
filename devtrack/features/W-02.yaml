@@ -12,3 +12,6 @@ tests:
 design:
 - label: ui
   link: architecture/ui.md
+manual:
+- link: manual/README.md
+  heading: ファイル一覧の表示と検索

@@ -11,3 +11,6 @@ tests:
 design:
 - label: yaml-model
   link: architecture/yaml-model.md
+manual:
+- link: manual/README.md
+  heading: 操作の役割

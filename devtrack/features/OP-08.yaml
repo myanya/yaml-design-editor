@@ -17,3 +17,6 @@ tests:
 design:
 - label: actions
   link: architecture/actions.md
+manual:
+- link: manual/actions.md
+  heading: 追加ボタンと新規行

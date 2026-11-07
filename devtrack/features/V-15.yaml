@@ -11,3 +11,8 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+manual:
+- link: manual/checks.md
+  heading: パターン制約
+- link: manual/cli.md
+  heading: コマンド例

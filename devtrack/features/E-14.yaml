@@ -12,3 +12,6 @@ tests:
 design:
 - label: auto-values
   link: architecture/auto-values.md
+manual:
+- link: manual/schema.md
+  heading: 保存時に自動で入る値

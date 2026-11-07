@@ -11,3 +11,4 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+internal: true

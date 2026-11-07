@@ -12,3 +12,6 @@ tests:
 design:
 - label: 検査手順
   link: ../local-server/README.md
+manual:
+- link: manual/local-mcp.md
+  heading: 結果・停止・再接続

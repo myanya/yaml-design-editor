@@ -9,3 +9,6 @@ tests:
 design:
 - label: index-references
   link: architecture/index-references.md
+manual:
+- link: manual/ids.md
+  heading: 参照（リンク）の認識

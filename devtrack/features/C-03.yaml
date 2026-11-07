@@ -11,3 +11,6 @@ tests:
 design:
 - label: workspace
   link: architecture/workspace.md
+manual:
+- link: manual/cli.md
+  heading: コマンド例

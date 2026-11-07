@@ -13,3 +13,6 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+manual:
+- link: manual/checks.md
+  heading: エンティティ型宣言

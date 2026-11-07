@@ -11,3 +11,6 @@ tests:
 design:
 - label: checks
   link: architecture/checks.md
+manual:
+- link: manual/schema.md
+  heading: カバレッジルール

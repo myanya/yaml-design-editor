@@ -15,3 +15,6 @@ tests:
 design:
 - label: graph-query
   link: architecture/graph-query.md
+manual:
+- link: manual/views.md
+  heading: ビュー

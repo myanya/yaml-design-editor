@@ -71,11 +71,12 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 docs/FEATURES.md はエージェント向けの索引で、行の原本は `features/<ID>.yaml` です。機能を足したら 1 件足し、直したらその文書を直して、`./gradlew devtrackDocs` で作り直します。
 
 ```bash
-./gradlew runCli -q --args="action devtrack register-feature --param family=LC --param title=機能の要約 --param path=server/LocalServer.kt --param module=local-server --param design_label=ローカル接続 --param design_link=architecture/local-connections.md --apply"
+./gradlew runCli -q --args="action devtrack register-feature --param family=LC --param title=機能の要約 --param path=server/LocalServer.kt --param module=local-server --param design_label=ローカル接続 --param design_link=architecture/local-connections.md --param manual_link=manual/local-connections.md --param manual_heading=有効・無効と状態 --apply"
 ```
 
 - 登録で ID を省くと、その系統の接頭辞の中で最大の番号の次を振ります。テスト名（`test`）を省くと「手動」の行になります。2 つ目からの場所やテストは文書に足します。
-- 項目は、機能の欄（`title`）・主な実装（`implementation`。`path` と補足 `detail`・モジュール `module`、場所の形にならないものは `text`）・テスト（`tests`。`name`・種類 `kind`・補足 `note`）・ほかのテストもある（`more_tests`）・設計（`design`。`label` と `link`）です。
+- 項目は、機能の欄（`title`）・主な実装（`implementation`。`path` と補足 `detail`・モジュール `module`、場所の形にならないものは `text`）・テスト（`tests`。`name`・種類 `kind`・補足 `note`）・ほかのテストもある（`more_tests`）・設計（`design`。`label` と `link`）・操作の説明（`manual`。`link` と見出し `heading`）か内部の基盤の印（`internal: true`）です。
+- 操作の説明は、その機能を変えたら直す manual の見出しです。利用者が操作しない内部の基盤（共通状態・検証の組み立てなど）だけ、代わりに `internal: true` と書きます。
 - テストの種類は、名前のあるテストなら省くと単体です。Compose の画面を組み立てるテストは `ui`、`./gradlew test` に含まれない検査は `check`、手動確認は `manual`（名前なし）と書きます。
 - 節の並びと見出しは、レポート `features-md` が系統ごとに持ちます。行は節の中で ID の順です。新しい系統を足すときは、レポートと `common` の「機能の系統」「機能ID」に足します。
 
@@ -110,4 +111,5 @@ docs/FEATURES.md はエージェント向けの索引で、行の原本は `feat
 - 段階 0（2026-11-07）: Markdown の台帳を原本のまま、取り込みの写しを作って画面と CLI で眺めた。番号の重なり 3 件を見つけて振り直した。
 - 段階 1（2026-11-07）: 原本を YAML に切り替えた。記録の解決の日は、状態の欄・技術メモ・節の見出しの日付から、無ければ git の履歴（状態が ✅ になったコミット）から補った。一部解決の記録は、その指摘の解決の記録へ移した。
 - 段階 2（ROADMAP の P52）: 2a（2026-11-07）で指摘どうしの関連・記録の種類・再開・登録の採番・長く手付かずの区画と、製品の改善（create の採番・日付の差など）を入れた。
-  2b-1（2026-11-07）で FEATURES の原本を `features/` に切り替えた。取り込みでは欄の区切りを「・」にそろえ、テストに種類（単体・UI・検査・手動）を持たせ、節の中を ID の順に並べ直した。2c は ROADMAP を devtrack へ移す（未着手）。
+  2b-1（2026-11-07）で FEATURES の原本を `features/` に切り替えた。取り込みでは欄の区切りを「・」にそろえ、テストに種類（単体・UI・検査・手動）を持たせ、節の中を ID の順に並べ直した。
+  続けて全行に操作の説明（manual の見出し）か内部の基盤の印を付けた。2c は ROADMAP を devtrack へ移す（未着手）。

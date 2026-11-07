@@ -14,3 +14,6 @@ tests:
 design:
 - label: 図の記法
   link: architecture/diagram-notations.md
+manual:
+- link: manual/diagram-notations.md
+  heading: ポートで行へ接続する
