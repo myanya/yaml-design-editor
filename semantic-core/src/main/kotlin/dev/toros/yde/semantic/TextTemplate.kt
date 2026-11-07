@@ -12,7 +12,7 @@ import java.util.Locale
 
 /**
  * 文字のひな形（レポート。R30-04）。値の一式（項）を Markdown などの文字にはめ込む。
- * 書き方は 4 つだけ: 穴 `{パス}`（`{パス:形}` で数や日付の形）、繰り返し `{#each パス}…{/each}`、条件 `{#if パス}…{/if}`、
+ * 書き方は 4 つだけ: 穴 `{パス}`（`{パス:形}` で数や日付の形。`{パス:cell}` は Markdown の表のセル）、繰り返し `{#each パス}…{/each}`、条件 `{#if パス}…{/if}`、
  * 文字の `{` `}` は `{{` `}}`。コードは書けず、同じ入力からは同じ文字ができる（決定的）。
  * 穴のパスは、いま見ている値（繰り返しの要素）→ その外側 → 根の順に探す。繰り返しの中では `{index}`（0 始まり）と
  * `{position}`（1 始まり）も使える。マップを繰り返すと要素は `{key}` と `{value}`。
@@ -71,11 +71,15 @@ object TextTemplate {
         return Result(out.toString(), missing.toList())
     }
 
-    /** 穴の文字。配列やマップは YAML の文字。形は数（0 か # を含む DecimalFormat）か日付（y・M・d） */
+    /** Markdown の表のセルに入れる形の名前。値の `|` を `\|` に、改行を `<br>` にして、表の行が崩れないようにする。 */
+    const val CELL = "cell"
+
+    /** 穴の文字。配列やマップは YAML の文字。形は表のセル（cell）・数（0 か # を含む DecimalFormat）・日付（y・M・d） */
     private fun text(node: YNode, format: String?): String {
         val raw = scalarText(node) ?: return YamlIO.dumpPlain(node).trimEnd()
         if (format == null) return raw
         return when {
+            format == CELL -> raw.replace("|", "\\|").replace("\r\n", "<br>").replace("\n", "<br>")
             format.any { it == '0' || it == '#' } ->
                 SemanticExpression.numberOf(raw)?.let { n -> runCatching { DecimalFormat(format, NUMBER_SYMBOLS).format(n) }.getOrNull() } ?: raw
             format.any { it == 'y' || it == 'M' || it == 'd' } ->

@@ -1,7 +1,0 @@
-id: UX-176
-title: 通常の保存に外部変更の直前検査がなく外部編集を上書きできる
-status: resolved
-origin_on: 2026-10-24
-origin: Undo の保存確認
-memo: 保存・削除・テキスト保存の生テキスト検査と、版を限定した明示上書き、未表示 Undo の全保存の回帰テストを追加
-targets: E-06・SaveConflictTest

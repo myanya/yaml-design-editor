@@ -1,0 +1,11 @@
+id: UX-102
+title: 準備完了レポート（readiness）の GUI 導線がない
+status: resolved
+origin_on: 2026-09-17
+origin: R28-05b 実装中
+body: '**準備完了レポート（readiness）の GUI 導線がない**（CLI のみ。エンティティ単位の準備完了は台帳スペースの一覧・エンティティページと親和性が高いが、今回はヘッドレス先行で導入した）'
+memo: 台帳スペースの一覧に ready 列（またはエンティティタブの集計ヘッダ）を載せる案。GUI は overlayIndex 基準（見たまま判定）にするか、ディスク基準（CLI と同値）にするかの設計判断が要る。オーナーの CLI 試用の所感を見てから判断
+targets: 台帳の「準備」タブ（FEATURES V-21。2026-10-11）
+closed_on: 2026-10-11
+resolutions:
+  - date: 2026-10-11

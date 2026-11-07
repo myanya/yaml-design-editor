@@ -1,0 +1,13 @@
+id: UX-73
+title: メタスキーマ（builtin-schema）が実装に追い付いておらず、スキーマ設計UIから入力できない項目がある
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**メタスキーマ（builtin-schema）が実装に追い付いておらず、スキーマ設計UIから入力できない項目がある**'
+memo: '未追随項目の棚卸しから（entity 宣言・relation・refTarget 等の新顔が候補）。スキーマ語彙の追加時にメタスキーマ更新を対にする規約化（derive の3箇所対規約 §4.23 と同型）も検討。**棚卸し・実装（2026-08-13）**:
+  パーサ全キーとメタスキーマを突合——メタスキーマの欠落は id の `pattern` のみ（UX-79 で解消済み。root レベルは全キー宣言済み・relations 系は builtin-relations が担当）。設計タブの欠落だった制約語彙の入力（minLength
+  / maxLength / min / max。数値は型付き書込）を追加。consistency / constraints / derive の構造化編集は設計タブ対象外のまま＝メタスキーマフォーム（タブ3）・ソースで編集する現状の役割分担を維持（需要が出たら個別に起こす）'
+targets: R17-03（FEATURES S-05）
+closed_on: 2026-08-13
+resolutions:
+  - date: 2026-08-13

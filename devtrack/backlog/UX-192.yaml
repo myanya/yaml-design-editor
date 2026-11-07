@@ -1,0 +1,11 @@
+id: UX-192
+title: 詳細リンクでファイル表示へ移り、業務操作と原本編集の認識にギャップがある
+status: resolved
+origin_on: 2026-10-25
+origin: ダッシュボード試用
+memo: 業務対象の詳細と参照先への遷移を同じ作業場所に保ち、原本は明示操作で開く案を検討する
+targets: P44・X-13
+closed_on: 2026-10-25
+resolutions:
+  - date: 2026-10-25
+    section: ダッシュボードの業務導線

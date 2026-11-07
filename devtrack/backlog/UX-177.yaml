@@ -1,0 +1,10 @@
+id: UX-177
+title: 同じ行の余分な空白と値を編集すると、Undo 後もソースに編集後の値が残る場合がある
+status: resolved
+origin_on: 2026-10-24
+origin: Undo のソース同期
+memo: '`title:    入力` を Undo すると木は戻るが、既存の 3 者マージは下書きを優先する；競合通知は維持し、書式保持と履歴の値をどう両立するか別途検討する'
+targets: 履歴優先の同期と全 YAML 文書の再解析照合、書式調整の通知（SourceHistorySync・2026-10-24）
+closed_on: 2026-10-24
+resolutions:
+  - date: 2026-10-24

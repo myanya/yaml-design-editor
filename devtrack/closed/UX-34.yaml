@@ -1,8 +1,0 @@
-id: UX-34
-title: ID横ぐしビューから保存したい
-status: resolved
-origin_on: 2026-08-08
-origin: S1第1回
-body: '**ID横ぐしビューから保存したい**（「あとは保存ができれば最高」）'
-memo: 横ぐしビューのヘッダへ「すべて保存（n）」（未保存件数つき）を追加し、グリッドの既存ボタンも件数表示に統一（2026-08-08。`AppState.dirtyDocCount`）
-targets: FEATURES I-07

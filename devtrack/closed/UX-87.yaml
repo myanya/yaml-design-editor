@@ -1,7 +1,0 @@
-id: UX-87
-title: スキーマ設計が閲覧専用に追随しない
-status: resolved
-origin_on: 2026-10-20
-origin: スキーマUI改善
-memo: 設計の入力・追加・削除・移動を閲覧専用状態に揃え、構成選択と開閉は維持
-targets: '`SchemaDesignWorkspace`・実画面確認'

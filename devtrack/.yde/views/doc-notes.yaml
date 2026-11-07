@@ -1,0 +1,8 @@
+# 生成用: docs/BACKLOG.md に添える文章（所感メモなど。レポート backlog-md）
+id: doc-notes
+name: 生成用：メモ
+rows:
+  idPattern: "NOTE-*"
+columns:
+  - { label: 名前, schemaId: note, path: title }
+  - { label: 本文, schemaId: note, path: body }

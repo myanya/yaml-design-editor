@@ -1,0 +1,28 @@
+# 生成用: docs/BACKLOG.md（レポート backlog-md）の表の行。起点の日の新しい順。
+# 列の見出しはひな形（.yde/reports/backlog-md.md）が values.見出し で読む。docs/archive/backlog-closed.md は doc-closed（解決の日の順）
+id: doc-items
+name: 生成用：台帳の表
+rows:
+  idPattern: "UX-*"
+order:
+  schemaId: item
+  path: origin_on
+  direction: desc
+columns:
+  - { label: 状態の値, schemaId: item, path: status }
+  # 状態の欄の絵文字（辞書に無い書き方はそのまま出る）
+  - label: 状態
+    schemaId: item
+    value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌" } }
+  - { label: 起点の日, schemaId: item, path: origin_on }
+  - { label: 起点, schemaId: item, path: origin }
+  # 「指摘」の欄: 本文があれば本文、無ければ件名
+  - label: 指摘
+    schemaId: item
+    value: { first: [ { path: body }, { path: title } ] }
+  - { label: 技術メモ, schemaId: item, path: memo }
+  - label: 対応先
+    schemaId: item
+    value: { first: [ { path: targets }, "—" ] }
+  - { label: 解決の日, schemaId: item, path: closed_on }
+  - { label: 解決の記録, schemaId: item, path: resolutions }

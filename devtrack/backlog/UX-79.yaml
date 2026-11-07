@@ -1,0 +1,13 @@
+id: UX-79
+title: 'type: id のフィールドにIDフォーマットを設定・強制する手段がスキーマ設計UIにない'
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**type: id のフィールドにIDフォーマットを設定・強制する手段がスキーマ設計UIにない**。現状は description に「フォーマット: FLD-nnn」と書いて誘導するしかない（ヒアリング済み: 単純なスキーマ設計での強制手段が欲しい）'
+memo: '`pattern` 制約（R16-01）は Validator の STRING / TEXT 分岐にしか効かず、ID 型は対象外。当たり①: pattern を ID 型へも適用（Validator の ID 分岐＋設計UIの制約入力の露出）——小さく済み、UX-64（自動採番）のパターン源にもなる。当たり②:
+  entity 宣言（R20-01。設計UIに編集あり）の idPattern 逸脱検証への誘導。①を本線に UX-69 の宣言主導議論と整合を取る。**実装（2026-08-12）**: ①を実装——`pattern` を ID 型へ適用（Validator
+  の ID 分岐で形式エラー・メタスキーマに id の case 追加・設計UIに「形式（正規表現）」入力）。採番（UX-64）のパターン源・JSON Schema 伝搬・$ref 合成は既存機構がそのまま効く'
+targets: R17-03（FEATURES S-18 / S-05。`ConstraintTest`）
+closed_on: 2026-08-13
+resolutions:
+  - date: 2026-08-13

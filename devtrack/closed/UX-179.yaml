@@ -1,9 +1,0 @@
-id: UX-179
-title: 描画中の未保存判定で Snapshot の読取例外
-status: resolved
-resolved_on: 2026-10-24
-resolution: 2026-10-24
-origin_on: 2026-10-24
-origin: スキーマフォルダー改名中のクラッシュ
-memo: 文書キャッシュを Snapshot 対応にし、改名・移動・Undo/Redo の UI 更新を EDT へ分離
-targets: '`DocumentCacheSnapshotTest`・`AppStateFileArrangementTest`'

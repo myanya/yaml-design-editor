@@ -1,8 +1,0 @@
-id: UX-02
-title: 未保存編集でも計算列が追随してほしい
-status: resolved
-origin_on: 2026-08-02
-origin: 計算列UX試験
-body: '**未保存編集でも計算列が追随してほしい**。「未保存でいろいろ確認→OKなら保存」の流れにしたい（保存を強いるのは逆）'
-memo: '`AppState.editVersion`（全文書横断の編集カウンタ）の購読として実装（2026-08-02）。行集合はディスク索引基準のまま'
-targets: R16-04（FEATURES X-09）

@@ -1,0 +1,15 @@
+id: UX-105
+title: カーネル側の CLI（cli モジュールの `workspace validate`）では、利用者が定義した語彙のキーが「スキーマに定義されていない項目です」と警告される
+status: resolved
+origin_on: 2026-09-19
+origin: R29-10 実装中
+body: '**カーネル側の CLI（cli モジュールの `workspace validate`）では、利用者が定義した語彙のキーが「スキーマに定義されていない項目です」と警告される**（アプリと root の CLI `validate`
+  では警告されない。利用者の語彙のキーをメタスキーマの知っている項目へ足す処理が root の `SchemaLoader` にしか無く、カーネルへ渡す組込みスキーマ `kernelSchemas` は素のメタスキーマのまま。実機で確認済み:
+  語彙 `limits` を使うスキーマ文書に警告1件）'
+memo: 'カーネルは検査（constraints）自体をまだ評価しないので実害は警告1件だけ（R29-12 で多重度と対象型も constraints と同じ経路になり、cli モジュールの `workspace validate` には出なくなった＝意図的差分
+  D-20 ①）。検証のカーネル移管（P27 へ統合済みの B-4 残部）で、定義の収集とメタスキーマへの追加をカーネル側（workspace-core）へ移すのが筋。語彙の書き方の形を検証する件（specs の OQ-DL-03）と同時に設計する
+  **対応（2026-09-21・P27 段B-2＝R27-05）**: 検査の定義の読み込み（語彙のキーをメタスキーマへ足す処理を含む）を workspace-core の `CheckCatalog` へ移し、カーネルのスキーマ読み込みも同じ実装を使うようにした。カーネル側でも、語彙のキーは警告にならない（`KernelCheckLoadingTest`）'
+targets: ARCHITECTURE §4.40
+closed_on: 2026-09-21
+resolutions:
+  - date: 2026-09-21

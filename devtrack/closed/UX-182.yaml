@@ -1,8 +1,0 @@
-id: UX-182
-title: 完了日・再開日などの操作パラメータへ本日を初期表示できない
-status: resolved
-resolved_on: 2026-10-25
-resolution: 2026-10-25
-origin_on: 2026-10-24
-origin: TODO試用
-memo: 固定defaultと保存対象のautoとは分けて、時計の入力時点・値の修正・CLIとの整合を検討する

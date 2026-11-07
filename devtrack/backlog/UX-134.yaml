@@ -1,0 +1,12 @@
+id: UX-134
+title: samples/todos の個票スキーマの説明が古い
+status: resolved
+origin_on: 2026-09-27
+origin: samples/todos の集計表の検討
+body: '**samples/todos の個票スキーマの説明が古い**: `todo-detail.yaml` の `comments` の説明が「日付の降順で記録・先頭の日付をビューの更新日として表示」のままで、README とビュー定義（`max`
+  ＋ `type: date`＝並び順によらない）と食い違う'
+memo: '説明を「並び順は任意。ビューの更新日は日付の最大」に直す（サンプルの文言だけ。機能は変えない）。**解決（2026-10-02）**: samples/todos の更新（共通の型・日付の検査・期限順ビュー）で説明を直した'
+targets: samples/todos
+closed_on: 2026-10-02
+resolutions:
+  - date: 2026-10-02

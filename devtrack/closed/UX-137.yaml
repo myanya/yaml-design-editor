@@ -1,9 +1,0 @@
-id: UX-137
-title: 見出しの行が無い CSV を取り込めない
-status: resolved
-resolution: 解決
-origin_on: 2026-09-28
-origin: labs/kakeibo の取り込み
-body: '**見出しの行が無い CSV を取り込めない**: 取り込みのひな型は 1 行目の見出しの名前で列を指す。見出しの無い CSV（銀行によってはある）は、列の名前を手で与える手段が要る'
-memo: '`input.columns: [日付, 摘要, ...]`（並びで名前を付ける。1 行目からデータ）を足す。`input.headerRow` は xlsx だけなので、csv にも効かせるかは着手時に決める'
-targets: 取り込みの `input.columns`（列の名前の並び。1 行目からデータ。csv だけ。2026-09-29）

@@ -1,9 +1,0 @@
-id: UX-153
-title: スキーマ設計画面で `extensions` を編集できない
-status: resolved
-resolved_on: 2026-10-25
-resolution: 2026-10-25
-origin_on: 2026-10-11
-origin: P37 第一弾
-memo: メタスキーマから追加設定を補い、拡張子一覧とパスの形式を編集可能にした
-targets: S-26

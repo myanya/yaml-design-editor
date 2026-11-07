@@ -1,9 +1,0 @@
-id: UX-249
-title: 長い中央ラベルが線から大きく離れ、端の多重度とも重なる。画像相当の配置で3本とも再現
-status: resolved
-resolved_on: 2026-11-04
-resolution: 2026-11-04
-origin_on: 2026-11-04
-origin: ERフローのラベル位置の調査
-memo: '`OrthogonalRouting.label` は近傍候補が塞がると、線との距離を考慮しない `PinnedLayout.vacant` へ退避する既存問題。`FlowPortLayout` が中心を退避先の左上として渡し、さらに半幅・半高さずれる。中央・端ラベルの衝突回避と、配置用12sp／描画用11spの計測共有も必要。線からの距離を保つ配置と折り返しを検討する'
-targets: FEATURES X-23・X-25（配線後の実測配置・折り返し・端ラベル回避）

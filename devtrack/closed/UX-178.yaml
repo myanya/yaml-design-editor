@@ -1,7 +1,0 @@
-id: UX-178
-title: スキーマ・構成の外部変更を編集と履歴を保って取り込みたい
-status: resolved
-origin_on: 2026-10-24
-origin: 保存競合の調査
-memo: 候補からスキーマと派生を再構築し、継承できない場合は全体を中止
-targets: W-04

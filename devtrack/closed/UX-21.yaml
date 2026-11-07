@@ -1,7 +1,0 @@
-id: UX-21
-title: 新規フォルダー・新規YAMLのダイアログで**Enterキーで確定したい**（現状は「実行」ボタンのクリックが必要。キーボードだけで完結すると直観的）
-status: resolved
-origin_on: 2026-08-08
-origin: S1第1回
-memo: '`Modifier.confirmOnEnter`（`ui/Common.kt`）として共通化し、ツリーの作成・改名、ビュー新規行のID入力、設計スペースの新規作成の各ダイアログへ適用（2026-08-08）'
-targets: FEATURES W-03

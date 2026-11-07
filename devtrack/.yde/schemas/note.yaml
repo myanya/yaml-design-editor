@@ -1,0 +1,7 @@
+id: note
+name: メモ
+kind: document
+description: 台帳に添える文章（所感メモなど）を 1 件 1 ファイルで持ちます。生成する docs/BACKLOG.md の節になります。
+match: "notes/*.yaml"
+filePattern: "notes/{id}.yaml"
+root: { type: common#メモ }

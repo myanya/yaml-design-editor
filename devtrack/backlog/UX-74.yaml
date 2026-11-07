@@ -1,0 +1,12 @@
+id: UX-74
+title: スキーマの pattern 定義を共通化したい
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**スキーマの pattern 定義を共通化したい**'
+memo: 'FieldDef の `$ref`（defs 参照）は既存。pattern 単体の名前付き定義・参照の語彙を足すか、pattern を持つ FieldDef の $ref 運用で足りるかの整理。**解決（2026-10-01）**:
+  ユーザ定義の型（P33 第一弾。definitions のスカラーの定義を `type: 名前` で使う。型から型への連鎖・狭めるだけ）で、pattern を型として共通化できる'
+targets: P33（FEATURES S-24）
+closed_on: 2026-10-01
+resolutions:
+  - date: 2026-10-01

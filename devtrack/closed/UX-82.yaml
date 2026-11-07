@@ -1,9 +1,0 @@
-id: UX-82
-title: 新規ファイル作成を取り消したい
-status: resolved
-resolved_on: 2026-10-24
-resolution: 確認 2026-10-24
-origin_on: 2026-08-12
-origin: 利用者メモ
-memo: 作成をセッションに記録し、Undo/Redo でファイルの有無まで確定
-targets: '`AppStateCreateDocumentTest`'

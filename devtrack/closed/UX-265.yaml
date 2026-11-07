@@ -1,7 +1,0 @@
-id: UX-265
-title: 項目追加・削除後の移動ボタンの活性状態
-status: resolved
-origin_on: 2026-10-20
-origin: スキーマUI改善
-memo: 再帰カードを構成一覧と詳細に置換し、詳細が `doc.version` を購読；追加・移動後の両端の活性を実画面で確認（番号は UX-172 と重なっていたため、2026-11-07 に UX-265 へ振り直した）
-targets: '`SchemaOutlineTest`・実画面確認'

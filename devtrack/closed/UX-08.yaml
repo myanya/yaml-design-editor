@@ -1,9 +1,0 @@
-id: UX-08
-title: 複数ファイルにまたがる編集を操作単位で戻したい
-status: resolved
-resolved_on: 2026-10-24
-resolution: 確認 2026-10-24
-origin_on: 2026-08-02
-origin: 完全性検査UX試験
-memo: セッションの横断履歴と一括変更の一手化を実装済み
-targets: E-05・X-02

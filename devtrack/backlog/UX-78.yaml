@@ -1,0 +1,11 @@
+id: UX-78
+title: スキーマ設計UIで object 定義のフィールドを上下に移動したい
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**スキーマ設計UIで object 定義のフィールドを上下に移動したい**'
+memo: 'フィールド一覧へ並び替え（上へ／下へ）操作を追加。Seq 要素の移動＋`markEdited` の既存経路で実装可。**実装（2026-08-12）**: fields / cases のフィールドヘッダへ ↑↓ 移動ボタンを追加'
+targets: R17-03（FEATURES S-05）
+closed_on: 2026-08-13
+resolutions:
+  - date: 2026-08-13

@@ -1,7 +1,7 @@
 id: theme
 name: テーマ
 kind: document
-description: 複数の指摘が絡む横断課題を 1 件 1 ファイルで持ちます。段階 0 では docs/BACKLOG.md「テーマ管理」の見出しと最初の段落の写しです。
+description: 複数の指摘が絡む横断課題を 1 件 1 ファイルで持ちます。docs/BACKLOG.md「テーマ管理」の節はここから生成します。
 match: "themes/*.yaml"
 filePattern: "themes/{id}.yaml"
 root: { type: common#テーマ }

@@ -1,0 +1,12 @@
+id: UX-83
+title: time 型も扱えるようにしたい
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**time 型も扱えるようにしたい**'
+memo: '現状の日付系は DATE のみ（値は素の文字列で往復＝UX-29）。time / datetime の型追加は architecture/ の各主題の「拡張ポイント」 の分岐追加が必要。**解決（2026-10-01）**: P33
+  第二弾で `time` / `datetime` を組込みの型の定義体（semantic-core の資源 `builtin-types/`。string ＋ 形式・案内・サンプル値）として YAML で足した。Kotlin の分岐は無い'
+targets: P33 第二弾（FEATURES S-02）
+closed_on: 2026-10-01
+resolutions:
+  - date: 2026-10-01

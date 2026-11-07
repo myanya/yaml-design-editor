@@ -1,0 +1,12 @@
+id: UX-186
+title: 前提を満たさない操作を選ぶ前に無効化したい
+status: resolved
+origin_on: 2026-10-25
+origin: TODO試用
+memo: 状態で判定できる条件と入力後に判定する条件を分け、無効理由と適用時の再検査を共通化する
+theme: T-03
+targets: T-03
+closed_on: 2026-10-25
+resolutions:
+  - date: 2026-10-25
+    section: TODOの操作入力と利用可否

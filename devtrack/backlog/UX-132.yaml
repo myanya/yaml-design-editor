@@ -1,0 +1,8 @@
+id: UX-132
+title: 改名の追随の範囲（ビューの列 `value` の式の中のパスは書き換えも警告もしない）
+status: resolved
+memo: '`computed` を `value` へ寄せた際（2026-09-27）、`RefactoringImpact` が値の式の `path` / `via` / 短い書き方の穴を静的解決で書き換え、多義は警告するようにした'
+closed_on: 2026-09-27
+resolutions:
+  - date: 2026-09-27
+    section: FEATURES の解消済み制約（旧 §11 の L-01〜L-16）

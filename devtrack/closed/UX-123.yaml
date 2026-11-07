@@ -1,7 +1,0 @@
-id: UX-123
-title: 再読込と Undo の両立
-status: resolved
-origin_on: 2026-09-22
-origin: S1 第3回
-memo: 同一文書の競合・構成変更・明示的な破棄まで実装
-targets: W-04

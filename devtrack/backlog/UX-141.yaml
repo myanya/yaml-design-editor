@@ -1,0 +1,10 @@
+id: UX-141
+title: 一括変更と自動値が別の履歴になり Undo が 2 回必要
+status: resolved
+origin_on: 2026-10-04
+origin: P34 の実装中
+memo: '`applyWithAutoValues` で変更後の自動値を本文の操作に同梱し、通常保存の独立した履歴は維持'
+targets: '`AutoValuesKernelTest`・`AppStateAutoValuesTest`'
+closed_on: 2026-10-24
+resolutions:
+  - date: 2026-10-24

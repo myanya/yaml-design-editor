@@ -4,6 +4,7 @@ kind: relations
 entities:
   - { type: backlog-item, label: 指摘 }
   - { type: theme, label: テーマ }
+  - { type: note, label: メモ }
 relations:
   - name: bundled-in
     label: テーマ

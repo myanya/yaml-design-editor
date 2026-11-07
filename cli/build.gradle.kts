@@ -21,6 +21,43 @@ tasks.register<JavaExec>("runCli") {
     standardInput = System.`in`  // workspace shell（対話モード）用
 }
 
+// ./gradlew devtrackDocs: 開発管理（devtrack/）の YAML から docs/BACKLOG.md と docs/archive/backlog-closed.md を作り直す（devtrack/README.md「運用」）。
+// レポートの出力先はワークスペースの中に限られるので、CLI の report --print の文字を UTF-8 のまま受け、成功したときだけ置き換える。
+// 最新かどうかは repo-tests の DevtrackTest が見る
+val devtrackReports = mapOf("backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md")
+val devtrackDocTasks = devtrackReports.map { (report, target) ->
+    val staged = layout.buildDirectory.file("devtrack/$report.md")
+    val targetFile = rootDir.resolve(target)
+    tasks.register<JavaExec>("devtrackDoc-$report") {
+        group = "documentation"
+        description = "devtrack のレポート $report を $target へ書く"
+        classpath = sourceSets["main"].runtimeClasspath
+        mainClass.set("dev.toros.yde.cli.MainKt")
+        workingDir = rootDir
+        jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+        args("report", "devtrack", report, "--print")
+        outputs.upToDateWhen { false }
+        var stream: java.io.OutputStream? = null
+        doFirst {
+            val file = staged.get().asFile
+            file.parentFile.mkdirs()
+            stream = file.outputStream().also { standardOutput = it }
+        }
+        doLast {
+            stream?.close()
+            val text = staged.get().asFile.readText(Charsets.UTF_8)
+            check("<!-- 埋まらなかった穴:" !in text) { "レポート $report に埋まらなかった穴があります（${staged.get().asFile}）" }
+            targetFile.writeText(text, Charsets.UTF_8)
+            logger.lifecycle("$target を作り直しました")
+        }
+    }
+}
+tasks.register("devtrackDocs") {
+    group = "documentation"
+    description = "devtrack の YAML から docs/BACKLOG.md と docs/archive/backlog-closed.md を作り直す"
+    dependsOn(devtrackDocTasks)
+}
+
 // :cli:run は runCli と同じ（application プラグインの run）。ルートで ./gradlew run（GUI）と打ったときに走らないよう、:cli:run と明示したときだけ有効
 tasks.named<JavaExec>("run") {
     enabled = gradle.startParameter.taskNames.any { it.endsWith("cli:run") }

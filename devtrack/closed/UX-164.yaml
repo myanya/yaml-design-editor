@@ -1,9 +1,0 @@
-id: UX-164
-title: 関係パネルの「所属」にはスキーマ ID（screen-design など）を添えている
-status: resolved
-origin_on: 2026-10-13
-origin: P40 段階 1
-body: '**関係パネルの「所属」にはスキーマ ID（screen-design など）を添えている**。側面の表示名（レジストリの aspects の label）の方が読みやすい'
-memo: '親の出現の側面名は `Aspects` の合成（`SchemaSemantics`）で解決している。同じ解決を関係パネルから使えるように `Aspects` に小さな関数を足す。**解決（2026-10-13）**: `Aspects.aspectLabelOf`
-  を足し、関係パネルとレンズの出現の箱が使う'
-targets: P40（FEATURES I-13）

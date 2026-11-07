@@ -1,7 +1,0 @@
-id: UX-174
-title: 選択一覧が縦に長くなり、候補や現在値を見つけにくい
-status: resolved
-origin_on: 2026-10-21
-origin: 選択一覧の改善相談
-memo: 高さ制限・補足1行と全文表示・現在値への初期スクロール・多数候補の検索を共通化
-targets: '`ChoiceMenu`・`ChoiceOptionsTest`'

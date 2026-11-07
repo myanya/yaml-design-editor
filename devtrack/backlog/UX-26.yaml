@@ -1,0 +1,10 @@
+id: UX-26
+title: スキーマ設計UIの **idPattern のプレースホルダーの値が目立ちすぎる**
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+memo: 原因は無装飾プレースホルダー（本文色・13sp）の取り残し。UX-42 の一律スタイル化で解消（2026-08-08）
+targets: UX-42（CONVENTIONS §2）
+closed_on: 2026-08-08
+resolutions:
+  - date: 2026-08-08

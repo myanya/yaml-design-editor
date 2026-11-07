@@ -1,0 +1,13 @@
+id: backlog-md
+name: 指摘台帳（docs/BACKLOG.md）
+description: 未解決の指摘・テーマ・所感メモから docs/BACKLOG.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 未解決の指摘（解決でも見送りでもないもの。状態の書き方が誤っているものも出す）。起点の日の新しい順
+  items:
+    $view: doc-items
+    $where:
+      - { path: values.状態の値, notEquals: resolved }
+      - { path: values.状態の値, notEquals: declined }
+  themes: { $view: doc-themes }
+  impressions: { $view: doc-notes, $where: [ { path: id, equals: NOTE-01 } ], $one: true }
+template: backlog-md.md

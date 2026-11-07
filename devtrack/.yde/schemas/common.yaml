@@ -1,7 +1,7 @@
 id: common
 name: 共通の型
 kind: library
-description: 開発管理で使う型を 1 か所にまとめます。指摘とテーマの ID・状態・日付と文の型（値の型）と、指摘とテーマの形と検査（オブジェクト型）です。
+description: 開発管理で使う型を 1 か所にまとめます。ID・状態・日付と文の型（値の型）と、指摘・解決の記録・テーマ・メモの形と検査（オブジェクト型）です。
 definitions:
   # ---- 値の型 ----
   指摘ID:
@@ -9,13 +9,19 @@ definitions:
     pattern: "^UX-[0-9]+$"
     placeholder: UX-001
     sample: UX-258
-    description: 「UX-」と番号。docs/BACKLOG.md の ID をそのまま使い、ファイル名（backlog/<ID>.yaml）にもなります。
+    description: 「UX-」と番号。ファイル名（backlog/UX-123.yaml の形）にもなります。新しい番号は、backlog/ の最大の番号の次です（画面では欄の候補の「採番」）。
   テーマID:
     type: id
     pattern: "^T-[0-9]{2}$"
     placeholder: T-01
     sample: T-01
     description: 「T-」と 2 桁の数字。複数の指摘が絡む横断課題の番号です。
+  メモID:
+    type: id
+    pattern: "^NOTE-[0-9]{2}$"
+    placeholder: NOTE-01
+    sample: NOTE-01
+    description: 「NOTE-」と 2 桁の数字。台帳に添える文章（所感メモなど）の番号です。
   # 参照の型: 候補と検証の対象をテーマに限定し、線の名前（関係）を bundled-in にします
   テーマ参照:
     type: ref
@@ -43,6 +49,19 @@ definitions:
       - { value: when-needed, label: ⏳ 必要になったら }
       - { value: resolved, label: ✅ 解決 }
       - { value: declined, label: ❌ 見送り }
+  # 操作の受け取る値: 未解決の状態だけ（解決と見送りは「解決にする」で入れる）
+  未解決の状態:
+    type: enum
+    values:
+      - { value: todo, label: 📋 未着手 }
+      - { value: discussing, label: 💬 議論待ち }
+      - { value: in-progress, label: 🚧 対応中 }
+      - { value: when-needed, label: ⏳ 必要になったら }
+  解決の結果:
+    type: enum
+    values:
+      - { value: resolved, label: ✅ 解決 }
+      - { value: declined, label: ❌ 見送り }
   テーマの状態:
     type: enum
     values:
@@ -51,6 +70,28 @@ definitions:
       - { value: on-hold, label: 保留 }
 
   # ---- オブジェクト型 ----
+  # 解決の記録: 指摘の中に足していく。未解決の指摘にある記録は一部の解決、解決・見送りの指摘の最後の記録はその解決
+  解決の記録:
+    type: object
+    label: 解決の記録
+    fields:
+      - key: date
+        label: 日付
+        type: 年月日
+        required: true
+      - key: note
+        label: 内容
+        type: 文章
+        description: 何を解決したか。最後の解決の内容は技術メモに書いてあることもあります。
+      - key: targets
+        label: 対応先
+        type: 一行の文
+        description: この記録で手を入れた先（FEATURES・ROADMAP の項目・テスト名など）。
+      - key: section
+        label: 記録の節
+        type: 一行の文
+        description: 2026-11-07 より前の記録（docs/archive/backlog-closed.md）で、この指摘が置かれていた節の見出し。
+
   # 指摘: 1 件 1 ファイル。この形の要素がエンティティ backlog-item の定義（誕生）
   指摘:
     type: object
@@ -66,48 +107,81 @@ definitions:
         type: 一行の文
         role: title
         required: true
-        description: 1 行の要約。BACKLOG.md の「指摘」の欄の太字の部分（太字が無ければ欄の全体）です。
+        description: 1 行の要約。台帳の表では、本文が無いときにこの件名が「指摘」の欄になります。
       - key: status
         label: 状態
         type: 指摘の状態
         required: true
         default: todo
-      # 台帳の指摘には必須（item スキーマの検査）。記録には日付の無い行があるので、型では必須にしない
+      # 未解決の指摘には必須（下の検査）。古い記録には日付の無いものがあるので、型では必須にしない
       - key: origin_on
         label: 起点の日
         type: 年月日
-        description: 指摘を見つけた日。「起点」の欄の先頭の日付です。
+        auto: created
+        description: 指摘を見つけた日。登録の操作や新しい文書では、作った日が入ります。
       - key: origin
         label: 起点
         type: 一行の文
-        description: 指摘を見つけた場面（作業・試験・レビュー）。「起点」の欄の日付より後ろです。
+        description: 指摘を見つけた場面（作業・試験・レビュー）。
       - key: body
         label: 指摘
         type: 文章
-        description: 件名だけで足りないときの本文。BACKLOG.md の「指摘」の欄をそのまま写します（件名が欄の全体なら省きます）。
+        description: "件名だけで足りないときの本文。台帳の表の「指摘」の欄で、先頭に太字の件名を書く慣わしです（`**件名**: 詳しく`）。"
       - key: memo
         label: 技術メモ
         type: 文章
-        description: 対応の当たり。BACKLOG.md の「技術メモ（対応の当たり）」の欄です。
+        description: 対応の当たり。「必要になったら」の指摘には必須です。
       - key: theme
         label: テーマ
         type: テーマ参照
       - key: targets
         label: 対応先
         type: 一行の文
-        description: ROADMAP・FEATURES の項目など。いまは文字のまま持ちます（ROADMAP を移すまで参照にしません）。
-      # 解決・見送りの記録だけが持つ項目（docs/archive/backlog-closed.md の「状態」の欄）
-      - key: resolved_on
+        description: 対応した・対応する先（ROADMAP・FEATURES の項目など）。ROADMAP を移すまでは文字のまま持ちます。
+      - key: closed_on
         label: 解決の日
         type: 年月日
-        description: 「状態」の欄に書かれた日付。書かれていない記録もあります。
-      - key: resolution
+        description: 解決・見送りにした日。解決・見送りの指摘には必須で、未解決の指摘には書きません。
+      - key: resolutions
         label: 解決の記録
-        type: 一行の文
-        description: 「状態」の欄の ✅ / ❌ より後ろの文字（日付・「解決」・経緯など）。
-    # 型の検査: 指摘ごとに評価する。いまの BACKLOG.md の運用（docs/BACKLOG.md「運用」）をそのまま検査にしたもの。
-    # 台帳と記録で決まりが違うもの（起点の日・状態）は、それぞれのスキーマ（item・closed-item）に書く
+        type: array
+        display: list
+        description: 一部の解決と、最後の解決を足していきます（操作「一部を解決する」「解決にする」）。
+        item: { type: 解決の記録 }
+    # 型の検査: 指摘ごとに評価する。台帳の運用（devtrack/README.md「運用」）を検査にしたもの
     constraints:
+      - id: open-has-origin-date
+        description: 未解決の指摘には、起点の日があること
+        where:
+          - { path: status, oneOf: [todo, discussing, in-progress, when-needed] }
+          - { path: origin_on, exists: false }
+        expect: absent
+        level: error
+        message: "指摘「{id}」に起点の日がありません"
+      - id: closed-has-date
+        description: 解決・見送りの指摘には、解決の日があること
+        where:
+          - { path: status, oneOf: [resolved, declined] }
+          - { path: closed_on, exists: false }
+        expect: absent
+        level: error
+        message: "解決・見送りの指摘「{id}」に解決の日がありません"
+      - id: open-has-no-closed-date
+        description: 未解決の指摘には、解決の日を残さないこと
+        where:
+          - { path: status, oneOf: [todo, discussing, in-progress, when-needed] }
+          - { path: closed_on, exists: true }
+        expect: absent
+        level: error
+        message: "未解決の指摘「{id}」に解決の日が残っています"
+      - id: closed-not-before-origin
+        description: 解決の日は起点の日以降であること
+        where:
+          - { path: closed_on, exists: true }
+          - { path: origin_on, exists: true }
+        check:
+          - { gte: [ { path: closed_on }, { path: origin_on } ] }
+        level: error
       - id: when-needed-has-memo
         description: 「必要になったら」の指摘には、実装の当たりを技術メモに残すこと
         where:
@@ -136,7 +210,33 @@ definitions:
         label: 状態
         type: テーマの状態
         required: true
-      - key: summary
-        label: 要旨
+      - key: status_note
+        label: 状態の補足
+        type: 一行の文
+        description: 台帳の見出しの【】の中（例「保留——落ち着いてから議論を再開する」）。省くと状態の名前を出します。
+      - key: body
+        label: 本文
         type: 文章
-        description: テーマの最初の段落。論点と方策の本文は docs/BACKLOG.md「テーマ管理」にあります。
+        rows: 12
+        description: テーマの本文（Markdown）。束ねる指摘・論点・方策を書きます。台帳の「テーマ管理」の節にそのまま出ます。
+
+  # メモ: 台帳に添える文章（所感メモなど）
+  メモ:
+    type: object
+    label: メモ
+    entity: { type: note, defines: true }
+    fields:
+      - key: id
+        label: ID
+        type: メモID
+        required: true
+      - key: title
+        label: 名前
+        type: 一行の文
+        role: title
+        required: true
+      - key: body
+        label: 本文
+        type: 文章
+        rows: 12
+        description: 本文（Markdown）。台帳の節にそのまま出ます。

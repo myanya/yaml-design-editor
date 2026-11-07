@@ -1,0 +1,10 @@
+id: UX-95
+title: ステータスバー通知では別文書への Undo に気づきにくい
+status: resolved
+origin_on: 2026-09-02
+origin: オーナー試用
+memo: 別文書を含む Undo/Redo を上部に常設通知し、全対象への導線と現在の未保存件数を表示
+targets: E-05・HistoryNoticeTest（視認性の実機試用は未実施）
+closed_on: 2026-10-24
+resolutions:
+  - date: 2026-10-24

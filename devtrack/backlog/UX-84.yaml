@@ -1,0 +1,11 @@
+id: UX-84
+title: enum 定義フォームのデフォルト値の入力欄が遠い
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**enum 定義フォームのデフォルト値の入力欄が遠い**'
+memo: '設計UIの enum 編集で default 入力を選択肢一覧の近くへ移すか、選択肢側に「既定にする」操作を付ける。**実装（2026-08-12）**: 初期値を選択肢一覧の直下へ移し、宣言済みの値から選ぶ選択式に（自由入力による選択肢とのずれも防止）'
+targets: R17-03（FEATURES S-05）
+closed_on: 2026-08-13
+resolutions:
+  - date: 2026-08-13

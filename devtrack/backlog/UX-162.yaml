@@ -7,3 +7,7 @@ body: '**スクロール位置と拡縮は画面を離れると戻る**（フォ
 memo: '`ScrollState` / `LazyListState` のオブジェクトを `ScreenMemory` に文書・ビューごとに置き、`rememberScrollState` の代わりに渡す。ハイライト付きのジャンプから戻るときはハイライトのスクロールが優先。レンズの型・関係のチェックのような「好み」は
   `Preferences` へ移して起動を跨いでもよい（オーナー判断）'
 targets: P39
+resolutions:
+  - date: 2026-11-03
+    note: レンズで動かした節点が画面を離れると戻る。flow と lens の固定位置を図・選択条件ごとにワークスペースへ保存。パン・ズームとスクロールは未対応のため元の台帳に残す
+    targets: X-22・DiagramPositionUiTest

@@ -1,0 +1,17 @@
+# 行＝解決の日の年月、列＝結果（解決・見送り）、セル＝指摘の件数。月ごとにどれだけ片付けたかが見えます
+id: closed-by-month
+name: 解決の月×結果
+kind: matrix
+rows:
+  value: { yearMonth: { path: closed_on } }
+cells:
+  match:
+    - node: { entity: backlog-item, bind: it }
+  where:
+    - { of: it, path: status, oneOf: [resolved, declined] }
+  of: it
+  columns:
+    path: status
+    values:
+      - { value: resolved, label: ✅ 解決 }
+      - { value: declined, label: ❌ 見送り }

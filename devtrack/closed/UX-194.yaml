@@ -1,7 +1,0 @@
-id: UX-194
-title: スタート画面の「samples/sample-workspace を開く」ボタンが空ディレクトリ（.gitkeep のみ）を指し、manual/cli.md の例も同じ場所を前提にしている
-status: resolved
-origin_on: 2026-10-25
-origin: README 改訂
-memo: スタート画面のボタンは外し、代わりに「新しいワークスペースを作る…」を置いた。manual/cli.md の例の付け替えは UX-125 のまま
-targets: P45

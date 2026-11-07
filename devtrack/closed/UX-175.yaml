@@ -1,7 +1,0 @@
-id: UX-175
-title: FEATURES の編集機能 ID に重複があり、番号だけでは機能を一意に参照できない
-status: resolved
-origin_on: 2026-10-23
-origin: ソース表示の文書更新
-memo: E-15〜E-17 が別機能にも使われているため、参照元を確認して採番を整理する
-targets: R47-30（後から足した行を E-26〜28・X-16・X-17 に振り直し、DocReferencesTest が重なりを見る）

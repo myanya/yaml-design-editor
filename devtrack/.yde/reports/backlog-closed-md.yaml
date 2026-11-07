@@ -1,0 +1,10 @@
+id: backlog-closed-md
+name: 指摘台帳の記録（docs/archive/backlog-closed.md）
+description: 解決・見送りの指摘から docs/archive/backlog-closed.md を作ります。書き出しは ./gradlew devtrackDocs。
+build:
+  # 解決・見送りの指摘。解決の日の新しい順
+  closed:
+    $view: doc-closed
+    $where:
+      - { path: values.状態の値, oneOf: [resolved, declined] }
+template: backlog-closed-md.md

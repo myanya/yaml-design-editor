@@ -10,7 +10,7 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 ./gradlew test                              # 単体テスト（コミット前に必ず実行）
 ./gradlew :web-ui:bundle                    # Web 資源の型検査・ビルド（通常のアプリビルドにも含む）
 ./gradlew test --tests '*WorkspaceInitTest*'  # 絞って実行（一致しないモジュールは失敗にしない）
-git config core.hooksPath scripts/git-hooks   # コミット前フック（クローンごとに 1 回。docs-lint と規則・参照のテスト。全テストは GitHub Actions）
+git config core.hooksPath scripts/git-hooks   # コミット前フック（クローンごとに 1 回。docs-lint と規則・参照・devtrack のテスト。全テストは GitHub Actions）
 ./gradlew fileTreeBenchmark                 # 任意: 一時領域で1000・10万ファイルの一覧・検索を計測
 ./gradlew :desktop:verifyDesktopTray        # 任意: 対話セッションで実トレイの登録・更新・解除を検査
 ./gradlew :local-server:verifyMcpInspector -PinspectorCli=path/to/index.js # 任意: 取得済みInspectorで相互運用を検査（local-server/README.md）
@@ -24,6 +24,7 @@ git config core.hooksPath scripts/git-hooks   # コミット前フック（ク�
 ./gradlew verifyWindowsDistribution --no-parallel # Windows同梱ランタイム・主要機能・ライセンスの検査
 ./gradlew windowsRelease --no-parallel       # 全テスト＋Windows ZIP・SHA-256・リリース本文（docs/releasing.md）
 scripts/docs-lint.sh                        # 文書の形の機械チェック
+./gradlew devtrackDocs                      # 開発管理（devtrack/）の YAML から docs/BACKLOG.md と記録を作り直す（devtrack/README.md）
 ```
 
 要件: ビルドと実行は JDK 21（toolchain。無ければ Gradle が自動で取得する。`./gradlew` 自体は JDK 17 以上で動く）。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバで行い、手順は skill `ui-check`＝`.claude/skills/ui-check/SKILL.md`）。
@@ -38,14 +39,14 @@ Web のビルドは Gradle が固定版の Node・npm を取得し、`web-ui/pac
 - 着手前に読むのは [docs/FEATURES.md](docs/FEATURES.md) の該当行と [docs/architecture/](docs/architecture/README.md) の該当する主題。
 - このプロジェクトで決めた語（定義体・保有・受け手・射影など）は [docs/GLOSSARY.md](docs/GLOSSARY.md) で引く。
 - 記録（[docs/archive/](docs/archive/README.md)）は経緯を調べるときだけ読む。
-- 開発管理を YDE で行う試行は [devtrack/](devtrack/README.md)。いまは docs/BACKLOG.md とその記録の写しで、指摘の原本は Markdown のまま（devtrack のファイルを直して済ませない）。
+- 指摘・テーマ・所感メモの原本は [devtrack/](devtrack/README.md)（YDE のワークスペース）。docs/BACKLOG.md と記録は生成物で、直接直さない（`./gradlew devtrackDocs` で作り直す）。
 
 ## ワークフロー
 
 1. **着手前**: FEATURES で対象機能の実装ファイルとテストを引き、architecture/ の該当する主題（部品・流れ・規律・拡張ポイント）を読む。
 2. **実装中**: CONVENTIONS に従う。UI 文言・コメント・エラーメッセージは日本語。純粋ロジック層に Compose を持ち込まない。ツリー変更には `markEdited()`。
 3. **完了前**: `./gradlew test` を通し、docs/README.md の表に従って文書を更新し、完了したものは archive へ移す。skill `sync-docs`（[.claude/skills/sync-docs/SKILL.md](.claude/skills/sync-docs/SKILL.md)）と `scripts/docs-lint.sh` で確かめる。
-4. **完了報告**: 利用者が操作できる機能を追加・変更したら、チャットに**試し方**（操作手順＋見てほしい観点）を含める。内部基盤だけの段階は検証結果と未公開の範囲を報告する。UX シナリオへの記載は [CONVENTIONS「UXフィードバック運用」](docs/CONVENTIONS.md) に従う。本題と異なる気になりポイントは直しに行かず [docs/BACKLOG.md](docs/BACKLOG.md) へ即時登録する。
+4. **完了報告**: 利用者が操作できる機能を追加・変更したら、チャットに**試し方**（操作手順＋見てほしい観点）を含める。内部基盤だけの段階は検証結果と未公開の範囲を報告する。UX シナリオへの記載は [CONVENTIONS「UXフィードバック運用」](docs/CONVENTIONS.md) に従う。本題と異なる気になりポイントは直しに行かず devtrack へ即時登録する（[devtrack/README.md](devtrack/README.md)「運用」。台帳 [docs/BACKLOG.md](docs/BACKLOG.md) は作り直して一緒にコミットする）。
 
 ## 規約の要点
 
@@ -109,7 +110,7 @@ Web のビルドは Gradle が固定版の Node・npm を取得し、`web-ui/pac
   PowerShell なら同じプロセスで `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` と `$env:GRADLE_OPTS = "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"` を設定してから `.\gradlew.bat` を呼ぶ（実測済み）。人が端末で読むだけなら指定しない（端末が MS932 のため）。
 - **テストを絞る**: `./gradlew test --tests '*WorkspaceInitTest*'`。一致するテストが無いモジュールは失敗にしない設定なので、ルートから回せる。
 - **画面の確認**は [.claude/skills/ui-check/SKILL.md](.claude/skills/ui-check/SKILL.md) の手順で行う（Claude Code では skill `ui-check`。ほかのエージェントも同じ文書を読む）。ワークスペースを写して hotRun で起動し、Hot Reload の MCP（`.mcp.json`）で画面の木を読んで操作し、最後にアプリとこのセッションの MCP サーバを止める（`stop.ps1 -Mcp`）。MCP サーバは `scripts/hot-mcp-server.ps1` から起動し、セッションが終わると一緒に止まる。
-- **コミット前のフックと CI**。クローンごとに 1 回 `git config core.hooksPath scripts/git-hooks` を実行する。コミットのたびに docs-lint とソースの規則・文書の参照のテストだけが回る（30 秒ほど）。全モジュールの単体テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。手元でも `./gradlew test` をコミット前に通す決まりは変わらない。
+- **コミット前のフックと CI**。クローンごとに 1 回 `git config core.hooksPath scripts/git-hooks` を実行する。コミットのたびに docs-lint とソースの規則・文書の参照・devtrack（検証と、生成した台帳が最新か）のテストだけが回る（30 秒ほど）。全モジュールの単体テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。手元でも `./gradlew test` をコミット前に通す決まりは変わらない。
 - **`labs/` の未コミット差分に触れない**。オーナーが別セッションで整備していることがある。自分の変更と混ぜず、コミットにも含めない。
 - **一時ファイル**はリポジトリの `scratchpad/`（`.gitignore` 済み）か、エージェントの一時領域に置く。背景で動かすコマンドの出力先は先に作る。長いスクリプトや文書は、シェルのヒアドキュメントに入れず、ファイルに書いてから実行する（長文のヒアドキュメントは失敗することがある）。
 - **`scratchpad/` は作業ごとのフォルダに分け、済んだら消す**。直下には置かず、作業ごとに `scratchpad/<作業名>/`（例 `scratchpad/r49-71/`）を作ってその中に置き、作業をコミットしたらフォルダごと消す（直下に積むと、どれが何のための物か分からなくなる）。手順が場所を決めているもの（`ui-check/`・`mcp-inspector/`・リリースの記録 `release-<版>/`）はその手順に従う。

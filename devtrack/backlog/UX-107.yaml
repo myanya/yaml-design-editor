@@ -1,0 +1,13 @@
+id: UX-107
+title: 値の条件と値の計算の部品が、まだ一式そろっていない
+status: resolved
+origin_on: 2026-09-19
+origin: R29-10 実装中
+body: '**値の条件と値の計算の部品が、まだ一式そろっていない**（第1段で用意したのは、整合検証に必要だった値の計算5種＝読み出し・決まった値・テンプレートの展開・辞書での置き換え・最初に得られた値と、既存の比較演算子だけ。オーナー方針「想定される処理や計算は、ある程度、用意しておく」に対して、文字数・大文字と小文字の変換・四則演算・選択肢のどれか・正規表現・前方と後方と部分の一致などが未実装）'
+memo: '部品は `schema/ValueExpr.kt`（値の計算）と `SemanticExpression.compare`（値の条件）へ足すだけで、語彙と定義の側は変更不要。第2段に入る前にまとめて足すか、各段で必要になった分から足すかはオーナー判断。specs
+  の definition-layers のプリミティブ台帳 SP-10 に未実装分を記録済み **→ 2026-09-19 オーナー指示「UX-107 の部品を先に作成」で対応**: 値の条件（oneOf・matches・startsWith
+  / endsWith / contains。check と where が共有。where に empty と大小も追加）と値の計算（length・upper / lower・number・四則演算）を用意した。条件の組合せ（または・〜でない）と数え方・集計は第2段で足す'
+targets: ROADMAP R29-11（FEATURES V-09・ARCHITECTURE §4.36）
+closed_on: 2026-09-19
+resolutions:
+  - date: 2026-09-19

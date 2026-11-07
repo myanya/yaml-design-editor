@@ -1,0 +1,9 @@
+# 生成用: docs/BACKLOG.md「テーマ管理」の節（レポート backlog-md）。ID の順
+id: doc-themes
+name: 生成用：テーマの節
+rows:
+  idPattern: "T-*"
+columns:
+  - { label: 名前, schemaId: theme, path: title }
+  - { label: 状態の補足, schemaId: theme, path: status_note }
+  - { label: 本文, schemaId: theme, path: body }

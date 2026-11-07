@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# コミット前の速い検査（30 秒ほど）: 文書の形（docs-lint）・ソースの規則・文書の参照。
+# コミット前の速い検査（30 秒ほど）: 文書の形（docs-lint）・ソースの規則・文書の参照・開発管理（devtrack の検証と、生成した台帳が最新か）。
 # 全テストは GitHub Actions（.github/workflows/test.yml）が push ごとに回す。
 # 有効化はクローンごとに 1 回: git config core.hooksPath scripts/git-hooks
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 bash scripts/docs-lint.sh
-./gradlew :repo-tests:test --tests '*SourceRulesTest*' --tests '*DocReferencesTest*' -q --console=plain
+./gradlew :repo-tests:test --tests '*SourceRulesTest*' --tests '*DocReferencesTest*' --tests '*DevtrackTest*' -q --console=plain
 # 目安（失敗にしない）: 800 行を超える main のファイル（SourceRulesTest が書く）
 report=repo-tests/build/reports/source-rules/large-files.txt
 [ -f "$report" ] && cat "$report"

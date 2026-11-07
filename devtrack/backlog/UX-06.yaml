@@ -1,0 +1,11 @@
+id: UX-06
+title: 写像行の追加時に**IDを文字列で直打ちするのが面倒**。既存IDの補完・ピッカーがほしい
+status: resolved
+origin_on: 2026-08-02
+origin: 値型一巡UX試験
+memo: '同一ID出現の行の `id` は id 型フィールドのため ref のような候補が出ない。「id 型フィールドへの既存ID補完」（スキーマの idPattern・文脈で絞る）をフォーム／グリッドに足す。**実装（2026-08-12）**:
+  id 型フィールドにドロップダウン補完を追加（候補は field の pattern ＞ entity 宣言の idPattern で絞り、タイトル・ファイルを併記。選択＝同一IDの出現を作る詳細化・写像行の入力向け）。UX-64 の採番と同じメニューに同居'
+targets: R17-03（FEATURES E-01）
+closed_on: 2026-08-13
+resolutions:
+  - date: 2026-08-13

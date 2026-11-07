@@ -1,0 +1,11 @@
+id: UX-24
+title: スキーマ設計UIで **enum の選択肢の追加・削除が画面に即時反映されない**
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+memo: '原因確定: 下位エディタが `doc.version` を購読せず親の再コンポーズ頼みで、引数（ツリーの同一インスタンス）が変わらないためスキップされていた。構造を描画する各エディタ（enum選択肢・フィールド・定義・フェーズ・カバレッジ）の先頭に
+  `doc.version` 購読を追加（2026-08-08。CONVENTIONS §2 の徹底）'
+targets: FEATURES S-05
+closed_on: 2026-08-08
+resolutions:
+  - date: 2026-08-08

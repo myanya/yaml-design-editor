@@ -2,7 +2,8 @@ id: backlog-dashboard
 name: 開発管理
 kind: dashboard
 default: true
-description: 指摘を状態ごとに数え、一覧から指摘の個票へ進みます。段階 0 では docs/BACKLOG.md と記録（docs/archive/backlog-closed.md）の写しです（直すのは Markdown の側）。
+description: 指摘を状態ごとに数え、一覧から指摘の個票と操作へ進みます。docs/BACKLOG.md と記録はここから生成します（./gradlew devtrackDocs）。
+actions: [register-item]
 sections:
   - id: discussing
     label: 議論待ち（オーナーの判断）
@@ -43,12 +44,29 @@ sections:
   - id: by-month
     label: 起点の月×状態
     view: backlog-month-status
+  - id: closed-by-month
+    label: 解決の月×結果
+    view: closed-by-month
   - id: themes
     label: テーマ
     view: theme-list
+  # 未解決のすべて: 解決でも見送りでもない指摘（状態の書き方が誤っているものも入る）
   - id: all
     label: 未解決のすべて
     view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, notEquals: resolved }
+        - { of: it, path: status, notEquals: declined }
+      expect: exists
   - id: closed
     label: 解決・見送り（記録）
     view: closed-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, oneOf: [resolved, declined] }
+      expect: exists

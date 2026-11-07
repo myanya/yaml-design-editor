@@ -1,0 +1,13 @@
+id: UX-71
+title: 畳み込みヘッダの要約が、id 一覧のケースでは id しか出ず内容が分からない
+status: resolved
+origin_on: 2026-08-12
+origin: 利用者メモ
+body: '**畳み込みヘッダの要約が、id 一覧のケースでは id しか出ず内容が分からない**'
+memo: '要約は `schema/Display`（R10-01）に一元化済み。role: subtitle・子の代表値の併記など要約解決の強化。UX-77 と同根。**実装（2026-08-13）**: `Display` に `titleLookup`
+  注入を追加——要素自身にタイトルがないとき、同一論理IDの他出現（定義出現）からタイトルを借りる。フォームの畳みヘッダ（object・配列）・グリッドの複合値セルへ接続し、id しか持たない写像行でも「FLD-001 ユーザー名」と出る。`headerText`
+  はサブタイトルも併記'
+targets: R17-03（FEATURES S-13。`DisplayTest`）
+closed_on: 2026-08-13
+resolutions:
+  - date: 2026-08-13

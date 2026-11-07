@@ -1,60 +1,80 @@
 # 開発管理（devtrack）
 
-YDE で YDE 自身の開発を管理する試行のワークスペースです。
-いまは段階 0 で、[docs/BACKLOG.md](../docs/BACKLOG.md)（未解決の指摘台帳）と、その記録 [docs/archive/backlog-closed.md](../docs/archive/backlog-closed.md)（解決・見送り）の表を、1 件 1 ファイルに取り込んだ写しを置いています。
-
-**原本は Markdown の側（BACKLOG.md と backlog-closed.md）です。** ここのファイルは直さず、Markdown を直してから取り込み直します。
+YDE で YDE 自身の開発を管理するワークスペースです。指摘（未解決と、解決・見送り）・テーマ・所感メモの**原本**を、1 件 1 ファイルの YAML で持ちます。
+[docs/BACKLOG.md](../docs/BACKLOG.md)（未解決の指摘台帳）と [docs/archive/backlog-closed.md](../docs/archive/backlog-closed.md)（記録）は、ここから生成する派生物です。
 
 ## 中身
 
 | 場所 | 内容 |
 |---|---|
-| `backlog/UX-*.yaml` | 未解決の指摘（BACKLOG.md の表から取り込んだ写し） |
-| `closed/UX-*.yaml` | 解決・見送りの指摘（backlog-closed.md の表から取り込んだ写し） |
-| `themes/T-*.yaml` | テーマ（BACKLOG.md「テーマ管理」の見出しと最初の段落を手で写したもの） |
-| `.yde/schemas/common.yaml` | 指摘とテーマの型、状態の選択肢、指摘ごとの検査 |
-| `.yde/schemas/item.yaml`・`closed.yaml` | 台帳の指摘と記録の指摘の文書。どちらも同じ型・同じエンティティで、それぞれだけの決まり（起点の日・状態）を検査に持ちます |
-| `.yde/schemas/theme.yaml`・`relations.yaml` | テーマの文書と、指摘からテーマへの関係（束ねる指摘） |
-| `.yde/views/` | ダッシュボード「開発管理」、未解決の一覧、解決・見送りの一覧、起点の月×状態、テーマの一覧 |
-| `.yde/skills/import-backlog.yaml`・`import-backlog-closed.yaml` | 取り込みの定義（台帳と記録） |
+| `backlog/UX-*.yaml` | 指摘。未解決も、解決・見送りも同じ場所で、状態・解決の日・解決の記録で見分けます |
+| `themes/T-*.yaml` | テーマ（複数の指摘が絡む横断課題）。指摘の側が `theme` で参照します（束ねる指摘） |
+| `notes/NOTE-*.yaml` | 台帳に添える文章。`NOTE-01` は所感メモ（良かった点・方向性の確認） |
+| `.yde/schemas/common.yaml` | 型（ID・状態・日付）と、指摘・解決の記録・テーマ・メモの形と検査 |
+| `.yde/schemas/item.yaml` | 指摘の文書と、業務の操作（登録・状態の変更・一部の解決・解決） |
+| `.yde/schemas/theme.yaml`・`note.yaml`・`relations.yaml` | テーマとメモの文書、指摘からテーマへの関係 |
+| `.yde/views/` | ダッシュボード「開発管理」と一覧・クロス集計。`doc-` で始まるものは生成用 |
+| `.yde/reports/` | docs/BACKLOG.md と記録を作るレポート（定義とひな形） |
 
-Markdown の列は次のように写します。
+## 運用
 
-| 列 | 写す先 |
-|---|---|
-| ID | `id`（ファイル名にもなります） |
-| 起点 | 先頭の日付を `origin_on`、その後ろを `origin`（記録には日付の無い起点があり、そのときは欄の全体を `origin`） |
-| 指摘 | 先頭の太字を件名 `title`。太字があれば欄の全体を本文 `body` にも写します（太字が無ければ欄の全体が件名） |
-| 技術メモ（対応の当たり） | `memo` |
-| 状態 | 絵文字を値（`todo`・`discussing`・`resolved` など）に。台帳で辞書に無い書き方はそのまま入り、検証が指摘します。記録では ✅ / ❌ の後ろの文字を `resolution`、その中の日付を `resolved_on` に |
-| 対応先 | `T-nn` があればテーマへの参照 `theme`。欄の文字は `targets` に（`—` は写しません） |
+指摘の登録・状態の変更・解決は devtrack で行い、生成物を作り直して一緒にコミットします。
 
-記録の表は書き方が節ごとに少し違うので、取り込みの定義で吸収します。
+1. **登録**: 気になりポイントは、見つけた時点で 1 件登録します（完璧な分析は不要）。番号は `backlog/` の最大の番号の次です。
+2. **状態の変更・一部の解決・解決**: 下の操作で行います。解決したら記録へ移す手作業はありません（状態で記録へ出ます）。
+3. **作り直し**: `./gradlew devtrackDocs` で docs/BACKLOG.md と記録を作り直し、YAML と一緒にコミットします。
+4. **テーマと所感メモ**: `themes/T-nn.yaml` と `notes/NOTE-01.yaml` の `body`（Markdown）を直します。指摘をテーマに束ねるときは、指摘の `theme` に T-nn を書きます。
 
-- 「FEATURES の解消済み制約」の節の 4 列の表（ID・内容・状態・備考）の行は、2 列目を件名、3 列目を状態として読みます。
-- ID が `UX-` の番号でない行（`L-nn`、一部解決の「UX-162（一部）」）は取り込みません。
-- 解決の日は、状態の欄に日付が書かれた記録にだけ入ります（多くの記録は日付を節の見出しにだけ持ち、Markdown の取り込みは見出しを読みません）。
+- 生成物（docs/BACKLOG.md・記録）を直接直しません。コミット前のフックと CI（repo-tests の `DevtrackTest`）が、作り直していないものを止めます。
+- 操作の代わりに `backlog/UX-nnn.yaml` を直接書いてもかまいません。そのときは起点の日（`origin_on`）も書きます（操作と画面では自動で入ります）。
+- 並行するセッションが同じ番号を取ると、同じ名前のファイルになるので、マージで気づきます。後から振った方の番号を振り直します。
 
-## 開く・取り込み直す
+### 操作
+
+画面ではダッシュボード「開発管理」の「操作」（登録）と、指摘の個票の「この対象の操作」から呼びます。CLI では次のとおりです（`--apply` を外すと計画の表示だけ）。
 
 ```bash
-./gradlew run --args="$PWD/devtrack"                                                                  # 画面で開く（ダッシュボード「開発管理」）。絶対パスで渡す
-./gradlew runCli -q --args="import devtrack import-backlog docs/BACKLOG.md"                          # 台帳の取り込みの予定を見る（書かない）
-./gradlew runCli -q --args="import devtrack import-backlog docs/BACKLOG.md --apply"                  # 台帳を取り込む
-./gradlew runCli -q --args="import devtrack import-backlog-closed docs/archive/backlog-closed.md --apply"  # 記録を取り込む
-./gradlew runCli -q --args="validate devtrack"                                                       # 検証
-./gradlew runCli -q --args="view devtrack backlog-dashboard"                                         # ダッシュボードを CLI で見る
+./gradlew runCli -q --args="action devtrack register-item --param id=UX-267 --param title=件名 --param origin=見つけた場面 --apply"
+./gradlew runCli -q --args="action devtrack change-status --on UX-267 --param status=discussing --apply"
+./gradlew runCli -q --args="action devtrack record-progress --on UX-267 --param date=2026-11-07 --param note=一部を直した --apply"
+./gradlew runCli -q --args="action devtrack resolve-item --on UX-267 --param date=2026-11-07 --param note=直した内容 --param targets=FEATURES-X-01 --apply"
+./gradlew devtrackDocs
 ```
 
-- 画面の起動（`run`）は、相対パスを `desktop/` から解決するので、絶対パスで渡します（`$PWD` は bash と PowerShell のどちらでも今の場所です）。CLI（`runCli`）はリポジトリの根からの相対パスで動きます。
-- 取り込みは作成と更新だけです。解決して BACKLOG.md から記録へ移った指摘は `backlog/` に残るので、そろえるときは `backlog/` を空にしてから台帳を取り込み、記録も取り込み直します。
-- 台帳と記録に同じ ID があると、検証が定義の競合として出します。記録の中に同じ ID が 2 行あると、記録の取り込みが止まります。
-- 写しは Markdown より古くてかまいません。試すときに取り込み直します。
+- `--param` の値は YAML として読みます。`**` で始まる本文や `: ` を含む値は、`--param 'body="**件名**: 詳しく"'` のように引用符で囲みます。
+- 画面の入力では、ID の欄の候補の先頭に「採番」（次の番号）が出ます。CLI では番号を自分で指定します。
 
-## 段階
+| 操作 | 内容 |
+|---|---|
+| `register-item` 指摘を登録する | ID・件名・起点（ほかに状態・本文・技術メモ・テーマ・対応先）で 1 件作る。起点の日には今日が入る |
+| `change-status` 状態を変える | 未着手・議論待ち・対応中・必要になったらの間で変える |
+| `record-progress` 一部を解決する | 解決の記録（日付・内容・対応先）を足す。指摘は未解決のまま |
+| `resolve-item` 解決にする | 解決（`result=declined` で見送り）にし、解決の日と解決の記録を入れる。対応先を書くと指摘の対応先も置き換える |
 
-| 段階 | 内容 | 原本 |
-|---|---|---|
-| 0（いま） | 台帳と記録を取り込み、画面と CLI で眺める。取り込めないものと、検査で見つかるものを洗い出す | Markdown |
-| 1 | 原本を YAML に切り替え、Markdown はレポートで生成する。登録は操作（ID の採番つき）にし、検証エラー 0 を CI で守る | devtrack |
-| 2 | 解決の扱い（記録へ移す運用の置き換え）、テーマ、ROADMAP の状態表へ広げる | devtrack |
+### 検査
+
+検証（`./gradlew runCli -q --args="validate devtrack"`）が、次の決まりを見ます。
+
+- ID の形（`UX-` と番号）と重複（同じ ID の定義が 2 つ）、状態の値、テーマの参照の切れ。
+- 未解決の指摘には起点の日があり、解決の日が無い。解決・見送りの指摘には解決の日がある。解決の日は起点の日以降。
+- 「必要になったら」の指摘には技術メモ（実装の当たり）がある。テーマには束ねる指摘がある。
+
+### 見る
+
+```bash
+./gradlew run --args="$PWD/devtrack"                          # 画面で開く（ダッシュボード「開発管理」）。絶対パスで渡す
+./gradlew runCli -q --args="view devtrack backlog-dashboard"  # ダッシュボードを CLI で見る
+```
+
+画面の起動（`run`）は相対パスを `desktop/` から解決するので、絶対パスで渡します（`$PWD` は bash と PowerShell のどちらでも今の場所です）。CLI（`runCli`）はリポジトリの根からの相対パスで動きます。
+
+## 生成のしくみ
+
+- レポート `backlog-md`（台帳）と `backlog-closed-md`（記録）が、生成用のビュー（`doc-items`・`doc-closed`・`doc-themes`・`doc-notes`）の行をひな形にはめ込みます。表のセルは `{パス:cell}` で `|` と改行を逃がします。
+- レポートの出力先はワークスペースの中に限られるので、`./gradlew devtrackDocs`（cli/build.gradle.kts）が CLI の `report --print` の文字を受けて docs/ へ書きます。
+
+## 経緯
+
+- 段階 0（2026-11-07）: Markdown の台帳を原本のまま、取り込みの写しを作って画面と CLI で眺めた。番号の重なり 3 件を見つけて振り直した。
+- 段階 1（2026-11-07）: 原本を YAML に切り替えた。記録の解決の日は、状態の欄・技術メモ・節の見出しの日付から、無ければ git の履歴（状態が ✅ になったコミット）から補った。一部解決の記録は、その指摘の解決の記録へ移した。
+- 段階 2（未着手）: ROADMAP の状態表・UX シナリオなど、ほかの台帳へ広げるかを決める。

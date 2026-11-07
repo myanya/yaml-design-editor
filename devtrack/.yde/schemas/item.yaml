@@ -1,28 +1,101 @@
 id: item
 name: 指摘
 kind: document
-description: 未解決の指摘を 1 件 1 ファイルで持ちます。段階 0 では docs/BACKLOG.md の表から取り込んだ写しです。
+description: 指摘（未解決と、解決・見送り）を 1 件 1 ファイルで持ちます。docs/BACKLOG.md（未解決）と docs/archive/backlog-closed.md（解決・見送り）はここから生成します。
 match: "backlog/*.yaml"
 filePattern: "backlog/{id}.yaml"
-# 文書のルートがオブジェクト型 指摘（同一性＝エンティティ backlog-item の定義）
+# 文書のルートがオブジェクト型 指摘（同一性＝エンティティ backlog-item の定義・状態の検査つき）
 root: { type: common#指摘 }
-# 台帳（backlog/）の指摘だけの決まり。記録（closed/）の決まりは closed.yaml
-constraints:
-  - id: open-has-origin-date
-    description: 台帳の指摘には、起点の日があること
-    match:
-      - node: { entity: backlog-item, schema: item, bind: it }
-    where:
-      - { of: it, path: origin_on, exists: false }
-    expect: absent
-    level: error
-    message: "指摘「{it.id}」に起点の日がありません"
-  - id: closed-moved-to-record
-    description: 解決・見送りの指摘は台帳に残さず、記録（docs/archive/backlog-closed.md）へ移すこと
-    match:
-      - node: { entity: backlog-item, schema: item, bind: it }
-    where:
-      - { of: it, path: status, oneOf: [resolved, declined] }
-    expect: absent
-    level: warning
-    message: "解決・見送りの指摘「{it.id}」が台帳に残っています。記録へ移します"
+# 業務の操作: 画面（ダッシュボードの「操作」・個票の「この対象の操作」）・CLI `action`・エージェントで同じ名前で呼ぶ
+actions:
+  - id: register-item
+    label: 指摘を登録する
+    description: 新しい指摘を 1 件 1 ファイルで作ります。ID は backlog/ の最大の番号の次を指定します。起点の日には今日が入ります。
+    params:
+      - { key: id, label: ID, type: common#指摘ID, required: true }
+      - { key: title, label: 件名, type: common#一行の文, required: true, minLength: 1 }
+      - { key: origin, label: 起点, type: common#一行の文, required: true, minLength: 1, description: 見つけた場面（作業・試験・レビュー） }
+      - { key: status, label: 状態, type: common#未解決の状態, default: todo }
+      - { key: body, label: 指摘, type: common#文章, description: "件名だけで足りないとき。先頭に太字の件名を書く慣わしです（**件名**: 詳しく）" }
+      - { key: memo, label: 技術メモ, type: common#文章, description: 対応の当たり }
+      - { key: theme, label: テーマ, type: common#テーマ参照 }
+      - { key: targets, label: 対応先, type: common#一行の文 }
+    require:
+      - match: [ { node: { id: $id } } ]
+        expect: absent
+        message: $id は既に使われています
+    do:
+      - create:
+          schema: item
+          params:
+            id: $id
+            title: $title
+            status: $status
+            origin: $origin
+            body: { $copy: body }
+            memo: { $copy: memo }
+            theme: { $copy: theme }
+            targets: { $copy: targets }
+
+  - id: change-status
+    label: 状態を変える
+    description: 未解決の指摘の状態を、未着手・議論待ち・対応中・必要になったらの間で変えます。解決と見送りは「解決にする」で行います。
+    target: { entity: backlog-item, bind: it }
+    params:
+      - { key: status, label: 状態, type: common#未解決の状態, required: true }
+    require:
+      - match: [ { node: { entity: backlog-item, bind: x } } ]
+        where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
+        expect: exists
+        message: "{id} は解決・見送りの指摘です"
+    do:
+      - set: { of: it, path: status, value: $status }
+
+  - id: record-progress
+    label: 一部を解決する
+    description: 未解決の指摘に、一部を解決した記録（日付と内容）を足します。指摘は未解決のままです。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: backlog-item, bind: it }
+    params:
+      - { key: date, label: 日付, type: common#年月日, required: true }
+      - { key: note, label: 内容, type: common#文章, required: true, minLength: 1 }
+      - { key: targets, label: 対応先, type: common#一行の文, description: この記録で手を入れた先 }
+    require:
+      - match: [ { node: { entity: backlog-item, bind: x } } ]
+        where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
+        expect: exists
+        message: "{id} は解決・見送りの指摘です"
+    do:
+      - insert:
+          of: it
+          path: resolutions
+          value: { date: $date, note: $note, targets: { $copy: targets } }
+
+  - id: resolve-item
+    label: 解決にする
+    description: 未解決の指摘を解決（または見送り）にし、解決の日と解決の記録を入れます。対応先を書くと指摘の対応先も置き換えます。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: backlog-item, bind: it }
+    params:
+      - { key: result, label: 結果, type: common#解決の結果, default: resolved }
+      - { key: date, label: 解決の日, type: common#年月日, required: true }
+      - { key: note, label: 内容, type: common#文章, required: true, minLength: 1, description: 何をしたか（見送りなら理由） }
+      - { key: targets, label: 対応先, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: backlog-item, bind: x } } ]
+        where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
+        expect: exists
+        message: "{id} は既に解決・見送りの指摘です"
+    do:
+      - set: { of: it, path: status, value: $result }
+      - set: { of: it, path: closed_on, value: $date }
+      - insert:
+          of: it
+          path: resolutions
+          value: { date: $date, note: $note, targets: { $copy: targets } }
+      - when: { path: targets, exists: true }
+        set: { of: it, path: targets, value: $targets }

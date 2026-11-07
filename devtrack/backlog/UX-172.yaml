@@ -1,0 +1,12 @@
+id: UX-172
+title: 閲覧専用モードがソースタブに効かない
+status: resolved
+origin_on: 2026-10-17
+origin: ソースエディタ強化の検討
+body: '**閲覧専用モードがソースタブに効かない**（フォーム・グリッドは表示専用になるのに、ソースはそのまま編集できる。スキーマ設計画面の UX-87 と同種）'
+memo: '`SourcePane` に `state.readOnlyMode` の分岐が無い。`BasicTextField(readOnly = true)` にして検索置換と整形のボタンを隠す'
+targets: P43
+closed_on: 2026-10-17
+resolutions:
+  - date: 2026-10-17
+    note: P43 段階 0（R43-05）で対応

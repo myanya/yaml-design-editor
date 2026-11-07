@@ -1,0 +1,11 @@
+id: UX-10
+title: ジャンプ先（導出規則・入力値）が**折りたたみの中にあると、開かないとハイライトが見えず、スクロールも先頭のまま**。「飛んだ感」がない
+status: resolved
+origin_on: 2026-08-02
+origin: R16-04試験
+memo: '原因: 畳まれた区画の中は Highlightable がコンポーズされず、スクロール・ハイライトが届かない。`FormCtx.highlightInside`（ハイライト対象が配下にあるか）で畳み4箇所（配列・ネストobject・map・テーブル行）を自動展開する修正を実装（2026-08-02）。来歴ジャンプに限らず全ジャンプ（参照・検証・ビュー）に効く。微調整（同日）:
+  対象が画面端に張り付くため、上下余白つきの矩形を可視化要求して**中央寄り**に出すよう `Highlightable` を調整'
+targets: FormView.kt / Common.kt（ARCHITECTURE §4.4）
+closed_on: 2026-08-02
+resolutions:
+  - date: 2026-08-02

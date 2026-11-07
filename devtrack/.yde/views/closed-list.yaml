@@ -1,23 +1,28 @@
 id: closed-list
 name: 解決・見送りの一覧
-description: 記録（closed/）の指摘を、起点の日の新しい順に並べます。
+description: 指摘を解決の日の新しい順に並べます（解決の日の無い未解決の指摘は後ろ）。ダッシュボードの区画が解決・見送りに絞ります。
 rows:
-  match:
-    - node: { entity: backlog-item, schema: closed-item, bind: it }
+  idPattern: "UX-*"
 order:
-  schemaId: closed-item
-  path: origin_on
+  schemaId: item
+  path: closed_on
   direction: desc
 columns:
   - label: 状態
+    schemaId: item
     path: status
   - label: 解決の日
-    path: resolved_on
+    schemaId: item
+    path: closed_on
   - label: 起点の日
+    schemaId: item
     path: origin_on
   - label: 起点
+    schemaId: item
     path: origin
   - label: 対応先
+    schemaId: item
     path: targets
   - label: 解決の記録
-    path: resolution
+    schemaId: item
+    path: resolutions

@@ -1,0 +1,11 @@
+id: UX-31
+title: ref の選択後の入力欄に ID と表示名の両方
+status: resolved
+origin_on: 2026-08-08
+origin: S1第1回
+body: '**ref の選択後の入力欄に ID と表示名の両方**を出したい（現状は入力欄に ID のみ・タイトルは右側併記）'
+memo: '`CompactTextField` に suffix（枠内右端の表示）を追加し、解決済みタイトルを入力欄の枠内に併記（2026-08-08。外付けの右側テキストは廃止）'
+targets: FEATURES I-04
+closed_on: 2026-08-08
+resolutions:
+  - date: 2026-08-08

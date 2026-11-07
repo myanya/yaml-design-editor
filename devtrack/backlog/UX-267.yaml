@@ -1,0 +1,7 @@
+id: UX-267
+title: 項目の説明（description）で山括弧に囲んだ語が、画面で消える
+status: todo
+origin_on: 2026-11-07
+origin: devtrack 段階 1 の画面確認
+body: '**項目の説明（description）で山括弧に囲んだ語が、画面で消える**: devtrack の 指摘ID の説明「ファイル名（backlog/<ID>.yaml）」が、操作の入力の画面で「backlog/.yaml」になる'
+memo: 説明の文字を HTML か Markdown として表示し、タグとみなして落としているとみられる。説明は文字のまま出すか、山括弧を逃がす

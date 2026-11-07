@@ -1,0 +1,25 @@
+# 生成用: docs/archive/backlog-closed.md（レポート backlog-closed-md）の表の行。解決の日の新しい順。列は doc-items と同じ
+id: doc-closed
+name: 生成用：記録の表
+rows:
+  idPattern: "UX-*"
+order:
+  schemaId: item
+  path: closed_on
+  direction: desc
+columns:
+  - { label: 状態の値, schemaId: item, path: status }
+  - label: 状態
+    schemaId: item
+    value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌" } }
+  - { label: 起点の日, schemaId: item, path: origin_on }
+  - { label: 起点, schemaId: item, path: origin }
+  - label: 指摘
+    schemaId: item
+    value: { first: [ { path: body }, { path: title } ] }
+  - { label: 技術メモ, schemaId: item, path: memo }
+  - label: 対応先
+    schemaId: item
+    value: { first: [ { path: targets }, "—" ] }
+  - { label: 解決の日, schemaId: item, path: closed_on }
+  - { label: 解決の記録, schemaId: item, path: resolutions }

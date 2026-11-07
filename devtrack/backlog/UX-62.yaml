@@ -1,0 +1,11 @@
+id: UX-62
+title: 同梱テンプレートが .gitignore 対象で履歴・走査に載らない
+status: declined
+origin_on: 2026-08-09
+origin: P19方針検討
+body: '**同梱テンプレートが .gitignore 対象で履歴・走査に載らない**: sample-workspace / system-development-template / software-template が gitignore
+  されており、配布物であるテンプレート定義の変更履歴が残らず、gitignore を尊重する走査（ripgrep 等）にも掛からない。P19 のテンプレート同時移行（16定義の書き換え）の差分レビューができない'
+memo: 'オーナー判断（2026-08-09）: これらは実験場であり重要資産ではない。本ツールは GitHub 公開予定のため実験場を git 管理下に置く予定はない。動作確認は必要に応じて別サンプルを作って行う'
+closed_on: 2026-08-10
+resolutions:
+  - date: 2026-08-10

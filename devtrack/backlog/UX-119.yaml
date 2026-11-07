@@ -1,0 +1,21 @@
+id: UX-119
+title: パッケージを、モジュールごとにしっかり分けたい
+status: resolved
+origin_on: 2026-09-22
+origin: オーナー（P27 段D の残りの相談で）
+body: '**パッケージを、モジュールごとにしっかり分けたい**（「実はずっと気になっていた」）。いまのパッケージ名は `schema`・`validate`・`core` などの裸の名前で、同じ名前が複数のモジュールにまたがっている（`schema`＝yaml-core
+  / semantic-core / workspace-core / root の4か所・`validate`＝yaml-core / workspace-core / root・`core`＝yaml-core / workspace-core
+  / root）。クラスがどのモジュールのものかが、名前から分からない'
+memo: '経緯: 3層コアへの移行の間は「パッケージ名を変えずにモジュールへ移す」規約（CONVENTIONS §8-3）で進めてきた（利用側のコードを変えずに済ませるため）。名前を整えるのは、この規約の最後の解禁にあたる（ROADMAP
+  P27 の D-3）。規模: 全274ファイル（root 156・カーネル 111・cli 7）の `package` 行と `import` 行の書き換え。機械的で、コンパイルとテストで完全に確かめられる。挙動は変わらない。**オーナーの方針（2026-09-22）**:
+  ①実施の時期は、`IdIndex` ファサードの型の解消と `Path` 座標の整理（P27 段D の残り①）を終えて、オーナーの動作確認が済んだ時に考える②パッケージは、モジュールごとにしっかり分ける ③IDE のリファクタリング機能を使って、オーナー自身が実施してもよい。進め方の当たり:
+  差分が全ファイルに及ぶので、他の作業が動いていない区切りで、1コミットで行う。先に、モジュールごとの名前の案（例 `dev.toros.yde.yaml.*` / `…semantic.*` / `…workspace.*` / `…app.*`）と、同じ名前のパッケージにまたがっているクラスの振り分け表を作っておくと、IDE
+  での作業が機械的になる（表の作成は、依頼があれば Claude が行う）。あわせて、テストの `package`・リソースのパス（`builtin-schemas/` など）・`build.gradle.kts` の `mainClass`・ドキュメントの中のパッケージ名の表記も直す
+  **→ 対応（2026-09-22。オーナー「推奨案で進めてください」）**: 接頭辞 `dev.toros.yde`＋モジュールの根（yaml / semantic / workspace / cli / app）。モジュール名と同じ名前のパッケージと
+  `Main.kt` は根へ、ほかは根の下にそのまま。1ファイルだけの置き場と `core` は中身の名前に（yaml-core `core`→`patch`・`schema`→`structure` へ合流・workspace-core `core`→`changeset`・`schema`→`layout`）。モジュールの中の分け直しはしない。ドキュメントは接頭辞を省いた短い形のまま（CONVENTIONS
+  §8-3）。書き換えはスクリプト（`package`・`import`・完全修飾の参照・同名パッケージ越しの暗黙の参照に import を追加）＋コンパイルで行い、全テストと CLI の出力の突き合わせで挙動不変を確かめた。資源の読み込みは絶対パスのため不変。mainClass
+  は3つとも更新'
+targets: ARCHITECTURE §2・CONVENTIONS §8-3
+closed_on: 2026-09-22
+resolutions:
+  - date: 2026-09-22

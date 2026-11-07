@@ -1,9 +1,0 @@
-id: UX-250
-title: 複数文書の物理資源を、目的別に選んだ構成フローへ直接射影できない
-status: resolved
-resolved_on: 2026-11-04
-resolution: 2026-11-04
-origin_on: 2026-11-04
-origin: AWS設計ラボ
-memo: sourcesの独立したクエリ変換を合成し、原本座標と未保存変更・Undoを保持。打切り・未解決経路を診断し、AWS設定の転送先変更で図・表・生成入力の一致を検査
-targets: FEATURES C-17、ADR-0025

@@ -56,6 +56,15 @@ class TextTemplateTest {
     }
 
     @Test
+    fun `表のセルの形は 縦棒と改行を逃がして Markdown の表の行を崩さない`() {
+        val cell = YamlIO.parse("memo: \"a | b\\nc\\r\\nd\"\nplain: \"x|y\"")
+        val r = TextTemplate.render("| {memo:cell} | {plain} |", cell)
+        assertEquals("| a \\| b<br>c<br>d | x|y |", r.text)
+        // 形を書かない穴はそのまま（ひな形の書き手が決める）
+        assertEquals("a | b\nc\r\nd", TextTemplate.render("{memo}", cell).text)
+    }
+
+    @Test
     fun `埋まらない穴は空になり名前が残る 閉じ忘れは点検で分かる`() {
         val r = TextTemplate.render("{month}/{nothing}/{sales.values.合計}", values)
         assertEquals("2026-10//", r.text)

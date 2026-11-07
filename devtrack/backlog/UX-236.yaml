@@ -1,0 +1,15 @@
+id: UX-236
+title: 並んだ配列を同じ番号で読めない
+status: resolved
+origin_on: 2026-11-02
+origin: labs/rpmz 段階 2（MZ の JSON の取り込み）
+body: '**並んだ配列を同じ番号で読めない**（行と列の入れ替え）: MZ の職業の成長表は「能力値ごとの 100 個の並び」が 8 つで、YDE では「レベルごとの行」にしたいが、`$each` の中から別の配列の同じ番号を読む書き方が無い。System.json
+  の武器タイプの名前と攻撃モーション（`weaponTypes[i]` と `attackMotions[i]`）・スキルタイプと魔法スキルの番号の一覧（`magicSkills`）も同じ。職業の成長表は取り込めず、モーションと魔法スキルは取り込んでいない'
+memo: '案 A: 並べて組む `{$zip: {mhp: "params[0]", mmp: "params[1]", …}, $build: …}`（JSONata の `$zip`）。案 B: 繰り返しの中から外の場所を読む（`$of:
+  $input` と、パスに番号 `params[1][$index]`）。案 C: 値の式に `transpose`。魔法スキルの「番号が一覧にあるか」は B か、条件の `oneOf` に外の配列を渡せれば書ける。書き出し（段階 3）は今のひな型で逆向きを書ける'
+targets: FEATURES C-15
+closed_on: 2026-11-02
+resolutions:
+  - date: 2026-11-02
+    note: '案 A（オーナー）。`$zip` と、条件の `path: $index` を足した。魔法スキル（番号の一覧に含まれるか）は UX-239'
+    section: labs/rpmz の試用
