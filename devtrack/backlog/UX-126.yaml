@@ -10,3 +10,6 @@ body: '**公開前の残件**（2026-09-22 の棚卸し。済み: LICENSE〔MIT�
   docs/history/ へ寄せる）'
 memo: 各項目は独立。①は履歴に無いディレクトリなので削除だけで済む。`specs/20-semantics/calculus/` の 4 つの YAML（評価モデル・写像表・Rewrite・定義層）は設計判断の詳細を持つので、残すなら削除前に
   docs/ へ写す
+related:
+  - UX-34
+  - UX-64

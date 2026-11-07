@@ -12,4 +12,12 @@ targets: devtrack の記録の取り込み
 closed_on: 2026-11-07
 resolutions:
   - date: 2026-11-07
+    kind: 解決
     section: 指摘の番号の重複
+related:
+  - UX-140
+  - UX-171
+  - UX-172
+  - UX-263
+  - UX-264
+  - UX-265

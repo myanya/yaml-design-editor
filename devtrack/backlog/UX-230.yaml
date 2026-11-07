@@ -8,4 +8,5 @@ targets: R49-70（名前と理由を案内し選択を無効化、未対応の�
 closed_on: 2026-11-01
 resolutions:
   - date: 2026-11-01
+    kind: 解決
     section: ローカル接続の通し試験

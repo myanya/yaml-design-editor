@@ -17,3 +17,7 @@ targets: ARCHITECTURE §4.41・意図的差分 D-28
 closed_on: 2026-09-21
 resolutions:
   - date: 2026-09-21
+    kind: 解決
+related:
+  - UX-105
+  - UX-117

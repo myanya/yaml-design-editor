@@ -8,3 +8,6 @@ memo: '第一歩はトリガ条件の合成（例 `trigger.condition: error-free
   と合同'
 theme: T-01
 targets: T-01
+related:
+  - UX-49
+  - UX-56

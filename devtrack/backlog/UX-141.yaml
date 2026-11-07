@@ -8,3 +8,4 @@ targets: '`AutoValuesKernelTest`・`AppStateAutoValuesTest`'
 closed_on: 2026-10-24
 resolutions:
   - date: 2026-10-24
+    kind: 解決

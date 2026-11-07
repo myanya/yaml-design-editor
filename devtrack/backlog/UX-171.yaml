@@ -10,3 +10,6 @@ targets: P42（FEATURES X-12）
 closed_on: 2026-10-17
 resolutions:
   - date: 2026-10-17
+    kind: 解決
+related:
+  - UX-162

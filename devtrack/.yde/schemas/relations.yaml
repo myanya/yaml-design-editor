@@ -13,3 +13,9 @@ relations:
     target: [theme]
     cardinality: { outMax: 1 }
     description: 指摘はテーマを 1 つまで参照します
+  - name: relates-to
+    label: 関連する指摘
+    inverseLabel: 関連する指摘から
+    source: [backlog-item]
+    target: [backlog-item]
+    description: 重複・派生・同じ原因など、一緒に見たい指摘を参照します

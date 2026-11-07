@@ -11,4 +11,5 @@ targets: R30-01（一部）・C-15・`TemplateValueTest`
 closed_on: 2026-10-26
 resolutions:
   - date: 2026-10-26
+    kind: 解決
     section: 注文管理サンプル

@@ -11,4 +11,5 @@ targets: R47-27
 closed_on: 2026-10-29
 resolutions:
   - date: 2026-10-29
+    kind: 解決
     section: desktop と repo-tests のモジュール化

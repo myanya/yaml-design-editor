@@ -8,5 +8,6 @@ targets: E-05・X-02
 closed_on: 2026-10-24
 resolutions:
   - date: 2026-10-24
+    kind: 解決
     note: 確認
     section: Undo 台帳の棚卸し

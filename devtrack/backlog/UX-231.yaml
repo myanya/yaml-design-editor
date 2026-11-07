@@ -17,6 +17,9 @@ targets: FEATURES LC-26
 closed_on: 2026-11-07
 resolutions:
   - date: 2026-11-07
+    kind: 解決
     note: 初期化の応答が届いたかの判定にヘッダの確定（isCommitted）を含め、成功の応答を確定した後の取消ではセッションを閉じないようにした。クライアントの実際の切断で再現する試験を足した（直す前は毎回 404、直した後は通る）。CPU
       を埋めた状態で McpHttpTest は直す前 11 回中 10 回失敗、直した後 10 回とも成功。GitHub Actions は修正後の実行で McpHttpTest の失敗 0（同じ実行の再実行を含め 3 回連続で全モジュール成功）
     section: MCP の初期化セッションの取消
+related:
+  - UX-229

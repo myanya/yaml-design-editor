@@ -9,3 +9,4 @@ targets: '2026-11-03: lensBounds を全体とミニマップで共用し負の�
 closed_on: 2026-11-03
 resolutions:
   - date: 2026-11-03
+    kind: 解決

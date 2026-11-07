@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  * 開発管理（devtrack/）を CI で守る（devtrack/README.md「運用」）:
  * - 検証のエラーが無い。ビュー・ダッシュボード・レポートの定義が読める
  * - docs/BACKLOG.md と docs/archive/backlog-closed.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
- * - 業務の操作（登録・状態の変更・一部の解決・解決）が写しの上で通り、検証のエラーを増やさない
+ * - 業務の操作（登録〔採番〕・状態の変更・一部の解決・解決・再開）が写しの上で通り、検証のエラーを増やさない
  */
 class DevtrackTest {
 
@@ -63,7 +63,7 @@ class DevtrackTest {
     }
 
     @Test
-    fun `登録 状態の変更 一部の解決 解決の操作は 写しの上で検証のエラーを増やさずに通る`() {
+    fun `登録 状態の変更 一部の解決 解決 再開の操作は 写しの上で検証のエラーを増やさずに通る`() {
         val base = createTempDirectory("yde-devtrack")
         try {
             val dir = base.resolve("devtrack")
@@ -78,19 +78,34 @@ class DevtrackTest {
                 assertTrue(applied.ok, "$action: ${applied.results}")
                 ws = Workspace.open(dir)
             }
-            act("register-item", null, mapOf("id" to "UX-9999", "title" to "試しの指摘", "origin" to "DevtrackTest", "theme" to "T-03"))
-            act("change-status", "UX-9999", mapOf("status" to "in-progress"))
-            act("record-progress", "UX-9999", mapOf("date" to "2026-11-07", "note" to "一部を直した"))
-            act("resolve-item", "UX-9999", mapOf("date" to "2026-11-08", "note" to "全部直した", "targets" to "DevtrackTest"))
-            val item = YamlIO.parseToRaw(Files.readString(dir.resolve("backlog/UX-9999.yaml"))) as Map<*, *>
-            assertEquals("resolved", item["status"])
-            assertEquals("2026-11-07", item["origin_on"].toString(), "起点の日は登録した日（auto: created）")
-            assertEquals("2026-11-08", item["closed_on"].toString())
-            assertEquals(listOf("一部を直した", "全部直した"), (item["resolutions"] as List<*>).map { (it as Map<*, *>)["note"] })
+            fun item(id: String) = YamlIO.parseToRaw(Files.readString(dir.resolve("backlog/$id.yaml"))) as Map<*, *>
+            fun kinds(id: String) = (item(id)["resolutions"] as List<*>).map { (it as Map<*, *>)["kind"] }
+            // 登録: ID を省くと、使われている最大の番号の次を振る（create の採番）
+            val next = "UX-" + (Files.list(dir.resolve("backlog")).use { s -> s.map { it.fileName.toString().removePrefix("UX-").removeSuffix(".yaml").toInt() }.toList() }.max() + 1)
+            act("register-item", null, mapOf("title" to "試しの指摘", "origin" to "DevtrackTest", "theme" to "T-03", "related" to listOf("UX-162")))
+            assertTrue(Files.isRegularFile(dir.resolve("backlog/$next.yaml")), "採番した $next のファイル")
+            act("change-status", next, mapOf("status" to "in-progress"))
+            act("record-progress", next, mapOf("date" to "2026-11-07", "note" to "一部を直した"))
+            act("resolve-item", next, mapOf("date" to "2026-11-08", "note" to "全部直した", "targets" to "DevtrackTest"))
+            var it = item(next)
+            assertEquals("resolved", it["status"])
+            assertEquals("2026-11-07", it["origin_on"].toString(), "起点の日は登録した日（auto: created）")
+            assertEquals("2026-11-08", it["closed_on"].toString())
+            assertEquals(listOf("一部", "解決"), kinds(next))
+            assertEquals(listOf("UX-162"), it["related"])
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
-            // 解決した指摘は台帳から消え、記録の先頭に出る
-            assertTrue("| UX-9999 |" !in render(ws, "backlog-md"))
-            assertTrue(render(ws, "backlog-closed-md").lines().first { it.startsWith("| UX-") }.startsWith("| UX-9999 | 2026-11-08 |"))
+            // 解決した指摘は台帳から消え、記録の先頭に出る（状態の欄に記録の種類と内容）
+            assertTrue("| $next |" !in render(ws, "backlog-md"))
+            val row = render(ws, "backlog-closed-md").lines().first { line -> line.startsWith("| UX-") }
+            assertTrue(row.startsWith("| $next | 2026-11-08 |") && "✅ 2026-11-07 一部: 一部を直した 2026-11-08 解決: 全部直した（DevtrackTest）" in row, row)
+            // 再開: 解決の日を消して未解決に戻し、再開の記録を足す。台帳に戻る
+            act("reopen-item", next, mapOf("date" to "2026-11-09", "note" to "再現した"))
+            it = item(next)
+            assertEquals("todo", it["status"])
+            assertEquals(null, it["closed_on"])
+            assertEquals(listOf("一部", "解決", "再開"), kinds(next))
+            assertTrue("| $next |" in render(ws, "backlog-md"))
+            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
         } finally {
             Files.walk(base).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
         }

@@ -1,9 +1,16 @@
 id: UX-261
 title: '`./gradlew run --args="samples/todos"` の相対パスが、リポジトリの根でなく `desktop/` から解決されて開けない'
-status: todo
+status: resolved
 origin_on: 2026-11-07
 origin: devtrack の画面確認
 body: '**`./gradlew run --args="samples/todos"` の相対パスが、リポジトリの根でなく `desktop/` から解決されて開けない**（Linux で「ワークスペースのフォルダーがありません: …/desktop/devtrack」）。UX-SCENARIOS・samples/orders/README.md
   の起動手順が相対パスで書いてある'
 memo: desktop の `run`（Compose の実行タスク）の作業ディレクトリが既定の `desktop/` のまま。`runCli` と同じく `workingDir = rootDir` にするか、手順を絶対パスにする。Windows
   も Gradle の既定は同じはずだが未確認
+closed_on: 2026-11-07
+resolutions:
+  - date: 2026-11-07
+    kind: 解決
+    note: 画面の起動（run と hotRun）の作業ディレクトリをリポジトリの根にした（runCli と同じ）。相対パスの起動が文書の例のとおりに動く
+    targets: desktop/build.gradle.kts
+targets: desktop/build.gradle.kts

@@ -4,7 +4,7 @@
 
 [../BACKLOG.md](../BACKLOG.md) の指摘のうち、解決（✅）と見送り（❌）にしたもの。原本は [devtrack/](../../devtrack/README.md) の 1 件 1 ファイルの YAML で、この文書はそこから生成する。行は解決の日の新しい順。
 
-- 状態の欄は、結果と解決の記録（日付・内容・その指摘が置かれていた記録の節）。
+- 状態の欄は、結果と解決の記録（日付・種類〔一部・解決・見送り・再開〕・内容・その指摘が置かれていた記録の節）。
 - 2026-11-07 より前は、BACKLOG.md から行を節ごとに移して書いていた。devtrack へ移すとき、解決の日は状態の欄・技術メモ・節の見出しの日付から、無ければ git の履歴（状態が ✅ になったコミット）から補った。
 - 番号が別の指摘と重なっていた 2 件は、2026-11-07 に振り直した（UX-140 → UX-263・UX-172 → UX-265）。
 - 当時の文中のリンクと §番号は、書いた時点の文書構成を指す。
@@ -12,7 +12,7 @@
 | ID | 解決の日 | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 |
 |---|---|---|---|---|---|---|
 {#each closed}
-| {id} | {values.解決の日} | {#if values.起点の日}{values.起点の日}{#if values.起点} {/if}{/if}{#if values.起点}{values.起点:cell}{/if} | {values.指摘:cell} | {#if values.技術メモ}{values.技術メモ:cell}{/if} | {values.状態:cell}{#if values.解決の記録}{#each values.解決の記録} {date}{#if note} {note:cell}{/if}{#if targets}（{targets:cell}）{/if}{#if section}〔{section:cell}〕{/if}{/each}{/if} | {values.対応先:cell} |
+| {id} | {values.解決の日} | {#if values.起点の日}{values.起点の日}{#if values.起点} {/if}{/if}{#if values.起点}{values.起点:cell}{/if} | {values.指摘:cell} | {#if values.技術メモ}{values.技術メモ:cell}{/if} | {values.状態:cell}{#if values.解決の記録}{#each values.解決の記録} {date} {kind}{#if note}: {note:cell}{/if}{#if targets}（{targets:cell}）{/if}{#if section}〔{section:cell}〕{/if}{/each}{/if} | {values.対応先:cell} |
 {/each}
 
 ## 記録の節の補足

@@ -16,3 +16,8 @@ targets: ROADMAP P27・ARCHITECTURE §4.39
 closed_on: 2026-09-21
 resolutions:
   - date: 2026-09-21
+    kind: 解決
+related:
+  - UX-63
+  - UX-114
+  - UX-115

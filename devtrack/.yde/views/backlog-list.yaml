@@ -21,6 +21,9 @@ columns:
   - label: テーマ
     schemaId: item
     path: theme
+  - label: 関連する指摘
+    schemaId: item
+    path: related
   - label: 対応先
     schemaId: item
     path: targets

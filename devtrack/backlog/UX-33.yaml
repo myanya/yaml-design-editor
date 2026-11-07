@@ -9,4 +9,5 @@ targets: P45・W-21
 closed_on: 2026-10-25
 resolutions:
   - date: 2026-10-25
+    kind: 解決
     section: ワークスペースの初期化ウィザード

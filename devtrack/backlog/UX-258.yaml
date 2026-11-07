@@ -8,3 +8,5 @@ body: '**未保存の判定（`WorkspaceSession.dirtyDocuments`）が全文書�
   0.2 秒）の大半'
 memo: '`isDirty` は `persistedText` と `DefaultYamlCodec.dump(document)` を比べる。文書の版ごとに書き出しを覚えるか、編集で触れた文書だけを候補にする。`refreshFrom`
   の `disk.dirtyDocuments()`（読んだばかりの候補）と、`reload` が渡す保護対象との重複も見直す'
+related:
+  - UX-256

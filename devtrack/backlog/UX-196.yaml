@@ -9,4 +9,7 @@ targets: CONVENTIONS「ドキュメント更新規約」・scripts/docs-lint.sh
 closed_on: 2026-10-25
 resolutions:
   - date: 2026-10-25
+    kind: 解決
     section: ワークスペースの初期化ウィザード
+related:
+  - UX-197

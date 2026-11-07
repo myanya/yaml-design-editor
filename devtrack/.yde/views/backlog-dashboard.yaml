@@ -41,6 +41,18 @@ sections:
       where:
         - { of: it, path: status, equals: when-needed }
       expect: exists
+  # 見つけてから 60 日以上たっても、未着手か議論待ちのままの指摘（基準日で数える。日付の差 daysBetween）
+  - id: stale
+    label: 60 日以上たつ未着手・議論待ち
+    view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: status, oneOf: [todo, discussing] }
+        - { of: it, path: origin_on, exists: true }
+      check:
+        - gte: [ { daysBetween: [ { of: it, path: origin_on }, $today ] }, 60 ]
   - id: by-month
     label: 起点の月×状態
     view: backlog-month-status

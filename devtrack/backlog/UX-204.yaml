@@ -9,4 +9,5 @@ targets: 'R46-08（`scale: {x: log}`。目盛りは 10 の累乗、0 以下は�
 closed_on: 2026-10-26
 resolutions:
   - date: 2026-10-26
+    kind: 解決
     section: 注文管理サンプル

@@ -9,4 +9,7 @@ targets: P43
 closed_on: 2026-10-17
 resolutions:
   - date: 2026-10-17
+    kind: 解決
     note: P43 段階 0（R43-05）で対応
+related:
+  - UX-87

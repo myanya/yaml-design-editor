@@ -10,4 +10,5 @@ targets: R46-07（`cells.columns.label` で見出しの式・`order` で先に�
 closed_on: 2026-10-26
 resolutions:
   - date: 2026-10-26
+    kind: 解決
     section: 注文管理サンプル

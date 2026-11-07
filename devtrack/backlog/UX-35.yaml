@@ -4,3 +4,5 @@ status: discussing
 origin_on: 2026-08-08
 origin: S1第1回
 memo: セル編集時のステータスバーへの書込先表示、未保存ファイルのポップオーバー、任意のファイル列オプション等。UX-34 の保存導線とセットで設計
+related:
+  - UX-34

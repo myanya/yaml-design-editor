@@ -4,3 +4,5 @@ status: todo
 origin_on: 2026-09-02
 origin: S1第2回
 memo: 現仕様はファイル単位の採否（RunsSpace）。①「採否はファイル単位」の明示表示 ②操作（パス）単位の採否は受信箱改善（UX-52/54/55）・T-01 と合流して設計判断
+related:
+  - UX-52

@@ -8,3 +8,4 @@ targets: 履歴優先の同期と全 YAML 文書の再解析照合、書式調�
 closed_on: 2026-10-24
 resolutions:
   - date: 2026-10-24
+    kind: 解決

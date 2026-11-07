@@ -11,4 +11,5 @@ targets: README の文を置き方に依らない形にした（一覧 1 ファ�
 closed_on: 2026-10-26
 resolutions:
   - date: 2026-10-26
+    kind: 解決
     section: 注文管理サンプル

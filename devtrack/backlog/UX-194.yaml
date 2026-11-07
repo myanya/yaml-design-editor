@@ -8,4 +8,7 @@ targets: P45
 closed_on: 2026-10-25
 resolutions:
   - date: 2026-10-25
+    kind: 解決
     section: ワークスペースの初期化ウィザード
+related:
+  - UX-125

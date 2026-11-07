@@ -9,4 +9,5 @@ targets: 分割中は auto を横に決め、vertical は左の一覧を 170dp �
 closed_on: 2026-10-26
 resolutions:
   - date: 2026-10-26
+    kind: 解決
     section: 注文管理サンプル

@@ -5,3 +5,5 @@ origin_on: 2026-10-18
 origin: フォーム編集のエラーログ
 memo: '`WInputMethod.openCandidateWindow` の対象参照が null；実行 JDK・IME・フォーカス移動の再現条件を確認し、配列描画の例外とは別に切り分ける（番号は記録の UX-171 と重なっていたため、2026-11-07
   に UX-264 へ振り直した）'
+related:
+  - UX-171

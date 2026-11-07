@@ -13,3 +13,6 @@ targets: R28-05a（FEATURES V-09）
 closed_on: 2026-09-05
 resolutions:
   - date: 2026-09-05
+    kind: 解決
+related:
+  - UX-15

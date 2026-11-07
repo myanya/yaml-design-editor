@@ -9,5 +9,8 @@ targets: UX-231
 closed_on: 2026-11-07
 resolutions:
   - date: 2026-11-07
+    kind: 解決
     note: UX-231 と同じ原因で、同じ修正で解決
     section: MCP の初期化セッションの取消
+related:
+  - UX-231

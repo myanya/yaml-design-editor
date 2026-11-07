@@ -6,3 +6,5 @@ origin: S2第1回
 memo: 既存の横断 Undo と整合する導線・後続適用と重ならない範囲の逆適用・git 連携を UX-51 と検討
 theme: T-01
 targets: T-01
+related:
+  - UX-51

@@ -5,4 +5,5 @@ memo: '`computed` を `value` へ寄せた際（2026-09-27）、`RefactoringImpa
 closed_on: 2026-09-27
 resolutions:
   - date: 2026-09-27
+    kind: 解決
     section: FEATURES の解消済み制約（旧 §11 の L-01〜L-16）

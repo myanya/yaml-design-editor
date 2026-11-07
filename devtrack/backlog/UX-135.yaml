@@ -10,3 +10,4 @@ targets: 'ビュー `kind: matrix`（2026-09-28。行の軸は論理ID・列の�
 closed_on: 2026-09-28
 resolutions:
   - date: 2026-09-28
+    kind: 解決

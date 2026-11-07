@@ -8,4 +8,5 @@ targets: FEATURES X-23・X-25（配線後の実測配置・折り返し・端ラ
 closed_on: 2026-11-04
 resolutions:
   - date: 2026-11-04
+    kind: 解決
     section: フローのラベル配置

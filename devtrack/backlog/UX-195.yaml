@@ -5,3 +5,5 @@ origin_on: 2026-10-25
 origin: README 改訂
 memo: README からは「文書の作成とスキーマ設計の手引き（以降の章は執筆中）」と案内した；新しいサンプルと対にして書く方針は UX-125
 targets: UX-125
+related:
+  - UX-125

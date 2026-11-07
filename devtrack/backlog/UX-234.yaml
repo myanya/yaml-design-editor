@@ -10,4 +10,5 @@ targets: FEATURES E-11（`DisplayCore.displayValue`）
 closed_on: 2026-11-02
 resolutions:
   - date: 2026-11-02
+    kind: 解決
     section: labs/rpmz の試用

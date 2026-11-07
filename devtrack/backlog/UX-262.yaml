@@ -1,6 +1,13 @@
 id: UX-262
 title: 起動の引数でワークスペースを開いても、ステータスバーが「「開く」からワークスペース（ディレクトリ）を選択してください」のまま（ダッシュボードは開いている）
-status: todo
+status: resolved
 origin_on: 2026-11-07
 origin: devtrack の画面確認
 memo: '`AppState.status` の初期値を `openWorkspace` が書き換えない。開いたときに「開きました: …」などへ替えるか、ワークスペースがあるときは初期の文言を出さない'
+closed_on: 2026-11-07
+resolutions:
+  - date: 2026-11-07
+    kind: 解決
+    note: ワークスペースを開いたら、ステータスバーに「ワークスペース「名前」を開きました」と出すようにした（起動の引数・スタート画面・切替のどれでも）
+    targets: AppState.afterWorkspaceOpened・DesktopRuntimeTest
+targets: AppState.afterWorkspaceOpened・DesktopRuntimeTest

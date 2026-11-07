@@ -9,3 +9,7 @@ targets: R17-03（FEATURES I-04）
 closed_on: 2026-08-13
 resolutions:
   - date: 2026-08-13
+    kind: 解決
+related:
+  - UX-01
+  - UX-13

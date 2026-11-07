@@ -10,4 +10,5 @@ targets: R47-28（DesktopUiDispatcher を根のパッケージへ移した）
 closed_on: 2026-10-30
 resolutions:
   - date: 2026-10-30
+    kind: 解決
     section: desktop の画面のパッケージ分け

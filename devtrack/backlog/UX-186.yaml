@@ -9,4 +9,5 @@ targets: T-03
 closed_on: 2026-10-25
 resolutions:
   - date: 2026-10-25
+    kind: 解決
     section: TODOの操作入力と利用可否

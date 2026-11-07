@@ -7,4 +7,5 @@ memo: 固定defaultと保存対象のautoとは分けて、時計の入力時点
 closed_on: 2026-10-25
 resolutions:
   - date: 2026-10-25
+    kind: 解決
     section: TODOの操作入力と利用可否

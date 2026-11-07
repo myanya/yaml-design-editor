@@ -5,3 +5,5 @@ origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**ビューの新規行追加の設定内容が分かりづらい**'
 memo: 新規行ダイアログ（`ViewGridPane`）での作成先・filePattern・idPattern の提示改善。UX-58（filePattern の二重プレフィクス）と隣接
+related:
+  - UX-58

@@ -11,3 +11,6 @@ targets: CONVENTIONS「Git」
 closed_on: 2026-10-03
 resolutions:
   - date: 2026-10-03
+    kind: 解決
+related:
+  - UX-140

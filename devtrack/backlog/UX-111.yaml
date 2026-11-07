@@ -11,3 +11,5 @@ memo: '足りない部品は3つ: ①**検査の前提条件**（「開始画面
   `CheckerKind.FLOW`・`SemanticFlow`・`FlowArgs` を削除でき、専用チェッカーの仕組み（`schema/Checker.kt`）は UX-110 のような本当に複雑な検査のために残る。利用者が自分で到達性の検査を書く目的は
   R29-15（`repeat`・`row`）で満たせているため、急がない'
 targets: R29-14・R29-15（architecture/checks.md「定義層の 3 段」）
+related:
+  - UX-110

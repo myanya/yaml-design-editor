@@ -9,4 +9,5 @@ targets: C-01・W-04。対象の境界検査を保ち走査を1回に統合、�
 closed_on: 2026-11-03
 resolutions:
   - date: 2026-11-03
+    kind: 解決
     section: ワークスペースの読込

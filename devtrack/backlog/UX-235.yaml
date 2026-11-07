@@ -11,4 +11,5 @@ targets: FEATURES X-14（文書ビューの区画のその場のチャート `ro
 closed_on: 2026-11-02
 resolutions:
   - date: 2026-11-02
+    kind: 解決
     section: labs/rpmz の試用

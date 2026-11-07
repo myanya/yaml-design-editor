@@ -8,4 +8,5 @@ targets: S-26
 closed_on: 2026-10-25
 resolutions:
   - date: 2026-10-25
+    kind: 解決
     section: スキーマ設計の入力

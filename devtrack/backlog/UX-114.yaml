@@ -16,3 +16,7 @@ targets: ARCHITECTURE §4.37・意図的差分 D-26
 closed_on: 2026-09-20
 resolutions:
   - date: 2026-09-20
+    kind: 解決
+related:
+  - UX-59
+  - UX-101

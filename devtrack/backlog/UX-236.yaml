@@ -11,5 +11,8 @@ targets: FEATURES C-15
 closed_on: 2026-11-02
 resolutions:
   - date: 2026-11-02
+    kind: 解決
     note: '案 A（オーナー）。`$zip` と、条件の `path: $index` を足した。魔法スキル（番号の一覧に含まれるか）は UX-239'
     section: labs/rpmz の試用
+related:
+  - UX-239

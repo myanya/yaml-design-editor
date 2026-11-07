@@ -10,3 +10,6 @@ targets: P33 第二弾（FEATURES S-02）
 closed_on: 2026-10-01
 resolutions:
   - date: 2026-10-01
+    kind: 解決
+related:
+  - UX-29

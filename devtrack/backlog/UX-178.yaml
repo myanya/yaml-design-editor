@@ -8,4 +8,5 @@ targets: W-04
 closed_on: 2026-10-24
 resolutions:
   - date: 2026-10-24
+    kind: 解決
     section: 再読込と Undo の完了

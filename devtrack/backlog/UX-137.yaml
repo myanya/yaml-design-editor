@@ -9,3 +9,4 @@ targets: 取り込みの `input.columns`（列の名前の並び。1 行目か�
 closed_on: 2026-09-29
 resolutions:
   - date: 2026-09-29
+    kind: 解決

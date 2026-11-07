@@ -62,6 +62,21 @@ definitions:
     values:
       - { value: resolved, label: ✅ 解決 }
       - { value: declined, label: ❌ 見送り }
+  # 解決の記録の種類: 値をそのまま台帳の文（docs/BACKLOG.md・記録の状態の欄）に出すので、値も日本語にする
+  記録の種類:
+    type: enum
+    values:
+      - { value: 一部, label: 一部の解決（指摘は未解決のまま） }
+      - { value: 解決, label: 解決 }
+      - { value: 見送り, label: 見送り }
+      - { value: 再開, label: 再開（解決・見送りを取り消して未解決に戻した） }
+  # 参照の型: 関連する指摘（重複・派生・同じ原因など）。線の名前は relates-to
+  指摘参照:
+    type: ref
+    idPattern: "UX-*"
+    scope:
+      schemaIds: [item]
+    relation: relates-to
   テーマの状態:
     type: enum
     values:
@@ -70,7 +85,7 @@ definitions:
       - { value: on-hold, label: 保留 }
 
   # ---- オブジェクト型 ----
-  # 解決の記録: 指摘の中に足していく。未解決の指摘にある記録は一部の解決、解決・見送りの指摘の最後の記録はその解決
+  # 解決の記録: 指摘の中に足していく（一部の解決・解決・見送り・再開）。操作「一部を解決する」「解決にする」「再開する」が足す
   解決の記録:
     type: object
     label: 解決の記録
@@ -78,6 +93,10 @@ definitions:
       - key: date
         label: 日付
         type: 年月日
+        required: true
+      - key: kind
+        label: 種類
+        type: 記録の種類
         required: true
       - key: note
         label: 内容
@@ -134,6 +153,11 @@ definitions:
       - key: theme
         label: テーマ
         type: テーマ参照
+      - key: related
+        label: 関連する指摘
+        type: array
+        description: 重複・派生・同じ原因など、一緒に見たい指摘。相手の個票には「関連する指摘から」として出ます。
+        item: { type: 指摘参照 }
       - key: targets
         label: 対応先
         type: 一行の文
@@ -146,7 +170,7 @@ definitions:
         label: 解決の記録
         type: array
         display: list
-        description: 一部の解決と、最後の解決を足していきます（操作「一部を解決する」「解決にする」）。
+        description: 一部の解決・解決・見送り・再開を足していきます（操作「一部を解決する」「解決にする」「再開する」）。
         item: { type: 解決の記録 }
     # 型の検査: 指摘ごとに評価する。台帳の運用（devtrack/README.md「運用」）を検査にしたもの
     constraints:

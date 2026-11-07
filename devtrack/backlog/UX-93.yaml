@@ -9,3 +9,6 @@ targets: S1第2回（FEATURES E-05）
 closed_on: 2026-09-02
 resolutions:
   - date: 2026-09-02
+    kind: 解決
+related:
+  - UX-86
