@@ -71,6 +71,8 @@ data class LensSelectParams(
      * 多くの箱が同じ 1 つの箱を参照するデータで、深さ 2 が全体に広がるのを防ぐ。
      */
     val stopAtHubs: Boolean = false,
+    /** 見え方の定義の絞り込みが隠すエンティティ（型の段では型）の ID（`LensFilters.hidden`。起点は含まない）。 */
+    val hiddenIds: Set<String> = emptySet(),
 )
 
 /** 見える節点 1 つ。parent は絞り込み後の入れ子の親（隠した型・隠した関係で切れた親は無い）。 */
@@ -235,14 +237,14 @@ object LensGraphs {
 
     /**
      * 絞り込み（型・関係・起点の近傍）と畳みを当てる。
-     * - 隠した型の節点は消える（起点は消えない）。親が消えた・親との関係を隠した子は、いちばん外側へ出る
+     * - 隠した型の節点と、絞り込みが隠す ID の節点は消える（起点は消えない）。親が消えた・親との関係を隠した子は、いちばん外側へ出る
      * - 起点があれば、辺と入れ子（親子）を幅優先で辿った近傍だけ。着いた箱の外側の箱も残す（箱の中を見せるには箱が要る）
      * - 畳んだ箱の中は見せず、中の箱につながる辺は見える箱へ付け替える。既定で開くのは起点の外側の箱と起点自身
      *   （深さ 2 なら起点の子も）。利用者が開いた・畳んだ箱はその指定が勝つ
      */
     fun select(graph: LensGraph, params: LensSelectParams): LensSelection {
         val origin = params.origin
-        fun shownType(node: LensNode) = node.id == origin || params.typeOf(node.id) !in params.hiddenTypes
+        fun shownType(node: LensNode) = node.id == origin || (params.typeOf(node.id) !in params.hiddenTypes && node.id !in params.hiddenIds)
         val present = graph.nodes.filter(::shownType).associateBy { it.key }
         // 絞り込み後の親: 親が消えた・親との関係を隠した子はいちばん外側へ
         val parentOf = HashMap<String, String>()

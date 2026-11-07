@@ -31,6 +31,8 @@ import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualEachDef
 import dev.toros.yde.semantic.VirtualGridDef
 import dev.toros.yde.semantic.LensArrow
+import dev.toros.yde.semantic.LensFilter
+import dev.toros.yde.semantic.LensFilterMode
 import dev.toros.yde.semantic.VirtualDiagramNotationDef
 import dev.toros.yde.semantic.VirtualLensDef
 import dev.toros.yde.semantic.VirtualLensRelation
@@ -311,10 +313,10 @@ object ViewDefinitions {
 
     /**
      * レンズの見え方（kind: lens）のパース: 関係ごとの矢印の向き（architecture/views.md「レンズの見え方」）。
-     * 記法の適用と関係の見え方を読む。節点の選択は画面の操作のまま。
+     * 記法の適用と関係の見え方と、箱の絞り込み（filters。ADR-0027）を読む。入れる・外すは画面の操作。
      */
     private fun parseLensView(raw: Map<*, *>, source: DocumentId): VirtualLensDef {
-        val keys = setOf("id", "name", "description", "kind", "relations", "appearance")
+        val keys = setOf("id", "name", "description", "kind", "relations", "appearance", "filters")
         raw.keys.firstOrNull { it !in keys }?.let { error("kind: lens では使えないキーです: $it") }
         fun text(key: String): String? = if (!raw.containsKey(key)) null else
             (raw[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$key は空でない文字列で書きます")
@@ -329,7 +331,31 @@ object ViewDefinitions {
             VirtualLensRelation(name, arrow)
         }
         relations.groupBy { it.name }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("relations に関係「$it」が重複しています") }
-        return VirtualLensDef(id, text("name") ?: id, text("description"), source, relations, DiagramDefinitions.appearance(raw["appearance"]))
+        return VirtualLensDef(id, text("name") ?: id, text("description"), source, relations, DiagramDefinitions.appearance(raw["appearance"]),
+            parseLensFilters(raw["filters"]))
+    }
+
+    private val LENS_FILTER_KEYS = setOf("id", "label", "mode", "level", "entityType", "where", "default")
+
+    /** 箱の絞り込み（ADR-0027）。条件は変換の `$when` と同じ書き方（`TransformDef.parseConditions`）。 */
+    private fun parseLensFilters(raw: Any?): List<LensFilter> {
+        if (raw == null) return emptyList()
+        val list = raw as? List<*> ?: error("filters はリストで書きます")
+        return list.mapIndexed { i, e ->
+            val m = e as? Map<*, *> ?: error("filters[$i] は object で書きます")
+            m.keys.firstOrNull { it !in LENS_FILTER_KEYS }?.let { error("filters[$i] で使えないキーです: $it（使えるキー: ${LENS_FILTER_KEYS.joinToString(", ")}）") }
+            fun text(key: String): String? = m[key]?.let { v -> v.toString().takeIf { it.isNotBlank() } ?: error("filters[$i].$key は空でない文字列で書きます") }
+            val id = text("id") ?: error("filters[$i].id が必要です")
+            val mode = text("mode")?.let { v -> LensFilterMode.parse(v) ?: error("filters[$i].mode は show / hide で書きます: $v") }
+                ?: error("filters[$i].mode（show＝条件に合う箱だけ見せる / hide＝条件に合う箱を隠す）が必要です")
+            val level = text("level")?.also { require(it == "entity" || it == "type") { "filters[$i].level は entity / type で書きます: $it" } }
+            if (m["where"] == null) error("filters[$i].where（条件）が必要です")
+            val conditions = TransformDef.parseConditions(m["where"], "filters[$i].where")
+            val default = m["default"]?.let { it as? Boolean ?: error("filters[$i].default は true / false で書きます") } ?: false
+            LensFilter(id, text("label") ?: id, mode, conditions, level, text("entityType"), default)
+        }.also { filters ->
+            filters.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("filters に絞り込み「$it」が重複しています") }
+        }
     }
 
     /** レンズの定義のリント: 関係レジストリがあれば、関係名が宣言されているか（レジストリが無ければ判定しない）。 */

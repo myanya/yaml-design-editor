@@ -132,4 +132,49 @@ class ViewDefinitionsTest {
         val badKey = ViewDefinitions.load(listOf(DocumentId("_views/lens.yaml") to "id: lens\nkind: lens\ncolumns: []\n"), schemas()).errors
         assertTrue(badKey.any { "kind: lens では使えないキー" in it }, badKey.toString())
     }
+
+    @Test
+    fun `レンズの定義は箱の絞り込みを持ち 絞り込みだけの定義も見え方として選べる`() {
+        val lens = """
+            id: open-lens
+            name: 残りだけ
+            kind: lens
+            relations:
+              - { name: uses, arrow: reverse }
+            filters:
+              - id: open-only
+                label: 未解決だけ
+                mode: show
+                entityType: item
+                where: [{ path: data.status, oneOf: [todo, doing] }]
+                default: true
+              - id: no-drafts
+                mode: hide
+                level: entity
+                where: { path: data.draft, equals: true }
+        """.trimIndent()
+        val catalog = ViewDefinitions.load(listOf(DocumentId("_views/open-lens.yaml") to lens), schemas())
+        assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
+        val def = catalog.lensViews.single()
+        assertTrue(def.selectable, "絞り込みを持つ定義は記法が無くても選ぶ定義")
+        val (open, drafts) = def.filters
+        assertEquals("未解決だけ", open.label)
+        assertEquals(dev.toros.yde.semantic.LensFilterMode.SHOW, open.mode)
+        assertEquals("item", open.entityType)
+        assertTrue(open.default)
+        assertEquals("no-drafts", drafts.label, "label を省くと id")
+        assertEquals("entity", drafts.level)
+        assertTrue(!drafts.default, "default の既定は入れない")
+        // 誤り: 向きが無い・知らない向き・条件が無い・知らないキー・ID の重複・段の誤り
+        fun errorsOf(text: String) = ViewDefinitions.load(listOf(DocumentId("_views/l.yaml") to text), schemas()).errors
+        val head = "id: l\nkind: lens\nfilters:\n"
+        assertTrue(errorsOf(head + "  - { id: a, where: { path: id, equals: x } }\n").any { "mode" in it })
+        assertTrue(errorsOf(head + "  - { id: a, mode: only, where: { path: id, equals: x } }\n").any { "show / hide" in it })
+        assertTrue(errorsOf(head + "  - { id: a, mode: hide }\n").any { "where" in it })
+        assertTrue(errorsOf(head + "  - { id: a, mode: hide, where: { path: id, equals: x }, color: red }\n").any { "使えないキー" in it })
+        assertTrue(errorsOf(head + "  - { id: a, mode: hide, where: { path: id, equals: x } }\n  - { id: a, mode: show, where: { path: id, equals: y } }\n")
+            .any { "重複" in it })
+        assertTrue(errorsOf(head + "  - { id: a, mode: hide, level: doc, where: { path: id, equals: x } }\n").any { "level" in it })
+        assertTrue(errorsOf(head + "  - { id: a, mode: hide, where: { path: id, between: x } }\n").isNotEmpty(), "条件の書き方は変換の \$when と同じ")
+    }
 }

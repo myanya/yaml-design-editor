@@ -130,8 +130,11 @@ object Views {
 
         fun view(id: String): ViewDef? = views.firstOrNull { it.id == id }
 
-        /** 矢印だけを持つ従来のレンズ定義の和。外観を持つ定義は選択したときだけ適用する。 */
-        val reversedRelations: Set<String> get() = lensViews.filter { it.appearance == null }.flatMap { it.reversedRelations }.toSet()
+        /** 矢印だけを持つ従来のレンズ定義の和。記法か絞り込みを持つ定義（`selectable`）は選択したときだけ適用する。 */
+        val reversedRelations: Set<String> get() = lensViews.filterNot { it.selectable }.flatMap { it.reversedRelations }.toSet()
+
+        /** 画面の「見え方」で選べるレンズ定義（記法か絞り込みを持つ。ADR-0020・ADR-0027）。 */
+        val selectableLenses: List<dev.toros.yde.semantic.VirtualLensDef> get() = lensViews.filter { it.selectable }
 
         fun docView(id: String): DocViewDef? = docViews.firstOrNull { it.id == id }
 

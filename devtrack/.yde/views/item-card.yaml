@@ -1,0 +1,42 @@
+# 指摘の箱: 解決・見送りは小さな札（印と ID だけ・薄い色）、未解決は状態の札と件名つきの箱
+id: item-card
+name: 指摘（状態つき）
+kind: diagram-notation
+target: node
+input:
+  type: object
+  fields:
+    - {key: id, type: string, required: true}
+    - {key: title, type: string, required: true}
+    - {key: status, type: string}
+build:
+  $first:
+    - $when: {path: status, oneOf: [resolved, declined]}
+      $then:
+        kind: box
+        shape: box
+        width: 96
+        tone: muted
+        children:
+          - kind: text
+            tone: muted
+            maxLines: 1
+            text: {$format: "{mark} {id}", $with: {mark: {$first: [{$when: {path: status, equals: resolved}, $then: "✅"}, "❌"]}, id: {$copy: id}}}
+    - kind: box
+      shape: rounded
+      width: 220
+      tone:
+        $first:
+          - {$when: {path: status, equals: discussing}, $then: accent}
+          - {$when: {path: status, equals: in-progress}, $then: warning}
+          - default
+      children:
+        - kind: text
+          maxLines: 1
+          text:
+            $first:
+              - {$when: {path: status, equals: discussing}, $then: "💬 議論待ち"}
+              - {$when: {path: status, equals: in-progress}, $then: "🚧 対応中"}
+              - {$when: {path: status, equals: when-needed}, $then: "⏳ 必要になったら"}
+              - "📋 未着手"
+        - {kind: text, text: {$format: "{id} {title}"}, maxLines: 3}

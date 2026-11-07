@@ -128,7 +128,7 @@ root:
           description: 行（rows の論理ID）×列（cells.columns＝参照先か値）のセルに、行から集めた要素の集計を出す。合計の行と列つき
         - value: lens
           label: レンズの見え方
-          description: グラフレンズ（実体・型の段）の見え方をワークスペースで共有する（関係ごとの矢印の向き）。表示だけの定義
+          description: グラフレンズ（実体・型の段）の見え方をワークスペースで共有する（関係ごとの矢印の向き・記法・箱の絞り込み）。表示だけの定義
         - value: diagram-notation
           label: 図の記法
           description: 入力からノードの部品や線の見え方を組み立てる共有定義
@@ -188,6 +188,31 @@ root:
             values: [forward, reverse]
             default: forward
             description: forward（既定）は参照を書いた側から相手へ（文字は label）、reverse は相手から参照を書いた側へ（文字は inverseLabel）。表示だけで、検証・クエリの向きは変わらない
+    - key: filters
+      label: 箱の絞り込み（lens）
+      type: array
+      description: "グラフレンズの画面で入れる・外す絞り込み（kind: lens）。この定義を「見え方」で選んだときに出る。入れた絞り込みのどれかが隠す箱は隠す（起点は隠さない）"
+      item:
+        type: object
+        fields:
+          - { key: id, label: 絞り込みID, type: string, required: true }
+          - { key: label, label: 画面の名前, type: string, role: title, description: 省略すると id }
+          - key: mode
+            label: 向き
+            type: enum
+            required: true
+            values:
+              - { value: hide, label: 条件に合う箱を隠す }
+              - { value: show, label: 条件に合う箱だけを見せる }
+            description: show では、値が無くて決められない箱も隠す
+          - { key: level, label: 段, type: enum, values: [entity, type], description: 省略すると両方の段 }
+          - { key: entityType, label: 対象のエンティティ型, type: string, description: 省略すると全部の型。対象外の箱には効かない }
+          - key: where
+            label: 条件
+            type: any
+            required: true
+            description: "変換の $when と同じ書き方（path ＋ equals / oneOf / exists など。並べて「かつ」、or / not）。箱の材料 id・title・entityType・data を読む（例 {path: data.status, oneOf: [resolved, declined]}）"
+          - { key: default, label: 最初から入れる, type: boolean, default: false }
     - key: cells
       label: セルの集計（matrix）
       type: object

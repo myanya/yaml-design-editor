@@ -145,6 +145,12 @@ private class LensModel(
     val keyIndex: Map<String, Int>,
     val visibleEdges: List<LensGraphEdge>,
     val sources: Map<LensGraphEdge, List<DiagramLinkSource>>,
+    /** 選んだ見え方の定義の絞り込みのうち、この段に効くもの（ADR-0027）。 */
+    val filters: List<LensFilter> = emptyList(),
+    /** 入っている絞り込みの ID。 */
+    val activeFilters: Set<String> = emptySet(),
+    /** 絞り込みで隠した箱の数（起点の近傍に限る前）。 */
+    val filteredOut: Int = 0,
 ) {
     /** 辺の端（箱の鍵）のエンティティ ID。 */
     fun idOf(key: String): String = nodes.getOrNull(keyIndex[key] ?: -1)?.node?.id ?: key
@@ -166,7 +172,7 @@ private fun rememberLensModel(state: AppState): LensModel {
     val catalog = remember(ws, state.indexVersion, state.editVersion) {
         ws?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) }
     }
-    val profile = catalog?.lensViews?.filter { it.appearance != null }?.singleOrNull { it.id == state.memory.lensAppearanceId }
+    val profile = catalog?.selectableLenses?.singleOrNull { it.id == state.memory.lensAppearanceId }
     val reversed = catalog?.reversedRelations.orEmpty() + profile?.reversedRelations.orEmpty()
     // 節点と辺（段と見え方ごと）。箱の入れ子は保有の線（型の段では保有の宣言）
     val lensGraph = remember(state.indexVersion, state.editVersion, mode, level, schemaGraph, reversed, catalog, profile) {
@@ -201,22 +207,41 @@ private fun rememberLensModel(state: AppState): LensModel {
     val origin =
         if (level == LensLevel.TYPE) state.memory.lensTypeOrigin?.takeIf { schemaGraph.typeMap.containsKey(it) }
         else state.lensOriginId?.takeIf { graph.entities.containsKey(it) }
-    // 絞り込み: 型・関係・起点の近傍・畳み（LensGraphs.select）。起点は型フィルタの対象外（起点自身が消えると意味を失う）
+    // 見え方の定義の絞り込み（ADR-0027）: この段に効くものと、入っているもの（画面の覚えが無ければ定義の default）
+    val levelName = if (level == LensLevel.TYPE) "type" else "entity"
+    val filters = profile?.filters.orEmpty().filter { it.level == null || it.level == levelName }
+    val activeFilters = filters.filter { state.memory.lensFilters[lensFilterKey(profile!!, it)] ?: it.default }
+    val filteredIds = remember(lensGraph, activeFilters, state.indexVersion, state.editVersion, level) {
+        LensFilters.hidden(activeFilters, levelName, lensGraph.nodes.map { it.id }.distinct().map { id ->
+            LensFilters.Candidate(id, if (level == LensLevel.TYPE) id else graph.entities[id]?.entityType) {
+                if (level == LensLevel.TYPE) DiagramInputs.type(id, schemaGraph.typeMap[id]?.label ?: id, schemaGraph.typeMap[id]).place
+                else DiagramInputs.entity(id, null, overlay, state.schemas, state.entityTypes, state.unsavedFirstTree()).place
+            }
+        })
+    }
+    // 絞り込み: 型・関係・定義の絞り込み・起点の近傍・畳み（LensGraphs.select）。起点はどの絞り込みでも消えない（起点自身が消えると意味を失う）
     val stopAtHubs = state.memory.lensStopAtHubs && origin != null && depth >= 2
-    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth, stopAtHubs) {
+    val selection = remember(lensGraph, hiddenTypes.toMap(), hiddenRelations.toMap(), expandedBoxes.toMap(), origin, depth, stopAtHubs, filteredIds) {
         LensGraphs.select(
             lensGraph,
-            LensSelectParams(typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap(), stopAtHubs),
+            LensSelectParams(typeOf, hiddenTypes.keys.toSet(), hiddenRelations.keys.toSet(), origin, depth, expandedBoxes.toMap(), stopAtHubs,
+                hiddenIds = filteredIds - setOfNotNull(origin)),
         )
     }
     val visibleEdges = remember(selection, hiddenRelations.toMap()) {
         selection.edges.filter { !(it.kind == LensEdgeKind.REF && it.relation == null && UNDECLARED in hiddenRelations) }
     }
     val keyIndex = remember(selection) { selection.nodes.withIndex().associate { (i, n) -> n.node.key to i } }
-    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode, level, reversed, catalog, profile) {
-        LensModel(catalog, profile, level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges, selection.sources)
+    val activeIds = activeFilters.map { it.id }.toSet()
+    val filteredOut = (filteredIds - setOfNotNull(origin)).size
+    return remember(selection, visibleEdges, keyIndex, types, typeColors, relations, holdingNames, origin, mode, level, reversed, catalog, profile, filters, activeIds, filteredOut) {
+        LensModel(catalog, profile, level, reversed, typeOf, types, typeColors, relations, holdingNames, origin, mode, selection.nodes, keyIndex, visibleEdges, selection.sources,
+            filters, activeIds, filteredOut)
     }
 }
+
+/** 絞り込みを入れた・外したことの覚えの鍵（定義ごとに分ける）。 */
+private fun lensFilterKey(profile: VirtualLensDef, filter: LensFilter): String = "${profile.id}/${filter.id}"
 
 /**
  * グラフレンズ: エンティティグラフの導出表示。
@@ -285,7 +310,8 @@ fun GraphLensView(state: AppState) {
     val context = DiagramContext(mapOf("kind" to "lens", "level" to level.name.lowercase(), "mode" to mode.name.lowercase()),
         withLayoutOptionSelection(mapOf("layout" to listOf(layoutKind.name.lowercase()), "origin" to listOfNotNull(origin), "depth" to listOf(depth.toString()),
             "hiddenTypes" to hiddenTypes.keys.sorted(), "hiddenRelations" to state.memory.lensHiddenRelations.keys.sorted(),
-            "appearance" to listOfNotNull(state.memory.lensAppearanceId)) + (if (stopAtHubs) mapOf("hubs" to listOf("stop")) else emptyMap()),
+            "appearance" to listOfNotNull(state.memory.lensAppearanceId)) + (if (stopAtHubs) mapOf("hubs" to listOf("stop")) else emptyMap()) +
+            (if (model.activeFilters.isNotEmpty()) mapOf("filters" to model.activeFilters.sorted()) else emptyMap()),
             layoutOptions.map { it.key }))
     val positionMemory = remember(state.workspace, context) { state.diagramPositions(context) }
     fun nodeId(n: LensNode) = if (level == LensLevel.TYPE) DiagramNodeId("type", n.id)
@@ -569,15 +595,32 @@ fun GraphLensView(state: AppState) {
             Text("グラフレンズ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Box {
                 var menuOpen by remember { mutableStateOf(false) }
-                TextButton(onClick = { menuOpen = true }) { Text("記法: ${model.profile?.name ?: "標準"}", fontSize = 11.sp) }
+                TextButton(onClick = { menuOpen = true }) { Text("見え方: ${model.profile?.name ?: "標準"}", fontSize = 11.sp) }
                 DropdownMenu(menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(text = { Text("標準") }, onClick = { state.memory.lensAppearanceId = null; menuOpen = false })
-                    model.catalog?.lensViews.orEmpty().filter { it.appearance != null }.forEach { profile ->
+                    model.catalog?.selectableLenses.orEmpty().forEach { profile ->
                         DropdownMenuItem(text = { Text(profile.name) }, onClick = { state.memory.lensAppearanceId = profile.id; menuOpen = false })
                     }
                 }
             }
-            model.profile?.let { profile -> TextButton(onClick = { state.openFile(profile.source) }) { Text("記法の適用定義", fontSize = 11.sp) } }
+            model.profile?.let { profile -> TextButton(onClick = { state.openFile(profile.source) }) { Text("見え方の定義", fontSize = 11.sp) } }
+            // 見え方の定義の絞り込み（ADR-0027）: 押して入れる・外す。入れたものは太字で、隠した箱の数を添える
+            model.profile?.let { profile ->
+                model.filters.forEach { filter ->
+                    val on = filter.id in model.activeFilters
+                    TextButton(
+                        onClick = { state.memory.lensFilters[lensFilterKey(profile, filter)] = !on },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                    ) {
+                        Text(
+                            (if (on) "☑ " else "☐ ") + filter.label, fontSize = 11.sp,
+                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                            color = if (on) Palette.Primary else Palette.Text,
+                        )
+                    }
+                }
+                if (model.activeFilters.isNotEmpty()) Text("${model.filteredOut} 件を隠しています", fontSize = 11.sp, color = Palette.SubText)
+            }
             Spacer(Modifier.width(8.dp))
             // 段: 実体（箱＝エンティティ・線＝参照）か型（箱＝エンティティ型・線＝関係＝スキーマの図）。型・関係の絞り込みは両方で同じ覚え
             LensLevel.entries.forEach { lv ->

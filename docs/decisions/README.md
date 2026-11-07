@@ -31,6 +31,7 @@
 | [ADR-0024](0024-diagram-ports.md) | ポートを図の表示モデルに導入する | 承認済み |
 | [ADR-0025](0025-flow-query-sources.md) | フローの入力をクエリ変換で合成する | 採用 |
 | [ADR-0026](0026-diagram-state-writes-without-document-lock.md) | 図の配置の保存は文書の排他を取らず、外部変更の確認も起こさない | 承認済み |
+| [ADR-0027](0027-lens-definition-selection.md) | レンズの定義に箱の絞り込みを持たせる | 承認済み |
 
 関連文書:
 

@@ -174,6 +174,12 @@ class ScreenMemory {
     /** 選んだ見え方。消えた定義は標準表示に戻す。 */
     var lensAppearanceId by mutableStateOf<String?>(null)
 
+    /**
+     * レンズの見え方の定義が持つ絞り込みを、利用者が入れた（true）・外した（false）もの（鍵は「定義ID/絞り込みID」。ADR-0027）。
+     * 無い鍵は定義の default に従う。消えた定義・絞り込みの鍵は読まない。
+     */
+    val lensFilters = mutableStateMapOf<String, Boolean>()
+
     /** 型の図の起点（型名）。無ければ全体。実体の起点は AppState.lensOriginId（移動の履歴に乗る）。 */
     var lensTypeOrigin by mutableStateOf<String?>(null)
 
@@ -266,6 +272,7 @@ class ScreenMemory {
         lensPanelTab = 0
         lensSchemaLevel = false
         lensAppearanceId = null
+        lensFilters.clear()
         lensTypeOrigin = null
         readinessPendingOnly = false
         readinessQuery = ""

@@ -243,6 +243,19 @@ class LensGraphTest {
     }
 
     @Test
+    fun `定義の絞り込みが隠す ID の箱は消え 線も消える 起点は消えない`() {
+        val g = LensGraphs.build(snapshot.graph, snapshot.refs, LensMode.ENTITY)
+        val hidden = LensGraphs.select(g, LensSelectParams(typeOf, hiddenIds = setOf("EA-1"), expanded = mapOf("SCR-1" to true)))
+        assertEquals(listOf("SCR-1", "SI-1", "SI-2", "TC-1", "TP-1"), hidden.nodes.map { it.node.key })
+        assertTrue(hidden.edges.none { it.to == "EA-1" || it.from == "EA-1" })
+        // 親を隠すと、子はいちばん外側へ出る
+        val noParent = LensGraphs.select(g, LensSelectParams(typeOf, hiddenIds = setOf("SCR-1")))
+        assertNull(noParent.nodes.first { it.node.key == "SI-1" }.parent)
+        val fromOrigin = LensGraphs.select(g, LensSelectParams(typeOf, hiddenIds = setOf("SI-1"), origin = "SI-1", depth = 1))
+        assertTrue(fromOrigin.nodes.any { it.node.key == "SI-1" }, "起点は隠さない")
+    }
+
+    @Test
     fun `線の多い箱の先は辿らない設定では その箱は見せて先の箱を出さない`() {
         // 多くの箱が同じ環境を参照する（AWS の inEnvironment のような）データ
         val leaves = (1..LensGraphs.HUB_EDGES).map { "R-$it" }

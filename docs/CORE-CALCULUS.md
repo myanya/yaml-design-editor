@@ -753,6 +753,7 @@ Core Calculus = 定義を実行する
 | Search / Traverse / Query Core / View rows | Query |
 | Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす） |
 | 図の記法 | Construct＋構造検査（入力と表示モデル）・原本座標の保持 |
+| レンズの絞り込み（`kind: lens` の `filters`） | Predicate（変換の条件と同じ評価器）を記法と同じ箱の材料に当てる。結果は表示の選択だけ（新しいQuery・書込なし） |
 | 図のポート | 名前と条件はConstruct・Predicate、形は構造契約、名前解決と計測後の接続位置は表示の意味と幾何（新しいQuery・Rewriteなし） |
 | Flow view | Construct＋構造検査・接続解決 |
 | Dashboard view | 既存ビュー＋Predicate＋Aggregate、Termの射影と選択 |

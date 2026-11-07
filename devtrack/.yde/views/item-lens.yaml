@@ -1,0 +1,25 @@
+# グラフレンズの「見え方」で選ぶ。指摘の箱を状態で描き分け、終わった指摘を隠す・残っている指摘だけを見せる絞り込みを持つ
+id: item-lens
+name: 指摘の状態
+kind: lens
+description: 指摘の箱を状態で描き分けます（解決・見送りは小さな札）。上の段の絞り込みで、終わった指摘を隠せます。
+appearance:
+  nodes:
+    - level: entity
+      entityType: backlog-item
+      notation: item-card
+      inputs:
+        id: {$copy: id}
+        title: {$copy: title}
+        status: {$copy: data.status}
+filters:
+  - id: hide-closed
+    label: 解決・見送りを隠す
+    mode: hide
+    entityType: backlog-item
+    where: {path: data.status, oneOf: [resolved, declined]}
+  - id: in-motion
+    label: 議論待ち・対応中だけ
+    mode: show
+    entityType: backlog-item
+    where: {path: data.status, oneOf: [discussing, in-progress]}
