@@ -14,7 +14,6 @@ entities:
   - { type: quest, label: 依頼 }
   - { type: assignment, label: 受注 }
   - { type: payment, label: 精算 }
-  - { type: payment-month, label: 精算の月 }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -88,11 +87,3 @@ relations:
     cardinality: { outMin: 1, outMax: 1 }
     level: error
     description: 依頼を受け付けた支部です。精算の手数料率はこの支部のものを使います
-  - name: in-month
-    label: 計上月
-    inverseLabel: この月の精算
-    source: [payment]
-    target: [payment-month]
-    cardinality: { outMin: 1, outMax: 1 }
-    level: error
-    description: 精算を計上する月です。月ごとの合計はこの線で集めます

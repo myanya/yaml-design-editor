@@ -3,8 +3,8 @@ name: ギルドの受付
 kind: dashboard
 default: true
 description: ギルドの受付の状況です。業務の流れの段（掲示待ち → 掲示中 → 遂行中 → 精算待ち → 精算済み）を押すと一覧、工程を押すとその段の依頼が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。期限を過ぎた依頼は基準日で判定します。
-# 対象を持たない操作（受け付ける・登録する・組む・月を足す）
-actions: [register-quest, register-adventurer, form-party, add-payment-month]
+# 対象を持たない操作（受け付ける・登録する・組む）
+actions: [register-quest, register-adventurer, form-party]
 placement: auto
 # 業務の流れ: 状態の区画を段、依頼の操作を工程として並べる。区画の filter が「その段にいる」の定義。
 # 却下・取消・期限切れ・失敗は流れに置かず、区画だけにする（報告で未達なら失敗へ移る。画面の確認では「流れに宣言していない移り方」の注意になる。manual/dashboards.md「移り先の予告」）
@@ -117,10 +117,14 @@ sections:
       match: [ { node: { entity: payment, bind: p } } ]
       check:
         - eq: [ { yearMonth: { of: p, path: paidOn } }, { yearMonth: $today } ]
-  - id: monthly-payments
-    label: 月ごとの精算
+  - id: monthly-amount
+    label: 月ごとの支払額
     group: 精算
-    view: monthly-payments-chart
+    view: monthly-amount-chart
+  - id: monthly-fee
+    label: 月ごとの手数料
+    group: 精算
+    view: monthly-fee
   # ---- 名簿 ----
   - id: adventurers
     label: 冒険者の名簿

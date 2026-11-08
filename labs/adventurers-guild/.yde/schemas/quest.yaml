@@ -277,7 +277,7 @@ actions:
         set: { of: self, path: status, value: failed }
   - id: settle-quest
     label: 報酬を精算する
-    description: 報告済みの依頼の報酬を支払い、精算の記録（PAY- の次の番号）を作って精算済みにします。手数料率は受付支部の率を写し、手数料と支払額を計算します。計上月は支払日の年月です（先に「精算の月を足す」でその月を足しておきます）。
+    description: 報告済みの依頼の報酬を支払い、精算の記録（PAY- の次の番号）を作って精算済みにします。手数料率は受付支部の率を写し、手数料と支払額を計算します。
     target: { entity: quest }
     input:
       initial:
@@ -312,7 +312,6 @@ actions:
                       params:
                         assignment: { $copy: id, $of: a }
                         paidOn: $date
-                        month: { $format: "PAYM-{ym}", $with: { ym: { $value: { yearMonth: { path: date } } } } }
                         reward: { $copy: reward, $of: self }
                         commissionRate: { $copy: commissionRate, $of: b }
                         fee: { $value: { divide: [ { multiply: [ { of: self, path: reward }, { of: b, path: commissionRate } ] }, 100 ] } }

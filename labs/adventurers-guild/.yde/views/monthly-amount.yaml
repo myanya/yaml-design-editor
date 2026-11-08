@@ -1,0 +1,12 @@
+id: monthly-amount
+name: 月ごとの支払額
+kind: matrix
+description: 支払日の年月ごとに、受け手に支払った額の合計を出します。年・月は支払日から導きます。報酬・手数料・支払額を 1 つの表に並べる形は、製品の改善（年・月を特殊な値として扱う）を待ちます。
+display: grouped
+cells:
+  match: [ { node: { entity: payment, bind: p } } ]
+  of: p
+  series:
+    - { label: 支払額, key: { yearMonth: { path: paidOn } } }
+  aggregate: sum
+  path: amount

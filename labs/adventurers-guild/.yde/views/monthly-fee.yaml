@@ -1,0 +1,12 @@
+id: monthly-fee
+name: 月ごとの手数料
+kind: matrix
+description: 支払日の年月ごとに、ギルドが受け取った手数料の合計を出します。年・月は支払日から導きます。
+display: grouped
+cells:
+  match: [ { node: { entity: payment, bind: p } } ]
+  of: p
+  series:
+    - { label: 手数料, key: { yearMonth: { path: paidOn } } }
+  aggregate: sum
+  path: fee

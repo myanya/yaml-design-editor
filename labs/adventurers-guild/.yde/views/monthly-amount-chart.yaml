@@ -1,0 +1,9 @@
+id: monthly-amount-chart
+name: 月ごとの支払額
+kind: chart
+chart: bar
+view: monthly-amount
+description: 支払日の年月ごとの支払額の棒です。棒を押すと、数えた精算が下に並びます。
+series: [支払額]
+y: { label: セリン, format: "#,##0" }
+drill: below
