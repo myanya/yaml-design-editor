@@ -1,0 +1,25 @@
+id: monthly-quests
+name: 受付月 × 状態の報酬
+kind: matrix
+description: 依頼を受け付けた年月ごとに、いまの状態ごとの報酬の合計を出します。却下と取消の依頼も報酬の額のまま並びます。
+rows: { value: { yearMonth: { path: receivedOn } } }
+cells:
+  match: [ { node: { entity: quest, bind: q } } ]
+  of: q
+  columns:
+    path: status
+    values:
+      - { value: received, label: 受付 }
+      - { value: posted, label: 掲示中 }
+      - { value: assigned, label: 受注済み }
+      - { value: reported, label: 報告済み }
+      - { value: settled, label: 精算済み }
+      - { value: failed, label: 失敗 }
+      - { value: expired, label: 期限切れ }
+      - { value: rejected, label: 却下 }
+      - { value: cancelled, label: 取消 }
+  aggregate: sum
+  path: reward
+display: grouped
+# 状態は必須なので、未分類の列は出さない
+unclassified: false

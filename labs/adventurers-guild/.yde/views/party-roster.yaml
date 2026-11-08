@@ -1,0 +1,35 @@
+id: party-roster
+name: パーティの編成
+description: パーティごとのランク・リーダー・構成員・人数・結成日と、パーティで受けている依頼の数とランクの上限。「新規行」でパーティ番号を入れると guild/parties/<番号>.yaml ができます。
+rows:
+  idPattern: "PTY-*"
+columns:
+  - { label: パーティ名, schemaId: party, path: name, editable: true }
+  - { label: ランク, schemaId: party, path: rank, editable: true }
+  - { label: リーダー, schemaId: party, path: leader, editable: true }
+  - { label: 構成員, schemaId: party, path: members }
+  - { label: 人数, schemaId: party, value: { count: { path: "members[*]" } } }
+  - { label: 結成日, schemaId: party, path: formedOn }
+  - label: 遂行中
+    schemaId: party
+    value:
+      count:
+        all:
+          of: a
+          match:
+            - node: { entity: party, bind: t }
+            - edge: { relation: taken-by, dir: in }
+            - node: { entity: assignment, bind: a }
+            - edge: { relation: has-assignment, dir: in }
+            - node: { entity: quest, bind: q }
+          where:
+            - { of: a, path: report, exists: false }
+            - { of: q, path: status, equals: assigned }
+  - label: 同時に受けられる数
+    schemaId: party
+    value:
+      first:
+        - { via: rank, in: { schemaId: rank-list }, path: maxConcurrent }
+        - 制限なし
+newRow:
+  filePattern: "guild/parties/{id}.yaml"

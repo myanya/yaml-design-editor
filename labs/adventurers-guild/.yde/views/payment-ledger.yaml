@@ -1,0 +1,22 @@
+id: payment-ledger
+name: 精算の記録
+description: 精算ごとの支払日・依頼・受け手・報酬・手数料率・手数料・支払額。支払日の順に並べます。行は精算から受注、受注を保有する依頼へ辿った組です。
+rows:
+  match:
+    - node: { entity: payment, bind: p }
+    - edge: { relation: settles }
+    - node: { entity: assignment, bind: a }
+    - edge: { relation: has-assignment, dir: in }
+    - node: { entity: quest, bind: q }
+  rowKey: p
+order: { path: paidOn }
+columns:
+  - { label: 支払日, of: p, path: paidOn }
+  - { label: 支払月, of: p, value: { yearMonth: { path: paidOn } } }
+  - { label: 依頼, of: q, path: id }
+  - { label: 件名, of: q, path: title }
+  - { label: 受け手, of: a, path: taker }
+  - { label: 報酬, of: p, path: reward }
+  - { label: 手数料率, of: p, path: commissionRate }
+  - { label: 手数料, of: p, path: fee }
+  - { label: 支払額, of: p, path: amount }

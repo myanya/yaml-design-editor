@@ -1,0 +1,24 @@
+id: rank-by-kind
+name: ランク × 種別
+kind: matrix
+description: 受注できるランクの下限ごとに、依頼の種別の件数を数えます。下限を書かない依頼（どのランクでも受けられる）は数えません。行はランク一覧の順（SS から F）です。
+rows: { idPattern: "RNK-*" }
+# 種別は必須なので、未分類の列は出さない
+unclassified: false
+order: { schemaId: rank-list }
+cells:
+  match:
+    - node: { entity: rank, bind: r }
+    - edge: { relation: requires-rank, dir: in }
+    - node: { entity: quest, bind: q }
+  of: q
+  columns:
+    path: kind
+    values:
+      - { value: subjugation, label: 討伐 }
+      - { value: gathering, label: 採取 }
+      - { value: escort, label: 護衛 }
+      - { value: investigation, label: 調査 }
+      - { value: delivery, label: 配達 }
+      - { value: other, label: その他 }
+  aggregate: count

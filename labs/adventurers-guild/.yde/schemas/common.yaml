@@ -182,6 +182,7 @@ definitions:
       - { key: id, label: ランク番号, type: ランク番号, required: true }
       - { key: name, label: 呼び名, type: 一行の文, role: title, required: true }
       - { key: order, label: 順位, type: 順位, required: true, description: 大きいほど上のランクです。受注の条件はこの数で比べます。 }
+      - { key: maxConcurrent, label: 同時に受けられる依頼の数, type: int, min: 1, description: 遂行中の依頼の数の上限です。個人とパーティで別に数えます。書かなければ上限はありません。 }
       - { key: description, label: 説明, type: 文章 }
   冒険者:
     type: object
@@ -294,6 +295,10 @@ definitions:
         expect: absent
         level: error
         message: "依頼「{id}」に受注の記録がありません（受注済み・報告済み・精算済み・失敗の依頼には要ります）"
+      - id: reward-in-tens
+        description: 報酬は 10 の倍数であること（手数料 1 割が整数になるように。端数の決まりは製品側を待つ）
+        check: [ { endsWith: [ { path: reward }, "0" ] } ]
+        level: error
       - id: deadline-not-before-received
         description: 期限は受付日以降であること
         where: [ { path: deadline, exists: true } ]

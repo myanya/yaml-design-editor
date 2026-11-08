@@ -1,0 +1,29 @@
+id: quest-board
+name: 依頼の掲示板
+description: 依頼ごとの種別・状態・依頼者・受注できるランクの下限・報酬・受付日・期限と、受け手。新しい順に並べます。受注の番号も QST- で始まるので、行は ID の形ではなく概念（quest）で選びます。「新規行」で依頼番号を入れると guild/quests/<番号>.yaml ができます。
+rows:
+  match:
+    - node: { entity: quest, bind: q }
+order: { path: receivedOn, direction: desc }
+columns:
+  - { label: 件名, path: title, editable: true }
+  - { label: 種別, path: kind, editable: true }
+  - { label: 状態, path: status }
+  - { label: 依頼者, path: client, editable: true }
+  - { label: 下限ランク, path: requiredRank, editable: true }
+  - { label: 報酬, path: reward, editable: true }
+  - { label: 受付日, path: receivedOn }
+  - { label: 期限, path: deadline, editable: true }
+  # 依頼が保有する受注を辿り、受け手（冒険者かパーティ）を並べる（読み取り専用の計算列）
+  - label: 受け手
+    value:
+      all:
+        of: t
+        match:
+          - node: { entity: quest, bind: q }
+          - edge: { relation: has-assignment }
+          - node: { entity: assignment, bind: a }
+          - edge: { relation: taken-by }
+          - node: { entity: [adventurer, party], bind: t }
+newRow:
+  filePattern: "guild/quests/{id}.yaml"

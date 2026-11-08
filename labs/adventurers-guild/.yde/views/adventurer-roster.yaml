@@ -1,0 +1,48 @@
+id: adventurer-roster
+name: 冒険者の名簿
+description: 冒険者ごとのランク・状態・登録日・所属するパーティと、個人で受けている依頼の数とランクの上限。「新規行」で冒険者番号を入れると guild/adventurers/<番号>.yaml ができます。
+rows:
+  idPattern: "ADV-*"
+columns:
+  - { label: 名前, schemaId: adventurer, path: name, editable: true }
+  - { label: ランク, schemaId: adventurer, path: rank, editable: true }
+  - { label: 状態, schemaId: adventurer, path: status, editable: true }
+  - { label: 登録日, schemaId: adventurer, path: registeredOn }
+  - label: 所属するパーティ
+    backlinks: { relation: has-member }
+  # 個人で受けて遂行中の受注（受注済みの依頼の、報告の無い受注）を数える。パーティで受けた分は数えない
+  - label: 遂行中（個人）
+    schemaId: adventurer
+    value:
+      count:
+        all:
+          of: a
+          match:
+            - node: { entity: adventurer, bind: t }
+            - edge: { relation: taken-by, dir: in }
+            - node: { entity: assignment, bind: a }
+            - edge: { relation: has-assignment, dir: in }
+            - node: { entity: quest, bind: q }
+          where:
+            - { of: a, path: report, exists: false }
+            - { of: q, path: status, equals: assigned }
+  - label: 同時に受けられる数
+    schemaId: adventurer
+    value:
+      first:
+        - { via: rank, in: { schemaId: rank-list }, path: maxConcurrent }
+        - 制限なし
+  - label: 達成（個人）
+    schemaId: adventurer
+    value:
+      count:
+        all:
+          of: a
+          match:
+            - node: { entity: adventurer, bind: t }
+            - edge: { relation: taken-by, dir: in }
+            - node: { entity: assignment, bind: a }
+          where:
+            - { of: a, path: report.outcome, equals: success }
+newRow:
+  filePattern: "guild/adventurers/{id}.yaml"
