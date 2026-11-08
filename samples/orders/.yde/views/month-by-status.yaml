@@ -14,6 +14,7 @@ cells:
     path: status
     values:
       - { value: pending, label: 未処理 }
+      - { value: confirmed, label: 受注確定 }
       - { value: shipped, label: 出荷済み }
       - { value: cancelled, label: 取消済み }
   aggregate: sum

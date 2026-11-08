@@ -1,6 +1,7 @@
 orderId: ORD-102
 orderedAt: 2026-10-10
-status: pending
+status: confirmed
+confirmedAt: 2026-10-11
 customerId: CUS-011
 totalAmount: 4800
 lines:
@@ -9,3 +10,11 @@ lines:
     quantity: 1
     unitPrice: 4800
     amount: 4800
+history:
+  - date: 2026-10-10
+    action: register-order
+    to: pending
+  - date: 2026-10-11
+    action: confirm-order
+    from: pending
+    to: confirmed

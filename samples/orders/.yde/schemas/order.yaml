@@ -87,6 +87,8 @@ actions:
                 quantity: { $copy: quantity }
                 unitPrice: { $copy: unitPrice }
                 amount: { $value: { multiply: [ { path: unitPrice }, { path: quantity } ] } }
+            # 履歴の最初の行（登録）。状態を変える操作が行を足していく
+            history: [ { date: $orderedAt, action: register-order, to: pending } ]
   - id: add-order-line
     label: 明細を足す
     description: 未処理の注文に明細を 1 行足します。明細番号は配列の追加の決まり（注文番号-01、-02 …）で採番し、明細金額と注文合計金額を更新します。
@@ -99,7 +101,7 @@ actions:
       - match: [ { node: { entity: order, bind: o } } ]
         where: [ { of: o, path: status, equals: pending } ]
         expect: exists
-        message: "{id} は未処理の注文ではありません（出荷済み・取消済みの注文には明細を足せません）"
+        message: "{id} は未処理の注文ではありません（受注確定・出荷済み・取消済みの注文には明細を足せません。確定した注文を直すときは「確定を戻す」）"
     do:
       # 明細番号は配列の insert の決まりが付ける（接頭辞は親の注文番号）。金額は受け取った値から計算する
       - insert:
@@ -115,10 +117,16 @@ actions:
           of: self
           path: totalAmount
           value: { $value: { add: [ { of: self, path: totalAmount }, { multiply: [ { path: unitPrice }, { path: quantity } ] } ] } }
-  - id: ship-order
-    label: 注文を出荷する
-    description: 未処理の注文を出荷済みにします。明細の無い注文は出荷できません。
+  - id: confirm-order
+    label: 受注を確定する
+    description: 未処理の注文の内容を確定します。明細が 1 件以上あり、販売を終えた商品を含まないことが前提です。確定した注文には明細を足せません（直すときは「確定を戻す」）。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
     target: { entity: order }
+    params:
+      - { key: date, label: 確定日, type: common#年月日, required: true }
+      - { key: note, label: メモ, type: common#一行の文 }
     require:
       - match: [ { node: { entity: order, bind: o } } ]
         where: [ { of: o, path: status, equals: pending } ]
@@ -130,16 +138,87 @@ actions:
           - node: { entity: order-line }
         expect: exists
         message: "{id} には明細がありません"
+      - match:
+          - node: { entity: order, bind: o }
+          - edge: { relation: has-line }
+          - node: { entity: order-line, bind: l }
+          - edge: { via: productId }
+          - node: { entity: product, bind: p }
+        where: [ { of: p, path: active, equals: false } ]
+        expect: absent
+        message: "{id} の明細 {l.id} は、販売を終えた商品 {p.title} を注文しています"
+      - match: [ { node: { entity: order, bind: o } } ]
+        check: [ { gte: [ $date, { of: o, path: orderedAt } ] } ]
+        message: 確定日は注文受付日以降にしてください
     do:
-      - set: { of: self, path: status, value: shipped }
-  - id: cancel-order
-    label: 注文を取り消す
-    description: 未処理の注文を取消済みにします。出荷済みの注文は取り消せません。
+      - set: { of: self, path: status, value: confirmed }
+      - set: { of: self, path: confirmedAt, value: $date }
+      - insert: { of: self, path: history, value: { date: $date, action: confirm-order, from: pending, to: confirmed, note: { $copy: note } } }
+  - id: unconfirm-order
+    label: 確定を戻す
+    description: 受注確定の注文を未処理に戻します（明細を直すときなど）。確定日を外し、戻した理由を履歴に残します。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
     target: { entity: order }
+    params:
+      - { key: date, label: 戻した日, type: common#年月日, required: true }
+      - { key: reason, label: 戻す理由, type: common#一行の文, required: true, minLength: 1 }
     require:
       - match: [ { node: { entity: order, bind: o } } ]
-        where: [ { of: o, path: status, equals: pending } ]
+        where: [ { of: o, path: status, equals: confirmed } ]
         expect: exists
-        message: "{id} は未処理の注文ではありません"
+        message: "{id} は受注確定の注文ではありません"
+      - match: [ { node: { entity: order, bind: o } } ]
+        check: [ { gte: [ $date, { of: o, path: confirmedAt } ] } ]
+        message: 戻した日は確定日以降にしてください
     do:
+      - set: { of: self, path: status, value: pending }
+      - delete: { of: self, path: confirmedAt }
+      - insert: { of: self, path: history, value: { date: $date, action: unconfirm-order, from: confirmed, to: pending, note: $reason } }
+  - id: ship-order
+    label: 注文を出荷する
+    description: 受注確定の注文を出荷済みにし、出荷日を記録します。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: order }
+    params:
+      - { key: date, label: 出荷日, type: common#年月日, required: true }
+      - { key: note, label: メモ, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: order, bind: o } } ]
+        where: [ { of: o, path: status, equals: confirmed } ]
+        expect: exists
+        message: "{id} は受注確定の注文ではありません（未処理なら先に「受注を確定する」）"
+      - match: [ { node: { entity: order, bind: o } } ]
+        check: [ { gte: [ $date, { of: o, path: confirmedAt } ] } ]
+        message: 出荷日は確定日以降にしてください
+    do:
+      - set: { of: self, path: status, value: shipped }
+      - set: { of: self, path: shippedAt, value: $date }
+      - insert: { of: self, path: history, value: { date: $date, action: ship-order, from: confirmed, to: shipped, note: { $copy: note } } }
+  - id: cancel-order
+    label: 注文を取り消す
+    description: 未処理か受注確定の注文を取消済みにし、取消日と理由を記録します。出荷済みの注文は取り消せません。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: order }
+    params:
+      - { key: date, label: 取消日, type: common#年月日, required: true }
+      - { key: reason, label: 取消理由, type: common#一行の文, required: true, minLength: 1 }
+    require:
+      - match: [ { node: { entity: order, bind: o } } ]
+        where: [ { of: o, path: status, oneOf: [pending, confirmed] } ]
+        expect: exists
+        message: "{id} は未処理・受注確定の注文ではありません（出荷済み・取消済みの注文は取り消せません）"
+      - match: [ { node: { entity: order, bind: o } } ]
+        check: [ { gte: [ $date, { of: o, path: orderedAt } ] } ]
+        message: 取消日は注文受付日以降にしてください
+    do:
+      # 履歴の「前の状態」は受け手のいまの状態を読むので、状態を変える前に足す
+      - insert: { of: self, path: history, value: { date: $date, action: cancel-order, from: { $copy: status, $of: self }, to: cancelled, note: $reason } }
       - set: { of: self, path: status, value: cancelled }
+      - set: { of: self, path: cancelledAt, value: $date }
+      - set: { of: self, path: cancelReason, value: $reason }

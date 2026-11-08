@@ -2,7 +2,7 @@ id: order-dashboard
 name: 注文ダッシュボード
 kind: dashboard
 default: true
-description: 注文の状況です。件数を押すと一覧に切り替わり、注文番号を押すと詳細と操作（出荷・取消）へ進みます。顧客別・商品別は、注文から集計した件数と金額です。
+description: 注文の状況です。件数を押すと一覧に切り替わり、注文番号を押すと詳細と操作（確定・出荷・取消）へ進みます。顧客別・商品別は、注文から集計した件数と金額です。
 actions: [register-order]
 # 区画のタイルの並べ方: auto（幅が十分で横に 3 段以上になるときだけ縦の一覧）/ horizontal（横に折り返す）/ vertical（左の一覧）
 placement: auto
@@ -26,6 +26,16 @@ sections:
       where:
         - { of: o, path: status, equals: pending }
       expect: exists
+  - id: confirmed
+    label: 受注確定
+    group: 状況
+    view: order-grid
+    filter:
+      match:
+        - node: { entity: order, bind: o }
+      where:
+        - { of: o, path: status, equals: confirmed }
+      expect: exists
   - id: shipped
     label: 出荷済み
     group: 状況
@@ -46,6 +56,18 @@ sections:
       where:
         - { of: o, path: status, equals: cancelled }
       expect: exists
+  # 滞留: 未処理・受注確定のまま、受付から基準日まで 7 日以上たった注文（基準日を変えると変わる）
+  - id: stale
+    label: 受付から 7 日以上
+    group: 状況
+    view: order-grid
+    filter:
+      match:
+        - node: { entity: order, bind: o }
+      where:
+        - { of: o, path: status, oneOf: [pending, confirmed] }
+      check:
+        - { gte: [ { daysBetween: [ { of: o, path: orderedAt }, $today ] }, 7 ] }
   - id: all
     label: すべての注文
     group: 状況

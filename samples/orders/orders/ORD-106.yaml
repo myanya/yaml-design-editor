@@ -9,3 +9,7 @@ lines:
     quantity: 50
     unitPrice: 270
     amount: 13500
+history:
+  - date: 2026-10-21
+    action: register-order
+    to: pending

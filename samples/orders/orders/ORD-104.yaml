@@ -1,6 +1,8 @@
 orderId: ORD-104
 orderedAt: 2026-10-19
 status: shipped
+confirmedAt: 2026-10-19
+shippedAt: 2026-10-22
 customerId: CUS-010
 totalAmount: 1800
 lines:
@@ -9,3 +11,15 @@ lines:
     quantity: 1
     unitPrice: 1800
     amount: 1800
+history:
+  - date: 2026-10-19
+    action: register-order
+    to: pending
+  - date: 2026-10-19
+    action: confirm-order
+    from: pending
+    to: confirmed
+  - date: 2026-10-22
+    action: ship-order
+    from: confirmed
+    to: shipped

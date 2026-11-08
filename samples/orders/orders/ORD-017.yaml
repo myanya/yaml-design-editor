@@ -1,6 +1,8 @@
 orderId: ORD-017
 orderedAt: 2025-12-21
 status: cancelled
+cancelledAt: 2025-12-23
+cancelReason: 顧客の都合で取りやめ
 customerId: CUS-004
 totalAmount: 3000
 lines:
@@ -14,3 +16,12 @@ lines:
     quantity: 2
     unitPrice: 900
     amount: 1800
+history:
+  - date: 2025-12-21
+    action: register-order
+    to: pending
+  - date: 2025-12-23
+    action: cancel-order
+    from: pending
+    to: cancelled
+    note: 顧客の都合で取りやめ

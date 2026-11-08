@@ -1,6 +1,8 @@
 orderId: ORD-018
 orderedAt: 2025-12-27
 status: cancelled
+cancelledAt: 2025-12-28
+cancelReason: 注文内容の誤り（再注文あり）
 customerId: CUS-005
 totalAmount: 9000
 lines:
@@ -9,3 +11,12 @@ lines:
     quantity: 10
     unitPrice: 900
     amount: 9000
+history:
+  - date: 2025-12-27
+    action: register-order
+    to: pending
+  - date: 2025-12-28
+    action: cancel-order
+    from: pending
+    to: cancelled
+    note: 注文内容の誤り（再注文あり）

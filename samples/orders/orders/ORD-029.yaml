@@ -1,6 +1,8 @@
 orderId: ORD-029
 orderedAt: 2026-02-07
 status: cancelled
+cancelledAt: 2026-02-09
+cancelReason: 納期が合わず取りやめ
 customerId: CUS-003
 totalAmount: 21800
 lines:
@@ -14,3 +16,12 @@ lines:
     quantity: 50
     unitPrice: 300
     amount: 15000
+history:
+  - date: 2026-02-07
+    action: register-order
+    to: pending
+  - date: 2026-02-09
+    action: cancel-order
+    from: pending
+    to: cancelled
+    note: 納期が合わず取りやめ

@@ -1,6 +1,8 @@
 orderId: ORD-038
 orderedAt: 2026-03-10
 status: shipped
+confirmedAt: 2026-03-10
+shippedAt: 2026-03-13
 customerId: CUS-011
 totalAmount: 8900
 lines:
@@ -9,3 +11,15 @@ lines:
     quantity: 1
     unitPrice: 8900
     amount: 8900
+history:
+  - date: 2026-03-10
+    action: register-order
+    to: pending
+  - date: 2026-03-10
+    action: confirm-order
+    from: pending
+    to: confirmed
+  - date: 2026-03-13
+    action: ship-order
+    from: confirmed
+    to: shipped

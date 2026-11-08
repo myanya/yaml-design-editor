@@ -1,6 +1,8 @@
 orderId: ORD-057
 orderedAt: 2026-05-28
 status: shipped
+confirmedAt: 2026-05-29
+shippedAt: 2026-05-30
 customerId: CUS-016
 totalAmount: 18700
 lines:
@@ -14,3 +16,15 @@ lines:
     quantity: 2
     unitPrice: 350
     amount: 700
+history:
+  - date: 2026-05-28
+    action: register-order
+    to: pending
+  - date: 2026-05-29
+    action: confirm-order
+    from: pending
+    to: confirmed
+  - date: 2026-05-30
+    action: ship-order
+    from: confirmed
+    to: shipped

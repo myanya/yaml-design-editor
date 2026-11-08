@@ -1,6 +1,8 @@
 orderId: ORD-003
 orderedAt: 2025-11-13
 status: shipped
+confirmedAt: 2025-11-14
+shippedAt: 2025-11-15
 customerId: CUS-004
 totalAmount: 2080
 lines:
@@ -14,3 +16,15 @@ lines:
     quantity: 1
     unitPrice: 120
     amount: 120
+history:
+  - date: 2025-11-13
+    action: register-order
+    to: pending
+  - date: 2025-11-14
+    action: confirm-order
+    from: pending
+    to: confirmed
+  - date: 2025-11-15
+    action: ship-order
+    from: confirmed
+    to: shipped

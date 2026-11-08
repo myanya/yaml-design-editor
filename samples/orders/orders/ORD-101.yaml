@@ -1,6 +1,8 @@
 orderId: ORD-101
 orderedAt: 2026-10-09
 status: shipped
+confirmedAt: 2026-10-10
+shippedAt: 2026-10-13
 customerId: CUS-007
 totalAmount: 3000
 lines:
@@ -9,3 +11,15 @@ lines:
     quantity: 10
     unitPrice: 300
     amount: 3000
+history:
+  - date: 2026-10-09
+    action: register-order
+    to: pending
+  - date: 2026-10-10
+    action: confirm-order
+    from: pending
+    to: confirmed
+  - date: 2026-10-13
+    action: ship-order
+    from: confirmed
+    to: shipped

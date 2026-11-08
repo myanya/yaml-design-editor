@@ -1,6 +1,9 @@
 orderId: ORD-099
 orderedAt: 2026-10-04
 status: cancelled
+confirmedAt: 2026-10-05
+cancelledAt: 2026-10-07
+cancelReason: 顧客の都合で取りやめ
 customerId: CUS-001
 totalAmount: 5400
 lines:
@@ -9,3 +12,16 @@ lines:
     quantity: 3
     unitPrice: 1800
     amount: 5400
+history:
+  - date: 2026-10-04
+    action: register-order
+    to: pending
+  - date: 2026-10-05
+    action: confirm-order
+    from: pending
+    to: confirmed
+  - date: 2026-10-07
+    action: cancel-order
+    from: confirmed
+    to: cancelled
+    note: 顧客の都合で取りやめ

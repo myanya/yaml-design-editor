@@ -103,13 +103,23 @@ definitions:
     pattern: "^[0-9]{2,4}-[0-9]{2,4}-[0-9]{3,4}$"
     placeholder: 03-1234-5678
     description: ハイフン区切りの数字です。
-  # 注文状態: 保存する値は英語、画面の表示は日本語
+  # 注文状態: 保存する値は英語、画面の表示は日本語。並びは流れの順（未処理 → 受注確定 → 出荷済み、取消済みは途中から）
   注文状態:
     type: enum
     values:
       - { value: pending, label: 未処理 }
+      - { value: confirmed, label: 受注確定 }
       - { value: shipped, label: 出荷済み }
       - { value: cancelled, label: 取消済み }
+  # 操作の名前（履歴に残す。order.yaml の actions の id）
+  注文の操作:
+    type: enum
+    values:
+      - { value: register-order, label: 注文を登録する }
+      - { value: confirm-order, label: 受注を確定する }
+      - { value: unconfirm-order, label: 確定を戻す }
+      - { value: ship-order, label: 注文を出荷する }
+      - { value: cancel-order, label: 注文を取り消す }
 
   # ---- オブジェクト型 ----
   # 注文明細: 注文の中に入れ子で書く要素。番号を持つので、注文が明細を「保有」する線になります
@@ -146,6 +156,30 @@ definitions:
         description: 明細金額は単価 × 注文数量であること
         check: [ { eq: [ { path: amount }, { multiply: [ { path: unitPrice }, { path: quantity } ] } ] } ]
         level: error
+  # 注文の履歴: 状態を変える操作が 1 行ずつ足す（いつ・どの操作で・どこからどこへ）。番号を持たない行
+  注文の履歴:
+    type: object
+    label: 注文の履歴
+    fields:
+      - key: date
+        label: 日付
+        type: 年月日
+        required: true
+      - key: action
+        label: 操作
+        type: 注文の操作
+        required: true
+      - key: from
+        label: 前の状態
+        type: 注文状態
+        description: 登録の行には書きません。
+      - key: to
+        label: 後の状態
+        type: 注文状態
+        required: true
+      - key: note
+        label: メモ・理由
+        type: 一行の文
   # 注文: 1 件 1 ファイルの文書のルート。顧客は参照、明細は入れ子
   注文:
     type: object
@@ -165,6 +199,23 @@ definitions:
         type: 注文状態
         required: true
         default: pending
+        description: 状態は操作（受注を確定する・確定を戻す・出荷する・取り消す）で変えます。操作が日付と履歴も一緒に書きます。
+      - key: confirmedAt
+        label: 確定日
+        type: 年月日
+        description: 受注を確定した日。受注確定・出荷済みの注文にあり、未処理の注文にはありません。
+      - key: shippedAt
+        label: 出荷日
+        type: 年月日
+        description: 出荷した日。出荷済みの注文だけにあります。
+      - key: cancelledAt
+        label: 取消日
+        type: 年月日
+        description: 取り消した日。取消済みの注文だけにあります。
+      - key: cancelReason
+        label: 取消理由
+        type: 一行の文
+        description: 取り消した理由。取消済みの注文だけにあります。
       - key: customerId
         label: 注文顧客
         type: 顧客参照
@@ -185,6 +236,13 @@ definitions:
           insert:
             id: { path: orderLineId, prefix: { $format: "{orderId}-", $of: self }, digits: 2 }
         item: { type: 注文明細 }
+      - key: history
+        label: 履歴
+        type: array
+        default: []
+        display: table
+        description: 状態を変える操作が 1 行ずつ足します。手で書き足す必要はありません。
+        item: { type: 注文の履歴 }
     constraints:
       - id: total-is-sum-of-lines
         description: 注文合計金額は明細金額の合計であること
@@ -196,6 +254,84 @@ definitions:
         expect: absent
         level: warning
         message: "注文「{id}」に明細がありません"
+      # 状態と記録の整合: 状態ごとに、あるべき日付と理由があり、あってはならない日付が無いこと
+      - id: confirmed-has-date
+        description: 受注確定・出荷済みの注文には確定日があること
+        where:
+          - { path: status, oneOf: [confirmed, shipped] }
+          - { path: confirmedAt, exists: false }
+        expect: absent
+        level: error
+        message: "注文「{id}」に確定日がありません（受注確定・出荷済みの注文には要ります）"
+      - id: pending-has-no-confirm-date
+        description: 未処理の注文には確定日を残さないこと
+        where:
+          - { path: status, equals: pending }
+          - { path: confirmedAt, exists: true }
+        expect: absent
+        level: error
+        message: "未処理の注文「{id}」に確定日が残っています"
+      - id: shipped-has-date
+        description: 出荷済みの注文には出荷日があること
+        where:
+          - { path: status, equals: shipped }
+          - { path: shippedAt, exists: false }
+        expect: absent
+        level: error
+        message: "出荷済みの注文「{id}」に出荷日がありません"
+      - id: only-shipped-has-ship-date
+        description: 出荷済みでない注文には出荷日を書かないこと
+        where:
+          - { path: status, notEquals: shipped }
+          - { path: shippedAt, exists: true }
+        expect: absent
+        level: error
+        message: "出荷済みでない注文「{id}」に出荷日があります"
+      - id: cancelled-has-date
+        description: 取消済みの注文には取消日があること
+        where:
+          - { path: status, equals: cancelled }
+          - { path: cancelledAt, exists: false }
+        expect: absent
+        level: error
+        message: "取消済みの注文「{id}」に取消日がありません"
+      - id: cancelled-has-reason
+        description: 取消済みの注文には取消理由があること
+        where:
+          - { path: status, equals: cancelled }
+          - { path: cancelReason, empty: true }
+        expect: absent
+        level: error
+        message: "取消済みの注文「{id}」に取消理由がありません"
+      - id: only-cancelled-has-cancel
+        description: 取消済みでない注文には取消日と取消理由を書かないこと
+        where:
+          - { path: status, notEquals: cancelled }
+          - { or: [ { path: cancelledAt, exists: true }, { path: cancelReason, exists: true } ] }
+        expect: absent
+        level: error
+        message: "取消済みでない注文「{id}」に取消日か取消理由があります"
+      - id: confirmed-not-before-ordered
+        description: 確定日は注文受付日以降であること
+        where: [ { path: confirmedAt, exists: true } ]
+        check: [ { gte: [ { path: confirmedAt }, { path: orderedAt } ] } ]
+        level: error
+      - id: shipped-not-before-confirmed
+        description: 出荷日は確定日以降であること
+        where: [ { path: shippedAt, exists: true }, { path: confirmedAt, exists: true } ]
+        check: [ { gte: [ { path: shippedAt }, { path: confirmedAt } ] } ]
+        level: error
+      - id: cancelled-not-before-ordered
+        description: 取消日は注文受付日以降であること
+        where: [ { path: cancelledAt, exists: true } ]
+        check: [ { gte: [ { path: cancelledAt }, { path: orderedAt } ] } ]
+        level: error
+      - id: has-history
+        description: 注文には履歴が 1 行以上あること（操作で登録・状態の変更をすると残ります）
+        where: [ { path: history, empty: true } ]
+        expect: absent
+        level: warning
+        message: "注文「{id}」に履歴がありません（操作で登録すると最初の行が入ります）"
   # 会社: 1 件 1 ファイル。法人の顧客（窓口）が所属する
   会社:
     type: object
