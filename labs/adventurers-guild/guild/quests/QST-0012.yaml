@@ -8,6 +8,8 @@ requiredRank: RNK-F
 reward: 60
 receivedOn: 2026-10-01
 deadline: 2026-10-15
+place: PLC-003
+targets: [MAT-003]
 description: 知り合いの婚礼に使う白百合を 30 本。
 history:
   - date: 2026-10-01

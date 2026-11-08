@@ -1,0 +1,41 @@
+places:
+  - id: PLC-001
+    name: ミルフェン
+    kind: town
+    description: ギルドの支部がある、街道と川が交わる交易の町です。町はずれに粉ひき場があります。
+  - id: PLC-002
+    name: 東の街道
+    kind: road
+    description: ミルフェンから東の村々へ向かう街道です。黒樫の森の縁を通ります。
+  - id: PLC-003
+    name: 黒樫の森
+    kind: forest
+    description: 町の東に広がる深い森です。薬草が採れ、奥には灰牙狼の巣があります。
+  - id: PLC-004
+    name: 灰沼
+    kind: wetland
+    description: 森の南の湿地です。大雨のあとは奥まで水に沈みます。
+  - id: PLC-005
+    name: 旧銀坑
+    kind: mine
+    description: 掘り尽くされて閉じた銀の坑道です。商会が買い取り、掘り直しを計画しています。
+  - id: PLC-006
+    name: 西の街道
+    kind: road
+    description: 隣町の市へ向かう街道です。途中に落石の多い峠があります。
+  - id: PLC-007
+    name: 北の峠道
+    kind: road
+    description: 北の砦へ登る山道です。
+  - id: PLC-008
+    name: 川向こうの村
+    kind: village
+    description: 川を挟んだ対岸の村です。橋が落ちると浅瀬を渡るしかありません。
+  - id: PLC-009
+    name: 禁猟の森
+    kind: forest
+    description: 領主が狩りを禁じている森です。
+  - id: PLC-010
+    name: 星見の遺跡
+    kind: ruins
+    description: 丘の上の古い石組みの遺跡です。まだ依頼は来ていません。

@@ -8,6 +8,8 @@ requiredRank: RNK-B
 reward: 1200
 receivedOn: 2026-10-01
 deadline: 2026-10-20
+place: PLC-002
+targets: [MON-001]
 description: 東の街道で、荷馬車が大狼の群れに襲われる。群れを街道から遠ざけてほしい。
 assignments:
   - id: QST-0001-A1

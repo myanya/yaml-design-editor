@@ -1,0 +1,16 @@
+id: place-list
+name: 場所の一覧
+description: 場所ごとの種類と、そこで行う依頼・そこに棲む魔物。
+rows:
+  idPattern: "PLC-*"
+order: { schemaId: place-list }
+columns:
+  - { label: 名前, schemaId: place-list, path: name, editable: true }
+  - { label: 種類, schemaId: place-list, path: kind, editable: true }
+  - label: この場所の依頼
+    backlinks: { relation: located-at }
+  - label: ここに棲む魔物
+    backlinks: { relation: inhabits }
+newRow:
+  file: guild/places.yaml
+  path: places

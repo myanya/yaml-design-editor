@@ -1,0 +1,14 @@
+id: monster-list
+name: 魔物の一覧
+description: 魔物ごとの討伐の目安のランク・生息地・落とす素材と、その魔物を対象にした依頼。「新規行」で魔物番号を入れると guild/monsters/<番号>.yaml ができます。
+rows:
+  idPattern: "MON-*"
+columns:
+  - { label: 名前, schemaId: monster, path: name, editable: true }
+  - { label: 討伐の目安, schemaId: monster, path: recommendedRank, editable: true }
+  - { label: 生息地, schemaId: monster, path: habitats }
+  - { label: 落とす素材, schemaId: monster, path: drops }
+  - label: 対象にした依頼
+    backlinks: { relation: targets }
+newRow:
+  filePattern: "guild/monsters/{id}.yaml"

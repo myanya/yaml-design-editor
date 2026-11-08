@@ -8,6 +8,7 @@ requiredRank: RNK-C
 reward: 600
 receivedOn: 2026-10-15
 deadline: 2026-11-05
+place: PLC-006
 description: 荷馬車 3 台を隣町の市まで送り、帰りの空の馬車も連れ帰る。
 assignments:
   - id: QST-0003-A1

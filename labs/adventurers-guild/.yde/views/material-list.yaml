@@ -1,0 +1,16 @@
+id: material-list
+name: 素材の一覧
+description: 素材ごとの種類と、それを落とす魔物・それを対象にした採取の依頼。
+rows:
+  idPattern: "MAT-*"
+order: { schemaId: material-list }
+columns:
+  - { label: 名前, schemaId: material-list, path: name, editable: true }
+  - { label: 種類, schemaId: material-list, path: kind, editable: true }
+  - label: これを落とす魔物
+    backlinks: { relation: drops }
+  - label: 対象にした依頼
+    backlinks: { relation: targets }
+newRow:
+  file: guild/materials.yaml
+  path: materials

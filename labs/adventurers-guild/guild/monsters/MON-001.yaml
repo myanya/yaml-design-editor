@@ -1,0 +1,6 @@
+id: MON-001
+name: 灰牙狼
+recommendedRank: RNK-C
+habitats: [PLC-003, PLC-002]
+drops: [MAT-004, MAT-005]
+description: 灰色の毛並みの大きな狼です。群れで動き、街道まで出てくることがあります。

@@ -8,6 +8,8 @@ requiredRank: RNK-A
 reward: 3000
 receivedOn: 2026-11-02
 deadline: 2026-12-15
+place: PLC-005
+targets: [MON-002]
 description: 商会が買い取った廃坑に大蜘蛛が巣を張り、掘り直しが始められない。
 history:
   - date: 2026-11-02

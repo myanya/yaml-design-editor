@@ -1,0 +1,6 @@
+id: MON-002
+name: 坑道蜘蛛
+recommendedRank: RNK-A
+habitats: [PLC-005]
+drops: [MAT-006, MAT-007]
+description: 人の背丈ほどもある蜘蛛です。暗い坑道に巣を張ります。

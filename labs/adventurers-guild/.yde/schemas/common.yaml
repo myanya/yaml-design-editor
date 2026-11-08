@@ -54,6 +54,31 @@ definitions:
     sample: PAY-0001
     description: 「PAY-」と 4 桁の数字。支払った順に振ります。精算のファイル名にもなります。
 
+  場所番号:
+    type: id
+    pattern: "^PLC-[0-9]{3}$"
+    placeholder: PLC-001
+    sample: PLC-001
+    description: 「PLC-」と 3 桁の数字。
+  魔物番号:
+    type: id
+    pattern: "^MON-[0-9]{3}$"
+    placeholder: MON-001
+    sample: MON-001
+    description: 「MON-」と 3 桁の数字。魔物のファイル名にもなります。
+  素材番号:
+    type: id
+    pattern: "^MAT-[0-9]{3}$"
+    placeholder: MAT-001
+    sample: MAT-001
+    description: 「MAT-」と 3 桁の数字。
+  職能番号:
+    type: id
+    pattern: "^JOB-[0-9]{2}$"
+    placeholder: JOB-01
+    sample: JOB-01
+    description: 「JOB-」と 2 桁の数字。
+
   # ---- 参照の型 ----
   # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
   ランク参照:
@@ -89,6 +114,33 @@ definitions:
       schemaIds: [branch]
     relation: received-at
     description: 依頼を受け付けた支部の番号を 1 件。
+  場所参照:
+    type: ref
+    idPattern: "PLC-*"
+    scope:
+      schemaIds: [place-list]
+    description: 場所の番号を 1 件。関係名は使う側が付けます（依頼の場所・魔物の生息地）。
+  素材参照:
+    type: ref
+    idPattern: "MAT-*"
+    scope:
+      schemaIds: [material-list]
+    relation: drops
+    description: 素材の番号を 1 件。
+  対象参照:
+    type: ref
+    idPatterns: ["MON-*", "MAT-*"]
+    scope:
+      schemaIds: [monster, material-list]
+    relation: targets
+    description: 依頼の対象の魔物か素材の番号を 1 件（討伐なら魔物、採取なら素材）。
+  職能参照:
+    type: ref
+    idPattern: "JOB-*"
+    scope:
+      schemaIds: [job-list]
+    relation: has-job
+    description: 職能の番号を 1 件。
   受注参照:
     type: ref
     idPattern: "QST-*-A*"
@@ -168,6 +220,24 @@ definitions:
       - { value: investigation, label: 調査 }
       - { value: delivery, label: 配達 }
       - { value: other, label: その他 }
+  場所の種類:
+    type: enum
+    values:
+      - { value: town, label: 町 }
+      - { value: village, label: 村 }
+      - { value: road, label: 街道 }
+      - { value: forest, label: 森 }
+      - { value: wetland, label: 湿地 }
+      - { value: mine, label: 坑道 }
+      - { value: ruins, label: 遺跡 }
+      - { value: other, label: その他 }
+  素材の種類:
+    type: enum
+    values:
+      - { value: plant, label: 植物 }
+      - { value: monster-part, label: 魔物の部位 }
+      - { value: mineral, label: 鉱物 }
+      - { value: other, label: その他 }
   依頼者の区分:
     type: enum
     values:
@@ -213,6 +283,7 @@ definitions:
       - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true }
       - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
+      - { key: job, label: 職能, type: 職能参照, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
       - { key: note, label: 備考, type: 文章 }
   構成員:
     type: ref
@@ -295,6 +366,12 @@ definitions:
       - { key: reward, label: 報酬, type: 金額, required: true }
       - { key: receivedOn, label: 受付日, type: 年月日, required: true }
       - { key: deadline, label: 期限, type: 年月日 }
+      - { key: place, label: 場所, type: 場所参照, relation: located-at, description: 依頼を行う場所です。 }
+      - key: targets
+        label: 対象
+        type: array
+        description: 討伐の魔物や、採取の素材です。
+        item: { type: 対象参照 }
       - { key: description, label: 内容, type: 文章 }
       - key: assignments
         label: 受注
@@ -367,3 +444,49 @@ definitions:
         description: 支払額は報酬 − 手数料であること
         check: [ { eq: [ { number: { path: amount } }, { number: { subtract: [ { path: reward }, { path: fee } ] } } ] } ]
         level: error
+
+  # ---- オブジェクト型（世界） ----
+  場所:
+    type: object
+    label: 場所
+    entity: { type: place, defines: true }
+    fields:
+      - { key: id, label: 場所番号, type: 場所番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 種類, type: 場所の種類, required: true }
+      - { key: description, label: 説明, type: 文章 }
+  素材:
+    type: object
+    label: 素材
+    entity: { type: material, defines: true }
+    fields:
+      - { key: id, label: 素材番号, type: 素材番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 種類, type: 素材の種類, required: true }
+      - { key: description, label: 説明, type: 文章 }
+  魔物:
+    type: object
+    label: 魔物
+    entity: { type: monster, defines: true }
+    fields:
+      - { key: id, label: 魔物番号, type: 魔物番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: recommendedRank, label: 討伐の目安のランク, type: ランク参照, relation: recommended-rank, required: true, description: 討伐依頼の受注できるランクの下限は、これを下回らないようにします（下回れば警告）。 }
+      - key: habitats
+        label: 生息地
+        type: array
+        item: { type: 場所参照, relation: inhabits }
+      - key: drops
+        label: 落とす素材
+        type: array
+        description: 討伐で得られる素材です。
+        item: { type: 素材参照 }
+      - { key: description, label: 説明, type: 文章 }
+  職能:
+    type: object
+    label: 職能
+    entity: { type: job, defines: true }
+    fields:
+      - { key: id, label: 職能番号, type: 職能番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: description, label: 説明, type: 文章 }

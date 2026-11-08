@@ -156,6 +156,43 @@ constraints:
     level: warning
     message: "依頼「{id}」の受注 {a.id} は、期限を過ぎてから報告されています"
 
+  # ---- 討伐の目安（魔物の討伐の目安のランク） ----
+  - id: subjugation-rank-meets-monster
+    description: 討伐依頼の受注できるランクの下限は、対象の魔物の討伐の目安のランクを下回らないこと（下回れば警告）
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: targets }
+      - node: { entity: monster, bind: m }
+      - edge: { relation: recommended-rank }
+      - node: { entity: rank, bind: rm }
+    also:
+      from: q
+      steps:
+        - edge: { relation: requires-rank }
+        - node: { entity: rank, bind: rq }
+    where:
+      - { of: q, path: kind, equals: subjugation }
+    check:
+      - gte: [ { of: rq, path: order }, { of: rm, path: order } ]
+    level: warning
+    message: "討伐依頼「{id}」の下限 {rq.title} は、{m.title} の討伐の目安 {rm.title} を下回っています"
+  # 下限が無い＝どのランクでも（F でも）受けられるので、目安が F より上の魔物なら下回っている
+  - id: subjugation-without-rank
+    description: 討伐の目安が F より上の魔物を対象にする討伐依頼には、受注できるランクの下限があること（無ければ警告）
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: targets }
+      - node: { entity: monster, bind: m }
+      - edge: { relation: recommended-rank }
+      - node: { entity: rank, bind: rm }
+    where:
+      - { of: q, path: kind, equals: subjugation }
+      - { of: q, path: requiredRank, exists: false }
+      - { of: rm, path: order, gt: 1 }
+    expect: absent
+    level: warning
+    message: "討伐依頼「{id}」に受注できるランクの下限がありません（{m.title} の討伐の目安は {rm.title}）"
+
 # ---- 操作: 依頼の状態を進める ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す（前の状態を読むため）。
 # 受け手のランク・同時に受けられる数・受注できない状態は、上の検査と同じ決まりを、適用後の検証が止める
@@ -174,6 +211,8 @@ actions:
       - { key: requiredRank, label: 受注できるランクの下限, type: common#ランク参照, description: 書かなければ、どのランクでも受けられます。 }
       - { key: reward, label: 報酬, type: common#金額, required: true, description: 10 の倍数にします。 }
       - { key: deadline, label: 期限, type: common#年月日 }
+      - { key: place, label: 場所, type: common#場所参照 }
+      - { key: targets, label: 対象, type: array, item: { type: common#対象参照 }, description: 討伐の魔物や採取の素材です。 }
       - { key: description, label: 内容, type: common#文章 }
       - { key: date, label: 受付日, type: common#年月日, required: true }
       - { key: branch, label: 受付支部, type: common#支部参照, required: true, default: BRN-01 }
@@ -191,6 +230,8 @@ actions:
             reward: $reward
             receivedOn: $date
             deadline: { $copy: deadline }
+            place: { $copy: place }
+            targets: { $copy: targets }
             description: { $copy: description }
             history: [ { date: $date, action: register-quest, to: received } ]
   - id: post-quest

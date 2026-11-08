@@ -6,6 +6,7 @@ branch: BRN-01
 client: CLT-002
 reward: 500
 receivedOn: 2026-10-22
+place: PLC-009
 history:
   - date: 2026-10-22
     action: register-quest

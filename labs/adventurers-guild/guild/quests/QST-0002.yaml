@@ -8,6 +8,8 @@ requiredRank: RNK-F
 reward: 80
 receivedOn: 2026-10-05
 deadline: 2026-10-31
+place: PLC-003
+targets: [MAT-001]
 description: 解熱の薬に使う月影草を、根を傷めずに 20 束。
 assignments:
   - id: QST-0002-A1

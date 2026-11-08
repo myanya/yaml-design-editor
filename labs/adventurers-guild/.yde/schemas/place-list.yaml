@@ -1,0 +1,17 @@
+id: place-list
+name: 場所
+kind: document
+description: 依頼を行う場所と魔物の生息地の一覧です。種類（町・街道・森・湿地・坑道・遺跡 など）で分けます。
+match: guild/places.yaml
+root:
+  type: object
+  fields:
+    - key: places
+      label: 場所
+      type: array
+      required: true
+      display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "PLC-", digits: 3 }
+      item: { type: common#場所 }

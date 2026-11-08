@@ -14,6 +14,10 @@ entities:
   - { type: quest, label: 依頼 }
   - { type: assignment, label: 受注 }
   - { type: payment, label: 精算 }
+  - { type: place, label: 場所 }
+  - { type: monster, label: 魔物 }
+  - { type: material, label: 素材 }
+  - { type: job, label: 職能 }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -87,3 +91,48 @@ relations:
     cardinality: { outMin: 1, outMax: 1 }
     level: error
     description: 依頼を受け付けた支部です。精算の手数料率はこの支部のものを使います
+  - name: located-at
+    label: 場所
+    inverseLabel: この場所の依頼
+    source: [quest]
+    target: [place]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 依頼を行う場所です。1 つまでです
+  - name: targets
+    label: 対象
+    inverseLabel: これを対象にした依頼
+    source: [quest]
+    target: [monster, material]
+    level: error
+    description: 討伐の魔物や採取の素材です。いくつでも書けます
+  - name: inhabits
+    label: 生息地
+    inverseLabel: ここに棲む魔物
+    source: [monster]
+    target: [place]
+    level: error
+    description: 魔物が棲む場所です
+  - name: drops
+    label: 落とす素材
+    inverseLabel: これを落とす魔物
+    source: [monster]
+    target: [material]
+    level: error
+    description: 討伐で得られる素材です
+  - name: recommended-rank
+    label: 討伐の目安のランク
+    inverseLabel: このランクが目安の魔物
+    source: [monster]
+    target: [rank]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 魔物を討伐するのに目安となるランクです
+  - name: has-job
+    label: 職能
+    inverseLabel: この職能の冒険者
+    source: [adventurer]
+    target: [job]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 冒険者の主な職能です。1 つまでです

@@ -1,0 +1,17 @@
+id: material-list
+name: 素材
+kind: document
+description: 採取の対象と、魔物が落とす素材の一覧です。買取（値段）は運営の段階で足します。
+match: guild/materials.yaml
+root:
+  type: object
+  fields:
+    - key: materials
+      label: 素材
+      type: array
+      required: true
+      display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "MAT-", digits: 3 }
+      item: { type: common#素材 }

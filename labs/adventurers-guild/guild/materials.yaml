@@ -1,0 +1,30 @@
+materials:
+  - id: MAT-001
+    name: 月影草
+    kind: plant
+    description: 解熱の薬に使う草です。根を傷めずに採ります。
+  - id: MAT-002
+    name: 眠り茸
+    kind: plant
+    description: 痛み止めに使う茸です。湿地の奥にしか生えません。
+  - id: MAT-003
+    name: 白百合
+    kind: plant
+    description: 婚礼や祭りの飾りに使う花です。
+  - id: MAT-004
+    name: 灰牙狼の毛皮
+    kind: monster-part
+  - id: MAT-005
+    name: 灰牙狼の牙
+    kind: monster-part
+  - id: MAT-006
+    name: 坑道蜘蛛の糸
+    kind: monster-part
+    description: 丈夫で、綱や網の材料になります。
+  - id: MAT-007
+    name: 坑道蜘蛛の毒腺
+    kind: monster-part
+    description: 薬師が扱います。触れるときは手袋をします。
+  - id: MAT-008
+    name: 泥鱗トカゲの鱗
+    kind: monster-part

@@ -8,6 +8,7 @@ requiredRank: RNK-F
 reward: 100
 receivedOn: 2026-11-05
 deadline: 2026-11-23
+place: PLC-001
 description: 収穫祭の夜、広場と裏通りを見回って、もめごとがあれば守衛に知らせる。
 history:
   - date: 2026-11-05

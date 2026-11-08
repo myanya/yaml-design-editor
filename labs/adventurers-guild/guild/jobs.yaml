@@ -1,0 +1,16 @@
+jobs:
+  - id: JOB-01
+    name: 戦士
+    description: 剣や斧で前に立つ職能です。
+  - id: JOB-02
+    name: 魔術師
+    description: 術で離れた敵を討つ職能です。
+  - id: JOB-03
+    name: 斥候
+    description: 先を探り、罠や道を見る職能です。
+  - id: JOB-04
+    name: 治療師
+    description: 傷を手当てし、仲間を支える職能です。
+  - id: JOB-05
+    name: 弓手
+    description: 弓で離れた敵を射る職能です。採取の道中にも向きます。

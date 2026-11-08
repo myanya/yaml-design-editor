@@ -8,6 +8,8 @@ requiredRank: RNK-D
 reward: 300
 receivedOn: 2026-10-10
 deadline: 2026-10-25
+place: PLC-004
+targets: [MAT-002]
 description: 痛み止めに使う眠り茸を 10 本。湿地の奥にしか生えない。
 assignments:
   - id: QST-0009-A1

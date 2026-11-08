@@ -6,6 +6,8 @@ branch: BRN-01
 client: CLT-004
 reward: 50
 receivedOn: 2026-11-07
+place: PLC-001
+targets: [MON-003]
 description: 小麦の袋がかじられている。数が多いので手を貸してほしい。
 history:
   - date: 2026-11-07

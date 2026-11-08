@@ -1,0 +1,24 @@
+id: place-by-kind
+name: 場所 × 種別
+kind: matrix
+description: 場所ごとに、そこで行う依頼の種別の件数を数えます。場所を書かない依頼は数えません。行は場所の一覧の順です。
+rows: { idPattern: "PLC-*" }
+order: { schemaId: place-list }
+# 種別は必須なので、未分類の列は出さない
+unclassified: false
+cells:
+  match:
+    - node: { entity: place, bind: p }
+    - edge: { relation: located-at, dir: in }
+    - node: { entity: quest, bind: q }
+  of: q
+  columns:
+    path: kind
+    values:
+      - { value: subjugation, label: 討伐 }
+      - { value: gathering, label: 採取 }
+      - { value: escort, label: 護衛 }
+      - { value: investigation, label: 調査 }
+      - { value: delivery, label: 配達 }
+      - { value: other, label: その他 }
+  aggregate: count

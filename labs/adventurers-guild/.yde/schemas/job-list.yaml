@@ -1,0 +1,17 @@
+id: job-list
+name: 職能
+kind: document
+description: 冒険者の主な職能の一覧です。
+match: guild/jobs.yaml
+root:
+  type: object
+  fields:
+    - key: jobs
+      label: 職能
+      type: array
+      required: true
+      display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "JOB-", digits: 2 }
+      item: { type: common#職能 }

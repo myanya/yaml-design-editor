@@ -134,3 +134,16 @@ sections:
     label: パーティの編成
     group: 名簿
     view: party-roster
+  # ---- 世界 ----
+  - id: monsters
+    label: 魔物の一覧
+    group: 世界
+    view: monster-list
+  - id: places
+    label: 場所の一覧
+    group: 世界
+    view: place-list
+  - id: materials
+    label: 素材の一覧
+    group: 世界
+    view: material-list

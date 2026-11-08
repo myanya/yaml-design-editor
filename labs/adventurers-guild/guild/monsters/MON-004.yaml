@@ -1,0 +1,6 @@
+id: MON-004
+name: 泥鱗トカゲ
+recommendedRank: RNK-D
+habitats: [PLC-004]
+drops: [MAT-008]
+description: 湿地の泥に潜むトカゲです。採取に入った者を襲うことがあります。

@@ -1,0 +1,7 @@
+id: monster
+name: 魔物
+kind: document
+description: 魔物 1 種を 1 ファイルで管理します。討伐の目安のランク・生息地・落とす素材を持ちます。
+match: "guild/monsters/*.yaml"
+filePattern: "guild/monsters/{id}.yaml"
+root: { type: common#魔物 }
