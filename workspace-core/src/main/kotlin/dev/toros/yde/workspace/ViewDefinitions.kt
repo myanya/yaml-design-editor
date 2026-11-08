@@ -42,6 +42,12 @@ import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.DashboardInputType
 import dev.toros.yde.semantic.DashboardInput
 import dev.toros.yde.semantic.DashboardSection
+import dev.toros.yde.semantic.DashboardFlow
+import dev.toros.yde.semantic.DashboardFlowDirection
+import dev.toros.yde.semantic.DashboardFlowStart
+import dev.toros.yde.semantic.DashboardFlows
+import dev.toros.yde.semantic.DashboardHistory
+import dev.toros.yde.semantic.DashboardMove
 import dev.toros.yde.semantic.schema.ActionRequire
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
@@ -139,6 +145,14 @@ object ViewDefinitions {
                         errors += "${fileName(dashboard.source)}: クロス集計の区画にはfilterを指定できません（合計との不一致を防ぐため）"
                 }
             }
+            // 流れ（flow）: 段は行に対象を持つ区画（グリッド。クロス集計・チャートは段にしない）
+            dashboard.flow?.steps?.forEach { step ->
+                val section = dashboard.sections.firstOrNull { it.id == step } ?: return@forEach
+                val single = all.filter { it.id == section.view }.singleOrNull()
+                if (single is VirtualGridDef && single.matrix != null || single is ExtensionViewDef)
+                    errors += "${fileName(dashboard.source)}: flow.steps の「$step」はグリッドの区画にしてください（クロス集計・チャートは段にできません）"
+            }
+            DashboardFlows.lint(dashboard).forEach { errors += "${fileName(dashboard.source)}: $it" }
             if (schemas.isNotEmpty()) errors += lintDashboard(dashboard, schemas)
         }
         // 拡張の種類の点検（チャートの元の表の有無・フローの適用先のスキーマなど）は種類が行う
@@ -278,7 +292,7 @@ object ViewDefinitions {
         }
         fun text(map: Map<*, *>, key: String, at: String): String =
             (map[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$at.$key は空でない文字列で指定してください")
-        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default", "placement", "inputs"), "dashboard")
+        keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default", "placement", "inputs", "flow"), "dashboard")
         require(!raw.containsKey("default") || raw["default"] is Boolean) { "dashboard.default は真偽値で指定してください" }
         val id = text(raw, "id", "dashboard")
         val inputs = parseInputs(raw["inputs"])
@@ -303,15 +317,70 @@ object ViewDefinitions {
         return VirtualDashboardDef(id, raw["name"]?.let { text(raw, "name", "dashboard") } ?: id,
             raw["description"]?.let { text(raw, "description", "dashboard") }, source, parsed, actions, raw["default"] == true,
             placement = raw["placement"]?.let { DashboardPlacement.parse(it as? String, "dashboard.placement") } ?: DashboardPlacement.AUTO,
-            inputs = inputs)
+            inputs = inputs, flow = raw["flow"]?.let { parseFlow(it) })
     }
 
-    private fun lintDashboard(view: VirtualDashboardDef, schemas: List<WorkspaceSchema>): List<String> =
-        view.actions.mapNotNull { id ->
-            val actions = schemas.flatMap { it.actions }.filter { it.id == id }
+    /** 流れ（flow）: 段（区画の id）・工程（from の段の対象に action を当てて to の段へ）・入口・履歴・向き。 */
+    private fun parseFlow(raw: Any): DashboardFlow {
+        val map = raw as? Map<*, *> ?: error("dashboard.flow は object で書きます")
+        map.keys.firstOrNull { it !in setOf("direction", "start", "steps", "moves", "history") }
+            ?.let { error("dashboard.flow: 未知のキーです: $it") }
+        fun text(m: Map<*, *>, key: String, at: String): String =
+            (m[key] as? String)?.takeIf { it.isNotBlank() } ?: error("$at.$key は空でない文字列で指定してください")
+        val steps = (map["steps"] as? List<*>)?.takeIf { it.isNotEmpty() }?.map { (it as? String)?.takeIf(String::isNotBlank)
+            ?: error("dashboard.flow.steps は区画の id の配列です") } ?: error("dashboard.flow.steps は区画の id の 1 件以上の配列で指定してください")
+        require(steps.distinct().size == steps.size) { "dashboard.flow.steps に同じ区画があります" }
+        val moves = when (val list = map["moves"]) {
+            null -> emptyList()
+            is List<*> -> list.mapIndexed { i, item ->
+                val at = "dashboard.flow.moves[$i]"
+                val m = item as? Map<*, *> ?: error("$at は object で書きます")
+                m.keys.firstOrNull { it !in setOf("from", "action", "to") }?.let { error("$at: 未知のキーです: $it") }
+                DashboardMove(text(m, "from", at), text(m, "action", at), m["to"]?.let { text(m, "to", at) })
+            }
+            else -> error("dashboard.flow.moves は工程の配列で書きます")
+        }
+        require(moves.distinct().size == moves.size) { "dashboard.flow.moves に同じ工程があります" }
+        val start = map["start"]?.let { item ->
+            val m = item as? Map<*, *> ?: error("dashboard.flow.start は object で書きます")
+            m.keys.firstOrNull { it !in setOf("action", "to") }?.let { error("dashboard.flow.start: 未知のキーです: $it") }
+            DashboardFlowStart(text(m, "action", "dashboard.flow.start"), text(m, "to", "dashboard.flow.start"))
+        }
+        val history = map["history"]?.let { item ->
+            val m = item as? Map<*, *> ?: error("dashboard.flow.history は object で書きます")
+            val keys = listOf("path", "date", "action", "from", "to", "note")
+            m.keys.firstOrNull { it !in keys }?.let { error("dashboard.flow.history: 未知のキーです: $it") }
+            fun opt(key: String, default: String) = m[key]?.let { text(m, key, "dashboard.flow.history") } ?: default
+            DashboardHistory(text(m, "path", "dashboard.flow.history"), opt("date", "date"), opt("action", "action"),
+                opt("from", "from"), opt("to", "to"), opt("note", "note"))
+        }
+        val direction = map["direction"]?.let { DashboardFlowDirection.parse(it as? String, "dashboard.flow.direction") }
+            ?: DashboardFlowDirection.RIGHT
+        return DashboardFlow(steps, moves, start, direction, history)
+    }
+
+    private fun lintDashboard(view: VirtualDashboardDef, schemas: List<WorkspaceSchema>): List<String> {
+        val all = schemas.flatMap { it.actions }
+        val errors = view.actions.mapNotNull { id ->
+            val actions = all.filter { it.id == id }
             if (actions.size == 1 && actions.single().target == null) null
             else "${fileName(view.source)}: actions「$id」は対象を持たない一意なアクションを参照してください"
+        }.toMutableList()
+        // 流れの工程は要素を受け手にするアクション、入口は受け手を持たないアクション
+        view.flow?.let { flow ->
+            flow.moves.map { it.action }.distinct().forEach { id ->
+                val actions = all.filter { it.id == id }
+                if (actions.size != 1 || actions.single().target?.entity == null)
+                    errors += "${fileName(view.source)}: flow.moves の action「$id」は要素を受け手にする（target: {entity: …}）一意なアクションを参照してください"
+            }
+            flow.start?.let { start ->
+                val actions = all.filter { it.id == start.action }
+                if (actions.size != 1 || actions.single().target != null)
+                    errors += "${fileName(view.source)}: flow.start の action「${start.action}」は対象を持たない一意なアクションを参照してください"
+            }
         }
+        return errors
+    }
 
     /**
      * レンズの見え方（kind: lens）のパース: 関係ごとの矢印の向き（architecture/views.md「レンズの見え方」）。

@@ -42,6 +42,26 @@ open class WorkingCopy(val ws: Workspace) {
     private var stagedIndex: IdIndex? = null
 
     fun touchedFiles(): List<Entry> = entries.values.toList()
+
+    /**
+     * 作業コピーの内容を重ねたセッション（ディスクを映すセッションの写しに、重ねた文書を置き換え・作成として当てる）。
+     * 操作の計画と、操作の可否の判定（ダッシュボードの流れ）が、ステージングを踏まえて読むために使う。
+     */
+    fun overlaySession(): dev.toros.yde.workspace.WorkspaceSession {
+        val session = ws.mirror.fork()
+        val operations = touchedFiles().map { e ->
+            val id = DocumentId(e.rel)
+            val document = dev.toros.yde.yaml.model.YDocument(id, listOf(e.root.deepCopy()))
+            if (e.created) dev.toros.yde.workspace.WorkspaceOperation.CreateDocument(id, document)
+            else dev.toros.yde.workspace.WorkspaceOperation.ReplaceDocument(id, document)
+        }
+        if (operations.isNotEmpty()) {
+            val applied = session.apply(dev.toros.yde.workspace.WorkspaceTransaction(session.version,
+                dev.toros.yde.workspace.ChangeIntent("ステージング"), operations))
+            require(applied.ok) { applied.message ?: "ステージングの内容をセッションへ重ねられません" }
+        }
+        return session
+    }
     fun isEmpty(): Boolean = entries.isEmpty()
 
     /** 読み取り用ツリー: ステージ済みならその内容、なければディスクを読む（編集は記録しない）。 */

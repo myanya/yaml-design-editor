@@ -6,6 +6,7 @@ import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.DocBacklinkRow
 import dev.toros.yde.app.core.DocBacklinksDef
 import dev.toros.yde.app.core.Views
+import dev.toros.yde.cli.stringFlag
 import dev.toros.yde.cli.stringFlags
 import dev.toros.yde.cli.workspaceOf
 import dev.toros.yde.workspace.DocumentScaffolds
@@ -85,8 +86,18 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
         }
         inputs.keys.firstOrNull { k -> dashboard.inputs.none { it.key == k } }
             ?.let { error("ダッシュボード「${dashboard.id}」に入力「$it」はありません（inputs: ${dashboard.inputs.joinToString(", ") { i -> i.key }.ifEmpty { "なし" }}）") }
+        // --entity ID: その対象の流れの中の位置（いる段・次にできる工程とその可否・履歴）
+        stringFlag(rest, "--entity")?.let { id ->
+            require(dashboard.flow != null) { "ダッシュボード「${dashboard.id}」には流れ（flow）がありません" }
+            require(inputs.isEmpty()) { "--entity では --param を指定しません（位置は共有の入力で絞りません）" }
+            require(ws.index.entries[id] != null) { "ID「$id」はワークスペースにありません" }
+            val position = Dashboards.position(dashboard, id, date, ws.index, ws::schemaFor, ws::treeOf, ws.mirror)
+                ?: error("流れの中の位置を求められません")
+            return asData(Dashboards.positionReport(dashboard, position))
+        }
         val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf, inputs)
-        return asData(Dashboards.report(dashboard, result, loaded.errors))
+        val flow = dashboard.flow?.let { Dashboards.flow(dashboard, result, ws.mirror) }
+        return asData(Dashboards.report(dashboard, result, loaded.errors, flow))
     }
     // 文書ビュー（R14-01）: view <workspace> <view-id> [file] で対象文書を解決する
     loaded.docView(viewId)?.let { dv ->

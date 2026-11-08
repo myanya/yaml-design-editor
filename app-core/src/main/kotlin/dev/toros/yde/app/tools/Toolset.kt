@@ -277,7 +277,7 @@ class Toolset(val ctx: ToolContext, extra: List<Tool> = emptyList()) {
         val target = args["target"]?.jsonPrimitive?.contentOrNull
         val params = args.filterKeys { it != "target" }.mapValues { (_, v) -> YamlIO.toAny(jsonToYNode(v)) }
         val plan = try {
-            ActionPlanner.plan(stagedSession(), ActionRequest(entry.name, target, params))
+            ActionPlanner.plan(copy.overlaySession(), ActionRequest(entry.name, target, params))
         } catch (e: ActionFailure) {
             return "操作「${entry.label ?: entry.name}」は実行できません: ${e.message}"
         }
@@ -290,21 +290,6 @@ class Toolset(val ctx: ToolContext, extra: List<Tool> = emptyList()) {
             plan.summary.joinToString("\n") { "・$it" } + "\n提出の前に validate で確かめてください。"
     }
 
-    /** 作業コピーの内容を重ねたセッション（ディスクを映すセッションの写しに、重ねた文書を置き換え・作成として当てる）。 */
-    private fun stagedSession(): WorkspaceSession {
-        val session = ws.mirror.fork()
-        val operations = copy.touchedFiles().map { e ->
-            val id = DocumentId(e.rel)
-            val document = YDocument(id, listOf(e.root.deepCopy()))
-            if (e.created) WorkspaceOperation.CreateDocument(id, document)
-            else WorkspaceOperation.ReplaceDocument(id, document)
-        }
-        if (operations.isNotEmpty()) {
-            val applied = session.apply(WorkspaceTransaction(session.version, ChangeIntent("ステージング"), operations))
-            require(applied.ok) { applied.message ?: "ステージングの内容をセッションへ重ねられません" }
-        }
-        return session
-    }
 
     // ---------------------------------------------------------------- 権限チェック
 

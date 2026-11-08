@@ -104,4 +104,36 @@ class DashboardDefinitionsTest {
         assertTrue(empty.dashboards.isEmpty())
         assertTrue(empty.errors.any { "group" in it }, empty.errors.toString())
     }
+
+    @Test
+    fun `流れの段と工程と入口と履歴を読み誤記と段にできない区画を拒否する`() {
+        val sections = "sections:\n  - {id: open, view: grid}\n  - {id: done, view: grid}\n  - {id: sum, view: sum}\n"
+        val sum = DocumentId(".yde/views/sum.yaml") to "id: sum\nkind: matrix\nrows: {idPattern: '*'}\ncells: {match: [{node: {bind: x}}], of: x, columns: {path: kind, values: [a, b]}}"
+        val flow = "flow:\n  direction: down\n  start: {action: register, to: open}\n  steps: [open, done]\n" +
+            "  moves:\n    - {from: open, action: finish, to: done}\n    - {from: open, action: note}\n  history: {path: log, note: memo}\n"
+        val value = "id: home\nkind: dashboard\n" + flow + sections
+        val catalog = ViewDefinitions.load(listOf(source to value, grid, sum))
+        assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
+        val parsed = assertNotNull(catalog.dashboards.single().flow)
+        assertEquals(dev.toros.yde.semantic.DashboardFlowDirection.DOWN, parsed.direction)
+        assertEquals(listOf("open", "done"), parsed.steps)
+        assertEquals("done", parsed.moves.first().to)
+        assertNull(parsed.moves.last().to)
+        assertEquals("register", parsed.start?.action)
+        assertEquals("log", parsed.history?.path)
+        assertEquals("memo", parsed.history?.note)
+        assertEquals("date", parsed.history?.date)
+        // 未知のキー・空の段・同じ工程の重複は読み込み時に拒否する
+        fun bad(text: String) = assertTrue(ViewDefinitions.load(listOf(source to text, grid, sum)).dashboards.isEmpty(), text)
+        bad(value.replace("direction: down", "layout: down"))
+        bad(value.replace("steps: [open, done]", "steps: []"))
+        bad(value.replace("{from: open, action: note}", "{from: open, action: finish, to: done}"))
+        bad(value.replace("history: {path: log, note: memo}", "history: {note: memo}"))
+        // 区画に無い段・クロス集計の段は点検の誤り（定義は読める）
+        val unknown = ViewDefinitions.load(listOf(source to value.replace("steps: [open, done]", "steps: [open, done, gone]"), grid, sum))
+        assertTrue(unknown.errors.any { "gone" in it }, unknown.errors.toString())
+        val matrix = ViewDefinitions.load(listOf(source to value.replace("steps: [open, done]", "steps: [open, done, sum]")
+            .replace("{from: open, action: note}", "{from: open, action: tally, to: sum}"), grid, sum))
+        assertTrue(matrix.errors.any { "sum" in it && "グリッド" in it }, matrix.errors.toString())
+    }
 }

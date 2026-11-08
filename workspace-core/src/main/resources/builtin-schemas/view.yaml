@@ -169,6 +169,52 @@ root:
             label: 初期値
             type: string
             description: "値か、$today / $monthStart / $monthEnd（基準日から決める）"
+    - key: flow
+      label: 業務の流れ（dashboard）
+      type: object
+      description: 区画を段、操作を工程として流れ図に並べる。段にいるかは区画の filter、工程を押すとその段の対象が操作の可否で分かれて並ぶ
+      fields:
+        - key: direction
+          label: 向き
+          type: enum
+          values:
+            - { value: right, label: 左から右 }
+            - { value: down, label: 上から下 }
+          default: right
+        - key: start
+          label: 入口
+          type: object
+          description: 対象を持たないアクションと、作った対象が入る段
+          fields:
+            - { key: action, label: 操作, type: string, required: true }
+            - { key: to, label: 入る段（区画のID）, type: string, required: true }
+        - key: steps
+          label: 段（区画のID）
+          type: array
+          required: true
+          item: { type: string }
+          description: 流れに載せる区画を流れの順に。区画の filter が「その段にいる」の定義
+        - key: moves
+          label: 工程
+          type: array
+          description: from の段の対象に action を当てて、to の段へ移す。to を省くと段に留まる操作
+          item:
+            type: object
+            fields:
+              - { key: from, label: 前の段, type: string, required: true }
+              - { key: action, label: 操作（要素を受け手にするアクション）, type: string, required: true }
+              - { key: to, label: 移り先の段, type: string }
+        - key: history
+          label: 履歴
+          type: object
+          description: 業務詳細の「流れの中の位置」に出す、対象の要素の配列と行の項目名
+          fields:
+            - { key: path, label: 配列の場所, type: string, required: true }
+            - { key: date, label: 日付の項目, type: string, default: date }
+            - { key: action, label: 操作の項目, type: string, default: action }
+            - { key: from, label: 前の状態の項目, type: string, default: from }
+            - { key: to, label: 後の状態の項目, type: string, default: to }
+            - { key: note, label: メモの項目, type: string, default: note }
     - key: params
       label: 受け取る値（grid / matrix）
       type: array

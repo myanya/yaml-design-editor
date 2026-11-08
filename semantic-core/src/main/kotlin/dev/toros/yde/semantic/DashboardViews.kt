@@ -67,6 +67,8 @@ data class VirtualDashboardDef(
     val placement: DashboardPlacement = DashboardPlacement.AUTO,
     /** 全区画に共有する入力。 */
     val inputs: List<DashboardInput> = emptyList(),
+    /** 区画を段、操作を工程として並べる流れ（DashboardFlows）。 */
+    val flow: DashboardFlow? = null,
 ) : VirtualViewDefinition
 
 data class DashboardSection(

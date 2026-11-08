@@ -14,6 +14,21 @@ inputs:
     label: 顧客区分
     type: enum
     values: [{ value: individual, label: 個人 }, { value: corporate, label: 法人 }]
+# 業務の流れ: 状況の区画を段、操作を工程として流れ図に並べる。段を押すとその区画の一覧、工程を押すと
+# その段の注文が「いま操作できる／できない（理由）」に分かれて並び、行から操作できる。区画の filter が「その段にいる」の定義
+flow:
+  direction: right
+  start: { action: register-order, to: pending }
+  steps: [pending, confirmed, shipped, cancelled]
+  moves:
+    - { from: pending, action: confirm-order, to: confirmed }
+    - { from: pending, action: add-order-line }
+    - { from: pending, action: cancel-order, to: cancelled }
+    - { from: confirmed, action: ship-order, to: shipped }
+    - { from: confirmed, action: unconfirm-order, to: pending }
+    - { from: confirmed, action: cancel-order, to: cancelled }
+  # 業務詳細の「流れの中の位置」に出す履歴（注文の history。行の項目は date / action / from / to / note）
+  history: { path: history }
 # 区画は group で 3 つの群に分け、見出し付きで並べる（群は畳める）
 sections:
   - id: pending

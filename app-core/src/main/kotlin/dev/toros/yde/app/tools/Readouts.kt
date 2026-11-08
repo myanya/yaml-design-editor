@@ -139,7 +139,9 @@ class Readouts(private val ctx: ToolContext) {
             // 共有の入力（inputs）は定義の default で解決する（エージェントからの指定は今はない）
             val result = dev.toros.yde.app.core.Dashboards.resolve(dashboard, at, loaded,
                 copy.index(), ws::schemaFor, loader = { copy.tree(it.value) })
-            return YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.Dashboards.report(dashboard, result, loaded.errors)))
+            // 流れ（flow）の工程の可否は、ステージングを重ねたセッションで判定する（操作のツールと同じ状態）
+            val flow = dashboard.flow?.let { dev.toros.yde.app.core.Dashboards.flow(dashboard, result, copy.overlaySession()) }
+            return YamlIO.dump(YamlIO.fromAny(dev.toros.yde.app.core.Dashboards.report(dashboard, result, loaded.errors, flow)))
         }
         loaded.docView(viewId)?.let {
             require(rowsPattern == null && columns == null) { "rows / columns の絞り込みは横断グリッドのビューでのみ使えます" }
