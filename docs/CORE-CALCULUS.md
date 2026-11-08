@@ -759,6 +759,7 @@ Core Calculus = 定義を実行する
 | 図のポート | 名前と条件はConstruct・Predicate、形は構造契約、名前解決と計測後の接続位置は表示の意味と幾何（新しいQuery・Rewriteなし） |
 | Flow view | Construct＋構造検査・接続解決 |
 | Dashboard view | 既存ビュー＋Predicate＋Aggregate、Termの射影と選択 |
+| ダッシュボードの業務の流れ（`flow`） | 段＝区画の Predicate、件数＝Aggregate、工程の可否＝操作の前提の Predicate（手は実行しない）、移り先の予告＝計画した Rewrite を重ねた Term への同じ Predicate。新しい評価器・書込経路なし（状態を変えるのは操作の Rewrite だけ） |
 | foreach | Query |
 | Projection | Expression |
 | Derivation（ビューの派生列） | Expression（`via`＝1 段の参照）＋ Aggregate |

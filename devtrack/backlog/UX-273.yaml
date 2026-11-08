@@ -1,0 +1,10 @@
+id: UX-273
+title: '操作の `set` で足した項目が文書の末尾に入り、スキーマの項目の順にならない'
+status: todo
+origin_on: 2026-11-08
+origin: 注文サンプルの業務の流れ（受注を確定するで確定日が履歴の後ろに入った）
+memo: ActionPlanner の set が無いキーを足すときに末尾へ置く。UX-243（create の並び）と同じく、スキーマの effectiveFields の順で足す位置を決めるのが筋。既存の値の並びは動かさない
+related:
+  - UX-243
+features:
+  - OP-03

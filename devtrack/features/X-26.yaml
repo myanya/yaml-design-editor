@@ -1,0 +1,32 @@
+id: X-26
+title: 'ダッシュボードの業務の流れ（`flow`＝段は区画・工程は操作・入口・履歴〔流れ図・工程の作業一覧・業務詳細の流れの中の位置・確認の移り先の予告と宣言外の警告・CLI `view --entity`・read_view〕）'
+implementation:
+- path: semantic/DashboardFlows.kt
+  module: semantic-core
+- path: workspace/ViewDefinitions.kt
+  detail: '`flow` の読み取りと点検'
+  module: workspace-core
+- path: core/Dashboards.kt
+  detail: '`flow` / `position` / `transition`'
+  module: app-core
+- path: session/DashboardFlowSession.kt
+  module: app-core
+- path: ui/view/DashboardFlowLayout.kt
+  module: desktop
+- path: ui/view/DashboardFlowPane.kt
+  detail: '`FlowDiagram`・`MoveBody`・`DashboardPositionPanel`'
+  module: desktop
+tests:
+- name: DashboardFlowsTest
+- name: DashboardDefinitionsTest
+- name: DashboardFlowTest
+- name: DashboardFlowLayoutTest
+- name: DashboardFlowUiTest
+  kind: ui
+design:
+- label: dashboards
+  link: architecture/dashboards.md
+  heading: 業務の流れ
+manual:
+- link: manual/dashboards.md
+  heading: 業務の流れ（flow）

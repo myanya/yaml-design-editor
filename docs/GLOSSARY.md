@@ -93,6 +93,8 @@
 | 射影ビュー | （構想）変換のひな型で組んだ任意の木を、見せ方の契約（スキーマと同じ書き方）と出どころで編集面にするビュー。複合文書ビューはその部分集合 | テンプレートで組んだ画面・XSLT の出力 | [ROADMAP「複合文書ビューと射影ビュー」](ROADMAP.md) |
 | 区画 | ダッシュボードの 1 枚のタイルで、表の行を条件で絞った件数と一覧を出し、詳細と操作へ進む | ダッシュボードのウィジェット | [architecture/dashboards.md「流れ」](architecture/dashboards.md) |
 | 共有の入力 | ダッシュボードの全区画に渡す入力（`inputs`）で、空のときは絞らない | ダッシュボードのフィルタ・パラメータ | [architecture/dashboards.md「規律」](architecture/dashboards.md) |
+| 業務の流れ・段・工程 | ダッシュボードの `flow` で、区画を段、操作を工程（段の対象を次の段へ移す操作）として流れ図に並べる。状態を変えるのは操作で、流れは読むだけ | 業務フロー図・ワークフローの状態と遷移 | [architecture/dashboards.md「業務の流れ」](architecture/dashboards.md) |
+| 流れの中の位置 | 対象 1 件がいる段（いまここ）・次にできる工程と可否・履歴を、業務詳細に出したもの | ワークフローの現在のステップ | [architecture/dashboards.md「業務の流れ」](architecture/dashboards.md) |
 | レンズ | エンティティと線を箱と矢印で描く図（グラフレンズ）で、起点の近くや型・関係、見え方の定義の条件で絞って見る | グラフの可視化 | [architecture/graph-query.md「スキーマレンズ」](architecture/graph-query.md)・[manual/views.md「レンズの見え方」](manual/views.md) |
 | ポート | 図のノード内の表示部品に付けた一意な名前の接続口で、辺がその名前を選び、座標は部品の計測から求める | グラフの接続点 | [図の記法「ポートで行へ接続する」](manual/diagram-notations.md) |
 | 実体の段・型の段 | レンズの切り替えで、実体の段は要素と参照、型の段はエンティティ型と関係を描く | インスタンス図とクラス図 | [architecture/graph-query.md「スキーマレンズ」](architecture/graph-query.md) |

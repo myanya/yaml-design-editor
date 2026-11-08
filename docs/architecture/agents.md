@@ -11,7 +11,7 @@
 | `AgentKernel` / `AgentHost` | agent/run/Kernel.kt | ツール使用ループ。上限（ターン・トークン・時間）・終了手続きの強制・質問の中継・イベント通知・`consult`（委譲）・初期文脈の組み立て（`initialContextSections`） |
 | `Toolset` / `Tool` / `ToolContext`・`ToolPolicy` | app-core tools/Toolset.kt・Tool.kt・ToolContext.kt | 中核のツール（読む 8・作業コピーへ書く 2・検証 1・許可した操作）と書込権限のツール側での強制。入口（agent・MCP・CLI）に依らず、引数と結果は JSON の値 |
 | `Readouts` | app-core tools/Readouts.kt | 読み出しの文（`catalogText`・`phaseText`・`viewText`・`traverseText`・`relatedText`・`entityText`・`refsFooterText`・`sampleText`・`validationText`）。ツールの結果と初期文脈が共用 |
-| `WorkingCopy` | app-core tools/WorkingCopy.kt | 作業コピー（パッチ記録・新規文書・重ねた索引・影響ファイルを含む横断検証・変更セット化・`newErrors`）。`Staging` の土台 |
+| `WorkingCopy` | app-core tools/WorkingCopy.kt | 作業コピー（パッチ記録・新規文書・重ねた索引・重ねたセッション `overlaySession`〔操作の計画とダッシュボードの流れの可否〕・影響ファイルを含む横断検証・変更セット化・`newErrors`）。`Staging` の土台 |
 | `SubmissionChecks` / `SubmissionPolicy` | app-core tools/SubmissionChecks.kt | 提出の検証ゲートと拒否理由。内蔵エージェントの設定と外部提出のエラー必須解消を分ける |
 | `AgentToolbox` | agent/run/Tools.kt | `Toolset` をアクティビティのツール分類で選んで `ToolSpec` に包む。ask_human・delegate・plan・note・submit_changeset・abort はここだけ。`contextItemSection`（レシピ項目 → 読み出しの文） |
 | `Staging` | agent/run/Staging.kt | `WorkingCopy` に定義文書のゲート（ステージした定義が実際のローダで読めること）を足したもの |

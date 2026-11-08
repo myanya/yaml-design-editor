@@ -36,7 +36,7 @@ YAML で設計項目（要求・設計・課題など）を管理するための
 | [views.md](views.md) | ビュー（ビューグリッド・ビュー定義・文書ビュー） |
 | [diagram-notations.md](diagram-notations.md) | 図の記法（人物カード・表示部品のYAML定義） |
 | [diagram-positions.md](diagram-positions.md) | 図のノード位置（ドラッグ・固定解除・ワークスペースでの共有） |
-| [dashboards.md](dashboards.md) | ダッシュボード（業務の状況・対象の詳細と操作・基準日） |
+| [dashboards.md](dashboards.md) | ダッシュボード（業務の状況・対象の詳細と操作・基準日・業務の流れ〔流れ図・工程の作業一覧・流れの中の位置〕） |
 | [reports.md](reports.md) | レポート（YAML から Markdown などの文字の文書を作る。変換とひな形） |
 | [ids.md](ids.md) | ID とリンクの仕組み・段階的詳細化・保有と所属 |
 | [actions.md](actions.md) | 操作（型の操作 `methods`・配列の追加の決まり・アクション `actions`・前提・CLI `action`） |

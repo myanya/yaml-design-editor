@@ -18,7 +18,7 @@
 | [views.md](views.md) | ビュー機構・文書ビュー・definition 参照とリント・ビュー定義の読み取り |
 | [diagram-notations.md](diagram-notations.md) | 図の記法・表示契約・変換と原本座標 |
 | [diagram-positions.md](diagram-positions.md) | 図の手動位置・固定優先配置・ワークスペース内の表示状態 |
-| [dashboards.md](dashboards.md) | 業務の入口・区画の件数と一覧・対象の詳細と操作・基準日と選択の保持 |
+| [dashboards.md](dashboards.md) | 業務の入口・区画の件数と一覧・対象の詳細と操作・基準日と選択の保持・業務の流れ（段と工程・位置・移り先の予告） |
 | [workspace.md](workspace.md) | ワークスペース構造と layout・ワークスペースの初期化（テンプレートとウィザード）・文書キャッシュと Workspace・外部変更の取り込み・変更セットの適用・セッションの fork |
 | [actions.md](actions.md) | 操作（型の操作 `methods` とアクション `actions`。受け手・受け取った値・前提・手・変更セットへの計画・CLI） |
 | [agents.md](agents.md) | 安全性・エージェント実行と Staging・自動実行・自己改善・AI 生成・AI 接続・コンテキスト・一括実行・skill |

@@ -42,10 +42,11 @@
 - 右ペインの `actionPanelContext` は表示中の横ぐしの選択IDを優先し、未選択・削除済みなら対象を空にする（背後の文書を使わない）。文書画面ではフォームで明示選択した要素、なければ文書ルートのIDを対象にする。台帳は型ごとの入口も残す。対象IDは文書別の `FormNavigationMemory.actionTarget` に保持し、スクロール追従では変えない。
 - 項目の所有者は選択パスの最も近いID出現で決める（Termの位置選択）。削除されたIDを使わず、文書の先頭も推測しない。開始済みの操作対象は背後の選択に追随しない。
 - 「確認」＝`planAction`（対象が無ければ案内して止まる → 計画と、ドライランの検証）→ 差分（`Staging` の適用後の文面）→「適用」＝`applyAction`（`applyViaSession`＝書いて保存まで。Undo 1 回で全部戻る）。検証エラーが残れば書かず、チェックで許す。対象に未保存の編集があれば拒む。
+  ダッシュボードに業務の流れがあれば、確認で対象の移り先を予告し（`ActionWork.transition`。宣言外は警告だけ）、適用の知らせに移った段を出す（[dashboards.md「業務の流れ」](dashboards.md)）。
 - パネルは外側のクリックで閉じず、Esc と「いったん隠す」は `actionPanelOpen = false`（作業は残り、「操作」タブの「作業中」から `showActionPanel`）。「やめる」＝`dismissAction` で捨てる。
 - **編集と操作の札**: パネルの題名の脇に「編集」（追加の作業＝`insertInto`。この文書の木を変える。未保存）か「操作」（確認してから書いて保存）の札と副題を出す。追加の作業では、その配列へ足すアクション（`ActionPlanner.insertingInto`）があれば「まとめて足す操作があります」と案内し、`switchInsertToAction` が同じキーの値を持ち越してアクションの作業に変える。
 - **閲覧専用**: 閲覧専用が封じるのは編集（`FormCtx.readOnly`・`addArrayElement`）で、操作の入口（操作メニュー・行の ⋯・ヘッダ・パレット・検査の指摘・「操作」タブ）は閲覧専用でも出す。組込みの改名・統合・削除は閲覧専用では隠す。閲覧専用で適用した操作の取り消し・やり直しは `afterHistoryStep` が保存まで行う（`actionRecordIds`＝操作の適用で積んだ履歴の id。未保存の編集を残さない）。
-- **エージェント**: アクティビティの `actions` で許可した操作が中核のツール `Toolset`（`ToolPolicy.actions`）のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行は作業コピーを重ねたセッションの上で `ActionPlanner.plan` を呼び、変更セットを作業コピー（`Staging`）へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
+- **エージェント**: アクティビティの `actions` で許可した操作が中核のツール `Toolset`（`ToolPolicy.actions`）のツールになる（`action_` ＋名前。引数は受け取る値の定義から、受け手は `target`）。実行は作業コピーを重ねたセッション（`WorkingCopy.overlaySession`）の上で `ActionPlanner.plan` を呼び、変更セットを作業コピー（`Staging`）へ積む（原本は提出と承認まで変わらない）。前提に合わなければ理由を返す。`allowedFiles` / `allowedPaths` は見ない（[agents.md](agents.md)）。
 - **作成経路の寄せ**: 配列エディタの追加ボタンとビューの新規行（配列モード）は `AppState.addArrayElement`（カードを出すか決める）→ `DocumentSession.insertArrayElement` → `ActionPlanner.newElement`（型の `create` ＋ 配列の `insert` の決まり）で要素を作る。要素の型の `create` に受け取る値があれば同じパネル（`ActionWork.insertInto`）で入力し、「追加」で未保存の編集として足す（計画と保存はしない）。
 - 受け取る値が無ければその場で足す（採番つき。空の要素どうしは同じ明細と見ない）。文書の作成（`DocumentScaffolds.contents`）はルートの型の `create` の `build` を ID と表示名で重ねる。skill の取り込みとエージェントの `create_document` は寄せていない。
 - **検査からの起動**: 検査の `responses` に `{action, label, with}` を書くと、`WorkspaceChecks.responsesOf` が `CheckResponse.RunAction`（受け手＝起点の ID・渡す値＝文面を指摘と同じひな型で埋めたもの）を作り、検証パネルのメニューから `startAction(name, target, prefill)` で対象の入ったパネルが開く。無い操作を指す対応は読み込みの誤り（`WorkspaceReader.buildSchemas`）。
