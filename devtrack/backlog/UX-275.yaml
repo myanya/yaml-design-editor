@@ -1,0 +1,9 @@
+id: UX-275
+title: WorkspaceOwnershipTest が JAVA_TOOL_OPTIONS のある環境で子プロセスの1行目を読み違えて落ちる
+status: todo
+origin_on: 2026-11-08
+origin: クラウドの Linux コンテナ（JAVA_TOOL_OPTIONS でプロキシと証明書を渡す）で ./gradlew test を回したとき
+memo: 子の JVM が出す「Picked up JAVA_TOOL_OPTIONS」の行を、READY や BUSY の行より先に読んで「別プロセスを拒否し通常終了と強制終了後は引き継げる」が落ちる。JAVA_TOOL_OPTIONS を外すと通る。子の出力の読み方（決まった印の行を待つ）か、子の環境から
+  JAVA_TOOL_OPTIONS を外すかで直せそう
+features:
+  - LC-19

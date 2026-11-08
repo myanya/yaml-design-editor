@@ -1,0 +1,7 @@
+id: UX-276
+title: ロケールが UTF-8 でない Linux では日本語のテスト名のクラスファイルを書けず compileTestKotlin が内部エラーになる
+status: todo
+origin_on: 2026-11-08
+origin: クラウドの Linux コンテナ（LANG が未設定で POSIX）で ./gradlew test を回したとき
+memo: kotlinc が日本語を含むクラスファイル名を書くときに InvalidPathException（Malformed input or input contains unmappable characters）。LC_ALL=C.UTF-8
+  で Gradle を起動し直すと通る。AGENTS.md の環境の節は Windows だけなので、Linux とクラウドの注意を足すか、ビルドの初めにロケールを確かめて知らせるか
