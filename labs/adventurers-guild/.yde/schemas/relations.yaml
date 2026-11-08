@@ -13,27 +13,32 @@ entities:
   - { type: client, label: 依頼者 }
   - { type: quest, label: 依頼 }
   - { type: assignment, label: 受注 }
+  - { type: payment, label: 精算 }
+# 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
     label: ランク
-    inverseLabel: このランクの冒険者
-    source: [adventurer]
+    inverseLabel: このランクの冒険者・パーティ
+    source: [adventurer, party]
     target: [rank]
     cardinality: { outMin: 1, outMax: 1 }
-    description: 冒険者はいまのランクを 1 つ持ちます
+    level: error
+    description: 冒険者とパーティは、それぞれいまのランクを 1 つ持ちます。パーティのランクは構成員のランクとは別です
   - name: has-member
     label: 構成員
     inverseLabel: 所属するパーティ
     source: [party]
     target: [adventurer]
-    cardinality: { outMin: 1 }
-    description: パーティは冒険者を構成員に持ちます（役割を添えられます）。人数の上限は未定です
+    cardinality: { outMin: 1, outMax: 6, inMax: 1 }
+    level: error
+    description: パーティの構成員は 1〜6 人で、役割を添えられます。冒険者が入れるパーティは 1 つまでです
   - name: led-by
     label: リーダー
     inverseLabel: 率いるパーティ
     source: [party]
     target: [adventurer]
     cardinality: { outMin: 1, outMax: 1 }
+    level: error
     description: パーティのリーダーは 1 人です
   - name: requested-by
     label: 依頼者
@@ -41,6 +46,7 @@ relations:
     source: [quest]
     target: [client]
     cardinality: { outMin: 1, outMax: 1 }
+    level: error
     description: 依頼には依頼者が 1 人います
   - name: requires-rank
     label: 受注できるランクの下限
@@ -48,12 +54,14 @@ relations:
     source: [quest]
     target: [rank]
     cardinality: { outMax: 1 }
+    level: error
     description: 依頼は受注できるランクの下限を 1 つまで持ちます。無ければどのランクでも受けられます
   - name: has-assignment
     label: 受注
     inverseLabel: 受注した依頼
     source: [quest]
     target: [assignment]
+    level: error
     description: 依頼が受注の記録を保有します（入れ子で書くので、文書には何も書きません）
   - name: taken-by
     label: 受け手
@@ -61,4 +69,13 @@ relations:
     source: [assignment]
     target: [adventurer, party]
     cardinality: { outMin: 1, outMax: 1 }
+    level: error
     description: 受注の受け手は冒険者かパーティの 1 つです
+  - name: settles
+    label: 精算した受注
+    inverseLabel: 精算
+    source: [payment]
+    target: [assignment]
+    cardinality: { outMin: 1, outMax: 1, inMax: 1 }
+    level: error
+    description: 精算は受注 1 件の報酬を支払った記録です。1 つの受注は 1 回だけ精算します

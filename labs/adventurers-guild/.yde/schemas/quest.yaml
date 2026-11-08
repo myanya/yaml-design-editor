@@ -5,3 +5,117 @@ description: 依頼 1 件を 1 ファイルで管理します。受注の記録�
 match: "guild/quests/*.yaml"
 filePattern: "guild/quests/{id}.yaml"
 root: { type: common#依頼 }
+# 他の要素へ線を辿る検査は、型ではなくスキーマに書きます（依頼 → 受注 → 受け手 → ランク など）
+constraints:
+  # ---- 受注の条件 ----
+  - id: taker-rank-meets-requirement
+    description: 受け手（冒険者かパーティ）のランクは、依頼の受注できるランクの下限以上であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: [adventurer, party], bind: t }
+      - edge: { relation: has-rank }
+      - node: { entity: rank, bind: rt }
+    also:
+      from: a
+      steps:
+        - edge: { relation: has-assignment, dir: in }
+        - node: { entity: quest, bind: q }
+        - edge: { relation: requires-rank }
+        - node: { entity: rank, bind: rq }
+    check:
+      - gte: [ { of: rt, path: order }, { of: rq, path: order } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title}（ランク {rt.title}）は、依頼の下限 {rq.title} に届きません"
+  - id: inactive-adventurer-not-assigned
+    description: 引退・除名・消息不明の冒険者は、遂行中（受注済み）の依頼を受けていないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+    also:
+      from: a
+      steps:
+        - edge: { relation: has-assignment, dir: in }
+        - node: { entity: quest, bind: q }
+    where:
+      - { of: t, path: status, oneOf: [retired, expelled, missing] }
+      - { of: q, path: status, equals: assigned }
+    expect: absent
+    level: error
+    message: "受注「{id}」の受け手 {t.title} は、引退・除名・消息不明のため受注できません"
+
+  # ---- 状態と受注・完了報告の整合 ----
+  - id: assigned-has-open-assignment
+    description: 受注済みの依頼には、まだ報告の無い受注があること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: has-assignment }
+      - node: { entity: assignment, bind: a }
+    where:
+      - { of: q, path: status, equals: assigned }
+      - { of: a, path: report, exists: false }
+    expect: exists
+    level: error
+    message: "受注済みの依頼「{id}」に、遂行中（報告の無い）の受注がありません"
+  - id: reported-has-success-report
+    description: 報告済み・精算済みの依頼には、達成の報告がある受注があること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: has-assignment }
+      - node: { entity: assignment, bind: a }
+    where:
+      - { of: q, path: status, oneOf: [reported, settled] }
+      - { of: a, path: report.outcome, equals: success }
+    expect: exists
+    level: error
+    message: "依頼「{id}」に、達成の完了報告がある受注がありません（報告済み・精算済みの依頼には要ります）"
+  - id: failed-has-failure-report
+    description: 失敗の依頼には、未達の報告がある受注があること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: has-assignment }
+      - node: { entity: assignment, bind: a }
+    where:
+      - { of: q, path: status, equals: failed }
+      - { of: a, path: report.outcome, equals: failure }
+    expect: exists
+    level: error
+    message: "失敗の依頼「{id}」に、未達の完了報告がある受注がありません"
+  - id: settled-has-payment
+    description: 精算済みの依頼には、受注の精算があること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: has-assignment }
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: settles, dir: in }
+      - node: { entity: payment, bind: p }
+    where:
+      - { of: q, path: status, equals: settled }
+    expect: exists
+    level: error
+    message: "精算済みの依頼「{id}」に、精算の記録がありません"
+
+  # ---- 日付 ----
+  - id: accepted-not-before-received
+    description: 受注日は依頼の受付日以降であること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: has-assignment }
+      - node: { entity: assignment, bind: a }
+    check:
+      - gte: [ { of: a, path: acceptedOn }, { of: q, path: receivedOn } ]
+    level: error
+  - id: reported-by-deadline
+    description: 完了報告は依頼の期限以内であること（過ぎていれば警告）
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: has-assignment }
+      - node: { entity: assignment, bind: a }
+    where:
+      - { of: q, path: deadline, exists: true }
+      - { of: a, path: report.reportedOn, exists: true }
+    check:
+      - lte: [ { of: a, path: report.reportedOn }, { of: q, path: deadline } ]
+    level: warning
+    message: "依頼「{id}」の受注 {a.id} は、期限を過ぎてから報告されています"

@@ -5,3 +5,18 @@ description: 冒険者が組むパーティ 1 組を 1 ファイルで管理し�
 match: "guild/parties/*.yaml"
 filePattern: "guild/parties/{id}.yaml"
 root: { type: common#パーティ }
+constraints:
+  - id: leader-is-member
+    description: パーティのリーダーは構成員の 1 人であること
+    match:
+      - node: { entity: party, bind: p }
+      - edge: { relation: led-by }
+      - node: { entity: adventurer, bind: l }
+    also:
+      from: p
+      steps:
+        - edge: { relation: has-member }
+        - node: { same: l }
+    expect: exists
+    level: error
+    message: "パーティ「{id}」のリーダーが構成員にいません"

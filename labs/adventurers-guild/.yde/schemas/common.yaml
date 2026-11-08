@@ -47,6 +47,12 @@ definitions:
     placeholder: QST-0001-A1
     sample: QST-0001-A1
     description: 依頼番号に「-A」と受注の順番を付けます（例 QST-0001-A1）。
+  精算番号:
+    type: id
+    pattern: "^PAY-[0-9]{4}$"
+    placeholder: PAY-0001
+    sample: PAY-0001
+    description: 「PAY-」と 4 桁の数字。支払った順に振ります。
 
   # ---- 参照の型 ----
   # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
@@ -76,6 +82,13 @@ definitions:
       schemaIds: [adventurer, party]
     relation: taken-by
     description: 依頼を受けた冒険者かパーティの番号を 1 件。個人でもパーティでも受けられます。
+  受注参照:
+    type: ref
+    idPattern: "QST-*-A*"
+    scope:
+      schemaIds: [quest]
+    relation: settles
+    description: 精算した受注の番号を 1 件。
 
   # ---- 値の型 ----
   金額:
@@ -87,6 +100,12 @@ definitions:
     type: int
     min: 1
     description: ランクの上下を比べる数です。大きいほど上のランクです。
+  率:
+    type: int
+    min: 0
+    max: 100
+    format: "0 ％"
+    description: 百分率の整数です（10 なら 10 ％）。
   年月日:
     type: date
     format: "yyyy年M月d日"
@@ -153,6 +172,7 @@ definitions:
       - { key: name, label: 支部名, type: 一行の文, role: title, required: true }
       - { key: town, label: 町, type: 一行の文, required: true }
       - { key: currency, label: 通貨の単位, type: 一行の文, required: true, description: 報酬などの金額の単位です。 }
+      - { key: commissionRate, label: 手数料率, type: 率, required: true, description: 報酬から差し引くギルドの手数料の率です。支部で一律です。精算のときに、この率を精算の記録へ写します。 }
       - { key: description, label: 説明, type: 文章 }
   ランク:
     type: object
@@ -190,11 +210,13 @@ definitions:
     fields:
       - { key: id, label: パーティ番号, type: パーティ番号, required: true }
       - { key: name, label: パーティ名, type: 一行の文, role: title, required: true }
-      - { key: leader, label: リーダー, type: 冒険者参照, relation: led-by, required: true }
+      - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true, description: パーティとしてのランクです。構成員のランクとは別に持ち、構成員から計算しません。 }
+      - { key: leader, label: リーダー, type: 冒険者参照, relation: led-by, required: true, description: 構成員の 1 人です。 }
       - key: members
         label: 構成員
         type: array
         required: true
+        description: 6 人までです。冒険者が入れるパーティは 1 つまでです。
         item: { type: 構成員 }
       - { key: formedOn, label: 結成日, type: 年月日, required: true }
       - { key: note, label: 備考, type: 文章 }
@@ -223,6 +245,12 @@ definitions:
       - { key: taker, label: 受け手, type: 受け手参照, required: true }
       - { key: acceptedOn, label: 受注日, type: 年月日, required: true }
       - { key: report, label: 完了報告, type: 完了報告, description: 受け手が報告したら書きます。 }
+    constraints:
+      - id: reported-not-before-accepted
+        description: 報告日は受注日以降であること
+        where: [ { path: report.reportedOn, exists: true } ]
+        check: [ { gte: [ { path: report.reportedOn }, { path: acceptedOn } ] } ]
+        level: error
   依頼:
     type: object
     label: 依頼
@@ -248,3 +276,47 @@ definitions:
             id: { path: id, prefix: { $format: "{id}-A", $of: self }, digits: 1 }
         item: { type: 受注 }
       - { key: note, label: 備考, type: 文章, description: 却下・取消・期限切れの理由など。 }
+    # 型の検査: 依頼の要素ごとに評価する（of を省くとこの依頼の値）
+    constraints:
+      - id: no-assignment-before-posting
+        description: 受付・掲示中・却下の依頼には受注が無いこと
+        where:
+          - { path: status, oneOf: [received, posted, rejected] }
+          - { path: assignments, empty: false }
+        expect: absent
+        level: error
+        message: "依頼「{id}」はまだ受注されない状態なのに、受注の記録があります"
+      - id: assignment-after-posting
+        description: 受注済み・報告済み・精算済み・失敗の依頼には受注があること
+        where:
+          - { path: status, oneOf: [assigned, reported, settled, failed] }
+          - { path: assignments, empty: true }
+        expect: absent
+        level: error
+        message: "依頼「{id}」に受注の記録がありません（受注済み・報告済み・精算済み・失敗の依頼には要ります）"
+      - id: deadline-not-before-received
+        description: 期限は受付日以降であること
+        where: [ { path: deadline, exists: true } ]
+        check: [ { gte: [ { path: deadline }, { path: receivedOn } ] } ]
+        level: error
+  精算:
+    type: object
+    label: 精算
+    entity: { type: payment, defines: true }
+    fields:
+      - { key: id, label: 精算番号, type: 精算番号, required: true }
+      - { key: assignment, label: 受注, type: 受注参照, required: true }
+      - { key: paidOn, label: 支払日, type: 年月日, required: true }
+      - { key: reward, label: 報酬, type: 金額, required: true, description: 依頼の報酬と同じ額です。検査が確かめます。 }
+      - { key: commissionRate, label: 手数料率, type: 率, required: true, description: 支払ったときの支部の手数料率です。あとで支部の率が変わっても、この値は変わりません。 }
+      - { key: fee, label: 手数料, type: 金額, required: true, description: 報酬 × 手数料率 ÷ 100。検査が確かめます。 }
+      - { key: amount, label: 支払額, type: 金額, required: true, description: 報酬 − 手数料。受け手に支払った額です。 }
+    constraints:
+      - id: fee-is-rate-of-reward
+        description: 手数料は報酬 × 手数料率 ÷ 100 であること
+        check: [ { eq: [ { number: { path: fee } }, { number: { divide: [ { multiply: [ { path: reward }, { path: commissionRate } ] }, 100 ] } } ] } ]
+        level: error
+      - id: amount-is-reward-minus-fee
+        description: 支払額は報酬 − 手数料であること
+        check: [ { eq: [ { number: { path: amount } }, { number: { subtract: [ { path: reward }, { path: fee } ] } } ] } ]
+        level: error
