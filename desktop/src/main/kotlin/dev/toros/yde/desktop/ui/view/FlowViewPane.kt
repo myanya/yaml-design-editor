@@ -44,6 +44,7 @@ import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.DiagramContext
 import dev.toros.yde.desktop.DiagramNodeId
+import dev.toros.yde.desktop.DiagramPositionMemory
 import dev.toros.yde.desktop.sameDiagramPositions
 import dev.toros.yde.desktop.diagramPositions
 import dev.toros.yde.desktop.saveDiagramPositions
@@ -203,7 +204,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
                     mapOf("kind" to "flow", "view" to view.id, "document" to document.value),
                     withLayoutOptionSelection(
                         mapOf("mode" to listOf(display.mode.name.lowercase()), "direction" to listOf(display.directionOrDefault(view.direction))),
-                        display.options.map { it.key })), display.options, display.hideLabels, choose)
+                        display.options.map { it.key })), display.options, display.hideLabels, choose = choose)
             else Text("フローを表示できません", color = Palette.ErrorRed, modifier = Modifier.weight(1f))
             Column(Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
                 val detail = when (selection?.kind) {
@@ -270,9 +271,16 @@ internal fun FlowCanvas(
     context: DiagramContext,
     options: Set<FlowLayoutOption> = emptySet(),
     hideLabels: Boolean = false,
+    /**
+     * 手で動かした位置をワークスペースに覚えるか（フロービュー）。false なら毎回の自動配置で、ドラッグは画面の移動だけ
+     * （ダッシュボードの業務の流れ。architecture/dashboards.md「業務の流れ」）。
+     */
+    movable: Boolean = true,
     choose: (FlowElementKind, YPath) -> Unit,
 ) {
-    val memory = remember(state.workspace, context) { state.diagramPositions(context) }
+    val memory = remember(state.workspace, context, movable) {
+        if (movable) state.diagramPositions(context) else DiagramPositionMemory().apply { ready = true }
+    }
     val density = LocalDensity.current
     val ids = remember(model) { flowPositionIds(model) }
     val frames = remember(model, mode) { flowPositionFrames(model, mode) }
@@ -349,7 +357,7 @@ internal fun FlowCanvas(
         Column(modifier.padding(16.dp)) {
             Text(memory.warning ?: layout?.exceptionOrNull()?.let { "配置を計算できません: ${it.message}" } ?: "フローを配置しています…",
                 color = if (layout == null) Palette.SubText else Palette.ErrorRed)
-            TextButton(onClick = { state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
+            if (movable) TextButton(onClick = { state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
             if (memory.positions.isNotEmpty()) TextButton(onClick = ::reset, enabled = memory.writable && !memory.saving) { Text("配置を初期化") }
         }
         return
@@ -439,7 +447,7 @@ internal fun FlowCanvas(
     val endDrag by rememberUpdatedState(::finishDrag)
     Column(modifier) {
         memory.warning?.let { Text(it, fontSize = 11.sp, color = Palette.WarnOrange) }
-        Text("手動で固定したノード: ${fixed.size} 件（再配置でも保持）", fontSize = 11.sp, color = Palette.SubText)
+        if (movable) Text("手動で固定したノード: ${fixed.size} 件（再配置でも保持）", fontSize = 11.sp, color = Palette.SubText)
         val fixedBoxes = arrangement.nodes.values.map { LensBox(it.x, it.y, it.width, it.height) }
         if (fixedBoxes.indices.any { i -> fixedBoxes.drop(i + 1).any { PinnedLayout.overlap(fixedBoxes[i], it) } })
             Text("ノード同士が重なっています。位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
@@ -451,12 +459,12 @@ internal fun FlowCanvas(
             TextButton(onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("＋") }
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("表示をリセット") }
             TextButton(onClick = { fit() }) { Text("全体") }
-            DiagramGridControls(memory.grid, memory.ready && memory.writable && !memory.saving && !computing && dragging == null) {
+            if (movable) DiagramGridControls(memory.grid, memory.ready && memory.writable && !memory.saving && !computing && dragging == null) {
                 state.saveDiagramPositions(context, memory.positions + snapshot(base), it)
             }
             TextButton(onClick = { saveImage("flow") }) { Text("PNG に保存") }
-            TextButton(onClick = { preview = null; rearrange++ }, enabled = memory.ready && memory.writable && !memory.saving && !computing) { Text("再配置") }
-            TextButton(onClick = { preview = null; state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
+            if (movable) TextButton(onClick = { preview = null; rearrange++ }, enabled = memory.ready && memory.writable && !memory.saving && !computing) { Text("再配置") }
+            if (movable) TextButton(onClick = { preview = null; state.reloadDiagramPositions(context) }, enabled = memory.ready && !memory.saving) { Text("配置を再読込") }
             if (fixed.isNotEmpty() || memory.positions.isNotEmpty() || memory.warning != null && memory.writable) TextButton(onClick = ::reset, enabled = memory.writable && !memory.saving && !computing) { Text("配置を初期化") }
             val selectedId = selected?.let { ids[it] }
             if (selected != null && selected in fixed) TextButton(onClick = {

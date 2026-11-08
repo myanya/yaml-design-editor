@@ -35,7 +35,7 @@ class DashboardFlowUiTest {
 
     private fun cleanup(root: Path) { Files.walk(root).use { it.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) } }
 
-    @Test fun `工程を押すと作業一覧に分かれ行の操作を適用すると次の段へ流れる`() = runComposeUiTest {
+    @Test fun `流れ図はフロー図の部品で描き工程を選ぶと作業一覧に分かれ行の操作を適用すると次の段へ流れる`() = runComposeUiTest {
         val root = copyOrders()
         val state = AppState()
         try {
@@ -43,10 +43,13 @@ class DashboardFlowUiTest {
             assertEquals(UiSpace.DASHBOARD, state.uiSpace)
             state.memory.dashboardDate["order-dashboard"] = LocalDate.parse("2026-11-08")
             setContent { Box(Modifier.size(1400.dp, 900.dp)) { DashboardPane(state) { id -> Text("詳細 $id") } } }
-            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-step-pending").fetchSemanticsNodes().isNotEmpty() }
-            onNodeWithTag("flow-step-pending").assertTextContains("4 件", substring = true)
-            onNodeWithTag("flow-step-confirmed").assertTextContains("3 件", substring = true)
-            onNodeWithTag("flow-move-pending|confirm-order|confirmed").assertTextContains("4/4", substring = true).performClick()
+            // 流れ図はフロービューと同じ FlowCanvas（配置・描画・拡大縮小と PNG）。位置を覚えない図なので配置の操作は出ない
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithTag("dashboard-flow").assertExists()
+            onNodeWithText("PNG に保存").assertExists()
+            onAllNodesWithText("再配置").assertCountEquals(0)
+            // 工程の線を押したときと同じ選択（押した要素から工程を引く対応は DashboardFlowDiagramsTest）
+            runOnIdle { state.memory.dashboardMove["order-dashboard"] = "pending|confirm-order|confirmed" }
             waitUntil(timeoutMillis = 10_000) { onAllNodesWithTag("flow-run-ORD-106").fetchSemanticsNodes().isNotEmpty() }
             onNodeWithText("いま操作できる（4）").assertExists()
             onNodeWithTag("flow-run-ORD-106").performClick()
@@ -64,15 +67,12 @@ class DashboardFlowUiTest {
                 assertTrue(message.contains("「未処理」から「受注確定」へ移りました"), message)
             }
             waitUntil(timeoutMillis = 10_000) { onAllNodesWithTag("flow-run-ORD-106").fetchSemanticsNodes().isEmpty() }
-            onNodeWithTag("flow-step-confirmed").assertTextContains("4 件", substring = true)
+            onNodeWithText("いま操作できる（3）").assertExists()
             assertTrue(Files.readString(root.resolve("orders/ORD-106.yaml")).contains("status: confirmed"))
-            // 段を押すと工程の選択が外れ、その区画の一覧に戻る
-            onNodeWithTag("flow-step-confirmed").performClick()
-            runOnIdle { assertNull(state.memory.dashboardMove["order-dashboard"]) }
             runOnIdle { state.undo() }
-            waitUntil(timeoutMillis = 10_000) {
-                runCatching { onNodeWithTag("flow-step-pending").assertTextContains("4 件", substring = true) }.isSuccess
-            }
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithText("いま操作できる（4）").fetchSemanticsNodes().isNotEmpty() }
+            // 図の位置はワークスペースに書かない
+            assertFalse(Files.exists(root.resolve(".yde/state/diagrams")))
         } finally { cleanup(root) }
     }
 
@@ -84,7 +84,8 @@ class DashboardFlowUiTest {
             setContent { Box(Modifier.size(1200.dp, 700.dp)) { DashboardPositionPanel(state, "ORD-105") } }
             waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-position").fetchSemanticsNodes().isNotEmpty() }
             onNodeWithText("いま「受注確定」にいます").assertExists()
-            onNodeWithTag("flow-step-confirmed").assertTextContains("いまここ", substring = true)
+            // 図はフロービューと同じ FlowCanvas（配置は裏で計算してから描く）
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
             onNodeWithText("2026-10-21  受注を確定する  （未処理 → 受注確定）").assertExists()
             onNodeWithTag("flow-next-ship-order").assertIsEnabled().performClick()
             runOnIdle { assertEquals("ship-order", state.actionWork?.entry?.name); assertEquals("ORD-105", state.actionWork?.target) }

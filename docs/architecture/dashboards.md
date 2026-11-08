@@ -20,7 +20,8 @@
 | `DashboardFlow`・`DashboardFlows` | 業務の流れ（`flow`）の宣言と、定義の点検・段の件数と工程ごとの可否・対象 1 件の位置・移り先の予告の判定（semantic-core。可否と操作の名前は入口から関数で受け取る） |
 | `Dashboards.flow`・`position`・`transition` | 可否を `ActionPlanner.availability`、名前を操作の定義から渡す窓口と、CLI・read_view への開示（app-core） |
 | `DashboardFlowSession` | セッション側の入口（流れ・位置・計画の移り先の予告。app-core の `app.session`） |
-| `DashboardFlowLayout`・`DashboardFlowPane` | 流れ図の配置（決まった規則の純粋な計算）と描画・工程の作業一覧・業務詳細の「流れの中の位置」（desktop） |
+| `DashboardFlowDiagrams`・`DashboardFlowDiagram` | 業務の流れをフロービューと同じ表示モデル（`FlowModel`）にし、押した要素（ノード・辺の出力位置）から段・工程・入口を引く対応表を持つ（app-core） |
+| `DashboardFlowPane` | 流れ図と位置の図（フロービューの `FlowCanvas` を `movable = false` で使う）・工程の作業一覧・業務詳細の「流れの中の位置」（desktop） |
 
 ## 流れ
 
@@ -42,13 +43,14 @@
 - **対象 1 件の位置**は、流れの段の区画の filter を、その対象を起点に `SemanticRules.evaluate` で判定する（基準日だけを渡し、共有の入力は外す）。filter の無い段はどの対象もいるとみなす。保留は「判定できない段」として理由つきで返す。
 - **移り先の予告**は、計画の変更セットをディスクの写しに当てた木（`Patcher`）と、それを重ねた索引（`Workspace.overlayIndex`）で段を求め直し、前と比べる。宣言外は「段が変わり、移った先が宣言した移り先（留まる工程なら前の段）のどれでもない」で、警告にとどめて適用は止めない。
 - **履歴**は対象の定義出現の要素の配列を読み、選択肢の値は項目の定義の label にする。
-- 流れ図は手で動かす位置を持たない決まった規則の配置（入口からの最長の段数を列にし、深さ優先で逆向きになる工程を弧にする。札は自分の線の上の空いた位置）で、図の位置の保存（[diagram-positions.md](diagram-positions.md)）は使わない。
+- 流れ図は専用の配置・描画を持たない。`DashboardFlowDiagrams` が段を角丸のノード、工程と入口の線を辺、段に留まる工程を自己ループにした `FlowModel` を作り、配置（`GraphLayouts.arrangeFlow`）と描画（`drawFlow`）・拡大縮小・PNG はフロービューの `FlowCanvas` が受け持つ。件数・可否・いまここは名前の文字に、選んだ段・工程といまいる段は選択の色に載せ、図だけの描き分けを足さない。手で動かした位置は覚えない（`movable = false`。位置の記録を読まず書かず、ドラッグは画面の移動だけ）。
 - 流れのあるダッシュボードでは、段にした区画をタイルの並びから外す。選んだ工程は `ScreenMemory.dashboardMove` に置き、段かタイルを押すと外す。
 - 業務詳細の「流れの中の位置」は、骨格が `EntityPage` の差し込み口 `aside` に渡す（ui.graph は ui.view を import しない）。開いているダッシュボード（無ければ既定）の流れで、対象が段のどれにもいなければ出さない。
 - API と業務 Web の出力（`DashboardReport`）には流れを入れていない。入れるときは OpenAPI の契約と web-ui の型を対で直す。
 
 ## 規律
 
+- 業務の流れの図に専用の配置・描画・描き分けを作らない。表示モデル（`FlowModel`）にしてフロービューの部品（`FlowCanvas`）で描き、見え方を足すときもフロービューの部品の側（図の記法など）で足す。
 - Core Calculus上は既存ビューのQuery／Expression、条件のPredicate、件数のAggregate、画面のTermの射影。
   変更は既存アクションのRewriteからTransactionへ渡す。新しい評価器・Construct・書込経路を持たない。
 - 条件は `ActionRequire` のパラメータ付き検査宣言を共有する。`$today` だけを基準日の文字列に差し込む。

@@ -11,16 +11,20 @@ implementation:
   module: app-core
 - path: session/DashboardFlowSession.kt
   module: app-core
-- path: ui/view/DashboardFlowLayout.kt
-  module: desktop
+- path: core/DashboardFlowDiagrams.kt
+  detail: 業務の流れをフロービューの表示モデルにする
+  module: app-core
 - path: ui/view/DashboardFlowPane.kt
-  detail: '`FlowDiagram`・`MoveBody`・`DashboardPositionPanel`'
+  detail: '`DashboardFlowOverview`・`MoveBody`・`DashboardPositionPanel`'
+  module: desktop
+- path: ui/view/FlowViewPane.kt
+  detail: '`FlowCanvas`（`movable = false`）'
   module: desktop
 tests:
 - name: DashboardFlowsTest
 - name: DashboardDefinitionsTest
 - name: DashboardFlowTest
-- name: DashboardFlowLayoutTest
+- name: DashboardFlowDiagramsTest
 - name: DashboardFlowUiTest
   kind: ui
 design:
