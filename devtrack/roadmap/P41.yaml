@@ -1,0 +1,66 @@
+id: P41
+number: 41
+title: 操作（型の操作とアクション）
+table_title: 操作（型の操作とアクション。モデルに対する操作を定義し、人と AI が同じ名前で呼ぶ）
+status: in-progress
+status_note: 定義体・計画器・CLI・画面の入口・検査からの起動・エージェントのツール 完了（2026-10-14）。作成経路の寄せは一部完了、決定的な自動実行は下記
+body:
+- points:
+  - label: 目的
+    text: Palantir の Action Types に当たる「モデルに対する操作の定義」を入れる。決まった手順の変更に名前を付け、人（画面・CLI）と AI エージェントが同じ名前で呼べるようにする。検査が「守る」側なら、操作は「正しく変える」側。
+  - label: 位置づけ
+    text: 計算体系の Rewrite の、初めての利用者定義体（Query・Expression・Predicate・Construct には利用者定義があり、Rewrite だけ無かった）。結果は常に変更セットで、適用は既存の `ChangeSetApplier`。新しい書込経路は作らない。今の姿は [architecture/actions.md](architecture/actions.md)、使い方は [manual/actions.md](manual/actions.md)。
+  - label: 既知の技術との対応
+    text: Palantir の Functions on Objects ≈ 型の操作、Action Types ≈ アクション。DDD のエンティティのメソッドとアプリケーションサービス。
+  - label: 決めたこと（2026-10-14 オーナー）①〜④
+    text: アクションは「正しい変更の近道」で、手編集も Git もそのまま。二層＝型の `methods`（受け手の部分木に閉じる。型の `constraints` と対称）と横断の `actions`（Query・複数文書・`call`）。予約名 `create`（必須の初期値＋受け取った値か `build`）・配列の `insert`（採番 `id`・同じ明細 `key`。skill の綴り）・`delete`。イベント型のフックは入れない（予約名の結び付けと明示の `call` だけ。`auto` は例外）。
+  - label: 決めたこと ⑤〜⑧
+    text: 見える場所は定義の場所と受け手から導き、専用のキーは置かない。追加ボタンは `create` に params があるときだけ入力カード。使う側の `create` は定義側の上に重ね、他の操作は同名で置き換え。前提が保留なら止める。
+  - label: 決めたこと ⑨〜⑫
+    text: 許可したアクションの書込は `allowedFiles` の外でも通す（人が許可した検証済みの操作）。人の実行は履歴だけ。用語は YAML のキー `methods` / `actions`・UI は「操作」・CLI は `action` 1 つ。外部エージェントはまず CLI で、MCP は後。
+  - label: 決めたこと（実装中）
+    text: 受け手のキーは `target`（`on` は YAML が真偽値に読む）。受け取った値の一式が「いまの場所」で、要素は束縛名（受け手は `self`）。前提の文面は `{id}`＝起点・`$id`＝受け取った値。前提で参照した値が無ければ止める。配列が無ければ要素 1 つの配列を置く 1 つの操作にする。
+  - label: 最初の利用例
+    label_note: （labs/sysdev-template）
+    text: 「画面を追加する」（`add-screen`＝一覧の行・画面定義・遷移。到達性の検査が行き止まりを指摘する）と「ビジネスルールを廃止する」（`deprecate-rule`＝参照が残れば前提で止まる・型の操作 `deprecate` を呼ぶ）。
+- columns: basic
+  items:
+  - id: R41-01
+    title: 定義体
+    content: '`FieldDef.methods` / `insertRule`（読み取り・引き継ぎ）、`WorkspaceSchema.actions`、メタスキーマ、形の点検（型の操作の範囲・宣言のない値・前提の形）'
+    state: done
+    state_on: 2026-10-14
+  - id: R41-02
+    title: 計画器
+    content: '`ActionPlanner`: 受け手の解決・受け取った値の検証・前提（4 つの結果）・手（set / insert / delete / create / call / each）・採番と同じ明細・変更セット'
+    state: done
+    state_on: 2026-10-14
+  - id: R41-03
+    title: CLI
+    content: '`action <ws> [id \| 型名.操作名] [--on] [--param]... [--apply] [--allow-errors]`（一覧・計画・適用）'
+    state: done
+    state_on: 2026-10-14
+  - id: R41-04
+    title: 人の入口
+    content: エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダの「操作 ▾」・コマンドパレット・右ペインの「操作」タブ → 浮いたパネル（対象の欄＝その型の要素の候補・受け取る値はフォームの部品 → 確認＝計画・検証・差分 → 適用＝書いて保存・Undo 1 回）。台帳の文書は要素の型ごとに並べ、対象はパネルで選ぶ（オーナー指摘で 10-14 に直し）。編集と操作の札・追加のパネルからアクションへの橋渡し・閲覧専用でも操作は使える（取り消しは保存まで）
+    state: done
+    state_on: 2026-10-14
+  - id: R41-05
+    title: 検査からの起動
+    content: 検査の `responses` に `{action, label, with}`。指摘のメニューから、起点を受け手に・文面を埋めた値を入れてカードを開く。無い操作は読み込みの誤り（BACKLOG UX-04 / UX-72 の受け皿。UX-59 の一括は R18-02）
+    state: done
+    state_on: 2026-10-14
+  - id: R41-06
+    title: 既存の作成経路の寄せ
+    content: 配列の追加ボタン（params があればカード・無ければ採番して足す）・ビューの新規行・文書の作成（ルートの `create` の `build`）を寄せた。skill の取り込み（`build` の綴りは同じ）と `create_document`（ツールの操作で足りる）は据え置き
+    state: partial
+    state_on: 2026-10-14
+  - id: R41-07
+    title: エージェント
+    content: アクティビティの `actions:` 許可一覧 → 操作ごとのツール（`action_名前`。引数は受け取る値の定義から）→ ステージングを重ねたセッションで計画し、ステージングへ積む。`tools` の分類 `actions`。許可した操作は `allowedFiles` の外でも通る
+    state: done
+    state_on: 2026-10-14
+  - id: R41-08
+    title: 決定的な自動実行
+    content: トリガからアクションを LLM なしで実行（T-01 / T-02 と合流して設計）
+    state: todo

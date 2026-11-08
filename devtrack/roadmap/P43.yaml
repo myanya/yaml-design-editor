@@ -1,0 +1,74 @@
+id: P43
+number: 43
+title: ソースエディタの成長
+table_title: ソースエディタの成長（下書きを失わない・壊れたまま保存できる・大きな文書に耐える・基本操作・スキーマと索引を使う補完と指摘・構造）
+status: in-progress
+status_note: 段階 0〜3 完了（2026-10-17）。残りは大きな文書の描画（R43-10）＝オーナー判断
+body:
+- points:
+  - label: 目的
+    text: ソースタブを「とりあえず編集できる」から、VS Code に YAML 拡張を入れたときに近い体験へ育てる。このアプリはスキーマ・ID 索引・検証の結果を知っているので、VS Code では JSON Schema を別に書かないと得られない補完や指摘を、スキーマから直接出せる。
+  - label: 既知の技術との対応
+    text: 段階 0・1 はメモ帳から VS Code の素の編集へ。段階 2 は VS Code の YAML 拡張＋JSON Schema。段階 3 は IntelliJ の折り畳みと左端の差分。壊れている間の扱いは Android Studio のレイアウトエディタ（コードが壊れている間はデザイン側を編集不可にして直すよう促す）。
+  - label: 決めたこと①〜⑤（2026-10-17 オーナー）
+    text: ①土台は自前＋Compose 標準の新しい欄（`TextFieldState` 版。RSyntaxTextArea など外部のエディタ部品は採らない）②順番は段階 0 → 1 → 2 → 3 ③実活用のスキーマ編集で数千行が出ているので 1 万行級も想定する ④補完は Ctrl+Space で呼んだときだけ（日本語入力中に候補が割り込まない）⑤壊れている間のフォームは段階 A＝バナー＋文書ごと閲覧専用。
+  - label: 決めたこと⑥〜⑨
+    text: ⑥壊れたまま保存を許し、その文書はテキスト文書（索引・検証の対象外）になる。保存は止めず、一般の文書はバナーとステータスで知らせ、スキーマ文書だけ確認を出す ⑦履歴は残す（カーネルに「テキストのまま保存して文書集合から外す」操作を足す）⑧区画エディタ（区画をまたぐ選択ができない）は採らない。大きな文書の上限は実測してマニュアルに書く ⑨下書きの寿命は未保存と同じ（閉じるときの確認）。
+  - label: 調べたこと
+    text: 'Compose の標準の欄は全文を毎回配置し直すので 1 万行級では重い（開発元も 25 万字超は想定外と回答）。他の作者の対処は、標準の欄のまま上限を受け入れる（Nemo Editor）、見える行だけ自前で描く（KodeMirror・BigText）、Compose の欄を使わない（Fleet）の 3 つ。BigText は日本語の変換中の文字を扱う処理があり、将来の候補（Windows の日本語入力で試してから）。1 万行の実測: 解析 18ms・出力 21ms・色分け 5ms（問題なし）、行差分の旧実装 477ms（共通部分の切り落としで解消）。'
+- columns: basic
+  items:
+  - id: R43-01
+    title: 下書きの持ち越し
+    content: ソースの文字列・カーソル・解析エラーを `OpenDocument` が持ち、タブや文書を移っても残す。閉じるときは未保存と同じ確認
+    state: done
+    state_on: 2026-10-17
+  - id: R43-02
+    title: 壊れている間のフォーム
+    content: バナー＋文書ごと閲覧専用（`FormCtx.readOnly` に波及）。木が変わる Undo/Redo は「下書きを捨てて戻しますか」の確認
+    state: done
+    state_on: 2026-10-17
+  - id: R43-03
+    title: 最小の差し込み
+    content: 他所の変更を 3 者マージ（`LineMerge`）で下書きへ当て、カーソルを保つ。行差分は共通部分の切り落としで 1 万行でも速く
+    state: done
+    state_on: 2026-10-17
+  - id: R43-04
+    title: 壊れたまま保存
+    content: テキスト文書として索引・検証から外す（`WorkspaceSession.saveAsText` / `attachDocument`）。ヘッダのバナー・ツリーの印・検証一覧の行。直して保存すれば自動で戻る
+    state: done
+    state_on: 2026-10-17
+  - id: R43-05
+    title: 欄の移行
+    content: Compose 標準の `TextFieldState` 版へ。色分けは行ごとの覚え。行番号の整列。折り返しと横スクロールの切替（覚えは `ScreenMemory`）。閲覧専用の追随（UX-172）。Ctrl+Z はセッション履歴へ一本化
+    state: done
+    state_on: 2026-10-17
+  - id: R43-06
+    title: 入力が止まってから反映
+    content: 解析は背景で、反映と検証は入力が止まってから。1 万行の実機確認（開く・入力・スクロール・保存が応答良好）と limits.md への記載
+    state: done
+    state_on: 2026-10-17
+  - id: R43-07
+    title: 基本操作（段階 1）
+    content: Ctrl+F / Ctrl+H、次へ・前へ（Enter / F3）、一致の強調、Aa（大文字小文字）と .*（正規表現。置換は `$1`）、Ctrl+G 行へ移動、Enter の自動インデント、選択範囲の Tab / Shift+Tab、Ctrl+/ コメント切替、Alt+↑↓ 行の移動、Ctrl+D 行の複製、現在行の強調。規則は `SourceEditing`（純ロジック）
+    state: done
+    state_on: 2026-10-17
+  - id: R43-08
+    title: スキーマと索引（段階 2）
+    content: yaml-core にノードの位置の表 `YamlPositions`（パス→行・列、位置→パス）。検証の指摘を左端の印と値の色付きで出し、印にマウスを載せると内容、右パネルの指摘からはソースの行へ。Ctrl+Space でキー名（スキーマの実効フィールド）・ID（索引）・enum の値・真偽値・file の場所の補完（文脈は `SourceContext`＝打っている最中の文字列から）。ホバーで項目のラベル・型・説明。Ctrl+クリックで参照先へ
+    state: done
+    state_on: 2026-10-17
+  - id: R43-09
+    title: 構造（段階 3）
+    content: キーの入れ子単位の折り畳み（行番号の ▾ か Ctrl+Shift+[。表示だけを変え、覚えは見出しのパスで `ScreenMemory.sourceFolds`）。保存済みとの差分の印を左端に（追加・変更・削除）。フォームで最後に編集した項目の行へ／ソースのカーソルの項目をフォームで強調。選択範囲だけの整形。規則は `SourceStructure`
+    state: done
+    state_on: 2026-10-17
+  - id: R43-10
+    title: 大きな文書の描画
+    content: BigText を Windows の日本語入力で試す。採れれば `ui/` の 1 ファイルで包む
+    state: todo
+  - id: R43-11
+    title: 試用の指摘
+    content: 編集画面のタブを文書ごとに覚え、覚えの無い文書は直前のタブで開く（固定と覚えの両方を 1 つの規則で）。行番号を上端でなくベースラインで揃える（2 行目から浮いていた）
+    state: done
+    state_on: 2026-10-17

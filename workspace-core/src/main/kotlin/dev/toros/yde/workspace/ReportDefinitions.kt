@@ -23,7 +23,7 @@ data class ReportDef(
 }
 
 object ReportDefinitions {
-    private val KEYS = setOf("id", "name", "description", "params", "build", "template", "output")
+    private val KEYS = setOf("id", "name", "description", "params", "build", "rules", "template", "output")
     private val DRIVE = Regex("""^[A-Za-z]:""")
 
     fun parse(raw: Map<*, *>, source: DocumentId): ReportDef {
@@ -40,8 +40,10 @@ object ReportDefinitions {
             require(!o.endsWith(".yaml") && !o.endsWith(".yml")) { "report.output に YAML は書けません（原本は YAML で、レポートは派生物です）: $o" }
         }
         val build = raw["build"] ?: error("report.build（値の一式を作るひな型）が必要です")
+        // rules: 名前を付けた組み立て（`$apply`・`$each` の `$apply`）。同じ形を何か所でも組み立てるときに 1 か所に書く
         val transform = TransformDef.parse(
-            linkedMapOf<String, Any?>("id" to id, "params" to (raw["params"] ?: emptyList<String>()), "build" to build),
+            linkedMapOf<String, Any?>("id" to id, "params" to (raw["params"] ?: emptyList<String>()), "build" to build)
+                .also { m -> raw["rules"]?.let { m["rules"] = it } },
             "report",
         )
         return ReportDef(

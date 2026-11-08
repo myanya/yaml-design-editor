@@ -1,0 +1,64 @@
+id: roadmap-md
+name: ロードマップ（docs/ROADMAP.md）
+description: テーマ（roadmap/）・ビジョンなどのメモ・展望から docs/ROADMAP.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 冒頭の節（メモ）。並びはここが正
+  notes:
+    - { $view: doc-notes, $where: [ { path: id, equals: NOTE-02 } ], $one: true }
+    - { $view: doc-notes, $where: [ { path: id, equals: NOTE-03 } ], $one: true }
+    - { $view: doc-notes, $where: [ { path: id, equals: NOTE-04 } ], $one: true }
+  # 状態の表: すべてのテーマ（番号の順）
+  themes: { $view: doc-roadmap-themes }
+  # 未完のテーマ: 本文と節を、本文のかたまりごとに規則 block で組み立てる
+  open:
+    $each: { $view: doc-roadmap-themes, $where: [ { path: values.状態, notEquals: done } ] }
+    $build:
+      id: { $copy: id }
+      title: { $copy: values.名前 }
+      body: { $each: values.本文, $apply: block }
+      sections:
+        $each: values.節
+        $build:
+          title: { $copy: title }
+          body: { $each: body, $apply: block }
+  outlook: { $view: doc-roadmap-outlook, $one: true }
+rules:
+  # 本文のかたまり: 文と箇条はそのまま、R 項目の表は列の形の印と、行ごとの状態の文字を足す
+  - id: block
+    build:
+      text: { $copy: text }
+      points: { $copy: points }
+      basicTable: { $when: { path: columns, equals: basic }, $then: true }
+      decisionTable: { $when: { path: columns, equals: decision }, $then: true }
+      workTable: { $when: { path: columns, equals: work }, $then: true }
+      items:
+        $each: items
+        $build:
+          id: { $copy: id }
+          title: { $copy: title }
+          content: { $copy: content }
+          decision: { $copy: decision }
+          places: { $copy: places }
+          prereq: { $copy: prereq }
+          done_criteria: { $copy: done_criteria }
+          state: { $apply: state }
+  # R 項目の状態の文字（「✅ 2026-11-07（補足）」「🚧 一部完了（日付: 補足）」「→ R47-41」「📋 未着手（補足）」「🚧 進行中（補足）」）
+  - id: state
+    when: [ { path: state, equals: done } ]
+    build: { $first: [ { $format: "✅ {state_on}（{state_note}）" }, { $format: "✅ {state_on}" } ] }
+  - id: state
+    when: [ { path: state, equals: partial } ]
+    build:
+      $first:
+        - { $format: "🚧 一部完了（{state_on}: {state_note}）" }
+        - { $format: "🚧 一部完了（{state_on}）" }
+        - { $format: "🚧 一部完了（{state_note}）" }
+  - id: state
+    when: [ { path: state, equals: moved } ]
+    build: { $format: "→ {moved_to}" }
+  - id: state
+    when: [ { path: state, equals: in-progress } ]
+    build: { $first: [ { $format: "🚧 進行中（{state_note}）" }, 🚧 進行中 ] }
+  - id: state
+    build: { $first: [ { $format: "📋 未着手（{state_note}）" }, 📋 未着手 ] }
+template: roadmap-md.md

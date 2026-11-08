@@ -1,0 +1,14 @@
+id: roadmap-list
+name: ロードマップのテーマ
+description: ロードマップのテーマ（docs/ROADMAP.md の P）を番号の順に並べます。状態の要約は状態表の欄です。
+rows:
+  idPattern: "P*"
+  schemaIds: [roadmap]
+order:
+  schemaId: roadmap
+  path: number
+  direction: asc
+# 名前は行の ID の下に出る（role: title）ので、列にしない
+columns:
+  - { label: 状態, schemaId: roadmap, path: status }
+  - { label: 状態の要約, schemaId: roadmap, path: status_note }

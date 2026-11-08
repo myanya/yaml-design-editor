@@ -1,0 +1,13 @@
+id: P18
+number: 18
+title: 一括実行と作業編成
+status: in-progress
+status_note: 第 1 弾完了。残りは BACKLOG で管理（下記）
+body:
+- points:
+  - label: 目的
+    text: 「1 実行 = 1 文書」のアクティビティを保ったまま、複数の文書を一気に整備する。列挙（機械）・実行（アクティビティ）・編成（キュー）の 3 つの関心事を分ける。
+  - label: 完了
+    text: foreach による対象列挙とキュー展開、AI 呼び出しのレート制限耐性。
+  - label: 残り
+    text: ゴール駆動への一般化（検証指摘へのアクティビティ紐付け。BACKLOG UX-59）、プラン／ワークフロー層（BACKLOG T-02。T-01 の再設計と合流してから）。

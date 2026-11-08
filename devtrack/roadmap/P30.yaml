@@ -1,0 +1,42 @@
+id: P30
+number: 30
+title: YAML から YAML への変換の拡張と応用
+status: in-progress
+status_note: R30-03 の一部（ビューの列）完了。他は未着手（下記）
+body:
+- points:
+  - label: 位置づけ
+    text: 変換は構造のスキーマの導出の土台として入れた（計算体系の 6 つ目の体系「組み立て」。CORE-CALCULUS「Construct Calculus」）。拡張と応用は個別の開発セクションとしてここで管理する。
+  - label: 狙い
+    text: 変換を汎用の変換器の土台にする。ビューなど様々なところで使い、テンプレートエンジンを足して YAML から Markdown への変換器なども作る。検査と同じく「プリミティブな実装＋組込み定義＋ユーザ定義」の組合せにする。
+  - label: いまあるもの
+    text: 選ぶ（既存のクエリ）× 組み立てる（ひな型。`$copy` / `$format` / `$map` / `$first` / `$each` / `$eachEntry` / `$apply` / `$concat` / `$when`）× 規則を子に当てる。結果は新しい項と各値の出どころ。CLI `transform`。組込みの変換定義は `builtin-transforms/`。
+  - label: 守ること
+    text: 出力は保存しない（原本へ書くなら Rewrite を通す）。クエリを ID の無い場所まで広げない。規則を当てるのは入力の木の子へ向かってだけ。出どころを結果の一部として持つ。置き場は semantic-core。組込みだけの特別な機能を作らない。式の中の条件分岐・キーの計算・利用者定義の再帰・任意のコード実行は入れない。
+- columns: basic
+  items:
+  - id: R30-01
+    title: 部品の拡充
+    content: 繰り返しの源にクエリを使う。値の式をひな型の指示として書く。並べ替え・重複の除去・件数などの配列の基本操作
+    state: partial
+    state_on: 2026-10-26
+    state_note: '値の式をひな型に `$value`・繰り返しの `$no`・`$number` の `$as`・採番の接頭辞から親を `$of: self` で。samples/orders の明細の一括登録のため'
+  - id: R30-02
+    title: 利用者が変換定義を置く場所
+    content: 置き場（`_transforms` のようなゾーン）とメタスキーマ、CLI とエージェントのツール（読み取り専用の面）。組込みと同じ仕組みで読む
+    state: todo
+  - id: R30-03
+    title: 既存の仕組みを寄せる
+    content: 組み立てる側の約 10 か所（ビューの列・skill の書き出し・派生スキーマ・ひな型の生成・AI 生成用の JSON Schema・文脈の開示・穴埋め）を 1 つずつ判断して寄せる。ビューの列は 2026-09-27 に値の式の列へ寄せた（`computed` を廃止し、値の式に参照を 1 段辿る `via` を足した）
+    state: partial
+    state_note: ビューの列
+  - id: R30-04
+    title: 文字の出力への派生（Markdown など）
+    content: 帳票ごとの Markdown ひな形 → 変換で値の一式を作る → テンプレートエンジンがひな形へはめ込む、の 2 段。書き方・置き場・書き出し先は着手時に決める
+    state: done
+    state_on: 2026-10-26
+    state_note: 'レポート: `.yde/reports` の定義＝変換の `build`（`$view` でビューの行）＋ひな形（`TextTemplate`）＋ `output`。CLI `report`・台帳のビュータブ。manual/reports.md'
+  - id: R30-05
+    title: 出どころの活用
+    content: 変換結果の「出力の場所 → 入力の文書と場所」を、セルのその場編集・原本へのジャンプ・指摘の原本への戻しにつなぐ
+    state: todo

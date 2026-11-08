@@ -1,0 +1,15 @@
+id: P29
+number: 29
+title: Core Calculus
+status: in-progress
+status_note: Phase 1〜6 完了。残りは OQ-03（下記）
+body:
+- points:
+  - label: 目的
+    text: YAML への計算を Term / Query / Expression / Predicate / Rewrite / Construct（＋Aggregate）の体系へ分解し、上位機能をその合成として説明できる状態にする。「機能ではなく直交プリミティブを増やす」を最上位原則とし、専用評価器の乱立を防ぐ。方針原本は [CORE-CALCULUS.md](CORE-CALCULUS.md)。
+  - label: 完了
+    text: Phase 1 意味論の固定、Phase 2 既存機能のマッピングと語彙の刈り込み、Phase 3 評価部の共通化、Phase 4 Rewrite の形式化、Phase 5 規約化、Phase 6 定義層の実体化（検査の語彙はすべて定義体になった）。
+  - label: 残り
+    text: OQ-03（文書分割）。「どの流れを通っても必ず着く」の検査（BACKLOG UX-110）と、遷移検証を YAML だけで書くのに足りない部品（UX-111）は、必要になったら実装する。
+  - label: 決めたこと
+    text: 数え上げの評価器は統合しない。関係の多重度（参照の本数）と constraints の count（解の数）は意図的に単位が異なる。

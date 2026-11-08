@@ -1,0 +1,10 @@
+# 生成用: docs/ROADMAP.md（レポート roadmap-md）の末尾の 2 節（テーマの候補・リスクと未解決課題）
+id: doc-roadmap-outlook
+name: 生成用：ロードマップの展望
+rows:
+  idPattern: "OUTLOOK"
+  schemaIds: [roadmap-outlook]
+columns:
+  - { label: 候補の前書き, schemaId: roadmap-outlook, path: candidates_intro }
+  - { label: テーマの候補, schemaId: roadmap-outlook, path: candidates }
+  - { label: リスク, schemaId: roadmap-outlook, path: risks }

@@ -1,0 +1,5 @@
+id: P39
+number: 39
+title: 画面の見え方の保持（「戻る」は場所を戻し、見え方は画面が覚える）
+status: done
+status_note: 段階 1 完了（2026-10-12）。段階 2（スクロール位置・拡縮）は BACKLOG UX-162

@@ -1,0 +1,24 @@
+# 生成用: docs/ROADMAP.md（レポート roadmap-md）のテーマ。番号の順。状態の表と未完のテーマの本文の元
+id: doc-roadmap-themes
+name: 生成用：ロードマップのテーマ
+rows:
+  idPattern: "P*"
+  schemaIds: [roadmap]
+order:
+  schemaId: roadmap
+  path: number
+  direction: asc
+columns:
+  - { label: 名前, schemaId: roadmap, path: title }
+  # 状態の表の「テーマ」の欄: 見出しと違う名前があればそれ
+  - label: 表の名前
+    schemaId: roadmap
+    value:
+      first:
+        - { path: table_title }
+        - { path: title }
+  - { label: 状態, schemaId: roadmap, path: status }
+  - { label: 状態の要約, schemaId: roadmap, path: status_note }
+  # 本文と節は部分木のまま渡し、レポートが本文のかたまりごとに組み立てる
+  - { label: 本文, schemaId: roadmap, path: body }
+  - { label: 節, schemaId: roadmap, path: sections }

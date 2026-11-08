@@ -1,5 +1,5 @@
 id: X-15
-title: レポート（`.yde/reports`＝変換〔`$view`・`$where`・`$one`〕→ ひな形〔`{パス}`・`{パス:形}`・`{パス:cell}`・`{#each}`〔`more`〕・`{#if}`〕・出力 `output`・CLI `report`・台帳のビュータブ）
+title: レポート（`.yde/reports`＝変換〔`$view`・`$where`・`$one`・`$each` の源に行・`rules`〕→ ひな形〔`{パス}`・`{パス:形}`・`{パス:cell}`・`{#each}`〔`more`〕・`{#if}`〕・出力 `output`・CLI `report`・台帳のビュータブ）
 implementation:
 - path: semantic-core/semantic/TextTemplate.kt
   module: semantic-core

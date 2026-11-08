@@ -32,11 +32,40 @@ output: "reports/{month}.md"          # 既定の出力先（ワークスペー�
 | id / name / description | レポートID・表示名・説明 |
 | params | 受け取る値の名前の並び。ひな型の中では `$名前` で使います |
 | build | 値の一式を作るひな型。`$view` のほか、変換の指示がすべて使えます |
+| rules | 名前を付けた組み立ての並び（`{id, when, build}`。下の「同じ形を 1 か所に書く」） |
 | template | ひな形のファイル。定義と同じ場所からの相対パスです |
 | output | 既定の出力先（ワークスペース相対）。穴 `{名前}` は build の値で埋めます。省略すると表示だけで、保存は CLI の `--out` だけです。YAML には書けません |
 
 **`$view`** はビュー（グリッドかクロス集計）の行を受け取ります。行は `{id, title, key, cells: [{column, value}], values: {列の見出し: 値}}` の形です。
 `$where` に条件（検査の `where` と同じ書き方。`path` は行の上のパス、値には `$名前` も書けます）を並べると行を絞り、`$one: true` なら最初の 1 行だけ（無ければ「無い」）になります。
+
+**行を 1 行ずつ組み立てる**: `$each` の源にパスの代わりに `{$view: ビューID, $where: [条件]}` を書くと、行を 1 行ずつ「いまの場所」にして `$build` を組み立てます。
+行の値（`values.列の見出し`）が配列やマップなら、その中もさらに `$each` で辿れます。値によって書き分けたい文字（状態ごとの印など）は、ひな形では比べられないので、ここで `$when` を使って作ります。
+
+```yaml
+build:
+  open:
+    $each: { $view: theme-rows, $where: [{ path: values.状態, notEquals: done }] }
+    $build:
+      id: { $copy: id }
+      items:
+        $each: values.項目
+        $build:
+          $first:
+            - { $when: { path: state, equals: done }, $then: { $format: "{id} ✅ {date}" } }
+            - { $format: "{id} 📋" }
+```
+
+**同じ形を 1 か所に書く**（`rules`）: 何か所でも同じ形を組み立てるときは、名前を付けて `rules` に置き、`{$apply: 名前}`（いまの場所に）か `{$each: パス, $apply: 名前}`（要素ごとに）で使います。
+同じ名前の規則を並べると、上から順に `when` の条件を調べて最初に合ったものを使います（`when` を省いた規則はいつでも合う）。
+
+```yaml
+build:
+  rows: { $each: { $view: orders }, $apply: size }
+rules:
+  - { id: size, when: [{ path: values.合計, gte: 5000 }], build: { $format: "{id} 大" } }
+  - { id: size, build: { $format: "{id} 小" } }
+```
 
 ## ひな形の書き方
 

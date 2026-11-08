@@ -1,0 +1,5 @@
+id: P14
+number: 14
+title: ビュー機構の強化（文書ビュー・責務分離）
+status: done
+status_note: 完了。需要待ちの残りは BACKLOG UX-129

@@ -1,0 +1,7 @@
+id: roadmap
+name: ロードマップのテーマ
+kind: document
+description: ロードマップのテーマ（docs/ROADMAP.md の P）を 1 件 1 ファイルで持ちます。本文・節・R 項目もこの中です。docs/ROADMAP.md はここから生成します。
+match: "roadmap/*.yaml"
+filePattern: "roadmap/{id}.yaml"
+root: { type: common#ロードマップのテーマ }

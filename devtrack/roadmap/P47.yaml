@@ -1,0 +1,289 @@
+id: P47
+number: 47
+title: 開発を AI エージェントに向く形にする
+table_title: 開発を AI エージェントに向く形にする（規則の機械化・応用層の切り出し・読む量・入口・UI の確認・拡張の機構・MCP）
+status: in-progress
+status_note: 段階 0 完了・段階 1 の R47-10〜13 完了・段階 2 の R47-20（AppState の分割）と R47-24（app-core の切り出しと desktop への改名）・R47-25（agent モジュールの切り出しと run・auto・eval への分割）・R47-26（共通の Gradle 設定）・R47-27（desktop と repo-tests のモジュール化）・R47-28（画面のパッケージ分け）・R47-23（行数の目安）完了。段階 6 の R47-60（形式の差し込み口）は R47-41 のために前倒しで完了。段階 4 の R47-41（CLI を 1 つに）完了。段階 5 の R47-61（ビューの種類の差し込み口。chart と flow を拡張へ）と R47-51（画面確認の skill）・段階 3 の R47-32（用語集）と R47-31（置き場に近い案内）完了。目指す構成は ADR-0013（承認 2026-10-27）と ADR-0014（2026-10-28）。段階 6 の R47-63（拡張を畳む。ADR-0015）完了。段階 3 の R47-30・33 は分けないと決めて完了。R47-70（MCP の入口）は P49 で完了。残りは R47-14
+body:
+- points:
+  - label: 目的
+    text: 一貫性のある設計を保ったまま、AI エージェントによる開発の効率を上げる。規則を「読んで守る」から「破ると落ちる」へ、1 回に読む量と 1 ファイルの大きさを小さく、入口を 1 つに、画面の確認を自動にする。
+  - label: 既知の技術との対応
+    text: 依存の規則のテストは ArchUnit・Konsist と同じ考え（ここでは新しい依存を足さず自前の走査から始める）。コミット前フックと CI は一般的な pre-commit・GitHub Actions。置き場に近い案内はサブディレクトリの CLAUDE.md／AGENTS.md（Claude Code・Codex が作業中のディレクトリのものを読む）。
+  - label: 調査の結果（2026-10-26）
+    text: |-
+      CLAUDE.md の落とし穴 36 項目と architecture の規律 144 項目に機械の検査が無い（Konsist・detekt・CI・フックのいずれも無し）。実際の破れは 2 点: `app/core/Cli.kt` が app.agent・app.ai・app.skill を import しており architecture/README.md の「app.core から app.ui への一方向」と矛盾する。`build.gradle.kts` の「移行中は 3 コアへ直接依存してよい」が移行完了後も残り、app から yaml-core へ 72 ファイル・semantic-core へ 55 ファイルが直接依存する。
+        大きいファイルは `AppState.kt` 3,081 行（fun・val・var 611 個）・`FormView.kt` 2,179 行・`core/Cli.kt` 1,584 行。今の姿の文書は約 109 万字で、FEATURES は 6 万字の 1 表から行を引く手段が無い。CLI が 2 つ（同名コマンド 6: validate・apply・refactor・bench・catalog・entity）、同名ファイルが 6 組。UI の自動テストは無く、`./gradlew test --tests` の絞り込みは他モジュールで失敗する。
+        参照の実在はよく保たれている（FEATURES の `.kt` 参照 340 件で古いもの 1 件、テスト名 273 件で 1 件）が、保っているのは手作業で、直近 60 コミットのうち 45 がコードと文書を同時に変えている。
+  - decision: 決めたこと
+    status: decided
+    date: 2026-10-26
+    by: オーナー
+    text: 段階 0 から順にやる。各段階の着手前に「判断」の欄を決める。
+  - decision: 決めたこと
+    status: decided
+    date: 2026-10-27
+    by: オーナー
+    text: 目指すモジュール構成は ADR-0013（画面を持たない応用層 app-core・AI は agent モジュール・入口は desktop／cli／mcp・拡張はコンパイル時プラグインで明示的な一覧に登録・形式を先に）。パッケージの根は app／agent／desktop／cli／mcp と拡張のモジュール名。中核に残すビューの種類は grid・document・dashboard。ツールの一式の呼び名は「ツール」（スキーマの「操作」と区別する）。移行の順は app-core、agent、CLI、形式、ビューの種類、mcp。JSON は機械が呼ぶときの受け渡しの形で、文書は YAML のまま。
+  - label: 進め方の決まり
+    text: 各段階は `./gradlew test` を緑に保ち、1 コミット 1 関心事（データ・文書・コードを混ぜない）。規則を機械化したら CLAUDE.md の対応する落とし穴は消し、設計文書の規律に「規則テストが守る」と書く。この計画の文書は本テーマだけで、別の計画書は作らない。
+sections:
+- title: '段階 0: 小さく即効（判断は 2 つだけ）'
+  body:
+  - columns: decision
+    items:
+    - id: R47-01
+      title: テストの絞り込み
+      content: 各モジュールの test タスクに「一致するテストが無くても失敗しない」を設定し、`./gradlew test --tests '*WorkspaceInitTest*'` がルートから通るようにする
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+    - id: R47-02
+      title: 環境の知識を文書へ
+      content: '`py -3`・PowerShell 経由の CLI 出力は文字化けするので java を直接実行・Hot Reload の確認手順（status が connected → reload → get_semantic_tree）・`labs/` の未コミット差分に触れない・scratchpad の場所を AGENTS.md「この Windows 環境」節に集約し、CLAUDE.md からリンクする。機械で読むときの呼び方（GRADLE_OPTS で Gradle の出力を UTF-8 に）を実測して書いた'
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+    - id: R47-03
+      title: コミットの単位
+      content: CONVENTIONS「Git」に「1 コミット 1 関心事」を足した。機能の文書更新は同じコミット（ずれを防ぐ）、samples／labs のデータの整備は別コミット、大きな機能は段階ごと
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+    - id: R47-04
+      title: 旧ディレクトリの削除
+      content: 手元の `sample-workspace/`・`specs/`・`system-development-template/`・`software-template/` を消し、`.gitignore` の「削除予定」4 行と `settings.local.json` の古い許可を消す
+      decision: 消してよい（オーナー 2026-10-27）
+      state: done
+      state_on: 2026-10-27
+    - id: R47-05
+      title: tutorial.md の置き場
+      content: ルートの `tutorial.md`（4.3 万字）を docs/tutorial.md へ移し、docs/README.md の表に載せ、README.md のリンクを直した。manual/ には入れない（アプリ内ヘルプに同梱され、未完の章が出るため）
+      decision: docs/ へ移す（オーナー 2026-10-27）
+      state: done
+      state_on: 2026-10-27
+- title: '段階 1: 規則の機械化'
+  body:
+  - columns: decision
+    items:
+    - id: R47-10
+      title: ソース規則テスト
+      content: 全モジュールのソースを読む 1 つのテスト（新しい依存なし）。規則は表で宣言し、失敗の文に設計文書の見出しを添える。最初の規則は下の 12 本。root のテスト `rules/SourceRulesTest`（表は `rules/SourceRules`）。今直せていない違反（root の CLI・Readiness・AppState の層違反、同名ファイル 5 組）は `known` に理由つきで登録し、直すと一覧から消すよう促す
+      decision: 自前の走査（オーナー 2026-10-26）
+      state: done
+      state_on: 2026-10-26
+    - id: R47-11
+      title: 文書の参照の実在テスト
+      content: FEATURES・architecture の `.kt` 参照とテスト名、「ファイル名＋見出し」参照（バッククォートを外して比べる）が実在することを JVM のテストで確かめ、`./gradlew test` に含める。形の検査（チケット番号・リンク・字数）は docs-lint.sh のまま。root のテスト `rules/DocReferencesTest`（3 本）。古かった参照 2 件（coverage の行）を直した
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+    - id: R47-12
+      title: 今破れている 2 点の処置
+      content: (a) `core/Cli.kt` を新パッケージ `app.cli`（AppState と同じ最上位の層）へ移す。(b) app の 3 コア直接依存は新しい ADR で「app は yaml.model・yaml.patch・yaml.validate・semantic・semantic.schema の型を直接使ってよい（共通の語彙だから）」と正式化し、規則テストで許す範囲を固定する
+      decision: (b) は ADR-0013 で決着（app-core はカーネルの 3 つに直接依存してよい）。(a) は 2026-10-27 に `app.cli` へ移した（R47-24 の前準備。cli モジュールへは R47-41 で）
+      state: done
+      state_on: 2026-10-27
+      state_note: (a) は R47-24 へ
+    - id: R47-13
+      title: フックと CI
+      content: コミット前に docs-lint.sh と規則・参照のテストだけを回すフック。git の hooksPath をリポジトリ内の `scripts/git-hooks/` に向ける形（Claude Code 以外の道具でも効く。クローンごとに 1 回の設定）。GitHub Actions（`.github/workflows/test.yml`）で push ごとに docs-lint と `./gradlew test`。`gradlew` と scripts の実行ビットを index に付けた
+      decision: CI を使う（オーナー 2026-10-27）
+      state: done
+      state_on: 2026-10-27
+    - id: R47-14
+      title: CLAUDE.md を縮める
+      content: 機械化した落とし穴を CLAUDE.md から消し、「規則テストが守る」の 1 行と規則表へのリンクに置き換える。残すのは機械化できない規律だけ（目標は 36 項目を 15 項目に）。規則テストが守る 2 項目（等幅フォント・外部 UI ライブラリと JFileChooser）と 3 つの句（Files.exists・AI の HTTP・FieldType の分岐）を消して 34 項目にした。残りはパッケージ名が変わる段階 2 の後に、置き場に近い案内（R47-31）と合わせて行う
+      decision: なし
+      state: partial
+      state_on: 2026-10-27
+      state_note: 残りは R47-31 の形で少し開発して感触を確かめてから議論（オーナー 2026-10-29）
+  - text: |-
+      R47-10 の最初の規則（既知の違反を除いて守られているので、テストは「壊さない」ための錠になる）:
+
+      1. 純粋ロジック層（app.core・index・schema・validate・agent・ai・skill）に `androidx.compose` の import が無い。
+      2. app の層の順: app.core は app.agent・app.ai・app.skill・app.ui・`AppState` を import しない。app.index・app.schema・app.validate は app.core より下。
+      3. yaml-core・semantic-core の main に `java.nio.file.Path` が無い。
+      4. `FontFamily.Monospace` は ui/common/Common.kt だけ。
+      5. 外部 UI ライブラリ（FileKit・Reorderable・Markdown・Vico・ELK）の import は包むファイル（FilePickers・Reorder・MarkdownView・Charts・GraphLayouts）だけ。
+      6. `java.net.http` は agent/llm/Http.kt だけ。
+      7. `JFileChooser`・`Dispatchers.Main` を書かない。
+      8. 生の `Color(0x…)` は Palette（ui/common/Common.kt）だけ。
+      9. ui/ で `state.index` を直接読まない（`overlayIndex()`）。
+      10. `FieldType.TEXT` のような基底でない型での分岐を書かない。
+      11. `Files.exists` は許可リストのファイルだけ（今 33 か所。許可リストから始めて減らす）。
+      12. 同じ裸の名前のファイルを複数のモジュール・パッケージに作らない（Main.kt を除く）。
+- title: '段階 2: 応用層の切り出し（AppState をセッション側と画面側に分け、app-core と agent を切り出す）'
+  body:
+  - columns: decision
+    items:
+    - id: R47-20
+      title: AppState の分割
+      content: 基準は「セッション側か画面側か」。セッション側（開いている文書の集合・dirty・保存と競合・再読込・Undo／Redo の段・一括変更・文書の作成とファイルの配置）を `DocumentSession` にまとめ、変更の通知は Compose でなく版の番号と聞き手で出す。画面側（場所・スペース・タブ・選択・通知・ウィザード・操作ペイン）は AppState に残し、desktop がセッションを Compose の状態に写す。先に `OpenDocument` を別ファイルへ。1 責務 1 コミット
+      decision: 決定（ADR-0013）
+      state: done
+      state_on: 2026-10-27
+      state_note: 6 段で、セッション側を app-core の `DocumentSession` へ・画面側を AppState に。AppState 3,081 行 → 約 1,620 行。段ごとの経過は git log
+    - id: R47-21
+      title: core/Cli.kt の分割
+      content: CLI の一本化（R47-41）に統合。root の CLI の命令を cli モジュールへ移すときに命令ごとのファイルにする
+      decision: なし
+      state: moved
+      moved_to: R47-41
+    - id: R47-22
+      title: FormView.kt の分割
+      content: 項目の種類ごとのファイルへ。画面確認が要るので段階 5 の後（R47-50 の UI テストを先に広げてから）
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+      state_note: '2,180 行を 9 ファイルへ: FormView・FormCtx・FormDocView・FormFields・ScalarEditors・RefEditors・CollectionEditors・FormTables・GenericEditor。最大 378 行。中身は動かさず、ファイルの間で使う 16 の宣言だけ private → internal。先に UI テストを 5 本に広げ＝表の配列・スキーマの無い文書'
+    - id: R47-23
+      title: 行数の目安を報告
+      content: 規則テストが 800 行を超える main のファイルを報告する（失敗にしない。文書の字数と同じ扱い）。`SourceRulesTest` が `build/reports/source-rules/large-files.txt` に書き、pre-commit のフックが表示する
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+    - id: R47-24
+      title: app-core モジュールの切り出し
+      content: core・index・schema・validate・skill と `DocumentSession` を新モジュール app-core（パッケージの根は `app`。既存の `app.core` などはそのまま）へ `git mv`。desktop（今の root）は `desktop` を根にし、`app.ui` を `desktop.ui` へ改名。app-core に Compose・`java.util.prefs`・AI・POI を入れない（Gradle で止まる）。`core/FileCatalog` の Preferences は desktop へ出す
+      decision: 決定（ADR-0013）
+      state: done
+      state_on: 2026-10-27
+      state_note: app-core を新設して core・index・schema・validate・text・session・skill を移し、root の根パッケージを `desktop` に改名。経過は git log
+    - id: R47-25
+      title: agent モジュールの切り出し
+      content: 今の ai と agent を新モジュール agent（根は `agent`。llm・run・auto・eval）へ移す。書き込みはステージング → 変更セット → app-core の適用だけ。ツールの一式（AgentToolbox）は中立な `Toolset` として app-core へ置き、agent は LLM のツール宣言に包む。`ask_human` は agent に残す
+      decision: 決定（ADR-0013）
+      state: done
+      state_on: 2026-10-27
+      state_note: 3 段で agent モジュールを新設し、ツールの一式 `Toolset` を app-core へ、循環を解いて agent・run・auto・eval に分割。経過は git log
+    - id: R47-26
+      title: 共通の Gradle 設定
+      content: convention plugin（buildSrc）で、新しいモジュールの build ファイルを 3 行にする。Compose を使うモジュールと使わないモジュールの 2 種
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+      state_note: buildSrc の `yde.kotlin-module`。カーネル 3 つ・cli・app-core・agent の build ファイルは plugins・dependencies・固有の設定だけ。Kotlin の版は buildSrc が正。Compose 用は view-*-ui を作るときに
+    - id: R47-27
+      title: desktop と全体のテストのモジュール化
+      content: root の src を desktop（画面と配布物）と repo-tests（規則テストと、入口や拡張の一覧をまたぐテスト。テストだけ）に分け、root にソースを置かない（Gradle の推奨「Do Not Put Source Files in the Root Project」）。1 つのモジュールで書けるテストはそのモジュールへ（MetaSchemaTest・ConstraintTest は app-core、ActionCliTest は cli）。規則 14 が root の src を見る。文書の「root」（応用層を指していたもの）は app-core に直す
+      decision: 推奨案で（オーナー 2026-10-28）
+      state: done
+      state_on: 2026-10-29
+    - id: R47-28
+      title: desktop の画面のパッケージ分け
+      content: '`desktop.ui`（82 ファイル・約 2 万行が平ら）を役割で 10 のパッケージ（common・form・source・schema・view・graph・file・run・action・shell）に分ける。段 1＝移すだけ（Main.kt の画面を `ui.shell` へ・`DesktopUiDispatcher` を根へ・規則 2 が `*` の import を見る・DocReferencesTest がフォルダまで照合・architecture/ui.md「画面のパッケージ」に図）。段 2＝パッケージの間の 9 つの循環を解き（小さな部品を下ろす・フォームの差し込み口 `FormSlots`・機能どうしの頼みごとは根へ）、ui の中の層を規則テストで守る（規則 2 に 4 段・規則 19）'
+      decision: 10 の分け方・操作のパネルは独立・file 型の欄は file・差分は common・skill は shell・段 2 は段 1 の図を見てから。段 2＝機能どうしは使わない・フォームの差し込み口・図の配置は common・`pathOfNode` は yaml-core（オーナー 2026-10-30）
+      state: done
+      state_on: 2026-10-30
+      state_note: 循環 0・機能どうしの矢印 0
+- title: '段階 3: 読む範囲の絞り込み'
+  body:
+  - columns: decision
+    items:
+    - id: R47-30
+      title: FEATURES の分割
+      content: 1 表 6 万字を主題ごとのファイル（docs/features/ に workspace・editing・schema …）と索引に分ける。行の形と ID は変えない。docs-lint の特別扱い（8 万字）を外す
+      decision: 分けない（AI は ID や語で該当行を引くので分けても効かない。実際は約 4.3 万字。オーナー 2026-10-30）
+      state: done
+      state_on: 2026-10-30
+      state_note: 分けずに、重なった機能 ID を振り直し E-26〜28・X-16・X-17、DocReferencesTest が重なりを見る
+    - id: R47-31
+      title: 置き場に近い案内
+      content: ui/・semantic-core/・workspace-core/ などに、その場所の規律だけを書いた CLAUDE.md を置く（Claude Code は作業中のディレクトリのものを読む。Codex 向けに AGENTS.md を同内容で）。ルートの CLAUDE.md は手順と共通の規律だけにする
+      decision: 作業ガイドの本文は AGENTS.md 1 枚（CLAUDE.md は `@AGENTS.md` の取り込み）・モジュールの AGENTS.md（隣の CLAUDE.md は取り込むだけ）・基準は「間違いが起きる場所」・クエリの線と保有の線は root に残す（オーナー 2026-10-29）
+      state: done
+      state_on: 2026-10-29
+      state_note: desktop 5 項目・semantic-core 3 項目を移し、root の落とし穴は 26 項目。Codex は下のフォルダを自動では読まないので root に場所の表。DocReferencesTest と docs-lint がモジュールの AGENTS.md も見る
+    - id: R47-32
+      title: 用語の対応表
+      content: 造語（定義体・保有・受け手・手・レンズ・覚え・台帳・変更セット・射影）の 1 行定義と設計文書の見出しへのリンクを docs/GLOSSARY.md に置く
+      decision: なし
+      state: done
+      state_on: 2026-10-28
+      state_note: 9 語に、CLAUDE.md の落とし穴と設計文書に出る語を足して 7 群 68 語。列は語・意味・近い一般の語・詳しく。docs/README.md の表・CLAUDE.md・AGENTS.md から引け、参照の実在は `DocReferencesTest`、番号の混入は docs-lint が見る
+    - id: R47-33
+      title: 台帳の分割
+      content: BACKLOG を「指摘」「テーマ管理」「所感」に、UX-SCENARIOS を台本ごとに分ける
+      decision: 分けない（AI は登録と番号で引くだけで、分けても効かない。実際は BACKLOG 約 3.4 万字・UX-SCENARIOS 約 3.6 万字。オーナー 2026-10-30）
+      state: done
+      state_on: 2026-10-30
+      state_note: BACKLOG はそのまま。UX-SCENARIOS は後ろに溜まった番号の無い 11 節をカタログの中へ収め直し、置き方の 1 行を足した
+- title: '段階 4: 入口の整理'
+  body:
+  - columns: decision
+    items:
+    - id: R47-40
+      title: 同名ファイルの改名
+      content: '`git mv` で semantic/schema/Query.kt を QuerySpec.kt、semantic/schema/Transform.kt を TransformDef.kt、semantic/schema/Flow.kt を FlowDef.kt、cli/Shell.kt を CliShell.kt に。app/core/Aspects.kt は中身を見て決める。Main.kt は入口なので残す'
+      decision: 名前（ROADMAP の案で着手。オーナー 2026-10-27）
+      state: done
+      state_on: 2026-10-27
+      state_note: 'schema/Query.kt → QuerySpec.kt・schema/Transform.kt → TransformDef.kt・schema/Flow.kt → FlowDef.kt・cli/Shell.kt → CliShell.kt。残った重なりは中の object の名前に合わせた: semantic/Query.kt → SemanticQuery.kt・semantic/Aspects.kt → SemanticAspects.kt。規則 12 の既知の違反は 0'
+    - id: R47-41
+      title: CLI を 1 つに
+      content: 案 C で決定。cli モジュールが app-core と agent に依存し、root の CLI の命令（探索・検索・検証・エージェント・入出力など 36）を命令ごとのファイルで移す。全命令で `--format` の text／yaml／json。`runCli` は cli モジュールを起動する
+      decision: 決定（案 C。ADR-0013）
+      state: done
+      state_on: 2026-10-27
+      state_note: 2 段で CLI を cli モジュールの 1 つに。命令ごとのファイル・全命令の `--format`。経過は git log
+- title: '段階 5: UI の自動確認'
+  body:
+  - columns: decision
+    items:
+    - id: R47-50
+      title: Compose の UI テストの試行
+      content: '`runComposeUiTest`（ヘッドレス）で FormView に test-fixtures の文書を出し、項目の名前と値・閲覧専用の分岐を semantics で確かめる 3 本。`./gradlew test` で 10 秒以内に収まれば本採用'
+      decision: 依存を足してよい（オーナー 2026-10-27）
+      state: done
+      state_on: 2026-10-27
+      state_note: 依存を足してよい＝オーナー。`FormViewUiTest` 3 本＝項目の名前と値・閲覧専用で編集欄 0・入力が木に届き未保存。3 本で約 7.5 秒（R47-22 で 5 本に広げて約 9 秒）。クラスを作り直した直後の 1 回目だけ最初のテストが 10〜16 秒かかることがある（手元の Windows。順には依らない）。本採用
+    - id: R47-51
+      title: 画面確認の手順を skill に
+      content: Hot Reload MCP の手順（起動 → status が connected → reload → get_semantic_tree で確認 → 触った状態を戻す）を `.claude/skills/ui-check/` に置く
+      decision: なし
+      state: done
+      state_on: 2026-10-28
+      state_note: '`.claude/skills/ui-check/`: SKILL.md＝使う・使わないの判断と 8 段の手順・MCP でできないこと、scripts＝写す prepare.sh・起動を待つ wait-ready.sh・保存した木を探す tree_find.py・アプリだけを止める stop.ps1。AGENTS.md と CLAUDE.md・CONVENTIONS は skill を指す'
+- title: '段階 6: 拡張の機構（コンパイル時プラグイン・明示的な登録）'
+  body:
+  - columns: decision
+    items:
+    - id: R47-60
+      title: 形式の差し込み口
+      content: app-core に `FormatCodec`（ID・拡張子・読む・書く）と登録簿を置き、skill の形式 enum を置き換える。format-xlsx・format-docx（POI）・format-text（csv・json・markdown）の 3 モジュール。対応づけは skill 定義の YAML のまま。登録は入口の 1 ファイルの一覧
+      decision: 決定（形式を先に。ADR-0013）
+      state: done
+      state_on: 2026-10-27
+      state_note: R47-41 のため前倒し。`app.ext` の `FormatCodec`／`ExtensionRegistry`／`Extensions`、3 モジュール、登録は `desktop/ext/DesktopExtensions.kt`。root の POI は test だけ
+    - id: R47-61
+      title: ビューの種類の差し込み口
+      content: app-core に `ViewKind`（種類・定義の形の断片・読み取り・解決）を置き、`ViewDefinitions` の `when(kind)` を登録簿に置き換える。メタスキーマへ断片を kind ごとに合成する仕組みを作る。chart・lens・flow・matrix を view-* モジュールへ出し、grid・document・dashboard は中核に残す。描画は desktop.views の登録簿（`ViewRenderer`）で、大きくなった種類から view-*-ui へ
+      decision: 決定（ADR-0013。置き場と出す種類は ADR-0014＝オーナー 2026-10-28）
+      state: done
+      state_on: 2026-10-28
+      state_note: 2 段で差し込み口 `ViewKind` と断片の合成を作り、chart を view-chart・flow を view-flow へ。matrix・lens は中核。経過は git log
+    - id: R47-62
+      title: 拡張の規則テスト
+      content: 拡張の全モジュールが入口の一覧に登録されている・拡張どうしが依存しない・Compose を持つのは desktop と view-*-ui だけ、を規則テストに足す。拡張の形（README・3 行の build・実装 1 つ・断片・テスト）も検査する
+      decision: なし
+      state: done
+      state_on: 2026-10-27
+      state_note: 規則 14〜18＝走査の漏れ・入口の一覧への登録・拡張の依存・拡張の形・agent のファイルの循環。`rules/ModuleRules`。規則 18 が agent.llm の循環を見つけ、生成の入出力を llm/AiGeneration.kt に出して解いた。Compose を持つのは desktop と view-*-ui だけ、は規則 1 が拡張を含めて見る
+    - id: R47-63
+      title: 拡張モジュールを畳む
+      content: 5 つの拡張のうち、chart・flow と文字の形式（csv・json・markdown・html）を app-core の組込みに戻し（登録簿が最初から持つ）、Excel と Word を format-office 1 つにまとめる。13 → 9 モジュール。差し込み口と、POI を中核に入れない境界は残す（ADR-0015）
+      decision: 5 つで 1,145 行・機能が 2 か所に分かれる・登録の手間で分けすぎ、とオーナーの指摘。案 C＝中核に戻して POI だけ分ける（オーナー 2026-10-30）
+      state: done
+      state_on: 2026-10-30
+- title: '段階 7: MCP の入口'
+  body:
+  - columns: decision
+    items:
+    - id: R47-70
+      title: MCP の入口
+      content: 具体的なモジュール構成・SDK・接続管理・作業の提出は P49 で実施し、同じ作業を二重管理しない
+      decision: 本計画の単独 mcp モジュール案は P49 の local-server 案で具体化
+      state: done
+      state_on: 2026-11-01
+      state_note: '[記録](archive/roadmap-history.md)'

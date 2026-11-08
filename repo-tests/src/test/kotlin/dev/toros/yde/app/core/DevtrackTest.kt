@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 /**
  * 開発管理（devtrack/）を CI で守る（devtrack/README.md「運用」）:
  * - 検証のエラーが無い。ビュー・ダッシュボード・レポートの定義が読める
- * - docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
+ * - docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md・docs/ROADMAP.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
  * - 業務の操作（指摘の登録〔採番〕・状態の変更・一部の解決・解決・再開と、機能の登録〔系統ごとの採番〕）が写しの上で通り、検証のエラーを増やさない
  */
 class DevtrackTest {
@@ -54,9 +54,9 @@ class DevtrackTest {
     }
 
     @Test
-    fun `docs の台帳と記録と機能索引は devtrack から作り直したものと同じ`() {
+    fun `docs の台帳と記録と機能索引とロードマップは devtrack から作り直したものと同じ`() {
         val ws = Workspace.open(root)
-        val stale = mapOf("backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md")
+        val stale = mapOf("backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md", "roadmap-md" to "docs/ROADMAP.md")
             .filter { (report, target) -> Path.of(target).readText() != render(ws, report) }
             .values
         assertTrue(stale.isEmpty(), "devtrack から作り直していない文書があります: $stale（./gradlew devtrackDocs で作り直してコミットする）")

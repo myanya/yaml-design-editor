@@ -1,0 +1,5 @@
+id: P51
+number: 51
+title: YAMLで図のノードと辺の記法を定義する
+status: done
+status_note: 完了（2026-11-03）。共通契約・人物カード・クラス図・条件と出力の4段階、詳細は[記録](archive/roadmap-history.md)

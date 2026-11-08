@@ -57,6 +57,37 @@ class SemanticTransformTest {
         assertFailsWith<IllegalStateException> { def("id: t\nbuild: { x: { ${'$'}view: sales, ${'$'}one: 1 } }") }
     }
 
+    @Test
+    fun `each の源にビューの行を書くと 行を 1 行ずつ いまの場所にして組み立てる`() {
+        val transform = def(
+            """
+            id: t
+            build:
+              themes:
+                ${'$'}each: { ${'$'}view: themes, ${'$'}where: [{ path: values.状態, notEquals: done }] }
+                ${'$'}build:
+                  id: { ${'$'}copy: id }
+                  items:
+                    ${'$'}each: values.項目
+                    ${'$'}build:
+                      ${'$'}first:
+                        - { ${'$'}when: { path: state, equals: done }, ${'$'}then: { ${'$'}format: "{id} ✅ {date}" } }
+                        - { ${'$'}format: "{id} 📋" }
+            """
+        )
+        val rows = YamlIO.parse(
+            """
+            - { id: P1, values: { 状態: done, 項目: [] } }
+            - { id: P2, values: { 状態: todo, 項目: [ { id: R2-01, state: done, date: 2026-11-08 }, { id: R2-02, state: todo } ] } }
+            """.trimIndent()
+        )
+        val result = SemanticTransform.run(transform, YamlIO.parse("{}"), views = { id -> rows.takeIf { id == "themes" } })
+        assertEquals(expected("themes:\n  - { id: P2, items: [\"R2-01 ✅ 2026-11-08\", \"R2-02 📋\"] }"), plain(result.term))
+        // 源のビューの行に of / in・$one は書けない
+        assertFailsWith<IllegalStateException> { def("id: t\nbuild: { x: { ${'$'}each: { ${'$'}view: v, ${'$'}one: true }, ${'$'}build: { ${'$'}copy: id } } }") }
+        assertFailsWith<IllegalStateException> { def("id: t\nbuild: { x: { ${'$'}each: { ${'$'}view: v }, ${'$'}of: a, ${'$'}build: { ${'$'}copy: id } } }") }
+    }
+
     // ---------------------------------------------------------------- 呼び出し側が渡した項1つを変換する
 
     @Test

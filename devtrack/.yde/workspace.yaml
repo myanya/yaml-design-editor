@@ -1,3 +1,3 @@
-# 開発管理のワークスペース（devtrack/README.md）。台帳（ID 索引・検証の集計）は指摘・テーマ・メモ・機能。
-# 指摘・テーマ・所感メモ・機能の原本はここで、docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md は生成物（./gradlew devtrackDocs）
-ledger: [backlog, themes, notes, features]
+# 開発管理のワークスペース（devtrack/README.md）。台帳（ID 索引・検証の集計）は指摘・テーマ・メモ・機能・ロードマップ。
+# 原本はここで、docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md・docs/ROADMAP.md は生成物（./gradlew devtrackDocs）
+ledger: [backlog, themes, notes, features, roadmap]

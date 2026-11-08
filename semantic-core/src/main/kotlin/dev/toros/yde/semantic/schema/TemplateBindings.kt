@@ -25,7 +25,7 @@ internal fun Template.bindNames(): Set<String> {
             is Template.TrimOf -> walk(t.input, local)
             is Template.ValueOf -> out += t.expr.binds() - local
             is Template.ViewRows -> conditions(t.conditions, local)
-            is Template.Each -> { site(t.site, local); walk(t.body, local + listOfNotNull(t.bind)) }
+            is Template.Each -> { site(t.site, local); t.rows?.let { walk(it, local) }; walk(t.body, local + listOfNotNull(t.bind)) }
             is Template.Zip -> { t.sites.forEach { site(it.second, local) }; walk(t.body, local) }
             is Template.Apply -> site(t.site, local)
             is Template.Concat -> t.parts.forEach { walk(it, local) }

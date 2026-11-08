@@ -17,9 +17,9 @@
 | [architecture/](architecture/README.md) | 設計。主題ごとに 1 ファイル（部品・流れ・規律・拡張ポイント） | 着手前に該当する主題を読む | クラス・責務・データフロー・方針が変わったとき |
 | [GLOSSARY.md](GLOSSARY.md) | 用語集。このプロジェクトで決めた語の 1 行の意味・近い一般の語・詳しい文書の見出し | 知らない語に会ったとき | 語を足した・意味が変わった・案内先の見出しが変わったとき |
 | [CONVENTIONS.md](CONVENTIONS.md) | 開発規約。スタイル・Compose・テスト・文書・UX フィードバック・モジュール・計算体系 | 実装中 | 規約を変えるとき |
-| [ROADMAP.md](ROADMAP.md) | ビジョンと未完のテーマ。全テーマの状態表 | テーマの目的と残りを確かめるとき | 方向性の変更、テーマの着手・完了。完了したら本文を archive へ |
+| [ROADMAP.md](ROADMAP.md) | ビジョンと未完のテーマ。全テーマの状態表（devtrack から生成） | テーマの目的と残りを確かめるとき | 直接直さない。方向性の変更・テーマの着手・完了は devtrack の `roadmap/` を直して作り直す。完了したら本文を archive へ |
 | [BACKLOG.md](BACKLOG.md) | 未解決の指摘台帳とテーマ（devtrack から生成） | 気になりポイントを確認するとき | 直接直さない。devtrack を直して作り直す |
-| [devtrack/](../devtrack/README.md) | 開発管理のワークスペース。指摘・テーマ・所感メモと機能索引の原本 | 気になりポイントを登録・解決するとき、機能を足す・直すとき | 気づいたとき即時。`./gradlew devtrackDocs` で台帳と機能索引を作り直す |
+| [devtrack/](../devtrack/README.md) | 開発管理のワークスペース。指摘・テーマ・所感メモと機能索引とロードマップの原本 | 気になりポイントを登録・解決するとき、機能を足す・直すとき、テーマや項目の状態を変えるとき | 気づいたとき即時。`./gradlew devtrackDocs` で台帳・機能索引・ロードマップを作り直す |
 | [UX-SCENARIOS.md](UX-SCENARIOS.md) | オーナーが操作して使用感を確かめるシナリオ | 使用感を確認するとき | 再利用する利用場面を追加するとき、既存シナリオの操作が変わったとき |
 | [CORE-CALCULUS.md](CORE-CALCULUS.md) | YAML に対する計算体系の設計方針 | 決定論的機能を足す前 | 体系の原則を変えるとき。ADR とセット |
 | [DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md) | 設計チェックのパターン台帳 | 検査を足す前 | 検証機構の追加・変更 |

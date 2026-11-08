@@ -1,0 +1,6 @@
+id: roadmap-outlook
+name: ロードマップの展望
+kind: document
+description: テーマの候補（計画前）とリスクと未解決課題（docs/ROADMAP.md の末尾の 2 節）を持ちます（1 件だけ。roadmap/outlook/OUTLOOK.yaml）。
+match: "roadmap/outlook/*.yaml"
+root: { type: common#ロードマップの展望 }

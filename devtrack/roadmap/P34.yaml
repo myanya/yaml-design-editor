@@ -1,0 +1,5 @@
+id: P34
+number: 34
+title: 保存時に自動で入る値（更新日・作成日・版）
+status: done
+status_note: 完了（2026-10-04）。残りは BACKLOG の個別項目

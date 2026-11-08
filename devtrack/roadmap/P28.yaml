@@ -1,0 +1,17 @@
+id: P28
+number: 28
+title: 設計検証の拡充
+status: in-progress
+status_note: 登録項目はすべて完了。次はオーナー判断（下記）
+body:
+- points:
+  - label: 目的
+    text: 本命ユースケース。システム開発の設計情報を管理し、設計を機械的に検証する。「設計に対してどのような機械的チェックが可能か」のカタログ（[DESIGN-CHECK-CATALOG.md](DESIGN-CHECK-CATALOG.md)）を組み上げること自体が成果物。
+  - label: 進め方
+    text: テンプレート先行。小規模システム開発の文書体系（[labs/sysdev-template](../labs/sysdev-template)）をスキーマ化し、実データで制約を書きながら語彙を確定する。新しい検証要求は必ず Core Calculus を一段挟む（[ADR-0009](decisions/0009-core-calculus.md)）。
+  - label: 文書体系とモデルの対応
+    text: ビジネスルール BR → ユースケース UC → ドメイン DOM・エンティティ ENT・画面 SCR・API → 詳細設計（同一 ID の段階的詳細化）・処理 PROC → テスト項目（対象 × 観点のマトリクス）・ケース・結果。方式区分は enum と cases、「〜から導出」の関係は relation で宣言する。
+  - label: 完了
+    text: テンプレート v3、クエリ制約の拡張（count・notEquals）、網羅マトリクス、遷移検証、ゲート体系と指摘の説明性（no-new-errors・readiness）、設計チェックカタログ、ノード一致 same、束縛間の値比較 check。
+  - label: 残り
+    text: 登録済みの項目はすべて完了。次の項目はオーナー判断。自然文の内容品質（曖昧・矛盾）の AI 補助検証は決定的検証と区別し、後段扱い。

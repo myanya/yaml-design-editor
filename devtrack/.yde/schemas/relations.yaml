@@ -6,6 +6,9 @@ entities:
   - { type: theme, label: テーマ }
   - { type: note, label: メモ }
   - { type: feature, label: 機能 }
+  - { type: roadmap-theme, label: ロードマップのテーマ }
+  - { type: roadmap-item, label: R 項目 }
+  - { type: roadmap-outlook, label: ロードマップの展望 }
 relations:
   - name: bundled-in
     label: テーマ
@@ -26,3 +29,10 @@ relations:
     source: [backlog-item]
     target: [feature]
     description: 指摘が関わる機能（docs/FEATURES.md の行）を参照します。機能の行に未解決の指摘として出ます
+  - name: moved-to
+    label: 移した先
+    inverseLabel: 移してきた項目
+    source: [roadmap-item]
+    target: [roadmap-item]
+    cardinality: { outMax: 1 }
+    description: R 項目を別の R 項目へ移したとき、移した先を参照します（ROADMAP.md では「→ R47-41」）

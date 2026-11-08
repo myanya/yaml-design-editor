@@ -490,3 +490,209 @@ definitions:
         expect: absent
         level: warning
         message: "機能「{id}」は内部の基盤の印があるのに、操作の説明（manual）があります"
+
+  # ---- ロードマップ（docs/ROADMAP.md のテーマと R 項目） ----
+  ロードマップのテーマID:
+    type: id
+    pattern: "^P[0-9]+$"
+    placeholder: P53
+    sample: P52
+    description: 「P」と番号。ファイル名（roadmap/P52.yaml の形）にもなります。
+  R項目ID:
+    type: id
+    pattern: "^R[0-9]+-[0-9]+[a-z]?$"
+    placeholder: R52-06
+    sample: R52-05
+    description: 「R」とテーマの番号・「-」・項目の番号（例 R52-05）。枝の項目は末尾に英小文字（例 R28-05a）。
+  ロードマップの展望ID:
+    type: id
+    pattern: "^OUTLOOK$"
+    sample: OUTLOOK
+  ロードマップのテーマの状態:
+    type: enum
+    values:
+      - { value: todo, label: 📋 未着手 }
+      - { value: in-progress, label: 🚧 進行中 }
+      - { value: ongoing, label: 🔁 定常運用 }
+      - { value: done, label: ✅ 完了 }
+  R項目の状態:
+    type: enum
+    values:
+      - { value: todo, label: 📋 未着手 }
+      - { value: in-progress, label: 🚧 進行中 }
+      - { value: partial, label: 🚧 一部完了 }
+      - { value: done, label: ✅ 完了 }
+      - { value: moved, label: → 別の項目へ移した }
+  # R 項目の表の列の形: 基本（内容）・判断つき（内容と判断）・作業（主な場所・前提・完了条件）
+  R項目の表の形:
+    type: enum
+    values:
+      - { value: basic, label: 基本（ID・項目・内容・状態） }
+      - { value: decision, label: 判断つき（ID・項目・内容・判断・状態） }
+      - { value: work, label: 作業（ID・作業・主な場所・前提・完了条件・状態） }
+  # 決定の見出しの語: 値をそのまま ROADMAP.md の太字に出すので、値も日本語にする
+  決定の語:
+    type: enum
+    values: [決めたこと, 決定, 合意した方向]
+  決定の状態:
+    type: enum
+    values:
+      - { value: decided, label: 決定済み }
+      - { value: pending, label: 判断待ち }
+  # 参照の型: 移した先の R 項目。線の名前は moved-to
+  R項目参照:
+    type: ref
+    idPattern: "R*"
+    scope:
+      schemaIds: [roadmap]
+    relation: moved-to
+
+  # R 項目: テーマの本文・節の表の 1 行。この形の要素がエンティティ roadmap-item の定義（テーマが保有する）
+  R項目:
+    type: object
+    label: R 項目
+    entity: { type: roadmap-item, defines: true }
+    fields:
+      - { key: id, label: ID, type: R項目ID, required: true }
+      - { key: title, label: 項目, type: 一行の文, role: title, required: true, description: 表の「項目」（作業の表では「作業」）の欄。 }
+      - { key: content, label: 内容, type: 一行の文, description: 基本・判断つきの表の「内容」の欄。 }
+      - { key: decision, label: 判断, type: 一行の文, description: 判断つきの表の「判断」の欄。 }
+      - { key: places, label: 主な場所, type: 一行の文, description: 作業の表の「主な場所」の欄。 }
+      - { key: prereq, label: 前提, type: 一行の文, description: 作業の表の「前提」の欄。 }
+      - { key: done_criteria, label: 完了条件, type: 一行の文, description: 作業の表の「完了条件」の欄。 }
+      - { key: state, label: 状態, type: R項目の状態, required: true, default: todo }
+      - { key: state_on, label: 状態の日, type: 年月日, description: 完了・一部完了の日。 }
+      - { key: state_note, label: 状態の補足, type: 一行の文, description: "ROADMAP.md では状態の後ろの（）の中（例「✅ 2026-11-07（補足）」）。" }
+      - { key: moved_to, label: 移した先, type: R項目参照, description: 状態が「別の項目へ移した」のとき、移した先の R 項目（ROADMAP.md では「→ R47-41」）。 }
+    constraints:
+      - id: done-item-has-date
+        description: 完了した R 項目には、状態の日があること
+        where:
+          - { path: state, equals: done }
+          - { path: state_on, exists: false }
+        expect: absent
+        level: error
+        message: "完了した R 項目「{id}」に状態の日がありません"
+      - id: moved-item-has-target
+        description: 別の項目へ移した R 項目には、移した先があること
+        where:
+          - { path: state, equals: moved }
+          - { path: moved_to, exists: false }
+        expect: absent
+        level: error
+        message: "R 項目「{id}」に移した先がありません"
+
+  # 箇条: 本文の「- **見出し**: 文」の 1 つ。決定（「- **決めたこと（日付 誰）**: 文」）は decision・status・date・by を持つ
+  箇条:
+    type: object
+    label: 箇条
+    fields:
+      - { key: label, label: 見出し, type: 一行の文, description: 太字の見出し。無ければ見出しの無い箇条（「- 文」）。 }
+      - { key: label_note, label: 見出しの補足, type: 一行の文, description: 太字の後ろ・「:」の前に続く文字（例「（labs/…）」）。 }
+      - { key: decision, label: 決定, type: 決定の語, description: 決定の箇条の見出しの語。書くと見出しは「語（日付 誰）」になります。 }
+      - { key: status, label: 決定の状態, type: 決定の状態, description: 決定済みか、オーナーの判断を待っているか（判断待ちの一覧の元）。 }
+      - { key: date, label: 決定の日, type: 年月日 }
+      - { key: by, label: 決めた人, type: 一行の文 }
+      - { key: text, label: 文, type: 文章, required: true, description: "「:」の後ろの文。続きの行は 2 字下げで書きます。" }
+    constraints:
+      - id: decision-has-date-by-status
+        description: 決定の箇条には、決定の状態・日・決めた人があること
+        where:
+          - { path: decision, exists: true }
+          - or:
+              - { path: status, exists: false }
+              - { path: date, exists: false }
+              - { path: by, exists: false }
+        expect: absent
+        level: error
+        message: 決定の箇条に、決定の状態・日・決めた人のどれかがありません
+
+  # 本文のかたまり: 文（Markdown のまま。表・コード・段落）・箇条の並び・R 項目の表のどれか 1 つ
+  本文のかたまり:
+    type: object
+    label: 本文のかたまり
+    fields:
+      - { key: text, label: 文, type: 文章, description: Markdown のまま出す文（段落・表・コード）。 }
+      - { key: points, label: 箇条, type: array, item: { type: 箇条 } }
+      - { key: columns, label: 表の形, type: R項目の表の形, description: R 項目の表の列の形。 }
+      - { key: items, label: R 項目, type: array, item: { type: R項目 } }
+    constraints:
+      - id: block-has-a-kind
+        description: 本文のかたまりは、文・箇条・R 項目の表のどれかを持つこと
+        where:
+          - { path: text, exists: false }
+          - { path: points, exists: false }
+          - { path: items, exists: false }
+        expect: absent
+        level: error
+        message: 本文のかたまりに、文（text）・箇条（points）・R 項目（items）のどれもありません
+      - id: block-has-one-kind
+        description: 本文のかたまりは、文・箇条・R 項目の表のうち 1 つだけを持つこと（2 つ目は次のかたまりに分ける）
+        where:
+          - or:
+              - { path: text, exists: true }
+              - { path: points, exists: true }
+          - or:
+              - { path: points, exists: true }
+              - { path: items, exists: true }
+          - or:
+              - { path: text, exists: true }
+              - { path: items, exists: true }
+        expect: absent
+        level: error
+        message: 本文のかたまりには、文（text）・箇条（points）・R 項目（items）のうち 1 つだけを書きます
+      - id: items-have-columns
+        description: R 項目の表には、列の形があること
+        where:
+          - { path: items, exists: true }
+          - { path: columns, exists: false }
+        expect: absent
+        level: error
+        message: R 項目の表（items）に列の形（columns）がありません
+
+  ロードマップの節:
+    type: object
+    label: 節
+    fields:
+      - { key: title, label: 見出し, type: 一行の文, role: title, required: true }
+      - { key: body, label: 本文, type: array, item: { type: 本文のかたまり } }
+
+  # ロードマップのテーマ: 1 件 1 ファイル。この形の要素がエンティティ roadmap-theme の定義
+  ロードマップのテーマ:
+    type: object
+    label: ロードマップのテーマ
+    entity: { type: roadmap-theme, defines: true }
+    fields:
+      - { key: id, label: ID, type: ロードマップのテーマID, required: true }
+      - { key: number, label: 番号, type: int, required: true, min: 1, description: ID の番号（P52 なら 52）。状態の表と未完のテーマはこの順に並びます。 }
+      - { key: title, label: 名前, type: 一行の文, role: title, required: true, description: "未完のテーマの見出し（「### P52: 名前」）。" }
+      - { key: table_title, label: 表の名前, type: 一行の文, description: 状態の表の「テーマ」の欄が見出しと違うとき（省くと名前）。 }
+      - { key: status, label: 状態, type: ロードマップのテーマの状態, required: true }
+      - { key: status_note, label: 状態の要約, type: 一行の文, required: true, description: 状態の表の「状態」の欄（そのまま出します）。 }
+      - { key: body, label: 本文, type: array, item: { type: 本文のかたまり }, description: 見出しの直後の本文（節の前）。 }
+      - { key: sections, label: 節, type: array, item: { type: ロードマップの節 }, description: 小見出し（「#### 見出し」）ごとの本文。 }
+
+  # ロードマップの展望: テーマの候補（計画前）とリスク。1 件だけ（roadmap/outlook/OUTLOOK.yaml）
+  テーマの候補:
+    type: object
+    label: テーマの候補
+    fields:
+      - { key: name, label: 候補, type: 一行の文, role: title, required: true }
+      - { key: foundation, label: 必要になる土台, type: 一行の文 }
+      - { key: note, label: 補足, type: 一行の文 }
+  リスク:
+    type: object
+    label: リスク
+    fields:
+      - { key: risk, label: リスク, type: 一行の文, role: title, required: true }
+      - { key: policy, label: 方針, type: 一行の文 }
+  ロードマップの展望:
+    type: object
+    label: ロードマップの展望
+    entity: { type: roadmap-outlook, defines: true }
+    fields:
+      - { key: id, label: ID, type: ロードマップの展望ID, required: true }
+      - { key: title, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: candidates_intro, label: 候補の前書き, type: 文章 }
+      - { key: candidates, label: テーマの候補, type: array, item: { type: テーマの候補 } }
+      - { key: risks, label: リスクと未解決課題, type: array, item: { type: リスク } }

@@ -12,7 +12,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * レポート（R30-04）: 定義（build の `$view` でビューの行を受け取る）とひな形から文字を作り、出力先を埋め、派生物として書く。
+ * レポート（R30-04）: 定義（build の `$view` でビューの行を受け取る。同じ形の組み立ては rules）とひな形から文字を作り、出力先を埋め、派生物として書く。
  */
 class ReportsTest {
 
@@ -73,6 +73,22 @@ class ReportsTest {
             先頭: {first.id} / 無い穴: {nothing}
             """,
         )
+        // ビューの行を 1 行ずつ組み立て、同じ形は名前を付けた規則（rules）で 1 か所に書く
+        write(
+            "_reports/ruled.yaml",
+            """
+            id: ruled
+            build:
+              rows:
+                ${'$'}each: { ${'$'}view: orders, ${'$'}where: [{ path: values.月, equals: "2026-10" }] }
+                ${'$'}apply: size
+            rules:
+              - { id: size, when: [{ path: values.合計, gte: 5000 }], build: { ${'$'}format: "{id} 大" } }
+              - { id: size, build: { ${'$'}format: "{id} 小" } }
+            template: ruled.md
+            """,
+        )
+        write("_reports/ruled.md", "{#each rows}{.}{#if more}・{/if}{/each}")
         write("_reports/broken.yaml", "id: broken\nbuild: { x: 1 }\ntemplate: broken.md\n")
         write("_reports/broken.md", "{#each x}")
         write("_reports/yaml-out.yaml", "id: yaml-out\nbuild: { x: 1 }\ntemplate: monthly.md\noutput: out.yaml\n")
@@ -88,8 +104,8 @@ class ReportsTest {
         val workspace = Workspace.open(ws)
         val catalog = Views.load(ws, workspace.schemas)
         val loaded = Reports.load(ws)
-        // 読めたのは monthly だけ。閉じ忘れのひな形と YAML への出力は定義エラー
-        assertEquals(listOf("monthly"), loaded.reports.map { it.def.id })
+        // 読めたのは monthly と ruled だけ。閉じ忘れのひな形と YAML への出力は定義エラー
+        assertEquals(listOf("monthly", "ruled"), loaded.reports.map { it.def.id })
         assertTrue(loaded.errors.any { "broken" in it && "閉じられていません" in it }, loaded.errors.toString())
         assertTrue(loaded.errors.any { "yaml-out" in it && "YAML" in it }, loaded.errors.toString())
         val report = assertNotNull(loaded.report("monthly"))
@@ -97,6 +113,9 @@ class ReportsTest {
         assertEquals("# 2026-10\n- ORD-002 2026-10-05 3,000\n- ORD-003 2026-10-20 6,300\n先頭: ORD-002 / 無い穴: ", result.text)
         assertEquals("reports/2026-10.md", result.outputRel)
         assertEquals(listOf("nothing"), result.missing)
+        // 規則: 行ごとに、条件に合う最初の規則で組み立てる
+        val ruled = Reports.run(assertNotNull(loaded.report("ruled")), emptyMap(), catalog, workspace.index, workspace::treeOf, workspace::schemaFor)
+        assertEquals("ORD-002 小・ORD-003 大", ruled.text)
         // 受け取る値が無ければ誤り
         assertFailsWith<IllegalStateException> { Reports.run(report, emptyMap(), catalog, workspace.index, workspace::treeOf, workspace::schemaFor) }
         // 派生物として書く。YAML と定義の場所には書かない

@@ -1,0 +1,13 @@
+id: P17
+number: 17
+title: UX 試験と操作体験のチューニング
+status: ongoing
+status_note: 定常運用（下記）
+body:
+- points:
+  - label: 目的
+    text: 機能の充実に対して不足している「実際に触ったときの体験」の検証を、定常の開発ループに組み込み、指摘を確実に還流させる。
+  - label: 進め方
+    text: 完了報告に試し方を添える → 利用者が触る → 指摘は BACKLOG へ即時記録 → 対応要否を個別に判断。規約は [CONVENTIONS.md](CONVENTIONS.md) §7、台本は [UX-SCENARIOS.md](UX-SCENARIOS.md)。
+  - label: 残り
+    text: 各波の試用フィードバック起点のチューニング。S1 の再実施（フェーズ完了ごと・UI の骨格に触る変更の後）。

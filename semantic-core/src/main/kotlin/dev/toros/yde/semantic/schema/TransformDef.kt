@@ -30,7 +30,9 @@ import java.text.DecimalFormat
  *   {$view: ビューID, $where: [条件], $one: true}  ビューの行を受け取る（レポート。行＝{id, title, key, cells: [{column, value}], values: {列: 値}}。
  *                                         $where は行の上の条件、$one は最初の 1 行。行は呼び出し側が渡す）
  *   {$trim: ひな型}                       前後の空白を落とし、続く空白を 1 つにまとめる（全角の空白も。空なら「無い」）
- *   {$each: パス, $build: ひな型}         配列の要素ごとに組み立てて、配列を作る（`$apply: 規則名` とも書ける）
+ *   {$each: パス, $build: ひな型}         配列の要素ごとに組み立てて、配列を作る（`$apply: 規則名` とも書ける）。
+ *                                         パスの代わりに `{$view: ビューID, $where: [条件]}` を書くと、ビューの行を 1 行ずつ
+ *                                         いまの場所にして組み立てる（レポート。行の中の配列をさらに `$each` で辿れる）
  *   {$eachEntry: パス, $build: ひな型}    マップの項目ごとに組み立てて、同じキーのマップを作る（同上）
  *   {$zip: {名前: パス, …}, $build: ひな型}  並んだ配列を同じ番号で 1 行（{名前: その番号の要素, …}）にまとめ、行ごとに組み立てて配列を作る
  *                                         （同上。長さが違えば長い方に合わせ、足りない配列の名前は行に無い。行の中のパスは元の配列の場所を指す）
@@ -89,10 +91,14 @@ sealed interface Template {
      */
     data class ViewRows(val view: String, val conditions: List<TemplateCondition> = emptyList(), val one: Boolean = false) : Template
 
-    /** 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。 */
+    /**
+     * 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。
+     * rows があれば、場所の代わりにビューの行（`{$each: {$view: …}}`。レポート）を 1 行ずつ「いまの場所」にする。
+     */
     data class Each(
         val site: TemplateSite, val entries: Boolean, val body: Template,
         val bind: String? = null, val flatten: Boolean = false,
+        val rows: ViewRows? = null,
     ) : Template
 
     /** 並べて組む（`$zip`）。sites は行の名前 → 配列の場所。番号ごとの行（いまの場所）で body を組み立て、出力は配列。 */
@@ -357,6 +363,13 @@ data class TransformDef(
                             val columns = (m[ZIP] as? Map<*, *>)?.takeIf { it.isNotEmpty() }
                                 ?: error("$where.$ZIP は {行の名前: 配列のパス, …} で書きます（例 {mhp: \"params[0]\", mmp: \"params[1]\"}）")
                             Template.Zip(columns.entries.map { (k, v) -> k.toString() to site(v, "$where.$ZIP.$k") }, body)
+                        } else if (main == EACH && m[main] is Map<*, *>) {
+                            // 源にビューの行（{$view: …, $where: …}）。of / in は書けない
+                            if (m.containsKey(OF) || m.containsKey(IN)) error("$where: ビューの行を繰り返すときは $OF / $IN を書きません")
+                            val rows = parseTemplate(m[main], "$where.$main") as? Template.ViewRows
+                                ?: error("$where.$main はパスか、ビューの行（{\$view: ビューID, \$where: [条件]}）で書きます")
+                            if (rows.one) error("$where.$main: ビューの行を繰り返すときは \$one を書きません")
+                            Template.Each(TemplateSite(), entries = false, body = body, bind = bind, flatten = flatten, rows = rows)
                         } else {
                             Template.Each(site(m[main], "$where.$main"), entries = main == EACH_ENTRY, body = body, bind = bind, flatten = flatten)
                         }
@@ -467,7 +480,7 @@ data class TransformDef(
                 is Template.TrimOf -> walk(t.input)
                 is Template.ValueOf -> Unit
                 is Template.ViewRows -> t.conditions.forEach(::condition)
-                is Template.Each -> walk(t.body)
+                is Template.Each -> { t.rows?.let(::walk); walk(t.body) }
                 is Template.Zip -> walk(t.body)
                 is Template.Apply -> {
                     require(t.rule in ruleIds) { "$where: 規則「${t.rule}」が rules にありません（ある規則: ${ruleIds.joinToString(", ").ifEmpty { "なし" }}）" }

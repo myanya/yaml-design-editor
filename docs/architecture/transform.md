@@ -31,7 +31,7 @@
   | `{$number: ひな型, $as: 形}` | 数として読む（桁区切り・通貨記号・全角・`▲` の負を許す。値の式の `number` と同じ `SemanticExpression.numberOf`。整数は YAML を読んだときと同じ Int / Long）。`$as` は DecimalFormat の形（`00`・`#,##0`）で、その形の文字にする（連番の 0 詰め） |
   | `{$trim: ひな型}` | 前後の空白を落とし、続く空白（全角も）を 1 つに（`SemanticExpression.squashSpaces`。空なら「無い」） |
   | `{$value: 値の式}` | 値の式（`ValueExpr`。検査の `check`・ビューの列と同じ書き方）をいまの場所で計算する。いまの場所と、式が `of` で指す束縛の要素だけを読める合成の環境（仮の文書名）で `SemanticValues` を呼ぶ。グラフ・項目の型は無いので `all` / `refCount` / `occurrenceCount` は「無い」、順序の種類は `type` で宣言する。数の結果は数の項・配列は配列の項・それ以外は文字 |
-  | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index`＝0 始まり / `$position`＝1 始まり / `$key`。`no` は YAML が真偽値に読むので名前にしない） |
+  | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index`＝0 始まり / `$position`＝1 始まり / `$key`。`no` は YAML が真偽値に読むので名前にしない）。`$each` の源には `{$view: ID, $where}` も書け、ビューの行を 1 行ずつ場所にする（レポート。`Template.Each.rows`） |
   | `$bind: 名前`（繰り返しに添える） | 現在の要素を名前付きの場所として、その `$build` の中で `$of` / `of` から読む |
   | `$flatten: true`（`$each` に添える） | 各要素から作った配列を順に連結する。配列の入れ子を一段だけ外し、来歴の出力番号も移す |
   | `{$zip: {名前: パス, …}, $build: ひな型}` | 並んだ配列を同じ番号で 1 行（`{名前: その番号の要素}`）にまとめて組み立てる（`$apply` とも書ける。長さが違えば長い方に合わせ、足りない名前は行に無い）。行は `ZipRow` で、名前から先のパスは元の配列の場所へ進むので、出どころも元の要素を指す |
@@ -55,10 +55,10 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `Template.ViewRows` | semantic-core/schema/TransformDef.kt | `{$view: ID, $where, $one}`。行は呼び出し側が渡し、条件は行の上で `holds` |
+| `Template.ViewRows` | semantic-core/schema/TransformDef.kt | `{$view: ID, $where, $one}`。行は呼び出し側が渡し、条件は行の上で `holds`。`$each` の源にもなる（行ごとに組み立てる。出どころの無い場所なので、フローの編集の経路にはならない） |
 | `ReportRows` | semantic-core/semantic/ReportRows.kt | 解決した行 → 項（`{id, title, key, cells: [{column, value}], values}`） |
 | `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・表のセル `{パス:cell}`・`{#each}`〔`index`・`position`・並びの区切りの `more`〕・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
-| `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |
+| `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` と `rules` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |
 | `core/Reports` | core/Reports.kt | `.yde/reports` の読み込み（ひな形の点検も）・実行（`$view` は `Views.resolve` の行）・派生物の書き込み |
 | `ReportPane` | ui/view/ReportPane.kt | ビュータブの一覧から選ぶ。受け取る値の欄・表示（`MarkdownView`）・保存 |
 

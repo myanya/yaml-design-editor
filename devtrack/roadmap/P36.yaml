@@ -1,0 +1,25 @@
+id: P36
+number: 36
+title: GUI のリッチ化（Compose Multiplatform のライブラリ活用）
+status: in-progress
+status_note: 段階 0（土台）と段階 1 の 6 項目（表・Markdown 表示・ファイル選択・並べ替え・日付・グラフ）完了（2026-10-11）。段階 2 は残り（下記）
+body:
+- points:
+  - label: 目的
+    text: 標準部品だけで組んだ UI を、Compose Multiplatform 向けのライブラリと、使っていない標準機能で、より豊かな操作体験へ移す。設計の決まり（モーダル禁止・書込は Slot 経路・履歴の単一所有・コアに重い依存を入れない）は変えない。
+  - label: 完了（段階 0・土台）
+    text: Compose Multiplatform 1.7.3 → 1.12.1、Kotlin 2.0.21 → 2.4.21（Material3 1.9.0 と Material Icons 1.7.3 は直接指定）。Compose Hot Reload 1.2.0 と MCP サーバ（`hotRun`・`.mcp.json`）。等幅フォント Cica の同梱（`AppFonts.Mono`。ビルド時に取得）。非推奨 API の機械的な置換（`HorizontalDivider`・AutoMirrored アイコン）。
+  - label: 完了（段階 1・表と Markdown）
+    text: 共通の表 `VirtualTable`（自前。ID 列と見出しの固定・見える列だけ組み立てる。ビューグリッドと一覧ビュー）、Markdown の表示（ワークスペース内の `.md` をツリーに出して表示・項目と文書の説明・内蔵ヘルプ＝利用者マニュアルの同梱。ライブラリは `MarkdownView` に閉じる）。
+  - label: 完了（段階 1・入力）
+    text: OS ネイティブのファイル選択と最後に選んだ場所の記憶（FileKit を `FilePickers` に閉じる）、配列のドラッグ並べ替え（取っ手方式。Reorderable を `ReorderableList` に閉じる）、日付・時刻のピッカー（Material3 の DatePicker / TimeInput をポップアップで）。
+  - label: 完了（段階 1・グラフ）
+    text: Vico 3 を `BarChart` に閉じ、準備完了レポートの画面（台帳の「準備」タブ）を作った（タイル・型別とフェーズ別の積み上げ棒・エンティティの表）。候補の比較は Koala Plot・Lets-Plot・Compose Charts・自前 Canvas と行い、保守の活発さと軽さで Vico を選んだ。
+  - label: 残り（段階 2・標準機能）
+    text: 右クリックメニュー、全アイコンボタンのツールチップ、MenuBar、OS 通知、畳みとハイライトのアニメーション、ウィンドウの位置・大きさの記憶（Window API v2）、ドラッグ＆ドロップ。トレイは P49 で実装済み（[記録](archive/roadmap-history.md)）。
+  - label: 完了（フロー配置）
+    text: ELKをフロー図にも適用。循環・レーン・条件ラベルをUI層の`GraphLayouts`で配置し、CLIとは表示モデルを共有する。
+  - label: 見送り・条件付き
+    text: Jewel（IDE 風への全面移行。テーマの二重化）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
+  - label: 残る判断
+    text: 見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）、Markdown のアプリ内編集（案 B。BACKLOG UX-149）、図を足す場所（検証集計・計測評価・bench）。

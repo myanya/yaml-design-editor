@@ -259,7 +259,10 @@ object SemanticTransform {
                 if (text != null && text in t.using) YNode.Scalar(t.using.getValue(text)) else input
             }
             is Template.First -> t.options.firstNotNullOfOrNull { build(it, here, out, loop) }
-            is Template.Each -> place(t.site, here)?.let { found -> each(t, found, out, loop) }
+            is Template.Each -> if (t.rows != null) {
+                // ビューの行を 1 行ずつ、いまの場所にする（行は原本の座標を持たない）
+                build(t.rows, here, out, loop)?.let { rows -> each(t, TemplatePlace(rows, null, emptyList()), out, loop) }
+            } else place(t.site, here)?.let { found -> each(t, found, out, loop) }
             is Template.Zip -> zip(t, here, out, loop)
             is Template.Apply -> place(t.site, here)?.let { found -> apply(t.rule, found, out, loop) }
             is Template.Concat -> {

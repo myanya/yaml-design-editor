@@ -21,11 +21,12 @@ tasks.register<JavaExec>("runCli") {
     standardInput = System.`in`  // workspace shell（対話モード）用
 }
 
-// ./gradlew devtrackDocs: 開発管理（devtrack/）の YAML から docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md を作り直す（devtrack/README.md「運用」）。
+// ./gradlew devtrackDocs: 開発管理（devtrack/）の YAML から docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md・docs/ROADMAP.md を作り直す（devtrack/README.md「運用」）。
 // レポートの出力先はワークスペースの中に限られるので、CLI の report --print の文字を UTF-8 のまま受け、成功したときだけ置き換える。
 // 最新かどうかは repo-tests の DevtrackTest が見る
 val devtrackReports = mapOf(
     "backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md",
+    "roadmap-md" to "docs/ROADMAP.md",
 )
 val devtrackDocTasks = devtrackReports.map { (report, target) ->
     val staged = layout.buildDirectory.file("devtrack/$report.md")

@@ -1,0 +1,10 @@
+id: roadmap-items
+name: R 項目の一覧
+description: ロードマップの R 項目（テーマの本文と節の表の行）を並べます。項目の名前は行の ID の下に出ます。
+rows:
+  idPattern: "R*"
+  schemaIds: [roadmap]
+columns:
+  - { label: 状態, schemaId: roadmap, path: state }
+  - { label: 状態の日, schemaId: roadmap, path: state_on }
+  - { label: 状態の補足, schemaId: roadmap, path: state_note }

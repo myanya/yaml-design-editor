@@ -1,6 +1,6 @@
 id: builtin-report
 name: レポート定義（YAML から文字の文書へ）
-description: 値の一式を作る変換（build）と、Markdown などのひな形（template）と、出力先（output）。出力は原本から作り直せる派生物
+description: 値の一式を作る変換（build・rules）と、Markdown などのひな形（template）と、出力先（output）。出力は原本から作り直せる派生物
 match: "_reports/**/*.{yaml,yml}"
 root:
   type: object
@@ -24,7 +24,17 @@ root:
       label: 値の一式（変換のひな型）
       type: any
       required: true
-      description: "変換のひな型（$copy / $format / $value / $each など）。{$view: ビューID, $where: [条件], $one: true} でビューの行（id・title・key・cells・values）を受け取れる"
+      description: "変換のひな型（$copy / $format / $value / $each など）。{$view: ビューID, $where: [条件], $one: true} でビューの行（id・title・key・cells・values）を受け取れる。{$each: {$view: ビューID, $where: [条件]}, $build: ひな型} なら行を 1 行ずつ組み立てる"
+    - key: rules
+      label: 名前を付けた組み立て
+      type: array
+      description: "同じ形を何か所でも組み立てるときに 1 か所に書く（変換の rules と同じ）。build の中から {$apply: 規則名} か {$each: パス, $apply: 規則名} で使う。同じ名前の規則は上から順に when を調べ、最初に合ったもの"
+      item:
+        type: object
+        fields:
+          - { key: id, label: 規則名, type: string, required: true }
+          - { key: when, label: 条件, type: any, description: "検査の where と同じ書き方の並び。省くといつでも合う" }
+          - { key: build, label: ひな型, type: any, required: true }
     - key: template
       label: ひな形のファイル
       type: string
