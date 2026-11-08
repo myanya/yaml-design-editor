@@ -69,6 +69,10 @@ fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit)
         }
         val section = result.sections.firstOrNull { it.definition.id == state.memory.dashboardSection[view.id] }
             ?: result.sections.firstOrNull() ?: return@Column
+        // 業務の流れ（flow）: 段は流れ図に出し、タイルの並びから外す。工程を選んでいれば区画の一覧の代わりに作業一覧
+        val flow = remember(view, result, state.indexVersion, state.editVersion) { if (view.flow != null) state.dashboardFlow(view, result) else null }
+        val move = state.memory.dashboardMove[view.id]?.let { key -> flow?.moves?.firstOrNull { moveKey(it.move) == key } }
+        val inFlow = flow?.flow?.steps?.toSet().orEmpty()
         val entity = state.dashboardEntityId
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (entity != null) {
@@ -85,25 +89,31 @@ fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit)
             // 一覧（タイルと表）に使える幅。分割時は 4:6 の 4
             val listWidth = if (split) maxWidth * .4f else maxWidth
             Row(Modifier.fillMaxSize()) {
-                if (entity == null || split) {
+                if (entity == null || split) Column(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
+                    flow?.let { f ->
+                        DashboardFlowOverview(state, view, f, section.definition.id, move?.let { moveKey(it.move) })
+                        HorizontalDivider(color = Palette.Border)
+                    }
                     // 区画のタイルの並べ方は定義の placement。auto は、一覧の幅に横へ折り返して 3 段以上になるときだけ縦の一覧にする
-                    val groups = view.sectionGroups()
+                    val groups = view.sectionGroups().map { (name, items) -> name to items.filter { it.id !in inFlow } }.filter { it.second.isNotEmpty() }
                     val vertical = when (view.placement) {
                         DashboardPlacement.VERTICAL -> true
                         DashboardPlacement.HORIZONTAL -> false
                         // 分割中（一覧 4：詳細 6）は、縦にすると表が狭くなるので横に決める
-                        DashboardPlacement.AUTO -> !split && estimatedTileRows(result.sections.size, groups.count { it.first != null }, listWidth) >= 3
+                        DashboardPlacement.AUTO -> !split && estimatedTileRows(groups.sumOf { it.second.size }, groups.count { it.first != null }, listWidth) >= 3
                     }
-                    if (vertical) Row(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
+                    if (vertical) Row(Modifier.weight(1f).fillMaxHeight()) {
                         // 縦の一覧の幅。分割中は表を潰さないように狭める
                         Column(Modifier.width(if (split) 170.dp else 220.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(8.dp)) {
-                            SectionTiles(state, view, result, section, vertical = true)
+                            SectionTiles(state, view, result, section, groups, selectedTile = move == null, vertical = true)
                         }
                         Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
-                        Column(Modifier.weight(1f).fillMaxHeight()) { SectionBody(state, view, section) }
-                    } else Column(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
-                        Box(Modifier.fillMaxWidth().padding(8.dp)) { SectionTiles(state, view, result, section, vertical = false) }
-                        SectionBody(state, view, section)
+                        Column(Modifier.weight(1f).fillMaxHeight()) { if (flow != null && move != null) MoveBody(state, flow, move) else SectionBody(state, view, section) }
+                    } else Column(Modifier.weight(1f).fillMaxHeight()) {
+                        if (groups.isNotEmpty()) Box(Modifier.fillMaxWidth().padding(8.dp)) {
+                            SectionTiles(state, view, result, section, groups, selectedTile = move == null, vertical = false)
+                        }
+                        if (flow != null && move != null) MoveBody(state, flow, move) else SectionBody(state, view, section)
                     }
                 }
                 if (entity != null) Column(Modifier.weight(if (split) .6f else 1f).fillMaxHeight()) {
@@ -152,16 +162,18 @@ private fun ColumnScope.SectionBody(state: AppState, view: VirtualDashboardDef, 
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SectionTiles(state: AppState, view: VirtualDashboardDef, result: DashboardResolution, selected: DashboardSectionResult, vertical: Boolean) {
+private fun SectionTiles(
+    state: AppState, view: VirtualDashboardDef, result: DashboardResolution, selected: DashboardSectionResult,
+    groups: List<Pair<String?, List<DashboardSection>>>, selectedTile: Boolean, vertical: Boolean,
+) {
     val byId = result.sections.associateBy { it.definition.id }
     @Composable fun group(name: String?, items: List<DashboardSection>, headerModifier: Modifier, tileModifier: Modifier) {
         val collapsed = name != null && state.memory.dashboardGroupCollapsed[view.id to name] == true
         if (name != null) GroupHeader(name, items.size, collapsed, headerModifier) { state.memory.dashboardGroupCollapsed[view.id to name] = !collapsed }
         if (!collapsed) items.forEach { def -> byId[def.id]?.let { item ->
-            SectionTile(state, view, item, item.definition.id == selected.definition.id, line = vertical, tileModifier)
+            SectionTile(state, view, item, selectedTile && item.definition.id == selected.definition.id, line = vertical, tileModifier)
         } }
     }
-    val groups = view.sectionGroups()
     if (vertical) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         groups.forEach { (name, items) -> group(name, items, Modifier.fillMaxWidth(), Modifier.fillMaxWidth()) }
     } else FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -184,7 +196,7 @@ private fun SectionTile(state: AppState, view: VirtualDashboardDef, item: Dashbo
     val base = modifier
         .border(1.dp, if (selected) Palette.Primary else Palette.Border, PanelShape)
         .background(if (selected) Palette.Selected else Palette.Surface, PanelShape)
-        .clickable { state.memory.dashboardSection[view.id] = item.definition.id }
+        .clickable { state.memory.dashboardSection[view.id] = item.definition.id; state.memory.dashboardMove.remove(view.id) }
     val count = if (item.error == null) item.count + " " + (item.embedded?.unit ?: "行") +
         (item.truncation?.let { "（limit ${it.limit} で打ち切り）" } ?: "") else "表示できません"
     val countColor = if (item.error == null) Palette.Primary else Palette.WarnOrange

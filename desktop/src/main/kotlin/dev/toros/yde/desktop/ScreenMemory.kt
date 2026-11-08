@@ -120,6 +120,8 @@ class ScreenMemory {
     val gridQuery = mutableStateMapOf<String, String>()
 
     val dashboardSection = mutableStateMapOf<String, String>()
+    /** 業務の流れで選んだ工程（ダッシュボード ID → 工程の鍵 from|action|to）。あれば区画の一覧の代わりに作業一覧を出す。 */
+    val dashboardMove = mutableStateMapOf<String, String>()
     val dashboardRow = mutableStateMapOf<Pair<String, String>, String>()
     /** 未指定なら本日。指定日は画面の覚えで、原本や履歴へ書かない。 */
     val dashboardDate = mutableStateMapOf<String, java.time.LocalDate>()
@@ -249,6 +251,7 @@ class ScreenMemory {
         listSelected.clear()
         gridQuery.clear()
         dashboardSection.clear()
+        dashboardMove.clear()
         dashboardRow.clear()
         dashboardDate.clear()
         dashboardSplit.clear()

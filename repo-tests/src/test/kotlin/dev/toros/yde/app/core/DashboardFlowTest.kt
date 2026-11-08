@@ -215,4 +215,25 @@ class DashboardFlowTest {
         assertTrue(errors.any { "flow.moves" in it && "missing" in it }, errors.toString())
         assertTrue(errors.any { "flow.start" in it && "start" in it }, errors.toString())
     }
+
+    @Test
+    fun `画面の確認で移り先を予告し宣言にない移り方は止めずに警告し適用後に移った段を知らせる`() {
+        val state = dev.toros.yde.desktop.AppState().also { it.openWorkspace(dir) }
+        assertEquals("home", state.dashboardId)
+        state.startAction("start", "T-1")
+        state.planAction()
+        val start = assertNotNull(state.actionWork?.transition, state.actionWork?.error)
+        assertEquals(listOf("open"), start.before)
+        assertEquals(listOf("doing"), start.after)
+        assertFalse(start.undeclared)
+        assertTrue(start.text.contains("「open」から「doing」へ移ります"), start.text)
+        state.dismissAction()
+        state.startAction("skip", "T-1")
+        state.planAction()
+        val skip = assertNotNull(state.actionWork?.transition)
+        assertTrue(skip.undeclared)
+        val message = state.applyAction().getOrThrow()
+        assertTrue(message.contains("T-1 は「open」から「done」へ移りました"), message)
+        assertTrue(Files.readString(dir.resolve("tasks/T-1.yaml")).contains("status: done"))
+    }
 }

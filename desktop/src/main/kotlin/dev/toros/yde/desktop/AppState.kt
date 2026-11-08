@@ -26,6 +26,9 @@ import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.app.schema.SchemaDef
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.app.session.DocumentSession
+import dev.toros.yde.app.session.actionTransition
+import dev.toros.yde.app.session.dashboardFlow
+import dev.toros.yde.app.session.dashboardPosition
 import dev.toros.yde.app.session.ExternalCheck
 import dev.toros.yde.app.session.ExternalScan
 import dev.toros.yde.app.service.WorkspaceHost
@@ -613,7 +616,7 @@ class AppState(
         var planEditVersion: Long? = null
         var plannedAt: LocalDateTime? = null
         fun invalidate() {
-            plan = null; preview = null; error = null; applied = null
+            plan = null; preview = null; error = null; applied = null; transition = null
             planSignature = null; planWorkspaceVersion = null
             planEditVersion = null
         }
@@ -631,10 +634,20 @@ class AppState(
         var preview by mutableStateOf<ChangeSetResult?>(null)
         var error by mutableStateOf<String?>(null)
         var applied by mutableStateOf<String?>(null)
+        /** 移り先の予告（業務の流れのあるダッシュボードで、受け手がいる段が操作の前後でどう変わるか）。 */
+        var transition by mutableStateOf<FlowMove?>(null)
         val title: String get() = entry.label ?: entry.name
 
         companion object {
             const val TARGET_KEY = "target"
+        }
+    }
+
+    /** 移り先の予告の表示用: ダッシュボードの段の見出しと、宣言にない移り方か。 */
+    class FlowMove(val dashboard: String, val target: String, val before: List<String>, val after: List<String>, val moved: Boolean, val undeclared: Boolean) {
+        val text: String get() = when {
+            !moved -> "この操作で $target の段（${before.joinToString("・").ifEmpty { "なし" }}）は変わりません"
+            else -> "この操作で $target は「${before.joinToString("・").ifEmpty { "どの段にもいない" }}」から「${after.joinToString("・").ifEmpty { "どの段にもいない" }}」へ移ります"
         }
     }
 
@@ -850,6 +863,7 @@ class AppState(
                 work.planEditVersion = session?.version
                 work.plannedAt = planTime
                 work.preview = documents.previewAction(plan)
+                work.transition = flowMoveOf(work, plan)
             }
             .onFailure { work.error = it.message ?: "計画できません" }
     }
@@ -893,13 +907,39 @@ class AppState(
             "入力またはワークスペースが変更されています。確認し直してください"
         }
         val count = documents.applyAction(ActionRequest(work.entry.name, work.target, actionParams(work)), plan, work.plannedAt!!, allowErrors)
-        val message = "${work.title} を適用して保存しました（$count ファイル。Ctrl+Z で 1 回で戻せます）"
+        val moved = work.transition?.takeIf { it.moved }
+        val message = if (moved != null) "${work.title} を適用して保存しました。${moved.target} は「${moved.before.joinToString("・")}」から「${moved.after.joinToString("・").ifEmpty { "どの段にもいない" }}」へ移りました（$count ファイル。Ctrl+Z で 1 回で戻せます）"
+            else "${work.title} を適用して保存しました（$count ファイル。Ctrl+Z で 1 回で戻せます）"
         work.applied = message
         status = message
         message
     }
 
     fun dismissAction() { actionWork = null; actionPanelOpen = false }
+
+    // ---------------------------------------------------------------- 業務の流れ（ダッシュボードの flow。判定はセッション側）
+
+    /** 操作の名前（定義の label。無ければ id）。 */
+    fun actionLabel(name: String): String = documents.actionByName(name)?.label ?: name
+
+    /** 段の件数と工程ごとの可否。 */
+    fun dashboardFlow(view: dev.toros.yde.semantic.VirtualDashboardDef, result: dev.toros.yde.semantic.DashboardResolution) =
+        documents.dashboardFlow(view, result)
+
+    /** 対象 1 件の流れの中の位置。 */
+    fun dashboardPosition(view: dev.toros.yde.semantic.VirtualDashboardDef, id: String, date: java.time.LocalDate) =
+        documents.dashboardPosition(view, id, date)
+
+    /** 計画の移り先の予告（開いているダッシュボードを優先し、その基準日で段を判定する）。 */
+    private fun flowMoveOf(work: ActionWork, plan: ActionPlan): FlowMove? = runCatching {
+        val target = work.target ?: return null
+        val ws = workspace ?: return null
+        val catalog = dev.toros.yde.app.core.Views.load(ws, schemas, unsavedFirstTree())
+        val date = dashboardId?.let { memory.dashboardDate[it] } ?: java.time.LocalDate.now()
+        val (view, t) = documents.actionTransition(catalog, dashboardId, work.entry.name, target, plan, date) ?: return null
+        fun label(step: String) = view.sections.firstOrNull { it.id == step }?.label ?: step
+        FlowMove(view.id, target, t.before.map(::label), t.after.map(::label), t.moved, t.undeclared)
+    }.getOrNull()
 
     // ---------------------------------------------------------------- workspace
 

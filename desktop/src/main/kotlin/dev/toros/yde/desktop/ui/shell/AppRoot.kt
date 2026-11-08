@@ -57,6 +57,7 @@ import dev.toros.yde.desktop.ui.schema.SchemaEditor
 import dev.toros.yde.desktop.ui.source.SourceDraftBanner
 import dev.toros.yde.desktop.ui.source.SourcePane
 import dev.toros.yde.desktop.ui.view.DashboardPane
+import dev.toros.yde.desktop.ui.view.DashboardPositionPanel
 import dev.toros.yde.desktop.ui.view.EmbeddedExtensionPane
 import dev.toros.yde.desktop.ui.view.ResolvedViewGrid
 import dev.toros.yde.desktop.uiPreferences
@@ -138,7 +139,7 @@ private fun AppRootContent(
             Box(Modifier.width(1.dp).fillMaxHeight().background(Palette.Border))
             when (state.uiSpace) {
                 UiSpace.DASHBOARD -> Box(Modifier.weight(1f).fillMaxHeight()) {
-                    DashboardPane(state, entityPage = { EntityPage(state, it, business = true) })
+                    DashboardPane(state, entityPage = { id -> EntityPage(state, id, business = true, aside = { DashboardPositionPanel(state, id) }) })
                 }
                 UiSpace.RUNS -> Box(Modifier.weight(1f).fillMaxHeight()) {
                     RunsSpace(state, automation, runController, automationVersion)

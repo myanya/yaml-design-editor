@@ -300,6 +300,14 @@ fun ActionPanelHost(state: AppState) {
                         Spacer(Modifier.height(6.dp))
                         if (plan.isEmpty) Text("変更はありません", fontSize = 12.sp, color = Palette.SubText)
                         plan.summary.forEach { Text("・$it", fontSize = 11.sp) }
+                        // 業務の流れの移り先（ダッシュボードの flow がある時だけ）。宣言にない移り方は警告する（止めはしない）
+                        work.transition?.let { move ->
+                            Spacer(Modifier.height(6.dp))
+                            Text(move.text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                color = if (move.undeclared) Palette.WarnOrange else Palette.Primary)
+                            if (move.undeclared) Text("この移り方は業務の流れ（ダッシュボード「${move.dashboard}」の flow）に宣言されていません。操作の定義か流れの定義を確かめてください",
+                                fontSize = 11.sp, color = Palette.WarnOrange)
+                        }
                         if (preview != null) {
                             Spacer(Modifier.height(6.dp))
                             Text(

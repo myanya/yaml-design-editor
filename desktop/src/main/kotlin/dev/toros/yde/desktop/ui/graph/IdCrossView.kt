@@ -154,7 +154,7 @@ fun IdCrossView(state: AppState) {
 // ================================================================ ページ本体
 
 @Composable
-internal fun EntityPage(state: AppState, id: String, business: Boolean = false) {
+internal fun EntityPage(state: AppState, id: String, business: Boolean = false, aside: (@Composable () -> Unit)? = null) {
     // 合成は core.Aspects（read_entity / CLI と同一実装）。loader は文書キャッシュのツリー
     // ＝未保存編集に追随し、編集はそのツリーへの Slot ルーティングで dirty・Undo・保存が効く（architecture/graph-query.md「エンティティページ」）
     val composite = remember(id, state.indexVersion, state.editVersion) {
@@ -216,6 +216,8 @@ internal fun EntityPage(state: AppState, id: String, business: Boolean = false) 
                 }
             }
             Spacer(Modifier.height(12.dp))
+            // 骨格が差し込む欄（業務詳細の「流れの中の位置」など。ui.graph は ui.view を import しない）
+            aside?.invoke()
 
             // ---------------- 合成全体像（アスペクト見出しつき） ----------------
             if (composite != null && composite.sections.isNotEmpty()) {
