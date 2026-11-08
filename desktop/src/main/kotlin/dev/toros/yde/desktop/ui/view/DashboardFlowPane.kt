@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.core.DashboardFlowDiagram
 import dev.toros.yde.app.core.DashboardFlowDiagrams
+import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.view.flow.FlowLayoutMode
 import dev.toros.yde.semantic.DashboardFlowMoveResult
@@ -23,6 +24,7 @@ import dev.toros.yde.semantic.DashboardFlowResult
 import dev.toros.yde.semantic.DashboardFlows
 import dev.toros.yde.semantic.DashboardMove
 import dev.toros.yde.semantic.VirtualDashboardDef
+import dev.toros.yde.yaml.model.YPath
 import java.time.LocalDate
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.DiagramContext
@@ -34,9 +36,16 @@ internal fun moveKey(m: DashboardMove): String = "${m.from}|${m.action}|${m.to.o
 
 /*
  * 業務の流れの図は、フロービューと同じ表示モデル（DashboardFlowDiagrams が FlowModel にする）を、フロービューと同じ FlowCanvas
- * （配置 GraphLayouts.arrangeFlow・描画 drawFlow・拡大縮小と PNG）で描く。手で動かす位置は覚えない（movable = false）。
- * 押した要素は表示モデルの対応表（DashboardFlowDiagram.target）で段・工程・入口へ引く。
+ * （配置 GraphLayouts.arrangeFlow・描画 drawFlow・拡大縮小と PNG）で描く。押した要素は表示モデルの対応表（DashboardFlowDiagram.target）で
+ * 段・工程・入口へ引く。位置の記録は 1 つ（dashboardFlowContext）で、台帳のフロータブ（DashboardFlowEditor）が書き、
+ * ダッシュボードの流れ図と業務詳細の位置の図は読むだけ（editable = false）。文書に埋め込んだフロー図と台帳のフロータブの関係と同じ。
  */
+
+/** 業務の流れの図の位置の記録の見分け（図＝ダッシュボード ID、条件＝表示モード plain と定義の向き）。3 つの図で共有する。 */
+internal fun dashboardFlowContext(view: VirtualDashboardDef): DiagramContext = DiagramContext(
+    mapOf("kind" to "dashboard-flow", "view" to view.id),
+    mapOf("mode" to listOf(FlowLayoutMode.PLAIN.name.lowercase()), "direction" to listOf(view.flow?.direction?.id ?: "right")),
+)
 
 /**
  * ダッシュボードの流れ図。段を押すと区画の一覧、工程の線を押すと作業一覧、入口を押すと登録の操作。
@@ -58,11 +67,14 @@ internal fun DashboardFlowOverview(
             }
             Spacer(Modifier.width(8.dp))
             Text(if (collapsed) "畳んでいる間は、段の区画を下のタイルに並べます"
-                else "段を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録", fontSize = 11.sp, color = Palette.SubText)
+                else "段を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録", fontSize = 11.sp, color = Palette.SubText,
+                modifier = Modifier.weight(1f))
+            // 文書に埋め込んだフロー図と同じく、台帳のフロータブで大きく開く（箱の位置はそこで編集する）
+            if (!collapsed) TextButton(onClick = { state.openFlowView(view.id) }) { Text("拡大表示（配置の編集）", fontSize = 11.sp) }
         }
         if (!collapsed) FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, selected,
             Modifier.fillMaxWidth().height(300.dp).testTag("dashboard-flow"),
-            DiagramContext(mapOf("kind" to "dashboard-flow", "view" to view.id), emptyMap()), movable = false) { kind, path ->
+            dashboardFlowContext(view), editable = false) { kind, path ->
             when (val target = diagram.target(kind, path)) {
                 is DashboardFlowDiagram.Target.Step -> { state.memory.dashboardSection[view.id] = target.id; state.memory.dashboardMove.remove(view.id) }
                 is DashboardFlowDiagram.Target.Move -> state.memory.dashboardMove[view.id] = moveKey(target.move)
@@ -160,7 +172,7 @@ fun DashboardPositionPanel(state: AppState, id: String) {
         // いまいる段を選択の色で示す。いまの段から出る工程の線を押すとその操作、できない工程は理由を知らせる
         FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, position.steps.firstOrNull()?.let(diagram::stepPath),
             Modifier.fillMaxWidth().height(260.dp),
-            DiagramContext(mapOf("kind" to "dashboard-position", "view" to view.id, "id" to id), emptyMap()), movable = false) { kind, path ->
+            dashboardFlowContext(view), editable = false) { kind, path ->
             val target = diagram.target(kind, path) as? DashboardFlowDiagram.Target.Move ?: return@FlowCanvas
             val n = next[target.move] ?: return@FlowCanvas
             if (n.check.enabled) state.startAction(n.move.action, id) else state.status = "${n.label}: ${n.check.reason ?: "前提を満たしません"}"
@@ -186,5 +198,32 @@ fun DashboardPositionPanel(state: AppState, id: String) {
                 Text(listOfNotNull(h.date, h.actionLabel ?: h.action, change?.let { "（$it）" }, h.note).joinToString("  "), fontSize = 11.sp)
             }
         }
+    }
+}
+
+/**
+ * 台帳のフロータブで開くダッシュボードの業務の流れ（箱の位置の編集）。図はダッシュボードと同じ表示モデル（同じ基準日・共有の入力の件数）で、
+ * フロービューと同じ道具（ドラッグでの固定・再配置・グリッド・配置の初期化）を使う。記録はダッシュボードの流れ図と業務詳細の位置の図が読む。
+ */
+@Composable
+internal fun DashboardFlowEditor(state: AppState, view: VirtualDashboardDef, catalog: Views.LoadResult, modifier: Modifier) {
+    val date = state.memory.dashboardDate[view.id] ?: LocalDate.now()
+    val inputs = view.inputs.mapNotNull { i -> state.memory.dashboardInputs[view.id to i.key]?.let { i.key to it } }.toMap()
+    val result = remember(view, catalog, date, inputs, state.indexVersion, state.editVersion) {
+        Dashboards.resolve(view, date, catalog, state.overlayIndex(), state::schemaFor, state.unsavedFirstTree(), inputs)
+    }
+    val flow = remember(view, result, state.indexVersion, state.editVersion) { state.dashboardFlow(view, result) }
+    var selected by remember(view.id) { mutableStateOf<YPath?>(null) }
+    Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("ダッシュボード「${view.name}」の業務の流れです。ここで動かした箱の位置は、ダッシュボードの流れ図と業務詳細の「流れの中の位置」にも出ます",
+                fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.weight(1f))
+            TextButton(onClick = { state.openDashboard(view.id) }) { Text("ダッシュボードで開く", fontSize = 11.sp) }
+            TextButton(onClick = { state.openFile(view.source) }) { Text("ビュー定義", fontSize = 11.sp) }
+        }
+        if (flow == null) { Text("業務の流れを解決できません", color = Palette.ErrorRed); return@Column }
+        val diagram = remember(view, flow) { DashboardFlowDiagrams.overview(view, flow) }
+        FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, selected, Modifier.weight(1f).fillMaxWidth().testTag("dashboard-flow-editor"),
+            dashboardFlowContext(view)) { _, path -> selected = path }
     }
 }

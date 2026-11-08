@@ -1605,7 +1605,10 @@ class AppState(
             (session?.hasDocument(documentOf(loc.file)) == true || Files.isRegularFile(loc.file))
         loc.space == UiSpace.LEDGER && loc.view == 4 -> historyViewCatalog()?.view(loc.gridId.orEmpty()) != null
         loc.space == UiSpace.LEDGER && loc.view == 3 -> loc.crossId != null && overlayIndex().occurrences(loc.crossId).isNotEmpty()
-        loc.space == UiSpace.LEDGER && loc.view == 5 -> historyViewCatalog()?.extensionViews?.any { it.id == loc.flowId && it is dev.toros.yde.app.view.flow.VirtualFlowDef } == true
+        loc.space == UiSpace.LEDGER && loc.view == 5 -> historyViewCatalog()?.let { catalog ->
+            catalog.extensionViews.any { it.id == loc.flowId && it is dev.toros.yde.app.view.flow.VirtualFlowDef } ||
+                catalog.dashboard(loc.flowId.orEmpty())?.flow != null
+        } == true
         loc.space == UiSpace.DASHBOARD -> historyViewCatalog()?.dashboard(loc.dashboardId.orEmpty()) != null
         else -> true
     }

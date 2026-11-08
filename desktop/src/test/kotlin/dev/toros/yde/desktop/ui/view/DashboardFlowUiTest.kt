@@ -8,6 +8,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.unit.dp
 import dev.toros.yde.desktop.AppState
 import dev.toros.yde.desktop.UiSpace
+import dev.toros.yde.desktop.diagramPositions
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
@@ -149,6 +150,47 @@ class DashboardFlowUiTest {
             onNodeWithTag("flow-position-header").performClick()
             waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
             onNodeWithText("次にできること").assertExists()
+        } finally { cleanup(root) }
+    }
+
+    @Test fun `流れの配置は台帳のフロータブで編集して記録しダッシュボードは同じ記録を読むだけ`() = runComposeUiTest {
+        val root = copyOrders()
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            state.memory.dashboardDate["order-dashboard"] = LocalDate.parse("2026-11-08")
+            val screen = androidx.compose.runtime.mutableStateOf("dashboard")
+            setContent { Box(Modifier.size(1400.dp, 900.dp)) {
+                if (screen.value == "dashboard") DashboardPane(state) { id -> Text("詳細 $id") } else FlowViewPane(state)
+            } }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            // ダッシュボードの図は読むだけ: 配置の道具を出さず、記録を書かない
+            onAllNodesWithText("再配置").assertCountEquals(0)
+            assertFalse(Files.exists(root.resolve(".yde/state/diagrams")))
+            // 拡大表示で台帳のフロータブ（ダッシュボードの流れ）へ
+            onNodeWithText("拡大表示（配置の編集）").performClick()
+            runOnIdle {
+                assertEquals(dev.toros.yde.desktop.UiSpace.LEDGER, state.uiSpace)
+                assertEquals("order-dashboard", state.flowViewId)
+                screen.value = "ledger"
+            }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("dashboard-flow-editor").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("業務の流れ: 注文ダッシュボード").assertExists()
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithText("再配置").fetchSemanticsNodes().isNotEmpty() }
+            // 編集する図は初回の自動配置を記録する（入口と 4 つの段）。ダッシュボードと業務詳細は同じ記録を共有する
+            val catalog = dev.toros.yde.app.core.Views.load(root, state.schemas)
+            val context = dashboardFlowContext(assertNotNull(catalog.dashboard("order-dashboard")))
+            val memory = state.diagramPositions(context)
+            waitUntil(timeoutMillis = 20_000) { memory.positions.size == 5 && !memory.saving }
+            assertEquals(setOf("@start", "pending", "confirmed", "shipped", "cancelled"), memory.positions.keys.map { it.key }.toSet())
+            assertTrue(Files.exists(root.resolve(".yde/state/diagrams")))
+            // ダッシュボードへ戻っても記録は書き換えない（読むだけ）
+            val saved = memory.positions
+            runOnIdle { state.goBack(); screen.value = "dashboard" }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            waitForIdle()
+            assertEquals(dev.toros.yde.desktop.UiSpace.DASHBOARD, state.uiSpace)
+            assertEquals(saved, state.diagramPositions(context).positions)
         } finally { cleanup(root) }
     }
 }
