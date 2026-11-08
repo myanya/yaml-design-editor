@@ -130,6 +130,10 @@ class ScreenMemory {
     val dashboardEntityScroll = mutableStateMapOf<String, Int>()
     /** ダッシュボードの区画の群の畳み（ダッシュボード ID × 群の名前。true＝畳んでいる）。無い群の鍵は読まれないだけ。 */
     val dashboardGroupCollapsed = mutableStateMapOf<Pair<String, String>, Boolean>()
+    /** 業務の流れの図の畳み（ダッシュボード ID。true＝畳んでいる）。畳むと段の区画はタイルの並びに戻る。区画の群の畳みと同じ扱い。 */
+    val dashboardFlowCollapsed = mutableStateMapOf<String, Boolean>()
+    /** 業務詳細の「流れの中の位置」の畳み（ダッシュボード ID。true＝畳んでいる。見出しと、いまいる段の 1 行だけになる）。 */
+    val dashboardPositionCollapsed = mutableStateMapOf<String, Boolean>()
     /** レポートの受け取る値の入力（レポート ID × 名前）。 */
     val reportParams = mutableStateMapOf<Pair<String, String>, String>()
     /** ダッシュボードの共有の入力（ダッシュボード ID × 名前。鍵が無ければ定義の初期値、空文字＝絞らない）。 */
@@ -258,6 +262,8 @@ class ScreenMemory {
         dashboardScroll.clear()
         dashboardEntityScroll.clear()
         dashboardGroupCollapsed.clear()
+        dashboardFlowCollapsed.clear()
+        dashboardPositionCollapsed.clear()
         reportParams.clear()
         dashboardInputs.clear()
         viewParams.clear()

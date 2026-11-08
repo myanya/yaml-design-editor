@@ -106,4 +106,49 @@ class DashboardFlowUiTest {
             onAllNodesWithTag("flow-position").assertCountEquals(0)
         } finally { cleanup(root) }
     }
+
+    @Test fun `流れ図は見出しで畳め 畳むと段の区画がタイルに戻り工程の作業一覧も隠れる`() = runComposeUiTest {
+        val root = copyOrders()
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            state.memory.dashboardDate["order-dashboard"] = LocalDate.parse("2026-11-08")
+            state.memory.dashboardMove["order-dashboard"] = "pending|confirm-order|confirmed"
+            setContent { Box(Modifier.size(1400.dp, 900.dp)) { DashboardPane(state) { id -> Text("詳細 $id") } } }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("いま操作できる（4）").assertExists()
+            // 段の区画（受注確定など）は流れ図にあり、タイルには出ない
+            onAllNodesWithText("受注確定").assertCountEquals(0)
+            onNodeWithTag("dashboard-flow-header").performClick()
+            waitForIdle()
+            assertEquals(true, state.memory.dashboardFlowCollapsed["order-dashboard"])
+            onAllNodesWithTag("flow-canvas").assertCountEquals(0)
+            onNodeWithText("（4）").assertExists()
+            onNodeWithText("受注確定").assertExists()
+            onAllNodesWithText("いま操作できる（4）").assertCountEquals(0)
+            // 開くと流れ図と、覚えていた工程の作業一覧が戻る
+            onNodeWithTag("dashboard-flow-header").performClick()
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("いま操作できる（4）").assertExists()
+            onAllNodesWithText("受注確定").assertCountEquals(0)
+        } finally { cleanup(root) }
+    }
+
+    @Test fun `流れの中の位置は見出しで畳むと見出しといまいる段の1行だけになる`() = runComposeUiTest {
+        val root = copyOrders()
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            setContent { Box(Modifier.size(1200.dp, 700.dp)) { DashboardPositionPanel(state, "ORD-105") } }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithTag("flow-position-header").performClick()
+            waitForIdle()
+            onNodeWithText("いま「受注確定」にいます").assertExists()
+            onAllNodesWithTag("flow-canvas").assertCountEquals(0)
+            onAllNodesWithText("次にできること").assertCountEquals(0)
+            onNodeWithTag("flow-position-header").performClick()
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("次にできること").assertExists()
+        } finally { cleanup(root) }
+    }
 }

@@ -1,5 +1,5 @@
 id: X-26
-title: 'ダッシュボードの業務の流れ（`flow`＝段は区画・工程は操作・入口・履歴〔流れ図・工程の作業一覧・業務詳細の流れの中の位置・確認の移り先の予告と宣言外の警告・CLI `view --entity`・read_view〕）'
+title: 'ダッシュボードの業務の流れ（`flow`＝段は区画・工程は操作・入口・履歴〔流れ図・工程の作業一覧・業務詳細の流れの中の位置・見出しでの畳み・確認の移り先の予告と宣言外の警告・CLI `view --entity`・read_view〕）'
 implementation:
 - path: semantic/DashboardFlows.kt
   module: semantic-core

@@ -71,8 +71,10 @@ fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit)
             ?: result.sections.firstOrNull() ?: return@Column
         // 業務の流れ（flow）: 段は流れ図に出し、タイルの並びから外す。工程を選んでいれば区画の一覧の代わりに作業一覧
         val flow = remember(view, result, state.indexVersion, state.editVersion) { if (view.flow != null) state.dashboardFlow(view, result) else null }
-        val move = state.memory.dashboardMove[view.id]?.let { key -> flow?.moves?.firstOrNull { moveKey(it.move) == key } }
-        val inFlow = flow?.flow?.steps?.toSet().orEmpty()
+        // 流れ図を畳んだら、段の区画はタイルの並びに戻し、工程の作業一覧も出さない（工程の選択は覚えたまま、開けば戻る）
+        val flowShown = flow != null && state.memory.dashboardFlowCollapsed[view.id] != true
+        val move = if (!flowShown) null else state.memory.dashboardMove[view.id]?.let { key -> flow?.moves?.firstOrNull { moveKey(it.move) == key } }
+        val inFlow = if (flowShown) flow?.flow?.steps?.toSet().orEmpty() else emptySet()
         val entity = state.dashboardEntityId
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (entity != null) {
@@ -91,7 +93,7 @@ fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit)
             Row(Modifier.fillMaxSize()) {
                 if (entity == null || split) Column(Modifier.weight(if (split) .4f else 1f).fillMaxHeight()) {
                     flow?.let { f ->
-                        DashboardFlowOverview(state, view, f, section.definition.id, move?.let { moveKey(it.move) })
+                        DashboardFlowOverview(state, view, f, section.definition.id, move?.let { moveKey(it.move) }, collapsed = !flowShown)
                         HorizontalDivider(color = Palette.Border)
                     }
                     // 区画のタイルの並べ方は定義の placement。auto は、一覧の幅に横へ折り返して 3 段以上になるときだけ縦の一覧にする
@@ -181,8 +183,9 @@ private fun SectionTiles(
     }
 }
 
+/** 畳める見出し（区画の群・業務の流れ・流れの中の位置で共通）。▾ で開き、▸ と枠と（数）で畳んでいることを示す。 */
 @Composable
-private fun GroupHeader(name: String, size: Int, collapsed: Boolean, modifier: Modifier, onToggle: () -> Unit) {
+internal fun GroupHeader(name: String, size: Int, collapsed: Boolean, modifier: Modifier, onToggle: () -> Unit) {
     Row(modifier.then(if (collapsed) Modifier.border(1.dp, Palette.Border, PanelShape) else Modifier)
         .clickable(onClick = onToggle).padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text((if (collapsed) "▸ " else "▾ ") + name, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Palette.SubText)

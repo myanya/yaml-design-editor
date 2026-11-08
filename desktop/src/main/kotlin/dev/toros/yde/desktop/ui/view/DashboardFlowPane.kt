@@ -38,17 +38,29 @@ internal fun moveKey(m: DashboardMove): String = "${m.from}|${m.action}|${m.to.o
  * 押した要素は表示モデルの対応表（DashboardFlowDiagram.target）で段・工程・入口へ引く。
  */
 
-/** ダッシュボードの流れ図。段を押すと区画の一覧、工程の線を押すと作業一覧、入口を押すと登録の操作。 */
+/**
+ * ダッシュボードの流れ図。段を押すと区画の一覧、工程の線を押すと作業一覧、入口を押すと登録の操作。
+ * 見出しで畳める（区画の群と同じ見出し・同じ覚え方。畳むと段の区画はタイルの並びに戻る）。
+ */
 @Composable
-internal fun DashboardFlowOverview(state: AppState, view: VirtualDashboardDef, result: DashboardFlowResult, selectedSection: String?, selectedMove: String?) {
+internal fun DashboardFlowOverview(
+    state: AppState, view: VirtualDashboardDef, result: DashboardFlowResult, selectedSection: String?, selectedMove: String?, collapsed: Boolean,
+) {
     val diagram = remember(view, result) { DashboardFlowDiagrams.overview(view, result) }
     val start = result.flow.start
     val startEntry = remember(start, state.indexVersion) { start?.let { s -> state.actionsForWorkspace().singleOrNull { it.name == s.action } } }
     val selected = selectedMove?.let { key -> diagram.moves.entries.firstOrNull { moveKey(it.value) == key }?.key }
         ?: selectedSection?.let(diagram::stepPath)
     Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
-        Text("業務の流れ（段を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録）", fontSize = 11.sp, color = Palette.SubText)
-        FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, selected,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            GroupHeader("業務の流れ", result.flow.steps.size, collapsed, Modifier.testTag("dashboard-flow-header")) {
+                state.memory.dashboardFlowCollapsed[view.id] = !collapsed
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(if (collapsed) "畳んでいる間は、段の区画を下のタイルに並べます"
+                else "段を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録", fontSize = 11.sp, color = Palette.SubText)
+        }
+        if (!collapsed) FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, selected,
             Modifier.fillMaxWidth().height(300.dp).testTag("dashboard-flow"),
             DiagramContext(mapOf("kind" to "dashboard-flow", "view" to view.id), emptyMap()), movable = false) { kind, path ->
             when (val target = diagram.target(kind, path)) {
@@ -132,14 +144,18 @@ fun DashboardPositionPanel(state: AppState, id: String) {
     fun label(step: String) = view.sections.firstOrNull { it.id == step }?.label ?: step
     val next = position.moves.associateBy { it.move }
     val diagram = remember(view, position) { DashboardFlowDiagrams.position(view, position, state::actionLabel) }
+    val collapsed = state.memory.dashboardPositionCollapsed[view.id] == true
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).border(1.dp, Palette.Border, PanelShape).padding(10.dp).testTag("flow-position")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("流れの中の位置", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            GroupHeader("流れの中の位置", position.moves.size, collapsed, Modifier.testTag("flow-position-header")) {
+                state.memory.dashboardPositionCollapsed[view.id] = !collapsed
+            }
             Spacer(Modifier.width(8.dp))
             Text(if (position.steps.isEmpty()) "どの段にいるか判定できません" else "いま「${position.steps.joinToString("・") { label(it) }}」にいます",
                 fontSize = 12.sp, color = if (position.steps.isEmpty()) Palette.WarnOrange else Palette.Primary)
         }
         position.undetermined.forEach { (step, reason) -> Text("「${label(step)}」は判定できません: $reason", fontSize = 11.sp, color = Palette.WarnOrange) }
+        if (collapsed) return@Column
         Spacer(Modifier.height(6.dp))
         // いまいる段を選択の色で示す。いまの段から出る工程の線を押すとその操作、できない工程は理由を知らせる
         FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, position.steps.firstOrNull()?.let(diagram::stepPath),
