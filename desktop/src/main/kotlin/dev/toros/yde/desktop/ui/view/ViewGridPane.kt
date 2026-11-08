@@ -156,7 +156,8 @@ private fun HeaderBar(
             // 表（グリッド・クロス集計）と拡張の種類（チャートなど）を同じ一覧から選ぶ
             ChoiceMenu(selectorOpen, { selectorOpen = false }, loaded.views.map { v ->
                 ChoiceOption(v.id, v.name,
-                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: v.matrix?.rowsValue?.let { "行は値の軸（${it.text}）" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
+                    "${v.id} — " + (v.rows?.let { "idPattern: ${it.idPattern}" } ?: v.matrix?.rowsValue?.let { "行は値の軸（${it.text}）" }
+                        ?: v.matrix?.takeIf { it.valueRows }?.let { "行は列ごとの鍵の値" } ?: "matchクエリ（行キー: ${v.rowKey}）"),
                     description = v.description, selected = v.id == view?.id)
             } + loaded.extensionViews.filter { !it.perDocument }.map { c ->
                 val renderer = ViewRenderers.of(c.viewKind)

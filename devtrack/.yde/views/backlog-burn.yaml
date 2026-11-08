@@ -1,0 +1,14 @@
+# 発生とクローズの累計（週ごと）: ワニの口の図（backlog-burn-chart）の元の表。
+# 行は週の初め（月曜）。発生は起点の日の週、クローズは解決の日の週（解決と見送り）に数え、週の順に足し上げる。
+# 今の起点の日・解決の日から組み立てるので、再開した指摘はクローズしていない扱い、起点の日の無い指摘は数えない
+id: backlog-burn
+name: 発生とクローズの累計（週）
+kind: matrix
+description: 指摘の発生（起点の日）とクローズ（解決・見送りの日）を週ごとに数え、累計にします。2 つの差が、その週の終わりの未解決の数です。
+cumulative: true
+cells:
+  match: [ { node: { entity: backlog-item, bind: it } } ]
+  of: it
+  series:
+    - { label: 発生, key: { weekStart: { path: origin_on } } }
+    - { label: クローズ, key: { weekStart: { path: closed_on } } }

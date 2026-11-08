@@ -1,5 +1,5 @@
 id: X-09
-title: 値の式の列（`value:`・`via`〔段を重ねる〕・配列の集計・`all`・`each`・`extract`・`daysBetween`・来歴つき・未保存編集に追随）
+title: 値の式の列（`value:`・`via`〔段を重ねる〕・配列の集計・`all`・`each`・`extract`・`daysBetween`・`weekStart`・来歴つき・未保存編集に追随）
 implementation:
 - path: semantic/VirtualViews.kt
   detail: '`valueCell`'

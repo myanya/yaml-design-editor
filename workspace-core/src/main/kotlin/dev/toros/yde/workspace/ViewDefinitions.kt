@@ -46,6 +46,7 @@ import dev.toros.yde.semantic.schema.ActionRequire
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
 import dev.toros.yde.semantic.VirtualMatrixDef
+import dev.toros.yde.semantic.SeriesColumn
 import dev.toros.yde.semantic.VirtualMatrixKey
 import dev.toros.yde.semantic.VirtualNewRowDef
 import dev.toros.yde.semantic.schema.ExpressionValue
@@ -389,7 +390,7 @@ object ViewDefinitions {
         }
     }
 
-    private val MATRIX_KEYS = listOf("cells", "totals", "unclassified")
+    private val MATRIX_KEYS = listOf("cells", "totals", "unclassified", "cumulative")
 
     /**
      * クロス集計（kind: matrix）のパース。行の軸は rows（idPattern）、列の軸とセルの集計は cells。
@@ -399,7 +400,13 @@ object ViewDefinitions {
         val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("id が必要です")
         listOf("columns", "detail", "newRow", "sections", "attachments", "match", "schemaId").firstOrNull { raw.containsKey(it) }
             ?.let { error("$it は kind: matrix のビューでは使えません（列は cells.columns で決まります）") }
-        val rowsMap = raw["rows"] as? Map<*, *> ?: error("rows が必要です")
+        // 列ごとの行の鍵（cells.series）: 行は各列の鍵の値から決まるので、rows は書かない
+        val seriesMode = (raw["cells"] as? Map<*, *>)?.containsKey("series") == true
+        if (seriesMode) {
+            listOf("rows", "order", "unclassified").firstOrNull { raw.containsKey(it) }
+                ?.let { error("cells.series（列ごとの行の鍵）のクロス集計に $it は書けません（行は各列の鍵の値の順に並び、未分類の列はありません）") }
+        }
+        val rowsMap = (raw["rows"] as? Map<*, *>) ?: if (seriesMode) emptyMap<Any?, Any?>() else error("rows が必要です")
         if (rowsMap.containsKey("match")) error("kind: matrix の rows は idPattern か value で書きます（クエリ行は使えません）")
         // 行の軸: 論理 ID（idPattern）か、起点の要素ごとに計算した値（value。P46。同じ値を 1 行にまとめる）
         val rowsValue = rowsMap["value"]?.let { v ->
@@ -409,14 +416,14 @@ object ViewDefinitions {
             ExpressionValue.of(v, "rows.value", "行")
         }
         if (rowsValue == null && rowsMap.containsKey("unclassified")) error("rows.unclassified は rows.value（値の軸）と一緒に書きます（値が得られない要素の行の見出し）")
-        val rowsDef = if (rowsValue != null) null else VirtualRowsDef(
+        val rowsDef = if (rowsValue != null || seriesMode) null else VirtualRowsDef(
             idPattern = rowsMap["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("rows.idPattern か rows.value が必要です"),
             schemaIds = stringList(rowsMap["schemaIds"]),
         )
         val orderMap = raw["order"] as? Map<*, *>
         val cellsMap = raw["cells"] as? Map<*, *> ?: error("cells（セルの集計）が必要です")
         val params = parseParams(raw, cellsMap, "matrix")
-        val known = listOf("match", "where", "also", "of", "in", "path", "columns", "aggregate", "type")
+        val known = listOf("match", "where", "also", "of", "in", "path", "columns", "series", "aggregate", "type")
         cellsMap.keys.map { it.toString() }.firstOrNull { it !in known }
             ?.let { error("cells: 未知のキーです: $it（使えるキー: ${known.joinToString(", ")}）") }
         val of = cellsMap["of"]?.toString()?.takeIf { it.isNotBlank() } ?: error("cells.of（数える要素の束縛名）が必要です")
@@ -429,8 +436,12 @@ object ViewDefinitions {
         if (aggregate != ValueExpr.AggregateFn.COUNT && !cellsMap.containsKey("path")) {
             error("cells.path（集計する値の相対パス）が必要です（aggregate: ${aggregate.id}）")
         }
-        val columnsMap = cellsMap["columns"] as? Map<*, *> ?: error("cells.columns（列の軸: via か path）が必要です")
-        val key = parseMatrixKey(columnsMap)
+        val key = if (seriesMode) {
+            if (cellsMap.containsKey("columns")) error("cells.series（列ごとの行の鍵）と cells.columns（列の軸）は一緒に書けません")
+            parseSeriesKey(cellsMap["series"] as? List<*> ?: error("cells.series は列（{label, key}）の並びで書きます"))
+        } else {
+            parseMatrixKey(cellsMap["columns"] as? Map<*, *> ?: error("cells.columns（列の軸: via か path か value）か、cells.series（列ごとの行の鍵の並び）が必要です"))
+        }
         val all = LinkedHashMap<String, Any?>()
         listOf("match", "where", "also", "of", "in", "path").forEach { k -> cellsMap[k]?.let { all[k] = it } }
         // 定義の点検: 列の絞りを足す前の式（合計の列と同じ形）が、値の式として読めること
@@ -456,6 +467,13 @@ object ViewDefinitions {
             else -> error("rows.unclassified は見出しの文字か false で書きます: $u")
         }
         val display = runCatching { NumberDisplay.parse(raw["display"]?.toString()) }.getOrElse { error("display: ${it.message}") }
+        // 累計: 行の順に足し上げるので、行が値の順に並ぶとき（rows.value か列ごとの鍵）だけ書ける
+        val cumulative = when (val c = raw["cumulative"]) {
+            null -> false
+            is Boolean -> c
+            else -> error("cumulative は true / false で書きます: $c")
+        }
+        if (cumulative && rowsValue == null && !seriesMode) error("cumulative（累計）は、行が値の軸（rows.value）か列ごとの行の鍵（cells.series）のクロス集計に書けます（行が値の順に並ぶため）")
         return VirtualGridDef(
             id = id,
             name = raw["name"]?.toString() ?: id,
@@ -473,8 +491,27 @@ object ViewDefinitions {
                 display = display,
                 rowsValue = rowsValue,
                 rowsUnclassified = rowsUnclassified,
+                cumulative = cumulative,
             ),
         )
+    }
+
+    /**
+     * 列ごとの行の鍵（cells.series）: 各列は {label, key}。key は、セルに数える要素ごとに、その列で数える行を決める値の式
+     * （例 {weekStart: {path: origin_on}}）。見出しは重ならないこと。
+     */
+    private fun parseSeriesKey(list: List<*>): VirtualMatrixKey.Series {
+        if (list.isEmpty()) error("cells.series には、列（{label, key}）を 1 つ以上書きます")
+        val columns = list.mapIndexed { i, raw ->
+            val m = raw as? Map<*, *> ?: error("cells.series[$i] は {label, key} で書きます")
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("label", "key") }
+                ?.let { error("cells.series[$i]: 未知のキーです: $it（使えるキー: label, key）") }
+            val label = m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: error("cells.series[$i].label（列の見出し）が必要です")
+            val key = m["key"] ?: error("cells.series[$i].key（要素を数える行を決める値の式）が必要です")
+            SeriesColumn(label, ExpressionValue.of(key, "cells.series[$i].key", label))
+        }
+        columns.groupBy { it.label }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("cells.series の見出し「$it」が重なっています") }
+        return VirtualMatrixKey.Series(columns)
     }
 
     /** 列の軸（cells.columns）: via（参照先を列に。idPattern・schemaIds・order）か path（値を列に。values）。 */

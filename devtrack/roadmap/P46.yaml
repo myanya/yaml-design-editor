@@ -63,3 +63,8 @@ body:
           {x, y}`。見え方の調整はオーナーが実機で随時'
         state: done
         state_on: 2026-10-26
+      - id: R46-09
+        title: 発生とクローズの累計（ワニの口）
+        content: 'クロス集計の列ごとの行の鍵 `cells.series`（列ごとに別の日付で数え、行は全列の値）と累計 `cumulative`（行の順に足し上げる）、値の式 `weekStart`（週の月曜）。devtrack の指摘で週ごとの折れ線をダッシュボードに置いた'
+        state: done
+        state_on: 2026-11-08

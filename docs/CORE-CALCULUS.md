@@ -442,6 +442,8 @@ OccurrenceCount(binding, schema, role)    -- その ID が書かれた場所（�
 `All` と重ねると平らな配列になる。読めない要素が1つでもあれば配列そのものが Unknown（集める側で判定する）。各要素は出どころを持ち、
 `Min` / `Max` の結果は選ばれた要素の出どころ、`Sum` / `Count` は出どころを持たない。順序の種類は項目の型で決まり（引数で上書き）、表記から意味を決めない。
 
+クロス集計の累計（`cumulative`）は新しい集計ではない。行の順に、それまでの行の要素を合わせた集合へ同じ集計を当てる（出どころはその集合の要素）。列ごとの行の鍵（`cells.series`）は、要素を数える行を列ごとの Expression で決めるだけで、畳む計算は同じ Aggregate。
+
 Constraint の count（解の組の件数の範囲）は数え上げの単位が異なるため統合しない。
 
 今後、all / any・set containment 等の需要が生じても、個別 Constraint の特殊機能として追加せず、関数か形を受け取る語として
@@ -751,7 +753,7 @@ Core Calculus = 定義を実行する
 | 既存機能 | Core Calculus 上の位置付け |
 |---|---|
 | Search / Traverse / Query Core / View rows | Query |
-| Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす） |
+| Matrix view（クロス集計） | Query ＋ Aggregate（列を広げたグリッドへ下ろす。列ごとの行の鍵は Expression、累計は行の順に合わせた集合への同じ Aggregate） |
 | 図の記法 | Construct＋構造検査（入力と表示モデル）・原本座標の保持 |
 | レンズの絞り込み（`kind: lens` の `filters`） | Predicate（変換の条件と同じ評価器）を箱の材料と、線で depth 段まで辿った相手に当てる。結果は表示の選択だけ（新しいQuery・書込なし） |
 | 図のポート | 名前と条件はConstruct・Predicate、形は構造契約、名前解決と計測後の接続位置は表示の意味と幾何（新しいQuery・Rewriteなし） |

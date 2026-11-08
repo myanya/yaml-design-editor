@@ -1,0 +1,8 @@
+# ワニの口: 発生とクローズの累計の折れ線。口の開き（2 本の差）が未解決の数
+id: backlog-burn-chart
+name: 発生とクローズの累計（ワニの口）
+kind: chart
+chart: line
+view: backlog-burn
+y: { label: 件数（累計） }
+drill: below

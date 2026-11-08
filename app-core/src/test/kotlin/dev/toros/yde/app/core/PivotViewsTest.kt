@@ -179,6 +179,118 @@ class PivotViewsTest {
         assertEquals(listOf("5500", "0", "0", "0", "5500"), labeled[3].cells.map(::text))
     }
 
+    /** 発生とクローズの累計（ワニの口）の材料: 曜日の違う起票日と解決日の指摘 4 件。解決していない指摘が 1 件。 */
+    private fun writeTickets() {
+        write(
+            "_schemas/ticket.yaml",
+            """
+            id: ticket
+            match: "tickets/*.yaml"
+            entity: { type: ticket, idPattern: "TK-*", defines: true }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id, required: true }
+                - { key: opened, type: date, required: true }
+                - { key: closed, type: date }
+            """,
+        )
+        write("tickets/TK-1.yaml", "id: TK-1\nopened: 2026-08-03\nclosed: 2026-08-12")   // 月曜に起票・水曜に解決
+        write("tickets/TK-2.yaml", "id: TK-2\nopened: 2026-08-06")                        // 木曜に起票・未解決
+        write("tickets/TK-3.yaml", "id: TK-3\nopened: 2026-08-16\nclosed: 2026-08-17")   // 日曜に起票・翌週の月曜に解決
+        write("tickets/TK-4.yaml", "id: TK-4\nopened: 2026-08-18\nclosed: 2026-08-23")   // 同じ週に起票と解決
+        fun burn(id: String, extra: String) = write(
+            "_views/$id.yaml",
+            """
+            id: $id
+            kind: matrix
+            cells:
+              match: [ { node: { entity: ticket, bind: t } } ]
+              of: t
+              series:
+                - { label: 発生, key: { weekStart: { path: opened } } }
+                - { label: クローズ, key: { weekStart: { path: closed } } }
+            """.trimIndent() + "\n" + extra,
+        )
+        burn("ticket-burn", "cumulative: true")
+        burn("ticket-weekly", "")
+    }
+
+    @Test
+    fun `列ごとの行の鍵は 列ごとに別の日付の週で数え 行は週の初め（月曜）の順に並ぶ`() {
+        writeTickets()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
+        val view = loaded.view("ticket-weekly")!!
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf, workspace::schemaFor)
+        // 週の初めは月曜（日曜の起票は前の週・月曜の解決はその週）。未分類と合計の列は無く、合計の行は各列の総数
+        assertEquals(listOf("2026-08-03", "2026-08-10", "2026-08-17", "合計"), rows.map { it.id })
+        assertEquals(listOf("発生", "クローズ"), Views.columnsOf(view, rows).map { it.label })
+        fun cells(id: String) = rows.single { it.id == id }.cells.map(::text)
+        assertEquals(listOf("2", "0"), cells("2026-08-03"))
+        assertEquals(listOf("1", "1"), cells("2026-08-10"))
+        assertEquals(listOf("1", "2"), cells("2026-08-17"))
+        assertEquals(listOf("4", "3"), cells("合計"))
+        assertTrue(rows.first().valueRow && rows.first().occurrences.isEmpty())
+    }
+
+    @Test
+    fun `累計は 行の順にそれまでの要素と合わせて数え 材料も合わせた要素で 合計の行は出さない`() {
+        writeTickets()
+        val workspace = Workspace.open(ws)
+        val loaded = Views.load(ws, workspace.schemas)
+        val view = loaded.view("ticket-burn")!!
+        val rows = Views.resolve(view, workspace.index, workspace::treeOf, workspace::schemaFor)
+        assertEquals(listOf("2026-08-03", "2026-08-10", "2026-08-17"), rows.map { it.id })
+        fun cells(id: String) = rows.single { it.id == id }.cells.map(::text)
+        assertEquals(listOf("2", "0"), cells("2026-08-03"))
+        assertEquals(listOf("3", "1"), cells("2026-08-10"))
+        assertEquals(listOf("4", "3"), cells("2026-08-17"))
+        // 押したときの材料＝その値に数えた要素（それまでの週の分も含む）
+        assertEquals(listOf("TK-1", "TK-3", "TK-4"), rows.last().cells[1].trace!!.inputs.map { it.placeholder }.sorted())
+        // 行が値の軸（rows.value）のクロス集計でも累計が書ける（月ごとの売上の積み上げ）
+        write(
+            "_views/month-by-status-cumulative.yaml",
+            """
+            id: month-by-status-cumulative
+            kind: matrix
+            rows: { value: { yearMonth: { path: orderedAt } } }
+            cumulative: true
+            cells:
+              match: [ { node: { entity: order, bind: o } } ]
+              of: o
+              columns: { path: status, values: [ pending, shipped ] }
+              aggregate: sum
+              path: total
+            """,
+        )
+        val ws2 = Workspace.open(ws)
+        val monthly = Views.load(ws, ws2.schemas).view("month-by-status-cumulative")!!
+        val monthRows = Views.resolve(monthly, ws2.index, ws2::treeOf, ws2::schemaFor)
+        assertEquals(listOf("2026-08", "2026-09", "2026-10"), monthRows.map { it.id })
+        assertEquals(listOf("0", "8400", "0", "8400"), monthRows.single { it.id == "2026-09" }.cells.map(::text))
+        assertEquals(listOf("11800", "8400", "0", "20200"), monthRows.single { it.id == "2026-10" }.cells.map(::text))
+    }
+
+    @Test
+    fun `列ごとの行の鍵と累計の書き方の誤りは 定義エラーになる`() {
+        writeTickets()
+        val bad = mapOf(
+            "series-with-rows" to "rows: { idPattern: \"TK-*\" }\ncells:\n  match: [ { node: { entity: ticket, bind: t } } ]\n  of: t\n  series: [ { label: 発生, key: { path: opened } } ]",
+            "series-and-columns" to "cells:\n  match: [ { node: { entity: ticket, bind: t } } ]\n  of: t\n  columns: { path: opened, values: [a] }\n  series: [ { label: 発生, key: { path: opened } } ]",
+            "series-same-label" to "cells:\n  match: [ { node: { entity: ticket, bind: t } } ]\n  of: t\n  series: [ { label: 発生, key: { path: opened } }, { label: 発生, key: { path: closed } } ]",
+            "cumulative-on-ids" to "rows: { idPattern: \"TK-*\" }\ncumulative: true\ncells:\n  match: [ { node: { entity: ticket, bind: t } } ]\n  of: t\n  columns: { path: opened, values: [a] }",
+        )
+        bad.forEach { (id, body) -> write("_views/$id.yaml", "id: $id\nkind: matrix\n$body") }
+        val loaded = Views.load(ws, Workspace.open(ws).schemas)
+        fun error(id: String) = loaded.errors.singleOrNull { id in it } ?: "（エラーなし）"
+        assertTrue("rows は書けません" in error("series-with-rows"), error("series-with-rows"))
+        assertTrue("一緒に書けません" in error("series-and-columns"), error("series-and-columns"))
+        assertTrue("重なっています" in error("series-same-label"), error("series-same-label"))
+        assertTrue("cumulative" in error("cumulative-on-ids"), error("cumulative-on-ids"))
+    }
+
     @Suppress("unused")
     private fun scalar(v: Any?): YNode = YNode.Scalar(v)
 }

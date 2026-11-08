@@ -63,6 +63,10 @@ sections:
         - { of: it, path: origin_on, exists: true }
       check:
         - gte: [ { daysBetween: [ { of: it, path: origin_on }, $today ] }, 60 ]
+  # 発生とクローズの累計（週ごと。ワニの口）。口の開きが未解決の数
+  - id: burn
+    label: 発生とクローズの累計（ワニの口）
+    view: backlog-burn-chart
   - id: by-month
     label: 起点の月×状態
     view: backlog-month-status

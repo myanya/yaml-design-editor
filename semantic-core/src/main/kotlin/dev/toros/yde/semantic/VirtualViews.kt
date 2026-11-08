@@ -135,7 +135,17 @@ sealed interface VirtualMatrixKey {
      * label は見出しの式（同じ要素で計算。null＝値の文字）、order は先に並べる値（書かない値はその後ろに値の順）。
      */
     data class Expr(val value: ExpressionValue, val label: ExpressionValue? = null, val order: List<String> = emptyList()) : VirtualMatrixKey
+
+    /**
+     * 列ごとの行の鍵（`cells.series`）: 列ごとに、セルに数える要素をどの行に数えるかを値の式で決める
+     * （例 発生＝起点の日の週・クローズ＝解決の日の週）。行の軸は全列の鍵の値を合わせたもので、値の順序の種類で並ぶ。
+     * 鍵が得られない要素は、その列に数えない。未分類の列と合計の列は無い（列どうしは別の数え方なので足さない）。
+     */
+    data class Series(val columns: List<SeriesColumn>) : VirtualMatrixKey
 }
+
+/** 列ごとの行の鍵の 1 列: 見出しと、要素の行を決める値の式。 */
+data class SeriesColumn(val label: String, val key: ExpressionValue)
 
 /**
  * セルの集計: 行の要素を起点に固定した照合（値の式の all の match の形）で集めた要素を、列ごとに絞って畳む。
@@ -169,9 +179,17 @@ data class VirtualMatrixDef(
      * 書かなければ列の見出し（unclassified）と同じ。列は「列の軸に無い値」、行は「行の値が得られない」で意味が違うので分けて書ける。
      */
     val rowsUnclassified: String? = unclassified,
+    /**
+     * 累計（`cumulative: true`）: 行の順に、各列のセルをそれまでの行の要素と合わせて畳む（件数なら足し上げ）。
+     * 行が値の軸（rows.value か列ごとの鍵 cells.series）のときだけ書ける。合計の行は出さない（累計の最後の行が全体）。
+     */
+    val cumulative: Boolean = false,
 ) {
     /** 行か列の軸を値の式で広げるか（軸は解決のときに値から決まり、ヘッダは解決した行の列から取る＝VirtualViews.columnsOf）。 */
-    val usesPivot: Boolean get() = rowsValue != null || cells.key is VirtualMatrixKey.Expr
+    val usesPivot: Boolean get() = rowsValue != null || cells.key is VirtualMatrixKey.Expr || cells.key is VirtualMatrixKey.Series
+
+    /** 行が値の軸か（rows.value か列ごとの鍵。行は値の順に並び、原本の出現を持たない）。 */
+    val valueRows: Boolean get() = rowsValue != null || cells.key is VirtualMatrixKey.Series
 }
 
 /** 行の集合の定義。idPattern に一致する論理IDが行になる。 */
@@ -719,12 +737,12 @@ object VirtualViews {
         val axis: List<Axis> = when (key) {
             is VirtualMatrixKey.Ref -> entitiesOf(ids, key.idPattern, key.schemaIds, key.order, rel).map { (id, label) -> Axis(id, label) }
             is VirtualMatrixKey.Value -> key.values.map { (v, label) -> Axis(v, label ?: v) }
-            is VirtualMatrixKey.Expr -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
+            is VirtualMatrixKey.Expr, is VirtualMatrixKey.Series -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
         }
         val keyPath = when (key) {
             is VirtualMatrixKey.Ref -> key.via
             is VirtualMatrixKey.Value -> key.pathText
-            is VirtualMatrixKey.Expr -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
+            is VirtualMatrixKey.Expr, is VirtualMatrixKey.Series -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
         }
         fun narrowed(extraMatch: List<Any?>, extraWhere: List<Any?>): Map<String, Any?> {
             val all = LinkedHashMap<String, Any?>(cells.all)
@@ -747,7 +765,7 @@ object VirtualViews {
                     narrowed(listOf(mapOf("edge" to mapOf("via" to key.via)), mapOf("node" to mapOf("id" to a.key))), emptyList()),
                 )
                 is VirtualMatrixKey.Value -> column(a.label, narrowed(emptyList(), listOf(mapOf("of" to cells.of, "path" to keyPath, "equals" to a.key))))
-                is VirtualMatrixKey.Expr -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
+                is VirtualMatrixKey.Expr, is VirtualMatrixKey.Series -> error("列の軸が値の式のクロス集計は、解決のときに列を決めます（resolvePivot）")
             }
         }
         matrix.unclassified?.let { label ->
@@ -820,8 +838,8 @@ object VirtualViews {
             },
             fieldAt = fieldAt,
         )
-        // 起点の要素
-        val starts: List<SemanticQueryNodeRef> = if (matrix.rowsValue != null) {
+        // 起点の要素（行が値の軸＝rows.value か列ごとの鍵なら、照合の最初の node に合う要素すべて）
+        val starts: List<SemanticQueryNodeRef> = if (matrix.valueRows) {
             val first = (cells.all["match"] as? List<*>)?.firstOrNull() as? Map<*, *> ?: return emptyList()
             val node = first["node"] as? Map<*, *> ?: return emptyList()
             val bind = node["bind"]?.toString()?.takeIf { it.isNotBlank() } ?: PIVOT_START
@@ -840,6 +858,8 @@ object VirtualViews {
         val measurePath = cells.all["path"]?.toString()?.let { parseYPath(it) }
         val inDoc = ValueExpr.parseSelector(cells.all["in"], "cells.in")
         var exprKind: ValueExpr.OrderKind? = null
+        // 列ごとの鍵の値の順序の種類（行の並び。weekStart なら日付）
+        var seriesKind: ValueExpr.OrderKind? = null
         // 列の見出し（columns.label）: 同じ値の最初の要素で決める
         val columnLabels = LinkedHashMap<String, String>()
         fun itemsFrom(start: SemanticQueryNodeRef): List<PivotItem> {
@@ -862,6 +882,10 @@ object VirtualViews {
                             if (labelExpr != null && k !in columnLabels) SemanticValues.evaluate(labelExpr.expr, environment(node))?.text?.let { columnLabels[k] = it }
                         },
                     )
+                    // 列ごとの鍵: 列の番号ごとに、その要素を数える行の値（得られなければその列に数えない）
+                    is VirtualMatrixKey.Series -> key.columns.map { c ->
+                        SemanticValues.evaluate(c.key.expr, environment(node))?.also { seriesKind = seriesKind ?: it.kind }?.text
+                    }
                 }
                 PivotItem(node, occ, measure, measureKind, keys)
             }
@@ -871,7 +895,13 @@ object VirtualViews {
             val items = mutableListOf<PivotItem>()
         }
         val groups = LinkedHashMap<String?, RowGroup>()
+        // 列ごとの鍵: 行は要素ごとの鍵で決まるので、起点で分けずに集める
+        val pool = mutableListOf<PivotItem>()
         for (start in starts) {
+            if (key is VirtualMatrixKey.Series) {
+                pool += itemsFrom(start)
+                continue
+            }
             val rowsValue = matrix.rowsValue
             val group = if (rowsValue == null) groups.getOrPut(start.id) { RowGroup(start.id, null, start) } else {
                 val side = SemanticValues.evaluate(rowsValue.expr, environment(start))
@@ -888,11 +918,16 @@ object VirtualViews {
             is VirtualMatrixKey.Expr -> groups.values.flatMap { g -> g.items.flatMap { it.columnKeys } }.filterNotNull().distinct()
                 .sortedWith(compareBy<String> { key.order.indexOf(it).let { i -> if (i < 0) key.order.size else i } }.then(comparatorFor(exprKind) { it }))
                 .map { Axis(it, columnLabels[it] ?: it) }
+            is VirtualMatrixKey.Series -> key.columns.map { Axis(it.label, it.label) }
         }
+        // 列ごとの鍵の列どうしは別の数え方なので、未分類と合計の列は置かない
+        val series = key is VirtualMatrixKey.Series
         val columns = buildList {
             axis.forEach { add(VirtualViewColumn(label = it.label, path = emptyList(), display = matrix.display)) }
-            matrix.unclassified?.let { add(VirtualViewColumn(label = it, path = emptyList(), display = matrix.display)) }
-            if (matrix.totals) add(VirtualViewColumn(label = TOTAL_LABEL, path = emptyList(), display = matrix.display))
+            if (!series) {
+                matrix.unclassified?.let { add(VirtualViewColumn(label = it, path = emptyList(), display = matrix.display)) }
+                if (matrix.totals) add(VirtualViewColumn(label = TOTAL_LABEL, path = emptyList(), display = matrix.display))
+            }
         }
         val count = cells.aggregate == ValueExpr.AggregateFn.COUNT
         val aggregateLabel = when (cells.aggregate) {
@@ -944,14 +979,33 @@ object VirtualViews {
             }
         }
         val lowered = view.copy(columns = columns)
-        val rows: List<VirtualRow> = if (matrix.rowsValue != null) {
-            // 値の軸の行は、集めた要素が 1 つも無ければ出さない（受け取る値で絞ったときに、空の月の行や棒が並ばないように）
-            val keyed = groups.values.filter { it.key != null && it.items.isNotEmpty() }
-            val kind = keyed.firstNotNullOfOrNull { it.kind }
-            val unclassifiedRow = groups[null]?.takeIf { it.items.isNotEmpty() && matrix.rowsUnclassified != null }
-            keyed.sortedWith(comparatorFor(kind) { it.key!! }).map(::rowOf) + listOfNotNull(unclassifiedRow?.let(::rowOf))
-        } else {
-            sortRows(lowered, groups.values.map(::rowOf), rel, tree, fieldAt)
+        val rows: List<VirtualRow> = when {
+            key is VirtualMatrixKey.Series -> {
+                // 行の軸＝全列の鍵の値（値の順序の種類で並べる）。累計なら、列ごとにそれまでの行の要素と合わせて畳む
+                val rowKeys = pool.flatMap { it.columnKeys }.filterNotNull().distinct().sortedWith(comparatorFor(seriesKind) { it })
+                val running = List(axis.size) { mutableListOf<PivotItem>() }
+                rowKeys.map { k ->
+                    val cellList = axis.indices.map { i ->
+                        val here = pool.filter { it.columnKeys.getOrNull(i) == k }
+                        cell(columns[i], if (matrix.cumulative) running[i].also { it += here }.toList() else here)
+                    }
+                    VirtualRow(id = k, title = null, occurrences = emptyList(), cells = cellList, detailDocument = null, detailPath = null, valueRow = true)
+                }
+            }
+            matrix.rowsValue != null -> {
+                // 値の軸の行は、集めた要素が 1 つも無ければ出さない（受け取る値で絞ったときに、空の月の行や棒が並ばないように）
+                val keyed = groups.values.filter { it.key != null && it.items.isNotEmpty() }
+                val kind = keyed.firstNotNullOfOrNull { it.kind }
+                val sorted = keyed.sortedWith(comparatorFor(kind) { it.key!! })
+                // 累計: 行の順に、それまでの行の要素を合わせる（値が得られない要素の行は合わせない）
+                val accumulated = if (!matrix.cumulative) sorted else {
+                    val acc = mutableListOf<PivotItem>()
+                    sorted.map { g -> acc += g.items; RowGroup(g.key, g.kind, null).also { it.items += acc } }
+                }
+                val unclassifiedRow = groups[null]?.takeIf { it.items.isNotEmpty() && matrix.rowsUnclassified != null }
+                accumulated.map(::rowOf) + listOfNotNull(unclassifiedRow?.let(::rowOf))
+            }
+            else -> sortRows(lowered, groups.values.map(::rowOf), rel, tree, fieldAt)
         }
         return withTotals(lowered, rows)
     }
@@ -975,7 +1029,8 @@ object VirtualViews {
     /** クロス集計の合計の行: 各列のセルの値を畳む（件数と合計は足し、最小・最大はその順で選ぶ）。読めないセルがあれば、その列の合計は無い。 */
     private fun withTotals(view: VirtualGridDef, rows: List<VirtualRow>): List<VirtualRow> {
         val matrix = view.matrix ?: return rows
-        if (!matrix.totals || rows.isEmpty()) return rows
+        // 累計の表に合計の行は置かない（最後の行が全体）
+        if (!matrix.totals || matrix.cumulative || rows.isEmpty()) return rows
         val fn = when (matrix.cells.aggregate) {
             dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MIN -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MIN
             dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MAX -> dev.toros.yde.semantic.schema.ValueExpr.AggregateFn.MAX

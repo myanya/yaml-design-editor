@@ -14,9 +14,11 @@ import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.semantic.schema.ValueSemantics
 import java.math.BigDecimal
 import java.math.MathContext
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -106,7 +108,7 @@ object SemanticExpression {
 
     /**
      * 値を1つ受け取る計算（SP-10）。得られなければ null（number: 数として読めない。読み方は numberOf＝桁区切り・通貨記号・全角を許す。
-     * year / month / day / yearMonth: 日付か日時の正準の形として読めない）。
+     * year / month / day / yearMonth / weekStart: 日付か日時の正準の形として読めない）。
      */
     fun unary(fn: ValueExpr.UnaryFn, text: String): String? = when (fn) {
         // 文字数の数え方は、フィールドの maxLength の検証と同じ（String.length）
@@ -118,6 +120,8 @@ object SemanticExpression {
         ValueExpr.UnaryFn.MONTH -> dateOf(text)?.monthValue?.toString()
         ValueExpr.UnaryFn.DAY -> dateOf(text)?.dayOfMonth?.toString()
         ValueExpr.UnaryFn.YEAR_MONTH -> dateOf(text)?.format(YEAR_MONTH_FORMAT)
+        // 週は月曜から（ISO 8601）。日付の正準の形 yyyy-MM-dd
+        ValueExpr.UnaryFn.WEEK_START -> dateOf(text)?.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))?.toString()
     }
 
     private val YEAR_MONTH_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM")

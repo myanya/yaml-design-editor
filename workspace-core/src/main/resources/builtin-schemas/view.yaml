@@ -273,10 +273,19 @@ root:
           type: enum
           values: [number, date]
           description: min / max を日付で比べるなら date
+        - key: series
+          label: 列ごとの行の鍵
+          type: array
+          description: "列ごとに、数える要素をどの行に数えるかを値の式で決める（例 発生＝{weekStart: {path: origin_on}}・クローズ＝{weekStart: {path: closed_on}}）。行は全列の鍵の値の順に並ぶ。columns・rows・order・unclassified とは一緒に書けない。未分類と合計の列は無い"
+          item:
+            type: object
+            fields:
+              - { key: label, label: 列の見出し, type: string, required: true }
+              - { key: key, label: 行の鍵（値の式）, type: any, required: true, description: "要素ごとに計算した値の行に数える。得られなければその列に数えない" }
         - key: columns
           label: 列の軸
           type: object
-          description: "via（要素の参照先が列。idPattern で列にする ID の形、order で並び）か path（要素の値が列。values で並びと見出し）か value（要素ごとに値の式で計算した値が列。列はデータから広がる）"
+          description: "via（要素の参照先が列。idPattern で列にする ID の形、order で並び）か path（要素の値が列。values で並びと見出し）か value（要素ごとに値の式で計算した値が列。列はデータから広がる）。列ごとの行の鍵なら series"
           fields:
             - key: value
               label: 値の式（計算した値が列）
@@ -306,6 +315,11 @@ root:
       label: 合計の行と列（matrix）
       type: boolean
       default: true
+    - key: cumulative
+      label: 累計（matrix）
+      type: boolean
+      default: false
+      description: "行の順に、各列のセルをそれまでの行の要素と合わせて畳む（件数なら足し上げ）。行が値の軸（rows.value か cells.series）のときだけ。合計の行は出さない"
     - key: unclassified
       label: 未分類の列の見出し（matrix）
       type: any
