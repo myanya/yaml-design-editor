@@ -1,0 +1,132 @@
+id: guild-dashboard
+name: ギルドの受付
+kind: dashboard
+default: true
+description: ギルドの受付の状況です。業務の流れの段（掲示待ち → 掲示中 → 遂行中 → 精算待ち → 精算済み）を押すと一覧、工程を押すとその段の依頼が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。期限を過ぎた依頼は基準日で判定します。
+# 対象を持たない操作（受け付ける・登録する・組む・月を足す）
+actions: [register-quest, register-adventurer, form-party, add-payment-month]
+placement: auto
+# 業務の流れ: 状態の区画を段、依頼の操作を工程として並べる。区画の filter が「その段にいる」の定義。
+# 却下・取消・期限切れ・失敗は流れに置かず、区画だけにする（報告で未達なら失敗へ移る。画面の確認では「流れに宣言していない移り方」の注意になる。manual/dashboards.md「移り先の予告」）
+flow:
+  direction: right
+  start: { action: register-quest, to: received }
+  steps: [received, posted, assigned, reported, settled]
+  moves:
+    - { from: received, action: post-quest, to: posted }
+    - { from: posted, action: accept-quest, to: assigned }
+    - { from: assigned, action: report-quest, to: reported }
+    - { from: reported, action: settle-quest, to: settled }
+  # 業務詳細の「流れの中の位置」に出す履歴（依頼の history。行の項目は date / action / from / to / note）
+  history: { path: history }
+sections:
+  # ---- 状況（流れの段） ----
+  - id: received
+    label: 掲示待ち（受付）
+    group: 状況
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: received } ]
+      expect: exists
+  - id: posted
+    label: 掲示中
+    group: 状況
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: posted } ]
+      expect: exists
+  - id: assigned
+    label: 遂行中（受注済み）
+    group: 状況
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: assigned } ]
+      expect: exists
+  - id: reported
+    label: 精算待ち（報告済み）
+    group: 状況
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: reported } ]
+      expect: exists
+  - id: settled
+    label: 精算済み
+    group: 状況
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: settled } ]
+      expect: exists
+  # 期限を過ぎた掲示中・遂行中の依頼（基準日で判定。期限切れにする操作の候補）
+  - id: overdue
+    label: 期限を過ぎた掲示中・遂行中
+    group: 状況
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where:
+        - { of: q, path: status, oneOf: [posted, assigned] }
+        - { of: q, path: deadline, exists: true }
+      check:
+        - lt: [ { of: q, path: deadline }, $today ]
+          type: date
+  # ---- 流れの外（区画だけ） ----
+  - id: failed
+    label: 失敗（掲示し直せる）
+    group: 流れの外
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: failed } ]
+      expect: exists
+  - id: expired
+    label: 期限切れ
+    group: 流れの外
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: expired } ]
+      expect: exists
+  - id: rejected
+    label: 却下
+    group: 流れの外
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: rejected } ]
+      expect: exists
+  - id: cancelled
+    label: 取消
+    group: 流れの外
+    view: quest-board
+    filter:
+      match: [ { node: { entity: quest, bind: q } } ]
+      where: [ { of: q, path: status, equals: cancelled } ]
+      expect: exists
+  # ---- 精算 ----
+  # 今月の精算（支払日の年月が基準日の年月）
+  - id: this-month-payments
+    label: 今月の精算
+    group: 精算
+    view: payment-ledger
+    filter:
+      match: [ { node: { entity: payment, bind: p } } ]
+      check:
+        - eq: [ { yearMonth: { of: p, path: paidOn } }, { yearMonth: $today } ]
+  - id: monthly-payments
+    label: 月ごとの精算
+    group: 精算
+    view: monthly-payments-chart
+  # ---- 名簿 ----
+  - id: adventurers
+    label: 冒険者の名簿
+    group: 名簿
+    view: adventurer-roster
+  - id: parties
+    label: パーティの編成
+    group: 名簿
+    view: party-roster
