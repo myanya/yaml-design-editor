@@ -1,0 +1,8 @@
+id: UX-280
+title: 操作の前提の文面で {left} と {right} が埋まらず、比べた値（期限など）を見せられない
+status: todo
+origin_on: 2026-11-08
+origin: labs/adventurers-guild の掲示する操作で、期限を過ぎた依頼の前提の文面に {left} を書いたとき
+memo: 検査の message では {left} {right} が比べた値になるが、前提では文字のまま出る（マニュアルの前提の節も {id}・束縛・受け取った値だけを挙げている）。いまは受け取った値（掲示日 ）を出して逃げている。検査と同じ穴を前提でも埋めるか
+features:
+  - OP-03

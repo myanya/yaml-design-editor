@@ -294,8 +294,8 @@
 | ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 | 未解決の指摘 |
 |---|---|---|---|---|---|---|
 | OP-01 | 型の操作（`methods`・作成・採番〔接頭辞は `$of: self`・入れ子の表は `$of: owner`〕・引き継ぎ） | `semantic-core/schema/Action.kt`・`schema/SchemaTree.kt` | `ActionPlannerTest`・`InsertNumberingTest` | architecture/actions.md「操作の共通規則」 | manual/actions.md「型の操作」 |  |
-| OP-02 | アクションの定義と点検（文書を作る手の採番 `create.id`〔接頭辞は受け取った値でも埋まる〕を含む） | `semantic-core/schema/Action.kt`・`workspace-core/workspace/SchemaDocuments.kt` | `ActionPlannerTest` | architecture/actions.md「操作の共通規則」 | manual/actions.md「アクション」 | UX-166・UX-181 |
-| OP-03 | 操作の計画・前提評価・変更セット生成 | `workspace-core/workspace/ActionPlanner.kt` | `ActionPlannerTest` | architecture/actions.md「流れ」 | manual/actions.md「前提」 | UX-243・UX-273 |
+| OP-02 | アクションの定義と点検（文書を作る手の採番 `create.id`〔接頭辞は受け取った値でも埋まる〕を含む） | `semantic-core/schema/Action.kt`・`workspace-core/workspace/SchemaDocuments.kt` | `ActionPlannerTest` | architecture/actions.md「操作の共通規則」 | manual/actions.md「アクション」 | UX-166・UX-181・UX-279 |
+| OP-03 | 操作の計画・前提評価・変更セット生成 | `workspace-core/workspace/ActionPlanner.kt` | `ActionPlannerTest` | architecture/actions.md「流れ」 | manual/actions.md「前提」 | UX-243・UX-273・UX-278・UX-279・UX-280 |
 | OP-04 | CLI `action`（使える操作の一覧・計画＝変更セットと適用後の検証・`--apply`・`--allow-errors`） | `cli/ActionCommands.kt` | `ActionCliTest` | [actions](architecture/actions.md) | manual/actions.md「CLI で使う」 |  |
 | OP-05 | 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用 | `ui/action/ActionPane.kt`・`ui/form/DocumentFormWorkspace.kt`・`AppState.kt` | `AppStateActionTest`・`FormOutlineTest` | architecture/actions.md「入力準備と確認の有効期間」 | manual/actions.md「画面で使う」 | UX-185 |
 | OP-06 | 検査の指摘から対象・値を指定して起動 | `workspace-core/validate/WorkspaceChecks.kt`・`ui/shell/SidePanel.kt` | `ActionPlannerTest`・`AppStateActionTest` | [actions](architecture/actions.md) | manual/actions.md「検査の指摘から起動する」 | UX-04 |
