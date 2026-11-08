@@ -1,0 +1,10 @@
+id: UX-277
+title: 値の式に端数処理（切り捨て・四捨五入）が無く、率から求める整数の金額を検査できない
+status: todo
+origin_on: 2026-11-08
+origin: labs/adventurers-guild で、精算の手数料（報酬 × 手数料率 ÷ 100）を型の検査に書いたとき
+memo: divide は小数を返し、整数にそろえる語が無い（number は表記をそろえるだけ）。いまは報酬を 10 の倍数にして逃げている。値の式に floor や round（桁を指定）を足すか、比べるときに丸める指定を足すか。式の語彙を増やすので、CORE-CALCULUS
+  の分類表と DESIGN-CHECK-CATALOG の正準の綴りとの重なりを確かめる
+features:
+  - V-09
+  - X-09
