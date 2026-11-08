@@ -1,7 +1,7 @@
 # 図の手動位置
 
-flow と lens の位置は、意味モデルから分離した表示状態としてワークスペースに記録する。
-定義・射影結果・原本を変更しない。[状態の境界](../decisions/0021-workspace-diagram-positions.md) と [位置保持と再配置](../decisions/0022-stable-diagram-positions.md) に決定を記す。
+flow と lens の位置は、意味モデルから分離した表示状態としてワークスペースに記録する。flow は線の経由点も同じ記録に置く。
+定義・射影結果・原本を変更しない。[状態の境界](../decisions/0021-workspace-diagram-positions.md) と [位置保持と再配置](../decisions/0022-stable-diagram-positions.md)、[線の経由点](../decisions/0028-flow-edge-vias.md) に決定を記す。
 
 ## 部品と流れ
 
@@ -15,6 +15,7 @@ flow と lens の位置は、意味モデルから分離した表示状態とし
 | `ui/common/GraphLabelPlacement.kt` | 近傍が塞がる場合に、線との距離を優先してラベルを退避 |
 | `ui/common/PinnedFlow.kt` | レーンの内容座標と図の座標の変換、レーンの組立、辺とラベルの再配置 |
 | `ui/view/FlowLabelLayout.kt` | 配線後の中央ラベルの折り返し・端ラベルとの衝突回避・描画寸法の共有 |
+| `ui/view/FlowEdgeVias.kt` | flow の線の経由点の識別・記録との変換・経由点を通る配線（ADR-0028） |
 | `GraphLayouts.arrangeNested` | 親の寸法を子から計算し、親基準の固定位置を段ごとに適用 |
 | `FlowPositions.kt` / `LensPositions.kt` | 全ノードの現在位置を識別子・親基準へ変換し、手動固定の区別を保持 |
 | `ui/common/DiagramLayoutOptionsMenu.kt` | 自動配置の調整（`FlowLayoutOption` / `LensLayoutOption`）のメニューと、選択条件への `options` の追加 |
@@ -64,9 +65,20 @@ flow と lens の位置は、意味モデルから分離した表示状態とし
 表示から消えたノードの記録は維持し、同じ識別が戻ったときに再利用する。ID 改名・文書移動への追随は行わない。
 
 本文は `diagram`・`selection`・`unit: dip`・`positions` と任意の `grid`。各位置は `node`・`frame`・`at: {x, y}`・`pinned` を持つ。
-`frame: {root: true}` は図の原点、それ以外は親の識別子。全ノードの自動・手動の現在位置と flow のレーン原点を記録し、寸法・経路・ラベルは記録しない。
+`frame: {root: true}` は図の原点、それ以外は親の識別子。全ノードの自動・手動の現在位置と flow のレーン原点・線の経由点を記録し、寸法・経路と経由点の無い線のラベルは記録しない。
 `pinned: true` は次の再配置でも保持する手動固定。`false` も通常時は位置を保持するが、再配置の対象になる。
 `version` / `formatVersion` は設けず、現行形式だけを検査する。読めない形式は警告して自動配置し、読込だけでは書き換えない。
+
+## 線の経由点
+
+flow の線のラベルをドラッグすると、ラベルの中心をその線の経由点として記録する（[ADR-0028](../decisions/0028-flow-edge-vias.md)）。lens は対象にしない。
+
+- 記録は同じ図・同じ選択条件の `positions` に入れ、`node` を `{kind: flow-edge, key: <線の key>}`・`frame` を図の原点・`pinned: true` とする。座標はラベルの中心で、ノードの左上ではない。
+- 経由点を持てるのは一意な `key` を持ち、両端の解決した線だけ。`key` の欠落・重複した線と、ポートを指定した線（ADR-0024）はラベルを動かせない。
+- 線は配置（自動・固定位置・ポート）の確定後に、経由点のある線だけを「元の箱 → 経由点 → 先の箱」の 2 回の直角配線（`OrthogonalRouting.route`）で引き直し、経由点でつなぐ。ラベルは経由点を中心に置き、中央ラベルの配置（`withFlowLabels`）では動かさず、他のラベルの障害物にする。経路を確保できない線は既存と同じく通知する。
+- ドラッグ中は線とラベルのプレビューだけを変え、離したときに経由点を保存する。グリッドの吸着はラベルの左上に効かせる。Esc・中断では保存しない。
+- 経由点は箱の移動と「再配置」で保ち、「選択した線を自動に戻す」で 1 本、「配置を初期化」で全てを外す。表示から消えた線の記録はノードと同じく維持する。
+- 読むだけの図とダッシュボードの業務の流れは、同じ記録の経由点で同じ形に描く（ラベルは動かせない）。
 
 ## グリッド吸着
 

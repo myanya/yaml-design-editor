@@ -40,7 +40,8 @@ internal fun withFlowLabels(scene: FlowScene, measures: Map<YPath, List<TextLayo
                 LensBox(r.left - 2f, r.top, r.width + 4f, r.height)
             }
         }.orEmpty() }
-    val occupied = mutableListOf<LensBox>()
+    // 経由点のラベルは利用者が置いた場所から動かさない。ほかのラベルはそれを避ける
+    val occupied = base.edges.filter { it.output in scene.fixedLabels }.map { it.label.box() }.toMutableList()
     val texts = scene.texts.toMutableMap()
     val visuals = scene.edgeVisuals.toMutableMap()
     val routes = base.edges.map { route ->
@@ -49,6 +50,13 @@ internal fun withFlowLabels(scene: FlowScene, measures: Map<YPath, List<TextLayo
         val visual = visuals[route.output]
         fun size(text: TextLayoutResult) = LensNodeSize("", text.size.width + if (visual == null) 12f else 4f,
             text.size.height + if (visual == null) 12f else 0f)
+        if (route.output in scene.fixedLabels) {
+            val text = choices.first()
+            val s = size(text)
+            val center = route.label.center
+            if (visual == null) texts[route.output] = text else visuals[route.output] = visual.copy(labelText = text)
+            return@map route.copy(label = FlowRect(center.x - s.width / 2, center.y - s.height / 2, s.width, s.height))
+        }
         val points = route.points.map { LensPoint(it.x, it.y) }
         val avoid = obstacles + occupied
         // まず線の近くに収まる最も広い幅を選び、不要な折り返しを増やさない。

@@ -19,6 +19,8 @@ internal data class FlowScene(
     val colors: DiagramColors, val selectedColor: Color,
     /** 線の中央のラベルを隠す（選んだ線のラベルは出す）。端のラベルは残す。 */
     val hideLabels: Boolean = false,
+    /** 経由点を持つ線（ラベルは経由点を中心に置いたまま動かさない。ADR-0028）。 */
+    val fixedLabels: Set<YPath> = emptySet(),
 ) {
     /** その線の中央のラベルを描くか。 */
     fun showsLabel(output: YPath, selected: YPath? = null) = !hideLabels || output == selected

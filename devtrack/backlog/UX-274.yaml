@@ -1,0 +1,9 @@
+id: UX-274
+title: レンズの線も経由点で曲がる場所を直せるようにする
+status: todo
+origin_on: 2026-11-08
+origin: フロー図の線の経由点（ADR-0028）を入れたときに、レンズを対象外にした
+memo: フローは線のラベルのドラッグで経由点を記録し、`OrthogonalRouting.route` を 2 回引いてつなぐ（`ui/view/FlowEdgeVias.kt`）。レンズは関係名のラベルと直交線の更新（`LensPositions`・`GraphLensView`）が別の経路で、記録の種類（例 `lens-edge`）と線の識別（関係と両端の ID・出現）を決める必要がある。入れるときは ADR-0028 を広げる新しい ADR で決める
+features:
+  - X-22
+  - X-27

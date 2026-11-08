@@ -304,8 +304,19 @@ internal fun FlowCanvas(
     var dragging by remember(model, context) { mutableStateOf<YPath?>(null) }
     var dragMotion by remember(model, context) { mutableStateOf<DiagramDrag?>(null) }
     var cancelled by remember(context) { mutableStateOf(false) }
+    // 線の経由点（ADR-0028）: ラベルをドラッグ中の線と、その間だけの経由点（離すと記録へ）
+    val edgeIds = remember(model) { flowEdgeIds(model) }
+    var draggingLabel by remember(model, context) { mutableStateOf<YPath?>(null) }
+    var labelPreview by remember(model, context) { mutableStateOf<Pair<YPath, FlowPoint>?>(null) }
+    val storedVias = remember(model, memory.positions, density.density) { flowEdgeVias(model, memory.positions, density.density) }
+    val vias = storedVias + listOfNotNull(labelPreview)
     LaunchedEffect(memory.saving, memory.warning) {
-        if (!memory.saving && memory.warning != null) preview = null
+        if (!memory.saving && memory.warning != null) { preview = null; labelPreview = null }
+    }
+    // 記録が確定したら、離した位置の見せかけを外す（記録の経由点で同じ形に描かれる）
+    LaunchedEffect(storedVias, memory.saving) {
+        val shown = labelPreview ?: return@LaunchedEffect
+        if (draggingLabel == null && !memory.saving && storedVias[shown.first] != null) labelPreview = null
     }
     val focus = remember { FocusRequester() }
     val renderings = remember(model) { model.nodes.mapNotNull { n -> n.rendering?.let { n.output to it } }.toMap() }
@@ -371,13 +382,14 @@ internal fun FlowCanvas(
         return
     }
     val moved = preview?.let { flowDragPreview(base, it.first, it.second, model, direction) } ?: base
-    val routed = remember(moved, model, bodies) { withFlowPorts(moved, model, bodies) }
+    val ported = remember(moved, model, bodies) { withFlowPorts(moved, model, bodies) }
+    val routed = remember(ported, model, vias, labelSizes, direction) { withFlowVias(ported, model, vias, labelSizes, direction) }
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     val colors = diagramColors()
-    val scene = remember(model, routed, texts, bodies, edgeVisuals, colors, labelMeasures, hideLabels) {
-        withFlowLabels(FlowScene(model, routed, texts, bodies, edgeVisuals, colors, Palette.Selected, hideLabels), labelMeasures)
+    val scene = remember(model, routed, texts, bodies, edgeVisuals, colors, labelMeasures, hideLabels, vias.keys) {
+        withFlowLabels(FlowScene(model, routed, texts, bodies, edgeVisuals, colors, Palette.Selected, hideLabels, vias.keys), labelMeasures)
     }
     val arrangement = scene.arrangement
     fun fit() {
@@ -407,6 +419,16 @@ internal fun FlowCanvas(
     }
     fun toContent(at: Offset) = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
     fun finishDrag() {
+        // 線のラベルを離した: その位置（ラベルの中心）を経由点として記録する
+        draggingLabel?.let { path ->
+            val point = labelPreview?.takeIf { it.first == path }?.second
+            val id = edgeIds[path]
+            if (!cancelled && point != null && id != null) state.saveDiagramPositions(context, memory.positions + (id to flowEdgeVia(id, point, density.density)))
+            else labelPreview = null
+            draggingLabel = null
+            dragMotion = null
+            return
+        }
         val moved = preview
         if (!cancelled && moved != null) {
             val (path, point) = moved
@@ -429,11 +451,24 @@ internal fun FlowCanvas(
         focus.requestFocus()
         val hit = latestArrangement.nodes.entries.lastOrNull { it.value.contains(toContent(at)) }?.key
         val enabled = memory.ready && writable && !memory.saving && !computing
-        cancelled = hit != null && !enabled
+        // 箱でなければ、経由点を持てる線のラベル（見えているもの）を探す。読むだけの図では動かさない
+        val label = if (hit != null || !editable) null else latestArrangement.edges.lastOrNull { r ->
+            r.output in edgeIds && latestScene.showsLabel(r.output, latestSelected) && r.label.contains(toContent(at))
+        }
+        cancelled = (hit != null || label != null) && !enabled
         dragging = hit.takeIf { enabled }
+        draggingLabel = label?.output?.takeIf { enabled }
         dragMotion = dragging?.let { latestArrangement.nodes[it] }?.let { DiagramDrag(LensPoint(it.x, it.y)) }
+            ?: draggingLabel?.let { label?.label }?.let { DiagramDrag(LensPoint(it.x, it.y)) }
     })
     val moveDrag by rememberUpdatedState<(Offset) -> Unit>({ amount ->
+        draggingLabel?.let { path ->
+            val r = latestArrangement.edges.firstOrNull { it.output == path }?.label
+            if (!cancelled && r != null) dragMotion?.move(amount.x, amount.y, zoom, memory.grid, density.density, DiagramDragFrame())?.let {
+                labelPreview = path to FlowPoint(it.x + r.width / 2, it.y + r.height / 2)
+            }
+            return@rememberUpdatedState
+        }
         val path = dragging
         val box = path?.let { latestArrangement.nodes[it] }
         if (!cancelled && path != null && box != null) {
@@ -455,7 +490,8 @@ internal fun FlowCanvas(
     val endDrag by rememberUpdatedState(::finishDrag)
     Column(modifier) {
         memory.warning?.let { Text(it, fontSize = 11.sp, color = Palette.WarnOrange) }
-        if (editable) Text("手動で固定したノード: ${fixed.size} 件（再配置でも保持）", fontSize = 11.sp, color = Palette.SubText)
+        if (editable) Text("手動で固定したノード: ${fixed.size} 件・経由点のある線: ${storedVias.size} 本（再配置でも保持。線のラベルをドラッグすると、線はその位置を通ります）",
+            fontSize = 11.sp, color = Palette.SubText)
         val fixedBoxes = arrangement.nodes.values.map { LensBox(it.x, it.y, it.width, it.height) }
         if (fixedBoxes.indices.any { i -> fixedBoxes.drop(i + 1).any { PinnedLayout.overlap(fixedBoxes[i], it) } })
             Text("ノード同士が重なっています。位置を調整してください", fontSize = 11.sp, color = Palette.WarnOrange)
@@ -479,18 +515,22 @@ internal fun FlowCanvas(
                 temporary = temporary - setOf(selected)
                 memory.positions[selectedId]?.let { state.saveDiagramPositions(context, memory.positions + (it.node to it.copy(pinned = false))) }
             }, enabled = !memory.saving && !computing) { Text("選択ノードの固定を解除") }
+            val selectedEdge = selected?.let { edgeIds[it] }?.takeIf { it in memory.positions }
+            if (editable && selectedEdge != null) TextButton(onClick = {
+                state.saveDiagramPositions(context, memory.positions - selectedEdge)
+            }, enabled = writable && !memory.saving && !computing) { Text("選択した線を自動に戻す") }
             if (memory.saving) Text("配置を保存中…", fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
             Text("${(zoom * 100).toInt()}%", fontSize = 11.sp, modifier = Modifier.align(Alignment.CenterVertically))
         }
         Canvas(Modifier.weight(1f).fillMaxWidth().clipToBounds().background(Palette.PanelBg)
             .testTag("flow-canvas").focusRequester(focus).onPreviewKeyEvent {
-                if (it.key == Key.Escape && it.type == KeyEventType.KeyDown && dragging != null) {
-                    cancelled = true; preview = null; dragging = null; dragMotion = null; true
+                if (it.key == Key.Escape && it.type == KeyEventType.KeyDown && (dragging != null || draggingLabel != null)) {
+                    cancelled = true; preview = null; dragging = null; dragMotion = null; draggingLabel = null; labelPreview = null; true
                 } else false
             }.focusable()
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .pointerInput(context, model) { detectDragGestures(onDragStart = { startDrag(it) }, onDragEnd = { endDrag() },
-                onDragCancel = { preview = null; dragging = null; dragMotion = null }) { change, drag -> change.consume(); moveDrag(drag) } }
+                onDragCancel = { preview = null; dragging = null; dragMotion = null; draggingLabel = null; labelPreview = null }) { change, drag -> change.consume(); moveDrag(drag) } }
             .pointerInput(context, model) { detectTapGestures { at ->
                 val p = FlowPoint((at.x - pan.x) / zoom, (at.y - pan.y) / zoom)
                 val node = latestArrangement.nodes.entries.lastOrNull { it.value.contains(p) }
@@ -521,6 +561,10 @@ internal fun FlowCanvas(
                 if (editable) fixed.keys.forEach { path -> arrangement.nodes[path]?.let { b ->
                     drawCircle(Palette.Primary, 3f / zoom, Offset(b.right - 5f / zoom, b.y + 5f / zoom))
                 } }
+                // 経由点のある線は、ラベルの右上に同じ固定の印
+                if (editable) arrangement.edges.filter { it.output in storedVias }.forEach { r ->
+                    drawCircle(Palette.Primary, 3f / zoom, Offset(r.label.right - 5f / zoom, r.label.y + 5f / zoom))
+                }
             } }
         }
     }

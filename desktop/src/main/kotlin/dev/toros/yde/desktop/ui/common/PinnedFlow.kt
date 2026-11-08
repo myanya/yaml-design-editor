@@ -132,13 +132,7 @@ internal object PinnedFlow {
             return port.copy(fraction = .2f + .6f * (group.indexOf(e.output to source) + 1) / (group.size + 1))
         }
         val diamonds = model.nodes.filter { it.displayShape == "diamond" }.map { it.output }.toSet()
-        fun outline(path: YPath?, p: LensPoint): LensPoint {
-            val r = boxes[path]?.takeIf { path in diamonds } ?: return p
-            return if (kotlin.math.abs(kotlin.math.abs(p.x - r.center.x) - r.width / 2) < .01f) LensPoint(r.center.x + (if (p.x < r.center.x) -1 else 1) *
-                r.width / 2 * (1 - kotlin.math.abs(p.y - r.center.y) / (r.height / 2)), p.y)
-            else LensPoint(p.x, r.center.y + (if (p.y < r.center.y) -1 else 1) *
-                r.height / 2 * (1 - kotlin.math.abs(p.x - r.center.x) / (r.width / 2)))
-        }
+        fun outline(path: YPath?, p: LensPoint): LensPoint = boxes[path]?.takeIf { path in diamonds }?.let { diamondOutline(it, p) } ?: p
         val usedLabels = unchanged.values.map { it.label.box() }.toMutableList()
         val routes = model.edges.map { e ->
             unchanged[e.output]?.let { return@map it }
@@ -164,4 +158,11 @@ internal object PinnedFlow {
             maxOf(0f, rects.maxOfOrNull { it.right } ?: 0f, points.maxOfOrNull { it.x } ?: 0f) - left + 24f,
             maxOf(0f, rects.maxOfOrNull { it.bottom } ?: 0f, points.maxOfOrNull { it.y } ?: 0f) - top + 24f), previous?.laneHeaders.orEmpty())
     }
+
+    /** 箱の縁の点を菱形の輪郭へ寄せる（線を菱形の縁まで届かせる。経由点の配線と共用）。 */
+    fun diamondOutline(r: FlowRect, p: LensPoint): LensPoint =
+        if (kotlin.math.abs(kotlin.math.abs(p.x - r.center.x) - r.width / 2) < .01f) LensPoint(r.center.x + (if (p.x < r.center.x) -1 else 1) *
+            r.width / 2 * (1 - kotlin.math.abs(p.y - r.center.y) / (r.height / 2)), p.y)
+        else LensPoint(p.x, r.center.y + (if (p.y < r.center.y) -1 else 1) *
+            r.height / 2 * (1 - kotlin.math.abs(p.x - r.center.x) / (r.width / 2)))
 }

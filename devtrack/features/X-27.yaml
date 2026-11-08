@@ -1,0 +1,22 @@
+id: X-27
+title: 'flow の線の経由点（`flow-edge`。線のラベルのドラッグ・`withFlowVias`・選択した線を自動に戻す・読むだけの図とダッシュボードの業務の流れでも同じ形）'
+implementation:
+- path: ui/view/FlowEdgeVias.kt
+  module: desktop
+- path: ui/view/FlowViewPane.kt
+  detail: '`FlowCanvas` のラベルのドラッグ・プレビュー・保存'
+  module: desktop
+- path: ui/view/FlowLabelLayout.kt
+  detail: 経由点のラベルを動かさず他のラベルの障害物にする
+  module: desktop
+tests:
+- name: FlowEdgeViasTest
+- name: FlowEdgeViaUiTest
+  kind: ui
+design:
+- label: 手動位置
+  link: architecture/diagram-positions.md
+  heading: 線の経由点
+manual:
+- link: manual/diagram-positions.md
+  heading: 線の経由点（フロー）
