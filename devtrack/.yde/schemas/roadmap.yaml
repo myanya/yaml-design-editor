@@ -5,3 +5,102 @@ description: ロードマップのテーマ（docs/ROADMAP.md の P）を 1 件 
 match: "roadmap/*.yaml"
 filePattern: "roadmap/{id}.yaml"
 root: { type: common#ロードマップのテーマ }
+# 業務の操作: 画面（ダッシュボードの「操作」・個票の「この対象の操作」）・CLI `action`・エージェントで同じ名前で呼ぶ。
+# R 項目の登録は、表の追加ボタン（ID を空のまま足すと、テーマの番号で採番する）で行う
+actions:
+  - id: change-item-state
+    label: R 項目の状態を変える
+    description: 今のロードマップの R 項目の状態を変えます。状態の日（完了・一部完了の日）・補足・移した先は、渡したものに置き換え、渡さなければ消します。
+    target: { entity: roadmap-item, bind: it }
+    input:
+      initial:
+        state: { $copy: state, $of: it }
+        date: { $first: [ { $copy: state_on, $of: it }, { $copy: today, $of: context } ] }
+        note: { $copy: state_note, $of: it }
+        moved_to: { $copy: moved_to, $of: it }
+    params:
+      - { key: state, label: 状態, type: common#R項目の状態, required: true }
+      - { key: date, label: 状態の日, type: common#年月日, description: 完了・一部完了の日（ほかの状態では使いません） }
+      - { key: note, label: 状態の補足, type: common#一行の文, description: "ROADMAP.md では状態の後ろの（）の中。省くと消します" }
+      - { key: moved_to, label: 移した先, type: common#R項目参照, description: 別の項目へ移したときの R 項目 }
+    require:
+      - match: [ { node: { entity: roadmap-item, bind: x } } ]
+        where: [ { of: x, path: state, exists: true } ]
+        expect: exists
+        message: "{id} は記録の行です（今のロードマップの R 項目だけ状態を変えられます）"
+    do:
+      - set: { of: it, path: state, value: $state }
+      - when: [ { path: state, oneOf: [done, partial] }, { path: date, exists: true } ]
+        set: { of: it, path: state_on, value: $date }
+      - when:
+          - or: [ { path: state, oneOf: [todo, in-progress, moved] }, { path: date, exists: false } ]
+          - { of: it, path: state_on, exists: true }
+        delete: { of: it, path: state_on }
+      - when: { path: note, exists: true }
+        set: { of: it, path: state_note, value: $note }
+      - when: [ { path: note, exists: false }, { of: it, path: state_note, exists: true } ]
+        delete: { of: it, path: state_note }
+      - when: [ { path: state, equals: moved }, { path: moved_to, exists: true } ]
+        set: { of: it, path: moved_to, value: $moved_to }
+      - when:
+          - or: [ { path: state, notEquals: moved }, { path: moved_to, exists: false } ]
+          - { of: it, path: moved_to, exists: true }
+        delete: { of: it, path: moved_to }
+
+  - id: decide
+    label: 判断待ちを決める
+    description: 判断待ちの決定を決定済みにします。見出しの語・決めた日・決めた人と、決めた内容（文）を入れます。
+    target: { entity: roadmap-decision, bind: d }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+        by: { $copy: by, $of: d }
+        text: { $copy: text, $of: d }
+    params:
+      - { key: decision, label: 見出しの語, type: common#決定の語, default: 決めたこと }
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: by, label: 決めた人, type: common#一行の文, description: 省くと今の人（判断する人）のまま }
+      - { key: text, label: 決めた内容, type: common#文章, required: true, minLength: 1, description: 判断待ちの文を、決めた内容に書き換えます }
+    require:
+      - match: [ { node: { entity: roadmap-decision, bind: x } } ]
+        where: [ { of: x, path: status, equals: pending } ]
+        expect: exists
+        message: "{id} は判断待ちの決定ではありません"
+    do:
+      - set: { of: d, path: status, value: decided }
+      - set: { of: d, path: decision, value: $decision }
+      - set: { of: d, path: date, value: $date }
+      - when: { path: by, exists: true }
+        set: { of: d, path: by, value: $by }
+      - set: { of: d, path: text, value: $text }
+
+  - id: complete-theme
+    label: テーマを終える
+    description: テーマを完了にし、本文と節を記録の新しい項（RH- の次の番号。記録の末尾）へ移します。状態の要約（状態表の欄）は渡したものか「完了（日付）」になります。
+    target: { entity: roadmap-theme, bind: th }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 終えた日, type: common#年月日, required: true }
+      - { key: status_note, label: 状態の要約, type: common#一行の文, description: 状態表の欄。省くと「完了（日付）」 }
+      - { key: title, label: 記録の見出し, type: common#一行の文, description: "省くと「P52: 名前（日付）」" }
+    require:
+      - match: [ { node: { entity: roadmap-theme, bind: x } } ]
+        where: [ { of: x, path: status, notEquals: done } ]
+        expect: exists
+        message: "{id} は既に完了したテーマです"
+    do:
+      - insert:
+          of: th
+          path: history
+          params:
+            title: { $first: [ { $copy: title }, { $format: "{id}: {title}（{d}）", $of: th, $with: { d: $date } } ] }
+            body: { $copy: body, $of: th }
+            sections: { $copy: sections, $of: th }
+      - when: { of: th, path: body, exists: true }
+        delete: { of: th, path: body }
+      - when: { of: th, path: sections, exists: true }
+        delete: { of: th, path: sections }
+      - set: { of: th, path: status, value: done }
+      - set: { of: th, path: status_note, value: { $first: [ { $copy: status_note }, { $format: "完了（{date}）" } ] } }

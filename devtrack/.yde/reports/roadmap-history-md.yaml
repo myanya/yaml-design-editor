@@ -9,16 +9,75 @@ build:
       title: { $copy: values.見出し }
       part: { $copy: values.区切りの見出し }
       part_intro: { $copy: values.区切りの前書き }
-      body:
-        $each: values.本文
+      body: { $each: values.本文, $apply: record-block }
+      # 「テーマを終える」で移した節（今のロードマップと同じ形）
+      sections:
+        $each: values.節
         $build:
+          title: { $copy: title }
+          body: { $each: body, $apply: block }
+rules:
+  # 記録のかたまり: 書いたままの R 項目の表（見出しの 2 行と行）はそのまま、ほかは今のロードマップと同じ組み立て（block）
+  - id: record-block
+    when: [ { path: rows, exists: true } ]
+    build:
+      head: { $copy: head }
+      rows:
+        $each: rows
+        $build:
+          # ID の欄: 今のロードマップにある R 項目の当時の写しは、その ID
+          label: { $first: [ { $copy: id }, { $copy: snapshot_of } ] }
+          title: { $copy: title }
+          cells: { $copy: cells }
+  - id: record-block
+    build: { $apply: block }
+  # ここから下（block と state）は roadmap-md.yaml と同じ（DevtrackTest が一致を見る。直すときは両方を直す）
+  # 本文のかたまり: 文はそのまま、箇条は判断待ちの印、R 項目の表は列の形の印と、行ごとの状態の文字を足す
+  - id: block
+    build:
+      text: { $copy: text }
+      # 箇条: 判断待ちの決定は「判断待ち（日付 誰）」の見出し（ひな形は比べられないので印を足す）
+      points:
+        $each: points
+        $build:
+          label: { $copy: label }
+          label_note: { $copy: label_note }
+          decision: { $copy: decision }
+          pending: { $when: { path: status, equals: pending }, $then: true }
+          date: { $copy: date }
+          by: { $copy: by }
           text: { $copy: text }
-          head: { $copy: head }
-          rows:
-            $each: rows
-            $build:
-              # ID の欄: 今のロードマップにある R 項目の当時の写しは、その ID
-              label: { $first: [ { $copy: id }, { $copy: snapshot_of } ] }
-              title: { $copy: title }
-              cells: { $copy: cells }
+      basicTable: { $when: { path: columns, equals: basic }, $then: true }
+      decisionTable: { $when: { path: columns, equals: decision }, $then: true }
+      workTable: { $when: { path: columns, equals: work }, $then: true }
+      items:
+        $each: items
+        $build:
+          id: { $copy: id }
+          title: { $copy: title }
+          content: { $copy: content }
+          decision: { $copy: decision }
+          places: { $copy: places }
+          prereq: { $copy: prereq }
+          done_criteria: { $copy: done_criteria }
+          state: { $apply: state }
+  # R 項目の状態の文字（「✅ 2026-11-07（補足）」「🚧 一部完了（日付: 補足）」「→ R47-41」「📋 未着手（補足）」「🚧 進行中（補足）」）
+  - id: state
+    when: [ { path: state, equals: done } ]
+    build: { $first: [ { $format: "✅ {state_on}（{state_note}）" }, { $format: "✅ {state_on}" } ] }
+  - id: state
+    when: [ { path: state, equals: partial } ]
+    build:
+      $first:
+        - { $format: "🚧 一部完了（{state_on}: {state_note}）" }
+        - { $format: "🚧 一部完了（{state_on}）" }
+        - { $format: "🚧 一部完了（{state_note}）" }
+  - id: state
+    when: [ { path: state, equals: moved } ]
+    build: { $format: "→ {moved_to}" }
+  - id: state
+    when: [ { path: state, equals: in-progress } ]
+    build: { $first: [ { $format: "🚧 進行中（{state_note}）" }, 🚧 進行中 ] }
+  - id: state
+    build: { $first: [ { $format: "📋 未着手（{state_note}）" }, 📋 未着手 ] }
 template: roadmap-history-md.md

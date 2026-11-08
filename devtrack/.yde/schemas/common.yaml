@@ -695,7 +695,14 @@ definitions:
       - { key: text, label: 文, type: 文章, description: Markdown のまま出す文（段落・表・コード）。 }
       - { key: points, label: 箇条, type: array, item: { type: 箇条 } }
       - { key: columns, label: 表の形, type: R項目の表の形, description: R 項目の表の列の形。 }
-      - { key: items, label: R 項目, type: array, item: { type: R項目 } }
+      - key: items
+        label: R 項目
+        type: array
+        item: { type: R項目 }
+        # 追加ボタン: ID を空のまま足すと、テーマの番号の中の最大の番号の次（R52-06 の形）。表は節の中にあるので、テーマは owner で読む
+        methods:
+          insert:
+            id: { path: id, prefix: { $format: "R{number}-", $of: owner }, digits: 2 }
     constraints:
       - id: block-has-a-kind
         description: 本文のかたまりは、文・箇条・R 項目の表のどれかを持つこと
@@ -768,31 +775,66 @@ definitions:
       - { key: text, label: 文, type: 文章 }
       - { key: head, label: 表の見出し, type: 文章, description: 表の見出しの行と区切りの行（書いたまま）。 }
       - { key: rows, label: R 項目, type: array, item: { type: 記録のR項目 } }
+      # 「テーマを終える」で移した本文は、今のロードマップと同じ形のまま持つ（箇条・R 項目の表）
+      - { key: points, label: 箇条, type: array, item: { type: 箇条 } }
+      - { key: columns, label: 表の形, type: R項目の表の形 }
+      - { key: items, label: R 項目（移した表）, type: array, item: { type: R項目 } }
     constraints:
-      - id: record-block-has-one-kind
-        description: 記録のかたまりは、文か R 項目の表のどちらか一方だけを持つこと
-        where:
-          - { path: text, exists: true }
-          - { path: rows, exists: true }
-        expect: absent
-        level: error
-        message: 記録のかたまりには、文（text）か R 項目の表（head と rows）のどちらか一方だけを書きます
       - id: record-block-has-a-kind
-        description: 記録のかたまりは、文か R 項目の表のどちらかを持つこと
+        description: 記録のかたまりは、文・箇条・R 項目の表（移した表か、書いたままの表）のどれかを持つこと
         where:
           - { path: text, exists: false }
+          - { path: points, exists: false }
+          - { path: items, exists: false }
           - { path: rows, exists: false }
         expect: absent
         level: error
-        message: 記録のかたまりに、文（text）も R 項目の表（rows）もありません
+        message: 記録のかたまりに、文・箇条・R 項目の表のどれもありません
+      - id: record-block-text-is-alone
+        description: 文のかたまりは、ほかの種類を持たないこと
+        where:
+          - { path: text, exists: true }
+          - or:
+              - { path: points, exists: true }
+              - { path: items, exists: true }
+              - { path: rows, exists: true }
+        expect: absent
+        level: error
+        message: 記録のかたまりには、文・箇条・R 項目の表のうち 1 つだけを書きます
+      - id: record-block-points-are-alone
+        description: 箇条のかたまりは、R 項目の表を持たないこと
+        where:
+          - { path: points, exists: true }
+          - or:
+              - { path: items, exists: true }
+              - { path: rows, exists: true }
+        expect: absent
+        level: error
+        message: 記録のかたまりには、文・箇条・R 項目の表のうち 1 つだけを書きます
+      - id: record-block-one-table
+        description: 移した表（items）と書いたままの表（rows）を 1 つのかたまりに並べないこと
+        where:
+          - { path: items, exists: true }
+          - { path: rows, exists: true }
+        expect: absent
+        level: error
+        message: 記録のかたまりには、文・箇条・R 項目の表のうち 1 つだけを書きます
       - id: record-rows-have-head
-        description: 記録の R 項目の表には、見出しの行があること
+        description: 書いたままの R 項目の表には、見出しの行があること
         where:
           - { path: rows, exists: true }
           - { path: head, exists: false }
         expect: absent
         level: error
         message: 記録の R 項目の表（rows）に見出しの行（head）がありません
+      - id: record-items-have-columns
+        description: 移した R 項目の表には、列の形があること
+        where:
+          - { path: items, exists: true }
+          - { path: columns, exists: false }
+        expect: absent
+        level: error
+        message: 記録の R 項目の表（items）に列の形（columns）がありません
 
   # 記録の項: 記録の「### P…」の 1 つ。テーマが保有し、記録には番号の順に出ます。この形の要素がエンティティ roadmap-record の定義
   記録の項:
@@ -805,6 +847,7 @@ definitions:
       - { key: part, label: 区切りの見出し, type: 一行の文, description: "この項の前に置く「## 」の見出し（記録の中の区切り）。" }
       - { key: part_intro, label: 区切りの前書き, type: 文章 }
       - { key: body, label: 本文, type: array, item: { type: 記録のかたまり } }
+      - { key: sections, label: 節, type: array, item: { type: ロードマップの節 }, description: 「テーマを終える」で移した節（記録では「#### 見出し」）。 }
 
   ロードマップの節:
     type: object
@@ -827,7 +870,15 @@ definitions:
       - { key: status_note, label: 状態の要約, type: 一行の文, required: true, description: 状態の表の「状態」の欄（そのまま出します）。 }
       - { key: body, label: 本文, type: array, item: { type: 本文のかたまり }, description: 見出しの直後の本文（節の前）。 }
       - { key: sections, label: 節, type: array, item: { type: ロードマップの節 }, description: 小見出し（「#### 見出し」）ごとの本文。 }
-      - { key: history, label: 記録, type: array, item: { type: 記録の項 }, description: 記録（docs/archive/roadmap-history.md）に出す項。テーマを終えたら、本文と節を項にして移します。 }
+      - key: history
+        label: 記録
+        type: array
+        item: { type: 記録の項 }
+        description: 記録（docs/archive/roadmap-history.md）に出す項。テーマを終えたら、本文と節を項にして移します（操作「テーマを終える」）。
+        # 足すと RH- と 3 桁（最大の番号の次）を振る。記録の末尾に出る
+        methods:
+          insert:
+            id: { path: id, prefix: "RH-", digits: 3 }
 
   # ロードマップの展望: テーマの候補（計画前）とリスク。1 件だけ（roadmap/outlook/OUTLOOK.yaml）
   テーマの候補:

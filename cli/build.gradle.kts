@@ -28,6 +28,18 @@ val devtrackReports = mapOf(
     "backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md",
     "roadmap-md" to "docs/ROADMAP.md", "roadmap-history-md" to "docs/archive/roadmap-history.md",
 )
+// 書き出す前に devtrack を検証する。読めない文書や検証のエラーがあれば止め、生成物を書かない
+// （読めない文書は索引から抜けるので、そのまま書くと生成物から黙って消える。BACKLOG UX-271）。workspace validate はエラーで終了コード 3
+val devtrackValidate = tasks.register<JavaExec>("devtrackValidate") {
+    group = "verification"
+    description = "devtrack を検証する（エラーがあれば失敗。devtrackDocs の前に回る）"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.toros.yde.cli.MainKt")
+    workingDir = rootDir
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+    args("workspace", "validate", "devtrack")
+    outputs.upToDateWhen { false }
+}
 val devtrackDocTasks = devtrackReports.map { (report, target) ->
     val staged = layout.buildDirectory.file("devtrack/$report.md")
     val targetFile = rootDir.resolve(target)
@@ -39,6 +51,7 @@ val devtrackDocTasks = devtrackReports.map { (report, target) ->
         workingDir = rootDir
         jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
         args("report", "devtrack", report, "--print")
+        dependsOn(devtrackValidate)
         outputs.upToDateWhen { false }
         var stream: java.io.OutputStream? = null
         doFirst {
@@ -57,7 +70,7 @@ val devtrackDocTasks = devtrackReports.map { (report, target) ->
 }
 tasks.register("devtrackDocs") {
     group = "documentation"
-    description = "devtrack の YAML から docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md を作り直す"
+    description = "devtrack の YAML から docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録を作り直す（先に検証する）"
     dependsOn(devtrackDocTasks)
 }
 

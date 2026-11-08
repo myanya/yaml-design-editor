@@ -219,7 +219,8 @@ object ActionPlanner {
      * 配列へ足す新しい要素を作る（配列エディタの追加ボタン・ビューの新規行が使う。アクションの insert と同じ作り方）:
      * 要素の型の create（必須の初期値＋受け取った値、または build）→ 配列の insert の決まり（採番 id・同じ明細 key）。
      * arrayDef は解決済みの配列の項目、existingIds は索引の全 ID（採番の既存）。dedupe を false にすると同じ明細の見分けをしない
-     * （受け取った値の無い追加では、空の要素どうしが「同じ」になってしまうため）。holder は配列を持つ要素（親。採番の接頭辞が `$of: self` で読む）。
+     * （受け取った値の無い追加では、空の要素どうしが「同じ」になってしまうため）。holder は配列を持つ要素（親。採番の接頭辞が `$of: self` で読む）、
+     * owner は ID を持つ最も近い外側の要素（`ownerOf`。採番の接頭辞が `$of: owner` で読む）。
      */
     fun newElement(
         tree: SchemaTree,
@@ -230,12 +231,32 @@ object ActionPlanner {
         now: LocalDateTime = LocalDateTime.now(),
         dedupe: Boolean = true,
         holder: YNode? = null,
+        owner: YNode? = null,
     ): NewElement {
         val itemDef = arrayDef.item?.let { tree.resolve(it) ?: it } ?: throw ActionFailure("配列の要素の定義が見つかりません")
         val element = buildElement(tree, itemDef, YamlIO.fromAny(params) as? YNode.Map ?: YNode.Map(), "${arrayDef.label ?: arrayDef.key ?: "配列"} の要素", now)
         val rule = arrayDef.insertRule ?: return NewElement(element, null)
-        val skipped = applyInsertRuleTo(rule, element, array, existingIds, dedupe, holder)
+        val skipped = applyInsertRuleTo(rule, element, array, existingIds, dedupe, holder, owner)
         return if (skipped == null) NewElement(element, null) else NewElement(null, skipped)
+    }
+
+    /**
+     * 配列を持つ要素から上へたどって、最初の ID を持つ要素（その要素の型の項目に、値の入った id 型の項目がある object）。
+     * 採番の接頭辞が `$of: owner` で読む（入れ子の表の行を、外側の要素の番号で採番する。例 テーマの番号から R52-06）。
+     * ID かどうかはスキーマの項目の型で決める（キーの名前では決めない）。
+     */
+    fun ownerOf(tree: SchemaTree, root: YNode, arrayPath: YPath): YNode? {
+        for (end in arrayPath.size - 1 downTo 0) {
+            val path = arrayPath.subList(0, end)
+            val node = getAt(root, path) as? YNode.Map ?: continue
+            val def = tree.fieldAt(root, path) ?: continue
+            if (def.type != FieldType.OBJECT) continue
+            val hasId = tree.effectiveFields(def.fields, node).fields.any { f ->
+                (tree.resolve(f) ?: f).type == FieldType.ID && f.key?.let { k -> !scalarText(node.entries[k]).isNullOrBlank() } == true
+            }
+            if (hasId) return node
+        }
+        return null
     }
 
     /**
@@ -606,9 +627,10 @@ object ActionPlanner {
             }
             val rule = arrayDef?.insertRule
             if (rule != null) {
-                // 配列を持つ要素（親）: 採番の接頭辞から `$of: self` で読める
+                // 配列を持つ要素（親）と ID を持つ最も近い外側の要素: 採番の接頭辞から `$of: self` / `$of: owner` で読める
                 val holder = if (arrayPath.isEmpty()) null else getAt(editable(doc), arrayPath.subList(0, arrayPath.size - 1))
-                val skipped = applyInsertRuleTo(rule, element, array, graph.entities.keys + newIds, holder = holder)
+                val owner = schema?.tree?.let { t -> ownerOf(t, editable(doc), arrayPath) }
+                val skipped = applyInsertRuleTo(rule, element, array, graph.entities.keys + newIds, holder = holder, owner = owner)
                 if (skipped != null) {
                     summary += "飛ばした: ${s.origin}（$skipped）"
                     return
@@ -776,13 +798,17 @@ private fun applyInsertRuleTo(
     existingIds: Collection<String>,
     dedupe: Boolean = true,
     holder: YNode? = null,
+    owner: YNode? = null,
 ): String? {
     val map = element as? YNode.Map ?: return null
     rule.id?.let { numbering ->
         if (scalarText(getAt(map, numbering.path)).isNullOrBlank()) {
-            // 接頭辞のひな型: いまの場所＝新しい要素。配列を持つ要素（親）は `$of: self` で読める（例 `{$format: "{orderId}-", $of: self}`。UX-199）
-            val bindings: Map<String, (DerivationSelector?) -> TemplatePlace?> =
-                holder?.let { h -> mapOf(MethodDef.SELF to { _: DerivationSelector? -> TemplatePlace(h, null, emptyList()) }) }.orEmpty()
+            // 接頭辞のひな型: いまの場所＝新しい要素。配列を持つ要素（親）は `$of: self`（例 `{$format: "{orderId}-", $of: self}`。UX-199）、
+            // ID を持つ最も近い外側の要素は `$of: owner`（例 `{$format: "R{number}-", $of: owner}`＝表の行をテーマの番号で）で読める
+            val bindings: Map<String, (DerivationSelector?) -> TemplatePlace?> = buildMap {
+                holder?.let { h -> put(MethodDef.SELF) { _: DerivationSelector? -> TemplatePlace(h, null, emptyList()) } }
+                owner?.let { o -> put(MethodDef.OWNER) { _: DerivationSelector? -> TemplatePlace(o, null, emptyList()) } }
+            }
             val prefix = SemanticTransform.build(numbering.prefix, emptyMap(), TemplatePlace(map, null, emptyList()), bindings).term?.let(::scalarText)
                 ?: actionFail("採番の接頭辞が得られません（${rule.origin}）")
             val existing = existingIds + array.items.mapNotNull { scalarText(getAt(it, numbering.path)) }

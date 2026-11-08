@@ -7,8 +7,8 @@
 - 登録・状態の変更・解決・再開は操作（`action devtrack register-item` など）で行う。登録で ID を省けば採番する。関わる機能が分かれば `features`（FEATURES の ID の並び）を、対応するロードマップの項目が分かれば `roadmap`（R 項目かテーマの ID の並び）を渡す（機能の行に未解決の指摘として出る）。
   ファイルを直接書くときは、起点の日（`origin_on`）と、解決なら解決の日（`closed_on`）と解決の記録（`resolutions`。種類 `kind` つき）も書く。
 - ロードマップは `roadmap/P<番号>.yaml`（1 テーマ 1 ファイル。`number` は ID の番号で、並びの順）。本文と節の本文は「本文のかたまり」の並びで、かたまり 1 つに文（`text`）・箇条（`points`）・R 項目の表（`columns` と `items`）のどれか 1 つ。
-  R 項目の状態は `state`・`state_on`・`state_note`（・`moved_to`）で書き、「✅ 日付（補足）」などの文字はレポートが作る。テーマを終えたら `status: done`（未完のテーマから外れる）にし、状態の要約 `status_note`（状態表の欄）も直し、本文と節を記録の項（`history`。`RH-` と 3 桁の次の番号）へ移す。
-- 本文の決定は ID（`DEC-` と 3 桁）を持つ。オーナーの判断を待つものは `status: pending`（語 `decision` は書かない）で、ダッシュボードの「判断待ちの決定」に出る。決めたら `decided` にして語と決めた日を書く。
+  R 項目の状態は `state`・`state_on`・`state_note`（・`moved_to`）で持ち、「✅ 日付（補足）」などの文字はレポートが作る。状態の変更は操作 `change-item-state`、テーマを終えるのは `complete-theme`（本文と節を記録の新しい項へ移す）、判断待ちを決めるのは `decide`。R 項目を足すときは表に書き、ID は R と番号（テーマの番号の中の次。画面の追加ボタンは採番する）。
+- 本文の決定は ID（`DEC-` と 3 桁）を持つ。オーナーの判断を待つものは `status: pending`（語 `decision` は書かない）で、ダッシュボードの「判断待ちの決定」に出る。決めたら操作 `decide` で決定済みにする。
 - 手で番号を決めるなら `backlog/` の最大の番号の次（解決済みの指摘も同じ場所にある）。
 - 操作の受け取る値や項目のキーに `on`・`no`・`yes` を使わない（YAML が真偽値に読む）。日付は `date`。
 - 定義（`.yde/`）を変えたら `validate devtrack` を通し、`./gradlew devtrackDocs` で生成物の変化を確かめる。

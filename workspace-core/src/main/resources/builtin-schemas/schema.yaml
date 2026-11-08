@@ -207,7 +207,7 @@ definitions:
               type: object
               fields:
                 - { key: insert, label: 追加の決まり, $ref: insert-rule }
-              description: "配列へ要素を足すときの決まり（P41）。書けるのは insert だけ: {id: {path, prefix, digits}, key: [パス]}。id は、要素の ID の項目が空なら接頭辞（要素で埋めるひな型。例 \"SCR-\" や {$format: \"TX-{date}-\"}）＋連番を付ける採番。key は、同じ値の要素が既にあれば足さない見分け（skill の取り込みの target.id / target.key と同じ綴り）。追加ボタン・新規行・アクションの insert が通る"
+              description: "配列へ要素を足すときの決まり（P41）。書けるのは insert だけ: {id: {path, prefix, digits}, key: [パス]}。id は、要素の ID の項目が空なら接頭辞（要素で埋めるひな型。例 \"SCR-\" や {$format: \"TX-{date}-\"}。配列を持つ要素は $of: self、ID を持つ最も近い外側の要素は $of: owner で読める）＋連番を付ける採番。key は、同じ値の要素が既にあれば足さない見分け（skill の取り込みの target.id / target.key と同じ綴り）。追加ボタン・新規行・アクションの insert が通る"
           map:
             - key: value
               label: 値定義

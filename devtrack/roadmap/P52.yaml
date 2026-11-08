@@ -2,8 +2,8 @@ id: P52
 number: 52
 title: 開発管理を YDE で行う（devtrack）
 table_title: 開発管理を YDE で行う（devtrack。指摘・テーマ・所感メモを YAML の原本にし、台帳を生成する）
-status: in-progress
-status_note: 段階 0・1・2a・2b 完了（2026-11-07）・2c 完了（2026-11-08）。指摘・テーマ・所感メモ・機能索引・ロードマップの原本が devtrack にある
+status: ongoing
+status_note: 定常運用（段階 0〜3 完了 2026-11-08。下記）
 body:
   - text: |-
       本ツールの開発管理（指摘・テーマ・所感メモ、のちに機能索引とロードマップ）を、YDE のワークスペース [devtrack/](../devtrack/README.md) の YAML を原本にして行う。
@@ -40,6 +40,12 @@ body:
         state: done
         state_on: 2026-11-08
         state_note: '下の「段階 2c の構造化の方針」の 2c-1〜2c-3。製品: 変換の `$each` の源にビューの行・レポートの `rules`・絵文字の位置で YAML が読めない不具合（UX-270）'
+      - id: R52-06
+        title: '段階 3: ロードマップの操作'
+        content: 操作「R 項目の状態を変える」「判断待ちを決める」「テーマを終える」（本文と節を記録の新しい項へ移す）と、表の追加ボタンの採番（テーマの番号）。記録の項は移した本文をロードマップと同じ形で持つ。devtrackDocs
+          は検証のエラーがあれば書き出さない（UX-271）
+        state: done
+        state_on: 2026-11-08
 sections:
   - title: 段階 2b の方針
     body:
@@ -127,3 +133,18 @@ sections:
             text: |-
               判断待ちにする決定は、本文に「オーナー判断」「残る判断」とあった 8 件にする（DEC-013〜020。P28 の次の項目・P29 の OQ-03・P36 の残る判断 4 つ・P43 の R43-10・P44 の次の候補の優先順位）。
                 「必要になったら」に近いもの（P31 の R31-04 の残りの応用・P41 の R41-08・P42 の R42-06）は判断待ちにしない。P36 の 2 つは BACKLOG の議論待ち（UX-148・UX-149）からも参照する。
+  - title: 定常運用
+    body:
+      - points:
+          - id: DEC-021
+            decision: 決めたこと
+            status: decided
+            date: 2026-11-08
+            by: オーナー
+            text: 段階 3（ロードマップの操作）を終えたら、定常運用に移す。
+          - label: 運用
+            text: |-
+              指摘・テーマ・所感メモ・機能索引・ロードマップの原本は devtrack で、手順は [devtrack/README.md](../devtrack/README.md)「運用」。生成物（BACKLOG.md・FEATURES.md・ROADMAP.md とそれぞれの記録）は `./gradlew devtrackDocs` で作り直す。
+                登録・状態の変更・解決と、R 項目の状態・判断待ち・テーマの終わりは操作で行う。判断待ちはダッシュボードの先頭の 2 区画に出る。
+          - label: 育て方
+            text: 使って分かった不足は、その場で devtrack に指摘として登録し、製品の改善として直す。

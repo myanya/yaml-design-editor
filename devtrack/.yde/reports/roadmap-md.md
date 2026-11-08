@@ -5,7 +5,7 @@
 本書は方向性と、未完のテーマだけを扱う。実装済みの機能は [FEATURES.md](FEATURES.md)、現行の設計は [architecture/](architecture/README.md) が正。
 完了したテーマの本文と、未完のテーマの完了した項目の詳細は [archive/roadmap-history.md](archive/roadmap-history.md) にある。
 **原本は [devtrack/](../devtrack/README.md) の `roadmap/`**（1 テーマ 1 ファイルの YAML。本文・節・R 項目もその中）。ビジョン・中核コンセプト・設計原則は `notes/`、テーマの候補とリスクは `roadmap/outlook/`。直すときは YAML を書き、`./gradlew devtrackDocs` で作り直す。
-テーマの項目を実装したら FEATURES に機能として登録し、R 項目の状態とテーマの状態の要約（状態の表の欄）を更新する。テーマが完了したら状態を `done` にし（未完のテーマから外れる）、本文と節を記録の項（`history`）へ移す（記録も生成する）。
+テーマの項目を実装したら FEATURES に機能として登録し、R 項目の状態（操作「R 項目の状態を変える」）とテーマの状態の要約（状態の表の欄）を更新する。テーマが完了したら操作「テーマを終える」で、本文と節を記録の新しい項へ移す（未完のテーマから外れ、記録の末尾に出る）。
 
 {#each notes}
 ## {title}

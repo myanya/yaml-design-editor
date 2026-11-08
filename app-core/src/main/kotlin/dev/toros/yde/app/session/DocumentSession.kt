@@ -1645,9 +1645,10 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
         val seq = ensureSeq(root, arrayPath)
         val tree = doc.schema?.tree
         val element = if (tree == null) YNode.Map() else {
-            // 配列を持つ要素（親）を渡す: 採番の接頭辞が `$of: self` で親の値（注文番号など）を読める
+            // 配列を持つ要素（親）と ID を持つ最も近い外側の要素を渡す: 採番の接頭辞が `$of: self` / `$of: owner` で値（注文番号・テーマの番号など）を読める
             val holder = if (arrayPath.isEmpty()) root else getAt(root, arrayPath.subList(0, arrayPath.size - 1))
-            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, now, dedupe = params.isNotEmpty(), holder = holder)
+            val owner = ActionPlanner.ownerOf(tree, root, arrayPath)
+            val made = ActionPlanner.newElement(tree, arrayDef, seq, params, overlayIndex().entries.keys, now, dedupe = params.isNotEmpty(), holder = holder, owner = owner)
             made.node ?: error(made.skipped ?: "追加できません")
         }
         seq.items.add(element)

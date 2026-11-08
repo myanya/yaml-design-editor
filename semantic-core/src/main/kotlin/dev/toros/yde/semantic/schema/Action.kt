@@ -376,6 +376,9 @@ data class MethodDef(
         /** 受け手の束縛名。 */
         const val SELF = "self"
 
+        /** 配列の追加の採番の接頭辞で、ID を持つ最も近い外側の要素の束縛名（`$of: owner`。配列を持つ要素は `$of: self`）。 */
+        const val OWNER = "owner"
+
         /** 使う側の操作を定義側の上に重ねる: 同じ名前は置き換え、create は build を重ね params は同じキーを置き換えて足す。 */
         fun merge(def: List<MethodDef>, use: List<MethodDef>): List<MethodDef> {
             if (use.isEmpty()) return def

@@ -13,3 +13,4 @@ columns:
   - { label: 区切りの見出し, schemaId: roadmap, path: part }
   - { label: 区切りの前書き, schemaId: roadmap, path: part_intro }
   - { label: 本文, schemaId: roadmap, path: body }
+  - { label: 節, schemaId: roadmap, path: sections }

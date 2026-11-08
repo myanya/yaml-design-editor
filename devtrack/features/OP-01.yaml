@@ -1,5 +1,5 @@
 id: OP-01
-title: 型の操作（`methods`・作成・採番・引き継ぎ）
+title: '型の操作（`methods`・作成・採番〔接頭辞は `$of: self`・入れ子の表は `$of: owner`〕・引き継ぎ）'
 implementation:
 - path: semantic-core/schema/Action.kt
   module: semantic-core
@@ -7,6 +7,7 @@ implementation:
   module: semantic-core
 tests:
 - name: ActionPlannerTest
+- name: InsertNumberingTest
 design:
 - label: actions
   link: architecture/actions.md

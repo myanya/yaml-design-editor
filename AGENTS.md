@@ -24,7 +24,7 @@ git config core.hooksPath scripts/git-hooks   # コミット前フック（ク�
 ./gradlew verifyWindowsDistribution --no-parallel # Windows同梱ランタイム・主要機能・ライセンスの検査
 ./gradlew windowsRelease --no-parallel       # 全テスト＋Windows ZIP・SHA-256・リリース本文（docs/releasing.md）
 scripts/docs-lint.sh                        # 文書の形の機械チェック
-./gradlew devtrackDocs                      # 開発管理（devtrack/）の YAML から docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録を作り直す（devtrack/README.md）
+./gradlew devtrackDocs                      # 開発管理（devtrack/）の YAML から docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録を作り直す（先に検証し、エラーがあれば書かない。devtrack/README.md）
 ```
 
 要件: ビルドと実行は JDK 21（toolchain。無ければ Gradle が自動で取得する。`./gradlew` 自体は JDK 17 以上で動く）。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバで行い、手順は skill `ui-check`＝`.claude/skills/ui-check/SKILL.md`）。
