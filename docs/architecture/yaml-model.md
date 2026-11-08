@@ -10,6 +10,7 @@ YAML 文書は可変の木 `YNode` として扱い、位置は `YPath` で表す
 | `YNode`（Scalar / Seq / Map） | yaml-core/model/YNode.kt | 可変の木（位置は `YPath`＝String はキー・Int は索引）。コメント（`YComments`）と表記スタイルのヒントを保持 |
 | `YamlIO` | yaml-core/yaml/YamlIO.kt | テキストと `YNode` の変換。`parse`（単一文書）・`parseAll` / `dumpAll`（複数文書）・`parseFirst`（読み取り専用の寛容パース）・`dumpPlain`（コメント・スタイル抜きの正規化ダンプ） |
 | `PlainDateResolver` | yaml-core/yaml/YamlIO.kt | TIMESTAMP を暗黙解決しない Resolver。引用符なしの日付・日時を文字列のまま往復させる |
+| `PairSafeReader` | yaml-core/yaml/YamlIO.kt | SnakeYAML に渡す読み手。1 回の読みをサロゲートペア（絵文字など）の途中で終えない（SnakeYAML は 1024 字ずつ読み、区切りの最後が上位サロゲートだと落ちる） |
 | `YamlPositions` / `SourcePositions` | yaml-core/yaml/YamlPositions.kt | 先頭ドキュメントのノードの位置の表（パス → 値とキーの範囲、位置 → 最も深いパス。文法の事実だけで意味は持たず、ソースエディタが指摘の行・ホバー・参照先へのジャンプに使う） |
 | `YamlOperation` | yaml-core/edit | 変更の基礎命令（Set / Insert / Delete / Move / RenameKey / ReorderKeys）の型付き操作。逆操作を持つ内部の正準 |
 | `PatchOp` / `Patcher` | yaml-core/patch/Patch.kt | 同じ基礎命令の交換形式（YPath パッチ）。エージェント・CLI・skill が使う |
@@ -54,6 +55,7 @@ YAML 文書は可変の木 `YNode` として扱い、位置は `YPath` で表す
 
 - `YamlIO` の Node → YNode 変換は展開予算を持つ。ノード・キー・文字・コメントを参照ごとに数え、非循環エイリアスでも上限を超えたら通常の読込エラーにする。生オブジェクト読込も同じ検査を通す。
 - ノードを置換する経路では `inheritMetaFrom` でコメントと表記を引き継ぐ。
+- SnakeYAML へは文字列でなく `PairSafeReader` で渡す（`load(String)` も中で同じ読みをするので使わない）。新しい読み込みの入口も `YamlIO` に置く。
 - 構造の比較・派生成果物の出力は `dump` ではなく `YamlIO.dumpPlain`（コメント・スタイルで揺れるため）。`Importer` の変化なし判定・`Exporter` のセル値・`Evals` の期待結果比較がこれを使う。
 - 複数ドキュメント YAML の書込は `OpenDocument`（`parseAll` / `dumpAll`）に閉じ、読み取り専用経路だけ `parseFirst` を使う。
 - 内部で計画を作るコードは `PatchOp` を作らず、型付き操作で生成する（[editing-history.md「編集の経路」](editing-history.md)）。

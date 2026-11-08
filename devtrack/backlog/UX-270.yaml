@@ -1,0 +1,15 @@
+id: UX-270
+title: 絵文字などのサロゲートペアが先頭から 1024 字目の境をまたぐと、YAML が「Range [1024, 1024 + 1) out of bounds for length 1024」で読めない（中身は正しいのに、字の位置だけで読み込みが失敗する）
+status: resolved
+origin_on: 2026-11-08
+origin: ロードマップの記録を devtrack へ取り込む作業（段階 2c-2）。common.yaml に「🔁 定常運用」を足したら読めなくなった
+memo: SnakeYAML 2.3 の StreamReader は 1024 字の配列に読み、最後が上位サロゲートだと続きの 1 字を配列の外（位置 1024）へ読もうとする。SnakeYAML を上げるときは、YamlIOTest の境の試験で直っているか確かめ、直っていれば読み手を外してよい
+closed_on: 2026-11-08
+resolutions:
+  - date: 2026-11-08
+    kind: 解決
+    note: YamlIO が SnakeYAML に渡す読み手を PairSafeReader にした（1 回の読みをサロゲートペアの途中で終えない）。parse・parseAll・parseToRaw・位置の表の読み込みのすべてが通る
+    targets: yaml-core YamlIO.kt・YamlIOTest
+targets: yaml-core YamlIO.kt・YamlIOTest
+features:
+  - E-10

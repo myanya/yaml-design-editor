@@ -19,7 +19,7 @@ import org.yaml.snakeyaml.nodes.Tag
 import org.yaml.snakeyaml.representer.Representer
 import org.yaml.snakeyaml.resolver.Resolver
 import org.yaml.snakeyaml.serializer.Serializer
-import java.io.StringReader
+import java.io.Reader
 import java.io.StringWriter
 
 /**
@@ -103,26 +103,26 @@ object YamlIO {
     /** テキストを SnakeYAML の生オブジェクト（Map / List / スカラー）にパースする（コメントなし）。 */
     fun parseToRaw(text: String): Any? {
         // 生オブジェクトを使う定義ローダにも同じ展開上限を適用する。load のキー型などの互換性は維持する。
-        newComposer().compose(StringReader(text))?.let { convertDocument(it) }
+        newComposer().compose(PairSafeReader(text))?.let { convertDocument(it) }
         val loader = LoaderOptions().apply { isAllowDuplicateKeys = false }
         val dumper = newDumperOptions()
-        val v: Any? = Yaml(SafeConstructor(loader), Representer(dumper), dumper, loader, PlainDateResolver()).load(text)
+        val v: Any? = Yaml(SafeConstructor(loader), Representer(dumper), dumper, loader, PlainDateResolver()).load(PairSafeReader(text))
         return v
     }
 
     /** 先頭ドキュメントを SnakeYAML のノードのまま返す（位置の表 `YamlPositions` が使う。空なら null、壊れていれば例外）。 */
-    internal fun composeFirstNode(text: String): Node? = newComposer().compose(StringReader(text))
+    internal fun composeFirstNode(text: String): Node? = newComposer().compose(PairSafeReader(text))
 
     /** テキストを YNode ツリーにパースする。空ドキュメントは空マップとして扱う。 */
     fun parse(text: String): YNode {
-        val node = newComposer().compose(StringReader(text)) ?: return YNode.Map()
+        val node = newComposer().compose(PairSafeReader(text)) ?: return YNode.Map()
         return convertDocument(node)
     }
 
     /** `---` 区切りの複数ドキュメントをすべて YNode にパースする（R8-05）。空テキストは空リスト。 */
     fun parseAll(text: String): List<YNode> {
         val budget = ExpansionBudget()
-        return newComposer().composeAll(StringReader(text)).mapNotNull { it }.map { convertDocument(it, budget) }
+        return newComposer().composeAll(PairSafeReader(text)).mapNotNull { it }.map { convertDocument(it, budget) }
     }
 
     /**
@@ -376,4 +376,25 @@ object YamlIO {
             m
         }
     }
+}
+
+/**
+ * SnakeYAML（2.3）に渡す読み手。SnakeYAML は 1024 字ずつ読み、最後の字が上位サロゲート（絵文字などの前半）だと、
+ * 続きの 1 字を自分の配列の外へ読もうとして落ちる（「Range [1024, 1024 + 1) out of bounds」。絵文字の位置だけで読めなくなる）。
+ * ここでは 1 回の読みをサロゲートペアの途中で終えない（要求いっぱいで終わりが上位サロゲートなら 1 字手前で返し、次の読みで続きを渡す）。
+ */
+internal class PairSafeReader(private val text: String) : Reader() {
+    private var pos = 0
+
+    override fun read(cbuf: CharArray, off: Int, len: Int): Int {
+        if (len == 0) return 0
+        if (pos >= text.length) return -1
+        var n = minOf(len, text.length - pos)
+        if (n == len && n > 1 && Character.isHighSurrogate(text[pos + n - 1])) n -= 1
+        text.toCharArray(cbuf, off, pos, pos + n)
+        pos += n
+        return n
+    }
+
+    override fun close() = Unit
 }

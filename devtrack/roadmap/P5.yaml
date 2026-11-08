@@ -3,3 +3,33 @@ number: 5
 title: フォーマット適合とテンプレート
 status: done
 status_note: 完了
+history:
+- id: RH-013
+  title: 'P5: フォーマット適合とテンプレート ✅ 完了（2026-07）'
+  body:
+  - text: '狙い: 原本主義（§4.1）を保ったまま、現実の業務フォーマットと接続する。'
+  - head: |-
+      | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
+      |---|---|---|
+    rows:
+    - id: R5-01
+      title: skill機構
+      cells:
+      - ✅ SK-01（`_skills` の宣言型変換定義。import / export の2種、組込みスキーマでフォーム編集・検証、メタアクティビティの提案対象）。**コード実行skillは未実装のまま**（明示許可制の将来オプション。宣言型で書けない変換を安易にコードへ逃さない）
+    - id: R5-02
+      title: インポート
+      cells:
+      - ✅ SK-02（xlsx / csv / json / markdown → 変更セット。新規行は文書作成、既存文書は**マップした項目だけ**更新＝YAML側の追記を保持。適用はP1の `apply` を再利用）
+    - id: R5-03
+      title: エクスポート・ビルド
+      cells:
+      - ✅ SK-03（glob×行×列 → xlsx / csv / markdown。YAMLへの出力は定義段階で拒否＝派生成果物の原則を機械強制。HTML等は将来拡張）
+    - id: R5-04
+      title: テンプレートパック
+      cells:
+      - '✅ SK-05（`init --template ledger`: 課題台帳のスキーマ＋エージェント＋アクティビティ＋評価＋skill一式。追加パックは `TemplatePacks` に登録）'
+    - id: R5-05
+      title: サンプル拡充
+      cells:
+      - ✅ `sample-workspace/_skills`（アクター一覧Markdown・ケイパビリティCSVの再生成）。台帳ユースケースは ledger テンプレートがショーケース
+  - text: '**完了条件の充足**: 「Excel台帳をエクスポート→そのまま再インポートで**変更セットが空**（往復の無損失）→Excel側の編集を取り込み（YAML側の追記・マップ外項目は保持）→原本から帳票を再出力」を `ImportExportTest` が一気通貫で自動検証。CLI でも `init` → `export` → `import --apply` で同じ往復が再現できる。'

@@ -3,3 +3,54 @@ number: 22
 title: '二層モデル③: クエリコア'
 status: done
 status_note: 完了
+history:
+- id: RH-028
+  title: 'P22: 二層モデル③: クエリコア ✅ 完了（2026-08-10）'
+  body:
+  - text: |-
+      狙い: 照会5系統——構造検索（C-05）・トラバース（AG-30）・ビューの行決定（idPattern×schema）・foreach の列挙（AG-26）・導出 lookup（1ホップ。ARCHITECTURE §4.26）——は、いずれも「グラフパターン照合」の断片的な再実装である。単一のパターン照合エンジンに統合し、「1実装・多面開示」（Display / Projection / Traverse の流儀）を照会にも適用する。とくにビューの行が多段結合（例:「画面→uses→ユースケース」の組を1行に）を表現できるようになることが、人間側の最大の機能向上。
+
+      **前提と着手手順**: P20 の EntityGraph に依存（P21 とは技術的に独立だが、整合検証と語彙を揃えるため P21 完了後を推奨）。着手時に本節と §4.9・`core/Traverse.kt`（決定性規約の母体。§4.28）・ARCHITECTURE §4.14（ビューの不変条件: データを持たない・原本座標ルーティング・書込経路を作らない）・§4.27（foreach の3関心事）を読み、**パターン語彙の最終形を ARCHITECTURE へ起こしてから**実装する。完了時は FEATURES.md 登録・MANUAL（ビュー定義リファレンス・CLI）更新・試し方の報告まで。
+
+      方針（承認済みの設計判断）:
+
+      - **語彙は Traverse の `steps` を母体に、束縛（bind）と構造化結果を追加**。実装の基準となるスケッチ:
+
+      ```yaml
+      match:
+        - node: { entity: screen, bind: scr }      # 起点集合（kind 省略時 entity。kind: document で文書ノード）
+        - edge: { relation: uses, dir: out }       # dir: out / in。via（キー名）でも絞れる
+        - node: { entity: usecase, bind: uc }
+      where:                                       # プロパティ述語（初期は equals / exists のみ）
+        - { of: scr, path: status, equals: approved }
+      limit: 100
+      ```
+
+        結果は**束縛の表**（各行 = `{scr: ID, uc: ID}`。座標・タイトルは EntityGraph から解決）。テキスト開示（emit）はその上の一表現。プロパティ述語の値は「いずれかの出現の該当パスのスカラー」（多段定義の OR。確定は ARCHITECTURE 反映時）。
+      - **分岐は1段まで**: 束縛済みノードを起点にもう1本の線形連鎖を足せる（`also: {from: scr, steps: [...]}` 形式を想定）。結合は内部結合のみ（optional 結合は将来・実需待ち）。
+      - **やらないこと（着手前に ARCHITECTURE の不変条件として固定）**: 集約は件数のみ・任意深さの再帰パス（`*`）は初期対象外・任意式なし。スプレッドシートエンジン／Cypher を作らない（P16・P19 の規律の継承）。語彙の解禁は実例の需要で段階的に判断する。
+      - **決定性**: フロンティアの安定ソート・limitPerHop・budgetChars・訪問済み循環停止は Traverse の規約をそのまま継承し、行の順序も仕様化する（束縛列の辞書順→ID昇順。prompt caching・再現性・テスト容易性のため）。
+      - **`kind: document` を最初から語彙に含める**（文書ノード。後付けだとトラバース系の互換に段差が出るため、ここだけは先行決定済み）。
+  - head: |-
+      | ID | 項目 | 状態 | 内容 |
+      |---|---|---|---|
+    rows:
+    - id: R22-01
+      title: パターン照合エンジン
+      cells:
+      - ✅
+      - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) C-12）。パース（raw Map からの共用パース・日本語エラー。ビュー・foreach・制約・CLI で共用）・評価（EntityGraph の隣接上。安定ソート・経路内再訪禁止・limit）・結果モデル（束縛行＋定義出現座標・タイトルの解決）。`where` のプロパティ値取得は loader 注入。**配置はスケッチの core/Query.kt から変更**: 宣言モデル＋パースは `schema/Query.kt`（`constraints:` が SchemaDef に載るため）・評価器は `index/Query.kt`（R22-03 の判定を `Validator` に置くには validate→core の依存逆転が必要になるため。§4.26 の Derivation と同じ2分割。ARCHITECTURE §4.32 に記録）。テスト: `QueryTest`（決定性・1段分岐・kind: document・limit・述語・オーバーレイ索引の経路差・CLI）'
+    - id: R22-02
+      title: 消費面の載せ替え
+      cells:
+      - ✅
+      - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) X-10 / AG-26 / C-06）。①ビューの `rows: match:`（従来の rows 記法と排他・互換維持。行キーは先頭 bind または `rowKey:`。列の `of:` で結合先の値をセル化——セル編集は各束縛ノードの原本座標ルーティングで §4.14 の不変条件のまま。バックリンク列・計算列と併用可。結合行のID重複は `ViewRow.key`＝束縛値の組で一意化）②foreach の `source: query`（既存5種は存置。束縛ごとの `{scr}` / `{scr_file}` プレースホルダを `targetValues` へ供給）③トラバースの隣接1段を `Query.neighborIds` へ一元化（Traverse は emit レンダラ。`TraverseSpec` の構文・出力は不変＝`TraverseTest` green）④CLI `query`（YAML入力→束縛の表）。`builtin-view` / `builtin-activity` を対更新。sample-workspace に結合ビュー例 `entity-table-matrix` を追加（検証ベースライン エラー5・警告12 は不変）。テスト: `ViewsTest` / `ForeachTest` 拡張'
+    - id: R22-03
+      title: パターン制約
+      cells:
+      - ✅
+      - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) V-09）。スキーマの `constraints:`（`match`＋`expect: exists / absent`・`level`・`activeFrom` はカバレッジと同じ語彙。起点は kind: entity 限定）を「起点束縛ごとのパターンの存在／不在」としてカバレッジの一般形で検証。判定は `Validator`（座標は起点束縛の定義出現・その出現を持つファイルでのみ報告）。判定保留の哲学（型未宣言・未解決参照・母集団外には黙る）。既存 coverage は置き換えない。`builtin-schema` を対更新。テスト: `QueryConstraintTest`（exists / absent・activeFrom・提出ゲート経由）'
+  - text: |-
+      **実装順の推奨**: R22-01（エンジン）→ R22-02 の③（トラバース載せ替え＝回帰の早期確認）→ ①②④（ビュー・foreach・CLI）→ R22-03（制約）。
+
+      **完了条件の充足（2026-08-10）**: ①2ホップ結合の行がビューグリッド（`ViewRow.key` で行キー化）に表示され、結合先セル（`of:` 列）の編集が各束縛ノードの原本座標へルーティングされる（行はオーバーレイ索引・値は docCache 優先 loader＝UX-03 の経路のまま。sample-workspace `entity-table-matrix` が実例）②foreach がクエリ列挙で一括実行でき、束縛値（`{scr}` / `{scr_file}`）がレシピのプレースホルダへ届く（`ForeachTest`）③既存トラバース・related・ビュー行・foreach 既存5種の出力が回帰しない（`TraverseTest` / `ViewsTest` / `ForeachTest` green のまま）④パターン制約が検証パネル・CLI・変更セット適用・提出ゲートに乗る（`QueryConstraintTest`）⑤「やらないこと」（集約は件数のみ・任意深さの再帰なし・任意式なし・optional 結合なし・分岐は1段）の不変条件が ARCHITECTURE §4.32 に明文化されている。

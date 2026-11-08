@@ -1,7 +1,7 @@
 # 開発管理（devtrack）
 
 YDE で YDE 自身の開発を管理するワークスペースです。指摘（未解決と、解決・見送り）・テーマ・所感メモと機能（機能索引の行）とロードマップのテーマの**原本**を、1 件 1 ファイルの YAML で持ちます。
-[docs/BACKLOG.md](../docs/BACKLOG.md)（未解決の指摘台帳）・[docs/archive/backlog-closed.md](../docs/archive/backlog-closed.md)（記録）・[docs/FEATURES.md](../docs/FEATURES.md)（エージェント向けの機能索引）・[docs/ROADMAP.md](../docs/ROADMAP.md)（ビジョンと未完のテーマ）は、ここから生成する派生物です。
+[docs/BACKLOG.md](../docs/BACKLOG.md)（未解決の指摘台帳）・[docs/archive/backlog-closed.md](../docs/archive/backlog-closed.md)（記録）・[docs/FEATURES.md](../docs/FEATURES.md)（エージェント向けの機能索引）・[docs/ROADMAP.md](../docs/ROADMAP.md)（ビジョンと未完のテーマ）・[docs/archive/roadmap-history.md](../docs/archive/roadmap-history.md)（その記録）は、ここから生成する派生物です。
 
 ## 中身
 
@@ -11,15 +11,15 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 | `themes/T-*.yaml` | テーマ（複数の指摘が絡む横断課題）。指摘の側が `theme` で参照します（束ねる指摘） |
 | `notes/NOTE-*.yaml` | 生成する文書に添える文章。`NOTE-01` は BACKLOG.md の所感メモ（良かった点・方向性の確認）、`NOTE-02`〜`04` は ROADMAP.md のビジョン・中核コンセプト・設計原則 |
 | `features/<ID>.yaml` | 機能（docs/FEATURES.md の行）。ID は系統の接頭辞（W・E・S・V・I・X・A・AG・C・SK・OP・LC）と番号 |
-| `roadmap/P<番号>.yaml` | ロードマップのテーマ（docs/ROADMAP.md の P）。本文・節・R 項目もこの中です |
+| `roadmap/P<番号>.yaml` | ロードマップのテーマ（docs/ROADMAP.md の P）。本文・節・R 項目と、記録（docs/archive/roadmap-history.md）の項もこの中です |
 | `roadmap/outlook/OUTLOOK.yaml` | ROADMAP.md の末尾の 2 節（テーマの候補・リスクと未解決課題） |
 | `.yde/schemas/common.yaml` | 型（ID・状態・日付）と、指摘・解決の記録・テーマ・メモ・機能・ロードマップ（テーマ・節・本文のかたまり・箇条・R 項目・展望）の形と検査 |
 | `.yde/schemas/item.yaml` | 指摘の文書と、業務の操作（登録・状態の変更・一部の解決・解決・再開） |
 | `.yde/schemas/theme.yaml`・`note.yaml`・`relations.yaml` | テーマとメモの文書、指摘からテーマへの関係（束ねる指摘）・指摘どうしの関係（関連する指摘）・指摘から機能への関係（関わる機能） |
 | `.yde/schemas/feature.yaml` | 機能の文書と、操作「機能を登録する」（系統ごとの採番） |
-| `.yde/schemas/roadmap.yaml`・`roadmap-outlook.yaml` | ロードマップのテーマと展望の文書。R 項目から移した先の R 項目への関係（`moved-to`）は `relations.yaml` |
+| `.yde/schemas/roadmap.yaml`・`roadmap-outlook.yaml` | ロードマップのテーマと展望の文書。R 項目どうしの関係（移した先 `moved-to`・枝の元 `branch-of`）と記録の写しの元（`snapshot-of`）は `relations.yaml` |
 | `.yde/views/` | ダッシュボード「開発管理」と一覧・クロス集計。`doc-` で始まるものは生成用。`item-lens`（グラフレンズの見え方「指摘の状態」）と記法 `item-card` |
-| `.yde/reports/` | docs/BACKLOG.md・記録・docs/FEATURES.md・docs/ROADMAP.md を作るレポート（定義とひな形） |
+| `.yde/reports/` | docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md と、それぞれの記録を作るレポート（定義とひな形） |
 
 ## 運用
 
@@ -32,7 +32,7 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 4. **作り直し**: `./gradlew devtrackDocs` で docs/ の生成物（台帳・記録・機能索引・ロードマップ）を作り直し、YAML と一緒にコミットします。
 5. **テーマと所感メモ**: `themes/T-nn.yaml` と `notes/NOTE-01.yaml` の `body`（Markdown）を直します。指摘をテーマに束ねるときは、指摘の `theme` に T-nn を書きます。
 
-- 生成物（docs/BACKLOG.md・記録・FEATURES.md・ROADMAP.md）を直接直しません。コミット前のフックと CI（repo-tests の `DevtrackTest`）が、作り直していないものを止めます。
+- 生成物（docs/BACKLOG.md・FEATURES.md・ROADMAP.md と記録）を直接直しません。コミット前のフックと CI（repo-tests の `DevtrackTest`）が、作り直していないものを止めます。
 - 操作の代わりに `backlog/UX-nnn.yaml` を直接書いてもかまいません。そのときは起点の日（`origin_on`）も書き、解決なら解決の日（`closed_on`）と解決の記録（`resolutions`。種類 `kind` つき）も書きます（操作と画面では自動で入ります）。
 - 並行するセッションが同じ番号を取ると、同じ名前のファイルになるので、マージで気づきます。後から振った方の番号を振り直します。
 
@@ -97,7 +97,9 @@ docs/ROADMAP.md の原本は `roadmap/P<番号>.yaml`（1 テーマ 1 ファイ�
 - 箇条は、太字の見出し `label`（後ろに続く文字は `label_note`）と文 `text` です。決定は `decision`（決めたこと・決定・合意した方向）・状態 `status`（decided・pending）・日 `date`・決めた人 `by` を書くと「**決めたこと（2026-11-08 オーナー）**: 文」の形で出ます。文の続きの行は 2 字下げで書きます。
 - R 項目は、ID（R52-05 の形）・`title` と、表の形に応じた欄（基本は `content`、判断つきは `content` と `decision`、作業は `places`・`prereq`・`done_criteria`）・状態（`state`: todo・in-progress・partial・done・moved）・状態の日 `state_on`・補足 `state_note`・移した先 `moved_to` です。
   状態の文字（「✅ 2026-11-08（補足）」「🚧 一部完了（日付: 補足）」「→ R47-41」など）はレポートが作ります。
-- テーマを終えたら `status: done` にします。未完のテーマから外れ、状態表だけに残ります。本文は記録（docs/archive/roadmap-history.md）へ移します（記録はまだ手で書く文書です）。
+- テーマを終えたら `status: done` にします。未完のテーマから外れ、状態表だけに残ります。本文と節は、そのテーマの記録の項（`history`）へ移します。
+  記録の項は、ID（`RH-` と 3 桁。最大の番号の次で、記録の末尾に出ます）・見出し（`title`。「### 」の後ろ）・本文（`body`）です。本文は文（`text`）か、R 項目の表（見出しの 2 行 `head` と行 `rows`）の並びで、記録は書き換えません。
+  記録の表の行は、ID と `title` と残りの欄（`cells`。書いたまま）です。今のロードマップにある R 項目の当時の写しは、ID の代わりに写しの元（`snapshot_of`）を書き、枝の項目（R49-11a など）は枝の元（`parent`）を書きます。
 - ビジョン・中核コンセプト・設計原則は `notes/NOTE-02`〜`04`、テーマの候補とリスクは `roadmap/outlook/OUTLOOK.yaml` を直します。
 
 ### 検査
@@ -109,7 +111,7 @@ docs/ROADMAP.md の原本は `roadmap/P<番号>.yaml`（1 テーマ 1 ファイ�
 - 「必要になったら」の指摘には技術メモ（実装の当たり）がある。テーマには束ねる指摘がある。解決の記録には日付と種類がある。関連する指摘の参照が切れていない。
 - 機能の ID は系統の接頭辞と番号。主な実装と設計が 1 つ以上あり、自動のテストか手動で確かめる印がある。実装の場所には場所か文が、テストには名前か種類がある。
 - docs/FEATURES.md に出る場所・テスト名・見出しの実在は、repo-tests の `DocReferencesTest` が生成物の上で見ます。
-- ロードマップのテーマの ID は P と番号、R 項目は R と番号。完了した R 項目には状態の日が、移した R 項目には移した先（切れていない参照）がある。本文のかたまりは種類が 1 つで、R 項目の表には列の形がある。決定の箇条には状態・日・決めた人がある。
+- ロードマップのテーマの ID は P と番号、R 項目は R と番号、記録の項は RH と 3 桁。完了した R 項目には状態の日が、移した R 項目には移した先（切れていない参照）がある。本文のかたまりは種類が 1 つで、R 項目の表には列の形がある。決定の箇条には状態・日・決めた人がある。記録の R 項目には ID か写しの元のどちらか一方がある（同じ R 項目の定義が 2 つにならない）。
 
 ### 見る
 
@@ -126,6 +128,7 @@ docs/ROADMAP.md の原本は `roadmap/P<番号>.yaml`（1 テーマ 1 ファイ�
 - レポート `backlog-md`（台帳）と `backlog-closed-md`（記録）が、生成用のビュー（`doc-items`・`doc-closed`・`doc-themes`・`doc-notes`）の行をひな形にはめ込みます。表のセルは `{パス:cell}` で `|` と改行を逃がします。
 - レポート `features-md`（機能索引）は、生成用のビュー `doc-features` の行を、ID の接頭辞で系統の節に振り分けます。並びの欄は値の式（`each` と `first`・`format`）で 1 件ずつ文字にし、ひな形が `{#if more}・{/if}` でつなぎます。
 - レポート `roadmap-md`（ロードマップ）は、生成用のビュー `doc-roadmap-themes`（番号の順）の行を状態表にし、未完のテーマを変換の `$each` でビューの行から 1 件ずつ組み立てます。本文のかたまりと R 項目の状態の文字は、名前を付けた組み立て（`rules` の `block`・`state`）が 1 か所で作ります。
+- レポート `roadmap-history-md`（ロードマップの記録）は、生成用のビュー `doc-roadmap-history`（記録の項を番号の順）の行を書いたまま並べます。項の値は変換で組み立て直し、ひな形の穴が外側（ビューの行の `cells` など）へ届かないようにしています。
 - レポートの出力先はワークスペースの中に限られるので、`./gradlew devtrackDocs`（cli/build.gradle.kts）が CLI の `report --print` の文字を受けて docs/ へ書きます。
 
 ## 経緯
@@ -138,4 +141,5 @@ docs/ROADMAP.md の原本は `roadmap/P<番号>.yaml`（1 テーマ 1 ファイ�
   2b-4（2026-11-07）で冒頭の系統の表と、設計の欄の見出し（`design[].heading`）を足した。
   2b-2（2026-11-07）で指摘に関わる機能（`features`）を足した。対応先の文字に書いてあった機能の ID（今ある ID だけ。昔の制約の L-14 は X-06 へ）を取り出し、
   台本の番号を機能と取り違えたもの（UX-122・UX-124 の V-10）は直した。未解決の指摘は全件を読んで関わる機能を付けた（文書・テスト環境・開発環境・サンプルの指摘には付けない）。
-  2c-1（2026-11-08）で ROADMAP の原本を `roadmap/` に切り替えた。取り込みでは R 項目の状態の書き方をそろえ（「📋 未着手」「🚧 一部完了（日付: 補足）」など）、状態表を番号の順に並べ直した。本文の表・コード・文は Markdown のかたまりのまま持つ。記録（archive/roadmap-history.md）の取り込みは 2c-2。
+  2c-1（2026-11-08）で ROADMAP の原本を `roadmap/` に切り替えた。取り込みでは R 項目の状態の書き方をそろえ（「📋 未着手」「🚧 一部完了（日付: 補足）」など）、状態表を番号の順に並べ直した。本文の表・コード・文は Markdown のかたまりのまま持つ。
+  2c-2（2026-11-08）で記録（archive/roadmap-history.md）の原本をテーマの `history` に切り替えた（68 項・R 項目 177 件。生成した記録は今の文字と同じ）。今のロードマップにも同じ R 項目がある行（R30-01〜05）は写しの元、枝の項目（R16-03a など）は枝の元を持たせた（R16-03 は無いので R16-03a〜c は元なし）。

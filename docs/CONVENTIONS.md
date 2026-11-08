@@ -77,7 +77,7 @@
 規則:
 
 1. 1 つの事実は 1 か所に書き、他からはリンクする。
-2. **完了したら移す**。ROADMAP のテーマが完了したら、devtrack でテーマの状態を完了にし、本文を `archive/roadmap-history.md` へ、その時点で移す。BACKLOG の指摘は devtrack で解決にすれば、作り直した `archive/backlog-closed.md` へ出る（[devtrack/README.md](../devtrack/README.md)「運用」）。今の姿の文書に「〜だった」「当初は」「〜へ移した」を書かない。
+2. **完了したら移す**。ROADMAP のテーマが完了したら、devtrack でテーマの状態を完了にし、本文と節をそのテーマの記録の項へ、その時点で移す（作り直した `archive/roadmap-history.md` に出る）。BACKLOG の指摘は devtrack で解決にすれば、作り直した `archive/backlog-closed.md` へ出る（[devtrack/README.md](../devtrack/README.md)「運用」）。今の姿の文書に「〜だった」「当初は」「〜へ移した」を書かない。
 3. 設計・マニュアル・規約・機能索引・用語集・AGENTS.md（モジュールのものも）には、チケット番号（P／R／D／UX と決定の番号）と日付を書かない。経緯は git log と archive が持つ。台帳（ROADMAP・BACKLOG・UX-SCENARIOS）は番号を持つ。
    例外は機能索引の「未解決の指摘」の列だけ（devtrack から作り直す生成物で古くならない。古いままなら `DevtrackTest` が止める）。
 4. **形（目安）**: 1 行は 300 字まで。表のセルに 2 文以上書かない（説明が要るなら見出しと箇条書きにする）。1 ファイルは 4 万字まで（機能索引と台帳は 8 万字、マニュアルは 6 万字）。

@@ -3,3 +3,45 @@ number: 9
 title: 統合の完成と外部接続の拡張
 status: done
 status_note: 完了
+history:
+- id: RH-017
+  title: 'P9: 統合の完成と外部接続の拡張 ✅ 完了（2026-07）'
+  body:
+  - text: '狙い: 内部アーキテクチャの残債（生成実行系の二重化・AppState の二重実装・スキーマ設計UIの穴）を解消し、外部フォーマット・コード実行・LLMプロバイダ・ネットワーク環境との接続を広げる。'
+  - head: |-
+      | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
+      |---|---|---|
+    rows:
+    - id: R9-01
+      title: AI生成ダイアログのカーネル統合
+      cells:
+      - '✅ A-10（`agent/Generation.kt`: 単発生成を「1ターンで提出する特殊アクティビティ」としてカーネル実行。Structured Outputs の型保証・ダイアログのUX（プレビュー→未保存適用）は維持し、ステージング・権限強制・実行記録 `_runs` を通常のアクティビティ実行と単一系統化。ARCHITECTURE §4.19）'
+    - id: R9-02
+      title: AppState の core.Workspace 全面委譲
+      cells:
+      - '✅ C-09（`core/Documents.kt`: 履歴・dirty・複数ドキュメントの `EditBuffer`、一覧・一括編集の `WorkspaceRecords`。`Workspace.noteDiskChanges` が保存・外部変更の増分／全再構築の振り分けを一元化＝R8-02 と整合。AppState / OpenDocument は委譲＋Compose購読ミラーへ純化。L-10 解消・L-09 のテスト可能範囲拡大。L-14 は再評価の結果「行集合はディスク索引基準を維持」を仕様として確定。ARCHITECTURE §4.20）'
+    - id: R9-03
+      title: '`phases` / `coverage` のスキーマ設計UI'
+      cells:
+      - ✅ S-05（フェーズ宣言（申告キー・順序）とカバレッジルール（参照／出現ベース切替・重大度・activeFrom・minCount）の構造化編集。L-16 解消）
+    - id: R9-04
+      title: 出力値による連鎖分岐
+      cells:
+      - '✅ AG-12（`chain.rules`: 終わり方（success / failure / any）・採用変更ファイルglob・変更数下限・メモの部分一致のAND条件で分岐先を宣言。不一致は onSuccess / onFailure へフォールバック。深さ上限・循環検出は既存機構を流用）'
+    - id: R9-05
+      title: 入出力形式の拡張
+      cells:
+      - ✅ SK-02・SK-03（エクスポート + json / html、インポート + docx＝Word文書内の表。`skill/Tables.kt` に閉じて追加。`source.view` によるビュー定義参照エクスポート＝「ビューで見えている表をそのまま帳票へ」。L-13 解消）
+    - id: R9-06
+      title: コード実行skill
+      cells:
+      - '✅ SK-07（`skill/Runner.kt`: kind: run。実行前に人間がコマンドと権限を承認する明示許可制——承認は定義内容の指紋に紐づき定義変更で失効、エージェント・自動実行からは起動不可、実行後に書込宣言外・予約ディレクトリの変更を検出。設計は ARCHITECTURE §4.21。L-12 解消）'
+    - id: R9-07
+      title: OpenAI互換プロバイダ機構と Azure AI Foundry 対応
+      cells:
+      - '✅ A-09（`ai/Connection.kt`: ベースURL・認証ヘッダ形式・APIバージョンのパラメタ化。Azure は `api-key` ヘッダ＋エンドポイント＋デプロイメント名のプリセット、ベースURL上書きで ollama / vLLM 等も対応。生成系・エージェント系の双方に適用、接続設定UIに入力欄を追加＝エンドポイントは永続化・キーはメモリのみ）'
+    - id: R9-08
+      title: proxy認証対応
+      cells:
+      - '✅ A-09（`ai/Http.kt`: HttpClient の単一ファクトリ。システム設定の尊重を既定に手動上書き＋Basic認証（パスワードはメモリのみ）。HTTPSトンネルのBasic認証を初期化時に許可。影響範囲は `ai` パッケージに閉じる）'
+  - text: '**完了条件の充足**: 生成・編集の実行系がカーネルに一本化され、接続設定・実行記録が単一系統になった（R9-01。`GenerationRunTest` が提出・記録・権限の共有経路を検証）。文書操作の中核が core 経由に一本化され、L-09〜L-11・L-14・L-16 は解消または仕様として再定義された（R9-02・R9-03。`DocumentsTest` が履歴・一覧・一括編集・索引更新方針を検証）。コード実行skillは「許可なしに実行される経路がない」ことを `RunSkillTest` が検証（承認必須・定義変更での失効・CLI `--yes` ガード）。Azure・互換エンドポイントの接続先解決とプロキシ設定は `ConnectionTest` が検証（疎通は手動確認）。出力値による連鎖分岐は `AutomationTest` / `DefinitionsTest` が検証。'

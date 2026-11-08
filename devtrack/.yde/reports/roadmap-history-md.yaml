@@ -1,0 +1,24 @@
+id: roadmap-history-md
+name: ロードマップの記録（docs/archive/roadmap-history.md）
+description: テーマの記録の項（roadmap/ の history）から docs/archive/roadmap-history.md を作ります。本文は書いたままで、書き換えません。書き出しは ./gradlew devtrackDocs。
+build:
+  # 記録の項を番号の順に。項の中の値はここで組み立て直し、ひな形の穴が外側（ビューの行の cells など）に届かないようにする
+  entries:
+    $each: { $view: doc-roadmap-history }
+    $build:
+      title: { $copy: values.見出し }
+      part: { $copy: values.区切りの見出し }
+      part_intro: { $copy: values.区切りの前書き }
+      body:
+        $each: values.本文
+        $build:
+          text: { $copy: text }
+          head: { $copy: head }
+          rows:
+            $each: rows
+            $build:
+              # ID の欄: 今のロードマップにある R 項目の当時の写しは、その ID
+              label: { $first: [ { $copy: id }, { $copy: snapshot_of } ] }
+              title: { $copy: title }
+              cells: { $copy: cells }
+template: roadmap-history-md.md

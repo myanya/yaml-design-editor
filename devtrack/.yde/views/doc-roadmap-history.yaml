@@ -1,0 +1,15 @@
+# 生成用: docs/archive/roadmap-history.md（レポート roadmap-history-md）の項。番号（記録の中の順）の順
+id: doc-roadmap-history
+name: 生成用：ロードマップの記録
+rows:
+  idPattern: "RH-*"
+  schemaIds: [roadmap]
+order:
+  schemaId: roadmap
+  path: id
+  direction: asc
+columns:
+  - { label: 見出し, schemaId: roadmap, path: title }
+  - { label: 区切りの見出し, schemaId: roadmap, path: part }
+  - { label: 区切りの前書き, schemaId: roadmap, path: part_intro }
+  - { label: 本文, schemaId: roadmap, path: body }

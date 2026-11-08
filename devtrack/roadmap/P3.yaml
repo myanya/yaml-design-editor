@@ -3,3 +3,37 @@ number: 3
 title: 自動化・連鎖・ループ
 status: done
 status_note: 完了
+history:
+- id: RH-011
+  title: 'P3: 自動化・連鎖・ループ ✅ 完了（2026-07）'
+  body:
+  - text: '狙い: 契機と連鎖で定型業務を無人化する。安全策とセット。'
+  - head: |-
+      | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
+      |---|---|---|
+    rows:
+    - id: R3-01
+      title: トリガ
+      cells:
+      - ✅ AG-11（manual / on-change / schedule / on-invalid。デバウンス、予約ディレクトリ・自己変更の除外）
+    - id: R3-02
+      title: アクティビティ連鎖
+      cells:
+      - ✅ AG-12（onSuccess / onFailure。深さ上限・循環検出。人間承認は採否後に発火。出力値による分岐は将来拡張）
+    - id: R3-03
+      title: ループ方針の宣言化
+      cells:
+      - ✅ AG-13（`retry.maxAttempts`、失敗理由＋検証エラーのフィードバック、同一失敗の収束打ち切り）
+    - id: R3-04
+      title: 無人実行の安全策
+      cells:
+      - ✅ AG-14〜16（auto はゲート＋スコープ＋非編集中のみ・降格あり、常時停止、適用前バックアップと `revert` によるUndo保証）
+    - id: R3-05
+      title: 実行キューと並行制御
+      cells:
+      - ✅ AG-15（直列キュー、編集中ファイルへの自動適用禁止＝人間編集との排他、承認待ちの耐久保存）
+    - id: R3-06
+      title: 動的な委譲（サブエージェント）
+      cells:
+      - '✅ AG-17（`delegate`: 親のステージングを読める読み取り専用の相談。編集責任は親に一元化、深さ1）'
+  - text: '**完了条件の充足**: 「ファイル更新（on-change）→エージェント実行→自動適用（バックアップ付き）→自己変更では再発火しない→revert で巻き戻し」を `AutomationTest` が疑似セッションで一気通貫検証。承認待ち→採否→連鎖、リトライ→収束打ち切り、循環ガード、スケジュール、on-invalid、常時停止も同テストで検証済み。'

@@ -9,6 +9,18 @@ import kotlin.test.assertTrue
 class YamlIOTest {
 
     @Test
+    fun `絵文字が読み込みの区切り（1024 字）をまたいでも読める`() {
+        // SnakeYAML は 1024 字ずつ読む。絵文字（サロゲートペア）の前半が区切りの最後に来ても、壊さずに読む
+        for (at in 1018..1030) {
+            val value = "x".repeat(at - 4) + "🔁 定常運用"
+            val text = "a: \"$value\"\nb: 📋\n"
+            assertEquals<Any?>(value, ((YamlIO.parse(text) as YNode.Map).entries["a"] as YNode.Scalar).value, "位置 $at")
+            assertEquals(mapOf("a" to value, "b" to "📋"), YamlIO.parseToRaw(text), "位置 $at")
+            assertEquals(1, YamlIO.parseAll(text).size, "位置 $at")
+        }
+    }
+
+    @Test
     fun `非循環エイリアスの指数展開をメモリ枯渇より前に拒否する`() {
         val text = buildString {
             append("a0: &a0 [x, x, x, x, x, x]\n")

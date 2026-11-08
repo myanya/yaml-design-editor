@@ -9,6 +9,7 @@ entities:
   - { type: roadmap-theme, label: ロードマップのテーマ }
   - { type: roadmap-item, label: R 項目 }
   - { type: roadmap-outlook, label: ロードマップの展望 }
+  - { type: roadmap-record, label: 記録の項 }
 relations:
   - name: bundled-in
     label: テーマ
@@ -36,3 +37,16 @@ relations:
     target: [roadmap-item]
     cardinality: { outMax: 1 }
     description: R 項目を別の R 項目へ移したとき、移した先を参照します（ROADMAP.md では「→ R47-41」）
+  - name: snapshot-of
+    label: 写しの元
+    inverseLabel: 写しを持つ記録
+    source: [roadmap-record]
+    target: [roadmap-item]
+    description: 記録の項が、今のロードマップにある R 項目の当時の写し（ID を持たない行）を持つとき、その R 項目を参照します
+  - name: branch-of
+    label: 枝の元
+    inverseLabel: 枝の項目
+    source: [roadmap-item]
+    target: [roadmap-item]
+    cardinality: { outMax: 1 }
+    description: 枝の項目（R49-11a など）が、元の R 項目を参照します

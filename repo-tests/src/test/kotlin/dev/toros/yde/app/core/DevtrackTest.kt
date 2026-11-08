@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 /**
  * 開発管理（devtrack/）を CI で守る（devtrack/README.md「運用」）:
  * - 検証のエラーが無い。ビュー・ダッシュボード・レポートの定義が読める
- * - docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md・docs/ROADMAP.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
+ * - docs/BACKLOG.md・docs/archive/backlog-closed.md・docs/FEATURES.md・docs/ROADMAP.md・docs/archive/roadmap-history.md が、devtrack の YAML から作り直したものと同じ（古いままコミットしない）
  * - 業務の操作（指摘の登録〔採番〕・状態の変更・一部の解決・解決・再開と、機能の登録〔系統ごとの採番〕）が写しの上で通り、検証のエラーを増やさない
  */
 class DevtrackTest {
@@ -54,9 +54,12 @@ class DevtrackTest {
     }
 
     @Test
-    fun `docs の台帳と記録と機能索引とロードマップは devtrack から作り直したものと同じ`() {
+    fun `docs の台帳と記録と機能索引とロードマップとその記録は devtrack から作り直したものと同じ`() {
         val ws = Workspace.open(root)
-        val stale = mapOf("backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md", "roadmap-md" to "docs/ROADMAP.md")
+        val stale = mapOf(
+            "backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md",
+            "roadmap-md" to "docs/ROADMAP.md", "roadmap-history-md" to "docs/archive/roadmap-history.md",
+        )
             .filter { (report, target) -> Path.of(target).readText() != render(ws, report) }
             .values
         assertTrue(stale.isEmpty(), "devtrack から作り直していない文書があります: $stale（./gradlew devtrackDocs で作り直してコミットする）")
@@ -96,9 +99,9 @@ class DevtrackTest {
             assertEquals(listOf("UX-162"), it["related"])
             assertEquals(listOf("X-12", "X-03"), it["features"], "解決で関わる機能を置き換える")
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
-            // 解決した指摘は台帳から消え、記録の先頭に出る（状態の欄に記録の種類と内容）
+            // 解決した指摘は台帳から消え、記録に出る（状態の欄に記録の種類と内容）。同じ日に解決した本物の指摘があっても、自分の行を引く
             assertTrue("| $next |" !in render(ws, "backlog-md"))
-            val row = render(ws, "backlog-closed-md").lines().first { line -> line.startsWith("| UX-") }
+            val row = render(ws, "backlog-closed-md").lines().first { line -> line.startsWith("| $next |") }
             assertTrue(row.startsWith("| $next | 2026-11-08 |") && "✅ 2026-11-07 一部: 一部を直した 2026-11-08 解決: 全部直した（DevtrackTest）" in row, row)
             // 再開: 解決の日を消して未解決に戻し、再開の記録を足す。台帳に戻る
             act("reopen-item", next, mapOf("date" to "2026-11-09", "note" to "再現した"))
