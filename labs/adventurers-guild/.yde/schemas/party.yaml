@@ -1,0 +1,7 @@
+id: party
+name: パーティ
+kind: document
+description: 冒険者が組むパーティ 1 組を 1 ファイルで管理します。
+match: "guild/parties/*.yaml"
+filePattern: "guild/parties/{id}.yaml"
+root: { type: common#パーティ }

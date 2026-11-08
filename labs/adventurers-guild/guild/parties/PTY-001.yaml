@@ -1,0 +1,11 @@
+id: PTY-001
+name: 銀の轍
+leader: ADV-0001
+members:
+  - to: ADV-0001
+    role: 前衛
+  - to: ADV-0002
+    role: 魔術
+  - to: ADV-0003
+    role: 斥候
+formedOn: 2022-01-10

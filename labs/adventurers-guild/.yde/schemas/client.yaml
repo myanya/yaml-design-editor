@@ -1,0 +1,7 @@
+id: client
+name: 依頼者
+kind: document
+description: ギルドに依頼を出す個人・商会・町の機関 1 件を 1 ファイルで管理します。
+match: "guild/clients/*.yaml"
+filePattern: "guild/clients/{id}.yaml"
+root: { type: common#依頼者 }

@@ -1,0 +1,7 @@
+id: quest
+name: 依頼
+kind: document
+description: 依頼 1 件を 1 ファイルで管理します。受注の記録（受け手・受注日・完了報告）は依頼の中に入れ子で書きます。
+match: "guild/quests/*.yaml"
+filePattern: "guild/quests/{id}.yaml"
+root: { type: common#依頼 }

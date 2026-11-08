@@ -1,0 +1,18 @@
+id: QST-0001
+title: 街道に出る大狼の群れを追い払う
+kind: subjugation
+status: settled
+client: CLT-001
+requiredRank: RNK-B
+reward: 1200
+receivedOn: 2026-10-01
+deadline: 2026-10-20
+description: 東の街道で、荷馬車が大狼の群れに襲われる。群れを街道から遠ざけてほしい。
+assignments:
+  - id: QST-0001-A1
+    taker: PTY-001
+    acceptedOn: 2026-10-03
+    report:
+      reportedOn: 2026-10-09
+      outcome: success
+      summary: 群れの巣を森の奥で見つけ、街道に近い 2 つの巣を払った。

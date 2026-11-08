@@ -1,0 +1,64 @@
+# 関係レジストリ: 冒険者ギルドの運営の関係の語彙。概念（エンティティ型）の表示名と、関係の向き・表示名・多重度を 1 か所に書きます
+id: guild-relations
+kind: relations
+# 関係名はここに宣言したものだけを使い、同じ ID の定義は 1 か所だけにする
+enforcement:
+  undeclaredRelation: error
+  definingUniqueness: error
+entities:
+  - { type: branch, label: ギルド支部 }
+  - { type: rank, label: ランク }
+  - { type: adventurer, label: 冒険者 }
+  - { type: party, label: パーティ }
+  - { type: client, label: 依頼者 }
+  - { type: quest, label: 依頼 }
+  - { type: assignment, label: 受注 }
+relations:
+  - name: has-rank
+    label: ランク
+    inverseLabel: このランクの冒険者
+    source: [adventurer]
+    target: [rank]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 冒険者はいまのランクを 1 つ持ちます
+  - name: has-member
+    label: 構成員
+    inverseLabel: 所属するパーティ
+    source: [party]
+    target: [adventurer]
+    cardinality: { outMin: 1 }
+    description: パーティは冒険者を構成員に持ちます（役割を添えられます）。人数の上限は未定です
+  - name: led-by
+    label: リーダー
+    inverseLabel: 率いるパーティ
+    source: [party]
+    target: [adventurer]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: パーティのリーダーは 1 人です
+  - name: requested-by
+    label: 依頼者
+    inverseLabel: 出した依頼
+    source: [quest]
+    target: [client]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 依頼には依頼者が 1 人います
+  - name: requires-rank
+    label: 受注できるランクの下限
+    inverseLabel: このランクから受けられる依頼
+    source: [quest]
+    target: [rank]
+    cardinality: { outMax: 1 }
+    description: 依頼は受注できるランクの下限を 1 つまで持ちます。無ければどのランクでも受けられます
+  - name: has-assignment
+    label: 受注
+    inverseLabel: 受注した依頼
+    source: [quest]
+    target: [assignment]
+    description: 依頼が受注の記録を保有します（入れ子で書くので、文書には何も書きません）
+  - name: taken-by
+    label: 受け手
+    inverseLabel: 受けた依頼の受注
+    source: [assignment]
+    target: [adventurer, party]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 受注の受け手は冒険者かパーティの 1 つです

@@ -1,0 +1,14 @@
+id: QST-0005
+title: 北の砦へ封書を届ける
+kind: delivery
+status: assigned
+client: CLT-001
+requiredRank: RNK-D
+reward: 200
+receivedOn: 2026-11-01
+deadline: 2026-11-15
+description: 町役場から北の砦の守備隊長へ、封をしたままの書状を手渡す。
+assignments:
+  - id: QST-0005-A1
+    taker: ADV-0004
+    acceptedOn: 2026-11-04

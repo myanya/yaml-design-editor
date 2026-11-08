@@ -1,0 +1,18 @@
+id: QST-0003
+title: 隣町までの荷馬車を護衛する
+kind: escort
+status: reported
+client: CLT-002
+requiredRank: RNK-C
+reward: 600
+receivedOn: 2026-10-15
+deadline: 2026-11-05
+description: 荷馬車 3 台を隣町の市まで送り、帰りの空の馬車も連れ帰る。
+assignments:
+  - id: QST-0003-A1
+    taker: PTY-002
+    acceptedOn: 2026-10-18
+    report:
+      reportedOn: 2026-11-02
+      outcome: success
+      summary: 往復とも荷は無事。帰りに峠で落石があり、半日遅れた。

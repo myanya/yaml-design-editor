@@ -1,0 +1,7 @@
+id: adventurer
+name: 冒険者
+kind: document
+description: ギルドに登録した冒険者 1 人を 1 ファイルで管理します。
+match: "guild/adventurers/*.yaml"
+filePattern: "guild/adventurers/{id}.yaml"
+root: { type: common#冒険者 }

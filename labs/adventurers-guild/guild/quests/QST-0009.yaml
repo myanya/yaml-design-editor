@@ -1,0 +1,18 @@
+id: QST-0009
+title: 湿地の眠り茸を採ってくる
+kind: gathering
+status: failed
+client: CLT-003
+requiredRank: RNK-D
+reward: 300
+receivedOn: 2026-10-10
+deadline: 2026-10-25
+description: 痛み止めに使う眠り茸を 10 本。湿地の奥にしか生えない。
+assignments:
+  - id: QST-0009-A1
+    taker: ADV-0005
+    acceptedOn: 2026-10-12
+    report:
+      reportedOn: 2026-10-24
+      outcome: failure
+      summary: 大雨で湿地が水に沈み、奥まで入れなかった。

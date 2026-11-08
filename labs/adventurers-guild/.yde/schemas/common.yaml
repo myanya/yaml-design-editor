@@ -1,0 +1,250 @@
+id: common
+name: 共通の型
+kind: library
+description: 冒険者ギルドの運営で使う型を 1 か所にまとめます。値の型（番号の形式・参照・金額・日付・状態）と、オブジェクト型（支部・ランク・冒険者・パーティ・依頼者・依頼・受注）です。概念（エンティティ型）はオブジェクト型の entity が決めます。
+definitions:
+  # ---- 番号の型 ----
+  # 形式（pattern）は各文書の番号の項目と、エンティティ型の判別の両方で使います
+  支部番号:
+    type: id
+    pattern: "^BRN-[0-9]{2}$"
+    placeholder: BRN-01
+    sample: BRN-01
+    description: 「BRN-」と 2 桁の数字。
+  ランク番号:
+    type: id
+    pattern: "^RNK-(SS|S|A|B|C|D|E|F)$"
+    placeholder: RNK-A
+    sample: RNK-A
+    description: 「RNK-」とランクの呼び名（SS・S・A・B・C・D・E・F）。
+  冒険者番号:
+    type: id
+    pattern: "^ADV-[0-9]{4}$"
+    placeholder: ADV-0001
+    sample: ADV-0001
+    description: 「ADV-」と 4 桁の数字。冒険者のファイル名にもなります。
+  パーティ番号:
+    type: id
+    pattern: "^PTY-[0-9]{3}$"
+    placeholder: PTY-001
+    sample: PTY-001
+    description: 「PTY-」と 3 桁の数字。パーティのファイル名にもなります。
+  依頼者番号:
+    type: id
+    pattern: "^CLT-[0-9]{3}$"
+    placeholder: CLT-001
+    sample: CLT-001
+    description: 「CLT-」と 3 桁の数字。依頼者のファイル名にもなります。
+  依頼番号:
+    type: id
+    pattern: "^QST-[0-9]{4}$"
+    placeholder: QST-0001
+    sample: QST-0001
+    description: 「QST-」と 4 桁の数字。依頼のファイル名にもなります。
+  受注番号:
+    type: id
+    pattern: "^QST-[0-9]{4}-A[0-9]+$"
+    placeholder: QST-0001-A1
+    sample: QST-0001-A1
+    description: 依頼番号に「-A」と受注の順番を付けます（例 QST-0001-A1）。
+
+  # ---- 参照の型 ----
+  # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
+  ランク参照:
+    type: ref
+    idPattern: "RNK-*"
+    scope:
+      schemaIds: [rank-list]
+    description: ランク一覧のランク番号を 1 件。
+  冒険者参照:
+    type: ref
+    idPattern: "ADV-*"
+    scope:
+      schemaIds: [adventurer]
+    description: 冒険者番号を 1 件。
+  依頼者参照:
+    type: ref
+    idPattern: "CLT-*"
+    scope:
+      schemaIds: [client]
+    relation: requested-by
+    description: 依頼者番号を 1 件。
+  受け手参照:
+    type: ref
+    idPatterns: ["ADV-*", "PTY-*"]
+    scope:
+      schemaIds: [adventurer, party]
+    relation: taken-by
+    description: 依頼を受けた冒険者かパーティの番号を 1 件。個人でもパーティでも受けられます。
+
+  # ---- 値の型 ----
+  金額:
+    type: int
+    min: 0
+    format: "#,##0 セリン"
+    description: 通貨「セリン」の整数です（支部の文書の currency）。ファイルには数だけを書きます。
+  順位:
+    type: int
+    min: 1
+    description: ランクの上下を比べる数です。大きいほど上のランクです。
+  年月日:
+    type: date
+    format: "yyyy年M月d日"
+    description: YYYY-MM-DD 形式で入力します（例 2026-10-01）。
+  一行の文:
+    type: line
+    maxLength: 100
+    placeholder: 1 行で簡潔に
+  文章:
+    type: text
+    rows: 4
+
+  # ---- 区分の型 ----
+  # 保存する値は英語、画面の表示は日本語。並びは流れの順
+  依頼の状態:
+    type: enum
+    values:
+      - { value: received, label: 受付, description: ギルドが依頼を受け付けた。まだ掲示していない }
+      - { value: posted, label: 掲示中, description: 掲示板に貼り、受け手を待っている }
+      - { value: assigned, label: 受注済み, description: 冒険者かパーティが受け、遂行している }
+      - { value: reported, label: 報告済み, description: 受け手が完了を報告した。精算を待っている }
+      - { value: settled, label: 精算済み, description: 報酬を支払い、依頼を閉じた }
+      - { value: rejected, label: 却下, description: ギルドが受け付けなかった }
+      - { value: cancelled, label: 取消, description: 依頼者が取り下げた }
+      - { value: failed, label: 失敗, description: 受け手が遂行できなかった }
+      - { value: expired, label: 期限切れ, description: 期限までに受け手が見つからなかったか、終わらなかった }
+  冒険者の状態:
+    type: enum
+    values:
+      - { value: active, label: 現役 }
+      - { value: resting, label: 休業 }
+      - { value: retired, label: 引退 }
+      - { value: expelled, label: 除名 }
+      - { value: missing, label: 消息不明 }
+  依頼の種別:
+    type: enum
+    values:
+      - { value: subjugation, label: 討伐 }
+      - { value: gathering, label: 採取 }
+      - { value: escort, label: 護衛 }
+      - { value: investigation, label: 調査 }
+      - { value: delivery, label: 配達 }
+      - { value: other, label: その他 }
+  依頼者の区分:
+    type: enum
+    values:
+      - { value: individual, label: 個人 }
+      - { value: merchant, label: 商会 }
+      - { value: public, label: 町・公の機関 }
+      - { value: other, label: その他 }
+  報告の結果:
+    type: enum
+    values:
+      - { value: success, label: 達成 }
+      - { value: failure, label: 未達 }
+
+  # ---- オブジェクト型（概念） ----
+  支部:
+    type: object
+    label: ギルド支部
+    entity: { type: branch, defines: true }
+    fields:
+      - { key: id, label: 支部番号, type: 支部番号, required: true }
+      - { key: name, label: 支部名, type: 一行の文, role: title, required: true }
+      - { key: town, label: 町, type: 一行の文, required: true }
+      - { key: currency, label: 通貨の単位, type: 一行の文, required: true, description: 報酬などの金額の単位です。 }
+      - { key: description, label: 説明, type: 文章 }
+  ランク:
+    type: object
+    label: ランク
+    entity: { type: rank, defines: true }
+    fields:
+      - { key: id, label: ランク番号, type: ランク番号, required: true }
+      - { key: name, label: 呼び名, type: 一行の文, role: title, required: true }
+      - { key: order, label: 順位, type: 順位, required: true, description: 大きいほど上のランクです。受注の条件はこの数で比べます。 }
+      - { key: description, label: 説明, type: 文章 }
+  冒険者:
+    type: object
+    label: 冒険者
+    entity: { type: adventurer, defines: true }
+    fields:
+      - { key: id, label: 冒険者番号, type: 冒険者番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true }
+      - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
+      - { key: registeredOn, label: 登録日, type: 年月日, required: true }
+      - { key: note, label: 備考, type: 文章 }
+  構成員:
+    type: ref
+    idPattern: "ADV-*"
+    scope:
+      schemaIds: [adventurer]
+    relation: has-member
+    fields:
+      - { key: role, label: 役割, type: 一行の文 }
+    description: パーティの構成員の冒険者番号。役割を添えるときは to と role で書きます。
+  パーティ:
+    type: object
+    label: パーティ
+    entity: { type: party, defines: true }
+    fields:
+      - { key: id, label: パーティ番号, type: パーティ番号, required: true }
+      - { key: name, label: パーティ名, type: 一行の文, role: title, required: true }
+      - { key: leader, label: リーダー, type: 冒険者参照, relation: led-by, required: true }
+      - key: members
+        label: 構成員
+        type: array
+        required: true
+        item: { type: 構成員 }
+      - { key: formedOn, label: 結成日, type: 年月日, required: true }
+      - { key: note, label: 備考, type: 文章 }
+  依頼者:
+    type: object
+    label: 依頼者
+    entity: { type: client, defines: true }
+    fields:
+      - { key: id, label: 依頼者番号, type: 依頼者番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 区分, type: 依頼者の区分, required: true, default: individual }
+      - { key: note, label: 備考, type: 文章 }
+  完了報告:
+    type: object
+    label: 完了報告
+    fields:
+      - { key: reportedOn, label: 報告日, type: 年月日, required: true }
+      - { key: outcome, label: 結果, type: 報告の結果, required: true }
+      - { key: summary, label: 内容, type: 文章 }
+  受注:
+    type: object
+    label: 受注
+    entity: { type: assignment, defines: true }
+    fields:
+      - { key: id, label: 受注番号, type: 受注番号, required: true }
+      - { key: taker, label: 受け手, type: 受け手参照, required: true }
+      - { key: acceptedOn, label: 受注日, type: 年月日, required: true }
+      - { key: report, label: 完了報告, type: 完了報告, description: 受け手が報告したら書きます。 }
+  依頼:
+    type: object
+    label: 依頼
+    entity: { type: quest, defines: true }
+    fields:
+      - { key: id, label: 依頼番号, type: 依頼番号, required: true }
+      - { key: title, label: 件名, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 種別, type: 依頼の種別, required: true }
+      - { key: status, label: 状態, type: 依頼の状態, required: true, default: received }
+      - { key: client, label: 依頼者, type: 依頼者参照, required: true }
+      - { key: requiredRank, label: 受注できるランクの下限, type: ランク参照, relation: requires-rank, description: 書かなければ、どのランクでも受けられます。 }
+      - { key: reward, label: 報酬, type: 金額, required: true }
+      - { key: receivedOn, label: 受付日, type: 年月日, required: true }
+      - { key: deadline, label: 期限, type: 年月日 }
+      - { key: description, label: 内容, type: 文章 }
+      - key: assignments
+        label: 受注
+        type: array
+        relation: has-assignment
+        default: []
+        methods:
+          insert:
+            id: { path: id, prefix: { $format: "{id}-A", $of: self }, digits: 1 }
+        item: { type: 受注 }
+      - { key: note, label: 備考, type: 文章, description: 却下・取消・期限切れの理由など。 }

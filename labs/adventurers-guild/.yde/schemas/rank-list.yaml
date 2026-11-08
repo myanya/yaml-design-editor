@@ -1,0 +1,14 @@
+id: rank-list
+name: ランク一覧
+kind: document
+description: 冒険者と依頼が参照するランクの一覧です。上下は順位（order）の数で比べます。
+match: guild/ranks.yaml
+root:
+  type: object
+  fields:
+    - key: ranks
+      label: ランク
+      type: array
+      required: true
+      display: table
+      item: { type: common#ランク }

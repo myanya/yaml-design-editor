@@ -1,0 +1,9 @@
+id: PTY-002
+name: 夜鳴きの鈴
+leader: ADV-0004
+members:
+  - to: ADV-0004
+    role: 前衛
+  - to: ADV-0005
+    role: 回復
+formedOn: 2024-06-15

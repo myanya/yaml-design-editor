@@ -1,0 +1,27 @@
+ranks:
+  - id: RNK-SS
+    name: SS
+    order: 8
+    description: 最上位のランクです。
+  - id: RNK-S
+    name: S
+    order: 7
+  - id: RNK-A
+    name: A
+    order: 6
+  - id: RNK-B
+    name: B
+    order: 5
+  - id: RNK-C
+    name: C
+    order: 4
+  - id: RNK-D
+    name: D
+    order: 3
+  - id: RNK-E
+    name: E
+    order: 2
+  - id: RNK-F
+    name: F
+    order: 1
+    description: 最下位のランクです。

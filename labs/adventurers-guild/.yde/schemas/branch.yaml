@@ -1,0 +1,6 @@
+id: branch
+name: ギルド支部
+kind: document
+description: このワークスペースが扱う 1 つの町の 1 つの支部です。町の名前と通貨の単位を持ちます。
+match: guild/branch.yaml
+root: { type: common#支部 }

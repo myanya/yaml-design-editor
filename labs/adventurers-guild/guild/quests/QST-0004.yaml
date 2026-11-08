@@ -1,0 +1,14 @@
+id: QST-0004
+title: 古井戸から聞こえる異音を調べる
+kind: investigation
+status: assigned
+client: CLT-004
+requiredRank: RNK-F
+reward: 150
+receivedOn: 2026-10-28
+deadline: 2026-11-20
+description: 粉ひき場の裏の古井戸から、夜になると何かを引っかく音がする。
+assignments:
+  - id: QST-0004-A1
+    taker: PTY-003
+    acceptedOn: 2026-11-03
