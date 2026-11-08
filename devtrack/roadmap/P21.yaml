@@ -4,40 +4,60 @@ title: '二層モデル②: グラフ整合とエンティティ操作'
 status: done
 status_note: 完了
 history:
-- id: RH-027
-  title: 'P21: 二層モデル②: グラフ整合とエンティティ操作 ✅ 完了（2026-08-10）'
-  body:
-  - text: |-
-      狙い: P20 の宣言を**制約**と**操作**に変える。本シリーズの破壊的変更はこのフェーズに集約する。
+  - id: RH-027
+    title: 'P21: 二層モデル②: グラフ整合とエンティティ操作 ✅ 完了（2026-08-10）'
+    body:
+      - text: |-
+          狙い: P20 の宣言を**制約**と**操作**に変える。本シリーズの破壊的変更はこのフェーズに集約する。
 
-      **前提と着手手順**: P20 の成果（`entity:` 宣言・関係レジストリ・EntityGraph）に依存する。着手時に本節と §4.9・P20 実装時に新設された ARCHITECTURE 節（§4.30 想定）・§4.10（ステージングと提出ゲート）・§4.11（自動化の不変条件）・yaml-core の patch/Patch.kt と workspace-core の changeset/ChangeSets.kt（変更セット C-02/C-03: baseハッシュ・オール・オア・ナッシング・オーバーレイ検証）を読み、設計を ARCHITECTURE へ反映してから実装する。完了時は FEATURES.md 登録・MANUAL 更新（検証リファレンス・CLI）・試し方の報告まで。
+          **前提と着手手順**: P20 の成果（`entity:` 宣言・関係レジストリ・EntityGraph）に依存する。着手時に本節と §4.9・P20 実装時に新設された ARCHITECTURE 節（§4.30 想定）・§4.10（ステージングと提出ゲート）・§4.11（自動化の不変条件）・yaml-core の patch/Patch.kt と workspace-core の changeset/ChangeSets.kt（変更セット C-02/C-03: baseハッシュ・オール・オア・ナッシング・オーバーレイ検証）を読み、設計を ARCHITECTURE へ反映してから実装する。完了時は FEATURES.md 登録・MANUAL 更新（検証リファレンス・CLI）・試し方の報告まで。
 
-      方針（承認済みの設計判断）:
+          方針（承認済みの設計判断）:
 
-      - **coverage の一本化は R29-01（2026-09-19）で解決済み**: `requiredBy` は削除し、被参照数の正準をレジストリ cardinality／constraints へ一本化した（載せ替えでなく語彙の刈り込み。D-16）。`detailIn` は「詳細化出現の存在制約」＝出現集合の集約（CALC-21）として存続する。本項での残作業はなし。
-      - **破壊はワークスペース単位のスイッチ**: 置き場所はレジストリ文書の `enforcement:` 節（例: `enforcement: {undeclaredRelation: error, definingUniqueness: error}`。既定はいずれも warning ＝ P20 の lint のまま）。レジストリ文書に置くのは、`.yde`／レガシー両構成で機能し、宣言がレジストリと一緒に運ばれるため。`definingUniqueness: error` が「最初の出現＝定義」ヒューリスティクスの**廃止**スイッチ（エンティティ宣言のあるスキーマで定義出現の一意性を強制）。テンプレートパック・sample-workspace は ON を既定にする。
-      - **エンティティ操作は変更セットの生成**: 新しい書込経路は作らない。人間はプレビュー承認（既存の変更セット適用・確認ダイアログ）、エージェントは既存ゲート。エージェントツールとしての公開は**しない**（既存の `apply_patch` で実現可能であり、ツール増はコンテキスト税 R19-05 に逆行。P23 で再判断）。
-      - **分割（split）は実例待ちで見送り**: 統合の逆操作は「新IDを作って参照を張り替える」既存編集で代替できるため、実需が出てから起こす。
-  - head: |-
-      | ID | 項目 | 状態 | 内容 |
-      |---|---|---|---|
-    rows:
-    - id: R21-01
-      title: グラフ整合検証
-      cells:
-      - ✅
-      - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) V-08）。判定器 `validate/GraphIntegrity.kt` を新設し `Validator` に一元化（検証パネル・CLI `validate`・変更セット適用・エージェント提出ゲートに同一判定）。**対象型**（source / target 不一致。座標は参照値）・**多重度**（out はエンティティ単位の合算・in は入次数。母集団は source / target の型宣言に一致する型つきエンティティ＝母集団を推測しない。座標は定義出現）・**非循環**（強連結成分で検出し「循環経路（A → B → A）」を添えて常に ERROR）・**未宣言 relation**（`enforcement.undeclaredRelation` 宣言時のみ文書側で指摘）。対象型・多重度の重大度は relation の `level`（既定 warning）。`enforcement:` はレジストリ文書の3値スイッチ（未宣言＝P20 のまま）で `definingUniqueness: error` が浮遊詳細化・定義競合の ERROR 化＝ヒューリスティクス廃止スイッチ。coverage の数え上げは共有カウンタ（`inboundRefs` / `occurrenceCount`）へ載せ替え（記法・公開API・判定は不変）。sample-workspace は enforcement ON（検証ベースライン エラー5・警告12 は不変）。テスト: `GraphIntegrityTest`＋`CoverageTest`（載せ替え回帰）＋`KernelTest`（循環を作る変更セットのゲート拒否）'
-    - id: R21-02
-      title: エンティティ操作
-      cells:
-      - ✅
-      - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) C-10）。`core/EntityOps.kt` 新設。rename（全出現のIDフィールド＝スキーマの `type: id` 判定＋全参照（スカラー／属性付き `to`）を1変更セットに束ねる。新IDの既存衝突は拒否・idPattern 逸脱は警告）／merge（参照の張り替え＋出現は「into へ書き換えて詳細化として残す」または「要素削除」（同一配列はインデックス降順・文書ルート出現の削除は拒否））／delete（入次数 0 でなければ参照元一覧つき拒否）。適用は既存 `Workspace.apply` のまま・エージェントツール公開はしない（P23 で再判断）。CLI `entity rename|merge|delete`（`--apply` なしはプレビュー）とコマンドパレット「エンティティを改名…」（プレビュー→適用。未保存編集があれば拒否）。テスト: `EntityOpsTest`'
-    - id: R21-03
-      title: 文書参照とファイル移動
-      cells:
-      - ✅
-      - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) I-11 / C-11）。ref フィールドの `target: document`（既定 entity。`RefEntry.targetKind` を走査時に付与し、エンティティの解決・バックリンク・カバレッジ・グラフ整合には混ぜない）。解決は EntityGraph の文書ノード表（documentId ＝ `_document.id` ＞ 相対パス）・未解決は台帳内 ERROR／台帳外 INFO。RefEditor（`DocRefScalarEditor`）は documentId＋文書名で候補提示・AI制約は文書候補の enum（`RefCandidate.kind`）・SidePanel 関係タブに「この文書への参照」。**ファイル移動の一級化**は `core/DocMove.kt`（パスID文書参照の書き換え変更セット＋物理移動の合成。スキーマ match 変化・ビュー file / fileGlob 外れの警告・`_document.id` 宣言済みは書き換え不要の案内）。入口は CLI `move` と W-03 の改名ダイアログ（影響を入力中にプレビュー）。テスト: `DocRefTest`'
-  - text: |-
-      **実装順の推奨**: R21-01（整合検証と coverage 吸収）→ R21-02（操作）→ R21-03（文書参照と移動）。R21-03 は他と独立性が高く並行可。
+          - **coverage の一本化は R29-01（2026-09-19）で解決済み**: `requiredBy` は削除し、被参照数の正準をレジストリ cardinality／constraints へ一本化した（載せ替えでなく語彙の刈り込み。D-16）。`detailIn` は「詳細化出現の存在制約」＝出現集合の集約（CALC-21）として存続する。本項での残作業はなし。
+          - **破壊はワークスペース単位のスイッチ**: 置き場所はレジストリ文書の `enforcement:` 節（例: `enforcement: {undeclaredRelation: error, definingUniqueness: error}`。既定はいずれも warning ＝ P20 の lint のまま）。レジストリ文書に置くのは、`.yde`／レガシー両構成で機能し、宣言がレジストリと一緒に運ばれるため。`definingUniqueness: error` が「最初の出現＝定義」ヒューリスティクスの**廃止**スイッチ（エンティティ宣言のあるスキーマで定義出現の一意性を強制）。テンプレートパック・sample-workspace は ON を既定にする。
+          - **エンティティ操作は変更セットの生成**: 新しい書込経路は作らない。人間はプレビュー承認（既存の変更セット適用・確認ダイアログ）、エージェントは既存ゲート。エージェントツールとしての公開は**しない**（既存の `apply_patch` で実現可能であり、ツール増はコンテキスト税 R19-05 に逆行。P23 で再判断）。
+          - **分割（split）は実例待ちで見送り**: 統合の逆操作は「新IDを作って参照を張り替える」既存編集で代替できるため、実需が出てから起こす。
+      - head: |-
+          | ID | 項目 | 状態 | 内容 |
+          |---|---|---|---|
+        rows:
+          - id: R21-01
+            title: グラフ整合検証
+            cells:
+              - ✅
+              - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) V-08）。判定器 `validate/GraphIntegrity.kt` を新設し `Validator` に一元化（検証パネル・CLI
+                `validate`・変更セット適用・エージェント提出ゲートに同一判定）。**対象型**（source / target 不一致。座標は参照値）・**多重度**（out はエンティティ単位の合算・in は入次数。母集団は
+                source / target の型宣言に一致する型つきエンティティ＝母集団を推測しない。座標は定義出現）・**非循環**（強連結成分で検出し「循環経路（A → B → A）」を添えて常に ERROR）・**未宣言
+                relation**（`enforcement.undeclaredRelation` 宣言時のみ文書側で指摘）。対象型・多重度の重大度は relation の `level`（既定 warning）。`enforcement:`
+                はレジストリ文書の3値スイッチ（未宣言＝P20 のまま）で `definingUniqueness: error` が浮遊詳細化・定義競合の ERROR 化＝ヒューリスティクス廃止スイッチ。coverage の数え上げは共有カウンタ（`inboundRefs`
+                / `occurrenceCount`）へ載せ替え（記法・公開API・判定は不変）。sample-workspace は enforcement ON（検証ベースライン エラー5・警告12 は不変）。テスト: `GraphIntegrityTest`＋`CoverageTest`（載せ替え回帰）＋`KernelTest`（循環を作る変更セットのゲート拒否）'
+            features:
+              - V-08
+          - id: R21-02
+            title: エンティティ操作
+            cells:
+              - ✅
+              - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) C-10）。`core/EntityOps.kt` 新設。rename（全出現のIDフィールド＝スキーマの `type:
+                id` 判定＋全参照（スカラー／属性付き `to`）を1変更セットに束ねる。新IDの既存衝突は拒否・idPattern 逸脱は警告）／merge（参照の張り替え＋出現は「into へ書き換えて詳細化として残す」または「要素削除」（同一配列はインデックス降順・文書ルート出現の削除は拒否））／delete（入次数
+                0 でなければ参照元一覧つき拒否）。適用は既存 `Workspace.apply` のまま・エージェントツール公開はしない（P23 で再判断）。CLI `entity rename|merge|delete`（`--apply`
+                なしはプレビュー）とコマンドパレット「エンティティを改名…」（プレビュー→適用。未保存編集があれば拒否）。テスト: `EntityOpsTest`'
+            features:
+              - C-10
+          - id: R21-03
+            title: 文書参照とファイル移動
+            cells:
+              - ✅
+              - '2026-08-10 実装（[FEATURES.md](../FEATURES.md) I-11 / C-11）。ref フィールドの `target: document`（既定 entity。`RefEntry.targetKind`
+                を走査時に付与し、エンティティの解決・バックリンク・カバレッジ・グラフ整合には混ぜない）。解決は EntityGraph の文書ノード表（documentId ＝ `_document.id` ＞ 相対パス）・未解決は台帳内
+                ERROR／台帳外 INFO。RefEditor（`DocRefScalarEditor`）は documentId＋文書名で候補提示・AI制約は文書候補の enum（`RefCandidate.kind`）・SidePanel
+                関係タブに「この文書への参照」。**ファイル移動の一級化**は `core/DocMove.kt`（パスID文書参照の書き換え変更セット＋物理移動の合成。スキーマ match 変化・ビュー file / fileGlob
+                外れの警告・`_document.id` 宣言済みは書き換え不要の案内）。入口は CLI `move` と W-03 の改名ダイアログ（影響を入力中にプレビュー）。テスト: `DocRefTest`'
+            features:
+              - I-11
+              - C-11
+              - W-03
+      - text: |-
+          **実装順の推奨**: R21-01（整合検証と coverage 吸収）→ R21-02（操作）→ R21-03（文書参照と移動）。R21-03 は他と独立性が高く並行可。
 
-      **完了条件の充足（2026-08-10）**: ①循環（経路つき）・多重度・型違反・未宣言 relation が座標つきで指摘され、`enforcement` 未宣言の既存ワークスペースは無変更（全既存テスト green・sample-workspace のベースライン エラー5・警告12 不変）②`entity rename` が全出現・全参照（属性付き to 含む）を1つの変更セットに束ね、`Workspace.apply` を通って CLI・GUI から適用できる（`EntityOpsTest`）③既存 coverage 記法の判定結果が載せ替え前後で一致（`CoverageTest` green のまま）④文書参照が解決・被参照表示され、ファイル移動が参照を壊さない（`DocRefTest`）⑤エージェントの提出ゲートに整合検証が乗り、循環を作る変更セットが「循環経路」を添えて拒否される（`KernelTest` の新テスト）。
+          **完了条件の充足（2026-08-10）**: ①循環（経路つき）・多重度・型違反・未宣言 relation が座標つきで指摘され、`enforcement` 未宣言の既存ワークスペースは無変更（全既存テスト green・sample-workspace のベースライン エラー5・警告12 不変）②`entity rename` が全出現・全参照（属性付き to 含む）を1つの変更セットに束ね、`Workspace.apply` を通って CLI・GUI から適用できる（`EntityOpsTest`）③既存 coverage 記法の判定結果が載せ替え前後で一致（`CoverageTest` green のまま）④文書参照が解決・被参照表示され、ファイル移動が参照を壊さない（`DocRefTest`）⑤エージェントの提出ゲートに整合検証が乗り、循環を作る変更セットが「循環経路」を添えて拒否される（`KernelTest` の新テスト）。

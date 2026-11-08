@@ -11,3 +11,5 @@ resolutions:
     note: ワークスペースを開いたら、ステータスバーに「ワークスペース「名前」を開きました」と出すようにした（起動の引数・スタート画面・切替のどれでも）
     targets: AppState.afterWorkspaceOpened・DesktopRuntimeTest
 targets: AppState.afterWorkspaceOpened・DesktopRuntimeTest
+roadmap:
+  - R52-03

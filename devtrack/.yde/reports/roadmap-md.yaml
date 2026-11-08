@@ -23,11 +23,21 @@ build:
           body: { $each: body, $apply: block }
   outlook: { $view: doc-roadmap-outlook, $one: true }
 rules:
-  # 本文のかたまり: 文と箇条はそのまま、R 項目の表は列の形の印と、行ごとの状態の文字を足す
+  # 本文のかたまり: 文はそのまま、箇条は判断待ちの印、R 項目の表は列の形の印と、行ごとの状態の文字を足す
   - id: block
     build:
       text: { $copy: text }
-      points: { $copy: points }
+      # 箇条: 判断待ちの決定は「判断待ち（日付 誰）」の見出し（ひな形は比べられないので印を足す）
+      points:
+        $each: points
+        $build:
+          label: { $copy: label }
+          label_note: { $copy: label_note }
+          decision: { $copy: decision }
+          pending: { $when: { path: status, equals: pending }, $then: true }
+          date: { $copy: date }
+          by: { $copy: by }
+          text: { $copy: text }
       basicTable: { $when: { path: columns, equals: basic }, $then: true }
       decisionTable: { $when: { path: columns, equals: decision }, $then: true }
       workTable: { $when: { path: columns, equals: work }, $then: true }

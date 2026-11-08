@@ -4,36 +4,53 @@ title: エージェントレディな基盤
 status: done
 status_note: 完了
 history:
-- id: RH-009
-  title: 'P1: エージェントレディな基盤 ✅ 完了（2026-07）'
-  body:
-  - text: '狙い: エージェントが使う操作系を、まずUI非依存のAPIとして切り出す。人間用UIもその上に載せ直す。'
-  - head: |-
-      | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
-      |---|---|---|
-    rows:
-    - id: R1-01
-      title: コア操作のヘッドレスAPI化
-      cells:
-      - ✅ C-01（`core/Workspace.kt`）・C-06（CLI。FEATURES §9）。UIはファイル走査・検証・カバレッジ判定を core / validate と共有
-    - id: R1-02
-      title: YPathパッチの一級化
-      cells:
-      - ✅ C-02・C-03（set/insert/delete/move、baseハッシュ競合検出、オール・オア・ナッシング適用、`--require-valid` ゲート）
-    - id: R1-03
-      title: 段階的開示API
-      cells:
-      - ✅ C-04（カタログ→骨子→ノード全文、文字数予算付き文脈バンドル）
-    - id: R1-04
-      title: 構造検索API
-      cells:
-      - ✅ C-05（本文・キー検索＋スキーマ／glob条件、参照・未解決参照検索）
-    - id: R1-05
-      title: ID横ぐしビュー
-      cells:
-      - ✅ I-07（出現・参照・被参照・カバレッジの集約ビュー）
-    - id: R1-06
-      title: 関係の型付けとカバレッジ検証
-      cells:
-      - ✅ S-08・S-09・V-05（`relation` と `coverage` ルール）
-  - text: '**完了条件の充足**: 「検索→部分パッチ→検証→保存」の一気通貫は `WorkspaceCliTest` の CLI テストで自動検証。UIの core への全面委譲は基盤処理の共有まで（残りは文書キャッシュ・外部同期で、P2 のステージング導入時に統合する。FEATURES L-10）。'
+  - id: RH-009
+    title: 'P1: エージェントレディな基盤 ✅ 完了（2026-07）'
+    body:
+      - text: '狙い: エージェントが使う操作系を、まずUI非依存のAPIとして切り出す。人間用UIもその上に載せ直す。'
+      - head: |-
+          | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
+          |---|---|---|
+        rows:
+          - id: R1-01
+            title: コア操作のヘッドレスAPI化
+            cells:
+              - ✅ C-01（`core/Workspace.kt`）・C-06（CLI。FEATURES §9）。UIはファイル走査・検証・カバレッジ判定を core / validate と共有
+            features:
+              - C-01
+              - C-06
+          - id: R1-02
+            title: YPathパッチの一級化
+            cells:
+              - ✅ C-02・C-03（set/insert/delete/move、baseハッシュ競合検出、オール・オア・ナッシング適用、`--require-valid` ゲート）
+            features:
+              - C-02
+              - C-03
+          - id: R1-03
+            title: 段階的開示API
+            cells:
+              - ✅ C-04（カタログ→骨子→ノード全文、文字数予算付き文脈バンドル）
+            features:
+              - C-04
+          - id: R1-04
+            title: 構造検索API
+            cells:
+              - ✅ C-05（本文・キー検索＋スキーマ／glob条件、参照・未解決参照検索）
+            features:
+              - C-05
+          - id: R1-05
+            title: ID横ぐしビュー
+            cells:
+              - ✅ I-07（出現・参照・被参照・カバレッジの集約ビュー）
+            features:
+              - I-07
+          - id: R1-06
+            title: 関係の型付けとカバレッジ検証
+            cells:
+              - ✅ S-08・S-09・V-05（`relation` と `coverage` ルール）
+            features:
+              - S-08
+              - S-09
+              - V-05
+      - text: '**完了条件の充足**: 「検索→部分パッチ→検証→保存」の一気通貫は `WorkspaceCliTest` の CLI テストで自動検証。UIの core への全面委譲は基盤処理の共有まで（残りは文書キャッシュ・外部同期で、P2
+          のステージング導入時に統合する。FEATURES L-10）。'

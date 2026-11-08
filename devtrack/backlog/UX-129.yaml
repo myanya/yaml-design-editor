@@ -10,3 +10,6 @@ targets: ROADMAP P48（R48-03）
 features:
   - SK-03
   - X-07
+roadmap:
+  - P48
+  - R48-03

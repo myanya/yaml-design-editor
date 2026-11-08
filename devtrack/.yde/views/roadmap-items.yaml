@@ -8,3 +8,8 @@ columns:
   - { label: 状態, schemaId: roadmap, path: state }
   - { label: 状態の日, schemaId: roadmap, path: state_on }
   - { label: 状態の補足, schemaId: roadmap, path: state_note }
+  - { label: 実装した機能, schemaId: roadmap, path: features }
+  - label: 関わる指摘
+    backlinks:
+      relation: planned-in
+      schemaIds: [item]

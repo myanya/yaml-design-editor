@@ -10,3 +10,5 @@ resolutions:
   - date: 2026-11-01
     kind: 解決
     section: ローカル接続の通し試験
+roadmap:
+  - R49-70

@@ -5,55 +5,61 @@ table_title: 'チャート（`kind: chart`＝表を図にするビューの部�
 status: in-progress
 status_note: 第一弾完了（2026-10-26）。残りは下記
 body:
-- points:
-  - label: 目的
-    text: '数を扱う業務（注文管理の売上など）で、表を図で見る。チャートはフロー図と同じ「ビューの部品」（`kind: chart`）で、元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描く。Excel の「表を作ってからグラフにする」と同じ形で、チャートに集計を書かない。あわせて、月の文書を置かずに「受付日の年月ごと」のような集計ができるよう、クロス集計の行と列を値の式で広げられるようにした。'
-  - decision: 決めたこと
-    status: decided
-    date: 2026-10-26
-    by: オーナー
-    text: ①ビューの種類として足す（グリッドの中には入らない。置き場は台帳のビュータブ・文書ビューの区画・ダッシュボードの区画）②第一弾の図は棒・積み上げ棒・折れ線・円 ③軸を式で広げるクロス集計も第一弾に含める ④日付から年・月を導く関数（`year` / `month` / `day` / `yearMonth`）を値の式に足す。
-  - label: 今の姿
-    text: '[architecture/views.md](architecture/views.md)「ビュー機構」、使い方は [manual/views.md](manual/views.md)「チャート」「クロス集計」。実例は `samples/orders`（月×状態の売上・月別売上の積み上げ棒・売上の推移の折れ線・顧客別の購入割合の円）。'
-- columns: basic
-  items:
-  - id: R46-01
-    title: 日付の部分の関数
-    content: 値の式に `year` / `month` / `day`（数）と `yearMonth`（年月の文字）。日時からも読める
-    state: done
-    state_on: 2026-10-25
-  - id: R46-02
-    title: 軸を値の式で広げるクロス集計
-    content: '`rows: {value: 式}`（起点の要素ごとの値を行に）・`cells.columns: {value: 式}`（要素ごとの値を列に）。解決のときに軸を決める `resolvePivot`、ヘッダは `columnsOf`、値の軸の行は `valueRow`'
-    state: done
-    state_on: 2026-10-26
-  - id: R46-03
-    title: チャートの宣言と解決
-    content: '`VirtualChartDef`（chart / view / series / x / y）・`ChartViews.resolve`（合計の行と合計・未分類の列を除く・円は最初の系列）・読み込みの点検（元の表の有無・列の有無）'
-    state: done
-    state_on: 2026-10-26
-  - id: R46-04
-    title: 置き場と描画
-    content: '台帳のビュータブの一覧から選ぶ・文書ビューの区画 `chart: {view}`・ダッシュボードの区画（件数＝項目の数）。`BarChart` の軸を金額向けに（刻み自動・桁区切り）、`LineChart`（Vico）・`PieChart`（自前）を追加'
-    state: done
-    state_on: 2026-10-26
-  - id: R46-05
-    title: CLI と read_view
-    content: '`view <ws> <chart-id>` と `read_view` は項目 × 系列の数を返す。ダッシュボードの出力に `chart`'
-    state: done
-    state_on: 2026-10-26
-  - id: R46-06
-    title: 押して材料へ
-    content: 棒・点・扇形を押すと、そのセルの材料（集めた要素の ID・名前・値）が出て、業務詳細か原本へ進める。出し方は定義の `drill`（popup / below / right / none。オーナー 2026-10-26「定義側で選べるように」）
-    state: done
-    state_on: 2026-10-26
-  - id: R46-07
-    title: 横棒・面・列の見出しと並び
-    content: '`horizontal-bar` / `stacked-horizontal-bar`（自前描画。名前は左・値は棒の端）・`area` / `stacked-area`（Vico の塗り。積むのは部品の中）・`cells.columns.label`（見出しの式）と `cells.columns.order`（先に並べる値）'
-    state: done
-    state_on: 2026-10-26
-  - id: R46-08
-    title: 散布図
-    content: '`scatter`＝`x` の数の列を横軸、`series` を縦軸、`label` を点の名前に（点＝行。自前描画で目盛りは 1・2・5 の刻み、マウスで名前と値、押すとその行の材料）。軸の対数は `scale: {x, y}`。見え方の調整はオーナーが実機で随時'
-    state: done
-    state_on: 2026-10-26
+  - points:
+      - label: 目的
+        text: '数を扱う業務（注文管理の売上など）で、表を図で見る。チャートはフロー図と同じ「ビューの部品」（`kind: chart`）で、元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描く。Excel の「表を作ってからグラフにする」と同じ形で、チャートに集計を書かない。あわせて、月の文書を置かずに「受付日の年月ごと」のような集計ができるよう、クロス集計の行と列を値の式で広げられるようにした。'
+      - decision: 決めたこと
+        status: decided
+        date: 2026-10-26
+        by: オーナー
+        text: ①ビューの種類として足す（グリッドの中には入らない。置き場は台帳のビュータブ・文書ビューの区画・ダッシュボードの区画）②第一弾の図は棒・積み上げ棒・折れ線・円 ③軸を式で広げるクロス集計も第一弾に含める ④日付から年・月を導く関数（`year`
+          / `month` / `day` / `yearMonth`）を値の式に足す。
+        id: DEC-003
+      - label: 今の姿
+        text: '[architecture/views.md](architecture/views.md)「ビュー機構」、使い方は [manual/views.md](manual/views.md)「チャート」「クロス集計」。実例は
+          `samples/orders`（月×状態の売上・月別売上の積み上げ棒・売上の推移の折れ線・顧客別の購入割合の円）。'
+  - columns: basic
+    items:
+      - id: R46-01
+        title: 日付の部分の関数
+        content: 値の式に `year` / `month` / `day`（数）と `yearMonth`（年月の文字）。日時からも読める
+        state: done
+        state_on: 2026-10-25
+      - id: R46-02
+        title: 軸を値の式で広げるクロス集計
+        content: '`rows: {value: 式}`（起点の要素ごとの値を行に）・`cells.columns: {value: 式}`（要素ごとの値を列に）。解決のときに軸を決める `resolvePivot`、ヘッダは
+          `columnsOf`、値の軸の行は `valueRow`'
+        state: done
+        state_on: 2026-10-26
+      - id: R46-03
+        title: チャートの宣言と解決
+        content: '`VirtualChartDef`（chart / view / series / x / y）・`ChartViews.resolve`（合計の行と合計・未分類の列を除く・円は最初の系列）・読み込みの点検（元の表の有無・列の有無）'
+        state: done
+        state_on: 2026-10-26
+      - id: R46-04
+        title: 置き場と描画
+        content: '台帳のビュータブの一覧から選ぶ・文書ビューの区画 `chart: {view}`・ダッシュボードの区画（件数＝項目の数）。`BarChart` の軸を金額向けに（刻み自動・桁区切り）、`LineChart`（Vico）・`PieChart`（自前）を追加'
+        state: done
+        state_on: 2026-10-26
+      - id: R46-05
+        title: CLI と read_view
+        content: '`view <ws> <chart-id>` と `read_view` は項目 × 系列の数を返す。ダッシュボードの出力に `chart`'
+        state: done
+        state_on: 2026-10-26
+      - id: R46-06
+        title: 押して材料へ
+        content: 棒・点・扇形を押すと、そのセルの材料（集めた要素の ID・名前・値）が出て、業務詳細か原本へ進める。出し方は定義の `drill`（popup / below / right / none。オーナー 2026-10-26「定義側で選べるように」）
+        state: done
+        state_on: 2026-10-26
+      - id: R46-07
+        title: 横棒・面・列の見出しと並び
+        content: '`horizontal-bar` / `stacked-horizontal-bar`（自前描画。名前は左・値は棒の端）・`area` / `stacked-area`（Vico の塗り。積むのは部品の中）・`cells.columns.label`（見出しの式）と
+          `cells.columns.order`（先に並べる値）'
+        state: done
+        state_on: 2026-10-26
+      - id: R46-08
+        title: 散布図
+        content: '`scatter`＝`x` の数の列を横軸、`series` を縦軸、`label` を点の名前に（点＝行。自前描画で目盛りは 1・2・5 の刻み、マウスで名前と値、押すとその行の材料）。軸の対数は `scale:
+          {x, y}`。見え方の調整はオーナーが実機で随時'
+        state: done
+        state_on: 2026-10-26

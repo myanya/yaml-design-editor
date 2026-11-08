@@ -12,3 +12,5 @@ resolutions:
   - date: 2026-10-26
     kind: 解決
     section: 注文管理サンプル
+roadmap:
+  - R46-07

@@ -10,6 +10,7 @@ entities:
   - { type: roadmap-item, label: R 項目 }
   - { type: roadmap-outlook, label: ロードマップの展望 }
   - { type: roadmap-record, label: 記録の項 }
+  - { type: roadmap-decision, label: 決定 }
 relations:
   - name: bundled-in
     label: テーマ
@@ -50,3 +51,15 @@ relations:
     target: [roadmap-item]
     cardinality: { outMax: 1 }
     description: 枝の項目（R49-11a など）が、元の R 項目を参照します
+  - name: planned-in
+    label: ロードマップの項目
+    inverseLabel: 関わる指摘
+    source: [backlog-item]
+    target: [roadmap-item, roadmap-theme]
+    description: 指摘を対応した・対応するロードマップの R 項目かテーマを参照します
+  - name: realizes
+    label: 実装した機能
+    inverseLabel: ロードマップの項目
+    source: [roadmap-item]
+    target: [feature]
+    description: R 項目で足した・直した機能（docs/FEATURES.md の行）を参照します

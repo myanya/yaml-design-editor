@@ -12,3 +12,6 @@ resolutions:
     kind: 解決
 features:
   - W-09
+roadmap:
+  - R17-02
+  - R17-03

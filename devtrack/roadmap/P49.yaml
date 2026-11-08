@@ -4,938 +4,939 @@ title: ローカル接続と業務 Web・トレイ常駐
 status: in-progress
 status_note: v0.3.0 向けに実装中、接続設定・常駐・所有管理、API・CLI・MCP・Web の業務閲覧と操作・通し試験まで完了、次は配布検査。その後に約 2 週間の試用と機能追加・改善を行う
 body:
-- points:
-  - label: 目標版
-    text: v0.3.0。現在の v0.2.0 を起点に、一通りの開発・受入後、オーナーが約 2 週間試用する。その結果を受けた機能追加・改善と再検証を終えてから版を上げる（2026-11-01 オーナー方針）。
-  - decision: 合意した方向
-    status: decided
-    date: 2026-10-31
-    by: オーナー
-    text: |-
-      同じ PC 内の利用に限定し、単一の YDE プロセスへデスクトップ・HTTP API・MCP・業務 Web を接続する。
-        通常の編集はデスクトップ、Web は業務の閲覧と定義済み操作を担当する。
-  - label: 追加要件
-    text: |-
-      API・MCP・Web はデスクトップの設定から個別に ON/OFF できる。
-        新規導入と設定のない旧版からの更新ではすべて OFF、すべて OFF の間は本機能の待受ポートを開かない。
-  - label: 状態
-    text: 実装中。ここが本開発の作業・受入条件の台帳で、以下の型名・パッケージ名・経路は、完了と記したものを除き実装予定を表す。
-  - label: 既存計画との関係
-    text: |-
-      R47-70 の実施と、常駐・Web の構想を本テーマへ集約する。
-        汎用のリファクタリング公開や射影ビューの拡張は、下記の必須範囲へ混ぜない。
+  - points:
+      - label: 目標版
+        text: v0.3.0。現在の v0.2.0 を起点に、一通りの開発・受入後、オーナーが約 2 週間試用する。その結果を受けた機能追加・改善と再検証を終えてから版を上げる（2026-11-01 オーナー方針）。
+      - decision: 合意した方向
+        status: decided
+        date: 2026-10-31
+        by: オーナー
+        text: |-
+          同じ PC 内の利用に限定し、単一の YDE プロセスへデスクトップ・HTTP API・MCP・業務 Web を接続する。
+            通常の編集はデスクトップ、Web は業務の閲覧と定義済み操作を担当する。
+        id: DEC-007
+      - label: 追加要件
+        text: |-
+          API・MCP・Web はデスクトップの設定から個別に ON/OFF できる。
+            新規導入と設定のない旧版からの更新ではすべて OFF、すべて OFF の間は本機能の待受ポートを開かない。
+      - label: 状態
+        text: 実装中。ここが本開発の作業・受入条件の台帳で、以下の型名・パッケージ名・経路は、完了と記したものを除き実装予定を表す。
+      - label: 既存計画との関係
+        text: |-
+          R47-70 の実施と、常駐・Web の構想を本テーマへ集約する。
+            汎用のリファクタリング公開や射影ビューの拡張は、下記の必須範囲へ混ぜない。
 sections:
-- title: 対象範囲
-  body:
-  - text: |-
-      | 区分 | v0.3.0 で扱うもの |
-      |---|---|
-      | 利用環境 | 同じ PC・同じ OS ユーザーのローカル利用、初期範囲は同時に一つのワークスペース |
-      | デスクトップ | 既存の編集・設計・履歴・承認と、接続設定・トレイ・画面非表示での起動 |
-      | API | 文書・エンティティ・検索・ビュー・検証の取得、業務操作の計画と明示適用、作業コピーへのパッチ・新規文書・提案提出・直接確定 |
-      | MCP | 保存済みの参照・作業コピーの編集・検証・許可した業務操作と、作業の開始・提案提出・直接確定・結果照会・破棄 |
-      | Web | ダッシュボード、grid・matrix・chart の業務表示、業務詳細と参照、検証・レポートの閲覧、定義済み操作の入力・確認・適用 |
-      | 常駐 | ウィンドウを非表示にしても、許可した接続・監視・実行・承認待ちを保持 |
-      | 対象外 | LAN・インターネット公開、複数利用者の共同編集、独立 daemon・OS サービス、ログイン時の自動起動 |
-      | 対象外の操作 | Web での任意のフォーム・ソース・スキーマ編集、外部接続からの任意コード実行と定義文書の自由な書換え |
+  - title: 対象範囲
+    body:
+      - text: |-
+          | 区分 | v0.3.0 で扱うもの |
+          |---|---|
+          | 利用環境 | 同じ PC・同じ OS ユーザーのローカル利用、初期範囲は同時に一つのワークスペース |
+          | デスクトップ | 既存の編集・設計・履歴・承認と、接続設定・トレイ・画面非表示での起動 |
+          | API | 文書・エンティティ・検索・ビュー・検証の取得、業務操作の計画と明示適用、作業コピーへのパッチ・新規文書・提案提出・直接確定 |
+          | MCP | 保存済みの参照・作業コピーの編集・検証・許可した業務操作と、作業の開始・提案提出・直接確定・結果照会・破棄 |
+          | Web | ダッシュボード、grid・matrix・chart の業務表示、業務詳細と参照、検証・レポートの閲覧、定義済み操作の入力・確認・適用 |
+          | 常駐 | ウィンドウを非表示にしても、許可した接続・監視・実行・承認待ちを保持 |
+          | 対象外 | LAN・インターネット公開、複数利用者の共同編集、独立 daemon・OS サービス、ログイン時の自動起動 |
+          | 対象外の操作 | Web での任意のフォーム・ソース・スキーマ編集、外部接続からの任意コード実行と定義文書の自由な書換え |
 
-      フロー図・スキーマレンズ・汎用文書編集の Web 描画と、専用リファクタリング API は後続の需要で扱う。
-      Web の未対応ビューは理由を示してデスクトップへ案内し、空の結果として扱わない。
-      外部 AI の変更は提案と人の承認を既定にする。
-      自作ツールの業務操作は、接続登録時に許した操作・対象範囲について、明示的な適用要求で実行できる。
-- title: 接続設定と待受
-  body:
-  - text: |-
-      設定の場所はデスクトップの「設定 → ローカル接続」とする。
-      API・MCP・Web の三つのスイッチ、接続先、実際の稼働状態、停止理由、接続者と権限、資格情報の失効を同じ画面へ置く。
-      設定は利用者のアプリ設定に保存し、ワークスペースの YAML を開いただけでは有効にならない。
-      既に利用者が ON にした設定は再起動後に復元し、未設定の項目は必ず OFF として扱う。
+          フロー図・スキーマレンズ・汎用文書編集の Web 描画と、専用リファクタリング API は後続の需要で扱う。
+          Web の未対応ビューは理由を示してデスクトップへ案内し、空の結果として扱わない。
+          外部 AI の変更は提案と人の承認を既定にする。
+          自作ツールの業務操作は、接続登録時に許した操作・対象範囲について、明示的な適用要求で実行できる。
+  - title: 接続設定と待受
+    body:
+      - text: |-
+          設定の場所はデスクトップの「設定 → ローカル接続」とする。
+          API・MCP・Web の三つのスイッチ、接続先、実際の稼働状態、停止理由、接続者と権限、資格情報の失効を同じ画面へ置く。
+          設定は利用者のアプリ設定に保存し、ワークスペースの YAML を開いただけでは有効にならない。
+          既に利用者が ON にした設定は再起動後に復元し、未設定の項目は必ず OFF として扱う。
 
-      共通の Ktor サーバが一つの TCP ポートを共有する。
-      起動条件は `apiEnabled || mcpEnabled || webEnabled` で、各要求の受付条件は該当機能が実際に ON であることとする。
-      初期の接続先は `127.0.0.1:18765` とし、ポートは停止中に変更できる。
-      全 NIC へのバインドと、ポート占有時の無断の別ポートへの切替は行わない。
+          共通の Ktor サーバが一つの TCP ポートを共有する。
+          起動条件は `apiEnabled || mcpEnabled || webEnabled` で、各要求の受付条件は該当機能が実際に ON であることとする。
+          初期の接続先は `127.0.0.1:18765` とし、ポートは停止中に変更できる。
+          全 NIC へのバインドと、ポート占有時の無断の別ポートへの切替は行わない。
 
-      | API | MCP | Web | 待受 | 有効な経路 |
-      |---|---|---|---|---|
-      | OFF | OFF | OFF | なし | なし |
-      | ON | OFF | OFF | 一つ | `/api/v1` |
-      | OFF | ON | OFF | 一つ | `/mcp` |
-      | OFF | OFF | ON | 一つ | `/app`・`/web-api` |
-      | ON | ON | OFF | 一つ | `/api/v1`・`/mcp` |
-      | ON | OFF | ON | 一つ | `/api/v1`・`/app`・`/web-api` |
-      | OFF | ON | ON | 一つ | `/mcp`・`/app`・`/web-api` |
-      | ON | ON | ON | 一つ | すべて |
+          | API | MCP | Web | 待受 | 有効な経路 |
+          |---|---|---|---|---|
+          | OFF | OFF | OFF | なし | なし |
+          | ON | OFF | OFF | 一つ | `/api/v1` |
+          | OFF | ON | OFF | 一つ | `/mcp` |
+          | OFF | OFF | ON | 一つ | `/app`・`/web-api` |
+          | ON | ON | OFF | 一つ | `/api/v1`・`/mcp` |
+          | ON | OFF | ON | 一つ | `/api/v1`・`/app`・`/web-api` |
+          | OFF | ON | ON | 一つ | `/mcp`・`/app`・`/web-api` |
+          | ON | ON | ON | 一つ | すべて |
 
-      `/api/v1` は自作ツール向けの公開契約、`/web-api` は Web 画面に必要な業務通信である。
-      後者も HTTP であり、画面専用の認証・許可した業務操作だけを受け、内部だから安全とは扱わない。
-      API を OFF にしても Web は単独で動き、Web を OFF にしたら画面と業務通信の両方を止める。
-      設定には「Web を有効にすると、画面と画面用の通信をこの PC 内で待ち受けます」と説明する。
-      実装を共有するのはサービス層で、Web から無効な公開 API へ迂回して接続しない。
+          `/api/v1` は自作ツール向けの公開契約、`/web-api` は Web 画面に必要な業務通信である。
+          後者も HTTP であり、画面専用の認証・許可した業務操作だけを受け、内部だから安全とは扱わない。
+          API を OFF にしても Web は単独で動き、Web を OFF にしたら画面と業務通信の両方を止める。
+          設定には「Web を有効にすると、画面と画面用の通信をこの PC 内で待ち受けます」と説明する。
+          実装を共有するのはサービス層で、Web から無効な公開 API へ迂回して接続しない。
 
-      - 三つとも OFF の起動ではサーバをバインドせず、health・検出・メトリクス用の別ポートも開かない。
-      - 無効な機能の経路は 404 とし、UI 上の表示だけでなく要求受付側で拒否する。
-      - 設定した希望値と実際の状態（停止・起動中・稼働・停止中・エラー）を分け、バインド失敗を稼働中と表示しない。
-      - 一つの機能を OFF にしても、ほかの ON の機能の接続を維持する。
-        該当機能の新規要求を直ちに止め、既存のストリーム・セッションとその機能の認可を失効させる。
-      - 実行中の読み取りや未適用の長い処理はキャンセルし、保存中の変更は既存の適用処理が結果を確定するまで待つ。
-        保存途中でスレッドを強制停止せず、状態を「停止中」と表示する。
-      - 最後の機能の停止完了後は、受理済み要求・keep-alive・ストリームを閉じ、待受ソケットを解放する。
-        停止エラーは表示し、OFF 完了を偽らない。
-      - 停止しても未保存編集・提出済みの変更セット・確認用の記録を捨てない。
-        Web の開いたままのタブと MCP の再接続も、停止した経路を利用できない。
-      - 設定変更を同じ管理経路で直列化し、連続した ON/OFF や起動中の OFF でサーバを二重起動しない。
-      - トレイ常駐と画面非表示は別設定で、サーバの有効化を伴わない。
-        トレイから Web を開く際も、Web が OFF なら設定へ案内し、勝手に ON にしない。
-- title: 技術とモジュール
-  body:
-  - text: |-
-      | 場所 | 採用する技術・追加する責務 |
-      |---|---|
-      | カーネルの三層 | 既存の Kotlin/JVM・JDK 21・YAML・Calculus・履歴・適用を共用 |
-      | app-core | 通信非依存の `app.service` を追加し、操作窓口・作業コピー・提出管理・権限判定・更新通知を提供 |
-      | local-server（追加） | Ktor Server/CIO、公式 MCP Kotlin SDK、JSON DTO、認証、接続の ON/OFF、Web 資源配信 |
-      | desktop | 共通状態とサーバの組立て、設定保存、JDK の SystemTray と Compose の画面、監視と処理の生存期間、EDT との接続 |
-      | agent | LLM と自動実行を維持し、共用できる提出・承認処理を app-core へ寄せる |
-      | cli | 独立実行を維持し、所有中の書込を制御。明示した接続モードでは API のクライアントを使用 |
-      | web-ui（追加） | React・TypeScript・Vite、MUI Core、React Router、TanStack Query、ECharts |
-      | API 契約とテスト | OpenAPI 3.1・openapi-typescript、kotlin.test、Ktor testApplication、Vitest、Playwright |
+          - 三つとも OFF の起動ではサーバをバインドせず、health・検出・メトリクス用の別ポートも開かない。
+          - 無効な機能の経路は 404 とし、UI 上の表示だけでなく要求受付側で拒否する。
+          - 設定した希望値と実際の状態（停止・起動中・稼働・停止中・エラー）を分け、バインド失敗を稼働中と表示しない。
+          - 一つの機能を OFF にしても、ほかの ON の機能の接続を維持する。
+            該当機能の新規要求を直ちに止め、既存のストリーム・セッションとその機能の認可を失効させる。
+          - 実行中の読み取りや未適用の長い処理はキャンセルし、保存中の変更は既存の適用処理が結果を確定するまで待つ。
+            保存途中でスレッドを強制停止せず、状態を「停止中」と表示する。
+          - 最後の機能の停止完了後は、受理済み要求・keep-alive・ストリームを閉じ、待受ソケットを解放する。
+            停止エラーは表示し、OFF 完了を偽らない。
+          - 停止しても未保存編集・提出済みの変更セット・確認用の記録を捨てない。
+            Web の開いたままのタブと MCP の再接続も、停止した経路を利用できない。
+          - 設定変更を同じ管理経路で直列化し、連続した ON/OFF や起動中の OFF でサーバを二重起動しない。
+          - トレイ常駐と画面非表示は別設定で、サーバの有効化を伴わない。
+            トレイから Web を開く際も、Web が OFF なら設定へ案内し、勝手に ON にしない。
+  - title: 技術とモジュール
+    body:
+      - text: |-
+          | 場所 | 採用する技術・追加する責務 |
+          |---|---|
+          | カーネルの三層 | 既存の Kotlin/JVM・JDK 21・YAML・Calculus・履歴・適用を共用 |
+          | app-core | 通信非依存の `app.service` を追加し、操作窓口・作業コピー・提出管理・権限判定・更新通知を提供 |
+          | local-server（追加） | Ktor Server/CIO、公式 MCP Kotlin SDK、JSON DTO、認証、接続の ON/OFF、Web 資源配信 |
+          | desktop | 共通状態とサーバの組立て、設定保存、JDK の SystemTray と Compose の画面、監視と処理の生存期間、EDT との接続 |
+          | agent | LLM と自動実行を維持し、共用できる提出・承認処理を app-core へ寄せる |
+          | cli | 独立実行を維持し、所有中の書込を制御。明示した接続モードでは API のクライアントを使用 |
+          | web-ui（追加） | React・TypeScript・Vite、MUI Core、React Router、TanStack Query、ECharts |
+          | API 契約とテスト | OpenAPI 3.1・openapi-typescript、kotlin.test、Ktor testApplication、Vitest、Playwright |
 
-      通信基盤の採用版は MCP SDK 0.16.0・Ktor 3.5.2・Serialization 1.11.0。
-      Kotlin 2.4.21・Coroutines 1.11.0 と組み合わせ、依存の宣言を version catalog、local-server の解決結果を lockfile に固定した。
-      既存機能の回帰と同梱ランタイムの最小起動の結果は [初期工程の記録](archive/roadmap-history.md) にある。
-      認証基盤・設定画面・業務経路・ブラウザへのログイン導線の受入は完了した。ライブラリを更新するときは同じ検査を通す。
+          通信基盤の採用版は MCP SDK 0.16.0・Ktor 3.5.2・Serialization 1.11.0。
+          Kotlin 2.4.21・Coroutines 1.11.0 と組み合わせ、依存の宣言を version catalog、local-server の解決結果を lockfile に固定した。
+          既存機能の回帰と同梱ランタイムの最小起動の結果は [初期工程の記録](archive/roadmap-history.md) にある。
+          認証基盤・設定画面・業務経路・ブラウザへのログイン導線の受入は完了した。ライブラリを更新するときは同じ検査を通す。
 
-      選定の参照: [MCP SDK の版](https://github.com/modelcontextprotocol/kotlin-sdk/releases/tag/0.16.0)・[同タグの依存定義](https://github.com/modelcontextprotocol/kotlin-sdk/blob/0.16.0/gradle/libs.versions.toml)・[Ktor](https://ktor.io/docs/server-engines.html)。
-      Web の参照: [React](https://react.dev/learn/build-a-react-app-from-scratch)・[MUI](https://mui.com/material-ui/getting-started/installation/)・[Query](https://tanstack.com/query/latest/docs/framework/react/overview)・[ECharts](https://echarts.apache.org/handbook/en/basics/import/)。
+          選定の参照: [MCP SDK の版](https://github.com/modelcontextprotocol/kotlin-sdk/releases/tag/0.16.0)・[同タグの依存定義](https://github.com/modelcontextprotocol/kotlin-sdk/blob/0.16.0/gradle/libs.versions.toml)・[Ktor](https://ktor.io/docs/server-engines.html)。
+          Web の参照: [React](https://react.dev/learn/build-a-react-app-from-scratch)・[MUI](https://mui.com/material-ui/getting-started/installation/)・[Query](https://tanstack.com/query/latest/docs/framework/react/overview)・[ECharts](https://echarts.apache.org/handbook/en/basics/import/)。
 
-      ```text
-      desktop ──→ local-server ──→ app-core ──→ workspace-core ──→ semantic-core ──→ yaml-core
-         ├──────→ agent ─────────→ app-core
-         └──────→ format-office → app-core
-      cli ──────→ app-core / agent / format-office / local-server の client
-      web-ui ── HTTP ──→ local-server
-      repo-tests ──→ 入口をまたぐ契約と依存規則
-      ```
+          ```text
+          desktop ──→ local-server ──→ app-core ──→ workspace-core ──→ semantic-core ──→ yaml-core
+             ├──────→ agent ─────────→ app-core
+             └──────→ format-office → app-core
+          cli ──────→ app-core / agent / format-office / local-server の client
+          web-ui ── HTTP ──→ local-server
+          repo-tests ──→ 入口をまたぐ契約と依存規則
+          ```
 
-      矢印は依存方向（Web だけ実行時の通信）で、desktop は app-core も直接使う。
-      local-server は組込み用の JVM モジュールで、独立プロセスを必須にしない。
-      MCP と HTTP API と Web 配信は同じモジュールのパッケージに分け、app-core から Ktor・MCP SDK・Compose へ依存させない。
-      CLI 用の通信アダプターは local-server の client に置き、接続モードからサーバを起動しない。
-      web-ui は Node のプロジェクトとして管理し、ビルド済み資源を Gradle から同梱する。
-      Node・npm・フロントエンドの版はロックし、利用者の PC には Node を要求しない。
-      図・入力・表示のライブラリは共通部品で包み、業務の評価器をブラウザへ増やさない。
-- title: 共通状態と操作契約
-  body:
-  - text: |-
-      - `WorkspaceHost` が既存の Workspace と DocumentSession を保持し、画面と接続窓口へ同じサービスを渡す。
-        ディスクの写しと編集用セッションは統合しない。
-      - 通常の外部読取は保存済みの状態、デスクトップは未保存編集込み、外部の作業中は作業コピー込みと明示する。
-        索引と本文を同じ版から読み、応答へワークスペース・起動世代・版を含める。
-      - 接続の許可はワークスペース ID と結び、要求で任意のディレクトリを開かせない。
-        デスクトップで切り替えるときは旧ワークスペースへの処理を収束させ、既存の作業 ID・計画を新しい対象へ付け替えない。
-        新しいワークスペースへの接続は別途許可し、以前の接続者へ自動公開しない。
-      - 現在の UI の直接編集も含めてセッションへのアクセス順を統一する。
-        初期の desktop 接続は既存の DesktopUiDispatcher に合わせ、長い計算は独立したスナップショットで行う。
-        HTTP 側だけの Mutex で済ませず、既存の IO 中の排他と画面の追随も確認する。
-      - 変更は作業コピーまたは ActionPlanner の計画 → 検証 → 確認済みの変更セット → ChangeSetApplier とする。
-        対象に未保存編集や解析できないソース下書きがあれば適用を止める。
-      - 外部確定は、変更対象と影響先の検証エラーが残る場合に拒否する（2026-10-31 オーナー確認済み）。
-        既存のエラーも含み、警告だけなら許可する。外部提案をデスクトップで承認する場合も同じ条件とし、外部要求に検証を免除する指定を公開しない。
-        操作の前提の違反・保留などは既存の判定を維持し、指摘がないことだけで充足と判断しない。通常のデスクトップ編集と内蔵エージェントの既存設定は維持する。
-      - 計画には入力・対象・計画時刻・参照した状態の版を結び、確認後にデータ・定義・権限が変わったら再確認させる。
-        初期版はワークスペース全体の版による保守的な失効を許し、対象ファイルのハッシュだけで前提の変更を見逃さない。
-      - API の再送は接続者・要求 ID・要求内容を照合して二重適用を防ぐ。
-        要求結果を照会できるよう記録し、保存中断で結果不明なら自動再実行せず、照合・復旧を求める。
-        複数ファイル保存全体の原子性を保証するとは表現しない。
-      - 外部からの確定はデスクトップの Undo 対象に追加せず、操作元と結果を記録する（ADR-0017）。
-        通常文書は文書単位で古い履歴を適用不可にし、競合する一手で止める。複数文書の一手は分割せず、無関係な履歴を残しても飛び越えない。
-        外部へ Undo/Redo は公開せず、作業コピーの保存・破棄を基本とする。スキーマ・配置ルールなど前提を広く変える外部確定では過去の全履歴を適用不可にする。
-        外部確定後のデスクトップ編集は通常どおり戻せる。再起動をまたぐ Undo の永続化は本テーマで増やさない。
-      - 外部作業は通信接続と別の作業 ID を持ち、開始・検証・提出・承認待ち・適用・却下・破棄・失敗を管理する。
-        開始時に提案か直接確定かを固定する。提案はデスクトップ承認、直接確定は外部から計画を確認して保存する（ADR-0019）。
-        提出済みの変更セットと適用結果は再起動後も照会でき、復元時は競合・権限を再検査して自動適用しない。
-        未提出の作業コピーはプロセス内で保持し、再起動後の不明な ID を成功扱いしない。
-        記録の置き場は WorkspaceLayout に従い、既存の実行記録との責務を決める。資格情報を作業記録へ混ぜない。
-      - 提出・検証の共通化で、内蔵エージェントの定義読込ゲートを弱めない。
-        agent 固有の読込は注入で残し、app-core から agent へ逆依存しない。
-      - 接続登録・権限変更はデスクトップで行い、接続者は自分の権限を広げられない。
-        閲覧・変更提案・直接確定・許可した業務操作の適用を分け、未設定の接続権限は拒否する。
-        ToolPolicy の空一覧が制限なしである既存の意味を、外部接続の既定権限へ流用しない。
-      - 一つのワークスペースの所有を OS のファイルロックで管理する。
-        ロックの検出に TCP を使わず、旧構成へ `.yde` を作って配置モードを変えないユーザー用アプリ領域を使う。
-        常駐中の独立 CLI 書込は拒否し、明示した接続経由の書込は API が ON の場合に限る。
-        既存の外部ファイル変更検出は維持し、他ツールの書込まで排他できるとは扱わない。
-      - ローカルでも接続認証・Host/Origin 検査・ブラウザの CSRF 対策・入力サイズと実行量の上限を設ける。
-        Web の本文はデータとして表示し、レポートや Markdown の HTML・リンクから任意コードを実行させない。
-        接続設定と登録権限は OS ユーザーの専用領域で保護し、接続トークンはメモリだけで保持する。ワークスペース・URL・通常ログへ資格情報を書かない。
-      - MCP は Streamable HTTP を必須とし、HTTP クライアントと Inspector で相互運用を確認する。
-        stdio の中継は初期版の必須外とし、追加時も MCP が OFF なら拒否し、サーバを暗黙に有効化しない。
+          矢印は依存方向（Web だけ実行時の通信）で、desktop は app-core も直接使う。
+          local-server は組込み用の JVM モジュールで、独立プロセスを必須にしない。
+          MCP と HTTP API と Web 配信は同じモジュールのパッケージに分け、app-core から Ktor・MCP SDK・Compose へ依存させない。
+          CLI 用の通信アダプターは local-server の client に置き、接続モードからサーバを起動しない。
+          web-ui は Node のプロジェクトとして管理し、ビルド済み資源を Gradle から同梱する。
+          Node・npm・フロントエンドの版はロックし、利用者の PC には Node を要求しない。
+          図・入力・表示のライブラリは共通部品で包み、業務の評価器をブラウザへ増やさない。
+  - title: 共通状態と操作契約
+    body:
+      - text: |-
+          - `WorkspaceHost` が既存の Workspace と DocumentSession を保持し、画面と接続窓口へ同じサービスを渡す。
+            ディスクの写しと編集用セッションは統合しない。
+          - 通常の外部読取は保存済みの状態、デスクトップは未保存編集込み、外部の作業中は作業コピー込みと明示する。
+            索引と本文を同じ版から読み、応答へワークスペース・起動世代・版を含める。
+          - 接続の許可はワークスペース ID と結び、要求で任意のディレクトリを開かせない。
+            デスクトップで切り替えるときは旧ワークスペースへの処理を収束させ、既存の作業 ID・計画を新しい対象へ付け替えない。
+            新しいワークスペースへの接続は別途許可し、以前の接続者へ自動公開しない。
+          - 現在の UI の直接編集も含めてセッションへのアクセス順を統一する。
+            初期の desktop 接続は既存の DesktopUiDispatcher に合わせ、長い計算は独立したスナップショットで行う。
+            HTTP 側だけの Mutex で済ませず、既存の IO 中の排他と画面の追随も確認する。
+          - 変更は作業コピーまたは ActionPlanner の計画 → 検証 → 確認済みの変更セット → ChangeSetApplier とする。
+            対象に未保存編集や解析できないソース下書きがあれば適用を止める。
+          - 外部確定は、変更対象と影響先の検証エラーが残る場合に拒否する（2026-10-31 オーナー確認済み）。
+            既存のエラーも含み、警告だけなら許可する。外部提案をデスクトップで承認する場合も同じ条件とし、外部要求に検証を免除する指定を公開しない。
+            操作の前提の違反・保留などは既存の判定を維持し、指摘がないことだけで充足と判断しない。通常のデスクトップ編集と内蔵エージェントの既存設定は維持する。
+          - 計画には入力・対象・計画時刻・参照した状態の版を結び、確認後にデータ・定義・権限が変わったら再確認させる。
+            初期版はワークスペース全体の版による保守的な失効を許し、対象ファイルのハッシュだけで前提の変更を見逃さない。
+          - API の再送は接続者・要求 ID・要求内容を照合して二重適用を防ぐ。
+            要求結果を照会できるよう記録し、保存中断で結果不明なら自動再実行せず、照合・復旧を求める。
+            複数ファイル保存全体の原子性を保証するとは表現しない。
+          - 外部からの確定はデスクトップの Undo 対象に追加せず、操作元と結果を記録する（ADR-0017）。
+            通常文書は文書単位で古い履歴を適用不可にし、競合する一手で止める。複数文書の一手は分割せず、無関係な履歴を残しても飛び越えない。
+            外部へ Undo/Redo は公開せず、作業コピーの保存・破棄を基本とする。スキーマ・配置ルールなど前提を広く変える外部確定では過去の全履歴を適用不可にする。
+            外部確定後のデスクトップ編集は通常どおり戻せる。再起動をまたぐ Undo の永続化は本テーマで増やさない。
+          - 外部作業は通信接続と別の作業 ID を持ち、開始・検証・提出・承認待ち・適用・却下・破棄・失敗を管理する。
+            開始時に提案か直接確定かを固定する。提案はデスクトップ承認、直接確定は外部から計画を確認して保存する（ADR-0019）。
+            提出済みの変更セットと適用結果は再起動後も照会でき、復元時は競合・権限を再検査して自動適用しない。
+            未提出の作業コピーはプロセス内で保持し、再起動後の不明な ID を成功扱いしない。
+            記録の置き場は WorkspaceLayout に従い、既存の実行記録との責務を決める。資格情報を作業記録へ混ぜない。
+          - 提出・検証の共通化で、内蔵エージェントの定義読込ゲートを弱めない。
+            agent 固有の読込は注入で残し、app-core から agent へ逆依存しない。
+          - 接続登録・権限変更はデスクトップで行い、接続者は自分の権限を広げられない。
+            閲覧・変更提案・直接確定・許可した業務操作の適用を分け、未設定の接続権限は拒否する。
+            ToolPolicy の空一覧が制限なしである既存の意味を、外部接続の既定権限へ流用しない。
+          - 一つのワークスペースの所有を OS のファイルロックで管理する。
+            ロックの検出に TCP を使わず、旧構成へ `.yde` を作って配置モードを変えないユーザー用アプリ領域を使う。
+            常駐中の独立 CLI 書込は拒否し、明示した接続経由の書込は API が ON の場合に限る。
+            既存の外部ファイル変更検出は維持し、他ツールの書込まで排他できるとは扱わない。
+          - ローカルでも接続認証・Host/Origin 検査・ブラウザの CSRF 対策・入力サイズと実行量の上限を設ける。
+            Web の本文はデータとして表示し、レポートや Markdown の HTML・リンクから任意コードを実行させない。
+            接続設定と登録権限は OS ユーザーの専用領域で保護し、接続トークンはメモリだけで保持する。ワークスペース・URL・通常ログへ資格情報を書かない。
+          - MCP は Streamable HTTP を必須とし、HTTP クライアントと Inspector で相互運用を確認する。
+            stdio の中継は初期版の必須外とし、追加時も MCP が OFF なら拒否し、サーバを暗黙に有効化しない。
 
-      Core Calculus の位置づけは、読取が Term / Query、表示値が Expression / Aggregate、前提と検証が Predicate、操作入力の準備が Construct、変更計画が Rewrite である。
-      通信・認証・接続の ON/OFF は実行基盤の責務で、新しい業務語彙・評価器・原本への書込経路を追加しない。
-      既存の規律は [workspace](architecture/workspace.md)・[actions](architecture/actions.md)・[agents](architecture/agents.md)・[dashboards](architecture/dashboards.md) を参照する。
-- title: 実施順序
-  body:
-  - text: |-
-      各行は一つ以上の小さな実装単位に分け、挙動変更と対応するテスト・文書を同じコミットへ含める。
-      段階を飛ばして外部への更新を公開せず、前提の受入条件が通ってから次へ進む。
-      日程は初期の依存検証と共通状態の移行結果を見て見積もり、未確認の工数を確約しない。
-  - columns: work
-    items:
-    - id: R49-00
-      title: 契約と境界を ADR にする
-      places: decisions・CONVENTIONS・規則テスト
-      prereq: 本計画
-      done_criteria: ADR-0013 の入口構成への追加と、三つのスイッチ・共通状態・公開範囲が確定
-      state: done
-      state_on: 2026-10-31
-      state_note: ADR-0016・規則20
-    - id: R49-01
-      title: 依存の組込み検証
-      places: local-server・gradle・配布検査
-      prereq: R49-00
-      done_criteria: SDK・Ktor・Serialization の組合せで既存テストと同梱ランタイムの最小起動が通る
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-10
-      title: 共通状態と通知の所有を移す
-      places: app-core・desktop・workspace-core
-      prereq: R49-01
-      done_criteria: AppState が共通状態を受け取り、画面の開閉でセッション・履歴・監視を失わない
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-11
-      title: 操作計画・適用の共通契約
-      places: app-core・workspace-core
-      prereq: R49-10
-      done_criteria: 未保存・古い計画・権限変更・二重要求・保存失敗と、ADR-0017 の外部確定・履歴失効を同じ窓口で扱う
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-12
-      title: 作業と提出・承認を共通化
-      places: app-core・agent・desktop
-      prereq: R49-11
-      done_criteria: 外部作業の提出を受信箱で承認でき、再起動後も提出と結果が残る
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-20
-      title: 接続の状態機械と三つのスイッチ
-      places: local-server・desktop
-      prereq: R49-10
-      done_criteria: 全八組合せと起動中・停止中の切替で、待受と経路が上の表に一致
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-21
-      title: 接続認証と能力別の受付
-      places: local-server・app-core
-      prereq: R49-20
-      done_criteria: 無権限・別機能の資格情報・停止後の接続・不正 Origin を拒否
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-22
-      title: 設定画面と旧版からの更新
-      places: desktop
-      prereq: R49-20・21
-      done_criteria: 初期値 OFF、状態・URL・エラーの表示、設定復元、資格情報の失効が操作できる
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-23
-      title: 閲覧の簡単設定と文書選択
-      places: app-core・desktop
-      prereq: R49-22・40
-      done_criteria: 全体閲覧で追加文書も取得でき、指定文書と旧設定の権限を広げず、検索・選択で設定できる
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-30
-      title: トレイと画面非表示での起動
-      places: desktop
-      prereq: R49-10・12・22
-      done_criteria: 窓なし起動・隠す・戻す・承認待ちを開く・終了が機能し、常駐だけでは待受しない
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-31
-      title: ワークスペース所有と独立 CLI の制御
-      places: app-core・desktop・cli
-      prereq: R49-11・20
-      done_criteria: 二重起動と所有中の独立 CLI の書込を防ぎ、終了後は所有を引き継げる
-      state: done
-      state_on: 2026-10-31
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-40
-      title: API の型・契約・読み取り
-      places: local-server・app-core
-      prereq: R49-11・21・31
-      done_criteria: OpenAPI と実応答が一致し、検索・詳細・ビュー・検証の版と出どころが返る
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-41
-      title: API の業務操作・変更提案・直接確定
-      places: local-server・app-core・desktop
-      prereq: R49-12・23・31・40
-      done_criteria: 業務データの変更権限と操作名を選択し、提案・直接確定・業務操作・結果照会が既存経路で完結
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-42
-      title: CLI の明示的な接続モード
-      places: cli・local-server の client
-      prereq: R49-41
-      done_criteria: 対応する読取・業務操作を API 経由で行い、API OFF・無権限では独立書込へ迂回しない
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-50
-      title: MCP のツールと作業管理
-      places: local-server・app-core
-      prereq: R49-12・21・31・41
-      done_criteria: 外部 AI の読取・編集・検証・提案・直接確定・破棄が動き、内蔵 LLM に依存しない
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-51
-      title: MCP の相互運用と再接続
-      places: local-server・repo-tests
-      prereq: R49-50
-      done_criteria: SDK クライアントと Inspector で、初期化・取消・期限切れ・再接続・停止を確認
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-60
-      title: Web のビルドと配信・認証
-      places: web-ui・local-server・desktop
-      prereq: R49-21・40
-      done_criteria: 同梱資源だけで画面を開け、API OFF・Web ON で業務通信が成立
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-61
-      title: ダッシュボードと業務詳細
-      places: web-ui・app-core
-      prereq: R49-60
-      done_criteria: 表・集計・チャート・基準日・参照・保留理由が同じ版のサーバ結果と一致
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-62
-      title: 業務操作の入力・確認・適用
-      places: web-ui・app-core
-      prereq: R49-41・61
-      done_criteria: 定義から入力を作り、古い確認と未保存の競合を止めて適用後に再取得
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-70
-      title: 通し試験と操作体験の確認
-      places: 各モジュール・結合試験
-      prereq: R49-30・42・51・62
-      done_criteria: 開発環境で下記の必須受入条件を確認し、制約と試し方を記録（配布物固有の検査は R49-71）
-      state: done
-      state_on: 2026-11-01
-      state_note: '[記録](archive/roadmap-history.md)'
-    - id: R49-71
-      title: 文書・同梱・配布検査
-      places: manual・FEATURES・architecture・配布工程
-      prereq: R49-70
-      done_criteria: Node なしの配布物で接続・Web・トレイを検査し、追加依存のライセンスを同梱
-      state: todo
-    - id: R49-72
-      title: オーナーによる約 2 週間の試用
-      places: 試用版・BACKLOG
-      prereq: R49-71
-      done_criteria: 一通り開発した機能を試用し、不具合・使用感・追加機能の要望を整理
-      state: todo
-    - id: R49-73
-      title: 試用を受けた機能追加・改善
-      places: 対象モジュール・文書・テスト
-      prereq: R49-72
-      done_criteria: 試用で合意した追加・改善を実装し、受入・回帰・配布検査を再実施
-      state: todo
-    - id: R49-80
-      title: v0.3.0 のリリース準備
-      places: gradle.properties・変更履歴・配布本文
-      prereq: R49-73
-      done_criteria: 試用後の追加・改善を含む全テスト・docs-lint・Windows ZIP・SHA-256・本文・実機確認の結果がそろう
-      state: todo
-  - text: |-
-      依存の主経路は「契約・依存確認 → 共通状態・変更契約 → 接続制御・認証 → API / MCP / Web → 通し試験・配布検査 → 約 2 週間の試用 → 機能追加・改善と再検証 → リリース」である。
-      工程上は API と MCP の入口を独立に進められるが、共通状態の移行とセッションの排他は先に確定する。
-      API の公開前に R49-31 の所有権管理まで通し、各経路の試験中も設定を暗黙に ON にしない。
-      R49-00 では新モジュールを SourceScanner・ModuleRules・SourceRules の検査へ登録し、app-core とカーネルへ通信・画面依存が入ることを機械で止める。
+          Core Calculus の位置づけは、読取が Term / Query、表示値が Expression / Aggregate、前提と検証が Predicate、操作入力の準備が Construct、変更計画が Rewrite である。
+          通信・認証・接続の ON/OFF は実行基盤の責務で、新しい業務語彙・評価器・原本への書込経路を追加しない。
+          既存の規律は [workspace](architecture/workspace.md)・[actions](architecture/actions.md)・[agents](architecture/agents.md)・[dashboards](architecture/dashboards.md) を参照する。
+  - title: 実施順序
+    body:
+      - text: |-
+          各行は一つ以上の小さな実装単位に分け、挙動変更と対応するテスト・文書を同じコミットへ含める。
+          段階を飛ばして外部への更新を公開せず、前提の受入条件が通ってから次へ進む。
+          日程は初期の依存検証と共通状態の移行結果を見て見積もり、未確認の工数を確約しない。
+      - columns: work
+        items:
+          - id: R49-00
+            title: 契約と境界を ADR にする
+            places: decisions・CONVENTIONS・規則テスト
+            prereq: 本計画
+            done_criteria: ADR-0013 の入口構成への追加と、三つのスイッチ・共通状態・公開範囲が確定
+            state: done
+            state_on: 2026-10-31
+            state_note: ADR-0016・規則20
+          - id: R49-01
+            title: 依存の組込み検証
+            places: local-server・gradle・配布検査
+            prereq: R49-00
+            done_criteria: SDK・Ktor・Serialization の組合せで既存テストと同梱ランタイムの最小起動が通る
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-10
+            title: 共通状態と通知の所有を移す
+            places: app-core・desktop・workspace-core
+            prereq: R49-01
+            done_criteria: AppState が共通状態を受け取り、画面の開閉でセッション・履歴・監視を失わない
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-11
+            title: 操作計画・適用の共通契約
+            places: app-core・workspace-core
+            prereq: R49-10
+            done_criteria: 未保存・古い計画・権限変更・二重要求・保存失敗と、ADR-0017 の外部確定・履歴失効を同じ窓口で扱う
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-12
+            title: 作業と提出・承認を共通化
+            places: app-core・agent・desktop
+            prereq: R49-11
+            done_criteria: 外部作業の提出を受信箱で承認でき、再起動後も提出と結果が残る
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-20
+            title: 接続の状態機械と三つのスイッチ
+            places: local-server・desktop
+            prereq: R49-10
+            done_criteria: 全八組合せと起動中・停止中の切替で、待受と経路が上の表に一致
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-21
+            title: 接続認証と能力別の受付
+            places: local-server・app-core
+            prereq: R49-20
+            done_criteria: 無権限・別機能の資格情報・停止後の接続・不正 Origin を拒否
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-22
+            title: 設定画面と旧版からの更新
+            places: desktop
+            prereq: R49-20・21
+            done_criteria: 初期値 OFF、状態・URL・エラーの表示、設定復元、資格情報の失効が操作できる
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-23
+            title: 閲覧の簡単設定と文書選択
+            places: app-core・desktop
+            prereq: R49-22・40
+            done_criteria: 全体閲覧で追加文書も取得でき、指定文書と旧設定の権限を広げず、検索・選択で設定できる
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-30
+            title: トレイと画面非表示での起動
+            places: desktop
+            prereq: R49-10・12・22
+            done_criteria: 窓なし起動・隠す・戻す・承認待ちを開く・終了が機能し、常駐だけでは待受しない
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-31
+            title: ワークスペース所有と独立 CLI の制御
+            places: app-core・desktop・cli
+            prereq: R49-11・20
+            done_criteria: 二重起動と所有中の独立 CLI の書込を防ぎ、終了後は所有を引き継げる
+            state: done
+            state_on: 2026-10-31
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-40
+            title: API の型・契約・読み取り
+            places: local-server・app-core
+            prereq: R49-11・21・31
+            done_criteria: OpenAPI と実応答が一致し、検索・詳細・ビュー・検証の版と出どころが返る
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-41
+            title: API の業務操作・変更提案・直接確定
+            places: local-server・app-core・desktop
+            prereq: R49-12・23・31・40
+            done_criteria: 業務データの変更権限と操作名を選択し、提案・直接確定・業務操作・結果照会が既存経路で完結
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-42
+            title: CLI の明示的な接続モード
+            places: cli・local-server の client
+            prereq: R49-41
+            done_criteria: 対応する読取・業務操作を API 経由で行い、API OFF・無権限では独立書込へ迂回しない
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-50
+            title: MCP のツールと作業管理
+            places: local-server・app-core
+            prereq: R49-12・21・31・41
+            done_criteria: 外部 AI の読取・編集・検証・提案・直接確定・破棄が動き、内蔵 LLM に依存しない
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-51
+            title: MCP の相互運用と再接続
+            places: local-server・repo-tests
+            prereq: R49-50
+            done_criteria: SDK クライアントと Inspector で、初期化・取消・期限切れ・再接続・停止を確認
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-60
+            title: Web のビルドと配信・認証
+            places: web-ui・local-server・desktop
+            prereq: R49-21・40
+            done_criteria: 同梱資源だけで画面を開け、API OFF・Web ON で業務通信が成立
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-61
+            title: ダッシュボードと業務詳細
+            places: web-ui・app-core
+            prereq: R49-60
+            done_criteria: 表・集計・チャート・基準日・参照・保留理由が同じ版のサーバ結果と一致
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-62
+            title: 業務操作の入力・確認・適用
+            places: web-ui・app-core
+            prereq: R49-41・61
+            done_criteria: 定義から入力を作り、古い確認と未保存の競合を止めて適用後に再取得
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-70
+            title: 通し試験と操作体験の確認
+            places: 各モジュール・結合試験
+            prereq: R49-30・42・51・62
+            done_criteria: 開発環境で下記の必須受入条件を確認し、制約と試し方を記録（配布物固有の検査は R49-71）
+            state: done
+            state_on: 2026-11-01
+            state_note: '[記録](archive/roadmap-history.md)'
+          - id: R49-71
+            title: 文書・同梱・配布検査
+            places: manual・FEATURES・architecture・配布工程
+            prereq: R49-70
+            done_criteria: Node なしの配布物で接続・Web・トレイを検査し、追加依存のライセンスを同梱
+            state: todo
+          - id: R49-72
+            title: オーナーによる約 2 週間の試用
+            places: 試用版・BACKLOG
+            prereq: R49-71
+            done_criteria: 一通り開発した機能を試用し、不具合・使用感・追加機能の要望を整理
+            state: todo
+          - id: R49-73
+            title: 試用を受けた機能追加・改善
+            places: 対象モジュール・文書・テスト
+            prereq: R49-72
+            done_criteria: 試用で合意した追加・改善を実装し、受入・回帰・配布検査を再実施
+            state: todo
+          - id: R49-80
+            title: v0.3.0 のリリース準備
+            places: gradle.properties・変更履歴・配布本文
+            prereq: R49-73
+            done_criteria: 試用後の追加・改善を含む全テスト・docs-lint・Windows ZIP・SHA-256・本文・実機確認の結果がそろう
+            state: todo
+      - text: |-
+          依存の主経路は「契約・依存確認 → 共通状態・変更契約 → 接続制御・認証 → API / MCP / Web → 通し試験・配布検査 → 約 2 週間の試用 → 機能追加・改善と再検証 → リリース」である。
+          工程上は API と MCP の入口を独立に進められるが、共通状態の移行とセッションの排他は先に確定する。
+          API の公開前に R49-31 の所有権管理まで通し、各経路の試験中も設定を暗黙に ON にしない。
+          R49-00 では新モジュールを SourceScanner・ModuleRules・SourceRules の検査へ登録し、app-core とカーネルへ通信・画面依存が入ることを機械で止める。
 
-      R49-11・12・20・21・22・30 の実装と受入検証の記録は [実装記録](archive/roadmap-history.md)、現在の契約と部品は [ローカル接続](architecture/local-connections.md) にある。
-      提案と直接確定は別権限・別方式とする（ADR-0019）。MCP の作業経路も共通の WorkspaceWork を使い、両方式と破棄・結果照会を公開する。
-- title: 必須受入条件
-  body:
-  - text: |-
-      | 観点 | 操作・条件 | 合格条件 |
-      |---|---|---|
-      | 未使用時 | 新規導入・v0.2.0 の設定で起動し、すべて OFF のまま常駐 | 本機能の TCP 待受がゼロで、通常編集・保存・履歴が動く |
-      | 八組合せ | API・MCP・Web の全組合せで再起動と実行中切替 | ソケットと全経路を実際に調べ、待受表と一致 |
-      | 単独利用 | Web だけ ON、API だけ ON、MCP だけ ON | 各機能が独立して使え、ほかの経路と資格情報では利用できない |
-      | 停止 | 開いたブラウザ・MCP ストリーム・keep-alive がある状態で OFF | 新規操作を拒否し、停止完了後の接続が閉じ、最後の OFF でポート解放 |
-      | 切替競合 | 起動中の OFF、連続切替、ポート占有、停止失敗 | 二重サーバ・偽の稼働表示・無断の別ポート待受がない |
-      | 権限 | トークンなし・期限切れ・別機能のトークン・不正 Origin・任意ファイル要求 | 拒否され、原本と作業コピーを変更しない |
-      | ワークスペース切替 | 接続と作業が残ったまま別のワークスペースへ切替 | 旧 ID の誤適用と新しい対象の自動公開がなく、明示した許可の範囲を保つ |
-      | 並行操作 | desktop・API・MCP・Web から同じ対象を変更 | 順序と版が管理され、未保存内容や解析不能な下書きを上書きしない |
-      | 古い確認 | 操作確認後にデータ・定義・対象・入力・権限を変更 | 古い計画を適用せず、再確認へ戻す |
-      | 再送と中断 | 同じ更新要求を再送し、応答切断・保存失敗・再起動も試す | 二重適用せず、結果不明・部分保存を成功扱いしない |
-      | 履歴と監視 | 外部から確定し、画面から結果と Undo を確認 | 外部確定を Undo に載せず、競合する一手で停止し、無関係な編集と履歴・監視を保持 |
-      | 提出と復旧 | MCP で提案し、画面非表示・再接続・再起動を行う | 提出済みの差分と状態が残り、再検証前に自動適用しない |
-      | 複数プロセス | 二つの YDE と独立 CLI で同じワークスペースへ書く | 所有者以外の書込を拒否し、API OFF の迂回路を作らない |
-      | Web の意味 | todos と orders の写しで表示・条件・操作を比較 | 同じ版・基準日・入力の共通結果と一致し、保留とゼロ件を区別 |
-      | 常駐の寿命 | 窓を閉じて外部操作し、戻して完全終了 | 隠す間は状態が継続し、完全終了時に未保存・処理を扱って待受を解放 |
-      | 配布 | Java・Node 未導入の Windows 環境で ZIP を展開 | 同梱ランタイムと資源で動き、既定では待受せず、ライセンスがそろう |
+          R49-11・12・20・21・22・30 の実装と受入検証の記録は [実装記録](archive/roadmap-history.md)、現在の契約と部品は [ローカル接続](architecture/local-connections.md) にある。
+          提案と直接確定は別権限・別方式とする（ADR-0019）。MCP の作業経路も共通の WorkspaceWork を使い、両方式と破棄・結果照会を公開する。
+  - title: 必須受入条件
+    body:
+      - text: |-
+          | 観点 | 操作・条件 | 合格条件 |
+          |---|---|---|
+          | 未使用時 | 新規導入・v0.2.0 の設定で起動し、すべて OFF のまま常駐 | 本機能の TCP 待受がゼロで、通常編集・保存・履歴が動く |
+          | 八組合せ | API・MCP・Web の全組合せで再起動と実行中切替 | ソケットと全経路を実際に調べ、待受表と一致 |
+          | 単独利用 | Web だけ ON、API だけ ON、MCP だけ ON | 各機能が独立して使え、ほかの経路と資格情報では利用できない |
+          | 停止 | 開いたブラウザ・MCP ストリーム・keep-alive がある状態で OFF | 新規操作を拒否し、停止完了後の接続が閉じ、最後の OFF でポート解放 |
+          | 切替競合 | 起動中の OFF、連続切替、ポート占有、停止失敗 | 二重サーバ・偽の稼働表示・無断の別ポート待受がない |
+          | 権限 | トークンなし・期限切れ・別機能のトークン・不正 Origin・任意ファイル要求 | 拒否され、原本と作業コピーを変更しない |
+          | ワークスペース切替 | 接続と作業が残ったまま別のワークスペースへ切替 | 旧 ID の誤適用と新しい対象の自動公開がなく、明示した許可の範囲を保つ |
+          | 並行操作 | desktop・API・MCP・Web から同じ対象を変更 | 順序と版が管理され、未保存内容や解析不能な下書きを上書きしない |
+          | 古い確認 | 操作確認後にデータ・定義・対象・入力・権限を変更 | 古い計画を適用せず、再確認へ戻す |
+          | 再送と中断 | 同じ更新要求を再送し、応答切断・保存失敗・再起動も試す | 二重適用せず、結果不明・部分保存を成功扱いしない |
+          | 履歴と監視 | 外部から確定し、画面から結果と Undo を確認 | 外部確定を Undo に載せず、競合する一手で停止し、無関係な編集と履歴・監視を保持 |
+          | 提出と復旧 | MCP で提案し、画面非表示・再接続・再起動を行う | 提出済みの差分と状態が残り、再検証前に自動適用しない |
+          | 複数プロセス | 二つの YDE と独立 CLI で同じワークスペースへ書く | 所有者以外の書込を拒否し、API OFF の迂回路を作らない |
+          | Web の意味 | todos と orders の写しで表示・条件・操作を比較 | 同じ版・基準日・入力の共通結果と一致し、保留とゼロ件を区別 |
+          | 常駐の寿命 | 窓を閉じて外部操作し、戻して完全終了 | 隠す間は状態が継続し、完全終了時に未保存・処理を扱って待受を解放 |
+          | 配布 | Java・Node 未導入の Windows 環境で ZIP を展開 | 同梱ランタイムと資源で動き、既定では待受せず、ライセンスがそろう |
 
-      待受の検査は、設定値の単体試験に加え、配布プロセスの PID に属する OS の待受一覧と実際の接続で確かめる。
-      試験用のポートは分離し、終了後にサーバ・子プロセスを回収する。
-      単体・契約テストは疑似時刻と SDK のテスト用通信、HTTP は Ktor testApplication を使い、外部 AI の実 API を呼ばない。
-      Web は Vitest と Playwright、desktop は既存 Compose UI テストと [ui-check](../.claude/skills/ui-check/SKILL.md) で確認する。
-      変更を伴う試験では samples・test-fixtures を一時領域へコピーし、labs の差分へ触れない。
+          待受の検査は、設定値の単体試験に加え、配布プロセスの PID に属する OS の待受一覧と実際の接続で確かめる。
+          試験用のポートは分離し、終了後にサーバ・子プロセスを回収する。
+          単体・契約テストは疑似時刻と SDK のテスト用通信、HTTP は Ktor testApplication を使い、外部 AI の実 API を呼ばない。
+          Web は Vitest と Playwright、desktop は既存 Compose UI テストと [ui-check](../.claude/skills/ui-check/SKILL.md) で確認する。
+          変更を伴う試験では samples・test-fixtures を一時領域へコピーし、labs の差分へ触れない。
 
-      試用の導線は、todos の写しで「Web だけ ON → TODO の詳細 → 完了を確認・適用 → desktop で履歴を確認」、
-      「MCP だけ ON → 外部から変更を提案 → トレイから承認待ちを開く → 差分を適用」、
-      「API だけ ON → 作業コピーの差分を確認 → 直接確定 → desktop へ反映」、
-      「最後の機能を OFF → 接続失敗とポート解放を確認」の四つを最初に用意する。
-      orders の写しでは月別・顧客別の集計とチャート、絞り込み、業務操作後の再取得を確かめる。
-- title: 完了とリリース
-  body:
-  - text: |-
-      開発段階ごとに全モジュールの `./gradlew test` と docs-lint を通す。
-      実装できた機能だけを FEATURES と manual に載せ、責務・流れ・公開契約は architecture へ反映する。
-      語彙を増やす場合はメタスキーマ・設計 UI・Core Calculus の分類と規約も確認する。
-      完了した作業の詳細は archive へ移し、テーマ全体の完了時にこの本文も archive/roadmap-history.md へ移す。
+          試用の導線は、todos の写しで「Web だけ ON → TODO の詳細 → 完了を確認・適用 → desktop で履歴を確認」、
+          「MCP だけ ON → 外部から変更を提案 → トレイから承認待ちを開く → 差分を適用」、
+          「API だけ ON → 作業コピーの差分を確認 → 直接確定 → desktop へ反映」、
+          「最後の機能を OFF → 接続失敗とポート解放を確認」の四つを最初に用意する。
+          orders の写しでは月別・顧客別の集計とチャート、絞り込み、業務操作後の再取得を確かめる。
+  - title: 完了とリリース
+    body:
+      - text: |-
+          開発段階ごとに全モジュールの `./gradlew test` と docs-lint を通す。
+          実装できた機能だけを FEATURES と manual に載せ、責務・流れ・公開契約は architecture へ反映する。
+          語彙を増やす場合はメタスキーマ・設計 UI・Core Calculus の分類と規約も確認する。
+          完了した作業の詳細は archive へ移し、テーマ全体の完了時にこの本文も archive/roadmap-history.md へ移す。
 
-      全必須範囲の開発・受入と配布検査を終えた後、オーナーが約 2 週間試用する。試用開始日は開発完了後に決め、期間の経過だけでリリースへ進まない。
-      試用中の指摘・追加機能の要望を BACKLOG に整理し、合意した機能追加・改善を実装して受入・回帰・配布検査を再実施する。
-      その後のリリース段階で、[配布手順](releasing.md)と [release](../.claude/skills/release/SKILL.md) に従って appVersion を 0.3.0 にする。
-      追加依存は JVM と npm の両方のライセンスを配布物へ入れ、Web 資源・ローカルサーバ・停止の検査を Windows 配布検査へ加える。
-      公開本文に初期値 OFF、機能別の有効化、Web の対応範囲、ローカル限定、更新時の設定の扱いを明記する。
-      本計画の作成では版・タグ・配布物を変更せず、GitHub への公開は公開の依頼時に行う。
+          全必須範囲の開発・受入と配布検査を終えた後、オーナーが約 2 週間試用する。試用開始日は開発完了後に決め、期間の経過だけでリリースへ進まない。
+          試用中の指摘・追加機能の要望を BACKLOG に整理し、合意した機能追加・改善を実装して受入・回帰・配布検査を再実施する。
+          その後のリリース段階で、[配布手順](releasing.md)と [release](../.claude/skills/release/SKILL.md) に従って appVersion を 0.3.0 にする。
+          追加依存は JVM と npm の両方のライセンスを配布物へ入れ、Web 資源・ローカルサーバ・停止の検査を Windows 配布検査へ加える。
+          公開本文に初期値 OFF、機能別の有効化、Web の対応範囲、ローカル限定、更新時の設定の扱いを明記する。
+          本計画の作成では版・タグ・配布物を変更せず、GitHub への公開は公開の依頼時に行う。
 history:
-- id: RH-046
-  title: 'P49: ローカル接続の設計契約と依存検証（R49-00・01 完了、2026-10-31）'
-  body:
-  - text: |-
-      v0.3.0 に向けた最初の工程。テーマ全体は未完で、通常起動からサーバへはまだ接続しない。
-      ADR-0016 で単一プロセス・共通状態・三機能の独立切替・既定 OFF・最後の停止で待受解放・業務操作の共有契約を決めた。
-      local-server（`server`）を追加し、規則20で Ktor/MCP の import と直接依存、入口への逆依存を検査する。
-      SDK 0.16.0・Ktor/CIO 3.5.2・Serialization 1.11.0 を採用し、Kotlin 2.4.21・Coroutines 1.11.0 と組み合わせた。
-      通信依存は version catalog と local-server の lockfile へ集約した。Serialization の旧宣言 1.7.3 は共通の 1.11.0 へ揃えた。
+  - id: RH-046
+    title: 'P49: ローカル接続の設計契約と依存検証（R49-00・01 完了、2026-10-31）'
+    body:
+      - text: |-
+          v0.3.0 に向けた最初の工程。テーマ全体は未完で、通常起動からサーバへはまだ接続しない。
+          ADR-0016 で単一プロセス・共通状態・三機能の独立切替・既定 OFF・最後の停止で待受解放・業務操作の共有契約を決めた。
+          local-server（`server`）を追加し、規則20で Ktor/MCP の import と直接依存、入口への逆依存を検査する。
+          SDK 0.16.0・Ktor/CIO 3.5.2・Serialization 1.11.0 を採用し、Kotlin 2.4.21・Coroutines 1.11.0 と組み合わせた。
+          通信依存は version catalog と local-server の lockfile へ集約した。Serialization の旧宣言 1.7.3 は共通の 1.11.0 へ揃えた。
 
-      - LocalConnectionSettings は三機能 OFF を既定にし、利用者指定ポートの範囲を検査する。
-      - LoopbackEngine は生成で待受せず、明示起動の `127.0.0.1` 固定と終了、ポート占有時の失敗を持つ。
-      - 検査用の経路とツールは test のみに置き、製品に公開しない。
-      - Ktor のインメモリ通信で JSON の値と日本語、公式 SDK クライアントによる初期化・一覧・ツールを確認した。
-      - 実ソケットと Windows 同梱ランタイムで HTTP/MCP 往復、停止、接続拒否と再バインドを確認した。
-      - ポート占有の検査では CIO が BindException を標準エラーへ出す。検査はその起動失敗を期待して確認するため、ビルドの失敗ではない。
-      - `./gradlew test` は成功。既存 AI・CLI・編集と規則・文書参照も通った。docs-lint は失敗なし、目安の指摘は既存の 88 件。
-      - `verifyWindowsDistribution --no-parallel` は成功。追加した Ktor/MCP の表示とソース取得案内も配布物に含まれる。
+          - LocalConnectionSettings は三機能 OFF を既定にし、利用者指定ポートの範囲を検査する。
+          - LoopbackEngine は生成で待受せず、明示起動の `127.0.0.1` 固定と終了、ポート占有時の失敗を持つ。
+          - 検査用の経路とツールは test のみに置き、製品に公開しない。
+          - Ktor のインメモリ通信で JSON の値と日本語、公式 SDK クライアントによる初期化・一覧・ツールを確認した。
+          - 実ソケットと Windows 同梱ランタイムで HTTP/MCP 往復、停止、接続拒否と再バインドを確認した。
+          - ポート占有の検査では CIO が BindException を標準エラーへ出す。検査はその起動失敗を期待して確認するため、ビルドの失敗ではない。
+          - `./gradlew test` は成功。既存 AI・CLI・編集と規則・文書参照も通った。docs-lint は失敗なし、目安の指摘は既存の 88 件。
+          - `verifyWindowsDistribution --no-parallel` は成功。追加した Ktor/MCP の表示とソース取得案内も配布物に含まれる。
 
-      ここでの Core Calculus 上の追加は実行基盤だけ。業務の評価器や原本への書込経路を増やしていない。
-      設定画面・認証・共通状態・業務 API/MCP/Web・トレイ常駐は後続の工程で、外部版は 0.2.0 のままにした。
-- id: RH-047
-  title: 'P49: 共通状態と通知の所有（R49-10 完了、2026-10-31）'
-  body:
-  - text: |-
-      WorkspaceHost が DocumentSession と共通の通知を持ち、AppState はその状態を画面へ写す。
-      保存済みの索引と編集用セッション、カーネルの単一履歴は分離を維持した。
-      DesktopRuntime が Window の外で監視・自動実行・手動実行・下書き解析を所有し、切替と終了で子ジョブを閉じる。
-      切替先の読込失敗では旧状態と実行を残す。監視登録直後にも本文を確認し、登録までの変更を取りこぼさない。
+          ここでの Core Calculus 上の追加は実行基盤だけ。業務の評価器や原本への書込経路を増やしていない。
+          設定画面・認証・共通状態・業務 API/MCP/Web・トレイ常駐は後続の工程で、外部版は 0.2.0 のままにした。
+  - id: RH-047
+    title: 'P49: 共通状態と通知の所有（R49-10 完了、2026-10-31）'
+    body:
+      - text: |-
+          WorkspaceHost が DocumentSession と共通の通知を持ち、AppState はその状態を画面へ写す。
+          保存済みの索引と編集用セッション、カーネルの単一履歴は分離を維持した。
+          DesktopRuntime が Window の外で監視・自動実行・手動実行・下書き解析を所有し、切替と終了で子ジョブを閉じる。
+          切替先の読込失敗では旧状態と実行を残す。監視登録直後にも本文を確認し、登録までの変更を取りこぼさない。
 
-      - SourceDraftWorker が未反映の入力も保持し、古い解析結果を退け、複数文書の入力順に履歴を反映する。
-      - 文書の共有購読は複数にし、Compose の写しは破棄した描画からの購読が残らない形を維持した。
-      - ファイル配置とその Undo/Redo は独立した作業状態で IO を実行し、所有スレッドで結果を採用する。
-      - 処理中は編集・切替・接続の受付を止め、監視と解析の反映を待たせる。書込開始後の取消でも反映を完了する。
-      - WorkspaceHostTest・DesktopRuntimeTest・BackgroundFileOperationTest で、画面なしの継続、切替失敗、古い世代、監視の終了、取消、外部変更との競合を確認した。
-      - `./gradlew test` は成功。既存の編集・履歴・Compose の試験、ソース規則と文書参照を含む。docs-lint はエラーなし。
-      - 手動確認の台本は UX-SCENARIOS に追加した。エージェントによる実画面の操作確認は未実施だが、オーナーから動作確認済みの返答を受けた。
+          - SourceDraftWorker が未反映の入力も保持し、古い解析結果を退け、複数文書の入力順に履歴を反映する。
+          - 文書の共有購読は複数にし、Compose の写しは破棄した描画からの購読が残らない形を維持した。
+          - ファイル配置とその Undo/Redo は独立した作業状態で IO を実行し、所有スレッドで結果を採用する。
+          - 処理中は編集・切替・接続の受付を止め、監視と解析の反映を待たせる。書込開始後の取消でも反映を完了する。
+          - WorkspaceHostTest・DesktopRuntimeTest・BackgroundFileOperationTest で、画面なしの継続、切替失敗、古い世代、監視の終了、取消、外部変更との競合を確認した。
+          - `./gradlew test` は成功。既存の編集・履歴・Compose の試験、ソース規則と文書参照を含む。docs-lint はエラーなし。
+          - 手動確認の台本は UX-SCENARIOS に追加した。エージェントによる実画面の操作確認は未実施だが、オーナーから動作確認済みの返答を受けた。
 
-      ADR-0017 で、外部の確定を Undo 対象にせず、変更文書に触れる履歴で停止する契約を決めた。
-      この契約の適用は R49-11 で実装する。業務 API/MCP/Web、設定の独立 ON/OFF とトレイは未公開で、外部版は 0.2.0 のまま。
-- id: RH-048
-  title: 'P49: 外部確定の共通契約（R49-11 完了、2026-10-31）'
-  body:
-  - text: |-
-      オーナー確認により、外部確定は変更対象と影響先に既存も含む検証エラーが残れば拒否し、警告だけなら許可する。
-      通常のデスクトップ編集と内蔵エージェントの既存の検証設定は維持する。
-  - head: |-
-      | 単位 | 実装した内容 |
-      |---|---|
-    rows:
-    - id: R49-11a
-      title: ChangeSetApplier.prepare / applyPrepared で自動値を含む候補を固定し、保存済み・変更なし・未保存・結果不明を文書別に返す
-      parent: R49-11
-    - id: R49-11b
-      title: 独立セッションの結果を DocumentSession が採用し、外部確定を Undo へ追加せず、競合する一手を止める
-      parent: R49-11
-    - id: R49-11c
-      title: WorkspaceOperations が計画 ID・世代・版・権限・文書一覧と本文・期限を結び付け、未保存と下書きを保護する
-      parent: R49-11
-    - id: R49-11d
-      title: OperationJournal が要求 ID と結果を永続化し、再送の二重適用・結果不明の別 ID での迂回を防ぐ
-      parent: R49-11
-    - id: R49-11e
-      title: 既存の適用窓口を同じカーネルへ接続し、DesktopRuntime に既定で全拒否の操作窓口を置く
-      parent: R49-11
-  - text: |-
-      計画は 10 分・256 件まで。結果の記録は runs 領域の専用ディレクトリで、既定 10,000 件・1 件 1 MiB、削除で要求 ID を忘れない。
-      開始を原子的な置換と flush で記録してから書き込み、途中の保存失敗も実際の内容を画面へ採用する。
-      結果照会は編集を待たせず、読み取りの前後で世代と権限を確認する。
-      再起動後の実行中は結果不明として止め、現在の全対象ハッシュを明示確認して照合済みにする。元の要求は再実行しない。
+          ADR-0017 で、外部の確定を Undo 対象にせず、変更文書に触れる履歴で停止する契約を決めた。
+          この契約の適用は R49-11 で実装する。業務 API/MCP/Web、設定の独立 ON/OFF とトレイは未公開で、外部版は 0.2.0 のまま。
+  - id: RH-048
+    title: 'P49: 外部確定の共通契約（R49-11 完了、2026-10-31）'
+    body:
+      - text: |-
+          オーナー確認により、外部確定は変更対象と影響先に既存も含む検証エラーが残れば拒否し、警告だけなら許可する。
+          通常のデスクトップ編集と内蔵エージェントの既存の検証設定は維持する。
+      - head: |-
+          | 単位 | 実装した内容 |
+          |---|---|
+        rows:
+          - id: R49-11a
+            title: ChangeSetApplier.prepare / applyPrepared で自動値を含む候補を固定し、保存済み・変更なし・未保存・結果不明を文書別に返す
+            parent: R49-11
+          - id: R49-11b
+            title: 独立セッションの結果を DocumentSession が採用し、外部確定を Undo へ追加せず、競合する一手を止める
+            parent: R49-11
+          - id: R49-11c
+            title: WorkspaceOperations が計画 ID・世代・版・権限・文書一覧と本文・期限を結び付け、未保存と下書きを保護する
+            parent: R49-11
+          - id: R49-11d
+            title: OperationJournal が要求 ID と結果を永続化し、再送の二重適用・結果不明の別 ID での迂回を防ぐ
+            parent: R49-11
+          - id: R49-11e
+            title: 既存の適用窓口を同じカーネルへ接続し、DesktopRuntime に既定で全拒否の操作窓口を置く
+            parent: R49-11
+      - text: |-
+          計画は 10 分・256 件まで。結果の記録は runs 領域の専用ディレクトリで、既定 10,000 件・1 件 1 MiB、削除で要求 ID を忘れない。
+          開始を原子的な置換と flush で記録してから書き込み、途中の保存失敗も実際の内容を画面へ採用する。
+          結果照会は編集を待たせず、読み取りの前後で世代と権限を確認する。
+          再起動後の実行中は結果不明として止め、現在の全対象ハッシュを明示確認して照合済みにする。元の要求は再実行しない。
 
-      WorkingCopy の影響先検証をカーネルの ChangeSetValidation へ寄せた。
-      変更前後の ID・文書への参照元に加え、参照を介さない横断検査の結果が変わる文書を含める。
-      定義文書のローダによる提出ゲートは agent に残し、逆依存を増やしていない。
+          WorkingCopy の影響先検証をカーネルの ChangeSetValidation へ寄せた。
+          変更前後の ID・文書への参照元に加え、参照を介さない横断検査の結果が変わる文書を含める。
+          定義文書のローダによる提出ゲートは agent に残し、逆依存を増やしていない。
 
-      試験は ExternalCommitTest と WorkspaceOperationsTest。履歴の停止・Redo 保持・自動値・部分保存・記録失敗・取消・再送・権限・期限・下書き保護・復旧を対象にした。
-      作業コピー由来の新規文書はコメントを保持する。既存の変更セット YAML 読込でコメントを落とす件は UX-226 へ記録し、この工程では変更していない。
-      通信の公開、接続権限の登録、提出・承認・復旧の画面は後続工程。既存のデスクトップ編集と内蔵レビューは一手の Undo を維持する。
-      全モジュールの `./gradlew test` が成功し、新規のカーネル 7 件・サービス 13 件と既存の編集・ステージング・CLI・規則を確認した。
-      試し方は UX-SCENARIOS に記録した。実画面の手動確認は未実施で、通信や新しい画面操作の公開は後続工程で行う。
-- id: RH-049
-  title: 'P49: 外部作業の提出・承認（R49-12 完了、2026-10-31）'
-  body:
-  - text: R49-11 を c292aef でコミットしてから着手した。接続と別の作業 ID を発行し、提出・採否・保存結果を再起動後も照会できるようにした。
-  - head: |-
-      | 単位 | 実装した内容 |
-      |---|---|
-    rows:
-    - id: R49-12a
-      title: WorkspaceWork が開始・編集・検証・提出・破棄・照会を管理し、提案権限とデスクトップ専用の承認を分ける
-      parent: R49-12
-    - id: R49-12b
-      title: WorkJournal が runs 領域の local-work に提出内容を保存し、WorkChanges がパッチのパスとコメントを復元する
-      parent: R49-12
-    - id: R49-12c
-      title: 承認は現在の差分と検証を確認後に WorkspaceOperations へ渡し、要求記録を正として中断・部分保存を復元する
-      parent: R49-12
-    - id: R49-12d
-      title: 受信箱へ外部提出の一覧・差分・検証・承認保存・却下・文書別の結果を表示する
-      parent: R49-12
-    - id: R49-12e
-      title: SubmissionChecks で提出ゲートを共用し、内蔵エージェントの設定・定義読込ゲート・Undo を維持する
-      parent: R49-12
-  - text: |-
-      作業コピーの編集は要求全体を独立コピーで採否する。パッチの値を適用先の木と分離し、入れ子への後続編集と再検証で過去のパッチを変えないよう補強した。
-      未提出はプロセス内で最大 64 件・変更セット 2 MiB。提出記録は既定 10,000 件・1 件 4 MiB とし、破損や保存失敗を無視しない。
-      提出後は内容を固定し、修正は新しい作業で行う。承認は全ファイルの保存を伴い、部分採用・外部 Undo は追加しない。
-      承認前と保存直前に権限を再確認し、検証エラー・未保存・競合・確認後の変更を拒否する。取消後も開始した確定は結果記録まで継続する。
-      提出側の最終記録失敗は OperationJournal から復元し、結果不明を自動再実行しない。結果照会と受信箱の再読込は編集を待たせない。
+          試験は ExternalCommitTest と WorkspaceOperationsTest。履歴の停止・Redo 保持・自動値・部分保存・記録失敗・取消・再送・権限・期限・下書き保護・復旧を対象にした。
+          作業コピー由来の新規文書はコメントを保持する。既存の変更セット YAML 読込でコメントを落とす件は UX-226 へ記録し、この工程では変更していない。
+          通信の公開、接続権限の登録、提出・承認・復旧の画面は後続工程。既存のデスクトップ編集と内蔵レビューは一手の Undo を維持する。
+          全モジュールの `./gradlew test` が成功し、新規のカーネル 7 件・サービス 13 件と既存の編集・ステージング・CLI・規則を確認した。
+          試し方は UX-SCENARIOS に記録した。実画面の手動確認は未実施で、通信や新しい画面操作の公開は後続工程で行う。
+  - id: RH-049
+    title: 'P49: 外部作業の提出・承認（R49-12 完了、2026-10-31）'
+    body:
+      - text: R49-11 を c292aef でコミットしてから着手した。接続と別の作業 ID を発行し、提出・採否・保存結果を再起動後も照会できるようにした。
+      - head: |-
+          | 単位 | 実装した内容 |
+          |---|---|
+        rows:
+          - id: R49-12a
+            title: WorkspaceWork が開始・編集・検証・提出・破棄・照会を管理し、提案権限とデスクトップ専用の承認を分ける
+            parent: R49-12
+          - id: R49-12b
+            title: WorkJournal が runs 領域の local-work に提出内容を保存し、WorkChanges がパッチのパスとコメントを復元する
+            parent: R49-12
+          - id: R49-12c
+            title: 承認は現在の差分と検証を確認後に WorkspaceOperations へ渡し、要求記録を正として中断・部分保存を復元する
+            parent: R49-12
+          - id: R49-12d
+            title: 受信箱へ外部提出の一覧・差分・検証・承認保存・却下・文書別の結果を表示する
+            parent: R49-12
+          - id: R49-12e
+            title: SubmissionChecks で提出ゲートを共用し、内蔵エージェントの設定・定義読込ゲート・Undo を維持する
+            parent: R49-12
+      - text: |-
+          作業コピーの編集は要求全体を独立コピーで採否する。パッチの値を適用先の木と分離し、入れ子への後続編集と再検証で過去のパッチを変えないよう補強した。
+          未提出はプロセス内で最大 64 件・変更セット 2 MiB。提出記録は既定 10,000 件・1 件 4 MiB とし、破損や保存失敗を無視しない。
+          提出後は内容を固定し、修正は新しい作業で行う。承認は全ファイルの保存を伴い、部分採用・外部 Undo は追加しない。
+          承認前と保存直前に権限を再確認し、検証エラー・未保存・競合・確認後の変更を拒否する。取消後も開始した確定は結果記録まで継続する。
+          提出側の最終記録失敗は OperationJournal から復元し、結果不明を自動再実行しない。結果照会と受信箱の再読込は編集を待たせない。
 
-      Core Calculus は既存の Predicate による検証、Rewrite → PatchOp → ChangeSetApplier による変更を再利用する。
-      作業 ID・採否・記録は実行基盤の責務で、新しい評価器・スキーマ語彙・原本への書込経路は増やしていない。
+          Core Calculus は既存の Predicate による検証、Rewrite → PatchOp → ChangeSetApplier による変更を再利用する。
+          作業 ID・採否・記録は実行基盤の責務で、新しい評価器・スキーマ語彙・原本への書込経路は増やしていない。
 
-      WorkspaceWorkTest と ExternalWorkPaneTest で、再起動・二重承認・権限失効・未保存・記録故障・取消・コメント保持・入れ子編集・画面からの保存と却下を検証した。
-      全モジュールの test と docs-lint が成功した。UI は Compose テストで操作を確認し、色や配置の実画面確認は未実施。
-      既存の内蔵パッチ途中失敗時の索引キャッシュについては UX-227 に別途記録した。
-      通信・接続登録・独立 ON/OFF・トレイは後続工程。外部版は 0.2.0 を維持し、次は R49-20 の接続別 ON/OFF と待受管理へ進む。
-- id: RH-050
-  title: 'P49: 接続の状態機械と独立 ON/OFF（R49-20 完了、2026-10-31）'
-  body:
-  - text: |-
-      R49-12 と R49-10〜12 の完了表記の統一を b54b006 でコミットしてから着手した。
-      LocalConnections が希望値と実状態を分け、API・MCP・Web の独立した切替と一つの loopback 待受を管理する。
-      全 OFF では待受の構築も行わず、検出・health 用の別ポートを作らない。
+          WorkspaceWorkTest と ExternalWorkPaneTest で、再起動・二重承認・権限失効・未保存・記録故障・取消・コメント保持・入れ子編集・画面からの保存と却下を検証した。
+          全モジュールの test と docs-lint が成功した。UI は Compose テストで操作を確認し、色や配置の実画面確認は未実施。
+          既存の内蔵パッチ途中失敗時の索引キャッシュについては UX-227 に別途記録した。
+          通信・接続登録・独立 ON/OFF・トレイは後続工程。外部版は 0.2.0 を維持し、次は R49-20 の接続別 ON/OFF と待受管理へ進む。
+  - id: RH-050
+    title: 'P49: 接続の状態機械と独立 ON/OFF（R49-20 完了、2026-10-31）'
+    body:
+      - text: |-
+          R49-12 と R49-10〜12 の完了表記の統一を b54b006 でコミットしてから着手した。
+          LocalConnections が希望値と実状態を分け、API・MCP・Web の独立した切替と一つの loopback 待受を管理する。
+          全 OFF では待受の構築も行わず、検出・health 用の別ポートを作らない。
 
-      - LocalConnectionGate が経路と機能を対応させ、OFF・起動途中・未登録の経路を 404 にする。Web の専用通信は API と独立する。
-      - OFF の受付と同時に新規要求を止め、世代を失効させる。要求本体と子ストリームを取り消し、他機能の受付を維持する。
-      - LocalRequest.finishWrite で開始した保存だけを取消から保護し、結果確定を待って停止する。新たな業務の適用経路は追加しない。
-      - 起動・停止は直列化し、連続した指定は最新の希望値へ収束する。再 ON でも停止途中の要求や旧世代を復活させない。
-      - 最後の停止で keep-alive とソケットを閉じる。停止失敗はハンドルとエラーを残し、停止完了を偽らず、明示的な再試行で復旧する。
-      - ポート変更は全機能の停止完了後だけ許可する。占有時に別ポートへ自動で逃げない。
-      - CIO の内部ジョブを専用の寿命で所有し、bind 失敗の内部通知も処理する。終了は内部ジョブの収束まで確認する。
-      - DesktopRuntime が Window の外で接続管理を持ち、通常終了で停止を待つ。停止失敗時は終了を中断し、画面から再試行できるようにした。
+          - LocalConnectionGate が経路と機能を対応させ、OFF・起動途中・未登録の経路を 404 にする。Web の専用通信は API と独立する。
+          - OFF の受付と同時に新規要求を止め、世代を失効させる。要求本体と子ストリームを取り消し、他機能の受付を維持する。
+          - LocalRequest.finishWrite で開始した保存だけを取消から保護し、結果確定を待って停止する。新たな業務の適用経路は追加しない。
+          - 起動・停止は直列化し、連続した指定は最新の希望値へ収束する。再 ON でも停止途中の要求や旧世代を復活させない。
+          - 最後の停止で keep-alive とソケットを閉じる。停止失敗はハンドルとエラーを残し、停止完了を偽らず、明示的な再試行で復旧する。
+          - ポート変更は全機能の停止完了後だけ許可する。占有時に別ポートへ自動で逃げない。
+          - CIO の内部ジョブを専用の寿命で所有し、bind 失敗の内部通知も処理する。終了は内部ジョブの収束まで確認する。
+          - DesktopRuntime が Window の外で接続管理を持ち、通常終了で停止を待つ。停止失敗時は終了を中断し、画面から再試行できるようにした。
 
-      新規の状態機械 12 件・HTTP 受付 2 件・実ソケット 2 件と、DesktopRuntime の既存 3 件で切替・取消・保存待ち・エラー・終了を検証した。
-      実ソケットの試験は自身の loopback だけを使い、停止後の接続拒否と同じポートの再利用を確認した。
-      全モジュールの test と docs-lint が成功した。設定画面は未公開のため、この段階の検証は開発側の自動試験で行った。
+          新規の状態機械 12 件・HTTP 受付 2 件・実ソケット 2 件と、DesktopRuntime の既存 3 件で切替・取消・保存待ち・エラー・終了を検証した。
+          実ソケットの試験は自身の loopback だけを使い、停止後の接続拒否と同じポートの再利用を確認した。
+          全モジュールの test と docs-lint が成功した。設定画面は未公開のため、この段階の検証は開発側の自動試験で行った。
 
-      Core Calculus 上は実行基盤であり、業務の評価器・スキーマ語彙・原本への書込経路を増やしていない。
-      設定画面・永続化は R49-22、認証・権限・SDK セッションへの接続は R49-21 以降。製品の業務経路は未登録で、通常起動は全 OFF のまま。
-      外部版は 0.2.0 を維持する。次は R49-21 の接続認証と能力別の受付へ進む。
-- id: RH-051
-  title: 'P49: UX シナリオと開発時の検証案内の整理（2026-10-31）'
-  body:
-  - text: |-
-      オーナーの指摘を受け、UX-SCENARIOS に追加した R49-10・11・12・20 の四節を削除した。
-      工程別の回帰確認や自動テストの実行案内を、使用感を確かめるシナリオと混同していた。
-      各段階の検証内容と結果は上記の実装記録、実装とテストの対応は FEATURES に保持する。上記 R49-10・11 の UX-SCENARIOS への言及は、整理前の記録である。
-      個別の動作確認依頼はチャットで行い、UX-SCENARIOS にはオーナーが実際に操作して使用感を確認する、再利用可能な流れを置くよう運用規約を揃えた。
-- id: RH-052
-  title: 'P49: 接続認証と能力別の受付（R49-21 完了、2026-10-31）'
-  body:
-  - text: |-
-      LocalServer が機能ゲートの後へ認証を組み込み、DesktopRuntime から接続管理・登録権限・共通サービスを結んだ。
-      通信資格情報と登録した権限を分け、通信の停止後も提出済みの作業とデスクトップでの承認を維持する。
+          Core Calculus 上は実行基盤であり、業務の評価器・スキーマ語彙・原本への書込経路を増やしていない。
+          設定画面・永続化は R49-22、認証・権限・SDK セッションへの接続は R49-21 以降。製品の業務経路は未登録で、通常起動は全 OFF のまま。
+          外部版は 0.2.0 を維持する。次は R49-21 の接続認証と能力別の受付へ進む。
+  - id: RH-051
+    title: 'P49: UX シナリオと開発時の検証案内の整理（2026-10-31）'
+    body:
+      - text: |-
+          オーナーの指摘を受け、UX-SCENARIOS に追加した R49-10・11・12・20 の四節を削除した。
+          工程別の回帰確認や自動テストの実行案内を、使用感を確かめるシナリオと混同していた。
+          各段階の検証内容と結果は上記の実装記録、実装とテストの対応は FEATURES に保持する。上記 R49-10・11 の UX-SCENARIOS への言及は、整理前の記録である。
+          個別の動作確認依頼はチャットで行い、UX-SCENARIOS にはオーナーが実際に操作して使用感を確認する、再利用可能な流れを置くよう運用規約を揃えた。
+  - id: RH-052
+    title: 'P49: 接続認証と能力別の受付（R49-21 完了、2026-10-31）'
+    body:
+      - text: |-
+          LocalServer が機能ゲートの後へ認証を組み込み、DesktopRuntime から接続管理・登録権限・共通サービスを結んだ。
+          通信資格情報と登録した権限を分け、通信の停止後も提出済みの作業とデスクトップでの承認を維持する。
 
-      - ConnectionGrants が接続者・ワークスペース別に閲覧・提案・業務操作を分け、対象文書・操作名・権限の版を共通サービスへ渡す。未登録と空集合は拒否する。
-      - API・MCP は機能別 Bearer、Web は専用 Cookie と CSRF トークンを使う。資格情報はメモリ内でハッシュだけを保持し、発行の戻り値以外へ平文を出さない。
-      - OFF・期限切れ・再発行・権限変更・ワークスペースの世代変更で旧資格情報を失効させる。MCP のセッション ID も認証済みの接続者へ結び、他の接続者による再利用を拒否する。
-      - Host/Origin の完全一致、Forwarded 系の拒否、ブラウザの CSRF 対策、経路・ヘッダー・本文・同時要求の上限を入口で確認する。
-      - 本文受信後・保存開始前・応答直前にも認証を確認する。失効時は要求と子ストリームを止め、開始した保存の結果確定を待つ要求も全体の上限に数える。
-      - 接続停止の取消処理を接続管理のロック外へ移し、認証の失効と要求完了の間でロックの順序が逆転しないようにした。
+          - ConnectionGrants が接続者・ワークスペース別に閲覧・提案・業務操作を分け、対象文書・操作名・権限の版を共通サービスへ渡す。未登録と空集合は拒否する。
+          - API・MCP は機能別 Bearer、Web は専用 Cookie と CSRF トークンを使う。資格情報はメモリ内でハッシュだけを保持し、発行の戻り値以外へ平文を出さない。
+          - OFF・期限切れ・再発行・権限変更・ワークスペースの世代変更で旧資格情報を失効させる。MCP のセッション ID も認証済みの接続者へ結び、他の接続者による再利用を拒否する。
+          - Host/Origin の完全一致、Forwarded 系の拒否、ブラウザの CSRF 対策、経路・ヘッダー・本文・同時要求の上限を入口で確認する。
+          - 本文受信後・保存開始前・応答直前にも認証を確認する。失効時は要求と子ストリームを止め、開始した保存の結果確定を待つ要求も全体の上限に数える。
+          - 接続停止の取消処理を接続管理のロック外へ移し、認証の失効と要求完了の間でロックの順序が逆転しないようにした。
 
-      ConnectionGrantsTest 4 件、LocalAccessTest 8 件、LocalAuthenticationTest 8 件、LocalProtocolAuthenticationTest 2 件を追加し、DesktopRuntimeTest の既存 3 件も拡張した。
-      公式 MCP クライアントとの往復、権限外・偽装・期限切れ・再接続の拒否、保存待ちと上限、Cookie の属性を検証し、全モジュールの test が成功した。
-      設計・機能索引・ロードマップを同期し、文書参照テストと docs-lint も成功した。UX-SCENARIOS は変更していない。
+          ConnectionGrantsTest 4 件、LocalAccessTest 8 件、LocalAuthenticationTest 8 件、LocalProtocolAuthenticationTest 2 件を追加し、DesktopRuntimeTest の既存 3 件も拡張した。
+          公式 MCP クライアントとの往復、権限外・偽装・期限切れ・再接続の拒否、保存待ちと上限、Cookie の属性を検証し、全モジュールの test が成功した。
+          設計・機能索引・ロードマップを同期し、文書参照テストと docs-lint も成功した。UX-SCENARIOS は変更していない。
 
-      Core Calculus 上は認証・実行基盤であり、業務の評価器・スキーマ語彙・原本への書込経路は増やしていない。
-      設定画面・設定保存と資格情報の保管は R49-22、業務経路は R49-40・50 以降、ブラウザへのログイン導線は R49-60 で接続する。
-      現段階は内部基盤の自動検証のみで、通常起動は全 OFF、外部版は 0.2.0 のまま。次は R49-22 へ進む。
-- id: RH-053
-  title: 'P49: 接続の設定画面と保存・復元（R49-22 完了、2026-10-31）'
-  body:
-  - text: |-
-      R49-21 を 1c900d0 でコミットしてから着手した。
-      スタート画面と「設定 → ローカル接続」から、三機能の切替・状態・URL・エラー・ポート・接続者と権限を操作できる常設ページを追加した。
+          Core Calculus 上は認証・実行基盤であり、業務の評価器・スキーマ語彙・原本への書込経路は増やしていない。
+          設定画面・設定保存と資格情報の保管は R49-22、業務経路は R49-40・50 以降、ブラウザへのログイン導線は R49-60 で接続する。
+          現段階は内部基盤の自動検証のみで、通常起動は全 OFF、外部版は 0.2.0 のまま。次は R49-22 へ進む。
+  - id: RH-053
+    title: 'P49: 接続の設定画面と保存・復元（R49-22 完了、2026-10-31）'
+    body:
+      - text: |-
+          R49-21 を 1c900d0 でコミットしてから着手した。
+          スタート画面と「設定 → ローカル接続」から、三機能の切替・状態・URL・エラー・ポート・接続者と権限を操作できる常設ページを追加した。
 
-      - LocalConnectionController が設定操作を直列化する。ON とポート変更は保存後に反映し、OFF は保存失敗でも通信を止め、次回起動時の復元値との相違を通知する。
-      - 利用者専用領域の settings.json に希望値と登録権限を保存する。Windows ACL / POSIX で作成時から保護し、所有者・アクセス権・ファイル種別を確認して原子的に置き換える。
-      - 設定のない旧版では全 OFF・登録なしで始める。不正な設定は部分採用せず停止し、読込失敗時だけ確認付きの初期化を提供する。
-      - 接続者 ID とワークスペース別の権限は復元し、通信資格情報はメモリだけで保持する。再起動・OFF・ワークスペースの世代変更後は再発行する。
-      - API・MCP のトークンを発行時だけコピーでき、再発行・失効・登録削除には確認を挟む。Web のログイン導線は未公開であることを画面に表示する。
-      - 設定保存中の画面の破棄では保存と実状態の反映を中断しない。アプリ終了は設定操作を収束させてから通信を止め、保存した希望値を OFF に書き換えない。
-      - 設定ストアの 2 ファイルを Files.exists 規則の許可対象へ追加した。ワークスペースの file 型の検証規律は変更していない。
+          - LocalConnectionController が設定操作を直列化する。ON とポート変更は保存後に反映し、OFF は保存失敗でも通信を止め、次回起動時の復元値との相違を通知する。
+          - 利用者専用領域の settings.json に希望値と登録権限を保存する。Windows ACL / POSIX で作成時から保護し、所有者・アクセス権・ファイル種別を確認して原子的に置き換える。
+          - 設定のない旧版では全 OFF・登録なしで始める。不正な設定は部分採用せず停止し、読込失敗時だけ確認付きの初期化を提供する。
+          - 接続者 ID とワークスペース別の権限は復元し、通信資格情報はメモリだけで保持する。再起動・OFF・ワークスペースの世代変更後は再発行する。
+          - API・MCP のトークンを発行時だけコピーでき、再発行・失効・登録削除には確認を挟む。Web のログイン導線は未公開であることを画面に表示する。
+          - 設定保存中の画面の破棄では保存と実状態の反映を中断しない。アプリ終了は設定操作を収束させてから通信を止め、保存した希望値を OFF に書き換えない。
+          - 設定ストアの 2 ファイルを Files.exists 規則の許可対象へ追加した。ワークスペースの file 型の検証規律は変更していない。
 
-      ConnectionSettingsStoreTest 5 件、LocalConnectionControllerTest 6 件、LocalConnectionSettingsPageTest 4 件と LocalAccessTest の追加 1 件で、計 16 件を追加した。
-      Windows 上で ACL を持つファイルの保存・復元・不正保護の拒否を確認した。接続の試験は自分の loopback だけを使い、終了時に閉じた。
-      画面のスイッチ・登録入力・削除確認・トークン発行／再発行／失効は Compose UI テストで操作した。実ウィンドウの色・配置の確認は未実施。
-      全モジュールの test が成功し、設計・機能索引・利用者マニュアルを同期した。UX-SCENARIOS は変更せず、今回の試し方はチャットへ記載する。
+          ConnectionSettingsStoreTest 5 件、LocalConnectionControllerTest 6 件、LocalConnectionSettingsPageTest 4 件と LocalAccessTest の追加 1 件で、計 16 件を追加した。
+          Windows 上で ACL を持つファイルの保存・復元・不正保護の拒否を確認した。接続の試験は自分の loopback だけを使い、終了時に閉じた。
+          画面のスイッチ・登録入力・削除確認・トークン発行／再発行／失効は Compose UI テストで操作した。実ウィンドウの色・配置の確認は未実施。
+          全モジュールの test が成功し、設計・機能索引・利用者マニュアルを同期した。UX-SCENARIOS は変更せず、今回の試し方はチャットへ記載する。
 
-      Core Calculus 上は実行基盤と設定の表示・保存であり、業務の計算・検証・原本への書込経路は追加していない。
-      業務 API・MCP ツール・Web 画面は後続工程で接続する。外部版は 0.2.0 のまま、次は R49-30 のトレイと画面非表示での起動へ進む。
-- id: RH-054
-  title: 'P49: トレイと画面非表示での起動（R49-30 完了、2026-10-31）'
-  body:
-  - text: |-
-      R49-22 を 2d992b7 でコミットしてから着手した。「設定 → 接続と常駐」に常駐と非表示起動の独立した設定を追加した。
-      どちらも初期値 OFF で、常駐を変えても API・MCP・Web の希望値・待受・資格情報を変更しない。
+          Core Calculus 上は実行基盤と設定の表示・保存であり、業務の計算・検証・原本への書込経路は追加していない。
+          業務 API・MCP ツール・Web 画面は後続工程で接続する。外部版は 0.2.0 のまま、次は R49-30 のトレイと画面非表示での起動へ進む。
+  - id: RH-054
+    title: 'P49: トレイと画面非表示での起動（R49-30 完了、2026-10-31）'
+    body:
+      - text: |-
+          R49-22 を 2d992b7 でコミットしてから着手した。「設定 → 接続と常駐」に常駐と非表示起動の独立した設定を追加した。
+          どちらも初期値 OFF で、常駐を変えても API・MCP・Web の希望値・待受・資格情報を変更しない。
 
-      - DesktopPresence が表示・常駐・終了確認を保持する。非表示起動では Window を作らず、表示後に隠すときは Window とコンポジションを維持する。
-      - 常駐中の × は画面だけを隠す。トレイから表示・非表示・受信箱・設定・完全終了を選べ、アイコンの標準アクションで表示する。
-      - 受信箱の件数を共通化し、Window の外で購読して非表示中もアイコン・メニューへ反映する。受信箱への復帰では古いレビュー選択を解除する。
-      - `--hidden` は今回だけ常駐して非表示、`--show` は保存設定より優先して表示する。ワークスペースの指定・設定読込・トレイ登録に失敗したら画面へ戻す。
-      - JDK SystemTray を ui.shell の AwtDesktopTray に閉じた。Compose Tray の登録処理には成否を返す口がないため、登録成功を確認してから隠せるアダプターを採用した。追加ライブラリはない。
-      - 完全終了で未保存なら画面に戻して破棄かキャンセルを確認する。キャンセルでは Runtime を止めず、終了では既存の保存・接続停止・子ジョブの終了を待つ。
-      - 設定ファイルの版は維持し、未設定の常駐フラグを OFF として旧版を復元する。常駐 OFF と非表示起動 ON の矛盾は拒否する。
+          - DesktopPresence が表示・常駐・終了確認を保持する。非表示起動では Window を作らず、表示後に隠すときは Window とコンポジションを維持する。
+          - 常駐中の × は画面だけを隠す。トレイから表示・非表示・受信箱・設定・完全終了を選べ、アイコンの標準アクションで表示する。
+          - 受信箱の件数を共通化し、Window の外で購読して非表示中もアイコン・メニューへ反映する。受信箱への復帰では古いレビュー選択を解除する。
+          - `--hidden` は今回だけ常駐して非表示、`--show` は保存設定より優先して表示する。ワークスペースの指定・設定読込・トレイ登録に失敗したら画面へ戻す。
+          - JDK SystemTray を ui.shell の AwtDesktopTray に閉じた。Compose Tray の登録処理には成否を返す口がないため、登録成功を確認してから隠せるアダプターを採用した。追加ライブラリはない。
+          - 完全終了で未保存なら画面に戻して破棄かキャンセルを確認する。キャンセルでは Runtime を止めず、終了では既存の保存・接続停止・子ジョブの終了を待つ。
+          - 設定ファイルの版は維持し、未設定の常駐フラグを OFF として旧版を復元する。常駐 OFF と非表示起動 ON の矛盾は拒否する。
 
-      DesktopPresenceTest 8 件、ResidentSettingsPaneTest 2 件、DesktopRuntimeTest と LocalConnectionControllerTest 各 1 件の計 12 件を追加した。
-      既存の設定ストア・設定画面の試験も更新し、対象の 30 件と全モジュールの test が成功した。
-      Windows の実トレイを使う verifyDesktopTray で登録・件数更新・コマンド通知・解除を確認した。検査自身のアイコンだけを操作し、終了時に解除した。
-      常駐設定のスイッチは Compose UI テストで操作した。実画面の配置・アイコンの見え方・右クリックからの操作は未確認で、オーナー確認とする。
-      設計・機能索引・マニュアルを同期し、P36 の未完一覧からトレイを外した。UX-SCENARIOS は変更せず、今回の試し方はチャットへ記載する。
+          DesktopPresenceTest 8 件、ResidentSettingsPaneTest 2 件、DesktopRuntimeTest と LocalConnectionControllerTest 各 1 件の計 12 件を追加した。
+          既存の設定ストア・設定画面の試験も更新し、対象の 30 件と全モジュールの test が成功した。
+          Windows の実トレイを使う verifyDesktopTray で登録・件数更新・コマンド通知・解除を確認した。検査自身のアイコンだけを操作し、終了時に解除した。
+          常駐設定のスイッチは Compose UI テストで操作した。実画面の配置・アイコンの見え方・右クリックからの操作は未確認で、オーナー確認とする。
+          設計・機能索引・マニュアルを同期し、P36 の未完一覧からトレイを外した。UX-SCENARIOS は変更せず、今回の試し方はチャットへ記載する。
 
-      Core Calculus 上はアプリの寿命と既存状態の射影で、業務の評価器・検証・書込経路は追加していない。
-      外部版は 0.2.0 のまま。次は R49-31 のワークスペース所有と独立 CLI の書込制御へ進む。
-- id: RH-055
-  title: 'P49: 接続設定の読込エラーからの復帰（2026-10-31）'
-  body:
-  - text: |-
-      オーナーの「接続設定を読み込めず常駐を ON にできない」という指摘を受けて修正した。
-      実設定の内容は正常だったが、保存先へ追加・継承された Windows ACL が保護検査に抵触していた。
-      修復後も開発環境がフォルダへ参照権限を再追加するため、フォルダと本文を分けて検査する必要があった。
+          Core Calculus 上はアプリの寿命と既存状態の射影で、業務の評価器・検証・書込経路は追加していない。
+          外部版は 0.2.0 のまま。次は R49-31 のワークスペース所有と独立 CLI の書込制御へ進む。
+  - id: RH-055
+    title: 'P49: 接続設定の読込エラーからの復帰（2026-10-31）'
+    body:
+      - text: |-
+          オーナーの「接続設定を読み込めず常駐を ON にできない」という指摘を受けて修正した。
+          実設定の内容は正常だったが、保存先へ追加・継承された Windows ACL が保護検査に抵触していた。
+          修復後も開発環境がフォルダへ参照権限を再追加するため、フォルダと本文を分けて検査する必要があった。
 
-      - Windows の保存先と空の一時ファイルは、本文を書く前に icacls で継承を停止する。初期 ACL の指定だけでは保護フラグが立たない点を補った。
-      - フォルダの一覧参照・通過だけは許容する。書込・削除・所有者や ACL の変更は拒否し、設定ファイルでは他者の読取も引き続き拒否する。
-      - 読込失敗時は設定画面へ戻し、保護や形式の失敗理由を表示する。「設定を再読込」で保存内容を消さずに復帰でき、例外中の JSON 本文は表示しない。
-      - 実設定の ACL を所有者本人に絞って継承を停止した。修復前後で内容の SHA-256 が一致し、保存した設定を変更していない。
+          - Windows の保存先と空の一時ファイルは、本文を書く前に icacls で継承を停止する。初期 ACL の指定だけでは保護フラグが立たない点を補った。
+          - フォルダの一覧参照・通過だけは許容する。書込・削除・所有者や ACL の変更は拒否し、設定ファイルでは他者の読取も引き続き拒否する。
+          - 読込失敗時は設定画面へ戻し、保護や形式の失敗理由を表示する。「設定を再読込」で保存内容を消さずに復帰でき、例外中の JSON 本文は表示しない。
+          - 実設定の ACL を所有者本人に絞って継承を停止した。修復前後で内容の SHA-256 が一致し、保存した設定を変更していない。
 
-      設定ストアの Windows ACL 検査 2 件、Controller の非破壊再読込と理由表示 1 件、画面で常駐を ON に戻す試験 1 件を追加した。
-      全モジュールの test が成功し、実設定も FileConnectionSettingsStore.load で読めることを、書込・待受を行わず確認した。
-      設計・機能索引・マニュアルを同期し、UX-SCENARIOS は変更していない。実アプリの再起動後の操作確認はチャットで依頼する。
-      その後、オーナーが修正後の動作を確認し、コミットと次工程への着手を承認した。
-- id: RH-056
-  title: 'P49: ワークスペース所有と独立 CLI の制御（R49-31、2026-10-31）'
-  body:
-  - text: |-
-      オーナー確認済みの R49-30 と接続設定の読込修正を `398ea05` でコミットしてから実装した。
-      ADR-0016 の所有権を、app-core の WorkspaceOwnership と desktop・CLI の入口に接続した。
+          設定ストアの Windows ACL 検査 2 件、Controller の非破壊再読込と理由表示 1 件、画面で常駐を ON に戻す試験 1 件を追加した。
+          全モジュールの test が成功し、実設定も FileConnectionSettingsStore.load で読めることを、書込・待受を行わず確認した。
+          設計・機能索引・マニュアルを同期し、UX-SCENARIOS は変更していない。実アプリの再起動後の操作確認はチャットで依頼する。
+          その後、オーナーが修正後の動作を確認し、コミットと次工程への着手を承認した。
+  - id: RH-056
+    title: 'P49: ワークスペース所有と独立 CLI の制御（R49-31、2026-10-31）'
+    body:
+      - text: |-
+          オーナー確認済みの R49-30 と接続設定の読込修正を `398ea05` でコミットしてから実装した。
+          ADR-0016 の所有権を、app-core の WorkspaceOwnership と desktop・CLI の入口に接続した。
 
-      - JDK FileChannel.tryLock を使い、同じ利用者の同じ実体ルートを一つの入口が所有する。TCP は使わず、利用者ホームの `.yaml-design-editor-locks` に空のファイルを置く。
-      - 未作成の初期化先も既存の祖先から識別する。ワークスペース内にロック用の `.yde` を作らず、既存の配置モードを変えない。
-      - DesktopRuntime は読込前に取得し、非表示でも保持する。切替の取得・読込失敗では元の状態と所有権を保ち、成功時と完全終了時は子ジョブ・保存の完了を待って解放する。
-      - 独立 CLI の適用・初期化・移行・実行記録・派生出力を保護し、所有中なら処理前に終了コード 1 で拒否する。shell・watch はセッション全体、bench --keep は生成先ごとに所有する。
-      - 参照・一覧・プレビューは利用できる。API の暗黙の有効化や転送は行わず、明示的な接続モードは R49-42 に残す。
-      - 空のロックファイルは削除せず、OS ロックの取得可否で使用中かを判断する。同じ JVM の競合では追加チャネルを開かず、既存のロックが外れる OS 差異を避ける。
+          - JDK FileChannel.tryLock を使い、同じ利用者の同じ実体ルートを一つの入口が所有する。TCP は使わず、利用者ホームの `.yaml-design-editor-locks` に空のファイルを置く。
+          - 未作成の初期化先も既存の祖先から識別する。ワークスペース内にロック用の `.yde` を作らず、既存の配置モードを変えない。
+          - DesktopRuntime は読込前に取得し、非表示でも保持する。切替の取得・読込失敗では元の状態と所有権を保ち、成功時と完全終了時は子ジョブ・保存の完了を待って解放する。
+          - 独立 CLI の適用・初期化・移行・実行記録・派生出力を保護し、所有中なら処理前に終了コード 1 で拒否する。shell・watch はセッション全体、bench --keep は生成先ごとに所有する。
+          - 参照・一覧・プレビューは利用できる。API の暗黙の有効化や転送は行わず、明示的な接続モードは R49-42 に残す。
+          - 空のロックファイルは削除せず、OS ロックの取得可否で使用中かを判断する。同じ JVM の競合では追加チャネルを開かず、既存のロックが外れる OS 差異を避ける。
 
-      WorkspaceOwnershipTest で別 JVM の競合・通常終了・強制終了後の引継ぎと、未作成の場所・別名・保存先異常を検証した。
-      DesktopRuntimeTest で二つの実行基盤の競合・初期化拒否・失敗した切替・終了時の保存完了待ち、CliOwnershipTest で書込モードの拒否・参照とドライラン・解放後の実保存・ベンチマークの生成先保護を検証した。
-      全モジュールの test が成功した。機能索引・設計・マニュアルを同期し、UX-SCENARIOS は変更せず、実画面での試し方はチャットへ記載する。
+          WorkspaceOwnershipTest で別 JVM の競合・通常終了・強制終了後の引継ぎと、未作成の場所・別名・保存先異常を検証した。
+          DesktopRuntimeTest で二つの実行基盤の競合・初期化拒否・失敗した切替・終了時の保存完了待ち、CliOwnershipTest で書込モードの拒否・参照とドライラン・解放後の実保存・ベンチマークの生成先保護を検証した。
+          全モジュールの test が成功した。機能索引・設計・マニュアルを同期し、UX-SCENARIOS は変更せず、実画面での試し方はチャットへ記載する。
 
-      所有権は同じ利用者・同じ実体ルートの対応入口間の協調排他である。別利用者・別 PC・旧版・他ツールや異なるルートの重複領域は保護対象外で、既存の外部変更検出を維持する。
-      Core Calculus 上は OS の実行基盤であり、Term / Query / Expression / Predicate / Rewrite / Construct / Aggregate の業務評価は追加しない。適用・検証・初期化の規則は既存の窓口に委ね、新しい YAML 書込経路を作っていない。
-      外部版は 0.2.0 のまま。次は R49-40 の API の型・契約・読み取りへ進む。
-- id: RH-057
-  title: 'P49: 履歴から開けない場合の通知（2026-10-31）'
-  body:
-  - text: |-
-      オーナーが二つのプロセスで排他を確認したところ、初期画面の履歴から開こうとしても理由が分からなかった。
-      DesktopRuntime は失敗を state.status に記録していたが、StartScreen にステータス欄がなく、通知先が欠けていた。
+          所有権は同じ利用者・同じ実体ルートの対応入口間の協調排他である。別利用者・別 PC・旧版・他ツールや異なるルートの重複領域は保護対象外で、既存の外部変更検出を維持する。
+          Core Calculus 上は OS の実行基盤であり、Term / Query / Expression / Predicate / Rewrite / Construct / Aggregate の業務評価は追加しない。適用・検証・初期化の規則は既存の窓口に委ね、新しい YAML 書込経路を作っていない。
+          外部版は 0.2.0 のまま。次は R49-40 の API の型・契約・読み取りへ進む。
+  - id: RH-057
+    title: 'P49: 履歴から開けない場合の通知（2026-10-31）'
+    body:
+      - text: |-
+          オーナーが二つのプロセスで排他を確認したところ、初期画面の履歴から開こうとしても理由が分からなかった。
+          DesktopRuntime は失敗を state.status に記録していたが、StartScreen にステータス欄がなく、通知先が欠けていた。
 
-      - 開く操作の失敗を AppState.workspaceOpenFailure に保持し、初期画面と切替元の画面に対象・理由・対処方法を表示する通知を追加した。
-      - 使用中なら、既存の画面やトレイの「画面を表示」を使う方法と、完全終了後の「再試行」を案内する。閉じる・次の読込開始・成功で通知を解除し、通常のステータス更新では消さない。
-      - 初期画面は通知へスクロールを戻す。非表示起動の失敗でも画面を表示し、常駐の通知へ同じ理由を重複表示しない。
-      - 再試行は元の開く経路へ戻す。切替元で編集を始めていたら既存の未保存確認を通し、キャンセルでは内容と通知を維持する。
+          - 開く操作の失敗を AppState.workspaceOpenFailure に保持し、初期画面と切替元の画面に対象・理由・対処方法を表示する通知を追加した。
+          - 使用中なら、既存の画面やトレイの「画面を表示」を使う方法と、完全終了後の「再試行」を案内する。閉じる・次の読込開始・成功で通知を解除し、通常のステータス更新では消さない。
+          - 初期画面は通知へスクロールを戻す。非表示起動の失敗でも画面を表示し、常駐の通知へ同じ理由を重複表示しない。
+          - 再試行は元の開く経路へ戻す。切替元で編集を始めていたら既存の未保存確認を通し、キャンセルでは内容と通知を維持する。
 
-      WorkspaceOpenNoticeTest の 3 件で、履歴のクリックから使用中の通知・閉じる・解放後の再試行まで、存在しない履歴の失敗表示、再試行時の未保存確認を検証した。
-      実画面の見え方は未確認で、同じ二プロセスの操作をオーナーへ再確認依頼する。UX-SCENARIOS は変更していない。
-      全体試験ではプロセス終了直後の OS ロック再取得が一度失敗した。Windows が終了後にロックを解放するタイミングを考慮し、試験は終了確認後だけ上限 10 秒で再取得を待つようにした。製品の即時拒否は変えていない。
-      修正後の全モジュールの test と docs-lint が成功した。
-      Core Calculus 上は既存の開く操作の結果表示で、評価器・書込規則・所有権の判定は追加していない。
-- id: RH-058
-  title: 'P49: API の型・契約・読み取り（R49-40、2026-11-01）'
-  body:
-  - text: |-
-      保存済みのデータを自作ツールから取得する入口を実装した。共通サービス WorkspaceReads が読取条件・世代・版・権限・上限を管理し、local-server の ReadApi が HTTP と JSON を受け持つ。
+          WorkspaceOpenNoticeTest の 3 件で、履歴のクリックから使用中の通知・閉じる・解放後の再試行まで、存在しない履歴の失敗表示、再試行時の未保存確認を検証した。
+          実画面の見え方は未確認で、同じ二プロセスの操作をオーナーへ再確認依頼する。UX-SCENARIOS は変更していない。
+          全体試験ではプロセス終了直後の OS ロック再取得が一度失敗した。Windows が終了後にロックを解放するタイミングを考慮し、試験は終了確認後だけ上限 10 秒で再取得を待つようにした。製品の即時拒否は変えていない。
+          修正後の全モジュールの test と docs-lint が成功した。
+          Core Calculus 上は既存の開く操作の結果表示で、評価器・書込規則・所有権の判定は追加していない。
+  - id: RH-058
+    title: 'P49: API の型・契約・読み取り（R49-40、2026-11-01）'
+    body:
+      - text: |-
+          保存済みのデータを自作ツールから取得する入口を実装した。共通サービス WorkspaceReads が読取条件・世代・版・権限・上限を管理し、local-server の ReadApi が HTTP と JSON を受け持つ。
 
-      - `/api/v1` に workspace・documents・document・search・entity・views・view・validation と認証付きの openapi.json を追加した。変更・操作・提案の経路は次段に残す。
-      - 応答は workspaceId・epoch・revision・data を持ち、原本座標と既存の導出情報・指摘・判定保留を返す。OpenAPI 3.1 の契約を資源として同梱し、実応答と照合する。
-      - 本文を量の制限付きで採取し、カーネルのメモリセッションから索引と定義を作る。loader も同じ採取結果に閉じ、未保存編集・作業コピー・Undo を参照しない。
-      - 読取後は保存内容と、所有側の世代・場所・権限を再確認する。revision の条件付き読取により、複数ページ・複数経路の途中で保存版が変わったことを検出できる。
-      - 文書と検索は許可された文書に限定する。エンティティ・ビュー・検証は、定義・構成を含む全入力の閲覧権限を要求する初期の制約を採用した。権限外の入力を使ってから結果だけを濾過しない。
-      - 表・クロス集計・ダッシュボード・チャートを既存の評価器で解決し、未対応ビューは理由付きで拒否する。JSON 契約には動的な列・導出・省略可能なチャートの並び順も反映した。
-      - 検証は既存 Validator の指摘と保留を返す。保存版に含まれない実ファイルの存在確認は省略を明示し、指摘が空でも全面的な充足とは判定しない。
-      - API の OFF・無資格・別機能のトークン・対象の権限不足は既存の機能ゲートと認証で止める。通常の応答は同時実行・文書数・本文量・時間・応答量を制限する。
-      - 実行記録は読取対象にも容量上限にも含めず、ログの増加で業務の読取を妨げない。取得位置の上限による打切りは truncated で明示する。
+          - `/api/v1` に workspace・documents・document・search・entity・views・view・validation と認証付きの openapi.json を追加した。変更・操作・提案の経路は次段に残す。
+          - 応答は workspaceId・epoch・revision・data を持ち、原本座標と既存の導出情報・指摘・判定保留を返す。OpenAPI 3.1 の契約を資源として同梱し、実応答と照合する。
+          - 本文を量の制限付きで採取し、カーネルのメモリセッションから索引と定義を作る。loader も同じ採取結果に閉じ、未保存編集・作業コピー・Undo を参照しない。
+          - 読取後は保存内容と、所有側の世代・場所・権限を再確認する。revision の条件付き読取により、複数ページ・複数経路の途中で保存版が変わったことを検出できる。
+          - 文書と検索は許可された文書に限定する。エンティティ・ビュー・検証は、定義・構成を含む全入力の閲覧権限を要求する初期の制約を採用した。権限外の入力を使ってから結果だけを濾過しない。
+          - 表・クロス集計・ダッシュボード・チャートを既存の評価器で解決し、未対応ビューは理由付きで拒否する。JSON 契約には動的な列・導出・省略可能なチャートの並び順も反映した。
+          - 検証は既存 Validator の指摘と保留を返す。保存版に含まれない実ファイルの存在確認は省略を明示し、指摘が空でも全面的な充足とは判定しない。
+          - API の OFF・無資格・別機能のトークン・対象の権限不足は既存の機能ゲートと認証で止める。通常の応答は同時実行・文書数・本文量・時間・応答量を制限する。
+          - 実行記録は読取対象にも容量上限にも含めず、ログの増加で業務の読取を妨げない。取得位置の上限による打切りは truncated で明示する。
 
-      WorkspaceReadsTest に保存・未保存・版・権限・世代・取消・同時実行・上限・解析失敗・実行ログの除外の試験を追加した。
-      ReadApiTest は Ktor のインメモリ通信で契約・認証・OFF・原本座標・上限・未対応を検査し、注文サンプルの写しでクロス集計・導出列・ダッシュボード・散布図・検証を照合する。
-      機能索引・設計・マニュアルを同期した。UX-SCENARIOS へ段階ごとの手順は足さず、試し方はチャットで案内する。
+          WorkspaceReadsTest に保存・未保存・版・権限・世代・取消・同時実行・上限・解析失敗・実行ログの除外の試験を追加した。
+          ReadApiTest は Ktor のインメモリ通信で契約・認証・OFF・原本座標・上限・未対応を検査し、注文サンプルの写しでクロス集計・導出列・ダッシュボード・散布図・検証を照合する。
+          機能索引・設計・マニュアルを同期した。UX-SCENARIOS へ段階ごとの手順は足さず、試し方はチャットで案内する。
 
-      Core Calculus の設計レビューでは対象の選択は既存 Search / Query、値の導出は既存 Expression / Aggregate、判定は既存 Predicate / Validator とした。
-      原本座標・重複所有・Unknown / 保留は既存の結果から写し、基準日は引数で渡す。新たな評価器・Rewrite・Construct・書込経路は追加していない。
-      通信・認証・保存版の採取と照合は実行基盤である。既存の Ktor・coroutines・JSON を使い、新しいライブラリは追加していない。
-      最終修正を含む全モジュールの test が成功した。docs-lint も失敗なしで、既存の目安の指摘のみである。
-      外部版は 0.2.0 のまま。次は R49-41 の API の業務操作と変更提案へ進む。
-- id: RH-059
-  title: 'P49: トークンを発行できない理由の表示（2026-11-01）'
-  body:
-  - text: |-
-      オーナーから「トークンを発行」が有効にならないとの報告を受けた。接続者が API ではなく MCP 用として登録されており、API 用の登録に直すと発行できることをオーナーが確認した。
-      新規登録の初期選択が MCP 固定で、ボタンの無効理由を表示していなかったため、取り違えの原因と対処が分かりにくかった。
+          Core Calculus の設計レビューでは対象の選択は既存 Search / Query、値の導出は既存 Expression / Aggregate、判定は既存 Predicate / Validator とした。
+          原本座標・重複所有・Unknown / 保留は既存の結果から写し、基準日は引数で渡す。新たな評価器・Rewrite・Construct・書込経路は追加していない。
+          通信・認証・保存版の採取と照合は実行基盤である。既存の Ktor・coroutines・JSON を使い、新しいライブラリは追加していない。
+          最終修正を含む全モジュールの test が成功した。docs-lint も失敗なしで、既存の目安の指摘のみである。
+          外部版は 0.2.0 のまま。次は R49-41 の API の業務操作と変更提案へ進む。
+  - id: RH-059
+    title: 'P49: トークンを発行できない理由の表示（2026-11-01）'
+    body:
+      - text: |-
+          オーナーから「トークンを発行」が有効にならないとの報告を受けた。接続者が API ではなく MCP 用として登録されており、API 用の登録に直すと発行できることをオーナーが確認した。
+          新規登録の初期選択が MCP 固定で、ボタンの無効理由を表示していなかったため、取り違えの原因と対処が分かりにくかった。
 
-      - ON の機能が一つだけなら、新規登録ではその機能を初期選択し、「利用する機能」の見出しと API 呼出時の選択案内を追加した。
-      - tokenIssueUnavailableReason で発行の可否と理由を一緒に求め、設定の読込失敗・処理中・対象ワークスペース・機能 OFF・起動・停止・エラーを登録の近くに表示する。
-      - API だけが ON のときの MCP 用登録には、API 用の接続者を追加する方法を示す。既存の登録機能・権限・接続設定を自動では変更しない。
-      - 設定画面の案内文を読取 API の公開範囲に合わせた。機能索引・設計・マニュアルを同期し、確認用シナリオファイルへ段階別の手順は追加していない。
+          - ON の機能が一つだけなら、新規登録ではその機能を初期選択し、「利用する機能」の見出しと API 呼出時の選択案内を追加した。
+          - tokenIssueUnavailableReason で発行の可否と理由を一緒に求め、設定の読込失敗・処理中・対象ワークスペース・機能 OFF・起動・停止・エラーを登録の近くに表示する。
+          - API だけが ON のときの MCP 用登録には、API 用の接続者を追加する方法を示す。既存の登録機能・権限・接続設定を自動では変更しない。
+          - 設定画面の案内文を読取 API の公開範囲に合わせた。機能索引・設計・マニュアルを同期し、確認用シナリオファイルへ段階別の手順は追加していない。
 
-      LocalConnectionSettingsPageTest で、API だけが稼働する状態の MCP 登録から、理由の表示・API 登録の追加・発行までを確認した。
-      画面を開いたまま API の ON/OFF に従って説明と発行ボタンが切り替わること、および既存の発行・再発行・失効も確認した。
-      全モジュールの test と docs-lint が成功した。画面の振る舞いは Compose UI テストで検査し、実画面の配置は未確認である。
-      Core Calculus 上は接続設定の操作案内で、業務評価・認証規則・書込経路の追加はない。
-- id: RH-060
-  title: 'P49: 閲覧の簡単設定と文書選択（R49-23、2026-11-01）'
-  body:
-  - text: |-
-      文書パスの列挙と追加時の再設定の負担を減らすため、閲覧だけの簡単設定と文書を選べる詳細設定を実装した。方針は ADR-0018 に記録した。
+          LocalConnectionSettingsPageTest で、API だけが稼働する状態の MCP 登録から、理由の表示・API 登録の追加・発行までを確認した。
+          画面を開いたまま API の ON/OFF に従って説明と発行ボタンが切り替わること、および既存の発行・再発行・失効も確認した。
+          全モジュールの test と docs-lint が成功した。画面の振る舞いは Compose UI テストで検査し、実画面の配置は未確認である。
+          Core Calculus 上は接続設定の操作案内で、業務評価・認証規則・書込経路の追加はない。
+  - id: RH-060
+    title: 'P49: 閲覧の簡単設定と文書選択（R49-23、2026-11-01）'
+    body:
+      - text: |-
+          文書パスの列挙と追加時の再設定の負担を減らすため、閲覧だけの簡単設定と文書を選べる詳細設定を実装した。方針は ADR-0018 に記録した。
 
-      - ConnectionReadScope の SELECTED と WORKSPACE で固定した指定文書と今後の追加を含む閲覧を分け、ConnectionPermissions.canRead を通信と共通サービスで使う。空集合の全拒否は維持した。
-      - 全体閲覧は保存済みの定義・構成を含み、追加文書も同じ有効なトークンで取得できる。応答の保存版は更新し、取得中の変更や権限の変更は従来どおり再確認する。
-      - 新規登録は簡単設定の閲覧のみ。既存登録はそのままで、簡単設定へ切り替える場合は許可範囲の変更と変更権限の解除を確認する。保存前に対象と権限を要約する。
-      - 詳細設定では文書ツリー・検索・複数選択・検索結果の一括選択を提供し、相対パスの入力も残した。フォルダー選択は現在の文書集合で、候補の再読込では自動追加しない。
-      - WorkspaceReads.documentsForSettings はデスクトップ専用の候補取得として、通常読取と同じ採取と上限を使い、世代の切替を確認する。通信経路へは公開しない。
-      - 設定形式を version 2 にし、旧形式は指定文書のまま復元する。全体閲覧は明示した範囲として保存し、欠落・未知の値は拒否する。読込だけで既存ファイルを書き換えない。
-      - 変更提案・業務操作の簡単設定と操作名の一覧選択は R49-41 の作業に加えた。今回の全体閲覧から変更権限は得られない。
+          - ConnectionReadScope の SELECTED と WORKSPACE で固定した指定文書と今後の追加を含む閲覧を分け、ConnectionPermissions.canRead を通信と共通サービスで使う。空集合の全拒否は維持した。
+          - 全体閲覧は保存済みの定義・構成を含み、追加文書も同じ有効なトークンで取得できる。応答の保存版は更新し、取得中の変更や権限の変更は従来どおり再確認する。
+          - 新規登録は簡単設定の閲覧のみ。既存登録はそのままで、簡単設定へ切り替える場合は許可範囲の変更と変更権限の解除を確認する。保存前に対象と権限を要約する。
+          - 詳細設定では文書ツリー・検索・複数選択・検索結果の一括選択を提供し、相対パスの入力も残した。フォルダー選択は現在の文書集合で、候補の再読込では自動追加しない。
+          - WorkspaceReads.documentsForSettings はデスクトップ専用の候補取得として、通常読取と同じ採取と上限を使い、世代の切替を確認する。通信経路へは公開しない。
+          - 設定形式を version 2 にし、旧形式は指定文書のまま復元する。全体閲覧は明示した範囲として保存し、欠落・未知の値は拒否する。読込だけで既存ファイルを書き換えない。
+          - 変更提案・業務操作の簡単設定と操作名の一覧選択は R49-41 の作業に加えた。今回の全体閲覧から変更権限は得られない。
 
-      ConnectionGrantsTest・WorkspaceReadsTest・ReadApiTest で、追加文書と派生結果・指定文書の維持・不正パス・変更権限の拒否・権限変更時の失効を検証した。
-      ConnectionSettingsStoreTest で旧設定の移行と新形式の往復・不正な範囲の拒否を確認した。
-      LocalConnectionSettingsPageTest で簡単登録、既存権限の切替確認と保存、文書選択の検索と取消、追加文書の非選択を確認した。対象を絞ったテストは成功した。
-      画面の振る舞いは Compose UI テストで検査し、実画面の配置は未確認。UX-SCENARIOS に開発段階の手順を足さず、試し方はチャットで案内する。
-      Core Calculus 上は評価の前後に置く認可と設定 UI の変更で、Query・Predicate などの業務演算や YAML 語彙を追加しない。新しいライブラリ・保存経路は追加していない。
-      最終修正を含む全モジュールの test が成功した。docs-lint も失敗なしで、既存の目安の指摘は 87 件。外部版は 0.2.0 のままとした。
-- id: RH-061
-  title: 'P49: API の業務操作・変更提案・直接確定（R49-41、2026-11-01）'
-  body:
-  - text: |-
-      オーナーの承認を受け、デスクトップで確認する提案と、委任した接続者が承認なしで保存する直接確定の両ルートを実装した。方針は ADR-0019 に記録した。
+          ConnectionGrantsTest・WorkspaceReadsTest・ReadApiTest で、追加文書と派生結果・指定文書の維持・不正パス・変更権限の拒否・権限変更時の失効を検証した。
+          ConnectionSettingsStoreTest で旧設定の移行と新形式の往復・不正な範囲の拒否を確認した。
+          LocalConnectionSettingsPageTest で簡単登録、既存権限の切替確認と保存、文書選択の検索と取消、追加文書の非選択を確認した。対象を絞ったテストは成功した。
+          画面の振る舞いは Compose UI テストで検査し、実画面の配置は未確認。UX-SCENARIOS に開発段階の手順を足さず、試し方はチャットで案内する。
+          Core Calculus 上は評価の前後に置く認可と設定 UI の変更で、Query・Predicate などの業務演算や YAML 語彙を追加しない。新しいライブラリ・保存経路は追加していない。
+          最終修正を含む全モジュールの test が成功した。docs-lint も失敗なしで、既存の目安の指摘は 87 件。外部版は 0.2.0 のままとした。
+  - id: RH-061
+    title: 'P49: API の業務操作・変更提案・直接確定（R49-41、2026-11-01）'
+    body:
+      - text: |-
+          オーナーの承認を受け、デスクトップで確認する提案と、委任した接続者が承認なしで保存する直接確定の両ルートを実装した。方針は ADR-0019 に記録した。
 
-      - PROPOSE と COMMIT を別権限とし、作業開始時の PROPOSAL / DIRECT を固定する。両権限があっても提案を外部から承認できず、方式の変更は破棄と再開始を必要とする。
-      - WorkspaceWork に直接確定の計画・確定を追加した。WorkingCopy・ChangeSetApplier・WorkspaceOperations を共用し、厳格な検証、保存版・編集・権限・期限の再確認、文書単位の履歴失効を維持した。
-      - 直接確定は作業 ID を保存要求の同一性に使い、意図の永続化後に保存する。同じ作業・計画の再送は保存済み結果を返し、別の計画への差替えを拒否する。直接確定の記録は受信箱へ載せない。
-      - WriteApi で開始・編集・検証・提出・計画・確定・破棄・照会を公開し、定義済み操作の plan / commit / 結果照会も接続した。操作の要求 ID は action/、作業は work/ で分離した。
-      - 簡単設定へ提案・直接確定・業務操作を独立して追加した。変更範囲の LEDGER は WorkspaceLayout に従う業務データ全体で、定義・構成・記録を含めない。操作名は保存済みカタログから明示選択する。
-      - 全入力の閲覧許可を計算前に確認し、権限外の入力から差分・診断を漏らさない。既存文書の編集を保存版の YAML に限定し、Windows の大小文字・末尾文字の別名やリンクで保存先の配置を迂回することも拒否した。
-      - 設定は version 3、作業記録は version 2 へ更新した。旧設定は指定文書の権限のままで直接確定を付与せず、旧作業は提案として復元する。設定の保存だけでは機能を ON にしない。
-      - OpenAPI と利用者マニュアルへ両ルート・定義済み操作・結果照会・失敗時の扱いを追加した。UX-SCENARIOS に開発段階の手順を足さず、試し方はチャットで案内する。
+          - PROPOSE と COMMIT を別権限とし、作業開始時の PROPOSAL / DIRECT を固定する。両権限があっても提案を外部から承認できず、方式の変更は破棄と再開始を必要とする。
+          - WorkspaceWork に直接確定の計画・確定を追加した。WorkingCopy・ChangeSetApplier・WorkspaceOperations を共用し、厳格な検証、保存版・編集・権限・期限の再確認、文書単位の履歴失効を維持した。
+          - 直接確定は作業 ID を保存要求の同一性に使い、意図の永続化後に保存する。同じ作業・計画の再送は保存済み結果を返し、別の計画への差替えを拒否する。直接確定の記録は受信箱へ載せない。
+          - WriteApi で開始・編集・検証・提出・計画・確定・破棄・照会を公開し、定義済み操作の plan / commit / 結果照会も接続した。操作の要求 ID は action/、作業は work/ で分離した。
+          - 簡単設定へ提案・直接確定・業務操作を独立して追加した。変更範囲の LEDGER は WorkspaceLayout に従う業務データ全体で、定義・構成・記録を含めない。操作名は保存済みカタログから明示選択する。
+          - 全入力の閲覧許可を計算前に確認し、権限外の入力から差分・診断を漏らさない。既存文書の編集を保存版の YAML に限定し、Windows の大小文字・末尾文字の別名やリンクで保存先の配置を迂回することも拒否した。
+          - 設定は version 3、作業記録は version 2 へ更新した。旧設定は指定文書の権限のままで直接確定を付与せず、旧作業は提案として復元する。設定の保存だけでは機能を ON にしない。
+          - OpenAPI と利用者マニュアルへ両ルート・定義済み操作・結果照会・失敗時の扱いを追加した。UX-SCENARIOS に開発段階の手順を足さず、試し方はチャットで案内する。
 
-      WorkspaceWorkTest は 26 件、WriteApiTest は 8 件で、方式と権限の分離、旧提出の復元、新規文書、再送・再起動、検証エラー、破棄・再編集後の古い計画、範囲外・定義・別名の拒否を含めて成功した。
-      ConnectionSettingsStoreTest は 9 件、LocalConnectionSettingsPageTest は 10 件で、旧設定の移行、両権限の独立選択、操作名の選択と明示保存を確認した。
-      画面の振る舞いは Compose UI テストで検査し、実画面の配置は未確認である。全モジュールの test が最終修正を含めて成功した。
-      保存先の実綴りを調べる処理は file 型の値の検証ではないため、SourceRules のファイル基盤の対象へ責務を明示した。
+          WorkspaceWorkTest は 26 件、WriteApiTest は 8 件で、方式と権限の分離、旧提出の復元、新規文書、再送・再起動、検証エラー、破棄・再編集後の古い計画、範囲外・定義・別名の拒否を含めて成功した。
+          ConnectionSettingsStoreTest は 9 件、LocalConnectionSettingsPageTest は 10 件で、旧設定の移行、両権限の独立選択、操作名の選択と明示保存を確認した。
+          画面の振る舞いは Compose UI テストで検査し、実画面の配置は未確認である。全モジュールの test が最終修正を含めて成功した。
+          保存先の実綴りを調べる処理は file 型の値の検証ではないため、SourceRules のファイル基盤の対象へ責務を明示した。
 
-      Core Calculus の設計レビューでは、選択は既存カタログ・Query、値は Expression、自動値は SemanticAutoValues、判定は Predicate、変更は Rewrite と ChangeSetApplier を使う。
-      新しい集計・評価器は作らず、出どころは文書と項目パス・変更前後の本文で示し、計画時刻を固定する。Conflict・保留・部分保存・結果不明を成功へ読み替えない。
-      作業方式・認可・要求記録・OS のパス検査は実行基盤で、YAML 語彙や新しい保存経路・ライブラリは追加しない。外部版は 0.2.0 のままで、MCP と Web の業務経路は後続工程で公開する。
-      文書の同期後の docs-lint は失敗なしで、既存の目安の指摘は 87 件。git diff --check も成功した。
-- id: RH-062
-  title: 'P49: CLI の明示的な接続モード（R49-42、2026-11-01）'
-  body:
-  - text: |-
-      確認済みの API の提案・直接確定を 87b0546 にコミットした後、明示的な `connect` 命令を追加した。
+          Core Calculus の設計レビューでは、選択は既存カタログ・Query、値は Expression、自動値は SemanticAutoValues、判定は Predicate、変更は Rewrite と ChangeSetApplier を使う。
+          新しい集計・評価器は作らず、出どころは文書と項目パス・変更前後の本文で示し、計画時刻を固定する。Conflict・保留・部分保存・結果不明を成功へ読み替えない。
+          作業方式・認可・要求記録・OS のパス検査は実行基盤で、YAML 語彙や新しい保存経路・ライブラリは追加しない。外部版は 0.2.0 のままで、MCP と Web の業務経路は後続工程で公開する。
+          文書の同期後の docs-lint は失敗なしで、既存の目安の指摘は 87 件。git diff --check も成功した。
+  - id: RH-062
+    title: 'P49: CLI の明示的な接続モード（R49-42、2026-11-01）'
+    body:
+      - text: |-
+          確認済みの API の提案・直接確定を 87b0546 にコミットした後、明示的な `connect` 命令を追加した。
 
-      - ConnectedCommands / ConnectedCli は引数・環境変数・変更セットの入力と結果表示だけを持つ。通常の CLI の所有権取得・独立書込へ接続失敗を迂回させない。
-      - LocalApiClient は local-server/client に置き、同じ PC の指定ポートへ Ktor Client/CIO で接続する。既存の試験依存を実行時依存へ移し、版を変えず lockfile を同期した。
-      - 読取 API の全 9 経路、定義済み操作の計画・確定・結果照会、作業の開始・編集・検証・提案・直接確定・破棄・結果照会を用意した。計画と確定は別命令で、再送の ID を呼出側が保持する。
-      - トークンは環境変数から取得し、引数へ載せない。待受の起動・自動転送・プロキシ・自動再送はせず、期限・入出力の量を制限する。HTTP のエラー本文と通信例外は出力しない。
-      - HTTP が成功しても、検証エラー・確定不可・却下・保存失敗・結果不明を終了コードへ反映し、取得できた応答は標準出力に残す。提案提出の受付と保存完了は区別して説明した。
-      - 利用手順は manual/cli-connect.md にまとめ、API マニュアル・機能索引・部品とモジュールの説明を同期した。UX-SCENARIOS には段階ごとの確認手順を追加していない。
+          - ConnectedCommands / ConnectedCli は引数・環境変数・変更セットの入力と結果表示だけを持つ。通常の CLI の所有権取得・独立書込へ接続失敗を迂回させない。
+          - LocalApiClient は local-server/client に置き、同じ PC の指定ポートへ Ktor Client/CIO で接続する。既存の試験依存を実行時依存へ移し、版を変えず lockfile を同期した。
+          - 読取 API の全 9 経路、定義済み操作の計画・確定・結果照会、作業の開始・編集・検証・提案・直接確定・破棄・結果照会を用意した。計画と確定は別命令で、再送の ID を呼出側が保持する。
+          - トークンは環境変数から取得し、引数へ載せない。待受の起動・自動転送・プロキシ・自動再送はせず、期限・入出力の量を制限する。HTTP のエラー本文と通信例外は出力しない。
+          - HTTP が成功しても、検証エラー・確定不可・却下・保存失敗・結果不明を終了コードへ反映し、取得できた応答は標準出力に残す。提案提出の受付と保存完了は区別して説明した。
+          - 利用手順は manual/cli-connect.md にまとめ、API マニュアル・機能索引・部品とモジュールの説明を同期した。UX-SCENARIOS には段階ごとの確認手順を追加していない。
 
-      ConnectedCliTest の 5 件、ConnectedCliIntegrationTest の 2 件、LocalApiClientTest の 3 件が成功した。
-      引数の拒否、環境変数からの認証、型と日本語の往復、所有中の提案と直接確定、操作と再送、検証エラー、API OFF・無権限・通信断での迂回禁止を確認した。
-      通信クライアントでは別ポートへの転送禁止、エラー本文の秘匿、応答上限、通信期限、不正な入力の送信前拒否を検査した。
-      Core Calculus 上は既存 API への通信と表示の変換で、Query・Predicate・Rewrite の新しい業務演算や保存経路を作らない。
-      外部版は 0.2.0 のまま。次は R49-50 の MCP ツールと作業管理を開発する。
-      全モジュールの test と CLI の installDist が成功した。生成した起動スクリプトでもヘルプの終了コード 0 とトークン未設定時の 1 を確認した。
-      文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
-- id: RH-063
-  title: 'P49: MCP のツールと作業管理（R49-50、2026-11-01）'
-  body:
-  - text: |-
-      確認済みの CLI 明示接続を 71e02a7 にコミットした後、製品の `/mcp` へ公式 SDK の Streamable HTTP を接続した。
+          ConnectedCliTest の 5 件、ConnectedCliIntegrationTest の 2 件、LocalApiClientTest の 3 件が成功した。
+          引数の拒否、環境変数からの認証、型と日本語の往復、所有中の提案と直接確定、操作と再送、検証エラー、API OFF・無権限・通信断での迂回禁止を確認した。
+          通信クライアントでは別ポートへの転送禁止、エラー本文の秘匿、応答上限、通信期限、不正な入力の送信前拒否を検査した。
+          Core Calculus 上は既存 API への通信と表示の変換で、Query・Predicate・Rewrite の新しい業務演算や保存経路を作らない。
+          外部版は 0.2.0 のまま。次は R49-50 の MCP ツールと作業管理を開発する。
+          全モジュールの test と CLI の installDist が成功した。生成した起動スクリプトでもヘルプの終了コード 0 とトークン未設定時の 1 を確認した。
+          文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+  - id: RH-063
+    title: 'P49: MCP のツールと作業管理（R49-50、2026-11-01）'
+    body:
+      - text: |-
+          確認済みの CLI 明示接続を 71e02a7 にコミットした後、製品の `/mcp` へ公式 SDK の Streamable HTTP を接続した。
 
-      - 保存済みの参照 9 種、作業 8 種、定義済み操作 3 種のツールを用意し、接続者の能力に応じて一覧を絞る。実行時にも認証・能力・対象を再確認する。
-      - WorkspaceReads・WorkspaceWork・WorkspaceOperations を直接呼ぶ薄いアダプターにし、MCP だけ ON で利用できる。内蔵 LLM・agent・Compose の依存は追加していない。
-      - API と MCP の入力形式・変更セットの形式検査・結果の表現を server.protocol へ集めた。MCP のパッチスキーマは OpenAPI の原本から参照先を変換する。
-      - 作業の開始・編集・検証・提案・直接確定・破棄・結果照会を公開した。提案のデスクトップ承認と、計画 ID による直接確定を分け、外部の承認・権限変更・Undo/Redo は公開しない。
-      - MCP の通信セッションとツール処理を共通の要求管理へ登録し、OFF・失効・期限切れで取り消す。保存開始後は完了を待ち、保存後の取消を権限エラーへ読み替えない。
-      - SDK 内部 ID と HTTP セッション ID を区別し、SDK が閉じたときにも認証のセッション枠を返す。64 セッション・無操作 15 分、引数 2 MiB・応答全体 4 MiB・通常処理 30 秒の上限を置いた。
-      - 構造化された値と同じ JSON のテキストを返し、検証不合格・確定不可・保存失敗を isError と結果へ反映する。例外の原文・絶対パスをエラーへ流さない。
+          - 保存済みの参照 9 種、作業 8 種、定義済み操作 3 種のツールを用意し、接続者の能力に応じて一覧を絞る。実行時にも認証・能力・対象を再確認する。
+          - WorkspaceReads・WorkspaceWork・WorkspaceOperations を直接呼ぶ薄いアダプターにし、MCP だけ ON で利用できる。内蔵 LLM・agent・Compose の依存は追加していない。
+          - API と MCP の入力形式・変更セットの形式検査・結果の表現を server.protocol へ集めた。MCP のパッチスキーマは OpenAPI の原本から参照先を変換する。
+          - 作業の開始・編集・検証・提案・直接確定・破棄・結果照会を公開した。提案のデスクトップ承認と、計画 ID による直接確定を分け、外部の承認・権限変更・Undo/Redo は公開しない。
+          - MCP の通信セッションとツール処理を共通の要求管理へ登録し、OFF・失効・期限切れで取り消す。保存開始後は完了を待ち、保存後の取消を権限エラーへ読み替えない。
+          - SDK 内部 ID と HTTP セッション ID を区別し、SDK が閉じたときにも認証のセッション枠を返す。64 セッション・無操作 15 分、引数 2 MiB・応答全体 4 MiB・通常処理 30 秒の上限を置いた。
+          - 構造化された値と同じ JSON のテキストを返し、検証不合格・確定不可・保存失敗を isError と結果へ反映する。例外の原文・絶対パスをエラーへ流さない。
 
-      WorkspaceMcpTest の 7 件で公式 SDK クライアントとの参照・権限別一覧・提案・直接確定・操作・再送・結果照会・不正入力・権限外・他接続者・MCP 単独と部分停止・再接続を確認した。
-      McpCallerTest の 3 件で、SDK の別 coroutine の取消・失効・開始済み保存の完了待ちを検証した。API の既存 ReadApiTest / WriteApiTest も共通化後に成功した。
-      接続と使用手順は manual/local-mcp.md、部品と寿命は architecture/local-connections.md に記述し、機能索引とモジュールの説明を同期した。公開 README にも接続の入口と変更確定の二方式を記載した。UX-SCENARIOS に開発段階の確認手順は追加していない。
-      Core Calculus 上は認証・通信形式と既存サービスの呼出で、Query・Predicate・Rewrite・ChangeSetApplier の意味と保存経路を再実装しない。
-      新しい依存や版の変更はなく、外部版は 0.2.0 のまま。Inspector を含む相互運用の通し確認は次の R49-51 に残す。
-      全モジュールの test が成功した。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
-- id: RH-064
-  title: 'P49: MCP の相互運用と再接続（R49-51・R47-70、2026-11-01）'
-  body:
-  - text: |-
-      MCP の既存業務経路を CIO の実ポート、公式 Kotlin SDK 0.16.0 と Inspector 2.13.0 の CLI で検査した。
+          WorkspaceMcpTest の 7 件で公式 SDK クライアントとの参照・権限別一覧・提案・直接確定・操作・再送・結果照会・不正入力・権限外・他接続者・MCP 単独と部分停止・再接続を確認した。
+          McpCallerTest の 3 件で、SDK の別 coroutine の取消・失効・開始済み保存の完了待ちを検証した。API の既存 ReadApiTest / WriteApiTest も共通化後に成功した。
+          接続と使用手順は manual/local-mcp.md、部品と寿命は architecture/local-connections.md に記述し、機能索引とモジュールの説明を同期した。公開 README にも接続の入口と変更確定の二方式を記載した。UX-SCENARIOS に開発段階の確認手順は追加していない。
+          Core Calculus 上は認証・通信形式と既存サービスの呼出で、Query・Predicate・Rewrite・ChangeSetApplier の意味と保存経路を再実装しない。
+          新しい依存や版の変更はなく、外部版は 0.2.0 のまま。Inspector を含む相互運用の通し確認は次の R49-51 に残す。
+          全モジュールの test が成功した。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+  - id: RH-064
+    title: 'P49: MCP の相互運用と再接続（R49-51・R47-70、2026-11-01）'
+    body:
+      - text: |-
+          MCP の既存業務経路を CIO の実ポート、公式 Kotlin SDK 0.16.0 と Inspector 2.13.0 の CLI で検査した。
 
-      - McpHttpTest の 8 件で、初期化、通信セッション終了後の作業・提出・確定結果の引継ぎ、取消通知、無操作期限、資格情報の期限、MCP 部分停止・再有効化・全 OFF 時のポート解放を確認した。
-      - 保存開始後にクライアントが取り消し、同時に MCP を停止しても、保存と記録の完了を待つ。再接続後に同じ作業の結果を照会・再送できることを実通信で確認した。
-      - 初期化応答を接続数の上限で拒否すると、SDK のセッションと要求登録が残り、後続の接続や終了も制限される不具合を検出した。初期 HTTP の成功・失敗を認証からアダプターへ戻し、失敗時もセッションを閉じるよう修正した。
-      - 上限拒否を繰り返した後に既存セッションを終了し、再び上限まで初期化できる回帰試験を追加した。認証前・別接続者のセッション・不正 Origin・非対応の通信版も拒否する。
-      - 任意タスク verifyMcpInspector を追加した。Inspector CLI の実プロセスから一覧・参照・編集・検証・計画・直接確定・別接続での結果照会・MCP OFF 時の拒否・資格情報再発行後の同一確定の再送が成功した（Node 24.21.0）。
-      - Inspector の JSON 引数は検査用ファイルから渡し、Windows のコマンドラインで引用符を失わないようにした。資格情報は一時設定に閉じ、検査後に待受・子プロセス・一時ワークスペースを片付ける。Inspector の GUI は今回の確認対象に含めない。
+          - McpHttpTest の 8 件で、初期化、通信セッション終了後の作業・提出・確定結果の引継ぎ、取消通知、無操作期限、資格情報の期限、MCP 部分停止・再有効化・全 OFF 時のポート解放を確認した。
+          - 保存開始後にクライアントが取り消し、同時に MCP を停止しても、保存と記録の完了を待つ。再接続後に同じ作業の結果を照会・再送できることを実通信で確認した。
+          - 初期化応答を接続数の上限で拒否すると、SDK のセッションと要求登録が残り、後続の接続や終了も制限される不具合を検出した。初期 HTTP の成功・失敗を認証からアダプターへ戻し、失敗時もセッションを閉じるよう修正した。
+          - 上限拒否を繰り返した後に既存セッションを終了し、再び上限まで初期化できる回帰試験を追加した。認証前・別接続者のセッション・不正 Origin・非対応の通信版も拒否する。
+          - 任意タスク verifyMcpInspector を追加した。Inspector CLI の実プロセスから一覧・参照・編集・検証・計画・直接確定・別接続での結果照会・MCP OFF 時の拒否・資格情報再発行後の同一確定の再送が成功した（Node 24.21.0）。
+          - Inspector の JSON 引数は検査用ファイルから渡し、Windows のコマンドラインで引用符を失わないようにした。資格情報は一時設定に閉じ、検査後に待受・子プロセス・一時ワークスペースを片付ける。Inspector の GUI は今回の確認対象に含めない。
 
-      無操作期限を短くする注入は試験だけで、製品は 15 分のまま。通常の test に Node や Inspector の取得を要求せず、製品への依存追加と版の変更もない。
-      利用者の再接続・エラー復帰は manual/local-mcp.md、開発者の Inspector 検査手順は local-server/README.md に記載した。機能索引・設計・AGENTS の任意コマンドを同期し、UX-SCENARIOS は変更していない。
-      Core Calculus 上は通信と寿命の管理・既存サービスの結合試験で、Query・Predicate・Rewrite や保存経路の新設・変更はない。
-      R47-70 の MCP の入口も本工程で完了。次は R49-60 の Web のビルド・配信・認証を進める。
-      全モジュールの test が成功し、MCP 関連は既存分を含む 18 件が失敗なし。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
-- id: RH-065
-  title: 'P49: Web のビルドと配信・認証（R49-60、2026-11-01）'
-  body:
-  - text: |-
-      確認済みの MCP 対応を 4474aae にコミットした後、独立した web-ui と Web 専用の通信を追加した。
+          無操作期限を短くする注入は試験だけで、製品は 15 分のまま。通常の test に Node や Inspector の取得を要求せず、製品への依存追加と版の変更もない。
+          利用者の再接続・エラー復帰は manual/local-mcp.md、開発者の Inspector 検査手順は local-server/README.md に記載した。機能索引・設計・AGENTS の任意コマンドを同期し、UX-SCENARIOS は変更していない。
+          Core Calculus 上は通信と寿命の管理・既存サービスの結合試験で、Query・Predicate・Rewrite や保存経路の新設・変更はない。
+          R47-70 の MCP の入口も本工程で完了。次は R49-60 の Web のビルド・配信・認証を進める。
+          全モジュールの test が成功し、MCP 関連は既存分を含む 18 件が失敗なし。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+  - id: RH-065
+    title: 'P49: Web のビルドと配信・認証（R49-60、2026-11-01）'
+    body:
+      - text: |-
+          確認済みの MCP 対応を 4474aae にコミットした後、独立した web-ui と Web 専用の通信を追加した。
 
-      - React 19.3.1・TypeScript 5.9.3・Vite 8.3.5、MUI 9.5.0・React Router 7.18.5・TanStack Query 5.105.0 を固定した。Node 24.21.0・npm 11.19.0 は Gradle が取得し、package-lock.json に従って npm ci する。
-      - Web の OpenAPI から TypeScript 型を生成し、型検査・Vite ビルド・配信一覧の作成を Gradle に接続した。同じ型の同時生成を避ける共通タスクを置き、通常の test は Vitest も実行する。JVM の --tests による絞込みも維持した。
-      - ビルド済み資源だけを local-server に同梱し、API が OFF でも /app と /web-api を Web のスイッチだけで利用できる。Node・外部 CDN・ワークスペース内の任意ファイルの配信には依存しない。
-      - デスクトップで発行する 2 分・1 回限りの接続コードを、同じ Origin の JSON 要求で専用 Cookie へ交換する。コードを URL に置かず、Cookie は HttpOnly・SameSite=Strict・Path=/web-api とする。ログアウトには Origin と CSRF の照合を要求する。
-      - 資格情報の期限・再発行・Web OFF・権限変更・ワークスペース世代の失効は LocalAccess に統一した。画面再読込は Cookie で継続し、失効・通信失敗では概要を隠す。接続情報と応答は永続ストレージへ置かない。
-      - 接続画面・保存済み文書の件数・ログアウトを実装した。デスクトップの「接続コードをコピー」「Web を開く」を追加し、コードの期限と失効を表示へ反映する。
+          - React 19.3.1・TypeScript 5.9.3・Vite 8.3.5、MUI 9.5.0・React Router 7.18.5・TanStack Query 5.105.0 を固定した。Node 24.21.0・npm 11.19.0 は Gradle が取得し、package-lock.json に従って npm ci する。
+          - Web の OpenAPI から TypeScript 型を生成し、型検査・Vite ビルド・配信一覧の作成を Gradle に接続した。同じ型の同時生成を避ける共通タスクを置き、通常の test は Vitest も実行する。JVM の --tests による絞込みも維持した。
+          - ビルド済み資源だけを local-server に同梱し、API が OFF でも /app と /web-api を Web のスイッチだけで利用できる。Node・外部 CDN・ワークスペース内の任意ファイルの配信には依存しない。
+          - デスクトップで発行する 2 分・1 回限りの接続コードを、同じ Origin の JSON 要求で専用 Cookie へ交換する。コードを URL に置かず、Cookie は HttpOnly・SameSite=Strict・Path=/web-api とする。ログアウトには Origin と CSRF の照合を要求する。
+          - 資格情報の期限・再発行・Web OFF・権限変更・ワークスペース世代の失効は LocalAccess に統一した。画面再読込は Cookie で継続し、失効・通信失敗では概要を隠す。接続情報と応答は永続ストレージへ置かない。
+          - 接続画面・保存済み文書の件数・ログアウトを実装した。デスクトップの「接続コードをコピー」「Web を開く」を追加し、コードの期限と失効を表示へ反映する。
 
-      WebLoginsTest の 2 件で一回性・期限境界・権限変更・停止・世代変更を、WebHttpTest の 2 件で実 CIO のログイン・契約・CSRF・Cookie・ログアウト・限定配信・部分停止を検査した。
-      Compose の設定画面 11 件（新規 1 件）と Vitest 2 件が成功した。Playwright 1.64.1 の Chromium で実サーバへ接続し、ログイン・再読込・ログアウト、API OFF、Cookie 属性、永続ストレージ不使用、CSP 違反なしを確認した。幅 1280 と 390 の画面を画像でも確認した。
-      利用方法は manual/local-web.md、構成と寿命は architecture/local-connections.md、開発手順は web-ui/README.md に記載した。UX-SCENARIOS は変更していない。
-      Core Calculus 上は通信・認証と既存 WorkspaceReads の呼出で、意味の計算・編集・保存経路を追加していない。
-      外部版は 0.2.0 のまま。次は R49-61 のダッシュボードと業務詳細、R49-62 の業務操作で、配布物と npm ライセンスの通し検査は R49-71 に残す。
-      全モジュールの test が成功した（8 分 50 秒、69 タスク）。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
-- id: RH-066
-  title: 'P49: Web のダッシュボードと業務詳細（R49-61、2026-11-01）'
-  body:
-  - text: |-
-      確認済みの Web 配信・接続対応を 3d9b213 にコミットした後、保存版の業務閲覧を追加した。
+          WebLoginsTest の 2 件で一回性・期限境界・権限変更・停止・世代変更を、WebHttpTest の 2 件で実 CIO のログイン・契約・CSRF・Cookie・ログアウト・限定配信・部分停止を検査した。
+          Compose の設定画面 11 件（新規 1 件）と Vitest 2 件が成功した。Playwright 1.64.1 の Chromium で実サーバへ接続し、ログイン・再読込・ログアウト、API OFF、Cookie 属性、永続ストレージ不使用、CSP 違反なしを確認した。幅 1280 と 390 の画面を画像でも確認した。
+          利用方法は manual/local-web.md、構成と寿命は architecture/local-connections.md、開発手順は web-ui/README.md に記載した。UX-SCENARIOS は変更していない。
+          Core Calculus 上は通信・認証と既存 WorkspaceReads の呼出で、意味の計算・編集・保存経路を追加していない。
+          外部版は 0.2.0 のまま。次は R49-61 のダッシュボードと業務詳細、R49-62 の業務操作で、配布物と npm ライセンスの通し検査は R49-71 に残す。
+          全モジュールの test が成功した（8 分 50 秒、69 タスク）。文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+  - id: RH-066
+    title: 'P49: Web のダッシュボードと業務詳細（R49-61、2026-11-01）'
+    body:
+      - text: |-
+          確認済みの Web 配信・接続対応を 3d9b213 にコミットした後、保存版の業務閲覧を追加した。
 
-      - Web 専用のビュー一覧・ビュー・詳細の経路を WorkspaceReads へ接続した。基準日と共有入力を共通の Dashboards.resolve へ渡し、表・集計・チャート・保留理由を同じ保存版から返す。
-      - ReadQuery の業務表示指定と BusinessReadPresentation で、enum のラベル・表示形式・参照先・参照元・入力候補を添えた。参照らしい文字列を推測でリンクにせず、索引の解決結果を使う。通常 API と MCP の応答形式は維持した。
-      - API と Web の読取応答を SavedReadResponse へ集約した。共有入力は POST の本文に置き、Cookie・Origin・CSRF・全入力の閲覧権限を検査する。API は OFF のまま Web を利用できる。
-      - React の業務画面に、ビュー選択・区画・基準日・共有入力・表のページ送り・合成された詳細・参照の移動を実装した。保存版を取得の鍵に含め、競合と失敗では旧本文を隠す。本日を使う間は毎分結果を取り直す。
-      - 一覧へ戻る際に読取が重なり混雑する問題を実ブラウザで検出した。同じ版の取得済み結果を再利用し、混雑だけを最大 2 回再試行する。認証・入力・定義・版の失敗は自動再送しない。
-      - ECharts 6.1.0 の描画を BusinessChart に閉じ、必要な部品を遅延読込した。集計済みの系列と欠損をそのまま渡し、数値表・指摘・注意も表示する。通常の文書編集と業務操作の実行はこの工程に含めない。
+          - Web 専用のビュー一覧・ビュー・詳細の経路を WorkspaceReads へ接続した。基準日と共有入力を共通の Dashboards.resolve へ渡し、表・集計・チャート・保留理由を同じ保存版から返す。
+          - ReadQuery の業務表示指定と BusinessReadPresentation で、enum のラベル・表示形式・参照先・参照元・入力候補を添えた。参照らしい文字列を推測でリンクにせず、索引の解決結果を使う。通常 API と MCP の応答形式は維持した。
+          - API と Web の読取応答を SavedReadResponse へ集約した。共有入力は POST の本文に置き、Cookie・Origin・CSRF・全入力の閲覧権限を検査する。API は OFF のまま Web を利用できる。
+          - React の業務画面に、ビュー選択・区画・基準日・共有入力・表のページ送り・合成された詳細・参照の移動を実装した。保存版を取得の鍵に含め、競合と失敗では旧本文を隠す。本日を使う間は毎分結果を取り直す。
+          - 一覧へ戻る際に読取が重なり混雑する問題を実ブラウザで検出した。同じ版の取得済み結果を再利用し、混雑だけを最大 2 回再試行する。認証・入力・定義・版の失敗は自動再送しない。
+          - ECharts 6.1.0 の描画を BusinessChart に閉じ、必要な部品を遅延読込した。集計済みの系列と欠損をそのまま渡し、数値表・指摘・注意も表示する。通常の文書編集と業務操作の実行はこの工程に含めない。
 
-      WebBusinessTest の 4 件でインメモリ通信の実応答と契約、共通計算との一致、日付・共有入力、参照、保留、権限、古い版、CSRF を検査した。
-      Vitest 3 件と Playwright の接続・注文・TODO の 3 シナリオが成功した。実 CIO と Chromium で、条件変更・詳細と参照・図と数値表・集計表・混雑からの復帰・版の競合・失効を確認し、幅 1280 と 390 の画像も確認した。
-      全モジュールの test は再実行で成功した（3 分 37 秒、69 タスク）。途中で既存の MCP 上限拒否試験が一度 404 を返し、再実行では成功した。Web の変更とは分けて UX-229 に記録し、通し試験で追跡する。
+          WebBusinessTest の 4 件でインメモリ通信の実応答と契約、共通計算との一致、日付・共有入力、参照、保留、権限、古い版、CSRF を検査した。
+          Vitest 3 件と Playwright の接続・注文・TODO の 3 シナリオが成功した。実 CIO と Chromium で、条件変更・詳細と参照・図と数値表・集計表・混雑からの復帰・版の競合・失効を確認し、幅 1280 と 390 の画像も確認した。
+          全モジュールの test は再実行で成功した（3 分 37 秒、69 タスク）。途中で既存の MCP 上限拒否試験が一度 404 を返し、再実行では成功した。Web の変更とは分けて UX-229 に記録し、通し試験で追跡する。
 
-      マニュアル・設計・機能索引・モジュール案内・設定画面の説明を同期した。UX-SCENARIOS は変更せず、今回の試し方はチャットで案内する。
-      Core Calculus 上は既存の Query・Expression・Predicate・Aggregate の結果の射影で、評価器・編集・保存経路を追加していない。
-      外部版は 0.2.0 のまま。次は R49-62 の業務操作の入力・確認・適用で、配布検査と npm ライセンスの同梱は R49-71 に残す。
+          マニュアル・設計・機能索引・モジュール案内・設定画面の説明を同期した。UX-SCENARIOS は変更せず、今回の試し方はチャットで案内する。
+          Core Calculus 上は既存の Query・Expression・Predicate・Aggregate の結果の射影で、評価器・編集・保存経路を追加していない。
+          外部版は 0.2.0 のまま。次は R49-62 の業務操作の入力・確認・適用で、配布検査と npm ライセンスの同梱は R49-71 に残す。
 
-      試用で指摘された「顧客別の順位」の上下逆転を修正した。サーバの降順データは正しく、Web の横棒の分類軸が先頭を下へ描いていた。
-      横棒・積み上げ横棒は先頭を上へ描き、数値表とデスクトップに揃えた。Playwright で SVG の画面座標と数値表の順序を照合し、修正前の失敗と修正後の成功を確認した。
-- id: RH-067
-  title: 'P49: Web の業務操作の入力・確認・適用（R49-62、2026-11-01）'
-  body:
-  - text: |-
-      確認済みの Web 業務閲覧・横棒の並び順修正とリリース時期の変更を cc129b5 にコミットした後、Web からの定義済み操作を追加した。
-      リリースは開発・受入・配布検査の直後に行わず、オーナーの約 2 週間の試用（R49-72）と、合意した機能追加・改善・再検証（R49-73）を経て R49-80 へ進む。
+          試用で指摘された「顧客別の順位」の上下逆転を修正した。サーバの降順データは正しく、Web の横棒の分類軸が先頭を下へ描いていた。
+          横棒・積み上げ横棒は先頭を上へ描き、数値表とデスクトップに揃えた。Playwright で SVG の画面座標と数値表の順序を照合し、修正前の失敗と修正後の成功を確認した。
+  - id: RH-067
+    title: 'P49: Web の業務操作の入力・確認・適用（R49-62、2026-11-01）'
+    body:
+      - text: |-
+          確認済みの Web 業務閲覧・横棒の並び順修正とリリース時期の変更を cc129b5 にコミットした後、Web からの定義済み操作を追加した。
+          リリースは開発・受入・配布検査の直後に行わず、オーナーの約 2 週間の試用（R49-72）と、合意した機能追加・改善・再検証（R49-73）を経て R49-80 へ進む。
 
-      - WebOperations は操作一覧・入力準備・計画・確定・結果照会を公開し、既存の認証と WorkspaceReads / WorkspaceOperations へ接続した。API は OFF のまま利用でき、任意パッチ・検証免除・Undo の入口は追加しない。
-      - BusinessActionForms は項目解決済みの表示情報だけを返す。初期値は ActionPlanner.prepareInput、変更した値の選別は ActionInput.submitted に集め、DocumentSession と共有した。
-      - 入力の作業を接続者・対象・初期値・準備時刻・権限・編集版・保存版へ結び、10 分で失効させる。保存版の指紋は読取と共用し、入力開始後の変更を計画前に拒否する。
-      - Web は文字列・数値・真偽値・日付・時刻・選択肢・参照 ID・配列・オブジェクトのフォームを表示する。任意型・map・項目の分岐・深い再帰を含む定義は理由を表示して無効にし、デスクトップへ案内する。
-      - 変更前後と検証結果の確認後、追加のデスクトップ承認なしで保存する。入力変更で旧確認を取り下げ、期限切れ・古い版・未保存編集・検証エラー・権限変更は既存の確定規則で止める。
-      - 保存開始後は二重クリックと再適用を止め、応答喪失時は同じ要求 ID の結果照会だけを行う。再接続後の要求 ID による照会も用意し、部分保存・結果不明を成功扱いしない。
-      - 概要の一時的な読取混雑で入力中の画面を破棄しない。資格情報が失効した場合は従来どおり業務画面を解除し、資格情報と入力内容をブラウザの永続ストレージへ保存しない。
+          - WebOperations は操作一覧・入力準備・計画・確定・結果照会を公開し、既存の認証と WorkspaceReads / WorkspaceOperations へ接続した。API は OFF のまま利用でき、任意パッチ・検証免除・Undo の入口は追加しない。
+          - BusinessActionForms は項目解決済みの表示情報だけを返す。初期値は ActionPlanner.prepareInput、変更した値の選別は ActionInput.submitted に集め、DocumentSession と共有した。
+          - 入力の作業を接続者・対象・初期値・準備時刻・権限・編集版・保存版へ結び、10 分で失効させる。保存版の指紋は読取と共用し、入力開始後の変更を計画前に拒否する。
+          - Web は文字列・数値・真偽値・日付・時刻・選択肢・参照 ID・配列・オブジェクトのフォームを表示する。任意型・map・項目の分岐・深い再帰を含む定義は理由を表示して無効にし、デスクトップへ案内する。
+          - 変更前後と検証結果の確認後、追加のデスクトップ承認なしで保存する。入力変更で旧確認を取り下げ、期限切れ・古い版・未保存編集・検証エラー・権限変更は既存の確定規則で止める。
+          - 保存開始後は二重クリックと再適用を止め、応答喪失時は同じ要求 ID の結果照会だけを行う。再接続後の要求 ID による照会も用意し、部分保存・結果不明を成功扱いしない。
+          - 概要の一時的な読取混雑で入力中の画面を破棄しない。資格情報が失効した場合は従来どおり業務画面を解除し、資格情報と入力内容をブラウザの永続ストレージへ保存しない。
 
-      WorkspaceOperationsTest は初期値と変更項目、他接続者・保存版・権限・期限・編集状態の変化を検査した。ActionInputTest で未変更・必須・空文字・空配列の送信規則を確認した。
-      WebOperationsTest の 4 件で OpenAPI と実応答、Web 単独利用・権限・CSRF・初期値・古い確認・未保存・検証拒否・再送・結果照会を確認した。
-      Playwright の接続・注文・TODO・業務操作の 4 シナリオが成功した。業務操作ではサンプルのコピーへ実際に保存し、その HTTP 応答だけを切断して、再適用なしで結果照会と画面の更新ができることを確認した。
-      幅 1280 と 390 の画面も確認した。狭幅検査は描画のリサイズ完了を待ち、一時的な幅で誤判定しないようにした。
+          WorkspaceOperationsTest は初期値と変更項目、他接続者・保存版・権限・期限・編集状態の変化を検査した。ActionInputTest で未変更・必須・空文字・空配列の送信規則を確認した。
+          WebOperationsTest の 4 件で OpenAPI と実応答、Web 単独利用・権限・CSRF・初期値・古い確認・未保存・検証拒否・再送・結果照会を確認した。
+          Playwright の接続・注文・TODO・業務操作の 4 シナリオが成功した。業務操作ではサンプルのコピーへ実際に保存し、その HTTP 応答だけを切断して、再適用なしで結果照会と画面の更新ができることを確認した。
+          幅 1280 と 390 の画面も確認した。狭幅検査は描画のリサイズ完了を待ち、一時的な幅で誤判定しないようにした。
 
-      マニュアル・設計・機能索引・モジュール案内・設定画面の説明を同期した。UX-SCENARIOS に段階ごとの手順は追加せず、今回の試し方はチャットで案内する。
-      Core Calculus 上は既存の Construct / Expression による初期値、Predicate による前提・検証、Rewrite / ChangeSetApplier による変更の組合せで、業務の評価器と保存経路を新設しない。
-      新しい依存と版の変更はなく、外部版は 0.2.0 のまま。次は R49-70 の通し試験と操作体験の確認、続いて R49-71 の配布検査へ進む。
-      全モジュールの test と verifyWebBrowser が成功した（13 分 48 秒、70 タスク）。Vitest の 4 件も成功し、文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
-- id: RH-068
-  title: 'P49: ローカル接続の通し試験と操作体験（R49-70、2026-11-01）'
-  body:
-  - text: |-
-      オーナーが試用した Web の業務操作を a15d80f にコミットした後、製品の Runtime と三つの入口を組み合わせて検証した。
-      オーナーの「非常に良いと思いました」という評価を所感に記録した。今回も UX-SCENARIOS に段階ごとの検査手順やテスト実行案内は追加していない。
+          マニュアル・設計・機能索引・モジュール案内・設定画面の説明を同期した。UX-SCENARIOS に段階ごとの手順は追加せず、今回の試し方はチャットで案内する。
+          Core Calculus 上は既存の Construct / Expression による初期値、Predicate による前提・検証、Rewrite / ChangeSetApplier による変更の組合せで、業務の評価器と保存経路を新設しない。
+          新しい依存と版の変更はなく、外部版は 0.2.0 のまま。次は R49-70 の通し試験と操作体験の確認、続いて R49-71 の配布検査へ進む。
+          全モジュールの test と verifyWebBrowser が成功した（13 分 48 秒、70 タスク）。Vitest の 4 件も成功し、文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+  - id: RH-068
+    title: 'P49: ローカル接続の通し試験と操作体験（R49-70、2026-11-01）'
+    body:
+      - text: |-
+          オーナーが試用した Web の業務操作を a15d80f にコミットした後、製品の Runtime と三つの入口を組み合わせて検証した。
+          オーナーの「非常に良いと思いました」という評価を所感に記録した。今回も UX-SCENARIOS に段階ごとの検査手順やテスト実行案内は追加していない。
 
-      - LocalConnectionAcceptanceTest は DesktopRuntime を所有スレッド上で動かし、製品の LocalServer へ実 HTTP で API・MCP・Web を接続する。ライブラリの追加や検査用の製品経路はない。
-      - Runtime の再起動と実行中の切替で全八組合せを確認した。API と MCP の認証済み要求、Web の同梱画面・コード交換・Cookie 通信、停止した経路の拒否、最後の OFF で接続失敗とポート再確保を検査した。
-      - 同じ保存版から三入口の計画を作り、API の確定後は Web と MCP の古い確認を拒否した。画面非表示の状態でも処理が続き、無関係な未保存編集・Undo/Redo を保持し、競合する古い一手では停止する。
-      - 三入口の確定要求を同時に送る検査も行い、保存は一つだけ、残りは処理中または古い計画として拒否され、ディスクと編集セッションが同じ結果になることを確認した。
-      - MCP の提案を記録へ提出し、Runtime の再起動後に復元した。再発行した資格情報で結果を確認し、デスクトップの受信箱から再確認・承認して保存できた。ワークスペース切替後は旧資格情報で別の場所へアクセスできない。
-      - UX-229 は上限拒否と終了の反復で再現した。初期化の本文を送信済みでも、その直後に HTTP の取消が届くと completed が false のままになり、初期化失敗として MCP セッションを閉じていた。
-      - LocalAuthentication は Ktor の isSent・成功の状態コード・認証で拒否されていないことを確認する。ヘッダ確定だけでは成功とせず、送信前の取消・上限拒否・失効では終了処理を維持する。送信直後に取消を入れる決定的な回帰試験と、上限拒否・終了を繰り返す試験が成功した。
-      - UX-230 は、対応外のビューも名前・理由を表示し、選択候補を無効にした。対応外のみと定義がない場合を区別し、URL で直接指定しても対象外の読取を行わない。通常 API / MCP のカタログ表現は変更しない。
+          - LocalConnectionAcceptanceTest は DesktopRuntime を所有スレッド上で動かし、製品の LocalServer へ実 HTTP で API・MCP・Web を接続する。ライブラリの追加や検査用の製品経路はない。
+          - Runtime の再起動と実行中の切替で全八組合せを確認した。API と MCP の認証済み要求、Web の同梱画面・コード交換・Cookie 通信、停止した経路の拒否、最後の OFF で接続失敗とポート再確保を検査した。
+          - 同じ保存版から三入口の計画を作り、API の確定後は Web と MCP の古い確認を拒否した。画面非表示の状態でも処理が続き、無関係な未保存編集・Undo/Redo を保持し、競合する古い一手では停止する。
+          - 三入口の確定要求を同時に送る検査も行い、保存は一つだけ、残りは処理中または古い計画として拒否され、ディスクと編集セッションが同じ結果になることを確認した。
+          - MCP の提案を記録へ提出し、Runtime の再起動後に復元した。再発行した資格情報で結果を確認し、デスクトップの受信箱から再確認・承認して保存できた。ワークスペース切替後は旧資格情報で別の場所へアクセスできない。
+          - UX-229 は上限拒否と終了の反復で再現した。初期化の本文を送信済みでも、その直後に HTTP の取消が届くと completed が false のままになり、初期化失敗として MCP セッションを閉じていた。
+          - LocalAuthentication は Ktor の isSent・成功の状態コード・認証で拒否されていないことを確認する。ヘッダ確定だけでは成功とせず、送信前の取消・上限拒否・失効では終了処理を維持する。送信直後に取消を入れる決定的な回帰試験と、上限拒否・終了を繰り返す試験が成功した。
+          - UX-230 は、対応外のビューも名前・理由を表示し、選択候補を無効にした。対応外のみと定義がない場合を区別し、URL で直接指定しても対象外の読取を行わない。通常 API / MCP のカタログ表現は変更しない。
 
-      開発環境での受入条件と主な確認先:
+          開発環境での受入条件と主な確認先:
 
-      | 観点 | 確認先と結果 |
-      |---|---|
-      | 未使用時・八組合せ・単独利用 | LocalConnectionAcceptanceTest の実 Runtime・実ソケットと、設定復元の LocalConnectionControllerTest / ConnectionSettingsStoreTest |
-      | 停止・切替競合・占有 | LocalConnectionsTest / LocalListenerLifecycleTest / McpHttpTest の取消・収束・停止失敗・指定ポート占有と、通し試験の最終停止 |
-      | 認証・権限・Origin・CSRF | LocalAuthenticationTest / LocalProtocolAuthenticationTest / LocalAccessTest と Web・API・MCP の契約試験 |
-      | ワークスペース切替・並行操作・古い確認 | LocalConnectionAcceptanceTest の三入口の計画・順次確定・同時確定・未保存保護と、WorkspaceOperationsTest の版・権限・定義変更 |
-      | 再送・保存中断・部分保存・結果不明 | WorkspaceOperationsTest / WorkspaceWorkTest / McpHttpTest と、ブラウザの実保存後の応答喪失・結果照会 |
-      | 履歴・監視・提出と復旧 | LocalConnectionAcceptanceTest / DesktopRuntimeTest / ExternalCommitTest / ExternalWorkPaneTest の状態保持・履歴の停止・復元と承認 |
-      | 複数プロセス・CLI | WorkspaceOwnershipTest の別 JVM・通常終了・強制終了と、CliOwnershipTest / ConnectedCliIntegrationTest の書込拒否・明示接続 |
-      | Web の意味と表示 | WebBusinessTest と Playwright の接続・注文・TODO・操作・対応外のみ・混在の六シナリオ |
-      | 常駐の寿命 | DesktopPresenceTest / DesktopRuntimeTest / LocalConnectionAcceptanceTest と、実トレイの DesktopTraySmoke |
-      | 配布物固有の検査 | R49-71 で同梱ランタイム・Node なし・ライセンス・配布プロセスの PID に属する OS 待受一覧を確認する |
+          | 観点 | 確認先と結果 |
+          |---|---|
+          | 未使用時・八組合せ・単独利用 | LocalConnectionAcceptanceTest の実 Runtime・実ソケットと、設定復元の LocalConnectionControllerTest / ConnectionSettingsStoreTest |
+          | 停止・切替競合・占有 | LocalConnectionsTest / LocalListenerLifecycleTest / McpHttpTest の取消・収束・停止失敗・指定ポート占有と、通し試験の最終停止 |
+          | 認証・権限・Origin・CSRF | LocalAuthenticationTest / LocalProtocolAuthenticationTest / LocalAccessTest と Web・API・MCP の契約試験 |
+          | ワークスペース切替・並行操作・古い確認 | LocalConnectionAcceptanceTest の三入口の計画・順次確定・同時確定・未保存保護と、WorkspaceOperationsTest の版・権限・定義変更 |
+          | 再送・保存中断・部分保存・結果不明 | WorkspaceOperationsTest / WorkspaceWorkTest / McpHttpTest と、ブラウザの実保存後の応答喪失・結果照会 |
+          | 履歴・監視・提出と復旧 | LocalConnectionAcceptanceTest / DesktopRuntimeTest / ExternalCommitTest / ExternalWorkPaneTest の状態保持・履歴の停止・復元と承認 |
+          | 複数プロセス・CLI | WorkspaceOwnershipTest の別 JVM・通常終了・強制終了と、CliOwnershipTest / ConnectedCliIntegrationTest の書込拒否・明示接続 |
+          | Web の意味と表示 | WebBusinessTest と Playwright の接続・注文・TODO・操作・対応外のみ・混在の六シナリオ |
+          | 常駐の寿命 | DesktopPresenceTest / DesktopRuntimeTest / LocalConnectionAcceptanceTest と、実トレイの DesktopTraySmoke |
+          | 配布物固有の検査 | R49-71 で同梱ランタイム・Node なし・ライセンス・配布プロセスの PID に属する OS 待受一覧を確認する |
 
-      新しい通し試験 4 件、MCP の実通信 9 件、ブラウザ 6 シナリオ、実トレイの登録・更新・コマンド通知・解除が成功した。対応外ビューの案内は画像でも確認した。
-      全モジュールの test と verifyMcpInspector が成功した（10 分 40 秒、70 タスク）。Inspector で初期化から確定・再接続後の結果照会、停止時の拒否・資格情報の再発行・同じ確定の再送を確認した。ブラウザ試験の TypeScript 型検査も成功した。
-      文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
-      すべての試験は一時ワークスペースと専用ポートを使い、終了時に Runtime・サーバ・ブラウザ・クライアントを回収した。samples / labs と利用者の設定は変更していない。
-      Core Calculus 上は通信の寿命の修正・カタログ結果の表示・既存機能の結合検査で、意味の評価器や保存経路の追加はない。
-      配布物固有の受入は次の R49-71 に残し、開発環境の確認と区別する。外部版は 0.2.0 のまま、約 2 週間の試用・機能追加と改善を経て v0.3.0 にする順序も維持する。
+          新しい通し試験 4 件、MCP の実通信 9 件、ブラウザ 6 シナリオ、実トレイの登録・更新・コマンド通知・解除が成功した。対応外ビューの案内は画像でも確認した。
+          全モジュールの test と verifyMcpInspector が成功した（10 分 40 秒、70 タスク）。Inspector で初期化から確定・再接続後の結果照会、停止時の拒否・資格情報の再発行・同じ確定の再送を確認した。ブラウザ試験の TypeScript 型検査も成功した。
+          文書同期後の docs-lint は失敗なし（既存の目安の指摘 87 件）、git diff --check も成功した。
+          すべての試験は一時ワークスペースと専用ポートを使い、終了時に Runtime・サーバ・ブラウザ・クライアントを回収した。samples / labs と利用者の設定は変更していない。
+          Core Calculus 上は通信の寿命の修正・カタログ結果の表示・既存機能の結合検査で、意味の評価器や保存経路の追加はない。
+          配布物固有の受入は次の R49-71 に残し、開発環境の確認と区別する。外部版は 0.2.0 のまま、約 2 週間の試用・機能追加と改善を経て v0.3.0 にする順序も維持する。

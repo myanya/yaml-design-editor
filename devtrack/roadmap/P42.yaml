@@ -5,47 +5,50 @@ table_title: スキーマレンズ（スキーマの構造を図に。グラフ�
 status: in-progress
 status_note: 段階 1（型の段・CLI・矢印の向き）完了（2026-10-17）。段階 2・3 は下記
 body:
-- points:
-  - label: 目的
-    text: ワークスペースのスキーマの構造そのもの（型・関係・保有）を図で見る。今のグラフレンズ（箱＝エンティティ・線＝参照・入れ子＝保有）を一段上に上げ、箱＝エンティティ型・線＝関係・入れ子＝保有の宣言にする。同じ画面・同じ右パネル・同じ覚えで、実体の図と往復できる。
-  - label: 既知の技術との対応
-    text: ER 図・クラス図（型＝クラス、関係＝関連、保有＝合成）。実体の図はそのインスタンス図。
-  - decision: 決めたこと
-    status: decided
-    date: 2026-10-17
-    by: オーナー
-    text: '①主役は型の図、スキーマ文書の図は切替 ②置き場所は台帳のレンズの「実体／型」の切替（新しい常設画面は作らない） ③線の出どころは段階 1 が宣言＋導出、実績の件数は段階 2 ④保有は箱の入れ子（畳める） ⑤矢印の向きは関係ごとに逆にできる（表示だけ） ⑥表示設定はスキーマ・レジストリに置かず、`_views` のレンズの見え方の定義（`kind: lens`）に置く（ワークスペース単位の表示設定の最初の置き場。レンズ以外の表示設定も同じ流儀で足す）。'
-  - label: 今の姿
-    text: '[architecture/graph-query.md](architecture/graph-query.md)「スキーマレンズ（型の段）」、使い方は [manual/views.md](manual/views.md)。計算体系では Construct（スキーマと宣言からの導出。文書を読まない）。'
-  - label: 提案の材料
-    text: labs/sysdev-template（型 26・関係 40・保有 9・スキーマ文書 30）から機械的に描いた 2 枚の図（型レベル・スキーマ文書レベル）。
-- columns: basic
-  items:
-  - id: R42-01
-    title: 型の図の導出
-    content: '`SemanticSchemaGraph`（型・線＝宣言と導出・保有の宣言・線にできない参照項目の理由。要素の型は object の entity ＞ idType ＞ 単一の宣言 ＞ 宣言の並びで推定）'
-    state: done
-    state_on: 2026-10-17
-  - id: R42-02
-    title: レンズの「型」の段
-    content: '`LensGraphs.buildTypes` で実体の段と同じ絞り込み・配置・描画・PNG。箱を押すとスキーマへ、右クリックで「この型の実体を見る」'
-    state: done
-    state_on: 2026-10-17
-  - id: R42-03
-    title: CLI
-    content: '`schema-graph <ws>`（同じ材料を YAML で）'
-    state: done
-    state_on: 2026-10-17
-  - id: R42-04
-    title: 矢印の向き
-    content: '`_views` の `kind: lens` の `relations[].arrow: reverse`（文字は inverseLabel。実体・型の両方の段。検証・クエリには関与しない。レジストリに置いた初版はオーナーの指摘で移した）'
-    state: done
-    state_on: 2026-10-17
-  - id: R42-05
-    title: スキーマで分ける
-    content: 箱＝スキーマ文書・同じ型は点線。線の種類を足す（詳細化 `detailIn`・共通定義 `module#定義`・派生 `derive`・ビュー→スキーマ）。実績の件数を線に添える
-    state: todo
-  - id: R42-06
-    title: 行き先と開示
-    content: エンティティページの型のバッジから型の図へ。エージェントへの開示（`read_schema_graph`）はここで判断
-    state: todo
+  - points:
+      - label: 目的
+        text: ワークスペースのスキーマの構造そのもの（型・関係・保有）を図で見る。今のグラフレンズ（箱＝エンティティ・線＝参照・入れ子＝保有）を一段上に上げ、箱＝エンティティ型・線＝関係・入れ子＝保有の宣言にする。同じ画面・同じ右パネル・同じ覚えで、実体の図と往復できる。
+      - label: 既知の技術との対応
+        text: ER 図・クラス図（型＝クラス、関係＝関連、保有＝合成）。実体の図はそのインスタンス図。
+      - decision: 決めたこと
+        status: decided
+        date: 2026-10-17
+        by: オーナー
+        text: '①主役は型の図、スキーマ文書の図は切替 ②置き場所は台帳のレンズの「実体／型」の切替（新しい常設画面は作らない） ③線の出どころは段階 1 が宣言＋導出、実績の件数は段階 2 ④保有は箱の入れ子（畳める） ⑤矢印の向きは関係ごとに逆にできる（表示だけ）
+          ⑥表示設定はスキーマ・レジストリに置かず、`_views` のレンズの見え方の定義（`kind: lens`）に置く（ワークスペース単位の表示設定の最初の置き場。レンズ以外の表示設定も同じ流儀で足す）。'
+        id: DEC-002
+      - label: 今の姿
+        text: '[architecture/graph-query.md](architecture/graph-query.md)「スキーマレンズ（型の段）」、使い方は [manual/views.md](manual/views.md)。計算体系では
+          Construct（スキーマと宣言からの導出。文書を読まない）。'
+      - label: 提案の材料
+        text: labs/sysdev-template（型 26・関係 40・保有 9・スキーマ文書 30）から機械的に描いた 2 枚の図（型レベル・スキーマ文書レベル）。
+  - columns: basic
+    items:
+      - id: R42-01
+        title: 型の図の導出
+        content: '`SemanticSchemaGraph`（型・線＝宣言と導出・保有の宣言・線にできない参照項目の理由。要素の型は object の entity ＞ idType ＞ 単一の宣言 ＞ 宣言の並びで推定）'
+        state: done
+        state_on: 2026-10-17
+      - id: R42-02
+        title: レンズの「型」の段
+        content: '`LensGraphs.buildTypes` で実体の段と同じ絞り込み・配置・描画・PNG。箱を押すとスキーマへ、右クリックで「この型の実体を見る」'
+        state: done
+        state_on: 2026-10-17
+      - id: R42-03
+        title: CLI
+        content: '`schema-graph <ws>`（同じ材料を YAML で）'
+        state: done
+        state_on: 2026-10-17
+      - id: R42-04
+        title: 矢印の向き
+        content: '`_views` の `kind: lens` の `relations[].arrow: reverse`（文字は inverseLabel。実体・型の両方の段。検証・クエリには関与しない。レジストリに置いた初版はオーナーの指摘で移した）'
+        state: done
+        state_on: 2026-10-17
+      - id: R42-05
+        title: スキーマで分ける
+        content: 箱＝スキーマ文書・同じ型は点線。線の種類を足す（詳細化 `detailIn`・共通定義 `module#定義`・派生 `derive`・ビュー→スキーマ）。実績の件数を線に添える
+        state: todo
+      - id: R42-06
+        title: 行き先と開示
+        content: エンティティページの型のバッジから型の図へ。エージェントへの開示（`read_schema_graph`）はここで判断
+        state: todo

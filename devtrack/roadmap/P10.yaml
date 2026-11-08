@@ -4,32 +4,57 @@ title: 読み手体験と表示解決
 status: done
 status_note: 完了
 history:
-- id: RH-018
-  title: 'P10: 読み手体験と表示解決 ✅ 完了（2026-07）'
-  body:
-  - text: '狙い: フォーム・参照・ビューの各所で「IDや生値がそのまま見えて分かりにくい」「畳むと中身が分からない」を、**表示解決（DisplayResolver）**という単一の共通機構で解消する。あわせて閲覧専用モードとワークスペース管理で「読む・切り替える」体験を整える。表示解決は人間UIとエージェント向け要約（AG-25）の**共有契約**とし、人間とAIが同じ要約を見る状態を作る（§4.2 セルフホスティングの流儀）。'
-  - head: |-
-      | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
-      |---|---|---|
-    rows:
-    - id: R10-01
-      title: 表示解決機構（予約語＋スキーマヒント）
-      cells:
-      - '✅ S-13（`schema/Display.kt`: 優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有・object 内重複のメタ検証）＞予約語（title / name / label、description / summary）＞ id ＞ キー数の要約。索引のタイトル抽出（`DocScanner` → `IdEntry.title`）に一元化したため、参照候補（I-04）・ID検索（I-06）・ビュー行タイトル（X-06）は自動追随。バックリンク（I-05・X-06・AG-25）は `IdIndex.sourceEntryOf` で「参照を書いた要素」のID・タイトルを表示。配置は依存方向の都合で core ではなく schema パッケージ＝UI非依存の純ロジック層（ARCHITECTURE §4.22））'
-    - id: R10-02
-      title: 畳み込みサマリ
-      cells:
-      - '✅ E-11（畳んだ object=「ID タイトル（n項目）」、配列=「n件: 先頭要素の要約, …」を `Display.headerText` / `seqHeaderText` で生成）'
-    - id: R10-03
-      title: enum のリッチ選択肢
-      cells:
-      - '✅ S-14（`values` の要素を文字列または `{value, label, description}` に拡張＝後方互換・混在可。検証・`cases`・AI生成の制約は `value` のまま、フォームは label 表示＋現在選択値の ✓ ＋説明表示、スキーマ設計UIに入力欄を追加。`type: ref` ＋ `scope` による台帳管理の運用ガイドは MANUAL §4）'
-    - id: R10-04
-      title: 閲覧専用モード
-      cells:
-      - '✅ E-12（`FormCtx.readOnly`: テキスト表示化・追加/削除/AIボタン非表示・パディング圧縮。既定畳みはその後編集モードと共通化（E-11）。ジャンプ・バックリンクは残置。ID横ぐしの埋め込みフォーム・ビューグリッドへ `FormCtx` 共有で自動波及。トグルはツールバー＋ `uiPreferences` 永続化）'
-    - id: R10-05
-      title: ワークスペース管理
-      cells:
-      - ✅ W-08（最近開いたワークスペース履歴＝アプリグローバル Preferences・起動時スタート画面＝sample-workspace 自動オープンを履歴選択に置換・コマンドパレットからの切替。未保存確認は W-07 を共用。複数ウィンドウ同時オープンは対象外のまま＝必要になったら別項目として起こす）
-  - text: '**完了条件の充足**: 参照候補・畳み込み・ID横ぐし・ビューグリッド・ID検索・エージェント `related` が同一の表示解決を使い、スキーマの `role` 指定が索引タイトル経由で全消費側へ一括で効くことを `DisplayTest` が検証（role 優先・予約語順序・`$ref` 合成・`DocScanner` への波及・リッチ選択肢の後方互換）。閲覧モードで編集経路（`markEdited` / スカラー書込）に到達できないことを `ReadOnlyTest` が検証（ツリー変異前に拒否）。ワークスペースの切替はスタート画面・パレットで起動引数なしで完結する（手動確認）。'
+  - id: RH-018
+    title: 'P10: 読み手体験と表示解決 ✅ 完了（2026-07）'
+    body:
+      - text: '狙い: フォーム・参照・ビューの各所で「IDや生値がそのまま見えて分かりにくい」「畳むと中身が分からない」を、**表示解決（DisplayResolver）**という単一の共通機構で解消する。あわせて閲覧専用モードとワークスペース管理で「読む・切り替える」体験を整える。表示解決は人間UIとエージェント向け要約（AG-25）の**共有契約**とし、人間とAIが同じ要約を見る状態を作る（§4.2
+          セルフホスティングの流儀）。'
+      - head: |-
+          | ID | 項目 | 実装（[FEATURES.md](../FEATURES.md)） |
+          |---|---|---|
+        rows:
+          - id: R10-01
+            title: 表示解決機構（予約語＋スキーマヒント）
+            cells:
+              - '✅ S-13（`schema/Display.kt`: 優先順位はスキーマの `FieldDef.role: title / subtitle`（`$ref` 合成・library 共有・object 内重複のメタ検証）＞予約語（title
+                / name / label、description / summary）＞ id ＞ キー数の要約。索引のタイトル抽出（`DocScanner` → `IdEntry.title`）に一元化したため、参照候補（I-04）・ID検索（I-06）・ビュー行タイトル（X-06）は自動追随。バックリンク（I-05・X-06・AG-25）は
+                `IdIndex.sourceEntryOf` で「参照を書いた要素」のID・タイトルを表示。配置は依存方向の都合で core ではなく schema パッケージ＝UI非依存の純ロジック層（ARCHITECTURE
+                §4.22））'
+            features:
+              - S-13
+              - I-04
+              - I-06
+              - X-06
+              - I-05
+              - AG-25
+          - id: R10-02
+            title: 畳み込みサマリ
+            cells:
+              - '✅ E-11（畳んだ object=「ID タイトル（n項目）」、配列=「n件: 先頭要素の要約, …」を `Display.headerText` / `seqHeaderText` で生成）'
+            features:
+              - E-11
+          - id: R10-03
+            title: enum のリッチ選択肢
+            cells:
+              - '✅ S-14（`values` の要素を文字列または `{value, label, description}` に拡張＝後方互換・混在可。検証・`cases`・AI生成の制約は `value` のまま、フォームは
+                label 表示＋現在選択値の ✓ ＋説明表示、スキーマ設計UIに入力欄を追加。`type: ref` ＋ `scope` による台帳管理の運用ガイドは MANUAL §4）'
+            features:
+              - S-14
+          - id: R10-04
+            title: 閲覧専用モード
+            cells:
+              - '✅ E-12（`FormCtx.readOnly`: テキスト表示化・追加/削除/AIボタン非表示・パディング圧縮。既定畳みはその後編集モードと共通化（E-11）。ジャンプ・バックリンクは残置。ID横ぐしの埋め込みフォーム・ビューグリッドへ
+                `FormCtx` 共有で自動波及。トグルはツールバー＋ `uiPreferences` 永続化）'
+            features:
+              - E-12
+              - E-11
+          - id: R10-05
+            title: ワークスペース管理
+            cells:
+              - ✅ W-08（最近開いたワークスペース履歴＝アプリグローバル Preferences・起動時スタート画面＝sample-workspace 自動オープンを履歴選択に置換・コマンドパレットからの切替。未保存確認は
+                W-07 を共用。複数ウィンドウ同時オープンは対象外のまま＝必要になったら別項目として起こす）
+            features:
+              - W-07
+      - text: '**完了条件の充足**: 参照候補・畳み込み・ID横ぐし・ビューグリッド・ID検索・エージェント `related` が同一の表示解決を使い、スキーマの `role` 指定が索引タイトル経由で全消費側へ一括で効くことを
+          `DisplayTest` が検証（role 優先・予約語順序・`$ref` 合成・`DocScanner` への波及・リッチ選択肢の後方互換）。閲覧モードで編集経路（`markEdited` / スカラー書込）に到達できないことを
+          `ReadOnlyTest` が検証（ツリー変異前に拒否）。ワークスペースの切替はスタート画面・パレットで起動引数なしで完結する（手動確認）。'

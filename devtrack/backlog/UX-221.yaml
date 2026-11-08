@@ -9,3 +9,6 @@ memo: '案は 2 つ: ①値の式に `join`（配列を区切りつきの文字�
 targets: ROADMAP P48（R48-04）
 features:
   - X-09
+roadmap:
+  - P48
+  - R48-04

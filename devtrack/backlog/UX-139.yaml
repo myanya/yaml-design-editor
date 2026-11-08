@@ -9,3 +9,5 @@ memo: '`SchemaDerivation.compile` にテンプレートの `definitionScope`（�
 targets: P33
 features:
   - S-17
+roadmap:
+  - P33

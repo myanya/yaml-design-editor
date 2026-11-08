@@ -1,0 +1,15 @@
+id: roadmap-decisions
+name: ロードマップの決定
+description: ロードマップの本文の決定（決定済み・判断待ち）を番号の順に並べます。ダッシュボードの区画が判断待ちに絞ります。決定の文は行の ID の下でなく「文」の列に出ます。
+rows:
+  idPattern: "DEC-*"
+  schemaIds: [roadmap]
+order:
+  schemaId: roadmap
+  path: id
+  direction: asc
+columns:
+  - { label: 状態, schemaId: roadmap, path: status }
+  - { label: 日, schemaId: roadmap, path: date }
+  - { label: 人, schemaId: roadmap, path: by }
+  - { label: 文, schemaId: roadmap, path: text }

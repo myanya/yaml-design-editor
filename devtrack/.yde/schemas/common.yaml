@@ -167,12 +167,17 @@ definitions:
       - key: targets
         label: 対応先
         type: 一行の文
-        description: 対応した・対応する先（ROADMAP の項目・テスト名など）の記録の文字。機能は「関わる機能」に参照で書きます。ROADMAP を移すまでは文字のまま持ちます。
+        description: 対応した・対応する先（ROADMAP の項目・テスト名など）の記録の文字。機能は「関わる機能」、ROADMAP の R 項目とテーマは「ロードマップの項目」に参照で書きます。
       - key: features
         label: 関わる機能
         type: array
         description: この指摘が関わる機能（FEATURES.md の行）。未解決の指摘は、機能の行の「未解決の指摘」に出ます。
         item: { type: 機能参照 }
+      - key: roadmap
+        label: ロードマップの項目
+        type: array
+        description: この指摘を対応した・対応するロードマップの R 項目かテーマ（ROADMAP.md の ID）。R 項目とテーマの側には「関わる指摘」として出ます。
+        item: { type: ロードマップ参照 }
       - key: closed_on
         label: 解決の日
         type: 年月日
@@ -510,6 +515,12 @@ definitions:
     placeholder: RH-069
     sample: RH-001
     description: 「RH-」と 3 桁の番号。記録（docs/archive/roadmap-history.md）の中の順で、新しい項は最大の番号の次（記録の末尾に出ます）。
+  決定ID:
+    type: id
+    pattern: "^DEC-[0-9]{3}$"
+    placeholder: DEC-012
+    sample: DEC-001
+    description: 「DEC-」と 3 桁の番号。ロードマップの本文の決定（決定済み・判断待ち）の番号で、新しい決定は最大の番号の次です。
   ロードマップの展望ID:
     type: id
     pattern: "^OUTLOOK$"
@@ -553,6 +564,19 @@ definitions:
       schemaIds: [roadmap]
     relation: moved-to
 
+  # 参照の型: 指摘が関わるロードマップの項目（R 項目かテーマ）。線の名前は planned-in。R 項目・テーマの側には「関わる指摘」として出ます
+  ロードマップ参照:
+    type: ref
+    idPatterns: ["R*", "P*"]
+    scope:
+      schemaIds: [roadmap]
+    relation: planned-in
+  # 参照の型: R 項目が実装した機能（FEATURES.md の行）。線の名前は realizes
+  実装した機能:
+    type: ref
+    scope:
+      schemaIds: [feature]
+    relation: realizes
   # 参照の型: 記録の行が、今のロードマップの R 項目の当時の写しであるとき。線の名前は snapshot-of
   写しの元:
     type: ref
@@ -585,6 +609,7 @@ definitions:
       - { key: state_on, label: 状態の日, type: 年月日, description: 完了・一部完了の日。 }
       - { key: state_note, label: 状態の補足, type: 一行の文, description: "ROADMAP.md では状態の後ろの（）の中（例「✅ 2026-11-07（補足）」）。" }
       - { key: moved_to, label: 移した先, type: R項目参照, description: 状態が「別の項目へ移した」のとき、移した先の R 項目（ROADMAP.md では「→ R47-41」）。 }
+      - { key: features, label: 実装した機能, type: array, item: { type: 実装した機能 }, description: この R 項目で足した・直した機能（FEATURES.md の ID）。機能の側には「ロードマップの項目」として出ます。ROADMAP.md には出しません。 }
     constraints:
       - id: done-item-has-date
         description: 完了した R 項目には、状態の日があること
@@ -607,26 +632,60 @@ definitions:
   箇条:
     type: object
     label: 箇条
+    entity: { type: roadmap-decision, defines: true }
     fields:
+      - { key: id, label: 決定の ID, type: 決定ID, description: 決定（決定済み・判断待ち）の箇条だけが持つ番号。ROADMAP.md には出しません。 }
       - { key: label, label: 見出し, type: 一行の文, description: 太字の見出し。無ければ見出しの無い箇条（「- 文」）。 }
       - { key: label_note, label: 見出しの補足, type: 一行の文, description: 太字の後ろ・「:」の前に続く文字（例「（labs/…）」）。 }
-      - { key: decision, label: 決定, type: 決定の語, description: 決定の箇条の見出しの語。書くと見出しは「語（日付 誰）」になります。 }
-      - { key: status, label: 決定の状態, type: 決定の状態, description: 決定済みか、オーナーの判断を待っているか（判断待ちの一覧の元）。 }
-      - { key: date, label: 決定の日, type: 年月日 }
-      - { key: by, label: 決めた人, type: 一行の文 }
+      - { key: decision, label: 決定, type: 決定の語, description: 決定済みの箇条の見出しの語。見出しは「語（日付 誰）」になります。 }
+      - { key: status, label: 決定の状態, type: 決定の状態, description: "決定済みか、オーナーの判断を待っているか（判断待ちの一覧の元）。判断待ちの見出しは「判断待ち（日付 誰）」になります。" }
+      - { key: date, label: 決定の日, type: 年月日, description: 決定済みなら決めた日、判断待ちなら判断を求めた日。 }
+      - { key: by, label: 決めた人, type: 一行の文, description: 決定済みなら決めた人、判断待ちなら判断する人。 }
       - { key: text, label: 文, type: 文章, required: true, description: "「:」の後ろの文。続きの行は 2 字下げで書きます。" }
     constraints:
-      - id: decision-has-date-by-status
-        description: 決定の箇条には、決定の状態・日・決めた人があること
+      - id: decision-has-status
+        description: 決定の語を書いた箇条には、決定の状態があること
         where:
           - { path: decision, exists: true }
+          - { path: status, exists: false }
+        expect: absent
+        level: error
+        message: 決定の語を書いた箇条に、決定の状態がありません
+      - id: decision-has-id-date-by
+        description: 決定の箇条（決定の状態を書いたもの）には、ID・日・人があること
+        where:
+          - { path: status, exists: true }
           - or:
-              - { path: status, exists: false }
+              - { path: id, exists: false }
               - { path: date, exists: false }
               - { path: by, exists: false }
         expect: absent
         level: error
-        message: 決定の箇条に、決定の状態・日・決めた人のどれかがありません
+        message: 決定の箇条に、ID・日・人のどれかがありません
+      - id: decided-has-word
+        description: 決定済みの箇条には、見出しの語（決めたこと・決定・合意した方向）があること
+        where:
+          - { path: status, equals: decided }
+          - { path: decision, exists: false }
+        expect: absent
+        level: error
+        message: 決定済みの箇条「{id}」に、見出しの語（decision）がありません
+      - id: pending-has-no-word
+        description: 判断待ちの箇条には、決定の語を書かないこと（決めたら決定済みにして語を書く）
+        where:
+          - { path: status, equals: pending }
+          - { path: decision, exists: true }
+        expect: absent
+        level: error
+        message: 判断待ちの箇条「{id}」に決定の語があります
+      - id: point-id-is-for-decisions
+        description: 決定の ID は、決定の箇条（決定の状態を書いたもの）だけが持つこと
+        where:
+          - { path: id, exists: true }
+          - { path: status, exists: false }
+        expect: absent
+        level: error
+        message: 決定の状態の無い箇条に、決定の ID（{id}）があります
 
   # 本文のかたまり: 文（Markdown のまま。表・コード・段落）・箇条の並び・R 項目の表のどれか 1 つ
   本文のかたまり:
@@ -682,6 +741,7 @@ definitions:
       - { key: parent, label: 枝の元, type: 枝の元, description: 枝の項目（R49-11a など）の元の R 項目。 }
       - { key: title, label: 項目, type: 一行の文, role: title, required: true, description: 表の 2 つ目の欄。 }
       - { key: cells, label: 残りの欄, type: array, item: { type: 一行の文 }, description: 3 つ目からの欄（書いたまま）。 }
+      - { key: features, label: 実装した機能, type: array, item: { type: 実装した機能 }, description: この R 項目で足した・直した機能（FEATURES.md の ID。欄に書いてある今の ID）。記録には出しません。 }
     constraints:
       - id: record-item-has-id
         description: 記録の R 項目には、ID か写しの元のどちらかがあること

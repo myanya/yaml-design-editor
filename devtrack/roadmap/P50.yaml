@@ -5,104 +5,118 @@ table_title: JSON を木のまま取り込み・書き出す（汎用の JSON �
 status: in-progress
 status_note: R50-01〜08 完了（2026-11-02。v0.2.x）。完了の条件（labs/rpmz の段階 2・3）は rpmz を作ってから確かめる
 body:
-- points:
-  - label: 目的
-    text: JSON を表（見出し＋行）としてでなく、木の形のまま YAML の原本と行き来する。ゲームエンジンのデータ・アプリの設定ファイル・固定データのように JSON が実行環境の入力になる用途で、YAML を原本にして JSON を書き出し、既存の JSON から原本を作れるようにする。最初の利用例は labs/rpmz（RPG Maker MZ のデータベース。[計画](../labs/rpmz/PLAN.md)）。
-  - label: 既知の技術との対応
-    text: 組み立ては jq や XSLT（木から木へ）に当たる。書き出しの置き方のうち「番号を配列の位置にする」は MZ の `$dataSkills[10]`、「既存の JSON の一部だけを置き換える」は JSON Merge Patch（RFC 7386）に近い。
-  - label: いまの姿
-    text: skill の JSON は表としてだけ読み書きする（`app.format` の `JsonFormat`）。取り込みでは入れ子が文字列になり、配列の要素は object だけ（`null` は誤り）。書き出しは平らな object の配列で、入れ子・数の型・キーの順・書式を選べない。書き出し先はワークスペースの中だけ。
-  - decision: 決めたこと
-    status: decided
-    date: 2026-11-02
-    by: オーナー
-    text: 汎用の JSON の取り込みと書き出しを本体で開発する。MZ に固有の決まり（番号の接頭辞・能力値の並び・成長表の形）は本体に入れず、ワークスペースの定義に書く。P49 より先に、v0.2.x の中で入れる。ワークスペースの外へ書くのは、実行のときに人が選んだ場所だけ（定義に絶対パスを書かず、エージェントのツールには足さない）。
-  - label: 決めたこと（実装）
-    text: 語は値の式の `extract`（正規表現で文字の一部を取り出す）を 1 つ足した。取り込みの行の番号は変換の `loop`（`$index` / `$position`）で渡す。形式の窓口は ADR-0013 が最初から「表か木」と定めているので、新しい ADR は足さない。
-  - label: 確かめたこと（2026-11-02）
-    text: 'オーナーの手元の MZ 新規プロジェクトの JSON 14 ファイル（Skills 235 件・Tilesets の 8192 個の数・System.json を含む）を、恒等の定義（`build: {$copy: .}`）で YAML の文書に取り込んで書き出すと、全ファイルがバイト単位で元と一致した（中身はリポジトリに写していない）。'
-  - label: 守ること
-    text: 原本は YAML（書き出しは派生物で、YAML と `.yde/` の下には書かない）。組み立ては変換定義（`TransformDef`）で書き、取り込み・書き出しに組み立ての Kotlin を書かない。取り込みは今と同じく変更セット（プレビュー → 適用・Undo）。表の形式の窓口（`FormatCodec` と `Table`）は変えず、木の道を隣に足す。テストの JSON は MZ と同じ形の架空のもので、MZ の既定のデータを使わない。
-  - label: MZ の実物で分かった要件
-    label_note: （labs/rpmz の段階 0）
-    text: 一覧の配列は先頭が `null` で要素を 1 行に 1 つ・末尾に改行なし。キーの順はアルファベット順でない。省略されるキーがある。整数と小数が混ざる。配列の中に `null` がある。System.json は MZ の設定と YDE が持つタイプが 1 つのファイルに混ざる。
-  - text: '**書き方**（使い方の正は [manual/ai.md「skill」](manual/ai.md)）:'
-- text: |2-
-      ```yaml
-      # 取り込み: 選んだ配列の要素を木のまま 1 件ずつ build に渡す（null の要素は飛ばす）
-      id: import-mz-skills
-      kind: import
-      input: { format: json, tree: true }
-      target: { file: { $format: "db/skills/{id}.yaml" } }
-      build:
-        id: { $format: "SKL-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }
-        name: { $copy: name }
-        effects: { $each: effects, $apply: effect }    # 使用効果はコードごとの規則で、番号を参照の ID に直す
-      rules:
-        - id: effect
-          when: { path: code, equals: 21 }             # ステート付加: dataId はステートの番号
-          build:
-            code: 21
-            dataId: { $format: "STA-{n}", $with: { n: { $number: { $copy: dataId }, $as: "0000" } } }
-            value1: { $copy: value1 }
-            value2: { $copy: value2 }
+  - points:
+      - label: 目的
+        text: JSON を表（見出し＋行）としてでなく、木の形のまま YAML の原本と行き来する。ゲームエンジンのデータ・アプリの設定ファイル・固定データのように JSON が実行環境の入力になる用途で、YAML を原本にして
+          JSON を書き出し、既存の JSON から原本を作れるようにする。最初の利用例は labs/rpmz（RPG Maker MZ のデータベース。[計画](../labs/rpmz/PLAN.md)）。
+      - label: 既知の技術との対応
+        text: 組み立ては jq や XSLT（木から木へ）に当たる。書き出しの置き方のうち「番号を配列の位置にする」は MZ の `$dataSkills[10]`、「既存の JSON の一部だけを置き換える」は JSON Merge
+          Patch（RFC 7386）に近い。
+      - label: いまの姿
+        text: skill の JSON は表としてだけ読み書きする（`app.format` の `JsonFormat`）。取り込みでは入れ子が文字列になり、配列の要素は object だけ（`null` は誤り）。書き出しは平らな
+          object の配列で、入れ子・数の型・キーの順・書式を選べない。書き出し先はワークスペースの中だけ。
+      - decision: 決めたこと
+        status: decided
+        date: 2026-11-02
+        by: オーナー
+        text: 汎用の JSON の取り込みと書き出しを本体で開発する。MZ に固有の決まり（番号の接頭辞・能力値の並び・成長表の形）は本体に入れず、ワークスペースの定義に書く。P49 より先に、v0.2.x の中で入れる。ワークスペースの外へ書くのは、実行のときに人が選んだ場所だけ（定義に絶対パスを書かず、エージェントのツールには足さない）。
+        id: DEC-008
+      - label: 決めたこと（実装）
+        text: 語は値の式の `extract`（正規表現で文字の一部を取り出す）を 1 つ足した。取り込みの行の番号は変換の `loop`（`$index` / `$position`）で渡す。形式の窓口は ADR-0013 が最初から「表か木」と定めているので、新しい
+          ADR は足さない。
+      - label: 確かめたこと（2026-11-02）
+        text: 'オーナーの手元の MZ 新規プロジェクトの JSON 14 ファイル（Skills 235 件・Tilesets の 8192 個の数・System.json を含む）を、恒等の定義（`build: {$copy:
+          .}`）で YAML の文書に取り込んで書き出すと、全ファイルがバイト単位で元と一致した（中身はリポジトリに写していない）。'
+      - label: 守ること
+        text: 原本は YAML（書き出しは派生物で、YAML と `.yde/` の下には書かない）。組み立ては変換定義（`TransformDef`）で書き、取り込み・書き出しに組み立ての Kotlin を書かない。取り込みは今と同じく変更セット（プレビュー
+          → 適用・Undo）。表の形式の窓口（`FormatCodec` と `Table`）は変えず、木の道を隣に足す。テストの JSON は MZ と同じ形の架空のもので、MZ の既定のデータを使わない。
+      - label: MZ の実物で分かった要件
+        label_note: （labs/rpmz の段階 0）
+        text: 一覧の配列は先頭が `null` で要素を 1 行に 1 つ・末尾に改行なし。キーの順はアルファベット順でない。省略されるキーがある。整数と小数が混ざる。配列の中に `null` がある。System.json は
+          MZ の設定と YDE が持つタイプが 1 つのファイルに混ざる。
+      - text: '**書き方**（使い方の正は [manual/ai.md「skill」](manual/ai.md)）:'
+  - text: |2-
+        ```yaml
+        # 取り込み: 選んだ配列の要素を木のまま 1 件ずつ build に渡す（null の要素は飛ばす）
+        id: import-mz-skills
+        kind: import
+        input: { format: json, tree: true }
+        target: { file: { $format: "db/skills/{id}.yaml" } }
+        build:
+          id: { $format: "SKL-{n}", $with: { n: { $number: { $copy: id }, $as: "0000" } } }
+          name: { $copy: name }
+          effects: { $each: effects, $apply: effect }    # 使用効果はコードごとの規則で、番号を参照の ID に直す
+        rules:
+          - id: effect
+            when: { path: code, equals: 21 }             # ステート付加: dataId はステートの番号
+            build:
+              code: 21
+              dataId: { $format: "STA-{n}", $with: { n: { $number: { $copy: dataId }, $as: "0000" } } }
+              value1: { $copy: value1 }
+              value2: { $copy: value2 }
 
-      # 書き出し: 文書ごとに JSON の値を組み立て、番号の位置に並べる（0 番と空き枠は fill）
-      id: export-mz-skills
-      kind: export
-      source: { match: "db/skills/*.yaml" }
-      build:
-        id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }   # SKL-0010 → 10
-        name: { $copy: name }
-      output: { file: out/data/Skills.json, index: id, style: lines, finalNewline: false }   # 番号の位置に並べる（0 番と空きは null）
+        # 書き出し: 文書ごとに JSON の値を組み立て、番号の位置に並べる（0 番と空き枠は fill）
+        id: export-mz-skills
+        kind: export
+        source: { match: "db/skills/*.yaml" }
+        build:
+          id: { $number: { $value: { extract: [ { path: id }, "[0-9]+$" ] } } }   # SKL-0010 → 10
+          name: { $copy: name }
+        output: { file: out/data/Skills.json, index: id, style: lines, finalNewline: false }   # 番号の位置に並べる（0 番と空きは null）
 
-      # 一部の書き換え: 既存の System.json に、組み立てた object の項目だけを書き込む（ほかの値とキーの順は保つ）
-      build:
-        elements: { $concat: [ [ "" ], { $each: elements, $build: { $copy: name } } ] }
-      output: { file: out/data/System.json, mode: merge, style: compact, finalNewline: false }
-      ```
-- columns: basic
-  items:
-  - id: R50-01
-    title: 木のままの取り込み
-    content: 選んだ配列の要素を木のまま項にして `build` へ渡す（数・真偽・`null`・入れ子・キーの順を保つ）。`null` の要素は飛ばし、件数をプレビューに出す。選んだ場所が object なら全体を 1 件にする（1 つのファイルから一覧の文書を作る）。木のときは `mapping` を使えず `build` が要る。CLI と skill の画面は今の取り込みの流れのまま
-    state: done
-    state_on: 2026-11-02
-  - id: R50-02
-    title: ひな型の語彙の点検と補い
-    content: '値の式に `extract`（`{extract: [式, "正規表現"]}`。最初に合った部分か 1 つ目の括弧の中身）を足し、`SKL-0010` → 10 を `$number` と組んで書けるようにした。取り込みの行（表の行・JSON の要素）の番号を `$index` / `$position` で読めるようにした（文字の配列の位置を ID に）。先頭の空文字を飛ばすのは今の条件（`empty: false`）で書ける'
-    state: done
-    state_on: 2026-11-02
-  - id: R50-03
-    title: 木を組み立てる書き出し
-    content: export に `build`（文書ごとに JSON の値を組み立てる）を足す。並べ方は、出てきた順（並びの指定つき）か、番号の位置（`at`。0 番と空き枠は `fill`＝`null` かひな型）。値の無い項目はキーごと書かない
-    state: done
-    state_on: 2026-11-02
-  - id: R50-04
-    title: JSON の書式
-    content: '`style` は `pretty`（字下げ）・`compact`（1 行）・`lines`（配列の要素を 1 行に 1 つ）と、末尾の改行の有無。数と文字は JavaScript の `JSON.stringify` と同じ書き方にする（小数部の無い数は整数・指数表記の境目・日本語はそのまま）。元のファイルとの差分を小さく保つため'
-    state: done
-    state_on: 2026-11-02
-  - id: R50-05
-    title: 一部の書き換え
-    content: 既存の JSON の決めたキーだけを置き換え、ほかの値とキーの順はそのまま残す。書き出し先に元のファイルが無ければ誤りにする
-    state: done
-    state_on: 2026-11-02
-  - id: R50-06
-    title: 書き出し先を実行時に選ぶ
-    content: 取り込み元と対称に、書き出し先を実行のときに選べるようにする（CLI の `--out`・画面のフォルダ選択）。定義の `output` は既定の場所
-    state: done
-    state_on: 2026-11-02
-  - id: R50-07
-    title: 往復の確かめ
-    content: 取り込み → 書き出しで元の JSON とバイト単位で一致すること、書き出し → 取り込みが空の変更セットになることをテストで固定した（`TreeImportExportTest`・`JsonTreeTest`）。書き出す前の差分は CLI の `--dry-run`（変わる行の範囲）。中身が同じならファイルに触れない
-    state: done
-    state_on: 2026-11-02
-  - id: R50-08
-    title: まとめて書き出す
-    content: 書き出しの定義を束ねる `include`。書き出し先は 1 回選び、全部を計画してから書く（どれかの誤り・書き出し先の重なりは何も書かない）。既存のファイルの上書きは一括で確認（画面のダイアログ・CLI の `--yes`。オーナー 2026-11-02「ファイル毎は不要で一括で OK／NG」・控えは取らない）。確認の間に書き出し先が変われば中止。書くときは一時ファイルから置き換える
-    state: done
-    state_on: 2026-11-02
-- points:
-  - label: 完了の条件
-    text: labs/rpmz の段階 2・3（新規プロジェクトの JSON の取り込みと往復の一致・架空のデータで MZ のテストプレイ）が、変換定義だけで通ること。項目ごとに FEATURES・manual・architecture を更新する。
+        # 一部の書き換え: 既存の System.json に、組み立てた object の項目だけを書き込む（ほかの値とキーの順は保つ）
+        build:
+          elements: { $concat: [ [ "" ], { $each: elements, $build: { $copy: name } } ] }
+        output: { file: out/data/System.json, mode: merge, style: compact, finalNewline: false }
+        ```
+  - columns: basic
+    items:
+      - id: R50-01
+        title: 木のままの取り込み
+        content: 選んだ配列の要素を木のまま項にして `build` へ渡す（数・真偽・`null`・入れ子・キーの順を保つ）。`null` の要素は飛ばし、件数をプレビューに出す。選んだ場所が object なら全体を 1 件にする（1
+          つのファイルから一覧の文書を作る）。木のときは `mapping` を使えず `build` が要る。CLI と skill の画面は今の取り込みの流れのまま
+        state: done
+        state_on: 2026-11-02
+      - id: R50-02
+        title: ひな型の語彙の点検と補い
+        content: '値の式に `extract`（`{extract: [式, "正規表現"]}`。最初に合った部分か 1 つ目の括弧の中身）を足し、`SKL-0010` → 10 を `$number` と組んで書けるようにした。取り込みの行（表の行・JSON
+          の要素）の番号を `$index` / `$position` で読めるようにした（文字の配列の位置を ID に）。先頭の空文字を飛ばすのは今の条件（`empty: false`）で書ける'
+        state: done
+        state_on: 2026-11-02
+      - id: R50-03
+        title: 木を組み立てる書き出し
+        content: export に `build`（文書ごとに JSON の値を組み立てる）を足す。並べ方は、出てきた順（並びの指定つき）か、番号の位置（`at`。0 番と空き枠は `fill`＝`null` かひな型）。値の無い項目はキーごと書かない
+        state: done
+        state_on: 2026-11-02
+      - id: R50-04
+        title: JSON の書式
+        content: '`style` は `pretty`（字下げ）・`compact`（1 行）・`lines`（配列の要素を 1 行に 1 つ）と、末尾の改行の有無。数と文字は JavaScript の `JSON.stringify`
+          と同じ書き方にする（小数部の無い数は整数・指数表記の境目・日本語はそのまま）。元のファイルとの差分を小さく保つため'
+        state: done
+        state_on: 2026-11-02
+      - id: R50-05
+        title: 一部の書き換え
+        content: 既存の JSON の決めたキーだけを置き換え、ほかの値とキーの順はそのまま残す。書き出し先に元のファイルが無ければ誤りにする
+        state: done
+        state_on: 2026-11-02
+      - id: R50-06
+        title: 書き出し先を実行時に選ぶ
+        content: 取り込み元と対称に、書き出し先を実行のときに選べるようにする（CLI の `--out`・画面のフォルダ選択）。定義の `output` は既定の場所
+        state: done
+        state_on: 2026-11-02
+      - id: R50-07
+        title: 往復の確かめ
+        content: 取り込み → 書き出しで元の JSON とバイト単位で一致すること、書き出し → 取り込みが空の変更セットになることをテストで固定した（`TreeImportExportTest`・`JsonTreeTest`）。書き出す前の差分は
+          CLI の `--dry-run`（変わる行の範囲）。中身が同じならファイルに触れない
+        state: done
+        state_on: 2026-11-02
+      - id: R50-08
+        title: まとめて書き出す
+        content: 書き出しの定義を束ねる `include`。書き出し先は 1 回選び、全部を計画してから書く（どれかの誤り・書き出し先の重なりは何も書かない）。既存のファイルの上書きは一括で確認（画面のダイアログ・CLI の
+          `--yes`。オーナー 2026-11-02「ファイル毎は不要で一括で OK／NG」・控えは取らない）。確認の間に書き出し先が変われば中止。書くときは一時ファイルから置き換える
+        state: done
+        state_on: 2026-11-02
+  - points:
+      - label: 完了の条件
+        text: labs/rpmz の段階 2・3（新規プロジェクトの JSON の取り込みと往復の一致・架空のデータで MZ のテストプレイ）が、変換定義だけで通ること。項目ごとに FEATURES・manual・architecture
+          を更新する。

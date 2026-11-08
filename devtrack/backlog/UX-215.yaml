@@ -12,3 +12,5 @@ resolutions:
   - date: 2026-10-29
     kind: 解決
     section: desktop と repo-tests のモジュール化
+roadmap:
+  - R47-27

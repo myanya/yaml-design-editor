@@ -9,3 +9,7 @@ targets: R16-03・ROADMAP R41-05 ✅（検査の responses に action を書く�
 features:
   - OP-06
   - V-04
+roadmap:
+  - R41-05
+  - R17-03
+  - R18-02

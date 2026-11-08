@@ -2,7 +2,7 @@ id: backlog-dashboard
 name: 開発管理
 kind: dashboard
 default: true
-description: 指摘を状態ごとに数え、一覧から指摘の個票と操作へ進みます。docs/BACKLOG.md と記録はここから生成します（./gradlew devtrackDocs）。
+description: 指摘を状態ごとに数え、一覧から指摘の個票と操作へ進みます。先頭の 2 つの区画がオーナーの判断を待つもの（議論待ちの指摘と、ロードマップの判断待ちの決定）です。
 actions: [register-item]
 sections:
   - id: discussing
@@ -13,6 +13,16 @@ sections:
         - node: { entity: backlog-item, bind: it }
       where:
         - { of: it, path: status, equals: discussing }
+      expect: exists
+  # 判断待ち: ロードマップの本文の決定で、オーナーの判断を待っているもの（上の議論待ちの指摘と合わせて見る）
+  - id: pending-decisions
+    label: 判断待ちの決定（ロードマップ）
+    view: roadmap-decisions
+    filter:
+      match:
+        - node: { entity: roadmap-decision, bind: d }
+      where:
+        - { of: d, path: status, equals: pending }
       expect: exists
   - id: in-progress
     label: 対応中

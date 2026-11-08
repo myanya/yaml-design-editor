@@ -14,3 +14,5 @@ resolutions:
 targets: FEATURES X-17・PivotViewsTest
 features:
   - X-17
+roadmap:
+  - R52-03

@@ -4,27 +4,53 @@ title: スキーマ工学（推測・メタスキーマ・派生スキーマ）
 status: done
 status_note: 完了
 history:
-- id: RH-019
-  title: 'P11: スキーマ工学（推測・メタスキーマ・派生スキーマ） ✅ 完了（2026-07）'
-  body:
-  - text: '狙い: 「スキーマを書くのがつらい」を解消する。既存YAMLからの推測で入口を低くし（R11-01）、組込みメタスキーマでスキーマ自体をフォーム編集・AI生成の対象にし（R11-02）、派生スキーマで「テーブル定義書のような実質スキーマの文書」から検証スキーマを導出して重複記述をなくす（R11-03）。P7 の動機（テーブル定義書群の重複のない管理）を完結させるフェーズ。'
-  - head: |-
-      | ID | 項目 | 状態 | 内容 |
-      |---|---|---|---|
-    rows:
-    - id: R11-01
-      title: スキーマ推測
-      cells:
-      - ✅
-      - 既存YAML（glob指定・複数文書のマージ）からスキーマドラフトを推測する純ロジック `schema/SchemaInference.kt`。型推測（int/number/boolean/date/長文text）、参照認識の命名規約は `schema/RefNaming` として切り出して `DocScanner`（I-02）と共有、小さい値集合のenum候補化、全文書に出現するキーの required 候補化。生成ドラフトはコメント付きでメタスキーマ検証（S-04）を通る形で出力され、スキーマ設計UI（S-05）で仕上げる。入口はファイルツリーの推測ダイアログと CLI `infer-schema`。詳細は [FEATURES.md](../FEATURES.md) S-16
-    - id: R11-02
-      title: 組込みメタスキーマ
-      cells:
-      - ✅
-      - '`_schemas` に適用される `builtin-schema` を `BuiltinSchemas` へ追加。`FieldDef` の再帰構造は再帰 `$ref`、「`type` の値ごとに持てる属性が変わる」構造は `cases`（S-10）で表現（自機能のドッグフーディング）。単一の型で表せない箇所（default・values 要素・phases 等）のために `any` 型（検証しない明示）を型システムへ追加（S-02）。スキーマ文書にフォーム編集タブ・AI文書生成（A-03）・メタスキーマ検証（検証パネル・CLI `validate`）が使えるようになった。スキーマ設計UI（S-05）は主要UXのまま、エージェントの `_schemas` 書込禁止も維持。詳細は [FEATURES.md](../FEATURES.md) S-15・ARCHITECTURE §4.23'
-    - id: R11-03
-      title: 派生スキーマ（スキーマを導出する文書）
-      cells:
-      - ✅
-      - スキーマの宣言的な写像 `derive:`（対象文書の columns 配列 → fields、dataType → 型の値辞書）で、該当文書から検証スキーマをロード時にコンパイルする機構（`schema/DerivedSchemas.kt`）。`SchemaLoader` の二段階ロード（R7-03）に第3段階「導出」を追加し、写像語彙（path / map / default）は skill の列マッピング（SK-02）と揃えた。再検証の契機は `Workspace.noteDiskChanges` に一元化（導出元変更＝スキーマ変更扱いで全再構築）。エージェントが導出元文書経由で間接的に検証を変えうる点は、着手前に ARCHITECTURE §4.23 で設計判断し「human 承認ゲートで足りる＋自動適用（auto）だけは導出元書込で承認待ちへ降格」とした。詳細は [FEATURES.md](../FEATURES.md) S-17
-  - text: '**完了条件の充足**: 既存文書から推測→仕上げ→適用の流れは `SchemaInferenceTest` が「推測ドラフトがメタスキーマ検証を通り、CLI `infer-schema --apply` で保存したスキーマが以後の検証に効く」ことまで自動検証（R11-01）。`_schemas` の文書はフォーム編集・AI生成の対象になり、組込みスキーマ全件と実用形スキーマ（phases・coverage・cases・derive 等を含む）がメタスキーマ検証をエラー0で通ることを `MetaSchemaTest` が検証。sample-workspace の全スキーマもエラー0（メタ検証は sample スキーマの実バグ `scope.schemaId`（単数形＝無視される指定）を警告として検出し、修正済み）（R11-02）。「テーブル定義書→レコード検証スキーマの導出→定義書の変更が再検証へ反映」の往復は `DerivedSchemasTest` が、導出元文書への自動適用の降格は `AutomationTest` が検証（R11-03）。'
+  - id: RH-019
+    title: 'P11: スキーマ工学（推測・メタスキーマ・派生スキーマ） ✅ 完了（2026-07）'
+    body:
+      - text: '狙い: 「スキーマを書くのがつらい」を解消する。既存YAMLからの推測で入口を低くし（R11-01）、組込みメタスキーマでスキーマ自体をフォーム編集・AI生成の対象にし（R11-02）、派生スキーマで「テーブル定義書のような実質スキーマの文書」から検証スキーマを導出して重複記述をなくす（R11-03）。P7
+          の動機（テーブル定義書群の重複のない管理）を完結させるフェーズ。'
+      - head: |-
+          | ID | 項目 | 状態 | 内容 |
+          |---|---|---|---|
+        rows:
+          - id: R11-01
+            title: スキーマ推測
+            cells:
+              - ✅
+              - 既存YAML（glob指定・複数文書のマージ）からスキーマドラフトを推測する純ロジック `schema/SchemaInference.kt`。型推測（int/number/boolean/date/長文text）、参照認識の命名規約は
+                `schema/RefNaming` として切り出して `DocScanner`（I-02）と共有、小さい値集合のenum候補化、全文書に出現するキーの required 候補化。生成ドラフトはコメント付きでメタスキーマ検証（S-04）を通る形で出力され、スキーマ設計UI（S-05）で仕上げる。入口はファイルツリーの推測ダイアログと
+                CLI `infer-schema`。詳細は [FEATURES.md](../FEATURES.md) S-16
+            features:
+              - I-02
+              - S-04
+              - S-05
+              - S-16
+          - id: R11-02
+            title: 組込みメタスキーマ
+            cells:
+              - ✅
+              - '`_schemas` に適用される `builtin-schema` を `BuiltinSchemas` へ追加。`FieldDef` の再帰構造は再帰 `$ref`、「`type` の値ごとに持てる属性が変わる」構造は
+                `cases`（S-10）で表現（自機能のドッグフーディング）。単一の型で表せない箇所（default・values 要素・phases 等）のために `any` 型（検証しない明示）を型システムへ追加（S-02）。スキーマ文書にフォーム編集タブ・AI文書生成（A-03）・メタスキーマ検証（検証パネル・CLI
+                `validate`）が使えるようになった。スキーマ設計UI（S-05）は主要UXのまま、エージェントの `_schemas` 書込禁止も維持。詳細は [FEATURES.md](../FEATURES.md)
+                S-15・ARCHITECTURE §4.23'
+            features:
+              - S-10
+              - S-02
+              - A-03
+              - S-05
+              - S-15
+          - id: R11-03
+            title: 派生スキーマ（スキーマを導出する文書）
+            cells:
+              - ✅
+              - スキーマの宣言的な写像 `derive:`（対象文書の columns 配列 → fields、dataType → 型の値辞書）で、該当文書から検証スキーマをロード時にコンパイルする機構（`schema/DerivedSchemas.kt`）。`SchemaLoader`
+                の二段階ロード（R7-03）に第3段階「導出」を追加し、写像語彙（path / map / default）は skill の列マッピング（SK-02）と揃えた。再検証の契機は `Workspace.noteDiskChanges`
+                に一元化（導出元変更＝スキーマ変更扱いで全再構築）。エージェントが導出元文書経由で間接的に検証を変えうる点は、着手前に ARCHITECTURE §4.23 で設計判断し「human 承認ゲートで足りる＋自動適用（auto）だけは導出元書込で承認待ちへ降格」とした。詳細は
+                [FEATURES.md](../FEATURES.md) S-17
+            features:
+              - SK-02
+              - S-17
+      - text: '**完了条件の充足**: 既存文書から推測→仕上げ→適用の流れは `SchemaInferenceTest` が「推測ドラフトがメタスキーマ検証を通り、CLI `infer-schema --apply` で保存したスキーマが以後の検証に効く」ことまで自動検証（R11-01）。`_schemas`
+          の文書はフォーム編集・AI生成の対象になり、組込みスキーマ全件と実用形スキーマ（phases・coverage・cases・derive 等を含む）がメタスキーマ検証をエラー0で通ることを `MetaSchemaTest`
+          が検証。sample-workspace の全スキーマもエラー0（メタ検証は sample スキーマの実バグ `scope.schemaId`（単数形＝無視される指定）を警告として検出し、修正済み）（R11-02）。「テーブル定義書→レコード検証スキーマの導出→定義書の変更が再検証へ反映」の往復は
+          `DerivedSchemasTest` が、導出元文書への自動適用の降格は `AutomationTest` が検証（R11-03）。'

@@ -8,3 +8,5 @@ memo: '`Readiness` が要るものを core より下の型（索引・スキー�
 targets: P47
 features:
   - V-13
+roadmap:
+  - P47

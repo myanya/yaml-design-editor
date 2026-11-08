@@ -4,181 +4,217 @@ title: ユーザ定義の型（値型 → オブジェクト型）
 status: in-progress
 status_note: 第一弾〜第三弾 完了（2026-10-03）。残りは BACKLOG の個別項目
 body:
-- points:
-  - label: 目的
-    text: 利用者がスキーマで型を定義し、項目に名前で使えるようにする。P27 段C で「必要になったら」と後回しにした「利用者が定義できる意味の型」（[記録](archive/roadmap-history.md) の SC-01・SC-06）の実現。組込みの型も同じ定義体にし、Kotlin が知る型を「基底の種類」だけに減らす（yaml-core は減らす方向）。
-  - label: 既知の技術との対応
-    text: 値型は XSD の simpleType（基本型の restriction）・SQL の `CREATE DOMAIN`・TypeScript の型別名に当たる。オブジェクト型（第三弾）は XSD の complexType。
-  - decision: 決めたこと
-    status: decided
-    date: 2026-10-01
-    by: オーナー
-    text: ①値型はエディタのスキーマの型（設計対象の台帳 DT-* とは別。橋渡しは後回し）②yaml-core の基本型は減らす ③第一弾は検証の決まり ④使う側は狭めるだけ ⑤組込みの型も同じ定義体 ⑥置き場は definitions ⑦オブジェクト型は ID を持たない部品も含む。
-  - label: 決めたこと（続き）
-    text: '⑧綴りは `type: 名前` ⑨狭める規則の細部は下表 ⑩`date` を定義体へ移すとき、形式違反は警告からエラーになってよい。'
-  - label: 確かめたこと（2026-10-01 実験）
-    text: '`definitions` ＋ `$ref` は今でも id・string・int・ref の名前付きの決まりとして検証に効き、2 段の継承（`社員メール ← メールアドレス ← string`）も解決される。'
-  - label: 足りないもの
-    text: '`type: 名前` の綴り（未知の型エラー）・狭める規則（緩めても通る）・メタスキーマが `$ref` ＋制約キーを警告する・組込みの `text` / `date` が Kotlin の分岐。yaml-core の `text` は `string` と同じ処理、`date` は `string` ＋正規表現（警告）。'
+  - points:
+      - label: 目的
+        text: 利用者がスキーマで型を定義し、項目に名前で使えるようにする。P27 段C で「必要になったら」と後回しにした「利用者が定義できる意味の型」（[記録](archive/roadmap-history.md) の SC-01・SC-06）の実現。組込みの型も同じ定義体にし、Kotlin
+          が知る型を「基底の種類」だけに減らす（yaml-core は減らす方向）。
+      - label: 既知の技術との対応
+        text: 値型は XSD の simpleType（基本型の restriction）・SQL の `CREATE DOMAIN`・TypeScript の型別名に当たる。オブジェクト型（第三弾）は XSD の complexType。
+      - decision: 決めたこと
+        status: decided
+        date: 2026-10-01
+        by: オーナー
+        text: ①値型はエディタのスキーマの型（設計対象の台帳 DT-* とは別。橋渡しは後回し）②yaml-core の基本型は減らす ③第一弾は検証の決まり ④使う側は狭めるだけ ⑤組込みの型も同じ定義体 ⑥置き場は definitions
+          ⑦オブジェクト型は ID を持たない部品も含む。
+        id: DEC-001
+      - label: 決めたこと（続き）
+        text: '⑧綴りは `type: 名前` ⑨狭める規則の細部は下表 ⑩`date` を定義体へ移すとき、形式違反は警告からエラーになってよい。'
+      - label: 確かめたこと（2026-10-01 実験）
+        text: '`definitions` ＋ `$ref` は今でも id・string・int・ref の名前付きの決まりとして検証に効き、2 段の継承（`社員メール ← メールアドレス ← string`）も解決される。'
+      - label: 足りないもの
+        text: '`type: 名前` の綴り（未知の型エラー）・狭める規則（緩めても通る）・メタスキーマが `$ref` ＋制約キーを警告する・組込みの `text` / `date` が Kotlin の分岐。yaml-core
+          の `text` は `string` と同じ処理、`date` は `string` ＋正規表現（警告）。'
 sections:
-- title: 設計
-  body:
-  - text: |-
-      **型の 3 段**
+  - title: 設計
+    body:
+      - text: |-
+          **型の 3 段**
 
-      | 段 | 実体 | 定義できるか |
-      |---|---|---|
-      | 基底の種類 | `string / int / number / boolean / enum / array / map / object / any` と、意味を持つ `id / ref`（Kotlin の `FieldType`） | できない。YAML の値の形と、索引・参照解決のようにコードが要る意味 |
-      | 組込みの型 | semantic-core の資源 YAML（`builtin-types`）。第一弾は `text`、第二弾で `date`、以後 `time` / `datetime` など | 組込み。UI・AI 生成・サンプル値は名前を知っていてよい |
-      | ユーザ型 | ワークスペースの `definitions`（`kind: library` が向く） | 利用者。ふるまいは組込みの型と同じ |
+          | 段 | 実体 | 定義できるか |
+          |---|---|---|
+          | 基底の種類 | `string / int / number / boolean / enum / array / map / object / any` と、意味を持つ `id / ref`（Kotlin の `FieldType`） | できない。YAML の値の形と、索引・参照解決のようにコードが要る意味 |
+          | 組込みの型 | semantic-core の資源 YAML（`builtin-types`）。第一弾は `text`、第二弾で `date`、以後 `time` / `datetime` など | 組込み。UI・AI 生成・サンプル値は名前を知っていてよい |
+          | ユーザ型 | ワークスペースの `definitions`（`kind: library` が向く） | 利用者。ふるまいは組込みの型と同じ |
 
-      **書き方**: 型の定義は必ず `type:` を持ち、値は基底の種類か別の型名。連鎖の末端が基底の種類。
+          **書き方**: 型の定義は必ず `type:` を持ち、値は基底の種類か別の型名。連鎖の末端が基底の種類。
 
-      ```yaml
-      # _schemas/common.yaml（kind: library）
-      definitions:
-        金額:       { type: int, min: 0, display: grouped, description: 円単位 }
-        画面ID:     { type: id, pattern: "^SCR-\\d{3}$" }
-        メールアドレス: { type: string, maxLength: 100, pattern: "^[^@]+@[^@]+$" }
-        社員メール:  { type: メールアドレス, pattern: "^[^@]+@example\\.com$", maxLength: 50 }   # 型から型へ。狭めるだけ
-        業務データ型参照: { type: ref, idPattern: "DT-*", relation: dtype, scope: { schemaIds: [data-type-list] } }
-        予約状態:   { type: enum, values: [RESERVED, CANCELED] }
-        有効な状態: { type: 予約状態, values: [RESERVED] }                                           # 選択肢は部分集合
-      # 使う側（sysdev-template の entity-detail・table-design、kakeibo の 3 スキーマで重複していた定義が 1 つになる）
-          - { key: amount, label: 金額, type: common#金額, required: true }
-          - { key: dtype, label: 業務データ型, type: common#業務データ型参照, required: true }
-      ```
+          ```yaml
+          # _schemas/common.yaml（kind: library）
+          definitions:
+            金額:       { type: int, min: 0, display: grouped, description: 円単位 }
+            画面ID:     { type: id, pattern: "^SCR-\\d{3}$" }
+            メールアドレス: { type: string, maxLength: 100, pattern: "^[^@]+@[^@]+$" }
+            社員メール:  { type: メールアドレス, pattern: "^[^@]+@example\\.com$", maxLength: 50 }   # 型から型へ。狭めるだけ
+            業務データ型参照: { type: ref, idPattern: "DT-*", relation: dtype, scope: { schemaIds: [data-type-list] } }
+            予約状態:   { type: enum, values: [RESERVED, CANCELED] }
+            有効な状態: { type: 予約状態, values: [RESERVED] }                                           # 選択肢は部分集合
+          # 使う側（sysdev-template の entity-detail・table-design、kakeibo の 3 スキーマで重複していた定義が 1 つになる）
+              - { key: amount, label: 金額, type: common#金額, required: true }
+              - { key: dtype, label: 業務データ型, type: common#業務データ型参照, required: true }
+          ```
 
-      **解決＝型の連鎖**: `type:` の値が基底の種類でなければ定義の名前として引く（順: 基底の種類 → 自分のモジュール → `モジュール#名前` → 組込みの型）。解決した項目は連鎖（例 `予約日 → date → string`）を持ち、`FieldType` は末端の基底の種類。使う側は `isA("date")` のように連鎖で判定し、`FieldType.DATE` のような分岐を増やさない。循環は定義エラー。`$ref` は同じ意味の別記法として残す（object の定義は今までどおり `$ref`）。
+          **解決＝型の連鎖**: `type:` の値が基底の種類でなければ定義の名前として引く（順: 基底の種類 → 自分のモジュール → `モジュール#名前` → 組込みの型）。解決した項目は連鎖（例 `予約日 → date → string`）を持ち、`FieldType` は末端の基底の種類。使う側は `isA("date")` のように連鎖で判定し、`FieldType.DATE` のような分岐を増やさない。循環は定義エラー。`$ref` は同じ意味の別記法として残す（object の定義は今までどおり `$ref`）。
 
-      **狭める規則**: 使う側でも、型から型へでも同じ。緩めたら定義エラー。今の「使う側が勝つ」からの変更なので意図的差分に登録する。
+          **狭める規則**: 使う側でも、型から型へでも同じ。緩めたら定義エラー。今の「使う側が勝つ」からの変更なので意図的差分に登録する。
 
-      | 決まり | 規則 |
-      |---|---|
-      | `minLength` / `min` | 定義以上 |
-      | `maxLength` / `max` | 定義以下 |
-      | `pattern` | 両方に一致（並べて持つ） |
-      | `values`（enum） | 部分集合 |
-      | `cases` | 定義に無いときだけ足せる |
-      | `required` / `requiredFrom` | 足すだけ |
-      | ref の `idPatterns` | 重ね合わせ（両方に合う ID だけ） |
-      | ref の `scope` | 共通部分 |
-      | ref の `relation` / `target` | 定義に無いときだけ。違えば定義エラー |
-      | `unknownFields` | 厳しくするだけ（allow → warning → error） |
-      | `label` / `description` / `display` / `default` | 決まりではない。今までどおり使う側が優先 |
+          | 決まり | 規則 |
+          |---|---|
+          | `minLength` / `min` | 定義以上 |
+          | `maxLength` / `max` | 定義以下 |
+          | `pattern` | 両方に一致（並べて持つ） |
+          | `values`（enum） | 部分集合 |
+          | `cases` | 定義に無いときだけ足せる |
+          | `required` / `requiredFrom` | 足すだけ |
+          | ref の `idPatterns` | 重ね合わせ（両方に合う ID だけ） |
+          | ref の `scope` | 共通部分 |
+          | ref の `relation` / `target` | 定義に無いときだけ。違えば定義エラー |
+          | `unknownFields` | 厳しくするだけ（allow → warning → error） |
+          | `label` / `description` / `display` / `default` | 決まりではない。今までどおり使う側が優先 |
 
-      文面の例: 「maxLength 200 は型「common#メールアドレス」の 100 より緩いため書けません（型は狭めるだけ）」。
+          文面の例: 「maxLength 200 は型「common#メールアドレス」の 100 より緩いため書けません（型は狭めるだけ）」。
 
-      **導出**: スカラーの連鎖は導出の前に解決し、基底の種類と合成した決まりを構造のスキーマへ写す（`$ref` のまま写すのは object / array / map の定義だけ＝再帰のため）。yaml-core に足すのは `pattern` を複数持てること（並べて全部に一致）だけで、型の名前は yaml-core に届かない。
+          **導出**: スカラーの連鎖は導出の前に解決し、基底の種類と合成した決まりを構造のスキーマへ写す（`$ref` のまま写すのは object / array / map の定義だけ＝再帰のため）。yaml-core に足すのは `pattern` を複数持てること（並べて全部に一致）だけで、型の名前は yaml-core に届かない。
 
-      **組込みの型のライブラリ**: 資源 `builtin-types/*.yaml`（`kind: library`・`id: builtin-types`）を、検査の組込み定義体と同じ流儀で読み、カタログの解決の最後に引く。第一弾で `text` を移す（検証の違いが無く、UI の複数行の判定を連鎖にする最初の例）。`date` は第二弾（入力欄の案内・サンプル値・順序のヒントが要る）。
+          **組込みの型のライブラリ**: 資源 `builtin-types/*.yaml`（`kind: library`・`id: builtin-types`）を、検査の組込み定義体と同じ流儀で読み、カタログの解決の最後に引く。第一弾で `text` を移す（検証の違いが無く、UI の複数行の判定を連鎖にする最初の例）。`date` は第二弾（入力欄の案内・サンプル値・順序のヒントが要る）。
 
-      **メタスキーマ**: 読み込み時に、ワークスペースと組込みの型の名前を `type` の選択肢へ足し、その `cases` に基底の種類の `cases` を写す（語彙のキーを足す `withVocabularyKeys` と同じ流儀）。`type: 名前` に書いた制約キーは、基底の種類と同じ扱いで検証される。`$ref` ＋制約キーの警告は残す（型は `type:` で書くのが正）。
+          **メタスキーマ**: 読み込み時に、ワークスペースと組込みの型の名前を `type` の選択肢へ足し、その `cases` に基底の種類の `cases` を写す（語彙のキーを足す `withVocabularyKeys` と同じ流儀）。`type: 名前` に書いた制約キーは、基底の種類と同じ扱いで検証される。`$ref` ＋制約キーの警告は残す（型は `type:` で書くのが正）。
 
-      **UI と道具**: 設計 UI の型の選択肢に型の名前を並べ、「型を追加」（スカラーの定義）を足し、定義カードに連鎖を出す。フォーム・AI 生成・サンプル・ビュー・走査は `resolve` を通るので、基底の種類で自動で効く。リファクタリングは `rename-definition` が `type:` の言及も書き換え、`extract-definition` は `type:` で書く。ID の採番の形は型の `pattern` から引ける（今と同じ経路）。
+          **UI と道具**: 設計 UI の型の選択肢に型の名前を並べ、「型を追加」（スカラーの定義）を足し、定義カードに連鎖を出す。フォーム・AI 生成・サンプル・ビュー・走査は `resolve` を通るので、基底の種類で自動で効く。リファクタリングは `rename-definition` が `type:` の言及も書き換え、`extract-definition` は `type:` で書く。ID の採番の形は型の `pattern` から引ける（今と同じ経路）。
 
-      **置き場と計算体系**: 型は宣言で、6 体系のどれでもない。連鎖の解決は semantic-core の `schema`、狭める点検は workspace-core の `SchemaDefinitionChecks`、導出は `DerivedStructures` の変換定義、yaml-core は `pattern` の複数化だけ。新しい評価器・書込経路は作らない。
-- title: 第一弾（検証の決まり）
-  body:
-  - columns: basic
-    items:
-    - id: R33-01
-      title: '型の連鎖と `type: 名前`'
-      content: パーサが型の名前を定義として引く（`FieldDef.typeName`・`ref`）・解決が連鎖（`lineage`・`isA`）を持つ・`FieldYaml` の往復・カタログの解決順（自分のモジュール → 組込みの型）・循環の定義エラー
-      state: done
-      state_on: 2026-10-01
-    - id: R33-02
-      title: 狭める規則
-      content: '`SchemaTree.narrow`（最小は大きい方・最大は小さい方・形式は重ねる・選択肢は部分集合・cases は無いときだけ・絞り込みは層・範囲は共通部分）・`SchemaDefinitionChecks.checkNarrowing` が緩めを定義エラーに・yaml-core の `pattern` 複数化・ref の層（`isAllowedBy`）。意図的差分 D-40'
-      state: done
-      state_on: 2026-10-01
-    - id: R33-03
-      title: 組込みの型のライブラリ
-      content: semantic-core の資源 `builtin-types/text.yaml`（`BuiltinTypes`）をカタログに常に含め、`FieldType.TEXT` と yaml-core の `ValueType.TEXT` を削除。UI の複数行の判定・表の列幅・AI 生成・サンプル・推測・型変換を連鎖（`isA`）と名前へ
-      state: done
-      state_on: 2026-10-01
-    - id: R33-04
-      title: 導出と一致の確認
-      content: '`DerivedStructures` がスカラーの連鎖を解決して写す（`$ref` を残すのは入れ物の定義だけ）。labs（sysdev-template・kakeibo）とサンプルの `validate` / `validate --sources` / `catalog` / `checks` の出力が前後で完全に一致'
-      state: done
-      state_on: 2026-10-01
-    - id: R33-05
-      title: メタスキーマ・設計 UI・リファクタリング
-      content: '`MetaSchemaTypes` が型の名前を選択肢と `cases` へ合成・設計 UI の型の選択肢と「定義を追加」の種類（型／構造）・`extract-definition` はスカラーなら `type:`・改名とインライン化が `type` を追随・`convert-type` に string↔text・ゴールデン更新'
-      state: done
-      state_on: 2026-10-01
-    - id: R33-06
-      title: 文書
-      content: manual/schema.md「型の定義」・architecture/schema.md「型の連鎖と狭める規則」と拡張ポイントの分割・FEATURES S-02 / S-03 / S-24・CORE-CALCULUS の分類表・CLAUDE.md の落とし穴・BACKLOG UX-74 の解決（記録へ）・UX-83 の当たり
-      state: done
-      state_on: 2026-10-01
-  - text: '**第一弾の確かめ方**: `TypeDefinitionsTest`（型の名前・2 段の連鎖・狭める規則の誤り・循環・組込みの型・メタスキーマの合成・絞り込みの層）7 本と全テスト。labs とサンプルの CLI 出力は前後で一致。緩めの定義エラー（`maxLength 200 は型「common#メールアドレス」の 100 より緩いため書けません`）と、合成が緩まないこと（150 文字が 100 文字の型で誤りになる）は一時ワークスペースの CLI `validate` で確認。'
-- title: 第二弾以降
-  body:
-  - points:
-    - label: 第二弾（表示と編集のヒント）✅ 2026-10-01
-      text: '型にヒント（複数行 `display: multiline`・入力欄の案内 `placeholder`・サンプル値 `sample`。使う側が優先し、無ければ型から引き継ぐ）を持たせ、`date` を組込みの定義体へ移した（形式違反は警告 → エラー。意図的差分 D-41）。`time` / `datetime` を組込みの型として YAML で足した（BACKLOG UX-83 解決）。'
-    - label: 第二弾の仕組み
-      text: '`FieldType` と yaml-core の `ValueType` から `text` / `date` を外し、フォーム・表の列幅・AI 生成・サンプル・ビューのリントはヒントと連鎖で判定する。確かめ方は `TypeDefinitionsTest`（組込みの型のヒントの引き継ぎ・形式の誤り・`display: multiline` の型の制限）と labs・サンプルの出力の一致。'
-    - label: 第二弾の整理（2026-10-01 オーナーとの再検討）
-      text: ①型の出どころは 3 つ＝表現の基底（yaml-core）・意味の基底型（semantic-core の Kotlin。値の表現を持つ `date` / `time` / `datetime`・`id` / `ref`。直列化は文字列）・組込みの定義体（YAML。`text` / `line` / `word`）②値と表示形式を分ける（ファイルと編集は素の値、表示は `format` で整形。Excel の表示形式）。
-    - text: ③文字列の階層は `string`（自由。欄は改行で伸びる）・`text`（複数行を保証・`rows`）・`line`（改行なし）・`word`（空白なし）。`id` / `ref` の直列化は `word`。
-    - label: 第二弾の残りの手順
-      text: '1 文字列の階層 ✅ 2026-10-01（意図的差分 D-42）→ 2 意味の基底型 `date` / `time` / `datetime` ✅ 2026-10-01（意図的差分 D-43）→ 3 表示の形 `format` ✅ 2026-10-01（数は DecimalFormat・日付などは DateTimeFormatter のパターン。項目・型・ビューの列に書け、ファイルと編集中は素の値。`display: grouped` はそのまま残し `format` が優先。`ValueFormat`）。'
-    - text: '手順 2 の中身: `FieldType` に戻し、値の表現 `ValueSemantics`（正準の形・存在の検証・案内・サンプル・JSON Schema の format）を持たせ、YAML 定義体を置き換えた。'
-    - label: 第二弾の残り ✅ 2026-10-02
-      label_note: （意図的差分 D-44）
-      text: ①entity の `idType`（ID の型の名前。型の形式で判別。`idPattern` と併用可）②設計 UI のヒントの入力欄（案内・サンプル値・複数行と行数・エンティティ節の ID の型）。
-    - text: ③式の順序の種類を項目の型から決める（`type` は上書き。検査の `min` / `max`・ビューの列・クロス集計・行の並び）④順序の比較 `lt` / `lte` / `gt` / `gte` を項目の型で（日付・時刻・日時も比べる。BACKLOG UX-131 解決）。読み方は「数で読む」で閉じる（UX-136 は文字の金額を読まない方針）。
-    - text: '第二弾の残りの確かめ方: `TypeDefinitionsTest`（`idType` の判別と定義エラー・日付の検査 3 本）・`ValueOperationsTest`（種類ごとの比較）・`SemanticAggregateTest`（型からの種類の決定）・`QueryDeclarationTest`（`type` の書き方）・`VirtualViewsTest`（並びの種類）。labs とサンプルの CLI 出力は前後で一致。'
-    - label: 入れないもの
-      text: 型の「どちらか」（A または B）・複数の型の合成（多重継承）・計算で決まる決まり・YAML から新しい UI 部品を足すこと。
-- title: 第三弾（オブジェクト型）の設計（決定 2026-10-03 オーナー）
-  body:
-  - text: '**一言で**: オブジェクト型 ＝ object の定義に ①同一性（`entity`）②表示（`label` と既存の `role`）③検査（`constraints`）を足し、使う側は `type: 名前` で使って「項目を足す・必須にする」だけができる。既知の技術との対応は XSD の complexType（extension＝足す・restriction＝狭める）・TypeScript の `interface B extends A`。'
-  - points:
-    - label: 書き方
-      text: 'object の定義（`definitions`）でも、その場の object（配列の要素など）でも `entity: { type, defines, aspect, owns }` を書ける（1 回しか使わない形のために型を定義しなくてよい）。名前付きの型では `entity.type` を省くと定義名。使う側は `type: 名前`（`$ref` は同義で残す）。'
-    - label: 同一性の決め方
-      text: 要素の object（解決した型）に `entity` があればそれ → 無ければ文書スキーマの `entity:`（ID の形で判別。今までどおり残す）。root を型で書き、その型が `entity` を持てばスキーマの `entity:` は省略できる。段階的詳細化（同じ ID を複数の文書に書く・側面の所有）はそのまま——オブジェクト型は要素の「形」を決め、側面をつなぐのは ID とエンティティ型の名前。
-    - label: 同じキーは狭める・新しいキーは足す
-      label_note: （熟練プログラマの直感＝サブインターフェースで同じ項目を書き直すと狭い型しか許されない）
-      text: 定義に無いキー→末尾に追加。定義にあるキー＋`required` / `requiredFrom`→必須にする（外せない）。定義にあるキー＋決まり→第一弾と同じ狭める規則。定義にあるキー＋`type`→省略が普通で、書くなら定義側の型を狭めた型だけ（基底の種類が変わる書き方は定義エラー）。
-    - text: 表示のヒント（`label` `description` `placeholder` `sample` `format` `display` `default` `role`）は使う側が勝つ。object / array / map の子（`fields` / `item` / `value`）には同じ規則を再帰的に当てる。`cases` は定義に無いときだけ。項目を外す・並べ替える・`entity.type` を変えるはできない。位置は同じキーなら定義の場所のまま。
-    - label: 検査は要素ごと
-      text: 型の `constraints` は「その型の要素ごとに評価する検査」（文書をスキーマに沿って歩いて解決した型がその型の要素を見つけ、要素を「いまの要素」として既存の値の式の評価器で `where` と `check` を評価する。`of` を省けばその要素。指摘はその要素の場所）。ID の無い型でも書ける（明細の「単価 × 数量 ＝ 金額」など）。他の要素へ線を辿る検査（`match` の `edge`）は `entity` を持つ型にだけ書け、グラフの検査へ展開する。
-    - label: 表示
-      text: 型の `label` / `description`。エンティティ型の表示名は関係レジストリ `entities:` → 型の `label` の順（レジストリはアスペクトの順序のために残す）。1 行要約は今までどおり `role`。
-    - label: 構造の検証への写し
-      text: '追加の無い `type: 名前` は `$ref` のまま（再帰のため）。項目を足した使い方は合成した object を展開して写す。再帰する型への追加は定義エラー。'
-    - label: 確かめ方
-      text: labs/sysdev-template は domain-detail と screen-def だけ型へ書き換えて出力一致（ENT-* などの型付けが ID の形から要素の型に変わるだけ）。samples/todos は一覧の要素と個票を型にする。
-  - columns: basic
-    items:
-    - id: R33-07
-      title: 同一性と狭める規則の拡張
-      content: 'object の `entity`・`type: 名前` で object を使い項目を足す／狭める（`SchemaTree.mergeFields`・定義の点検）・走査と整合と合成が要素の型から同一性を決める・導出は追加のある使い方を展開・メタスキーマ。意図的差分 D-45'
-      state: done
-      state_on: 2026-10-03
-    - id: R33-08
-      title: 表示
-      content: 型の `label` をエンティティ型の表示名の既定に（`WorkspaceReader.objectEntityTypes`）・設計 UI（定義の種類「オブジェクト型」・定義カードと配列の要素の同一性の欄）
-      state: done
-      state_on: 2026-10-03
-    - id: R33-09
-      title: 型の検査
-      content: '要素ごとの検査（`ElementRule`・`SemanticElementChecks`。`where` / `check` / `expect: absent` を要素を「いまの要素」として評価。ID の無い型でも書ける。指摘は要素の場所・保留はその文書）。`match` を持つ検査は型には書けない（スキーマの `constraints` に `node: {entity: 型}` で書く＝今もできることで、展開は見送り）。CLI `checks` の `typeChecks`'
-      state: done
-      state_on: 2026-10-03
-    - id: R33-10
-      title: 文書と書き換え
-      content: manual/schema.md「オブジェクト型」・checks.md・architecture/schema.md・checks.md・graph-query.md・FEATURES・labs（domain-detail・screen-def の要素を object の `entity` に。出力一致）・samples/todos（一覧の行・個票・コメントをオブジェクト型にし、日付の検査を型の検査に）・BACKLOG UX-69 の解決
-      state: done
-      state_on: 2026-10-03
-  - text: '**第三弾の確かめ方**: `ObjectTypesTest`（同一性・項目を足す／狭める・定義の誤り・表示名・要素ごとの検査）5 本と `TodosSampleTest`。labs の CLI 出力（validate / catalog / checks / view）は書き換え前後で一致。'
-- title: 残る判断
-  body:
-  - text: |-
-      - **E1** 第一弾で `text` を組込みの定義体へ移す。**決定（2026-10-01 オーナー「OK」。同日着手）**。
-        - `text` の拡張の形: `text: { type: string, description: 複数行の文字列 }`。検証は `string` と同じ（今も改行を含む値はエラーにならない。「1 行」は編集のヒントであって決まりではない）。違いは「複数行で編集する」印だけで、第一弾は印を名前で持つ（UI は連鎖に `text` があれば複数行の欄）、第二弾で印を型に書くヒントの語にし、UI は名前でなくヒントで判定する。
-      - **E2** ref の狭め方は「`idPatterns` は重ね合わせ・`scope` は共通部分」。**決定（2026-10-01 オーナー）**。`業務データ型参照` を使う側で `idPattern: "DT-MAIL-*"` とさらに絞れる。
+          **置き場と計算体系**: 型は宣言で、6 体系のどれでもない。連鎖の解決は semantic-core の `schema`、狭める点検は workspace-core の `SchemaDefinitionChecks`、導出は `DerivedStructures` の変換定義、yaml-core は `pattern` の複数化だけ。新しい評価器・書込経路は作らない。
+  - title: 第一弾（検証の決まり）
+    body:
+      - columns: basic
+        items:
+          - id: R33-01
+            title: '型の連鎖と `type: 名前`'
+            content: パーサが型の名前を定義として引く（`FieldDef.typeName`・`ref`）・解決が連鎖（`lineage`・`isA`）を持つ・`FieldYaml` の往復・カタログの解決順（自分のモジュール
+              → 組込みの型）・循環の定義エラー
+            state: done
+            state_on: 2026-10-01
+          - id: R33-02
+            title: 狭める規則
+            content: '`SchemaTree.narrow`（最小は大きい方・最大は小さい方・形式は重ねる・選択肢は部分集合・cases は無いときだけ・絞り込みは層・範囲は共通部分）・`SchemaDefinitionChecks.checkNarrowing`
+              が緩めを定義エラーに・yaml-core の `pattern` 複数化・ref の層（`isAllowedBy`）。意図的差分 D-40'
+            state: done
+            state_on: 2026-10-01
+          - id: R33-03
+            title: 組込みの型のライブラリ
+            content: semantic-core の資源 `builtin-types/text.yaml`（`BuiltinTypes`）をカタログに常に含め、`FieldType.TEXT` と yaml-core の
+              `ValueType.TEXT` を削除。UI の複数行の判定・表の列幅・AI 生成・サンプル・推測・型変換を連鎖（`isA`）と名前へ
+            state: done
+            state_on: 2026-10-01
+          - id: R33-04
+            title: 導出と一致の確認
+            content: '`DerivedStructures` がスカラーの連鎖を解決して写す（`$ref` を残すのは入れ物の定義だけ）。labs（sysdev-template・kakeibo）とサンプルの `validate`
+              / `validate --sources` / `catalog` / `checks` の出力が前後で完全に一致'
+            state: done
+            state_on: 2026-10-01
+          - id: R33-05
+            title: メタスキーマ・設計 UI・リファクタリング
+            content: '`MetaSchemaTypes` が型の名前を選択肢と `cases` へ合成・設計 UI の型の選択肢と「定義を追加」の種類（型／構造）・`extract-definition` はスカラーなら
+              `type:`・改名とインライン化が `type` を追随・`convert-type` に string↔text・ゴールデン更新'
+            state: done
+            state_on: 2026-10-01
+          - id: R33-06
+            title: 文書
+            content: manual/schema.md「型の定義」・architecture/schema.md「型の連鎖と狭める規則」と拡張ポイントの分割・FEATURES S-02 / S-03 / S-24・CORE-CALCULUS
+              の分類表・CLAUDE.md の落とし穴・BACKLOG UX-74 の解決（記録へ）・UX-83 の当たり
+            state: done
+            state_on: 2026-10-01
+            features:
+              - S-02
+              - S-03
+              - S-24
+      - text: '**第一弾の確かめ方**: `TypeDefinitionsTest`（型の名前・2 段の連鎖・狭める規則の誤り・循環・組込みの型・メタスキーマの合成・絞り込みの層）7 本と全テスト。labs とサンプルの CLI
+          出力は前後で一致。緩めの定義エラー（`maxLength 200 は型「common#メールアドレス」の 100 より緩いため書けません`）と、合成が緩まないこと（150 文字が 100 文字の型で誤りになる）は一時ワークスペースの
+          CLI `validate` で確認。'
+  - title: 第二弾以降
+    body:
+      - points:
+          - label: 第二弾（表示と編集のヒント）✅ 2026-10-01
+            text: '型にヒント（複数行 `display: multiline`・入力欄の案内 `placeholder`・サンプル値 `sample`。使う側が優先し、無ければ型から引き継ぐ）を持たせ、`date` を組込みの定義体へ移した（形式違反は警告
+              → エラー。意図的差分 D-41）。`time` / `datetime` を組込みの型として YAML で足した（BACKLOG UX-83 解決）。'
+          - label: 第二弾の仕組み
+            text: '`FieldType` と yaml-core の `ValueType` から `text` / `date` を外し、フォーム・表の列幅・AI 生成・サンプル・ビューのリントはヒントと連鎖で判定する。確かめ方は
+              `TypeDefinitionsTest`（組込みの型のヒントの引き継ぎ・形式の誤り・`display: multiline` の型の制限）と labs・サンプルの出力の一致。'
+          - label: 第二弾の整理（2026-10-01 オーナーとの再検討）
+            text: ①型の出どころは 3 つ＝表現の基底（yaml-core）・意味の基底型（semantic-core の Kotlin。値の表現を持つ `date` / `time` / `datetime`・`id` /
+              `ref`。直列化は文字列）・組込みの定義体（YAML。`text` / `line` / `word`）②値と表示形式を分ける（ファイルと編集は素の値、表示は `format` で整形。Excel の表示形式）。
+          - text: ③文字列の階層は `string`（自由。欄は改行で伸びる）・`text`（複数行を保証・`rows`）・`line`（改行なし）・`word`（空白なし）。`id` / `ref` の直列化は `word`。
+          - label: 第二弾の残りの手順
+            text: '1 文字列の階層 ✅ 2026-10-01（意図的差分 D-42）→ 2 意味の基底型 `date` / `time` / `datetime` ✅ 2026-10-01（意図的差分 D-43）→ 3 表示の形
+              `format` ✅ 2026-10-01（数は DecimalFormat・日付などは DateTimeFormatter のパターン。項目・型・ビューの列に書け、ファイルと編集中は素の値。`display: grouped`
+              はそのまま残し `format` が優先。`ValueFormat`）。'
+          - text: '手順 2 の中身: `FieldType` に戻し、値の表現 `ValueSemantics`（正準の形・存在の検証・案内・サンプル・JSON Schema の format）を持たせ、YAML 定義体を置き換えた。'
+          - label: 第二弾の残り ✅ 2026-10-02
+            label_note: （意図的差分 D-44）
+            text: ①entity の `idType`（ID の型の名前。型の形式で判別。`idPattern` と併用可）②設計 UI のヒントの入力欄（案内・サンプル値・複数行と行数・エンティティ節の ID の型）。
+          - text: ③式の順序の種類を項目の型から決める（`type` は上書き。検査の `min` / `max`・ビューの列・クロス集計・行の並び）④順序の比較 `lt` / `lte` / `gt` / `gte` を項目の型で（日付・時刻・日時も比べる。BACKLOG
+              UX-131 解決）。読み方は「数で読む」で閉じる（UX-136 は文字の金額を読まない方針）。
+          - text: '第二弾の残りの確かめ方: `TypeDefinitionsTest`（`idType` の判別と定義エラー・日付の検査 3 本）・`ValueOperationsTest`（種類ごとの比較）・`SemanticAggregateTest`（型からの種類の決定）・`QueryDeclarationTest`（`type`
+              の書き方）・`VirtualViewsTest`（並びの種類）。labs とサンプルの CLI 出力は前後で一致。'
+          - label: 入れないもの
+            text: 型の「どちらか」（A または B）・複数の型の合成（多重継承）・計算で決まる決まり・YAML から新しい UI 部品を足すこと。
+  - title: 第三弾（オブジェクト型）の設計（決定 2026-10-03 オーナー）
+    body:
+      - text: '**一言で**: オブジェクト型 ＝ object の定義に ①同一性（`entity`）②表示（`label` と既存の `role`）③検査（`constraints`）を足し、使う側は `type: 名前`
+          で使って「項目を足す・必須にする」だけができる。既知の技術との対応は XSD の complexType（extension＝足す・restriction＝狭める）・TypeScript の `interface B extends
+          A`。'
+      - points:
+          - label: 書き方
+            text: 'object の定義（`definitions`）でも、その場の object（配列の要素など）でも `entity: { type, defines, aspect, owns }` を書ける（1 回しか使わない形のために型を定義しなくてよい）。名前付きの型では
+              `entity.type` を省くと定義名。使う側は `type: 名前`（`$ref` は同義で残す）。'
+          - label: 同一性の決め方
+            text: 要素の object（解決した型）に `entity` があればそれ → 無ければ文書スキーマの `entity:`（ID の形で判別。今までどおり残す）。root を型で書き、その型が `entity` を持てばスキーマの
+              `entity:` は省略できる。段階的詳細化（同じ ID を複数の文書に書く・側面の所有）はそのまま——オブジェクト型は要素の「形」を決め、側面をつなぐのは ID とエンティティ型の名前。
+          - label: 同じキーは狭める・新しいキーは足す
+            label_note: （熟練プログラマの直感＝サブインターフェースで同じ項目を書き直すと狭い型しか許されない）
+            text: 定義に無いキー→末尾に追加。定義にあるキー＋`required` / `requiredFrom`→必須にする（外せない）。定義にあるキー＋決まり→第一弾と同じ狭める規則。定義にあるキー＋`type`→省略が普通で、書くなら定義側の型を狭めた型だけ（基底の種類が変わる書き方は定義エラー）。
+          - text: 表示のヒント（`label` `description` `placeholder` `sample` `format` `display` `default` `role`）は使う側が勝つ。object /
+              array / map の子（`fields` / `item` / `value`）には同じ規則を再帰的に当てる。`cases` は定義に無いときだけ。項目を外す・並べ替える・`entity.type` を変えるはできない。位置は同じキーなら定義の場所のまま。
+          - label: 検査は要素ごと
+            text: 型の `constraints` は「その型の要素ごとに評価する検査」（文書をスキーマに沿って歩いて解決した型がその型の要素を見つけ、要素を「いまの要素」として既存の値の式の評価器で `where` と `check`
+              を評価する。`of` を省けばその要素。指摘はその要素の場所）。ID の無い型でも書ける（明細の「単価 × 数量 ＝ 金額」など）。他の要素へ線を辿る検査（`match` の `edge`）は `entity` を持つ型にだけ書け、グラフの検査へ展開する。
+          - label: 表示
+            text: 型の `label` / `description`。エンティティ型の表示名は関係レジストリ `entities:` → 型の `label` の順（レジストリはアスペクトの順序のために残す）。1 行要約は今までどおり
+              `role`。
+          - label: 構造の検証への写し
+            text: '追加の無い `type: 名前` は `$ref` のまま（再帰のため）。項目を足した使い方は合成した object を展開して写す。再帰する型への追加は定義エラー。'
+          - label: 確かめ方
+            text: labs/sysdev-template は domain-detail と screen-def だけ型へ書き換えて出力一致（ENT-* などの型付けが ID の形から要素の型に変わるだけ）。samples/todos
+              は一覧の要素と個票を型にする。
+      - columns: basic
+        items:
+          - id: R33-07
+            title: 同一性と狭める規則の拡張
+            content: 'object の `entity`・`type: 名前` で object を使い項目を足す／狭める（`SchemaTree.mergeFields`・定義の点検）・走査と整合と合成が要素の型から同一性を決める・導出は追加のある使い方を展開・メタスキーマ。意図的差分
+              D-45'
+            state: done
+            state_on: 2026-10-03
+          - id: R33-08
+            title: 表示
+            content: 型の `label` をエンティティ型の表示名の既定に（`WorkspaceReader.objectEntityTypes`）・設計 UI（定義の種類「オブジェクト型」・定義カードと配列の要素の同一性の欄）
+            state: done
+            state_on: 2026-10-03
+          - id: R33-09
+            title: 型の検査
+            content: '要素ごとの検査（`ElementRule`・`SemanticElementChecks`。`where` / `check` / `expect: absent` を要素を「いまの要素」として評価。ID
+              の無い型でも書ける。指摘は要素の場所・保留はその文書）。`match` を持つ検査は型には書けない（スキーマの `constraints` に `node: {entity: 型}` で書く＝今もできることで、展開は見送り）。CLI
+              `checks` の `typeChecks`'
+            state: done
+            state_on: 2026-10-03
+          - id: R33-10
+            title: 文書と書き換え
+            content: manual/schema.md「オブジェクト型」・checks.md・architecture/schema.md・checks.md・graph-query.md・FEATURES・labs（domain-detail・screen-def
+              の要素を object の `entity` に。出力一致）・samples/todos（一覧の行・個票・コメントをオブジェクト型にし、日付の検査を型の検査に）・BACKLOG UX-69 の解決
+            state: done
+            state_on: 2026-10-03
+      - text: '**第三弾の確かめ方**: `ObjectTypesTest`（同一性・項目を足す／狭める・定義の誤り・表示名・要素ごとの検査）5 本と `TodosSampleTest`。labs の CLI 出力（validate
+          / catalog / checks / view）は書き換え前後で一致。'
+  - title: 残る判断
+    body:
+      - text: |-
+          - **E1** 第一弾で `text` を組込みの定義体へ移す。**決定（2026-10-01 オーナー「OK」。同日着手）**。
+            - `text` の拡張の形: `text: { type: string, description: 複数行の文字列 }`。検証は `string` と同じ（今も改行を含む値はエラーにならない。「1 行」は編集のヒントであって決まりではない）。違いは「複数行で編集する」印だけで、第一弾は印を名前で持つ（UI は連鎖に `text` があれば複数行の欄）、第二弾で印を型に書くヒントの語にし、UI は名前でなくヒントで判定する。
+          - **E2** ref の狭め方は「`idPatterns` は重ね合わせ・`scope` は共通部分」。**決定（2026-10-01 オーナー）**。`業務データ型参照` を使う側で `idPattern: "DT-MAIL-*"` とさらに絞れる。

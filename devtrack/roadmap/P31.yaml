@@ -4,141 +4,157 @@ title: スキーマの値に式を書く
 status: in-progress
 status_note: R31-01〜03・05 完了。R31-04 はビューの列（`value`）を完了、他の応用は後で考える（下記）
 body:
-- points:
-  - label: 目的
-    text: スキーマでの値の表現に式を使えるようにする。応用の 1 つ目は、詳細文書のファイル名に要素の項目の値を使えること。検査の `check` に書ける「値の式」を、検査の外（ひな型・表示・組み立て）でも使う。新しい式言語は作らない。
-  - label: 書き方
-    text: '短い書き方（`{パス}` を含む文字列。`format` の省略形。予約の名前は `{id}` と `{title}`）と、完全な書き方（検査の値の式そのまま。`of` を省略するといまの要素。`format` に `with:` で名前を付けた値を差し込める）。どの項目が式を受け取るかは、項目の定義の印 `expression: true` だけが決める。'
-  - label: 守ること
-    text: 式は値 1 つを計算する純粋な計算で、非決定的な値（日付・乱数・連番）を入れない。語彙の予算に従う。検証・走査・検査は式を読まない。置き場は semantic-core。穴埋めの実装を増やさない（減らす）。
-  - label: 完了
-    text: 値の式の評価器をクエリの外へ、ファイル名に式、ひな型の中身に元の要素の値、式を受け取る項目のメタ管理。
-  - label: R31-04 その他の応用（一部完了）
-    text: |-
-      ビューの列 `value` は 2026-09-27 に完了（列に値の式を書く。あわせて値の式の集計にパスの `[*]`＝配列の要素にわたる集計と、順序の種類 `type: date` を足した。最終更新日＝コメントの日付の最大、が書ける）。同日に起点を固定した照合の件数を足し、続く P32 で `all` に寄せた（カテゴリ × 状態の集計表は `samples/todos`）。
-        - 本質は「string で設定できる項目のうち、どの項目に `expression: true` の印を付けるか」で、残りの応用は後で考える。
-        - 候補: 一覧の 1 行要約を式で、検査の文面に要素の値、派生スキーマと skill 取り込みの穴埋めを同じ評価器へ（取り込みは `build` と `target` のひな型を変換定義へ寄せた。列の対応表 `mapping` の `{列名}` は残る）、foreach の `as:` と文脈テンプレートで要素の値、newRow ダイアログで穴の値を入力、エージェントの `create_document` の作り先の提案。
-        - 既存の `computed`（テンプレートの導出）は `value` へ寄せた（R30-03 の 1 つ目。`computed` は廃止）。
+  - points:
+      - label: 目的
+        text: スキーマでの値の表現に式を使えるようにする。応用の 1 つ目は、詳細文書のファイル名に要素の項目の値を使えること。検査の `check` に書ける「値の式」を、検査の外（ひな型・表示・組み立て）でも使う。新しい式言語は作らない。
+      - label: 書き方
+        text: '短い書き方（`{パス}` を含む文字列。`format` の省略形。予約の名前は `{id}` と `{title}`）と、完全な書き方（検査の値の式そのまま。`of` を省略するといまの要素。`format` に
+          `with:` で名前を付けた値を差し込める）。どの項目が式を受け取るかは、項目の定義の印 `expression: true` だけが決める。'
+      - label: 守ること
+        text: 式は値 1 つを計算する純粋な計算で、非決定的な値（日付・乱数・連番）を入れない。語彙の予算に従う。検証・走査・検査は式を読まない。置き場は semantic-core。穴埋めの実装を増やさない（減らす）。
+      - label: 完了
+        text: 値の式の評価器をクエリの外へ、ファイル名に式、ひな型の中身に元の要素の値、式を受け取る項目のメタ管理。
+      - label: R31-04 その他の応用（一部完了）
+        text: |-
+          ビューの列 `value` は 2026-09-27 に完了（列に値の式を書く。あわせて値の式の集計にパスの `[*]`＝配列の要素にわたる集計と、順序の種類 `type: date` を足した。最終更新日＝コメントの日付の最大、が書ける）。同日に起点を固定した照合の件数を足し、続く P32 で `all` に寄せた（カテゴリ × 状態の集計表は `samples/todos`）。
+            - 本質は「string で設定できる項目のうち、どの項目に `expression: true` の印を付けるか」で、残りの応用は後で考える。
+            - 候補: 一覧の 1 行要約を式で、検査の文面に要素の値、派生スキーマと skill 取り込みの穴埋めを同じ評価器へ（取り込みは `build` と `target` のひな型を変換定義へ寄せた。列の対応表 `mapping` の `{列名}` は残る）、foreach の `as:` と文脈テンプレートで要素の値、newRow ダイアログで穴の値を入力、エージェントの `create_document` の作り先の提案。
+            - 既存の `computed`（テンプレートの導出）は `value` へ寄せた（R30-03 の 1 つ目。`computed` は廃止）。
 history:
-- id: RH-039
-  title: 'P31: スキーマの値に式を書く（値の式を、検査の外でも使う） 🚧 着手（2026-09-23 オーナー決定「その方針で進める」＝判断点 E-01〜09 は推奨のとおり。R31-01〜03 と R31-05〔式を受け取る項目のメタ管理〕を実装・R31-04 は個別判断）'
-  body:
-  - text: |-
-      > **位置づけ（2026-09-23 オーナーの要望）**: スキーマでの値の表現に式を使えるようにする。応用の1つ目は、自動ファイル生成（詳細文書の作成）のファイル名に要素の項目の値を使えること——今は `{id}` しか書けず不便。式そのものは検査の `check` に書ける「値の式」（`schema/ValueExpr.kt`。P29 Phase 6・R29-11）が既にあるので、**新しい式言語を作らず、この値の式を検査の外（ひな型・表示・組み立て）でも使えるようにする**のが本節の中身。P30 の R30-01 ②（値の式をひな型の中で使う＝評価がクエリの評価器に閉じている点の解消）と R30-03（`{…}` の穴埋めの実装の整理）は、この土台と重なる。**各項目の着手は、オーナーの判断を待つ**（勝手に着手しない）。
+  - id: RH-039
+    title: 'P31: スキーマの値に式を書く（値の式を、検査の外でも使う） 🚧 着手（2026-09-23 オーナー決定「その方針で進める」＝判断点 E-01〜09 は推奨のとおり。R31-01〜03 と R31-05〔式を受け取る項目のメタ管理〕を実装・R31-04
+      は個別判断）'
+    body:
+      - text: |-
+          > **位置づけ（2026-09-23 オーナーの要望）**: スキーマでの値の表現に式を使えるようにする。応用の1つ目は、自動ファイル生成（詳細文書の作成）のファイル名に要素の項目の値を使えること——今は `{id}` しか書けず不便。式そのものは検査の `check` に書ける「値の式」（`schema/ValueExpr.kt`。P29 Phase 6・R29-11）が既にあるので、**新しい式言語を作らず、この値の式を検査の外（ひな型・表示・組み立て）でも使えるようにする**のが本節の中身。P30 の R30-01 ②（値の式をひな型の中で使う＝評価がクエリの評価器に閉じている点の解消）と R30-03（`{…}` の穴埋めの実装の整理）は、この土台と重なる。**各項目の着手は、オーナーの判断を待つ**（勝手に着手しない）。
 
-      **いまあるもの（2026-09-23 の調査）**:
+          **いまあるもの（2026-09-23 の調査）**:
 
-      - **値の式**（`ValueExpr`＝読み出し `{of, in, path}`・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計）は、検査の `check` の左右にだけ書ける。評価はクエリの評価器の中（`SemanticQuery.evalExpr`＝private。束縛の組と出現の割当てを前提）に閉じている。計算そのもの（`SemanticExpression`）は純粋な関数で、どこからでも呼べる。
-      - **文字の穴埋め `{パス}`** は `Projection.evaluate`（値の式の `format`・ビューの計算列・変換の `$format`・テンプレートの健全性が共有）。穴はいまの要素からの相対パスで、関数は書けない。
-      - **新しい文書のファイル名**は、どの経路でも `パターン.replace("{id}", id)` の1式（workspace-core の `DocumentScaffolds.scaffold`）。パターンの出どころは3つ——ビューの `detail.filePattern`／`newRow.filePattern`／詳細スキーマの `match` から機械的に導いた `{ディレクトリ}{id}.yaml`（`detailPatternFromMatch`。ディレクトリにワイルドカードの無い単純な glob だけ。`**` のスキーマでは「作成先を決められません」）。中身は必須項目の初期値（`SchemaScaffold.defaultTree`）＋ ID で、**元の要素からは ID しか流れない**。
-      - `{id}` の単純置換は5か所（`DocumentScaffolds`・`ViewDefinitions` の代表 ID の点検・`VirtualViews` の read_view の案内・root `Cli` の `detailCreatePath`・`ViewGridPane` の新規行ダイアログ）。そのほかの穴埋め（指摘の文面 `WorkspaceChecks.renderTemplate`・専用チェッカーの文面・派生スキーマ `SchemaDerivation`・エージェントの文脈 `resolveContextTemplate`・skill 取り込みの `Importer.resolveTargetFile`＝ファイル名に使えない文字を直す前例）を合わせて約10の実装がある。
+          - **値の式**（`ValueExpr`＝読み出し `{of, in, path}`・決まった値・`format`・`map`・`first`・`length` / `upper` / `lower` / `number`・四則演算・`refCount`・`occurrenceCount`・集計）は、検査の `check` の左右にだけ書ける。評価はクエリの評価器の中（`SemanticQuery.evalExpr`＝private。束縛の組と出現の割当てを前提）に閉じている。計算そのもの（`SemanticExpression`）は純粋な関数で、どこからでも呼べる。
+          - **文字の穴埋め `{パス}`** は `Projection.evaluate`（値の式の `format`・ビューの計算列・変換の `$format`・テンプレートの健全性が共有）。穴はいまの要素からの相対パスで、関数は書けない。
+          - **新しい文書のファイル名**は、どの経路でも `パターン.replace("{id}", id)` の1式（workspace-core の `DocumentScaffolds.scaffold`）。パターンの出どころは3つ——ビューの `detail.filePattern`／`newRow.filePattern`／詳細スキーマの `match` から機械的に導いた `{ディレクトリ}{id}.yaml`（`detailPatternFromMatch`。ディレクトリにワイルドカードの無い単純な glob だけ。`**` のスキーマでは「作成先を決められません」）。中身は必須項目の初期値（`SchemaScaffold.defaultTree`）＋ ID で、**元の要素からは ID しか流れない**。
+          - `{id}` の単純置換は5か所（`DocumentScaffolds`・`ViewDefinitions` の代表 ID の点検・`VirtualViews` の read_view の案内・root `Cli` の `detailCreatePath`・`ViewGridPane` の新規行ダイアログ）。そのほかの穴埋め（指摘の文面 `WorkspaceChecks.renderTemplate`・専用チェッカーの文面・派生スキーマ `SchemaDerivation`・エージェントの文脈 `resolveContextTemplate`・skill 取り込みの `Importer.resolveTargetFile`＝ファイル名に使えない文字を直す前例）を合わせて約10の実装がある。
 
-      **守ること（既存の方針から導かれる制約）**:
+          **守ること（既存の方針から導かれる制約）**:
 
-      - 式は「値1つを計算する純粋な計算」（[CORE-CALCULUS.md](../CORE-CALCULUS.md) §7）。条件分岐・利用者が定義する関数・任意のコード・**非決定的な値（今日の日付・乱数・連番）は入れない**（連番は自動採番 `IdSuggest` の領分＝作成時の入力）。
-      - 語彙の予算（[CONVENTIONS.md](../CONVENTIONS.md) §9）: 新しい表面語彙より既存キーの拡張。書き方は検査の値の式と同じ（別の式言語・パイプ記法 `{name|lower}` のようなミニ言語を作らない）。
-      - 式を読むのは、ひな型（文書の作成）・表示・組み立てだけ。**検証・走査・検査は式を読まない**（`FieldHints` の規約と同じ線）。
-      - 置き場は semantic-core（yaml-core に足さない）。文書の作成は `AppState.createDocumentFile`（セッションの `CreateDocument`）とエージェントの `create_document`（ステージング）のまま——新しい書込経路を作らない。
-      - 穴埋めの実装を増やさない（減らす）。既存の挙動を変えるときは [INTENTIONAL-DIFFS.md](intentional-diffs.md) へ先に登録する。テンプレート・サンプルの検証出力は前後で完全に一致すること（式を書かなければ、今までどおり）。
+          - 式は「値1つを計算する純粋な計算」（[CORE-CALCULUS.md](../CORE-CALCULUS.md) §7）。条件分岐・利用者が定義する関数・任意のコード・**非決定的な値（今日の日付・乱数・連番）は入れない**（連番は自動採番 `IdSuggest` の領分＝作成時の入力）。
+          - 語彙の予算（[CONVENTIONS.md](../CONVENTIONS.md) §9）: 新しい表面語彙より既存キーの拡張。書き方は検査の値の式と同じ（別の式言語・パイプ記法 `{name|lower}` のようなミニ言語を作らない）。
+          - 式を読むのは、ひな型（文書の作成）・表示・組み立てだけ。**検証・走査・検査は式を読まない**（`FieldHints` の規約と同じ線）。
+          - 置き場は semantic-core（yaml-core に足さない）。文書の作成は `AppState.createDocumentFile`（セッションの `CreateDocument`）とエージェントの `create_document`（ステージング）のまま——新しい書込経路を作らない。
+          - 穴埋めの実装を増やさない（減らす）。既存の挙動を変えるときは [INTENTIONAL-DIFFS.md](intentional-diffs.md) へ先に登録する。テンプレート・サンプルの検証出力は前後で完全に一致すること（式を書かなければ、今までどおり）。
 
-      **式の書き方（提案）**: 書き方は2つで、どちらも同じ評価器（値の式）に落ちる。
+          **式の書き方（提案）**: 書き方は2つで、どちらも同じ評価器（値の式）に落ちる。
 
-      1. **短い書き方**＝`{パス}` を含む文字列。`{format: その文字列}` の省略形として読む。穴は**いまの要素**の値（相対パス。`{owner.name}` のように入れ子も可）で埋める。予約の名前は `{id}`（索引の ID）と `{title}`（表示の解決結果＝`role` ＞ 予約語。`schema/DisplayCore`）の2つで、要素の項目より先に解決する（今の `{id}` の意味を保つ）。
-      2. **完全な書き方**＝検査の値の式そのまま（`{format: …}`・`{map: …}`・`{first: […]}`・`{lower: …}` など）。`of` を省略すると「いまの要素」（変換の `$of` 省略と同じ流儀）。`format` に **`with:`（名前を付けた値）** を足し、穴に計算した値を差し込めるようにする（CORE-CALCULUS §7 の `Format(template, expr...)` の形。`with` は語彙の `use` ＋ `with` と同じ「渡す値」の言葉）。
+          1. **短い書き方**＝`{パス}` を含む文字列。`{format: その文字列}` の省略形として読む。穴は**いまの要素**の値（相対パス。`{owner.name}` のように入れ子も可）で埋める。予約の名前は `{id}`（索引の ID）と `{title}`（表示の解決結果＝`role` ＞ 予約語。`schema/DisplayCore`）の2つで、要素の項目より先に解決する（今の `{id}` の意味を保つ）。
+          2. **完全な書き方**＝検査の値の式そのまま（`{format: …}`・`{map: …}`・`{first: […]}`・`{lower: …}` など）。`of` を省略すると「いまの要素」（変換の `$of` 省略と同じ流儀）。`format` に **`with:`（名前を付けた値）** を足し、穴に計算した値を差し込めるようにする（CORE-CALCULUS §7 の `Format(template, expr...)` の形。`with` は語彙の `use` ＋ `with` と同じ「渡す値」の言葉）。
 
-      **具体例**（[labs/sysdev-template](../../labs/sysdev-template) の画面一覧 → 画面設計書）:
+          **具体例**（[labs/sysdev-template](../../labs/sysdev-template) の画面一覧 → 画面設計書）:
 
-      入力（`30_basic-design/screen-list.yaml`。定義出現）:
+          入力（`30_basic-design/screen-list.yaml`。定義出現）:
 
-      ```yaml
-      screens:
-        - id: SCR-ROOM-LIST
-          name: 空き状況照会画面
-          domain: 予約
-          derived_from: [UA-003]
-      ```
+          ```yaml
+          screens:
+            - id: SCR-ROOM-LIST
+              name: 空き状況照会画面
+              domain: 予約
+              derived_from: [UA-003]
+          ```
 
-      定義①（`_schemas/screen-design.yaml`。短い書き方）:
+          定義①（`_schemas/screen-design.yaml`。短い書き方）:
 
-      ```yaml
-      id: screen-design
-      match: 40_detail-design/screens/*.{yaml,yml}
-      filePattern: "40_detail-design/screens/{id}_{name}.yaml"
-      ```
+          ```yaml
+          id: screen-design
+          match: 40_detail-design/screens/*.{yaml,yml}
+          filePattern: "40_detail-design/screens/{id}_{name}.yaml"
+          ```
 
-      出力①: 検証パネルの「詳細文書を作成: SCR-ROOM-LIST（screen-design）」→ `40_detail-design/screens/SCR-ROOM-LIST_空き状況照会画面.yaml`（`name` が未記入なら「ファイル名の穴 {name} が埋まりません」で作成をエラーにする）。
+          出力①: 検証パネルの「詳細文書を作成: SCR-ROOM-LIST（screen-design）」→ `40_detail-design/screens/SCR-ROOM-LIST_空き状況照会画面.yaml`（`name` が未記入なら「ファイル名の穴 {name} が埋まりません」で作成をエラーにする）。
 
-      定義②（完全な書き方。ドメインごとのディレクトリへ振り分け・辞書で英名に）:
+          定義②（完全な書き方。ドメインごとのディレクトリへ振り分け・辞書で英名に）:
 
-      ```yaml
-      match: 40_detail-design/screens/**/*.{yaml,yml}
-      filePattern:
-        format: "40_detail-design/screens/{dir}/{id}.yaml"
-        with:
-          dir: {map: {path: domain}, using: {予約: reservation, 会議室: room}}
-      ```
+          ```yaml
+          match: 40_detail-design/screens/**/*.{yaml,yml}
+          filePattern:
+            format: "40_detail-design/screens/{dir}/{id}.yaml"
+            with:
+              dir: {map: {path: domain}, using: {予約: reservation, 会議室: room}}
+          ```
 
-      出力②: `40_detail-design/screens/reservation/SCR-ROOM-LIST.yaml`（`match` が `**` でも作成先を決められる＝今の `detailPatternFromMatch` の制限が消える）。
+          出力②: `40_detail-design/screens/reservation/SCR-ROOM-LIST.yaml`（`match` が `**` でも作成先を決められる＝今の `detailPatternFromMatch` の制限が消える）。
 
-      **設計の判断点（2026-09-23 起草・同日オーナー決定「その方針で進める」＝すべて推奨のとおり）**:
+          **設計の判断点（2026-09-23 起草・同日オーナー決定「その方針で進める」＝すべて推奨のとおり）**:
 
-      | 判断点 | 問い | 推奨 |
-      |---|---|---|
-      | E-01 式の書き方 | 短い書き方（文字列）と完全な書き方（値の式）の2つにするか、完全な書き方だけにするか、文字列に関数を書く記法（`{name|lower}`）を入れるか | **2つ**。短い書き方は `format` の省略形と定義し、実装は1つ。パイプ記法は新しいミニ言語になるので入れない（関数が要るときは完全な書き方の `with`） |
-      | E-02 穴で指せるもの | `{…}` に何を書けるか | **いまの要素の相対パス＋予約の `{id}` `{title}`**（予約が先）。他の文書の出現から読むのは完全な書き方の `in:`（値の式と同じ。定義した側を優先＝CALC-19） |
-      | E-03 式を置くキー | スキーマのどこに「新しい文書の置き場所」を書くか | **スキーマ直下に `filePattern`**（ビューの `detail.filePattern` / `newRow.filePattern` と同じ名前・同じ意味＝新しいキー名を作らない）。書かなければ今までどおり `match` から導く（後退。挙動不変） |
-      | E-04 穴が埋まらないとき | 値が未記入の穴をどう扱うか | **作成をエラーにする**（どの穴が埋まらないかを文面に。検査の「判定保留は黙る」は作成には合わない）。後退したいときは利用者が `{first: [{path: name}, {path: id}]}` で書く |
-      | E-05 ファイル名に使えない文字 | 穴に入った値（`/` `:` `*` など）をどう扱うか | **穴に入った値だけを自動で直す**（skill 取り込みの `Importer.sanitizeFileToken` と同じ規則を1実装に）。`filePattern` という場所の性質として説明できる（「値『a/b』は『a-b』に直した」）。ひな型に直接書いた `/` はディレクトリの区切りのまま |
-      | E-06 `{id}` の必須 | ビューの `filePattern` は今 `{id}` が必須。式にすると `{name}.yaml` だけも書ける | **必須をやめ、`{id}` を含まないときは読み込み時の警告**（同じ名前になる要素があれば、作成時に「既に同名のファイルが存在します」で止まる＝今のまま） |
-      | E-07 newRow（ファイルモード） | 行がまだ無く、`{id}` 以外の値が無い | **第1弾では、`{id}` 以外の穴を持つ `filePattern` を `newRow` に書くと定義エラー**。ダイアログで穴の値を聞くのは R31-04 の候補 |
-      | E-08 ひな型の中身 | 元の要素の値を新しい文書へ写す書き方 | **変換のひな型（`build`）で書く**（Construct。R30-03「ひな型の文書の生成を変換へ寄せる」の第1歩）。`default` に式を許す案は、フォームで要素を足すときに「いまの要素」が無く意味が曖昧になるので採らない |
-      | E-09 改名への追随 | フィールドの改名で `filePattern` の穴が古い名前のままになる | 第1弾は**言及の警告**（`RefactoringImpact`。ビュー定義の言及と同じ扱い）。書き換えの追随は後 |
+          | 判断点 | 問い | 推奨 |
+          |---|---|---|
+          | E-01 式の書き方 | 短い書き方（文字列）と完全な書き方（値の式）の2つにするか、完全な書き方だけにするか、文字列に関数を書く記法（`{name|lower}`）を入れるか | **2つ**。短い書き方は `format` の省略形と定義し、実装は1つ。パイプ記法は新しいミニ言語になるので入れない（関数が要るときは完全な書き方の `with`） |
+          | E-02 穴で指せるもの | `{…}` に何を書けるか | **いまの要素の相対パス＋予約の `{id}` `{title}`**（予約が先）。他の文書の出現から読むのは完全な書き方の `in:`（値の式と同じ。定義した側を優先＝CALC-19） |
+          | E-03 式を置くキー | スキーマのどこに「新しい文書の置き場所」を書くか | **スキーマ直下に `filePattern`**（ビューの `detail.filePattern` / `newRow.filePattern` と同じ名前・同じ意味＝新しいキー名を作らない）。書かなければ今までどおり `match` から導く（後退。挙動不変） |
+          | E-04 穴が埋まらないとき | 値が未記入の穴をどう扱うか | **作成をエラーにする**（どの穴が埋まらないかを文面に。検査の「判定保留は黙る」は作成には合わない）。後退したいときは利用者が `{first: [{path: name}, {path: id}]}` で書く |
+          | E-05 ファイル名に使えない文字 | 穴に入った値（`/` `:` `*` など）をどう扱うか | **穴に入った値だけを自動で直す**（skill 取り込みの `Importer.sanitizeFileToken` と同じ規則を1実装に）。`filePattern` という場所の性質として説明できる（「値『a/b』は『a-b』に直した」）。ひな型に直接書いた `/` はディレクトリの区切りのまま |
+          | E-06 `{id}` の必須 | ビューの `filePattern` は今 `{id}` が必須。式にすると `{name}.yaml` だけも書ける | **必須をやめ、`{id}` を含まないときは読み込み時の警告**（同じ名前になる要素があれば、作成時に「既に同名のファイルが存在します」で止まる＝今のまま） |
+          | E-07 newRow（ファイルモード） | 行がまだ無く、`{id}` 以外の値が無い | **第1弾では、`{id}` 以外の穴を持つ `filePattern` を `newRow` に書くと定義エラー**。ダイアログで穴の値を聞くのは R31-04 の候補 |
+          | E-08 ひな型の中身 | 元の要素の値を新しい文書へ写す書き方 | **変換のひな型（`build`）で書く**（Construct。R30-03「ひな型の文書の生成を変換へ寄せる」の第1歩）。`default` に式を許す案は、フォームで要素を足すときに「いまの要素」が無く意味が曖昧になるので採らない |
+          | E-09 改名への追随 | フィールドの改名で `filePattern` の穴が古い名前のままになる | 第1弾は**言及の警告**（`RefactoringImpact`。ビュー定義の言及と同じ扱い）。書き換えの追随は後 |
 
-      **進め方**:
-  - head: |-
-      | ID | 項目 | 内容 | 大きさ | 状態 |
-      |---|---|---|---|---|
-    rows:
-    - id: R31-01
-      title: '土台: 値の式の評価器をクエリの外へ'
-      cells:
-      - 'semantic-core に「1つの環境での値の式の評価」（`semantic/Values.kt`＝`SemanticValues.evaluate(式, 環境)`。環境＝いまの要素の出現・名前を付けた束縛・木の読み手・グラフ〔`refCount` などのため。無ければ「得られない」〕・値の出どころ）を置き、`SemanticQuery.evalExpr` はこれに委譲する（検証出力は不変＝安全網）。`ValueExpr` に「`of` の省略＝いまの要素」・`format` の `with`・短い書き方の読み取り（`ValueExpr.parseValue`: 文字列に `{` があれば format・無ければ決まった値）を足す。**R30-01 ② の妨げ（評価がクエリに閉じている）はこれで解消**（変換のひな型の指示として値の式を書く形は R30-01 ②に残す）'
-      - 小〜中
-      - ✅ 2026-09-23（`semantic/Values.kt`・`SemanticValuesTest`。検証出力は sysdev-template で前後一致）
-    - id: R31-02
-      title: ファイル名に式（応用の1つ目）
-      cells:
-      - '①スキーマ直下の `filePattern`（読み取りは `SchemaDocuments.parse`・型は `WorkspaceSchema.filePattern: ValueExpr?`・root `SchemaDef` は窓口・メタスキーマ `builtin-schemas/schema.yaml`）②ビューの `detail` / `newRow` の `filePattern` を式へ（`ViewDefinitions.parseView`・`builtin-schemas/view.yaml`。E-06・E-07）③ファイル名の解決を1実装に（`DocumentScaffolds.pathFor(式, 元の要素, 索引)`。5か所の `{id}` 置換を置き換える。穴の値の安全化は `Importer` と共有＝E-05）④元の要素＝ID の定義出現（無ければ先頭の出現。`SemanticExpression.preferDefining`）⑤読み込み時の点検（代表値で解決した作成先が `match` に合うこと。スキーマは `SchemaDefinitionChecks`・ビューは既存の代表 ID の点検を式へ）⑥利用者に見える面: 検証パネルの対応の文面 `{create.places}`・read_view の新規行の案内・CLI `view` の `detailCreatePath`・新規行ダイアログのプレビュー（穴に入った値も示す）⑦改名の言及の警告（E-09）⑧文書: MANUAL（カバレッジ・ビュー・検査の値の式）・FEATURES・ARCHITECTURE §4.49・CORE-CALCULUS §21（Scaffold の行に Expression）・メタスキーマの説明。設計UI（`SchemaEditor`）の専用入力は作らない（メタスキーマのフォームで編集できる）'
-      - 中
-      - ✅ 2026-09-23（意図的差分 D-39・FEATURES S-23・ARCHITECTURE §4.49。BACKLOG UX-127）
-    - id: R31-03
-      title: ひな型の中身に元の要素の値
-      cells:
-      - 'スキーマに `scaffold:`（変換のひな型 `build`。`SemanticTransform.run(入力＝定義出現の要素)`）。`DocumentScaffolds.scaffold` は、必須の初期値の上に変換の出力を重ねる（ID の項目は今までどおり ID）。例: `scaffold: {name: {$copy: name}, summary: {$copy: summary}, source: {$format: "{id}（画面一覧）"}}`。E-08'
-      - 中
-      - ✅ 2026-09-23（`TransformDef.ofTemplate`・`DocumentScaffoldTest`）
-    - id: R31-05
-      title: 式を受け取る項目のメタ管理（2026-09-24 オーナー指摘）
-      cells:
-      - '個別実装（`filePattern` をキー名で読む・専用の型 `FilePattern`・文面の直書き）を、**項目の印 `expression: true`＋共通処理**に組み替えた: どの項目が式を受け取るかは項目の定義（メタスキーマ・利用者のスキーマ）の印だけが決め、読み取り（`ExpressionFields`＝スキーマの木に沿って文書を辿る1実装。結果は `WorkspaceSchema.expressions`）・構造の検証（文字列か object）・「式として読めるか」の指摘・文面（`ExpressionMessages`）は共通。使う側は `expressionAt(場所)` で式を引いて自分の環境で評価する。ファイル名として使う決まりと文面は `FileNameRules` の1つの表。項目を足す作業は「印を付ける＋使う側が読む」だけ。`scaffold`（変換のひな型）は値の式ではないので印の対象外'
-      - 中
-      - ✅ 2026-09-24（`ExpressionFieldsTest`・`ExpressionFieldTest`。検証出力は前後一致）
-    - id: R31-04
-      title: その他の応用（候補。個別にオーナー判断）
-      cells:
-      - '下の「他の応用の例」。それぞれ小さい変更だが、寄せるかどうかは1つずつ決める（既存の挙動が変わるものは意図的差分へ）。**オーナーの見方（2026-09-24）**: 本質は「string で設定できる項目のうち、どの項目に `expression: true` の印を付けるか」であり、下の応用例はどちらかというと別の軸（穴埋めの実装の整理・評価器の共有）。応用は後で考える'
-      - —
-      - ⏳ 後で考える
-  - text: |-
-      **他の応用の例**（同じ評価器を使うもの。番号は優先順ではない）:
+          **進め方**:
+      - head: |-
+          | ID | 項目 | 内容 | 大きさ | 状態 |
+          |---|---|---|---|---|
+        rows:
+          - id: R31-01
+            title: '土台: 値の式の評価器をクエリの外へ'
+            cells:
+              - 'semantic-core に「1つの環境での値の式の評価」（`semantic/Values.kt`＝`SemanticValues.evaluate(式, 環境)`。環境＝いまの要素の出現・名前を付けた束縛・木の読み手・グラフ〔`refCount`
+                などのため。無ければ「得られない」〕・値の出どころ）を置き、`SemanticQuery.evalExpr` はこれに委譲する（検証出力は不変＝安全網）。`ValueExpr` に「`of` の省略＝いまの要素」・`format`
+                の `with`・短い書き方の読み取り（`ValueExpr.parseValue`: 文字列に `{` があれば format・無ければ決まった値）を足す。**R30-01 ② の妨げ（評価がクエリに閉じている）はこれで解消**（変換のひな型の指示として値の式を書く形は
+                R30-01 ②に残す）'
+              - 小〜中
+              - ✅ 2026-09-23（`semantic/Values.kt`・`SemanticValuesTest`。検証出力は sysdev-template で前後一致）
+          - id: R31-02
+            title: ファイル名に式（応用の1つ目）
+            cells:
+              - '①スキーマ直下の `filePattern`（読み取りは `SchemaDocuments.parse`・型は `WorkspaceSchema.filePattern: ValueExpr?`・root `SchemaDef`
+                は窓口・メタスキーマ `builtin-schemas/schema.yaml`）②ビューの `detail` / `newRow` の `filePattern` を式へ（`ViewDefinitions.parseView`・`builtin-schemas/view.yaml`。E-06・E-07）③ファイル名の解決を1実装に（`DocumentScaffolds.pathFor(式,
+                元の要素, 索引)`。5か所の `{id}` 置換を置き換える。穴の値の安全化は `Importer` と共有＝E-05）④元の要素＝ID の定義出現（無ければ先頭の出現。`SemanticExpression.preferDefining`）⑤読み込み時の点検（代表値で解決した作成先が
+                `match` に合うこと。スキーマは `SchemaDefinitionChecks`・ビューは既存の代表 ID の点検を式へ）⑥利用者に見える面: 検証パネルの対応の文面 `{create.places}`・read_view
+                の新規行の案内・CLI `view` の `detailCreatePath`・新規行ダイアログのプレビュー（穴に入った値も示す）⑦改名の言及の警告（E-09）⑧文書: MANUAL（カバレッジ・ビュー・検査の値の式）・FEATURES・ARCHITECTURE
+                §4.49・CORE-CALCULUS §21（Scaffold の行に Expression）・メタスキーマの説明。設計UI（`SchemaEditor`）の専用入力は作らない（メタスキーマのフォームで編集できる）'
+              - 中
+              - ✅ 2026-09-23（意図的差分 D-39・FEATURES S-23・ARCHITECTURE §4.49。BACKLOG UX-127）
+            features:
+              - S-23
+          - id: R31-03
+            title: ひな型の中身に元の要素の値
+            cells:
+              - 'スキーマに `scaffold:`（変換のひな型 `build`。`SemanticTransform.run(入力＝定義出現の要素)`）。`DocumentScaffolds.scaffold` は、必須の初期値の上に変換の出力を重ねる（ID
+                の項目は今までどおり ID）。例: `scaffold: {name: {$copy: name}, summary: {$copy: summary}, source: {$format: "{id}（画面一覧）"}}`。E-08'
+              - 中
+              - ✅ 2026-09-23（`TransformDef.ofTemplate`・`DocumentScaffoldTest`）
+          - id: R31-05
+            title: 式を受け取る項目のメタ管理（2026-09-24 オーナー指摘）
+            cells:
+              - '個別実装（`filePattern` をキー名で読む・専用の型 `FilePattern`・文面の直書き）を、**項目の印 `expression: true`＋共通処理**に組み替えた: どの項目が式を受け取るかは項目の定義（メタスキーマ・利用者のスキーマ）の印だけが決め、読み取り（`ExpressionFields`＝スキーマの木に沿って文書を辿る1実装。結果は
+                `WorkspaceSchema.expressions`）・構造の検証（文字列か object）・「式として読めるか」の指摘・文面（`ExpressionMessages`）は共通。使う側は `expressionAt(場所)`
+                で式を引いて自分の環境で評価する。ファイル名として使う決まりと文面は `FileNameRules` の1つの表。項目を足す作業は「印を付ける＋使う側が読む」だけ。`scaffold`（変換のひな型）は値の式ではないので印の対象外'
+              - 中
+              - ✅ 2026-09-24（`ExpressionFieldsTest`・`ExpressionFieldTest`。検証出力は前後一致）
+          - id: R31-04
+            title: その他の応用（候補。個別にオーナー判断）
+            cells:
+              - '下の「他の応用の例」。それぞれ小さい変更だが、寄せるかどうかは1つずつ決める（既存の挙動が変わるものは意図的差分へ）。**オーナーの見方（2026-09-24）**: 本質は「string で設定できる項目のうち、どの項目に
+                `expression: true` の印を付けるか」であり、下の応用例はどちらかというと別の軸（穴埋めの実装の整理・評価器の共有）。応用は後で考える'
+              - —
+              - ⏳ 後で考える
+      - text: |-
+          **他の応用の例**（同じ評価器を使うもの。番号は優先順ではない）:
 
-      1. **詳細文書の中身に一覧側の値を写す**（R31-03）: 画面設計書を作ったとき `name` と `summary` が最初から入っている。
-      2. **一覧の1行要約（タイトル）を式で**: `display: {title: "{code} {name}"}` → テーブル一覧が「TBL-001 予約（RESERVATION）」と出る。タイトルは索引が使う（`ScannedId.title`）ので、置き場は表示のヒントではなく意味の側（SC-05）。
-      3. **検査の文面に要素の項目の値**: `message: "画面「{scr.name}」は外部 API を直接呼べません"`（今は `{束縛名.id/type/title}` だけ。`renderTemplate` を同じ評価器へ寄せる＝R30-03 の穴埋めの整理）。
-      4. **派生スキーマ `derive:` の `id` / `name` / `match`** と **skill 取り込みの `target.file`** の穴埋めを同じ評価器へ（今はそれぞれ独自の実装。`match` に `lower` などの加工が書けるようになる）。
-      5. **一括実行 foreach の `as:`・エージェントの文脈のテンプレート**で要素の値（`{name}`）を使う（今は `{id}` `{title}` `{file}` だけ）。
-      6. **newRow ダイアログで穴の値を入力**（E-07 の続き）: `filePattern: "{id}_{name}.yaml"` なら ID と name を聞いて作る。
-      7. **エージェントの `create_document` の作り先の提案**: read_view と検査の対応に、式を評価した実際のパスを出す（エージェントが自分で命名しなくてよい）。
-      8. **ビューの計算列 `computed` を値の式へ**（CORE-CALCULUS §7「Derivation = Query + Expression」の実現。表示は変えない）。
+          1. **詳細文書の中身に一覧側の値を写す**（R31-03）: 画面設計書を作ったとき `name` と `summary` が最初から入っている。
+          2. **一覧の1行要約（タイトル）を式で**: `display: {title: "{code} {name}"}` → テーブル一覧が「TBL-001 予約（RESERVATION）」と出る。タイトルは索引が使う（`ScannedId.title`）ので、置き場は表示のヒントではなく意味の側（SC-05）。
+          3. **検査の文面に要素の項目の値**: `message: "画面「{scr.name}」は外部 API を直接呼べません"`（今は `{束縛名.id/type/title}` だけ。`renderTemplate` を同じ評価器へ寄せる＝R30-03 の穴埋めの整理）。
+          4. **派生スキーマ `derive:` の `id` / `name` / `match`** と **skill 取り込みの `target.file`** の穴埋めを同じ評価器へ（今はそれぞれ独自の実装。`match` に `lower` などの加工が書けるようになる）。
+          5. **一括実行 foreach の `as:`・エージェントの文脈のテンプレート**で要素の値（`{name}`）を使う（今は `{id}` `{title}` `{file}` だけ）。
+          6. **newRow ダイアログで穴の値を入力**（E-07 の続き）: `filePattern: "{id}_{name}.yaml"` なら ID と name を聞いて作る。
+          7. **エージェントの `create_document` の作り先の提案**: read_view と検査の対応に、式を評価した実際のパスを出す（エージェントが自分で命名しなくてよい）。
+          8. **ビューの計算列 `computed` を値の式へ**（CORE-CALCULUS §7「Derivation = Query + Expression」の実現。表示は変えない）。
 
-      **安全網とテスト**: `SemanticValuesTest`（短い書き方・`of` 省略・`with`・穴が埋まらない→得られない・安全化）／`DocumentScaffoldTest`（スキーマの `filePattern`・`match` からの後退・点検）／`AppStateCreateDocumentTest`（カバレッジの対応が式を使う・Ctrl+Z）／`ViewsTest`・CLI `view` の `detailCreatePath`／`CoverageMessageTest`（`{create.places}`）。テンプレート・サンプルの検証出力は前後で完全一致（式を書いていないため）。`KernelCheckLoadingTest`（root とカーネルの一致）は緑のまま。
+          **安全網とテスト**: `SemanticValuesTest`（短い書き方・`of` 省略・`with`・穴が埋まらない→得られない・安全化）／`DocumentScaffoldTest`（スキーマの `filePattern`・`match` からの後退・点検）／`AppStateCreateDocumentTest`（カバレッジの対応が式を使う・Ctrl+Z）／`ViewsTest`・CLI `view` の `detailCreatePath`／`CoverageMessageTest`（`{create.places}`）。テンプレート・サンプルの検証出力は前後で完全一致（式を書いていないため）。`KernelCheckLoadingTest`（root とカーネルの一致）は緑のまま。

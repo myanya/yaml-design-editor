@@ -37,7 +37,7 @@
 {/if}
 {#if points}
 {#each points}
-- {#if decision}**{decision}（{date} {by}）**: {/if}{#if label}**{label}**{#if label_note}{label_note}{/if}: {/if}{text}
+- {#if decision}**{decision}（{date} {by}）**: {/if}{#if pending}**判断待ち（{date} {by}）**: {/if}{#if label}**{label}**{#if label_note}{label_note}{/if}: {/if}{text}
 {/each}
 {/if}
 {#if basicTable}
@@ -74,7 +74,7 @@
 {/if}
 {#if points}
 {#each points}
-- {#if decision}**{decision}（{date} {by}）**: {/if}{#if label}**{label}**{#if label_note}{label_note}{/if}: {/if}{text}
+- {#if decision}**{decision}（{date} {by}）**: {/if}{#if pending}**判断待ち（{date} {by}）**: {/if}{#if label}**{label}**{#if label_note}{label_note}{/if}: {/if}{text}
 {/each}
 {/if}
 {#if basicTable}

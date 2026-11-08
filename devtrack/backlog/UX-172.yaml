@@ -13,3 +13,6 @@ resolutions:
     note: P43 段階 0（R43-05）で対応
 related:
   - UX-87
+roadmap:
+  - P43
+  - R43-05

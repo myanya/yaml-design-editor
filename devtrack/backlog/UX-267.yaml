@@ -14,3 +14,5 @@ resolutions:
 targets: FEATURES W-14・LiteralAnglesTest
 features:
   - W-14
+roadmap:
+  - R52-03

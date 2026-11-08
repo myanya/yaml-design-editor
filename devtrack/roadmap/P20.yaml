@@ -4,74 +4,100 @@ title: '二層モデル①: 関係モデルの宣言化'
 status: done
 status_note: 完了
 history:
-- id: RH-026
-  title: 'P20: 二層モデル①: 関係モデルの宣言化 ✅ 完了（2026-08-10。方針承認 同日）'
-  body:
-  - text: |-
-      狙い: 情報管理基盤の抜本強化（§4.9 の二層モデル）の第1弾。グラフを走査の副産物から**宣言されたモデル**へ昇格させる入口として、宣言語彙と lint を**非破壊**で導入し、既存ワークスペースを診断できる状態を先に作る。破壊的変更（宣言の必須化・ヒューリスティクスの廃止）は P21 のスイッチに閉じ込める——`.yde`/`ledger`（P13）で実証済みの「opt-in で導入 → lint で診断 → 宣言を標準化」パターンの踏襲。解消したい現状の摩擦: 「最初の出現＝定義」ヒューリスティクス（`IdIndex.resolve` はパス順の先頭を返すだけで、どの出現がエンティティの誕生かを機械が知らない）・relation の自由文字列（語彙の一覧も逆方向ラベルもなく、被参照は常に汎用の「被参照」表示）・エッジ属性の欠如（`type: ref` はスカラー限定で、関係への注記は 1:N 具体化しか手段がない）・`backlinksTo` / `sourceEntryOf` / `Traverse.neighbors` の全参照線形走査。
+  - id: RH-026
+    title: 'P20: 二層モデル①: 関係モデルの宣言化 ✅ 完了（2026-08-10。方針承認 同日）'
+    body:
+      - text: |-
+          狙い: 情報管理基盤の抜本強化（§4.9 の二層モデル）の第1弾。グラフを走査の副産物から**宣言されたモデル**へ昇格させる入口として、宣言語彙と lint を**非破壊**で導入し、既存ワークスペースを診断できる状態を先に作る。破壊的変更（宣言の必須化・ヒューリスティクスの廃止）は P21 のスイッチに閉じ込める——`.yde`/`ledger`（P13）で実証済みの「opt-in で導入 → lint で診断 → 宣言を標準化」パターンの踏襲。解消したい現状の摩擦: 「最初の出現＝定義」ヒューリスティクス（`IdIndex.resolve` はパス順の先頭を返すだけで、どの出現がエンティティの誕生かを機械が知らない）・relation の自由文字列（語彙の一覧も逆方向ラベルもなく、被参照は常に汎用の「被参照」表示）・エッジ属性の欠如（`type: ref` はスカラー限定で、関係への注記は 1:N 具体化しか手段がない）・`backlinksTo` / `sourceEntryOf` / `Traverse.neighbors` の全参照線形走査。
 
-      **前提と着手手順**（独立セッションで実装するための自己完結記載）: 依存フェーズなし（P19 までが実装済み）。着手時に本節と §4.9（二層モデルの原則）・ARCHITECTURE §4.5（索引の二層構造とオーバーレイ）・§4.6（ID・参照のセマンティクス）・§4.7（`resolve` / `effectiveFields`）・§4.23（メタスキーマとローダ三段階）を読み、本フェーズの設計を ARCHITECTURE の新節（§4.30 を想定）へ起こしてから実装する（§8 の規約）。完了時は FEATURES.md への機能登録・MANUAL のスキーマリファレンス追記・完了報告への試し方添付（CONVENTIONS §7）まで。
+          **前提と着手手順**（独立セッションで実装するための自己完結記載）: 依存フェーズなし（P19 までが実装済み）。着手時に本節と §4.9（二層モデルの原則）・ARCHITECTURE §4.5（索引の二層構造とオーバーレイ）・§4.6（ID・参照のセマンティクス）・§4.7（`resolve` / `effectiveFields`）・§4.23（メタスキーマとローダ三段階）を読み、本フェーズの設計を ARCHITECTURE の新節（§4.30 を想定）へ起こしてから実装する（§8 の規約）。完了時は FEATURES.md への機能登録・MANUAL のスキーマリファレンス追記・完了報告への試し方添付（CONVENTIONS §7）まで。
 
-      方針（承認済みの設計判断）:
+          方針（承認済みの設計判断）:
 
-      - **非破壊**: 宣言のないワークスペース・スキーマは挙動不変。lint は WARNING どまり（エラー化のスイッチは P21）。
-      - **宣言の置き場所**: エンティティ型はスキーマ文書ルートの `entity:`（`match` / `phases` / `coverage` と同列）。関係レジストリは `_schemas` の専用文書（`kind: relations`。`kind: library` と同様「文書にはマッチしない」種別）。いずれも `builtin-schema` / 新設 `builtin-relations` メタスキーマを**対で**更新する（§4.23 の対更新規約）。
-      - **索引への反映は走査時**: エンティティ型・役割（定義／詳細化）は `DocScanner` の走査時に `IdEntry` へ付与する。「スキーマが変わったら全再構築」（§4.5）の既存規約がそのまま整合性を保証し、増分更新の仕組みは変えない。
-      - **スキーマなし文書のヒューリスティクス検出（I-02）は拡張しない**: 属性付き参照・エンティティ型は宣言があるときだけの機能（推測の誤爆を増やさない）。
-      - **使い分け規約を MANUAL に明文化**: エッジ属性は「それ自身がIDを持たない注記」。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化＝新ID＋逆リンク（ARCHITECTURE §4.6。§4.9 原則4）。
+          - **非破壊**: 宣言のないワークスペース・スキーマは挙動不変。lint は WARNING どまり（エラー化のスイッチは P21）。
+          - **宣言の置き場所**: エンティティ型はスキーマ文書ルートの `entity:`（`match` / `phases` / `coverage` と同列）。関係レジストリは `_schemas` の専用文書（`kind: relations`。`kind: library` と同様「文書にはマッチしない」種別）。いずれも `builtin-schema` / 新設 `builtin-relations` メタスキーマを**対で**更新する（§4.23 の対更新規約）。
+          - **索引への反映は走査時**: エンティティ型・役割（定義／詳細化）は `DocScanner` の走査時に `IdEntry` へ付与する。「スキーマが変わったら全再構築」（§4.5）の既存規約がそのまま整合性を保証し、増分更新の仕組みは変えない。
+          - **スキーマなし文書のヒューリスティクス検出（I-02）は拡張しない**: 属性付き参照・エンティティ型は宣言があるときだけの機能（推測の誤爆を増やさない）。
+          - **使い分け規約を MANUAL に明文化**: エッジ属性は「それ自身がIDを持たない注記」。関係自体を参照・詳細化したくなったら従来どおり 1:N 具体化＝新ID＋逆リンク（ARCHITECTURE §4.6。§4.9 原則4）。
 
-      宣言の形（実装の基準。細部の確定と記録は ARCHITECTURE 反映時に行う）:
+          宣言の形（実装の基準。細部の確定と記録は ARCHITECTURE 反映時に行う）:
 
-      ```yaml
-      # スキーマ文書のルート（複数型を持つスキーマはリスト形式にし idPattern で判別）
-      entity:
-        type: screen          # エンティティ型名（ワークスペース内で一意）
-        idPattern: "SCR-*"    # この型のID命名規約（省略可。lint が逸脱を指摘）
-        defines: true         # この文書群の出現が「定義（誕生）」。省略時 false = 詳細化
+          ```yaml
+          # スキーマ文書のルート（複数型を持つスキーマはリスト形式にし idPattern で判別）
+          entity:
+            type: screen          # エンティティ型名（ワークスペース内で一意）
+            idPattern: "SCR-*"    # この型のID命名規約（省略可。lint が逸脱を指摘）
+            defines: true         # この文書群の出現が「定義（誕生）」。省略時 false = 詳細化
 
-      # _schemas/graph.yaml — 関係レジストリ（kind: relations。文書にはマッチしない）
-      id: workspace-relations
-      kind: relations
-      relations:
-        - name: uses
-          label: 利用する
-          inverseLabel: 利用される
-          source: [screen]            # 参照を書く側のエンティティ型（省略可）
-          target: [usecase]           # 参照先のエンティティ型（省略可）
-          cardinality: { inMin: 1 }   # in / out の下限上限（P20 では宣言のみ・強制は P21）
-          acyclic: false
-          description: 画面がユースケースを利用する関係
+          # _schemas/graph.yaml — 関係レジストリ（kind: relations。文書にはマッチしない）
+          id: workspace-relations
+          kind: relations
+          relations:
+            - name: uses
+              label: 利用する
+              inverseLabel: 利用される
+              source: [screen]            # 参照を書く側のエンティティ型（省略可）
+              target: [usecase]           # 参照先のエンティティ型（省略可）
+              cardinality: { inMin: 1 }   # in / out の下限上限（P20 では宣言のみ・強制は P21）
+              acyclic: false
+              description: 画面がユースケースを利用する関係
 
-      # 属性付き参照（type: ref のフィールドに fields を宣言した場合のみオブジェクト形式を許可）
-      actors:
-        - to: ACT-ADMIN       # 予約キー to = 参照値（RefEntry.path は to 値の座標＝ジャンプ・パッチの既存セマンティクス維持）
-          role: 承認者         # 兄弟キー = エッジ属性（ref フィールドの fields で型を宣言・object として検証）
-      ```
-  - head: |-
-      | ID | 項目 | 状態 | 内容 |
-      |---|---|---|---|
-    rows:
-    - id: R20-01
-      title: エンティティ型宣言
-      cells:
-      - ✅
-      - '`SchemaLoader` に `entity:`（単一／リスト）のパースと `SchemaDef` へのモデル追加。`DocScanner` はID検出時に宣言と `idPattern` で型・役割を解決し `IdEntry.entityType` / `IdEntry.role`（定義／詳細化／宣言なし）へ付与。`IdIndex.resolve` は定義出現があればそれを優先する順序に変更してよい（表示解決・ジャンプ先が「定義」に安定する。従来ヒューリスティクスの**廃止**は P21 のスイッチ）。lint は `Validator`（索引を受け取る coverage と同じ流儀のワークスペース横断判定）: 型つきエンティティの定義出現 0（浮遊詳細化）／2以上（定義競合）・`idPattern` 逸脱・同一IDの複数型競合を WARNING（座標は各出現のID要素）。`builtin-schema`・スキーマ設計UI（S-05）を対更新。テスト: `DocScannerTest` 拡張＋新設 `EntityDeclTest`（宣言パース・役割付与・lint）'
-    - id: R20-02
-      title: 関係レジストリ
-      cells:
-      - ✅
-      - '`SchemaLoader` に `kind: relations` のパースを追加（`matches()` 常に false）。モデル `RelationDef` は **schema パッケージ**に置く（表示解決が index / UI 双方から使うため。`Display` の配置理由 §4.22 と同じ）。`LoadResult` から `relations: Map<name, RelationDef>` を公開、name 重複はロードエラー。`builtin-relations` メタスキーマを `BuiltinSchemas` へ追加（設計スペースのカタログ・フォーム編集・検証が自動で効く §4.2）。P20 での消費は2つ: ①**逆方向ラベル表示**——バックリンクを表示する全面（SidePanel 関係タブ I-09・ID横ぐし I-07・ビュー backlinks 列 X-05・文書ビュー X-07・エージェント `related` AG-25）で relation 名の代わりに label / inverseLabel を表示（未宣言 relation は従来どおり名前のまま）②**lint**——スキーマの ref フィールドが未宣言 relation を使っていたら WARNING（スキーマ読込エラーの流儀で報告）。自動推測 CLI `infer-relations`: 索引の全 `RefEntry` から relation・viaKey・参照元／先の entityType 実績を集計しレジストリ文書のドラフトを生成（inverseLabel は TODO コメント。生成物はメタスキーマ検証を通ること＝R11-01 と同じ入口保証）。テスト: 新設 `RelationRegistryTest`（パース・重複・lint・推測ドラフトの検証通過）'
-    - id: R20-03
-      title: 属性付き参照
-      cells:
-      - ✅
-      - '`type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみオブジェクト形式 `{to: <ID>, <属性>...}` を許可（宣言なしにオブジェクトが来たら従来どおり型不一致）。`DocScanner`: effective が REF かつ fields 宣言ありの Map ノードで `to` のスカラーを `RefEntry` 化（**path は to 値の座標**＝ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子 ref はメタ検証で不許可＝初期対象外）。`Validator`: to の解決検証は従来の ref と同一・属性は object フィールドとして検証。`FormView`（RefEditor）: 参照行＋属性行（`ObjectFields` 再利用）。`ai/fieldToJsonSchema`: `{to: enum制約, 属性...}` の object へ変換（配列 item の属性付き ref も対応）。バックリンク・related の表示は属性を「（role: 承認者）」の括弧注記で添える（値はIDのまま・注記は括弧に閉じる＝R19-05 の規約踏襲）。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。MANUAL: スキーマリファレンスと使い分け規約を追記。テスト: `DocScannerTest` / `ValidatorTest` / `AiGeneratorTest` 拡張'
-    - id: R20-04
-      title: 導出グラフ基盤（EntityGraph）
-      cells:
-      - ✅
-      - '`index/EntityGraph.kt` 新設。`IdIndex` の走査結果とレジストリから導出する読み取り専用ビュー: エンティティ表（id → 型・定義出現・詳細化一覧・タイトル）・出次／入次の隣接リスト（`RefEntry` ＋解決済み参照元エンティティ）・文書ノード表（documentId → file・contains エンティティ一覧。識別は既存 `documentIdOf`＝`_document.id`＞相対パス）・包含エッジ（defined-in。書かずに導出）。`IdIndex` インスタンスに lazy 保持し `derive()` で無効化——ディスク・オーバーレイ（UX-03）・ステージングの各 `IdIndex` が自然に自分のグラフを持ち、§4.5 の二層構造を崩さない。**載せ替え（挙動不変のリファクタリング）**: `sourceEntryOf`・`backlinksTo` の線形走査と `Traverse.neighbors` の out 側（occurrences×refs 突合）を隣接リスト参照へ置換（公開APIと出力は不変＝`TraverseTest` ほか既存テストが回帰保証）。CLI `bench` に導出コストの計測項目を追加。テスト: 新設 `EntityGraphTest`（旧実装との出力一致・増分更新後の一致・オーバーレイ／ステージング経路の一致）'
-  - text: |-
-      **実装順の推奨**: R20-01・R20-02（宣言のパースと索引付与）→ R20-04（導出基盤と線形走査の載せ替え）→ lint・逆方向ラベル表示（R20-01/02 の残り）→ R20-03（属性付き参照。独立性が高く並行可）。
+          # 属性付き参照（type: ref のフィールドに fields を宣言した場合のみオブジェクト形式を許可）
+          actors:
+            - to: ACT-ADMIN       # 予約キー to = 参照値（RefEntry.path は to 値の座標＝ジャンプ・パッチの既存セマンティクス維持）
+              role: 承認者         # 兄弟キー = エッジ属性（ref フィールドの fields で型を宣言・object として検証）
+          ```
+      - head: |-
+          | ID | 項目 | 状態 | 内容 |
+          |---|---|---|---|
+        rows:
+          - id: R20-01
+            title: エンティティ型宣言
+            cells:
+              - ✅
+              - '`SchemaLoader` に `entity:`（単一／リスト）のパースと `SchemaDef` へのモデル追加。`DocScanner` はID検出時に宣言と `idPattern` で型・役割を解決し
+                `IdEntry.entityType` / `IdEntry.role`（定義／詳細化／宣言なし）へ付与。`IdIndex.resolve` は定義出現があればそれを優先する順序に変更してよい（表示解決・ジャンプ先が「定義」に安定する。従来ヒューリスティクスの**廃止**は
+                P21 のスイッチ）。lint は `Validator`（索引を受け取る coverage と同じ流儀のワークスペース横断判定）: 型つきエンティティの定義出現 0（浮遊詳細化）／2以上（定義競合）・`idPattern`
+                逸脱・同一IDの複数型競合を WARNING（座標は各出現のID要素）。`builtin-schema`・スキーマ設計UI（S-05）を対更新。テスト: `DocScannerTest` 拡張＋新設 `EntityDeclTest`（宣言パース・役割付与・lint）'
+            features:
+              - S-05
+          - id: R20-02
+            title: 関係レジストリ
+            cells:
+              - ✅
+              - '`SchemaLoader` に `kind: relations` のパースを追加（`matches()` 常に false）。モデル `RelationDef` は **schema パッケージ**に置く（表示解決が
+                index / UI 双方から使うため。`Display` の配置理由 §4.22 と同じ）。`LoadResult` から `relations: Map<name, RelationDef>` を公開、name
+                重複はロードエラー。`builtin-relations` メタスキーマを `BuiltinSchemas` へ追加（設計スペースのカタログ・フォーム編集・検証が自動で効く §4.2）。P20 での消費は2つ:
+                ①**逆方向ラベル表示**——バックリンクを表示する全面（SidePanel 関係タブ I-09・ID横ぐし I-07・ビュー backlinks 列 X-05・文書ビュー X-07・エージェント `related`
+                AG-25）で relation 名の代わりに label / inverseLabel を表示（未宣言 relation は従来どおり名前のまま）②**lint**——スキーマの ref フィールドが未宣言 relation
+                を使っていたら WARNING（スキーマ読込エラーの流儀で報告）。自動推測 CLI `infer-relations`: 索引の全 `RefEntry` から relation・viaKey・参照元／先の entityType
+                実績を集計しレジストリ文書のドラフトを生成（inverseLabel は TODO コメント。生成物はメタスキーマ検証を通ること＝R11-01 と同じ入口保証）。テスト: 新設 `RelationRegistryTest`（パース・重複・lint・推測ドラフトの検証通過）'
+            features:
+              - I-09
+              - I-07
+              - X-05
+              - X-07
+              - AG-25
+          - id: R20-03
+            title: 属性付き参照
+            cells:
+              - ✅
+              - '`type: ref` のフィールドに `fields:`（エッジ属性の型宣言）がある場合のみオブジェクト形式 `{to: <ID>, <属性>...}` を許可（宣言なしにオブジェクトが来たら従来どおり型不一致）。`DocScanner`:
+                effective が REF かつ fields 宣言ありの Map ノードで `to` のスカラーを `RefEntry` 化（**path は to 値の座標**＝ジャンプ・パッチ・バックリンクの既存セマンティクスを保つ）。属性は走査境界（属性内の入れ子
+                ref はメタ検証で不許可＝初期対象外）。`Validator`: to の解決検証は従来の ref と同一・属性は object フィールドとして検証。`FormView`（RefEditor）: 参照行＋属性行（`ObjectFields`
+                再利用）。`ai/fieldToJsonSchema`: `{to: enum制約, 属性...}` の object へ変換（配列 item の属性付き ref も対応）。バックリンク・related の表示は属性を「（role:
+                承認者）」の括弧注記で添える（値はIDのまま・注記は括弧に閉じる＝R19-05 の規約踏襲）。`YamlIO` は変更不要（通常の Map として往復＝コメント・スタイル保持は自動）。MANUAL: スキーマリファレンスと使い分け規約を追記。テスト:
+                `DocScannerTest` / `ValidatorTest` / `AiGeneratorTest` 拡張'
+          - id: R20-04
+            title: 導出グラフ基盤（EntityGraph）
+            cells:
+              - ✅
+              - '`index/EntityGraph.kt` 新設。`IdIndex` の走査結果とレジストリから導出する読み取り専用ビュー: エンティティ表（id → 型・定義出現・詳細化一覧・タイトル）・出次／入次の隣接リスト（`RefEntry`
+                ＋解決済み参照元エンティティ）・文書ノード表（documentId → file・contains エンティティ一覧。識別は既存 `documentIdOf`＝`_document.id`＞相対パス）・包含エッジ（defined-in。書かずに導出）。`IdIndex`
+                インスタンスに lazy 保持し `derive()` で無効化——ディスク・オーバーレイ（UX-03）・ステージングの各 `IdIndex` が自然に自分のグラフを持ち、§4.5 の二層構造を崩さない。**載せ替え（挙動不変のリファクタリング）**:
+                `sourceEntryOf`・`backlinksTo` の線形走査と `Traverse.neighbors` の out 側（occurrences×refs 突合）を隣接リスト参照へ置換（公開APIと出力は不変＝`TraverseTest`
+                ほか既存テストが回帰保証）。CLI `bench` に導出コストの計測項目を追加。テスト: 新設 `EntityGraphTest`（旧実装との出力一致・増分更新後の一致・オーバーレイ／ステージング経路の一致）'
+      - text: |-
+          **実装順の推奨**: R20-01・R20-02（宣言のパースと索引付与）→ R20-04（導出基盤と線形走査の載せ替え）→ lint・逆方向ラベル表示（R20-01/02 の残り）→ R20-03（属性付き参照。独立性が高く並行可）。
 
-      **完了条件**: ①宣言を持たない既存ワークスペースが無変更で動く（全既存テスト green・sample-workspace の検証結果が不変）②sample-workspace にエンティティ型（例: screen / usecase / actor / entity-model / table-design）とレジストリ（derives / uses 等の実在 relation）の宣言例を追加し、定義競合・浮遊詳細化・未宣言 relation・idPattern 逸脱が lint で座標つきに指摘される ③属性付き参照が索引・検証・フォーム・AI生成・バックリンクでスカラー参照と同格に扱われ、コメント・スタイル込みの往復保存で形式が保持される ④`infer-relations` の生成物がメタスキーマ検証を通り、保存後にレジストリとして効く ⑤EntityGraph の導出がディスク・オーバーレイ・ステージングの3経路で一致し、載せ替え後の `sourceEntryOf` / `backlinksTo` / `traverse` の出力が回帰しない ⑥バックリンク系の表示面に inverseLabel が出る（Compose は L-09 の方針どおり手動確認）。
+          **完了条件**: ①宣言を持たない既存ワークスペースが無変更で動く（全既存テスト green・sample-workspace の検証結果が不変）②sample-workspace にエンティティ型（例: screen / usecase / actor / entity-model / table-design）とレジストリ（derives / uses 等の実在 relation）の宣言例を追加し、定義競合・浮遊詳細化・未宣言 relation・idPattern 逸脱が lint で座標つきに指摘される ③属性付き参照が索引・検証・フォーム・AI生成・バックリンクでスカラー参照と同格に扱われ、コメント・スタイル込みの往復保存で形式が保持される ④`infer-relations` の生成物がメタスキーマ検証を通り、保存後にレジストリとして効く ⑤EntityGraph の導出がディスク・オーバーレイ・ステージングの3経路で一致し、載せ替え後の `sourceEntryOf` / `backlinksTo` / `traverse` の出力が回帰しない ⑥バックリンク系の表示面に inverseLabel が出る（Compose は L-09 の方針どおり手動確認）。

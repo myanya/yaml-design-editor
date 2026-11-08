@@ -86,11 +86,13 @@ class DevtrackTest {
             // 登録: ID を省くと、使われている最大の番号の次を振る（create の採番）
             val next = "UX-" + (Files.list(dir.resolve("backlog")).use { s -> s.map { it.fileName.toString().removePrefix("UX-").removeSuffix(".yaml").toInt() }.toList() }.max() + 1)
             act("register-item", null, mapOf("title" to "試しの指摘", "origin" to "DevtrackTest", "theme" to "T-03", "related" to listOf("UX-162"),
-                "features" to listOf("X-12")))
+                "features" to listOf("X-12"), "roadmap" to listOf("R52-05")))
+            assertEquals(listOf("R52-05"), item(next)["roadmap"], "ロードマップの項目（R 項目かテーマの参照）")
             assertTrue(Files.isRegularFile(dir.resolve("backlog/$next.yaml")), "採番した $next のファイル")
             act("change-status", next, mapOf("status" to "in-progress"))
             act("record-progress", next, mapOf("date" to "2026-11-07", "note" to "一部を直した"))
-            act("resolve-item", next, mapOf("date" to "2026-11-08", "note" to "全部直した", "targets" to "DevtrackTest", "features" to listOf("X-12", "X-03")))
+            act("resolve-item", next, mapOf("date" to "2026-11-08", "note" to "全部直した", "targets" to "DevtrackTest", "features" to listOf("X-12", "X-03"),
+                "roadmap" to listOf("R52-05", "P52")))
             var it = item(next)
             assertEquals("resolved", it["status"])
             assertEquals("2026-11-07", it["origin_on"].toString(), "起点の日は登録した日（auto: created）")
@@ -98,6 +100,7 @@ class DevtrackTest {
             assertEquals(listOf("一部", "解決"), kinds(next))
             assertEquals(listOf("UX-162"), it["related"])
             assertEquals(listOf("X-12", "X-03"), it["features"], "解決で関わる機能を置き換える")
+            assertEquals(listOf("R52-05", "P52"), it["roadmap"], "解決でロードマップの項目を置き換える")
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
             // 解決した指摘は台帳から消え、記録に出る（状態の欄に記録の種類と内容）。同じ日に解決した本物の指摘があっても、自分の行を引く
             assertTrue("| $next |" !in render(ws, "backlog-md"))
@@ -130,6 +133,23 @@ class DevtrackTest {
             val manualOnly = features.substringAfter("## 手動確認だけの機能").substringBefore("## 公開サンプル")
             assertTrue(feature in manualOnly, manualOnly)
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            // 判断待ちの決定: ROADMAP.md では「判断待ち（日付 誰）」の見出しになり、ダッシュボードの判断待ちの区画に出る
+            fun pendingRows(): Int {
+                val views = Views.load(dir, ws.schemas)
+                val resolved = Dashboards.resolve(assertNotNull(views.defaultDashboard()), LocalDate.of(2026, 11, 8), views, ws.index, { ws.schemaFor(it) }, ws::treeOf)
+                return resolved.sections.first { s -> s.definition.id == "pending-decisions" }.rows.size
+            }
+            val pendingBefore = pendingRows()
+            val headingsBefore = render(ws, "roadmap-md").lines().count { line -> line.startsWith("- **判断待ち（") }
+            val theme = dir.resolve("roadmap/P52.yaml")
+            val decided = Regex("""- decision: 決めたこと\n(\s+)status: decided\n""")
+            val text = Files.readString(theme)
+            val first = assertNotNull(decided.find(text), "P52 の決定済みの箇条")
+            Files.writeString(theme, text.replaceRange(first.range, "- status: pending\n"))
+            ws = Workspace.open(dir)
+            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertEquals(headingsBefore + 1, render(ws, "roadmap-md").lines().count { line -> line.startsWith("- **判断待ち（") }, "判断待ちの見出し")
+            assertEquals(pendingBefore + 1, pendingRows(), "判断待ちの区画")
         } finally {
             Files.walk(base).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
         }

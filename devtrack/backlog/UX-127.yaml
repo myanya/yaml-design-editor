@@ -10,3 +10,6 @@ memo: '`SchemaIssue` / `loadErrors` に重大度を持たせ、アプリのス�
 targets: ROADMAP P31・architecture/schema.md「値の式」
 features:
   - S-04
+roadmap:
+  - P31
+  - R31-02

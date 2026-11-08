@@ -14,3 +14,5 @@ resolutions:
     note: 画面の起動（run と hotRun）の作業ディレクトリをリポジトリの根にした（runCli と同じ）。相対パスの起動が文書の例のとおりに動く
     targets: desktop/build.gradle.kts
 targets: desktop/build.gradle.kts
+roadmap:
+  - R52-03

@@ -15,3 +15,5 @@ resolutions:
     section: 注文管理サンプル
 features:
   - C-15
+roadmap:
+  - R30-01
