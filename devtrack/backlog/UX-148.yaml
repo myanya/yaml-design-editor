@@ -7,3 +7,5 @@ body: '**UI 用の可変幅フォントを同梱するか**（等幅は Cica を
 memo: 候補は Noto Sans JP / BIZ UDPGothic。同梱するなら `downloadFonts` と同じ経路で取得し `AppTheme` の `Typography` に当てる。オーナーの好みで決める
 features:
   - W-13
+roadmap:
+  - DEC-016

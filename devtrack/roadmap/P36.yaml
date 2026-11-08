@@ -21,5 +21,23 @@ body:
     text: ELKをフロー図にも適用。循環・レーン・条件ラベルをUI層の`GraphLayouts`で配置し、CLIとは表示モデルを共有する。
   - label: 見送り・条件付き
     text: Jewel（IDE 風への全面移行。テーマの二重化）、コードエディタ系ライブラリ（YAML 対応なし。自前の `BasicTextField` を `TextFieldState` 版へ）、SplitPane とツリー部品（自前で十分）、Haze（beta）。
-  - label: 残る判断
-    text: 見た目の方向（Material3 ＋独自パレットのまま磨く＝推奨）、UI 用の可変幅フォントの同梱（BACKLOG UX-148）、Markdown のアプリ内編集（案 B。BACKLOG UX-149）、図を足す場所（検証集計・計測評価・bench）。
+  - id: DEC-015
+    status: pending
+    date: 2026-11-08
+    by: オーナー
+    text: 見た目の方向を決める（Material3 ＋独自パレットのまま磨く＝推奨）。
+  - id: DEC-016
+    status: pending
+    date: 2026-11-08
+    by: オーナー
+    text: UI 用の可変幅フォントを同梱するか決める（BACKLOG UX-148）。
+  - id: DEC-017
+    status: pending
+    date: 2026-11-08
+    by: オーナー
+    text: Markdown をアプリ内で編集できるようにするか決める（案 B。BACKLOG UX-149）。
+  - id: DEC-018
+    status: pending
+    date: 2026-11-08
+    by: オーナー
+    text: 図を足す場所を決める（検証集計・計測評価・bench）。

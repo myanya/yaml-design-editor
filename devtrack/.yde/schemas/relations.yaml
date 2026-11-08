@@ -55,8 +55,8 @@ relations:
     label: ロードマップの項目
     inverseLabel: 関わる指摘
     source: [backlog-item]
-    target: [roadmap-item, roadmap-theme]
-    description: 指摘を対応した・対応するロードマップの R 項目かテーマを参照します
+    target: [roadmap-item, roadmap-theme, roadmap-decision]
+    description: 指摘を対応した・対応するロードマップの R 項目かテーマか、指摘の扱いを決める決定を参照します
   - name: realizes
     label: 実装した機能
     inverseLabel: ロードマップの項目

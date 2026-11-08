@@ -13,6 +13,7 @@ UX試験・レビュー・開発中に見つかった「今のタスクとは本
 
 | ID | 起点 | 指摘 | 技術メモ（対応の当たり） | 状態 | 対応先 | 関わる機能 |
 |---|---|---|---|---|---|---|
+| UX-271 | 2026-11-08 段階 2c-3 の作業 | **devtrackDocs が、読めない文書を黙って抜いた生成物を書く**: P52.yaml の値に引用符の無い「: 」を書いたら、その文書が読めず、ROADMAP.md から P52 の行と節が消えたまま書き出された。コミット前のフックと CI の DevtrackTest は検証のエラーで止まるが、手元の生成物はその前に壊れている | devtrackDocs の前に validate devtrack を回し、エラーがあれば書き出さない（cli/build.gradle.kts の devtrackDoc- タスクの dependsOn か、report の --print に検証のエラーで止める印を足す） | 📋 | — |  |
 | UX-259 | 2026-11-07 開発管理の段階 0（devtrack の取り込み） | **Markdown の取り込みが、文書の中の表をすべて 1 つの表として読む**: 2 つ目以降の表の見出しの行と区切りの行もデータの行になる。docs/BACKLOG.md ではテーマ管理の節の表（8 行）が来るので、devtrack の取り込みは ID の形で行を選んでいる | `MarkdownFormat.readMarkdown` が `\|` で始まる行をすべて集め、先頭の区切りの行だけを落とす。docx の `input.table`（何番目の表か）と同じ指定を markdown にも足すか、空行と見出しで表を区切って最初の表だけを読む | 📋 | — | SK-02 |
 | UX-268 | 2026-11-07 FEATURES を devtrack へ移す作業（2b-1。操作の説明の列を埋めたとき） | **バージョン表示が manual に無い**: FEATURES の C-16（外部 appVersion・内部 yyyymmdd.ビルド番号・コミット・CLI version とスタート画面）を説明する manual の節が無い。操作の説明の列は、書かれるべき manual/README.md「ビルドと起動」を指している | manual/README.md「ビルドと起動」にスタート画面の版の表示と CLI version を 1〜2 行足す | 📋 | FEATURES-C-16 | C-16 |
 | UX-269 | 2026-11-07 FEATURES を devtrack へ移す作業（2b-4）でのオーナーとの議論 | **機能索引を系統ごとのファイルに分けるか**: エージェントは grep で引くので長くても影響は少ないが、系統ごと（W・E・S …）に分けてもよいのでは、とオーナーが感じている。FEATURES の管理の運用がこなれてから議論する（2026-11-07 オーナー） | 分けるなら docs/features/<系統>.md を生成し、FEATURES.md は系統の表と引き方だけにする。AGENTS.md・CONVENTIONS・docs/README.md の「FEATURES の該当行」の案内と、DocReferencesTest の参照元を直す。生成はレポートを系統ごとに分けるか、出力先を受け取る値で変える | 💬 | — |  |

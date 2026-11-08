@@ -176,7 +176,7 @@ definitions:
       - key: roadmap
         label: ロードマップの項目
         type: array
-        description: この指摘を対応した・対応するロードマップの R 項目かテーマ（ROADMAP.md の ID）。R 項目とテーマの側には「関わる指摘」として出ます。
+        description: この指摘を対応した・対応するロードマップの R 項目かテーマ（ROADMAP.md の ID）か、この指摘の扱いを決める決定（DEC-）。相手の側には「関わる指摘」として出ます。
         item: { type: ロードマップ参照 }
       - key: closed_on
         label: 解決の日
@@ -564,10 +564,10 @@ definitions:
       schemaIds: [roadmap]
     relation: moved-to
 
-  # 参照の型: 指摘が関わるロードマップの項目（R 項目かテーマ）。線の名前は planned-in。R 項目・テーマの側には「関わる指摘」として出ます
+  # 参照の型: 指摘が関わるロードマップの項目（R 項目・テーマ・決定）。線の名前は planned-in。相手の側には「関わる指摘」として出ます
   ロードマップ参照:
     type: ref
-    idPatterns: ["R*", "P*"]
+    idPatterns: ["R*", "P*", "DEC-*"]
     scope:
       schemaIds: [roadmap]
     relation: planned-in

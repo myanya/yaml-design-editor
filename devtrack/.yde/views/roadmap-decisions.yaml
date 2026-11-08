@@ -13,3 +13,7 @@ columns:
   - { label: 日, schemaId: roadmap, path: date }
   - { label: 人, schemaId: roadmap, path: by }
   - { label: 文, schemaId: roadmap, path: text }
+  - label: 関わる指摘
+    backlinks:
+      relation: planned-in
+      schemaIds: [item]

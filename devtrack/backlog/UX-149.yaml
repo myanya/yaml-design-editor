@@ -7,3 +7,5 @@ body: '**Markdown をアプリ内で編集したい**（案 B。今は表示だ�
 memo: Undo の履歴は YAML 文書前提（workspace-core の単一所有）。テキスト文書の履歴を足すか、保存までの簡単な取り消しに留めるかの設計判断が要る
 features:
   - W-14
+roadmap:
+  - DEC-017

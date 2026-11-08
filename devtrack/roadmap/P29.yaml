@@ -11,6 +11,11 @@ body:
     text: Phase 1 意味論の固定、Phase 2 既存機能のマッピングと語彙の刈り込み、Phase 3 評価部の共通化、Phase 4 Rewrite の形式化、Phase 5 規約化、Phase 6 定義層の実体化（検査の語彙はすべて定義体になった）。
   - label: 残り
     text: OQ-03（文書分割）。「どの流れを通っても必ず着く」の検査（BACKLOG UX-110）と、遷移検証を YAML だけで書くのに足りない部品（UX-111）は、必要になったら実装する。
+  - id: DEC-014
+    status: pending
+    date: 2026-11-08
+    by: オーナー
+    text: OQ-03（文書分割）に着手するか決める。
   - label: 決めたこと
     text: 数え上げの評価器は統合しない。関係の多重度（参照の本数）と constraints の count（解の数）は意図的に単位が異なる。
 history:
