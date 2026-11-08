@@ -1,0 +1,9 @@
+id: UX-282
+title: 型の図で、ID の形を宣言していない型（object の entity）への参照が、scope のスキーマにいる型を全部相手にし、宣言を超えた線が出る
+status: todo
+origin_on: 2026-11-08
+origin: labs/adventurers-guild で、精算から受注への参照（idPattern QST-*-A*・scope は依頼のスキーマ）を schema-graph で見たとき
+memo: 受注と依頼はどちらも object の entity で型を決め、ID の形は ID の型（pattern）で書いている。SemanticSchemaGraph は形を宣言していない型を scope の中なら残すので、精算 → 依頼
+  の settles が beyondDeclaration に出る。ID の項目の型の pattern を、その型の ID の形として線の絞り込みに使えば、宣言を足さずに消える
+features:
+  - X-11
