@@ -2,6 +2,7 @@ id: QST-0009
 title: 湿地の眠り茸を採ってくる
 kind: gathering
 status: failed
+branch: BRN-01
 client: CLT-003
 requiredRank: RNK-D
 reward: 300
@@ -16,3 +17,19 @@ assignments:
       reportedOn: 2026-10-24
       outcome: failure
       summary: 大雨で湿地が水に沈み、奥まで入れなかった。
+history:
+  - date: 2026-10-10
+    action: register-quest
+    to: received
+  - date: 2026-10-10
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-10-12
+    action: accept-quest
+    from: posted
+    to: assigned
+  - date: 2026-10-24
+    action: report-quest
+    from: assigned
+    to: failed

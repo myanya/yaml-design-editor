@@ -52,7 +52,13 @@ definitions:
     pattern: "^PAY-[0-9]{4}$"
     placeholder: PAY-0001
     sample: PAY-0001
-    description: 「PAY-」と 4 桁の数字。支払った順に振ります。
+    description: 「PAY-」と 4 桁の数字。支払った順に振ります。精算のファイル名にもなります。
+  精算の月番号:
+    type: id
+    pattern: "^PAYM-[0-9]{4}-[0-9]{2}$"
+    placeholder: PAYM-2026-10
+    sample: PAYM-2026-10
+    description: 「PAYM-」と年月（例 PAYM-2026-10）。
 
   # ---- 参照の型 ----
   # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
@@ -82,6 +88,20 @@ definitions:
       schemaIds: [adventurer, party]
     relation: taken-by
     description: 依頼を受けた冒険者かパーティの番号を 1 件。個人でもパーティでも受けられます。
+  支部参照:
+    type: ref
+    idPattern: "BRN-*"
+    scope:
+      schemaIds: [branch]
+    relation: received-at
+    description: 依頼を受け付けた支部の番号を 1 件。
+  精算の月参照:
+    type: ref
+    idPattern: "PAYM-*"
+    scope:
+      schemaIds: [payment-month-list]
+    relation: in-month
+    description: 精算を計上する月の番号を 1 件。
   受注参照:
     type: ref
     idPattern: "QST-*-A*"
@@ -110,6 +130,11 @@ definitions:
     type: date
     format: "yyyy年M月d日"
     description: YYYY-MM-DD 形式で入力します（例 2026-10-01）。
+  年月:
+    type: word
+    pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+    placeholder: 2026-10
+    description: YYYY-MM 形式の年月です。
   一行の文:
     type: line
     maxLength: 100
@@ -132,6 +157,18 @@ definitions:
       - { value: cancelled, label: 取消, description: 依頼者が取り下げた }
       - { value: failed, label: 失敗, description: 受け手が遂行できなかった }
       - { value: expired, label: 期限切れ, description: 期限までに受け手が見つからなかったか、終わらなかった }
+  # 依頼の状態を変える操作の名前（履歴に残す。quest.yaml の actions の id）
+  依頼の操作:
+    type: enum
+    values:
+      - { value: register-quest, label: 受け付ける }
+      - { value: post-quest, label: 掲示する }
+      - { value: accept-quest, label: 受注する }
+      - { value: report-quest, label: 報告する }
+      - { value: settle-quest, label: 精算する }
+      - { value: reject-quest, label: 却下する }
+      - { value: cancel-quest, label: 取り消す }
+      - { value: expire-quest, label: 期限切れにする }
   冒険者の状態:
     type: enum
     values:
@@ -237,6 +274,15 @@ definitions:
       - { key: reportedOn, label: 報告日, type: 年月日, required: true }
       - { key: outcome, label: 結果, type: 報告の結果, required: true }
       - { key: summary, label: 内容, type: 文章 }
+  依頼の履歴:
+    type: object
+    label: 依頼の履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 依頼の操作, required: true }
+      - { key: from, label: 前の状態, type: 依頼の状態, description: 受け付けの行には書きません。 }
+      - { key: to, label: 後の状態, type: 依頼の状態, required: true }
+      - { key: note, label: 理由・メモ, type: 一行の文, description: 却下・取消・期限切れの理由などです。 }
   受注:
     type: object
     label: 受注
@@ -261,6 +307,7 @@ definitions:
       - { key: title, label: 件名, type: 一行の文, role: title, required: true }
       - { key: kind, label: 種別, type: 依頼の種別, required: true }
       - { key: status, label: 状態, type: 依頼の状態, required: true, default: received }
+      - { key: branch, label: 受付支部, type: 支部参照, required: true, description: 依頼を受け付けた支部です。精算の手数料率はこの支部のものを使います。 }
       - { key: client, label: 依頼者, type: 依頼者参照, required: true }
       - { key: requiredRank, label: 受注できるランクの下限, type: ランク参照, relation: requires-rank, description: 書かなければ、どのランクでも受けられます。 }
       - { key: reward, label: 報酬, type: 金額, required: true }
@@ -276,13 +323,20 @@ definitions:
           insert:
             id: { path: id, prefix: { $format: "{id}-A", $of: self }, digits: 1 }
         item: { type: 受注 }
-      - { key: note, label: 備考, type: 文章, description: 却下・取消・期限切れの理由など。 }
+      - key: history
+        label: 履歴
+        type: array
+        default: []
+        display: table
+        description: 状態を変える操作が 1 行ずつ足します。却下・取消・期限切れの理由もここに残します。手で書き足す必要はありません。
+        item: { type: 依頼の履歴 }
+      - { key: note, label: 備考, type: 文章, description: 依頼についての覚え書きです。状態を変えた理由は履歴に書きます。 }
     # 型の検査: 依頼の要素ごとに評価する（of を省くとこの依頼の値）
     constraints:
       - id: no-assignment-before-posting
-        description: 受付・掲示中・却下の依頼には受注が無いこと
+        description: 受付・却下の依頼には受注が無いこと（掲示中の依頼は、掲示し直す前の未達の受注を持てる）
         where:
-          - { path: status, oneOf: [received, posted, rejected] }
+          - { path: status, oneOf: [received, rejected] }
           - { path: assignments, empty: false }
         expect: absent
         level: error
@@ -299,6 +353,12 @@ definitions:
         description: 報酬は 10 の倍数であること（手数料 1 割が整数になるように。端数の決まりは製品側を待つ）
         check: [ { endsWith: [ { path: reward }, "0" ] } ]
         level: error
+      - id: has-history
+        description: 依頼には履歴が 1 行以上あること（操作で受け付けると最初の行が入ります）
+        where: [ { path: history, empty: true } ]
+        expect: absent
+        level: warning
+        message: "依頼「{id}」に履歴がありません（操作で受け付けると最初の行が入ります）"
       - id: deadline-not-before-received
         description: 期限は受付日以降であること
         where: [ { path: deadline, exists: true } ]
@@ -312,6 +372,7 @@ definitions:
       - { key: id, label: 精算番号, type: 精算番号, required: true }
       - { key: assignment, label: 受注, type: 受注参照, required: true }
       - { key: paidOn, label: 支払日, type: 年月日, required: true }
+      - { key: month, label: 計上月, type: 精算の月参照, required: true, description: 支払日の年月の、精算の月です。検査が確かめます。 }
       - { key: reward, label: 報酬, type: 金額, required: true, description: 依頼の報酬と同じ額です。検査が確かめます。 }
       - { key: commissionRate, label: 手数料率, type: 率, required: true, description: 支払ったときの支部の手数料率です。あとで支部の率が変わっても、この値は変わりません。 }
       - { key: fee, label: 手数料, type: 金額, required: true, description: 報酬 × 手数料率 ÷ 100。検査が確かめます。 }
@@ -324,4 +385,17 @@ definitions:
       - id: amount-is-reward-minus-fee
         description: 支払額は報酬 − 手数料であること
         check: [ { eq: [ { number: { path: amount } }, { number: { subtract: [ { path: reward }, { path: fee } ] } } ] } ]
+        level: error
+  精算の月:
+    type: object
+    label: 精算の月
+    entity: { type: payment-month, defines: true }
+    fields:
+      - { key: id, label: 精算の月番号, type: 精算の月番号, required: true }
+      - { key: month, label: 年月, type: 年月, role: title, required: true }
+      - { key: note, label: 備考, type: 文章 }
+    constraints:
+      - id: month-id-matches-month
+        description: 精算の月番号は「PAYM-」と年月であること
+        check: [ { eq: [ { path: id }, { format: "PAYM-{month}" } ] } ]
         level: error

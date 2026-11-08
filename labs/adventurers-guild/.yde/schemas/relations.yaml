@@ -14,6 +14,7 @@ entities:
   - { type: quest, label: 依頼 }
   - { type: assignment, label: 受注 }
   - { type: payment, label: 精算 }
+  - { type: payment-month, label: 精算の月 }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -29,9 +30,9 @@ relations:
     inverseLabel: 所属するパーティ
     source: [party]
     target: [adventurer]
-    cardinality: { outMin: 1, outMax: 6, inMax: 1 }
+    cardinality: { outMin: 1, outMax: 6 }
     level: error
-    description: パーティの構成員は 1〜6 人で、役割を添えられます。冒険者が入れるパーティは 1 つまでです
+    description: パーティの構成員は 1〜6 人で、役割を添えられます。冒険者が入れるパーティは 1 つまでで、それはパーティの側の検査（party.yaml の member-in-one-party）が確かめます
   - name: led-by
     label: リーダー
     inverseLabel: 率いるパーティ
@@ -79,3 +80,19 @@ relations:
     cardinality: { outMin: 1, outMax: 1, inMax: 1 }
     level: error
     description: 精算は受注 1 件の報酬を支払った記録です。1 つの受注は 1 回だけ精算します
+  - name: received-at
+    label: 受付支部
+    inverseLabel: 受け付けた依頼
+    source: [quest]
+    target: [branch]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 依頼を受け付けた支部です。精算の手数料率はこの支部のものを使います
+  - name: in-month
+    label: 計上月
+    inverseLabel: この月の精算
+    source: [payment]
+    target: [payment-month]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 精算を計上する月です。月ごとの合計はこの線で集めます

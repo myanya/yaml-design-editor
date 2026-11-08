@@ -5,3 +5,20 @@ description: ギルドに登録した冒険者 1 人を 1 ファイルで管理�
 match: "guild/adventurers/*.yaml"
 filePattern: "guild/adventurers/{id}.yaml"
 root: { type: common#冒険者 }
+actions:
+  - id: register-adventurer
+    label: 冒険者を登録する
+    description: 冒険者を 1 人登録し、冒険者の文書を作ります。番号は ADV- の次の番号を振ります。状態は現役です。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: name, label: 名前, type: common#一行の文, required: true, minLength: 1 }
+      - { key: rank, label: ランク, type: common#ランク参照, required: true }
+      - { key: date, label: 登録日, type: common#年月日, required: true }
+      - { key: note, label: 備考, type: common#文章 }
+    do:
+      - create:
+          schema: adventurer
+          id: { prefix: "ADV-", digits: 4 }
+          params: { name: $name, rank: $rank, status: active, registeredOn: $date, note: { $copy: note } }

@@ -1,20 +1,10 @@
-id: payment-list
-name: 精算の記録
+id: payment
+name: 精算
 kind: document
-description: 報酬を支払った記録です。1 か月 1 ファイル（guild/payments/年-月.yaml）に、支払った順に並べます。
+description: 報酬を支払った記録 1 件を 1 ファイルで管理します。計上月（精算の月）を参照し、月ごとの合計はそこから集めます。
 match: "guild/payments/*.yaml"
-root:
-  type: object
-  fields:
-    - key: payments
-      label: 精算
-      type: array
-      required: true
-      display: table
-      methods:
-        insert:
-          id: { path: id, prefix: "PAY-", digits: 4 }
-      item: { type: common#精算 }
+filePattern: "guild/payments/{id}.yaml"
+root: { type: common#精算 }
 constraints:
   - id: payment-reward-matches-quest
     description: 精算の報酬は、依頼の報酬と同じであること
@@ -69,3 +59,13 @@ constraints:
     check:
       - gte: [ { of: p, path: paidOn }, { of: a, path: report.reportedOn } ]
     level: error
+  - id: payment-month-matches-paid-on
+    description: 計上月は支払日の年月であること
+    match:
+      - node: { entity: payment, bind: p }
+      - edge: { relation: in-month }
+      - node: { entity: payment-month, bind: m }
+    check:
+      - eq: [ { yearMonth: { of: p, path: paidOn } }, { of: m, path: month } ]
+    level: error
+    message: "精算「{id}」の支払日の年月 {left} が、計上月 {right} と違います"

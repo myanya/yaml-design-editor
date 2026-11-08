@@ -2,6 +2,7 @@ id: QST-0005
 title: 北の砦へ封書を届ける
 kind: delivery
 status: assigned
+branch: BRN-01
 client: CLT-001
 requiredRank: RNK-D
 reward: 200
@@ -12,3 +13,15 @@ assignments:
   - id: QST-0005-A1
     taker: ADV-0004
     acceptedOn: 2026-11-04
+history:
+  - date: 2026-11-01
+    action: register-quest
+    to: received
+  - date: 2026-11-01
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-11-04
+    action: accept-quest
+    from: posted
+    to: assigned

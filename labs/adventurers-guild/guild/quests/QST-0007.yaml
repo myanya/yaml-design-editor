@@ -2,9 +2,18 @@ id: QST-0007
 title: 収穫祭の夜の見回り
 kind: other
 status: posted
+branch: BRN-01
 client: CLT-001
 requiredRank: RNK-F
 reward: 100
 receivedOn: 2026-11-05
 deadline: 2026-11-23
 description: 収穫祭の夜、広場と裏通りを見回って、もめごとがあれば守衛に知らせる。
+history:
+  - date: 2026-11-05
+    action: register-quest
+    to: received
+  - date: 2026-11-05
+    action: post-quest
+    from: received
+    to: posted

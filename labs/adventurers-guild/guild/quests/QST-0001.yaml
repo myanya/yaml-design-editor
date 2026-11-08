@@ -2,6 +2,7 @@ id: QST-0001
 title: 街道に出る大狼の群れを追い払う
 kind: subjugation
 status: settled
+branch: BRN-01
 client: CLT-001
 requiredRank: RNK-B
 reward: 1200
@@ -16,3 +17,23 @@ assignments:
       reportedOn: 2026-10-09
       outcome: success
       summary: 群れの巣を森の奥で見つけ、街道に近い 2 つの巣を払った。
+history:
+  - date: 2026-10-01
+    action: register-quest
+    to: received
+  - date: 2026-10-01
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-10-03
+    action: accept-quest
+    from: posted
+    to: assigned
+  - date: 2026-10-09
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-10-11
+    action: settle-quest
+    from: reported
+    to: settled

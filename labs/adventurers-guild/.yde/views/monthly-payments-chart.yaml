@@ -1,0 +1,9 @@
+id: monthly-payments-chart
+name: 月ごとの精算（手数料と支払額）
+kind: chart
+chart: stacked-bar
+view: monthly-payments
+description: 精算の月ごとに、手数料と支払額を積み上げます。棒の高さが報酬の合計です。
+series: [手数料, 支払額]
+y: { label: セリン, format: "#,##0" }
+drill: below

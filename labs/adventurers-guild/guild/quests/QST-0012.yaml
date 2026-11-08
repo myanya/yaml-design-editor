@@ -2,10 +2,23 @@ id: QST-0012
 title: 婚礼の飾りにする白百合を集める
 kind: gathering
 status: expired
+branch: BRN-01
 client: CLT-003
 requiredRank: RNK-F
 reward: 60
 receivedOn: 2026-10-01
 deadline: 2026-10-15
 description: 知り合いの婚礼に使う白百合を 30 本。
-note: 期限までに受け手が見つからなかった。
+history:
+  - date: 2026-10-01
+    action: register-quest
+    to: received
+  - date: 2026-10-01
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-10-16
+    action: expire-quest
+    from: posted
+    to: expired
+    note: 期限までに受け手が見つからなかった。

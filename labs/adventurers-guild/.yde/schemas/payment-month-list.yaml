@@ -1,0 +1,27 @@
+id: payment-month-list
+name: 精算の月
+kind: document
+description: 精算を計上する月の一覧です。精算は計上月を参照し、月ごとの報酬・手数料・支払額の合計はここから集めます。
+match: guild/payment-months.yaml
+root:
+  type: object
+  fields:
+    - key: months
+      label: 精算の月
+      type: array
+      required: true
+      display: table
+      item: { type: common#精算の月 }
+actions:
+  - id: add-payment-month
+    label: 精算の月を足す
+    description: 精算を計上する月を 1 つ足します。その月に支払う前に足しておきます（精算する操作は、支払日の年月の月を参照します）。
+    params:
+      - { key: month, label: 年月, type: common#年月, required: true }
+    do:
+      - insert:
+          in: { schemaId: payment-month-list }
+          path: months
+          value:
+            id: { $format: "PAYM-{m}", $with: { m: $month } }
+            month: $month

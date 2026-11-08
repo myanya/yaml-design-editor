@@ -20,3 +20,41 @@ constraints:
     expect: exists
     level: error
     message: "パーティ「{id}」のリーダーが構成員にいません"
+  # 冒険者が入れるパーティは 1 つまで。パーティの側に出すので、パーティを組む操作の適用前の検証が止められる
+  - id: member-in-one-party
+    description: 構成員は、ほかのパーティに入っていないこと（冒険者が入れるパーティは 1 つまで）
+    match:
+      - node: { entity: party, bind: p }
+      - edge: { relation: has-member }
+      - node: { entity: adventurer, bind: m }
+    check:
+      - lte:
+          - count:
+              all:
+                from: m
+                of: x
+                match:
+                  - node: { entity: adventurer }
+                  - edge: { relation: has-member, dir: in }
+                  - node: { entity: party, bind: x }
+          - 1
+    level: error
+    message: "パーティ「{id}」の構成員 {m.title} は、ほかのパーティにも入っています（入れるのは 1 つまで。いま {left} つ）"
+actions:
+  - id: form-party
+    label: パーティを組む
+    description: パーティを 1 組作ります。番号は PTY- の次の番号を振ります。リーダーは構成員に含めます（人数・所属・リーダーの決まりは、適用後の検証が確かめます）。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: name, label: パーティ名, type: common#一行の文, required: true, minLength: 1 }
+      - { key: rank, label: ランク, type: common#ランク参照, required: true }
+      - { key: leader, label: リーダー, type: common#冒険者参照, required: true }
+      - { key: members, label: 構成員, type: array, required: true, item: { type: common#冒険者参照 } }
+      - { key: date, label: 結成日, type: common#年月日, required: true }
+    do:
+      - create:
+          schema: party
+          id: { prefix: "PTY-", digits: 3 }
+          params: { name: $name, rank: $rank, leader: $leader, members: $members, formedOn: $date }

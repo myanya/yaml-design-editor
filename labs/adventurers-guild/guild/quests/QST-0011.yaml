@@ -2,7 +2,16 @@ id: QST-0011
 title: 禁猟の森での狩りの手伝い
 kind: other
 status: rejected
+branch: BRN-01
 client: CLT-002
 reward: 500
 receivedOn: 2026-10-22
-note: 領主が狩りを禁じた森での依頼のため、ギルドは受け付けなかった。
+history:
+  - date: 2026-10-22
+    action: register-quest
+    to: received
+  - date: 2026-10-22
+    action: reject-quest
+    from: received
+    to: rejected
+    note: 領主が狩りを禁じた森での依頼のため、ギルドは受け付けなかった。

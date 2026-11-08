@@ -2,6 +2,7 @@ id: QST-0002
 title: 月影草を 20 束採ってくる
 kind: gathering
 status: settled
+branch: BRN-01
 client: CLT-003
 requiredRank: RNK-F
 reward: 80
@@ -15,3 +16,23 @@ assignments:
     report:
       reportedOn: 2026-10-08
       outcome: success
+history:
+  - date: 2026-10-05
+    action: register-quest
+    to: received
+  - date: 2026-10-05
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-10-06
+    action: accept-quest
+    from: posted
+    to: assigned
+  - date: 2026-10-08
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-10-09
+    action: settle-quest
+    from: reported
+    to: settled
