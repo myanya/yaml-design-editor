@@ -2,8 +2,12 @@ id: PRM-001
 candidate: ADV-0004
 fromRank: RNK-D
 toRank: RNK-C
-appliedOn: 2025-08-20
-result: passed
+status: passed
+nominatedOn: 2025-08-20
 decidedOn: 2025-09-10
 decidedBy: STF-01
 note: 記録の残る前の実績で審査した。
+history:
+  - { date: 2025-08-20, action: nominate-promotion, to: nominated }
+  - { date: 2025-08-27, action: start-examination, from: nominated, to: examining }
+  - { date: 2025-09-10, action: pass-promotion, from: examining, to: passed }

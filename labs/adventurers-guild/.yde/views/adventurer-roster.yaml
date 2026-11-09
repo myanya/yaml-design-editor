@@ -1,12 +1,28 @@
 id: adventurer-roster
 name: 冒険者の名簿
-description: 冒険者ごとのランク・状態・登録日・所属するパーティと、個人で受けている依頼の数とランクの上限。「新規行」で冒険者番号を入れると guild/adventurers/<番号>.yaml ができます。
+description: 冒険者ごとのランク・状態・職能・資格・登録日・所属するパーティと、個人で受けている依頼の数とランクの上限。「新規行」で冒険者番号を入れると guild/adventurers/<番号>.yaml ができます。
 rows:
   idPattern: "ADV-*"
 columns:
   - { label: 名前, schemaId: adventurer, path: name, editable: true }
   - { label: ランク, schemaId: adventurer, path: rank, editable: true }
-  - { label: 状態, schemaId: adventurer, path: status, editable: true }
+  - { label: 状態, schemaId: adventurer, path: status }
+  - { label: 職能, schemaId: adventurer, path: job, editable: true }
+  # 資格は、修了した受講の課程が得させる資格から導く
+  - label: 資格
+    schemaId: adventurer
+    value:
+      all:
+        of: x
+        match:
+          - node: { entity: adventurer }
+          - edge: { relation: trainee, dir: in }
+          - node: { entity: enrollment, bind: e }
+          - edge: { relation: has-enrollment, dir: in }
+          - node: { entity: training }
+          - edge: { relation: grants }
+          - node: { entity: qualification, bind: x }
+        where: [ { of: e, path: result, equals: completed } ]
   - { label: 登録日, schemaId: adventurer, path: registeredOn }
   - label: 所属するパーティ
     backlinks: { relation: has-member }

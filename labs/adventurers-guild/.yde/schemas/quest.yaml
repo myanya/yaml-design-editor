@@ -262,7 +262,8 @@ constraints:
         - node: { entity: monster }
         - edge: { relation: inhabits }
         - node: { same: p }
-    where: [ { of: q, path: kind, equals: subjugation } ]
+    # exists は起点（依頼）ごとの判定なので、場所の無い依頼を外す（外さないと解が無い＝違反になる）
+    where: [ { of: q, path: kind, equals: subjugation }, { of: q, path: place, exists: true } ]
     expect: exists
     level: warning
     message: "討伐依頼「{id}」の場所は、対象の魔物の生息地ではありません（魔物の一覧の生息地を確かめます）"
@@ -279,7 +280,8 @@ constraints:
         - node: { entity: material }
         - edge: { relation: found-at }
         - node: { same: p }
-    where: [ { of: q, path: kind, equals: gathering } ]
+    # exists は起点（依頼）ごとの判定なので、場所の無い依頼を外す（外さないと解が無い＝違反になる）
+    where: [ { of: q, path: kind, equals: gathering }, { of: q, path: place, exists: true } ]
     expect: exists
     level: warning
     message: "採取依頼「{id}」の場所は、対象の素材の産地ではありません（素材の一覧の産地を確かめます）"
@@ -321,6 +323,131 @@ constraints:
     expect: absent
     level: warning
     message: "納品依頼「{id}」に下限ランクがありません（{x.title} を落とす {m.title} の討伐の目安は {rm.title}）"
+
+  # ---- 処分の効き目（Q40） ----
+  # 起点を受注にする: 受注する操作で依頼の文書が変わるので、適用前の検証が止められる
+  - id: no-acceptance-while-suspended
+    description: 受注停止の処分の間（決めた日から終わる日まで）は、その冒険者かパーティは受注できないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: [adventurer, party], bind: t }
+      - edge: { relation: sanction-of, dir: in }
+      - node: { entity: sanction, bind: s }
+    where: [ { of: s, path: kind, equals: suspension } ]
+    check:
+      - or:
+          - lt: [ { of: a, path: acceptedOn }, { of: s, path: decidedOn } ]
+          - gt: [ { of: a, path: acceptedOn }, { of: s, path: until } ]
+    level: error
+    message: "受注「{id}」: {t.title} は受注停止の処分 {s.id} の間のため受注できません"
+
+  # ---- 求める職能（Q38）: 受け手の職能か、その職能の資格（訓練の修了）で満たす。パーティなら構成員の誰か ----
+  # 4 つの満たし方の件数を足して 1 以上かで確かめる（「どれかの道がある」を 1 つの照合では書けないため）
+  - id: required-job-met
+    description: 求める職能のある依頼の受け手は、その職能か、その職能の資格を持つこと（パーティなら構成員の誰か）
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: has-assignment, dir: in }
+      - node: { entity: quest, bind: q }
+      - edge: { relation: requires-job }
+      - node: { entity: job, bind: j }
+    check:
+      - gte:
+          - add:
+              # 冒険者の職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: adventurer }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # 冒険者の資格（修了した受講の課程が得させる資格）
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: has-enrollment, dir: in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # パーティの構成員の職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: party }
+                      - edge: { relation: has-member }
+                      - node: { entity: adventurer }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # パーティの構成員の資格
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: party }
+                      - edge: { relation: has-member }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: has-enrollment, dir: in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+          - 1
+    level: warning
+    message: "受注「{id}」の受け手は、依頼「{q.id}」の求める職能 {j.title} も、その職能の資格も持っていません"
 
 # ---- 操作: 依頼の状態を進める ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す（前の状態を読むため）。

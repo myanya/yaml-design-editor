@@ -22,7 +22,7 @@ filters:
     label: 育成（職業訓練）
     mode: show
     level: type
-    where: { path: entityType, oneOf: [training, enrollment, job, adventurer, staff] }
+    where: { path: entityType, oneOf: [training, enrollment, qualification, job, adventurer, staff, quest] }
   - id: discipline
     label: 評価と規律
     mode: show

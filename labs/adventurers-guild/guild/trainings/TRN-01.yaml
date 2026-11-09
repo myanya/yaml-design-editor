@@ -1,5 +1,6 @@
 id: TRN-01
 name: 新人講習
+grants: QLF-01
 instructor: STF-04
 fee: 0
 description: 登録したばかりの冒険者に、依頼の受け方・野営・応急の手当てを教える 3 日の講習です。

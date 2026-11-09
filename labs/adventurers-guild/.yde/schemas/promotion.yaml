@@ -1,30 +1,174 @@
 id: promotion
 name: 昇格審査
 kind: document
-description: 冒険者かパーティの昇格審査 1 件を 1 ファイルで管理します。いまのランク・昇格先のランク・根拠の実績（受注）を持ちます。
+description: 冒険者かパーティの昇格審査 1 件を 1 ファイルで管理します。いまのランク・昇格先のランク・根拠の実績（受注）と、審査の流れ（審査の対象 → 審査中 → 合格・不合格）の履歴を持ちます。
 match: "guild/promotions/*.yaml"
 filePattern: "guild/promotions/{id}.yaml"
 root: { type: common#昇格審査 }
 constraints:
   # いまのランクは別の照合（all）で読む。1 本の照合では同じ要素を二度通れないので、
   # 昇格先といまのランクが同じ（違反の典型）だと、2 本目の道（also）では解が無くなって見逃すため
-  - id: promotion-goes-up
-    description: 昇格先のランクは、いまのランクより上であること
+  - id: promotion-one-step
+    description: 昇格は 1 段ずつ（昇格先のランクは、いまのランクのすぐ上）であること
     match:
       - node: { entity: promotion, bind: p }
       - edge: { relation: to-rank }
       - node: { entity: rank, bind: rt }
     check:
-      - gt:
-          - { of: rt, path: order }
-          - max:
-              all:
-                from: p
-                of: rf
-                path: order
-                match:
-                  - node: { entity: promotion }
-                  - edge: { relation: from-rank }
-                  - node: { entity: rank, bind: rf }
+      - eq:
+          - { number: { of: rt, path: order } }
+          - add:
+              - max:
+                  all:
+                    from: p
+                    of: rf
+                    path: order
+                    match:
+                      - node: { entity: promotion }
+                      - edge: { relation: from-rank }
+                      - node: { entity: rank, bind: rf }
+              - 1
     level: error
-    message: "昇格審査「{id}」の昇格先 {rt.title} は、いまのランクより上ではありません（順位 {left} ≦ {right}）"
+    message: "昇格審査「{id}」の昇格先 {rt.title} は、いまのランクのすぐ上ではありません（昇格は 1 段ずつです。順位 {left} ≠ {right}）"
+  # 決まるまでの間は、対象のいまのランクと審査のいまのランクが同じであること（別の審査や処分でランクが変われば止める）
+  - id: from-rank-is-current
+    description: 審査の対象・審査中の昇格審査のいまのランクは、対象のいまのランクと同じであること
+    match:
+      - node: { entity: promotion, bind: p }
+      - edge: { relation: promotion-of }
+      - node: { entity: [adventurer, party], bind: c }
+      - edge: { relation: has-rank }
+      - node: { entity: rank, bind: rc }
+    also:
+      from: p
+      steps:
+        - edge: { relation: from-rank }
+        - node: { same: rc }
+    where: [ { of: p, path: status, oneOf: [nominated, examining] } ]
+    expect: exists
+    level: error
+    message: "昇格審査「{id}」のいまのランクが、対象のいまのランクと違います（対象のランクを確かめて、審査を直します）"
+
+# ---- 操作: 審査の対象に決める → 審査を始める → 合格（ランクを上げる）・不合格 ----
+# 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す
+actions:
+  - id: nominate-promotion
+    label: 昇格審査の対象に決める
+    description: 冒険者かパーティを昇格審査の対象に決め、昇格審査の記録（PRM- の次の番号）を作ります。昇格は 1 段ずつで、いまのランクが対象のランクと違えば、適用後の検証の誤りで止まります。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: candidate, label: 対象, type: common#冒険者かパーティ参照, required: true }
+      - { key: fromRank, label: いまのランク, type: common#ランク参照, required: true }
+      - { key: toRank, label: 昇格先のランク, type: common#ランク参照, required: true }
+      - { key: date, label: 対象に決めた日, type: common#年月日, required: true }
+      - key: basedOn
+        label: 根拠の実績
+        type: array
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] } }
+      - { key: note, label: 備考, type: common#文章 }
+    do:
+      - create:
+          schema: promotion
+          id: { prefix: "PRM-", digits: 3 }
+          params:
+            candidate: $candidate
+            fromRank: $fromRank
+            toRank: $toRank
+            status: nominated
+            nominatedOn: $date
+            basedOn: { $copy: basedOn }
+            note: { $copy: note }
+            history: [ { date: $date, action: nominate-promotion, to: nominated } ]
+  - id: start-examination
+    label: 審査を始める
+    description: 審査の対象の昇格審査を審査中にします（実績を調べ、試験をします）。
+    target: { entity: promotion }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 始めた日, type: common#年月日, required: true }
+      - { key: note, label: メモ, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: promotion, bind: p } } ]
+        where: [ { of: p, path: status, equals: nominated } ]
+        expect: exists
+        message: "{id} は審査の対象の昇格審査ではありません"
+      - match: [ { node: { entity: promotion, bind: p } } ]
+        check: [ { gte: [ $date, { of: p, path: nominatedOn } ] } ]
+        message: 始めた日は対象に決めた日以降にしてください
+    do:
+      - insert: { of: self, path: history, value: { date: $date, action: start-examination, from: nominated, to: examining, note: { $copy: note } } }
+      - set: { of: self, path: status, value: examining }
+  - id: pass-promotion
+    label: 合格にする
+    description: 審査中の昇格審査を合格にし、対象（冒険者かパーティ）のランクを昇格先へ上げます。
+    target: { entity: promotion }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: decidedBy, label: 決めた職員, type: common#職員参照, required: true }
+      - { key: note, label: メモ, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: promotion, bind: p } } ]
+        where: [ { of: p, path: status, equals: examining } ]
+        expect: exists
+        message: "{id} は審査中の昇格審査ではありません"
+      - match: [ { node: { entity: promotion, bind: p } } ]
+        check: [ { gte: [ $date, { of: p, path: nominatedOn } ] } ]
+        message: 決めた日は対象に決めた日以降にしてください
+      # 審査の間に対象のランクが変わっていたら上げない
+      - match:
+          - node: { entity: promotion, bind: p }
+          - edge: { relation: promotion-of }
+          - node: { entity: [adventurer, party], bind: c }
+          - edge: { relation: has-rank }
+          - node: { entity: rank, bind: rc }
+        also:
+          from: p
+          steps:
+            - edge: { relation: from-rank }
+            - node: { same: rc }
+        expect: exists
+        message: "{id} のいまのランクが、対象のいまのランクと違います（対象のランクを確かめます）"
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: promotion }
+            - edge: { relation: promotion-of }
+            - node: { entity: [adventurer, party], bind: c }
+          do:
+            - set: { of: c, path: rank, value: { $copy: toRank, $of: self } }
+      - insert: { of: self, path: history, value: { date: $date, action: pass-promotion, from: examining, to: passed, note: { $copy: note } } }
+      - set: { of: self, path: decidedOn, value: $date }
+      - set: { of: self, path: decidedBy, value: $decidedBy }
+      - set: { of: self, path: status, value: passed }
+  - id: fail-promotion
+    label: 不合格にする
+    description: 審査中の昇格審査を不合格にします。対象のランクは変わりません。
+    target: { entity: promotion }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: decidedBy, label: 決めた職員, type: common#職員参照, required: true }
+      - { key: note, label: 理由, type: common#一行の文, required: true }
+    require:
+      - match: [ { node: { entity: promotion, bind: p } } ]
+        where: [ { of: p, path: status, equals: examining } ]
+        expect: exists
+        message: "{id} は審査中の昇格審査ではありません"
+      - match: [ { node: { entity: promotion, bind: p } } ]
+        check: [ { gte: [ $date, { of: p, path: nominatedOn } ] } ]
+        message: 決めた日は対象に決めた日以降にしてください
+    do:
+      - insert: { of: self, path: history, value: { date: $date, action: fail-promotion, from: examining, to: failed, note: $note } }
+      - set: { of: self, path: decidedOn, value: $date }
+      - set: { of: self, path: decidedBy, value: $decidedBy }
+      - set: { of: self, path: status, value: failed }

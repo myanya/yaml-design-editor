@@ -1,16 +1,17 @@
 id: promotion-list
 name: 昇格審査の一覧
-description: 昇格審査ごとの対象・いまのランク・昇格先・申請日・結果・決めた日と、根拠の実績。新しい順に並べます。
+description: 昇格審査ごとの対象・いまのランク・昇格先・状態・対象に決めた日・決めた日と、根拠の実績。新しい順に並べます。
 rows:
   idPattern: "PRM-*"
-order: { path: appliedOn, direction: desc }
+order: { path: nominatedOn, direction: desc }
 columns:
   - { label: 対象, schemaId: promotion, path: candidate }
   - { label: いまのランク, schemaId: promotion, path: fromRank }
   - { label: 昇格先, schemaId: promotion, path: toRank }
-  - { label: 申請日, schemaId: promotion, path: appliedOn }
-  - { label: 結果, schemaId: promotion, path: result }
+  - { label: 状態, schemaId: promotion, path: status }
+  - { label: 対象に決めた日, schemaId: promotion, path: nominatedOn }
   - { label: 決めた日, schemaId: promotion, path: decidedOn }
+  - { label: 決めた職員, schemaId: promotion, path: decidedBy }
   - { label: 根拠の実績, schemaId: promotion, path: basedOn }
 newRow:
   filePattern: "guild/promotions/{id}.yaml"

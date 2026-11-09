@@ -5,3 +5,6 @@ status: retired
 registeredOn: 2008-03-30
 job: JOB-02
 note: 引退して、いまは町で後進の相談役をしています。
+history:
+  - { date: 2008-03-30, action: register-adventurer, to: active }
+  - { date: 2023-03-31, action: retire-adventurer, from: active, to: retired, note: 年を理由に引退した }

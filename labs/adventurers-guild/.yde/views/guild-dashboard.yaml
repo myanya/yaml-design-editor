@@ -169,12 +169,12 @@ sections:
     group: 運営
     view: sanction-list
   - id: promotions-pending
-    label: 審査中の昇格審査
+    label: 決まっていない昇格審査
     group: 運営
     view: promotion-list
     filter:
       match: [ { node: { entity: promotion, bind: p } } ]
-      where: [ { of: p, path: result, equals: pending } ]
+      where: [ { of: p, path: status, oneOf: [nominated, examining] } ]
       expect: exists
   - id: promotions
     label: 昇格審査の一覧
@@ -185,3 +185,7 @@ sections:
     label: 訓練の課程
     group: 育成
     view: training-list
+  - id: qualifications
+    label: 資格の一覧
+    group: 育成
+    view: qualification-list

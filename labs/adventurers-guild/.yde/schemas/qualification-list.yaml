@@ -1,0 +1,17 @@
+id: qualification-list
+name: 資格
+kind: document
+description: 訓練の課程の修了で得る資格の一覧です。誰が持っているかは書かず、修了した受講の記録から導きます。
+match: guild/qualifications.yaml
+root:
+  type: object
+  fields:
+    - key: qualifications
+      label: 資格
+      type: array
+      required: true
+      display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "QLF-", digits: 2 }
+      item: { type: common#資格 }

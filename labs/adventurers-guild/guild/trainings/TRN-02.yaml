@@ -1,6 +1,7 @@
 id: TRN-02
 name: 傷の手当ての講習
 job: JOB-04
+grants: QLF-02
 instructor: ADV-0009
 fee: 50
 description: 治療師の基礎として、傷と毒の手当てを教えます。引退した冒険者が教官を務めます。

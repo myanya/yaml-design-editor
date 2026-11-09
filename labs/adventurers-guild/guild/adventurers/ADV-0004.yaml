@@ -4,3 +4,5 @@ rank: RNK-C
 status: active
 registeredOn: 2023-02-27
 job: JOB-01
+history:
+  - { date: 2023-02-27, action: register-adventurer, to: active }

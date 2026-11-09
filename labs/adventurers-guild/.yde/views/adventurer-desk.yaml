@@ -1,0 +1,97 @@
+id: adventurer-desk
+name: 冒険者の管理
+kind: dashboard
+description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業・消息不明 → 引退・除名）と、処分・資格・訓練です。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
+actions: [register-adventurer]
+placement: auto
+# 除名は処分の操作（除名する）で、状態を除名にして処分の記録を作る。注意と受注停止は状態を変えない（現役の段に留まる工程）
+flow:
+  direction: right
+  start: { action: register-adventurer, to: active }
+  steps: [active, resting, missing, retired, expelled]
+  moves:
+    - { from: active, action: sanction-adventurer }
+    - { from: active, action: rest-adventurer, to: resting }
+    - { from: resting, action: return-adventurer, to: active }
+    - { from: active, action: report-missing, to: missing }
+    - { from: missing, action: return-adventurer, to: active }
+    - { from: active, action: retire-adventurer, to: retired }
+    - { from: resting, action: retire-adventurer, to: retired }
+    - { from: active, action: expel-adventurer, to: expelled }
+    - { from: resting, action: expel-adventurer, to: expelled }
+    - { from: missing, action: expel-adventurer, to: expelled }
+  history: { path: history }
+sections:
+  # ---- 状態（流れの段） ----
+  - id: active
+    label: 現役
+    group: 状態
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: active } ]
+      expect: exists
+  - id: resting
+    label: 休業
+    group: 状態
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: resting } ]
+      expect: exists
+  - id: missing
+    label: 消息不明
+    group: 状態
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: missing } ]
+      expect: exists
+  - id: retired
+    label: 引退
+    group: 状態
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: retired } ]
+      expect: exists
+  - id: expelled
+    label: 除名
+    group: 状態
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: expelled } ]
+      expect: exists
+  # ---- 処分 ----
+  # いま効いている受注停止（基準日が決めた日から終わる日までの間）
+  - id: suspended-now
+    label: いま受注停止の処分
+    group: 処分
+    view: sanction-list
+    filter:
+      match: [ { node: { entity: sanction, bind: s } } ]
+      where: [ { of: s, path: kind, equals: suspension } ]
+      check:
+        - lte: [ { of: s, path: decidedOn }, $today ]
+          type: date
+        - gte: [ { of: s, path: until }, $today ]
+          type: date
+  - id: sanctions
+    label: 処分の一覧
+    group: 処分
+    view: sanction-list
+  # ---- 育成 ----
+  - id: qualifications
+    label: 資格の一覧
+    group: 育成
+    view: qualification-list
+  - id: trainings
+    label: 訓練の課程
+    group: 育成
+    view: training-list
+  # ---- 名簿 ----
+  - id: parties
+    label: パーティの編成
+    group: 名簿
+    view: party-roster

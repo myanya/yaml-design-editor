@@ -121,6 +121,12 @@ definitions:
     placeholder: BUY-0001
     sample: BUY-0001
     description: 「BUY-」と 4 桁の数字。買取のファイル名にもなります。
+  資格番号:
+    type: id
+    pattern: "^QLF-[0-9]{2}$"
+    placeholder: QLF-01
+    sample: QLF-01
+    description: 「QLF-」と 2 桁の数字。
 
   # ---- 参照の型 ----
   # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
@@ -196,6 +202,12 @@ definitions:
       schemaIds: [regulation-list]
     relation: violates
     description: 規約（条）の番号を 1 件。
+  資格参照:
+    type: ref
+    idPattern: "QLF-*"
+    scope:
+      schemaIds: [qualification-list]
+    description: 資格の番号を 1 件。関係名は使う側が付けます（課程の修了で得る資格）。
   冒険者かパーティ参照:
     type: ref
     idPatterns: ["ADV-*", "PTY-*"]
@@ -274,11 +286,21 @@ definitions:
   冒険者の状態:
     type: enum
     values:
-      - { value: active, label: 現役 }
-      - { value: resting, label: 休業 }
-      - { value: retired, label: 引退 }
-      - { value: expelled, label: 除名 }
-      - { value: missing, label: 消息不明 }
+      - { value: active, label: 現役, description: 依頼を受けられる }
+      - { value: resting, label: 休業, description: しばらく依頼を受けない（けが・帰郷など）。戻れば現役 }
+      - { value: retired, label: 引退, description: 冒険者をやめた。教官は務められる }
+      - { value: expelled, label: 除名, description: 除名の処分を受けた }
+      - { value: missing, label: 消息不明, description: 戻らず、行方が分からない。見つかれば現役 }
+  # 冒険者の状態を変える操作の名前（履歴に残す。adventurer.yaml の actions の id）
+  冒険者の操作:
+    type: enum
+    values:
+      - { value: register-adventurer, label: 登録する }
+      - { value: rest-adventurer, label: 休業にする }
+      - { value: return-adventurer, label: 現役に戻す }
+      - { value: retire-adventurer, label: 引退にする }
+      - { value: report-missing, label: 消息不明にする }
+      - { value: expel-adventurer, label: 除名する }
   依頼の種別:
     type: enum
     values:
@@ -331,12 +353,34 @@ definitions:
       - { value: suspension, label: 受注停止 }
       - { value: demotion, label: 降格 }
       - { value: expulsion, label: 除名 }
-  審査の結果:
+  # 処分を下す操作（sanction-adventurer）で選べる種類。除名は除名する操作で、降格は効き目を決めてから
+  注意と受注停止:
     type: enum
     values:
-      - { value: pending, label: 審査中 }
-      - { value: passed, label: 合格 }
-      - { value: failed, label: 不合格 }
+      - { value: caution, label: 注意 }
+      - { value: suspension, label: 受注停止 }
+  # 昇格審査の流れ: 審査の対象に決める → 審査する → 合格なら昇格（不合格なら終わり）
+  昇格審査の状態:
+    type: enum
+    values:
+      - { value: nominated, label: 審査の対象, description: ギルドが審査の対象に決めた。まだ審査を始めていない }
+      - { value: examining, label: 審査中, description: 実績を調べ、試験をしている }
+      - { value: passed, label: 合格, description: 合格し、対象のランクを昇格先へ上げた }
+      - { value: failed, label: 不合格, description: 合格しなかった。ランクは変わらない }
+  # 昇格審査の状態を変える操作の名前（履歴に残す。promotion.yaml などの actions の id）
+  昇格審査の操作:
+    type: enum
+    values:
+      - { value: nominate-promotion, label: 審査の対象に決める }
+      - { value: start-examination, label: 審査を始める }
+      - { value: pass-promotion, label: 合格にする }
+      - { value: fail-promotion, label: 不合格にする }
+  資格の段階:
+    type: enum
+    values:
+      - { value: beginner, label: 初級, description: 訓練の課程を修了すると得る }
+      - { value: intermediate, label: 中級 }
+      - { value: advanced, label: 上級 }
   受講の結果:
     type: enum
     values:
@@ -390,6 +434,21 @@ definitions:
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
       - { key: job, label: 職能, type: 職能参照, relation: has-job, required: true, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
       - { key: note, label: 備考, type: 文章 }
+      - key: history
+        label: 履歴
+        type: array
+        description: 状態を変えた操作の記録です。操作が 1 行ずつ足します。
+        default: []
+        item: { type: 冒険者の履歴 }
+  冒険者の履歴:
+    type: object
+    label: 冒険者の履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 冒険者の操作, required: true }
+      - { key: from, label: 前の状態, type: 冒険者の状態, description: 登録の行には書きません。 }
+      - { key: to, label: 後の状態, type: 冒険者の状態, required: true }
+      - { key: note, label: 理由・メモ, type: 一行の文 }
   構成員:
     type: ref
     idPattern: "ADV-*"
@@ -473,6 +532,7 @@ definitions:
       - { key: receivedOn, label: 受付日, type: 年月日, required: true }
       - { key: deadline, label: 期限, type: 年月日 }
       - { key: place, label: 場所, type: 場所参照, relation: located-at, description: 依頼を行う場所です。 }
+      - { key: requiredJob, label: 求める職能, type: 職能参照, relation: requires-job, description: 受け手に求める職能です。受け手の職能か、その職能の資格で満たします（パーティなら構成員の誰か）。 }
       - key: targets
         label: 対象
         type: array
@@ -663,8 +723,8 @@ definitions:
       - { key: candidate, label: 対象, type: 冒険者かパーティ参照, relation: promotion-of, required: true }
       - { key: fromRank, label: いまのランク, type: ランク参照, relation: from-rank, required: true }
       - { key: toRank, label: 昇格先のランク, type: ランク参照, relation: to-rank, required: true }
-      - { key: appliedOn, label: 申請日, type: 年月日, required: true }
-      - { key: result, label: 結果, type: 審査の結果, required: true, default: pending }
+      - { key: status, label: 状態, type: 昇格審査の状態, required: true, default: nominated }
+      - { key: nominatedOn, label: 対象に決めた日, type: 年月日, required: true, description: ギルドが審査の対象に決めた日です。 }
       - { key: decidedOn, label: 決めた日, type: 年月日, description: 合格か不合格を決めた日です。 }
       - { key: decidedBy, label: 決めた職員, type: 職員参照, relation: decided-by }
       - key: basedOn
@@ -673,28 +733,43 @@ definitions:
         description: 審査の根拠にした受注です。
         item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] }, relation: based-on }
       - { key: note, label: 備考, type: 文章 }
+      - key: history
+        label: 履歴
+        type: array
+        description: 状態を変えた操作の記録です。操作が 1 行ずつ足します。
+        default: []
+        item: { type: 昇格審査の履歴 }
     constraints:
       - id: decided-has-date
         description: 合格・不合格の審査には決めた日と決めた職員があること
         where:
-          - { path: result, oneOf: [passed, failed] }
+          - { path: status, oneOf: [passed, failed] }
           - { or: [ { path: decidedOn, exists: false }, { path: decidedBy, exists: false } ] }
         expect: absent
         level: error
         message: "昇格審査「{id}」は結果が出ているのに、決めた日か決めた職員がありません"
-      - id: pending-has-no-date
-        description: 審査中の審査には決めた日が無いこと
+      - id: undecided-has-no-date
+        description: 審査の対象・審査中の審査には決めた日が無いこと
         where:
-          - { path: result, equals: pending }
+          - { path: status, oneOf: [nominated, examining] }
           - { path: decidedOn, exists: true }
         expect: absent
         level: error
-        message: "審査中の昇格審査「{id}」に決めた日があります"
-      - id: decided-not-before-applied
-        description: 決めた日は申請日以降であること
+        message: "まだ決まっていない昇格審査「{id}」に決めた日があります"
+      - id: decided-not-before-nominated
+        description: 決めた日は対象に決めた日以降であること
         where: [ { path: decidedOn, exists: true } ]
-        check: [ { gte: [ { path: decidedOn }, { path: appliedOn } ] } ]
+        check: [ { gte: [ { path: decidedOn }, { path: nominatedOn } ] } ]
         level: error
+  昇格審査の履歴:
+    type: object
+    label: 昇格審査の履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 昇格審査の操作, required: true }
+      - { key: from, label: 前の状態, type: 昇格審査の状態, description: 対象に決めた行には書きません。 }
+      - { key: to, label: 後の状態, type: 昇格審査の状態, required: true }
+      - { key: note, label: 理由・メモ, type: 一行の文 }
   受講:
     type: object
     label: 受講
@@ -727,6 +802,17 @@ definitions:
         where: [ { path: completedOn, exists: true } ]
         check: [ { gte: [ { path: completedOn }, { path: startedOn } ] } ]
         level: error
+  資格:
+    type: object
+    label: 資格
+    entity: { type: qualification, defines: true }
+    description: 訓練の課程の修了で得る証明です。持っている人は、修了した受講の記録から導きます。
+    fields:
+      - { key: id, label: 資格番号, type: 資格番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: job, label: 職能, type: 職能参照, relation: certifies, description: その職能の技能の証明です。書かなければ、職能によらない資格（冒険者の基礎など）です。 }
+      - { key: level, label: 段階, type: 資格の段階, required: true, default: beginner }
+      - { key: description, label: 説明, type: 文章 }
   訓練の課程:
     type: object
     label: 訓練の課程
@@ -735,6 +821,7 @@ definitions:
       - { key: id, label: 訓練番号, type: 訓練番号, required: true }
       - { key: name, label: 名前, type: 一行の文, role: title, required: true }
       - { key: job, label: 身に付く職能, type: 職能参照, relation: trains-for, description: 書かなければ、職能によらない課程（新人講習など）です。 }
+      - { key: grants, label: 修了で得る資格, type: 資格参照, relation: grants, description: 修了した受講者が得る資格です（初級）。持っている人は受講の記録から分かるので、冒険者の側には書きません。 }
       - { key: instructor, label: 教官, type: 教官参照, required: true }
       - { key: fee, label: 受講料, type: 金額 }
       - { key: description, label: 内容, type: 文章 }

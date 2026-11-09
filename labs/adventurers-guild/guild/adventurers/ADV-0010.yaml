@@ -4,3 +4,5 @@ rank: RNK-F
 status: active
 registeredOn: 2026-07-01
 job: JOB-02
+history:
+  - { date: 2026-07-01, action: register-adventurer, to: active }

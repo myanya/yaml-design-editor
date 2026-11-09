@@ -1,0 +1,15 @@
+qualifications:
+  - id: QLF-01
+    name: 冒険者の基礎（初級）
+    level: beginner
+    description: 新人講習の修了の証明です。野営・地図・ギルドの決まりの基本を身に付けています。
+  - id: QLF-02
+    name: 傷の手当て（初級）
+    job: JOB-04
+    level: beginner
+    description: 傷と毒の手当ての講習の修了の証明です。治療師の技能の初歩を持ちます。
+  - id: QLF-03
+    name: 弓術（初級）
+    job: JOB-05
+    level: beginner
+    description: 弓の稽古の修了の証明です。弓手の技能の初歩を持ちます。

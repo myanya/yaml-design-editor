@@ -1,0 +1,28 @@
+id: qualification-list
+name: 資格の一覧
+description: 資格ごとの段階・職能と、その資格を得られる課程・持っている冒険者。持っている冒険者は、その課程を修了した受講の記録から導きます（冒険者の側には書きません）。
+rows:
+  idPattern: "QLF-*"
+order: { schemaId: qualification-list }
+columns:
+  - { label: 名前, schemaId: qualification-list, path: name, editable: true }
+  - { label: 段階, schemaId: qualification-list, path: level, editable: true }
+  - { label: 職能, schemaId: qualification-list, path: job, editable: true }
+  - label: 得られる課程
+    backlinks: { relation: grants }
+  - label: 持っている冒険者
+    value:
+      all:
+        of: c
+        match:
+          - node: { entity: qualification }
+          - edge: { relation: grants, dir: in }
+          - node: { entity: training }
+          - edge: { relation: has-enrollment }
+          - node: { entity: enrollment, bind: e }
+          - edge: { relation: trainee }
+          - node: { entity: adventurer, bind: c }
+        where: [ { of: e, path: result, equals: completed } ]
+newRow:
+  file: guild/qualifications.yaml
+  path: qualifications

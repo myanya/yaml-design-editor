@@ -1,0 +1,61 @@
+id: promotion-desk
+name: 昇格審査
+kind: dashboard
+description: 昇格審査の流れ（審査の対象に決める → 審査中 → 合格・不合格）です。合格にすると、対象（冒険者かパーティ）のランクが昇格先へ上がります。昇格は 1 段ずつです。
+actions: [nominate-promotion]
+placement: auto
+flow:
+  direction: right
+  start: { action: nominate-promotion, to: nominated }
+  steps: [nominated, examining, passed, failed]
+  moves:
+    - { from: nominated, action: start-examination, to: examining }
+    - { from: examining, action: pass-promotion, to: passed }
+    - { from: examining, action: fail-promotion, to: failed }
+  history: { path: history }
+sections:
+  - id: nominated
+    label: 審査の対象
+    group: 状況
+    view: promotion-list
+    filter:
+      match: [ { node: { entity: promotion, bind: x } } ]
+      where: [ { of: x, path: status, equals: nominated } ]
+      expect: exists
+  - id: examining
+    label: 審査中
+    group: 状況
+    view: promotion-list
+    filter:
+      match: [ { node: { entity: promotion, bind: x } } ]
+      where: [ { of: x, path: status, equals: examining } ]
+      expect: exists
+  - id: passed
+    label: 合格
+    group: 状況
+    view: promotion-list
+    filter:
+      match: [ { node: { entity: promotion, bind: x } } ]
+      where: [ { of: x, path: status, equals: passed } ]
+      expect: exists
+  - id: failed
+    label: 不合格
+    group: 状況
+    view: promotion-list
+    filter:
+      match: [ { node: { entity: promotion, bind: x } } ]
+      where: [ { of: x, path: status, equals: failed } ]
+      expect: exists
+  # 審査の材料
+  - id: adventurers
+    label: 冒険者の名簿
+    group: 材料
+    view: adventurer-roster
+  - id: parties
+    label: パーティの編成
+    group: 材料
+    view: party-roster
+  - id: rank-by-kind
+    label: ランクと種別ごとの依頼
+    group: 材料
+    view: rank-by-kind

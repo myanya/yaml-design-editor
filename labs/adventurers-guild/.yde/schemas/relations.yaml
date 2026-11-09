@@ -25,6 +25,7 @@ entities:
   - { type: training, label: 訓練の課程 }
   - { type: enrollment, label: 受講 }
   - { type: purchase, label: 素材の買取 }
+  - { type: qualification, label: 資格 }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -237,6 +238,30 @@ relations:
     cardinality: { outMin: 1, outMax: 1 }
     level: error
     description: 訓練の教官です。職員か冒険者（引退した冒険者も）です
+  - name: grants
+    label: 修了で得る資格
+    inverseLabel: この資格を得られる課程
+    source: [training]
+    target: [qualification]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 課程を修了した受講者が得る資格です。1 つまでです
+  - name: certifies
+    label: 資格の職能
+    inverseLabel: この職能の資格
+    source: [qualification]
+    target: [job]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 資格が証明する職能の技能です
+  - name: requires-job
+    label: 求める職能
+    inverseLabel: この職能を求める依頼
+    source: [quest]
+    target: [job]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 依頼が受け手に求める職能です。1 つまでです
   - name: has-enrollment
     label: 受講
     inverseLabel: 受講した訓練の課程

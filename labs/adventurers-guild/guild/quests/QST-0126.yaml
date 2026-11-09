@@ -1,0 +1,22 @@
+id: QST-0126
+title: 川向こうの村で、熱の出た子らの手当てを手伝う
+kind: other
+status: posted
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 250
+receivedOn: 2026-11-09
+deadline: 2026-11-20
+place: PLC-008
+requiredJob: JOB-04
+description: 村の薬師が寝込んだため、熱の出た子らの手当てを 3 日ほど手伝ってほしい。治療師か、傷の手当ての心得がある人に頼みたい。
+history:
+  - date: 2026-11-09
+    action: register-quest
+    to: received
+  - date: 2026-11-09
+    action: post-quest
+    from: received
+    to: posted

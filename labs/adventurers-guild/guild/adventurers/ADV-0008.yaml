@@ -5,3 +5,6 @@ status: resting
 registeredOn: 2022-11-14
 job: JOB-03
 note: 足の怪我の療養で、2026 年の秋は休業しています。
+history:
+  - { date: 2022-11-14, action: register-adventurer, to: active }
+  - { date: 2026-09-02, action: rest-adventurer, from: active, to: resting, note: 足の怪我の療養 }

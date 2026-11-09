@@ -2,7 +2,10 @@ id: PRM-002
 candidate: PTY-002
 fromRank: RNK-C
 toRank: RNK-B
-appliedOn: 2026-11-05
-result: pending
+status: examining
+nominatedOn: 2026-11-05
 basedOn: [QST-0055-A1, QST-0057-A1, QST-0078-A1, QST-0114-A1]
-note: 商隊の護衛を往復とも無事に終えたため、パーティとしての昇格を申請した。
+note: 商隊の護衛を往復とも無事に終えたため、パーティとしての昇格の審査の対象にした。
+history:
+  - { date: 2026-11-05, action: nominate-promotion, to: nominated }
+  - { date: 2026-11-07, action: start-examination, from: nominated, to: examining }
