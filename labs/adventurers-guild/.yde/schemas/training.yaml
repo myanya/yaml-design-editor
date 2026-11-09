@@ -5,3 +5,14 @@ description: 冒険者向けの訓練の課程 1 つを 1 ファイルで管理�
 match: "guild/trainings/*.yaml"
 filePattern: "guild/trainings/{id}.yaml"
 root: { type: common#訓練の課程 }
+constraints:
+  - id: training-grants-beginner
+    description: 訓練の課程の修了で得る資格は初級であること
+    match:
+      - node: { entity: training, bind: t }
+      - edge: { relation: grants }
+      - node: { entity: qualification, bind: x }
+    where: [ { of: x, path: level, notEquals: beginner } ]
+    expect: absent
+    level: error
+    message: "訓練の課程「{id}」の修了で得る資格 {x.title} は初級ではありません（課程の修了で得る資格は初級です）"
