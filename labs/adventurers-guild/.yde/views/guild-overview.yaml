@@ -1,0 +1,35 @@
+id: guild-overview
+name: 全体の概観
+kind: lens
+description: レンズの型の段で、オントロジーの全体を業務の領域ごとに絞って見るための見え方です。上の段の絞り込みを 1 つ選ぶと、その領域の型だけが残ります。
+filters:
+  - id: quest-flow
+    label: 依頼の流れ
+    mode: show
+    level: type
+    where: { path: entityType, oneOf: [quest, assignment, payment, client, branch, rank, staff] }
+  - id: people
+    label: 人と組織
+    mode: show
+    level: type
+    where: { path: entityType, oneOf: [branch, staff, adventurer, party, client, rank, job] }
+  - id: world
+    label: 世界
+    mode: show
+    level: type
+    where: { path: entityType, oneOf: [place, monster, material, quest, rank] }
+  - id: training
+    label: 育成（職業訓練）
+    mode: show
+    level: type
+    where: { path: entityType, oneOf: [training, enrollment, job, adventurer, staff] }
+  - id: discipline
+    label: 評価と規律
+    mode: show
+    level: type
+    where: { path: entityType, oneOf: [regulation, sanction, promotion, rank, adventurer, party, staff, assignment] }
+  - id: accounting
+    label: 会計
+    mode: show
+    level: type
+    where: { path: entityType, oneOf: [payment, purchase, material, assignment, branch, staff, adventurer, party] }

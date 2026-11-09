@@ -107,11 +107,11 @@ sections:
       match: [ { node: { entity: quest, bind: q } } ]
       where: [ { of: q, path: status, equals: cancelled } ]
       expect: exists
-  # ---- 精算 ----
+  # ---- 会計（精算と買取） ----
   # 今月の精算（支払日の年月が基準日の年月）
   - id: this-month-payments
     label: 今月の精算
-    group: 精算
+    group: 会計
     view: payment-ledger
     filter:
       match: [ { node: { entity: payment, bind: p } } ]
@@ -119,12 +119,20 @@ sections:
         - eq: [ { yearMonth: { of: p, path: paidOn } }, { yearMonth: $today } ]
   - id: monthly-amount
     label: 月ごとの支払額
-    group: 精算
+    group: 会計
     view: monthly-amount-chart
   - id: monthly-fee
     label: 月ごとの手数料
-    group: 精算
+    group: 会計
     view: monthly-fee
+  - id: purchases
+    label: 買取の記録
+    group: 会計
+    view: purchase-ledger
+  - id: monthly-purchase
+    label: 月ごとの買取額
+    group: 会計
+    view: monthly-purchase
   # ---- 名簿 ----
   - id: adventurers
     label: 冒険者の名簿
@@ -147,3 +155,33 @@ sections:
     label: 素材の一覧
     group: 世界
     view: material-list
+  # ---- 運営 ----
+  - id: staff
+    label: 職員の一覧
+    group: 運営
+    view: staff-list
+  - id: regulations
+    label: 規約の一覧
+    group: 運営
+    view: regulation-list
+  - id: sanctions
+    label: 処分の一覧
+    group: 運営
+    view: sanction-list
+  - id: promotions-pending
+    label: 審査中の昇格審査
+    group: 運営
+    view: promotion-list
+    filter:
+      match: [ { node: { entity: promotion, bind: p } } ]
+      where: [ { of: p, path: result, equals: pending } ]
+      expect: exists
+  - id: promotions
+    label: 昇格審査の一覧
+    group: 運営
+    view: promotion-list
+  # ---- 育成 ----
+  - id: trainings
+    label: 訓練の課程
+    group: 育成
+    view: training-list

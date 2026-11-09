@@ -1,0 +1,18 @@
+id: staff-list
+name: 職員の一覧
+description: 職員ごとの役目と、受け付けた依頼・教える訓練・決めた処分と昇格審査。
+rows:
+  idPattern: "STF-*"
+order: { schemaId: staff-list }
+columns:
+  - { label: 名前, schemaId: staff-list, path: name, editable: true }
+  - { label: 役目, schemaId: staff-list, path: role, editable: true }
+  - label: 受け付けた依頼
+    backlinks: { relation: handled-by }
+  - label: 教える訓練
+    backlinks: { relation: taught-by }
+  - label: 決めた処分・審査
+    backlinks: { relation: decided-by }
+newRow:
+  file: guild/staff.yaml
+  path: staff

@@ -1,0 +1,30 @@
+id: promotion
+name: 昇格審査
+kind: document
+description: 冒険者かパーティの昇格審査 1 件を 1 ファイルで管理します。いまのランク・昇格先のランク・根拠の実績（受注）を持ちます。
+match: "guild/promotions/*.yaml"
+filePattern: "guild/promotions/{id}.yaml"
+root: { type: common#昇格審査 }
+constraints:
+  # いまのランクは別の照合（all）で読む。1 本の照合では同じ要素を二度通れないので、
+  # 昇格先といまのランクが同じ（違反の典型）だと、2 本目の道（also）では解が無くなって見逃すため
+  - id: promotion-goes-up
+    description: 昇格先のランクは、いまのランクより上であること
+    match:
+      - node: { entity: promotion, bind: p }
+      - edge: { relation: to-rank }
+      - node: { entity: rank, bind: rt }
+    check:
+      - gt:
+          - { of: rt, path: order }
+          - max:
+              all:
+                from: p
+                of: rf
+                path: order
+                match:
+                  - node: { entity: promotion }
+                  - edge: { relation: from-rank }
+                  - node: { entity: rank, bind: rf }
+    level: error
+    message: "昇格審査「{id}」の昇格先 {rt.title} は、いまのランクより上ではありません（順位 {left} ≦ {right}）"

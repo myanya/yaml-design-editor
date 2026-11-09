@@ -1,0 +1,12 @@
+id: monthly-purchase
+name: 月ごとの買取額
+kind: matrix
+description: 買い取った日の年月ごとに、素材の買取の代金の合計を出します。年・月は買い取った日から導きます。
+display: grouped
+cells:
+  match: [ { node: { entity: purchase, bind: b } } ]
+  of: b
+  series:
+    - { label: 買取額, key: { yearMonth: { path: purchasedOn } } }
+  aggregate: sum
+  path: amount

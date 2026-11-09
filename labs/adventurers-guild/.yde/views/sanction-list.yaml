@@ -1,0 +1,15 @@
+id: sanction-list
+name: 処分の一覧
+description: 処分ごとの対象・種類・違反した規約・決めた日・終わる日・決めた職員。新しい順に並べます。
+rows:
+  idPattern: "SNC-*"
+order: { path: decidedOn, direction: desc }
+columns:
+  - { label: 対象, schemaId: sanction, path: subject }
+  - { label: 種類, schemaId: sanction, path: kind }
+  - { label: 違反した規約, schemaId: sanction, path: regulation }
+  - { label: 決めた日, schemaId: sanction, path: decidedOn }
+  - { label: 終わる日, schemaId: sanction, path: until }
+  - { label: 決めた職員, schemaId: sanction, path: decidedBy }
+newRow:
+  filePattern: "guild/sanctions/{id}.yaml"

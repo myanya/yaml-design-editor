@@ -1,0 +1,13 @@
+id: regulation-list
+name: 規約の一覧
+description: 規約（条）ごとの分類・それを確かめる検査や操作と、その規約に違反した処分。
+rows:
+  idPattern: "REG-*"
+order: { schemaId: regulation-list }
+columns:
+  - { label: 見出し, schemaId: regulation-list, path: title, editable: true }
+  - { label: 分類, schemaId: regulation-list, path: category, editable: true }
+  - { label: 条文, schemaId: regulation-list, path: text }
+  - { label: 確かめる検査・操作, schemaId: regulation-list, path: checks }
+  - label: この規約の違反
+    backlinks: { relation: violates }

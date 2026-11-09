@@ -1,0 +1,16 @@
+id: regulation-list
+name: 規約
+kind: document
+description: ギルドの規約（条）の一覧です。条ごとに、それを確かめる YDE の検査や操作の id を添えます。
+match: guild/regulations.yaml
+root:
+  type: object
+  fields:
+    - key: regulations
+      label: 規約
+      type: array
+      required: true
+      methods:
+        insert:
+          id: { path: id, prefix: "REG-", digits: 2 }
+      item: { type: common#規約 }

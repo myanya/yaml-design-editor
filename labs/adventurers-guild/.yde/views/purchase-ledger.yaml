@@ -1,0 +1,16 @@
+id: purchase-ledger
+name: 買取の記録
+description: 買取ごとの買い取った日・売り手・素材・数・単価・代金・鑑定した職員。買い取った日の順に並べます。
+rows:
+  idPattern: "BUY-*"
+order: { path: purchasedOn }
+columns:
+  - { label: 買い取った日, schemaId: purchase, path: purchasedOn }
+  - { label: 売り手, schemaId: purchase, path: seller }
+  - { label: 素材, schemaId: purchase, path: material }
+  - { label: 数, schemaId: purchase, path: quantity }
+  - { label: 単価, schemaId: purchase, path: unitPrice }
+  - { label: 代金, schemaId: purchase, path: amount }
+  - { label: 鑑定した職員, schemaId: purchase, path: appraisedBy }
+newRow:
+  filePattern: "guild/purchases/{id}.yaml"

@@ -1,0 +1,44 @@
+regulations:
+  - id: REG-01
+    title: 受注できるランク
+    category: quest
+    text: 依頼は、受け手のランクが依頼の定める下限以上のときに限り受けられる。パーティで受けるときは、パーティのランクで見る。
+    checks: [taker-rank-meets-requirement]
+  - id: REG-02
+    title: 同時に受けられる依頼の数
+    category: quest
+    text: 遂行中の依頼の数は、ランクごとの上限（F 1・E 2・D 3・C 4・B 5）までとする。A 以上は定めない。
+    checks: [concurrent-within-rank-limit]
+  - id: REG-03
+    title: 受注できない者
+    category: quest
+    text: 休業・引退・除名・消息不明の冒険者は、依頼を受けられない。
+    checks: [inactive-adventurer-not-assigned]
+  - id: REG-04
+    title: パーティの人数と所属
+    category: registration
+    text: パーティの構成員は 6 人までとし、冒険者が入れるパーティは 1 つまでとする。
+    checks: [member-in-one-party]
+  - id: REG-05
+    title: 手数料
+    category: reward
+    text: ギルドは報酬の 1 割を手数料として差し引き、残りを受け手に支払う。
+    checks: [fee-is-rate-of-reward, amount-is-reward-minus-fee]
+  - id: REG-06
+    title: 期限を過ぎた依頼
+    category: quest
+    text: 期限を過ぎた依頼は掲示も受注もしない。期限を過ぎた依頼は期限切れとする。
+    checks: [post-quest, accept-quest, expire-quest]
+  - id: REG-07
+    title: 禁猟区
+    category: conduct
+    text: 領主が定めた禁猟区での狩りの依頼は受け付けず、冒険者も禁猟区で狩りをしてはならない。
+  - id: REG-08
+    title: 昇格
+    category: promotion
+    text: ランクは昇格審査に合格したときに上がる。
+    checks: [promotion-goes-up]
+  - id: REG-09
+    title: 訓練
+    category: training
+    text: ギルドは新人講習と職能の訓練の課程を開く。受講料は課程ごとに定める。

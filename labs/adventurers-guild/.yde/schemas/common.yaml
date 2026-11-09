@@ -79,6 +79,49 @@ definitions:
     sample: JOB-01
     description: 「JOB-」と 2 桁の数字。
 
+  職員番号:
+    type: id
+    pattern: "^STF-[0-9]{2}$"
+    placeholder: STF-01
+    sample: STF-01
+    description: 「STF-」と 2 桁の数字。
+  規約番号:
+    type: id
+    pattern: "^REG-[0-9]{2}$"
+    placeholder: REG-01
+    sample: REG-01
+    description: 「REG-」と 2 桁の数字（条の番号）。
+  処分番号:
+    type: id
+    pattern: "^SNC-[0-9]{3}$"
+    placeholder: SNC-001
+    sample: SNC-001
+    description: 「SNC-」と 3 桁の数字。処分のファイル名にもなります。
+  昇格審査番号:
+    type: id
+    pattern: "^PRM-[0-9]{3}$"
+    placeholder: PRM-001
+    sample: PRM-001
+    description: 「PRM-」と 3 桁の数字。昇格審査のファイル名にもなります。
+  訓練番号:
+    type: id
+    pattern: "^TRN-[0-9]{2}$"
+    placeholder: TRN-01
+    sample: TRN-01
+    description: 「TRN-」と 2 桁の数字。訓練の課程のファイル名にもなります。
+  受講番号:
+    type: id
+    pattern: "^TRN-[0-9]{2}-E[0-9]+$"
+    placeholder: TRN-01-E1
+    sample: TRN-01-E1
+    description: 訓練番号に「-E」と受講の順番を付けます（例 TRN-01-E1）。
+  買取番号:
+    type: id
+    pattern: "^BUY-[0-9]{4}$"
+    placeholder: BUY-0001
+    sample: BUY-0001
+    description: 「BUY-」と 4 桁の数字。買取のファイル名にもなります。
+
   # ---- 参照の型 ----
   # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
   ランク参照:
@@ -112,8 +155,7 @@ definitions:
     idPattern: "BRN-*"
     scope:
       schemaIds: [branch]
-    relation: received-at
-    description: 依頼を受け付けた支部の番号を 1 件。
+    description: 支部の番号を 1 件。関係名は使う側が付けます（依頼の受付支部・職員の所属支部）。
   場所参照:
     type: ref
     idPattern: "PLC-*"
@@ -125,8 +167,7 @@ definitions:
     idPattern: "MAT-*"
     scope:
       schemaIds: [material-list]
-    relation: drops
-    description: 素材の番号を 1 件。
+    description: 素材の番号を 1 件。関係名は使う側が付けます（魔物が落とす素材・買い取った素材）。
   対象参照:
     type: ref
     idPatterns: ["MON-*", "MAT-*"]
@@ -139,8 +180,33 @@ definitions:
     idPattern: "JOB-*"
     scope:
       schemaIds: [job-list]
-    relation: has-job
-    description: 職能の番号を 1 件。
+    description: 職能の番号を 1 件。関係名は使う側が付けます（冒険者の職能・訓練で身に付く職能）。
+  職員参照:
+    type: ref
+    idPattern: "STF-*"
+    scope:
+      schemaIds: [staff-list]
+    description: 職員の番号を 1 件。関係名は使う側が付けます。
+  規約参照:
+    type: ref
+    idPattern: "REG-*"
+    scope:
+      schemaIds: [regulation-list]
+    relation: violates
+    description: 規約（条）の番号を 1 件。
+  冒険者かパーティ参照:
+    type: ref
+    idPatterns: ["ADV-*", "PTY-*"]
+    scope:
+      schemaIds: [adventurer, party]
+    description: 冒険者かパーティの番号を 1 件。関係名は使う側が付けます。
+  教官参照:
+    type: ref
+    idPatterns: ["STF-*", "ADV-*"]
+    scope:
+      schemaIds: [staff-list, adventurer]
+    relation: taught-by
+    description: 教官の番号を 1 件。職員か冒険者（引退した冒険者も）です。
   受注参照:
     type: ref
     idPattern: "QST-*-A*"
@@ -238,6 +304,42 @@ definitions:
       - { value: monster-part, label: 魔物の部位 }
       - { value: mineral, label: 鉱物 }
       - { value: other, label: その他 }
+  職員の役目:
+    type: enum
+    values:
+      - { value: branch-manager, label: 支部長 }
+      - { value: receptionist, label: 受付 }
+      - { value: appraiser, label: 鑑定士 }
+      - { value: instructor, label: 教官 }
+      - { value: accountant, label: 会計 }
+  規約の分類:
+    type: enum
+    values:
+      - { value: registration, label: 登録 }
+      - { value: quest, label: 依頼と受注 }
+      - { value: reward, label: 報酬と手数料 }
+      - { value: conduct, label: 行い }
+      - { value: promotion, label: 昇格 }
+      - { value: training, label: 訓練 }
+  処分の種類:
+    type: enum
+    values:
+      - { value: caution, label: 注意 }
+      - { value: suspension, label: 受注停止 }
+      - { value: demotion, label: 降格 }
+      - { value: expulsion, label: 除名 }
+  審査の結果:
+    type: enum
+    values:
+      - { value: pending, label: 審査中 }
+      - { value: passed, label: 合格 }
+      - { value: failed, label: 不合格 }
+  受講の結果:
+    type: enum
+    values:
+      - { value: in-progress, label: 受講中 }
+      - { value: completed, label: 修了 }
+      - { value: dropped, label: 中止 }
   依頼者の区分:
     type: enum
     values:
@@ -283,7 +385,7 @@ definitions:
       - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true }
       - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
-      - { key: job, label: 職能, type: 職能参照, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
+      - { key: job, label: 職能, type: 職能参照, relation: has-job, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
       - { key: note, label: 備考, type: 文章 }
   構成員:
     type: ref
@@ -360,8 +462,9 @@ definitions:
       - { key: title, label: 件名, type: 一行の文, role: title, required: true }
       - { key: kind, label: 種別, type: 依頼の種別, required: true }
       - { key: status, label: 状態, type: 依頼の状態, required: true, default: received }
-      - { key: branch, label: 受付支部, type: 支部参照, required: true, description: 依頼を受け付けた支部です。精算の手数料率はこの支部のものを使います。 }
+      - { key: branch, label: 受付支部, type: 支部参照, relation: received-at, required: true, description: 依頼を受け付けた支部です。精算の手数料率はこの支部のものを使います。 }
       - { key: client, label: 依頼者, type: 依頼者参照, required: true }
+      - { key: handledBy, label: 受付担当, type: 職員参照, relation: handled-by, description: 依頼を受け付けた職員です。 }
       - { key: requiredRank, label: 受注できるランクの下限, type: ランク参照, relation: requires-rank, description: 書かなければ、どのランクでも受けられます。 }
       - { key: reward, label: 報酬, type: 金額, required: true }
       - { key: receivedOn, label: 受付日, type: 年月日, required: true }
@@ -480,7 +583,7 @@ definitions:
         label: 落とす素材
         type: array
         description: 討伐で得られる素材です。
-        item: { type: 素材参照 }
+        item: { type: 素材参照, relation: drops }
       - { key: description, label: 説明, type: 文章 }
   職能:
     type: object
@@ -490,3 +593,167 @@ definitions:
       - { key: id, label: 職能番号, type: 職能番号, required: true }
       - { key: name, label: 名前, type: 一行の文, role: title, required: true }
       - { key: description, label: 説明, type: 文章 }
+
+  # ---- オブジェクト型（運営） ----
+  職員:
+    type: object
+    label: ギルド職員
+    entity: { type: staff, defines: true }
+    fields:
+      - { key: id, label: 職員番号, type: 職員番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: role, label: 役目, type: 職員の役目, required: true }
+      - { key: branch, label: 所属支部, type: 支部参照, relation: works-at, required: true }
+      - { key: note, label: 備考, type: 文章 }
+  規約:
+    type: object
+    label: 規約
+    entity: { type: regulation, defines: true }
+    fields:
+      - { key: id, label: 規約番号, type: 規約番号, required: true }
+      - { key: title, label: 見出し, type: 一行の文, role: title, required: true }
+      - { key: category, label: 分類, type: 規約の分類, required: true }
+      - { key: text, label: 条文, type: 文章, required: true }
+      - key: checks
+        label: 確かめる検査・操作
+        type: array
+        description: この規約を確かめる検査か操作の id です（YDE の定義の id を文字で書きます）。人の判断で守る規約は空にします。
+        item: { type: word }
+  処分:
+    type: object
+    label: 処分
+    entity: { type: sanction, defines: true }
+    fields:
+      - { key: id, label: 処分番号, type: 処分番号, required: true }
+      - { key: subject, label: 対象, type: 冒険者かパーティ参照, relation: sanction-of, required: true }
+      - { key: kind, label: 種類, type: 処分の種類, required: true }
+      - { key: regulation, label: 違反した規約, type: 規約参照, required: true, description: 処分の根拠の規約です。 }
+      - { key: decidedOn, label: 決めた日, type: 年月日, required: true }
+      - { key: until, label: 終わる日, type: 年月日, description: 受注停止の終わりの日です。 }
+      - { key: decidedBy, label: 決めた職員, type: 職員参照, relation: decided-by, required: true }
+      - { key: reason, label: 理由, type: 文章, required: true }
+    constraints:
+      - id: suspension-has-until
+        description: 受注停止の処分には終わる日があること
+        where:
+          - { path: kind, equals: suspension }
+          - { path: until, exists: false }
+        expect: absent
+        level: error
+        message: "受注停止の処分「{id}」に終わる日がありません"
+      - id: until-not-before-decided
+        description: 終わる日は決めた日以降であること
+        where: [ { path: until, exists: true } ]
+        check: [ { gte: [ { path: until }, { path: decidedOn } ] } ]
+        level: error
+  昇格審査:
+    type: object
+    label: 昇格審査
+    entity: { type: promotion, defines: true }
+    fields:
+      - { key: id, label: 昇格審査番号, type: 昇格審査番号, required: true }
+      - { key: candidate, label: 対象, type: 冒険者かパーティ参照, relation: promotion-of, required: true }
+      - { key: fromRank, label: いまのランク, type: ランク参照, relation: from-rank, required: true }
+      - { key: toRank, label: 昇格先のランク, type: ランク参照, relation: to-rank, required: true }
+      - { key: appliedOn, label: 申請日, type: 年月日, required: true }
+      - { key: result, label: 結果, type: 審査の結果, required: true, default: pending }
+      - { key: decidedOn, label: 決めた日, type: 年月日, description: 合格か不合格を決めた日です。 }
+      - { key: decidedBy, label: 決めた職員, type: 職員参照, relation: decided-by }
+      - key: basedOn
+        label: 根拠の実績
+        type: array
+        description: 審査の根拠にした受注です。
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] }, relation: based-on }
+      - { key: note, label: 備考, type: 文章 }
+    constraints:
+      - id: decided-has-date
+        description: 合格・不合格の審査には決めた日と決めた職員があること
+        where:
+          - { path: result, oneOf: [passed, failed] }
+          - { or: [ { path: decidedOn, exists: false }, { path: decidedBy, exists: false } ] }
+        expect: absent
+        level: error
+        message: "昇格審査「{id}」は結果が出ているのに、決めた日か決めた職員がありません"
+      - id: pending-has-no-date
+        description: 審査中の審査には決めた日が無いこと
+        where:
+          - { path: result, equals: pending }
+          - { path: decidedOn, exists: true }
+        expect: absent
+        level: error
+        message: "審査中の昇格審査「{id}」に決めた日があります"
+      - id: decided-not-before-applied
+        description: 決めた日は申請日以降であること
+        where: [ { path: decidedOn, exists: true } ]
+        check: [ { gte: [ { path: decidedOn }, { path: appliedOn } ] } ]
+        level: error
+  受講:
+    type: object
+    label: 受講
+    entity: { type: enrollment, defines: true }
+    fields:
+      - { key: id, label: 受講番号, type: 受講番号, required: true }
+      - { key: trainee, label: 受講者, type: 冒険者参照, relation: trainee, required: true }
+      - { key: startedOn, label: 始めた日, type: 年月日, required: true }
+      - { key: result, label: 結果, type: 受講の結果, required: true, default: in-progress }
+      - { key: completedOn, label: 終えた日, type: 年月日, description: 修了か中止の日です。 }
+    constraints:
+      - id: finished-has-date
+        description: 修了・中止の受講には終えた日があること
+        where:
+          - { path: result, oneOf: [completed, dropped] }
+          - { path: completedOn, exists: false }
+        expect: absent
+        level: error
+        message: "受講「{id}」は終わっているのに、終えた日がありません"
+      - id: in-progress-has-no-date
+        description: 受講中の受講には終えた日が無いこと
+        where:
+          - { path: result, equals: in-progress }
+          - { path: completedOn, exists: true }
+        expect: absent
+        level: error
+        message: "受講中の受講「{id}」に終えた日があります"
+      - id: completed-not-before-started
+        description: 終えた日は始めた日以降であること
+        where: [ { path: completedOn, exists: true } ]
+        check: [ { gte: [ { path: completedOn }, { path: startedOn } ] } ]
+        level: error
+  訓練の課程:
+    type: object
+    label: 訓練の課程
+    entity: { type: training, defines: true }
+    fields:
+      - { key: id, label: 訓練番号, type: 訓練番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: job, label: 身に付く職能, type: 職能参照, relation: trains-for, description: 書かなければ、職能によらない課程（新人講習など）です。 }
+      - { key: instructor, label: 教官, type: 教官参照, required: true }
+      - { key: fee, label: 受講料, type: 金額 }
+      - { key: description, label: 内容, type: 文章 }
+      - key: enrollments
+        label: 受講
+        type: array
+        relation: has-enrollment
+        default: []
+        methods:
+          insert:
+            id: { path: id, prefix: { $format: "{id}-E", $of: self }, digits: 1 }
+        item: { type: 受講 }
+  買取:
+    type: object
+    label: 素材の買取
+    entity: { type: purchase, defines: true }
+    fields:
+      - { key: id, label: 買取番号, type: 買取番号, required: true }
+      - { key: seller, label: 売り手, type: 冒険者かパーティ参照, relation: sold-by, required: true }
+      - { key: material, label: 素材, type: 素材参照, relation: buys, required: true }
+      - { key: quantity, label: 数, type: int, min: 1, required: true }
+      - { key: unitPrice, label: 単価, type: 金額, required: true }
+      - { key: amount, label: 代金, type: 金額, required: true, description: 単価 × 数。検査が確かめます。 }
+      - { key: purchasedOn, label: 買い取った日, type: 年月日, required: true }
+      - { key: appraisedBy, label: 鑑定した職員, type: 職員参照, relation: appraised-by }
+    constraints:
+      - id: purchase-amount
+        description: 代金は単価 × 数であること
+        check: [ { eq: [ { number: { path: amount } }, { number: { multiply: [ { path: unitPrice }, { path: quantity } ] } } ] } ]
+        level: error

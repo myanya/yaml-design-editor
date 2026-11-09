@@ -1,0 +1,16 @@
+id: TRN-01
+name: 新人講習
+instructor: STF-04
+fee: 0
+description: 登録したばかりの冒険者に、依頼の受け方・野営・応急の手当てを教える 3 日の講習です。
+enrollments:
+  - id: TRN-01-E1
+    trainee: ADV-0007
+    startedOn: 2026-07-01
+    result: completed
+    completedOn: 2026-07-03
+  - id: TRN-01-E2
+    trainee: ADV-0010
+    startedOn: 2026-07-01
+    result: completed
+    completedOn: 2026-07-03

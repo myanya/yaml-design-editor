@@ -18,6 +18,13 @@ entities:
   - { type: monster, label: 魔物 }
   - { type: material, label: 素材 }
   - { type: job, label: 職能 }
+  - { type: staff, label: ギルド職員 }
+  - { type: regulation, label: 規約 }
+  - { type: sanction, label: 処分 }
+  - { type: promotion, label: 昇格審査 }
+  - { type: training, label: 訓練の課程 }
+  - { type: enrollment, label: 受講 }
+  - { type: purchase, label: 素材の買取 }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -136,3 +143,129 @@ relations:
     cardinality: { outMax: 1 }
     level: error
     description: 冒険者の主な職能です。1 つまでです
+  - name: works-at
+    label: 所属支部
+    inverseLabel: 所属する職員
+    source: [staff]
+    target: [branch]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 職員が勤める支部です
+  - name: handled-by
+    label: 受付担当
+    inverseLabel: 受け付けた依頼
+    source: [quest]
+    target: [staff]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 依頼を受け付けた職員です
+  - name: sanction-of
+    label: 処分の対象
+    inverseLabel: 受けた処分
+    source: [sanction]
+    target: [adventurer, party]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 処分を受けた冒険者かパーティです
+  - name: violates
+    label: 違反した規約
+    inverseLabel: この規約の違反
+    source: [sanction]
+    target: [regulation]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 処分の根拠の規約です
+  - name: decided-by
+    label: 決めた職員
+    inverseLabel: 決めた処分・審査
+    source: [sanction, promotion]
+    target: [staff]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 処分や昇格審査の結果を決めた職員です
+  - name: promotion-of
+    label: 審査の対象
+    inverseLabel: 受けた昇格審査
+    source: [promotion]
+    target: [adventurer, party]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 昇格審査を受ける冒険者かパーティです
+  - name: from-rank
+    label: いまのランク
+    inverseLabel: このランクからの昇格審査
+    source: [promotion]
+    target: [rank]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 審査のときのランクです
+  - name: to-rank
+    label: 昇格先のランク
+    inverseLabel: このランクへの昇格審査
+    source: [promotion]
+    target: [rank]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 合格すると上がるランクです
+  - name: based-on
+    label: 根拠の実績
+    inverseLabel: この実績を根拠にした昇格審査
+    source: [promotion]
+    target: [assignment]
+    level: error
+    description: 昇格審査の根拠にした受注です
+  - name: trains-for
+    label: 身に付く職能
+    inverseLabel: この職能の訓練
+    source: [training]
+    target: [job]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 訓練で身に付く職能です
+  - name: taught-by
+    label: 教官
+    inverseLabel: 教える訓練
+    source: [training]
+    target: [staff, adventurer]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 訓練の教官です。職員か冒険者（引退した冒険者も）です
+  - name: has-enrollment
+    label: 受講
+    inverseLabel: 受講した訓練の課程
+    source: [training]
+    target: [enrollment]
+    level: error
+    description: 課程が受講の記録を保有します（入れ子で書くので、文書には何も書きません）
+  - name: trainee
+    label: 受講者
+    inverseLabel: 受講
+    source: [enrollment]
+    target: [adventurer]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 訓練を受ける冒険者です
+  - name: sold-by
+    label: 売り手
+    inverseLabel: 売った素材の買取
+    source: [purchase]
+    target: [adventurer, party]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 素材をギルドに売った冒険者かパーティです
+  - name: buys
+    label: 買い取った素材
+    inverseLabel: この素材の買取
+    source: [purchase]
+    target: [material]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: ギルドが買い取った素材です
+  - name: appraised-by
+    label: 鑑定した職員
+    inverseLabel: 鑑定した買取
+    source: [purchase]
+    target: [staff]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 買取の値段を鑑定した職員です

@@ -1,0 +1,17 @@
+id: staff-list
+name: ギルド職員
+kind: document
+description: 支部で働く職員の一覧です。役目（支部長・受付・鑑定士・教官・会計）を持ちます。
+match: guild/staff.yaml
+root:
+  type: object
+  fields:
+    - key: staff
+      label: 職員
+      type: array
+      required: true
+      display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "STF-", digits: 2 }
+      item: { type: common#職員 }

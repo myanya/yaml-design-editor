@@ -1,0 +1,7 @@
+id: purchase
+name: 素材の買取
+kind: document
+description: ギルドが冒険者かパーティから素材を買い取った記録 1 件を 1 ファイルで管理します。
+match: "guild/purchases/*.yaml"
+filePattern: "guild/purchases/{id}.yaml"
+root: { type: common#買取 }

@@ -1,0 +1,7 @@
+id: sanction
+name: 処分
+kind: document
+description: 冒険者かパーティへの処分 1 件を 1 ファイルで管理します。根拠の規約と、決めた職員を参照します。
+match: "guild/sanctions/*.yaml"
+filePattern: "guild/sanctions/{id}.yaml"
+root: { type: common#処分 }
