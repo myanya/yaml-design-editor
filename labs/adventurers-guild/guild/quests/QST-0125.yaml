@@ -1,0 +1,20 @@
+id: QST-0125
+title: 穂波の村の棘猪を討伐し、皮を納める
+kind: subjugation
+status: received
+branch: BRN-01
+client: CLT-005
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 450
+receivedOn: 2026-11-09
+deadline: 2026-11-28
+place: PLC-011
+targets:
+  - MON-005
+  - { to: MAT-010, quantity: 3 }
+description: 麦の蔵を荒らす棘猪を退治してほしい。皮は村で靴に仕立てるので、3 枚を傷めずに持ち帰ってほしい。
+history:
+  - date: 2026-11-09
+    action: register-quest
+    to: received

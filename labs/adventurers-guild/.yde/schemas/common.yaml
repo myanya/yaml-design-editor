@@ -174,7 +174,9 @@ definitions:
     scope:
       schemaIds: [monster, material-list]
     relation: targets
-    description: 依頼の対象の魔物か素材の番号を 1 件（討伐なら魔物、採取なら素材）。
+    fields:
+      - { key: quantity, label: 数, type: int, min: 1, description: 納める数です（採取や納品の素材・討伐の納品物）。 }
+    description: 依頼の対象の魔物か素材の番号を 1 件（討伐なら魔物と、その魔物が落とす納品物。採取と納品なら素材）。数を添えるときは to と quantity で書きます。
   職能参照:
     type: ref
     idPattern: "JOB-*"
@@ -285,6 +287,7 @@ definitions:
       - { value: escort, label: 護衛 }
       - { value: investigation, label: 調査 }
       - { value: delivery, label: 配達 }
+      - { value: procurement, label: 納品, description: 素材を集めて納める。集め方は問わない（討伐でも買い集めでもよい） }
       - { value: other, label: その他 }
   場所の種類:
     type: enum
@@ -385,7 +388,7 @@ definitions:
       - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true }
       - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
-      - { key: job, label: 職能, type: 職能参照, relation: has-job, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
+      - { key: job, label: 職能, type: 職能参照, relation: has-job, required: true, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
       - { key: note, label: 備考, type: 文章 }
   構成員:
     type: ref
@@ -473,7 +476,7 @@ definitions:
       - key: targets
         label: 対象
         type: array
-        description: 討伐の魔物や、採取の素材です。
+        description: 討伐の魔物（と、その魔物が落とす素材の納品物）、採取や納品の素材です。
         item: { type: 対象参照 }
       - { key: description, label: 内容, type: 文章 }
       - key: assignments
@@ -566,6 +569,11 @@ definitions:
       - { key: id, label: 素材番号, type: 素材番号, required: true }
       - { key: name, label: 名前, type: 一行の文, role: title, required: true }
       - { key: kind, label: 種類, type: 素材の種類, required: true }
+      - key: origins
+        label: 産地
+        type: array
+        description: 採れる場所です（植物・鉱物）。魔物の部位は、落とす魔物で分かるので書きません。
+        item: { type: 場所参照, relation: found-at }
       - { key: description, label: 説明, type: 文章 }
   魔物:
     type: object

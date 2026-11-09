@@ -193,6 +193,135 @@ constraints:
     level: warning
     message: "討伐依頼「{id}」に受注できるランクの下限がありません（{m.title} の討伐の目安は {rm.title}）"
 
+  # ---- 種別と対象・場所（世界との整合。どれも警告） ----
+  - id: subjugation-targets-monster
+    description: 討伐依頼は魔物を対象にすること（無ければ警告）
+    match: [ { node: { entity: quest, bind: q } }, { edge: { relation: targets } }, { node: { entity: monster } } ]
+    where: [ { of: q, path: kind, equals: subjugation } ]
+    expect: exists
+    level: warning
+    message: "討伐依頼「{id}」の対象に魔物がありません"
+  - id: gathering-targets-plain-materials
+    description: 採取依頼の対象は、魔物でも魔物の部位でもない素材であること（魔物の部位なら討伐か納品にする）
+    match: [ { node: { entity: quest, bind: q } }, { edge: { relation: targets } }, { node: { bind: x } } ]
+    where:
+      - { of: q, path: kind, equals: gathering }
+      - { or: [ { of: x, path: recommendedRank, exists: true }, { of: x, path: kind, equals: monster-part } ] }
+    expect: absent
+    level: warning
+    message: "採取依頼「{id}」の対象 {x.title} は採取では得られません（魔物の部位なら討伐か納品にします）"
+  - id: procurement-targets-materials
+    description: 納品依頼の対象は素材であること（魔物があれば警告）
+    match: [ { node: { entity: quest, bind: q } }, { edge: { relation: targets } }, { node: { entity: monster, bind: x } } ]
+    where: [ { of: q, path: kind, equals: procurement } ]
+    expect: absent
+    level: warning
+    message: "納品依頼「{id}」の対象に魔物 {x.title} があります（納品の対象は素材です。倒すなら討伐にします）"
+  # 素材ごとに「落とす魔物が対象にあるか」を確かめると、納品物の無い討伐依頼まで指摘してしまう（exists は起点ごとの判定）ので、
+  # 対象の素材の数と、そのうち対象の魔物が落とす素材の数を比べる
+  - id: subjugation-goods-are-drops
+    description: 討伐依頼の納品物（対象の素材）は、どれも対象の魔物が落とす素材であること
+    match: [ { node: { entity: quest, bind: q } } ]
+    where: [ { of: q, path: kind, equals: subjugation } ]
+    check:
+      - eq:
+          - count:
+              all:
+                from: q
+                match:
+                  - node: { entity: quest }
+                  - edge: { relation: targets }
+                  - node: { entity: material, bind: x }
+          - count:
+              all:
+                from: q
+                match:
+                  - node: { entity: quest, bind: q2 }
+                  - edge: { relation: targets }
+                  - node: { entity: material, bind: x }
+                also:
+                  from: q2
+                  steps:
+                    - edge: { relation: targets }
+                    - node: { entity: monster }
+                    - edge: { relation: drops }
+                    - node: { same: x }
+                of: x
+    level: warning
+    message: "討伐依頼「{id}」の納品物 {left} 件のうち、対象の魔物が落とす素材は {right} 件です（納品物は対象の魔物が落とす素材にします）"
+  - id: subjugation-in-habitat
+    description: 討伐依頼の場所は、対象の魔物の生息地であること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: located-at }
+      - node: { entity: place, bind: p }
+    also:
+      from: q
+      steps:
+        - edge: { relation: targets }
+        - node: { entity: monster }
+        - edge: { relation: inhabits }
+        - node: { same: p }
+    where: [ { of: q, path: kind, equals: subjugation } ]
+    expect: exists
+    level: warning
+    message: "討伐依頼「{id}」の場所は、対象の魔物の生息地ではありません（魔物の一覧の生息地を確かめます）"
+  - id: gathering-at-origin
+    description: 採取依頼の場所は、対象の素材の産地であること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: located-at }
+      - node: { entity: place, bind: p }
+    also:
+      from: q
+      steps:
+        - edge: { relation: targets }
+        - node: { entity: material }
+        - edge: { relation: found-at }
+        - node: { same: p }
+    where: [ { of: q, path: kind, equals: gathering } ]
+    expect: exists
+    level: warning
+    message: "採取依頼「{id}」の場所は、対象の素材の産地ではありません（素材の一覧の産地を確かめます）"
+  # 納品は集め方を問わないが、魔物の部位は結局その魔物を倒して得るので、討伐の目安を下限の目安にする
+  - id: procurement-rank-meets-monster
+    description: 魔物の部位を納める納品依頼の下限ランクは、その部位を落とす魔物の討伐の目安を下回らないこと
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: targets }
+      - node: { entity: material, bind: x }
+      - edge: { relation: drops, dir: in }
+      - node: { entity: monster, bind: m }
+      - edge: { relation: recommended-rank }
+      - node: { entity: rank, bind: rm }
+    also:
+      from: q
+      steps:
+        - edge: { relation: requires-rank }
+        - node: { entity: rank, bind: rq }
+    where: [ { of: q, path: kind, equals: procurement } ]
+    check:
+      - gte: [ { of: rq, path: order }, { of: rm, path: order } ]
+    level: warning
+    message: "納品依頼「{id}」の下限 {rq.title} は、{x.title} を落とす {m.title} の討伐の目安 {rm.title} を下回っています"
+  - id: procurement-without-rank
+    description: 討伐の目安が F より上の魔物の部位を納める納品依頼には、下限ランクがあること
+    match:
+      - node: { entity: quest, bind: q }
+      - edge: { relation: targets }
+      - node: { entity: material, bind: x }
+      - edge: { relation: drops, dir: in }
+      - node: { entity: monster, bind: m }
+      - edge: { relation: recommended-rank }
+      - node: { entity: rank, bind: rm }
+    where:
+      - { of: q, path: kind, equals: procurement }
+      - { of: q, path: requiredRank, exists: false }
+      - { of: rm, path: order, gt: 1 }
+    expect: absent
+    level: warning
+    message: "納品依頼「{id}」に下限ランクがありません（{x.title} を落とす {m.title} の討伐の目安は {rm.title}）"
+
 # ---- 操作: 依頼の状態を進める ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す（前の状態を読むため）。
 # 受け手のランク・同時に受けられる数・受注できない状態は、上の検査と同じ決まりを、適用後の検証が止める
@@ -212,7 +341,7 @@ actions:
       - { key: reward, label: 報酬, type: common#金額, required: true, description: 10 の倍数にします。 }
       - { key: deadline, label: 期限, type: common#年月日 }
       - { key: place, label: 場所, type: common#場所参照 }
-      - { key: targets, label: 対象, type: array, item: { type: common#対象参照 }, description: 討伐の魔物や採取の素材です。 }
+      - { key: targets, label: 対象, type: array, item: { type: common#対象参照 }, description: 討伐の魔物（と納品物）、採取や納品の素材です。数は登録のあとで書き足します。 }
       - { key: description, label: 内容, type: common#文章 }
       - { key: date, label: 受付日, type: common#年月日, required: true }
       - { key: branch, label: 受付支部, type: common#支部参照, required: true, default: BRN-01 }

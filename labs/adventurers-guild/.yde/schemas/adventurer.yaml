@@ -15,10 +15,11 @@ actions:
     params:
       - { key: name, label: 名前, type: common#一行の文, required: true, minLength: 1 }
       - { key: rank, label: ランク, type: common#ランク参照, required: true }
+      - { key: job, label: 職能, type: common#職能参照, required: true }
       - { key: date, label: 登録日, type: common#年月日, required: true }
       - { key: note, label: 備考, type: common#文章 }
     do:
       - create:
           schema: adventurer
           id: { prefix: "ADV-", digits: 4 }
-          params: { name: $name, rank: $rank, status: active, registeredOn: $date, note: { $copy: note } }
+          params: { name: $name, rank: $rank, job: $job, status: active, registeredOn: $date, note: { $copy: note } }

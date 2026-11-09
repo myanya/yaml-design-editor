@@ -112,7 +112,14 @@ relations:
     source: [quest]
     target: [monster, material]
     level: error
-    description: 討伐の魔物や採取の素材です。いくつでも書けます
+    description: 討伐の魔物と納品物、採取や納品の素材です。いくつでも書けて、素材には数を添えられます
+  - name: found-at
+    label: 産地
+    inverseLabel: ここで採れる素材
+    source: [material]
+    target: [place]
+    level: error
+    description: 植物や鉱物の素材が採れる場所です
   - name: inhabits
     label: 生息地
     inverseLabel: ここに棲む魔物
@@ -140,9 +147,9 @@ relations:
     inverseLabel: この職能の冒険者
     source: [adventurer]
     target: [job]
-    cardinality: { outMax: 1 }
+    cardinality: { outMin: 1, outMax: 1 }
     level: error
-    description: 冒険者の主な職能です。1 つまでです
+    description: 冒険者の主な職能です。必ず 1 つです
   - name: works-at
     label: 所属支部
     inverseLabel: 所属する職員

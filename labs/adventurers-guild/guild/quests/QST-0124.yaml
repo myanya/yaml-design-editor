@@ -1,0 +1,22 @@
+id: QST-0124
+title: 岩甲虫の殻を 5 枚納める
+kind: procurement
+status: posted
+branch: BRN-01
+client: CLT-007
+handledBy: STF-03
+requiredRank: RNK-E
+reward: 200
+receivedOn: 2026-11-08
+deadline: 2026-11-30
+targets:
+  - { to: MAT-011, quantity: 5 }
+description: 鍛冶場で盾の裏打ちに使う。割れや欠けの無いものを 5 枚。倒して得ても、手持ちを持ち込んでもよい。
+history:
+  - date: 2026-11-08
+    action: register-quest
+    to: received
+  - date: 2026-11-08
+    action: post-quest
+    from: received
+    to: posted
