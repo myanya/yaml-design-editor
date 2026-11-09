@@ -1,0 +1,37 @@
+id: QST-0114
+title: 隣町までの荷馬車を護衛する
+kind: escort
+status: reported
+branch: BRN-01
+client: CLT-002
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 600
+receivedOn: 2026-10-15
+deadline: 2026-11-05
+place: PLC-006
+description: 荷馬車 3 台を隣町の市まで送り、帰りの空の馬車も連れ帰る。
+assignments:
+  - id: QST-0114-A1
+    taker: PTY-002
+    acceptedOn: 2026-10-18
+    report:
+      reportedOn: 2026-11-02
+      outcome: success
+      summary: 往復とも荷は無事。帰りに峠で落石があり、半日遅れた。
+history:
+  - date: 2026-10-15
+    action: register-quest
+    to: received
+  - date: 2026-10-16
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-10-18
+    action: accept-quest
+    from: posted
+    to: assigned
+  - date: 2026-11-02
+    action: report-quest
+    from: assigned
+    to: reported

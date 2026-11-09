@@ -1,25 +1,36 @@
 id: QST-0010
-title: 橋の落ちた村へ物資を運ぶ
+title: 穂波の村へ薬を届ける
 kind: delivery
-status: cancelled
+status: failed
 branch: BRN-01
-client: CLT-002
-requiredRank: RNK-D
-reward: 400
-receivedOn: 2026-10-20
-deadline: 2026-11-10
-place: PLC-008
-description: 川向こうの村へ、浅瀬を渡って小麦と塩を運ぶ。
+client: CLT-003
+handledBy: STF-02
+reward: 100
+receivedOn: 2025-12-03
+deadline: 2025-12-29
+place: PLC-011
+assignments:
+  - id: QST-0010-A1
+    taker: ADV-0006
+    acceptedOn: 2025-12-05
+    report:
+      reportedOn: 2025-12-10
+      outcome: failure
+      summary: 雨で荷が濡れて傷み、届けられなかった。
 history:
-  - date: 2026-10-20
+  - date: 2025-12-03
     action: register-quest
     to: received
-  - date: 2026-10-21
+  - date: 2025-12-05
     action: post-quest
     from: received
     to: posted
-  - date: 2026-11-01
-    action: cancel-quest
+  - date: 2025-12-05
+    action: accept-quest
     from: posted
-    to: cancelled
-    note: 町が仮の橋を架けたため、商会が自分の馬車で運ぶことにして取り下げた。
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2025-12-10
+    action: report-quest
+    from: assigned
+    to: failed

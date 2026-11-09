@@ -1,0 +1,41 @@
+id: QST-0030
+title: 穂波の村の井戸の水が濁る訳を調べる
+kind: investigation
+status: settled
+branch: BRN-01
+client: CLT-005
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 70
+receivedOn: 2026-03-04
+deadline: 2026-04-08
+place: PLC-011
+assignments:
+  - id: QST-0030-A1
+    taker: ADV-0006
+    acceptedOn: 2026-03-05
+    report:
+      reportedOn: 2026-03-10
+      outcome: success
+      summary: 獣の仕業と分かり、依頼者に伝えた。
+history:
+  - date: 2026-03-04
+    action: register-quest
+    to: received
+  - date: 2026-03-05
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-05
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-03-10
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-10
+    action: settle-quest
+    from: reported
+    to: settled

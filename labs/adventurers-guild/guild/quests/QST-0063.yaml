@@ -1,0 +1,41 @@
+id: QST-0063
+title: 穂波の村へ薬を届ける
+kind: delivery
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 110
+receivedOn: 2026-05-28
+deadline: 2026-06-16
+place: PLC-011
+assignments:
+  - id: QST-0063-A1
+    taker: ADV-0008
+    acceptedOn: 2026-06-01
+    report:
+      reportedOn: 2026-06-02
+      outcome: success
+      summary: 期日どおりに手渡した。
+history:
+  - date: 2026-05-28
+    action: register-quest
+    to: received
+  - date: 2026-05-28
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-06-01
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2026-06-02
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-06-05
+    action: settle-quest
+    from: reported
+    to: settled

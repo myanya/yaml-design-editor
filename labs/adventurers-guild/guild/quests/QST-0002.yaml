@@ -1,40 +1,43 @@
 id: QST-0002
-title: 月影草を 20 束採ってくる
+title: 青石を 2 個掘ってくる
 kind: gathering
 status: settled
 branch: BRN-01
-client: CLT-003
-requiredRank: RNK-F
-reward: 80
-receivedOn: 2026-10-05
-deadline: 2026-10-31
-place: PLC-003
-targets: [MAT-001]
-description: 解熱の薬に使う月影草を、根を傷めずに 20 束。
+client: CLT-007
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 110
+receivedOn: 2025-11-05
+deadline: 2025-12-03
+place: PLC-012
+targets: [MAT-014]
+description: 白岩の石切り場で青石を2個。
 assignments:
   - id: QST-0002-A1
-    taker: ADV-0006
-    acceptedOn: 2026-10-06
+    taker: ADV-0004
+    acceptedOn: 2025-11-07
     report:
-      reportedOn: 2026-10-08
+      reportedOn: 2025-11-09
       outcome: success
+      summary: 頼まれた数をそろえて渡した。
 history:
-  - date: 2026-10-05
+  - date: 2025-11-05
     action: register-quest
     to: received
-  - date: 2026-10-05
+  - date: 2025-11-07
     action: post-quest
     from: received
     to: posted
-  - date: 2026-10-06
+  - date: 2025-11-07
     action: accept-quest
     from: posted
     to: assigned
-  - date: 2026-10-08
+    note: 受け手 ADV-0004
+  - date: 2025-11-09
     action: report-quest
     from: assigned
     to: reported
-  - date: 2026-10-09
+  - date: 2025-11-12
     action: settle-quest
     from: reported
     to: settled

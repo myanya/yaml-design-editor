@@ -1,0 +1,43 @@
+id: QST-0023
+title: 穂波の村の納屋に棲みついた倉鼠を退治する
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-005
+handledBy: STF-01
+requiredRank: RNK-F
+reward: 140
+receivedOn: 2026-02-10
+deadline: 2026-03-09
+place: PLC-011
+targets: [MON-003]
+description: 穂波の村に倉鼠が出て困っている。
+assignments:
+  - id: QST-0023-A1
+    taker: ADV-0004
+    acceptedOn: 2026-02-10
+    report:
+      reportedOn: 2026-02-13
+      outcome: success
+      summary: 群れを追い払い、残りも森の奥へ退いた。
+history:
+  - date: 2026-02-10
+    action: register-quest
+    to: received
+  - date: 2026-02-10
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-02-10
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-02-13
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-02-14
+    action: settle-quest
+    from: reported
+    to: settled

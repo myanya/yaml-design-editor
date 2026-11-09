@@ -1,0 +1,41 @@
+id: QST-0105
+title: 迷い込んだ羊を探して連れ戻す
+kind: other
+status: settled
+branch: BRN-01
+client: CLT-005
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 60
+receivedOn: 2026-09-06
+deadline: 2026-10-03
+place: PLC-011
+assignments:
+  - id: QST-0105-A1
+    taker: ADV-0005
+    acceptedOn: 2026-09-07
+    report:
+      reportedOn: 2026-09-10
+      outcome: success
+      summary: もめごとも無く、夜明けまで見回った。
+history:
+  - date: 2026-09-06
+    action: register-quest
+    to: received
+  - date: 2026-09-07
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-09-07
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0005
+  - date: 2026-09-10
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-09-12
+    action: settle-quest
+    from: reported
+    to: settled

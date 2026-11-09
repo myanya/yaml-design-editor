@@ -1,28 +1,43 @@
 id: QST-0005
-title: 北の砦へ封書を届ける
-kind: delivery
-status: assigned
+title: 黒樫の森に出る灰牙狼の群れを追い払う
+kind: subjugation
+status: settled
 branch: BRN-01
-client: CLT-001
-requiredRank: RNK-D
-reward: 200
-receivedOn: 2026-11-01
-deadline: 2026-11-15
-place: PLC-007
-description: 町役場から北の砦の守備隊長へ、封をしたままの書状を手渡す。
+client: CLT-010
+handledBy: STF-02
+requiredRank: RNK-B
+reward: 1500
+receivedOn: 2025-11-12
+deadline: 2025-12-05
+place: PLC-003
+targets: [MON-001]
+description: 黒樫の森に灰牙狼が出て困っている。
 assignments:
   - id: QST-0005-A1
-    taker: ADV-0004
-    acceptedOn: 2026-11-04
+    taker: PTY-001
+    acceptedOn: 2025-11-13
+    report:
+      reportedOn: 2025-11-21
+      outcome: success
+      summary: 巣を払い、しばらくは出ないと見られる。
 history:
-  - date: 2026-11-01
+  - date: 2025-11-12
     action: register-quest
     to: received
-  - date: 2026-11-01
+  - date: 2025-11-12
     action: post-quest
     from: received
     to: posted
-  - date: 2026-11-04
+  - date: 2025-11-13
     action: accept-quest
     from: posted
     to: assigned
+    note: 受け手 PTY-001
+  - date: 2025-11-21
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2025-11-24
+    action: settle-quest
+    from: reported
+    to: settled

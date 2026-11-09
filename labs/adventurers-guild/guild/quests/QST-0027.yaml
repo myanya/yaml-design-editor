@@ -1,0 +1,25 @@
+id: QST-0027
+title: 隣町へ手紙の束を届ける
+kind: delivery
+status: cancelled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 100
+receivedOn: 2026-02-25
+deadline: 2026-03-26
+place: PLC-006
+history:
+  - date: 2026-02-25
+    action: register-quest
+    to: received
+  - date: 2026-02-27
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-05
+    action: cancel-quest
+    from: posted
+    to: cancelled
+    note: 町が別に手配したため取り下げた。

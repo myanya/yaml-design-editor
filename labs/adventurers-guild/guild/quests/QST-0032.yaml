@@ -1,0 +1,61 @@
+id: QST-0032
+title: 穂波の村へ薬を届ける
+kind: delivery
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-01
+reward: 90
+receivedOn: 2026-03-13
+deadline: 2026-04-16
+place: PLC-011
+assignments:
+  - id: QST-0032-A1
+    taker: ADV-0005
+    acceptedOn: 2026-03-15
+    report:
+      reportedOn: 2026-03-16
+      outcome: failure
+      summary: 雨で荷が濡れて傷み、届けられなかった。
+  - id: QST-0032-A2
+    taker: ADV-0008
+    acceptedOn: 2026-03-17
+    report:
+      reportedOn: 2026-03-19
+      outcome: success
+      summary: 期日どおりに手渡した。
+history:
+  - date: 2026-03-13
+    action: register-quest
+    to: received
+  - date: 2026-03-15
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-15
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0005
+  - date: 2026-03-16
+    action: report-quest
+    from: assigned
+    to: failed
+  - date: 2026-03-17
+    action: post-quest
+    from: failed
+    to: posted
+    note: 受け手を探し直す
+  - date: 2026-03-17
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2026-03-19
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-19
+    action: settle-quest
+    from: reported
+    to: settled

@@ -1,0 +1,41 @@
+id: QST-0029
+title: 北の砦へ書状を届ける
+kind: delivery
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 210
+receivedOn: 2026-03-04
+deadline: 2026-04-03
+place: PLC-007
+assignments:
+  - id: QST-0029-A1
+    taker: ADV-0005
+    acceptedOn: 2026-03-05
+    report:
+      reportedOn: 2026-03-09
+      outcome: success
+      summary: 期日どおりに手渡した。
+history:
+  - date: 2026-03-04
+    action: register-quest
+    to: received
+  - date: 2026-03-05
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-05
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0005
+  - date: 2026-03-09
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-10
+    action: settle-quest
+    from: reported
+    to: settled

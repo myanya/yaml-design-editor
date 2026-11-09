@@ -1,0 +1,43 @@
+id: QST-0028
+title: 冬苺を 5 籠採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-006
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 120
+receivedOn: 2026-02-26
+deadline: 2026-03-27
+place: PLC-003
+targets: [MAT-013]
+description: 黒樫の森で冬苺を5籠。
+assignments:
+  - id: QST-0028-A1
+    taker: ADV-0006
+    acceptedOn: 2026-02-26
+    report:
+      reportedOn: 2026-03-03
+      outcome: success
+      summary: 傷めずに採り、その日のうちに渡した。
+history:
+  - date: 2026-02-26
+    action: register-quest
+    to: received
+  - date: 2026-02-26
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-02-26
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-03-03
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-04
+    action: settle-quest
+    from: reported
+    to: settled

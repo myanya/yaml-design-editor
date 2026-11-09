@@ -1,0 +1,43 @@
+id: QST-0051
+title: 北の峠道で旅人を襲う霧鴉を追い払う
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 190
+receivedOn: 2026-05-02
+deadline: 2026-06-01
+place: PLC-007
+targets: [MON-007]
+description: 北の峠道に霧鴉が出て困っている。
+assignments:
+  - id: QST-0051-A1
+    taker: ADV-0006
+    acceptedOn: 2026-05-02
+    report:
+      reportedOn: 2026-05-10
+      outcome: success
+      summary: 数頭を討ち、残りは逃げた。
+history:
+  - date: 2026-05-02
+    action: register-quest
+    to: received
+  - date: 2026-05-02
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-05-02
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-05-10
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-05-12
+    action: settle-quest
+    from: reported
+    to: settled

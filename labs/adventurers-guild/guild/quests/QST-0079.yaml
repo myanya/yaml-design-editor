@@ -1,0 +1,41 @@
+id: QST-0079
+title: 隣町へ手紙の束を届ける
+kind: delivery
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 100
+receivedOn: 2026-07-04
+deadline: 2026-07-20
+place: PLC-006
+assignments:
+  - id: QST-0079-A1
+    taker: ADV-0008
+    acceptedOn: 2026-07-06
+    report:
+      reportedOn: 2026-07-12
+      outcome: success
+      summary: 期日どおりに手渡した。
+history:
+  - date: 2026-07-04
+    action: register-quest
+    to: received
+  - date: 2026-07-06
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-06
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2026-07-12
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-12
+    action: settle-quest
+    from: reported
+    to: settled

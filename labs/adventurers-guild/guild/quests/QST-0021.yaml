@@ -1,0 +1,41 @@
+id: QST-0021
+title: 東の村々へ回る行商を護衛する
+kind: escort
+status: settled
+branch: BRN-01
+client: CLT-002
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 240
+receivedOn: 2026-01-24
+deadline: 2026-02-14
+place: PLC-002
+assignments:
+  - id: QST-0021-A1
+    taker: PTY-002
+    acceptedOn: 2026-01-26
+    report:
+      reportedOn: 2026-01-29
+      outcome: success
+      summary: 途中で霧に遭ったが、半日遅れで着いた。
+history:
+  - date: 2026-01-24
+    action: register-quest
+    to: received
+  - date: 2026-01-26
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-01-26
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-002
+  - date: 2026-01-29
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-01-30
+    action: settle-quest
+    from: reported
+    to: settled

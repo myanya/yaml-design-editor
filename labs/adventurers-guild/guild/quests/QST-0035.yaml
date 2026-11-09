@@ -1,0 +1,43 @@
+id: QST-0035
+title: 青石を 5 個掘ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-007
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 170
+receivedOn: 2026-03-19
+deadline: 2026-04-02
+place: PLC-012
+targets: [MAT-014]
+description: 白岩の石切り場で青石を5個。
+assignments:
+  - id: QST-0035-A1
+    taker: ADV-0001
+    acceptedOn: 2026-03-20
+    report:
+      reportedOn: 2026-03-25
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-03-19
+    action: register-quest
+    to: received
+  - date: 2026-03-20
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-20
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0001
+  - date: 2026-03-25
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-26
+    action: settle-quest
+    from: reported
+    to: settled

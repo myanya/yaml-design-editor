@@ -1,0 +1,43 @@
+id: QST-0090
+title: 眠り茸を 15 本採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 230
+receivedOn: 2026-08-05
+deadline: 2026-08-29
+place: PLC-004
+targets: [MAT-002]
+description: 灰沼で眠り茸を15本。
+assignments:
+  - id: QST-0090-A1
+    taker: ADV-0005
+    acceptedOn: 2026-08-05
+    report:
+      reportedOn: 2026-08-09
+      outcome: success
+      summary: 傷めずに採り、その日のうちに渡した。
+history:
+  - date: 2026-08-05
+    action: register-quest
+    to: received
+  - date: 2026-08-05
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-08-05
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0005
+  - date: 2026-08-09
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-08-09
+    action: settle-quest
+    from: reported
+    to: settled

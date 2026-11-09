@@ -1,0 +1,43 @@
+id: QST-0087
+title: 白岩の石切り場に湧いた岩甲虫を討つ
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 260
+receivedOn: 2026-07-28
+deadline: 2026-08-29
+place: PLC-012
+targets: [MON-006]
+description: 白岩の石切り場に岩甲虫が出て困っている。
+assignments:
+  - id: QST-0087-A1
+    taker: ADV-0006
+    acceptedOn: 2026-07-28
+    report:
+      reportedOn: 2026-07-30
+      outcome: success
+      summary: 数頭を討ち、残りは逃げた。
+history:
+  - date: 2026-07-28
+    action: register-quest
+    to: received
+  - date: 2026-07-28
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-28
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-07-30
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-08-01
+    action: settle-quest
+    from: reported
+    to: settled

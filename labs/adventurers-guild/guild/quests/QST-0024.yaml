@@ -1,0 +1,43 @@
+id: QST-0024
+title: 黒樫の森で荷馬車を襲う灰牙狼を討つ
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 470
+receivedOn: 2026-02-14
+deadline: 2026-03-12
+place: PLC-003
+targets: [MON-001]
+description: 黒樫の森に灰牙狼が出て困っている。
+assignments:
+  - id: QST-0024-A1
+    taker: PTY-002
+    acceptedOn: 2026-02-16
+    report:
+      reportedOn: 2026-02-23
+      outcome: success
+      summary: 数頭を討ち、残りは逃げた。
+history:
+  - date: 2026-02-14
+    action: register-quest
+    to: received
+  - date: 2026-02-16
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-02-16
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-002
+  - date: 2026-02-23
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-02-26
+    action: settle-quest
+    from: reported
+    to: settled

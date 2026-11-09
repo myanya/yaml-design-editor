@@ -1,0 +1,6 @@
+id: MON-007
+name: 霧鴉
+recommendedRank: RNK-E
+habitats: [PLC-007, PLC-006, PLC-011]
+drops: [MAT-012]
+description: 霧の出る日に群れで旅人や畑を襲う鴉です。春から夏に多くなります。

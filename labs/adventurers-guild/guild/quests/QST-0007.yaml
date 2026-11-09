@@ -1,20 +1,20 @@
 id: QST-0007
-title: 収穫祭の夜の見回り
-kind: other
-status: posted
+title: 川向こうの村へ塩と小麦を運ぶ
+kind: delivery
+status: rejected
 branch: BRN-01
-client: CLT-001
-requiredRank: RNK-F
+client: CLT-002
+handledBy: STF-02
+requiredRank: RNK-E
 reward: 100
-receivedOn: 2026-11-05
-deadline: 2026-11-23
-place: PLC-001
-description: 収穫祭の夜、広場と裏通りを見回って、もめごとがあれば守衛に知らせる。
+receivedOn: 2025-11-16
+place: PLC-008
 history:
-  - date: 2026-11-05
+  - date: 2025-11-16
     action: register-quest
     to: received
-  - date: 2026-11-05
-    action: post-quest
+  - date: 2025-11-17
+    action: reject-quest
     from: received
-    to: posted
+    to: rejected
+    note: 危険に見合う報酬でなかったため受け付けなかった。

@@ -1,0 +1,43 @@
+id: QST-0067
+title: 西の街道で旅人を襲う霧鴉を追い払う
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-008
+handledBy: STF-01
+requiredRank: RNK-E
+reward: 180
+receivedOn: 2026-06-14
+deadline: 2026-07-04
+place: PLC-006
+targets: [MON-007]
+description: 西の街道に霧鴉が出て困っている。
+assignments:
+  - id: QST-0067-A1
+    taker: ADV-0004
+    acceptedOn: 2026-06-14
+    report:
+      reportedOn: 2026-06-22
+      outcome: success
+      summary: 数頭を討ち、残りは逃げた。
+history:
+  - date: 2026-06-14
+    action: register-quest
+    to: received
+  - date: 2026-06-14
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-06-14
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-06-22
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-06-23
+    action: settle-quest
+    from: reported
+    to: settled

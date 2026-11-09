@@ -1,0 +1,6 @@
+id: MON-006
+name: 岩甲虫
+recommendedRank: RNK-E
+habitats: [PLC-005, PLC-012]
+drops: [MAT-011]
+description: 岩のように硬い殻の甲虫です。石切り場や坑道に湧きます。

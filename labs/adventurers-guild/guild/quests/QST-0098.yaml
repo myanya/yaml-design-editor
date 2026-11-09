@@ -1,0 +1,20 @@
+id: QST-0098
+title: 迷い込んだ羊を探して連れ戻す
+kind: other
+status: rejected
+branch: BRN-01
+client: CLT-005
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 90
+receivedOn: 2026-08-26
+place: PLC-011
+history:
+  - date: 2026-08-26
+    action: register-quest
+    to: received
+  - date: 2026-08-27
+    action: reject-quest
+    from: received
+    to: rejected
+    note: 禁猟区での狩りの手伝いのため受け付けなかった。

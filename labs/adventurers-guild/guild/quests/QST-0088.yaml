@@ -1,0 +1,43 @@
+id: QST-0088
+title: 穂波の村で旅人を襲う霧鴉を追い払う
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-005
+handledBy: STF-01
+requiredRank: RNK-E
+reward: 220
+receivedOn: 2026-07-28
+deadline: 2026-08-31
+place: PLC-011
+targets: [MON-007]
+description: 穂波の村に霧鴉が出て困っている。
+assignments:
+  - id: QST-0088-A1
+    taker: ADV-0008
+    acceptedOn: 2026-07-29
+    report:
+      reportedOn: 2026-08-05
+      outcome: success
+      summary: 数頭を討ち、残りは逃げた。
+history:
+  - date: 2026-07-28
+    action: register-quest
+    to: received
+  - date: 2026-07-29
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-29
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2026-08-05
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-08-05
+    action: settle-quest
+    from: reported
+    to: settled

@@ -1,0 +1,41 @@
+id: QST-0015
+title: 冬の峠を越える荷を護衛する
+kind: escort
+status: settled
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-B
+reward: 1100
+receivedOn: 2025-12-28
+deadline: 2026-01-19
+place: PLC-007
+assignments:
+  - id: QST-0015-A1
+    taker: ADV-0002
+    acceptedOn: 2025-12-30
+    report:
+      reportedOn: 2026-01-08
+      outcome: success
+      summary: 途中で霧に遭ったが、半日遅れで着いた。
+history:
+  - date: 2025-12-28
+    action: register-quest
+    to: received
+  - date: 2025-12-30
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2025-12-30
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0002
+  - date: 2026-01-08
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-01-09
+    action: settle-quest
+    from: reported
+    to: settled

@@ -1,0 +1,27 @@
+id: QST-0096
+title: 青石を 4 個掘ってくる
+kind: gathering
+status: expired
+branch: BRN-01
+client: CLT-007
+handledBy: STF-01
+requiredRank: RNK-E
+reward: 170
+receivedOn: 2026-08-22
+deadline: 2026-09-11
+place: PLC-012
+targets: [MAT-014]
+description: 白岩の石切り場で青石を4個。
+history:
+  - date: 2026-08-22
+    action: register-quest
+    to: received
+  - date: 2026-08-22
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-09-12
+    action: expire-quest
+    from: posted
+    to: expired
+    note: 期限までに受け手が見つからなかった。

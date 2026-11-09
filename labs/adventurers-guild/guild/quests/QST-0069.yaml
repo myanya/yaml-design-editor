@@ -1,0 +1,63 @@
+id: QST-0069
+title: 白百合を 10 本採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+reward: 100
+receivedOn: 2026-06-20
+deadline: 2026-07-12
+place: PLC-003
+targets: [MAT-003]
+description: 黒樫の森で白百合を10本。
+assignments:
+  - id: QST-0069-A1
+    taker: ADV-0005
+    acceptedOn: 2026-06-20
+    report:
+      reportedOn: 2026-06-24
+      outcome: failure
+      summary: 時期が少し早く、数がそろわなかった。
+  - id: QST-0069-A2
+    taker: ADV-0006
+    acceptedOn: 2026-06-25
+    report:
+      reportedOn: 2026-06-26
+      outcome: success
+      summary: 傷めずに採り、その日のうちに渡した。
+history:
+  - date: 2026-06-20
+    action: register-quest
+    to: received
+  - date: 2026-06-20
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-06-20
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0005
+  - date: 2026-06-24
+    action: report-quest
+    from: assigned
+    to: failed
+  - date: 2026-06-25
+    action: post-quest
+    from: failed
+    to: posted
+    note: 受け手を探し直す
+  - date: 2026-06-25
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-06-26
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-06-26
+    action: settle-quest
+    from: reported
+    to: settled

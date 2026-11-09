@@ -1,36 +1,41 @@
 id: QST-0003
-title: 隣町までの荷馬車を護衛する
+title: 東の村々へ回る行商を護衛する
 kind: escort
-status: reported
+status: settled
 branch: BRN-01
 client: CLT-002
-requiredRank: RNK-C
-reward: 600
-receivedOn: 2026-10-15
-deadline: 2026-11-05
-place: PLC-006
-description: 荷馬車 3 台を隣町の市まで送り、帰りの空の馬車も連れ帰る。
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 450
+receivedOn: 2025-11-06
+deadline: 2025-11-24
+place: PLC-002
 assignments:
   - id: QST-0003-A1
-    taker: PTY-002
-    acceptedOn: 2026-10-18
+    taker: PTY-001
+    acceptedOn: 2025-11-06
     report:
-      reportedOn: 2026-11-02
+      reportedOn: 2025-11-12
       outcome: success
-      summary: 往復とも荷は無事。帰りに峠で落石があり、半日遅れた。
+      summary: 途中で霧に遭ったが、半日遅れで着いた。
 history:
-  - date: 2026-10-15
+  - date: 2025-11-06
     action: register-quest
     to: received
-  - date: 2026-10-16
+  - date: 2025-11-06
     action: post-quest
     from: received
     to: posted
-  - date: 2026-10-18
+  - date: 2025-11-06
     action: accept-quest
     from: posted
     to: assigned
-  - date: 2026-11-02
+    note: 受け手 PTY-001
+  - date: 2025-11-12
     action: report-quest
     from: assigned
     to: reported
+  - date: 2025-11-14
+    action: settle-quest
+    from: reported
+    to: settled

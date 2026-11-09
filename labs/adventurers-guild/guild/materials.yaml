@@ -28,3 +28,25 @@ materials:
   - id: MAT-008
     name: 泥鱗トカゲの鱗
     kind: monster-part
+  - id: MAT-009
+    name: 棘猪の牙
+    kind: monster-part
+  - id: MAT-010
+    name: 棘猪の皮
+    kind: monster-part
+    description: 厚く、靴や鞄の材料になります。
+  - id: MAT-011
+    name: 岩甲虫の殻
+    kind: monster-part
+    description: 鍛冶屋が鎧の当て物に使います。
+  - id: MAT-012
+    name: 霧鴉の羽
+    kind: monster-part
+  - id: MAT-013
+    name: 冬苺
+    kind: plant
+    description: 冬の森で実る赤い苺です。宿屋や菓子屋が買います。
+  - id: MAT-014
+    name: 青石
+    kind: mineral
+    description: 砥石や炉の内張りに使う青い石です。

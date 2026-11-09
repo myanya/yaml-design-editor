@@ -1,41 +1,41 @@
 id: QST-0001
-title: 街道に出る大狼の群れを追い払う
-kind: subjugation
+title: 市の日の宿屋の手伝い
+kind: other
 status: settled
 branch: BRN-01
-client: CLT-001
-requiredRank: RNK-B
-reward: 1200
-receivedOn: 2026-10-01
-deadline: 2026-10-20
-place: PLC-002
-targets: [MON-001]
-description: 東の街道で、荷馬車が大狼の群れに襲われる。群れを街道から遠ざけてほしい。
+client: CLT-006
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 60
+receivedOn: 2025-11-02
+deadline: 2025-11-26
+place: PLC-001
 assignments:
   - id: QST-0001-A1
-    taker: PTY-001
-    acceptedOn: 2026-10-03
+    taker: ADV-0008
+    acceptedOn: 2025-11-02
     report:
-      reportedOn: 2026-10-09
+      reportedOn: 2025-11-05
       outcome: success
-      summary: 群れの巣を森の奥で見つけ、街道に近い 2 つの巣を払った。
+      summary: もめごとも無く、夜明けまで見回った。
 history:
-  - date: 2026-10-01
+  - date: 2025-11-02
     action: register-quest
     to: received
-  - date: 2026-10-01
+  - date: 2025-11-02
     action: post-quest
     from: received
     to: posted
-  - date: 2026-10-03
+  - date: 2025-11-02
     action: accept-quest
     from: posted
     to: assigned
-  - date: 2026-10-09
+    note: 受け手 ADV-0008
+  - date: 2025-11-05
     action: report-quest
     from: assigned
     to: reported
-  - date: 2026-10-11
+  - date: 2025-11-06
     action: settle-quest
     from: reported
     to: settled

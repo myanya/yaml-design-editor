@@ -1,0 +1,25 @@
+id: QST-0033
+title: 東の村々へ回る行商を護衛する
+kind: escort
+status: cancelled
+branch: BRN-01
+client: CLT-002
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 270
+receivedOn: 2026-03-15
+deadline: 2026-04-09
+place: PLC-002
+history:
+  - date: 2026-03-15
+    action: register-quest
+    to: received
+  - date: 2026-03-17
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-19
+    action: cancel-quest
+    from: posted
+    to: cancelled
+    note: 依頼者の予定が変わったため取り下げた。

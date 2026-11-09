@@ -1,0 +1,22 @@
+id: QST-0117
+title: 廃坑に棲みついた大蜘蛛を討つ
+kind: subjugation
+status: posted
+branch: BRN-01
+client: CLT-002
+handledBy: STF-02
+requiredRank: RNK-A
+reward: 3000
+receivedOn: 2026-11-02
+deadline: 2026-12-15
+place: PLC-005
+targets: [MON-002]
+description: 商会が買い取った廃坑に大蜘蛛が巣を張り、掘り直しが始められない。
+history:
+  - date: 2026-11-02
+    action: register-quest
+    to: received
+  - date: 2026-11-03
+    action: post-quest
+    from: received
+    to: posted

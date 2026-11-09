@@ -39,3 +39,11 @@ places:
     name: 星見の遺跡
     kind: ruins
     description: 丘の上の古い石組みの遺跡です。まだ依頼は来ていません。
+  - id: PLC-011
+    name: 穂波の村
+    kind: village
+    description: 町の南の麦畑の村です。秋の実りのころは猪や鴉の害が増えます。
+  - id: PLC-012
+    name: 白岩の石切り場
+    kind: other
+    description: 町の西の丘の石切り場です。青石が採れ、岩甲虫が湧くことがあります。

@@ -1,18 +1,41 @@
 id: QST-0011
-title: 禁猟の森での狩りの手伝い
-kind: other
-status: rejected
+title: 隣町へ手紙の束を届ける
+kind: delivery
+status: settled
 branch: BRN-01
-client: CLT-002
-reward: 500
-receivedOn: 2026-10-22
-place: PLC-009
+client: CLT-006
+handledBy: STF-01
+requiredRank: RNK-E
+reward: 90
+receivedOn: 2025-12-07
+deadline: 2026-01-05
+place: PLC-006
+assignments:
+  - id: QST-0011-A1
+    taker: ADV-0008
+    acceptedOn: 2025-12-09
+    report:
+      reportedOn: 2025-12-15
+      outcome: success
+      summary: 期日どおりに手渡した。
 history:
-  - date: 2026-10-22
+  - date: 2025-12-07
     action: register-quest
     to: received
-  - date: 2026-10-22
-    action: reject-quest
+  - date: 2025-12-09
+    action: post-quest
     from: received
-    to: rejected
-    note: 領主が狩りを禁じた森での依頼のため、ギルドは受け付けなかった。
+    to: posted
+  - date: 2025-12-09
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2025-12-15
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2025-12-15
+    action: settle-quest
+    from: reported
+    to: settled

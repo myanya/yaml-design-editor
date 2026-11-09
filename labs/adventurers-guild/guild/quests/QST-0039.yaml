@@ -1,0 +1,40 @@
+id: QST-0039
+title: 春祭りの夜の見回り
+kind: other
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+reward: 50
+receivedOn: 2026-04-04
+deadline: 2026-05-06
+place: PLC-001
+assignments:
+  - id: QST-0039-A1
+    taker: ADV-0006
+    acceptedOn: 2026-04-05
+    report:
+      reportedOn: 2026-04-06
+      outcome: success
+      summary: 頼まれた手伝いを終えた。
+history:
+  - date: 2026-04-04
+    action: register-quest
+    to: received
+  - date: 2026-04-05
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-04-05
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-04-06
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-04-06
+    action: settle-quest
+    from: reported
+    to: settled

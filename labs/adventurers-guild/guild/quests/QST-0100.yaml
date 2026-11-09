@@ -1,0 +1,41 @@
+id: QST-0100
+title: 北の砦への補給の荷を護衛する
+kind: escort
+status: settled
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 1000
+receivedOn: 2026-08-28
+deadline: 2026-10-01
+place: PLC-007
+assignments:
+  - id: QST-0100-A1
+    taker: ADV-0004
+    acceptedOn: 2026-08-28
+    report:
+      reportedOn: 2026-09-02
+      outcome: success
+      summary: 途中で霧に遭ったが、半日遅れで着いた。
+history:
+  - date: 2026-08-28
+    action: register-quest
+    to: received
+  - date: 2026-08-28
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-08-28
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-09-02
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-09-05
+    action: settle-quest
+    from: reported
+    to: settled

@@ -1,7 +1,7 @@
 id: PAY-0001
-assignment: QST-0002-A1
-paidOn: 2026-10-09
-reward: 80
+assignment: QST-0001-A1
+paidOn: 2025-11-06
+reward: 60
 commissionRate: 10
-fee: 8
-amount: 72
+fee: 6
+amount: 54

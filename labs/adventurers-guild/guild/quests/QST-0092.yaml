@@ -1,0 +1,40 @@
+id: QST-0092
+title: 市の日の宿屋の手伝い
+kind: other
+status: settled
+branch: BRN-01
+client: CLT-006
+handledBy: STF-02
+reward: 40
+receivedOn: 2026-08-09
+deadline: 2026-08-29
+place: PLC-001
+assignments:
+  - id: QST-0092-A1
+    taker: ADV-0006
+    acceptedOn: 2026-08-10
+    report:
+      reportedOn: 2026-08-11
+      outcome: success
+      summary: 頼まれた手伝いを終えた。
+history:
+  - date: 2026-08-09
+    action: register-quest
+    to: received
+  - date: 2026-08-10
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-08-10
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-08-11
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-08-11
+    action: settle-quest
+    from: reported
+    to: settled

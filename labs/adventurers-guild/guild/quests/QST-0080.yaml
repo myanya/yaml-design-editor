@@ -1,0 +1,62 @@
+id: QST-0080
+title: 北の砦へ書状を届ける
+kind: delivery
+status: settled
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 310
+receivedOn: 2026-07-07
+deadline: 2026-08-10
+place: PLC-007
+assignments:
+  - id: QST-0080-A1
+    taker: ADV-0001
+    acceptedOn: 2026-07-08
+    report:
+      reportedOn: 2026-07-10
+      outcome: failure
+      summary: 道が崩れて通れず、引き返した。
+  - id: QST-0080-A2
+    taker: PTY-001
+    acceptedOn: 2026-07-11
+    report:
+      reportedOn: 2026-07-15
+      outcome: success
+      summary: 期日どおりに手渡した。
+history:
+  - date: 2026-07-07
+    action: register-quest
+    to: received
+  - date: 2026-07-08
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-08
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0001
+  - date: 2026-07-10
+    action: report-quest
+    from: assigned
+    to: failed
+  - date: 2026-07-11
+    action: post-quest
+    from: failed
+    to: posted
+    note: 受け手を探し直す
+  - date: 2026-07-11
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-001
+  - date: 2026-07-15
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-15
+    action: settle-quest
+    from: reported
+    to: settled

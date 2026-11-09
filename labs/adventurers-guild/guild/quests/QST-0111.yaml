@@ -1,0 +1,43 @@
+id: QST-0111
+title: 眠り茸を 20 本採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-01
+requiredRank: RNK-D
+reward: 240
+receivedOn: 2026-09-15
+deadline: 2026-09-29
+place: PLC-004
+targets: [MAT-002]
+description: 灰沼で眠り茸を20本。
+assignments:
+  - id: QST-0111-A1
+    taker: ADV-0003
+    acceptedOn: 2026-09-15
+    report:
+      reportedOn: 2026-09-19
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-09-15
+    action: register-quest
+    to: received
+  - date: 2026-09-15
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-09-15
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0003
+  - date: 2026-09-19
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-09-19
+    action: settle-quest
+    from: reported
+    to: settled

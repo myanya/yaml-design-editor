@@ -1,0 +1,41 @@
+id: QST-0068
+title: 隣町の市まで荷馬車を護衛する
+kind: escort
+status: settled
+branch: BRN-01
+client: CLT-008
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 930
+receivedOn: 2026-06-17
+deadline: 2026-07-14
+place: PLC-006
+assignments:
+  - id: QST-0068-A1
+    taker: ADV-0001
+    acceptedOn: 2026-06-17
+    report:
+      reportedOn: 2026-06-22
+      outcome: success
+      summary: 往復とも荷は無事だった。
+history:
+  - date: 2026-06-17
+    action: register-quest
+    to: received
+  - date: 2026-06-17
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-06-17
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0001
+  - date: 2026-06-22
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-06-25
+    action: settle-quest
+    from: reported
+    to: settled

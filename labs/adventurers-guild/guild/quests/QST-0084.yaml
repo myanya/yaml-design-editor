@@ -1,0 +1,40 @@
+id: QST-0084
+title: 穂波の村の井戸の水が濁る訳を調べる
+kind: investigation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+reward: 110
+receivedOn: 2026-07-17
+deadline: 2026-08-17
+place: PLC-011
+assignments:
+  - id: QST-0084-A1
+    taker: ADV-0007
+    acceptedOn: 2026-07-18
+    report:
+      reportedOn: 2026-07-24
+      outcome: success
+      summary: 原因は崩れた石で、町に知らせた。
+history:
+  - date: 2026-07-17
+    action: register-quest
+    to: received
+  - date: 2026-07-18
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-18
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0007
+  - date: 2026-07-24
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-26
+    action: settle-quest
+    from: reported
+    to: settled

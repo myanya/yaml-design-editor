@@ -1,0 +1,43 @@
+id: QST-0034
+title: 月影草を 5 束採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 110
+receivedOn: 2026-03-15
+deadline: 2026-04-08
+place: PLC-003
+targets: [MAT-001]
+description: 黒樫の森で月影草を5束。
+assignments:
+  - id: QST-0034-A1
+    taker: ADV-0004
+    acceptedOn: 2026-03-16
+    report:
+      reportedOn: 2026-03-21
+      outcome: success
+      summary: 傷めずに採り、その日のうちに渡した。
+history:
+  - date: 2026-03-15
+    action: register-quest
+    to: received
+  - date: 2026-03-16
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-16
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-03-21
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-23
+    action: settle-quest
+    from: reported
+    to: settled

@@ -1,0 +1,25 @@
+id: QST-0052
+title: 旅の学者を星見の遺跡まで護衛する
+kind: escort
+status: cancelled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 540
+receivedOn: 2026-05-04
+deadline: 2026-05-23
+place: PLC-010
+history:
+  - date: 2026-05-04
+    action: register-quest
+    to: received
+  - date: 2026-05-06
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-05-12
+    action: cancel-quest
+    from: posted
+    to: cancelled
+    note: 依頼者の予定が変わったため取り下げた。

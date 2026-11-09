@@ -1,0 +1,43 @@
+id: QST-0048
+title: 月影草を 30 束採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 80
+receivedOn: 2026-04-24
+deadline: 2026-05-15
+place: PLC-003
+targets: [MAT-001]
+description: 黒樫の森で月影草を30束。
+assignments:
+  - id: QST-0048-A1
+    taker: ADV-0006
+    acceptedOn: 2026-04-24
+    report:
+      reportedOn: 2026-04-26
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-04-24
+    action: register-quest
+    to: received
+  - date: 2026-04-24
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-04-24
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-04-26
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-04-27
+    action: settle-quest
+    from: reported
+    to: settled

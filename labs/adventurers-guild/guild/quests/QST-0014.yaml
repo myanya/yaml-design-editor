@@ -1,0 +1,42 @@
+id: QST-0014
+title: ミルフェンの倉の倉鼠を退治する
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-004
+handledBy: STF-01
+reward: 140
+receivedOn: 2025-12-18
+deadline: 2026-01-14
+place: PLC-001
+targets: [MON-003]
+description: ミルフェンに倉鼠が出て困っている。
+assignments:
+  - id: QST-0014-A1
+    taker: PTY-001
+    acceptedOn: 2025-12-18
+    report:
+      reportedOn: 2025-12-21
+      outcome: success
+      summary: 数頭を討ち、残りは逃げた。
+history:
+  - date: 2025-12-18
+    action: register-quest
+    to: received
+  - date: 2025-12-18
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2025-12-18
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-001
+  - date: 2025-12-21
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2025-12-22
+    action: settle-quest
+    from: reported
+    to: settled

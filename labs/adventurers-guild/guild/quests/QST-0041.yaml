@@ -1,0 +1,43 @@
+id: QST-0041
+title: 月影草を 20 束採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-01
+requiredRank: RNK-F
+reward: 110
+receivedOn: 2026-04-06
+deadline: 2026-05-05
+place: PLC-003
+targets: [MAT-001]
+description: 黒樫の森で月影草を20束。
+assignments:
+  - id: QST-0041-A1
+    taker: PTY-002
+    acceptedOn: 2026-04-08
+    report:
+      reportedOn: 2026-04-10
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-04-06
+    action: register-quest
+    to: received
+  - date: 2026-04-08
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-04-08
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-002
+  - date: 2026-04-10
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-04-11
+    action: settle-quest
+    from: reported
+    to: settled

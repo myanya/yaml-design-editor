@@ -1,0 +1,41 @@
+id: QST-0046
+title: 星見の遺跡の崩れた石組みを調べる
+kind: investigation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 230
+receivedOn: 2026-04-23
+deadline: 2026-05-17
+place: PLC-010
+assignments:
+  - id: QST-0046-A1
+    taker: ADV-0001
+    acceptedOn: 2026-04-23
+    report:
+      reportedOn: 2026-04-27
+      outcome: success
+      summary: 原因は崩れた石で、町に知らせた。
+history:
+  - date: 2026-04-23
+    action: register-quest
+    to: received
+  - date: 2026-04-23
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-04-23
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0001
+  - date: 2026-04-27
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-04-27
+    action: settle-quest
+    from: reported
+    to: settled

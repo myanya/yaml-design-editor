@@ -1,0 +1,43 @@
+id: QST-0056
+title: 穂波の村の畑を荒らす棘猪を討つ
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-005
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 400
+receivedOn: 2026-05-15
+deadline: 2026-06-19
+place: PLC-011
+targets: [MON-005]
+description: 穂波の村に棘猪が出て困っている。
+assignments:
+  - id: QST-0056-A1
+    taker: ADV-0001
+    acceptedOn: 2026-05-17
+    report:
+      reportedOn: 2026-05-20
+      outcome: success
+      summary: 巣を払い、しばらくは出ないと見られる。
+history:
+  - date: 2026-05-15
+    action: register-quest
+    to: received
+  - date: 2026-05-17
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-05-17
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0001
+  - date: 2026-05-20
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-05-23
+    action: settle-quest
+    from: reported
+    to: settled

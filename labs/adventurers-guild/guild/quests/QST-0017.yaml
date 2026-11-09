@@ -1,0 +1,41 @@
+id: QST-0017
+title: 灰沼の奥で見えた光を調べる
+kind: investigation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 260
+receivedOn: 2026-01-02
+deadline: 2026-01-26
+place: PLC-004
+assignments:
+  - id: QST-0017-A1
+    taker: ADV-0008
+    acceptedOn: 2026-01-02
+    report:
+      reportedOn: 2026-01-06
+      outcome: success
+      summary: 獣の仕業と分かり、依頼者に伝えた。
+history:
+  - date: 2026-01-02
+    action: register-quest
+    to: received
+  - date: 2026-01-02
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-01-02
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2026-01-06
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-01-09
+    action: settle-quest
+    from: reported
+    to: settled

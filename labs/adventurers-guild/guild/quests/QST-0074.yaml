@@ -1,0 +1,43 @@
+id: QST-0074
+title: 灰沼の沼蛭を駆除する
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 80
+receivedOn: 2026-06-27
+deadline: 2026-07-25
+place: PLC-004
+targets: [MON-008]
+description: 灰沼に沼蛭が出て困っている。
+assignments:
+  - id: QST-0074-A1
+    taker: ADV-0004
+    acceptedOn: 2026-06-27
+    report:
+      reportedOn: 2026-07-02
+      outcome: success
+      summary: 群れを追い払い、残りも森の奥へ退いた。
+history:
+  - date: 2026-06-27
+    action: register-quest
+    to: received
+  - date: 2026-06-27
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-06-27
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-07-02
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-03
+    action: settle-quest
+    from: reported
+    to: settled

@@ -1,0 +1,43 @@
+id: QST-0040
+title: 旧銀坑に湧いた岩甲虫を討つ
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-002
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 230
+receivedOn: 2026-04-05
+deadline: 2026-05-06
+place: PLC-005
+targets: [MON-006]
+description: 旧銀坑に岩甲虫が出て困っている。
+assignments:
+  - id: QST-0040-A1
+    taker: PTY-001
+    acceptedOn: 2026-04-05
+    report:
+      reportedOn: 2026-04-10
+      outcome: success
+      summary: 巣を払い、しばらくは出ないと見られる。
+history:
+  - date: 2026-04-05
+    action: register-quest
+    to: received
+  - date: 2026-04-05
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-04-05
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-001
+  - date: 2026-04-10
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-04-11
+    action: settle-quest
+    from: reported
+    to: settled

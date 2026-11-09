@@ -1,0 +1,43 @@
+id: QST-0044
+title: 青石を 4 個掘ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-007
+handledBy: STF-01
+requiredRank: RNK-E
+reward: 100
+receivedOn: 2026-04-20
+deadline: 2026-05-16
+place: PLC-012
+targets: [MAT-014]
+description: 白岩の石切り場で青石を4個。
+assignments:
+  - id: QST-0044-A1
+    taker: ADV-0006
+    acceptedOn: 2026-04-21
+    report:
+      reportedOn: 2026-04-22
+      outcome: success
+      summary: 傷めずに採り、その日のうちに渡した。
+history:
+  - date: 2026-04-20
+    action: register-quest
+    to: received
+  - date: 2026-04-21
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-04-21
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-04-22
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-04-23
+    action: settle-quest
+    from: reported
+    to: settled

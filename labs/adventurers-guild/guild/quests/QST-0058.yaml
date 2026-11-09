@@ -1,0 +1,64 @@
+id: QST-0058
+title: 青石を 2 個掘ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-007
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 180
+receivedOn: 2026-05-24
+deadline: 2026-06-15
+place: PLC-012
+targets: [MAT-014]
+description: 白岩の石切り場で青石を2個。
+assignments:
+  - id: QST-0058-A1
+    taker: ADV-0006
+    acceptedOn: 2026-05-25
+    report:
+      reportedOn: 2026-05-29
+      outcome: failure
+      summary: 大雨で採取の場所に入れなかった。
+  - id: QST-0058-A2
+    taker: ADV-0006
+    acceptedOn: 2026-05-30
+    report:
+      reportedOn: 2026-06-04
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-05-24
+    action: register-quest
+    to: received
+  - date: 2026-05-25
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-05-25
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-05-29
+    action: report-quest
+    from: assigned
+    to: failed
+  - date: 2026-05-30
+    action: post-quest
+    from: failed
+    to: posted
+    note: 受け手を探し直す
+  - date: 2026-05-30
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2026-06-04
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-06-07
+    action: settle-quest
+    from: reported
+    to: settled

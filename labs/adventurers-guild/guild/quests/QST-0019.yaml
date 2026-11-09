@@ -1,0 +1,41 @@
+id: QST-0019
+title: ミルフェンで夜に聞こえる物音を調べる
+kind: investigation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 230
+receivedOn: 2026-01-09
+deadline: 2026-01-24
+place: PLC-001
+assignments:
+  - id: QST-0019-A1
+    taker: PTY-001
+    acceptedOn: 2026-01-11
+    report:
+      reportedOn: 2026-01-15
+      outcome: success
+      summary: 原因は崩れた石で、町に知らせた。
+history:
+  - date: 2026-01-09
+    action: register-quest
+    to: received
+  - date: 2026-01-11
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-01-11
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-001
+  - date: 2026-01-15
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-01-18
+    action: settle-quest
+    from: reported
+    to: settled

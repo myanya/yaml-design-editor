@@ -1,0 +1,6 @@
+id: MON-005
+name: 棘猪
+recommendedRank: RNK-D
+habitats: [PLC-003, PLC-011]
+drops: [MAT-009, MAT-010]
+description: 背に棘の生えた猪です。春と秋に畑へ下りてきます。

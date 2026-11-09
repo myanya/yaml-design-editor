@@ -1,0 +1,37 @@
+id: QST-0038
+title: 北の砦への補給の荷を護衛する
+kind: escort
+status: failed
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 570
+receivedOn: 2026-03-26
+deadline: 2026-04-10
+place: PLC-007
+assignments:
+  - id: QST-0038-A1
+    taker: PTY-001
+    acceptedOn: 2026-03-26
+    report:
+      reportedOn: 2026-03-30
+      outcome: failure
+      summary: 途中で荷車が壊れ、引き返した。
+history:
+  - date: 2026-03-26
+    action: register-quest
+    to: received
+  - date: 2026-03-26
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-26
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-001
+  - date: 2026-03-30
+    action: report-quest
+    from: assigned
+    to: failed

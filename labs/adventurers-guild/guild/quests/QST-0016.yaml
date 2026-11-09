@@ -1,0 +1,43 @@
+id: QST-0016
+title: 冬苺を 3 籠採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-006
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 130
+receivedOn: 2026-01-01
+deadline: 2026-02-02
+place: PLC-003
+targets: [MAT-013]
+description: 黒樫の森で冬苺を3籠。
+assignments:
+  - id: QST-0016-A1
+    taker: ADV-0004
+    acceptedOn: 2026-01-02
+    report:
+      reportedOn: 2026-01-04
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-01-01
+    action: register-quest
+    to: received
+  - date: 2026-01-02
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-01-02
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-01-04
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-01-07
+    action: settle-quest
+    from: reported
+    to: settled

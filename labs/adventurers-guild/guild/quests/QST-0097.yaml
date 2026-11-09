@@ -1,0 +1,43 @@
+id: QST-0097
+title: 灰沼の泥鱗トカゲを追い払う
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 770
+receivedOn: 2026-08-23
+deadline: 2026-09-19
+place: PLC-004
+targets: [MON-004]
+description: 灰沼に泥鱗トカゲが出て困っている。
+assignments:
+  - id: QST-0097-A1
+    taker: PTY-001
+    acceptedOn: 2026-08-24
+    report:
+      reportedOn: 2026-08-31
+      outcome: success
+      summary: 巣を払い、しばらくは出ないと見られる。
+history:
+  - date: 2026-08-23
+    action: register-quest
+    to: received
+  - date: 2026-08-24
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-08-24
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-001
+  - date: 2026-08-31
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-09-02
+    action: settle-quest
+    from: reported
+    to: settled

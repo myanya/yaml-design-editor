@@ -1,0 +1,40 @@
+id: QST-0103
+title: 収穫祭の夜の見回り
+kind: other
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+reward: 90
+receivedOn: 2026-09-04
+deadline: 2026-09-27
+place: PLC-001
+assignments:
+  - id: QST-0103-A1
+    taker: ADV-0007
+    acceptedOn: 2026-09-06
+    report:
+      reportedOn: 2026-09-08
+      outcome: success
+      summary: もめごとも無く、夜明けまで見回った。
+history:
+  - date: 2026-09-04
+    action: register-quest
+    to: received
+  - date: 2026-09-06
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-09-06
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0007
+  - date: 2026-09-08
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-09-10
+    action: settle-quest
+    from: reported
+    to: settled

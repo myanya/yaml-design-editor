@@ -1,0 +1,41 @@
+id: QST-0072
+title: 北の砦への補給の荷を護衛する
+kind: escort
+status: settled
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 850
+receivedOn: 2026-06-26
+deadline: 2026-07-11
+place: PLC-007
+assignments:
+  - id: QST-0072-A1
+    taker: ADV-0003
+    acceptedOn: 2026-06-28
+    report:
+      reportedOn: 2026-07-08
+      outcome: success
+      summary: 往復とも荷は無事だった。
+history:
+  - date: 2026-06-26
+    action: register-quest
+    to: received
+  - date: 2026-06-28
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-06-28
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0003
+  - date: 2026-07-08
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-11
+    action: settle-quest
+    from: reported
+    to: settled

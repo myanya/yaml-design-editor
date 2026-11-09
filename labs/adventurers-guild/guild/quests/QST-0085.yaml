@@ -1,0 +1,43 @@
+id: QST-0085
+title: 白百合を 10 本採ってくる
+kind: gathering
+status: settled
+branch: BRN-01
+client: CLT-003
+handledBy: STF-01
+requiredRank: RNK-F
+reward: 60
+receivedOn: 2026-07-19
+deadline: 2026-08-23
+place: PLC-003
+targets: [MAT-003]
+description: 黒樫の森で白百合を10本。
+assignments:
+  - id: QST-0085-A1
+    taker: ADV-0005
+    acceptedOn: 2026-07-21
+    report:
+      reportedOn: 2026-07-25
+      outcome: success
+      summary: 頼まれた数をそろえて渡した。
+history:
+  - date: 2026-07-19
+    action: register-quest
+    to: received
+  - date: 2026-07-21
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-21
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0005
+  - date: 2026-07-25
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-25
+    action: settle-quest
+    from: reported
+    to: settled

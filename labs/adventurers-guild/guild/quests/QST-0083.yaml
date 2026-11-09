@@ -1,0 +1,41 @@
+id: QST-0083
+title: 灰沼の奥で見えた光を調べる
+kind: investigation
+status: settled
+branch: BRN-01
+client: CLT-001
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 230
+receivedOn: 2026-07-16
+deadline: 2026-08-11
+place: PLC-004
+assignments:
+  - id: QST-0083-A1
+    taker: ADV-0004
+    acceptedOn: 2026-07-16
+    report:
+      reportedOn: 2026-07-23
+      outcome: success
+      summary: 原因は崩れた石で、町に知らせた。
+history:
+  - date: 2026-07-16
+    action: register-quest
+    to: received
+  - date: 2026-07-16
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-07-16
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0004
+  - date: 2026-07-23
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-07-25
+    action: settle-quest
+    from: reported
+    to: settled

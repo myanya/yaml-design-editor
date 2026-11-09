@@ -1,0 +1,41 @@
+id: QST-0104
+title: 迷い込んだ羊を探して連れ戻す
+kind: other
+status: settled
+branch: BRN-01
+client: CLT-005
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 70
+receivedOn: 2026-09-06
+deadline: 2026-10-08
+place: PLC-011
+assignments:
+  - id: QST-0104-A1
+    taker: ADV-0010
+    acceptedOn: 2026-09-06
+    report:
+      reportedOn: 2026-09-08
+      outcome: success
+      summary: 頼まれた手伝いを終えた。
+history:
+  - date: 2026-09-06
+    action: register-quest
+    to: received
+  - date: 2026-09-06
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-09-06
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0010
+  - date: 2026-09-08
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-09-10
+    action: settle-quest
+    from: reported
+    to: settled

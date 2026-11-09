@@ -1,28 +1,41 @@
 id: QST-0004
-title: 古井戸から聞こえる異音を調べる
-kind: investigation
-status: assigned
+title: 市の日の宿屋の手伝い
+kind: other
+status: settled
 branch: BRN-01
-client: CLT-004
+client: CLT-006
+handledBy: STF-02
 requiredRank: RNK-F
-reward: 150
-receivedOn: 2026-10-28
-deadline: 2026-11-20
+reward: 90
+receivedOn: 2025-11-10
+deadline: 2025-11-24
 place: PLC-001
-description: 粉ひき場の裏の古井戸から、夜になると何かを引っかく音がする。
 assignments:
   - id: QST-0004-A1
-    taker: PTY-003
-    acceptedOn: 2026-11-03
+    taker: ADV-0006
+    acceptedOn: 2025-11-11
+    report:
+      reportedOn: 2025-11-13
+      outcome: success
+      summary: 頼まれた手伝いを終えた。
 history:
-  - date: 2026-10-28
+  - date: 2025-11-10
     action: register-quest
     to: received
-  - date: 2026-10-29
+  - date: 2025-11-11
     action: post-quest
     from: received
     to: posted
-  - date: 2026-11-03
+  - date: 2025-11-11
     action: accept-quest
     from: posted
     to: assigned
+    note: 受け手 ADV-0006
+  - date: 2025-11-13
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2025-11-13
+    action: settle-quest
+    from: reported
+    to: settled

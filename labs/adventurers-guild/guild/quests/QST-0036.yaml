@@ -1,0 +1,43 @@
+id: QST-0036
+title: 東の街道で荷馬車を襲う灰牙狼を討つ
+kind: subjugation
+status: settled
+branch: BRN-01
+client: CLT-002
+handledBy: STF-01
+requiredRank: RNK-C
+reward: 710
+receivedOn: 2026-03-23
+deadline: 2026-04-17
+place: PLC-002
+targets: [MON-001]
+description: 東の街道に灰牙狼が出て困っている。
+assignments:
+  - id: QST-0036-A1
+    taker: ADV-0008
+    acceptedOn: 2026-03-24
+    report:
+      reportedOn: 2026-03-26
+      outcome: success
+      summary: 巣を払い、しばらくは出ないと見られる。
+history:
+  - date: 2026-03-23
+    action: register-quest
+    to: received
+  - date: 2026-03-24
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-03-24
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0008
+  - date: 2026-03-26
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-03-28
+    action: settle-quest
+    from: reported
+    to: settled

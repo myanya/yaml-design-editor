@@ -1,0 +1,27 @@
+id: QST-0093
+title: 灰沼の泥鱗トカゲを追い払う
+kind: subjugation
+status: expired
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 290
+receivedOn: 2026-08-11
+deadline: 2026-09-09
+place: PLC-004
+targets: [MON-004]
+description: 灰沼に泥鱗トカゲが出て困っている。
+history:
+  - date: 2026-08-11
+    action: register-quest
+    to: received
+  - date: 2026-08-12
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-09-10
+    action: expire-quest
+    from: posted
+    to: expired
+    note: 期限までに受け手が見つからなかった。

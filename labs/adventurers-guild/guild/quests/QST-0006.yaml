@@ -1,21 +1,41 @@
 id: QST-0006
-title: 廃坑に棲みついた大蜘蛛を討つ
-kind: subjugation
-status: posted
+title: 川向こうの村へ塩と小麦を運ぶ
+kind: delivery
+status: settled
 branch: BRN-01
 client: CLT-002
-requiredRank: RNK-A
-reward: 3000
-receivedOn: 2026-11-02
-deadline: 2026-12-15
-place: PLC-005
-targets: [MON-002]
-description: 商会が買い取った廃坑に大蜘蛛が巣を張り、掘り直しが始められない。
+handledBy: STF-01
+requiredRank: RNK-E
+reward: 100
+receivedOn: 2025-11-14
+deadline: 2025-12-12
+place: PLC-008
+assignments:
+  - id: QST-0006-A1
+    taker: ADV-0006
+    acceptedOn: 2025-11-15
+    report:
+      reportedOn: 2025-11-17
+      outcome: success
+      summary: 期日どおりに手渡した。
 history:
-  - date: 2026-11-02
+  - date: 2025-11-14
     action: register-quest
     to: received
-  - date: 2026-11-03
+  - date: 2025-11-15
     action: post-quest
     from: received
     to: posted
+  - date: 2025-11-15
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0006
+  - date: 2025-11-17
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2025-11-17
+    action: settle-quest
+    from: reported
+    to: settled

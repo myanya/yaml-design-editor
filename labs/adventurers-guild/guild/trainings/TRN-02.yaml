@@ -10,3 +10,8 @@ enrollments:
     startedOn: 2024-06-01
     result: completed
     completedOn: 2024-06-15
+  - id: TRN-02-E2
+    trainee: ADV-0003
+    startedOn: 2026-03-02
+    result: completed
+    completedOn: 2026-03-13

@@ -1,0 +1,41 @@
+id: QST-0057
+title: 隣町の市まで荷馬車を護衛する
+kind: escort
+status: settled
+branch: BRN-01
+client: CLT-008
+handledBy: STF-02
+requiredRank: RNK-C
+reward: 960
+receivedOn: 2026-05-23
+deadline: 2026-06-19
+place: PLC-006
+assignments:
+  - id: QST-0057-A1
+    taker: PTY-002
+    acceptedOn: 2026-05-24
+    report:
+      reportedOn: 2026-05-28
+      outcome: success
+      summary: 途中で霧に遭ったが、半日遅れで着いた。
+history:
+  - date: 2026-05-23
+    action: register-quest
+    to: received
+  - date: 2026-05-24
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-05-24
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 PTY-002
+  - date: 2026-05-28
+    action: report-quest
+    from: assigned
+    to: reported
+  - date: 2026-05-28
+    action: settle-quest
+    from: reported
+    to: settled
