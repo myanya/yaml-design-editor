@@ -1,6 +1,8 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.schema.ActionDef
+import dev.toros.yde.semantic.schema.LifecycleDef
+import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.CheckerRule
 import dev.toros.yde.semantic.schema.ConstraintRule
@@ -87,6 +89,10 @@ class WorkspaceSchema(
     val scaffold: TransformDef? = null,
     /** 横断の操作（actions。P41）。型の操作（methods）は木の object の定義が持つ。計画は ActionPlanner。 */
     val actions: List<ActionDef> = emptyList(),
+    /** 名前付き State の宣言（enum の展開は定義カタログを連結した後に行う）。 */
+    val states: List<StateDeclaration> = emptyList(),
+    /** エンティティの Lifecycle の宣言。 */
+    val lifecycles: List<LifecycleDef> = emptyList(),
 ) {
     /**
      * エンティティ型の宣言（ID の型 idType を、このスキーマの木（定義の目録を含む）で解決したもの。P33）。
@@ -100,7 +106,7 @@ class WorkspaceSchema(
         tree: SchemaTree = this.tree,
     ): WorkspaceSchema = WorkspaceSchema(
         id, kind, match, tree, declaredEntities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
-        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold, actions,
+        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold, actions, states, lifecycles,
     )
 
     /** 式を受け取る項目の値（ルートからのキーの並びで指す。例: expressionAt("filePattern")）。 */
@@ -130,6 +136,8 @@ class WorkspaceSchema(
             expressions = parsed.expressions,
             scaffold = parsed.scaffold,
             actions = parsed.actions,
+            states = parsed.states,
+            lifecycles = parsed.lifecycles,
         )
     }
 
@@ -296,6 +304,8 @@ object WorkspaceReader {
         // スキーマ置き場に書かれたスキーマ（組込みスキーマと、derive から導出されたスキーマを除く）の、定義の点検と、
         // 宣言のない関係名の点検（P27 段D の D-a で root から移した。意図的差分 D-33）
         errors += SchemaDefinitionChecks.loadErrors(parsed.schemas, parsed.declarations.relations)
+        // 名前付き State と Lifecycle の参照・入り口・到達可能性（実データの状態判定は別段階）。
+        errors += BehaviorChecks.loadErrors(parsed.schemas)
         // 検査の対応「操作を起動する」（responses の action）が指す操作は、ワークスペースのどこかに定義されていること（P41）
         val knownActions = ActionPlanner.catalog(expanded).filter { it.kind != "create" }.map { it.name }.toSet()
         for (schema in parsed.schemas) {

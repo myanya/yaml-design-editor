@@ -176,8 +176,11 @@ private fun SchemaProblem(message: String) {
 @Composable
 internal fun SchemaKindEditor(map: YNode.Map, doc: OpenDocument, library: Boolean) {
     var confirmLibrary by remember { mutableStateOf(false) }
+    val kind = scalar(map, "kind") ?: SchemaKind.DOCUMENT.id
     SchemaSettingRow("スキーマ種別") {
-        ChoiceButton(if (library) "library" else "document", listOf("document", "library")) { selected ->
+        if (kind == SchemaKind.BEHAVIOR.id || kind == SchemaKind.RELATIONS.id) {
+            Text(kind, fontSize = 13.sp)
+        } else ChoiceButton(if (library) "library" else "document", listOf("document", "library")) { selected ->
             when {
                 selected == "library" && !library -> confirmLibrary = true
                 selected == "document" && library -> {
@@ -213,10 +216,10 @@ internal fun SchemaKindEditor(map: YNode.Map, doc: OpenDocument, library: Boolea
 
 @Composable
 private fun SchemaPreview(state: AppState, sourceDoc: OpenDocument, schema: SchemaDef?, issues: List<SchemaIssue>) {
-    if (schema?.kind == SchemaKind.LIBRARY) {
+    if (schema?.kind != null && schema.kind != SchemaKind.DOCUMENT) {
         Column(Modifier.padding(16.dp)) {
-            Text("共通定義ライブラリ", fontWeight = FontWeight.Bold)
-            Text("library はデータ文書へ適用されないため、サンプルプレビューはありません。", fontSize = 12.sp, color = Palette.SubText)
+            Text("${schema.kind.id} 宣言文書", fontWeight = FontWeight.Bold)
+            Text("データ文書へ直接適用されないため、サンプルプレビューはありません。", fontSize = 12.sp, color = Palette.SubText)
         }
         return
     }
@@ -258,10 +261,10 @@ private fun SchemaTargets(state: AppState, schema: SchemaDef?) {
         Text("スキーマを解析できないため適用対象を確認できません", color = Palette.ErrorRed, modifier = Modifier.padding(16.dp))
         return
     }
-    if (schema.kind == SchemaKind.LIBRARY) {
+    if (schema.kind != SchemaKind.DOCUMENT) {
         Column(Modifier.padding(16.dp)) {
-            Text("共通定義ライブラリ", fontWeight = FontWeight.Bold)
-            Text("業務文書には直接適用されません。公開定義: ${schema.definitions.size} 件", fontSize = 12.sp, color = Palette.SubText)
+            Text("${schema.kind.id} 宣言文書", fontWeight = FontWeight.Bold)
+            Text("業務文書には直接適用されません。", fontSize = 12.sp, color = Palette.SubText)
         }
         return
     }

@@ -1,6 +1,6 @@
 # スキーマ定義リファレンス
 
-`_schemas/*.yaml` に 1 ファイル 1 スキーマまたは共通定義ライブラリで配置します。
+`_schemas/*.yaml`（`.yde` 構成では `.yde/schemas/*.yaml`）に、1 ファイル 1 スキーマまたは宣言文書で配置します。種類は `document`（既定）・`library`・`relations`・`behavior` です。
 
 ```yaml
 id: requirement                       # 安定したスキーマID（省略時はスキーマファイル名）
@@ -32,6 +32,48 @@ root:                                 # ルートのフィールド定義（通�
 ```
 
 トップレベルの `description`（スキーマの目的や対象）は、スキーマ設計画面では複数行テキスト欄として編集できます。
+
+## 業務の State と Lifecycle（S-28）
+
+`kind: behavior` はデータファイルに直接適用されない宣言文書です。既存の状態フィールドと操作をそのまま使って、業務上の意味を持つ名前付き状態とその遷移を定義できます。
+
+```yaml
+id: task-behavior
+kind: behavior
+states:
+  - source: { entity: task, path: status, enum: common#進捗 }
+    idPrefix: task-
+lifecycles:
+  - id: task-lifecycle
+    entity: task
+    states: [task-new, task-done]
+    entry:
+      - { to: task-new, by: { action: create-task } }
+    transitions:
+      - { from: task-new, to: task-done, by: { action: finish-task } }
+    termination:
+      terminal: [task-done]
+      openEnded: false
+```
+
+`common#進捗` が `new` と `done` の enum であれば、`task-new` と `task-done` の State が生成されます。`status` の値そのものは保存済みデータのままです。State の意味は「そのエンティティの `status` が `new` と等しい」という述語で、別途 State を保存しません。`idPrefix` 省略時は `entity-` です。
+
+enum を使わず、業務上の条件を明示することもできます。`predicate` の構文は既存の `constraints` と同じです。
+
+```yaml
+states:
+  - id: task-approved
+    entity: task
+    label: 承認済み
+    predicate:
+      match: [{ node: { entity: task, bind: t } }]
+      where: [{ of: t, path: approved, equals: true }]
+      expect: exists
+```
+
+Lifecycle の `entry` は生成に相当する入り口、`transitions` は「どの State からどこへ、何によって移るか」、`termination.terminal` は終端 State です。終端は削除を意味しません。破棄／終了しないエンティティでは、終端の列挙に代えて `termination: {openEnded: true}` を明示できます。State の遷移を伴わない Action は列挙する必要がありません。
+
+スキーマの読込時に、State／Lifecycle の参照、Action の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**この段階の検証は Action の実行結果の証明ではありません。** Event は構文上指定できますが、Event の定義と実行は後続フェーズのため、現在は検証未対応としてエラーになります。State の実データに対する真偽判定・排他性と網羅性の動的検証も後続フェーズです。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。
 
 ## フィールド定義のプロパティ
 

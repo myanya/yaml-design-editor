@@ -149,6 +149,17 @@ object SchemaDefinitionChecks {
                     }
                 }
             }
+        } else if (kind == SchemaKind.BEHAVIOR) {
+            if (match.isNotBlank()) issues += SchemaIssue("behavior 文書に match は定義できません", "match")
+            if (states.isEmpty() && lifecycles.isEmpty()) {
+                issues += SchemaIssue("behavior 文書には states / lifecycles のいずれかが必要です", "states")
+            }
+            if (definitions.isNotEmpty()) issues += SchemaIssue("behavior 文書に definitions は定義できません", "definitions")
+            if (constraints.isNotEmpty() || checkers.isNotEmpty()) {
+                issues += SchemaIssue("behavior 文書に constraints / coverage は定義できません", "constraints")
+            }
+            if (actions.isNotEmpty()) issues += SchemaIssue("behavior 文書に actions は定義できません", "actions")
+            if (phases != null) issues += SchemaIssue("behavior 文書に phases は定義できません", "phases")
         } else {
             if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
             // library は共有する定義の置き場——フィールドの定義（definitions）か、検査の定義・語彙の定義（functions / vocabulary）を持つ

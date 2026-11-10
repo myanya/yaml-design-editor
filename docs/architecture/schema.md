@@ -15,6 +15,8 @@
 | `WorkspaceSchema` | workspace-core/workspace/WorkspaceReader.kt | スキーマの中身の原本（名前・説明・項目の木・関係の宣言・検査・式・導出した構造 `structures`） |
 | `SchemaDef` / `SchemaLoader` / `SchemaCatalog` | schema/Schema.kt | app-core の薄い型（`WorkspaceSchema` ＋ ファイルの場所）と、カーネルの読み込み結果をアプリの形にする `fromKernel`。`SchemaCatalog` は全スキーマと library の定義を `(moduleId, definitionName)` でリンクする |
 | `SchemaDocuments` | workspace-core/workspace/SchemaDocuments.kt | スキーマ文書 1 件の読み取り（ID・種類・適用先・derive・エンティティ型・関係レジストリ・項目の木・検査の展開）と関係レジストリの集約の 1 実装 |
+| `StateDeclaration` / `StateDef` / `LifecycleDef` | semantic-core/schema/Behavior.kt | 名前付き State の宣言、enum からの展開、Lifecycle の生成・遷移・終端の記述（S-28） |
+| `BehaviorChecks` | workspace-core/workspace/BehaviorChecks.kt | State / Lifecycle の横断解決、原因 Action・参照・到達可能性の静的点検（S-28） |
 | `WorkspaceReader` | workspace-core | スキーマ文書・組込みスキーマ・derive の展開を読み込み、スキーマの定義の点検を読み込みエラーへ足す（`buildSchemas`） |
 | `SchemaDefinitionChecks` | workspace-core/workspace/SchemaDefinitionChecks.kt | スキーマの定義の点検（種別ごとに書けるもの・型と制約の食い違い・`$ref` の参照先・cases・フェーズ・`filePattern`）と宣言のない関係名の点検 |
 | `BuiltinSchemas` / `BuiltinSchemaResources` | schema/BuiltinSchemas.kt・workspace-core 資源 `builtin-schemas/` | 予約ディレクトリ用の組込みスキーマ（メタスキーマ `builtin-schema`・`builtin-relations`・`builtin-view`・`builtin-activity` ほか） |
@@ -161,6 +163,15 @@
 - **計画生成の共有基盤**: 高水準操作は「場所の列挙（Query）× 絞り込みと中止条件（Predicate）× 場所ごとの操作」の形で、列挙と集積は `SemanticRewrite`（`walkDocument`・`reach`・`forEachSchemaEntry`・`rewriteDocuments`・`PlanOps`）を通る。中止条件に当たった文書は理由を集め、全文書の評価後にまとめて中止する。移動・定義の抽出／インライン化・型変換のスキーマ側は操作側が持つ戦略。
 - ビュー定義の追随と言及の警告は、カーネルの `RefactoringImpact` が作り、`planRefactoring` が計画に含める（[workspace.md「リファクタリングの影響」](workspace.md)）。どの入口でも同じ計画になる。
 - 計画の決定性は `RefactoringPlanGoldenTest`（全操作と拒否ケースの計画を正準テキストで固定）が守る。意図した変更のときだけ `-DupdateGolden=true` で期待値を更新し、差分をレビューする。
+
+## 業務上の State / Lifecycle（S-28）
+
+- `kind: behavior` は文書に `match` せず、`states` と `lifecycles` を公開する宣言文書。既存の `kind: document` のデータや Action を変更しない。
+- State は **エンティティに対する名前付き Predicate**。状態値の保存を要求しない。明示定義の `predicate` は既存 `ConstraintRule`（Query と Predicate）で読む。`source: {entity, path, enum}` からは enum の各値に対する `equals` + `expect: exists` を同じ `ConstraintRule` として構築する。`StateDef` 自体は保存対象ではない。
+- Lifecycle は State の集合、生成入口（`entry`）、許される遷移（`transitions`）、終端方針（`termination`）を持つ。入口と遷移は原因を `by: {action: ...}` または `by: {event: ...}` で指す。終端は **業務の終了** であって、文書の削除を意味しない。終端しない可能性があるときは `openEnded: true` を明示する。
+- `BehaviorChecks.compile` は全スキーマの定義カタログをリンクした後で enum を展開する。State と Lifecycle の ID 重複、参照の不存在、対象 Entity 不一致、原因 Action の不存在／重複／対象不一致、終端からの遷移、非終端の行き止まり、入口からの到達不能、無期限でない Lifecycle の終端への到達不能をスキーマ読込エラーとして報告する。同じ enum の State の一部しか Lifecycle に含めていなければ網羅性不足も検出する。**単一 enum から全値を展開した State 同士の排他性は値の等価比較から成立する**が、任意の複合述語まで含めた状態集合の排他性・網羅性の証明は動的検証の対象。
+- Action の参照が存在することは、**Action の実際の効果が宣言した遷移を必ず成立させることの証明ではない**。実行時の State 判定と前後差分の照合、Event の事実宣言・発火・保存、状態の排他性や網羅性の動的点検は後続フェーズ。現段階では Event 原因の定義を解決できない旨をエラーにする。業務仕様が未完成であることを誤って「検証済み」としない。
+- 計算体系の分類: State = `Query + Predicate`、Lifecycle = 名前付き定義間の関係（`Term` / 静的整合）、Action 原因 = 既存 `Rewrite` への参照。新しいデータの永続化・評価器・変更経路は導入しない（CORE-CALCULUS の S-28 設計レビュー）。
 
 ## 規律
 

@@ -44,6 +44,66 @@ definitions:
         required: true
         display: list
         item: { type: any }
+  state:
+    type: object
+    fields:
+      - { key: id, label: State ID, type: string, role: title }
+      - { key: entity, label: エンティティ型, type: string }
+      - { key: label, label: 表示名, type: string }
+      - { key: predicate, label: 状態の判定条件（既存 Query / Predicate）, type: any }
+      - key: source
+        label: 列挙型の全値から展開
+        type: object
+        fields:
+          - { key: entity, label: エンティティ型, type: string }
+          - { key: path, label: 状態値のパス, type: string }
+          - { key: enum, label: 型への参照, type: string }
+      - { key: idPrefix, label: State ID の接頭辞, type: string }
+  lifecycle-cause:
+    type: object
+    fields:
+      - { key: action, label: 原因となるAction, type: string }
+      - { key: event, label: 原因となるEvent（後続フェーズ）, type: string }
+  lifecycle-entry:
+    type: object
+    fields:
+      - { key: to, label: 生成時の状態, type: string, required: true }
+      - { key: by, label: 生成の原因, $ref: lifecycle-cause, required: true }
+  lifecycle-transition:
+    type: object
+    fields:
+      - { key: from, label: 遷移元, type: string, required: true }
+      - { key: to, label: 遷移先, type: string, required: true }
+      - { key: by, label: 遷移の原因, $ref: lifecycle-cause, required: true }
+  lifecycle:
+    type: object
+    fields:
+      - { key: id, label: Lifecycle ID, type: string, required: true, role: title }
+      - { key: entity, label: エンティティ型, type: string, required: true }
+      - key: states
+        label: 含まれる State
+        type: array
+        item: { type: string }
+        required: true
+      - key: entry
+        label: 生成時の入り口
+        type: array
+        item: { $ref: lifecycle-entry }
+        required: true
+      - key: transitions
+        label: 許される状態遷移
+        type: array
+        item: { $ref: lifecycle-transition }
+      - key: termination
+        label: 終端の方針
+        type: object
+        required: true
+        fields:
+          - key: terminal
+            label: 終端 State
+            type: array
+            item: { type: string }
+          - { key: openEnded, label: 終端せず続く可能性がある, type: boolean }
   method:
     type: object
     fields:
@@ -366,8 +426,8 @@ root:
     - key: kind
       label: 種別
       type: enum
-      values: [document, library, relations]
-      description: document（既定）は文書に適用、library は共有する定義の置き場（フィールドの定義 definitions・検査の定義 functions・語彙の定義 vocabulary）、relations は関係レジストリ（保存すると専用フォームが適用される）
+      values: [document, library, relations, behavior]
+      description: document（既定）は文書に適用、library は共有する定義の置き場、relations は関係レジストリ、behavior は State / Lifecycle の宣言（データ文書には適用しない）
     - key: match
       label: 適用パターン（glob）
       type: string
@@ -387,6 +447,18 @@ root:
       item:
         $ref: action
       description: "複数の要素や文書にまたがる操作の定義（P41）。1 件は {id, label, description, target, params, require, do}。target は受け手（{entity: 型, bind: 名前} か {schema: スキーマID}。省けばワークスペースの操作。on は YAML が真偽値に読むため使わない）。params は項目の定義（受け取る値）。require は前提（検査と同じ match ＋ expect / count / check ＋ message。起点は受け手。違反か判定保留なら実行しない）。do は手の並び: set / insert / delete / create: {schema, params, id}（id は採番 {prefix, digits}。ID を渡さないときに接頭辞＋連番） / call: {of, method, params} / each: {from, match, do}。値は変換のひな型（受け取った値の一式が「いまの場所」・要素は $of: 束縛名）。結果は変更セットになり、検証・競合・Undo は今までどおり。呼び出しは CLI action <ws> <id> [--on ID] [--param 名前=値]"
+    - key: states
+      label: 名前付き状態（behavior）
+      type: array
+      display: list
+      item: { $ref: state }
+      description: "predicate は既存の match / where / expect / check による述語。source: {entity, path, enum} と idPrefix を指定すると enum の全値を State に展開する。"
+    - key: lifecycles
+      label: ライフサイクル（behavior）
+      type: array
+      display: list
+      item: { $ref: lifecycle }
+      description: "対象 entity の State、生成 entry、遷移 transitions、終端の方針 termination を宣言する。現段階では原因 Action の参照を静的検証する。"
     - key: root
       label: ルート定義
       $ref: field

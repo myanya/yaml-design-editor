@@ -142,14 +142,16 @@ data class EnumOption(
 enum class SchemaKind(val id: String) {
     DOCUMENT("document"),
     LIBRARY("library"),
-    RELATIONS("relations");
+    RELATIONS("relations"),
+    BEHAVIOR("behavior");
 
     companion object {
         fun parse(value: String?): SchemaKind = when (value) {
             null, "document" -> DOCUMENT
             "library" -> LIBRARY
             "relations" -> RELATIONS
-            else -> error("kind は document / library / relations のいずれかである必要があります: $value")
+            "behavior" -> BEHAVIOR
+            else -> error("kind は document / library / relations / behavior のいずれかである必要があります: $value")
         }
     }
 }
