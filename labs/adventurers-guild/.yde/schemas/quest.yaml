@@ -8,8 +8,9 @@ root: { type: common#依頼 }
 # 他の要素へ線を辿る検査は、型ではなくスキーマに書きます（依頼 → 受注 → 受け手 → ランク など）
 constraints:
   # ---- 受注の条件 ----
+  # 受注したときのランクは記録に無いので、報告前（遂行中）の受注だけを見る。降格の前に受けて終えた受注は指摘しない
   - id: taker-rank-meets-requirement
-    description: 受け手（冒険者かパーティ）のランクは、依頼の受注できるランクの下限以上であること
+    description: 遂行中（報告前）の受注の受け手（冒険者かパーティ）のランクは、依頼の受注できるランクの下限以上であること
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: taken-by }
@@ -23,12 +24,13 @@ constraints:
         - node: { entity: quest, bind: q }
         - edge: { relation: requires-rank }
         - node: { entity: rank, bind: rq }
+    where: [ { of: a, path: report, exists: false } ]
     check:
       - gte: [ { of: rt, path: order }, { of: rq, path: order } ]
     level: error
     message: "受注「{id}」の受け手 {t.title}（ランク {rt.title}）は、依頼の下限 {rq.title} に届きません"
   - id: inactive-adventurer-not-assigned
-    description: 休業・引退・除名・消息不明の冒険者は、遂行中（受注済み）の依頼を受けていないこと
+    description: 引退・除名・消息不明の冒険者は、遂行中（受注済み）の依頼を受けていないこと（休業は、事故などで遂行中にも休業できるので、下の検査で休業の間の受注だけを止める）
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: taken-by }
@@ -39,11 +41,23 @@ constraints:
         - edge: { relation: has-assignment, dir: in }
         - node: { entity: quest, bind: q }
     where:
-      - { of: t, path: status, oneOf: [resting, retired, expelled, missing] }
+      - { of: t, path: status, oneOf: [retired, expelled, missing] }
       - { of: q, path: status, equals: assigned }
     expect: absent
     level: error
-    message: "受注「{id}」の受け手 {t.title} は、休業・引退・除名・消息不明のため受注できません"
+    message: "受注「{id}」の受け手 {t.title} は、引退・除名・消息不明のため受注できません"
+  - id: no-acceptance-while-resting
+    description: 休業の冒険者は、休業した日から後に受注していないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+    where:
+      - { of: t, path: status, equals: resting }
+      - { of: t, path: restingSince, exists: true }
+    check: [ { lt: [ { of: a, path: acceptedOn }, { of: t, path: restingSince } ] } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title} は休業のため受注できません"
   # 起点を受注にする: 指摘は依頼の文書（受注の定義出現）に出るので、受注する操作の適用前の検証が止められる
   - id: concurrent-within-rank-limit
     description: 遂行中（受注済みの依頼の、報告の無い受注）の数は、受け手のランクの上限まで（A 以上は制限なし）。超えたら、その受け手の遂行中の受注のそれぞれに出す
@@ -151,6 +165,7 @@ constraints:
     where:
       - { of: q, path: deadline, exists: true }
       - { of: a, path: report.reportedOn, exists: true }
+      - { of: a, path: report.abandonedFor, exists: false }
     check:
       - lte: [ { of: a, path: report.reportedOn }, { of: q, path: deadline } ]
     level: warning
@@ -384,7 +399,7 @@ constraints:
   # 「どれかの道で満たす」は 1 つの照合に書けないので、道ごとの件数を足して 1 以上かを見る（devtrack の UX-284）。
   # 受け手が冒険者でもパーティでも同じ道で辿れるよう、has-member を 0 回以上（repeat）にした。段階は求める段階ごとに検査を分ける
   - id: required-job-met
-    description: 求める職能のある依頼（段階が初級か無し）の受け手は、その職能か、その職能の資格を持つこと（パーティなら構成員の誰か）
+    description: 求める職能のある依頼（段階が初級か無し）の受け手は、その職能（初級以上。見習いは数えない）か、その職能の資格を持つこと（パーティなら構成員の誰か）
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: has-assignment, dir: in }
@@ -593,7 +608,7 @@ actions:
       - { key: deadline, label: 期限, type: common#年月日 }
       - { key: place, label: 場所, type: common#場所参照 }
       - { key: requiredJob, label: 求める職能, type: common#職能参照 }
-      - { key: requiredLevel, label: 求める段階, type: common#資格の段階, description: 書かなければ初級（どの段階でもよい）です。 }
+      - { key: requiredLevel, label: 求める段階, type: common#資格の段階, description: 書かなければ初級以上です。 }
       - { key: targets, label: 対象, type: array, item: { type: common#対象参照 }, description: 討伐の魔物（と納品物）、採取や納品の素材です。数は登録のあとで書き足します。 }
       - { key: description, label: 内容, type: common#文章 }
       - { key: date, label: 受付日, type: common#年月日, required: true }
@@ -842,9 +857,87 @@ actions:
             amount: { $copy: deposit.reward, $of: self }
       - insert: { of: self, path: history, value: { date: $date, action: cancel-quest, from: { $value: { of: self, path: status } }, to: cancelled, note: $reason } }
       - set: { of: self, path: status, value: cancelled }
+  - id: extend-deadline
+    label: 期限を延ばす
+    description: 依頼者の同意を得て、依頼の期限を延ばします（受付・掲示中・受注済み・失敗の依頼）。状態は変えず、前と後の期限を履歴に残します。期限を過ぎた失敗の依頼も、延ばせば掲示し直せます。
+    target: { entity: quest }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: deadline, label: 新しい期限, type: common#年月日, required: true }
+      - { key: date, label: 延ばした日, type: common#年月日, required: true }
+      - { key: note, label: 依頼者の同意, type: common#一行の文, required: true, minLength: 1, description: 誰がいつ同意したか、報酬を上乗せしたか などです。 }
+    require:
+      - match: [ { node: { entity: quest, bind: q } } ]
+        where: [ { of: q, path: status, oneOf: [received, posted, assigned, failed] } ]
+        expect: exists
+        message: "{id} は受付・掲示中・受注済み・失敗の依頼ではありません"
+      - match: [ { node: { entity: quest, bind: q } } ]
+        check:
+          - gt: [ $deadline, { first: [ { of: q, path: deadline }, "0001-01-01" ] } ]
+            type: date
+        message: 新しい期限は、いまの期限より後にしてください
+      - match: [ { node: { entity: quest, bind: q } } ]
+        check:
+          - gte: [ $deadline, $date ]
+            type: date
+        message: 新しい期限は、延ばした日以降にしてください
+    do:
+      - insert:
+          of: self
+          path: history
+          value:
+            date: $date
+            action: extend-deadline
+            from: { $value: { of: self, path: status } }
+            to: { $value: { of: self, path: status } }
+            note: { $format: "期限 {old} → {new}（{why}）", $with: { old: { $first: [ { $copy: deadline, $of: self }, なし ] }, new: $deadline, why: $note } }
+      - set: { of: self, path: deadline, value: $deadline }
+  # 遂行中の依頼は報告を待つ。ただし期限を過ぎて支部の決めた日数がたつか、全滅が確かめられたら、ギルドが打ち切って未達（失敗）にする
+  - id: abandon-quest
+    label: 遂行を打ち切る
+    description: 遂行中の依頼を、受け手の報告を待たずに未達（失敗）にします。打ち切れるのは、期限を過ぎて支部の「打ち切りまでの日数」がたったときか、別のパーティの証言などで受け手の全滅が確かめられたときです。期限前の失敗は掲示し直せ、期限後の失敗は期限切れにして報酬を返します。
+    target: { entity: quest }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: ground, label: 打ち切りの理由, type: common#打ち切りの理由, required: true }
+      - { key: evidence, label: 確かめたこと, type: common#一行の文, required: true, minLength: 1, description: 証言した者や、最後の便り など。 }
+      - { key: date, label: 打ち切った日, type: common#年月日, required: true }
+    require:
+      - match: [ { node: { entity: quest, bind: q } } ]
+        where: [ { of: q, path: status, equals: assigned } ]
+        expect: exists
+        message: "{id} は遂行中（受注済み）の依頼ではありません"
+      # 全滅の確認でなければ、期限を過ぎて支部の日数がたっていること（期限の無い依頼は、全滅の確認でだけ打ち切れる）
+      - match:
+          - node: { entity: quest, bind: q }
+          - edge: { relation: received-at }
+          - node: { entity: branch, bind: b }
+        check:
+          - or:
+              - eq: [ $ground, wiped-out ]
+              - gte:
+                  - daysBetween: [ { first: [ { of: q, path: deadline }, "9999-12-31" ] }, $date ]
+                  - { of: b, path: abandonAfterDays }
+        message: "{id} はまだ打ち切れません（期限を過ぎて支部の打ち切りまでの日数がたつか、全滅が確かめられてから）"
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: quest }
+            - edge: { relation: has-assignment }
+            - node: { entity: assignment, bind: a }
+          where: [ { of: a, path: report, exists: false } ]
+          do:
+            - set: { of: a, path: report, value: { reportedOn: $date, outcome: failure, abandonedFor: $ground, summary: { $format: "ギルドが打ち切った: {e}", $with: { e: $evidence } } } }
+      - insert: { of: self, path: history, value: { date: $date, action: abandon-quest, from: assigned, to: failed, note: $evidence } }
+      - set: { of: self, path: status, value: failed }
   - id: expire-quest
     label: 依頼を期限切れにする
-    description: 期限を過ぎた掲示中・受注済みの依頼を期限切れにします。理由を履歴に残します。預かった報酬を返します（受付料は返しません）。
+    description: 期限を過ぎた受付・掲示中・失敗の依頼を期限切れにします。理由を履歴に残します。預かっていれば報酬を返します（受付料は返しません）。遂行中の依頼は、報告を待つか「打ち切る」で失敗にしてから期限切れにします。
     target: { entity: quest }
     input:
       initial:
@@ -854,9 +947,9 @@ actions:
       - { key: reason, label: 理由, type: common#一行の文, required: true, minLength: 1, default: 期限までに終わらなかった }
     require:
       - match: [ { node: { entity: quest, bind: q } } ]
-        where: [ { of: q, path: status, oneOf: [posted, assigned] } ]
+        where: [ { of: q, path: status, oneOf: [received, posted, failed] } ]
         expect: exists
-        message: "{id} は掲示中・受注済みの依頼ではありません"
+        message: "{id} は受付・掲示中・失敗の依頼ではありません（遂行中は、報告を待つか打ち切ります）"
       - match: [ { node: { entity: quest, bind: q } } ]
         where: [ { of: q, path: deadline, exists: true } ]
         expect: exists

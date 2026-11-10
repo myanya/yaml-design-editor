@@ -1,7 +1,7 @@
 id: QST-0091
 title: 北の砦への補給の荷を護衛する
 kind: escort
-status: failed
+status: expired
 branch: BRN-01
 client: CLT-009
 handledBy: STF-02
@@ -42,3 +42,12 @@ history:
     action: report-quest
     from: assigned
     to: failed
+  - date: 2026-11-10
+    action: expire-quest
+    from: failed
+    to: expired
+    note: 期限を過ぎた失敗の依頼を閉じた
+refund:
+  id: QST-0091-R
+  refundedOn: 2026-11-10
+  amount: 950

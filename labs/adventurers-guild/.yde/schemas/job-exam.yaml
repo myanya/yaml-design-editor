@@ -1,7 +1,7 @@
 id: job-exam
 name: 職能の審査
 kind: document
-description: 冒険者の主な職能の段階を上げる審査（試験）1 件を 1 ファイルで管理します。段階の基準に照らして試験をし、審査の流れ（審査の対象 → 審査中 → 合格・不合格）の履歴を持ちます。
+description: 冒険者の主な職能の段階を中級か上級へ上げる審査 1 件を 1 ファイルで管理します。実績（根拠の受注）と、面接などを伴う実技試験の 2 つで判定し、審査の流れ（審査の対象 → 審査中 → 合格・不合格）の履歴を持ちます。
 match: "guild/job-exams/*.yaml"
 filePattern: "guild/job-exams/{id}.yaml"
 root: { type: common#職能の審査 }
@@ -31,23 +31,60 @@ constraints:
       - edge: { relation: exam-of }
       - node: { entity: adventurer, bind: c }
     where: [ { of: e, path: status, oneOf: [nominated, examining] } ]
-    check: [ { eq: [ { of: e, path: fromLevel }, { of: c, path: jobLevel } ] } ]
+    check: [ { eq: [ { first: [ { of: e, path: fromLevel }, none ] }, { first: [ { of: c, path: jobLevel }, none ] } ] } ]
     level: error
-    message: "職能の審査「{id}」のいまの段階が、{c.title} のいまの職能の段階と違います"
+    message: "職能の審査「{id}」のいまの段階が、{c.title} のいまの職能の段階と違います（見習いは書きません）"
+  # 根拠の実績は、対象か、対象の属するパーティが達成した受注であること（件数で比べる。1 件ずつだと、実績の無い審査まで指摘するため）
+  - id: job-exam-achievements-are-candidates
+    description: 職能の審査の根拠の実績は、対象（かその属するパーティ）が達成した受注であること
+    match: [ { node: { entity: job-exam, bind: e } } ]
+    check:
+      - eq:
+          - count:
+              all:
+                from: e
+                match:
+                  - node: { entity: job-exam }
+                  - edge: { relation: based-on }
+                  - node: { entity: assignment, bind: a }
+          - count:
+              all:
+                from: e
+                match:
+                  - node: { entity: job-exam, bind: e2 }
+                  - edge: { relation: based-on }
+                  - node: { entity: assignment, bind: a }
+                  - edge: { relation: taken-by }
+                  - node: { entity: [adventurer, party] }
+                  - edge: { relation: has-member, repeat: { min: 0 } }
+                  - node: { entity: adventurer, bind: t }
+                where: [ { of: a, path: report.outcome, equals: success } ]
+                also:
+                  from: e2
+                  steps:
+                    - edge: { relation: exam-of }
+                    - node: { same: t }
+                of: a
+    level: error
+    message: "職能の審査「{id}」の根拠の実績 {left} 件のうち、対象（かその属するパーティ）が達成した受注は {right} 件です"
 
 # ---- 操作: 審査の対象に決める → 試験を始める → 合格（段階を上げる）・不合格 ----
 actions:
   - id: nominate-job-exam
     label: 職能の審査の対象に決める
-    description: 冒険者を職能の審査の対象に決め、職能の審査の記録（JEX- の次の番号）を作ります。職能は対象の主な職能、いまの段階は対象のいまの段階を入れます（違えば適用後の検証の誤りで止まります）。
+    description: 冒険者を職能の審査の対象に決め、職能の審査の記録（JEX- の次の番号）を作ります。職能は対象の主な職能、いまの段階は対象のいまの段階（見習いなら空）を入れます（違えば適用後の検証の誤りで止まります）。目指すのは中級か上級で、一度に何段上げてもかまいません。根拠の実績（達成した受注）も添えます。
     input:
       initial:
         date: { $copy: today, $of: context }
     params:
       - { key: candidate, label: 対象, type: common#冒険者参照, required: true }
       - { key: job, label: 職能, type: common#職能参照, required: true }
-      - { key: fromLevel, label: いまの段階, type: common#資格の段階, required: true }
+      - { key: fromLevel, label: いまの段階, type: common#資格の段階, description: 見習いなら空にします。 }
       - { key: toLevel, label: 目指す段階, type: common#資格の段階, required: true }
+      - key: basedOn
+        label: 根拠の実績
+        type: array
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] } }
       - { key: date, label: 対象に決めた日, type: common#年月日, required: true }
       - { key: note, label: 備考, type: common#文章 }
     do:
@@ -57,8 +94,9 @@ actions:
           params:
             candidate: $candidate
             job: $job
-            fromLevel: $fromLevel
+            fromLevel: { $copy: fromLevel }
             toLevel: $toLevel
+            basedOn: { $copy: basedOn }
             status: nominated
             nominatedOn: $date
             note: { $copy: note }
@@ -84,9 +122,29 @@ actions:
     do:
       - insert: { of: self, path: history, value: { date: $date, action: start-job-exam, from: nominated, to: examining, note: { $copy: note } } }
       - set: { of: self, path: status, value: examining }
+  - id: record-practical
+    label: 実技試験の結果を書く
+    description: 審査中の職能の審査に、面接などを伴う実技試験の結果（試験の日・審査官・結果・見せた技・面接の覚え）を書きます。書き直すときも同じ操作です。
+    target: { entity: job-exam }
+    input:
+      initial:
+        heldOn: { $copy: today, $of: context }
+    params:
+      - { key: heldOn, label: 試験の日, type: common#年月日, required: true }
+      - { key: examiner, label: 審査官, type: common#職員参照, required: true }
+      - { key: result, label: 結果, type: common#実技試験の結果, required: true }
+      - { key: skills, label: 見せた技, type: common#一行の文 }
+      - { key: note, label: 面接の覚え, type: common#文章 }
+    require:
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        where: [ { of: e, path: status, equals: examining } ]
+        expect: exists
+        message: "{id} は審査中の職能の審査ではありません"
+    do:
+      - set: { of: self, path: practical, value: { heldOn: $heldOn, examiner: $examiner, result: $result, skills: { $copy: skills }, note: { $copy: note } } }
   - id: pass-job-exam
     label: 合格にする
-    description: 審査中の職能の審査を合格にし、対象の冒険者の職能の段階を目指す段階へ上げます。
+    description: 審査中の職能の審査を合格にし、対象の冒険者の職能の段階を目指す段階へ上げます。根拠の実績と、合格した実技試験の 2 つが要ります。
     target: { entity: job-exam }
     input:
       initial:
@@ -103,12 +161,20 @@ actions:
       - match: [ { node: { entity: job-exam, bind: e } } ]
         check: [ { gte: [ $date, { of: e, path: nominatedOn } ] } ]
         message: 決めた日は対象に決めた日以降にしてください
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        where: [ { of: e, path: basedOn, empty: false } ]
+        expect: exists
+        message: "{id} に根拠の実績がありません（実績と実技試験の 2 つで判定します）"
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        where: [ { of: e, path: practical.result, equals: passed } ]
+        expect: exists
+        message: "{id} の実技試験が、まだ無いか合格ではありません"
       # 審査の間に対象の段階が変わっていたら上げない
       - match:
           - node: { entity: job-exam, bind: e }
           - edge: { relation: exam-of }
           - node: { entity: adventurer, bind: c }
-        check: [ { eq: [ { of: e, path: fromLevel }, { of: c, path: jobLevel } ] } ]
+        check: [ { eq: [ { first: [ { of: e, path: fromLevel }, none ] }, { first: [ { of: c, path: jobLevel }, none ] } ] } ]
         message: "{id} のいまの段階が、対象のいまの職能の段階と違います"
     do:
       - each:

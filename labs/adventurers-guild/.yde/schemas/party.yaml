@@ -58,3 +58,63 @@ actions:
           schema: party
           id: { prefix: "PTY-", digits: 3 }
           params: { name: $name, rank: $rank, leader: $leader, members: $members, formedOn: $date }
+  - id: sanction-party
+    label: 処分を下す（注意・受注停止）
+    description: パーティに注意か受注停止の処分を下し、処分の記録（SNC- の次の番号）を作ります。受注停止には終わる日を書きます。パーティの受注停止の間は、構成員も個人で受注できません。
+    target: { entity: party }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: kind, label: 種類, type: common#注意と受注停止, required: true }
+      - { key: regulation, label: 違反した規約, type: common#規約参照, required: true }
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: until, label: 終わる日, type: common#年月日, description: 受注停止の終わりの日です。 }
+      - { key: decidedBy, label: 決めた職員, type: common#職員参照, required: true }
+      - { key: reason, label: 理由, type: common#文章, required: true }
+    do:
+      - create:
+          schema: sanction
+          id: { prefix: "SNC-", digits: 3 }
+          params:
+            subject: { $copy: id, $of: self }
+            kind: $kind
+            regulation: $regulation
+            decidedOn: $date
+            until: { $copy: until }
+            decidedBy: $decidedBy
+            reason: $reason
+  - id: demote-party
+    label: 降格する
+    description: パーティに降格の処分を下し、処分の記録（SNC- の次の番号）を作って、ランクを 1 段下げます。降格の後のランクには、いまのランクの 1 段下を入れます（違えば適用後の検証の誤りで止まります）。
+    target: { entity: party }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: toRank, label: 降格の後のランク, type: common#ランク参照, required: true }
+      - { key: regulation, label: 違反した規約, type: common#規約参照, required: true }
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: decidedBy, label: 決めた職員, type: common#職員参照, required: true }
+      - { key: reason, label: 理由, type: common#文章, required: true }
+    require:
+      - match:
+          - node: { entity: party }
+          - edge: { relation: has-rank }
+          - node: { entity: rank, bind: r }
+        check: [ { gt: [ { of: r, path: order }, 1 ] } ]
+        message: "{id} はいちばん下のランクなので、降格できません"
+    do:
+      - create:
+          schema: sanction
+          id: { prefix: "SNC-", digits: 3 }
+          params:
+            subject: { $copy: id, $of: self }
+            kind: demotion
+            regulation: $regulation
+            decidedOn: $date
+            fromRank: { $copy: rank, $of: self }
+            toRank: $toRank
+            decidedBy: $decidedBy
+            reason: $reason
+      - set: { of: self, path: rank, value: $toRank }

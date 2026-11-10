@@ -14,8 +14,11 @@ flow:
   steps: [received, posted, assigned, reported, settled]
   moves:
     - { from: received, action: receive-deposit }
+    - { from: received, action: extend-deadline }
     - { from: received, action: post-quest, to: posted }
+    - { from: posted, action: extend-deadline }
     - { from: posted, action: accept-quest, to: assigned }
+    - { from: assigned, action: extend-deadline }
     - { from: assigned, action: report-quest, to: reported }
     - { from: reported, action: settle-quest, to: settled }
   # 業務詳細の「流れの中の位置」に出す履歴（依頼の history。行の項目は date / action / from / to / note）
@@ -62,15 +65,15 @@ sections:
       match: [ { node: { entity: quest, bind: q } } ]
       where: [ { of: q, path: status, equals: settled } ]
       expect: exists
-  # 期限を過ぎた掲示中・遂行中の依頼（基準日で判定。期限切れにする操作の候補）
+  # 期限を過ぎた依頼（基準日で判定）。受付・掲示中・失敗は期限切れにするか期限を延ばす。遂行中は報告を待ち、支部の日数がたつか全滅が確かめられたら打ち切る
   - id: overdue
-    label: 期限を過ぎた掲示中・遂行中
+    label: 期限を過ぎた依頼（受付・掲示中・遂行中・失敗）
     group: 状況
     view: quest-board
     filter:
       match: [ { node: { entity: quest, bind: q } } ]
       where:
-        - { of: q, path: status, oneOf: [posted, assigned] }
+        - { of: q, path: status, oneOf: [received, posted, assigned, failed] }
         - { of: q, path: deadline, exists: true }
       check:
         - lt: [ { of: q, path: deadline }, $today ]

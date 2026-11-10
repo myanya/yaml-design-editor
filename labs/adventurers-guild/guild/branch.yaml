@@ -5,6 +5,7 @@ headquarters: HQ-01
 currency: セリン
 commissionRate: 10
 receptionFeeRate: 10
+abandonAfterDays: 14
 livingCost: 150
 openingCash: 3000
 openingOn: 2025-10-31

@@ -4,6 +4,5 @@ rank: RNK-E
 status: active
 registeredOn: 2025-08-21
 job: JOB-05
-jobLevel: beginner
 history:
   - { date: 2025-08-21, action: register-adventurer, to: active }

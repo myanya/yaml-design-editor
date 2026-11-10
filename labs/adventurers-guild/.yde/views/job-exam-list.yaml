@@ -13,5 +13,7 @@ columns:
   - { label: 対象に決めた日, schemaId: job-exam, path: nominatedOn }
   - { label: 決めた日, schemaId: job-exam, path: decidedOn }
   - { label: 試験をした職員, schemaId: job-exam, path: decidedBy }
+  - { label: 根拠の実績, schemaId: job-exam, path: basedOn }
+  - { label: 実技試験, schemaId: job-exam, path: practical.result }
 newRow:
   filePattern: "guild/job-exams/{id}.yaml"

@@ -30,9 +30,32 @@ constraints:
     level: warning
     message: "冒険者「{id}」は除名なのに、除名の処分の記録がありません"
 
+  # 初級は、その職能の訓練の課程の修了で得る（Q57）。中級と上級は職能の審査で得る
+  - id: beginner-level-by-training
+    description: 職能の段階が初級の冒険者は、主な職能の訓練の課程を修了していること
+    match:
+      - node: { entity: adventurer, bind: c }
+      - edge: { relation: trainee, dir: in }
+      - node: { entity: enrollment, bind: e }
+      - edge: { relation: has-enrollment, dir: in }
+      - node: { entity: training }
+      - edge: { relation: trains-for }
+      - node: { entity: job, bind: j }
+    also:
+      from: c
+      steps:
+        - edge: { relation: has-job }
+        - node: { same: j }
+    where:
+      - { of: c, path: jobLevel, equals: beginner }
+      - { of: e, path: result, equals: completed }
+    expect: exists
+    level: error
+    message: "冒険者「{id}」の職能の段階は初級なのに、主な職能の訓練の課程を修了していません（初級は訓練の修了で得ます）"
+
 # ---- 操作: 登録 → 現役 ⇄ 休業・消息不明 → 引退・除名 ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す。
-# 遂行中の依頼を受けている間は、休業・引退・消息不明・除名にしない（依頼の検査「休業などの冒険者は受注できない」と同じ決まり。
+# 遂行中の依頼を受けている間は、引退・消息不明・除名にしない（依頼の検査「引退などの冒険者は受注できない」と同じ決まり。休業は事故などで遂行中にもできる（Q51）。
 # 依頼の文書は変えないので、適用後の検証では止まらないため前提で止める）
 actions:
   - id: register-adventurer
@@ -61,7 +84,7 @@ actions:
             history: [ { date: $date, action: register-adventurer, to: active } ]
   - id: rest-adventurer
     label: 休業にする
-    description: 現役の冒険者を休業にします（けがの療養・帰郷など）。遂行中の依頼があるうちはできません。
+    description: 現役の冒険者を休業にします（けがの療養・帰郷・依頼の途中の事故など）。遂行中の依頼があってもできます（その依頼は、報告か打ち切りで閉じます）。休業の間は受注できません。
     target: { entity: adventurer }
     input:
       initial:
@@ -74,19 +97,9 @@ actions:
         where: [ { of: c, path: status, equals: active } ]
         expect: exists
         message: "{id} は現役の冒険者ではありません"
-      - match:
-          - node: { entity: adventurer }
-          - edge: { relation: taken-by, dir: in }
-          - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
-          - node: { entity: quest, bind: q }
-        where:
-          - { of: a, path: report, exists: false }
-          - { of: q, path: status, equals: assigned }
-        expect: absent
-        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼の報告をします）"
     do:
       - insert: { of: self, path: history, value: { date: $date, action: rest-adventurer, from: active, to: resting, note: $note } }
+      - set: { of: self, path: restingSince, value: $date }
       - set: { of: self, path: status, value: resting }
   - id: return-adventurer
     label: 現役に戻す
@@ -105,6 +118,7 @@ actions:
         message: "{id} は休業か消息不明の冒険者ではありません"
     do:
       - insert: { of: self, path: history, value: { date: $date, action: return-adventurer, from: { $value: { of: self, path: status } }, to: active, note: { $copy: note } } }
+      - delete: { of: self, path: restingSince }
       - set: { of: self, path: status, value: active }
   - id: retire-adventurer
     label: 引退にする
@@ -232,3 +246,37 @@ actions:
             until: { $copy: until }
             decidedBy: $decidedBy
             reason: $reason
+  - id: demote-adventurer
+    label: 降格する
+    description: 冒険者に降格の処分を下し、処分の記録（SNC- の次の番号）を作って、ランクを 1 段下げます。降格の後のランクには、いまのランクの 1 段下を入れます（違えば適用後の検証の誤りで止まります）。
+    target: { entity: adventurer }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: toRank, label: 降格の後のランク, type: common#ランク参照, required: true }
+      - { key: regulation, label: 違反した規約, type: common#規約参照, required: true }
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: decidedBy, label: 決めた職員, type: common#職員参照, required: true }
+      - { key: reason, label: 理由, type: common#文章, required: true }
+    require:
+      - match:
+          - node: { entity: adventurer }
+          - edge: { relation: has-rank }
+          - node: { entity: rank, bind: r }
+        check: [ { gt: [ { of: r, path: order }, 1 ] } ]
+        message: "{id} はいちばん下のランクなので、降格できません"
+    do:
+      - create:
+          schema: sanction
+          id: { prefix: "SNC-", digits: 3 }
+          params:
+            subject: { $copy: id, $of: self }
+            kind: demotion
+            regulation: $regulation
+            decidedOn: $date
+            fromRank: { $copy: rank, $of: self }
+            toRank: $toRank
+            decidedBy: $decidedBy
+            reason: $reason
+      - set: { of: self, path: rank, value: $toRank }

@@ -5,3 +5,27 @@ description: 冒険者かパーティへの処分 1 件を 1 ファイルで管�
 match: "guild/sanctions/*.yaml"
 filePattern: "guild/sanctions/{id}.yaml"
 root: { type: common#処分 }
+# 降格の前のランクは別の照合（all）で読む（昇格審査の 1 段ずつと同じ。同じランクに着く 2 本の道は見逃すため）
+constraints:
+  - id: demotion-one-step
+    description: 降格は 1 段（降格の後のランクは、前のランクのすぐ下）であること
+    match:
+      - node: { entity: sanction, bind: s }
+      - edge: { relation: demoted-to }
+      - node: { entity: rank, bind: rt }
+    check:
+      - eq:
+          - { number: { of: rt, path: order } }
+          - subtract:
+              - max:
+                  all:
+                    from: s
+                    of: rf
+                    path: order
+                    match:
+                      - node: { entity: sanction }
+                      - edge: { relation: demoted-from }
+                      - node: { entity: rank, bind: rf }
+              - 1
+    level: error
+    message: "降格の処分「{id}」の降格の後のランク {rt.title} は、前のランクのすぐ下ではありません（降格は 1 段です。順位 {left} ≠ {right}）"

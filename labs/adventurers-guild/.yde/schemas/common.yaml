@@ -374,6 +374,8 @@ definitions:
       - { value: reject-quest, label: 却下する }
       - { value: cancel-quest, label: 取り消す }
       - { value: expire-quest, label: 期限切れにする }
+      - { value: extend-deadline, label: 期限を延ばす }
+      - { value: abandon-quest, label: 打ち切る }
   冒険者の状態:
     type: enum
     values:
@@ -480,6 +482,7 @@ definitions:
     values:
       - { value: nominate-job-exam, label: 審査の対象に決める }
       - { value: start-job-exam, label: 試験を始める }
+      - { value: record-practical, label: 実技試験の結果を書く }
       - { value: pass-job-exam, label: 合格にする }
       - { value: fail-job-exam, label: 不合格にする }
   資格の段階:
@@ -519,6 +522,17 @@ definitions:
     values:
       - { value: success, label: 達成 }
       - { value: failure, label: 未達 }
+  # 遂行中の依頼をギルドが打ち切る理由（Q53）。受け手の報告を待てないとき
+  打ち切りの理由:
+    type: enum
+    values:
+      - { value: overdue, label: 期限後の日数, description: 期限を過ぎて、支部の決めた日数がたっても報告が無い }
+      - { value: wiped-out, label: 全滅の確認, description: 別のパーティの証言などで、受け手の全滅が確かめられた }
+  実技試験の結果:
+    type: enum
+    values:
+      - { value: passed, label: 合格 }
+      - { value: failed, label: 不合格 }
 
   # ---- オブジェクト型（概念） ----
   支部:
@@ -533,6 +547,7 @@ definitions:
       - { key: currency, label: 通貨の単位, type: 一行の文, required: true, description: 報酬などの金額の単位です。 }
       - { key: commissionRate, label: 手数料率, type: 率, required: true, description: 報酬から差し引くギルドの手数料の率です。支部で一律です。精算のときに、この率を精算の記録へ写します。 }
       - { key: receptionFeeRate, label: 受付料率, type: 率, required: true, description: 依頼を受け付けて報酬を預かるときに、依頼者から受け取る受付料の率（報酬に対する率）です。預かりの記録へ写します。 }
+      - { key: abandonAfterDays, label: 打ち切りまでの日数, type: int, min: 0, required: true, description: 遂行中の依頼の期限を過ぎて、この日数がたっても報告が無ければ、ギルドが打ち切れます。 }
       - { key: livingCost, label: 暮らしの目安（月）, type: 金額, required: true, description: 町で 1 人が 1 か月暮らすのにかかる額の目安です。冒険者の稼ぎを見るときに使います。 }
       - { key: openingCash, label: 開始の現金, type: 金額, required: true, description: 記録を始めた日（開始の日）に金庫にあった現金です。現金の残高は、これに動きを足し引きして導きます。 }
       - { key: openingOn, label: 開始の日, type: 年月日, required: true }
@@ -599,7 +614,8 @@ definitions:
       - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
       - { key: job, label: 職能, type: 職能参照, relation: has-job, required: true, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
-      - { key: jobLevel, label: 職能の段階, type: 資格の段階, required: true, default: beginner, description: 主な職能の技量の段階です。依頼の求める段階と比べます。 }
+      - { key: jobLevel, label: 職能の段階, type: 資格の段階, description: 主な職能の技量の段階です。初級はその職能の訓練の修了、中級と上級は職能の審査（実績と実技試験）で得ます。書かなければ見習い（段階なし）です。依頼の求める段階と比べます。 }
+      - { key: restingSince, label: 休業した日, type: 年月日, description: 休業の間だけ書きます。操作「休業にする」が書き、「現役に戻す」が消します。 }
       - { key: note, label: 備考, type: 文章 }
       - key: history
         label: 履歴
@@ -607,6 +623,23 @@ definitions:
         description: 状態を変えた操作の記録です。操作が 1 行ずつ足します。
         default: []
         item: { type: 冒険者の履歴 }
+    constraints:
+      - id: resting-has-since
+        description: 休業の冒険者には休業した日があること
+        where:
+          - { path: status, equals: resting }
+          - { path: restingSince, exists: false }
+        expect: absent
+        level: error
+        message: "冒険者「{id}」は休業なのに、休業した日がありません"
+      - id: since-only-when-resting
+        description: 休業でない冒険者には休業した日が無いこと
+        where:
+          - { path: restingSince, exists: true }
+          - { path: status, notEquals: resting }
+        expect: absent
+        level: error
+        message: "冒険者「{id}」は休業ではないのに、休業した日があります"
   冒険者の履歴:
     type: object
     label: 冒険者の履歴
@@ -660,6 +693,7 @@ definitions:
       - { key: reportedOn, label: 報告日, type: 年月日, required: true }
       - { key: outcome, label: 結果, type: 報告の結果, required: true }
       - { key: summary, label: 内容, type: 文章 }
+      - { key: abandonedFor, label: 打ち切りの理由, type: 打ち切りの理由, description: ギルドが打ち切ったときだけ書きます（受け手の報告ではない未達）。証言などは内容に書きます。 }
   依頼の履歴:
     type: object
     label: 依頼の履歴
@@ -702,7 +736,7 @@ definitions:
       - { key: deadline, label: 期限, type: 年月日 }
       - { key: place, label: 場所, type: 場所参照, relation: located-at, description: 依頼を行う場所です。 }
       - { key: requiredJob, label: 求める職能, type: 職能参照, relation: requires-job, description: 受け手に求める職能です。受け手の職能か、その職能の資格で満たします（パーティなら構成員の誰か）。 }
-      - { key: requiredLevel, label: 求める段階, type: 資格の段階, description: 求める職能の段階です。書かなければ初級（どの段階でもよい）です。 }
+      - { key: requiredLevel, label: 求める段階, type: 資格の段階, description: 求める職能の段階です。書かなければ初級以上（見習いは、その職能の資格が無ければ満たしません）です。 }
       - key: targets
         label: 対象
         type: array
@@ -977,6 +1011,8 @@ definitions:
       - { key: regulation, label: 違反した規約, type: 規約参照, required: true, description: 処分の根拠の規約です。 }
       - { key: decidedOn, label: 決めた日, type: 年月日, required: true }
       - { key: until, label: 終わる日, type: 年月日, description: 受注停止の終わりの日です。 }
+      - { key: fromRank, label: 降格の前のランク, type: ランク参照, relation: demoted-from, description: 降格のときだけ書きます。 }
+      - { key: toRank, label: 降格の後のランク, type: ランク参照, relation: demoted-to, description: 降格のときだけ書きます（前のランクの 1 段下）。 }
       - { key: decidedBy, label: 決めた職員, type: 職員参照, relation: decided-by, required: true }
       - { key: reason, label: 理由, type: 文章, required: true }
     constraints:
@@ -993,6 +1029,22 @@ definitions:
         where: [ { path: until, exists: true } ]
         check: [ { gte: [ { path: until }, { path: decidedOn } ] } ]
         level: error
+      - id: demotion-has-ranks
+        description: 降格の処分には、降格の前と後のランクがあること
+        where:
+          - { path: kind, equals: demotion }
+          - { or: [ { path: fromRank, exists: false }, { path: toRank, exists: false } ] }
+        expect: absent
+        level: error
+        message: "降格の処分「{id}」に、降格の前か後のランクがありません"
+      - id: ranks-only-for-demotion
+        description: 降格のほかの処分には、降格の前と後のランクが無いこと
+        where:
+          - { path: kind, notEquals: demotion }
+          - { or: [ { path: fromRank, exists: true }, { path: toRank, exists: true } ] }
+        expect: absent
+        level: error
+        message: "処分「{id}」は降格ではないのに、降格の前か後のランクがあります"
   昇格審査:
     type: object
     label: 昇格審査
@@ -1252,8 +1304,14 @@ definitions:
       - { key: id, label: 職能の審査番号, type: 職能の審査番号, required: true }
       - { key: candidate, label: 対象, type: 冒険者参照, relation: exam-of, required: true }
       - { key: job, label: 職能, type: 職能参照, relation: exam-job, required: true, description: 対象の主な職能です。 }
-      - { key: fromLevel, label: いまの段階, type: 資格の段階, required: true }
-      - { key: toLevel, label: 目指す段階, type: 資格の段階, required: true }
+      - { key: fromLevel, label: いまの段階, type: 資格の段階, description: 書かなければ見習い（段階なし）です。 }
+      - { key: toLevel, label: 目指す段階, type: 資格の段階, required: true, description: 中級か上級です（初級は訓練の修了で得ます）。一度に何段上げてもかまいません。 }
+      - key: basedOn
+        label: 根拠の実績
+        type: array
+        description: 審査の根拠にした、対象（かその属するパーティ）が達成した受注です。
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] }, relation: based-on }
+      - { key: practical, label: 実技試験, type: 実技試験, description: 面接などを伴う実技試験の結果です。操作「実技試験の結果を書く」が書きます。 }
       - { key: status, label: 状態, type: 職能の審査の状態, required: true, default: nominated }
       - { key: nominatedOn, label: 対象に決めた日, type: 年月日, required: true }
       - { key: decidedOn, label: 決めた日, type: 年月日, description: 合格か不合格を決めた日です。 }
@@ -1287,15 +1345,38 @@ definitions:
         where: [ { path: decidedOn, exists: true } ]
         check: [ { gte: [ { path: decidedOn }, { path: nominatedOn } ] } ]
         level: error
-      # 段階の上下は、選択肢を順位の数に置き換えて比べる
+      # 段階の上下は、選択肢を順位の数に置き換えて比べる（いまの段階が無い＝見習いは 0）
       - id: job-exam-goes-up
         description: 目指す段階は、いまの段階より上であること
         check:
           - gt:
               - { map: { path: toLevel }, using: { beginner: 1, intermediate: 2, advanced: 3 } }
-              - { map: { path: fromLevel }, using: { beginner: 1, intermediate: 2, advanced: 3 } }
+              - { map: { first: [ { path: fromLevel }, none ] }, using: { none: 0, beginner: 1, intermediate: 2, advanced: 3 } }
         level: error
         message: "職能の審査「{id}」の目指す段階が、いまの段階より上ではありません"
+      - id: job-exam-targets-upper-levels
+        description: 職能の審査で目指すのは中級か上級であること（初級は訓練の修了で得る）
+        check: [ { oneOf: [ { path: toLevel }, [ intermediate, advanced ] ] } ]
+        level: error
+        message: "職能の審査「{id}」の目指す段階は中級か上級にします（初級は訓練の修了で得ます）"
+      # 中級・上級は、実績と、面接などを伴う実技試験の 2 つで判定する（Q57）
+      - id: job-exam-passed-has-both
+        description: 合格した職能の審査には、根拠の実績と、合格した実技試験があること
+        where:
+          - { path: status, equals: passed }
+          - { or: [ { path: basedOn, empty: true }, { path: practical.result, notEquals: passed } ] }
+        expect: absent
+        level: error
+        message: "職能の審査「{id}」は合格なのに、根拠の実績か合格した実技試験がありません（実績と実技試験の 2 つで判定します）"
+  実技試験:
+    type: object
+    label: 実技試験
+    fields:
+      - { key: heldOn, label: 試験の日, type: 年月日, required: true }
+      - { key: examiner, label: 審査官, type: 職員参照, relation: examined-by, required: true }
+      - { key: result, label: 結果, type: 実技試験の結果, required: true }
+      - { key: skills, label: 見せた技, type: 一行の文, description: 試験で使えた技や術です。 }
+      - { key: note, label: 面接の覚え, type: 文章 }
   職能の審査の履歴:
     type: object
     label: 職能の審査の履歴

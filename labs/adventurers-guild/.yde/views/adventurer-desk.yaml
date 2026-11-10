@@ -11,6 +11,7 @@ flow:
   steps: [active, resting, missing, retired, expelled]
   moves:
     - { from: active, action: sanction-adventurer }
+    - { from: active, action: demote-adventurer }
     - { from: active, action: rest-adventurer, to: resting }
     - { from: resting, action: return-adventurer, to: active }
     - { from: active, action: report-missing, to: missing }

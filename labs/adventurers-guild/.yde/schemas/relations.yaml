@@ -231,10 +231,10 @@ relations:
   - name: based-on
     label: 根拠の実績
     inverseLabel: この実績を根拠にした昇格審査
-    source: [promotion]
+    source: [promotion, job-exam]
     target: [assignment]
     level: error
-    description: 昇格審査の根拠にした受注です
+    description: 昇格審査や職能の審査の根拠にした受注です
   - name: trains-for
     label: 身に付く職能
     inverseLabel: この職能の訓練
@@ -433,3 +433,28 @@ relations:
     cardinality: { outMin: 1, outMax: 1 }
     level: error
     description: 審査する職能（対象の主な職能）です
+  - name: examined-by
+    label: 審査官
+    inverseLabel: 審査した職能の審査
+    source: [job-exam]
+    target: [staff]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 職能の審査の実技試験をした審査官（職員）です
+  # ---- 降格 ----
+  - name: demoted-from
+    label: 降格の前のランク
+    inverseLabel: このランクからの降格
+    source: [sanction]
+    target: [rank]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 降格の処分の、前のランクです
+  - name: demoted-to
+    label: 降格の後のランク
+    inverseLabel: このランクへの降格
+    source: [sanction]
+    target: [rank]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 降格の処分の、後のランクです
