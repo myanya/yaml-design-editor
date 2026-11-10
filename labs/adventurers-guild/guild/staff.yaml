@@ -59,6 +59,8 @@ staff:
     role: instructor
     branch: BRN-01
     monthlySalary: 180
+    job: JOB-05
+    jobLevel: advanced
     note: 元は町の守衛で、剣と弓を教えます。
     wages:
       - { id: WAG-0004, payday: 2025-11-30, amount: 180 }

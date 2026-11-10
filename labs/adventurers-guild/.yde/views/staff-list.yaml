@@ -1,12 +1,14 @@
 id: staff-list
 name: 職員の一覧
-description: 職員ごとの役目と、受け付けた依頼・教える訓練・決めた処分と昇格審査。
+description: 職員ごとの役目・職能とその段階（職能の審査の審査官を決めるとき）と、受け付けた依頼・教える訓練・決めた処分と昇格審査。
 rows:
   idPattern: "STF-*"
 order: { schemaId: staff-list }
 columns:
   - { label: 名前, schemaId: staff-list, path: name, editable: true }
   - { label: 役目, schemaId: staff-list, path: role, editable: true }
+  - { label: 職能, schemaId: staff-list, path: job, editable: true }
+  - { label: 職能の段階, schemaId: staff-list, path: jobLevel, editable: true }
   - label: 受け付けた依頼
     backlinks: { relation: handled-by }
   - label: 教える訓練

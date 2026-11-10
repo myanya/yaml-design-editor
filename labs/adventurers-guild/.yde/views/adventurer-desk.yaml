@@ -1,14 +1,14 @@
 id: adventurer-desk
 name: 冒険者の管理
 kind: dashboard
-description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業・消息不明 → 引退・除名）と、処分・資格・訓練です。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
+description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業・消息不明 → 引退・除名・死亡）と、処分・資格・訓練です。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
 actions: [register-adventurer]
 placement: auto
 # 除名は処分の操作（除名する）で、状態を除名にして処分の記録を作る。注意と受注停止は状態を変えない（現役の段に留まる工程）
 flow:
   direction: right
   start: { action: register-adventurer, to: active }
-  steps: [active, resting, missing, retired, expelled]
+  steps: [active, resting, missing, retired, expelled, dead]
   moves:
     - { from: active, action: sanction-adventurer }
     - { from: active, action: demote-adventurer }
@@ -21,6 +21,9 @@ flow:
     - { from: active, action: expel-adventurer, to: expelled }
     - { from: resting, action: expel-adventurer, to: expelled }
     - { from: missing, action: expel-adventurer, to: expelled }
+    - { from: active, action: report-death, to: dead }
+    - { from: resting, action: report-death, to: dead }
+    - { from: missing, action: report-death, to: dead }
   history: { path: history }
 sections:
   # ---- 状態（流れの段） ----
@@ -63,6 +66,14 @@ sections:
     filter:
       match: [ { node: { entity: adventurer, bind: x } } ]
       where: [ { of: x, path: status, equals: expelled } ]
+      expect: exists
+  - id: dead
+    label: 死亡
+    group: 状態
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: dead } ]
       expect: exists
   # ---- 処分 ----
   # いま効いている受注停止（基準日が決めた日から終わる日までの間）

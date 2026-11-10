@@ -1,12 +1,11 @@
 id: JEX-001
-candidate: ADV-0005
-job: JOB-04
-fromLevel: intermediate
-toLevel: advanced
-basedOn: [QST-0021-A1, QST-0024-A1, QST-0057-A1, QST-0078-A1, QST-0114-A1]
+candidate: ADV-0006
+job: JOB-05
+toLevel: intermediate
+basedOn: [QST-0018-A1, QST-0030-A1, QST-0039-A1, QST-0048-A1, QST-0051-A1, QST-0082-A1, QST-0086-A1, QST-0087-A1, QST-0101-A1, QST-0107-A1]
 status: examining
 nominatedOn: 2026-11-04
-note: 夜鳴きの鈴の治療師として、護衛と討伐で傷と毒の手当てを重ねてきた。上級の実技試験を受けさせる。
+note: 見習いのまま、ひとりで霧鴉や岩甲虫の討伐と見回りを重ねてきた。弓の活きた達成 10 件を根拠に、中級の実技試験を受けさせる。
 history:
   - { date: 2026-11-04, action: nominate-job-exam, to: nominated }
   - { date: 2026-11-06, action: start-job-exam, from: nominated, to: examining }

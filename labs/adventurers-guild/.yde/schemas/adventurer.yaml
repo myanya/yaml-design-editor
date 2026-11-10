@@ -53,7 +53,7 @@ constraints:
     level: error
     message: "冒険者「{id}」の職能の段階は初級なのに、主な職能の訓練の課程を修了していません（初級は訓練の修了で得ます）"
 
-# ---- 操作: 登録 → 現役 ⇄ 休業・消息不明 → 引退・除名 ----
+# ---- 操作: 登録 → 現役 ⇄ 休業・消息不明 → 引退・除名・死亡 ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す。
 # 遂行中の依頼を受けている間は、引退・消息不明・除名にしない（依頼の検査「引退などの冒険者は受注できない」と同じ決まり。休業は事故などで遂行中にもできる（Q51）。
 # 依頼の文書は変えないので、適用後の検証では止まらないため前提で止める）
@@ -280,3 +280,34 @@ actions:
             decidedBy: $decidedBy
             reason: $reason
       - set: { of: self, path: rank, value: $toRank }
+  # 死亡（Q59）。依頼の途中なら、先に依頼を打ち切る（全滅の確認）。パーティの全滅は、パーティの操作「全滅を記録する」で構成員をまとめて死亡にする
+  - id: report-death
+    label: 死亡にする
+    description: 死亡が確かめられた冒険者（現役・休業・消息不明）を死亡にします。確かめたこと（証言など）を履歴に残します。遂行中の依頼があるうちはできません（先に打ち切ります）。
+    target: { entity: adventurer }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 確かめた日, type: common#年月日, required: true }
+      - { key: evidence, label: 確かめたこと, type: common#一行の文, required: true, minLength: 1 }
+    require:
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        where: [ { of: c, path: status, oneOf: [active, resting, missing] } ]
+        expect: exists
+        message: "{id} は現役・休業・消息不明の冒険者ではありません"
+      - match:
+          - node: { entity: adventurer }
+          - edge: { relation: taken-by, dir: in }
+          - node: { entity: assignment, bind: a }
+          - edge: { relation: has-assignment, dir: in }
+          - node: { entity: quest, bind: q }
+        where:
+          - { of: a, path: report, exists: false }
+          - { of: q, path: status, equals: assigned }
+        expect: absent
+        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼を打ち切ります）"
+    do:
+      - insert: { of: self, path: history, value: { date: $date, action: report-death, from: { $value: { of: self, path: status } }, to: dead, note: $evidence } }
+      - delete: { of: self, path: restingSince }
+      - set: { of: self, path: status, value: dead }

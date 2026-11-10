@@ -67,6 +67,42 @@ constraints:
                 of: a
     level: error
     message: "職能の審査「{id}」の根拠の実績 {left} 件のうち、対象（かその属するパーティ）が達成した受注は {right} 件です"
+  # 審査官（Q60）: その職能の上級の職員か、引退した上級の冒険者
+  - id: examiner-has-the-job
+    description: 実技試験の審査官は、審査する職能を持つこと
+    match:
+      - node: { entity: job-exam, bind: e }
+      - edge: { relation: examined-by }
+      - node: { entity: [staff, adventurer], bind: x }
+      - edge: { relation: has-job }
+      - node: { entity: job, bind: j }
+    also:
+      from: e
+      steps:
+        - edge: { relation: exam-job }
+        - node: { same: j }
+    where: [ { of: e, path: practical, exists: true } ]
+    expect: exists
+    level: error
+    message: "職能の審査「{id}」の審査官は、審査する職能を持っていません（審査官は、その職能の上級の職員か、引退した上級の冒険者です）"
+  - id: examiner-is-advanced
+    description: 実技試験の審査官は、その職能の上級であること
+    match:
+      - node: { entity: job-exam, bind: e }
+      - edge: { relation: examined-by }
+      - node: { entity: [staff, adventurer], bind: x }
+    check: [ { eq: [ { first: [ { of: x, path: jobLevel }, none ] }, advanced ] } ]
+    level: error
+    message: "職能の審査「{id}」の審査官 {x.title} は、上級ではありません"
+  - id: adventurer-examiner-is-retired
+    description: 冒険者が審査官になるのは、引退した冒険者だけであること
+    match:
+      - node: { entity: job-exam, bind: e }
+      - edge: { relation: examined-by }
+      - node: { entity: adventurer, bind: x }
+    check: [ { eq: [ { of: x, path: status }, retired ] } ]
+    level: error
+    message: "職能の審査「{id}」の審査官 {x.title} は、引退した冒険者ではありません"
 
 # ---- 操作: 審査の対象に決める → 試験を始める → 合格（段階を上げる）・不合格 ----
 actions:
@@ -131,7 +167,7 @@ actions:
         heldOn: { $copy: today, $of: context }
     params:
       - { key: heldOn, label: 試験の日, type: common#年月日, required: true }
-      - { key: examiner, label: 審査官, type: common#職員参照, required: true }
+      - { key: examiner, label: 審査官, type: common#審査官参照, required: true, description: その職能の上級の職員か、引退した上級の冒険者です。 }
       - { key: result, label: 結果, type: common#実技試験の結果, required: true }
       - { key: skills, label: 見せた技, type: common#一行の文 }
       - { key: note, label: 面接の覚え, type: common#文章 }

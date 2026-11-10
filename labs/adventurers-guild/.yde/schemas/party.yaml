@@ -118,3 +118,51 @@ actions:
             decidedBy: $decidedBy
             reason: $reason
       - set: { of: self, path: rank, value: $toRank }
+  # パーティの全滅（Q59）。構成員をまとめて死亡にする。パーティで受けた依頼は先に打ち切る（全滅の確認）
+  - id: record-wipeout
+    label: 全滅を記録する
+    description: 全滅が確かめられたパーティの構成員を、まとめて死亡にします。確かめたこと（証言など）を構成員の履歴に残します。パーティか構成員が遂行中の依頼を受けているうちはできません（先に「遂行を打ち切る」で全滅の確認として打ち切ります）。
+    target: { entity: party }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 確かめた日, type: common#年月日, required: true }
+      - { key: evidence, label: 確かめたこと, type: common#一行の文, required: true, minLength: 1 }
+    require:
+      - match:
+          - node: { entity: party }
+          - edge: { relation: taken-by, dir: in }
+          - node: { entity: assignment, bind: a }
+          - edge: { relation: has-assignment, dir: in }
+          - node: { entity: quest, bind: q }
+        where:
+          - { of: a, path: report, exists: false }
+          - { of: q, path: status, equals: assigned }
+        expect: absent
+        message: "{id} は遂行中の依頼 {q.id} を受けています（先に、全滅の確認として打ち切ります）"
+      - match:
+          - node: { entity: party }
+          - edge: { relation: has-member }
+          - node: { entity: adventurer, bind: m }
+          - edge: { relation: taken-by, dir: in }
+          - node: { entity: assignment, bind: a }
+          - edge: { relation: has-assignment, dir: in }
+          - node: { entity: quest, bind: q }
+        where:
+          - { of: a, path: report, exists: false }
+          - { of: q, path: status, equals: assigned }
+        expect: absent
+        message: "構成員 {m.title} が個人で遂行中の依頼 {q.id} を受けています（先に打ち切ります）"
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: party }
+            - edge: { relation: has-member }
+            - node: { entity: adventurer, bind: m }
+          where: [ { of: m, path: status, oneOf: [active, resting, missing] } ]
+          do:
+            - insert: { of: m, path: history, value: { date: $date, action: report-death, from: { $value: { of: m, path: status } }, to: dead, note: { $format: "パーティの全滅: {e}", $with: { e: $evidence } } } }
+            - delete: { of: m, path: restingSince }
+            - set: { of: m, path: status, value: dead }

@@ -158,12 +158,12 @@ relations:
     description: 魔物を討伐するのに目安となるランクです
   - name: has-job
     label: 職能
-    inverseLabel: この職能の冒険者
-    source: [adventurer]
+    inverseLabel: この職能の冒険者・職員
+    source: [adventurer, staff]
     target: [job]
-    cardinality: { outMin: 1, outMax: 1 }
+    cardinality: { outMax: 1 }
     level: error
-    description: 冒険者の主な職能です。必ず 1 つです
+    description: 冒険者の主な職能（必ず 1 つ。冒険者の項目の必須で確かめる）と、職員の職能（1 つまで）です
   - name: works-at
     label: 所属支部
     inverseLabel: 所属する職員
@@ -437,10 +437,10 @@ relations:
     label: 審査官
     inverseLabel: 審査した職能の審査
     source: [job-exam]
-    target: [staff]
+    target: [staff, adventurer]
     cardinality: { outMax: 1 }
     level: error
-    description: 職能の審査の実技試験をした審査官（職員）です
+    description: 職能の審査の実技試験をした審査官です。その職能の上級の職員か、引退した上級の冒険者です
   # ---- 降格 ----
   - name: demoted-from
     label: 降格の前のランク

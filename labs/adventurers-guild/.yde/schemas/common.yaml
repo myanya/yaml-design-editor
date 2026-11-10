@@ -312,6 +312,13 @@ definitions:
       schemaIds: [staff-list, adventurer]
     relation: taught-by
     description: 教官の番号を 1 件。職員か冒険者（引退した冒険者も）です。
+  審査官参照:
+    type: ref
+    idPatterns: ["STF-*", "ADV-*"]
+    scope:
+      schemaIds: [staff-list, adventurer]
+    relation: examined-by
+    description: 審査官の番号を 1 件。その職能の上級の職員か、引退した上級の冒険者です。
   受注参照:
     type: ref
     idPattern: "QST-*-A*"
@@ -384,6 +391,7 @@ definitions:
       - { value: retired, label: 引退, description: 冒険者をやめた。教官は務められる }
       - { value: expelled, label: 除名, description: 除名の処分を受けた }
       - { value: missing, label: 消息不明, description: 戻らず、行方が分からない。見つかれば現役 }
+      - { value: dead, label: 死亡, description: 死亡が確かめられた（パーティの全滅を含む）。終わりの状態 }
   # 冒険者の状態を変える操作の名前（履歴に残す。adventurer.yaml の actions の id）
   冒険者の操作:
     type: enum
@@ -394,6 +402,7 @@ definitions:
       - { value: retire-adventurer, label: 引退にする }
       - { value: report-missing, label: 消息不明にする }
       - { value: expel-adventurer, label: 除名する }
+      - { value: report-death, label: 死亡にする }
   依頼の種別:
     type: enum
     values:
@@ -736,7 +745,7 @@ definitions:
       - { key: deadline, label: 期限, type: 年月日 }
       - { key: place, label: 場所, type: 場所参照, relation: located-at, description: 依頼を行う場所です。 }
       - { key: requiredJob, label: 求める職能, type: 職能参照, relation: requires-job, description: 受け手に求める職能です。受け手の職能か、その職能の資格で満たします（パーティなら構成員の誰か）。 }
-      - { key: requiredLevel, label: 求める段階, type: 資格の段階, description: 求める職能の段階です。書かなければ初級以上（見習いは、その職能の資格が無ければ満たしません）です。 }
+      - { key: requiredLevel, label: 求める段階, type: 資格の段階, description: 求める職能の段階です。書かなければ段階を問いません（見習いも、主な職能か資格で満たします）。 }
       - key: targets
         label: 対象
         type: array
@@ -842,10 +851,23 @@ definitions:
         level: error
         message: "依頼「{id}」は預かっていないのに、返金があります"
       - id: refund-is-deposited-reward
-        description: 返す額は預かった報酬と同じであること（受付料は返さない）
+        description: 返す額は、預かった報酬と返した受付料の合計であること（受付料を返すのは受付のまま期限切れにしたときだけ）
         where: [ { path: refund, exists: true } ]
-        check: [ { eq: [ { number: { path: refund.amount } }, { number: { path: deposit.reward } } ] } ]
+        check: [ { eq: [ { number: { path: refund.amount } }, { add: [ { path: deposit.reward }, { first: [ { path: refund.fee }, 0 ] } ] } ] } ]
         level: error
+      - id: refunded-fee-is-deposited-fee
+        description: 返した受付料は、預かった受付料と同じであること
+        where: [ { path: refund.fee, exists: true } ]
+        check: [ { eq: [ { number: { path: refund.fee } }, { number: { path: deposit.fee } } ] } ]
+        level: error
+      - id: fee-returned-only-when-expired
+        description: 受付料を返すのは、期限切れにした依頼だけであること（受付のまま期限が来たとき）
+        where:
+          - { path: refund.fee, exists: true }
+          - { path: status, notEquals: expired }
+        expect: absent
+        level: error
+        message: "依頼「{id}」は期限切れではないのに、受付料を返しています"
       - id: refunded-not-before-deposited
         description: 返した日は預かった日以降であること
         where: [ { path: refund, exists: true } ]
@@ -880,7 +902,8 @@ definitions:
     fields:
       - { key: id, label: 返金番号, type: 返金番号, required: true }
       - { key: refundedOn, label: 返した日, type: 年月日, required: true }
-      - { key: amount, label: 返した額, type: 金額, required: true, description: 預かった報酬と同じ額です（受付料は返しません）。 }
+      - { key: amount, label: 返した額, type: 金額, required: true, description: 預かった報酬と、返した受付料の合計です。 }
+      - { key: fee, label: 返した受付料, type: 金額, description: 受付のまま期限切れにしたときだけ書きます（受付料も返す）。ほかは受付料を返しません。 }
   精算:
     type: object
     label: 精算
@@ -966,6 +989,8 @@ definitions:
       - { key: role, label: 役目, type: 職員の役目, required: true }
       - { key: branch, label: 所属支部, type: 支部参照, relation: works-at, required: true }
       - { key: monthlySalary, label: 月給, type: 金額, required: true, description: 月末に払う給与の額です。払ったときに、給与の支払いの記録へ写します。 }
+      - { key: job, label: 職能, type: 職能参照, relation: has-job, description: 職員が冒険者のころなどに身に付けた職能です。職能の審査の審査官になるときに見ます。 }
+      - { key: jobLevel, label: 職能の段階, type: 資格の段階 }
       - { key: note, label: 備考, type: 文章 }
       - key: wages
         label: 給与の支払い
@@ -1368,12 +1393,29 @@ definitions:
         expect: absent
         level: error
         message: "職能の審査「{id}」は合格なのに、根拠の実績か合格した実技試験がありません（実績と実技試験の 2 つで判定します）"
+      # 実績の目安（Q60）: その職能が活きた依頼の達成を、中級は 10 件・上級は 30 件。目安なので警告
+      - id: intermediate-achievements-guide
+        description: 中級に合格した職能の審査の根拠の実績は、10 件を目安にすること
+        where:
+          - { path: status, equals: passed }
+          - { path: toLevel, equals: intermediate }
+        check: [ { gte: [ { count: { path: "basedOn[*]" } }, 10 ] } ]
+        level: warning
+        message: "職能の審査「{id}」の根拠の実績は {left} 件で、中級の目安の 10 件に届きません"
+      - id: advanced-achievements-guide
+        description: 上級に合格した職能の審査の根拠の実績は、30 件を目安にすること
+        where:
+          - { path: status, equals: passed }
+          - { path: toLevel, equals: advanced }
+        check: [ { gte: [ { count: { path: "basedOn[*]" } }, 30 ] } ]
+        level: warning
+        message: "職能の審査「{id}」の根拠の実績は {left} 件で、上級の目安の 30 件に届きません"
   実技試験:
     type: object
     label: 実技試験
     fields:
       - { key: heldOn, label: 試験の日, type: 年月日, required: true }
-      - { key: examiner, label: 審査官, type: 職員参照, relation: examined-by, required: true }
+      - { key: examiner, label: 審査官, type: 審査官参照, required: true, description: その職能の上級の職員か、引退した上級の冒険者です。 }
       - { key: result, label: 結果, type: 実技試験の結果, required: true }
       - { key: skills, label: 見せた技, type: 一行の文, description: 試験で使えた技や術です。 }
       - { key: note, label: 面接の覚え, type: 文章 }

@@ -30,7 +30,7 @@ constraints:
     level: error
     message: "受注「{id}」の受け手 {t.title}（ランク {rt.title}）は、依頼の下限 {rq.title} に届きません"
   - id: inactive-adventurer-not-assigned
-    description: 引退・除名・消息不明の冒険者は、遂行中（受注済み）の依頼を受けていないこと（休業は、事故などで遂行中にも休業できるので、下の検査で休業の間の受注だけを止める）
+    description: 引退・除名・消息不明・死亡の冒険者は、遂行中（受注済み）の依頼を受けていないこと（休業は、事故などで遂行中にも休業できるので、下の検査で休業の間の受注だけを止める）
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: taken-by }
@@ -41,11 +41,11 @@ constraints:
         - edge: { relation: has-assignment, dir: in }
         - node: { entity: quest, bind: q }
     where:
-      - { of: t, path: status, oneOf: [retired, expelled, missing] }
+      - { of: t, path: status, oneOf: [retired, expelled, missing, dead] }
       - { of: q, path: status, equals: assigned }
     expect: absent
     level: error
-    message: "受注「{id}」の受け手 {t.title} は、引退・除名・消息不明のため受注できません"
+    message: "受注「{id}」の受け手 {t.title} は、引退・除名・消息不明・死亡のため受注できません"
   - id: no-acceptance-while-resting
     description: 休業の冒険者は、休業した日から後に受注していないこと
     match:
@@ -399,7 +399,7 @@ constraints:
   # 「どれかの道で満たす」は 1 つの照合に書けないので、道ごとの件数を足して 1 以上かを見る（devtrack の UX-284）。
   # 受け手が冒険者でもパーティでも同じ道で辿れるよう、has-member を 0 回以上（repeat）にした。段階は求める段階ごとに検査を分ける
   - id: required-job-met
-    description: 求める職能のある依頼（段階が初級か無し）の受け手は、その職能（初級以上。見習いは数えない）か、その職能の資格を持つこと（パーティなら構成員の誰か）
+    description: 求める職能のある依頼（段階が初級か無し）の受け手は、その職能（見習いも）か、その職能の資格を持つこと（パーティなら構成員の誰か）
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: has-assignment, dir: in }
@@ -422,7 +422,7 @@ constraints:
                       - node: { entity: adventurer, bind: t1 }
                       - edge: { relation: has-job }
                       - node: { entity: job, bind: j1 }
-                    where: [ { of: t1, path: jobLevel, exists: true } ]
+                    # 段階を問わない（見習いも主な職能で満たす。Q63）
                     also:
                       from: a1
                       steps:
@@ -608,7 +608,7 @@ actions:
       - { key: deadline, label: 期限, type: common#年月日 }
       - { key: place, label: 場所, type: common#場所参照 }
       - { key: requiredJob, label: 求める職能, type: common#職能参照 }
-      - { key: requiredLevel, label: 求める段階, type: common#資格の段階, description: 書かなければ初級以上です。 }
+      - { key: requiredLevel, label: 求める段階, type: common#資格の段階, description: 書かなければ段階を問いません（見習いも満たします）。 }
       - { key: targets, label: 対象, type: array, item: { type: common#対象参照 }, description: 討伐の魔物（と納品物）、採取や納品の素材です。数は登録のあとで書き足します。 }
       - { key: description, label: 内容, type: common#文章 }
       - { key: date, label: 受付日, type: common#年月日, required: true }
@@ -937,7 +937,7 @@ actions:
       - set: { of: self, path: status, value: failed }
   - id: expire-quest
     label: 依頼を期限切れにする
-    description: 期限を過ぎた受付・掲示中・失敗の依頼を期限切れにします。理由を履歴に残します。預かっていれば報酬を返します（受付料は返しません）。遂行中の依頼は、報告を待つか「打ち切る」で失敗にしてから期限切れにします。
+    description: 期限を過ぎた受付・掲示中・失敗の依頼を期限切れにします。理由を履歴に残します。預かっていれば報酬を返します。受付のまま期限が来たときは受付料も返し、ほかは受付料を返しません。遂行中の依頼は、報告を待つか「打ち切る」で失敗にしてから期限切れにします。
     target: { entity: quest }
     input:
       initial:
@@ -959,7 +959,17 @@ actions:
         check: [ { gt: [ $date, { of: q, path: deadline } ] } ]
         message: "{id} の期限はまだ過ぎていません（期限切れにした日 $date）"
     do:
-      - when: { of: self, path: deposit, exists: true }
+      # 受付のまま期限が来たときは、受付料も返す（Q62）
+      - when: [ { of: self, path: deposit, exists: true }, { of: self, path: status, equals: received } ]
+        set:
+          of: self
+          path: refund
+          value:
+            id: { $format: "{id}-R", $of: self }
+            refundedOn: $date
+            amount: { $copy: deposit.amount, $of: self }
+            fee: { $copy: deposit.fee, $of: self }
+      - when: [ { of: self, path: deposit, exists: true }, { of: self, path: status, notEquals: received } ]
         set:
           of: self
           path: refund
