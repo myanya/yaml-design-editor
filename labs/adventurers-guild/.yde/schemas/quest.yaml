@@ -361,6 +361,25 @@ constraints:
     level: error
     message: "受注「{id}」: {t.title} の構成員 {m.title} が受注停止の処分 {s.id} の間のため、パーティも受注できません"
 
+  # 構成員の受注停止がパーティに及ぶのと逆向き（Q51）。受注したときの所属ではなく、いまの所属で見る
+  - id: no-member-acceptance-while-party-suspended
+    description: パーティが受注停止の処分の間は、その構成員も個人で受注できないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+      - edge: { relation: has-member, dir: in }
+      - node: { entity: party, bind: p }
+      - edge: { relation: sanction-of, dir: in }
+      - node: { entity: sanction, bind: s }
+    where: [ { of: s, path: kind, equals: suspension } ]
+    check:
+      - or:
+          - lt: [ { of: a, path: acceptedOn }, { of: s, path: decidedOn } ]
+          - gt: [ { of: a, path: acceptedOn }, { of: s, path: until } ]
+    level: error
+    message: "受注「{id}」: {t.title} の属する {p.title} が受注停止の処分 {s.id} の間のため、個人でも受注できません"
+
   # ---- 求める職能と段階（Q38・Q52）: 受け手の主な職能（段階つき）か、その職能の資格で満たす。パーティなら構成員の誰か ----
   # 「どれかの道で満たす」は 1 つの照合に書けないので、道ごとの件数を足して 1 以上かを見る（devtrack の UX-284）。
   # 受け手が冒険者でもパーティでも同じ道で辿れるよう、has-member を 0 回以上（repeat）にした。段階は求める段階ごとに検査を分ける

@@ -1,0 +1,60 @@
+id: job-exam-desk
+name: 職能の審査
+kind: dashboard
+description: 職能の審査の流れ（審査の対象に決める → 試験 → 合格・不合格）です。合格にすると、対象の冒険者の主な職能の段階が目指す段階へ上がります。段階の基準は、まだ決めていません。
+actions: [nominate-job-exam]
+placement: auto
+flow:
+  direction: right
+  start: { action: nominate-job-exam, to: nominated }
+  steps: [nominated, examining, passed, failed]
+  moves:
+    - { from: nominated, action: start-job-exam, to: examining }
+    - { from: examining, action: pass-job-exam, to: passed }
+    - { from: examining, action: fail-job-exam, to: failed }
+  history: { path: history }
+sections:
+  - id: nominated
+    label: 審査の対象
+    group: 状況
+    view: job-exam-list
+    filter:
+      match: [ { node: { entity: job-exam, bind: x } } ]
+      where: [ { of: x, path: status, equals: nominated } ]
+      expect: exists
+  - id: examining
+    label: 審査中
+    group: 状況
+    view: job-exam-list
+    filter:
+      match: [ { node: { entity: job-exam, bind: x } } ]
+      where: [ { of: x, path: status, equals: examining } ]
+      expect: exists
+  - id: passed
+    label: 合格
+    group: 状況
+    view: job-exam-list
+    filter:
+      match: [ { node: { entity: job-exam, bind: x } } ]
+      where: [ { of: x, path: status, equals: passed } ]
+      expect: exists
+  - id: failed
+    label: 不合格
+    group: 状況
+    view: job-exam-list
+    filter:
+      match: [ { node: { entity: job-exam, bind: x } } ]
+      where: [ { of: x, path: status, equals: failed } ]
+      expect: exists
+  - id: adventurers
+    label: 冒険者の名簿（職能と段階・資格）
+    group: 材料
+    view: adventurer-roster
+  - id: qualifications
+    label: 資格の一覧
+    group: 材料
+    view: qualification-list
+  - id: trainings
+    label: 訓練の課程
+    group: 材料
+    view: training-list

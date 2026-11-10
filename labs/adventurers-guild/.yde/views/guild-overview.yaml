@@ -12,7 +12,7 @@ filters:
     label: 人と組織
     mode: show
     level: type
-    where: { path: entityType, oneOf: [branch, staff, adventurer, party, client, rank, job] }
+    where: { path: entityType, oneOf: [headquarters, branch, staff, adventurer, party, client, rank, job] }
   - id: world
     label: 世界
     mode: show
@@ -22,7 +22,7 @@ filters:
     label: 育成（職業訓練）
     mode: show
     level: type
-    where: { path: entityType, oneOf: [training, enrollment, qualification, job, adventurer, staff, quest] }
+    where: { path: entityType, oneOf: [training, enrollment, qualification, job-exam, job, adventurer, staff, quest] }
   - id: discipline
     label: 評価と規律
     mode: show
@@ -32,4 +32,4 @@ filters:
     label: 会計
     mode: show
     level: type
-    where: { path: entityType, oneOf: [branch, quest, deposit, refund, assignment, payment, contract, receipt, client, staff, wage, expense, material, purchase, sale, disposal, stocktake, closing] }
+    where: { path: entityType, oneOf: [headquarters, hq-support, branch, quest, deposit, refund, assignment, payment, contract, receipt, client, staff, wage, expense, material, purchase, sale, disposal, stocktake, closing] }

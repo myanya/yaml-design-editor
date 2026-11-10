@@ -38,6 +38,20 @@ actions:
       - { key: note, label: 中身, type: common#一行の文 }
     do:
       - insert: { of: self, path: expenses, params: { spentOn: $date, category: $category, amount: $amount, note: { $copy: note } } }
+  # 赤字のときなどに本部から受ける補填（Q54）。どんなときに受けるかの決まりはまだ無く、受けた事実を記録する
+  - id: receive-hq-support
+    label: 本部から補填を受ける
+    description: 本部から補填を受け、補填の記録（SUP- の次の番号）を支部の中に足します。
+    target: { entity: branch }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: amount, label: 額, type: common#金額, required: true }
+      - { key: date, label: 受けた日, type: common#年月日, required: true }
+      - { key: reason, label: 訳, type: common#一行の文, required: true }
+    do:
+      - insert: { of: self, path: supports, params: { suppliedOn: $date, amount: $amount, reason: $reason } }
   - id: close-cash
     label: 現金を締める
     description: 金庫の現金を数え、現金の締めの記録（CLS- の次の番号）を作ります。導いた現金には「支部の現金」のいまの現金を写します（開始の現金といまの記録から導いた額と違えば止まります）。数えた現金が違えば警告になり、その差がのちの残高に足されます。
@@ -91,6 +105,16 @@ actions:
                                     - { node: { entity: branch } }
                                     - { edge: { relation: booked-at, dir: in } }
                                     - { node: { entity: sale, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: has-support } }
+                                    - { node: { entity: hq-support, bind: x } }
                                   path: amount
                             - 0
                         - first:

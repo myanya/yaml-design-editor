@@ -1,0 +1,10 @@
+id: JEX-001
+candidate: ADV-0006
+job: JOB-05
+fromLevel: beginner
+toLevel: intermediate
+status: nominated
+nominatedOn: 2026-11-08
+note: 弓の稽古を受講しながら、ひとりで討伐の依頼を重ねてきた。弓手の中級の試験を受けさせる。
+history:
+  - { date: 2026-11-08, action: nominate-job-exam, to: nominated }

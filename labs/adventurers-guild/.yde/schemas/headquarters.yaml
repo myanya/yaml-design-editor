@@ -1,0 +1,6 @@
+id: headquarters
+name: 冒険者ギルド本部
+kind: document
+description: 支部をたばねる冒険者ギルドの本部です。
+match: guild/headquarters.yaml
+root: { type: common#本部 }

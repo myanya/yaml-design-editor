@@ -1,6 +1,7 @@
 id: BRN-01
 name: ミルフェン支部
 town: ミルフェン
+headquarters: HQ-01
 currency: セリン
 commissionRate: 10
 receptionFeeRate: 10
@@ -36,3 +37,4 @@ expenses:
   - { id: EXP-0023, spentOn: 2026-10-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
   - { id: EXP-0024, spentOn: 2026-10-31, category: supplies, amount: 30, note: 灯り油・紙とインク }
   - { id: EXP-0025, spentOn: 2026-11-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+supports: []

@@ -36,6 +36,9 @@ entities:
   - { type: disposal, label: 素材の廃棄 }
   - { type: stocktake, label: 棚卸 }
   - { type: closing, label: 現金の締め }
+  - { type: headquarters, label: 冒険者ギルド本部 }
+  - { type: hq-support, label: 本部からの補填 }
+  - { type: job-exam, label: 職能の審査 }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -196,11 +199,11 @@ relations:
   - name: decided-by
     label: 決めた職員
     inverseLabel: 決めた処分・審査
-    source: [sanction, promotion]
+    source: [sanction, promotion, job-exam]
     target: [staff]
     cardinality: { outMax: 1 }
     level: error
-    description: 処分や昇格審査の結果を決めた職員です
+    description: 処分や昇格審査・職能の審査の結果を決めた職員です
   - name: promotion-of
     label: 審査の対象
     inverseLabel: 受けた昇格審査
@@ -397,3 +400,36 @@ relations:
     cardinality: { outMin: 1, outMax: 1 }
     level: error
     description: 棚卸で数えた素材です
+  # ---- 本部 ----
+  - name: belongs-to
+    label: 本部
+    inverseLabel: 属する支部
+    source: [branch]
+    target: [headquarters]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 支部が属する本部です
+  - name: has-support
+    label: 本部からの補填
+    inverseLabel: 補填を受けた支部
+    source: [branch]
+    target: [hq-support]
+    level: error
+    description: 支部が本部から受けた補填を保有します（入れ子で書きます）
+  # ---- 職能の審査 ----
+  - name: exam-of
+    label: 審査の対象
+    inverseLabel: 受けた職能の審査
+    source: [job-exam]
+    target: [adventurer]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 職能の審査を受ける冒険者です
+  - name: exam-job
+    label: 審査する職能
+    inverseLabel: この職能の審査
+    source: [job-exam]
+    target: [job]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 審査する職能（対象の主な職能）です

@@ -1,0 +1,200 @@
+id: branch-pnl
+name: 支部の収支
+description: 支部のお金になる入り（手数料・受付料・委託料・売却）と出（買取・給与・経費）の、記録の全期間の合計と差です。預かった報酬は受け手か依頼者のお金なので入れません（買取は在庫の分も含みます）。差が赤字なら、本部からの補填を考えます。1 年ごとに区切った表は、製品の改善（年・月を特殊な値として扱う）を待ちます。
+rows:
+  match:
+    - node: { entity: branch, bind: b }
+columns:
+  - { label: 支部, path: name }
+  - { label: 開始の日, path: openingOn }
+  - label: 手数料
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: received-at, dir: in } }
+                - { node: { entity: quest } }
+                - { edge: { relation: has-assignment } }
+                - { node: { entity: assignment } }
+                - { edge: { relation: settles, dir: in } }
+                - { node: { entity: payment, bind: x } }
+              path: fee
+        - 0
+  - label: 受付料
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: received-at, dir: in } }
+                - { node: { entity: quest } }
+                - { edge: { relation: has-deposit } }
+                - { node: { entity: deposit, bind: x } }
+              path: fee
+        - 0
+  - label: 委託料
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: booked-at, dir: in } }
+                - { node: { entity: contract } }
+                - { edge: { relation: has-receipt } }
+                - { node: { entity: receipt, bind: x } }
+              path: amount
+        - 0
+  - label: 売却
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: booked-at, dir: in } }
+                - { node: { entity: sale, bind: x } }
+              path: amount
+        - 0
+  - label: 買取
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: booked-at, dir: in } }
+                - { node: { entity: purchase, bind: x } }
+              path: amount
+        - 0
+  - label: 給与
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: works-at, dir: in } }
+                - { node: { entity: staff } }
+                - { edge: { relation: has-wage } }
+                - { node: { entity: wage, bind: x } }
+              path: amount
+        - 0
+  - label: 経費
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: has-expense } }
+                - { node: { entity: expense, bind: x } }
+              path: amount
+        - 0
+  - label: 差（補填の前）
+    value:
+      subtract:
+        - add:
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: received-at, dir: in } }
+                        - { node: { entity: quest } }
+                        - { edge: { relation: has-assignment } }
+                        - { node: { entity: assignment } }
+                        - { edge: { relation: settles, dir: in } }
+                        - { node: { entity: payment, bind: x } }
+                      path: fee
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: received-at, dir: in } }
+                        - { node: { entity: quest } }
+                        - { edge: { relation: has-deposit } }
+                        - { node: { entity: deposit, bind: x } }
+                      path: fee
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: booked-at, dir: in } }
+                        - { node: { entity: contract } }
+                        - { edge: { relation: has-receipt } }
+                        - { node: { entity: receipt, bind: x } }
+                      path: amount
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: booked-at, dir: in } }
+                        - { node: { entity: sale, bind: x } }
+                      path: amount
+                - 0
+        - add:
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: booked-at, dir: in } }
+                        - { node: { entity: purchase, bind: x } }
+                      path: amount
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: works-at, dir: in } }
+                        - { node: { entity: staff } }
+                        - { edge: { relation: has-wage } }
+                        - { node: { entity: wage, bind: x } }
+                      path: amount
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: has-expense } }
+                        - { node: { entity: expense, bind: x } }
+                      path: amount
+                - 0
+  - label: 本部からの補填
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: has-support } }
+                - { node: { entity: hq-support, bind: x } }
+              path: amount
+        - 0

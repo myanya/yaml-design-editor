@@ -1,0 +1,149 @@
+id: job-exam
+name: 職能の審査
+kind: document
+description: 冒険者の主な職能の段階を上げる審査（試験）1 件を 1 ファイルで管理します。段階の基準に照らして試験をし、審査の流れ（審査の対象 → 審査中 → 合格・不合格）の履歴を持ちます。
+match: "guild/job-exams/*.yaml"
+filePattern: "guild/job-exams/{id}.yaml"
+root: { type: common#職能の審査 }
+# 決まるまでの間は、審査の職能と段階が、対象のいまの主な職能と段階に合っていること（ほかで変われば止める）
+constraints:
+  - id: job-exam-is-main-job
+    description: 審査の対象・審査中の職能の審査の職能は、対象の主な職能であること
+    match:
+      - node: { entity: job-exam, bind: e }
+      - edge: { relation: exam-of }
+      - node: { entity: adventurer, bind: c }
+      - edge: { relation: has-job }
+      - node: { entity: job, bind: j }
+    also:
+      from: e
+      steps:
+        - edge: { relation: exam-job }
+        - node: { same: j }
+    where: [ { of: e, path: status, oneOf: [nominated, examining] } ]
+    expect: exists
+    level: error
+    message: "職能の審査「{id}」の職能が、対象の主な職能と違います（段階は主な職能に付きます）"
+  - id: job-exam-from-current
+    description: 審査の対象・審査中の職能の審査のいまの段階は、対象のいまの職能の段階と同じであること
+    match:
+      - node: { entity: job-exam, bind: e }
+      - edge: { relation: exam-of }
+      - node: { entity: adventurer, bind: c }
+    where: [ { of: e, path: status, oneOf: [nominated, examining] } ]
+    check: [ { eq: [ { of: e, path: fromLevel }, { of: c, path: jobLevel } ] } ]
+    level: error
+    message: "職能の審査「{id}」のいまの段階が、{c.title} のいまの職能の段階と違います"
+
+# ---- 操作: 審査の対象に決める → 試験を始める → 合格（段階を上げる）・不合格 ----
+actions:
+  - id: nominate-job-exam
+    label: 職能の審査の対象に決める
+    description: 冒険者を職能の審査の対象に決め、職能の審査の記録（JEX- の次の番号）を作ります。職能は対象の主な職能、いまの段階は対象のいまの段階を入れます（違えば適用後の検証の誤りで止まります）。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: candidate, label: 対象, type: common#冒険者参照, required: true }
+      - { key: job, label: 職能, type: common#職能参照, required: true }
+      - { key: fromLevel, label: いまの段階, type: common#資格の段階, required: true }
+      - { key: toLevel, label: 目指す段階, type: common#資格の段階, required: true }
+      - { key: date, label: 対象に決めた日, type: common#年月日, required: true }
+      - { key: note, label: 備考, type: common#文章 }
+    do:
+      - create:
+          schema: job-exam
+          id: { prefix: "JEX-", digits: 3 }
+          params:
+            candidate: $candidate
+            job: $job
+            fromLevel: $fromLevel
+            toLevel: $toLevel
+            status: nominated
+            nominatedOn: $date
+            note: { $copy: note }
+            history: [ { date: $date, action: nominate-job-exam, to: nominated } ]
+  - id: start-job-exam
+    label: 試験を始める
+    description: 審査の対象の職能の審査を審査中にします（段階の基準に照らして試験をします）。
+    target: { entity: job-exam }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 始めた日, type: common#年月日, required: true }
+      - { key: note, label: メモ, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        where: [ { of: e, path: status, equals: nominated } ]
+        expect: exists
+        message: "{id} は審査の対象の職能の審査ではありません"
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        check: [ { gte: [ $date, { of: e, path: nominatedOn } ] } ]
+        message: 始めた日は対象に決めた日以降にしてください
+    do:
+      - insert: { of: self, path: history, value: { date: $date, action: start-job-exam, from: nominated, to: examining, note: { $copy: note } } }
+      - set: { of: self, path: status, value: examining }
+  - id: pass-job-exam
+    label: 合格にする
+    description: 審査中の職能の審査を合格にし、対象の冒険者の職能の段階を目指す段階へ上げます。
+    target: { entity: job-exam }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: decidedBy, label: 試験をした職員, type: common#職員参照, required: true }
+      - { key: note, label: メモ, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        where: [ { of: e, path: status, equals: examining } ]
+        expect: exists
+        message: "{id} は審査中の職能の審査ではありません"
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        check: [ { gte: [ $date, { of: e, path: nominatedOn } ] } ]
+        message: 決めた日は対象に決めた日以降にしてください
+      # 審査の間に対象の段階が変わっていたら上げない
+      - match:
+          - node: { entity: job-exam, bind: e }
+          - edge: { relation: exam-of }
+          - node: { entity: adventurer, bind: c }
+        check: [ { eq: [ { of: e, path: fromLevel }, { of: c, path: jobLevel } ] } ]
+        message: "{id} のいまの段階が、対象のいまの職能の段階と違います"
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: job-exam }
+            - edge: { relation: exam-of }
+            - node: { entity: adventurer, bind: c }
+          do:
+            - set: { of: c, path: jobLevel, value: { $copy: toLevel, $of: self } }
+      - insert: { of: self, path: history, value: { date: $date, action: pass-job-exam, from: examining, to: passed, note: { $copy: note } } }
+      - set: { of: self, path: decidedOn, value: $date }
+      - set: { of: self, path: decidedBy, value: $decidedBy }
+      - set: { of: self, path: status, value: passed }
+  - id: fail-job-exam
+    label: 不合格にする
+    description: 審査中の職能の審査を不合格にします。対象の段階は変わりません。
+    target: { entity: job-exam }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 決めた日, type: common#年月日, required: true }
+      - { key: decidedBy, label: 試験をした職員, type: common#職員参照, required: true }
+      - { key: note, label: 理由, type: common#一行の文, required: true }
+    require:
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        where: [ { of: e, path: status, equals: examining } ]
+        expect: exists
+        message: "{id} は審査中の職能の審査ではありません"
+      - match: [ { node: { entity: job-exam, bind: e } } ]
+        check: [ { gte: [ $date, { of: e, path: nominatedOn } ] } ]
+        message: 決めた日は対象に決めた日以降にしてください
+    do:
+      - insert: { of: self, path: history, value: { date: $date, action: fail-job-exam, from: examining, to: failed, note: $note } }
+      - set: { of: self, path: decidedOn, value: $date }
+      - set: { of: self, path: decidedBy, value: $decidedBy }
+      - set: { of: self, path: status, value: failed }

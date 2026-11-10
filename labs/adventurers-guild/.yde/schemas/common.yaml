@@ -5,6 +5,12 @@ description: 冒険者ギルドの運営で使う型を 1 か所にまとめま�
 definitions:
   # ---- 番号の型 ----
   # 形式（pattern）は各文書の番号の項目と、エンティティ型の判別の両方で使います
+  本部番号:
+    type: id
+    pattern: "^HQ-[0-9]{2}$"
+    placeholder: HQ-01
+    sample: HQ-01
+    description: 「HQ-」と 2 桁の数字。
   支部番号:
     type: id
     pattern: "^BRN-[0-9]{2}$"
@@ -182,6 +188,18 @@ definitions:
     placeholder: STK-0001
     sample: STK-0001
     description: 「STK-」と 4 桁の数字。棚卸のファイル名にもなります。
+  補填番号:
+    type: id
+    pattern: "^SUP-[0-9]{4}$"
+    placeholder: SUP-0001
+    sample: SUP-0001
+    description: 「SUP-」と 4 桁の数字。支部の文書の中に書きます。
+  職能の審査番号:
+    type: id
+    pattern: "^JEX-[0-9]{3}$"
+    placeholder: JEX-001
+    sample: JEX-001
+    description: 「JEX-」と 3 桁の数字。職能の審査のファイル名にもなります。
   締め番号:
     type: id
     pattern: "^CLS-[0-9]{4}$"
@@ -217,6 +235,12 @@ definitions:
       schemaIds: [adventurer, party]
     relation: taken-by
     description: 依頼を受けた冒険者かパーティの番号を 1 件。個人でもパーティでも受けられます。
+  本部参照:
+    type: ref
+    idPattern: "HQ-*"
+    scope:
+      schemaIds: [headquarters]
+    description: 本部の番号を 1 件。関係名は使う側が付けます。
   支部参照:
     type: ref
     idPattern: "BRN-*"
@@ -442,6 +466,22 @@ definitions:
       - { value: start-examination, label: 審査を始める }
       - { value: pass-promotion, label: 合格にする }
       - { value: fail-promotion, label: 不合格にする }
+  # 職能の審査の流れ: 審査の対象に決める → 審査（試験）をする → 合格なら主な職能の段階を上げる（Q55）
+  職能の審査の状態:
+    type: enum
+    values:
+      - { value: nominated, label: 審査の対象, description: ギルドが審査の対象に決めた。まだ試験をしていない }
+      - { value: examining, label: 審査中, description: 段階の基準に照らして試験をしている }
+      - { value: passed, label: 合格, description: 合格し、冒険者の主な職能の段階を目指す段階へ上げた }
+      - { value: failed, label: 不合格, description: 合格しなかった。段階は変わらない }
+  # 職能の審査の状態を変える操作の名前（履歴に残す。job-exam.yaml の actions の id）
+  職能の審査の操作:
+    type: enum
+    values:
+      - { value: nominate-job-exam, label: 審査の対象に決める }
+      - { value: start-job-exam, label: 試験を始める }
+      - { value: pass-job-exam, label: 合格にする }
+      - { value: fail-job-exam, label: 不合格にする }
   資格の段階:
     type: enum
     values:
@@ -489,6 +529,7 @@ definitions:
       - { key: id, label: 支部番号, type: 支部番号, required: true }
       - { key: name, label: 支部名, type: 一行の文, role: title, required: true }
       - { key: town, label: 町, type: 一行の文, required: true }
+      - { key: headquarters, label: 本部, type: 本部参照, relation: belongs-to, required: true, default: HQ-01, description: 支部が属する冒険者ギルドの本部です。 }
       - { key: currency, label: 通貨の単位, type: 一行の文, required: true, description: 報酬などの金額の単位です。 }
       - { key: commissionRate, label: 手数料率, type: 率, required: true, description: 報酬から差し引くギルドの手数料の率です。支部で一律です。精算のときに、この率を精算の記録へ写します。 }
       - { key: receptionFeeRate, label: 受付料率, type: 率, required: true, description: 依頼を受け付けて報酬を預かるときに、依頼者から受け取る受付料の率（報酬に対する率）です。預かりの記録へ写します。 }
@@ -507,6 +548,26 @@ definitions:
           insert:
             id: { path: id, prefix: "EXP-", digits: 4 }
         item: { type: 経費 }
+      - key: supports
+        label: 本部からの補填
+        type: array
+        relation: has-support
+        default: []
+        display: table
+        description: 支部が本部から受けた補填です。支部の収支が赤字のときなどに受けます。操作「本部から補填を受ける」が 1 行ずつ足します。
+        methods:
+          insert:
+            id: { path: id, prefix: "SUP-", digits: 4 }
+        item: { type: 本部からの補填 }
+  本部からの補填:
+    type: object
+    label: 本部からの補填
+    entity: { type: hq-support, defines: true }
+    fields:
+      - { key: id, label: 補填番号, type: 補填番号, required: true }
+      - { key: suppliedOn, label: 受けた日, type: 年月日, required: true }
+      - { key: amount, label: 額, type: 金額, required: true }
+      - { key: reason, label: 訳, type: 一行の文, required: true }
   経費:
     type: object
     label: 経費
@@ -1170,3 +1231,77 @@ definitions:
         description: 数えた現金は導いた現金と同じであること（違えば、差の訳を確かめる）
         check: [ { eq: [ { number: { path: counted } }, { number: { path: expected } } ] } ]
         level: warning
+  本部:
+    type: object
+    label: 冒険者ギルド本部
+    entity: { type: headquarters, defines: true }
+    description: 支部をたばねる冒険者ギルドの本部です。支部の赤字を補填するなど、支部の外とのお金の道になります。
+    fields:
+      - { key: id, label: 本部番号, type: 本部番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: town, label: 都, type: 一行の文, required: true }
+      - { key: description, label: 説明, type: 文章 }
+
+  # ---- オブジェクト型（職能の審査） ----
+  職能の審査:
+    type: object
+    label: 職能の審査
+    entity: { type: job-exam, defines: true }
+    description: 冒険者の主な職能の段階を上げるための審査（試験）です。段階の基準に照らして試験をし、合格なら冒険者の職能の段階を目指す段階へ上げます。
+    fields:
+      - { key: id, label: 職能の審査番号, type: 職能の審査番号, required: true }
+      - { key: candidate, label: 対象, type: 冒険者参照, relation: exam-of, required: true }
+      - { key: job, label: 職能, type: 職能参照, relation: exam-job, required: true, description: 対象の主な職能です。 }
+      - { key: fromLevel, label: いまの段階, type: 資格の段階, required: true }
+      - { key: toLevel, label: 目指す段階, type: 資格の段階, required: true }
+      - { key: status, label: 状態, type: 職能の審査の状態, required: true, default: nominated }
+      - { key: nominatedOn, label: 対象に決めた日, type: 年月日, required: true }
+      - { key: decidedOn, label: 決めた日, type: 年月日, description: 合格か不合格を決めた日です。 }
+      - { key: decidedBy, label: 試験をした職員, type: 職員参照, relation: decided-by }
+      - { key: note, label: 備考, type: 文章 }
+      - key: history
+        label: 履歴
+        type: array
+        description: 状態を変えた操作の記録です。操作が 1 行ずつ足します。
+        default: []
+        item: { type: 職能の審査の履歴 }
+    constraints:
+      - id: job-exam-decided-has-date
+        description: 合格・不合格の審査には決めた日と試験をした職員があること
+        where:
+          - { path: status, oneOf: [passed, failed] }
+          - { or: [ { path: decidedOn, exists: false }, { path: decidedBy, exists: false } ] }
+        expect: absent
+        level: error
+        message: "職能の審査「{id}」は結果が出ているのに、決めた日か試験をした職員がありません"
+      - id: job-exam-undecided-has-no-date
+        description: 審査の対象・審査中の審査には決めた日が無いこと
+        where:
+          - { path: status, oneOf: [nominated, examining] }
+          - { path: decidedOn, exists: true }
+        expect: absent
+        level: error
+        message: "まだ決まっていない職能の審査「{id}」に決めた日があります"
+      - id: job-exam-decided-not-before-nominated
+        description: 決めた日は対象に決めた日以降であること
+        where: [ { path: decidedOn, exists: true } ]
+        check: [ { gte: [ { path: decidedOn }, { path: nominatedOn } ] } ]
+        level: error
+      # 段階の上下は、選択肢を順位の数に置き換えて比べる
+      - id: job-exam-goes-up
+        description: 目指す段階は、いまの段階より上であること
+        check:
+          - gt:
+              - { map: { path: toLevel }, using: { beginner: 1, intermediate: 2, advanced: 3 } }
+              - { map: { path: fromLevel }, using: { beginner: 1, intermediate: 2, advanced: 3 } }
+        level: error
+        message: "職能の審査「{id}」の目指す段階が、いまの段階より上ではありません"
+  職能の審査の履歴:
+    type: object
+    label: 職能の審査の履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 職能の審査の操作, required: true }
+      - { key: from, label: 前の状態, type: 職能の審査の状態, description: 対象に決めた行には書きません。 }
+      - { key: to, label: 後の状態, type: 職能の審査の状態, required: true }
+      - { key: note, label: 理由・メモ, type: 一行の文 }

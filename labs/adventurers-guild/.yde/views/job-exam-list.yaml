@@ -1,0 +1,17 @@
+id: job-exam-list
+name: 職能の審査の一覧
+description: 職能の審査ごとの対象・職能・いまの段階・目指す段階・状態・対象に決めた日・決めた日と職員。新しい順に並べます。
+rows:
+  idPattern: "JEX-*"
+order: { path: nominatedOn, direction: desc }
+columns:
+  - { label: 対象, schemaId: job-exam, path: candidate }
+  - { label: 職能, schemaId: job-exam, path: job }
+  - { label: いまの段階, schemaId: job-exam, path: fromLevel }
+  - { label: 目指す段階, schemaId: job-exam, path: toLevel }
+  - { label: 状態, schemaId: job-exam, path: status }
+  - { label: 対象に決めた日, schemaId: job-exam, path: nominatedOn }
+  - { label: 決めた日, schemaId: job-exam, path: decidedOn }
+  - { label: 試験をした職員, schemaId: job-exam, path: decidedBy }
+newRow:
+  filePattern: "guild/job-exams/{id}.yaml"
