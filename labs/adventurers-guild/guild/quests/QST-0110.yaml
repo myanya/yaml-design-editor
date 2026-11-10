@@ -12,6 +12,13 @@ deadline: 2026-10-16
 place: PLC-004
 targets: [MAT-002]
 description: 灰沼で眠り茸を10本。
+deposit:
+  id: QST-0110-D
+  depositedOn: 2026-09-15
+  reward: 240
+  feeRate: 10
+  fee: 24
+  amount: 264
 assignments:
   - id: QST-0110-A1
     taker: ADV-0005

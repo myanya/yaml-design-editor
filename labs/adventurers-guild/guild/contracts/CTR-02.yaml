@@ -1,0 +1,21 @@
+id: CTR-02
+name: 穂波の村の畑の見張り
+client: CLT-005
+branch: BRN-01
+monthlyFee: 100
+startedOn: 2025-11-01
+description: 穂波の村から、猪や鴉の出る季節の畑の見張りの手配を任されています。
+receipts:
+  - { id: RCP-0002, receivedOn: 2025-11-05, amount: 100 }
+  - { id: RCP-0005, receivedOn: 2025-12-05, amount: 100 }
+  - { id: RCP-0008, receivedOn: 2026-01-05, amount: 100 }
+  - { id: RCP-0011, receivedOn: 2026-02-05, amount: 100 }
+  - { id: RCP-0014, receivedOn: 2026-03-05, amount: 100 }
+  - { id: RCP-0017, receivedOn: 2026-04-05, amount: 100 }
+  - { id: RCP-0020, receivedOn: 2026-05-05, amount: 100 }
+  - { id: RCP-0023, receivedOn: 2026-06-05, amount: 100 }
+  - { id: RCP-0026, receivedOn: 2026-07-05, amount: 100 }
+  - { id: RCP-0029, receivedOn: 2026-08-05, amount: 100 }
+  - { id: RCP-0032, receivedOn: 2026-09-05, amount: 100 }
+  - { id: RCP-0035, receivedOn: 2026-10-05, amount: 100 }
+  - { id: RCP-0038, receivedOn: 2026-11-05, amount: 100 }

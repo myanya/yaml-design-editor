@@ -1,0 +1,7 @@
+id: closing
+name: 現金の締め
+kind: document
+description: 月末に金庫の現金を数えた記録 1 件を 1 ファイルで管理します。導いた現金は、締めたときに操作「現金を締める」が動きから計算して書きます。
+match: "guild/closings/*.yaml"
+filePattern: "guild/closings/{id}.yaml"
+root: { type: common#締め }

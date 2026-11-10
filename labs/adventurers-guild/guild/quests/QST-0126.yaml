@@ -12,6 +12,13 @@ deadline: 2026-11-20
 place: PLC-008
 requiredJob: JOB-04
 description: 村の薬師が寝込んだため、熱の出た子らの手当てを 3 日ほど手伝ってほしい。治療師か、傷の手当ての心得がある人に頼みたい。
+deposit:
+  id: QST-0126-D
+  depositedOn: 2026-11-09
+  reward: 250
+  feeRate: 10
+  fee: 25
+  amount: 275
 history:
   - date: 2026-11-09
     action: register-quest

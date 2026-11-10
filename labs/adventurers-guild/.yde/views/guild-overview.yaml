@@ -32,4 +32,4 @@ filters:
     label: 会計
     mode: show
     level: type
-    where: { path: entityType, oneOf: [payment, purchase, material, assignment, branch, staff, adventurer, party] }
+    where: { path: entityType, oneOf: [branch, quest, deposit, refund, assignment, payment, contract, receipt, client, staff, wage, expense, material, purchase, sale, disposal, stocktake, closing] }

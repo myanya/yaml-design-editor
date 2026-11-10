@@ -12,6 +12,13 @@ deadline: 2026-05-12
 place: PLC-011
 targets: [MON-007]
 description: 穂波の村に霧鴉が出て困っている。
+deposit:
+  id: QST-0042-D
+  depositedOn: 2026-04-14
+  reward: 260
+  feeRate: 10
+  fee: 26
+  amount: 286
 assignments:
   - id: QST-0042-A1
     taker: ADV-0005

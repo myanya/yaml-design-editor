@@ -11,6 +11,13 @@ deadline: 2026-09-04
 place: PLC-003
 targets: [MAT-001]
 description: 黒樫の森で月影草を15束。
+deposit:
+  id: QST-0089-D
+  depositedOn: 2026-08-05
+  reward: 110
+  feeRate: 10
+  fee: 11
+  amount: 121
 assignments:
   - id: QST-0089-A1
     taker: ADV-0007

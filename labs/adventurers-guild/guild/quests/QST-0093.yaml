@@ -12,6 +12,17 @@ deadline: 2026-09-09
 place: PLC-004
 targets: [MON-004]
 description: 灰沼に泥鱗トカゲが出て困っている。
+deposit:
+  id: QST-0093-D
+  depositedOn: 2026-08-11
+  reward: 290
+  feeRate: 10
+  fee: 29
+  amount: 319
+refund:
+  id: QST-0093-R
+  refundedOn: 2026-09-10
+  amount: 290
 history:
   - date: 2026-08-11
     action: register-quest

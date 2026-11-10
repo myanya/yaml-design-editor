@@ -10,6 +10,13 @@ reward: 100
 receivedOn: 2025-11-14
 deadline: 2025-12-12
 place: PLC-008
+deposit:
+  id: QST-0006-D
+  depositedOn: 2025-11-14
+  reward: 100
+  feeRate: 10
+  fee: 10
+  amount: 110
 assignments:
   - id: QST-0006-A1
     taker: ADV-0006

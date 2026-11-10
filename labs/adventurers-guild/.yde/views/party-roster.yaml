@@ -1,6 +1,6 @@
 id: party-roster
 name: パーティの編成
-description: パーティごとのランク・リーダー・構成員・人数・結成日と、パーティで受けている依頼の数とランクの上限。「新規行」でパーティ番号を入れると guild/parties/<番号>.yaml ができます。
+description: パーティごとのランク・リーダー・構成員・人数・結成日・報酬の分け方と、パーティで受けている依頼の数とランクの上限。「新規行」でパーティ番号を入れると guild/parties/<番号>.yaml ができます。
 rows:
   idPattern: "PTY-*"
 columns:
@@ -10,6 +10,7 @@ columns:
   - { label: 構成員, schemaId: party, path: members }
   - { label: 人数, schemaId: party, value: { count: { path: "members[*]" } } }
   - { label: 結成日, schemaId: party, path: formedOn }
+  - { label: 報酬の分け方, schemaId: party, path: distribution, editable: true }
   - label: 遂行中
     schemaId: party
     value:

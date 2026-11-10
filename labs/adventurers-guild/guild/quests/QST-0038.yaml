@@ -10,6 +10,13 @@ reward: 570
 receivedOn: 2026-03-26
 deadline: 2026-04-10
 place: PLC-007
+deposit:
+  id: QST-0038-D
+  depositedOn: 2026-03-26
+  reward: 570
+  feeRate: 10
+  fee: 57
+  amount: 627
 assignments:
   - id: QST-0038-A1
     taker: PTY-001

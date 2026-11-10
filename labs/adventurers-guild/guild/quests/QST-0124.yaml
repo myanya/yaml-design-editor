@@ -12,6 +12,13 @@ deadline: 2026-11-30
 targets:
   - { to: MAT-011, quantity: 5 }
 description: 鍛冶場で盾の裏打ちに使う。割れや欠けの無いものを 5 枚。倒して得ても、手持ちを持ち込んでもよい。
+deposit:
+  id: QST-0124-D
+  depositedOn: 2026-11-08
+  reward: 200
+  feeRate: 10
+  fee: 20
+  amount: 220
 history:
   - date: 2026-11-08
     action: register-quest

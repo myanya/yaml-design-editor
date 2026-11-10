@@ -12,6 +12,13 @@ deadline: 2026-10-20
 place: PLC-002
 targets: [MON-001]
 description: 東の街道で、荷馬車が大狼の群れに襲われる。群れを街道から遠ざけてほしい。
+deposit:
+  id: QST-0112-D
+  depositedOn: 2026-10-01
+  reward: 1200
+  feeRate: 10
+  fee: 120
+  amount: 1320
 assignments:
   - id: QST-0112-A1
     taker: PTY-001

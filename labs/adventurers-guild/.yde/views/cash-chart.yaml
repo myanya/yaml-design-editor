@@ -1,0 +1,9 @@
+id: cash-chart
+name: 現金の入りと出の累計（図）
+kind: chart
+chart: line
+view: cash-cumulative
+description: 現金の入りと出の累計の折れ線です。2 本の差（＋開始の現金）が月末の現金です。点を押すと、数えた動きが下に並びます。
+series: [入り, 出]
+y: { label: セリン, format: "#,##0" }
+drill: below

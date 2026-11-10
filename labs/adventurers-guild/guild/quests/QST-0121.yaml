@@ -11,6 +11,17 @@ receivedOn: 2026-10-20
 deadline: 2026-11-10
 place: PLC-008
 description: 川向こうの村へ、浅瀬を渡って小麦と塩を運ぶ。
+deposit:
+  id: QST-0121-D
+  depositedOn: 2026-10-20
+  reward: 400
+  feeRate: 10
+  fee: 40
+  amount: 440
+refund:
+  id: QST-0121-R
+  refundedOn: 2026-11-01
+  amount: 400
 history:
   - date: 2026-10-20
     action: register-quest

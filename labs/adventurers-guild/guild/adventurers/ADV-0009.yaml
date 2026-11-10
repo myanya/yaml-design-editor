@@ -4,6 +4,7 @@ rank: RNK-S
 status: retired
 registeredOn: 2008-03-30
 job: JOB-02
+jobLevel: advanced
 note: 引退して、いまは町で後進の相談役をしています。
 history:
   - { date: 2008-03-30, action: register-adventurer, to: active }

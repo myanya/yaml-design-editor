@@ -12,6 +12,13 @@ deadline: 2025-12-03
 place: PLC-012
 targets: [MAT-014]
 description: 白岩の石切り場で青石を2個。
+deposit:
+  id: QST-0002-D
+  depositedOn: 2025-11-05
+  reward: 110
+  feeRate: 10
+  fee: 11
+  amount: 121
 assignments:
   - id: QST-0002-A1
     taker: ADV-0004

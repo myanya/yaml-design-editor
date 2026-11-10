@@ -1,0 +1,6 @@
+id: STK-0003
+material: MAT-005
+countedOn: 2026-02-28
+expected: 5
+counted: 5
+branch: BRN-01

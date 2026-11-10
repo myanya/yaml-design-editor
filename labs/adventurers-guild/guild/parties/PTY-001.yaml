@@ -10,3 +10,4 @@ members:
   - to: ADV-0003
     role: 斥候
 formedOn: 2022-01-10
+distribution: equal

@@ -1,0 +1,12 @@
+id: wage-list
+name: 給与の支払いの一覧
+description: 給与の支払いごとの、職員・払った日・額。新しい順です。給与は支部の行の操作「給与を払う」で、職員全員に払います。
+rows:
+  match:
+    - node: { entity: wage, bind: w }
+order: { path: payday, direction: desc }
+columns:
+  - label: 職員
+    backlinks: { relation: has-wage }
+  - { label: 払った日, path: payday }
+  - { label: 額, path: amount }

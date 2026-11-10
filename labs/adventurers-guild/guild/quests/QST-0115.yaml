@@ -11,6 +11,13 @@ receivedOn: 2026-10-28
 deadline: 2026-11-20
 place: PLC-001
 description: 粉ひき場の裏の古井戸から、夜になると何かを引っかく音がする。
+deposit:
+  id: QST-0115-D
+  depositedOn: 2026-10-28
+  reward: 150
+  feeRate: 10
+  fee: 15
+  amount: 165
 assignments:
   - id: QST-0115-A1
     taker: PTY-003

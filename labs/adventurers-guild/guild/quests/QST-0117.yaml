@@ -12,6 +12,13 @@ deadline: 2026-12-15
 place: PLC-005
 targets: [MON-002]
 description: 商会が買い取った廃坑に大蜘蛛が巣を張り、掘り直しが始められない。
+deposit:
+  id: QST-0117-D
+  depositedOn: 2026-11-02
+  reward: 3000
+  feeRate: 10
+  fee: 300
+  amount: 3300
 history:
   - date: 2026-11-02
     action: register-quest

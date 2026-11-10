@@ -1,0 +1,84 @@
+id: sale
+name: 素材の売却
+kind: document
+description: 支部が素材を商人や職人に売った記録 1 件を 1 ファイルで管理します。
+match: "guild/sales/*.yaml"
+filePattern: "guild/sales/{id}.yaml"
+root: { type: common#売却 }
+# 在庫は動きから導く（買取 ＋ 棚卸の数えた数 − 売却 − 廃棄 − 棚卸の導いた数）。起点を売却にするので、売る操作の適用前の検証が止められる
+constraints:
+  - id: sale-within-stock
+    description: 売った後の在庫が 0 より少なくならないこと（在庫より多く売らない）
+    match:
+      - node: { entity: sale, bind: s }
+      - edge: { relation: sells }
+      - node: { entity: material, bind: m }
+    check:
+      - gte:
+          -
+            subtract:
+              - add:
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: buys, dir: in } }
+                              - { node: { entity: purchase, bind: x } }
+                            path: quantity
+                      - 0
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: counts, dir: in } }
+                              - { node: { entity: stocktake, bind: x } }
+                            path: counted
+                      - 0
+              - add:
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: sells, dir: in } }
+                              - { node: { entity: sale, bind: x } }
+                            path: quantity
+                      - 0
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: discards, dir: in } }
+                              - { node: { entity: disposal, bind: x } }
+                            path: quantity
+                      - 0
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: counts, dir: in } }
+                              - { node: { entity: stocktake, bind: x } }
+                            path: expected
+                      - 0
+          - 0
+    level: error
+    message: "売却「{id}」で、{m.title} の在庫が {left} になります（在庫より多く売っています）"
+  - id: sale-price-margin
+    description: 売る単価は、素材の基準の買取価格の 1.5 倍以上であること（素材の売却の差益で、支部の収入にする）
+    match:
+      - node: { entity: sale, bind: s }
+      - edge: { relation: sells }
+      - node: { entity: material, bind: m }
+    check:
+      - gte: [ { of: s, path: unitPrice }, { multiply: [ { of: m, path: buyPrice }, 1.5 ] } ]
+    level: warning
+    message: "売却「{id}」の単価 {left} は、{m.title} の基準の買取価格の 1.5 倍（{right}）に届きません"

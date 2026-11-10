@@ -11,6 +11,13 @@ receivedOn: 2026-11-05
 deadline: 2026-11-23
 place: PLC-001
 description: 収穫祭の夜、広場と裏通りを見回って、もめごとがあれば守衛に知らせる。
+deposit:
+  id: QST-0118-D
+  depositedOn: 2026-11-05
+  reward: 100
+  feeRate: 10
+  fee: 10
+  amount: 110
 history:
   - date: 2026-11-05
     action: register-quest

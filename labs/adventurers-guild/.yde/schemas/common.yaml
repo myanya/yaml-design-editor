@@ -127,6 +127,67 @@ definitions:
     placeholder: QLF-01
     sample: QLF-01
     description: 「QLF-」と 2 桁の数字。
+  # ---- 番号の型（会計と在庫） ----
+  預かり番号:
+    type: id
+    pattern: "^QST-[0-9]{4}-D$"
+    placeholder: QST-0001-D
+    sample: QST-0001-D
+    description: 依頼番号に「-D」。依頼の中に書きます（1 件の依頼に 1 つ）。
+  返金番号:
+    type: id
+    pattern: "^QST-[0-9]{4}-R$"
+    placeholder: QST-0001-R
+    sample: QST-0001-R
+    description: 依頼番号に「-R」。依頼の中に書きます（1 件の依頼に 1 つ）。
+  委託契約番号:
+    type: id
+    pattern: "^CTR-[0-9]{2}$"
+    placeholder: CTR-01
+    sample: CTR-01
+    description: 「CTR-」と 2 桁の数字。委託契約のファイル名にもなります。
+  委託料番号:
+    type: id
+    pattern: "^RCP-[0-9]{4}$"
+    placeholder: RCP-0001
+    sample: RCP-0001
+    description: 「RCP-」と 4 桁の数字。委託契約の中に書きます。
+  給与番号:
+    type: id
+    pattern: "^WAG-[0-9]{4}$"
+    placeholder: WAG-0001
+    sample: WAG-0001
+    description: 「WAG-」と 4 桁の数字。職員の一覧の、その職員の中に書きます。
+  経費番号:
+    type: id
+    pattern: "^EXP-[0-9]{4}$"
+    placeholder: EXP-0001
+    sample: EXP-0001
+    description: 「EXP-」と 4 桁の数字。支部の文書の中に書きます。
+  売却番号:
+    type: id
+    pattern: "^SEL-[0-9]{4}$"
+    placeholder: SEL-0001
+    sample: SEL-0001
+    description: 「SEL-」と 4 桁の数字。売却のファイル名にもなります。
+  廃棄番号:
+    type: id
+    pattern: "^DSP-[0-9]{4}$"
+    placeholder: DSP-0001
+    sample: DSP-0001
+    description: 「DSP-」と 4 桁の数字。廃棄のファイル名にもなります。
+  棚卸番号:
+    type: id
+    pattern: "^STK-[0-9]{4}$"
+    placeholder: STK-0001
+    sample: STK-0001
+    description: 「STK-」と 4 桁の数字。棚卸のファイル名にもなります。
+  締め番号:
+    type: id
+    pattern: "^CLS-[0-9]{4}$"
+    placeholder: CLS-0001
+    sample: CLS-0001
+    description: 「CLS-」と 4 桁の数字。現金の締めのファイル名にもなります。
 
   # ---- 参照の型 ----
   # 候補と検証の対象を種類の文書に限定します。関係名（relation）は、使う側が関係ごとに付けます
@@ -202,6 +263,12 @@ definitions:
       schemaIds: [regulation-list]
     relation: violates
     description: 規約（条）の番号を 1 件。
+  取引先参照:
+    type: ref
+    idPattern: "CLT-*"
+    scope:
+      schemaIds: [client]
+    description: 依頼者の番号を 1 件。依頼のほかの取引（委託契約の相手・素材の買い手）に使います。関係名は使う側が付けます。
   資格参照:
     type: ref
     idPattern: "QLF-*"
@@ -381,6 +448,19 @@ definitions:
       - { value: beginner, label: 初級, description: 訓練の課程を修了すると得る }
       - { value: intermediate, label: 中級 }
       - { value: advanced, label: 上級 }
+  経費の区分:
+    type: enum
+    values:
+      - { value: rent, label: 借り賃, description: 建物の借り賃 }
+      - { value: supplies, label: 備品と消耗品, description: 灯り・薪・紙とインク など }
+      - { value: repairs, label: 修繕 }
+      - { value: other, label: その他 }
+  # パーティの報酬の分け方。分け方はパーティが決め、ギルドはパーティに払うだけ（Q49）
+  分け方:
+    type: enum
+    values:
+      - { value: equal, label: 頭割り, description: 構成員で等しく分ける }
+      - { value: agreed, label: 取り決め, description: パーティの内で決めた割合で分ける（ギルドは割合を持たない） }
   受講の結果:
     type: enum
     values:
@@ -411,7 +491,32 @@ definitions:
       - { key: town, label: 町, type: 一行の文, required: true }
       - { key: currency, label: 通貨の単位, type: 一行の文, required: true, description: 報酬などの金額の単位です。 }
       - { key: commissionRate, label: 手数料率, type: 率, required: true, description: 報酬から差し引くギルドの手数料の率です。支部で一律です。精算のときに、この率を精算の記録へ写します。 }
+      - { key: receptionFeeRate, label: 受付料率, type: 率, required: true, description: 依頼を受け付けて報酬を預かるときに、依頼者から受け取る受付料の率（報酬に対する率）です。預かりの記録へ写します。 }
+      - { key: livingCost, label: 暮らしの目安（月）, type: 金額, required: true, description: 町で 1 人が 1 か月暮らすのにかかる額の目安です。冒険者の稼ぎを見るときに使います。 }
+      - { key: openingCash, label: 開始の現金, type: 金額, required: true, description: 記録を始めた日（開始の日）に金庫にあった現金です。現金の残高は、これに動きを足し引きして導きます。 }
+      - { key: openingOn, label: 開始の日, type: 年月日, required: true }
       - { key: description, label: 説明, type: 文章 }
+      - key: expenses
+        label: 経費
+        type: array
+        relation: has-expense
+        default: []
+        display: table
+        description: 支部が払った経費（借り賃・備品 など）です。操作「経費を払う」が 1 行ずつ足します。
+        methods:
+          insert:
+            id: { path: id, prefix: "EXP-", digits: 4 }
+        item: { type: 経費 }
+  経費:
+    type: object
+    label: 経費
+    entity: { type: expense, defines: true }
+    fields:
+      - { key: id, label: 経費番号, type: 経費番号, required: true }
+      - { key: spentOn, label: 払った日, type: 年月日, required: true }
+      - { key: category, label: 区分, type: 経費の区分, required: true }
+      - { key: amount, label: 額, type: 金額, required: true }
+      - { key: note, label: 中身, type: 一行の文 }
   ランク:
     type: object
     label: ランク
@@ -433,6 +538,7 @@ definitions:
       - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
       - { key: job, label: 職能, type: 職能参照, relation: has-job, required: true, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
+      - { key: jobLevel, label: 職能の段階, type: 資格の段階, required: true, default: beginner, description: 主な職能の技量の段階です。依頼の求める段階と比べます。 }
       - { key: note, label: 備考, type: 文章 }
       - key: history
         label: 履歴
@@ -474,6 +580,8 @@ definitions:
         description: 6 人までです。冒険者が入れるパーティは 1 つまでです。
         item: { type: 構成員 }
       - { key: formedOn, label: 結成日, type: 年月日, required: true }
+      - { key: distribution, label: 報酬の分け方, type: 分け方, required: true, default: equal, description: パーティが決めた、報酬を構成員で分ける方法です。ギルドはパーティに払うだけで、分けるのはパーティです。 }
+      - { key: distributionNote, label: 分け方の覚え, type: 一行の文, description: 取り決めのときの中身などです。 }
       - { key: note, label: 備考, type: 文章 }
   依頼者:
     type: object
@@ -533,12 +641,15 @@ definitions:
       - { key: deadline, label: 期限, type: 年月日 }
       - { key: place, label: 場所, type: 場所参照, relation: located-at, description: 依頼を行う場所です。 }
       - { key: requiredJob, label: 求める職能, type: 職能参照, relation: requires-job, description: 受け手に求める職能です。受け手の職能か、その職能の資格で満たします（パーティなら構成員の誰か）。 }
+      - { key: requiredLevel, label: 求める段階, type: 資格の段階, description: 求める職能の段階です。書かなければ初級（どの段階でもよい）です。 }
       - key: targets
         label: 対象
         type: array
         description: 討伐の魔物（と、その魔物が落とす素材の納品物）、採取や納品の素材です。
         item: { type: 対象参照 }
       - { key: description, label: 内容, type: 文章 }
+      - { key: deposit, label: 預かり, type: 預かり, relation: has-deposit, description: 受け付けたときに依頼者から預かった報酬と受付料です。操作「報酬を預かる」が書きます。 }
+      - { key: refund, label: 返金, type: 返金, relation: has-refund, description: 却下・取消・期限切れのときに依頼者へ返した報酬です。受付料は返しません。操作が書きます。 }
       - key: assignments
         label: 受注
         type: array
@@ -589,6 +700,92 @@ definitions:
         where: [ { path: deadline, exists: true } ]
         check: [ { gte: [ { path: deadline }, { path: receivedOn } ] } ]
         level: error
+      # ---- 預かりと返金（Q47） ----
+      - id: deposit-before-posting
+        description: 掲示から先へ進んだ依頼（受付・却下のほか）には、預かりがあること
+        where:
+          - { path: status, oneOf: [posted, assigned, reported, settled, failed, cancelled, expired] }
+          - { path: deposit, exists: false }
+        expect: absent
+        level: error
+        message: "依頼「{id}」に預かりがありません（掲示する前に、依頼者から報酬と受付料を預かります）"
+      - id: deposit-reward-matches
+        description: 預かった報酬は依頼の報酬と同じであること
+        where: [ { path: deposit, exists: true } ]
+        check: [ { eq: [ { number: { path: deposit.reward } }, { number: { path: reward } } ] } ]
+        level: error
+      - id: deposited-not-before-received
+        description: 預かった日は受付日以降であること
+        where: [ { path: deposit, exists: true } ]
+        check: [ { gte: [ { path: deposit.depositedOn }, { path: receivedOn } ] } ]
+        level: error
+      - id: refund-only-when-returned
+        description: 返金があるのは、却下・取消・期限切れの依頼だけであること
+        where:
+          - { path: refund, exists: true }
+          - { path: status, notEquals: rejected }
+          - { path: status, notEquals: cancelled }
+          - { path: status, notEquals: expired }
+        expect: absent
+        level: error
+        message: "依頼「{id}」は却下・取消・期限切れではないのに、返金があります"
+      - id: returned-has-refund
+        description: 預かりのある却下・取消・期限切れの依頼には、返金があること
+        where:
+          - { path: status, oneOf: [rejected, cancelled, expired] }
+          - { path: deposit, exists: true }
+          - { path: refund, exists: false }
+        expect: absent
+        level: error
+        message: "依頼「{id}」は預かった報酬を返していません（却下・取消・期限切れは報酬を返します）"
+      - id: refund-without-deposit
+        description: 返金があるなら、預かりもあること
+        where:
+          - { path: refund, exists: true }
+          - { path: deposit, exists: false }
+        expect: absent
+        level: error
+        message: "依頼「{id}」は預かっていないのに、返金があります"
+      - id: refund-is-deposited-reward
+        description: 返す額は預かった報酬と同じであること（受付料は返さない）
+        where: [ { path: refund, exists: true } ]
+        check: [ { eq: [ { number: { path: refund.amount } }, { number: { path: deposit.reward } } ] } ]
+        level: error
+      - id: refunded-not-before-deposited
+        description: 返した日は預かった日以降であること
+        where: [ { path: refund, exists: true } ]
+        check: [ { gte: [ { path: refund.refundedOn }, { path: deposit.depositedOn } ] } ]
+        level: error
+  預かり:
+    type: object
+    label: 預かり
+    entity: { type: deposit, defines: true }
+    description: 依頼を受け付けたときに、依頼者から預かった報酬と受付料です。報酬は精算で受け手へ払い（手数料を引いて）、却下・取消・期限切れなら返します。受付料は支部の収入で、返しません。
+    fields:
+      - { key: id, label: 預かり番号, type: 預かり番号, required: true }
+      - { key: depositedOn, label: 預かった日, type: 年月日, required: true }
+      - { key: reward, label: 預かった報酬, type: 金額, required: true, description: 依頼の報酬と同じ額です。 }
+      - { key: feeRate, label: 受付料率, type: 率, required: true, description: 預かったときの支部の受付料率です。 }
+      - { key: fee, label: 受付料, type: 金額, required: true, description: 報酬 × 受付料率 ÷ 100。 }
+      - { key: amount, label: 受け取った額, type: 金額, required: true, description: 報酬 ＋ 受付料。金庫に入った額です。 }
+    constraints:
+      - id: reception-fee-is-rate-of-reward
+        description: 受付料は報酬 × 受付料率 ÷ 100 であること
+        check: [ { eq: [ { number: { path: fee } }, { number: { divide: [ { multiply: [ { path: reward }, { path: feeRate } ] }, 100 ] } } ] } ]
+        level: error
+      - id: deposit-amount-is-reward-plus-fee
+        description: 受け取った額は報酬 ＋ 受付料であること
+        check: [ { eq: [ { number: { path: amount } }, { number: { add: [ { path: reward }, { path: fee } ] } } ] } ]
+        level: error
+  返金:
+    type: object
+    label: 返金
+    entity: { type: refund, defines: true }
+    description: 却下・取消・期限切れの依頼の、預かった報酬を依頼者へ返した記録です。
+    fields:
+      - { key: id, label: 返金番号, type: 返金番号, required: true }
+      - { key: refundedOn, label: 返した日, type: 年月日, required: true }
+      - { key: amount, label: 返した額, type: 金額, required: true, description: 預かった報酬と同じ額です（受付料は返しません）。 }
   精算:
     type: object
     label: 精算
@@ -629,6 +826,7 @@ definitions:
       - { key: id, label: 素材番号, type: 素材番号, required: true }
       - { key: name, label: 名前, type: 一行の文, role: title, required: true }
       - { key: kind, label: 種類, type: 素材の種類, required: true }
+      - { key: buyPrice, label: 基準の買取価格, type: 金額, required: true, description: 1 つあたりの買取の値段の基準です。売るときは、この 1.5 倍以上で売ります。 }
       - key: origins
         label: 産地
         type: array
@@ -672,7 +870,27 @@ definitions:
       - { key: name, label: 名前, type: 一行の文, role: title, required: true }
       - { key: role, label: 役目, type: 職員の役目, required: true }
       - { key: branch, label: 所属支部, type: 支部参照, relation: works-at, required: true }
+      - { key: monthlySalary, label: 月給, type: 金額, required: true, description: 月末に払う給与の額です。払ったときに、給与の支払いの記録へ写します。 }
       - { key: note, label: 備考, type: 文章 }
+      - key: wages
+        label: 給与の支払い
+        type: array
+        relation: has-wage
+        default: []
+        display: table
+        description: この職員に払った給与です。操作「給与を払う」が月末に 1 行ずつ足します。
+        methods:
+          insert:
+            id: { path: id, prefix: "WAG-", digits: 4 }
+        item: { type: 給与の支払い }
+  給与の支払い:
+    type: object
+    label: 給与の支払い
+    entity: { type: wage, defines: true }
+    fields:
+      - { key: id, label: 給与番号, type: 給与番号, required: true }
+      - { key: payday, label: 払った日, type: 年月日, required: true }
+      - { key: amount, label: 額, type: 金額, required: true, description: 払ったときの月給です。 }
   規約:
     type: object
     label: 規約
@@ -847,8 +1065,108 @@ definitions:
       - { key: amount, label: 代金, type: 金額, required: true, description: 単価 × 数。検査が確かめます。 }
       - { key: purchasedOn, label: 買い取った日, type: 年月日, required: true }
       - { key: appraisedBy, label: 鑑定した職員, type: 職員参照, relation: appraised-by }
+      - { key: branch, label: 支部, type: 支部参照, relation: booked-at, required: true, default: BRN-01, description: 代金を払い、素材を置いた支部です。 }
     constraints:
       - id: purchase-amount
         description: 代金は単価 × 数であること
         check: [ { eq: [ { number: { path: amount } }, { number: { multiply: [ { path: unitPrice }, { path: quantity } ] } } ] } ]
         level: error
+
+  # ---- オブジェクト型（会計と在庫） ----
+  # 帳簿は持たない。お金と物の動き（出来事）を 1 件ずつ持ち、在庫と現金の残高は動きから導く（Q41 の見立て）
+  委託契約:
+    type: object
+    label: 委託契約
+    entity: { type: contract, defines: true }
+    description: 町や村などから、毎月決まった額で仕事（見回り・魔物への備え など）を任される取り決めです。
+    fields:
+      - { key: id, label: 委託契約番号, type: 委託契約番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: client, label: 委託する者, type: 取引先参照, relation: contracted-by, required: true }
+      - { key: branch, label: 支部, type: 支部参照, relation: booked-at, required: true, default: BRN-01 }
+      - { key: monthlyFee, label: 月の委託料, type: 金額, required: true }
+      - { key: startedOn, label: 始めた日, type: 年月日, required: true }
+      - { key: description, label: 中身, type: 文章 }
+      - key: receipts
+        label: 委託料の受け取り
+        type: array
+        relation: has-receipt
+        default: []
+        display: table
+        description: 受け取った委託料です。操作「委託料を受け取る」が 1 行ずつ足します。
+        methods:
+          insert:
+            id: { path: id, prefix: "RCP-", digits: 4 }
+        item: { type: 委託料の受け取り }
+  委託料の受け取り:
+    type: object
+    label: 委託料の受け取り
+    entity: { type: receipt, defines: true }
+    fields:
+      - { key: id, label: 委託料番号, type: 委託料番号, required: true }
+      - { key: receivedOn, label: 受け取った日, type: 年月日, required: true }
+      - { key: amount, label: 額, type: 金額, required: true, description: 受け取ったときの月の委託料です。 }
+  売却:
+    type: object
+    label: 素材の売却
+    entity: { type: sale, defines: true }
+    fields:
+      - { key: id, label: 売却番号, type: 売却番号, required: true }
+      - { key: buyer, label: 買い手, type: 取引先参照, relation: sold-to, required: true }
+      - { key: material, label: 素材, type: 素材参照, relation: sells, required: true }
+      - { key: quantity, label: 数, type: int, min: 1, required: true }
+      - { key: unitPrice, label: 単価, type: 金額, required: true }
+      - { key: amount, label: 代金, type: 金額, required: true, description: 単価 × 数。 }
+      - { key: soldOn, label: 売った日, type: 年月日, required: true }
+      - { key: branch, label: 支部, type: 支部参照, relation: booked-at, required: true, default: BRN-01 }
+    constraints:
+      - id: sale-amount
+        description: 代金は単価 × 数であること
+        check: [ { eq: [ { number: { path: amount } }, { number: { multiply: [ { path: unitPrice }, { path: quantity } ] } } ] } ]
+        level: error
+  廃棄:
+    type: object
+    label: 素材の廃棄
+    entity: { type: disposal, defines: true }
+    fields:
+      - { key: id, label: 廃棄番号, type: 廃棄番号, required: true }
+      - { key: material, label: 素材, type: 素材参照, relation: discards, required: true }
+      - { key: quantity, label: 数, type: int, min: 1, required: true }
+      - { key: disposedOn, label: 捨てた日, type: 年月日, required: true }
+      - { key: reason, label: 理由, type: 一行の文, required: true }
+      - { key: branch, label: 支部, type: 支部参照, relation: booked-at, required: true, default: BRN-01 }
+  棚卸:
+    type: object
+    label: 棚卸
+    entity: { type: stocktake, defines: true }
+    description: 月末に倉の素材を数えた記録です（素材 1 つにつき 1 件）。動きから導いた数（帳簿の数）と、数えた数を並べます。違えば、その差がのちの在庫に足されます。
+    fields:
+      - { key: id, label: 棚卸番号, type: 棚卸番号, required: true }
+      - { key: material, label: 素材, type: 素材参照, relation: counts, required: true }
+      - { key: countedOn, label: 数えた日, type: 年月日, required: true }
+      - { key: expected, label: 導いた数, type: int, min: 0, required: true, description: 数えたときに、買取・売却・廃棄とそれまでの棚卸の差から導いた数です。操作「棚卸する」が書きます。 }
+      - { key: counted, label: 数えた数, type: int, min: 0, required: true }
+      - { key: branch, label: 支部, type: 支部参照, relation: booked-at, required: true, default: BRN-01 }
+      - { key: note, label: 覚え, type: 一行の文 }
+    constraints:
+      - id: stock-count-matches
+        description: 数えた数は導いた数と同じであること（違えば、差の訳を確かめる）
+        check: [ { eq: [ { number: { path: counted } }, { number: { path: expected } } ] } ]
+        level: warning
+  締め:
+    type: object
+    label: 現金の締め
+    entity: { type: closing, defines: true }
+    description: 月末に金庫の現金を数えた記録です。動きから導いた現金と、数えた現金を並べます。違えば、その差がのちの残高に足されます。
+    fields:
+      - { key: id, label: 締め番号, type: 締め番号, required: true }
+      - { key: closedOn, label: 締めた日, type: 年月日, required: true }
+      - { key: branch, label: 支部, type: 支部参照, relation: booked-at, required: true, default: BRN-01 }
+      - { key: expected, label: 導いた現金, type: int, required: true, description: 締めたときに、開始の現金と、それまでのお金の動きと締めの差から導いた額です。操作「現金を締める」が書きます。 }
+      - { key: counted, label: 数えた現金, type: int, required: true }
+      - { key: note, label: 覚え, type: 一行の文 }
+    constraints:
+      - id: cash-count-matches
+        description: 数えた現金は導いた現金と同じであること（違えば、差の訳を確かめる）
+        check: [ { eq: [ { number: { path: counted } }, { number: { path: expected } } ] } ]
+        level: warning

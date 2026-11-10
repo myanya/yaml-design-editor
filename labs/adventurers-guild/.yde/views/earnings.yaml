@@ -1,0 +1,184 @@
+id: earnings
+name: 冒険者の稼ぎ
+description: 冒険者ごとの、記録にある稼ぎ（精算の支払額と、素材の買取の代金）。パーティの分は、構成員の頭数で割った見積もりです（分け方はパーティが決めるので、暮らせるかを見るための目安）。記録は 2025-11 からの 1 年分で、暮らしの目安は月 150 セリン（1 年 1,800）です。構成員はいまのパーティで数えます。
+rows:
+  match:
+    - node: { entity: adventurer, bind: t }
+order: { path: registeredOn }
+columns:
+  - { label: 名前, path: name }
+  - { label: ランク, path: rank }
+  - { label: 状態, path: status }
+  - { label: 登録日, path: registeredOn }
+  - label: 個人の支払額
+    format: "#,##0"
+    value:
+      first:
+        - sum:
+            all:
+              from: t
+              match:
+                - { node: { entity: adventurer } }
+                - { edge: { relation: taken-by, dir: in } }
+                - { node: { entity: assignment } }
+                - { edge: { relation: settles, dir: in } }
+                - { node: { entity: payment, bind: x } }
+              path: amount
+        - 0
+  - label: パーティの支払額（頭割り）
+    format: "#,##0"
+    value:
+      first:
+        - divide:
+            - first:
+                - sum:
+                    all:
+                      from: t
+                      match:
+                        - { node: { entity: adventurer } }
+                        - { edge: { relation: has-member, dir: in } }
+                        - { node: { entity: party } }
+                        - { edge: { relation: taken-by, dir: in } }
+                        - { node: { entity: assignment } }
+                        - { edge: { relation: settles, dir: in } }
+                        - { node: { entity: payment, bind: x } }
+                      path: amount
+                - 0
+            -
+              add:
+                - count:
+                    all:
+                      from: t
+                      match:
+                        - { node: { entity: adventurer } }
+                        - { edge: { relation: has-member, dir: in } }
+                        - { node: { entity: party } }
+                        - { edge: { relation: has-member } }
+                        - { node: { entity: adventurer, bind: x } }
+                - 1
+        - 0
+  - label: 個人の買取の代金
+    format: "#,##0"
+    value:
+      first:
+        - sum:
+            all:
+              from: t
+              match:
+                - { node: { entity: adventurer } }
+                - { edge: { relation: sold-by, dir: in } }
+                - { node: { entity: purchase, bind: x } }
+              path: amount
+        - 0
+  - label: パーティの買取の代金（頭割り）
+    format: "#,##0"
+    value:
+      first:
+        - divide:
+            - first:
+                - sum:
+                    all:
+                      from: t
+                      match:
+                        - { node: { entity: adventurer } }
+                        - { edge: { relation: has-member, dir: in } }
+                        - { node: { entity: party } }
+                        - { edge: { relation: sold-by, dir: in } }
+                        - { node: { entity: purchase, bind: x } }
+                      path: amount
+                - 0
+            -
+              add:
+                - count:
+                    all:
+                      from: t
+                      match:
+                        - { node: { entity: adventurer } }
+                        - { edge: { relation: has-member, dir: in } }
+                        - { node: { entity: party } }
+                        - { edge: { relation: has-member } }
+                        - { node: { entity: adventurer, bind: x } }
+                - 1
+        - 0
+  - label: 稼ぎの合計
+    format: "#,##0"
+    value:
+      add:
+        - first:
+            - sum:
+                all:
+                  from: t
+                  match:
+                    - { node: { entity: adventurer } }
+                    - { edge: { relation: taken-by, dir: in } }
+                    - { node: { entity: assignment } }
+                    - { edge: { relation: settles, dir: in } }
+                    - { node: { entity: payment, bind: x } }
+                  path: amount
+            - 0
+        - first:
+            - divide:
+                - first:
+                    - sum:
+                        all:
+                          from: t
+                          match:
+                            - { node: { entity: adventurer } }
+                            - { edge: { relation: has-member, dir: in } }
+                            - { node: { entity: party } }
+                            - { edge: { relation: taken-by, dir: in } }
+                            - { node: { entity: assignment } }
+                            - { edge: { relation: settles, dir: in } }
+                            - { node: { entity: payment, bind: x } }
+                          path: amount
+                    - 0
+                -
+                  add:
+                    - count:
+                        all:
+                          from: t
+                          match:
+                            - { node: { entity: adventurer } }
+                            - { edge: { relation: has-member, dir: in } }
+                            - { node: { entity: party } }
+                            - { edge: { relation: has-member } }
+                            - { node: { entity: adventurer, bind: x } }
+                    - 1
+            - 0
+        - first:
+            - sum:
+                all:
+                  from: t
+                  match:
+                    - { node: { entity: adventurer } }
+                    - { edge: { relation: sold-by, dir: in } }
+                    - { node: { entity: purchase, bind: x } }
+                  path: amount
+            - 0
+        - first:
+            - divide:
+                - first:
+                    - sum:
+                        all:
+                          from: t
+                          match:
+                            - { node: { entity: adventurer } }
+                            - { edge: { relation: has-member, dir: in } }
+                            - { node: { entity: party } }
+                            - { edge: { relation: sold-by, dir: in } }
+                            - { node: { entity: purchase, bind: x } }
+                          path: amount
+                    - 0
+                -
+                  add:
+                    - count:
+                        all:
+                          from: t
+                          match:
+                            - { node: { entity: adventurer } }
+                            - { edge: { relation: has-member, dir: in } }
+                            - { node: { entity: party } }
+                            - { edge: { relation: has-member } }
+                            - { node: { entity: adventurer, bind: x } }
+                    - 1
+            - 0

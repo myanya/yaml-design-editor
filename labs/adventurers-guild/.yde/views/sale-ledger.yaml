@@ -1,0 +1,16 @@
+id: sale-ledger
+name: 売却の記録
+description: 売却ごとの、買い手・素材・数・単価・代金。売った日の順です。
+rows:
+  match:
+    - node: { entity: sale, bind: s }
+order: { path: soldOn }
+columns:
+  - { label: 売った日, path: soldOn }
+  - { label: 買い手, path: buyer }
+  - { label: 素材, path: material }
+  - { label: 数, path: quantity }
+  - { label: 単価, path: unitPrice }
+  - { label: 代金, path: amount }
+newRow:
+  filePattern: "guild/sales/{id}.yaml"

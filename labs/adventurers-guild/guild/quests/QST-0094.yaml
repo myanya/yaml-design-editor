@@ -10,6 +10,13 @@ reward: 150
 receivedOn: 2026-08-18
 deadline: 2026-09-20
 place: PLC-011
+deposit:
+  id: QST-0094-D
+  depositedOn: 2026-08-18
+  reward: 150
+  feeRate: 10
+  fee: 15
+  amount: 165
 assignments:
   - id: QST-0094-A1
     taker: ADV-0001

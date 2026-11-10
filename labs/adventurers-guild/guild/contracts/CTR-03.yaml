@@ -1,0 +1,21 @@
+id: CTR-03
+name: 北の峠道の知らせの取り次ぎ
+client: CLT-009
+branch: BRN-01
+monthlyFee: 100
+startedOn: 2025-11-01
+description: 北の砦の守備隊から、峠道の様子の知らせと書状の取り次ぎを任されています。
+receipts:
+  - { id: RCP-0003, receivedOn: 2025-11-05, amount: 100 }
+  - { id: RCP-0006, receivedOn: 2025-12-05, amount: 100 }
+  - { id: RCP-0009, receivedOn: 2026-01-05, amount: 100 }
+  - { id: RCP-0012, receivedOn: 2026-02-05, amount: 100 }
+  - { id: RCP-0015, receivedOn: 2026-03-05, amount: 100 }
+  - { id: RCP-0018, receivedOn: 2026-04-05, amount: 100 }
+  - { id: RCP-0021, receivedOn: 2026-05-05, amount: 100 }
+  - { id: RCP-0024, receivedOn: 2026-06-05, amount: 100 }
+  - { id: RCP-0027, receivedOn: 2026-07-05, amount: 100 }
+  - { id: RCP-0030, receivedOn: 2026-08-05, amount: 100 }
+  - { id: RCP-0033, receivedOn: 2026-09-05, amount: 100 }
+  - { id: RCP-0036, receivedOn: 2026-10-05, amount: 100 }
+  - { id: RCP-0039, receivedOn: 2026-11-05, amount: 100 }

@@ -9,6 +9,13 @@ reward: 50
 receivedOn: 2026-04-04
 deadline: 2026-05-06
 place: PLC-001
+deposit:
+  id: QST-0039-D
+  depositedOn: 2026-04-04
+  reward: 50
+  feeRate: 10
+  fee: 5
+  amount: 55
 assignments:
   - id: QST-0039-A1
     taker: ADV-0006

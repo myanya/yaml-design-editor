@@ -8,3 +8,4 @@ members:
   - to: ADV-0005
     role: 回復
 formedOn: 2024-06-15
+distribution: equal

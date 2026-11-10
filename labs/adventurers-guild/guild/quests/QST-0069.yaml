@@ -11,6 +11,13 @@ deadline: 2026-07-12
 place: PLC-003
 targets: [MAT-003]
 description: 黒樫の森で白百合を10本。
+deposit:
+  id: QST-0069-D
+  depositedOn: 2026-06-20
+  reward: 100
+  feeRate: 10
+  fee: 10
+  amount: 110
 assignments:
   - id: QST-0069-A1
     taker: ADV-0005

@@ -12,6 +12,13 @@ deadline: 2026-05-16
 place: PLC-012
 targets: [MAT-014]
 description: 白岩の石切り場で青石を4個。
+deposit:
+  id: QST-0044-D
+  depositedOn: 2026-04-20
+  reward: 100
+  feeRate: 10
+  fee: 10
+  amount: 110
 assignments:
   - id: QST-0044-A1
     taker: ADV-0006

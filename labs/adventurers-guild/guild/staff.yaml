@@ -3,21 +3,91 @@ staff:
     name: マルタ・ロウ
     role: branch-manager
     branch: BRN-01
+    monthlySalary: 300
+    wages:
+      - { id: WAG-0001, payday: 2025-11-30, amount: 300 }
+      - { id: WAG-0006, payday: 2025-12-31, amount: 300 }
+      - { id: WAG-0011, payday: 2026-01-31, amount: 300 }
+      - { id: WAG-0016, payday: 2026-02-28, amount: 300 }
+      - { id: WAG-0021, payday: 2026-03-31, amount: 300 }
+      - { id: WAG-0026, payday: 2026-04-30, amount: 300 }
+      - { id: WAG-0031, payday: 2026-05-31, amount: 300 }
+      - { id: WAG-0036, payday: 2026-06-30, amount: 300 }
+      - { id: WAG-0041, payday: 2026-07-31, amount: 300 }
+      - { id: WAG-0046, payday: 2026-08-31, amount: 300 }
+      - { id: WAG-0051, payday: 2026-09-30, amount: 300 }
+      - { id: WAG-0056, payday: 2026-10-31, amount: 300 }
   - id: STF-02
     name: エマ・リンデ
     role: receptionist
     branch: BRN-01
+    monthlySalary: 180
+    wages:
+      - { id: WAG-0002, payday: 2025-11-30, amount: 180 }
+      - { id: WAG-0007, payday: 2025-12-31, amount: 180 }
+      - { id: WAG-0012, payday: 2026-01-31, amount: 180 }
+      - { id: WAG-0017, payday: 2026-02-28, amount: 180 }
+      - { id: WAG-0022, payday: 2026-03-31, amount: 180 }
+      - { id: WAG-0027, payday: 2026-04-30, amount: 180 }
+      - { id: WAG-0032, payday: 2026-05-31, amount: 180 }
+      - { id: WAG-0037, payday: 2026-06-30, amount: 180 }
+      - { id: WAG-0042, payday: 2026-07-31, amount: 180 }
+      - { id: WAG-0047, payday: 2026-08-31, amount: 180 }
+      - { id: WAG-0052, payday: 2026-09-30, amount: 180 }
+      - { id: WAG-0057, payday: 2026-10-31, amount: 180 }
   - id: STF-03
     name: ヨルク・ハウエル
     role: appraiser
     branch: BRN-01
+    monthlySalary: 180
     note: 魔物の部位と薬草の目利きです。
+    wages:
+      - { id: WAG-0003, payday: 2025-11-30, amount: 180 }
+      - { id: WAG-0008, payday: 2025-12-31, amount: 180 }
+      - { id: WAG-0013, payday: 2026-01-31, amount: 180 }
+      - { id: WAG-0018, payday: 2026-02-28, amount: 180 }
+      - { id: WAG-0023, payday: 2026-03-31, amount: 180 }
+      - { id: WAG-0028, payday: 2026-04-30, amount: 180 }
+      - { id: WAG-0033, payday: 2026-05-31, amount: 180 }
+      - { id: WAG-0038, payday: 2026-06-30, amount: 180 }
+      - { id: WAG-0043, payday: 2026-07-31, amount: 180 }
+      - { id: WAG-0048, payday: 2026-08-31, amount: 180 }
+      - { id: WAG-0053, payday: 2026-09-30, amount: 180 }
+      - { id: WAG-0058, payday: 2026-10-31, amount: 180 }
   - id: STF-04
     name: ソラン・ベック
     role: instructor
     branch: BRN-01
+    monthlySalary: 180
     note: 元は町の守衛で、剣と弓を教えます。
+    wages:
+      - { id: WAG-0004, payday: 2025-11-30, amount: 180 }
+      - { id: WAG-0009, payday: 2025-12-31, amount: 180 }
+      - { id: WAG-0014, payday: 2026-01-31, amount: 180 }
+      - { id: WAG-0019, payday: 2026-02-28, amount: 180 }
+      - { id: WAG-0024, payday: 2026-03-31, amount: 180 }
+      - { id: WAG-0029, payday: 2026-04-30, amount: 180 }
+      - { id: WAG-0034, payday: 2026-05-31, amount: 180 }
+      - { id: WAG-0039, payday: 2026-06-30, amount: 180 }
+      - { id: WAG-0044, payday: 2026-07-31, amount: 180 }
+      - { id: WAG-0049, payday: 2026-08-31, amount: 180 }
+      - { id: WAG-0054, payday: 2026-09-30, amount: 180 }
+      - { id: WAG-0059, payday: 2026-10-31, amount: 180 }
   - id: STF-05
     name: ティナ・クローヴ
     role: accountant
     branch: BRN-01
+    monthlySalary: 180
+    wages:
+      - { id: WAG-0005, payday: 2025-11-30, amount: 180 }
+      - { id: WAG-0010, payday: 2025-12-31, amount: 180 }
+      - { id: WAG-0015, payday: 2026-01-31, amount: 180 }
+      - { id: WAG-0020, payday: 2026-02-28, amount: 180 }
+      - { id: WAG-0025, payday: 2026-03-31, amount: 180 }
+      - { id: WAG-0030, payday: 2026-04-30, amount: 180 }
+      - { id: WAG-0035, payday: 2026-05-31, amount: 180 }
+      - { id: WAG-0040, payday: 2026-06-30, amount: 180 }
+      - { id: WAG-0045, payday: 2026-07-31, amount: 180 }
+      - { id: WAG-0050, payday: 2026-08-31, amount: 180 }
+      - { id: WAG-0055, payday: 2026-09-30, amount: 180 }
+      - { id: WAG-0060, payday: 2026-10-31, amount: 180 }

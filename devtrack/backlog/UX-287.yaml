@@ -1,0 +1,9 @@
+id: UX-287
+title: 操作の前提で受け手を where で絞ると、合わない受け手は「対象の要素ではない」で止まることが、マニュアルに書かれていない
+status: todo
+origin_on: 2026-11-10
+origin: labs/adventurers-guild の「依頼を掲示する」で、「期限があれば、期限は掲示日以降」を where（期限がある）＋ check で書いたら、期限の無い依頼まで「期限を過ぎているため掲示できません」で止まったとき
+memo: ActionPlanner.checkRequire は NOT_APPLICABLE（NOT_IN_SCOPE）を止める側に倒し、文面には前提の message を使う。状態の前提（where で状態を絞って exists）はこの作りで書けているので意図どおりだが、
+  「条件つきの前提」を書くつもりだと、条件に当たらない受け手まで止まり、文面も誤解を招く。actions.md の「前提」に、受け手を where で絞ると前提になることと、条件つきにする書き方（値が無いときの既定を first で補う など）を書くか
+features:
+  - OP-03

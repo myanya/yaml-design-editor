@@ -1,0 +1,16 @@
+id: closing-list
+name: 現金の締めの一覧
+description: 締めごとの、導いた現金・数えた現金・差。新しい順です。
+rows:
+  match:
+    - node: { entity: closing, bind: c }
+order: { path: closedOn, direction: desc }
+columns:
+  - { label: 締めた日, path: closedOn }
+  - { label: 導いた現金, path: expected }
+  - { label: 数えた現金, path: counted }
+  - label: 差
+    value: { subtract: [ { of: c, path: counted }, { of: c, path: expected } ] }
+  - { label: 覚え, path: note }
+newRow:
+  filePattern: "guild/closings/{id}.yaml"

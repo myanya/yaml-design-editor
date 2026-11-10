@@ -1,0 +1,13 @@
+id: monthly-fees
+name: 月ごとの手数料と受付料
+kind: matrix
+description: 年月ごとの、精算の手数料（受け手への支払いから差し引いた分）と、預かりの受付料（依頼者から受け取った分）の合計です。どちらも支部の収入です。
+display: grouped
+cells:
+  match: [ { node: { entity: [payment, deposit], bind: x } } ]
+  of: x
+  series:
+    - { label: 手数料, key: { yearMonth: { path: paidOn } } }
+    - { label: 受付料, key: { yearMonth: { path: depositedOn } } }
+  aggregate: sum
+  path: fee

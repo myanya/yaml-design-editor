@@ -10,6 +10,13 @@ reward: 230
 receivedOn: 2026-01-09
 deadline: 2026-01-24
 place: PLC-001
+deposit:
+  id: QST-0019-D
+  depositedOn: 2026-01-09
+  reward: 230
+  feeRate: 10
+  fee: 23
+  amount: 253
 assignments:
   - id: QST-0019-A1
     taker: PTY-001

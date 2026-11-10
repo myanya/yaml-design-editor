@@ -1,0 +1,12 @@
+id: expense-list
+name: 経費の一覧
+description: 経費ごとの、払った日・区分・額・中身。新しい順です。経費は支部の行の操作「経費を払う」で足します。
+rows:
+  match:
+    - node: { entity: expense, bind: e }
+order: { path: spentOn, direction: desc }
+columns:
+  - { label: 払った日, path: spentOn }
+  - { label: 区分, path: category }
+  - { label: 額, path: amount }
+  - { label: 中身, path: note }

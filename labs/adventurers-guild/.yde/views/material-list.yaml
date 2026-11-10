@@ -7,6 +7,7 @@ order: { schemaId: material-list }
 columns:
   - { label: 名前, schemaId: material-list, path: name, editable: true }
   - { label: 種類, schemaId: material-list, path: kind, editable: true }
+  - { label: 基準の買取価格, schemaId: material-list, path: buyPrice, editable: true }
   - { label: 産地, schemaId: material-list, path: origins }
   - label: これを落とす魔物
     backlinks: { relation: drops }

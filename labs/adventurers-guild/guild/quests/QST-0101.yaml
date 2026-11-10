@@ -10,6 +10,13 @@ reward: 70
 receivedOn: 2026-09-01
 deadline: 2026-09-27
 place: PLC-011
+deposit:
+  id: QST-0101-D
+  depositedOn: 2026-09-01
+  reward: 70
+  feeRate: 10
+  fee: 7
+  amount: 77
 assignments:
   - id: QST-0101-A1
     taker: ADV-0006

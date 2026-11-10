@@ -11,6 +11,13 @@ deadline: 2026-01-14
 place: PLC-001
 targets: [MON-003]
 description: ミルフェンに倉鼠が出て困っている。
+deposit:
+  id: QST-0014-D
+  depositedOn: 2025-12-18
+  reward: 140
+  feeRate: 10
+  fee: 14
+  amount: 154
 assignments:
   - id: QST-0014-A1
     taker: PTY-001

@@ -342,29 +342,53 @@ constraints:
     level: error
     message: "受注「{id}」: {t.title} は受注停止の処分 {s.id} の間のため受注できません"
 
-  # ---- 求める職能（Q38）: 受け手の職能か、その職能の資格（訓練の修了）で満たす。パーティなら構成員の誰か ----
-  # 4 つの満たし方の件数を足して 1 以上かで確かめる（「どれかの道がある」を 1 つの照合では書けないため）
+  # パーティを作り直せば受けられる、という逃げ道をふさぐ（Q51）。受注したときの構成員で見る（いまの構成員）
+  - id: no-party-acceptance-while-member-suspended
+    description: 構成員の誰かが受注停止の処分の間は、そのパーティも受注できないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: party, bind: t }
+      - edge: { relation: has-member }
+      - node: { entity: adventurer, bind: m }
+      - edge: { relation: sanction-of, dir: in }
+      - node: { entity: sanction, bind: s }
+    where: [ { of: s, path: kind, equals: suspension } ]
+    check:
+      - or:
+          - lt: [ { of: a, path: acceptedOn }, { of: s, path: decidedOn } ]
+          - gt: [ { of: a, path: acceptedOn }, { of: s, path: until } ]
+    level: error
+    message: "受注「{id}」: {t.title} の構成員 {m.title} が受注停止の処分 {s.id} の間のため、パーティも受注できません"
+
+  # ---- 求める職能と段階（Q38・Q52）: 受け手の主な職能（段階つき）か、その職能の資格で満たす。パーティなら構成員の誰か ----
+  # 「どれかの道で満たす」は 1 つの照合に書けないので、道ごとの件数を足して 1 以上かを見る（devtrack の UX-284）。
+  # 受け手が冒険者でもパーティでも同じ道で辿れるよう、has-member を 0 回以上（repeat）にした。段階は求める段階ごとに検査を分ける
   - id: required-job-met
-    description: 求める職能のある依頼の受け手は、その職能か、その職能の資格を持つこと（パーティなら構成員の誰か）
+    description: 求める職能のある依頼（段階が初級か無し）の受け手は、その職能か、その職能の資格を持つこと（パーティなら構成員の誰か）
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: has-assignment, dir: in }
       - node: { entity: quest, bind: q }
       - edge: { relation: requires-job }
       - node: { entity: job, bind: j }
+    where: [ { or: [ { of: q, path: requiredLevel, exists: false }, { of: q, path: requiredLevel, equals: beginner } ] } ]
     check:
       - gte:
           - add:
-              # 冒険者の職能
+              # 受け手（パーティなら構成員）の主な職能
               - count:
                   all:
                     from: a
                     match:
                       - node: { entity: assignment, bind: a1 }
                       - edge: { relation: taken-by }
-                      - node: { entity: adventurer }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer, bind: t1 }
                       - edge: { relation: has-job }
                       - node: { entity: job, bind: j1 }
+                    where: [ { of: t1, path: jobLevel, exists: true } ]
                     also:
                       from: a1
                       steps:
@@ -373,67 +397,22 @@ constraints:
                         - edge: { relation: requires-job }
                         - node: { same: j1 }
                     of: j1
-              # 冒険者の資格（修了した受講の課程が得させる資格）
+              # 受け手（パーティなら構成員）の資格（修了した受講の課程が得させる資格）
               - count:
                   all:
                     from: a
                     match:
                       - node: { entity: assignment, bind: a1 }
                       - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
                       - node: { entity: adventurer }
                       - edge: { relation: trainee, dir: in }
                       - node: { entity: enrollment, bind: e1 }
                       - edge: { relation: has-enrollment, dir: in }
                       - node: { entity: training }
                       - edge: { relation: grants }
-                      - node: { entity: qualification }
-                      - edge: { relation: certifies }
-                      - node: { entity: job, bind: j1 }
-                    where: [ { of: e1, path: result, equals: completed } ]
-                    also:
-                      from: a1
-                      steps:
-                        - edge: { relation: has-assignment, dir: in }
-                        - node: { entity: quest }
-                        - edge: { relation: requires-job }
-                        - node: { same: j1 }
-                    of: j1
-              # パーティの構成員の職能
-              - count:
-                  all:
-                    from: a
-                    match:
-                      - node: { entity: assignment, bind: a1 }
-                      - edge: { relation: taken-by }
-                      - node: { entity: party }
-                      - edge: { relation: has-member }
-                      - node: { entity: adventurer }
-                      - edge: { relation: has-job }
-                      - node: { entity: job, bind: j1 }
-                    also:
-                      from: a1
-                      steps:
-                        - edge: { relation: has-assignment, dir: in }
-                        - node: { entity: quest }
-                        - edge: { relation: requires-job }
-                        - node: { same: j1 }
-                    of: j1
-              # パーティの構成員の資格
-              - count:
-                  all:
-                    from: a
-                    match:
-                      - node: { entity: assignment, bind: a1 }
-                      - edge: { relation: taken-by }
-                      - node: { entity: party }
-                      - edge: { relation: has-member }
-                      - node: { entity: adventurer }
-                      - edge: { relation: trainee, dir: in }
-                      - node: { entity: enrollment, bind: e1 }
-                      - edge: { relation: has-enrollment, dir: in }
-                      - node: { entity: training }
-                      - edge: { relation: grants }
-                      - node: { entity: qualification }
+                      - node: { entity: qualification, bind: x1 }
                       - edge: { relation: certifies }
                       - node: { entity: job, bind: j1 }
                     where: [ { of: e1, path: result, equals: completed } ]
@@ -448,6 +427,132 @@ constraints:
           - 1
     level: warning
     message: "受注「{id}」の受け手は、依頼「{q.id}」の求める職能 {j.title} も、その職能の資格も持っていません"
+  - id: required-job-met-intermediate
+    description: 求める段階が中級の依頼の受け手は、その職能の中級以上（主な職能の段階か、資格の段階）であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: has-assignment, dir: in }
+      - node: { entity: quest, bind: q }
+      - edge: { relation: requires-job }
+      - node: { entity: job, bind: j }
+    where: [ { of: q, path: requiredLevel, equals: intermediate } ]
+    check:
+      - gte:
+          - add:
+              # 受け手（パーティなら構成員）の主な職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer, bind: t1 }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: t1, path: jobLevel, oneOf: [intermediate, advanced] } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # 受け手（パーティなら構成員）の資格（修了した受講の課程が得させる資格）
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: has-enrollment, dir: in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification, bind: x1 }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed }, { of: x1, path: level, oneOf: [intermediate, advanced] } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+          - 1
+    level: warning
+    message: "受注「{id}」の受け手は、依頼「{q.id}」の求める {j.title}（中級以上）に届きません"
+  - id: required-job-met-advanced
+    description: 求める段階が上級の依頼の受け手は、その職能の上級（主な職能の段階か、資格の段階）であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: has-assignment, dir: in }
+      - node: { entity: quest, bind: q }
+      - edge: { relation: requires-job }
+      - node: { entity: job, bind: j }
+    where: [ { of: q, path: requiredLevel, equals: advanced } ]
+    check:
+      - gte:
+          - add:
+              # 受け手（パーティなら構成員）の主な職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer, bind: t1 }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: t1, path: jobLevel, equals: advanced } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # 受け手（パーティなら構成員）の資格（修了した受講の課程が得させる資格）
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: has-enrollment, dir: in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification, bind: x1 }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed }, { of: x1, path: level, equals: advanced } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: has-assignment, dir: in }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+          - 1
+    level: warning
+    message: "受注「{id}」の受け手は、依頼「{q.id}」の求める {j.title}（上級）に届きません"
 
 # ---- 操作: 依頼の状態を進める ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す（前の状態を読むため）。
@@ -468,6 +573,8 @@ actions:
       - { key: reward, label: 報酬, type: common#金額, required: true, description: 10 の倍数にします。 }
       - { key: deadline, label: 期限, type: common#年月日 }
       - { key: place, label: 場所, type: common#場所参照 }
+      - { key: requiredJob, label: 求める職能, type: common#職能参照 }
+      - { key: requiredLevel, label: 求める段階, type: common#資格の段階, description: 書かなければ初級（どの段階でもよい）です。 }
       - { key: targets, label: 対象, type: array, item: { type: common#対象参照 }, description: 討伐の魔物（と納品物）、採取や納品の素材です。数は登録のあとで書き足します。 }
       - { key: description, label: 内容, type: common#文章 }
       - { key: date, label: 受付日, type: common#年月日, required: true }
@@ -487,9 +594,50 @@ actions:
             receivedOn: $date
             deadline: { $copy: deadline }
             place: { $copy: place }
+            requiredJob: { $copy: requiredJob }
+            requiredLevel: { $copy: requiredLevel }
             targets: { $copy: targets }
             description: { $copy: description }
             history: [ { date: $date, action: register-quest, to: received } ]
+  - id: receive-deposit
+    label: 報酬を預かる
+    description: 受付の依頼の報酬と受付料を、依頼者から預かります。受付料率は受付支部の率を写し、受付料（報酬 × 率 ÷ 100）と受け取った額を計算して、依頼の中に預かり（{依頼番号}-D）を書きます。掲示する前に要ります。
+    target: { entity: quest }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 預かった日, type: common#年月日, required: true }
+    require:
+      - match: [ { node: { entity: quest, bind: q } } ]
+        where: [ { of: q, path: status, equals: received } ]
+        expect: exists
+        message: "{id} は受付の依頼ではありません（預かるのは掲示する前です）"
+      - match: [ { node: { entity: quest, bind: q } } ]
+        where: [ { of: q, path: deposit, exists: false } ]
+        expect: exists
+        message: "{id} はもう預かっています"
+      - match: [ { node: { entity: quest, bind: q } } ]
+        check: [ { gte: [ $date, { of: q, path: receivedOn } ] } ]
+        message: 預かった日は受付日以降にしてください
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: quest }
+            - edge: { relation: received-at }
+            - node: { entity: branch, bind: b }
+          do:
+            - set:
+                of: self
+                path: deposit
+                value:
+                  id: { $format: "{id}-D", $of: self }
+                  depositedOn: $date
+                  reward: { $copy: reward, $of: self }
+                  feeRate: { $copy: receptionFeeRate, $of: b }
+                  fee: { $value: { divide: [ { multiply: [ { of: self, path: reward }, { of: b, path: receptionFeeRate } ] }, 100 ] } }
+                  amount: { $value: { add: [ { of: self, path: reward }, { divide: [ { multiply: [ { of: self, path: reward }, { of: b, path: receptionFeeRate } ] }, 100 ] } ] } }
   - id: post-quest
     label: 依頼を掲示する
     description: 受付か失敗の依頼を掲示中にします。失敗した依頼は掲示し直せます（次の受注は A2、A3 … として足します）。期限を過ぎた依頼は掲示できません。
@@ -506,8 +654,14 @@ actions:
         expect: exists
         message: "{id} は受付か失敗の依頼ではありません（掲示できるのは、受付の依頼と、掲示し直す失敗の依頼です）"
       - match: [ { node: { entity: quest, bind: q } } ]
-        where: [ { of: q, path: deadline, exists: true } ]
-        check: [ { gte: [ { of: q, path: deadline }, $date ] } ]
+        where: [ { of: q, path: deposit, exists: true } ]
+        expect: exists
+        message: "{id} はまだ報酬を預かっていません（先に「報酬を預かる」）"
+      # 期限の無い依頼は通す（前提の where で受け手を外すと「対象ではない」で止まるので、期限の無いときは遠い日とみなす）
+      - match: [ { node: { entity: quest, bind: q } } ]
+        check:
+          - gte: [ { first: [ { of: q, path: deadline }, "9999-12-31" ] }, $date ]
+            type: date
         message: "{id} は期限を過ぎているため掲示できません（掲示日 $date）"
       - match: [ { node: { entity: quest, bind: q } } ]
         check: [ { gte: [ $date, { of: q, path: receivedOn } ] } ]
@@ -530,9 +684,11 @@ actions:
         where: [ { of: q, path: status, equals: posted } ]
         expect: exists
         message: "{id} は掲示中の依頼ではありません"
+      # 期限の無い依頼は通す（前提の where で受け手を外すと「対象ではない」で止まるので、期限の無いときは遠い日とみなす）
       - match: [ { node: { entity: quest, bind: q } } ]
-        where: [ { of: q, path: deadline, exists: true } ]
-        check: [ { gte: [ { of: q, path: deadline }, $date ] } ]
+        check:
+          - gte: [ { first: [ { of: q, path: deadline }, "9999-12-31" ] }, $date ]
+            type: date
         message: "{id} は期限を過ぎているため受注できません（受注日 $date）"
     do:
       - insert: { of: self, path: history, value: { date: $date, action: accept-quest, from: posted, to: assigned, note: { $format: "受け手 {t}", $with: { t: $taker } } } }
@@ -617,7 +773,7 @@ actions:
       - set: { of: self, path: status, value: settled }
   - id: reject-quest
     label: 依頼を却下する
-    description: 受付の依頼を、ギルドが受け付けないことにします。理由を履歴に残します。
+    description: 受付の依頼を、ギルドが受け付けないことにします。理由を履歴に残します。報酬を預かっていれば返します（受付料は返しません）。
     target: { entity: quest }
     input:
       initial:
@@ -631,11 +787,19 @@ actions:
         expect: exists
         message: "{id} は受付の依頼ではありません（却下できるのは掲示する前の依頼です）"
     do:
+      - when: { of: self, path: deposit, exists: true }
+        set:
+          of: self
+          path: refund
+          value:
+            id: { $format: "{id}-R", $of: self }
+            refundedOn: $date
+            amount: { $copy: deposit.reward, $of: self }
       - insert: { of: self, path: history, value: { date: $date, action: reject-quest, from: received, to: rejected, note: $reason } }
       - set: { of: self, path: status, value: rejected }
   - id: cancel-quest
     label: 依頼を取り消す
-    description: 依頼者が取り下げた依頼を取消にします（受付・掲示中・受注済みの依頼）。理由を履歴に残します。
+    description: 依頼者が取り下げた依頼を取消にします（受付・掲示中・受注済みの依頼）。理由を履歴に残します。預かった報酬を返します（受付料は返しません）。
     target: { entity: quest }
     input:
       initial:
@@ -649,11 +813,19 @@ actions:
         expect: exists
         message: "{id} は受付・掲示中・受注済みの依頼ではありません"
     do:
+      - when: { of: self, path: deposit, exists: true }
+        set:
+          of: self
+          path: refund
+          value:
+            id: { $format: "{id}-R", $of: self }
+            refundedOn: $date
+            amount: { $copy: deposit.reward, $of: self }
       - insert: { of: self, path: history, value: { date: $date, action: cancel-quest, from: { $value: { of: self, path: status } }, to: cancelled, note: $reason } }
       - set: { of: self, path: status, value: cancelled }
   - id: expire-quest
     label: 依頼を期限切れにする
-    description: 期限を過ぎた掲示中・受注済みの依頼を期限切れにします。理由を履歴に残します。
+    description: 期限を過ぎた掲示中・受注済みの依頼を期限切れにします。理由を履歴に残します。預かった報酬を返します（受付料は返しません）。
     target: { entity: quest }
     input:
       initial:
@@ -675,5 +847,13 @@ actions:
         check: [ { gt: [ $date, { of: q, path: deadline } ] } ]
         message: "{id} の期限はまだ過ぎていません（期限切れにした日 $date）"
     do:
+      - when: { of: self, path: deposit, exists: true }
+        set:
+          of: self
+          path: refund
+          value:
+            id: { $format: "{id}-R", $of: self }
+            refundedOn: $date
+            amount: { $copy: deposit.reward, $of: self }
       - insert: { of: self, path: history, value: { date: $date, action: expire-quest, from: { $value: { of: self, path: status } }, to: expired, note: $reason } }
       - set: { of: self, path: status, value: expired }

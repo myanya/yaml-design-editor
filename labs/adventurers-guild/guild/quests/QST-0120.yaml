@@ -12,6 +12,13 @@ deadline: 2026-10-25
 place: PLC-004
 targets: [MAT-002]
 description: 痛み止めに使う眠り茸を 10 本。湿地の奥にしか生えない。
+deposit:
+  id: QST-0120-D
+  depositedOn: 2026-10-10
+  reward: 300
+  feeRate: 10
+  fee: 30
+  amount: 330
 assignments:
   - id: QST-0120-A1
     taker: ADV-0005

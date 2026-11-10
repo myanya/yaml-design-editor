@@ -12,6 +12,13 @@ deadline: 2026-05-19
 place: PLC-011
 targets: [MON-005]
 description: 穂波の村に棘猪が出て困っている。
+deposit:
+  id: QST-0049-D
+  depositedOn: 2026-04-26
+  reward: 340
+  feeRate: 10
+  fee: 34
+  amount: 374
 assignments:
   - id: QST-0049-A1
     taker: ADV-0005

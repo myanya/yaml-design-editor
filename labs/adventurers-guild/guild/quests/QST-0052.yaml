@@ -10,6 +10,17 @@ reward: 540
 receivedOn: 2026-05-04
 deadline: 2026-05-23
 place: PLC-010
+deposit:
+  id: QST-0052-D
+  depositedOn: 2026-05-04
+  reward: 540
+  feeRate: 10
+  fee: 54
+  amount: 594
+refund:
+  id: QST-0052-R
+  refundedOn: 2026-05-12
+  amount: 540
 history:
   - date: 2026-05-04
     action: register-quest

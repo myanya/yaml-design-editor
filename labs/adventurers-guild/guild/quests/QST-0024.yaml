@@ -12,6 +12,13 @@ deadline: 2026-03-12
 place: PLC-003
 targets: [MON-001]
 description: 黒樫の森に灰牙狼が出て困っている。
+deposit:
+  id: QST-0024-D
+  depositedOn: 2026-02-14
+  reward: 470
+  feeRate: 10
+  fee: 47
+  amount: 517
 assignments:
   - id: QST-0024-A1
     taker: PTY-002

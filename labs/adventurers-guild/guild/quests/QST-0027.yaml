@@ -10,6 +10,17 @@ reward: 100
 receivedOn: 2026-02-25
 deadline: 2026-03-26
 place: PLC-006
+deposit:
+  id: QST-0027-D
+  depositedOn: 2026-02-25
+  reward: 100
+  feeRate: 10
+  fee: 10
+  amount: 110
+refund:
+  id: QST-0027-R
+  refundedOn: 2026-03-05
+  amount: 100
 history:
   - date: 2026-02-25
     action: register-quest

@@ -12,6 +12,17 @@ deadline: 2026-09-11
 place: PLC-012
 targets: [MAT-014]
 description: 白岩の石切り場で青石を4個。
+deposit:
+  id: QST-0096-D
+  depositedOn: 2026-08-22
+  reward: 170
+  feeRate: 10
+  fee: 17
+  amount: 187
+refund:
+  id: QST-0096-R
+  refundedOn: 2026-09-12
+  amount: 170
 history:
   - date: 2026-08-22
     action: register-quest

@@ -1,0 +1,73 @@
+id: disposal
+name: 素材の廃棄
+kind: document
+description: 傷むなどして支部が素材を捨てた記録 1 件を 1 ファイルで管理します。
+match: "guild/disposals/*.yaml"
+filePattern: "guild/disposals/{id}.yaml"
+root: { type: common#廃棄 }
+constraints:
+  - id: disposal-within-stock
+    description: 捨てた後の在庫が 0 より少なくならないこと
+    match:
+      - node: { entity: disposal, bind: d }
+      - edge: { relation: discards }
+      - node: { entity: material, bind: m }
+    check:
+      - gte:
+          -
+            subtract:
+              - add:
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: buys, dir: in } }
+                              - { node: { entity: purchase, bind: x } }
+                            path: quantity
+                      - 0
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: counts, dir: in } }
+                              - { node: { entity: stocktake, bind: x } }
+                            path: counted
+                      - 0
+              - add:
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: sells, dir: in } }
+                              - { node: { entity: sale, bind: x } }
+                            path: quantity
+                      - 0
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: discards, dir: in } }
+                              - { node: { entity: disposal, bind: x } }
+                            path: quantity
+                      - 0
+                  - first:
+                      - sum:
+                          all:
+                            from: m
+                            match:
+                              - { node: { entity: material } }
+                              - { edge: { relation: counts, dir: in } }
+                              - { node: { entity: stocktake, bind: x } }
+                            path: expected
+                      - 0
+          - 0
+    level: error
+    message: "廃棄「{id}」で、{m.title} の在庫が {left} になります（在庫より多く捨てています）"

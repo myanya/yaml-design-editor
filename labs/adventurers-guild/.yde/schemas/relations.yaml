@@ -26,6 +26,16 @@ entities:
   - { type: enrollment, label: 受講 }
   - { type: purchase, label: 素材の買取 }
   - { type: qualification, label: 資格 }
+  - { type: deposit, label: 預かり }
+  - { type: refund, label: 返金 }
+  - { type: contract, label: 委託契約 }
+  - { type: receipt, label: 委託料の受け取り }
+  - { type: wage, label: 給与の支払い }
+  - { type: expense, label: 経費 }
+  - { type: sale, label: 素材の売却 }
+  - { type: disposal, label: 素材の廃棄 }
+  - { type: stocktake, label: 棚卸 }
+  - { type: closing, label: 現金の締め }
 # 多重度と両端の型の食い違いは、運営の決まりとして誤りにする（level: error）
 relations:
   - name: has-rank
@@ -301,3 +311,89 @@ relations:
     cardinality: { outMax: 1 }
     level: error
     description: 買取の値段を鑑定した職員です
+  # ---- 会計と在庫 ----
+  - name: has-deposit
+    label: 預かり
+    inverseLabel: 預かった依頼
+    source: [quest]
+    target: [deposit]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 依頼が、依頼者から預かった報酬と受付料の記録を保有します（入れ子で書きます）
+  - name: has-refund
+    label: 返金
+    inverseLabel: 返金した依頼
+    source: [quest]
+    target: [refund]
+    cardinality: { outMax: 1 }
+    level: error
+    description: 依頼が、依頼者へ報酬を返した記録を保有します（入れ子で書きます）
+  - name: has-expense
+    label: 経費
+    inverseLabel: 払った支部
+    source: [branch]
+    target: [expense]
+    level: error
+    description: 支部が払った経費を保有します（入れ子で書きます）
+  - name: has-wage
+    label: 給与の支払い
+    inverseLabel: 給与を受けた職員
+    source: [staff]
+    target: [wage]
+    level: error
+    description: 職員に払った給与を保有します（入れ子で書きます）
+  - name: has-receipt
+    label: 委託料の受け取り
+    inverseLabel: 受け取った委託契約
+    source: [contract]
+    target: [receipt]
+    level: error
+    description: 委託契約が、受け取った委託料を保有します（入れ子で書きます）
+  - name: contracted-by
+    label: 委託する者
+    inverseLabel: 委託した契約
+    source: [contract]
+    target: [client]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 支部に仕事を任せ、委託料を払う者です
+  - name: booked-at
+    label: 支部
+    inverseLabel: この支部の会計と在庫の記録
+    source: [purchase, sale, disposal, stocktake, closing, contract]
+    target: [branch]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: お金や素材が出入りした支部です。現金と在庫は、支部ごとに動きから導きます
+  - name: sold-to
+    label: 買い手
+    inverseLabel: 買った素材の売却
+    source: [sale]
+    target: [client]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 支部から素材を買った商人や職人です
+  - name: sells
+    label: 売った素材
+    inverseLabel: この素材の売却
+    source: [sale]
+    target: [material]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 支部が売った素材です
+  - name: discards
+    label: 捨てた素材
+    inverseLabel: この素材の廃棄
+    source: [disposal]
+    target: [material]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 傷むなどして支部が捨てた素材です
+  - name: counts
+    label: 数えた素材
+    inverseLabel: この素材の棚卸
+    source: [stocktake]
+    target: [material]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 棚卸で数えた素材です

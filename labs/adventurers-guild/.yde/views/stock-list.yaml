@@ -1,0 +1,183 @@
+id: stock-list
+name: 在庫の一覧
+description: 素材ごとの、買い入れた数・売った数・捨てた数・棚卸の差と、いまの在庫（動きから導いた数）。在庫の値打ちは、在庫 × 基準の買取価格です。棚卸のときは、この在庫を「導いた数」に写します。
+rows:
+  match:
+    - node: { entity: material, bind: m }
+order: { schemaId: material-list }
+columns:
+  - { label: 名前, path: name }
+  - { label: 種類, path: kind }
+  - { label: 基準の買取価格, path: buyPrice, editable: true }
+  - label: 買い入れた数
+    value:
+      first:
+        - sum:
+            all:
+              from: m
+              match:
+                - { node: { entity: material } }
+                - { edge: { relation: buys, dir: in } }
+                - { node: { entity: purchase, bind: x } }
+              path: quantity
+        - 0
+  - label: 売った数
+    value:
+      first:
+        - sum:
+            all:
+              from: m
+              match:
+                - { node: { entity: material } }
+                - { edge: { relation: sells, dir: in } }
+                - { node: { entity: sale, bind: x } }
+              path: quantity
+        - 0
+  - label: 捨てた数
+    value:
+      first:
+        - sum:
+            all:
+              from: m
+              match:
+                - { node: { entity: material } }
+                - { edge: { relation: discards, dir: in } }
+                - { node: { entity: disposal, bind: x } }
+              path: quantity
+        - 0
+  - label: 棚卸の差
+    value:
+      subtract:
+        - first:
+            - sum:
+                all:
+                  from: m
+                  match:
+                    - { node: { entity: material } }
+                    - { edge: { relation: counts, dir: in } }
+                    - { node: { entity: stocktake, bind: x } }
+                  path: counted
+            - 0
+        - first:
+            - sum:
+                all:
+                  from: m
+                  match:
+                    - { node: { entity: material } }
+                    - { edge: { relation: counts, dir: in } }
+                    - { node: { entity: stocktake, bind: x } }
+                  path: expected
+            - 0
+  - label: 在庫
+    value:
+      subtract:
+        - add:
+            - first:
+                - sum:
+                    all:
+                      from: m
+                      match:
+                        - { node: { entity: material } }
+                        - { edge: { relation: buys, dir: in } }
+                        - { node: { entity: purchase, bind: x } }
+                      path: quantity
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: m
+                      match:
+                        - { node: { entity: material } }
+                        - { edge: { relation: counts, dir: in } }
+                        - { node: { entity: stocktake, bind: x } }
+                      path: counted
+                - 0
+        - add:
+            - first:
+                - sum:
+                    all:
+                      from: m
+                      match:
+                        - { node: { entity: material } }
+                        - { edge: { relation: sells, dir: in } }
+                        - { node: { entity: sale, bind: x } }
+                      path: quantity
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: m
+                      match:
+                        - { node: { entity: material } }
+                        - { edge: { relation: discards, dir: in } }
+                        - { node: { entity: disposal, bind: x } }
+                      path: quantity
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: m
+                      match:
+                        - { node: { entity: material } }
+                        - { edge: { relation: counts, dir: in } }
+                        - { node: { entity: stocktake, bind: x } }
+                      path: expected
+                - 0
+  - label: 在庫の値打ち
+    value:
+      multiply:
+        - { of: m, path: buyPrice }
+        -
+          subtract:
+            - add:
+                - first:
+                    - sum:
+                        all:
+                          from: m
+                          match:
+                            - { node: { entity: material } }
+                            - { edge: { relation: buys, dir: in } }
+                            - { node: { entity: purchase, bind: x } }
+                          path: quantity
+                    - 0
+                - first:
+                    - sum:
+                        all:
+                          from: m
+                          match:
+                            - { node: { entity: material } }
+                            - { edge: { relation: counts, dir: in } }
+                            - { node: { entity: stocktake, bind: x } }
+                          path: counted
+                    - 0
+            - add:
+                - first:
+                    - sum:
+                        all:
+                          from: m
+                          match:
+                            - { node: { entity: material } }
+                            - { edge: { relation: sells, dir: in } }
+                            - { node: { entity: sale, bind: x } }
+                          path: quantity
+                    - 0
+                - first:
+                    - sum:
+                        all:
+                          from: m
+                          match:
+                            - { node: { entity: material } }
+                            - { edge: { relation: discards, dir: in } }
+                            - { node: { entity: disposal, bind: x } }
+                          path: quantity
+                    - 0
+                - first:
+                    - sum:
+                        all:
+                          from: m
+                          match:
+                            - { node: { entity: material } }
+                            - { edge: { relation: counts, dir: in } }
+                            - { node: { entity: stocktake, bind: x } }
+                          path: expected
+                    - 0

@@ -2,7 +2,7 @@ id: guild-dashboard
 name: ギルドの受付
 kind: dashboard
 default: true
-description: ギルドの受付の状況です。業務の流れの段（掲示待ち → 掲示中 → 遂行中 → 精算待ち → 精算済み）を押すと一覧、工程を押すとその段の依頼が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。期限を過ぎた依頼は基準日で判定します。
+description: ギルドの受付の状況です。業務の流れの段（掲示待ち → 掲示中 → 遂行中 → 精算待ち → 精算済み）を押すと一覧、工程を押すとその段の依頼が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。受付の依頼は、報酬を預かってから掲示します。期限を過ぎた依頼は基準日で判定します。
 # 対象を持たない操作（受け付ける・登録する・組む）
 actions: [register-quest, register-adventurer, form-party]
 placement: auto
@@ -13,6 +13,7 @@ flow:
   start: { action: register-quest, to: received }
   steps: [received, posted, assigned, reported, settled]
   moves:
+    - { from: received, action: receive-deposit }
     - { from: received, action: post-quest, to: posted }
     - { from: posted, action: accept-quest, to: assigned }
     - { from: assigned, action: report-quest, to: reported }
@@ -117,6 +118,10 @@ sections:
       match: [ { node: { entity: payment, bind: p } } ]
       check:
         - eq: [ { yearMonth: { of: p, path: paidOn } }, { yearMonth: $today } ]
+  - id: branch-cash
+    label: 支部の現金
+    group: 会計
+    view: branch-cash
   - id: monthly-amount
     label: 月ごとの支払額
     group: 会計

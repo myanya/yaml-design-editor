@@ -1,0 +1,35 @@
+id: contract-list
+name: 委託契約の一覧
+description: 委託契約ごとの、委託する者・月の委託料・始めた日と、受け取った回数と額の合計。委託料は、契約の行の操作「委託料を受け取る」で足します。
+rows:
+  match:
+    - node: { entity: contract, bind: c }
+order: { path: id }
+columns:
+  - { label: 名前, path: name, editable: true }
+  - { label: 委託する者, path: client }
+  - { label: 月の委託料, path: monthlyFee, editable: true }
+  - { label: 始めた日, path: startedOn }
+  - label: 受け取った回数
+    value:
+      count:
+        all:
+          from: c
+          match:
+            - { node: { entity: contract } }
+            - { edge: { relation: has-receipt } }
+            - { node: { entity: receipt, bind: x } }
+  - label: 受け取った額
+    value:
+      first:
+        - sum:
+            all:
+              from: c
+              match:
+                - { node: { entity: contract } }
+                - { edge: { relation: has-receipt } }
+                - { node: { entity: receipt, bind: x } }
+              path: amount
+        - 0
+newRow:
+  filePattern: "guild/contracts/{id}.yaml"

@@ -12,6 +12,17 @@ deadline: 2026-10-15
 place: PLC-003
 targets: [MAT-003]
 description: 知り合いの婚礼に使う白百合を 30 本。
+deposit:
+  id: QST-0123-D
+  depositedOn: 2026-10-01
+  reward: 60
+  feeRate: 10
+  fee: 6
+  amount: 66
+refund:
+  id: QST-0123-R
+  refundedOn: 2026-10-16
+  amount: 60
 history:
   - date: 2026-10-01
     action: register-quest

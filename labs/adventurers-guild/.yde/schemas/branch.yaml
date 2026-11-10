@@ -4,3 +4,182 @@ kind: document
 description: このワークスペースが扱う 1 つの町の 1 つの支部です。町の名前と通貨の単位を持ちます。
 match: guild/branch.yaml
 root: { type: common#支部 }
+# ---- 操作: 月末の支払いと締め ----
+actions:
+  - id: pay-wages
+    label: 給与を払う
+    description: 支部の職員それぞれに月給を払い、給与の支払いの記録（WAG- の次の番号）を職員の中に足します。
+    target: { entity: branch }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 払った日, type: common#年月日, required: true }
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: branch }
+            - edge: { relation: works-at, dir: in }
+            - node: { entity: staff, bind: s }
+          do:
+            - insert: { of: s, path: wages, params: { payday: $date, amount: { $copy: monthlySalary, $of: s } } }
+  - id: pay-expense
+    label: 経費を払う
+    description: 支部の経費（借り賃・備品 など）を払い、経費の記録（EXP- の次の番号）を支部の中に足します。
+    target: { entity: branch }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: category, label: 区分, type: common#経費の区分, required: true }
+      - { key: amount, label: 額, type: common#金額, required: true }
+      - { key: date, label: 払った日, type: common#年月日, required: true }
+      - { key: note, label: 中身, type: common#一行の文 }
+    do:
+      - insert: { of: self, path: expenses, params: { spentOn: $date, category: $category, amount: $amount, note: { $copy: note } } }
+  - id: close-cash
+    label: 現金を締める
+    description: 金庫の現金を数え、現金の締めの記録（CLS- の次の番号）を作ります。導いた現金には「支部の現金」のいまの現金を写します（開始の現金といまの記録から導いた額と違えば止まります）。数えた現金が違えば警告になり、その差がのちの残高に足されます。
+    target: { entity: branch }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: expected, label: 導いた現金, type: int, required: true, description: 「支部の現金」のいまの現金を写します。 }
+      - { key: counted, label: 数えた現金, type: int, required: true }
+      - { key: date, label: 締めた日, type: common#年月日, required: true }
+      - { key: note, label: 覚え, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: branch, bind: b } } ]
+        check:
+          - eq:
+              - { number: $expected }
+              - number:
+                  subtract:
+                    - add:
+                        - { of: b, path: openingCash }
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: received-at, dir: in } }
+                                    - { node: { entity: quest } }
+                                    - { edge: { relation: has-deposit } }
+                                    - { node: { entity: deposit, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: booked-at, dir: in } }
+                                    - { node: { entity: contract } }
+                                    - { edge: { relation: has-receipt } }
+                                    - { node: { entity: receipt, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: booked-at, dir: in } }
+                                    - { node: { entity: sale, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: booked-at, dir: in } }
+                                    - { node: { entity: closing, bind: x } }
+                                  path: counted
+                            - 0
+                    - add:
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: received-at, dir: in } }
+                                    - { node: { entity: quest } }
+                                    - { edge: { relation: has-assignment } }
+                                    - { node: { entity: assignment } }
+                                    - { edge: { relation: settles, dir: in } }
+                                    - { node: { entity: payment, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: received-at, dir: in } }
+                                    - { node: { entity: quest } }
+                                    - { edge: { relation: has-refund } }
+                                    - { node: { entity: refund, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: booked-at, dir: in } }
+                                    - { node: { entity: purchase, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: works-at, dir: in } }
+                                    - { node: { entity: staff } }
+                                    - { edge: { relation: has-wage } }
+                                    - { node: { entity: wage, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: has-expense } }
+                                    - { node: { entity: expense, bind: x } }
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
+                                    - { edge: { relation: booked-at, dir: in } }
+                                    - { node: { entity: closing, bind: x } }
+                                  path: expected
+                            - 0
+        message: "導いた現金が、いまの記録から導いた {id} の現金と違います（「支部の現金」のいまの現金を写します）"
+    do:
+      - create:
+          schema: closing
+          id: { prefix: "CLS-", digits: 4 }
+          params:
+            closedOn: $date
+            branch: { $copy: id, $of: self }
+            expected: $expected
+            counted: $counted
+            note: { $copy: note }

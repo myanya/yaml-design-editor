@@ -1,0 +1,14 @@
+id: cash-cumulative
+name: 現金の入りと出の累計
+kind: matrix
+description: 年月ごとの、現金の入りと出の累計です。2 本の差に開始の現金を足すと、その月末の現金になります。
+display: grouped
+cumulative: true
+cells:
+  match: [ { node: { entity: [deposit, receipt, sale, payment, refund, purchase, wage, expense], bind: x } } ]
+  of: x
+  series:
+    - { label: 入り, key: { yearMonth: { first: [ { path: depositedOn }, { path: receivedOn }, { path: soldOn } ] } } }
+    - { label: 出, key: { yearMonth: { first: [ { path: paidOn }, { path: refundedOn }, { path: purchasedOn }, { path: payday }, { path: spentOn } ] } } }
+  aggregate: sum
+  path: amount

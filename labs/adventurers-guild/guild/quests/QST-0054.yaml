@@ -10,6 +10,13 @@ reward: 180
 receivedOn: 2026-05-08
 deadline: 2026-05-22
 place: PLC-006
+deposit:
+  id: QST-0054-D
+  depositedOn: 2026-05-08
+  reward: 180
+  feeRate: 10
+  fee: 18
+  amount: 198
 assignments:
   - id: QST-0054-A1
     taker: ADV-0003

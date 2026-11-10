@@ -10,6 +10,13 @@ reward: 850
 receivedOn: 2026-06-26
 deadline: 2026-07-11
 place: PLC-007
+deposit:
+  id: QST-0072-D
+  depositedOn: 2026-06-26
+  reward: 850
+  feeRate: 10
+  fee: 85
+  amount: 935
 assignments:
   - id: QST-0072-A1
     taker: ADV-0003

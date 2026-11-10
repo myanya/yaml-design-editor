@@ -1,0 +1,21 @@
+id: CTR-01
+name: 町の見回りと魔物への備え
+client: CLT-001
+branch: BRN-01
+monthlyFee: 300
+startedOn: 2025-11-01
+description: 町の役場から、町の周りの見回りと、魔物や獣の出たときの備え（知らせを受けて冒険者を出す手配）を任されています。
+receipts:
+  - { id: RCP-0001, receivedOn: 2025-11-05, amount: 300 }
+  - { id: RCP-0004, receivedOn: 2025-12-05, amount: 300 }
+  - { id: RCP-0007, receivedOn: 2026-01-05, amount: 300 }
+  - { id: RCP-0010, receivedOn: 2026-02-05, amount: 300 }
+  - { id: RCP-0013, receivedOn: 2026-03-05, amount: 300 }
+  - { id: RCP-0016, receivedOn: 2026-04-05, amount: 300 }
+  - { id: RCP-0019, receivedOn: 2026-05-05, amount: 300 }
+  - { id: RCP-0022, receivedOn: 2026-06-05, amount: 300 }
+  - { id: RCP-0025, receivedOn: 2026-07-05, amount: 300 }
+  - { id: RCP-0028, receivedOn: 2026-08-05, amount: 300 }
+  - { id: RCP-0031, receivedOn: 2026-09-05, amount: 300 }
+  - { id: RCP-0034, receivedOn: 2026-10-05, amount: 300 }
+  - { id: RCP-0037, receivedOn: 2026-11-05, amount: 300 }

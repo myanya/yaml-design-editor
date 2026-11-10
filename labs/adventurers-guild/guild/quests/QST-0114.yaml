@@ -11,6 +11,13 @@ receivedOn: 2026-10-15
 deadline: 2026-11-05
 place: PLC-006
 description: 荷馬車 3 台を隣町の市まで送り、帰りの空の馬車も連れ帰る。
+deposit:
+  id: QST-0114-D
+  depositedOn: 2026-10-15
+  reward: 600
+  feeRate: 10
+  fee: 60
+  amount: 660
 assignments:
   - id: QST-0114-A1
     taker: PTY-002

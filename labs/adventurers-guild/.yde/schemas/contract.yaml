@@ -1,0 +1,38 @@
+id: contract
+name: 委託契約
+kind: document
+description: 町や村などから仕事を任される委託契約 1 つを 1 ファイルで管理します。受け取った委託料を中に持ちます。
+match: "guild/contracts/*.yaml"
+filePattern: "guild/contracts/{id}.yaml"
+root: { type: common#委託契約 }
+constraints:
+  - id: receipt-is-monthly-fee
+    description: 受け取った委託料は、月の委託料と同じであること
+    match:
+      - node: { entity: contract, bind: c }
+      - edge: { relation: has-receipt }
+      - node: { entity: receipt, bind: r }
+    check: [ { eq: [ { number: { of: r, path: amount } }, { number: { of: c, path: monthlyFee } } ] } ]
+    level: error
+    message: "委託契約「{id}」の受け取り {r.id} の額が、月の委託料と違います（{left} ≠ {right}）"
+  - id: receipt-not-before-start
+    description: 委託料を受け取った日は、契約を始めた日以降であること
+    match:
+      - node: { entity: contract, bind: c }
+      - edge: { relation: has-receipt }
+      - node: { entity: receipt, bind: r }
+    check: [ { gte: [ { of: r, path: receivedOn }, { of: c, path: startedOn } ] } ]
+    level: error
+    message: "委託契約「{id}」の受け取り {r.id} が、契約を始めた日より前です"
+actions:
+  - id: receive-contract-fee
+    label: 委託料を受け取る
+    description: 委託契約の月の委託料を受け取り、受け取りの記録（RCP- の次の番号）を足します。
+    target: { entity: contract }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 受け取った日, type: common#年月日, required: true }
+    do:
+      - insert: { of: self, path: receipts, params: { receivedOn: $date, amount: { $copy: monthlyFee, $of: self } } }

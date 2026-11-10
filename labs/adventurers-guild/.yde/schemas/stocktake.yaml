@@ -1,0 +1,7 @@
+id: stocktake
+name: 棚卸
+kind: document
+description: 月末に倉の素材 1 つを数えた記録 1 件を 1 ファイルで管理します。導いた数は、数えたときに操作「棚卸する」が動きから計算して書きます。
+match: "guild/stocktakes/*.yaml"
+filePattern: "guild/stocktakes/{id}.yaml"
+root: { type: common#棚卸 }

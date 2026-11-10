@@ -12,6 +12,13 @@ deadline: 2026-10-31
 place: PLC-003
 targets: [MAT-001]
 description: 解熱の薬に使う月影草を、根を傷めずに 20 束。
+deposit:
+  id: QST-0113-D
+  depositedOn: 2026-10-05
+  reward: 80
+  feeRate: 10
+  fee: 8
+  amount: 88
 assignments:
   - id: QST-0113-A1
     taker: ADV-0006

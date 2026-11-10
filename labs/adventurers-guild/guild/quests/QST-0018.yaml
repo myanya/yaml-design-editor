@@ -12,6 +12,13 @@ deadline: 2026-01-24
 place: PLC-012
 targets: [MON-006]
 description: 白岩の石切り場に岩甲虫が出て困っている。
+deposit:
+  id: QST-0018-D
+  depositedOn: 2026-01-06
+  reward: 150
+  feeRate: 10
+  fee: 15
+  amount: 165
 assignments:
   - id: QST-0018-A1
     taker: ADV-0006

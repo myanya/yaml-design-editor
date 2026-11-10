@@ -1,0 +1,30 @@
+id: QST-0127
+title: 北の砦で、けがをした兵の手当てを手伝う
+kind: other
+status: posted
+branch: BRN-01
+client: CLT-009
+handledBy: STF-02
+requiredRank: RNK-D
+reward: 400
+receivedOn: 2026-11-09
+deadline: 2026-11-25
+place: PLC-007
+requiredJob: JOB-04
+requiredLevel: intermediate
+description: 峠道の崖崩れで兵が何人もけがをした。砦の手当て役だけでは手が足りないので、傷と毒の手当てに慣れた人を 1 週間ほど頼みたい。
+deposit:
+  id: QST-0127-D
+  depositedOn: 2026-11-09
+  reward: 400
+  feeRate: 10
+  fee: 40
+  amount: 440
+history:
+  - date: 2026-11-09
+    action: register-quest
+    to: received
+  - date: 2026-11-09
+    action: post-quest
+    from: received
+    to: posted

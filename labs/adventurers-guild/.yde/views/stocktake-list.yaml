@@ -1,0 +1,17 @@
+id: stocktake-list
+name: 棚卸の記録
+description: 棚卸ごとの、素材・数えた日・導いた数・数えた数・差。新しい順です。
+rows:
+  match:
+    - node: { entity: stocktake, bind: s }
+order: { path: countedOn, direction: desc }
+columns:
+  - { label: 素材, path: material }
+  - { label: 数えた日, path: countedOn }
+  - { label: 導いた数, path: expected }
+  - { label: 数えた数, path: counted }
+  - label: 差
+    value: { subtract: [ { of: s, path: counted }, { of: s, path: expected } ] }
+  - { label: 覚え, path: note }
+newRow:
+  filePattern: "guild/stocktakes/{id}.yaml"

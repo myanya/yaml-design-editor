@@ -1,0 +1,14 @@
+id: disposal-list
+name: 廃棄の記録
+description: 廃棄ごとの、素材・数・捨てた日・理由。
+rows:
+  match:
+    - node: { entity: disposal, bind: d }
+order: { path: disposedOn }
+columns:
+  - { label: 捨てた日, path: disposedOn }
+  - { label: 素材, path: material }
+  - { label: 数, path: quantity }
+  - { label: 理由, path: reason }
+newRow:
+  filePattern: "guild/disposals/{id}.yaml"

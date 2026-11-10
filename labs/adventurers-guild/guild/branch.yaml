@@ -3,6 +3,36 @@ name: ミルフェン支部
 town: ミルフェン
 currency: セリン
 commissionRate: 10
+receptionFeeRate: 10
+livingCost: 150
+openingCash: 3000
+openingOn: 2025-10-31
 description: |
   街道と川が交わる交易の町ミルフェンにある、冒険者ギルドの支部です。
   町の役場・商会・近くの村々から依頼を受け、登録した冒険者に取り次ぎます。
+expenses:
+  - { id: EXP-0001, spentOn: 2025-11-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0002, spentOn: 2025-11-30, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0003, spentOn: 2025-12-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0004, spentOn: 2025-12-31, category: supplies, amount: 45, note: 灯り油・薪・紙とインク }
+  - { id: EXP-0005, spentOn: 2026-01-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0006, spentOn: 2026-01-31, category: supplies, amount: 45, note: 灯り油・薪・紙とインク }
+  - { id: EXP-0007, spentOn: 2026-02-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0008, spentOn: 2026-02-28, category: supplies, amount: 45, note: 灯り油・薪・紙とインク }
+  - { id: EXP-0009, spentOn: 2026-03-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0010, spentOn: 2026-03-31, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0011, spentOn: 2026-04-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0012, spentOn: 2026-04-30, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0013, spentOn: 2026-05-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0014, spentOn: 2026-05-31, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0015, spentOn: 2026-06-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0016, spentOn: 2026-06-30, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0017, spentOn: 2026-07-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0018, spentOn: 2026-07-31, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0019, spentOn: 2026-08-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0020, spentOn: 2026-08-31, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0021, spentOn: 2026-09-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0022, spentOn: 2026-09-30, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0023, spentOn: 2026-10-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }
+  - { id: EXP-0024, spentOn: 2026-10-31, category: supplies, amount: 30, note: 灯り油・紙とインク }
+  - { id: EXP-0025, spentOn: 2026-11-01, category: rent, amount: 70, note: 建物の借り賃（ひと月分） }

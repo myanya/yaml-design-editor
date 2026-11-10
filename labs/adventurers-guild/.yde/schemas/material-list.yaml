@@ -15,3 +15,286 @@ root:
         insert:
           id: { path: id, prefix: "MAT-", digits: 3 }
       item: { type: common#素材 }
+# ---- 操作: 素材の出入り（買い取る → 在庫 → 売る・捨てる、月末に棚卸する） ----
+# 在庫は動きから導く（買取 ＋ 棚卸の数えた数 − 売却 − 廃棄 − 棚卸の導いた数）。売る・捨てる数は、前提でいまの在庫と比べて止める
+actions:
+  - id: buy-material
+    label: 素材を買い取る
+    description: 冒険者かパーティから素材を買い取り、買取の記録（BUY- の次の番号）を作ります。単価の初めの値は、素材の基準の買取価格です。
+    target: { entity: material }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+        unitPrice: { $copy: buyPrice, $of: self }
+    params:
+      - { key: seller, label: 売り手, type: common#冒険者かパーティ参照, required: true }
+      - { key: quantity, label: 数, type: int, min: 1, required: true }
+      - { key: unitPrice, label: 単価, type: common#金額, required: true }
+      - { key: date, label: 買い取った日, type: common#年月日, required: true }
+      - { key: appraisedBy, label: 鑑定した職員, type: common#職員参照 }
+      - { key: branch, label: 支部, type: common#支部参照, required: true, default: BRN-01 }
+    do:
+      - create:
+          schema: purchase
+          id: { prefix: "BUY-", digits: 4 }
+          params:
+            seller: $seller
+            material: { $copy: id, $of: self }
+            quantity: $quantity
+            unitPrice: $unitPrice
+            amount: { $value: { multiply: [ { path: unitPrice }, { path: quantity } ] } }
+            purchasedOn: $date
+            appraisedBy: { $copy: appraisedBy }
+            branch: $branch
+  - id: sell-material
+    label: 素材を売る
+    description: 在庫の素材を商人や職人に売り、売却の記録（SEL- の次の番号）を作ります。単価は基準の買取価格の 1.5 倍以上にします（下回れば警告）。
+    target: { entity: material }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: buyer, label: 買い手, type: common#取引先参照, required: true }
+      - { key: quantity, label: 数, type: int, min: 1, required: true }
+      - { key: unitPrice, label: 単価, type: common#金額, required: true }
+      - { key: date, label: 売った日, type: common#年月日, required: true }
+      - { key: branch, label: 支部, type: common#支部参照, required: true, default: BRN-01 }
+    require:
+      - match: [ { node: { entity: material, bind: m } } ]
+        check:
+          - gte:
+              -
+                subtract:
+                  - add:
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: buys, dir: in } }
+                                  - { node: { entity: purchase, bind: x } }
+                                path: quantity
+                          - 0
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: counts, dir: in } }
+                                  - { node: { entity: stocktake, bind: x } }
+                                path: counted
+                          - 0
+                  - add:
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: sells, dir: in } }
+                                  - { node: { entity: sale, bind: x } }
+                                path: quantity
+                          - 0
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: discards, dir: in } }
+                                  - { node: { entity: disposal, bind: x } }
+                                path: quantity
+                          - 0
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: counts, dir: in } }
+                                  - { node: { entity: stocktake, bind: x } }
+                                path: expected
+                          - 0
+              - $quantity
+        message: "{id} の在庫が足りません（売る数 $quantity）"
+    do:
+      - create:
+          schema: sale
+          id: { prefix: "SEL-", digits: 4 }
+          params:
+            buyer: $buyer
+            material: { $copy: id, $of: self }
+            quantity: $quantity
+            unitPrice: $unitPrice
+            amount: { $value: { multiply: [ { path: unitPrice }, { path: quantity } ] } }
+            soldOn: $date
+            branch: $branch
+  - id: dispose-material
+    label: 素材を捨てる
+    description: 傷んだ素材などを捨て、廃棄の記録（DSP- の次の番号）を作ります。
+    target: { entity: material }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: quantity, label: 数, type: int, min: 1, required: true }
+      - { key: reason, label: 理由, type: common#一行の文, required: true }
+      - { key: date, label: 捨てた日, type: common#年月日, required: true }
+      - { key: branch, label: 支部, type: common#支部参照, required: true, default: BRN-01 }
+    require:
+      - match: [ { node: { entity: material, bind: m } } ]
+        check:
+          - gte:
+              -
+                subtract:
+                  - add:
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: buys, dir: in } }
+                                  - { node: { entity: purchase, bind: x } }
+                                path: quantity
+                          - 0
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: counts, dir: in } }
+                                  - { node: { entity: stocktake, bind: x } }
+                                path: counted
+                          - 0
+                  - add:
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: sells, dir: in } }
+                                  - { node: { entity: sale, bind: x } }
+                                path: quantity
+                          - 0
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: discards, dir: in } }
+                                  - { node: { entity: disposal, bind: x } }
+                                path: quantity
+                          - 0
+                      - first:
+                          - sum:
+                              all:
+                                from: m
+                                match:
+                                  - { node: { entity: material } }
+                                  - { edge: { relation: counts, dir: in } }
+                                  - { node: { entity: stocktake, bind: x } }
+                                path: expected
+                          - 0
+              - $quantity
+        message: "{id} の在庫が足りません（捨てる数 $quantity）"
+    do:
+      - create:
+          schema: disposal
+          id: { prefix: "DSP-", digits: 4 }
+          params:
+            material: { $copy: id, $of: self }
+            quantity: $quantity
+            disposedOn: $date
+            reason: $reason
+            branch: $branch
+  - id: count-stock
+    label: 棚卸する
+    description: 素材を数え、棚卸の記録（STK- の次の番号）を作ります。導いた数には「在庫の一覧」の在庫を写します（いまの記録から導いた数と違えば止まります）。数えた数が違えば警告になり、その差がのちの在庫に足されます。
+    target: { entity: material }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: expected, label: 導いた数, type: int, min: 0, required: true, description: 「在庫の一覧」の在庫を写します。 }
+      - { key: counted, label: 数えた数, type: int, min: 0, required: true }
+      - { key: date, label: 数えた日, type: common#年月日, required: true }
+      - { key: note, label: 覚え, type: common#一行の文 }
+      - { key: branch, label: 支部, type: common#支部参照, required: true, default: BRN-01 }
+    # 操作の値の式（$value）ではグラフを読めない（all が使えない）ので、導いた数は受け取り、前提で照合する（devtrack の UX-285）
+    require:
+      - match: [ { node: { entity: material, bind: m } } ]
+        check:
+          - eq:
+              - { number: $expected }
+              - number:
+                  subtract:
+                    - add:
+                        - first:
+                            - sum:
+                                all:
+                                  from: m
+                                  match:
+                                    - { node: { entity: material } }
+                                    - { edge: { relation: buys, dir: in } }
+                                    - { node: { entity: purchase, bind: x } }
+                                  path: quantity
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: m
+                                  match:
+                                    - { node: { entity: material } }
+                                    - { edge: { relation: counts, dir: in } }
+                                    - { node: { entity: stocktake, bind: x } }
+                                  path: counted
+                            - 0
+                    - add:
+                        - first:
+                            - sum:
+                                all:
+                                  from: m
+                                  match:
+                                    - { node: { entity: material } }
+                                    - { edge: { relation: sells, dir: in } }
+                                    - { node: { entity: sale, bind: x } }
+                                  path: quantity
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: m
+                                  match:
+                                    - { node: { entity: material } }
+                                    - { edge: { relation: discards, dir: in } }
+                                    - { node: { entity: disposal, bind: x } }
+                                  path: quantity
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: m
+                                  match:
+                                    - { node: { entity: material } }
+                                    - { edge: { relation: counts, dir: in } }
+                                    - { node: { entity: stocktake, bind: x } }
+                                  path: expected
+                            - 0
+        message: "導いた数が、いまの記録から導いた {id} の在庫と違います（「在庫の一覧」の在庫を写します）"
+    do:
+      - create:
+          schema: stocktake
+          id: { prefix: "STK-", digits: 4 }
+          params:
+            material: { $copy: id, $of: self }
+            countedOn: $date
+            expected: $expected
+            counted: $counted
+            branch: $branch
+            note: { $copy: note }

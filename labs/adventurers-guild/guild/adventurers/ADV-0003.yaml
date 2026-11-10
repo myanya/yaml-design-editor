@@ -4,5 +4,6 @@ rank: RNK-B
 status: active
 registeredOn: 2021-09-18
 job: JOB-03
+jobLevel: advanced
 history:
   - { date: 2021-09-18, action: register-adventurer, to: active }

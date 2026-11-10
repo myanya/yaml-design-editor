@@ -12,6 +12,13 @@ deadline: 2026-05-06
 place: PLC-005
 targets: [MON-006]
 description: 旧銀坑に岩甲虫が出て困っている。
+deposit:
+  id: QST-0040-D
+  depositedOn: 2026-04-05
+  reward: 230
+  feeRate: 10
+  fee: 23
+  amount: 253
 assignments:
   - id: QST-0040-A1
     taker: PTY-001

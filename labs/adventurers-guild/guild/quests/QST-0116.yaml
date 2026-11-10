@@ -11,6 +11,13 @@ receivedOn: 2026-11-01
 deadline: 2026-11-15
 place: PLC-007
 description: 町役場から北の砦の守備隊長へ、封をしたままの書状を手渡す。
+deposit:
+  id: QST-0116-D
+  depositedOn: 2026-11-01
+  reward: 200
+  feeRate: 10
+  fee: 20
+  amount: 220
 assignments:
   - id: QST-0116-A1
     taker: ADV-0004
