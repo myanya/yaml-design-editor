@@ -2,6 +2,7 @@ package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.yaml.model.DocumentId
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -180,5 +181,62 @@ class BehaviorEventTest {
         assertTrue(parsed.errors.isEmpty(), "${parsed.errors}")
         assertEquals(listOf("external-notification"), parsed.schemas.single().events.map { it.id })
         assertTrue(SchemaDefinitionChecks.issuesOf(parsed.schemas.single()).isEmpty())
+    }
+
+    @Test
+    fun `差分の無いEvent申告でも対象の存在と型を確認する`() {
+        val s = session()
+        assertEquals("approval-granted", BehaviorRuntime.validateEvent(s, EventOccurrence("approval-granted", "F-001")).id)
+        assertFailsWith<IllegalArgumentException> {
+            BehaviorRuntime.validateEvent(s, EventOccurrence("approval-granted"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BehaviorRuntime.validateEvent(s, EventOccurrence("approval-granted", "T-001"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            BehaviorRuntime.validateEvent(s, EventOccurrence("approval-granted", "F-999"))
+        }
+    }
+
+    @Test
+    fun `Eventの申告は専用記録に追記され業務データを変更しない`() {
+        val s = session()
+        val now = Instant.parse("2026-11-11T00:00:00Z")
+        val sourceBefore = s.storedText(DocumentId("flags/F-001.yaml"))
+        val preview = BehaviorEventJournal.preview(
+            s, EventOccurrence("approval-granted", "F-001"), "external-system", now, "ticket/123",
+        )
+        assertEquals(null, preview.lifecycleReviews)
+        val path = BehaviorEventJournal.record(s, preview, now, "sample-001")
+        assertEquals("_runs/events/EVT-sample-001.yaml", path)
+        assertEquals(sourceBefore, s.storedText(DocumentId("flags/F-001.yaml")))
+        val stored = BehaviorEventJournal.history(s).single()
+        assertEquals(path, stored.file)
+        assertEquals("approval-granted", stored.value["event"])
+        assertEquals("F-001", stored.value["subject"])
+        assertEquals("reported-not-verified", stored.value["occurrenceStatus"])
+        assertEquals("ticket/123", stored.value["evidence"])
+        val review = stored.value["review"] as Map<*, *>
+        assertEquals("not-reviewed", review["basis"])
+        assertFailsWith<IllegalArgumentException> { BehaviorEventJournal.record(s, preview, now, "sample-001") }
+        assertFailsWith<IllegalArgumentException> { BehaviorEventJournal.record(s, preview, now, "../outside") }
+    }
+
+    @Test
+    fun `Eventの変更候補照合は未適用と明記して記録する`() {
+        val s = session()
+        val now = Instant.parse("2026-11-11T00:00:00Z")
+        val preview = BehaviorEventJournal.preview(
+            s, EventOccurrence("approval-granted", "F-001"), "notification", now,
+            prepared = changed(),
+        )
+        assertEquals(LifecycleVerdict.MATCHED, preview.lifecycleReviews!!.single().verdict)
+        assertEquals(listOf("flags/F-001.yaml"), preview.proposedChanges.map { it.file })
+        BehaviorEventJournal.record(s, preview, now, "candidate-001")
+        val review = BehaviorEventJournal.history(s).single().value["review"] as Map<*, *>
+        assertEquals("proposed-changes-only", review["basis"])
+        val results = review["lifecycles"] as List<*>
+        assertEquals("MATCHED", (results.single() as Map<*, *>)["verdict"])
+        assertEquals("id: F-001\nenabled: false\n", s.storedText(DocumentId("flags/F-001.yaml")))
     }
 }

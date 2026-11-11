@@ -22,6 +22,7 @@ API への自動転送や待受の自動有効化はしません。起動中の�
 |---|---|
 | apply / workspace apply | --dry-run |
 | action / import / infer-schema / infer-relations / workspace refactor の --apply | --apply なし |
+| event --record | Event の種類一覧・申告プレビュー・--history |
 | export | --dry-run |
 | agent / watch / revert / migrate | 読取専用モードなし（agent は --apply なしでも実行記録を書く） |
 | eval の実行、report のファイル出力 | 一覧、report --print |
@@ -58,6 +59,8 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）
 ./gradlew runCli -q --args="action labs/sysdev-template"                     # 操作の一覧（スキーマに定義したアクションと型の操作。manual/actions.md）
 ./gradlew runCli -q --args="action labs/sysdev-template add-screen --param id=SCR-X --param name=新画面 --param derived_from=[UA-003]"  # 操作の計画（変更セットと適用後の検証。--apply で書く。検証エラーが残れば書かず --allow-errors で書く。--on は受け手）
+./gradlew runCli -q --args="event my-ws task-finished --on T-001 --source external-workflow --record"  # Event の申告記録（--record なしは確認のみ。manual/schema.md「Event の申告・記録（CLI）」）
+./gradlew runCli -q --args="event my-ws --history"                    # Event の申告履歴（業務文書とは別の runs/events に保存）
 ./gradlew runCli -q --args="entity my-ws show SCR-001"                    # エンティティ全体像（アスペクト合成・関係・被参照。エンティティページ・read_entity と同じ合成）
 
 # 変更系リファクタリング（エンティティ改名・統合・削除／ファイル移動／スキーマ・リファクタリング）は
