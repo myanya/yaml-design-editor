@@ -160,6 +160,25 @@ Event の種類の宣言と遷移診断に加えて、CLI では Event の発生
 - `--changeset` は未適用の候補を読み、`MATCHED` / `UNDECLARED` などを返します。申告と遷移照合を `--record` で保存しても **変更セットは適用されません**。保存された記録にも `proposed-changes-only` を明記します。
 - 記録はレガシー構成なら `_runs/events/`、`.yde` 構成なら `.yde/runs/events/` に YAML で追記します。業務データの索引には含まれません。`occurrenceStatus: reported-not-verified` は、申告元・証拠参照を保存しただけで事実の真正性を証明していないことを表します。
 
+### 業務仕様の接続と未証明範囲の確認（S-33）
+
+State / Event / Lifecycle の宣言を作ったら、次の読み取り専用コマンドで接続状況を確認できます。
+
+```bash
+./gradlew runCli -q --args="behavior-audit labs/adventurers-guild"
+```
+
+出力の `lifecycles[].states` は State ごとに `entryBy`（生成原因）、`incoming`（流入遷移）、`outgoing`（流出遷移）、`terminal`（終端）を並べます。定義のリンクが不整合である場合は、従来のスキーマ検証による `schemaErrors` が表示されます。
+
+| 区分 | 意味 |
+| --- | --- |
+| `schema-errors` | 宣言に参照漏れ・到達不能などの構造上の問題がある |
+| `needs-review` | 同一の State と原因から異なる遷移先があり、意図した条件分岐か要確認 |
+| `structurally-checked` | 静的に調べられる構造上の問題が見つからなかった（**業務仕様の完全性は未証明**） |
+| `not-modeled` | State / Event / Lifecycle がいずれも宣言されていない |
+
+`findings[].level: info` は単独 State や記録専用 Event の可能性を知らせるだけです。Lifecycle に結び付かないこと自体を誤りと断定しません。`review` は人間が分岐の意図を確かめる候補です。常に `proofStatus: not-proven` と `proofLimits` が表示されます。これらは、Action が必ず期待どおりに働くこと、Event が現実に発生したこと、State が排他的・網羅的であること、業務シナリオが漏れなく書かれたことを静的に証明できないためです。
+
 ## フィールド定義のプロパティ
 
 | プロパティ | 説明 |

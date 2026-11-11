@@ -121,6 +121,7 @@
 | S-30 | 参照・保有関係を介する State の間接変化の検証 | `workspace-core/workspace/BehaviorImpact.kt`・`workspace-core/workspace/BehaviorRuntime.kt`・`workspace-core/workspace/BehaviorChecks.kt`・`desktop/ui/action/ActionPane.kt` | `BehaviorImpactTest` | architecture/schema.md「関係を介する State の間接変化」 | manual/schema.md「関係先の State への波及」 |  |
 | S-31 | Event の種類の宣言と Lifecycle の Event 原因の検証 | `semantic-core/schema/Behavior.kt`・`workspace-core/workspace/SchemaDocuments.kt`・`workspace-core/workspace/BehaviorChecks.kt`・`workspace-core/workspace/BehaviorRuntime.kt` | `BehaviorEventTest` | architecture/schema.md「Event の種類と Lifecycle 前後差分の照合」 | manual/schema.md「Event を原因とする State 遷移の検査」 |  |
 | S-32 | Event 発生申告の記録と変更候補の Lifecycle 照合 | `workspace-core/workspace/BehaviorEventJournal.kt`・`workspace-core/workspace/BehaviorRuntime.kt`・`cli/commands/EventCommands.kt` | `BehaviorEventTest`・`EventCliTest`・`CliOwnershipTest` | architecture/schema.md「Event 発生申告と記録」 | manual/schema.md「Event の申告・記録（CLI）」 |  |
+| S-33 | 業務仕様の静的診断レポート（State / Event / Lifecycle） | `workspace-core/workspace/BehaviorAudit.kt`・`cli/commands/BehaviorAuditCommands.kt` | `BehaviorAuditTest`・`BehaviorAuditCliTest`・`CliOwnershipTest` | architecture/schema.md「業務仕様の診断レポート」 | manual/schema.md「業務仕様の接続と未証明範囲の確認」 |  |
 
 ## 4. 検証
 

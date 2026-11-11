@@ -172,7 +172,7 @@
 - State は **エンティティに対する名前付き Predicate**。状態値の保存を要求しない。明示定義の `predicate` は既存 `ConstraintRule`（Query と Predicate）で読む。`source: {entity, path, enum}` からは enum の各値に対する `equals` + `expect: exists` を同じ `ConstraintRule` として構築する。`StateDef` 自体は保存対象ではない。
 - Lifecycle は State の集合、生成入口（`entry`）、許される遷移（`transitions`）、終端方針（`termination`）を持つ。入口と遷移は原因を `by: {action: ...}` または `by: {event: ...}` で指す。終端は **業務の終了** であって、文書の削除を意味しない。終端しない可能性があるときは `openEnded: true` を明示する。
 - `BehaviorChecks.compile` は全スキーマの定義カタログをリンクした後で enum を展開する。State と Lifecycle の ID 重複、参照の不存在、対象 Entity 不一致、原因 Action の不存在／重複、終端からの遷移、非終端の行き止まり、入口からの到達不能、無期限でない Lifecycle の終端への到達不能をスキーマ読込エラーとして報告する。同じ enum の State の一部しか Lifecycle に含めていなければ網羅性不足も検出する。**Action の対象 Entity と Lifecycle の対象 Entity は一致しなくてもよい**（S-30：関連 Entity に波及する操作）。**単一 enum から全値を展開した State 同士の排他性は値の等価比較から成立する**が、任意の複合述語まで含めた状態集合の排他性・網羅性の証明は動的検証の対象。
-- Action の参照が存在することは、**Action の実際の効果が宣言した遷移を必ず成立させることの証明ではない**。実データの State 判定と Action 変更候補の前後差分の照合は S-29、関係先への波及は S-30、Event の種類の宣言と前後差分の照合は S-31 で追加。Event の発生自体の証明・収集・永続化はまだ扱わない。業務仕様が未完成であることを誤って「検証済み」としない。
+- Action の参照が存在することは、**Action の実際の効果が宣言した遷移を必ず成立させることの証明ではない**。実データの State 判定と Action 変更候補の前後差分の照合は S-29、関係先への波及は S-30、Event の種類の宣言と前後差分の照合は S-31、Event 発生の**申告記録**は S-32 で追加。Event の発生自体の真偽は証明せず、外部通知の自動収集はまだ扱わない。業務仕様が未完成であることを誤って「検証済み」としない。
 - 計算体系の分類: State = `Query + Predicate`、Lifecycle = 名前付き定義間の関係（`Term` / 静的整合）、Action 原因 = 既存 `Rewrite` への参照。新しいデータの永続化・評価器・変更経路は導入しない（CORE-CALCULUS の S-28 設計レビュー）。
 
 ### State の実評価と Action の遷移照合（S-29）
@@ -203,6 +203,13 @@
 - 記録は `kind: event-occurrence`、`occurredAt` / `recordedAt`（UTC ISO 8601）、`source`、任意の `evidence`、`occurrenceStatus: reported-not-verified` を持つ。変更候補を照合した場合だけ `review.basis: proposed-changes-only`、対象ファイルの前後 SHA-256、Lifecycle 判定を残す。これは **未適用の変更候補の診断** であって、外部変更が実際に反映された証拠ではない。照合しなければ `review.basis: not-reviewed` と記録する。
 - CLI `event` の既定はプレビューだけで、`--record` を明示した場合に限り追記する。`--history` は記録一覧を読み取る。書込み時は `WorkspaceOwnership` の排他を取得する。受信連携・外部署名の検証・業務操作とEvent記録の原子的な同時確定・デスクトップの専用画面は対象外。
 - Core Calculus では Event 宣言は Term、対象の照合は既存 Query / Predicate、前後の Lifecycle 判定は既存の State 評価の再利用である。記録 YAML は結果の直列化であり、業務文書の Rewrite ではない。永続化は既存の変更セット適用経路のみで実行する。
+
+### 業務仕様の診断レポート（S-33）
+
+- `BehaviorAudit.inspect` は既存の `BehaviorChecks.compile` の定義カタログと構造エラーを再利用する。State ごとの生成入口・流入・流出・終端を **Lifecycle の宣言の別の射影** として表示するだけで、独自の到達可能性計算や業務データの変更経路は増やさない。
+- `schema-errors` は元の宣言の参照漏れ・到達不能等を示す。単独の State と記録専用 Event は正当な場合があるため `info` とし、**欠落と決めつけない**。同じ State・同じ原因から複数の遷移先に進む定義は `review` として人による分岐意図の確認を求め、直ちにエラーとはしない。
+- 結果の `status` は `schema-errors` / `not-modeled` / `needs-review` / `structurally-checked`。最後の値は **宣言の構造が点検できた** という意味であって、業務仕様が完全という意味ではない。`proofStatus: not-proven` と、Action の実際の効果・Event の真正性・任意の State 述語の排他性や全業務シナリオの網羅性を証明していない旨を必ず返す。
+- CLI `behavior-audit` は読み取り専用で、`validate` の既存 `schemaErrors` もそのまま表示する。構造エラーがあっても健全と誤表示しない。次段階で具体的なシナリオによる動的検証を結び付けるための閲覧面であり、現段階で自動的な業務仕様の完成判定は提供しない。
 
 ## 規律
 
