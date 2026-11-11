@@ -1,0 +1,14 @@
+id: ADV-0012
+name: ベルン・カーデル
+rank: RNK-C
+status: withdrawn
+registeredOn: 2019-10-20
+registeredAt: BRN-01
+validUntil: 2026-10-20
+job: JOB-01
+jobLevel: intermediate
+leftFor: death
+note: 灰色の外套のリーダーでした。長い旅の帰りに北の峠で落石に遭い、亡くなりました（ロウェンの証言）。
+history:
+  - { date: 2019-10-20, action: register-adventurer, to: active }
+  - { date: 2026-09-01, action: withdraw-adventurer, from: active, to: withdrawn, note: 北の峠の落石で亡くなった（ロウェンの証言） }

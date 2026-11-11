@@ -1,12 +1,14 @@
 id: PTY-004
 name: 灰色の外套
+status: active
 rank: RNK-E
-leader: ADV-0008
+leaderlessSince: 2026-09-01
 members:
   - to: ADV-0008
     role: 斥候
-  - to: ADV-0011
-    role: 前衛
 formedOn: 2025-03-02
 distribution: equal
-note: ロウェンとダリオの二人組です。ロウェンが足の怪我で休業してから、依頼を受けていません。
+note: ベルンとロウェンの二人組です。長い旅の帰りに北の峠で落石に遭い、リーダーのベルンが亡くなり、ロウェンは足を怪我して休業しています。リーダーを決め直していません。
+history:
+  - { date: 2025-03-02, action: form-party, member: ADV-0012 }
+  - { date: 2026-09-01, action: remove-member, member: ADV-0012, note: 脱退のため（北の峠の落石で亡くなった） }

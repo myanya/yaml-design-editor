@@ -1,5 +1,6 @@
 id: PTY-002
 name: 夜鳴きの鈴
+status: active
 rank: RNK-C
 leader: ADV-0004
 members:
@@ -9,3 +10,5 @@ members:
     role: 回復
 formedOn: 2024-06-15
 distribution: equal
+history:
+  - { date: 2024-06-15, action: form-party, member: ADV-0004 }

@@ -423,6 +423,29 @@ definitions:
       - { value: registration, label: 登録 }
       - { value: renewal, label: 更新（登録継続届） }
       - { value: return, label: 復帰（復帰届） }
+  # パーティの状態（Q73）。リーダー不在は状態の項目に持たず、活動中でリーダーがいないこと（振る舞いの宣言の述語）
+  パーティの状態:
+    type: enum
+    values:
+      - { value: active, label: 活動中 }
+      - { value: dissolved, label: 解散 }
+  パーティの解散の理由:
+    type: enum
+    values:
+      - { value: personal, label: 本人たちの都合 }
+      - { value: wiped-out, label: 全滅 }
+      - { value: no-members, label: 構成員がいなくなった }
+  # パーティの履歴に残す操作の名前（party.yaml の actions の id と、型の操作 remove-member）
+  パーティの操作:
+    type: enum
+    values:
+      - { value: form-party, label: 組む }
+      - { value: add-member, label: 構成員を加える }
+      - { value: leave-party, label: 構成員が抜ける }
+      - { value: remove-member, label: 構成員を外す（脱退・除名・登録の失効） }
+      - { value: change-leader, label: リーダーを決める }
+      - { value: dissolve-party, label: 解散する }
+      - { value: record-wipeout, label: 全滅を記録する }
   # 冒険者の状態を変える操作の名前（履歴に残す。adventurer.yaml の actions の id）
   冒険者の操作:
     type: enum
@@ -736,17 +759,108 @@ definitions:
       - { key: id, label: パーティ番号, type: パーティ番号, required: true }
       - { key: name, label: パーティ名, type: 一行の文, role: title, required: true }
       - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true, description: パーティとしてのランクです。構成員のランクとは別に持ち、構成員から計算しません。 }
-      - { key: leader, label: リーダー, type: 冒険者参照, relation: led-by, required: true, description: 構成員の 1 人です。 }
+      - { key: status, label: 状態, type: パーティの状態, required: true, default: active }
+      - { key: leader, label: リーダー, type: 冒険者参照, relation: led-by, description: 構成員の 1 人です。脱退・除名などで抜けると消え、「リーダーを決める」までリーダー不在です。リーダー不在の間は受注できません。 }
+      - { key: leaderlessSince, label: リーダーがいなくなった日, type: 年月日, description: リーダー不在の間だけ書きます。リーダーが抜けたときに書き、「リーダーを決める」が消します。 }
       - key: members
         label: 構成員
         type: array
         required: true
-        description: 6 人までです。冒険者が入れるパーティは 1 つまでです。
+        description: いまの構成員です。6 人までで、冒険者が入れる活動中のパーティは 1 つまでです。脱退・除名・登録の失効で抜け、だれもいなくなるとパーティは解散します。解散したパーティでは、解散したときの構成員です。
         item: { type: 構成員 }
       - { key: formedOn, label: 結成日, type: 年月日, required: true }
+      - { key: dissolvedOn, label: 解散した日, type: 年月日, description: 解散したときだけ書きます。 }
+      - { key: dissolvedFor, label: 解散の理由, type: パーティの解散の理由, description: 解散したときだけ書きます。 }
       - { key: distribution, label: 報酬の分け方, type: 分け方, required: true, default: equal, description: パーティが決めた、報酬を構成員で分ける方法です。ギルドはパーティに払うだけで、分けるのはパーティです。 }
       - { key: distributionNote, label: 分け方の覚え, type: 一行の文, description: 取り決めのときの中身などです。 }
       - { key: note, label: 備考, type: 文章 }
+      - key: history
+        label: 履歴
+        type: array
+        description: 組む・構成員の出入り・リーダーを決める・解散の記録です。操作が 1 行ずつ足します。
+        default: []
+        item: { type: パーティの履歴 }
+    # 構成員を外す（Q73）: 冒険者の脱退・除名・登録の失効と、構成員が抜ける操作から呼ぶ。
+    # リーダーなら外してリーダー不在にし、だれもいなくなれば解散する。構成員は「番号だけ」と「to と role」の 2 つの書き方があるので、両方と比べる
+    methods:
+      remove-member:
+        label: 構成員を外す
+        params:
+          - { key: member, label: 外す冒険者, type: 冒険者参照, required: true }
+          - { key: date, label: 日付, type: 年月日, required: true }
+          - { key: cause, label: 履歴に書く操作, type: パーティの操作, required: true, default: remove-member }
+          - { key: note, label: 覚え, type: 一行の文 }
+        do:
+          - insert: { path: history, value: { date: $date, action: $cause, member: $member, note: { $copy: note } } }
+          - set: { path: leaderlessSince, value: $date }
+            when: { of: self, path: leader, equals: $member }
+          - delete: { path: leader }
+            when: { of: self, path: leader, equals: $member }
+          - each:
+              path: members
+              do:
+                - delete: { path: "." }
+                  when: { or: [ { of: self, path: to, equals: $member }, { of: self, path: ".", equals: $member } ] }
+          - insert: { path: history, value: { date: $date, action: dissolve-party, note: 構成員がいなくなったので、解散した } }
+            when: { of: self, path: members, empty: true }
+          - delete: { path: leaderlessSince }
+            when: { of: self, path: members, empty: true }
+          - set: { path: dissolvedOn, value: $date }
+            when: { of: self, path: members, empty: true }
+          - set: { path: dissolvedFor, value: no-members }
+            when: { of: self, path: members, empty: true }
+          - set: { path: status, value: dissolved }
+            when: { of: self, path: members, empty: true }
+    constraints:
+      - id: active-party-has-members
+        description: 活動中のパーティには構成員が 1 人以上いること
+        where:
+          - { path: status, equals: active }
+          - { path: members, empty: true }
+        expect: absent
+        level: error
+        message: "パーティ「{id}」は活動中なのに、構成員がいません"
+      - id: leaderless-has-since
+        description: リーダー不在の活動中のパーティには、リーダーがいなくなった日があること
+        where:
+          - { path: status, equals: active }
+          - { path: leader, exists: false }
+          - { path: leaderlessSince, exists: false }
+        expect: absent
+        level: error
+        message: "パーティ「{id}」にリーダーがいないのに、リーダーがいなくなった日がありません"
+      - id: since-only-when-leaderless
+        description: リーダーがいなくなった日は、リーダー不在の活動中のパーティにだけあること
+        where:
+          - { path: leaderlessSince, exists: true }
+          - { or: [ { path: leader, exists: true }, { path: status, equals: dissolved } ] }
+        expect: absent
+        level: error
+        message: "パーティ「{id}」はリーダー不在ではないのに、リーダーがいなくなった日があります"
+      - id: dissolved-has-date-and-reason
+        description: 解散したパーティには、解散した日と解散の理由があること
+        where:
+          - { path: status, equals: dissolved }
+          - { or: [ { path: dissolvedOn, exists: false }, { path: dissolvedFor, exists: false } ] }
+        expect: absent
+        level: error
+        message: "パーティ「{id}」は解散したのに、解散した日か理由がありません"
+      - id: dissolution-only-when-dissolved
+        description: 活動中のパーティには、解散した日と解散の理由が無いこと
+        where:
+          - { path: status, equals: active }
+          - { or: [ { path: dissolvedOn, exists: true }, { path: dissolvedFor, exists: true } ] }
+        expect: absent
+        level: error
+        message: "パーティ「{id}」は活動中なのに、解散した日か理由があります"
+  パーティの履歴:
+    type: object
+    label: パーティの履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: パーティの操作, required: true }
+      - { key: member, label: 冒険者, type: 冒険者参照, description: 加わった・抜けた冒険者や、新しいリーダーです。 }
+      - { key: note, label: 覚え, type: 一行の文 }
   依頼者:
     type: object
     label: 依頼者

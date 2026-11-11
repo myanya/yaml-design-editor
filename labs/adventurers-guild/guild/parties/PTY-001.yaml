@@ -1,5 +1,6 @@
 id: PTY-001
 name: 銀の轍
+status: active
 rank: RNK-B
 leader: ADV-0001
 members:
@@ -11,3 +12,5 @@ members:
     role: 斥候
 formedOn: 2022-01-10
 distribution: equal
+history:
+  - { date: 2022-01-10, action: form-party, member: ADV-0001 }

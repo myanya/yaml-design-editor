@@ -6,7 +6,7 @@ registeredOn: 2024-11-03
 registeredAt: BRN-01
 validUntil: 2026-11-03
 job: JOB-01
-note: 去年の秋に更新したきり、支部に顔を見せていません（組んでいたロウェンが休業してから）。登録の有効期限（2026-11-03）を過ぎました。
+note: 去年の秋に更新したきり、支部に顔を見せていません。仲間を募って組んだパーティ（鉄の風見）にも、まだだれも加わっていません。登録の有効期限（2026-11-03）を過ぎました。
 fees:
   - { id: FEE-0001, collectedOn: 2025-11-03, kind: renewal, amount: 20, validUntil: 2026-11-03 }
 history:

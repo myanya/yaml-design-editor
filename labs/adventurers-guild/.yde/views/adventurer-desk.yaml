@@ -1,7 +1,7 @@
 id: adventurer-desk
 name: 冒険者の管理
 kind: dashboard
-description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合・登録の失効）・除名）と、登録の有効期限と年会費・処分・資格・訓練です。登録したら、続けて「年会費を受け取る」で登録の年会費を受け取ります。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
+description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合・登録の失効）・除名）と、登録の有効期限と年会費・処分・資格・訓練・パーティ（リーダー不在・解散）です。登録したら、続けて「年会費を受け取る」で登録の年会費を受け取ります。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
 actions: [register-adventurer]
 placement: auto
 # 除名は処分の操作（除名する）で、状態を除名にして処分の記録を作る。注意と受注停止は状態を変えない（現役の段に留まる工程）
@@ -123,3 +123,22 @@ sections:
     label: パーティの編成
     group: 名簿
     view: party-roster
+  # パーティの出入りと解散（Q73）。リーダー不在のパーティは、リーダーを決めるまで受注できない
+  - id: leaderless-parties
+    label: リーダー不在のパーティ（リーダーを決める）
+    group: 名簿
+    view: party-roster
+    filter:
+      match: [ { node: { entity: party, bind: p } } ]
+      where:
+        - { of: p, path: status, equals: active }
+        - { of: p, path: leader, exists: false }
+      expect: exists
+  - id: dissolved-parties
+    label: 解散したパーティ
+    group: 名簿
+    view: party-roster
+    filter:
+      match: [ { node: { entity: party, bind: p } } ]
+      where: [ { of: p, path: status, equals: dissolved } ]
+      expect: exists

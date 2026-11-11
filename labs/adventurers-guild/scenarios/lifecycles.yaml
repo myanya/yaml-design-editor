@@ -115,8 +115,14 @@ cases:
         - file: guild/assignments/QST-0115-A1.yaml
           ops:
             - { op: insert, path: report, value: { reportedOn: 2026-11-11, outcome: failure, abandonedFor: wiped-out, summary: "ギルドが打ち切った: 銀の轍が古井戸の底で朝露の旗の旗を見つけた" } }
+        - file: guild/parties/PTY-003.yaml
+          ops:
+            - { op: set, path: status, value: dissolved }
+            - { op: insert, path: dissolvedOn, value: 2026-11-11 }
+            - { op: insert, path: dissolvedFor, value: wiped-out }
     expect:
       - { lifecycle: quest-lifecycle, entity: QST-0115, before: [quest-assigned], after: [quest-failed], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-003, before: [party-active], after: [party-dissolved], verdict: MATCHED }
   - id: client-withdrew-received
     event: client-withdrew
     subject: QST-0119
@@ -223,7 +229,7 @@ cases:
     action: register-adventurer
     params: { name: 試しの冒険者, rank: RNK-F, job: JOB-01, date: 2026-11-11 }
     expect:
-      - { lifecycle: adventurer-lifecycle, entity: ADV-0012, before: [], after: [adventurer-active], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0013, before: [], after: [adventurer-active], verdict: MATCHED }
   - id: adventurer-annual-fee-keeps-active
     action: receive-annual-fee
     target: ADV-0002
@@ -254,12 +260,14 @@ cases:
     params: { reason: retirement, date: 2026-11-11, note: 足の怪我を機に引退する }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-dissolved], verdict: MATCHED }
   - id: adventurer-lapse
     action: lapse-registration
     target: ADV-0011
     params: { date: 2026-11-11, note: 登録継続届が出ないまま有効期限を過ぎた }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-005, before: [party-active], after: [party-dissolved], verdict: MATCHED }
   - id: adventurer-expel-active
     action: expel-adventurer
     target: ADV-0002
@@ -272,6 +280,7 @@ cases:
     params: { regulation: REG-01, date: 2026-11-11, decidedBy: STF-01, reason: 試しの除名 }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-expelled], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-dissolved], verdict: MATCHED }
   - id: party-record-wipeout
     action: record-wipeout
     target: PTY-001
@@ -280,14 +289,15 @@ cases:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-dissolved], verdict: MATCHED }
   - id: party-record-wipeout-with-resting
     action: record-wipeout
     target: PTY-004
     params: { date: 2026-11-11, evidence: 北の峠の小屋に、ふたりの外套が残っていた }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
-      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
   # ---- 事実（Event） ----
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-dissolved], verdict: MATCHED }
   - id: adventurer-died-active
     event: adventurer-died
     subject: ADV-0002
@@ -298,8 +308,49 @@ cases:
             - { op: set, path: status, value: withdrawn }
             - { op: insert, path: leftFor, value: death }
             - { op: insert, path: "history[1]", value: { date: 2026-11-11, action: withdraw-adventurer, from: active, to: withdrawn, note: 東の街道の宿から、亡くなったと便りが来た } }
+        - file: guild/parties/PTY-001.yaml
+          ops:
+            - { op: delete, path: "members[1]" }
+            - { op: insert, path: "history[1]", value: { date: 2026-11-11, action: remove-member, member: ADV-0002, note: 脱退のため（死亡） } }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-active], verdict: UNCHANGED }
+  - id: adventurer-died-leader
+    event: adventurer-died
+    subject: ADV-0001
+    changeset:
+      changes:
+        - file: guild/adventurers/ADV-0001.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+        - file: guild/parties/PTY-001.yaml
+          ops:
+            - { op: delete, path: leader }
+            - { op: insert, path: leaderlessSince, value: 2026-11-11 }
+            - { op: delete, path: "members[0]" }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-leaderless], verdict: MATCHED }
+  - id: adventurer-died-last-member
+    event: adventurer-died
+    subject: ADV-0011
+    changeset:
+      changes:
+        - file: guild/adventurers/ADV-0011.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+        - file: guild/parties/PTY-005.yaml
+          ops:
+            - { op: delete, path: leader }
+            - { op: delete, path: "members[0]" }
+            - { op: set, path: status, value: dissolved }
+            - { op: insert, path: dissolvedOn, value: 2026-11-11 }
+            - { op: insert, path: dissolvedFor, value: no-members }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-005, before: [party-active], after: [party-dissolved], verdict: MATCHED }
   - id: adventurer-died-resting
     event: adventurer-died
     subject: ADV-0008
@@ -311,8 +362,16 @@ cases:
             - { op: delete, path: restingSince }
             - { op: insert, path: leftFor, value: death }
             - { op: insert, path: "history[2]", value: { date: 2026-11-11, action: withdraw-adventurer, from: resting, to: withdrawn, note: 療養先から、亡くなったと便りが来た } }
+        - file: guild/parties/PTY-004.yaml
+          ops:
+            - { op: delete, path: "members[0]" }
+            - { op: delete, path: leaderlessSince }
+            - { op: set, path: status, value: dissolved }
+            - { op: insert, path: dissolvedOn, value: 2026-11-11 }
+            - { op: insert, path: dissolvedFor, value: no-members }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-dissolved], verdict: MATCHED }
   - id: party-wiped-out-members
     event: party-wiped-out
     subject: PTY-001
@@ -330,10 +389,16 @@ cases:
           ops:
             - { op: set, path: status, value: withdrawn }
             - { op: insert, path: leftFor, value: death }
+        - file: guild/parties/PTY-001.yaml
+          ops:
+            - { op: set, path: status, value: dissolved }
+            - { op: insert, path: dissolvedOn, value: 2026-11-11 }
+            - { op: insert, path: dissolvedFor, value: wiped-out }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-dissolved], verdict: MATCHED }
   - id: party-wiped-out-with-resting
     event: party-wiped-out
     subject: PTY-004
@@ -344,13 +409,80 @@ cases:
             - { op: set, path: status, value: withdrawn }
             - { op: delete, path: restingSince }
             - { op: insert, path: leftFor, value: death }
-        - file: guild/adventurers/ADV-0011.yaml
+        - file: guild/parties/PTY-004.yaml
           ops:
-            - { op: set, path: status, value: withdrawn }
-            - { op: insert, path: leftFor, value: death }
+            - { op: set, path: status, value: dissolved }
+            - { op: delete, path: leaderlessSince }
+            - { op: insert, path: dissolvedOn, value: 2026-11-11 }
+            - { op: insert, path: dissolvedFor, value: wiped-out }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-dissolved], verdict: MATCHED }
+  # ======== パーティ（party-lifecycle）。リーダー不在は「活動中でリーダーがいない」の述語の State（Q73） ========
+  - id: party-form
+    action: form-party
+    params: { name: 試しの一行, rank: RNK-E, leader: ADV-0006, members: [ADV-0006], date: 2026-11-11 }
+    expect:
+      - { lifecycle: party-lifecycle, entity: PTY-006, before: [], after: [party-active], verdict: MATCHED }
+  - id: party-add-member
+    action: add-member
+    target: PTY-004
+    params: { member: ADV-0006, role: 弓, date: 2026-11-11 }
+    expect:
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-leaderless], verdict: UNCHANGED }
+  - id: party-leave
+    action: leave-party
+    target: PTY-001
+    params: { member: ADV-0003, date: 2026-11-11, note: ひとりで斥候の腕を磨きたい }
+    expect:
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-active], verdict: UNCHANGED }
+  - id: party-change-leader
+    action: change-leader
+    target: PTY-004
+    params: { leader: ADV-0008, date: 2026-11-11, note: ロウェンが継ぐ }
+    expect:
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-active], verdict: MATCHED }
+  - id: party-dissolve-active
+    action: dissolve-party
+    target: PTY-002
+    params: { date: 2026-11-11, note: それぞれの道を行くことにした }
+    expect:
+      - { lifecycle: party-lifecycle, entity: PTY-002, before: [party-active], after: [party-dissolved], verdict: MATCHED }
+  - id: party-dissolve-leaderless
+    action: dissolve-party
+    target: PTY-004
+    params: { date: 2026-11-11, note: ベルンのいない外套はたたむ }
+    expect:
+      - { lifecycle: party-lifecycle, entity: PTY-004, before: [party-leaderless], after: [party-dissolved], verdict: MATCHED }
+  # 構成員の脱退・除名で、リーダーがいなくなる・だれもいなくなる（関係先の遷移）
+  - id: party-leader-withdraws
+    action: withdraw-adventurer
+    target: ADV-0001
+    params: { reason: retirement, date: 2026-11-11, note: 剣を置く }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-leaderless], verdict: MATCHED }
+  - id: party-leader-expelled
+    action: expel-adventurer
+    target: ADV-0001
+    params: { regulation: REG-01, date: 2026-11-11, decidedBy: STF-01, reason: 試しの除名 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-expelled], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-leaderless], verdict: MATCHED }
+  - id: party-last-member-withdraws
+    action: withdraw-adventurer
+    target: ADV-0011
+    params: { reason: personal, date: 2026-11-11, note: 故郷へ帰る }
+    expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-005, before: [party-active], after: [party-dissolved], verdict: MATCHED }
+  - id: party-last-member-expelled
+    action: expel-adventurer
+    target: ADV-0011
+    params: { regulation: REG-01, date: 2026-11-11, decidedBy: STF-01, reason: 試しの除名 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-expelled], verdict: MATCHED }
+      - { lifecycle: party-lifecycle, entity: PTY-005, before: [party-active], after: [party-dissolved], verdict: MATCHED }
   # ======== 素材の在庫（material-stock-lifecycle）。在庫は動きから導く述語の State ========
   - id: material-add
     action: add-material

@@ -1,0 +1,67 @@
+id: party-behavior
+name: パーティの振る舞い
+kind: behavior
+description: >-
+  パーティの状態（活動中・リーダー不在・解散）を業務の State にします（Q73）。
+  リーダー不在は状態の項目に持たず、活動中でリーダーがいないことの述語です。
+  構成員の脱退・除名・登録の失効は冒険者の操作で、その冒険者はパーティから外れます（死亡が確かめられたときも同じ）。
+  外れたのがリーダーならリーダー不在に、最後の 1 人ならパーティは解散します（関係先の遷移）。
+  リーダー不在のパーティは、リーダーを決めるまで受注できません。
+states:
+  - id: party-active
+    entity: party
+    label: 活動中
+    predicate:
+      match: [ { node: { entity: party, bind: p } } ]
+      where:
+        - { of: p, path: status, equals: active }
+        - { of: p, path: leader, exists: true }
+      expect: exists
+  - id: party-leaderless
+    entity: party
+    label: リーダー不在
+    predicate:
+      match: [ { node: { entity: party, bind: p } } ]
+      where:
+        - { of: p, path: status, equals: active }
+        - { of: p, path: leader, exists: false }
+      expect: exists
+  - id: party-dissolved
+    entity: party
+    label: 解散
+    predicate:
+      match: [ { node: { entity: party, bind: p } } ]
+      where: [ { of: p, path: status, equals: dissolved } ]
+      expect: exists
+lifecycles:
+  - id: party-lifecycle
+    entity: party
+    states: [party-active, party-leaderless, party-dissolved]
+    entry:
+      - to: party-active
+        by: { action: form-party }
+    transitions:
+      # リーダーが脱退・除名・登録の失効でパーティから外れた（構成員が残る）
+      - { from: party-active, to: party-leaderless, by: { action: withdraw-adventurer } }
+      - { from: party-active, to: party-leaderless, by: { action: expel-adventurer } }
+      - { from: party-active, to: party-leaderless, by: { action: lapse-registration } }
+      - { from: party-leaderless, to: party-active, by: { action: change-leader } }
+      # 解散: 本人たちの都合・全滅・最後の 1 人が外れた
+      - { from: party-active, to: party-dissolved, by: { action: dissolve-party } }
+      - { from: party-active, to: party-dissolved, by: { action: record-wipeout } }
+      - { from: party-active, to: party-dissolved, by: { event: party-wiped-out } }
+      - { from: party-active, to: party-dissolved, by: { action: withdraw-adventurer } }
+      - { from: party-active, to: party-dissolved, by: { action: expel-adventurer } }
+      - { from: party-active, to: party-dissolved, by: { action: lapse-registration } }
+      - { from: party-leaderless, to: party-dissolved, by: { action: dissolve-party } }
+      - { from: party-leaderless, to: party-dissolved, by: { action: record-wipeout } }
+      - { from: party-leaderless, to: party-dissolved, by: { event: party-wiped-out } }
+      - { from: party-leaderless, to: party-dissolved, by: { action: withdraw-adventurer } }
+      - { from: party-leaderless, to: party-dissolved, by: { action: expel-adventurer } }
+      - { from: party-leaderless, to: party-dissolved, by: { action: lapse-registration } }
+      # 事実: 構成員の死亡が確かめられた（その冒険者はパーティから外れる）
+      - { from: party-active, to: party-leaderless, by: { event: adventurer-died } }
+      - { from: party-active, to: party-dissolved, by: { event: adventurer-died } }
+      - { from: party-leaderless, to: party-dissolved, by: { event: adventurer-died } }
+    termination:
+      terminal: [party-dissolved]

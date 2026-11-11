@@ -1,0 +1,13 @@
+id: PTY-005
+name: 鉄の風見
+status: active
+rank: RNK-F
+leader: ADV-0011
+members:
+  - to: ADV-0011
+    role: 前衛
+formedOn: 2025-11-10
+distribution: equal
+note: ダリオが仲間を募るために組んだパーティです。まだだれも加わっていません。
+history:
+  - { date: 2025-11-10, action: form-party, member: ADV-0011 }

@@ -8,7 +8,7 @@ registeredAt: BRN-01
 validUntil: 2026-11-14
 job: JOB-03
 jobLevel: intermediate
-note: 足の怪我の療養で、2026 年の秋は休業しています。
+note: 足の怪我の療養で、2026 年の秋は休業しています（北の峠の落石で、灰色の外套のリーダーのベルンを亡くしました）。
 fees:
   - { id: FEE-0002, collectedOn: 2025-11-12, kind: renewal, amount: 20, validUntil: 2026-11-14 }
 history:

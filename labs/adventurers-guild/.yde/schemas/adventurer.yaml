@@ -205,6 +205,16 @@ actions:
       - insert: { of: self, path: history, value: { date: $date, action: lapse-registration, from: active, to: withdrawn, note: { $copy: note } } }
       - set: { of: self, path: leftFor, value: lapsed }
       - set: { of: self, path: status, value: withdrawn }
+      # 活動中のパーティから外す（リーダーならリーダー不在に、最後の 1 人ならパーティは解散。Q73）
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: has-member, dir: in }
+            - node: { entity: party, bind: p }
+          where: [ { of: p, path: status, equals: active } ]
+          do:
+            - call: { of: p, method: remove-member, params: { member: { $copy: id, $of: self }, date: $date, note: 登録の失効のため } }
   - id: rest-adventurer
     label: 休業にする（休業届）
     description: 現役の冒険者の休業届を受け付け、休業にします（けがの療養・帰郷・長い旅・依頼の途中の事故など）。休業の間は、登録の更新と年会費が免除され、受注できません。遂行中の依頼があってもできます（その依頼は、報告か打ち切りで閉じます）。登録の有効期限を過ぎてからは出せません。
@@ -260,7 +270,7 @@ actions:
       - set: { of: self, path: status, value: active }
   - id: withdraw-adventurer
     label: 脱退にする
-    description: 冒険者をギルドから脱退にし、理由（引退・死亡・本人の都合）を書きます。死亡は「死亡が確かめられた」事実の結果として選びます。登録の失効は「登録を失効させる」で扱います。遂行中の依頼があるうちはできません（先に報告か打ち切りで閉じます）。
+    description: 冒険者をギルドから脱退にし、理由（引退・死亡・本人の都合）を書きます。死亡は「死亡が確かめられた」事実の結果として選びます。登録の失効は「登録を失効させる」で扱います。活動中のパーティからは外れます。遂行中の依頼があるうちはできません（先に報告か打ち切りで閉じます）。
     target: { entity: adventurer }
     input:
       initial:
@@ -293,6 +303,16 @@ actions:
       - delete: { of: self, path: restingSince }
       - set: { of: self, path: leftFor, value: $reason }
       - set: { of: self, path: status, value: withdrawn }
+      # 活動中のパーティから外す（リーダーならリーダー不在に、最後の 1 人ならパーティは解散。Q73）
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: has-member, dir: in }
+            - node: { entity: party, bind: p }
+          where: [ { of: p, path: status, equals: active } ]
+          do:
+            - call: { of: p, method: remove-member, params: { member: { $copy: id, $of: self }, date: $date, note: 脱退のため } }
   - id: expel-adventurer
     label: 除名する
     description: 冒険者に除名の処分を下し、処分の記録（SNC- の次の番号）を作って状態を除名にします（現役・休業から）。遂行中の依頼があるうちはできません。
@@ -335,6 +355,16 @@ actions:
       - insert: { of: self, path: history, value: { date: $date, action: expel-adventurer, from: { $value: { of: self, path: status } }, to: expelled, note: { $format: "規約 {r} の違反", $with: { r: $regulation } } } }
       - delete: { of: self, path: restingSince }
       - set: { of: self, path: status, value: expelled }
+      # 活動中のパーティから外す（リーダーならリーダー不在に、最後の 1 人ならパーティは解散。Q73）
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: has-member, dir: in }
+            - node: { entity: party, bind: p }
+          where: [ { of: p, path: status, equals: active } ]
+          do:
+            - call: { of: p, method: remove-member, params: { member: { $copy: id, $of: self }, date: $date, note: 除名のため } }
   # 注意と受注停止は状態を変えない（受注停止の間の受注は、依頼の検査が止める）。降格の効き目はまだ決めていない
   - id: sanction-adventurer
     label: 処分を下す（注意・受注停止）

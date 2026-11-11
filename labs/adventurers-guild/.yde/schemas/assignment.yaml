@@ -58,6 +58,27 @@ constraints:
     check: [ { lt: [ { of: a, path: acceptedOn }, { of: t, path: restingSince } ] } ]
     level: error
     message: "受注「{id}」の受け手 {t.title} は休業のため受注できません"
+  # 解散したパーティ・リーダー不在のパーティは受注できない（Q73。リーダーを決め直すまで）
+  - id: party-not-dissolved-on-acceptance
+    description: パーティの受注日は、パーティが解散した日より前であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: party, bind: t }
+    where: [ { of: t, path: dissolvedOn, exists: true } ]
+    check: [ { lt: [ { of: a, path: acceptedOn }, { of: t, path: dissolvedOn } ] } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title} は解散しています（解散したパーティは受注できません）"
+  - id: party-has-leader-on-acceptance
+    description: リーダー不在のパーティは、リーダーがいなくなった日から後に受注していないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: party, bind: t }
+    where: [ { of: t, path: leaderlessSince, exists: true } ]
+    check: [ { lt: [ { of: a, path: acceptedOn }, { of: t, path: leaderlessSince } ] } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title} はリーダー不在です（「リーダーを決める」で決め直してから受けます）"
   # 登録が切れた（登録継続届を出さなかった）冒険者は受注できない（Q71）。有効期限は延びるだけなので、過去の受注も満たす
   - id: registration-valid-on-acceptance
     description: 冒険者の受注日は、受け手の登録の有効期限の内であること

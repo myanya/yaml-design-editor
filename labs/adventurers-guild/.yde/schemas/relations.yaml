@@ -55,17 +55,17 @@ relations:
     inverseLabel: 所属するパーティ
     source: [party]
     target: [adventurer]
-    cardinality: { outMin: 1, outMax: 6 }
+    cardinality: { outMax: 6 }
     level: error
-    description: パーティの構成員は 1〜6 人で、役割を添えられます。冒険者が入れるパーティは 1 つまでで、それはパーティの側の検査（party.yaml の member-in-one-party）が確かめます
+    description: パーティの構成員は 6 人までで、役割を添えられます。活動中のパーティには 1 人以上いること（型の検査）。冒険者が入れる活動中のパーティは 1 つまでで、それはパーティの側の検査（party.yaml の member-in-one-party）が確かめます
   - name: led-by
     label: リーダー
     inverseLabel: 率いるパーティ
     source: [party]
     target: [adventurer]
-    cardinality: { outMin: 1, outMax: 1 }
+    cardinality: { outMax: 1 }
     level: error
-    description: パーティのリーダーは 1 人です
+    description: パーティのリーダーは 1 人です。リーダーが脱退・除名などで抜けると、決め直すまでリーダー不在になります（Q73）
   - name: requested-by
     label: 依頼者
     inverseLabel: 出した依頼
