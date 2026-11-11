@@ -1,11 +1,12 @@
 id: ADV-0009
 name: ハスカ・メイル
 rank: RNK-S
-status: retired
+status: withdrawn
+leftFor: retirement
 registeredOn: 2008-03-30
 job: JOB-04
 jobLevel: advanced
 note: 引退して、いまは町で後進の相談役をしています。
 history:
   - { date: 2008-03-30, action: register-adventurer, to: active }
-  - { date: 2023-03-31, action: retire-adventurer, from: active, to: retired, note: 年を理由に引退した }
+  - { date: 2023-03-31, action: withdraw-adventurer, from: active, to: withdrawn, note: 年を理由に引退した }

@@ -1,6 +1,6 @@
 id: STK-0021
-material: MAT-004
+material: MAT-008
 countedOn: 2026-10-31
-expected: 4
-counted: 4
+expected: 3
+counted: 3
 branch: BRN-01

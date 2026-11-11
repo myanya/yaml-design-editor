@@ -1,7 +1,7 @@
 id: adventurer
 name: 冒険者
 kind: document
-description: ギルドに登録した冒険者 1 人を 1 ファイルで管理します。状態（現役・休業・消息不明・引退・除名）は操作で変え、履歴に残します。
+description: ギルドに登録した冒険者 1 人を 1 ファイルで管理します。状態（現役・休業・脱退・除名）は操作で変え、履歴に残します。ギルドは冒険者の生死ではなく、ギルドとの関係を管理します（死亡は脱退の理由）。
 match: "guild/adventurers/*.yaml"
 filePattern: "guild/adventurers/{id}.yaml"
 root: { type: common#冒険者 }
@@ -53,9 +53,9 @@ constraints:
     level: error
     message: "冒険者「{id}」の職能の段階は初級なのに、主な職能の訓練の課程を修了していません（初級は訓練の修了で得ます）"
 
-# ---- 操作: 登録 → 現役 ⇄ 休業・消息不明 → 引退・除名・死亡 ----
+# ---- 操作: 登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合）・除名 ----
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す。
-# 遂行中の依頼を受けている間は、引退・消息不明・除名にしない（依頼の検査「引退などの冒険者は受注できない」と同じ決まり。休業は事故などで遂行中にもできる（Q51）。
+# 遂行中の依頼を受けている間は、脱退・除名にしない（依頼の検査「脱退・除名の冒険者は受注できない」と同じ決まり。休業は事故などで遂行中にもできる（Q51）。
 # 依頼の文書は変えないので、適用後の検証では止まらないため前提で止める）
 actions:
   - id: register-adventurer
@@ -103,7 +103,7 @@ actions:
       - set: { of: self, path: status, value: resting }
   - id: return-adventurer
     label: 現役に戻す
-    description: 休業か消息不明の冒険者を現役に戻します。
+    description: 休業の冒険者を現役に戻します。
     target: { entity: adventurer }
     input:
       initial:
@@ -113,23 +113,24 @@ actions:
       - { key: note, label: メモ, type: common#一行の文 }
     require:
       - match: [ { node: { entity: adventurer, bind: c } } ]
-        where: [ { of: c, path: status, oneOf: [resting, missing] } ]
+        where: [ { of: c, path: status, equals: resting } ]
         expect: exists
-        message: "{id} は休業か消息不明の冒険者ではありません"
+        message: "{id} は休業の冒険者ではありません"
     do:
       - insert: { of: self, path: history, value: { date: $date, action: return-adventurer, from: { $value: { of: self, path: status } }, to: active, note: { $copy: note } } }
       - delete: { of: self, path: restingSince }
       - set: { of: self, path: status, value: active }
-  - id: retire-adventurer
-    label: 引退にする
-    description: 現役か休業の冒険者を引退にします。遂行中の依頼があるうちはできません。
+  - id: withdraw-adventurer
+    label: 脱退にする
+    description: 冒険者をギルドから脱退にし、理由（引退・死亡・本人の都合）を書きます。死亡は「死亡が確かめられた」事実の結果として選びます。遂行中の依頼があるうちはできません（先に報告か打ち切りで閉じます）。
     target: { entity: adventurer }
     input:
       initial:
         date: { $copy: today, $of: context }
     params:
-      - { key: date, label: 引退の日, type: common#年月日, required: true }
-      - { key: note, label: メモ, type: common#一行の文 }
+      - { key: reason, label: 脱退の理由, type: common#脱退の理由, required: true }
+      - { key: date, label: 脱退の日, type: common#年月日, required: true }
+      - { key: note, label: 覚え, type: common#一行の文, description: 死亡なら、確かめたこと（証言など）を書きます。 }
     require:
       - match: [ { node: { entity: adventurer, bind: c } } ]
         where: [ { of: c, path: status, oneOf: [active, resting] } ]
@@ -145,42 +146,15 @@ actions:
           - { of: a, path: report, exists: false }
           - { of: q, path: status, equals: assigned }
         expect: absent
-        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼の報告をします）"
+        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼の報告をするか、打ち切ります）"
     do:
-      - insert: { of: self, path: history, value: { date: $date, action: retire-adventurer, from: { $value: { of: self, path: status } }, to: retired, note: { $copy: note } } }
-      - set: { of: self, path: status, value: retired }
-  - id: report-missing
-    label: 消息不明にする
-    description: 戻らない現役の冒険者を消息不明にします。依頼の途中なら、先に依頼を未達で報告します。
-    target: { entity: adventurer }
-    input:
-      initial:
-        date: { $copy: today, $of: context }
-    params:
-      - { key: date, label: 消息不明とした日, type: common#年月日, required: true }
-      - { key: note, label: 状況, type: common#一行の文, required: true }
-    require:
-      - match: [ { node: { entity: adventurer, bind: c } } ]
-        where: [ { of: c, path: status, equals: active } ]
-        expect: exists
-        message: "{id} は現役の冒険者ではありません"
-      - match:
-          - node: { entity: adventurer }
-          - edge: { relation: taken-by, dir: in }
-          - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
-          - node: { entity: quest, bind: q }
-        where:
-          - { of: a, path: report, exists: false }
-          - { of: q, path: status, equals: assigned }
-        expect: absent
-        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼の報告をします）"
-    do:
-      - insert: { of: self, path: history, value: { date: $date, action: report-missing, from: active, to: missing, note: $note } }
-      - set: { of: self, path: status, value: missing }
+      - insert: { of: self, path: history, value: { date: $date, action: withdraw-adventurer, from: { $value: { of: self, path: status } }, to: withdrawn, note: { $copy: note } } }
+      - delete: { of: self, path: restingSince }
+      - set: { of: self, path: leftFor, value: $reason }
+      - set: { of: self, path: status, value: withdrawn }
   - id: expel-adventurer
     label: 除名する
-    description: 冒険者に除名の処分を下し、処分の記録（SNC- の次の番号）を作って状態を除名にします。遂行中の依頼があるうちはできません。
+    description: 冒険者に除名の処分を下し、処分の記録（SNC- の次の番号）を作って状態を除名にします（現役・休業から）。遂行中の依頼があるうちはできません。
     target: { entity: adventurer }
     input:
       initial:
@@ -192,9 +166,9 @@ actions:
       - { key: reason, label: 理由, type: common#文章, required: true }
     require:
       - match: [ { node: { entity: adventurer, bind: c } } ]
-        where: [ { of: c, path: status, oneOf: [active, resting, missing] } ]
+        where: [ { of: c, path: status, oneOf: [active, resting] } ]
         expect: exists
-        message: "{id} は現役・休業・消息不明の冒険者ではありません"
+        message: "{id} は現役か休業の冒険者ではありません"
       - match:
           - node: { entity: adventurer }
           - edge: { relation: taken-by, dir: in }
@@ -218,6 +192,7 @@ actions:
             decidedBy: $decidedBy
             reason: $reason
       - insert: { of: self, path: history, value: { date: $date, action: expel-adventurer, from: { $value: { of: self, path: status } }, to: expelled, note: { $format: "規約 {r} の違反", $with: { r: $regulation } } } }
+      - delete: { of: self, path: restingSince }
       - set: { of: self, path: status, value: expelled }
   # 注意と受注停止は状態を変えない（受注停止の間の受注は、依頼の検査が止める）。降格の効き目はまだ決めていない
   - id: sanction-adventurer
@@ -280,34 +255,3 @@ actions:
             decidedBy: $decidedBy
             reason: $reason
       - set: { of: self, path: rank, value: $toRank }
-  # 死亡（Q59）。依頼の途中なら、先に依頼を打ち切る（全滅の確認）。パーティの全滅は、パーティの操作「全滅を記録する」で構成員をまとめて死亡にする
-  - id: report-death
-    label: 死亡にする
-    description: 死亡が確かめられた冒険者（現役・休業・消息不明）を死亡にします。確かめたこと（証言など）を履歴に残します。遂行中の依頼があるうちはできません（先に打ち切ります）。
-    target: { entity: adventurer }
-    input:
-      initial:
-        date: { $copy: today, $of: context }
-    params:
-      - { key: date, label: 確かめた日, type: common#年月日, required: true }
-      - { key: evidence, label: 確かめたこと, type: common#一行の文, required: true, minLength: 1 }
-    require:
-      - match: [ { node: { entity: adventurer, bind: c } } ]
-        where: [ { of: c, path: status, oneOf: [active, resting, missing] } ]
-        expect: exists
-        message: "{id} は現役・休業・消息不明の冒険者ではありません"
-      - match:
-          - node: { entity: adventurer }
-          - edge: { relation: taken-by, dir: in }
-          - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
-          - node: { entity: quest, bind: q }
-        where:
-          - { of: a, path: report, exists: false }
-          - { of: q, path: status, equals: assigned }
-        expect: absent
-        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼を打ち切ります）"
-    do:
-      - insert: { of: self, path: history, value: { date: $date, action: report-death, from: { $value: { of: self, path: status } }, to: dead, note: $evidence } }
-      - delete: { of: self, path: restingSince }
-      - set: { of: self, path: status, value: dead }

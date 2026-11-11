@@ -1,4 +1,4 @@
-# ギルドの Lifecycle（依頼・昇格審査・職能の審査）の業務シナリオ。どのケースも保存済みの同じデータから評価し、原本は変えない。
+# ギルドの Lifecycle（依頼・昇格審査・職能の審査・冒険者）の業務シナリオ。どのケースも保存済みの同じデータから評価し、原本は変えない。
 #   ./gradlew runCli -q --args="behavior-scenarios labs/adventurers-guild labs/adventurers-guild/scenarios/lifecycles.yaml"
 # 到達率（coverage）はワークスペースのすべての Lifecycle で数えるので、1 つのファイルにまとめる。
 # 前段の操作が要る遷移は、いまのデータでは通せない（devtrack の UX-289）:
@@ -174,3 +174,100 @@ cases:
     params: { date: 2026-11-11, decidedBy: STF-01, note: 霧の中での射かけが定まらなかった }
     expect:
       - { lifecycle: job-exam-lifecycle, entity: JEX-001, before: [job-exam-examining], after: [job-exam-failed], verdict: MATCHED }
+  # ======== 冒険者（adventurer-lifecycle） ========
+  - id: adventurer-register
+    action: register-adventurer
+    params: { name: 試しの冒険者, rank: RNK-F, job: JOB-01, date: 2026-11-11 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [], after: [adventurer-active], verdict: MATCHED }
+  - id: adventurer-rest
+    action: rest-adventurer
+    target: ADV-0001
+    params: { date: 2026-11-11, note: 北の峠道で足をくじいた }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-resting], verdict: MATCHED }
+  - id: adventurer-return
+    action: return-adventurer
+    target: ADV-0008
+    params: { date: 2026-11-11, note: 傷が癒えた }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-active], verdict: MATCHED }
+  - id: adventurer-withdraw-active
+    action: withdraw-adventurer
+    target: ADV-0002
+    params: { reason: personal, date: 2026-11-11, note: 故郷の村で家業を継ぐ }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: adventurer-withdraw-resting
+    action: withdraw-adventurer
+    target: ADV-0008
+    params: { reason: retirement, date: 2026-11-11, note: 足の怪我を機に引退する }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: adventurer-expel-active
+    action: expel-adventurer
+    target: ADV-0002
+    params: { regulation: REG-01, date: 2026-11-11, decidedBy: STF-01, reason: 試しの除名 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-expelled], verdict: MATCHED }
+  - id: adventurer-expel-resting
+    action: expel-adventurer
+    target: ADV-0008
+    params: { regulation: REG-01, date: 2026-11-11, decidedBy: STF-01, reason: 試しの除名 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-expelled], verdict: MATCHED }
+  - id: party-record-wipeout
+    action: record-wipeout
+    target: PTY-001
+    params: { date: 2026-11-11, evidence: 試しの全滅の記録 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+  # ---- 事実（Event） ----
+  - id: adventurer-died-active
+    event: adventurer-died
+    subject: ADV-0002
+    changeset:
+      changes:
+        - file: guild/adventurers/ADV-0002.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+            - { op: insert, path: "history[1]", value: { date: 2026-11-11, action: withdraw-adventurer, from: active, to: withdrawn, note: 東の街道の宿から、亡くなったと便りが来た } }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: adventurer-died-resting
+    event: adventurer-died
+    subject: ADV-0008
+    changeset:
+      changes:
+        - file: guild/adventurers/ADV-0008.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: delete, path: restingSince }
+            - { op: insert, path: leftFor, value: death }
+            - { op: insert, path: "history[2]", value: { date: 2026-11-11, action: withdraw-adventurer, from: resting, to: withdrawn, note: 療養先から、亡くなったと便りが来た } }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: party-wiped-out-members
+    event: party-wiped-out
+    subject: PTY-001
+    changeset:
+      changes:
+        - file: guild/adventurers/ADV-0001.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+        - file: guild/adventurers/ADV-0002.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+        - file: guild/adventurers/ADV-0003.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }

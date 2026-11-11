@@ -1,0 +1,44 @@
+id: adventurer-behavior
+name: 冒険者の振る舞い
+kind: behavior
+description: >-
+  冒険者とギルドの関係（現役・休業・脱退・除名）を業務の State にし、操作と事実による
+  入口・遷移・終端を宣言します。ギルドは冒険者の生死ではなく、ギルドとの関係を管理するので、
+  死亡は状態ではなく、脱退の理由です。死亡が確かめられた・全滅が確かめられたという事実の結果として、
+  冒険者は脱退（理由: 死亡）になります。
+events:
+  - id: adventurer-died
+    entity: adventurer
+    label: 死亡が確かめられた
+    description: "便りや証言で、冒険者の死亡が確かめられた。冒険者は脱退（理由: 死亡）になる"
+states:
+  - source:
+      entity: adventurer
+      path: status
+      enum: common#冒険者の状態
+    idPrefix: adventurer-
+lifecycles:
+  - id: adventurer-lifecycle
+    entity: adventurer
+    states: [adventurer-active, adventurer-resting, adventurer-withdrawn, adventurer-expelled]
+    entry:
+      - to: adventurer-active
+        by: { action: register-adventurer }
+    transitions:
+      - { from: adventurer-active, to: adventurer-resting, by: { action: rest-adventurer } }
+      - { from: adventurer-resting, to: adventurer-active, by: { action: return-adventurer } }
+      - { from: adventurer-active, to: adventurer-withdrawn, by: { action: withdraw-adventurer } }
+      - { from: adventurer-resting, to: adventurer-withdrawn, by: { action: withdraw-adventurer } }
+      - { from: adventurer-active, to: adventurer-expelled, by: { action: expel-adventurer } }
+      - { from: adventurer-resting, to: adventurer-expelled, by: { action: expel-adventurer } }
+      # パーティの全滅を記録する操作は、パーティを受け手にして構成員を脱退にする（関係先の遷移）
+      - { from: adventurer-active, to: adventurer-withdrawn, by: { action: record-wipeout } }
+      - { from: adventurer-resting, to: adventurer-withdrawn, by: { action: record-wipeout } }
+      # 事実（Event）: 死亡・全滅が確かめられた
+      - { from: adventurer-active, to: adventurer-withdrawn, by: { event: adventurer-died } }
+      - { from: adventurer-resting, to: adventurer-withdrawn, by: { event: adventurer-died } }
+      - { from: adventurer-active, to: adventurer-withdrawn, by: { event: party-wiped-out } }
+      - { from: adventurer-resting, to: adventurer-withdrawn, by: { event: party-wiped-out } }
+    termination:
+      terminal: [adventurer-withdrawn, adventurer-expelled]
+      openEnded: false

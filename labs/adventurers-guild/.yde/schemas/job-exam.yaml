@@ -95,12 +95,14 @@ constraints:
     level: error
     message: "職能の審査「{id}」の審査官 {x.title} は、上級ではありません"
   - id: adventurer-examiner-is-retired
-    description: 冒険者が審査官になるのは、引退した冒険者だけであること
+    description: 冒険者が審査官になるのは、引退した（理由が引退の脱退の）冒険者だけであること
     match:
       - node: { entity: job-exam, bind: e }
       - edge: { relation: examined-by }
       - node: { entity: adventurer, bind: x }
-    check: [ { eq: [ { of: x, path: status }, retired ] } ]
+    check:
+      - eq: [ { of: x, path: status }, withdrawn ]
+      - eq: [ { of: x, path: leftFor }, retirement ]
     level: error
     message: "職能の審査「{id}」の審査官 {x.title} は、引退した冒険者ではありません"
 

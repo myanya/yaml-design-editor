@@ -386,12 +386,17 @@ definitions:
   冒険者の状態:
     type: enum
     values:
-      - { value: active, label: 現役, description: 依頼を受けられる }
-      - { value: resting, label: 休業, description: しばらく依頼を受けない（けが・帰郷など）。戻れば現役 }
-      - { value: retired, label: 引退, description: 冒険者をやめた。教官は務められる }
-      - { value: expelled, label: 除名, description: 除名の処分を受けた }
-      - { value: missing, label: 消息不明, description: 戻らず、行方が分からない。見つかれば現役 }
-      - { value: dead, label: 死亡, description: 死亡が確かめられた（パーティの全滅を含む）。終わりの状態 }
+      - { value: active, label: 現役, description: 在籍していて、依頼を受けられる }
+      - { value: resting, label: 休業, description: 在籍しているが、しばらく依頼を受けない（けが・帰郷など）。戻れば現役 }
+      - { value: withdrawn, label: 脱退, description: ギルドを離れた。理由（引退・死亡・本人の都合）を持つ。引退した冒険者は教官・審査官を務められる }
+      - { value: expelled, label: 除名, description: 除名の処分で籍を外された }
+  # 脱退の理由（Q68）。ギルドは冒険者の生死ではなく、ギルドとの関係を管理するので、死亡は状態ではなく脱退の理由
+  脱退の理由:
+    type: enum
+    values:
+      - { value: retirement, label: 引退 }
+      - { value: death, label: 死亡 }
+      - { value: personal, label: 本人の都合 }
   # 冒険者の状態を変える操作の名前（履歴に残す。adventurer.yaml の actions の id）
   冒険者の操作:
     type: enum
@@ -399,10 +404,8 @@ definitions:
       - { value: register-adventurer, label: 登録する }
       - { value: rest-adventurer, label: 休業にする }
       - { value: return-adventurer, label: 現役に戻す }
-      - { value: retire-adventurer, label: 引退にする }
-      - { value: report-missing, label: 消息不明にする }
+      - { value: withdraw-adventurer, label: 脱退にする }
       - { value: expel-adventurer, label: 除名する }
-      - { value: report-death, label: 死亡にする }
   依頼の種別:
     type: enum
     values:
@@ -625,6 +628,7 @@ definitions:
       - { key: job, label: 職能, type: 職能参照, relation: has-job, required: true, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
       - { key: jobLevel, label: 職能の段階, type: 資格の段階, description: 主な職能の技量の段階です。初級はその職能の訓練の修了、中級と上級は職能の審査（実績と実技試験）で得ます。書かなければ見習い（段階なし）です。依頼の求める段階と比べます。 }
       - { key: restingSince, label: 休業した日, type: 年月日, description: 休業の間だけ書きます。操作「休業にする」が書き、「現役に戻す」が消します。 }
+      - { key: leftFor, label: 脱退の理由, type: 脱退の理由, description: 脱退のときだけ書きます。操作「脱退にする」が書きます。 }
       - { key: note, label: 備考, type: 文章 }
       - key: history
         label: 履歴
@@ -641,6 +645,22 @@ definitions:
         expect: absent
         level: error
         message: "冒険者「{id}」は休業なのに、休業した日がありません"
+      - id: withdrawn-has-reason
+        description: 脱退の冒険者には脱退の理由があること
+        where:
+          - { path: status, equals: withdrawn }
+          - { path: leftFor, exists: false }
+        expect: absent
+        level: error
+        message: "冒険者「{id}」は脱退なのに、脱退の理由がありません"
+      - id: reason-only-when-withdrawn
+        description: 脱退でない冒険者には脱退の理由が無いこと
+        where:
+          - { path: leftFor, exists: true }
+          - { path: status, notEquals: withdrawn }
+        expect: absent
+        level: error
+        message: "冒険者「{id}」は脱退ではないのに、脱退の理由があります"
       - id: since-only-when-resting
         description: 休業でない冒険者には休業した日が無いこと
         where:
@@ -946,6 +966,7 @@ definitions:
       - { key: name, label: 名前, type: 一行の文, role: title, required: true }
       - { key: kind, label: 種類, type: 素材の種類, required: true }
       - { key: buyPrice, label: 基準の買取価格, type: 金額, required: true, description: 1 つあたりの買取の値段の基準です。売るときは、この 1.5 倍以上で売ります。 }
+      - { key: perishable, label: 傷みやすい, type: boolean, description: 傷みやすい素材です。買い取ったらすぐに売り、月末に在庫を残しません。 }
       - key: origins
         label: 産地
         type: array

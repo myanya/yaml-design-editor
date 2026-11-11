@@ -30,7 +30,7 @@ constraints:
     level: error
     message: "受注「{id}」の受け手 {t.title}（ランク {rt.title}）は、依頼の下限 {rq.title} に届きません"
   - id: inactive-adventurer-not-assigned
-    description: 引退・除名・消息不明・死亡の冒険者は、遂行中（受注済み）の依頼を受けていないこと（休業は、事故などで遂行中にも休業できるので、下の検査で休業の間の受注だけを止める）
+    description: 脱退・除名の冒険者は、遂行中（受注済み）の依頼を受けていないこと（休業は、事故などで遂行中にも休業できるので、下の検査で休業の間の受注だけを止める）
     match:
       - node: { entity: assignment, bind: a }
       - edge: { relation: taken-by }
@@ -41,11 +41,11 @@ constraints:
         - edge: { relation: has-assignment, dir: in }
         - node: { entity: quest, bind: q }
     where:
-      - { of: t, path: status, oneOf: [retired, expelled, missing, dead] }
+      - { of: t, path: status, oneOf: [withdrawn, expelled] }
       - { of: q, path: status, equals: assigned }
     expect: absent
     level: error
-    message: "受注「{id}」の受け手 {t.title} は、引退・除名・消息不明・死亡のため受注できません"
+    message: "受注「{id}」の受け手 {t.title} は、脱退・除名のため受注できません"
   - id: no-acceptance-while-resting
     description: 休業の冒険者は、休業した日から後に受注していないこと
     match:

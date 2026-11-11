@@ -3,18 +3,21 @@ materials:
     name: 月影草
     kind: plant
     buyPrice: 8
+    perishable: true
     origins: [PLC-003]
     description: 解熱の薬に使う草です。根を傷めずに採ります。
   - id: MAT-002
     name: 眠り茸
     kind: plant
     buyPrice: 15
+    perishable: true
     origins: [PLC-004]
     description: 痛み止めに使う茸です。湿地の奥にしか生えません。
   - id: MAT-003
     name: 白百合
     kind: plant
     buyPrice: 5
+    perishable: true
     origins: [PLC-003]
     description: 婚礼や祭りの飾りに使う花です。
   - id: MAT-004
@@ -61,6 +64,7 @@ materials:
     name: 冬苺
     kind: plant
     buyPrice: 12
+    perishable: true
     origins: [PLC-003]
     description: 冬の森で実る赤い苺です。宿屋や菓子屋が買います。
   - id: MAT-014

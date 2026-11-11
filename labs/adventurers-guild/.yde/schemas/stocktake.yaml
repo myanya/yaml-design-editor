@@ -5,3 +5,15 @@ description: 月末に倉の素材 1 つを数えた記録 1 件を 1 ファイ�
 match: "guild/stocktakes/*.yaml"
 filePattern: "guild/stocktakes/{id}.yaml"
 root: { type: common#棚卸 }
+# 傷みやすい素材は、すぐに売り、月末に在庫を残さない（オーナーの方針）
+constraints:
+  - id: perishable-not-left
+    description: 傷みやすい素材は、棚卸で在庫を残していないこと（すぐに売るか、売れ残りは捨てる）
+    match:
+      - node: { entity: stocktake, bind: s }
+      - edge: { relation: counts }
+      - node: { entity: material, bind: m }
+    where: [ { of: m, path: perishable, equals: true } ]
+    check: [ { lte: [ { of: s, path: counted }, 0 ] } ]
+    level: warning
+    message: "棚卸「{id}」で、傷みやすい {m.title} が {left} 残っています（すぐに売るか、捨てます）"
