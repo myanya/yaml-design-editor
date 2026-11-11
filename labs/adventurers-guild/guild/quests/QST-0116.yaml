@@ -18,10 +18,6 @@ deposit:
   feeRate: 10
   fee: 20
   amount: 220
-assignments:
-  - id: QST-0116-A1
-    taker: ADV-0004
-    acceptedOn: 2026-11-04
 history:
   - date: 2026-11-01
     action: register-quest

@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 15
   amount: 165
-assignments:
-  - id: QST-0094-A1
-    taker: ADV-0001
-    acceptedOn: 2026-08-19
-    report:
-      reportedOn: 2026-08-21
-      outcome: success
-      summary: 獣の仕業と分かり、依頼者に伝えた。
 history:
   - date: 2026-08-18
     action: register-quest

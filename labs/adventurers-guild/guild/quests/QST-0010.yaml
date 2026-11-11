@@ -16,14 +16,6 @@ deposit:
   feeRate: 10
   fee: 10
   amount: 110
-assignments:
-  - id: QST-0010-A1
-    taker: ADV-0006
-    acceptedOn: 2025-12-05
-    report:
-      reportedOn: 2025-12-10
-      outcome: failure
-      summary: 雨で荷が濡れて傷み、届けられなかった。
 history:
   - date: 2025-12-03
     action: register-quest

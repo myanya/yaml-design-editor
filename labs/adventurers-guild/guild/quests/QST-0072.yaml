@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 85
   amount: 935
-assignments:
-  - id: QST-0072-A1
-    taker: ADV-0003
-    acceptedOn: 2026-06-28
-    report:
-      reportedOn: 2026-07-08
-      outcome: success
-      summary: 往復とも荷は無事だった。
 history:
   - date: 2026-06-26
     action: register-quest

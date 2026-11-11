@@ -18,14 +18,6 @@ deposit:
   feeRate: 10
   fee: 60
   amount: 660
-assignments:
-  - id: QST-0114-A1
-    taker: PTY-002
-    acceptedOn: 2026-10-18
-    report:
-      reportedOn: 2026-11-02
-      outcome: success
-      summary: 往復とも荷は無事。帰りに峠で落石があり、半日遅れた。
 history:
   - date: 2026-10-15
     action: register-quest

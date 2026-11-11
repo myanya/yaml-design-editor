@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 23
   amount: 253
-assignments:
-  - id: QST-0019-A1
-    taker: PTY-001
-    acceptedOn: 2026-01-11
-    report:
-      reportedOn: 2026-01-15
-      outcome: success
-      summary: 原因は崩れた石で、町に知らせた。
 history:
   - date: 2026-01-09
     action: register-quest

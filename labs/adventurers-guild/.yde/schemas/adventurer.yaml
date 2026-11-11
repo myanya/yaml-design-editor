@@ -37,7 +37,7 @@ constraints:
       - node: { entity: adventurer, bind: c }
       - edge: { relation: trainee, dir: in }
       - node: { entity: enrollment, bind: e }
-      - edge: { relation: has-enrollment, dir: in }
+      - edge: { relation: enrolled-in }
       - node: { entity: training }
       - edge: { relation: trains-for }
       - node: { entity: job, bind: j }
@@ -140,7 +140,7 @@ actions:
           - node: { entity: adventurer }
           - edge: { relation: taken-by, dir: in }
           - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
+          - edge: { relation: assignment-of }
           - node: { entity: quest, bind: q }
         where:
           - { of: a, path: report, exists: false }
@@ -173,7 +173,7 @@ actions:
           - node: { entity: adventurer }
           - edge: { relation: taken-by, dir: in }
           - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
+          - edge: { relation: assignment-of }
           - node: { entity: quest, bind: q }
         where:
           - { of: a, path: report, exists: false }

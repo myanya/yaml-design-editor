@@ -111,8 +111,10 @@ cases:
         - file: guild/quests/QST-0115.yaml
           ops:
             - { op: set, path: status, value: failed }
-            - { op: insert, path: "assignments[0].report", value: { reportedOn: 2026-11-11, outcome: failure, abandonedFor: wiped-out, summary: "ギルドが打ち切った: 銀の轍が古井戸の底で朝露の旗の旗を見つけた" } }
             - { op: insert, path: "history[3]", value: { date: 2026-11-11, action: abandon-quest, from: assigned, to: failed, note: 銀の轍が古井戸の底で朝露の旗の旗を見つけた } }
+        - file: guild/assignments/QST-0115-A1.yaml
+          ops:
+            - { op: insert, path: report, value: { reportedOn: 2026-11-11, outcome: failure, abandonedFor: wiped-out, summary: "ギルドが打ち切った: 銀の轍が古井戸の底で朝露の旗の旗を見つけた" } }
     expect:
       - { lifecycle: quest-lifecycle, entity: QST-0115, before: [quest-assigned], after: [quest-failed], verdict: MATCHED }
   - id: client-withdrew-received

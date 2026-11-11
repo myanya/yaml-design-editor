@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 93
   amount: 1023
-assignments:
-  - id: QST-0068-A1
-    taker: ADV-0001
-    acceptedOn: 2026-06-17
-    report:
-      reportedOn: 2026-06-22
-      outcome: success
-      summary: 往復とも荷は無事だった。
 history:
   - date: 2026-06-17
     action: register-quest

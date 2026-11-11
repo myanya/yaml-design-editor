@@ -1,0 +1,345 @@
+id: assignment
+name: 受注
+kind: document
+description: 依頼と受け手（冒険者かパーティ）の関連である受注 1 件を 1 ファイルで管理します。受注日と完了報告を持ち、依頼を指します（Q72）。
+match: "guild/assignments/*.yaml"
+filePattern: "guild/assignments/{id}.yaml"
+root: { type: common#受注 }
+# 受注を起点にする検査（受け手の決まり）。起点の受注がこの文書にあるので、受注する操作の適用前の検証が止められる
+constraints:
+  # ---- 受注の条件 ----
+  # 受注したときのランクは記録に無いので、報告前（遂行中）の受注だけを見る。降格の前に受けて終えた受注は指摘しない
+  - id: taker-rank-meets-requirement
+    description: 遂行中（報告前）の受注の受け手（冒険者かパーティ）のランクは、依頼の受注できるランクの下限以上であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: [adventurer, party], bind: t }
+      - edge: { relation: has-rank }
+      - node: { entity: rank, bind: rt }
+    also:
+      from: a
+      steps:
+        - edge: { relation: assignment-of }
+        - node: { entity: quest, bind: q }
+        - edge: { relation: requires-rank }
+        - node: { entity: rank, bind: rq }
+    where: [ { of: a, path: report, exists: false } ]
+    check:
+      - gte: [ { of: rt, path: order }, { of: rq, path: order } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title}（ランク {rt.title}）は、依頼の下限 {rq.title} に届きません"
+  - id: inactive-adventurer-not-assigned
+    description: 脱退・除名の冒険者は、遂行中（受注済み）の依頼を受けていないこと（休業は、事故などで遂行中にも休業できるので、下の検査で休業の間の受注だけを止める）
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+    also:
+      from: a
+      steps:
+        - edge: { relation: assignment-of }
+        - node: { entity: quest, bind: q }
+    where:
+      - { of: t, path: status, oneOf: [withdrawn, expelled] }
+      - { of: q, path: status, equals: assigned }
+    expect: absent
+    level: error
+    message: "受注「{id}」の受け手 {t.title} は、脱退・除名のため受注できません"
+  - id: no-acceptance-while-resting
+    description: 休業の冒険者は、休業した日から後に受注していないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+    where:
+      - { of: t, path: status, equals: resting }
+      - { of: t, path: restingSince, exists: true }
+    check: [ { lt: [ { of: a, path: acceptedOn }, { of: t, path: restingSince } ] } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title} は休業のため受注できません"
+  # 起点を受注にする: 指摘は受注の文書に出るので、受注する操作（受注の文書を作る）の適用前の検証が止められる
+  - id: concurrent-within-rank-limit
+    description: 遂行中（受注済みの依頼の、報告の無い受注）の数は、受け手のランクの上限まで（A 以上は制限なし）。超えたら、その受け手の遂行中の受注のそれぞれに出す
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: [adventurer, party], bind: t }
+      - edge: { relation: has-rank }
+      - node: { entity: rank, bind: r }
+    also:
+      from: a
+      steps:
+        - edge: { relation: assignment-of }
+        - node: { entity: quest, bind: q }
+    where:
+      - { of: a, path: report, exists: false }
+      - { of: q, path: status, equals: assigned }
+      - { of: r, path: maxConcurrent, exists: true }
+    check:
+      - lte:
+          - count:
+              all:
+                from: t
+                of: x
+                match:
+                  - node: { entity: [adventurer, party] }
+                  - edge: { relation: taken-by, dir: in }
+                  - node: { entity: assignment, bind: x }
+                  - edge: { relation: assignment-of }
+                  - node: { entity: quest, bind: y }
+                where:
+                  - { of: x, path: report, exists: false }
+                  - { of: y, path: status, equals: assigned }
+          - { of: r, path: maxConcurrent }
+    level: error
+    message: "受注「{id}」: {t.title} の遂行中の依頼は {left} 件で、ランク {r.title} の上限 {right} 件を超えています"
+
+  # ---- 処分の効き目（Q40） ----
+  # 起点を受注にする: 受注する操作で受注の文書ができるので、適用前の検証が止められる
+  - id: no-acceptance-while-suspended
+    description: 受注停止の処分の間（決めた日から終わる日まで）は、その冒険者かパーティは受注できないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: [adventurer, party], bind: t }
+      - edge: { relation: sanction-of, dir: in }
+      - node: { entity: sanction, bind: s }
+    where: [ { of: s, path: kind, equals: suspension } ]
+    check:
+      - or:
+          - lt: [ { of: a, path: acceptedOn }, { of: s, path: decidedOn } ]
+          - gt: [ { of: a, path: acceptedOn }, { of: s, path: until } ]
+    level: error
+    message: "受注「{id}」: {t.title} は受注停止の処分 {s.id} の間のため受注できません"
+
+  # パーティを作り直せば受けられる、という逃げ道をふさぐ（Q51）。受注したときの構成員で見る（いまの構成員）
+  - id: no-party-acceptance-while-member-suspended
+    description: 構成員の誰かが受注停止の処分の間は、そのパーティも受注できないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: party, bind: t }
+      - edge: { relation: has-member }
+      - node: { entity: adventurer, bind: m }
+      - edge: { relation: sanction-of, dir: in }
+      - node: { entity: sanction, bind: s }
+    where: [ { of: s, path: kind, equals: suspension } ]
+    check:
+      - or:
+          - lt: [ { of: a, path: acceptedOn }, { of: s, path: decidedOn } ]
+          - gt: [ { of: a, path: acceptedOn }, { of: s, path: until } ]
+    level: error
+    message: "受注「{id}」: {t.title} の構成員 {m.title} が受注停止の処分 {s.id} の間のため、パーティも受注できません"
+
+  # 構成員の受注停止がパーティに及ぶのと逆向き（Q51）。受注したときの所属ではなく、いまの所属で見る
+  - id: no-member-acceptance-while-party-suspended
+    description: パーティが受注停止の処分の間は、その構成員も個人で受注できないこと
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+      - edge: { relation: has-member, dir: in }
+      - node: { entity: party, bind: p }
+      - edge: { relation: sanction-of, dir: in }
+      - node: { entity: sanction, bind: s }
+    where: [ { of: s, path: kind, equals: suspension } ]
+    check:
+      - or:
+          - lt: [ { of: a, path: acceptedOn }, { of: s, path: decidedOn } ]
+          - gt: [ { of: a, path: acceptedOn }, { of: s, path: until } ]
+    level: error
+    message: "受注「{id}」: {t.title} の属する {p.title} が受注停止の処分 {s.id} の間のため、個人でも受注できません"
+
+  # ---- 求める職能と段階（Q38・Q52）: 受け手の主な職能（段階つき）か、その職能の資格で満たす。パーティなら構成員の誰か ----
+  # 「どれかの道で満たす」は 1 つの照合に書けないので、道ごとの件数を足して 1 以上かを見る（devtrack の UX-284）。
+  # 受け手が冒険者でもパーティでも同じ道で辿れるよう、has-member を 0 回以上（repeat）にした。段階は求める段階ごとに検査を分ける
+  - id: required-job-met
+    description: 求める職能のある依頼（段階が初級か無し）の受け手は、その職能（見習いも）か、その職能の資格を持つこと（パーティなら構成員の誰か）
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: assignment-of }
+      - node: { entity: quest, bind: q }
+      - edge: { relation: requires-job }
+      - node: { entity: job, bind: j }
+    where: [ { or: [ { of: q, path: requiredLevel, exists: false }, { of: q, path: requiredLevel, equals: beginner } ] } ]
+    check:
+      - gte:
+          - add:
+              # 受け手（パーティなら構成員）の主な職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer, bind: t1 }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    # 段階を問わない（見習いも主な職能で満たす。Q63）
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: assignment-of }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # 受け手（パーティなら構成員）の資格（修了した受講の課程が得させる資格）
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: enrolled-in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification, bind: x1 }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: assignment-of }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+          - 1
+    level: warning
+    message: "受注「{id}」の受け手は、依頼「{q.id}」の求める職能 {j.title} も、その職能の資格も持っていません"
+  - id: required-job-met-intermediate
+    description: 求める段階が中級の依頼の受け手は、その職能の中級以上（主な職能の段階か、資格の段階）であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: assignment-of }
+      - node: { entity: quest, bind: q }
+      - edge: { relation: requires-job }
+      - node: { entity: job, bind: j }
+    where: [ { of: q, path: requiredLevel, equals: intermediate } ]
+    check:
+      - gte:
+          - add:
+              # 受け手（パーティなら構成員）の主な職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer, bind: t1 }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: t1, path: jobLevel, oneOf: [intermediate, advanced] } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: assignment-of }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # 受け手（パーティなら構成員）の資格（修了した受講の課程が得させる資格）
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: enrolled-in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification, bind: x1 }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed }, { of: x1, path: level, oneOf: [intermediate, advanced] } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: assignment-of }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+          - 1
+    level: warning
+    message: "受注「{id}」の受け手は、依頼「{q.id}」の求める {j.title}（中級以上）に届きません"
+  - id: required-job-met-advanced
+    description: 求める段階が上級の依頼の受け手は、その職能の上級（主な職能の段階か、資格の段階）であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: assignment-of }
+      - node: { entity: quest, bind: q }
+      - edge: { relation: requires-job }
+      - node: { entity: job, bind: j }
+    where: [ { of: q, path: requiredLevel, equals: advanced } ]
+    check:
+      - gte:
+          - add:
+              # 受け手（パーティなら構成員）の主な職能
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer, bind: t1 }
+                      - edge: { relation: has-job }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: t1, path: jobLevel, equals: advanced } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: assignment-of }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+              # 受け手（パーティなら構成員）の資格（修了した受講の課程が得させる資格）
+              - count:
+                  all:
+                    from: a
+                    match:
+                      - node: { entity: assignment, bind: a1 }
+                      - edge: { relation: taken-by }
+                      - node: { entity: [adventurer, party] }
+                      - edge: { relation: has-member, repeat: { min: 0 } }
+                      - node: { entity: adventurer }
+                      - edge: { relation: trainee, dir: in }
+                      - node: { entity: enrollment, bind: e1 }
+                      - edge: { relation: enrolled-in }
+                      - node: { entity: training }
+                      - edge: { relation: grants }
+                      - node: { entity: qualification, bind: x1 }
+                      - edge: { relation: certifies }
+                      - node: { entity: job, bind: j1 }
+                    where: [ { of: e1, path: result, equals: completed }, { of: x1, path: level, equals: advanced } ]
+                    also:
+                      from: a1
+                      steps:
+                        - edge: { relation: assignment-of }
+                        - node: { entity: quest }
+                        - edge: { relation: requires-job }
+                        - node: { same: j1 }
+                    of: j1
+          - 1
+    level: warning
+    message: "受注「{id}」の受け手は、依頼「{q.id}」の求める {j.title}（上級）に届きません"

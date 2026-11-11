@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 120
   amount: 1320
-assignments:
-  - id: QST-0112-A1
-    taker: PTY-001
-    acceptedOn: 2026-10-03
-    report:
-      reportedOn: 2026-10-09
-      outcome: success
-      summary: 群れの巣を森の奥で見つけ、街道に近い 2 つの巣を払った。
 history:
   - date: 2026-10-01
     action: register-quest

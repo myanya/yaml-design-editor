@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 150
   amount: 1650
-assignments:
-  - id: QST-0005-A1
-    taker: PTY-001
-    acceptedOn: 2025-11-13
-    report:
-      reportedOn: 2025-11-21
-      outcome: success
-      summary: 巣を払い、しばらくは出ないと見られる。
 history:
   - date: 2025-11-12
     action: register-quest

@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 71
   amount: 781
-assignments:
-  - id: QST-0036-A1
-    taker: ADV-0008
-    acceptedOn: 2026-03-24
-    report:
-      reportedOn: 2026-03-26
-      outcome: success
-      summary: 巣を払い、しばらくは出ないと見られる。
 history:
   - date: 2026-03-23
     action: register-quest

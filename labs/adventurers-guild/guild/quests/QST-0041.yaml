@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 11
   amount: 121
-assignments:
-  - id: QST-0041-A1
-    taker: PTY-002
-    acceptedOn: 2026-04-08
-    report:
-      reportedOn: 2026-04-10
-      outcome: success
-      summary: 頼まれた数をそろえて渡した。
 history:
   - date: 2026-04-06
     action: register-quest

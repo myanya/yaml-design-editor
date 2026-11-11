@@ -15,7 +15,7 @@ constraints:
     also:
       from: a
       steps:
-        - edge: { relation: has-assignment, dir: in }
+        - edge: { relation: assignment-of }
         - node: { entity: quest, bind: q }
     check:
       - eq: [ { number: { of: p, path: reward } }, { number: { of: q, path: reward } } ]
@@ -30,7 +30,7 @@ constraints:
     also:
       from: a
       steps:
-        - edge: { relation: has-assignment, dir: in }
+        - edge: { relation: assignment-of }
         - node: { entity: quest, bind: q }
     where:
       - { of: q, path: status, notEquals: settled }

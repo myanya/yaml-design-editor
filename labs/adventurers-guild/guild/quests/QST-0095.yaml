@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 15
   amount: 165
-assignments:
-  - id: QST-0095-A1
-    taker: ADV-0006
-    acceptedOn: 2026-08-23
-    report:
-      reportedOn: 2026-08-27
-      outcome: success
-      summary: 傷めずに採り、その日のうちに渡した。
 history:
   - date: 2026-08-21
     action: register-quest

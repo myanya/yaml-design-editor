@@ -134,7 +134,7 @@ actions:
           - node: { entity: party }
           - edge: { relation: taken-by, dir: in }
           - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
+          - edge: { relation: assignment-of }
           - node: { entity: quest, bind: q }
         where:
           - { of: a, path: report, exists: false }
@@ -147,7 +147,7 @@ actions:
           - node: { entity: adventurer, bind: m }
           - edge: { relation: taken-by, dir: in }
           - node: { entity: assignment, bind: a }
-          - edge: { relation: has-assignment, dir: in }
+          - edge: { relation: assignment-of }
           - node: { entity: quest, bind: q }
         where:
           - { of: a, path: report, exists: false }

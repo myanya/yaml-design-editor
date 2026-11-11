@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 95
   amount: 1045
-assignments:
-  - id: QST-0091-A1
-    taker: ADV-0008
-    acceptedOn: 2026-08-08
-    report:
-      reportedOn: 2026-08-17
-      outcome: failure
-      summary: 途中で荷車が壊れ、引き返した。
 history:
   - date: 2026-08-06
     action: register-quest

@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 8
   amount: 88
-assignments:
-  - id: QST-0048-A1
-    taker: ADV-0006
-    acceptedOn: 2026-04-24
-    report:
-      reportedOn: 2026-04-26
-      outcome: success
-      summary: 頼まれた数をそろえて渡した。
 history:
   - date: 2026-04-24
     action: register-quest

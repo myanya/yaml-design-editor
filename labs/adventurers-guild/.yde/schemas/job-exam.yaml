@@ -122,7 +122,7 @@ actions:
       - key: basedOn
         label: 根拠の実績
         type: array
-        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] } }
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [assignment] } }
       - { key: date, label: 対象に決めた日, type: common#年月日, required: true }
       - { key: note, label: 備考, type: common#文章 }
     do:

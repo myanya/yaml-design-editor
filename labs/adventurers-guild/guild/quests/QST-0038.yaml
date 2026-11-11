@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 57
   amount: 627
-assignments:
-  - id: QST-0038-A1
-    taker: PTY-001
-    acceptedOn: 2026-03-26
-    report:
-      reportedOn: 2026-03-30
-      outcome: failure
-      summary: 途中で荷車が壊れ、引き返した。
 history:
   - date: 2026-03-26
     action: register-quest

@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 9
   amount: 99
-assignments:
-  - id: QST-0065-A1
-    taker: ADV-0005
-    acceptedOn: 2026-06-03
-    report:
-      reportedOn: 2026-06-07
-      outcome: success
-      summary: 期日どおりに手渡した。
 history:
   - date: 2026-06-02
     action: register-quest

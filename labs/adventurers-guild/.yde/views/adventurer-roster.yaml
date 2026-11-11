@@ -19,7 +19,7 @@ columns:
           - node: { entity: adventurer }
           - edge: { relation: trainee, dir: in }
           - node: { entity: enrollment, bind: e }
-          - edge: { relation: has-enrollment, dir: in }
+          - edge: { relation: enrolled-in }
           - node: { entity: training }
           - edge: { relation: grants }
           - node: { entity: qualification, bind: x }
@@ -38,7 +38,7 @@ columns:
             - node: { entity: adventurer, bind: t }
             - edge: { relation: taken-by, dir: in }
             - node: { entity: assignment, bind: a }
-            - edge: { relation: has-assignment, dir: in }
+            - edge: { relation: assignment-of }
             - node: { entity: quest, bind: q }
           where:
             - { of: a, path: report, exists: false }

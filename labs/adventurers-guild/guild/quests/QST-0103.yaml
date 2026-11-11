@@ -16,14 +16,6 @@ deposit:
   feeRate: 10
   fee: 9
   amount: 99
-assignments:
-  - id: QST-0103-A1
-    taker: ADV-0007
-    acceptedOn: 2026-09-06
-    report:
-      reportedOn: 2026-09-08
-      outcome: success
-      summary: もめごとも無く、夜明けまで見回った。
 history:
   - date: 2026-09-04
     action: register-quest

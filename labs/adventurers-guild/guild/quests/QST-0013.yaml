@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 10
   amount: 110
-assignments:
-  - id: QST-0013-A1
-    taker: ADV-0006
-    acceptedOn: 2025-12-14
-    report:
-      reportedOn: 2025-12-15
-      outcome: success
-      summary: 期日どおりに手渡した。
 history:
   - date: 2025-12-14
     action: register-quest

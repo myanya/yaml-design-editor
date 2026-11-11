@@ -19,21 +19,6 @@ deposit:
   feeRate: 10
   fee: 18
   amount: 198
-assignments:
-  - id: QST-0058-A1
-    taker: ADV-0006
-    acceptedOn: 2026-05-25
-    report:
-      reportedOn: 2026-05-29
-      outcome: failure
-      summary: 大雨で採取の場所に入れなかった。
-  - id: QST-0058-A2
-    taker: ADV-0006
-    acceptedOn: 2026-05-30
-    report:
-      reportedOn: 2026-06-04
-      outcome: success
-      summary: 頼まれた数をそろえて渡した。
 history:
   - date: 2026-05-24
     action: register-quest

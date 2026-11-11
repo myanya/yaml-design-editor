@@ -5,8 +5,3 @@ grants: QLF-03
 instructor: STF-04
 fee: 30
 description: 弓手の基礎として、構えと狙いを教えます。
-enrollments:
-  - id: TRN-03-E1
-    trainee: ADV-0006
-    startedOn: 2026-10-20
-    result: in-progress

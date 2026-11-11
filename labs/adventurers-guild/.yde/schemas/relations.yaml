@@ -81,13 +81,14 @@ relations:
     cardinality: { outMax: 1 }
     level: error
     description: 依頼は受注できるランクの下限を 1 つまで持ちます。無ければどのランクでも受けられます
-  - name: has-assignment
-    label: 受注
-    inverseLabel: 受注した依頼
-    source: [quest]
-    target: [assignment]
+  - name: assignment-of
+    label: 受注した依頼
+    inverseLabel: 受注
+    source: [assignment]
+    target: [quest]
+    cardinality: { outMin: 1, outMax: 1 }
     level: error
-    description: 依頼が受注の記録を保有します（入れ子で書くので、文書には何も書きません）
+    description: 受注は、依頼と受け手の関連で、依頼を 1 つ指します（依頼の部分ではない。Q72）
   - name: taken-by
     label: 受け手
     inverseLabel: 受けた依頼の受注
@@ -275,13 +276,14 @@ relations:
     cardinality: { outMax: 1 }
     level: error
     description: 依頼が受け手に求める職能です。1 つまでです
-  - name: has-enrollment
-    label: 受講
-    inverseLabel: 受講した訓練の課程
-    source: [training]
-    target: [enrollment]
+  - name: enrolled-in
+    label: 受講した課程
+    inverseLabel: 受講
+    source: [enrollment]
+    target: [training]
+    cardinality: { outMin: 1, outMax: 1 }
     level: error
-    description: 課程が受講の記録を保有します（入れ子で書くので、文書には何も書きません）
+    description: 受講は、訓練の課程と冒険者の関連で、課程を 1 つ指します（課程の部分ではない。Q72）
   - name: trainee
     label: 受講者
     inverseLabel: 受講

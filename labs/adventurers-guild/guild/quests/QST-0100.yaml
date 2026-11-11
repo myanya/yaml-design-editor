@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 100
   amount: 1100
-assignments:
-  - id: QST-0100-A1
-    taker: ADV-0004
-    acceptedOn: 2026-08-28
-    report:
-      reportedOn: 2026-09-02
-      outcome: success
-      summary: 途中で霧に遭ったが、半日遅れで着いた。
 history:
   - date: 2026-08-28
     action: register-quest

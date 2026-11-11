@@ -18,7 +18,7 @@ columns:
           - node: { entity: qualification }
           - edge: { relation: grants, dir: in }
           - node: { entity: training }
-          - edge: { relation: has-enrollment }
+          - edge: { relation: enrolled-in, dir: in }
           - node: { entity: enrollment, bind: e }
           - edge: { relation: trainee }
           - node: { entity: adventurer, bind: c }

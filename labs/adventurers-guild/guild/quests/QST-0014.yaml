@@ -18,14 +18,6 @@ deposit:
   feeRate: 10
   fee: 14
   amount: 154
-assignments:
-  - id: QST-0014-A1
-    taker: PTY-001
-    acceptedOn: 2025-12-18
-    report:
-      reportedOn: 2025-12-21
-      outcome: success
-      summary: 数頭を討ち、残りは逃げた。
 history:
   - date: 2025-12-18
     action: register-quest

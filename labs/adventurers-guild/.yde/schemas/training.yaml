@@ -1,7 +1,7 @@
 id: training
 name: 訓練の課程
 kind: document
-description: 冒険者向けの訓練の課程 1 つを 1 ファイルで管理します。身に付く職能・教官・受講料と、受講の記録（受講者・始めた日・結果）を持ちます。
+description: 冒険者向けの訓練の課程 1 つを 1 ファイルで管理します。身に付く職能・修了で得る資格・教官・受講料を持ちます。受講は課程と冒険者の関連で、別の文書（guild/enrollments/）に書き、課程を指します。
 match: "guild/trainings/*.yaml"
 filePattern: "guild/trainings/{id}.yaml"
 root: { type: common#訓練の課程 }

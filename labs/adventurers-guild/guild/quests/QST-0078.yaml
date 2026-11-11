@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 75
   amount: 825
-assignments:
-  - id: QST-0078-A1
-    taker: PTY-002
-    acceptedOn: 2026-07-06
-    report:
-      reportedOn: 2026-07-11
-      outcome: success
-      summary: 途中で霧に遭ったが、半日遅れで着いた。
 history:
   - date: 2026-07-04
     action: register-quest

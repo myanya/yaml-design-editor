@@ -6,7 +6,7 @@ rows:
     - node: { entity: payment, bind: p }
     - edge: { relation: settles }
     - node: { entity: assignment, bind: a }
-    - edge: { relation: has-assignment, dir: in }
+    - edge: { relation: assignment-of }
     - node: { entity: quest, bind: q }
   rowKey: p
 order: { path: paidOn }

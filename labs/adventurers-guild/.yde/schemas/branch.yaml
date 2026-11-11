@@ -136,7 +136,7 @@ actions:
                                     - { node: { entity: branch } }
                                     - { edge: { relation: received-at, dir: in } }
                                     - { node: { entity: quest } }
-                                    - { edge: { relation: has-assignment } }
+                                    - { edge: { relation: assignment-of, dir: in } }
                                     - { node: { entity: assignment } }
                                     - { edge: { relation: settles, dir: in } }
                                     - { node: { entity: payment, bind: x } }

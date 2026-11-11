@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 7
   amount: 77
-assignments:
-  - id: QST-0104-A1
-    taker: ADV-0010
-    acceptedOn: 2026-09-06
-    report:
-      reportedOn: 2026-09-08
-      outcome: success
-      summary: 頼まれた手伝いを終えた。
 history:
   - date: 2026-09-06
     action: register-quest

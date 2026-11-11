@@ -25,7 +25,7 @@ columns:
         of: t
         match:
           - node: { entity: quest, bind: q }
-          - edge: { relation: has-assignment }
+          - edge: { relation: assignment-of, dir: in }
           - node: { entity: assignment, bind: a }
           - edge: { relation: taken-by }
           - node: { entity: [adventurer, party], bind: t }

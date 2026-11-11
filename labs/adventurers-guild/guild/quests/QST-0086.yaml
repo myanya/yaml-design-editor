@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 25
   amount: 275
-assignments:
-  - id: QST-0086-A1
-    taker: ADV-0006
-    acceptedOn: 2026-07-23
-    report:
-      reportedOn: 2026-07-26
-      outcome: success
-      summary: 数頭を討ち、残りは逃げた。
 history:
   - date: 2026-07-22
     action: register-quest

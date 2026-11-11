@@ -18,21 +18,6 @@ deposit:
   feeRate: 10
   fee: 10
   amount: 110
-assignments:
-  - id: QST-0069-A1
-    taker: ADV-0005
-    acceptedOn: 2026-06-20
-    report:
-      reportedOn: 2026-06-24
-      outcome: failure
-      summary: 時期が少し早く、数がそろわなかった。
-  - id: QST-0069-A2
-    taker: ADV-0006
-    acceptedOn: 2026-06-25
-    report:
-      reportedOn: 2026-06-26
-      outcome: success
-      summary: 傷めずに採り、その日のうちに渡した。
 history:
   - date: 2026-06-20
     action: register-quest

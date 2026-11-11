@@ -319,11 +319,23 @@ definitions:
       schemaIds: [staff-list, adventurer]
     relation: examined-by
     description: 審査官の番号を 1 件。その職能の上級の職員か、引退した上級の冒険者です。
+  依頼参照:
+    type: ref
+    idPattern: "QST-*"
+    scope:
+      schemaIds: [quest]
+    description: 依頼の番号を 1 件。関係名は使う側が付けます（受注の依頼）。
+  訓練参照:
+    type: ref
+    idPattern: "TRN-*"
+    scope:
+      schemaIds: [training]
+    description: 訓練の課程の番号を 1 件。関係名は使う側が付けます（受講の課程）。
   受注参照:
     type: ref
     idPattern: "QST-*-A*"
     scope:
-      schemaIds: [quest]
+      schemaIds: [assignment]
     relation: settles
     description: 精算した受注の番号を 1 件。
 
@@ -736,8 +748,10 @@ definitions:
     type: object
     label: 受注
     entity: { type: assignment, defines: true }
+    description: 依頼と受け手（冒険者かパーティ）の関連です。受注日と完了報告を持ち、精算や審査から参照されます。依頼の部分ではないので、1 件 1 ファイルで持ちます（Q72）。
     fields:
       - { key: id, label: 受注番号, type: 受注番号, required: true }
+      - { key: quest, label: 依頼, type: 依頼参照, relation: assignment-of, required: true }
       - { key: taker, label: 受け手, type: 受け手参照, required: true }
       - { key: acceptedOn, label: 受注日, type: 年月日, required: true }
       - { key: report, label: 完了報告, type: 完了報告, description: 受け手が報告したら書きます。 }
@@ -774,15 +788,6 @@ definitions:
       - { key: description, label: 内容, type: 文章 }
       - { key: deposit, label: 預かり, type: 預かり, relation: has-deposit, description: 受け付けたときに依頼者から預かった報酬と受付料です。操作「報酬を預かる」が書きます。 }
       - { key: refund, label: 返金, type: 返金, relation: has-refund, description: 却下・取消・期限切れのときに依頼者へ返した報酬です。受付料は返しません。操作が書きます。 }
-      - key: assignments
-        label: 受注
-        type: array
-        relation: has-assignment
-        default: []
-        methods:
-          insert:
-            id: { path: id, prefix: { $format: "{id}-A", $of: self }, digits: 1 }
-        item: { type: 受注 }
       - key: history
         label: 履歴
         type: array
@@ -793,22 +798,6 @@ definitions:
       - { key: note, label: 備考, type: 文章, description: 依頼についての覚え書きです。状態を変えた理由は履歴に書きます。 }
     # 型の検査: 依頼の要素ごとに評価する（of を省くとこの依頼の値）
     constraints:
-      - id: no-assignment-before-posting
-        description: 受付・却下の依頼には受注が無いこと（掲示中の依頼は、掲示し直す前の未達の受注を持てる）
-        where:
-          - { path: status, oneOf: [received, rejected] }
-          - { path: assignments, empty: false }
-        expect: absent
-        level: error
-        message: "依頼「{id}」はまだ受注されない状態なのに、受注の記録があります"
-      - id: assignment-after-posting
-        description: 受注済み・報告済み・精算済み・失敗の依頼には受注があること
-        where:
-          - { path: status, oneOf: [assigned, reported, settled, failed] }
-          - { path: assignments, empty: true }
-        expect: absent
-        level: error
-        message: "依頼「{id}」に受注の記録がありません（受注済み・報告済み・精算済み・失敗の依頼には要ります）"
       - id: reward-in-tens
         description: 報酬は 10 の倍数であること（手数料 1 割が整数になるように。端数の決まりは製品側を待つ）
         check: [ { endsWith: [ { path: reward }, "0" ] } ]
@@ -1109,7 +1098,7 @@ definitions:
         label: 根拠の実績
         type: array
         description: 審査の根拠にした受注です。
-        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] }, relation: based-on }
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [assignment] }, relation: based-on }
       - { key: note, label: 備考, type: 文章 }
       - key: history
         label: 履歴
@@ -1152,8 +1141,10 @@ definitions:
     type: object
     label: 受講
     entity: { type: enrollment, defines: true }
+    description: 訓練の課程と冒険者の関連です。始めた日と結果を持ちます。課程の部分ではないので、1 件 1 ファイルで持ちます（Q72）。
     fields:
       - { key: id, label: 受講番号, type: 受講番号, required: true }
+      - { key: training, label: 訓練の課程, type: 訓練参照, relation: enrolled-in, required: true }
       - { key: trainee, label: 受講者, type: 冒険者参照, relation: trainee, required: true }
       - { key: startedOn, label: 始めた日, type: 年月日, required: true }
       - { key: result, label: 結果, type: 受講の結果, required: true, default: in-progress }
@@ -1203,15 +1194,6 @@ definitions:
       - { key: instructor, label: 教官, type: 教官参照, required: true }
       - { key: fee, label: 受講料, type: 金額 }
       - { key: description, label: 内容, type: 文章 }
-      - key: enrollments
-        label: 受講
-        type: array
-        relation: has-enrollment
-        default: []
-        methods:
-          insert:
-            id: { path: id, prefix: { $format: "{id}-E", $of: self }, digits: 1 }
-        item: { type: 受講 }
   買取:
     type: object
     label: 素材の買取
@@ -1357,7 +1339,7 @@ definitions:
         label: 根拠の実績
         type: array
         description: 審査の根拠にした、対象（かその属するパーティ）が達成した受注です。
-        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [quest] }, relation: based-on }
+        item: { type: ref, idPattern: "QST-*-A*", scope: { schemaIds: [assignment] }, relation: based-on }
       - { key: practical, label: 実技試験, type: 実技試験, description: 面接などを伴う実技試験の結果です。操作「実技試験の結果を書く」が書きます。 }
       - { key: status, label: 状態, type: 職能の審査の状態, required: true, default: nominated }
       - { key: nominatedOn, label: 対象に決めた日, type: 年月日, required: true }

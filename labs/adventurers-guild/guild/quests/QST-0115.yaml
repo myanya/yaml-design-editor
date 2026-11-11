@@ -18,10 +18,6 @@ deposit:
   feeRate: 10
   fee: 15
   amount: 165
-assignments:
-  - id: QST-0115-A1
-    taker: PTY-003
-    acceptedOn: 2026-11-03
 history:
   - date: 2026-10-28
     action: register-quest

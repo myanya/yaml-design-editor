@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 8
   amount: 88
-assignments:
-  - id: QST-0074-A1
-    taker: ADV-0004
-    acceptedOn: 2026-06-27
-    report:
-      reportedOn: 2026-07-02
-      outcome: success
-      summary: 群れを追い払い、残りも森の奥へ退いた。
 history:
   - date: 2026-06-27
     action: register-quest

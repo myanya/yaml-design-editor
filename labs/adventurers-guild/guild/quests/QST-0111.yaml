@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 24
   amount: 264
-assignments:
-  - id: QST-0111-A1
-    taker: ADV-0003
-    acceptedOn: 2026-09-15
-    report:
-      reportedOn: 2026-09-19
-      outcome: success
-      summary: 頼まれた数をそろえて渡した。
 history:
   - date: 2026-09-15
     action: register-quest

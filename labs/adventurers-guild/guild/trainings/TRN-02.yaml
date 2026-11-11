@@ -5,14 +5,3 @@ grants: QLF-02
 instructor: ADV-0009
 fee: 50
 description: 治療師の基礎として、傷と毒の手当てを教えます。引退した冒険者が教官を務めます。
-enrollments:
-  - id: TRN-02-E1
-    trainee: ADV-0005
-    startedOn: 2024-06-01
-    result: completed
-    completedOn: 2024-06-15
-  - id: TRN-02-E2
-    trainee: ADV-0003
-    startedOn: 2026-03-02
-    result: completed
-    completedOn: 2026-03-13

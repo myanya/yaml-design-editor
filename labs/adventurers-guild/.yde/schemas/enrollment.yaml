@@ -1,0 +1,7 @@
+id: enrollment
+name: 受講
+kind: document
+description: 訓練の課程と冒険者の関連である受講 1 件を 1 ファイルで管理します。始めた日と結果を持ち、課程を指します（Q72）。
+match: "guild/enrollments/*.yaml"
+filePattern: "guild/enrollments/{id}.yaml"
+root: { type: common#受講 }

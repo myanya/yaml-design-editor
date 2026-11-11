@@ -19,14 +19,6 @@ deposit:
   feeRate: 10
   fee: 47
   amount: 517
-assignments:
-  - id: QST-0024-A1
-    taker: PTY-002
-    acceptedOn: 2026-02-16
-    report:
-      reportedOn: 2026-02-23
-      outcome: success
-      summary: 数頭を討ち、残りは逃げた。
 history:
   - date: 2026-02-14
     action: register-quest

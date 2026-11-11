@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 35
   amount: 385
-assignments:
-  - id: QST-0047-A1
-    taker: ADV-0002
-    acceptedOn: 2026-04-24
-    report:
-      reportedOn: 2026-04-25
-      outcome: success
-      summary: 期日どおりに手渡した。
 history:
   - date: 2026-04-23
     action: register-quest

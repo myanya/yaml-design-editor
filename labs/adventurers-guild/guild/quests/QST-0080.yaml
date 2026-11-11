@@ -17,21 +17,6 @@ deposit:
   feeRate: 10
   fee: 31
   amount: 341
-assignments:
-  - id: QST-0080-A1
-    taker: ADV-0001
-    acceptedOn: 2026-07-08
-    report:
-      reportedOn: 2026-07-10
-      outcome: failure
-      summary: 道が崩れて通れず、引き返した。
-  - id: QST-0080-A2
-    taker: PTY-001
-    acceptedOn: 2026-07-11
-    report:
-      reportedOn: 2026-07-15
-      outcome: success
-      summary: 期日どおりに手渡した。
 history:
   - date: 2026-07-07
     action: register-quest

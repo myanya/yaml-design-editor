@@ -17,14 +17,6 @@ deposit:
   feeRate: 10
   fee: 10
   amount: 110
-assignments:
-  - id: QST-0008-A1
-    taker: PTY-002
-    acceptedOn: 2025-11-21
-    report:
-      reportedOn: 2025-11-23
-      outcome: success
-      summary: 頼まれた手伝いを終えた。
 history:
   - date: 2025-11-20
     action: register-quest

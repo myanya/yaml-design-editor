@@ -21,7 +21,7 @@ columns:
             - node: { entity: party, bind: t }
             - edge: { relation: taken-by, dir: in }
             - node: { entity: assignment, bind: a }
-            - edge: { relation: has-assignment, dir: in }
+            - edge: { relation: assignment-of }
             - node: { entity: quest, bind: q }
           where:
             - { of: a, path: report, exists: false }
