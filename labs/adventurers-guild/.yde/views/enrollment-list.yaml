@@ -1,0 +1,15 @@
+id: enrollment-list
+name: 受講の一覧
+description: 受講ごとの課程・受講者・始めた日・結果（受講中・修了・中止）・終えた日・納めた受講料・覚え。新しい順です。受講は課程の行の「受講を申し込む」で作り、受講の行の「修了にする」「中止にする」で進めます。受講者の脱退・除名・登録の失効・全滅で、受講中の受講は中止になります。
+rows:
+  match:
+    - node: { entity: enrollment, bind: e }
+order: { path: startedOn, direction: desc }
+columns:
+  - { label: 課程, path: training }
+  - { label: 受講者, path: trainee }
+  - { label: 始めた日, path: startedOn }
+  - { label: 結果, path: result }
+  - { label: 終えた日, path: completedOn }
+  - { label: 納めた受講料, path: amount }
+  - { label: 覚え, path: note }

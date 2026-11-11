@@ -1,7 +1,134 @@
 id: enrollment
 name: 受講
 kind: document
-description: 訓練の課程と冒険者の関連である受講 1 件を 1 ファイルで管理します。始めた日と結果を持ち、課程を指します（Q72）。
+description: 訓練の課程と冒険者の関連である受講 1 件を 1 ファイルで管理します。始めた日と結果を持ち、課程を指します（Q72）。受講を申し込む → 受講中 → 修了・中止 の流れを操作で進めます（Q74）。
 match: "guild/enrollments/*.yaml"
 filePattern: "guild/enrollments/{id}.yaml"
 root: { type: common#受講 }
+# 起点を受講にする: 申し込む操作（受講の文書を作る）の適用前の検証が止められる
+constraints:
+  - id: trainee-not-resting-on-start
+    description: 休業の冒険者は、休業した日から後に受講を申し込んでいないこと
+    match:
+      - node: { entity: enrollment, bind: e }
+      - edge: { relation: trainee }
+      - node: { entity: adventurer, bind: t }
+    where:
+      - { of: t, path: status, equals: resting }
+      - { of: t, path: restingSince, exists: true }
+    check: [ { lt: [ { of: e, path: startedOn }, { of: t, path: restingSince } ] } ]
+    level: error
+    message: "受講「{id}」の受講者 {t.title} は休業のため申し込めません"
+  - id: trainee-registration-valid
+    description: 受講を申し込んだ日は、受講者の登録の有効期限の内であること
+    match:
+      - node: { entity: enrollment, bind: e }
+      - edge: { relation: trainee }
+      - node: { entity: adventurer, bind: t }
+    check: [ { lte: [ { of: e, path: startedOn }, { of: t, path: validUntil } ] } ]
+    level: error
+    message: "受講「{id}」の受講者 {t.title} の登録は、有効期限 {right} を過ぎています"
+  - id: in-progress-trainee-is-current
+    description: 受講中の受講者は、脱退・除名の冒険者でないこと（脱退・除名・登録の失効で、受講中の受講は中止になる）
+    match:
+      - node: { entity: enrollment, bind: e }
+      - edge: { relation: trainee }
+      - node: { entity: adventurer, bind: t }
+    where:
+      - { of: e, path: result, equals: in-progress }
+      - { of: t, path: status, oneOf: [withdrawn, expelled] }
+    expect: absent
+    level: error
+    message: "受講「{id}」の受講者 {t.title} は脱退か除名なのに、受講中です（中止にします）"
+  - id: fee-matches-training
+    description: 納めた受講料は、課程の受講料と同じであること
+    match:
+      - node: { entity: enrollment, bind: e }
+      - edge: { relation: enrolled-in }
+      - node: { entity: training, bind: c }
+    where: [ { of: e, path: amount, exists: true } ]
+    check: [ { eq: [ { number: { of: e, path: amount } }, { number: { first: [ { of: c, path: fee }, 0 ] } } ] } ]
+    level: error
+    message: "受講「{id}」の納めた受講料 {left} が、課程の受講料 {right} と違います"
+actions:
+  - id: enroll-training
+    label: 受講を申し込む
+    description: 冒険者の受講の申し込みを受け付け、受講料（課程の受講料）を受け取って、受講の記録（{課程の番号}-E1、E2 …）を作ります。受講中になります。休業・脱退・除名の冒険者と、登録の有効期限を過ぎた冒険者は申し込めません（適用後の検証が止めます）。
+    target: { entity: training }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: trainee, label: 受講者, type: common#冒険者参照, required: true }
+      - { key: date, label: 申し込んだ日, type: common#年月日, required: true }
+    do:
+      - create:
+          schema: enrollment
+          id: { prefix: { $format: "{training}-E" }, digits: 1 }
+          params:
+            training: { $copy: id, $of: self }
+            trainee: $trainee
+            startedOn: $date
+            result: in-progress
+            amount: { $copy: fee, $of: self }
+  - id: complete-training
+    label: 修了にする
+    description: 受講中の受講を修了にします。課程の資格は、修了した受講から導きます。課程が受講者の主な職能のもので、受講者の職能の段階が見習い（書いていない）なら、初級に上げます（Q57）。
+    target: { entity: enrollment }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 修了した日, type: common#年月日, required: true }
+    require:
+      - match: [ { node: { entity: enrollment, bind: e } } ]
+        where: [ { of: e, path: result, equals: in-progress } ]
+        expect: exists
+        message: "{id} は受講中の受講ではありません"
+      - match: [ { node: { entity: enrollment, bind: e } } ]
+        check: [ { gte: [ $date, { of: e, path: startedOn } ] } ]
+        message: 修了した日は始めた日以降にしてください
+    do:
+      - set: { of: self, path: completedOn, value: $date }
+      - set: { of: self, path: result, value: completed }
+      # 主な職能の課程なら、見習いを初級に
+      - each:
+          from: self
+          match:
+            - node: { entity: enrollment, bind: e }
+            - edge: { relation: trainee }
+            - node: { entity: adventurer, bind: a }
+            - edge: { relation: has-job }
+            - node: { entity: job, bind: j }
+          also:
+            from: e
+            steps:
+              - edge: { relation: enrolled-in }
+              - node: { entity: training }
+              - edge: { relation: trains-for }
+              - node: { same: j }
+          where: [ { of: a, path: jobLevel, exists: false } ]
+          do:
+            - set: { of: a, path: jobLevel, value: beginner }
+  - id: drop-training
+    label: 中止にする
+    description: 受講中の受講を中止にします。受講料は返しません。
+    target: { entity: enrollment }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 中止した日, type: common#年月日, required: true }
+      - { key: note, label: 理由, type: common#一行の文, required: true }
+    require:
+      - match: [ { node: { entity: enrollment, bind: e } } ]
+        where: [ { of: e, path: result, equals: in-progress } ]
+        expect: exists
+        message: "{id} は受講中の受講ではありません"
+      - match: [ { node: { entity: enrollment, bind: e } } ]
+        check: [ { gte: [ $date, { of: e, path: startedOn } ] } ]
+        message: 中止した日は始めた日以降にしてください
+    do:
+      - set: { of: self, path: completedOn, value: $date }
+      - set: { of: self, path: note, value: $note }
+      - set: { of: self, path: result, value: dropped }

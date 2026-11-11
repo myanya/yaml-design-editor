@@ -1,6 +1,6 @@
 id: training-list
 name: 訓練の課程の一覧
-description: 課程ごとの身に付く職能・教官・受講料と、受講の数・修了の数。受講の番号も TRN- で始まるので、行は ID の形ではなく概念（training）で選びます。
+description: 課程ごとの身に付く職能・教官・受講料と、受講の数・受講中の数・修了の数。受講は行の「受講を申し込む」で申し込みます。受講の番号も TRN- で始まるので、行は ID の形ではなく概念（training）で選びます。
 rows:
   match:
     - node: { entity: training, bind: t }
@@ -18,6 +18,17 @@ columns:
             - node: { entity: training, bind: t }
             - edge: { relation: enrolled-in, dir: in }
             - node: { entity: enrollment, bind: e }
+  - label: 受講中
+    value:
+      count:
+        all:
+          of: e
+          match:
+            - node: { entity: training, bind: t }
+            - edge: { relation: enrolled-in, dir: in }
+            - node: { entity: enrollment, bind: e }
+          where:
+            - { of: e, path: result, equals: in-progress }
   - label: 修了
     value:
       count:

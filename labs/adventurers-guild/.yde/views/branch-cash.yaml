@@ -1,6 +1,6 @@
 id: branch-cash
 name: 支部の現金
-description: 支部の開始の現金と、お金の動き（入り＝預かり・委託料・売却・年会費・本部からの補填、出＝精算・返金・買取・給与・経費）の合計から導いた、いまの現金。締めの差（数えた額 − 導いた額）も足します。現金を締めるときは、この「いまの現金」を「導いた現金」に写します。預かっている報酬は、受け手へ払うか依頼者へ返す分で、いまの現金から引いた残りが支部が使えるお金です。
+description: 支部の開始の現金と、お金の動き（入り＝預かり・委託料・売却・年会費・受講料・本部からの補填、出＝精算・返金・買取・給与・経費）の合計から導いた、いまの現金。締めの差（数えた額 − 導いた額）も足します。現金を締めるときは、この「いまの現金」を「導いた現金」に写します。預かっている報酬は、受け手へ払うか依頼者へ返す分で、いまの現金から引いた残りが支部が使えるお金です。
 rows:
   match:
     - node: { entity: branch, bind: b }
@@ -60,6 +60,21 @@ columns:
                 - { node: { entity: adventurer } }
                 - { edge: { relation: has-fee } }
                 - { node: { entity: membership-fee, bind: x } }
+              path: amount
+        - 0
+  - label: 受講料（入り）
+    value:
+      first:
+        - sum:
+            all:
+              from: b
+              match:
+                - { node: { entity: branch } }
+                - { edge: { relation: registered-at, dir: in } }
+                - { node: { entity: adventurer } }
+                - { edge: { relation: trainee, dir: in } }
+                - { node: { entity: enrollment, bind: x } }
+              where: [ { of: x, path: amount, exists: true } ]
               path: amount
         - 0
   - label: 本部からの補填（入り）
@@ -191,6 +206,19 @@ columns:
                         - { node: { entity: adventurer } }
                         - { edge: { relation: has-fee } }
                         - { node: { entity: membership-fee, bind: x } }
+                      path: amount
+                - 0
+            - first:
+                - sum:
+                    all:
+                      from: b
+                      match:
+                        - { node: { entity: branch } }
+                        - { edge: { relation: registered-at, dir: in } }
+                        - { node: { entity: adventurer } }
+                        - { edge: { relation: trainee, dir: in } }
+                        - { node: { entity: enrollment, bind: x } }
+                      where: [ { of: x, path: amount, exists: true } ]
                       path: amount
                 - 0
             - first:

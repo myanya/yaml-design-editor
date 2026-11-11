@@ -323,6 +323,17 @@ actions:
             - delete: { of: m, path: restingSince }
             - set: { of: m, path: leftFor, value: death }
             - set: { of: m, path: status, value: withdrawn }
+            - each:
+                from: m
+                match:
+                  - node: { entity: adventurer }
+                  - edge: { relation: trainee, dir: in }
+                  - node: { entity: enrollment, bind: e }
+                where: [ { of: e, path: result, equals: in-progress } ]
+                do:
+                  - set: { of: e, path: completedOn, value: $date }
+                  - set: { of: e, path: note, value: パーティの全滅のため }
+                  - set: { of: e, path: result, value: dropped }
       - insert: { of: self, path: history, value: { date: $date, action: record-wipeout, note: $evidence } }
       - delete: { of: self, path: leaderlessSince }
       - set: { of: self, path: dissolvedOn, value: $date }

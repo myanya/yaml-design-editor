@@ -125,6 +125,19 @@ actions:
                                   from: b
                                   match:
                                     - { node: { entity: branch } }
+                                    - { edge: { relation: registered-at, dir: in } }
+                                    - { node: { entity: adventurer } }
+                                    - { edge: { relation: trainee, dir: in } }
+                                    - { node: { entity: enrollment, bind: x } }
+                                  where: [ { of: x, path: amount, exists: true } ]
+                                  path: amount
+                            - 0
+                        - first:
+                            - sum:
+                                all:
+                                  from: b
+                                  match:
+                                    - { node: { entity: branch } }
                                     - { edge: { relation: has-support } }
                                     - { node: { entity: hq-support, bind: x } }
                                   path: amount

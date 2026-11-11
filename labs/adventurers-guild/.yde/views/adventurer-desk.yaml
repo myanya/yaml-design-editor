@@ -1,7 +1,7 @@
 id: adventurer-desk
 name: 冒険者の管理
 kind: dashboard
-description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合・登録の失効）・除名）と、登録の有効期限と年会費・処分・資格・訓練・パーティ（リーダー不在・解散）です。登録したら、続けて「年会費を受け取る」で登録の年会費を受け取ります。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
+description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合・登録の失効）・除名）と、登録の有効期限と年会費・処分・資格・訓練と受講・パーティ（リーダー不在・解散）です。登録したら、続けて「年会費を受け取る」で登録の年会費を受け取ります。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
 actions: [register-adventurer]
 placement: auto
 # 除名は処分の操作（除名する）で、状態を除名にして処分の記録を作る。注意と受注停止は状態を変えない（現役の段に留まる工程）
@@ -118,6 +118,19 @@ sections:
     label: 訓練の課程
     group: 育成
     view: training-list
+  # 受講の流れ（Q74）: 申し込む（課程の行）→ 受講中 → 修了・中止（受講の行）
+  - id: enrollments-in-progress
+    label: 受講中の受講（修了にする・中止にする）
+    group: 育成
+    view: enrollment-list
+    filter:
+      match: [ { node: { entity: enrollment, bind: e } } ]
+      where: [ { of: e, path: result, equals: in-progress } ]
+      expect: exists
+  - id: enrollments
+    label: 受講の一覧
+    group: 育成
+    view: enrollment-list
   # ---- 名簿 ----
   - id: parties
     label: パーティの編成

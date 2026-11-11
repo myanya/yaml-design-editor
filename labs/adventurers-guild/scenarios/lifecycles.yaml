@@ -254,6 +254,7 @@ cases:
     params: { reason: personal, date: 2026-11-11, note: 故郷の村で家業を継ぐ }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: enrollment-lifecycle, entity: TRN-02-E3, before: [enrollment-in-progress], after: [enrollment-dropped], verdict: MATCHED }
   - id: adventurer-withdraw-resting
     action: withdraw-adventurer
     target: ADV-0008
@@ -274,6 +275,7 @@ cases:
     params: { regulation: REG-01, date: 2026-11-11, decidedBy: STF-01, reason: 試しの除名 }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-expelled], verdict: MATCHED }
+      - { lifecycle: enrollment-lifecycle, entity: TRN-02-E3, before: [enrollment-in-progress], after: [enrollment-dropped], verdict: MATCHED }
   - id: adventurer-expel-resting
     action: expel-adventurer
     target: ADV-0008
@@ -290,6 +292,7 @@ cases:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-dissolved], verdict: MATCHED }
+      - { lifecycle: enrollment-lifecycle, entity: TRN-02-E3, before: [enrollment-in-progress], after: [enrollment-dropped], verdict: MATCHED }
   - id: party-record-wipeout-with-resting
     action: record-wipeout
     target: PTY-004
@@ -312,9 +315,14 @@ cases:
           ops:
             - { op: delete, path: "members[1]" }
             - { op: insert, path: "history[1]", value: { date: 2026-11-11, action: remove-member, member: ADV-0002, note: 脱退のため（死亡） } }
+        - file: guild/enrollments/TRN-02-E3.yaml
+          ops:
+            - { op: insert, path: completedOn, value: 2026-11-11 }
+            - { op: set, path: note, value: 死亡のため }
+            - { op: set, path: result, value: dropped }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
-      - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-active], verdict: UNCHANGED }
+      - { lifecycle: enrollment-lifecycle, entity: TRN-02-E3, before: [enrollment-in-progress], after: [enrollment-dropped], verdict: MATCHED }
   - id: adventurer-died-leader
     event: adventurer-died
     subject: ADV-0001
@@ -394,11 +402,17 @@ cases:
             - { op: set, path: status, value: dissolved }
             - { op: insert, path: dissolvedOn, value: 2026-11-11 }
             - { op: insert, path: dissolvedFor, value: wiped-out }
+        - file: guild/enrollments/TRN-02-E3.yaml
+          ops:
+            - { op: insert, path: completedOn, value: 2026-11-11 }
+            - { op: set, path: note, value: パーティの全滅のため }
+            - { op: set, path: result, value: dropped }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: party-lifecycle, entity: PTY-001, before: [party-active], after: [party-dissolved], verdict: MATCHED }
+      - { lifecycle: enrollment-lifecycle, entity: TRN-02-E3, before: [enrollment-in-progress], after: [enrollment-dropped], verdict: MATCHED }
   - id: party-wiped-out-with-resting
     event: party-wiped-out
     subject: PTY-004
@@ -536,3 +550,22 @@ cases:
           content: { id: DSP-0002, material: MAT-008, quantity: 3, disposedOn: 2026-11-11, reason: 湿気で鱗が傷んだ, branch: BRN-01 }
     expect:
       - { lifecycle: material-stock-lifecycle, entity: MAT-008, before: [material-in-stock], after: [material-no-stock], verdict: MATCHED }
+  # ======== 受講（enrollment-lifecycle）（Q74） ========
+  - id: enrollment-enroll
+    action: enroll-training
+    target: TRN-03
+    params: { trainee: ADV-0007, date: 2026-11-11 }
+    expect:
+      - { lifecycle: enrollment-lifecycle, entity: TRN-03-E2, before: [], after: [enrollment-in-progress], verdict: MATCHED }
+  - id: enrollment-complete
+    action: complete-training
+    target: TRN-02-E3
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: enrollment-lifecycle, entity: TRN-02-E3, before: [enrollment-in-progress], after: [enrollment-completed], verdict: MATCHED }
+  - id: enrollment-drop
+    action: drop-training
+    target: TRN-03-E1
+    params: { date: 2026-11-11, note: 弦を張る指を痛めた }
+    expect:
+      - { lifecycle: enrollment-lifecycle, entity: TRN-03-E1, before: [enrollment-in-progress], after: [enrollment-dropped], verdict: MATCHED }

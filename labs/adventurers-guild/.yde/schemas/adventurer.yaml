@@ -215,6 +215,18 @@ actions:
           where: [ { of: p, path: status, equals: active } ]
           do:
             - call: { of: p, method: remove-member, params: { member: { $copy: id, $of: self }, date: $date, note: 登録の失効のため } }
+      # 受講中の受講は中止にする（Q74）
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: trainee, dir: in }
+            - node: { entity: enrollment, bind: e }
+          where: [ { of: e, path: result, equals: in-progress } ]
+          do:
+            - set: { of: e, path: completedOn, value: $date }
+            - set: { of: e, path: note, value: 登録の失効のため }
+            - set: { of: e, path: result, value: dropped }
   - id: rest-adventurer
     label: 休業にする（休業届）
     description: 現役の冒険者の休業届を受け付け、休業にします（けがの療養・帰郷・長い旅・依頼の途中の事故など）。休業の間は、登録の更新と年会費が免除され、受注できません。遂行中の依頼があってもできます（その依頼は、報告か打ち切りで閉じます）。登録の有効期限を過ぎてからは出せません。
@@ -313,6 +325,18 @@ actions:
           where: [ { of: p, path: status, equals: active } ]
           do:
             - call: { of: p, method: remove-member, params: { member: { $copy: id, $of: self }, date: $date, note: 脱退のため } }
+      # 受講中の受講は中止にする（Q74）
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: trainee, dir: in }
+            - node: { entity: enrollment, bind: e }
+          where: [ { of: e, path: result, equals: in-progress } ]
+          do:
+            - set: { of: e, path: completedOn, value: $date }
+            - set: { of: e, path: note, value: 脱退のため }
+            - set: { of: e, path: result, value: dropped }
   - id: expel-adventurer
     label: 除名する
     description: 冒険者に除名の処分を下し、処分の記録（SNC- の次の番号）を作って状態を除名にします（現役・休業から）。遂行中の依頼があるうちはできません。
@@ -365,6 +389,18 @@ actions:
           where: [ { of: p, path: status, equals: active } ]
           do:
             - call: { of: p, method: remove-member, params: { member: { $copy: id, $of: self }, date: $date, note: 除名のため } }
+      # 受講中の受講は中止にする（Q74）
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: trainee, dir: in }
+            - node: { entity: enrollment, bind: e }
+          where: [ { of: e, path: result, equals: in-progress } ]
+          do:
+            - set: { of: e, path: completedOn, value: $date }
+            - set: { of: e, path: note, value: 除名のため }
+            - set: { of: e, path: result, value: dropped }
   # 注意と受注停止は状態を変えない（受注停止の間の受注は、依頼の検査が止める）。降格の効き目はまだ決めていない
   - id: sanction-adventurer
     label: 処分を下す（注意・受注停止）

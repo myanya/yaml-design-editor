@@ -1,0 +1,30 @@
+id: enrollment-behavior
+name: 受講の振る舞い
+kind: behavior
+description: >-
+  受講の結果（受講中・修了・中止）を業務の State にし、申し込み・修了・中止の流れを宣言します（Q74）。
+  受講者の脱退・除名・登録の失効と、全滅・死亡が確かめられたときは、受講中の受講は中止になります（関係先の遷移）。
+states:
+  - source:
+      entity: enrollment
+      path: result
+      enum: common#受講の結果
+    idPrefix: enrollment-
+lifecycles:
+  - id: enrollment-lifecycle
+    entity: enrollment
+    states: [enrollment-in-progress, enrollment-completed, enrollment-dropped]
+    entry:
+      - to: enrollment-in-progress
+        by: { action: enroll-training }
+    transitions:
+      - { from: enrollment-in-progress, to: enrollment-completed, by: { action: complete-training } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { action: drop-training } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { action: withdraw-adventurer } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { action: expel-adventurer } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { action: lapse-registration } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { action: record-wipeout } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { event: adventurer-died } }
+      - { from: enrollment-in-progress, to: enrollment-dropped, by: { event: party-wiped-out } }
+    termination:
+      terminal: [enrollment-completed, enrollment-dropped]

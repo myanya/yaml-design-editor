@@ -1,16 +1,17 @@
 id: cash-by-kind
 name: 月ごとのお金の動き（種類別）
 kind: matrix
-description: 年月ごとの、お金の動きの種類ごとの合計です。入りは預かり・委託料・売却・年会費・本部からの補填、出は精算・返金・買取・給与・経費です。
+description: 年月ごとの、お金の動きの種類ごとの合計です。入りは預かり・委託料・売却・年会費・受講料・本部からの補填、出は精算・返金・買取・給与・経費です。
 display: grouped
 cells:
-  match: [ { node: { entity: [deposit, receipt, sale, membership-fee, hq-support, payment, refund, purchase, wage, expense], bind: x } } ]
+  match: [ { node: { entity: [deposit, receipt, sale, membership-fee, enrollment, hq-support, payment, refund, purchase, wage, expense], bind: x } } ]
   of: x
   series:
     - { label: 預かり, key: { yearMonth: { path: depositedOn } } }
     - { label: 委託料, key: { yearMonth: { path: receivedOn } } }
     - { label: 売却, key: { yearMonth: { path: soldOn } } }
     - { label: 年会費, key: { yearMonth: { path: collectedOn } } }
+    - { label: 受講料, key: { yearMonth: { path: startedOn } } }
     - { label: 本部からの補填, key: { yearMonth: { path: suppliedOn } } }
     - { label: 精算, key: { yearMonth: { path: paidOn } } }
     - { label: 返金, key: { yearMonth: { path: refundedOn } } }

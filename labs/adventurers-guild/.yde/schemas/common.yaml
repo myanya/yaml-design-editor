@@ -1308,6 +1308,8 @@ definitions:
       - { key: startedOn, label: 始めた日, type: 年月日, required: true }
       - { key: result, label: 結果, type: 受講の結果, required: true, default: in-progress }
       - { key: completedOn, label: 終えた日, type: 年月日, description: 修了か中止の日です。 }
+      - { key: amount, label: 納めた受講料, type: 金額, description: 申し込んだときに納めた受講料です（課程の受講料を写します）。記録を始める前（2025-10-31 より前）の受講には書きません。中止しても返しません。 }
+      - { key: note, label: 覚え, type: 一行の文, description: 中止の理由などです。 }
     constraints:
       - id: finished-has-date
         description: 修了・中止の受講には終えた日があること
