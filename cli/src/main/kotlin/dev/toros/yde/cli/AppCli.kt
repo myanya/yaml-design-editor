@@ -67,6 +67,9 @@ internal const val CLI_USAGE = """コマンド:
            [--occurred-at ISO日時] [--changeset changeset.yaml] [--record] [--history]
            Event を申告する。引数なしは種類の一覧、--history は記録一覧。既定は確認のみで、--record は記録だけを保存する。
            --record 時は --source 必須。--changeset は未適用の候補の遷移照合であり、業務データには適用しない。
+  behavior-audit <workspace>                     State / Event / Lifecycle の接続と未検証の範囲を点検する。
+           schema-errors（構造上の欠落）・review（分岐の要確認）・info（単独定義）を分けて出す。
+           structurally-checked は業務仕様の完全性の証明を意味しない。読み取り専用。
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
            ※ 変更系（rename / merge / delete）・move・refactor はカーネルの命令 workspace refactor で行う:
@@ -165,6 +168,7 @@ private fun dispatchAppCommand(command: String, rest: List<String>): CliResult {
         "checks" -> checksCommand(rest)
         "action" -> actionCommand(rest)
         "event" -> eventCommand(rest)
+        "behavior-audit" -> behaviorAuditCommand(rest)
         "apply" -> applyCommand(rest)
         "hash" -> hashCommand(rest)
         "entity" -> entityCommand(rest)

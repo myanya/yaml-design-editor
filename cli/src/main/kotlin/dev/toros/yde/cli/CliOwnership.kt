@@ -20,7 +20,7 @@ internal fun appCommandWrites(command: String, rest: List<String>): Boolean = wh
     "run-skill" -> "--yes" in rest
     "init" -> ("--template" in rest || "--adopt" in rest) && "--dry-run" !in rest
     "version", "catalog", "outline", "read", "bundle", "traverse", "query", "transform", "search",
-    "view", "validate", "readiness", "checks", "hash", "entity", "refactor", "move", "activities",
+    "view", "validate", "readiness", "checks", "behavior-audit", "hash", "entity", "refactor", "move", "activities",
     "metrics", "skills", "schema-graph", "bench" -> false // bench --keep は生成先ごとに取得する。
     else -> error("不明なコマンドです: $command\n$CLI_USAGE")
 }

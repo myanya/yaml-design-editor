@@ -61,6 +61,7 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="action labs/sysdev-template add-screen --param id=SCR-X --param name=新画面 --param derived_from=[UA-003]"  # 操作の計画（変更セットと適用後の検証。--apply で書く。検証エラーが残れば書かず --allow-errors で書く。--on は受け手）
 ./gradlew runCli -q --args="event my-ws task-finished --on T-001 --source external-workflow --record"  # Event の申告記録（--record なしは確認のみ。manual/schema.md「Event の申告・記録（CLI）」）
 ./gradlew runCli -q --args="event my-ws --history"                    # Event の申告履歴（業務文書とは別の runs/events に保存）
+./gradlew runCli -q --args="behavior-audit labs/adventurers-guild"    # State / Event / Lifecycle の接続一覧・未証明範囲・要レビュー（読み取り専用）
 ./gradlew runCli -q --args="entity my-ws show SCR-001"                    # エンティティ全体像（アスペクト合成・関係・被参照。エンティティページ・read_entity と同じ合成）
 
 # 変更系リファクタリング（エンティティ改名・統合・削除／ファイル移動／スキーマ・リファクタリング）は

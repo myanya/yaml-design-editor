@@ -29,6 +29,8 @@ class CliOwnershipTest {
             }
             assertContains(runCli(arrayOf("catalog", root.toString())), "a.yaml")
             runCli(arrayOf("validate", root.toString()))
+            assertFalse(appCommandWrites("behavior-audit", emptyList()))
+            runCli(arrayOf("behavior-audit", root.toString()))
             assertFalse(appCommandWrites("event", listOf("missing")))
             runCli(arrayOf("init", root.toString(), "--adopt", "--dry-run"))
             runCli(arrayOf("apply", root.toString(), patch.toString(), "--dry-run"))

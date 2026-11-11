@@ -1,0 +1,18 @@
+id: S-33
+title: 業務仕様の静的診断レポート（State / Event / Lifecycle）
+implementation:
+- path: workspace-core/workspace/BehaviorAudit.kt
+  module: workspace-core
+- path: cli/commands/BehaviorAuditCommands.kt
+  module: cli
+tests:
+- name: BehaviorAuditTest
+- name: BehaviorAuditCliTest
+- name: CliOwnershipTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: 業務仕様の診断レポート
+manual:
+- link: manual/schema.md
+  heading: 業務仕様の接続と未証明範囲の確認
