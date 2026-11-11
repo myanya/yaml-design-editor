@@ -154,7 +154,7 @@ class BehaviorScenariosTest {
     fun `計画不能と不正な変更候補を失敗として報告する`() {
         val s = session()
         val bad = cases.replace("target: F-001", "target: F-999")
-            .replace("path: enabled", "path: missing")
+            .replace("file: flags/F-001.yaml", "file: flags/F-999.yaml")
         val report = BehaviorScenarios.run(s, BehaviorScenarios.parse(bad))
         assertEquals("failed", report.status)
         assertTrue(report.cases.all { it.status == "failed" })
@@ -173,15 +173,15 @@ class BehaviorScenariosTest {
         assertFailsWith<IllegalArgumentException> {
             BehaviorScenarios.parse(cases.replace("id: event-approved", "id: action-approved"))
         }
-        val duplicated = cases.replace(
-            "                indirectlyAffected: true",
-            """                indirectlyAffected: true
-              - lifecycle: task-lifecycle
-                entity: T-001
-                before: [task-blocked]
-                after: [task-ready]
-                verdict: MATCHED""",
-        )
+        val duplicated = """
+            cases:
+              - id: duplicate-expect
+                action: enable-flag
+                target: F-001
+                expect:
+                  - {lifecycle: task-lifecycle, entity: T-001, before: [], after: [], verdict: MATCHED}
+                  - {lifecycle: task-lifecycle, entity: T-001, before: [], after: [], verdict: MATCHED}
+        """.trimIndent()
         assertFailsWith<IllegalArgumentException> { BehaviorScenarios.parse(duplicated) }
     }
 }
