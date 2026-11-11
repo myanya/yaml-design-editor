@@ -308,6 +308,20 @@ fun ActionPanelHost(state: AppState) {
                             if (move.undeclared) Text("この移り方は業務の流れ（ダッシュボード「${move.dashboard}」の flow）に宣言されていません。操作の定義か流れの定義を確かめてください",
                                 fontSize = 11.sp, color = Palette.WarnOrange)
                         }
+                        if (work.behaviorReviews.isNotEmpty()) {
+                            Spacer(Modifier.height(6.dp))
+                            val attention = work.behaviorReviews.count { it.needsAttention }
+                            Text("Lifecycle の照合: ${work.behaviorReviews.size} 件中、要確認 $attention 件",
+                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                                color = if (attention > 0) Palette.WarnOrange else Palette.OkGreen)
+                            work.behaviorReviews.take(12).forEach { review ->
+                                Text("・[${review.lifecycleId} / ${review.entityId}] ${review.message}",
+                                    fontSize = 11.sp,
+                                    color = if (review.needsAttention) Palette.WarnOrange else Palette.SubText)
+                            }
+                            if (attention > 0) Text("業務仕様と実データの不一致です。確認の上、State・Action・Lifecycle の定義を見直してください。",
+                                fontSize = 11.sp, color = Palette.WarnOrange)
+                        }
                         if (preview != null) {
                             Spacer(Modifier.height(6.dp))
                             Text(

@@ -73,7 +73,28 @@ states:
 
 Lifecycle の `entry` は生成に相当する入り口、`transitions` は「どの State からどこへ、何によって移るか」、`termination.terminal` は終端 State です。終端は削除を意味しません。破棄／終了しないエンティティでは、終端の列挙に代えて `termination: {openEnded: true}` を明示できます。State の遷移を伴わない Action は列挙する必要がありません。
 
-スキーマの読込時に、State／Lifecycle の参照、Action の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**この段階の検証は Action の実行結果の証明ではありません。** Event は構文上指定できますが、Event の定義と実行は後続フェーズのため、現在は検証未対応としてエラーになります。State の実データに対する真偽判定・排他性と網羅性の動的検証も後続フェーズです。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。
+スキーマの読込時に、State／Lifecycle の参照、Action の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果まで証明できません。** Event は構文上指定できますが、Event の定義と実行は後続フェーズのため、現在は検証未対応としてエラーになります。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。
+
+### 実データの State と Action の遷移確認（S-29）
+
+`BehaviorRuntime.evaluate` では、実際に存在するエンティティ ID について名前付き State を調べられます。結果は次の4種類です。
+
+| 値 | 意味 |
+| --- | --- |
+| `TRUE` | State の条件が成立する |
+| `FALSE` | 条件が成立しない |
+| `UNKNOWN` | 参照不明などで判定を保留した |
+| `NOT_APPLICABLE` | 条件の対象ではない |
+
+デスクトップの「操作」→「確認」では、実行前と変更候補を突き合わせ、該当する Lifecycle の判定を表示します。
+
+- `MATCHED`: Action と生成入口／遷移が定義どおり。
+- `UNCHANGED`: 操作の前後で State は変わらない。遷移定義は不要。
+- `UNDECLARED`: State は変わったが、その Action による遷移が定義されていない（生成入口の不一致も含む）。
+- `UNDETERMINED`: 参照未解決などで一部の State が確定できない。
+- `INCONSISTENT`: 生存するエンティティが Lifecycle の State に一つも該当しない、または複数該当する。
+
+確認はデータを保存せず、実際の Action の計画を使います。「要確認」は業務仕様の改善に向けた**診断**です。現時点では Action の適用を強制的には止めません。検証の対象は変更した文書に含まれるエンティティと受け手の ID であり、他文書の関連エンティティまで含めた完全な依存性検査は後続で拡張します。
 
 ## フィールド定義のプロパティ
 

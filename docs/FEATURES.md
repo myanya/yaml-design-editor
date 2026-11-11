@@ -117,6 +117,7 @@
 | S-26 | 設計画面の補完・操作入力・採番・子項目の構成 | `ui/schema/SchemaAdditionalOutline.kt` | `SchemaAdditionalOutlineTest`・`SchemaAuthoringTest` | architecture/ui.md「スキーマ設計」 | manual/schema-editor.md「スキーマ設計画面」 |  |
 | S-27 | 条件・手順・式の構造編集と追従検査 | `ui/schema/SchemaValueEditor.kt` | `SchemaValueFormsTest`・`SchemaDefinitionCoverageTest`・`SchemaAuthoringHistoryTest` | architecture/ui.md「スキーマ設計」 | manual/schema-editor.md「条件と処理手順の入力」 |  |
 | S-28 | 業務 State / Lifecycle 宣言と静的完全性チェック（behavior） | `semantic-core/schema/Behavior.kt`・`workspace-core/workspace/BehaviorChecks.kt`・`workspace-core/workspace/SchemaDocuments.kt` | `BehaviorChecksTest` | architecture/schema.md「業務上の State / Lifecycle」 | manual/schema.md「業務の State と Lifecycle」 |  |
+| S-29 | 業務 State の実評価と Action / Lifecycle 前後照合 | `workspace-core/workspace/BehaviorRuntime.kt`・`app-core/session/DocumentSession.kt`・`app-core/service/WorkspaceOperations.kt`・`desktop/ui/action/ActionPane.kt` | `BehaviorRuntimeTest` | architecture/schema.md「State の実評価と Action の遷移照合」 | manual/schema.md「実データの State と Action の遷移確認」 |  |
 
 ## 4. 検証
 
