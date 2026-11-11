@@ -181,7 +181,13 @@ cases:
     action: register-adventurer
     params: { name: 試しの冒険者, rank: RNK-F, job: JOB-01, date: 2026-11-11 }
     expect:
-      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [], after: [adventurer-active], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0012, before: [], after: [adventurer-active], verdict: MATCHED }
+  - id: adventurer-annual-fee-keeps-active
+    action: receive-annual-fee
+    target: ADV-0002
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-active], verdict: UNCHANGED }
   - id: adventurer-rest
     action: rest-adventurer
     target: ADV-0001
@@ -206,6 +212,12 @@ cases:
     params: { reason: retirement, date: 2026-11-11, note: 足の怪我を機に引退する }
     expect:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: adventurer-lapse
+    action: lapse-registration
+    target: ADV-0011
+    params: { date: 2026-11-11, note: 登録継続届が出ないまま有効期限を過ぎた }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
   - id: adventurer-expel-active
     action: expel-adventurer
     target: ADV-0002

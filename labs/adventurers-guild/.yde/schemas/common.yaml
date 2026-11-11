@@ -164,6 +164,12 @@ definitions:
     placeholder: WAG-0001
     sample: WAG-0001
     description: 「WAG-」と 4 桁の数字。職員の一覧の、その職員の中に書きます。
+  年会費番号:
+    type: id
+    pattern: "^FEE-[0-9]{4}$"
+    placeholder: FEE-0001
+    sample: FEE-0001
+    description: 「FEE-」と 4 桁の数字。冒険者の文書の、その冒険者の中に書きます。
   経費番号:
     type: id
     pattern: "^EXP-[0-9]{4}$"
@@ -409,6 +415,14 @@ definitions:
       - { value: retirement, label: 引退 }
       - { value: death, label: 死亡 }
       - { value: personal, label: 本人の都合 }
+      - { value: lapsed, label: 登録の失効 }
+  # 年会費を納めたわけ（登録・更新＝登録継続届・復帰＝復帰届）
+  年会費の種類:
+    type: enum
+    values:
+      - { value: registration, label: 登録 }
+      - { value: renewal, label: 更新（登録継続届） }
+      - { value: return, label: 復帰（復帰届） }
   # 冒険者の状態を変える操作の名前（履歴に残す。adventurer.yaml の actions の id）
   冒険者の操作:
     type: enum
@@ -417,6 +431,7 @@ definitions:
       - { value: rest-adventurer, label: 休業にする }
       - { value: return-adventurer, label: 現役に戻す }
       - { value: withdraw-adventurer, label: 脱退にする }
+      - { value: lapse-registration, label: 登録を失効させる }
       - { value: expel-adventurer, label: 除名する }
   依頼の種別:
     type: enum
@@ -573,6 +588,7 @@ definitions:
       - { key: receptionFeeRate, label: 受付料率, type: 率, required: true, description: 依頼を受け付けて報酬を預かるときに、依頼者から受け取る受付料の率（報酬に対する率）です。預かりの記録へ写します。 }
       - { key: abandonAfterDays, label: 打ち切りまでの日数, type: int, min: 0, required: true, description: 遂行中の依頼の期限を過ぎて、この日数がたっても報告が無ければ、ギルドが打ち切れます。 }
       - { key: livingCost, label: 暮らしの目安（月）, type: 金額, required: true, description: 町で 1 人が 1 か月暮らすのにかかる額の目安です。冒険者の稼ぎを見るときに使います。 }
+      - { key: annualFee, label: 年会費, type: 金額, required: true, description: この支部に登録した冒険者が、登録・更新（登録継続届）・復帰（復帰届）のときに納める 1 年分の会費です。納めた記録へ写します。 }
       - { key: openingCash, label: 開始の現金, type: 金額, required: true, description: 記録を始めた日（開始の日）に金庫にあった現金です。現金の残高は、これに動きを足し引きして導きます。 }
       - { key: openingOn, label: 開始の日, type: 年月日, required: true }
       - { key: description, label: 説明, type: 文章 }
@@ -637,11 +653,24 @@ definitions:
       - { key: rank, label: ランク, type: ランク参照, relation: has-rank, required: true }
       - { key: status, label: 状態, type: 冒険者の状態, required: true, default: active }
       - { key: registeredOn, label: 登録日, type: 年月日, required: true }
+      - { key: registeredAt, label: 登録した支部, type: 支部参照, relation: registered-at, required: true, default: BRN-01, description: 冒険者が登録した支部です。年会費はこの支部に納めます。 }
+      - { key: validUntil, label: 登録の有効期限, type: 年月日, required: true, description: 登録が有効な最後の日です。登録・更新（登録継続届）・復帰（復帰届）で年会費を納めると 1 年延びます。休業の間は更新が免除され、過ぎても失効しません。現役のまま過ぎたら、登録を失効させます（脱退）。 }
       - { key: job, label: 職能, type: 職能参照, relation: has-job, required: true, description: 冒険者の主な職能です。パーティの中の役割（構成員の role）とは別です。 }
       - { key: jobLevel, label: 職能の段階, type: 資格の段階, description: 主な職能の技量の段階です。初級はその職能の訓練の修了、中級と上級は職能の審査（実績と実技試験）で得ます。書かなければ見習い（段階なし）です。依頼の求める段階と比べます。 }
       - { key: restingSince, label: 休業した日, type: 年月日, description: 休業の間だけ書きます。操作「休業にする」が書き、「現役に戻す」が消します。 }
-      - { key: leftFor, label: 脱退の理由, type: 脱退の理由, description: 脱退のときだけ書きます。操作「脱退にする」が書きます。 }
+      - { key: leftFor, label: 脱退の理由, type: 脱退の理由, description: 脱退のときだけ書きます。操作「脱退にする」「登録を失効させる」が書きます。 }
       - { key: note, label: 備考, type: 文章 }
+      - key: fees
+        label: 納めた年会費
+        type: array
+        description: 登録・更新・復帰のときに納めた年会費の記録です。操作「年会費を受け取る」「現役に戻す（復帰届）」が 1 行ずつ足します。
+        default: []
+        relation: has-fee
+        display: table
+        methods:
+          insert:
+            id: { path: id, prefix: "FEE-", digits: 4 }
+        item: { type: 年会費の納付 }
       - key: history
         label: 履歴
         type: array
@@ -1014,6 +1043,22 @@ definitions:
           insert:
             id: { path: id, prefix: "WAG-", digits: 4 }
         item: { type: 給与の支払い }
+  年会費の納付:
+    type: object
+    label: 年会費の納付
+    entity: { type: membership-fee, defines: true }
+    fields:
+      - { key: id, label: 年会費番号, type: 年会費番号, required: true }
+      - { key: collectedOn, label: 納めた日, type: 年月日, required: true }
+      - { key: kind, label: 種類, type: 年会費の種類, required: true }
+      - { key: amount, label: 額, type: 金額, required: true, description: 納めたときの、登録した支部の年会費です。 }
+      - { key: validUntil, label: 延びた有効期限, type: 年月日, required: true, description: 納めて延びた登録の有効期限です。 }
+    constraints:
+      - id: valid-after-paid
+        description: 延びた有効期限は納めた日より後であること
+        check: [ { gt: [ { path: validUntil }, { path: collectedOn } ] } ]
+        level: error
+        message: "年会費「{id}」の延びた有効期限が、納めた日より後ではありません"
   給与の支払い:
     type: object
     label: 給与の支払い

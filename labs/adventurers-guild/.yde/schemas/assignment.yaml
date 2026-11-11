@@ -58,6 +58,16 @@ constraints:
     check: [ { lt: [ { of: a, path: acceptedOn }, { of: t, path: restingSince } ] } ]
     level: error
     message: "受注「{id}」の受け手 {t.title} は休業のため受注できません"
+  # 登録が切れた（登録継続届を出さなかった）冒険者は受注できない（Q71）。有効期限は延びるだけなので、過去の受注も満たす
+  - id: registration-valid-on-acceptance
+    description: 冒険者の受注日は、受け手の登録の有効期限の内であること
+    match:
+      - node: { entity: assignment, bind: a }
+      - edge: { relation: taken-by }
+      - node: { entity: adventurer, bind: t }
+    check: [ { lte: [ { of: a, path: acceptedOn }, { of: t, path: validUntil } ] } ]
+    level: error
+    message: "受注「{id}」の受け手 {t.title} の登録は、有効期限 {right} を過ぎています（登録継続届で更新してから受けます）"
   # 起点を受注にする: 指摘は受注の文書に出るので、受注する操作（受注の文書を作る）の適用前の検証が止められる
   - id: concurrent-within-rank-limit
     description: 遂行中（受注済みの依頼の、報告の無い受注）の数は、受け手のランクの上限まで（A 以上は制限なし）。超えたら、その受け手の遂行中の受注のそれぞれに出す

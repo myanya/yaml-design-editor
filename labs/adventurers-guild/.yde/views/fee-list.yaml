@@ -1,0 +1,14 @@
+id: fee-list
+name: 年会費の一覧
+description: 冒険者が納めた年会費ごとの、冒険者・納めた日・種類（登録・更新＝登録継続届・復帰＝復帰届）・額・延びた有効期限。新しい順です。年会費は、冒険者の行の操作「年会費を受け取る」と「現役に戻す（復帰届）」で受け取ります。
+rows:
+  match:
+    - node: { entity: membership-fee, bind: f }
+order: { path: collectedOn, direction: desc }
+columns:
+  - label: 冒険者
+    backlinks: { relation: has-fee }
+  - { label: 納めた日, path: collectedOn }
+  - { label: 種類, path: kind }
+  - { label: 額, path: amount }
+  - { label: 延びた有効期限, path: validUntil }

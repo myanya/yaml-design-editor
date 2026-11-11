@@ -3,7 +3,11 @@ name: イルマ・ソーン
 rank: RNK-D
 status: active
 registeredOn: 2024-05-09
+registeredAt: BRN-01
+validUntil: 2027-05-09
 job: JOB-04
 jobLevel: intermediate
+fees:
+  - { id: FEE-0005, collectedOn: 2026-05-07, kind: renewal, amount: 20, validUntil: 2027-05-09 }
 history:
   - { date: 2024-05-09, action: register-adventurer, to: active }

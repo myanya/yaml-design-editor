@@ -5,7 +5,9 @@ description: >-
   冒険者とギルドの関係（現役・休業・脱退・除名）を業務の State にし、操作と事実による
   入口・遷移・終端を宣言します。ギルドは冒険者の生死ではなく、ギルドとの関係を管理するので、
   死亡は状態ではなく、脱退の理由です。死亡が確かめられた・全滅が確かめられたという事実の結果として、
-  冒険者は脱退（理由: 死亡）になります。
+  冒険者は脱退（理由: 死亡）になります。休業は休業届で入り、登録の更新と年会費が免除されます。
+  現役のまま登録の有効期限を過ぎると、登録を失効させて脱退（理由: 登録の失効）にします。
+  年会費の受け取り（登録・登録継続届）は状態を変えないので、遷移には書きません。
 events:
   - id: adventurer-died
     entity: adventurer
@@ -29,6 +31,8 @@ lifecycles:
       - { from: adventurer-resting, to: adventurer-active, by: { action: return-adventurer } }
       - { from: adventurer-active, to: adventurer-withdrawn, by: { action: withdraw-adventurer } }
       - { from: adventurer-resting, to: adventurer-withdrawn, by: { action: withdraw-adventurer } }
+      # 登録継続届を出さずに有効期限を過ぎた（休業の間は免除なので、現役からだけ）
+      - { from: adventurer-active, to: adventurer-withdrawn, by: { action: lapse-registration } }
       - { from: adventurer-active, to: adventurer-expelled, by: { action: expel-adventurer } }
       - { from: adventurer-resting, to: adventurer-expelled, by: { action: expel-adventurer } }
       # パーティの全滅を記録する操作は、パーティを受け手にして構成員を脱退にする（関係先の遷移）

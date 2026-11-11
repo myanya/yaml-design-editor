@@ -1,7 +1,7 @@
 id: adventurer-desk
 name: 冒険者の管理
 kind: dashboard
-description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合）・除名）と、処分・資格・訓練です。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
+description: 冒険者の状態の流れ（登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合・登録の失効）・除名）と、登録の有効期限と年会費・処分・資格・訓練です。登録したら、続けて「年会費を受け取る」で登録の年会費を受け取ります。段を押すと一覧、工程を押すとその段の冒険者が「いま操作できる／できない（理由）」に分かれて並び、行から操作できます。
 actions: [register-adventurer]
 placement: auto
 # 除名は処分の操作（除名する）で、状態を除名にして処分の記録を作る。注意と受注停止は状態を変えない（現役の段に留まる工程）
@@ -10,11 +10,13 @@ flow:
   start: { action: register-adventurer, to: active }
   steps: [active, resting, withdrawn, expelled]
   moves:
+    - { from: active, action: receive-annual-fee }
     - { from: active, action: sanction-adventurer }
     - { from: active, action: demote-adventurer }
     - { from: active, action: rest-adventurer, to: resting }
     - { from: resting, action: return-adventurer, to: active }
     - { from: active, action: withdraw-adventurer, to: withdrawn }
+    - { from: active, action: lapse-registration, to: withdrawn }
     - { from: resting, action: withdraw-adventurer, to: withdrawn }
     - { from: active, action: expel-adventurer, to: expelled }
     - { from: resting, action: expel-adventurer, to: expelled }
@@ -53,6 +55,42 @@ sections:
       match: [ { node: { entity: adventurer, bind: x } } ]
       where: [ { of: x, path: status, equals: expelled } ]
       expect: exists
+  # ---- 登録の有効期限と年会費（Q71）。休業の間は更新が免除されるので、現役だけを見る ----
+  - id: lapsed
+    label: 有効期限を過ぎた（登録を失効させる）
+    group: 登録
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: active } ]
+      check:
+        - lt: [ { of: x, path: validUntil }, $today ]
+          type: date
+  - id: renewal-due
+    label: 30 日のうちに有効期限が来る（登録継続届）
+    group: 登録
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where: [ { of: x, path: status, equals: active } ]
+      check:
+        - gte: [ { of: x, path: validUntil }, $today ]
+          type: date
+        - lte: [ { daysBetween: [ $today, { of: x, path: validUntil } ] }, 30 ]
+  - id: fee-unpaid
+    label: 登録の年会費をまだ受け取っていない
+    group: 登録
+    view: adventurer-roster
+    filter:
+      match: [ { node: { entity: adventurer, bind: x } } ]
+      where:
+        - { of: x, path: status, oneOf: [active, resting] }
+        - { of: x, path: fees, empty: true }
+      expect: exists
+  - id: fees
+    label: 年会費の一覧
+    group: 登録
+    view: fee-list
   # ---- 処分 ----
   # いま効いている受注停止（基準日が決めた日から終わる日までの間）
   - id: suspended-now

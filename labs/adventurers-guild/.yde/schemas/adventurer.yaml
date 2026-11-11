@@ -1,7 +1,7 @@
 id: adventurer
 name: 冒険者
 kind: document
-description: ギルドに登録した冒険者 1 人を 1 ファイルで管理します。状態（現役・休業・脱退・除名）は操作で変え、履歴に残します。ギルドは冒険者の生死ではなく、ギルドとの関係を管理します（死亡は脱退の理由）。
+description: ギルドに登録した冒険者 1 人を 1 ファイルで管理します。状態（現役・休業・脱退・除名）は操作で変え、履歴に残します。ギルドは冒険者の生死ではなく、ギルドとの関係を管理します（死亡は脱退の理由）。登録には 1 年の有効期限があり、登録した支部に年会費を納めて延ばします（登録・更新＝登録継続届・復帰＝復帰届）。休業（休業届）の間は更新が免除されます。
 match: "guild/adventurers/*.yaml"
 filePattern: "guild/adventurers/{id}.yaml"
 root: { type: common#冒険者 }
@@ -30,6 +30,54 @@ constraints:
     level: warning
     message: "冒険者「{id}」は除名なのに、除名の処分の記録がありません"
 
+  # ---- 登録の有効期限と年会費（Q71） ----
+  # 有効期限は、納めた年会費の記録の写し。いちばん後の「延びた有効期限」と同じであること（帳簿は記録の副本）
+  - id: registration-backed-by-fee
+    description: 現役・休業の冒険者の登録の有効期限は、納めた年会費の延びた有効期限のいちばん後と同じであること
+    match: [ { node: { entity: adventurer, bind: c } } ]
+    where:
+      - { of: c, path: status, oneOf: [active, resting] }
+      - { of: c, path: fees, empty: false }
+    check:
+      - eq:
+          - { of: c, path: validUntil }
+          - max:
+              all:
+                from: c
+                match:
+                  - node: { entity: adventurer }
+                  - edge: { relation: has-fee }
+                  - node: { entity: membership-fee, bind: f }
+                of: f
+                path: validUntil
+    level: error
+    message: "冒険者「{id}」の登録の有効期限 {left} が、納めた年会費の延びた有効期限 {right} と違います（有効期限は、年会費を受け取る操作で延ばします）"
+  # 登録したら、続けて年会費を受け取る（登録の操作は文書を作るだけで、作った文書の中へ番号つきの記録を足せないため 2 手に分けた）
+  - id: registration-fee-received
+    description: 現役・休業の冒険者は、年会費を 1 度は納めていること（登録したら、続けて年会費を受け取る）
+    match: [ { node: { entity: adventurer, bind: c } } ]
+    where:
+      - { of: c, path: status, oneOf: [active, resting] }
+      - { of: c, path: fees, empty: true }
+    expect: absent
+    level: warning
+    message: "冒険者「{id}」から、まだ年会費を受け取っていません（「年会費を受け取る」で登録の年会費を受け取ります）"
+  # 年会費の額は、登録した支部の年会費（改定は、まだ扱わない）
+  - id: fee-matches-branch
+    description: 納めた年会費の額は、登録した支部の年会費と同じであること
+    match:
+      - node: { entity: adventurer, bind: c }
+      - edge: { relation: has-fee }
+      - node: { entity: membership-fee, bind: f }
+    also:
+      from: c
+      steps:
+        - edge: { relation: registered-at }
+        - node: { entity: branch, bind: b }
+    check: [ { eq: [ { number: { of: f, path: amount } }, { number: { of: b, path: annualFee } } ] } ]
+    level: error
+    message: "冒険者「{id}」の年会費 {f.id} の額 {left} が、支部の年会費 {right} と違います"
+
   # 初級は、その職能の訓練の課程の修了で得る（Q57）。中級と上級は職能の審査で得る
   - id: beginner-level-by-training
     description: 職能の段階が初級の冒険者は、主な職能の訓練の課程を修了していること
@@ -53,14 +101,16 @@ constraints:
     level: error
     message: "冒険者「{id}」の職能の段階は初級なのに、主な職能の訓練の課程を修了していません（初級は訓練の修了で得ます）"
 
-# ---- 操作: 登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合）・除名 ----
+# ---- 操作: 登録 → 現役 ⇄ 休業 → 脱退（引退・死亡・本人の都合・登録の失効）・除名 ----
+# 登録・更新・復帰のときに、登録した支部の年会費を受け取り、有効期限を 1 年延ばす（Q71）。
+# 値の式に日付の足し算が無いので、1 年後は「年 + 1」と月日を付け直して作る（2 月 29 日は扱わない）
 # 状態は操作だけで変え、前提で移り方を守る。どの操作も、状態を変える前に履歴へ 1 行足す。
 # 遂行中の依頼を受けている間は、脱退・除名にしない（依頼の検査「脱退・除名の冒険者は受注できない」と同じ決まり。休業は事故などで遂行中にもできる（Q51）。
 # 依頼の文書は変えないので、適用後の検証では止まらないため前提で止める）
 actions:
   - id: register-adventurer
     label: 冒険者を登録する
-    description: 冒険者を 1 人登録し、冒険者の文書を作ります。番号は ADV- の次の番号を振ります。状態は現役です。
+    description: 冒険者を 1 人登録し、冒険者の文書を作ります。番号は ADV- の次の番号を振ります。状態は現役で、登録の有効期限は 1 年後です。続けて「年会費を受け取る」で登録の年会費を受け取ります。
     input:
       initial:
         date: { $copy: today, $of: context }
@@ -80,11 +130,84 @@ actions:
             job: $job
             status: active
             registeredOn: $date
+            validUntil: { $value: { format: "{y}-{md}", with: { y: { add: [ { year: { path: date } }, 1 ] }, md: { extract: [ { path: date }, "^[0-9]{4}-([0-9]{2}-[0-9]{2})$" ] } } } }
             note: { $copy: note }
             history: [ { date: $date, action: register-adventurer, to: active } ]
+  - id: receive-annual-fee
+    label: 年会費を受け取る（登録・登録継続届）
+    description: 現役の冒険者から、登録した支部の年会費を受け取ります。登録したばかり（まだ納めていない）なら登録の年会費で、有効期限は変えません。そうでなければ登録継続届として受け取り、有効期限を 1 年延ばします。有効期限を過ぎた登録は更新できません（登録を失効させます）。
+    target: { entity: adventurer }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 受け取った日, type: common#年月日, required: true }
+    require:
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        where: [ { of: c, path: status, equals: active } ]
+        expect: exists
+        message: "{id} は現役の冒険者ではありません（休業の冒険者は、復帰届で現役に戻すときに納めます）"
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        check: [ { lte: [ $date, { of: c, path: validUntil } ] } ]
+        message: "{id} の登録の有効期限を過ぎています（更新できません。登録を失効させます）"
+    do:
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: registered-at }
+            - node: { entity: branch, bind: b }
+          do:
+            # 更新（登録継続届）: いまの有効期限から 1 年延ばす。先に置くのは、下の登録の手が足した記録で、この手が当たらないようにするため
+            - insert:
+                of: self
+                path: fees
+                params: { collectedOn: $date, kind: renewal, amount: { $copy: annualFee, $of: b }, validUntil: { $value: { format: "{y}-{md}", with: { y: { add: [ { year: { of: self, path: validUntil } }, 1 ] }, md: { extract: [ { of: self, path: validUntil }, "^[0-9]{4}-([0-9]{2}-[0-9]{2})$" ] } } } } }
+              when: { of: self, path: fees, empty: false }
+            - set: { of: self, path: validUntil, value: { $value: { format: "{y}-{md}", with: { y: { add: [ { year: { of: self, path: validUntil } }, 1 ] }, md: { extract: [ { of: self, path: validUntil }, "^[0-9]{4}-([0-9]{2}-[0-9]{2})$" ] } } } } }
+              when: { of: self, path: fees, empty: false }
+            # 登録の年会費: 登録の操作が書いた有効期限のまま
+            - insert:
+                of: self
+                path: fees
+                params: { collectedOn: $date, kind: registration, amount: { $copy: annualFee, $of: b }, validUntil: { $copy: validUntil, $of: self } }
+              when: { of: self, path: fees, empty: true }
+  - id: lapse-registration
+    label: 登録を失効させる
+    description: 現役のまま登録の有効期限を過ぎた（登録継続届を出さなかった）冒険者を、脱退（理由 登録の失効）にします。休業の冒険者は更新が免除されているので失効しません。遂行中の依頼があるうちはできません。
+    target: { entity: adventurer }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 失効させた日, type: common#年月日, required: true }
+      - { key: note, label: 覚え, type: common#一行の文 }
+    require:
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        where: [ { of: c, path: status, equals: active } ]
+        expect: exists
+        message: "{id} は現役の冒険者ではありません（休業の冒険者は失効しません）"
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        check: [ { gt: [ $date, { of: c, path: validUntil } ] } ]
+        message: "{id} の登録は、まだ有効期限の内です"
+      - match:
+          - node: { entity: adventurer }
+          - edge: { relation: taken-by, dir: in }
+          - node: { entity: assignment, bind: a }
+          - edge: { relation: assignment-of }
+          - node: { entity: quest, bind: q }
+        where:
+          - { of: a, path: report, exists: false }
+          - { of: q, path: status, equals: assigned }
+        expect: absent
+        message: "{id} は遂行中の依頼 {q.id} を受けています（先に依頼の報告をするか、打ち切ります）"
+    do:
+      - insert: { of: self, path: history, value: { date: $date, action: lapse-registration, from: active, to: withdrawn, note: { $copy: note } } }
+      - set: { of: self, path: leftFor, value: lapsed }
+      - set: { of: self, path: status, value: withdrawn }
   - id: rest-adventurer
-    label: 休業にする
-    description: 現役の冒険者を休業にします（けがの療養・帰郷・依頼の途中の事故など）。遂行中の依頼があってもできます（その依頼は、報告か打ち切りで閉じます）。休業の間は受注できません。
+    label: 休業にする（休業届）
+    description: 現役の冒険者の休業届を受け付け、休業にします（けがの療養・帰郷・長い旅・依頼の途中の事故など）。休業の間は、登録の更新と年会費が免除され、受注できません。遂行中の依頼があってもできます（その依頼は、報告か打ち切りで閉じます）。登録の有効期限を過ぎてからは出せません。
     target: { entity: adventurer }
     input:
       initial:
@@ -97,13 +220,16 @@ actions:
         where: [ { of: c, path: status, equals: active } ]
         expect: exists
         message: "{id} は現役の冒険者ではありません"
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        check: [ { lte: [ $date, { of: c, path: validUntil } ] } ]
+        message: "{id} の登録の有効期限を過ぎています（休業届は、登録が有効な間に出します）"
     do:
       - insert: { of: self, path: history, value: { date: $date, action: rest-adventurer, from: active, to: resting, note: $note } }
       - set: { of: self, path: restingSince, value: $date }
       - set: { of: self, path: status, value: resting }
   - id: return-adventurer
-    label: 現役に戻す
-    description: 休業の冒険者を現役に戻します。
+    label: 現役に戻す（復帰届）
+    description: 休業の冒険者の復帰届を受け付け、現役に戻します。登録した支部の年会費を受け取り、登録の有効期限は戻った日から 1 年後になります。
     target: { entity: adventurer }
     input:
       initial:
@@ -116,13 +242,25 @@ actions:
         where: [ { of: c, path: status, equals: resting } ]
         expect: exists
         message: "{id} は休業の冒険者ではありません"
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        check: [ { gte: [ $date, { of: c, path: restingSince } ] } ]
+        message: 戻った日は休業した日以降にしてください
     do:
+      - each:
+          from: self
+          match:
+            - node: { entity: adventurer }
+            - edge: { relation: registered-at }
+            - node: { entity: branch, bind: b }
+          do:
+            - insert: { of: self, path: fees, params: { collectedOn: $date, kind: return, amount: { $copy: annualFee, $of: b }, validUntil: { $value: { format: "{y}-{md}", with: { y: { add: [ { year: { path: date } }, 1 ] }, md: { extract: [ { path: date }, "^[0-9]{4}-([0-9]{2}-[0-9]{2})$" ] } } } } } }
+      - set: { of: self, path: validUntil, value: { $value: { format: "{y}-{md}", with: { y: { add: [ { year: { path: date } }, 1 ] }, md: { extract: [ { path: date }, "^[0-9]{4}-([0-9]{2}-[0-9]{2})$" ] } } } } }
       - insert: { of: self, path: history, value: { date: $date, action: return-adventurer, from: { $value: { of: self, path: status } }, to: active, note: { $copy: note } } }
       - delete: { of: self, path: restingSince }
       - set: { of: self, path: status, value: active }
   - id: withdraw-adventurer
     label: 脱退にする
-    description: 冒険者をギルドから脱退にし、理由（引退・死亡・本人の都合）を書きます。死亡は「死亡が確かめられた」事実の結果として選びます。遂行中の依頼があるうちはできません（先に報告か打ち切りで閉じます）。
+    description: 冒険者をギルドから脱退にし、理由（引退・死亡・本人の都合）を書きます。死亡は「死亡が確かめられた」事実の結果として選びます。登録の失効は「登録を失効させる」で扱います。遂行中の依頼があるうちはできません（先に報告か打ち切りで閉じます）。
     target: { entity: adventurer }
     input:
       initial:
@@ -136,6 +274,9 @@ actions:
         where: [ { of: c, path: status, oneOf: [active, resting] } ]
         expect: exists
         message: "{id} は現役か休業の冒険者ではありません"
+      - match: [ { node: { entity: adventurer, bind: c } } ]
+        check: [ { ne: [ $reason, lapsed ] } ]
+        message: 登録の失効は「登録を失効させる」で扱います（有効期限を確かめます）
       - match:
           - node: { entity: adventurer }
           - edge: { relation: taken-by, dir: in }

@@ -1,6 +1,6 @@
 id: adventurer-roster
 name: 冒険者の名簿
-description: 冒険者ごとのランク・状態・職能とその段階・資格・登録日・所属するパーティと、個人で受けている依頼の数とランクの上限。「新規行」で冒険者番号を入れると guild/adventurers/<番号>.yaml ができます。
+description: 冒険者ごとのランク・状態・職能とその段階・資格・登録日・登録の有効期限・所属するパーティと、個人で受けている依頼の数とランクの上限。「新規行」で冒険者番号を入れると guild/adventurers/<番号>.yaml ができます。
 rows:
   idPattern: "ADV-*"
 columns:
@@ -25,6 +25,7 @@ columns:
           - node: { entity: qualification, bind: x }
         where: [ { of: e, path: result, equals: completed } ]
   - { label: 登録日, schemaId: adventurer, path: registeredOn }
+  - { label: 登録の有効期限, schemaId: adventurer, path: validUntil }
   - label: 所属するパーティ
     backlinks: { relation: has-member }
   # 個人で受けて遂行中の受注（受注済みの依頼の、報告の無い受注）を数える。パーティで受けた分は数えない

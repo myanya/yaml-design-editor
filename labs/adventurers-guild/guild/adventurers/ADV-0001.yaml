@@ -3,7 +3,11 @@ name: オルド・ヴァレン
 rank: RNK-A
 status: active
 registeredOn: 2019-04-12
+registeredAt: BRN-01
+validUntil: 2027-04-12
 job: JOB-01
 jobLevel: advanced
+fees:
+  - { id: FEE-0004, collectedOn: 2026-04-08, kind: renewal, amount: 20, validUntil: 2027-04-12 }
 history:
   - { date: 2019-04-12, action: register-adventurer, to: active }

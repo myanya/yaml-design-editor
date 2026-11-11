@@ -3,7 +3,11 @@ name: シアラ・ミント
 rank: RNK-B
 status: active
 registeredOn: 2021-06-03
+registeredAt: BRN-01
+validUntil: 2027-06-03
 job: JOB-02
 jobLevel: advanced
+fees:
+  - { id: FEE-0006, collectedOn: 2026-06-01, kind: renewal, amount: 20, validUntil: 2027-06-03 }
 history:
   - { date: 2021-06-03, action: register-adventurer, to: active }

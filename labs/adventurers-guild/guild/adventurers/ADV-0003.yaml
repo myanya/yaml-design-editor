@@ -3,7 +3,11 @@ name: トーヴ・ラッセ
 rank: RNK-B
 status: active
 registeredOn: 2021-09-18
+registeredAt: BRN-01
+validUntil: 2027-09-18
 job: JOB-03
 jobLevel: advanced
+fees:
+  - { id: FEE-0010, collectedOn: 2026-09-15, kind: renewal, amount: 20, validUntil: 2027-09-18 }
 history:
   - { date: 2021-09-18, action: register-adventurer, to: active }

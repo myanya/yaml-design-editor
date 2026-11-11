@@ -3,7 +3,11 @@ name: ネリ・フォルカ
 rank: RNK-C
 status: active
 registeredOn: 2023-02-27
+registeredAt: BRN-01
+validUntil: 2027-02-27
 job: JOB-01
 jobLevel: intermediate
+fees:
+  - { id: FEE-0003, collectedOn: 2026-02-25, kind: renewal, amount: 20, validUntil: 2027-02-27 }
 history:
   - { date: 2023-02-27, action: register-adventurer, to: active }

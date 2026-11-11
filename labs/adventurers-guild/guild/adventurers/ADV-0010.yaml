@@ -3,6 +3,10 @@ name: ピコ・ランデル
 rank: RNK-F
 status: active
 registeredOn: 2026-07-01
+registeredAt: BRN-01
+validUntil: 2027-07-01
 job: JOB-02
+fees:
+  - { id: FEE-0008, collectedOn: 2026-07-01, kind: registration, amount: 20, validUntil: 2027-07-01 }
 history:
   - { date: 2026-07-01, action: register-adventurer, to: active }

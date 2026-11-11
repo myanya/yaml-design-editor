@@ -3,6 +3,10 @@ name: カスパ・ドーレ
 rank: RNK-E
 status: active
 registeredOn: 2025-08-21
+registeredAt: BRN-01
+validUntil: 2027-08-21
 job: JOB-05
+fees:
+  - { id: FEE-0009, collectedOn: 2026-08-20, kind: renewal, amount: 20, validUntil: 2027-08-21 }
 history:
   - { date: 2025-08-21, action: register-adventurer, to: active }

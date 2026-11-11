@@ -1,0 +1,13 @@
+id: UX-291
+title: アクションの create で作った文書の ID を後の手で使えず、作る文書の中の配列の要素にも採番されない
+status: todo
+origin_on: 2026-11-11
+origin: labs/adventurers-guild の「冒険者を登録する」で、登録の年会費の記録（番号つき）を一緒に作ろうとしたとき
+memo: |-
+  create は採番（`id: {prefix, digits}`）で文書の ID を決めるが、その ID を後の手（別の文書を作る・その文書へ insert する・each の起点にする）で読めない。
+  params に入れた配列の要素（ID の項目を持つ型）には、配列の `methods.insert.id` の採番も当たらないので、必須の ID が欠けて検証で止まる。
+  ルートの型に `methods.create.build` を書くと、採番が既存と重なる ID（ADV-0001）を出して「既に同名のファイル」で止まった。
+  いまは登録と年会費の受け取りを 2 つの操作に分けている。create に `bind`（作った文書を束縛名で後の手から指す）か、入れ子の配列への採番があれば 1 つの操作で書ける
+features:
+  - OP-01
+  - OP-02

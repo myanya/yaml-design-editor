@@ -30,6 +30,7 @@ entities:
   - { type: refund, label: 返金 }
   - { type: contract, label: 委託契約 }
   - { type: receipt, label: 委託料の受け取り }
+  - { type: membership-fee, label: 年会費の納付 }
   - { type: wage, label: 給与の支払い }
   - { type: expense, label: 経費 }
   - { type: sale, label: 素材の売却 }
@@ -340,6 +341,21 @@ relations:
     target: [expense]
     level: error
     description: 支部が払った経費を保有します（入れ子で書きます）
+  - name: registered-at
+    label: 登録した支部
+    inverseLabel: この支部に登録した冒険者
+    source: [adventurer]
+    target: [branch]
+    cardinality: { outMin: 1, outMax: 1 }
+    level: error
+    description: 冒険者が登録した支部です。年会費はこの支部に納めます
+  - name: has-fee
+    label: 納めた年会費
+    inverseLabel: 年会費を納めた冒険者
+    source: [adventurer]
+    target: [membership-fee]
+    level: error
+    description: 冒険者が納めた年会費を保有します（入れ子で書きます）
   - name: has-wage
     label: 給与の支払い
     inverseLabel: 給与を受けた職員
