@@ -1,0 +1,11 @@
+id: JEX-002
+candidate: ADV-0004
+job: JOB-01
+fromLevel: intermediate
+toLevel: advanced
+basedOn: [QST-0008-A1, QST-0021-A1, QST-0024-A1, QST-0041-A1, QST-0043-A1, QST-0055-A1, QST-0057-A1, QST-0078-A1, QST-0114-A1]
+status: nominated
+nominatedOn: 2026-11-09
+note: 夜鳴きの鈴の前衛として、商隊の護衛を往復とも守り切った。上級の目安の 30 件には届かないので、これからの実績も見る。
+history:
+  - { date: 2026-11-09, action: nominate-job-exam, to: nominated }

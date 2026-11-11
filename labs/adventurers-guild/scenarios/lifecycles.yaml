@@ -1,9 +1,9 @@
 # ギルドの Lifecycle（依頼・昇格審査・職能の審査・冒険者）の業務シナリオ。どのケースも保存済みの同じデータから評価し、原本は変えない。
 #   ./gradlew runCli -q --args="behavior-scenarios labs/adventurers-guild labs/adventurers-guild/scenarios/lifecycles.yaml"
 # 到達率（coverage）はワークスペースのすべての Lifecycle で数えるので、1 つのファイルにまとめる。
-# 前段の操作が要る遷移は、いまのデータでは通せない（devtrack の UX-289）:
-#   依頼 受付 → 掲示中（預かってから）・失敗 → 掲示中（期限前の失敗）、昇格審査と職能の審査の 審査の対象 → 審査中（審査の対象のものが無い）、
-#   職能の審査 審査中 → 合格（実技試験の結果を書いてから）
+# ケースはデータを引き継がない（devtrack の UX-289）ので、前段の操作が要る遷移のために、途中の状態のデータを置いた（Q66）:
+#   預かり済みの受付の依頼 QST-0128・期限前の失敗 QST-0129・審査の対象の昇格審査 PRM-003 と職能の審査 JEX-002・
+#   実技試験に合格した審査中の職能の審査 JEX-003・休業の構成員のいるパーティ PTY-004
 cases:
   # ======== 依頼（quest-lifecycle） ========
   # ---- 操作（Action） ----
@@ -11,7 +11,7 @@ cases:
     action: register-quest
     params: { title: 試しの依頼, kind: other, client: CLT-001, reward: 100, date: 2026-11-11 }
     expect:
-      - { lifecycle: quest-lifecycle, entity: QST-0128, before: [], after: [quest-received], verdict: MATCHED }
+      - { lifecycle: quest-lifecycle, entity: QST-0130, before: [], after: [quest-received], verdict: MATCHED }
   - id: deposit-keeps-received
     action: receive-deposit
     target: QST-0119
@@ -140,12 +140,42 @@ cases:
             - { op: insert, path: "history[3]", value: { date: 2026-11-11, action: cancel-quest, from: assigned, to: cancelled, note: 砦の守備隊が取り下げを申し出た } }
     expect:
       - { lifecycle: quest-lifecycle, entity: QST-0116, before: [quest-assigned], after: [quest-cancelled], verdict: MATCHED }
+  - id: post-received
+    action: post-quest
+    target: QST-0128
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0128, before: [quest-received], after: [quest-posted], verdict: MATCHED }
+  - id: post-failed-again
+    action: post-quest
+    target: QST-0129
+    params: { date: 2026-11-11, note: 渡しが動き出したので掲示し直す }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0129, before: [quest-failed], after: [quest-posted], verdict: MATCHED }
+  # 記録専用の Event（依頼者が期限の延長に同意した）: 状態は変えない
+  - id: client-agreed-extension
+    event: client-agreed-extension
+    subject: QST-0118
+    changeset:
+      changes:
+        - file: guild/quests/QST-0118.yaml
+          ops:
+            - { op: set, path: deadline, value: 2026-11-30 }
+            - { op: insert, path: "history[2]", value: { date: 2026-11-11, action: extend-deadline, from: posted, to: posted, note: 依頼者が 1 週間の延長に同意した（2026-11-23 → 2026-11-30） } }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0118, before: [quest-posted], after: [quest-posted], verdict: UNCHANGED }
   # ======== 昇格審査（promotion-lifecycle） ========
+  - id: promotion-start
+    action: start-examination
+    target: PRM-003
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: promotion-lifecycle, entity: PRM-003, before: [promotion-nominated], after: [promotion-examining], verdict: MATCHED }
   - id: promotion-nominate
     action: nominate-promotion
     params: { candidate: ADV-0006, fromRank: RNK-E, toRank: RNK-D, date: 2026-11-11 }
     expect:
-      - { lifecycle: promotion-lifecycle, entity: PRM-003, before: [], after: [promotion-nominated], verdict: MATCHED }
+      - { lifecycle: promotion-lifecycle, entity: PRM-004, before: [], after: [promotion-nominated], verdict: MATCHED }
   - id: promotion-pass
     action: pass-promotion
     target: PRM-002
@@ -163,7 +193,19 @@ cases:
     action: nominate-job-exam
     params: { candidate: ADV-0007, job: JOB-01, toLevel: intermediate, date: 2026-11-11 }
     expect:
-      - { lifecycle: job-exam-lifecycle, entity: JEX-002, before: [], after: [job-exam-nominated], verdict: MATCHED }
+      - { lifecycle: job-exam-lifecycle, entity: JEX-004, before: [], after: [job-exam-nominated], verdict: MATCHED }
+  - id: job-exam-start
+    action: start-job-exam
+    target: JEX-002
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: job-exam-lifecycle, entity: JEX-002, before: [job-exam-nominated], after: [job-exam-examining], verdict: MATCHED }
+  - id: job-exam-pass
+    action: pass-job-exam
+    target: JEX-003
+    params: { date: 2026-11-11, decidedBy: STF-01 }
+    expect:
+      - { lifecycle: job-exam-lifecycle, entity: JEX-003, before: [job-exam-examining], after: [job-exam-passed], verdict: MATCHED }
   - id: record-practical-keeps-examining
     action: record-practical
     target: JEX-001
@@ -238,6 +280,13 @@ cases:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: party-record-wipeout-with-resting
+    action: record-wipeout
+    target: PTY-004
+    params: { date: 2026-11-11, evidence: 北の峠の小屋に、ふたりの外套が残っていた }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
   # ---- 事実（Event） ----
   - id: adventurer-died-active
     event: adventurer-died
@@ -285,3 +334,73 @@ cases:
       - { lifecycle: adventurer-lifecycle, entity: ADV-0001, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0002, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
       - { lifecycle: adventurer-lifecycle, entity: ADV-0003, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+  - id: party-wiped-out-with-resting
+    event: party-wiped-out
+    subject: PTY-004
+    changeset:
+      changes:
+        - file: guild/adventurers/ADV-0008.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: delete, path: restingSince }
+            - { op: insert, path: leftFor, value: death }
+        - file: guild/adventurers/ADV-0011.yaml
+          ops:
+            - { op: set, path: status, value: withdrawn }
+            - { op: insert, path: leftFor, value: death }
+    expect:
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0008, before: [adventurer-resting], after: [adventurer-withdrawn], verdict: MATCHED }
+      - { lifecycle: adventurer-lifecycle, entity: ADV-0011, before: [adventurer-active], after: [adventurer-withdrawn], verdict: MATCHED }
+  # ======== 素材の在庫（material-stock-lifecycle）。在庫は動きから導く述語の State ========
+  - id: material-add
+    action: add-material
+    target: guild/materials.yaml
+    params: { name: 霜葉, kind: plant, buyPrice: 9, perishable: true }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-015, before: [], after: [material-no-stock], verdict: MATCHED }
+  - id: material-buy
+    action: buy-material
+    target: MAT-002
+    params: { seller: ADV-0006, quantity: 2, unitPrice: 15, date: 2026-11-11 }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-002, before: [material-no-stock], after: [material-in-stock], verdict: MATCHED }
+  - id: material-buy-more
+    action: buy-material
+    target: MAT-008
+    params: { seller: ADV-0006, quantity: 1, unitPrice: 20, date: 2026-11-11 }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-008, before: [material-in-stock], after: [material-in-stock], verdict: UNCHANGED }
+  - id: material-count-found
+    action: count-stock
+    target: MAT-006
+    params: { expected: 0, counted: 1, date: 2026-11-11, note: 棚の奥から 1 巻き出てきた }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-006, before: [material-no-stock], after: [material-in-stock], verdict: MATCHED }
+  - id: material-sell-all
+    action: sell-material
+    target: MAT-008
+    params: { buyer: CLT-007, quantity: 3, unitPrice: 30, date: 2026-11-11 }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-008, before: [material-in-stock], after: [material-no-stock], verdict: MATCHED }
+  - id: material-dispose-all
+    action: dispose-material
+    target: MAT-004
+    params: { quantity: 4, reason: 虫に食われた, date: 2026-11-11 }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-004, before: [material-in-stock], after: [material-no-stock], verdict: MATCHED }
+  - id: material-count-zero
+    action: count-stock
+    target: MAT-004
+    params: { expected: 4, counted: 0, date: 2026-11-11, note: 毛皮が見当たらない }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-004, before: [material-in-stock], after: [material-no-stock], verdict: MATCHED }
+  - id: material-spoiled
+    event: material-spoiled
+    subject: MAT-008
+    changeset:
+      changes:
+        - file: guild/disposals/DSP-0002.yaml
+          create: true
+          content: { id: DSP-0002, material: MAT-008, quantity: 3, disposedOn: 2026-11-11, reason: 湿気で鱗が傷んだ, branch: BRN-01 }
+    expect:
+      - { lifecycle: material-stock-lifecycle, entity: MAT-008, before: [material-in-stock], after: [material-no-stock], verdict: MATCHED }

@@ -1,0 +1,18 @@
+id: JEX-003
+candidate: ADV-0005
+job: JOB-04
+fromLevel: intermediate
+toLevel: advanced
+basedOn: [QST-0012-A1, QST-0029-A1, QST-0042-A1, QST-0049-A1, QST-0061-A1, QST-0065-A1, QST-0070-A1, QST-0076-A1, QST-0085-A1, QST-0090-A1, QST-0099-A1, QST-0105-A1, QST-0110-A1, QST-0008-A1, QST-0021-A1, QST-0024-A1, QST-0041-A1, QST-0043-A1, QST-0055-A1, QST-0057-A1, QST-0078-A1, QST-0114-A1]
+status: examining
+nominatedOn: 2026-10-20
+practical:
+  heldOn: 2026-11-03
+  examiner: ADV-0009
+  result: passed
+  skills: 毒消しと止血の術を、ふたりに同時にかけた
+  note: 引退した治療師のハスカが審査した。手当ての順を迷わず決められる。
+note: 夜鳴きの鈴の回復役として、個人とパーティで 22 件を達成した。上級の目安の 30 件には届かないが、実技を先に見る。
+history:
+  - { date: 2026-10-20, action: nominate-job-exam, to: nominated }
+  - { date: 2026-10-27, action: start-job-exam, from: nominated, to: examining }

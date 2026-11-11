@@ -1,0 +1,10 @@
+id: PRM-003
+candidate: ADV-0006
+fromRank: RNK-E
+toRank: RNK-D
+status: nominated
+nominatedOn: 2026-11-10
+basedOn: [QST-0077-A1, QST-0092-A1, QST-0095-A1, QST-0102-A1, QST-0113-A1]
+note: ひとりで討伐と見回りを重ね、この 1 年の達成が 24 件になった。D への昇格の審査の対象にする。
+history:
+  - { date: 2026-11-10, action: nominate-promotion, to: nominated }

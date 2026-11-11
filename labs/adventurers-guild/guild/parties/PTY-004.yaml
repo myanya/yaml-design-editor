@@ -1,0 +1,12 @@
+id: PTY-004
+name: 灰色の外套
+rank: RNK-E
+leader: ADV-0008
+members:
+  - to: ADV-0008
+    role: 斥候
+  - to: ADV-0011
+    role: 前衛
+formedOn: 2025-03-02
+distribution: equal
+note: ロウェンとダリオの二人組です。ロウェンが足の怪我で休業してから、依頼を受けていません。

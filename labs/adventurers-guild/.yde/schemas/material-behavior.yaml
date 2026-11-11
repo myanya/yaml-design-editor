@@ -1,0 +1,154 @@
+id: material-behavior
+name: 素材の在庫の振る舞い
+kind: behavior
+description: >-
+  素材の在庫（在庫なし・在庫あり）を業務の State にします。在庫は状態の項目に持たず、動きの記録
+  （買取 ＋ 棚卸の数えた数 − 売却 − 廃棄 − 棚卸の導いた数）から導くので、State は述語で書きます。
+  買い取ると在庫ありへ、売り切る・捨て切る・棚卸で 0 と数えると在庫なしへ移ります（数が残れば在庫ありのまま）。
+  素材が傷んだという事実は、捨てた記録（廃棄）として残し、傷んだのが在庫のすべてなら在庫なしになります。
+events:
+  - id: material-spoiled
+    entity: material
+    label: 素材が傷んだ
+    description: 倉庫の素材が傷んで売れなくなった。傷んだ数を捨てた記録（廃棄）にする。傷みやすい素材は、すぐに売って月末に残さない決まり
+states:
+  - id: material-no-stock
+    entity: material
+    label: 在庫なし
+    predicate:
+      match: [ { node: { entity: material, bind: m } } ]
+      check:
+        - lte:
+            -
+              subtract:
+                - add:
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: buys, dir: in } }
+                                - { node: { entity: purchase, bind: x } }
+                              path: quantity
+                        - 0
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: counts, dir: in } }
+                                - { node: { entity: stocktake, bind: x } }
+                              path: counted
+                        - 0
+                - add:
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: sells, dir: in } }
+                                - { node: { entity: sale, bind: x } }
+                              path: quantity
+                        - 0
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: discards, dir: in } }
+                                - { node: { entity: disposal, bind: x } }
+                              path: quantity
+                        - 0
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: counts, dir: in } }
+                                - { node: { entity: stocktake, bind: x } }
+                              path: expected
+                        - 0
+            - 0
+  - id: material-in-stock
+    entity: material
+    label: 在庫あり
+    predicate:
+      match: [ { node: { entity: material, bind: m } } ]
+      check:
+        - gt:
+            -
+              subtract:
+                - add:
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: buys, dir: in } }
+                                - { node: { entity: purchase, bind: x } }
+                              path: quantity
+                        - 0
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: counts, dir: in } }
+                                - { node: { entity: stocktake, bind: x } }
+                              path: counted
+                        - 0
+                - add:
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: sells, dir: in } }
+                                - { node: { entity: sale, bind: x } }
+                              path: quantity
+                        - 0
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: discards, dir: in } }
+                                - { node: { entity: disposal, bind: x } }
+                              path: quantity
+                        - 0
+                    - first:
+                        - sum:
+                            all:
+                              from: m
+                              match:
+                                - { node: { entity: material } }
+                                - { edge: { relation: counts, dir: in } }
+                                - { node: { entity: stocktake, bind: x } }
+                              path: expected
+                        - 0
+            - 0
+lifecycles:
+  - id: material-stock-lifecycle
+    entity: material
+    states: [material-no-stock, material-in-stock]
+    entry:
+      - to: material-no-stock
+        by: { action: add-material }
+    transitions:
+      - { from: material-no-stock, to: material-in-stock, by: { action: buy-material } }
+      - { from: material-no-stock, to: material-in-stock, by: { action: count-stock } }
+      - { from: material-in-stock, to: material-no-stock, by: { action: sell-material } }
+      - { from: material-in-stock, to: material-no-stock, by: { action: dispose-material } }
+      - { from: material-in-stock, to: material-no-stock, by: { action: count-stock } }
+      - { from: material-in-stock, to: material-no-stock, by: { event: material-spoiled } }
+    termination:
+      openEnded: true

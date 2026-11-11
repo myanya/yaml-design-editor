@@ -17,6 +17,11 @@ events:
     entity: quest
     label: 依頼者が取り下げた
     description: 依頼者が、依頼をやめると申し出た。ギルドは取消として記録し、預かった報酬を返す
+  # 記録専用（状態は変えない）: 依頼者の同意を受けて、ギルドが「期限を延ばす」で新しい期限と同意を履歴に残す
+  - id: client-agreed-extension
+    entity: quest
+    label: 依頼者が期限の延長に同意した
+    description: 依頼者が、期限を延ばすことに同意した（報酬の上乗せなどの条件も含む）。状態は変えず、ギルドが「期限を延ばす」で新しい期限と同意を履歴に書く
   - id: party-wiped-out
     entity: party
     label: 全滅が確かめられた

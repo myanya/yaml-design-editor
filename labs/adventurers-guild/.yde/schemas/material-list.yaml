@@ -18,6 +18,19 @@ root:
 # ---- 操作: 素材の出入り（買い取る → 在庫 → 売る・捨てる、月末に棚卸する） ----
 # 在庫は動きから導く（買取 ＋ 棚卸の数えた数 − 売却 − 廃棄 − 棚卸の導いた数）。売る・捨てる数は、前提でいまの在庫と比べて止める
 actions:
+  # 素材の在庫の Lifecycle の入口（足したときは在庫なし）
+  - id: add-material
+    label: 素材を一覧に足す
+    description: 新しい素材を素材の一覧に足します（MAT- の次の番号）。在庫は無い状態から始まります。
+    target: { schema: material-list }
+    params:
+      - { key: name, label: 名前, type: common#一行の文, required: true, minLength: 1 }
+      - { key: kind, label: 種類, type: common#素材の種類, required: true }
+      - { key: buyPrice, label: 基準の買取価格, type: common#金額, required: true }
+      - { key: perishable, label: 傷みやすい, type: boolean }
+      - { key: description, label: 説明, type: common#文章 }
+    do:
+      - insert: { of: self, path: materials, params: { name: $name, kind: $kind, buyPrice: $buyPrice, perishable: { $copy: perishable }, description: { $copy: description } } }
   - id: buy-material
     label: 素材を買い取る
     description: 冒険者かパーティから素材を買い取り、買取の記録（BUY- の次の番号）を作ります。単価の初めの値は、素材の基準の買取価格です。

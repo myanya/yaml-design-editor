@@ -1,0 +1,37 @@
+id: QST-0129
+title: 川向こうの村へ手紙を届ける
+kind: delivery
+status: failed
+branch: BRN-01
+client: CLT-003
+handledBy: STF-02
+requiredRank: RNK-F
+reward: 60
+receivedOn: 2026-11-02
+deadline: 2026-11-25
+place: PLC-011
+description: 穂波の村の親類へ、冬支度の相談の手紙を届けてほしい。
+deposit:
+  id: QST-0129-D
+  depositedOn: 2026-11-02
+  reward: 60
+  feeRate: 10
+  fee: 6
+  amount: 66
+history:
+  - date: 2026-11-02
+    action: register-quest
+    to: received
+  - date: 2026-11-02
+    action: post-quest
+    from: received
+    to: posted
+  - date: 2026-11-03
+    action: accept-quest
+    from: posted
+    to: assigned
+    note: 受け手 ADV-0010
+  - date: 2026-11-06
+    action: report-quest
+    from: assigned
+    to: failed

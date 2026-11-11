@@ -1,0 +1,26 @@
+id: QST-0128
+title: 湿地の奥で眠り茸を採ってくる
+kind: gathering
+status: received
+branch: BRN-01
+client: CLT-006
+handledBy: STF-02
+requiredRank: RNK-E
+reward: 120
+receivedOn: 2026-11-10
+deadline: 2026-11-30
+place: PLC-004
+targets:
+  - { to: MAT-002, quantity: 4 }
+description: 痛み止めを切らしたので、眠り茸を 4 本。傷みやすいので、採ったらその日のうちに届けてほしい。
+deposit:
+  id: QST-0128-D
+  depositedOn: 2026-11-10
+  reward: 120
+  feeRate: 10
+  fee: 12
+  amount: 132
+history:
+  - date: 2026-11-10
+    action: register-quest
+    to: received
