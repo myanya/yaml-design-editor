@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.schema.EventDef
 import dev.toros.yde.semantic.schema.LifecycleDef
 import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.StateDef
@@ -7,7 +8,7 @@ import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.semantic.schema.expand
 
 /**
- * State / Lifecycle 宣言のリンクと静的点検。状態の真偽判定や Action 実行は既存の
+ * State / Event / Lifecycle 宣言のリンクと静的点検。状態の真偽判定や Action 実行は既存の
  * SemanticRules / ActionPlanner の責務とし、ここでは新たな評価・書込経路を作らない。
  */
 object BehaviorChecks {
@@ -16,6 +17,7 @@ object BehaviorChecks {
         val states: List<StateDef>,
         val lifecycles: List<LifecycleDef>,
         val errors: List<String>,
+        val events: List<EventDef> = emptyList(),
     )
 
     fun loadErrors(schemas: List<WorkspaceSchema>): List<String> = compile(schemas).errors
@@ -24,8 +26,10 @@ object BehaviorChecks {
         val errors = mutableListOf<String>()
         val states = mutableListOf<StateDef>()
         val lifecycles = mutableListOf<LifecycleDef>()
+        val events = mutableListOf<EventDef>()
         val stateSources = mutableMapOf<String, String>()
         val lifecycleSources = mutableMapOf<String, String>()
+        val eventSources = mutableMapOf<String, String>()
         fun addState(state: StateDef, source: String) {
             val previous = stateSources.putIfAbsent(state.id, source)
             if (previous != null) errors += "$source: State「${state.id}」が重複しています（定義元: $previous）"
@@ -46,6 +50,11 @@ object BehaviorChecks {
                 if (previous != null) {
                     errors += "$source [lifecycles[$i]]: Lifecycle「${lifecycle.id}」が重複しています（定義元: $previous）"
                 } else lifecycles += lifecycle
+            }
+            for ((i, event) in schema.events.withIndex()) {
+                val previous = eventSources.putIfAbsent(event.id, source)
+                if (previous != null) errors += "$source [events[$i]]: Event「${event.id}」が重複しています（定義元: $previous）"
+                else events += event
             }
         }
 
@@ -84,7 +93,9 @@ object BehaviorChecks {
                             // 対象 Entity の一致は要求しない。実際の遷移の照合は BehaviorRuntime が行う。
                         }
                     }
-                    is TransitionCause.Event -> issue("$where の Event「${cause.id}」はまだ定義カタログがないため検証できません")
+                    is TransitionCause.Event -> if (cause.id !in eventSources) {
+                        issue("$where の Event「${cause.id}」が見つかりません")
+                    }
                 }
             }
             lifecycle.entry.forEachIndexed { i, entry ->
@@ -126,6 +137,6 @@ object BehaviorChecks {
                 (members - canFinish).forEach { issue("State「$it」から終端に到達できません（openEnded: true なら無期限の継続を許容します）") }
             }
         }
-        return Catalog(states, lifecycles, errors)
+        return Catalog(states, lifecycles, errors, events)
     }
 }

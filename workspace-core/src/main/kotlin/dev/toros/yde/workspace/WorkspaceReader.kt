@@ -1,6 +1,7 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.schema.ActionDef
+import dev.toros.yde.semantic.schema.EventDef
 import dev.toros.yde.semantic.schema.LifecycleDef
 import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.CheckLibrary
@@ -91,6 +92,8 @@ class WorkspaceSchema(
     val actions: List<ActionDef> = emptyList(),
     /** 名前付き State の宣言（enum の展開は定義カタログを連結した後に行う）。 */
     val states: List<StateDeclaration> = emptyList(),
+    /** 業務 Event の種類の宣言。 */
+    val events: List<EventDef> = emptyList(),
     /** エンティティの Lifecycle の宣言。 */
     val lifecycles: List<LifecycleDef> = emptyList(),
 ) {
@@ -106,7 +109,7 @@ class WorkspaceSchema(
         tree: SchemaTree = this.tree,
     ): WorkspaceSchema = WorkspaceSchema(
         id, kind, match, tree, declaredEntities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
-        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold, actions, states, lifecycles,
+        name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold, actions, states, events, lifecycles,
     )
 
     /** 式を受け取る項目の値（ルートからのキーの並びで指す。例: expressionAt("filePattern")）。 */
@@ -137,6 +140,7 @@ class WorkspaceSchema(
             scaffold = parsed.scaffold,
             actions = parsed.actions,
             states = parsed.states,
+            events = parsed.events,
             lifecycles = parsed.lifecycles,
         )
     }

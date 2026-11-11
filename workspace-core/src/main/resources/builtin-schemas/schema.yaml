@@ -59,11 +59,18 @@ definitions:
           - { key: path, label: 状態値のパス, type: string }
           - { key: enum, label: 型への参照, type: string }
       - { key: idPrefix, label: State ID の接頭辞, type: string }
+  event:
+    type: object
+    fields:
+      - { key: id, label: Event ID, type: string, required: true, role: title }
+      - { key: entity, label: 発生対象のエンティティ型, type: string, description: "対象を持つ出来事の場合に指定。Lifecycle の対象型と同じでなくてよい" }
+      - { key: label, label: 表示名, type: string }
+      - { key: description, label: 出来事の意味・発生条件, type: text }
   lifecycle-cause:
     type: object
     fields:
       - { key: action, label: 原因となるAction, type: string }
-      - { key: event, label: 原因となるEvent（後続フェーズ）, type: string }
+      - { key: event, label: 原因となるEvent, type: string }
   lifecycle-entry:
     type: object
     fields:
@@ -427,7 +434,7 @@ root:
       label: 種別
       type: enum
       values: [document, library, relations, behavior]
-      description: document（既定）は文書に適用、library は共有する定義の置き場、relations は関係レジストリ、behavior は State / Lifecycle の宣言（データ文書には適用しない）
+      description: document（既定）は文書に適用、library は共有する定義の置き場、relations は関係レジストリ、behavior は State / Event / Lifecycle の宣言（データ文書には適用しない）
     - key: match
       label: 適用パターン（glob）
       type: string
@@ -453,12 +460,18 @@ root:
       display: list
       item: { $ref: state }
       description: "predicate は既存の match / where / expect / check による述語。source: {entity, path, enum} と idPrefix を指定すると enum の全値を State に展開する。"
+    - key: events
+      label: 出来事の種類（behavior）
+      type: array
+      display: list
+      item: { $ref: event }
+      description: "Event は起きた事実の種類（id / entity / label / description）。Action の実行を意味せず、個別の発生記録は別途扱う。"
     - key: lifecycles
       label: ライフサイクル（behavior）
       type: array
       display: list
       item: { $ref: lifecycle }
-      description: "対象 entity の State、生成 entry、遷移 transitions、終端の方針 termination を宣言する。現段階では原因 Action の参照を静的検証する。"
+      description: "対象 entity の State、生成 entry、遷移 transitions、終端の方針 termination を宣言する。原因 Action と Event の参照を静的検証する。"
     - key: root
       label: ルート定義
       $ref: field

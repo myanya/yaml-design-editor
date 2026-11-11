@@ -70,7 +70,30 @@ fun StateDeclaration.FromEnum.expand(tree: SchemaTree): List<StateDef> {
     }
 }
 
-/** 遷移を引き起こす宣言。Event の事実モデル／発火は後続段階で追加する。 */
+/**
+ * 業務で起きた事実の種類。State（今どうであるか）や Action（何を実行するか）とは別の宣言。
+ * entity は事実が起きた対象の型であり、影響を受ける Lifecycle の型とは限らない。
+ * 個別の発生記録／保存先はこの宣言に持たせない。
+ */
+data class EventDef(
+    val id: String,
+    val entity: String?,
+    val label: String?,
+    val description: String?,
+) {
+    companion object {
+        fun parseAll(raw: Any?): List<EventDef> = entries(raw, "events").mapIndexed { i, entry ->
+            val where = "events[$i]"
+            val m = entry.asObject(where)
+            m.onlyKeys(where, "id", "entity", "label", "description")
+            val entity = m["entity"]?.let { it.toString().takeIf(String::isNotBlank)
+                ?: error("$where.entity は空にできません") }
+            EventDef(m.required("id", where), entity, m["label"]?.toString(), m["description"]?.toString())
+        }
+    }
+}
+
+/** 遷移の原因。Action＝意図した操作、Event＝観測された事実。 */
 sealed interface TransitionCause {
     val id: String
 
