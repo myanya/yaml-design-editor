@@ -176,7 +176,7 @@
 
 ### State の実評価と Action の遷移照合（S-29）
 
-- `BehaviorRuntime.evaluate` は `BehaviorChecks` の展開済み State を `SemanticRules.evaluate` へ渡す。結果は `TRUE`（充足）／`FALSE`（違反）／`UNKNOWN`（保留）／`NOT_APPLICABLE`（対象外）の **4 値**で返す。値の欠落と未解決参照を「真」と扱わない。
+- `BehaviorRuntime.evaluate` は `BehaviorChecks` の展開済み State を `SemanticRules.evaluate` へ渡す。結果は `TRUE`（条件成立）／`FALSE`（条件不成立）／`UNKNOWN`（保留）／`NOT_APPLICABLE`（対象外）の **4 値**で返す。Constraint の `where` が偽のとき既存検査では `NOT_IN_SCOPE` になるため、`SemanticQuery.startMatches` で `where` を除いた起点の適用性を確認し、対象なら `FALSE` に戻す。値の欠落と未解決参照を「真」と扱わない。
 - `BehaviorRuntime.review` は `ChangeSetApplier.prepare` の書込前候補を `WorkspaceSession.derivedWith` へ重ね、前後の ID・参照索引と実データを比較する。新しい評価器や書込経路は持たない。State が一意に決まらない場合は不整合、判定保留が混じる場合は未確定とする。
 - 新規エンティティは `entry.to` と `by.action`、既存エンティティの State が変われば `transitions.from/to` と `by.action` の一致を確認する。宣言なしは `UNDECLARED`、一致は `MATCHED`。State 不変の Action は `UNCHANGED` とし、すべての Action に遷移定義を要求しない。削除は現行 Lifecycle に原因宣言がないため未宣言とする。
 - 初期スコープは **変更対象文書内のエンティティ＋Action の明示的な受け手**。他の文書にあるエンティティが関係の更新だけで State を変える場合の横断・推移的依存解析は未対応。診断はデスクトップの操作確認画面と `OperationPreview.behaviorReviews` に出すが、仕様モデルの移行期は保存の可否を変えない（構造・Constraint 検証は従来どおり）。

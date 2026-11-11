@@ -3,6 +3,7 @@ package dev.toros.yde.workspace
 import dev.toros.yde.semantic.CheckOutcome
 import dev.toros.yde.semantic.CheckReason
 import dev.toros.yde.semantic.FieldResolver
+import dev.toros.yde.semantic.SemanticQuery
 import dev.toros.yde.semantic.SemanticRules
 import dev.toros.yde.semantic.SemanticSnapshot
 import dev.toros.yde.semantic.schema.LifecycleDef
@@ -68,11 +69,22 @@ object BehaviorRuntime {
                 semantic.ids, semantic.refs, semantic.graph, state.predicate, id,
                 loader = loader, fieldAt = fieldAt,
             )
+            // Constraint の where は「検査する候補の選択」でもあるため、値が一致しないと
+            // NOT_IN_SCOPE になる。一方 State は同じ対象 entity に対する真偽の問い。
+            // where を外した起点が対象なら「条件に一致しない」は FALSE と読む。
+            // 適用対象外（entity / match 自体が違う）とは区別する。
+            val predicateIsFalse = result.reason == CheckReason.NOT_IN_SCOPE &&
+                state.predicate.spec.where.isNotEmpty() &&
+                SemanticQuery.startMatches(
+                    semantic.ids, semantic.refs, semantic.graph,
+                    state.predicate.spec.copy(where = emptyList()), id,
+                    fieldAt = fieldAt, loader = loader,
+                )
             val truth = when (result.outcome) {
                 CheckOutcome.SATISFIED -> StateTruth.TRUE
                 CheckOutcome.VIOLATED -> StateTruth.FALSE
                 CheckOutcome.WITHHELD -> StateTruth.UNKNOWN
-                CheckOutcome.NOT_APPLICABLE -> StateTruth.NOT_APPLICABLE
+                CheckOutcome.NOT_APPLICABLE -> if (predicateIsFalse) StateTruth.FALSE else StateTruth.NOT_APPLICABLE
             }
             return StateReading(state.id, id, truth, result.reason)
         }
