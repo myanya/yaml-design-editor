@@ -1,0 +1,12 @@
+id: UX-293
+title: 業務シナリオ（behavior-scenarios）が、ケースが増えて関係が密になると十数分かかる
+status: todo
+origin_on: 2026-11-11
+origin: labs/adventurers-guild の業務シナリオを、パーティと受講の Lifecycle まで広げたとき
+memo: |-
+  68 件（Lifecycle 7・State 29。素材の在庫の State は、動きの記録を all で集める述語）で、CLI の実行が十数分かかった（53 件のころは 10 分以内）。
+  ケースごとに、変わった文書から参照と保有を辿って関係先の State を前後で調べる（S-30）ため、冒険者 → パーティ → 受注 → 依頼 … と大きな連結成分を毎回たどっていると思われる。
+  シナリオを足すたびに待ち時間が延び、Lifecycle を基本にする作りの手直しの往復が重くなる。関係先の候補を Lifecycle の対象の型に絞る・述語の State の評価を共有する、などで縮められないか
+features:
+  - S-34
+  - S-30
