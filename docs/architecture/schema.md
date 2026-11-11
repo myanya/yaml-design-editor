@@ -18,6 +18,7 @@
 | `StateDeclaration` / `StateDef` / `LifecycleDef` | semantic-core/schema/Behavior.kt | 名前付き State の宣言、enum からの展開、Lifecycle の生成・遷移・終端の記述（S-28） |
 | `BehaviorChecks` | workspace-core/workspace/BehaviorChecks.kt | State / Lifecycle の横断解決、原因 Action・参照・到達可能性の静的点検（S-28） |
 | `BehaviorRuntime` | workspace-core/workspace/BehaviorRuntime.kt | 既存の `SemanticRules` による State 4 値判定と Action 前後の Lifecycle 照合（S-29） |
+| `BehaviorImpact` | workspace-core/workspace/BehaviorImpact.kt | Action の直接変更から参照・保有を介する State 影響候補の抽出（S-30） |
 | `WorkspaceReader` | workspace-core | スキーマ文書・組込みスキーマ・derive の展開を読み込み、スキーマの定義の点検を読み込みエラーへ足す（`buildSchemas`） |
 | `SchemaDefinitionChecks` | workspace-core/workspace/SchemaDefinitionChecks.kt | スキーマの定義の点検（種別ごとに書けるもの・型と制約の食い違い・`$ref` の参照先・cases・フェーズ・`filePattern`）と宣言のない関係名の点検 |
 | `BuiltinSchemas` / `BuiltinSchemaResources` | schema/BuiltinSchemas.kt・workspace-core 資源 `builtin-schemas/` | 予約ディレクトリ用の組込みスキーマ（メタスキーマ `builtin-schema`・`builtin-relations`・`builtin-view`・`builtin-activity` ほか） |
@@ -170,7 +171,7 @@
 - `kind: behavior` は文書に `match` せず、`states` と `lifecycles` を公開する宣言文書。既存の `kind: document` のデータや Action を変更しない。
 - State は **エンティティに対する名前付き Predicate**。状態値の保存を要求しない。明示定義の `predicate` は既存 `ConstraintRule`（Query と Predicate）で読む。`source: {entity, path, enum}` からは enum の各値に対する `equals` + `expect: exists` を同じ `ConstraintRule` として構築する。`StateDef` 自体は保存対象ではない。
 - Lifecycle は State の集合、生成入口（`entry`）、許される遷移（`transitions`）、終端方針（`termination`）を持つ。入口と遷移は原因を `by: {action: ...}` または `by: {event: ...}` で指す。終端は **業務の終了** であって、文書の削除を意味しない。終端しない可能性があるときは `openEnded: true` を明示する。
-- `BehaviorChecks.compile` は全スキーマの定義カタログをリンクした後で enum を展開する。State と Lifecycle の ID 重複、参照の不存在、対象 Entity 不一致、原因 Action の不存在／重複／対象不一致、終端からの遷移、非終端の行き止まり、入口からの到達不能、無期限でない Lifecycle の終端への到達不能をスキーマ読込エラーとして報告する。同じ enum の State の一部しか Lifecycle に含めていなければ網羅性不足も検出する。**単一 enum から全値を展開した State 同士の排他性は値の等価比較から成立する**が、任意の複合述語まで含めた状態集合の排他性・網羅性の証明は動的検証の対象。
+- `BehaviorChecks.compile` は全スキーマの定義カタログをリンクした後で enum を展開する。State と Lifecycle の ID 重複、参照の不存在、対象 Entity 不一致、原因 Action の不存在／重複、終端からの遷移、非終端の行き止まり、入口からの到達不能、無期限でない Lifecycle の終端への到達不能をスキーマ読込エラーとして報告する。同じ enum の State の一部しか Lifecycle に含めていなければ網羅性不足も検出する。**Action の対象 Entity と Lifecycle の対象 Entity は一致しなくてもよい**（S-30：関連 Entity に波及する操作）。**単一 enum から全値を展開した State 同士の排他性は値の等価比較から成立する**が、任意の複合述語まで含めた状態集合の排他性・網羅性の証明は動的検証の対象。
 - Action の参照が存在することは、**Action の実際の効果が宣言した遷移を必ず成立させることの証明ではない**。実データの State 判定と Action 変更候補の前後差分の照合は S-29 で追加した。Event の事実宣言・発火・保存、間接的に影響される他文書の状態変化まで含む網羅検証は後続フェーズ。現段階では Event 原因の定義を解決できない旨をエラーにする。業務仕様が未完成であることを誤って「検証済み」としない。
 - 計算体系の分類: State = `Query + Predicate`、Lifecycle = 名前付き定義間の関係（`Term` / 静的整合）、Action 原因 = 既存 `Rewrite` への参照。新しいデータの永続化・評価器・変更経路は導入しない（CORE-CALCULUS の S-28 設計レビュー）。
 
@@ -179,7 +180,14 @@
 - `BehaviorRuntime.evaluate` は `BehaviorChecks` の展開済み State を `SemanticRules.evaluate` へ渡す。結果は `TRUE`（条件成立）／`FALSE`（条件不成立）／`UNKNOWN`（保留）／`NOT_APPLICABLE`（対象外）の **4 値**で返す。Constraint の `where` が偽のとき既存検査では `NOT_IN_SCOPE` になるため、`SemanticQuery.startMatches` で `where` を除いた起点の適用性を確認し、対象なら `FALSE` に戻す。値の欠落と未解決参照を「真」と扱わない。
 - `BehaviorRuntime.review` は `ChangeSetApplier.prepare` の書込前候補を `WorkspaceSession.derivedWith` へ重ね、前後の ID・参照索引と実データを比較する。新しい評価器や書込経路は持たない。State が一意に決まらない場合は不整合、判定保留が混じる場合は未確定とする。
 - 新規エンティティは `entry.to` と `by.action`、既存エンティティの State が変われば `transitions.from/to` と `by.action` の一致を確認する。宣言なしは `UNDECLARED`、一致は `MATCHED`。State 不変の Action は `UNCHANGED` とし、すべての Action に遷移定義を要求しない。削除は現行 Lifecycle に原因宣言がないため未宣言とする。
-- 初期スコープは **変更対象文書内のエンティティ＋Action の明示的な受け手**。他の文書にあるエンティティが関係の更新だけで State を変える場合の横断・推移的依存解析は未対応。診断はデスクトップの操作確認画面と `OperationPreview.behaviorReviews` に出すが、仕様モデルの移行期は保存の可否を変えない（構造・Constraint 検証は従来どおり）。
+- S-29 の初期スコープは **変更対象文書内のエンティティ＋Action の明示的な受け手**。S-30 で参照・保有のグラフに沿う影響候補へ拡張した。診断はデスクトップの操作確認画面と `OperationPreview.behaviorReviews` に出すが、仕様モデルの移行期は保存の可否を変えない（構造・Constraint 検証は従来どおり）。
+
+### 関係を介する State の間接変化（S-30）
+
+- `BehaviorImpact.affected` は **変更前後両方**の `SemanticSnapshot` から参照と保有の線を組み立て、変更文書にある ID と明示的な Action 受け手を起点に無向連結成分を辿る。文書参照は参照先文書の Entity に展開し、ID を持たない文書への参照も候補の起点として補う。線を削除・付け替えした場合も旧線を使って影響元へ辿れる。
+- グラフの辺生成と到達候補の探索は O(V + E)。全ワークスペースに対して State を無差別に再評価せず、**候補に入った Entity に限って**前後の State を `BehaviorRuntime` の既存の評価器で照合する。同じ連結成分でも State の真偽・保留理由が変化しない別文書の Entity は診断から除く。
+- Action の受け手とは別の Entity の Lifecycle 遷移を検出してよい。静的検査が「原因 Action の対象 Entity = Lifecycle の対象 Entity」を要求することはできない。表示と `LifecycleReview.indirectlyAffected` で別文書への影響を明示する。
+- これは **参照・保有を経由して影響する場合の保守的な候補抽出**。全件集計、外部データや参照関係を持たない任意の式で変化する State の完全な依存解析ではない。巨大な連結成分では State 判定の件数も増えるため、必要なら将来、Query の参照関係と変更パスに基づく絞り込みを導入する。
 
 ## 規律
 

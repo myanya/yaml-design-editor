@@ -80,8 +80,8 @@ object BehaviorChecks {
                         when {
                             matching.isEmpty() -> issue("$where の Action「${cause.id}」が見つかりません")
                             matching.size > 1 -> issue("$where の Action「${cause.id}」が複数あります（原因を一意に特定できません）")
-                            matching.single().target?.entity?.let { it != lifecycle.entity } == true ->
-                                issue("$where の Action「${cause.id}」の対象 entity が「${lifecycle.entity}」と異なります")
+                            // Action は別の Entity を操作し、その影響でこの Lifecycle の State を変えうる。
+                            // 対象 Entity の一致は要求しない。実際の遷移の照合は BehaviorRuntime が行う。
                         }
                     }
                     is TransitionCause.Event -> issue("$where の Event「${cause.id}」はまだ定義カタログがないため検証できません")

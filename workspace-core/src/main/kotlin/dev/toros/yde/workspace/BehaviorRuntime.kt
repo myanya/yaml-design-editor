@@ -35,6 +35,8 @@ data class LifecycleReview(
     val after: List<String>,
     val verdict: LifecycleVerdict,
     val message: String,
+    /** 変更文書の外にある Entity が、関係を介して影響候補となったか。 */
+    val indirectlyAffected: Boolean = false,
 ) {
     val needsAttention: Boolean get() = verdict in setOf(
         LifecycleVerdict.UNDECLARED, LifecycleVerdict.UNDETERMINED, LifecycleVerdict.INCONSISTENT,
@@ -43,8 +45,8 @@ data class LifecycleReview(
 
 /**
  * 宣言済み State を既存の SemanticRules で評価し、Action 計画の前後と Lifecycle を照合する。
- * 判定対象は変更された文書のエンティティと明示的な受け手。参照を通じて間接的に
- * 状態が変わる別文書の全件検査は、ワークスペース全体の依存性解析とともに後続で扱う。
+ * 判定対象は変更文書・受け手と、変更前後の参照／保有グラフ上でつながるエンティティ。
+ * 関係を介さない全体集計など、任意の式の依存性解析は後続段階で扱う。
  */
 object BehaviorRuntime {
     private class Reader(
@@ -116,9 +118,9 @@ object BehaviorRuntime {
         val before = Reader(session, session.derived.semantic, session.snapshot.documents)
         val after = Reader(session, session.derivedWith(overlays).semantic, afterDocuments)
         val touched = prepared.documents.map { it.id }.toSet()
-        val ids = (before.semantic.ids.values.flatten() + after.semantic.ids.values.flatten())
-            .asSequence().filter { it.document in touched }.map { it.id }.toMutableSet()
-        action.target?.let { target -> if (before.exists(target) || after.exists(target)) ids += target }
+        val ids = BehaviorImpact.affected(before.semantic, after.semantic, touched, action.target)
+        val directlyTouched = (before.semantic.ids.values.flatten() + after.semantic.ids.values.flatten())
+            .filter { it.document in touched }.map { it.id }.toSet()
         val states = catalog.states.associateBy { it.id }
         return catalog.lifecycles.flatMap { lifecycle ->
             ids.sorted().mapNotNull { id ->
@@ -127,13 +129,20 @@ object BehaviorRuntime {
                 val isNow = after.exists(id) && after.entityType(id) == lifecycle.entity
                 val beforeRead = if (was) lifecycle.states.mapNotNull(states::get).map { before.read(it, id) } else emptyList()
                 val afterRead = if (isNow) lifecycle.states.mapNotNull(states::get).map { after.read(it, id) } else emptyList()
+                // 同じ関係成分にいるだけで、実際には State が変わらなかった別文書の
+                // Entity を表示するとノイズになる。保留理由の変化は残す。
+                if (id !in directlyTouched && id != action.target && was == isNow &&
+                    beforeRead.map { it.truth to it.reason } == afterRead.map { it.truth to it.reason }) {
+                    return@mapNotNull null
+                }
                 val from = beforeRead.filter { it.truth == StateTruth.TRUE }.map { it.stateId }
                 val to = afterRead.filter { it.truth == StateTruth.TRUE }.map { it.stateId }
                 if (was && isNow && from == to && id != action.target && from.size == 1 &&
                     beforeRead.none { it.truth == StateTruth.UNKNOWN } && afterRead.none { it.truth == StateTruth.UNKNOWN }) {
-                    return@mapNotNull null // 同一文書内の無関係な要素の「変化なし」は表示しない
+                    return@mapNotNull null // 影響候補でも State が変わらない無関係な要素は表示しない
                 }
                 assess(lifecycle, id, action.name, was, isNow, beforeRead, afterRead)
+                    .copy(indirectlyAffected = id !in directlyTouched)
             }
         }
     }
