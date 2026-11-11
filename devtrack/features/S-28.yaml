@@ -1,0 +1,18 @@
+id: S-28
+title: 業務 State / Lifecycle 宣言と静的完全性チェック（behavior）
+implementation:
+- path: semantic-core/schema/Behavior.kt
+  module: semantic-core
+- path: workspace-core/workspace/BehaviorChecks.kt
+  module: workspace-core
+- path: workspace-core/workspace/SchemaDocuments.kt
+  module: workspace-core
+tests:
+- name: BehaviorChecksTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: 業務上の State / Lifecycle
+manual:
+- link: manual/schema.md
+  heading: 業務の State と Lifecycle

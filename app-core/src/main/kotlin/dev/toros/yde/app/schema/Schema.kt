@@ -125,6 +125,10 @@ class SchemaDef(
     val enforcement: EnforcementDef? get() = kernel.enforcement
     val kind: SchemaKind get() = kernel.kind
 
+    /** 業務上の State / Lifecycle の宣言。判定値ではなく、読取専用の定義（S-28）。 */
+    val stateDeclarations: List<dev.toros.yde.semantic.schema.StateDeclaration> get() = kernel.states
+    val lifecycles: List<dev.toros.yde.semantic.schema.LifecycleDef> get() = kernel.lifecycles
+
     /** 派生スキーマの宣言（R11-03）。非 null のスキーマはテンプレートであり、自身は文書にマッチしない。 */
     val derive: DeriveDef? get() = kernel.derive
 

@@ -1,0 +1,46 @@
+id: quest-behavior
+name: 依頼の振る舞い
+kind: behavior
+description: >-
+  依頼の既存 status・Action を変更せず、業務上の名前付き状態と
+  許される状態遷移、生成・終端を宣言します。
+states:
+  - source:
+      entity: quest
+      path: status
+      enum: common#依頼の状態
+    idPrefix: quest-
+lifecycles:
+  - id: quest-lifecycle
+    entity: quest
+    states:
+      - quest-received
+      - quest-posted
+      - quest-assigned
+      - quest-reported
+      - quest-settled
+      - quest-rejected
+      - quest-cancelled
+      - quest-failed
+      - quest-expired
+    entry:
+      - to: quest-received
+        by: { action: register-quest }
+    transitions:
+      - { from: quest-received, to: quest-posted, by: { action: post-quest } }
+      - { from: quest-received, to: quest-rejected, by: { action: reject-quest } }
+      - { from: quest-received, to: quest-cancelled, by: { action: cancel-quest } }
+      - { from: quest-received, to: quest-expired, by: { action: expire-quest } }
+      - { from: quest-posted, to: quest-assigned, by: { action: accept-quest } }
+      - { from: quest-posted, to: quest-cancelled, by: { action: cancel-quest } }
+      - { from: quest-posted, to: quest-expired, by: { action: expire-quest } }
+      - { from: quest-assigned, to: quest-reported, by: { action: report-quest } }
+      - { from: quest-assigned, to: quest-failed, by: { action: report-quest } }
+      - { from: quest-assigned, to: quest-failed, by: { action: abandon-quest } }
+      - { from: quest-assigned, to: quest-cancelled, by: { action: cancel-quest } }
+      - { from: quest-reported, to: quest-settled, by: { action: settle-quest } }
+      - { from: quest-failed, to: quest-posted, by: { action: post-quest } }
+      - { from: quest-failed, to: quest-expired, by: { action: expire-quest } }
+    termination:
+      terminal: [quest-settled, quest-rejected, quest-cancelled, quest-expired]
+      openEnded: false

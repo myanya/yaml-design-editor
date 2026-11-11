@@ -1,6 +1,8 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.schema.ActionDef
+import dev.toros.yde.semantic.schema.LifecycleDef
+import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.DeriveDef
 import dev.toros.yde.semantic.schema.EnforcementDef
@@ -51,6 +53,10 @@ class ParsedSchemaDocument(
     val scaffold: TransformDef? = null,
     /** 横断の操作（actions。P41）。 */
     val actions: List<ActionDef> = emptyList(),
+    /** 業務上の名前付き状態（enum の全値からの展開を含む）。 */
+    val states: List<StateDeclaration> = emptyList(),
+    /** エンティティの生成・状態遷移・終了のモデル。 */
+    val lifecycles: List<LifecycleDef> = emptyList(),
 )
 
 /**
@@ -107,6 +113,11 @@ object SchemaDocuments {
         }
         require(actions.isEmpty() || kind != SchemaKind.RELATIONS) { "actions は kind: relations の文書には書けません" }
         actions.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("actions: 操作の ID「$it」が重複しています") }
+        require(kind == SchemaKind.BEHAVIOR || (raw["states"] == null && raw["lifecycles"] == null)) {
+            "states / lifecycles は kind: behavior の文書でのみ定義できます"
+        }
+        val states = StateDeclaration.parseAll(raw["states"])
+        val lifecycles = LifecycleDef.parseAll(raw["lifecycles"])
         // 検査: constraints に書いた検査と語彙を、基本の検査へ展開してからパースする（CheckCatalog）
         val ownLibrary = CheckLibrary.parse(raw, sourceName)
         val effectiveLibrary = library ?: (CheckCatalog.builtinLibrary + ownLibrary)
@@ -128,6 +139,8 @@ object SchemaDocuments {
             expressions = expressions,
             scaffold = scaffold,
             actions = actions,
+            states = states,
+            lifecycles = lifecycles,
         )
     }
 
