@@ -1,0 +1,20 @@
+id: S-29
+title: 業務 State の実評価と Action / Lifecycle 前後照合
+implementation:
+- path: workspace-core/workspace/BehaviorRuntime.kt
+  module: workspace-core
+- path: app-core/session/DocumentSession.kt
+  module: app-core
+- path: app-core/service/WorkspaceOperations.kt
+  module: app-core
+- path: desktop/ui/action/ActionPane.kt
+  module: desktop
+tests:
+- name: BehaviorRuntimeTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: State の実評価と Action の遷移照合
+manual:
+- link: manual/schema.md
+  heading: 実データの State と Action の遷移確認

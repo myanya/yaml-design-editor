@@ -36,6 +36,9 @@ import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.workspace.ActionPlanner
 import dev.toros.yde.workspace.ActionRequest
+import dev.toros.yde.workspace.BehaviorRuntime
+import dev.toros.yde.workspace.ChangeSetApplier
+import dev.toros.yde.workspace.LifecycleReview
 import dev.toros.yde.workspace.ChangeIntent
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.DocumentScaffold
@@ -1589,6 +1592,14 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
 
     /** 計画の変更セットを適用した後の姿の検証（ドライラン）。変更が無ければ null。 */
     fun previewAction(plan: ActionPlan): ChangeSetResult? = if (plan.isEmpty) null else core?.apply(plan.changeSet, dryRun = true)
+
+    /** 変更前後の State を評価し、Action が宣言済み Lifecycle に沿うか確認する（保存しない）。 */
+    fun reviewAction(request: ActionRequest, plan: ActionPlan, now: LocalDateTime): List<LifecycleReview> {
+        val mirror = (core ?: error("ワークスペースが開かれていません")).mirror
+        if (plan.isEmpty) return emptyList()
+        val prepared = ChangeSetApplier.prepare(mirror, plan.changeSet, now)
+        return BehaviorRuntime.review(mirror, request, prepared)
+    }
 
     /** 計画の対象に未保存の編集があれば拒む（適用→保存が未保存の編集まで書いてしまうのを防ぐ）。 */
     fun checkActionTargetsSaved(plan: ActionPlan) {

@@ -39,6 +39,7 @@ import dev.toros.yde.agent.run.Staging
 import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.workspace.ActionRequest
+import dev.toros.yde.workspace.LifecycleReview
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.WorkspaceDerivedState
 import dev.toros.yde.workspace.WorkspaceSession
@@ -616,7 +617,7 @@ class AppState(
         var planEditVersion: Long? = null
         var plannedAt: LocalDateTime? = null
         fun invalidate() {
-            plan = null; preview = null; error = null; applied = null; transition = null
+            plan = null; preview = null; behaviorReviews = emptyList(); error = null; applied = null; transition = null
             planSignature = null; planWorkspaceVersion = null
             planEditVersion = null
         }
@@ -632,6 +633,8 @@ class AppState(
         var plan by mutableStateOf<ActionPlan?>(null)
         /** 計画の変更セットを適用した後の姿の検証（ドライラン）。 */
         var preview by mutableStateOf<ChangeSetResult?>(null)
+        /** 操作の前後で実際に成立する State と宣言した Lifecycle の照合。 */
+        var behaviorReviews by mutableStateOf<List<LifecycleReview>>(emptyList())
         var error by mutableStateOf<String?>(null)
         var applied by mutableStateOf<String?>(null)
         /** 移り先の予告（業務の流れのあるダッシュボードで、受け手がいる段が操作の前後でどう変わるか）。 */
@@ -846,6 +849,7 @@ class AppState(
         work.error = null
         work.plan = null
         work.preview = null
+        work.behaviorReviews = emptyList()
         work.applied = null
         if (work.entry.entityType != null && work.target == null) {
             work.error = "対象を選んでください（${work.entry.entityType} の要素）"
@@ -854,15 +858,18 @@ class AppState(
         val planTime = LocalDateTime.now()
         runCatching {
             checkActionSource(work)
-            documents.planAction(ActionRequest(work.entry.name, work.target, actionParams(work)), planTime)
+            val request = ActionRequest(work.entry.name, work.target, actionParams(work))
+            request to documents.planAction(request, planTime)
         }
-            .onSuccess { plan ->
+            .onSuccess { (request, plan) ->
                 work.plan = plan
                 work.planSignature = actionSignature(work)
                 work.planWorkspaceVersion = coreWs?.mirror?.version
                 work.planEditVersion = session?.version
                 work.plannedAt = planTime
                 work.preview = documents.previewAction(plan)
+                work.behaviorReviews = runCatching { documents.reviewAction(request, plan, planTime) }
+                    .getOrElse { work.error = "Lifecycle の照合に失敗しました: ${it.message}"; emptyList() }
                 work.transition = flowMoveOf(work, plan)
             }
             .onFailure { work.error = it.message ?: "計画できません" }

@@ -38,6 +38,8 @@ data class OperationGrant(
 data class OperationPreview(
     val id: String, val expiresAt: Instant, val documents: List<PreparedDocumentChange>,
     val issues: Map<DocumentId, List<CheckIssue>>, val failures: Map<String, String>, val canCommit: Boolean,
+    /** Action による業務上の状態遷移の照合。診断であり、この段階では確定可否を変えない。 */
+    val behaviorReviews: List<LifecycleReview> = emptyList(),
 )
 
 data class OperationInput(
@@ -56,6 +58,10 @@ class WorkspaceOperations(
     private val planLifetime: Duration = Duration.ofMinutes(10),
     private val load: (Path) -> WorkspaceSession = { Workspace.open(it).mirror },
 ) {
+    private data class PreparedActionReview(
+        val before: Map<DocumentId, String>, val prepared: PreparedChangeSet,
+        val layout: WorkspaceLayout, val behaviorReviews: List<LifecycleReview>,
+    )
     private data class Plan(
         val id: String, val caller: OperationCaller, val epoch: String, val revision: Long,
         val grant: OperationGrant, val expires: Instant, val before: Map<DocumentId, String>,
@@ -147,7 +153,7 @@ class WorkspaceOperations(
             }
             plans.entries.removeIf { !now.isBefore(it.value.expires) || it.value.epoch != status.epoch }
             require(plans.size < 256) { "計画が多すぎます。期限切れを待って再計画してください" }
-            val (before, prepared, layout) = withContext(Dispatchers.IO) {
+            val (before, prepared, layout, behaviorReviews) = withContext(Dispatchers.IO) {
                 val base = load(root)
                 require(base.schemaErrors.isEmpty()) { "スキーマの読込エラーがあるため計画できません" }
                 val before = base.storedState()
@@ -155,9 +161,10 @@ class WorkspaceOperations(
                 readRequire(input == null || savedRevision(before) == input.savedRevision, ReadFailureCode.STALE_REVISION, "入力の開始後に保存内容が変わりました。操作を開き直してください")
                 require(before == base.readStoreState()) { "読込中に変更されました。再計画してください" }
                 val prepared = ChangeSetApplier.prepare(base, make(base, LocalDateTime.ofInstant(input?.preparedAt ?: now, zone)), LocalDateTime.ofInstant(now, zone))
+                val behaviorReviews = action?.let { BehaviorRuntime.review(base, it, prepared) }.orEmpty()
                 checkExternalWritePaths(root, prepared.documents.map { it.id }, base.layout)
                 require(before == base.readStoreState()) { "計画中に変更されました。再計画してください" }
-                Triple(before, prepared, base.layout)
+                PreparedActionReview(before, prepared, base.layout, behaviorReviews)
             }
             checkSnapshot(status.epoch, status.revision)
             require(authorize(caller).second == grant) { "権限が変更されました。再計画してください" }
@@ -166,7 +173,7 @@ class WorkspaceOperations(
             val value = Plan(UUID.randomUUID().toString(), caller, status.epoch, status.revision,
                 grant, now.plus(planLifetime), before, prepared, action)
             plans[value.id] = value
-            OperationPreview(value.id, value.expires, prepared.documents.toList(), prepared.issues.toMap(), prepared.failures.toMap(), prepared.valid)
+            OperationPreview(value.id, value.expires, prepared.documents.toList(), prepared.issues.toMap(), prepared.failures.toMap(), prepared.valid, behaviorReviews)
         }
 
     suspend fun commit(caller: OperationCaller, planId: String, requestId: String): OperationRecord = host.exclusive("操作の確定") {
