@@ -70,6 +70,9 @@ internal const val CLI_USAGE = """コマンド:
   behavior-audit <workspace>                     State / Event / Lifecycle の接続と未検証の範囲を点検する。
            schema-errors（構造上の欠落）・review（分岐の要確認）・info（単独定義）を分けて出す。
            structurally-checked は業務仕様の完全性の証明を意味しない。読み取り専用。
+  behavior-scenarios <workspace> <cases.yaml>     Action / Event の具体例を実行候補で検証する（S-34）。
+           expect の State 前後・Lifecycle の判定と照合し、未実行の宣言遷移を表示する。
+           ケース間でデータを引き継がず、原本も Event 履歴も変更しない。
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
            ※ 変更系（rename / merge / delete）・move・refactor はカーネルの命令 workspace refactor で行う:
@@ -169,6 +172,7 @@ private fun dispatchAppCommand(command: String, rest: List<String>): CliResult {
         "action" -> actionCommand(rest)
         "event" -> eventCommand(rest)
         "behavior-audit" -> behaviorAuditCommand(rest)
+        "behavior-scenarios" -> behaviorScenariosCommand(rest)
         "apply" -> applyCommand(rest)
         "hash" -> hashCommand(rest)
         "entity" -> entityCommand(rest)

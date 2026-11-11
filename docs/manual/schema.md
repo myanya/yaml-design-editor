@@ -179,6 +179,47 @@ State / Event / Lifecycle の宣言を作ったら、次の読み取り専用コ
 
 `findings[].level: info` は単独 State や記録専用 Event の可能性を知らせるだけです。Lifecycle に結び付かないこと自体を誤りと断定しません。`review` は人間が分岐の意図を確かめる候補です。常に `proofStatus: not-proven` と `proofLimits` が表示されます。これらは、Action が必ず期待どおりに働くこと、Event が現実に発生したこと、State が排他的・網羅的であること、業務シナリオが漏れなく書かれたことを静的に証明できないためです。
 
+### 具体的な業務シナリオで遷移を検証する（S-34）
+
+State / Event / Lifecycle の定義を静的に確認したら、具体的なデータに対して Action が予定どおりの遷移を起こすか、Event の変更候補が宣言と整合するかを確認できます。以下の例を `scenarios.yaml` として保存します。
+
+```yaml
+cases:
+  - id: finish-task
+    action: finish-task
+    target: T-001
+    at: 2026-11-11T10:00:00  # 任意。自動日時の再現に用いる
+    expect:
+      - lifecycle: task-lifecycle
+        entity: T-001
+        before: [task-new]
+        after: [task-done]
+        verdict: MATCHED
+  - id: approval-granted
+    event: approval-granted
+    subject: F-001
+    changeset:              # Event 側の変更は外部からの候補。発生の証明ではない
+      changes:
+        - file: flags/F-001.yaml
+          ops: [{op: set, path: enabled, value: true}]
+    expect:
+      - lifecycle: task-lifecycle
+        entity: T-001        # Event の対象と、変化する Lifecycle の Entity は別でもよい
+        before: [task-blocked]
+        after: [task-ready]
+        verdict: MATCHED
+        indirectlyAffected: true  # 任意。参照を介する変化を確認する
+```
+
+```bash
+./gradlew runCli -q --args="behavior-scenarios my-workspace scenarios.yaml"
+```
+
+- `cases` は独立したテストケースの配列です。各ケースに `id`、`action` または `event` のどちらか一つ、`expect` の配列（空でも可）を指定します。Action は `target` と任意の `params` を、Event は `subject` と必須の `changeset` を使います。`changeset` は CLI `apply` と同じ構造です。
+- 各 `expect` には `lifecycle`・`entity`・`before`・`after`（State ID の配列）・`verdict` が必要です。変更対象や参照先など、実際に照合された全 Entity の期待値を書きます。期待値にない照合が見つかった場合も失敗です。
+- `cases[].status` は `passed`（期待値一致）、`failed`（期待値不一致・実行候補エラー）、`needs-review`（期待値とは一致したが未宣言・不確定・不整合の判定あり）を区別します。`coverage` は Lifecycle の生成入口と遷移ごとに `exercisedBy` を示し、空のものが未実行です。
+- **原本も Event 履歴も更新されません**。ケース間で変更も引き継がず、いずれも保存済みの同じ初期データから評価します。`proofStatus: not-proven` は、通ったシナリオ以外の条件や全業務の完全性を証明していないという意味です。
+
 ## フィールド定義のプロパティ
 
 | プロパティ | 説明 |

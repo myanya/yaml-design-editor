@@ -211,6 +211,13 @@
 - 結果の `status` は `schema-errors` / `not-modeled` / `needs-review` / `structurally-checked`。最後の値は **宣言の構造が点検できた** という意味であって、業務仕様が完全という意味ではない。`proofStatus: not-proven` と、Action の実際の効果・Event の真正性・任意の State 述語の排他性や全業務シナリオの網羅性を証明していない旨を必ず返す。
 - CLI `behavior-audit` は読み取り専用で、`validate` の既存 `schemaErrors` もそのまま表示する。構造エラーがあっても健全と誤表示しない。次段階で具体的なシナリオによる動的検証を結び付けるための閲覧面であり、現段階で自動的な業務仕様の完成判定は提供しない。
 
+### 具体例による State 遷移の検証（S-34）
+
+- `BehaviorScenarios.parse` は外部の `cases.yaml` を、原因（`action` または `event`）・入力・`expect`（Lifecycle、Entity、前後の State、判定）の並びとして読む。業務モデルのスキーマ語彙には増やさず、シナリオは独立したテスト入力とする。原因は `TransitionCause` を再利用し、Action と Event を混同しない。
+- `BehaviorScenarios.run` は各ケースを **同じ元の `WorkspaceSession`** から独立に確認する。Action は `ActionPlanner.plan`、Event は申告者が与えた `ChangeSet` を使い、共通の `ChangeSetApplier.prepare` と `BehaviorRuntime.review` / `reviewEvent` に渡す。保存経路は呼ばず、Event 発生の真正性も判定しない。ケースごとの `at` で自動値を再現できる。
+- 検証前の ChangeSet が不正、期待する照合が存在しない、前後の State / 判定が違う、または余分な Entity の照合が現れた場合は `failed` にする。期待値と一致しても `UNDECLARED`・`UNDETERMINED`・`INCONSISTENT` の照合が含まれる場合は `needs-review` とし、期待値の一致と仕様の健全性を分ける。スキーマエラー時はケースを走らせず `schema-errors` とする。
+- Lifecycle の `entry` と `transitions` に対し、期待値が一致したケースの `MATCHED` 照合のみを `exercisedBy` に記録する。未実行の辺を明示するが、有限個の具体例で任意の条件分岐・全データ・外部 Event 発生の網羅性は証明できない。CLI `behavior-scenarios` は `proofStatus: not-proven` を返し、全体の仕様完成判定には利用しない。連続操作のケース間データ引き継ぎはこの段階では対象外。
+
 ## 規律
 
 - `FieldDef` を使うときは必ず `schema.resolve(field)`、object の子フィールドの列挙は必ず `schema.effectiveFields(fields, node)` を通す。

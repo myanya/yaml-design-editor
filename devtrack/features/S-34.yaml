@@ -1,0 +1,17 @@
+id: S-34
+title: 業務シナリオの State 遷移検証と未実行 Lifecycle 遷移の表示
+implementation:
+- path: workspace-core/workspace/BehaviorScenarios.kt
+  module: workspace-core
+- path: cli/commands/BehaviorScenarioCommands.kt
+  module: cli
+tests:
+- name: BehaviorScenariosTest
+- name: BehaviorScenarioCliTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: 具体例による State 遷移の検証
+manual:
+- link: manual/schema.md
+  heading: 具体的な業務シナリオで遷移を検証する
