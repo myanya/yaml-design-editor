@@ -165,9 +165,11 @@ class BehaviorEventTest {
 
     @Test
     fun `Event宣言はbehavior文書にのみ置ける`() {
-        assertFailsWith<IllegalArgumentException> {
-            SchemaDocuments.parse("id: task\nkind: document\nevents: [{id: something}]", "task", "task.yaml", null)
+        val invalid = assertFailsWith<IllegalArgumentException> {
+            SchemaDocuments.parse("id: task\nkind: document\nroot: {type: object}\nevents: [{id: something}]",
+                "task", "task.yaml", null)
         }
+        assertTrue(invalid.message.orEmpty().contains("events"))
     }
 
     @Test
