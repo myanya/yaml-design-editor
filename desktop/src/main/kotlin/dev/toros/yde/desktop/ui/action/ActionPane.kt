@@ -315,7 +315,7 @@ fun ActionPanelHost(state: AppState) {
                                 fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                                 color = if (attention > 0) Palette.WarnOrange else Palette.OkGreen)
                             work.behaviorReviews.take(12).forEach { review ->
-                                Text("・[${review.lifecycleId} / ${review.entityId}] ${review.message}",
+                                Text("・${if (review.indirectlyAffected) "[関連先] " else ""}[${review.lifecycleId} / ${review.entityId}] ${review.message}",
                                     fontSize = 11.sp,
                                     color = if (review.needsAttention) Palette.WarnOrange else Palette.SubText)
                             }

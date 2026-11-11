@@ -1,0 +1,20 @@
+id: S-30
+title: 参照・保有関係を介する State の間接変化の検証
+implementation:
+- path: workspace-core/workspace/BehaviorImpact.kt
+  module: workspace-core
+- path: workspace-core/workspace/BehaviorRuntime.kt
+  module: workspace-core
+- path: workspace-core/workspace/BehaviorChecks.kt
+  module: workspace-core
+- path: desktop/ui/action/ActionPane.kt
+  module: desktop
+tests:
+- name: BehaviorImpactTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: 関係を介する State の間接変化
+manual:
+- link: manual/schema.md
+  heading: 関係先の State への波及
