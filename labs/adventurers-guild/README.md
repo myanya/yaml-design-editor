@@ -41,7 +41,8 @@
 |---|---|
 | `.yde/workspace.yaml` | 構成です。台帳は `guild/` の中だけです |
 | `.yde/schemas/common.yaml` | 共通の型です。番号・参照・金額・日付・状態・操作の名前の型と、概念のオブジェクト型（`entity`）を持ちます |
-| `.yde/schemas/quest-behavior.yaml` | 依頼の振る舞いの宣言です（`kind: behavior`）。依頼の状態から業務の State を作り、操作による入口・遷移・終端を Lifecycle に書きます。データには当たらず、操作の確認画面の判定と `behavior-audit`・`behavior-scenarios` で使います |
+| `.yde/schemas/*-behavior.yaml` | 振る舞いの宣言です（`kind: behavior`）。依頼・昇格審査・職能の審査の状態から業務の State を作り、操作や事実（Event）による入口・遷移・終端を Lifecycle に書きます。依頼には Event「依頼者が取り下げた」「全滅が確かめられた」があります。データには当たらず、操作の確認画面の判定と `behavior-audit`・`behavior-scenarios` で使います |
+| `scenarios/lifecycles.yaml` | 業務シナリオです。操作と事実の 24 件について、Lifecycle の遷移を確かめます（原本は変えません） |
 | `.yde/schemas/relations.yaml` | 関係レジストリです。概念の表示名と、関係の向き・表示名・多重度を持ちます |
 | `.yde/schemas/` のほか | 文書スキーマです（支部・ランク一覧・冒険者・パーティ・依頼者・依頼・精算・場所・魔物・素材・職能・職員・規約・処分・昇格審査・訓練の課程・素材の買取・資格）。線を辿る検査（パターン制約）と操作（`actions`）も持ちます |
 | `.yde/views/` | ダッシュボード（[ダッシュボード](#ダッシュボード)）と、一覧・クロス集計・チャートです（[ビュー](#ビュー)） |
@@ -237,9 +238,13 @@
 ./gradlew runCli -q --args="behavior-audit labs/adventurers-guild"
 ```
 
+```bash
+./gradlew runCli -q --args="behavior-scenarios labs/adventurers-guild labs/adventurers-guild/scenarios/lifecycles.yaml"
+```
+
 - `validate` は全文書の検証です。指摘の件数を [計画](PLAN.md)「いまの姿」に記録します。
 - `schema-graph` は型と関係の図の材料（レンズの「型」の段と同じもの）で、オントロジーの全体を文字で確かめられます。画面では、台帳スペースの「レンズ」で型の段に切り替えると図で見られます。
-- `behavior-audit` は振る舞いの宣言（State・Lifecycle）のつながりの点検です。いまは「報告する」の行き先が 2 つ（達成と未達）ある点だけが、確かめてほしい点（`needs-review`）として出ます。具体的な操作で遷移を確かめるなら、ケースを書いて `behavior-scenarios labs/adventurers-guild <ケースの YAML>` を使います（原本は変えません。書き方はリポジトリの [スキーマのマニュアル](../../docs/manual/schema.md)「業務の State と Lifecycle」）。
+- `behavior-audit` は振る舞いの宣言（State・Lifecycle）のつながりの点検です。いまは「報告する」の行き先が 2 つ（達成と未達）ある点だけが、確かめてほしい点（`needs-review`）として出ます。`behavior-scenarios` は業務シナリオで遷移を確かめます（原本は変えません。書き方はリポジトリの [スキーマのマニュアル](../../docs/manual/schema.md)「業務の State と Lifecycle」）。いまは 24 件がすべて期待どおりで、到達率（`coverage`）は 27 の入口と遷移のうち 22 です。通せない 5 つは、前段の操作が要るものです（[計画](PLAN.md)「仮に置いたこと」）。
 - `action` は操作の一覧です。`action labs/adventurers-guild accept-quest --on QST-0117 --param taker=PTY-001 --param date=2026-11-08` のように名前と値を渡すと、計画と適用後の検証を出します（`--apply` で書きます）。原本を変えずに試すなら、このフォルダを写してから使います。
 
 ## 試し方

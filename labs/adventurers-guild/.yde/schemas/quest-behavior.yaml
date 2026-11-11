@@ -10,6 +10,17 @@ states:
       path: status
       enum: common#依頼の状態
     idPrefix: quest-
+# Event は「何が起きたか」という外からの事実。ギルドの操作（Action）とは原因を分けて書く。
+# 同じ遷移を、操作で記録する場合と、事実の申告（CLI の event）で照合する場合の両方を宣言する
+events:
+  - id: client-withdrew
+    entity: quest
+    label: 依頼者が取り下げた
+    description: 依頼者が、依頼をやめると申し出た。ギルドは取消として記録し、預かった報酬を返す
+  - id: party-wiped-out
+    entity: party
+    label: 全滅が確かめられた
+    description: 別のパーティの証言などで、パーティの全滅が確かめられた。遂行中の依頼は未達（失敗）になる
 lifecycles:
   - id: quest-lifecycle
     entity: quest
@@ -38,6 +49,10 @@ lifecycles:
       - { from: quest-assigned, to: quest-failed, by: { action: report-quest } }
       - { from: quest-assigned, to: quest-failed, by: { action: abandon-quest } }
       - { from: quest-assigned, to: quest-cancelled, by: { action: cancel-quest } }
+      - { from: quest-received, to: quest-cancelled, by: { event: client-withdrew } }
+      - { from: quest-posted, to: quest-cancelled, by: { event: client-withdrew } }
+      - { from: quest-assigned, to: quest-cancelled, by: { event: client-withdrew } }
+      - { from: quest-assigned, to: quest-failed, by: { event: party-wiped-out } }
       - { from: quest-reported, to: quest-settled, by: { action: settle-quest } }
       - { from: quest-failed, to: quest-posted, by: { action: post-quest } }
       - { from: quest-failed, to: quest-expired, by: { action: expire-quest } }

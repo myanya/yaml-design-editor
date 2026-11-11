@@ -805,10 +805,11 @@ definitions:
         check: [ { gte: [ { path: deadline }, { path: receivedOn } ] } ]
         level: error
       # ---- 預かりと返金（Q47） ----
+      # 取消・期限切れは、預かる前（受付のまま）にも起きるので対象にしない（掲示から先で取消・期限切れになった依頼は、掲示のときに預かっている）
       - id: deposit-before-posting
-        description: 掲示から先へ進んだ依頼（受付・却下のほか）には、預かりがあること
+        description: 掲示から先へ進んで動いている依頼（掲示中・受注済み・報告済み・精算済み・失敗）には、預かりがあること
         where:
-          - { path: status, oneOf: [posted, assigned, reported, settled, failed, cancelled, expired] }
+          - { path: status, oneOf: [posted, assigned, reported, settled, failed] }
           - { path: deposit, exists: false }
         expect: absent
         level: error

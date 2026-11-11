@@ -1,0 +1,27 @@
+id: promotion-behavior
+name: 昇格審査の振る舞い
+kind: behavior
+description: >-
+  昇格審査の状態（審査の対象 → 審査中 → 合格・不合格）を業務の State にし、
+  操作による入口・遷移・終端を宣言します。合格のときの対象のランクの書き換えは、
+  状態の遷移ではないので Lifecycle には書きません。
+states:
+  - source:
+      entity: promotion
+      path: status
+      enum: common#昇格審査の状態
+    idPrefix: promotion-
+lifecycles:
+  - id: promotion-lifecycle
+    entity: promotion
+    states: [promotion-nominated, promotion-examining, promotion-passed, promotion-failed]
+    entry:
+      - to: promotion-nominated
+        by: { action: nominate-promotion }
+    transitions:
+      - { from: promotion-nominated, to: promotion-examining, by: { action: start-examination } }
+      - { from: promotion-examining, to: promotion-passed, by: { action: pass-promotion } }
+      - { from: promotion-examining, to: promotion-failed, by: { action: fail-promotion } }
+    termination:
+      terminal: [promotion-passed, promotion-failed]
+      openEnded: false

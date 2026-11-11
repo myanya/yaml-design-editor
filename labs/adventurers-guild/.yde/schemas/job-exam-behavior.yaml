@@ -1,0 +1,27 @@
+id: job-exam-behavior
+name: 職能の審査の振る舞い
+kind: behavior
+description: >-
+  職能の審査の状態（審査の対象 → 審査中 → 合格・不合格）を業務の State にし、
+  操作による入口・遷移・終端を宣言します。実技試験の結果を書く操作は状態を変えないので、
+  Lifecycle には書きません。合格のときの冒険者の職能の段階の書き換えも、状態の遷移ではありません。
+states:
+  - source:
+      entity: job-exam
+      path: status
+      enum: common#職能の審査の状態
+    idPrefix: job-exam-
+lifecycles:
+  - id: job-exam-lifecycle
+    entity: job-exam
+    states: [job-exam-nominated, job-exam-examining, job-exam-passed, job-exam-failed]
+    entry:
+      - to: job-exam-nominated
+        by: { action: nominate-job-exam }
+    transitions:
+      - { from: job-exam-nominated, to: job-exam-examining, by: { action: start-job-exam } }
+      - { from: job-exam-examining, to: job-exam-passed, by: { action: pass-job-exam } }
+      - { from: job-exam-examining, to: job-exam-failed, by: { action: fail-job-exam } }
+    termination:
+      terminal: [job-exam-passed, job-exam-failed]
+      openEnded: false

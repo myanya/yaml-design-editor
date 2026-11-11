@@ -1,0 +1,176 @@
+# ギルドの Lifecycle（依頼・昇格審査・職能の審査）の業務シナリオ。どのケースも保存済みの同じデータから評価し、原本は変えない。
+#   ./gradlew runCli -q --args="behavior-scenarios labs/adventurers-guild labs/adventurers-guild/scenarios/lifecycles.yaml"
+# 到達率（coverage）はワークスペースのすべての Lifecycle で数えるので、1 つのファイルにまとめる。
+# 前段の操作が要る遷移は、いまのデータでは通せない（devtrack の UX-289）:
+#   依頼 受付 → 掲示中（預かってから）・失敗 → 掲示中（期限前の失敗）、昇格審査と職能の審査の 審査の対象 → 審査中（審査の対象のものが無い）、
+#   職能の審査 審査中 → 合格（実技試験の結果を書いてから）
+cases:
+  # ======== 依頼（quest-lifecycle） ========
+  # ---- 操作（Action） ----
+  - id: register
+    action: register-quest
+    params: { title: 試しの依頼, kind: other, client: CLT-001, reward: 100, date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0128, before: [], after: [quest-received], verdict: MATCHED }
+  - id: deposit-keeps-received
+    action: receive-deposit
+    target: QST-0119
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0119, before: [quest-received], after: [quest-received], verdict: UNCHANGED }
+  - id: reject-received
+    action: reject-quest
+    target: QST-0125
+    params: { date: 2026-11-11, reason: 禁じられた狩り場での依頼だった }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0125, before: [quest-received], after: [quest-rejected], verdict: MATCHED }
+  - id: cancel-received
+    action: cancel-quest
+    target: QST-0119
+    params: { date: 2026-11-11, reason: 粉ひき場の主が自分で猫を飼うことにした }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0119, before: [quest-received], after: [quest-cancelled], verdict: MATCHED }
+  - id: expire-received
+    action: expire-quest
+    target: QST-0125
+    params: { date: 2026-11-29, reason: 掲示する前に期限が来た }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0125, before: [quest-received], after: [quest-expired], verdict: MATCHED }
+  - id: accept-posted
+    action: accept-quest
+    target: QST-0118
+    params: { taker: ADV-0002, date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0118, before: [quest-posted], after: [quest-assigned], verdict: MATCHED }
+  - id: cancel-posted
+    action: cancel-quest
+    target: QST-0124
+    params: { date: 2026-11-11, reason: 鍛冶屋が自分で仕入れた }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0124, before: [quest-posted], after: [quest-cancelled], verdict: MATCHED }
+  - id: expire-posted
+    action: expire-quest
+    target: QST-0126
+    params: { date: 2026-11-21, reason: 受け手が見つからなかった }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0126, before: [quest-posted], after: [quest-expired], verdict: MATCHED }
+  - id: report-success
+    action: report-quest
+    target: QST-0116
+    params: { outcome: success, date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0116, before: [quest-assigned], after: [quest-reported], verdict: MATCHED }
+  - id: report-failure
+    action: report-quest
+    target: QST-0116
+    params: { outcome: failure, date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0116, before: [quest-assigned], after: [quest-failed], verdict: MATCHED }
+  - id: abandon-wiped-out
+    action: abandon-quest
+    target: QST-0115
+    params: { ground: wiped-out, evidence: 銀の轍が古井戸の底で朝露の旗の旗を見つけた, date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0115, before: [quest-assigned], after: [quest-failed], verdict: MATCHED }
+  - id: cancel-assigned
+    action: cancel-quest
+    target: QST-0116
+    params: { date: 2026-11-11, reason: 砦が別の便で書状を送った }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0116, before: [quest-assigned], after: [quest-cancelled], verdict: MATCHED }
+  - id: settle-reported
+    action: settle-quest
+    target: QST-0114
+    params: { date: 2026-11-11 }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0114, before: [quest-reported], after: [quest-settled], verdict: MATCHED }
+  - id: expire-failed
+    action: expire-quest
+    target: QST-0120
+    params: { date: 2026-11-11, reason: 期限を過ぎた失敗の依頼を閉じた }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0120, before: [quest-failed], after: [quest-expired], verdict: MATCHED }
+  # ---- 事実（Event）: 申告と、それに伴う変更の候補を照合する（申告の真偽は確かめない） ----
+  - id: client-withdrew-posted
+    event: client-withdrew
+    subject: QST-0124
+    changeset:
+      changes:
+        - file: guild/quests/QST-0124.yaml
+          ops:
+            - { op: set, path: status, value: cancelled }
+            - { op: insert, path: refund, value: { id: QST-0124-R, refundedOn: 2026-11-11, amount: 200 } }
+            - { op: insert, path: "history[2]", value: { date: 2026-11-11, action: cancel-quest, from: posted, to: cancelled, note: 鍛冶屋が取り下げを申し出た } }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0124, before: [quest-posted], after: [quest-cancelled], verdict: MATCHED }
+  - id: party-wiped-out
+    event: party-wiped-out
+    subject: PTY-003
+    changeset:
+      changes:
+        - file: guild/quests/QST-0115.yaml
+          ops:
+            - { op: set, path: status, value: failed }
+            - { op: insert, path: "assignments[0].report", value: { reportedOn: 2026-11-11, outcome: failure, abandonedFor: wiped-out, summary: "ギルドが打ち切った: 銀の轍が古井戸の底で朝露の旗の旗を見つけた" } }
+            - { op: insert, path: "history[3]", value: { date: 2026-11-11, action: abandon-quest, from: assigned, to: failed, note: 銀の轍が古井戸の底で朝露の旗の旗を見つけた } }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0115, before: [quest-assigned], after: [quest-failed], verdict: MATCHED }
+  - id: client-withdrew-received
+    event: client-withdrew
+    subject: QST-0119
+    changeset:
+      changes:
+        - file: guild/quests/QST-0119.yaml
+          ops:
+            - { op: set, path: status, value: cancelled }
+            - { op: insert, path: "history[1]", value: { date: 2026-11-11, action: cancel-quest, from: received, to: cancelled, note: 粉ひき場の主が取り下げを申し出た（預かる前） } }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0119, before: [quest-received], after: [quest-cancelled], verdict: MATCHED }
+  - id: client-withdrew-assigned
+    event: client-withdrew
+    subject: QST-0116
+    changeset:
+      changes:
+        - file: guild/quests/QST-0116.yaml
+          ops:
+            - { op: set, path: status, value: cancelled }
+            - { op: insert, path: refund, value: { id: QST-0116-R, refundedOn: 2026-11-11, amount: 200 } }
+            - { op: insert, path: "history[3]", value: { date: 2026-11-11, action: cancel-quest, from: assigned, to: cancelled, note: 砦の守備隊が取り下げを申し出た } }
+    expect:
+      - { lifecycle: quest-lifecycle, entity: QST-0116, before: [quest-assigned], after: [quest-cancelled], verdict: MATCHED }
+  # ======== 昇格審査（promotion-lifecycle） ========
+  - id: promotion-nominate
+    action: nominate-promotion
+    params: { candidate: ADV-0006, fromRank: RNK-E, toRank: RNK-D, date: 2026-11-11 }
+    expect:
+      - { lifecycle: promotion-lifecycle, entity: PRM-003, before: [], after: [promotion-nominated], verdict: MATCHED }
+  - id: promotion-pass
+    action: pass-promotion
+    target: PRM-002
+    params: { date: 2026-11-11, decidedBy: STF-01 }
+    expect:
+      - { lifecycle: promotion-lifecycle, entity: PRM-002, before: [promotion-examining], after: [promotion-passed], verdict: MATCHED }
+  - id: promotion-fail
+    action: fail-promotion
+    target: PRM-002
+    params: { date: 2026-11-11, decidedBy: STF-01, note: 護衛の段取りに、まだ危うさがある }
+    expect:
+      - { lifecycle: promotion-lifecycle, entity: PRM-002, before: [promotion-examining], after: [promotion-failed], verdict: MATCHED }
+  # ======== 職能の審査（job-exam-lifecycle） ========
+  - id: job-exam-nominate
+    action: nominate-job-exam
+    params: { candidate: ADV-0007, job: JOB-01, toLevel: intermediate, date: 2026-11-11 }
+    expect:
+      - { lifecycle: job-exam-lifecycle, entity: JEX-002, before: [], after: [job-exam-nominated], verdict: MATCHED }
+  - id: record-practical-keeps-examining
+    action: record-practical
+    target: JEX-001
+    params: { heldOn: 2026-11-11, examiner: STF-04, result: passed, skills: 動く的への三連射 }
+    expect:
+      - { lifecycle: job-exam-lifecycle, entity: JEX-001, before: [job-exam-examining], after: [job-exam-examining], verdict: UNCHANGED }
+  - id: job-exam-fail
+    action: fail-job-exam
+    target: JEX-001
+    params: { date: 2026-11-11, decidedBy: STF-01, note: 霧の中での射かけが定まらなかった }
+    expect:
+      - { lifecycle: job-exam-lifecycle, entity: JEX-001, before: [job-exam-examining], after: [job-exam-failed], verdict: MATCHED }
