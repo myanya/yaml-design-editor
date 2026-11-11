@@ -7,6 +7,7 @@ import dev.toros.yde.semantic.SemanticQuery
 import dev.toros.yde.semantic.SemanticRules
 import dev.toros.yde.semantic.SemanticSnapshot
 import dev.toros.yde.semantic.schema.LifecycleDef
+import dev.toros.yde.semantic.schema.EventDef
 import dev.toros.yde.semantic.schema.StateDef
 import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.yaml.YamlIO
@@ -115,6 +116,24 @@ object BehaviorRuntime {
      */
     fun reviewEvent(session: WorkspaceSession, event: EventOccurrence, prepared: PreparedChangeSet): List<LifecycleReview> =
         reviewCause(session, TransitionCause.Event(event.eventId), event.subjectId, prepared)
+
+    /** 差分が無い Event の申告も、種類・対象 ID・対象 Entity 型を確認できる。発生の真偽は判定しない。 */
+    fun validateEvent(session: WorkspaceSession, event: EventOccurrence): EventDef {
+        val matches = BehaviorChecks.compile(session.schemas).events.filter { it.id == event.eventId }
+        require(matches.size == 1) { "Event「${event.eventId}」の定義は一つ必要です（実際: ${matches.size}）" }
+        val definition = matches.single()
+        require(definition.entity == null || event.subjectId != null) {
+            "Event「${event.eventId}」には対象 entity「${definition.entity}」の subjectId が必要です"
+        }
+        event.subjectId?.let { id ->
+            val type = session.derived.semantic.graph.entities[id]?.entityType
+            require(type != null) { "Event「${event.eventId}」の対象「$id」が見つかりません" }
+            require(definition.entity == null || definition.entity == type) {
+                "Event「${event.eventId}」の対象「$id」の型が宣言された entity「${definition.entity}」と異なります"
+            }
+        }
+        return definition
+    }
 
     private fun reviewCause(
         session: WorkspaceSession,

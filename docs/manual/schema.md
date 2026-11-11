@@ -132,7 +132,33 @@ lifecycles:
 
 カーネル API `BehaviorRuntime.reviewEvent` に `EventOccurrence("approval-granted", "F-001")` と外部変更の `PreparedChangeSet` を渡すと、関連先の依頼まで辿り、State の前後と Event 原因の一致を検査できます。Action で同じ変更が起きても、Event を自動的に発生したとは扱いません。
 
-**現在の範囲は宣言・静的点検・読み取り専用の実行時診断です。** 発生した Event の記録、外部通知の受信、時刻・証拠の保存、画面からの操作はまだ提供しません。呼び出し元が申告する「起きた」という事実の真偽は、この検証では確認できません。
+Event の種類の宣言と遷移診断に加えて、CLI では Event の発生申告を記録できます（下記）。外部通知の自動受信や画面からの申告はまだ提供していません。申告された事実の真偽は、この検証では確認できません。
+
+### Event の申告・記録（CLI）（S-32）
+
+`event` コマンドは「何が起きたと申告されたか」を記録します。Action を実行したり業務文書を書き換えたりするコマンドではありません。
+
+```bash
+# 宣言された Event 種類の一覧
+./gradlew runCli -q --args="event samples/orders"
+
+# 申告内容を確認する（保存しない）
+./gradlew runCli -q --args="event my-workspace approval-granted --on F-001 --source external-workflow"
+
+# 外部の通知を申告として保存する（時刻・証拠参照は任意）
+./gradlew runCli -q --args="event my-workspace approval-granted --on F-001 --source external-workflow --evidence notification/123 --occurred-at 2026-11-11T09:00:00+09:00 --record"
+
+# 保存した Event を表示する
+./gradlew runCli -q --args="event my-workspace --history"
+
+# 変更セットを使って State / Lifecycle の遷移を照合する（原本は変更しない）
+./gradlew runCli -q --args="event my-workspace approval-granted --on F-001 --source external-workflow --changeset proposal.yaml"
+```
+
+- `--record` を省くと保存しません。保存時は `--source` が必須です。`--occurred-at` 省略時は記録時刻を発生時刻として扱います。タイムゾーン付き ISO 8601 日時を指定できます。
+- 申告した Event が未定義、対象 ID が存在しない、宣言された対象 Entity 型と一致しない場合は拒否します。新しく作る Entity を対象とする Event は `--changeset` による作成候補の照合で確認できます。
+- `--changeset` は未適用の候補を読み、`MATCHED` / `UNDECLARED` などを返します。申告と遷移照合を `--record` で保存しても **変更セットは適用されません**。保存された記録にも `proposed-changes-only` を明記します。
+- 記録はレガシー構成なら `_runs/events/`、`.yde` 構成なら `.yde/runs/events/` に YAML で追記します。業務データの索引には含まれません。`occurrenceStatus: reported-not-verified` は、申告元・証拠参照を保存しただけで事実の真正性を証明していないことを表します。
 
 ## フィールド定義のプロパティ
 

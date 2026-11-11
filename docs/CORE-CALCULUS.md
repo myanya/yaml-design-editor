@@ -786,6 +786,7 @@ Core Calculus = 定義を実行する
 | ユーザ定義の型 | 宣言。検証は構造チェックへ導出 |
 | 自動で入る値（`auto`） | Rewrite（要素 × 保存済みとの違い × SetScalar） |
 | 操作 | Rewrite ＋ Query / Predicate ＋ Construct |
+| 業務 Event の申告記録 | Event 宣言＝Term、対象 Entity の存在・型照合＝Query / Predicate、Lifecycle の前後照合＝既存の State 判定。記録は ChangeSet の既存 Transaction を介して runs へ格納する副次記録（業務データの変更は行わない） |
 | `actions.input` | Construct（現在値・日時）＋ Term（差分） |
 
 この分類で実装の重複を点検する。

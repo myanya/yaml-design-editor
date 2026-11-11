@@ -19,7 +19,7 @@ class CliOwnershipTest {
             listOf("infer-relations", "--apply"), listOf("agent", "missing"), listOf("watch", "--once"),
             listOf("revert", "missing"), listOf("export", "missing"), listOf("migrate"),
             listOf("eval", "missing"), listOf("report", "missing"), listOf("run-skill", "missing", "--yes"),
-            listOf("init", "--adopt"),
+            listOf("init", "--adopt"), listOf("event", "missing", "--record"),
         )
         WorkspaceOwnership().acquire(root).use {
             for (command in writers) {
@@ -29,6 +29,7 @@ class CliOwnershipTest {
             }
             assertContains(runCli(arrayOf("catalog", root.toString())), "a.yaml")
             runCli(arrayOf("validate", root.toString()))
+            assertFalse(appCommandWrites("event", listOf("missing")))
             runCli(arrayOf("init", root.toString(), "--adopt", "--dry-run"))
             runCli(arrayOf("apply", root.toString(), patch.toString(), "--dry-run"))
             assertEquals(0, workspaceApply(root.toString(), listOf(patch.toString(), "--dry-run"), {}))

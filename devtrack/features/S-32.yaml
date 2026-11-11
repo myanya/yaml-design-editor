@@ -1,0 +1,20 @@
+id: S-32
+title: Event 発生申告の記録と変更候補の Lifecycle 照合
+implementation:
+- path: workspace-core/workspace/BehaviorEventJournal.kt
+  module: workspace-core
+- path: workspace-core/workspace/BehaviorRuntime.kt
+  module: workspace-core
+- path: cli/commands/EventCommands.kt
+  module: cli
+tests:
+- name: BehaviorEventTest
+- name: EventCliTest
+- name: CliOwnershipTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: Event 発生申告と記録
+manual:
+- link: manual/schema.md
+  heading: Event の申告・記録（CLI）

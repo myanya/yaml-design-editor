@@ -63,6 +63,10 @@ internal const val CLI_USAGE = """コマンド:
            既定は計画だけ（変更セットと、適用後の姿の検証の結果を表示。原本は変わらない）。--apply で原本へ書き込む
            （検証エラーが残るなら書かない。--allow-errors で書く）。--on は受け手（エンティティの ID か、文書の相対パス）。
            --param の値は YAML として読む（例: --param "derived_from=[UA-003]"）。前提（require）に合わなければ理由を出して止まる
+  event    <workspace> [event-id] [--on entity-id] [--source 申告元] [--evidence 証拠参照]
+           [--occurred-at ISO日時] [--changeset changeset.yaml] [--record] [--history]
+           Event を申告する。引数なしは種類の一覧、--history は記録一覧。既定は確認のみで、--record は記録だけを保存する。
+           --record 時は --source 必須。--changeset は未適用の候補の遷移照合であり、業務データには適用しない。
   entity   <workspace> show <id>                エンティティ全体像（R23-04）: アスペクト合成（所有フィールド
            と原本座標）・関係・被参照をYAMLで返す（エンティティページ・read_entity と同じ合成）
            ※ 変更系（rename / merge / delete）・move・refactor はカーネルの命令 workspace refactor で行う:
@@ -160,6 +164,7 @@ private fun dispatchAppCommand(command: String, rest: List<String>): CliResult {
         "bench" -> benchCommand(rest)
         "checks" -> checksCommand(rest)
         "action" -> actionCommand(rest)
+        "event" -> eventCommand(rest)
         "apply" -> applyCommand(rest)
         "hash" -> hashCommand(rest)
         "entity" -> entityCommand(rest)

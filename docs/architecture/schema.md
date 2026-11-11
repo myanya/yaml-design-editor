@@ -194,7 +194,15 @@
 - `kind: behavior` の `events` は **発生した事実の種類**を `id`・任意の `entity`（事実の対象型）・`label`・`description` で宣言する。Action の `do` のような実行命令は持たない。`entity` は Lifecycle の対象型と一致しなくてよい。例えば「許可フラグへの許可通知」は、そのフラグを参照する「依頼」の Lifecycle を変えうる。
 - `BehaviorChecks.compile` は Event の ID の重複と Lifecycle 原因 `by: {event: id}` の未定義参照をエラーにする。Action / Event は**別の原因**として区別する。どちらも同じ State 遷移を起こしうるが、Action の一致だけをもって Event として扱わない。
 - `BehaviorRuntime.reviewEvent(session, EventOccurrence(eventId, subjectId), prepared)` は、呼び出し側が観測した事実と、その事実に伴う変更候補を受け取り、S-29・S-30 と同じ State 評価・関連先の影響抽出を実行する。イベントが定義されていること、対象 ID と宣言型が一致することを検査してから、原因の種類が一致する `entry` / `transitions` のみ `MATCHED` にする。判定は読み取り専用で `LifecycleReview.cause` に Action / Event を保持する。
-- このAPIは **事実の発生をデータから自動推測しない**。呼び出し元の Event 発生証跡、発行元、時刻、履歴保存はまだ未実装であり、事実の真偽を保証しない。現段階は検査用のカーネルAPIまでで、UI・CLIからの Event 登録や自動配信は後続の開発とする。
+- このAPIは **事実の発生をデータから自動推測しない**。Event の申告・保存は後述の独立した記録機構であり、いずれも事実の真偽を保証しない。外部通知の自動受信とデスクトップの専用画面は後続の開発とする。
+
+### Event 発生申告と記録（S-32）
+
+- `BehaviorEventJournal.preview` は申告された Event の種類と対象 ID・Entity 型を `BehaviorRuntime.validateEvent` で照合する。変更候補を渡した場合は S-31 の `reviewEvent` を再利用し、前後 State・Lifecycle の適合性を判定する。**申告元（source）は必須**、証拠参照（evidence）と発生時刻は明示入力できる。これらは利用者の申告であり、真正性を認証するものではない。
+- `BehaviorEventJournal.record` は申告情報を `ChangeSetApplier` の既存の作成・検証・保存経路で `${'$'}{layout.runsDir}/events/EVT-<ID>.yaml` に記録する。runs ゾーンは ID 索引と業務データ検証の対象外。記録 ID の重複は拒否し、業務データへの更新や Event の自動発生は行わない。
+- 記録は `kind: event-occurrence`、`occurredAt` / `recordedAt`（UTC ISO 8601）、`source`、任意の `evidence`、`occurrenceStatus: reported-not-verified` を持つ。変更候補を照合した場合だけ `review.basis: proposed-changes-only`、対象ファイルの前後 SHA-256、Lifecycle 判定を残す。これは **未適用の変更候補の診断** であって、外部変更が実際に反映された証拠ではない。照合しなければ `review.basis: not-reviewed` と記録する。
+- CLI `event` の既定はプレビューだけで、`--record` を明示した場合に限り追記する。`--history` は記録一覧を読み取る。書込み時は `WorkspaceOwnership` の排他を取得する。受信連携・外部署名の検証・業務操作とEvent記録の原子的な同時確定・デスクトップの専用画面は対象外。
+- Core Calculus では Event 宣言は Term、対象の照合は既存 Query / Predicate、前後の Lifecycle 判定は既存の State 評価の再利用である。記録 YAML は結果の直列化であり、業務文書の Rewrite ではない。永続化は既存の変更セット適用経路のみで実行する。
 
 ## 規律
 
