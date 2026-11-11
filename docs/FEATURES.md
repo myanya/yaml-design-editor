@@ -119,6 +119,7 @@
 | S-28 | 業務 State / Lifecycle 宣言と静的完全性チェック（behavior） | `semantic-core/schema/Behavior.kt`・`workspace-core/workspace/BehaviorChecks.kt`・`workspace-core/workspace/SchemaDocuments.kt` | `BehaviorChecksTest` | architecture/schema.md「業務上の State / Lifecycle」 | manual/schema.md「業務の State と Lifecycle」 |  |
 | S-29 | 業務 State の実評価と Action / Lifecycle 前後照合 | `workspace-core/workspace/BehaviorRuntime.kt`・`app-core/session/DocumentSession.kt`・`app-core/service/WorkspaceOperations.kt`・`desktop/ui/action/ActionPane.kt` | `BehaviorRuntimeTest` | architecture/schema.md「State の実評価と Action の遷移照合」 | manual/schema.md「実データの State と Action の遷移確認」 |  |
 | S-30 | 参照・保有関係を介する State の間接変化の検証 | `workspace-core/workspace/BehaviorImpact.kt`・`workspace-core/workspace/BehaviorRuntime.kt`・`workspace-core/workspace/BehaviorChecks.kt`・`desktop/ui/action/ActionPane.kt` | `BehaviorImpactTest` | architecture/schema.md「関係を介する State の間接変化」 | manual/schema.md「関係先の State への波及」 |  |
+| S-31 | Event の種類の宣言と Lifecycle の Event 原因の検証 | `semantic-core/schema/Behavior.kt`・`workspace-core/workspace/SchemaDocuments.kt`・`workspace-core/workspace/BehaviorChecks.kt`・`workspace-core/workspace/BehaviorRuntime.kt` | `BehaviorEventTest` | architecture/schema.md「Event の種類と Lifecycle 前後差分の照合」 | manual/schema.md「Event を原因とする State 遷移の検査」 |  |
 
 ## 4. 検証
 

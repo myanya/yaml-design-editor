@@ -151,8 +151,8 @@ object SchemaDefinitionChecks {
             }
         } else if (kind == SchemaKind.BEHAVIOR) {
             if (match.isNotBlank()) issues += SchemaIssue("behavior 文書に match は定義できません", "match")
-            if (states.isEmpty() && lifecycles.isEmpty()) {
-                issues += SchemaIssue("behavior 文書には states / lifecycles のいずれかが必要です", "states")
+            if (states.isEmpty() && events.isEmpty() && lifecycles.isEmpty()) {
+                issues += SchemaIssue("behavior 文書には states / events / lifecycles のいずれかが必要です", "states")
             }
             if (definitions.isNotEmpty()) issues += SchemaIssue("behavior 文書に definitions は定義できません", "definitions")
             if (constraints.isNotEmpty() || checkers.isNotEmpty()) {

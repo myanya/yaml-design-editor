@@ -127,6 +127,7 @@ class SchemaDef(
 
     /** 業務上の State / Lifecycle の宣言。判定値ではなく、読取専用の定義（S-28）。 */
     val stateDeclarations: List<dev.toros.yde.semantic.schema.StateDeclaration> get() = kernel.states
+    val events: List<dev.toros.yde.semantic.schema.EventDef> get() = kernel.events
     val lifecycles: List<dev.toros.yde.semantic.schema.LifecycleDef> get() = kernel.lifecycles
 
     /** 派生スキーマの宣言（R11-03）。非 null のスキーマはテンプレートであり、自身は文書にマッチしない。 */

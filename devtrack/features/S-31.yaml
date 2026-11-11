@@ -1,0 +1,20 @@
+id: S-31
+title: Event の種類の宣言と Lifecycle の Event 原因の検証
+implementation:
+- path: semantic-core/schema/Behavior.kt
+  module: semantic-core
+- path: workspace-core/workspace/SchemaDocuments.kt
+  module: workspace-core
+- path: workspace-core/workspace/BehaviorChecks.kt
+  module: workspace-core
+- path: workspace-core/workspace/BehaviorRuntime.kt
+  module: workspace-core
+tests:
+- name: BehaviorEventTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: Event の種類と Lifecycle 前後差分の照合
+manual:
+- link: manual/schema.md
+  heading: Event を原因とする State 遷移の検査

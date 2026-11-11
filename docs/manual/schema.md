@@ -73,7 +73,7 @@ states:
 
 Lifecycle の `entry` は生成に相当する入り口、`transitions` は「どの State からどこへ、何によって移るか」、`termination.terminal` は終端 State です。終端は削除を意味しません。破棄／終了しないエンティティでは、終端の列挙に代えて `termination: {openEnded: true}` を明示できます。State の遷移を伴わない Action は列挙する必要がありません。
 
-スキーマの読込時に、State／Lifecycle の参照、Action の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果まで証明できません。** Event は構文上指定できますが、Event の定義と実行は後続フェーズのため、現在は検証未対応としてエラーになります。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。
+スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。
 
 ### 実データの State と Action の遷移確認（S-29）
 
@@ -107,6 +107,32 @@ Action が直接変更した文書以外も、**エンティティの参照関�
 - 変更文書の外にある Entity の診断には **[関連先]** と表示します。State に変化が無い関連先は表示しません。
 
 対象は参照・保有グラフで辿れる範囲です。全件の集計や、他の参照を伴わない式から生じる影響をすべて保証するものではありません。大きな連結成分では判定対象が多くなる点にも注意してください。
+
+### Event を原因とする State 遷移の検査（S-31）
+
+Event は **「何を実行するか」ではなく「何が起きたか」** という事実の種類です。`kind: behavior` で宣言します。
+
+```yaml
+events:
+  - id: approval-granted
+    entity: flag
+    label: 許可を確認した
+    description: 外部から許可が成立した事実を受領した
+lifecycles:
+  - id: task-lifecycle
+    entity: task
+    states: [task-blocked, task-ready]
+    entry: [{to: task-blocked, by: {action: create-task}}]
+    transitions:
+      - {from: task-blocked, to: task-ready, by: {event: approval-granted}}
+    termination: {terminal: [task-ready]}
+```
+
+`events` の必須項目は `id` で、`entity`・`label`・`description` は任意です。`entity` は事実が発生した対象（この例では `flag`）で、遷移する Lifecycle の対象（`task`）と異なって構いません。Event の ID の重複と、定義のない Event を `by.event` で指定した場合はスキーマの読み込み時に指摘します。
+
+カーネル API `BehaviorRuntime.reviewEvent` に `EventOccurrence("approval-granted", "F-001")` と外部変更の `PreparedChangeSet` を渡すと、関連先の依頼まで辿り、State の前後と Event 原因の一致を検査できます。Action で同じ変更が起きても、Event を自動的に発生したとは扱いません。
+
+**現在の範囲は宣言・静的点検・読み取り専用の実行時診断です。** 発生した Event の記録、外部通知の受信、時刻・証拠の保存、画面からの操作はまだ提供しません。呼び出し元が申告する「起きた」という事実の真偽は、この検証では確認できません。
 
 ## フィールド定義のプロパティ
 
