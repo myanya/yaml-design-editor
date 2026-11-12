@@ -32,7 +32,7 @@
 | W-01 | ワークスペース選択・履歴・開けない理由の通知と再試行 | `ui/shell/StartScreen.kt`・`WorkspaceOpenNotice.kt`・`ui/common/FilePickers.kt` | UI `WorkspaceOpenNoticeTest` | architecture/ui.md「UI シェル」 | manual/README.md「ビルドと起動」 |  |
 | W-02 | ファイルツリー（全形式・隠し項目・除外・パス検索・展開の永続化・現在地） | `ui/file/FileTreePane.kt`・`core/FileCatalog.kt` | `FileCatalogTest`・手動（画面） | architecture/ui.md「ファイル一覧と参考資料」 | manual/README.md「ファイル一覧の表示と検索」 |  |
 | W-03 | ファイル・フォルダーの配置変更と Undo | `FileArrangementPlanner`・`FileArrangementJournal`・`FileMoveDialog` | `AppStateFileArrangementTest`・`DocumentCacheSnapshotTest` ほか | architecture/workspace.md「ファイル配置の変更」 | manual/README.md「ファイルとフォルダーの整理」 |  |
-| W-04 | 外部監視と再読込（走査と照合は IO・履歴保持・競合保護・確認付き破棄） | `session/DocumentSession.kt`（`reload`）・`session/ExternalCheck.kt`・`WorkspaceSession.refreshFrom`・`ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest`・`ExternalCheckTest`・`DesktopRuntimeTest` | architecture/workspace.md「再読込と履歴の保持」 | manual/README.md「外部変更・競合・安全性」 | UX-245 |
+| W-04 | 外部監視と再読込（走査と照合は IO・履歴保持・競合保護・確認付き破棄） | `session/DocumentSession.kt`（`reload`）・`session/ExternalCheck.kt`・`WorkspaceSession.refreshFrom`・`ReloadConfirmationDialog` | `ReloadHistoryTest`・`SessionRefreshTest`・`ExternalCheckTest`・`DesktopRuntimeTest` | architecture/workspace.md「再読込と履歴の保持」 | manual/README.md「外部変更・競合・安全性」 | UX-245・UX-305 |
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) | manual/README.md「ビルドと起動」 |  |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `UiPreferences.kt`・`ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/common/Common.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」・manual/README.md「テーマ」 |  |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 |  |
@@ -264,7 +264,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 | 未解決の指摘 |
 |---|---|---|---|---|---|---|
-| C-01 | ヘッドレスワークスペース API（開く・読む・保存・検証・相対パスの脱出防止） | `core/Workspace.kt` | `WorkspaceCliTest`・`WorkspaceLoadingTest`・`DocumentStoreTest` | architecture/workspace.md「文書キャッシュと Workspace」 | manual/cli.md「ヘッドレス CLI」 | UX-296・UX-297・UX-298・UX-301・UX-302・UX-304 |
+| C-01 | ヘッドレスワークスペース API（開く・読む・保存・検証・相対パスの脱出防止） | `core/Workspace.kt` | `WorkspaceCliTest`・`WorkspaceLoadingTest`・`DocumentStoreTest` | architecture/workspace.md「文書キャッシュと Workspace」 | manual/cli.md「ヘッドレス CLI」 | UX-296・UX-297・UX-298・UX-301・UX-302・UX-304・UX-305 |
 | C-02 | YPath パッチ（set / insert / delete / move / rename / reorder）と YPath のパース | `yaml-core/patch/Patch.kt`・`yaml-core/model/YNode.kt`（`parseYPath`） | `PatchTest`・`YPathTest` | architecture/yaml-model.md「変更の基礎命令と 2 層」 | manual/cli.md「コマンド例」 |  |
 | C-03 | 変更セット（複数ファイルのパッチ束と新規作成・base ハッシュの競合検出・適用後の姿の検証・`--require-valid`・適用の本体はカーネル） | `workspace-core/changeset/ChangeSets.kt`・`workspace-core/workspace/ChangeSetApplier.kt` | `ChangeSetApplierTest`・`WorkspaceCliTest` | architecture/workspace.md「変更セットの適用」 | manual/cli.md「コマンド例」 | UX-118・UX-168・UX-226 |
 | C-04 | 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） | `core/Disclosure.kt` | `WorkspaceCliTest` | architecture/agents.md「コンテキスト」 | manual/cli.md「コマンド例」 |  |

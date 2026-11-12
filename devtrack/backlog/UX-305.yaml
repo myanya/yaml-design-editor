@@ -1,0 +1,16 @@
+id: UX-305
+title: Windows で開くと、ファイルの一覧と本文の読み取りに 0.46〜3.0 秒かかる（YAML 1 件ごとに実パスを 2 回確かめ、1 回ごとにパスの段の数だけ名前を調べる）
+status: discussing
+origin_on: 2026-11-12
+origin: オーナーの Windows の timings.log（labs/adventurers-guild を 3 度開いた記録）
+memo: |-
+  FileSystemDocumentStore.capture は、一覧（scan）でファイルごとに ReadBoundary.resolve（存在の確認と toRealPath）を行い、本文を読む直前にもう一度 resolve する。JDK の Windows 版の toRealPath はパスの段ごとに名前を調べるので、置き場所が深いほど重い（オーナーの置き場所で文書まで 8〜9 段）。
+  2026-11-03 の測定（実パスの解決 0.4〜0.5 ms／件、本文 0.04〜0.05 ms／件）から、キャッシュが暖まった 0.46 秒の 9 割前後が実パスの確認と見られる。1 度目の 3.0 秒は、キャッシュが冷えていたかウイルス対策の走査かを分けられない（段を細かく区切ったので、次の記録で分ける）。
+  案 G1: 一覧のときのファイルごとの確認をやめ、読む直前の 1 回にする（決まりは変えない）。案 G2: 確認と読み取りを並列にする。案 G3: フォルダの実パスを全読込の間だけ覚える（「読む直前に確かめる」決まりを変えるのでオーナーの判断）。記録は docs/archive/workspace-open-analysis.md の追記
+theme: T-04
+related:
+  - UX-244
+  - UX-304
+features:
+  - C-01
+  - W-04

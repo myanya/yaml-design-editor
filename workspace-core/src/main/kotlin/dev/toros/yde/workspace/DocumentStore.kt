@@ -118,13 +118,19 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
         return scan(WorkspacePaths.ReadBoundary(root), includeMarkdown = false).yamlTimes.keys.map(::StoredDocument)
     }
 
-    /** 全読込の候補。本文の直前にも対象の実パスを確認し、一覧の検査結果を使い回さない。 */
+    /**
+     * 全読込の候補。本文の直前にも対象の実パスを確認し、一覧の検査結果を使い回さない。
+     * 段階の時間（一覧・本文と、文書ごとの実パスの確認・読み取りの合計）は、呼び出し側が置いた記録（Timings.within）へ書く。
+     */
     fun capture(): FileSystemRead {
-        val boundary = WorkspacePaths.ReadBoundary(root)
-        val listing = scan(boundary, includeMarkdown = true)
+        val boundary = Timings.measure("ルートの実パス") { WorkspacePaths.ReadBoundary(root) }
+        val listing = Timings.measure("一覧（走査と実パスの確認）") { scan(boundary, includeMarkdown = true) }
         val texts = linkedMapOf<DocumentId, String>()
-        for (id in listing.yamlTimes.keys) {
-            readFile(boundary.resolve(id.value))?.let { texts[id] = it.text }
+        Timings.measure("本文（読む直前の実パスの確認と読み取り）") {
+            for (id in listing.yamlTimes.keys) {
+                val file = Timings.measureEach("読む直前の実パスの確認") { boundary.resolve(id.value) }
+                Timings.measureEach("本文の読み取り") { readFile(file) }?.let { texts[id] = it.text }
+            }
         }
         return FileSystemRead(texts, FileSystemListing(listing.yamlTimes.filterKeys { it in texts }, listing.markdown))
     }
@@ -139,7 +145,7 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
                     val relative = root.relativize(dir).toString().replace('\\', '/')
                     if (layout.isState(relative)) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                     if (dir.fileName.toString().startsWith(".") && relative != ".yde") return java.nio.file.FileVisitResult.SKIP_SUBTREE
-                    if (runCatching { boundary.resolve(relative) }.isFailure) return java.nio.file.FileVisitResult.SKIP_SUBTREE
+                    if (runCatching { Timings.measureEach("一覧の実パスの確認（フォルダ）") { boundary.resolve(relative) } }.isFailure) return java.nio.file.FileVisitResult.SKIP_SUBTREE
                 }
                 return java.nio.file.FileVisitResult.CONTINUE
             }
@@ -149,7 +155,7 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
                 val isMarkdown = includeMarkdown && name.endsWith(".md", ignoreCase = true)
                 if (!name.startsWith(".") && (isYaml || isMarkdown)) {
                     val id = DocumentId(root.relativize(file).toString().replace('\\', '/'))
-                    if (runCatching { boundary.resolve(id.value) }.isSuccess) {
+                    if (runCatching { Timings.measureEach("一覧の実パスの確認（ファイル）") { boundary.resolve(id.value) } }.isSuccess) {
                         if (isYaml) yaml[id] = if (attrs.isSymbolicLink) {
                             runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
                         } else attrs.lastModifiedTime().toMillis()

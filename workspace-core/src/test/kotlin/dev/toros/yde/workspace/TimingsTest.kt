@@ -47,6 +47,41 @@ class TimingsTest {
     }
 
     @Test
+    fun `何度も呼ぶ処理は名前ごとに合計して、最初に呼んだ時点の深さに 1 行で出す`() {
+        val t = Timings("開く", steppingClock())
+        t.phase("本文") {
+            repeat(3) { t.each("読み取り") { } }
+            t.each("確認") { }
+        }
+        val entries = t.entries()
+        assertEquals(listOf("本文", "読み取り（3 回の合計）", "確認（1 回の合計）"), entries.map { it.name })
+        assertEquals(listOf(0, 1, 1), entries.map { it.depth })
+        // 1 回ごとに時計を 2 度読む（始まりと終わり）ので、1 回 1 秒
+        assertEquals(3_000_000_000L, entries[1].nanos)
+        assertTrue(t.report().contains("読み取り（3 回の合計）"))
+    }
+
+    @Test
+    fun `ファイルの全読込は、一覧と本文と文書ごとの実パスの確認・読み取りの合計を記録する`() {
+        val root = kotlin.io.path.createTempDirectory("yde-timings-capture")
+        try {
+            java.nio.file.Files.createDirectories(root.resolve("items"))
+            java.nio.file.Files.writeString(root.resolve("items/a.yaml"), "id: A-1\n")
+            java.nio.file.Files.writeString(root.resolve("items/b.yaml"), "id: B-1\n")
+            val t = Timings("開く")
+            val read = Timings.within(t) { FileSystemDocumentStore(root).capture() }
+            assertEquals(2, read.texts.size)
+            val names = t.entries().map { it.name }
+            listOf(
+                "ルートの実パス", "一覧（走査と実パスの確認）", "一覧の実パスの確認（フォルダ）（1 回の合計）", "一覧の実パスの確認（ファイル）（2 回の合計）",
+                "本文（読む直前の実パスの確認と読み取り）", "読む直前の実パスの確認（2 回の合計）", "本文の読み取り（2 回の合計）",
+            ).forEach { assertTrue(it in names, "$it が無い: $names") }
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `読み込みの段階を記録する`() {
         val store = InMemoryDocumentStore(
             mapOf(

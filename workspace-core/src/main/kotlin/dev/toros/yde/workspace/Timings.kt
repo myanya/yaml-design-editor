@@ -18,6 +18,10 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
     private val recorded = mutableListOf<Entry>()
     private val depth = ThreadLocal.withInitial { 0 }
 
+    /** 合計で測る処理（[each]）の、名前ごとの最初の始まり・深さ・スレッド・合計・回数。 */
+    private class Sum(val startNanos: Long, val depth: Int, val thread: String, var nanos: Long = 0, var count: Int = 0)
+    private val sums = LinkedHashMap<String, Sum>()
+
     /** 始めてからの経過（ナノ秒）。 */
     val elapsedNanos: Long get() = clock() - origin
 
@@ -39,10 +43,32 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
         add(Entry(name, depth.get(), elapsedNanos, null, Thread.currentThread().name))
     }
 
+    /**
+     * 何度も呼ぶ小さな処理（文書ごとの処理など）を、名前ごとに合計して測る。表には「名前（n 回の合計）」の 1 行で、
+     * 最初に呼んだ時点・そのときの深さに出る。1 回ずつ段階にすると行が文書の数だけ並ぶので、こちらを使う。
+     */
+    fun <T> each(name: String, block: () -> T): T {
+        val start = clock()
+        val level = depth.get()
+        try {
+            return block()
+        } finally {
+            addSum(name, start, level, clock() - start)
+        }
+    }
+
     @Synchronized private fun add(entry: Entry) { recorded += entry }
 
+    @Synchronized private fun addSum(name: String, start: Long, level: Int, nanos: Long) {
+        val sum = sums.getOrPut(name) { Sum(start - origin, level, Thread.currentThread().name) }
+        sum.nanos += nanos
+        sum.count++
+    }
+
     /** 始まりの順（同じ時刻なら外側が先）。段階は終わったときに足すので、記録の順のままでは内側が先に並ぶ。 */
-    @Synchronized fun entries(): List<Entry> = recorded.sortedWith(compareBy<Entry>({ it.startNanos }, { it.depth }))
+    @Synchronized fun entries(): List<Entry> =
+        (recorded + sums.map { (name, s) -> Entry("$name（${s.count} 回の合計）", s.depth, s.startNanos, s.nanos, s.thread) })
+            .sortedWith(compareBy<Entry>({ it.startNanos }, { it.depth }))
 
     /**
      * 人が読む表。各行は「始めてからの経過・段階の時間・名前」で、入れ子は字下げで表す。
@@ -75,6 +101,9 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
 
         /** このスレッドに置かれた記録があれば、段階として測る。無ければ block をそのまま実行する。 */
         fun <T> measure(name: String, block: () -> T): T = ambient.get()?.phase(name, block) ?: block()
+
+        /** このスレッドに置かれた記録があれば、名前ごとの合計として測る（[each]）。無ければ block をそのまま実行する。 */
+        fun <T> measureEach(name: String, block: () -> T): T = ambient.get()?.each(name, block) ?: block()
 
         /** このスレッドに置かれた記録（無ければ null）。 */
         fun current(): Timings? = ambient.get()

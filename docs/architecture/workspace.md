@@ -110,6 +110,7 @@
 
 - 段階の区切りは `Timings.measure` で書く。記録はスレッドに置いたもの（`Timings.within`）にだけ書き、置かれていなければ何もしない。ふだんの処理と、ほかのスレッドの処理には影響しない。
 - 区切りは、読み込み（`WorkspaceReader.load` のファイルの読み取り・YAML の解析・スキーマの組み立て・保存基準の書き出し・構造の検証・意味の導出）と、`Workspace.refresh`（ファイルの一覧と本文・組込みスキーマ・セッション・索引と定義の窓口）に置く。
+- 何度も呼ぶ小さな処理（文書ごとの実パスの確認・本文の読み取り）は `Timings.measureEach` で名前ごとに合計し、「名前（n 回の合計）」の 1 行で出す。`FileSystemDocumentStore.capture` は、ルートの実パス・一覧・本文と、その中の文書ごとの実パスの確認と読み取りの合計を区切る。
 - 画面は `DesktopRuntime.openWorkspace` が所有権・読み込み・写し・切り替え・画面の状態を測り、`AppRoot` が開いた後の最初の描画を待って閉じる（`AppState.finishOpenTimings`）。記録は表示状態の置き場の `timings.log` に新しい 50 件まで残し、状態欄に合計を添える。
 - CLI は `--timings` を付けたコマンドの、開く段階とコマンドの処理（`validate` は全体の検証）を標準エラーに出す。
 
