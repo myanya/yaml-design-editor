@@ -231,7 +231,8 @@ data class SchemaTree(
      */
     fun effectiveFields(fields: List<FieldDef>, node: YNode.Map?): EffectiveFields {
         val result = mutableListOf<FieldDef>()
-        val inactive = LinkedHashMap<String, InactiveCase>()
+        // 使えない case のキーの案内（inactive）は、読まれたときに作る（節ごとに作ると重い。UX-293）
+        val discriminators = mutableListOf<Pair<FieldDef, String?>>()
         fun append(child: FieldDef, depth: Int) {
             result += child
             // $ref を介した自己参照で不正な無限展開にならないよう、スキーマ走査と同程度の上限を設ける。
@@ -240,19 +241,28 @@ data class SchemaTree(
             if (eff.type != FieldType.ENUM || eff.cases.isEmpty()) return
             val current = child.key?.let { k -> scalarText(node?.entries?.get(k)) }
             if (current != null) eff.cases[current].orEmpty().forEach { append(it, depth + 1) }
+            discriminators += eff to current
+        }
+        fields.forEach { append(it, 0) }
+        return EffectiveFields(result) { inactiveCases(discriminators, result) }
+    }
+
+    private fun inactiveCases(discriminators: List<Pair<FieldDef, String?>>, active: List<FieldDef>): Map<String, InactiveCase> {
+        val inactive = LinkedHashMap<String, InactiveCase>()
+        for ((eff, current) in discriminators) {
             for ((value, caseFields) in eff.cases) {
                 if (value == current) continue
                 for (caseField in caseFields) {
                     val key = caseField.key ?: continue
+                    if (key in inactive) continue
                     val enabling = eff.values.filter { v -> eff.cases[v].orEmpty().any { it.key == key } }
                         .ifEmpty { eff.cases.filterValues { list -> list.any { it.key == key } }.keys.toList() }
-                    inactive.putIfAbsent(key, InactiveCase(eff, enabling))
+                    inactive[key] = InactiveCase(eff, enabling)
                 }
             }
         }
-        fields.forEach { append(it, 0) }
-        result.forEach { it.key?.let(inactive::remove) }
-        return EffectiveFields(result, inactive)
+        active.forEach { it.key?.let(inactive::remove) }
+        return inactive
     }
 
     /**
@@ -282,8 +292,7 @@ data class SchemaTree(
 data class InactiveCase(val discriminator: FieldDef, val values: List<String>)
 
 /** object の実効フィールド合成の結果。 */
-data class EffectiveFields(
-    val fields: List<FieldDef>,
-    /** 実効フィールドに含まれないが、いずれかの case で定義されているキー → その案内情報 */
-    val inactive: Map<String, InactiveCase>,
-)
+class EffectiveFields(val fields: List<FieldDef>, inactiveOf: () -> Map<String, InactiveCase>) {
+    /** 実効フィールドに含まれないが、いずれかの case で定義されているキー → その案内情報（読まれたときに作る） */
+    val inactive: Map<String, InactiveCase> by lazy(LazyThreadSafetyMode.NONE, inactiveOf)
+}

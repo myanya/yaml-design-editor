@@ -1,6 +1,6 @@
 id: UX-293
 title: ワークスペースを開く・検証・業務シナリオが、定義の文書が大きいと遅い（構造の検証の effectiveFields が時間の 85〜89%）
-status: todo
+status: resolved
 origin_on: 2026-11-11
 origin: labs/adventurers-guild の業務シナリオを、パーティと受講の Lifecycle まで広げたとき（オーナーも、ワークスペースを開くのが遅くなったと気づいた）
 memo: |-
@@ -15,3 +15,11 @@ memo: |-
 features:
   - V-01
   - S-34
+closed_on: 2026-11-12
+resolutions:
+  - date: 2026-11-12
+    kind: 解決
+    note: 使えない項目の案内（inactive）を、読まれたときに作るようにした（yaml-core の StructureSchema.effectiveFields と semantic-core の SchemaTree.effectiveFields）。labs/adventurers-guild
+      で、開く 6.9 秒 → 2.1 秒・validate 12.1 秒 → 4.1 秒・業務シナリオ 68 件 十数分 → 75 秒（結果は同じ）。残りの候補は UX-295
+    targets: FEATURES-V-01
+targets: FEATURES-V-01

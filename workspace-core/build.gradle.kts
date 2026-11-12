@@ -12,6 +12,8 @@ dependencies {
 tasks.withType<Test>().configureEach {
     // ゴールデンテスト（RefactoringPlanGoldenTest）の期待値更新スイッチ: ./gradlew :workspace-core:test -DupdateGolden=true
     systemProperty("updateGolden", System.getProperty("updateGolden") ?: "false")
+    // BehaviorChecksTest が読む冒険者ギルドの定義。入力にしないと、定義だけを変えたときにテストが最新とみなされて走らない
+    inputs.dir(rootDir.resolve("labs/adventurers-guild/.yde/schemas")).withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // ワークスペースのテンプレート: リポジトリ直下の templates/ を資源 templates/ に写す（アプリと CLI の「新しいワークスペースを作る」が読む）。

@@ -1,5 +1,6 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.yaml.model.DocumentId
 import java.nio.file.Files
 import java.nio.file.Path
@@ -148,6 +149,8 @@ class BehaviorChecksTest {
         assertTrue(catalog.errors.isEmpty(), "${catalog.errors}")
         val quest = catalog.lifecycles.single { it.id == "quest-lifecycle" }
         assertEquals(9, quest.states.size)
-        assertEquals(14, quest.transitions.size)
+        // 操作による遷移はオーナーが置いた 14 本。そのあと、事実（Event）による遷移を足している（labs の Q70）
+        assertEquals(14, quest.transitions.count { it.by is TransitionCause.Action })
+        assertTrue(quest.transitions.any { it.by is TransitionCause.Event })
     }
 }

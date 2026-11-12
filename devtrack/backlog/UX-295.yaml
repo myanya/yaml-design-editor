@@ -1,0 +1,9 @@
+id: UX-295
+title: SchemaTree.resolve が同じ項目の型の合成を呼ばれるたびに作り直す（UX-293 の改修のあと、業務シナリオの時間の約 26%）
+status: todo
+origin_on: 2026-11-12
+origin: UX-293 の改修のあと、labs/adventurers-guild の業務シナリオ 2 件を JFR で測ったとき
+memo: |-
+  UX-293 の改修（使えない項目の案内を読まれたときに作る）で、構造の検証は上位から消えた。残りは意味の検査（WorkspaceChecks.deliver）と、SchemaTree.resolve → narrow → narrowOnto（型の連鎖の合成）で、resolve が約 26%。
+  resolve は純粋（木は読み込みのあと変わらない）なので、項目ごとに結果を覚えれば縮む。ただし呼び手が copy で作った一時の FieldDef も来るので、同一性で覚えると画面を長く開いたときに覚えが増え続ける。
+  木に属する項目だけを覚える（読み込みのときに木の項目の resolve を作っておく）か、大きさに上限のある覚えにするなど、メモリの扱いを決めてから入れる

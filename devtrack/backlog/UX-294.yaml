@@ -1,0 +1,10 @@
+id: UX-294
+title: labs のワークスペースを読むテストが Gradle の入力に無く、labs だけを変えるとテストが最新とみなされて走らない
+status: todo
+origin_on: 2026-11-12
+origin: UX-293 の改修で全テストを回したとき、workspace-core の BehaviorChecksTest（labs/adventurers-guild の依頼の Lifecycle の遷移の数を見る）が、何日も前の labs の変更から落ちていたと分かった
+memo: |-
+  テストは fixtures.root から labs の場所を組み立てて読むが、テストのタスクの入力（inputs）に labs が無い。コードを変えない限り Gradle は前回の結果（UP-TO-DATE）を使うので、labs だけを変えた変更では落ちるテストに気づけない。
+  workspace-core は、読む定義（labs/adventurers-guild/.yde/schemas）をテストの入力に足した（UX-293 の改修で）。
+  同じ形のテストが cli（ActionCliTest が labs/sysdev-template）と repo-tests（KakeiboLabTest が labs/kakeibo）にもある。読む labs をそれぞれのテストの入力に足すか、
+  buildSrc の共通設定で labs と test-fixtures を入力にする（labs を変えるたびに全モジュールのテストが走る代わりに、取りこぼしが無くなる）

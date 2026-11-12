@@ -49,7 +49,7 @@
 
 - `SchemaDef.resolve()` は参照先定義に呼び出し側の `key` / `label` / `required` などを合成して返す。フィールドを使う側は必ず `schema.resolve(field)` を通す。
 - ローカル参照は `$ref: definition`、横断参照は `$ref: moduleId#definition`。各 `FieldDef` は宣言元モジュールを保持するため、library から解決した定義の子の非修飾 `$ref` はその library を基準に解決する。definitions を利用側へマージしない。
-- enum の `cases`（値ごとの追加フィールド）を持ちうる object の子フィールドを列挙する側は、必ず `schema.effectiveFields(fields, node)` を通す。データノードの enum 値に応じて case フィールドが判別フィールドの直後に合成され、再帰的に展開される。
+- enum の `cases`（値ごとの追加フィールド）を持ちうる object の子フィールドを列挙する側は、必ず `schema.effectiveFields(fields, node)` を通す。データノードの enum 値に応じて case フィールドが判別フィールドの直後に合成され、再帰的に展開される。いまの値では使えない case のキーの案内（`inactive`）は、読まれたときに作る（知らない項目の指摘とフォームの案内だけが使う。節ごとに作ると、選択肢と cases の多いメタスキーマの検証で時間の大半を占めた）。
 - `ai.fieldToJsonSchema` だけはデータノードが無いため `effectiveFields` を使わず、判別 enum が 1 つなら値ごとの `anyOf`、複数なら全 case の和集合に変換する。
 - `resolve` は浅いコピーで、`fields` / `item` / `value` / `cases` のインスタンスを再生成しない。リファクタリングがフィールドをインスタンス同一性で同定する前提なので、deep copy にするならそこを見直す。
 - 型の名前（`type: 名前`）は `$ref` と同じ解決（パーサが `FieldDef.ref` に同じ名前を入れ、`typeName` に書かれた名前を残す）。合成の規則は次の「型の連鎖と狭める規則」。

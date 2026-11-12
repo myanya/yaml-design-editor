@@ -107,10 +107,12 @@ data class StructureSchema(
     /**
      * オブジェクトの子の項目に、データの選択肢の値に応じた項目（cases）を足して返す。足した項目は、選択肢の項目の直後に入る。
      * inactive は、いまの値では使えない項目のキー → それを使えるようにする選択肢の項目と値。
+     * inactive は知らない項目の案内にだけ使うので、読まれたときに作る（節ごとに作ると、選択肢と cases の多い
+     * メタスキーマで検証の時間の大半を占めていた。UX-293）。判別の項目といまの値は、合成のときに覚えておく。
      */
     fun effectiveFields(fields: List<StructureField>, node: YNode.Map?): EffectiveStructure {
         val result = mutableListOf<StructureField>()
-        val inactive = LinkedHashMap<String, InactiveKey>()
+        val discriminators = mutableListOf<Pair<StructureField, String?>>()
         fun append(child: StructureField, depth: Int) {
             result += child
             if (depth > 32) return
@@ -118,26 +120,39 @@ data class StructureSchema(
             if (eff.type != ValueType.ENUM || eff.cases.isEmpty()) return
             val current = child.key?.let { k -> scalarText(node?.entries?.get(k)) }
             if (current != null) eff.cases[current].orEmpty().forEach { append(it, depth + 1) }
+            // 入れ子の判別の項目の案内を先に（putIfAbsent で先に入れたものが残る。以前の順のまま）
+            discriminators += eff to current
+        }
+        fields.forEach { append(it, 0) }
+        return EffectiveStructure(result) { inactiveKeys(discriminators, result) }
+    }
+
+    private fun inactiveKeys(discriminators: List<Pair<StructureField, String?>>, active: List<StructureField>): Map<String, InactiveKey> {
+        val inactive = LinkedHashMap<String, InactiveKey>()
+        for ((eff, current) in discriminators) {
             for ((value, caseFields) in eff.cases) {
                 if (value == current) continue
                 for (caseField in caseFields) {
                     val key = caseField.key ?: continue
+                    if (key in inactive) continue
                     val enabling = eff.values.filter { v -> eff.cases[v].orEmpty().any { it.key == key } }
                         .ifEmpty { eff.cases.filterValues { list -> list.any { it.key == key } }.keys.toList() }
-                    inactive.putIfAbsent(key, InactiveKey(eff, enabling))
+                    inactive[key] = InactiveKey(eff, enabling)
                 }
             }
         }
-        fields.forEach { append(it, 0) }
-        result.forEach { it.key?.let(inactive::remove) }
-        return EffectiveStructure(result, inactive)
+        active.forEach { it.key?.let(inactive::remove) }
+        return inactive
     }
 }
 
 /** いまの選択肢の値では使えない項目の案内（選択肢の項目と、その項目を使えるようにする値）。 */
 data class InactiveKey(val discriminator: StructureField, val values: List<String>)
 
-data class EffectiveStructure(val fields: List<StructureField>, val inactive: Map<String, InactiveKey>)
+/** オブジェクトの実効の項目。使えない項目の案内（inactive）は、読まれたときに作る。 */
+class EffectiveStructure(val fields: List<StructureField>, inactiveOf: () -> Map<String, InactiveKey>) {
+    val inactive: Map<String, InactiveKey> by lazy(LazyThreadSafetyMode.NONE, inactiveOf)
+}
 
 /** 構造のスキーマの読み取り（YAML を読んだままの値から）。知らないキーは誤りにする（導出の出力は、この形に閉じている）。 */
 object StructureParser {
