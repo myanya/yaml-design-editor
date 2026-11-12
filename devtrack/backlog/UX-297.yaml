@@ -1,0 +1,14 @@
+id: UX-297
+title: スキーマ文書を開くたびに 5 回解析する（文書として・検査の定義集め・スキーマ文書の読み取り）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  WorkspaceReader.load が文書として 1 回、parseSchemas が検査の定義集め（CheckCatalog.libraryOf）のために parseToRaw で 1 回、SchemaDocuments.parse が parseToRaw で 1 回（parseToRaw は 2 回解析）。式の項目を読むために生の値を木へ戻す（fromAny）。スキーマ文書の解析（暖 0.11 秒）のうち約 0.08 秒が YAML の解析。
+  案 A2: 文書として読んだ木から生の値を作り、1 回の解析で済ませる。
+theme: T-04
+related:
+  - UX-296
+features:
+  - C-01
+  - S-15

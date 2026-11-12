@@ -1,0 +1,13 @@
+id: UX-302
+title: 開くときに全文書の構造を検証する（583 件。冷えた JVM で 0.28〜0.33 秒、結果を読むのは適用の requireValid と CLI の shell だけ）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  WorkspaceReader.derive が全文書を DerivedStructures で検証する（構造のスキーマの導出 30 件・変換 91 回を含む）。画面の検証の一覧は app-core の Validator が別に検証し、開いただけでは走らない。
+  案 A6: 使うときに計算する。requireValid（全文書の誤りで適用を止める）の意味を保つ。
+theme: T-04
+related:
+  - UX-293
+features:
+  - C-01

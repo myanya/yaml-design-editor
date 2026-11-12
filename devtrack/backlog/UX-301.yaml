@@ -1,0 +1,11 @@
+id: UX-301
+title: 開くときに全文書の保存基準のテキストを書き出す（584 件。冷えた JVM で 0.15〜0.19 秒、使うのは未保存の判定だけ）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  WorkspaceReader.load が全文書の persistedText を DefaultYamlCodec.dump で作る。未保存の判定（WorkspaceSession.isDirty）は、木が読み込んだときのままなら書き出しを比べなくても決まる。
+  案 A5: 書き出しを編集した文書だけにする（読み込んだ木を残し、最初の編集のときに書き出す）。読み込んだ木をその場で書き換えないこと（copy-on-write の規律）を確かめてから。
+theme: T-04
+features:
+  - C-01

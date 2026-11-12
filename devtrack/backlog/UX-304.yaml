@@ -1,0 +1,11 @@
+id: UX-304
+title: 読み込みが 1 本のスレッドで順に進む（文書ごとの解析・書き出し・検証は独立、組込みスキーマは本文に依存しない）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  WorkspaceReader.load と Workspace.refresh は、ファイルの読み取り → 組込みスキーマ → 文書の解析 → スキーマ文書の解析 → 割当と書き出し → 構造の検証 → 意味の導出を順に行う。冷えた JVM の実行（JIT の前）も 1 コアに留まる。
+  案 C1: 組込みスキーマ・本文の解析・スキーマ文書の解析を並行にする。案 C2: 文書ごとの解析・書き出し・構造の検証を並列にする。誤りの並び・Map の順は入力の順に保つ。共有の lazy のスレッド安全を確かめる。
+theme: T-04
+features:
+  - C-01

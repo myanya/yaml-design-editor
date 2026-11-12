@@ -8,6 +8,7 @@
 | [changelog.md](changelog.md) | 初期リリースからの版ごとの追加・変更・修正 | 2026-10〜 |
 | [workspace-load-investigation.md](workspace-load-investigation.md) | ワークスペース読込の時間・実パス確認・重複走査と画面スレッドの調査 | 2026-11 |
 | [workspace-load-optimization.md](workspace-load-optimization.md) | 読込の重複除去・境界検査と外部変更検出の維持・修正前後の比較測定 | 2026-11 |
+| [workspace-open-analysis.md](workspace-open-analysis.md) | 画面で開く処理の時間の流れ・冷えた JVM と暖まった JVM・重複した解析と読み直し・対策の案の比較 | 2026-11 |
 | [diagram-positions.md](diagram-positions.md) | 手動位置の保存・ELK の固定指定の調査・固定優先配置と回帰検証 | 2026-11 |
 | [file-tree-improvements.md](file-tree-improvements.md) | ファイル一覧・配置変更・参考ソース検索の3段階開発と判断・検証 | 2026-10 |
 | [flow-view.md](flow-view.md)・[flow-view-validation.md](flow-view-validation.md) | 汎用フロービューの初期実装・BZFL-0002移行・改名影響調査と検証 | 2026-10 |

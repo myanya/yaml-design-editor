@@ -1,0 +1,12 @@
+id: UX-303
+title: 開いた直後に業務の流れの図の配置（ELK）を 2 回、並行に計算する（各 0.5〜0.6 秒）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  ui/view/FlowViewPane.kt の LaunchedEffect の GraphLayouts.arrangeFlow が、ダッシュボードを開いた直後に 2 回走る。原因（同じ図を 2 か所で組み立てるのか、鍵が変わって計算し直すのか）は未確定。最初の描画の後なので待ち時間には入らないが、開いた直後の CPU を取り合う。
+  案 A7: 原因を確かめて 2 回目をなくす。
+theme: T-04
+features:
+  - X-26
+  - C-18

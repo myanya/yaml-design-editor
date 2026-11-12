@@ -1,0 +1,15 @@
+id: UX-299
+title: ビュー定義を画面の部品ごとにディスクから読み直す（開いた直後に 2 回・呼び手 11 か所・画面のスレッドで 1 回 0.03〜0.14 秒）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  core/Views.load は .yde/views を列挙して読み（loader があれば木を書き出してから）、ViewDefinitions.load で parseToRaw する。画面の 11 か所（AppState の 3 か所・DashboardPane・DashboardFlowPane・ViewGridPane・ViewRenderers・FormDocView・GraphLensView・FlowViewPane の 2 か所）が、remember の鍵（索引・編集の版）が変わるたびに読み直す。セッションはビュー定義を文書として持っている。開いた直後は、画面の状態を戻すとき（既定のダッシュボード探し）とダッシュボードの組み立てで 2 回。
+  案 A4・B2: セッションの木から版ごとに 1 回だけ組み立て、画面で共有する。未保存の編集を重ねた版とディスクの版を取り違えない。
+theme: T-04
+related:
+  - UX-296
+features:
+  - C-07
+  - X-05
+  - X-13

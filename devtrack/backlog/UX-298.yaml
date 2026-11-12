@@ -1,0 +1,14 @@
+id: UX-298
+title: 組込みスキーマを開くたびに資源から作り直す（冷えた JVM で 0.3〜0.4 秒、暖まっても 0.04 秒）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  app の BuiltinSchemas.kernelSchemas → BuiltinSchemaResources.kernelSchemas が、開くたびに資源 9 件を parseSchemas で読み、ビューのスキーマを組み立てる。検査の定義・組込みの型・図の記法は lazy でプロセスに 1 回だが、スキーマは覚えていない。
+  案 A3: 構成（と拡張の種類）を鍵にプロセスで覚える。2 回目以降の開く処理に効く。初回は A1 と暖機（D1）でしか縮まない。
+theme: T-04
+related:
+  - UX-296
+features:
+  - S-15
+  - C-01

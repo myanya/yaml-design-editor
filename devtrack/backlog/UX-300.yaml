@@ -1,0 +1,14 @@
+id: UX-300
+title: ダッシュボードの集計を画面の組み立ての中で行う（冷えた JVM で 0.2〜0.3 秒、画面のスレッドを止める）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  ui/view/DashboardPane.kt の remember の中で Dashboards.resolve（表 18 個の行の解決）と dashboardFlow を計算する。開いた直後の最初の描画を遅らせ、編集の版が変わるたびにも画面のスレッドで計算し直す。
+  案 B1: 背景で計算し、計算中の表示を出す。画面の購読の規律（版の鍵）を保つ。
+theme: T-04
+related:
+  - UX-299
+features:
+  - X-13
+  - X-26

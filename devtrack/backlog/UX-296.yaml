@@ -1,0 +1,11 @@
+id: UX-296
+title: 生の値への解析（parseToRaw）が本文を 2 回解析する（スキーマ・ビュー・組込みの定義の読み込みがすべて 2 倍）
+status: discussing
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
+memo: |-
+  yaml/YamlIO.kt の parseToRaw は、展開の上限を確かめるために compose と YNode への変換をして結果を捨て、もう一度 Yaml.load する。読み込みで 103 回（スキーマ・組込み）、最初の描画までにさらに 107 回（ビュー定義・図の記法など）。
+  案 A1: 組み立てたノード（compose の結果）から値を作り、解析を 1 回にする。数値のキー・日付など、load と同じ値になることをテストで押さえる。
+theme: T-04
+features:
+  - C-01
