@@ -19,6 +19,7 @@
 | `RefactoringImpact` | workspace-core/workspace/RefactoringImpact.kt | リファクタリングの計画のうち定義文書を見て決まる分 |
 | `Disclosure` | core/Disclosure.kt | 段階的開示（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） |
 | `Bench` | core/Bench.kt | 合成ワークスペースの生成と計測（[README.md「規模の計測」](README.md)） |
+| `Timings` / `OpenTimingsLog` | workspace-core/workspace/Timings.kt・desktop/OpenTimings.kt | 処理の段階ごとの時間の記録。読み込みは呼び出し側がスレッドに置いた記録へ書き（`Timings.within` / `measure`）、画面は開く処理を最初の描画まで測って `.yde/state/timings.log` に追記する。CLI は `--timings` |
 | `BuildInfo` | core/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
 | `WorkspaceTemplate` / `WorkspaceTemplates` | workspace-core/WorkspaceTemplates.kt | 出発点のテンプレート（資源 `templates/`。台帳 `template.yaml` の名前・説明・問い `params` と、写すファイル） |
 | `WorkspaceInit` / `InitRequest` / `InitPlan` | workspace-core/WorkspaceInit.kt | ワークスペースの初期化の計画と書き込み（テンプレートの展開・後入れ・答えの整形と点検・初期化済みの判定・後入れの候補） |
@@ -104,6 +105,13 @@
 - 未保存の文書は監視による取り込みから除く。ワークスペース構成が同じなら、同時に届いた他文書の通知でも、未表示文書の Undo と保存基準を保持する。
 - ファイル配置変更の強制保存も検査を通す。検査済みの控えに物理移動と文面変更を適用した期待値を使い、現物の読み直しで外部変更を承認しない。
 - 比較と書き込みの間を排他する OS ロック、および複数ファイルの保存全体の原子性は保証しない。
+
+## 開く処理の時間の記録
+
+- 段階の区切りは `Timings.measure` で書く。記録はスレッドに置いたもの（`Timings.within`）にだけ書き、置かれていなければ何もしない。ふだんの処理と、ほかのスレッドの処理には影響しない。
+- 区切りは、読み込み（`WorkspaceReader.load` のファイルの読み取り・YAML の解析・スキーマの組み立て・保存基準の書き出し・構造の検証・意味の導出）と、`Workspace.refresh`（ファイルの一覧と本文・組込みスキーマ・セッション・索引と定義の窓口）に置く。
+- 画面は `DesktopRuntime.openWorkspace` が所有権・読み込み・写し・切り替え・画面の状態を測り、`AppRoot` が開いた後の最初の描画を待って閉じる（`AppState.finishOpenTimings`）。記録は表示状態の置き場の `timings.log` に新しい 50 件まで残し、状態欄に合計を添える。
+- CLI は `--timings` を付けたコマンドの、開く段階とコマンドの処理（`validate` は全体の検証）を標準エラーに出す。
 
 ## セッションの fork
 

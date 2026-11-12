@@ -7,6 +7,7 @@ import dev.toros.yde.app.validate.Validator
 import dev.toros.yde.cli.issueMap
 import dev.toros.yde.cli.pruneNulls
 import dev.toros.yde.cli.workspaceOf
+import dev.toros.yde.workspace.Timings
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.validate.Severity
 
@@ -25,7 +26,7 @@ internal fun validateCommand(rest: List<String>): CliResult = run {
     var withheld = 0
     // --sources: 指摘の出どころ（どの検査の・どの要素についての指摘か）も出す（P27 段A）
     val withSources = "--sources" in rest
-    val fileResults = files.mapNotNull { file ->
+    val fileResults = Timings.measure("全体の検証（文書 ${files.size}）") { files.mapNotNull { file ->
         val rel = ws.relPath(file)
         val result = ws.validateDetailed(rel)
         val issues = result.issues
@@ -47,7 +48,7 @@ internal fun validateCommand(rest: List<String>): CliResult = run {
                 linkedMapOf("phase" to it.phase, "filled" to it.filled, "total" to it.total)
             },
         ).filterValues { it != null && it != emptyList<Any>() }
-    }
+    } }
     asData(
         linkedMapOf(
             "schemaErrors" to ws.schemaErrors,

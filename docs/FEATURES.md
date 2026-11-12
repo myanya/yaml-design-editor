@@ -283,6 +283,7 @@
 | C-17 | フローの解決・複数文書sources・来歴・CLI | `view/flow/FlowViewKind.kt`・`FlowViews.kt`・`FlowReports.kt` | `FlowViewsTest`・`FlowViewDefinitionsTest`・`FlowViewsIntegrationTest` | architecture/views.md「フローの解決」 | manual/flow-views.md「フロービュー」 |  |
 | C-18 | フローの配置切替・配置の調整・線のラベルの表示切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/common/GraphLayouts.kt`・`ui/common/FlowSwimlanes.kt`・`ui/view/FlowViewPane.kt` | `FlowLayoutsTest`・UI `DiagramLayoutOptionsUiTest`・`DiagramLabelVisibilityTest`・`FlowSelectionTest`・`NavigationHistoryTest`・`FlowRefactoringTest`・`FlowRefactoringGoldenTest` | architecture/views.md「フローの画面と配置」 | manual/flow-views.md「画面での操作」・manual/flow-views.md「文書への埋め込み」 | UX-252・UX-253 |
 | C-19 | 変換の局所名と可変長の連結（`$bind`・`$flatten`） | `schema/TemplateBindings.kt`・`TransformDef.kt`・`semantic/Transform.kt` | `NestedTransformTest`・`FlowViewsTest` | architecture/transform.md「変換」 | manual/cli.md「コマンド例」 |  |
+| C-20 | 開く処理の時間の記録（`Timings`・CLI `--timings`・画面の `.yde/state/timings.log`） | `workspace/Timings.kt`・`desktop/OpenTimings.kt`・`cli/AppCli.kt` | `TimingsTest`・`OpenTimingsLogTest` | [workspace](architecture/workspace.md) | manual/cli.md「コマンド例」 |  |
 
 ## 10. skill（フォーマット適合）
 

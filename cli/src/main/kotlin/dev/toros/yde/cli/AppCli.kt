@@ -3,6 +3,7 @@ package dev.toros.yde.cli
 import dev.toros.yde.app.core.BuildInfo
 import dev.toros.yde.app.core.Workspace
 import dev.toros.yde.app.core.changeSetToYaml
+import dev.toros.yde.workspace.Timings
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.yaml.YamlIO
@@ -147,8 +148,13 @@ fun runCli(args: Array<String>): String {
     if (args[0] == "connect") return runConnectedCli(args.drop(1))
     val command = args[0]
     val format = CliArgs.format(args.toList())
-    val rest = withoutFormat(args.drop(1))
-    val result = withCliOwnership(rest.firstOrNull(), appCommandWrites(command, rest)) { dispatchAppCommand(command, rest) }
+    // --timings: どのコマンドでも、ワークスペースを開く段階とコマンドの処理の時間を標準エラーに出す（性能の調査用）
+    val timings = if ("--timings" in args) Timings("CLI $command の時間") else null
+    val rest = withoutFormat(args.drop(1)).filter { it != "--timings" }
+    val result = Timings.within(timings) {
+        withCliOwnership(rest.firstOrNull(), appCommandWrites(command, rest)) { dispatchAppCommand(command, rest) }
+    }
+    timings?.let { System.err.println(it.report()) }
     return render(result, format)
 }
 
@@ -243,7 +249,7 @@ internal fun versionText(): String = "appVersion: ${BuildInfo.appVersion}\nbuild
 /** 最初の引数をワークスペースとして開く。 */
 internal fun workspaceOf(rest: List<String>): Workspace {
     val dir = rest.firstOrNull() ?: error("ワークスペースのパスを指定してください")
-    return Workspace.open(Path.of(dir))
+    return Timings.measure("ワークスペースを開く") { Workspace.open(Path.of(dir)) }
 }
 
 internal fun issueMap(issue: Issue, withSource: Boolean = false): Map<String, Any?> = linkedMapOf(

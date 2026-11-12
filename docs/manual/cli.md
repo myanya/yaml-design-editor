@@ -54,6 +54,7 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="transform test-fixtures/workspaces/rename-target test-fixtures/transforms/req-list.yaml --origins"   # YAML から YAML への変換（試作台）: 定義（from＝クエリで選ぶ／build＝出力のひな型／rules＝入れ子に当てる規則）を評価して、組み立てた YAML と出どころを返す。出力は保存しない
 ./gradlew runCli -q --args="readiness sample-workspace --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
 ./gradlew runCli -q --args="bench --modules 2,4,8,16"                    # 規模の計測（合成ワークスペースを作り、開く・全体の検証・準備完了レポートの時間と、規模に対する伸び方を出す。--keep <dir> で作ったものを残す）
+./gradlew runCli -q --args="validate sample-workspace --timings"         # 時間の内訳（どのコマンドにも付けられる。ワークスペースを開く段階＝ファイルの読み取り・YAML の解析・スキーマの組み立て・構造の検証・意味の導出など＝とコマンドの処理の時間を標準エラーに出す）
 ./gradlew runCli -q --args="checks sample-workspace --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
 ./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
 ./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）

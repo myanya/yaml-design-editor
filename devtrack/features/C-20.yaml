@@ -1,0 +1,18 @@
+id: C-20
+title: 開く処理の時間の記録（`Timings`・CLI `--timings`・画面の `.yde/state/timings.log`）
+implementation:
+  - path: workspace/Timings.kt
+    module: workspace-core
+  - path: desktop/OpenTimings.kt
+    module: desktop
+  - path: cli/AppCli.kt
+    module: cli
+design:
+  - label: workspace
+    link: architecture/workspace.md
+tests:
+  - name: TimingsTest
+  - name: OpenTimingsLogTest
+manual:
+  - link: manual/cli.md
+    heading: コマンド例

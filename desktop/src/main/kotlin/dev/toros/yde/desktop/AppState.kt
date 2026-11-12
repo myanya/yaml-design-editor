@@ -17,6 +17,7 @@ import dev.toros.yde.app.validate.Issue
 import dev.toros.yde.semantic.schema.EnforcementDef
 import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.RelationDef
+import dev.toros.yde.workspace.Timings
 import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.layout.WorkspaceLayout
@@ -44,6 +45,7 @@ import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.WorkspaceDerivedState
 import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.yaml.YamlIO
+import java.lang.management.ManagementFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDateTime
@@ -963,6 +965,26 @@ class AppState(
             return
         }
         afterWorkspaceOpened(ws)
+    }
+
+    /**
+     * ワークスペースを開く処理の時間の記録（DesktopRuntime.openWorkspace が段階を測って置く）。
+     * 画面の殻（AppRoot）が、開いた後の最初の描画を待って [finishOpenTimings] で閉じる。
+     */
+    var openTimings: Timings? by mutableStateOf(null)
+
+    /** 最初の描画の点を残し、`.yde/state/timings.log` へ追記して、合計を状態欄に添える。 */
+    fun finishOpenTimings(timings: Timings) {
+        if (openTimings !== timings) return
+        openTimings = null
+        timings.mark("最初の描画")
+        val ws = workspace ?: return
+        val seconds = "%.1f".format(timings.elapsedNanos / 1e9)
+        val entry = OpenTimingsLog.entry(timings, LocalDateTime.now(), ManagementFactory.getRuntimeMXBean().uptime)
+        status = runCatching { OpenTimingsLog.append(ws, layout, entry) }.fold(
+            onSuccess = { "$status（$seconds 秒。内訳は ${OpenTimingsLog.relative(layout)}）" },
+            onFailure = { "$status（$seconds 秒。時間の記録を書けません: ${it.message}）" },
+        )
     }
 
     internal fun afterWorkspaceOpened(ws: Path) {

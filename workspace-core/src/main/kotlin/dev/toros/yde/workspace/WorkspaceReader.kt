@@ -290,7 +290,7 @@ object WorkspaceReader {
         documents: List<Pair<DocumentId, YDocument>>,
         layout: WorkspaceLayout,
     ): SchemaLoadResult {
-        val parsed = parseSchemas(schemaSources, BuiltinSchemaResources.metaSchemaTree)
+        val parsed = Timings.measure("スキーマ文書の解析") { parseSchemas(schemaSources, BuiltinSchemaResources.metaSchemaTree) }
         // 利用者が定義した語彙のキーは、スキーマ文書のメタスキーマの「知っている項目」へ足す（root の SchemaLoader と同じ実装。
         // これが無いと、語彙として定義された書き方が「スキーマに定義されていない項目」と警告される＝BACKLOG UX-105）。
         // 型の名前（組込みの型・利用者の型。P33）も同じ流儀で、メタスキーマの type の選択肢と cases へ足す
@@ -304,7 +304,7 @@ object WorkspaceReader {
         }
         val withBuiltins = parsed.schemas + composed.filter { b -> parsed.schemas.none { it.id == b.id } }
         val errors = parsed.errors.toMutableList()
-        val expanded = expandDerived(withBuiltins, documents, layout, errors)
+        val expanded = Timings.measure("導出スキーマの展開") { expandDerived(withBuiltins, documents, layout, errors) }
         // スキーマ置き場に書かれたスキーマ（組込みスキーマと、derive から導出されたスキーマを除く）の、定義の点検と、
         // 宣言のない関係名の点検（P27 段D の D-a で root から移した。意図的差分 D-33）
         errors += SchemaDefinitionChecks.loadErrors(parsed.schemas, parsed.declarations.relations)
@@ -392,11 +392,14 @@ object WorkspaceReader {
         store: DocumentStore, version: Long = 0, builtins: List<WorkspaceSchema> = emptyList(),
         sourceTexts: Map<DocumentId, String>? = null,
     ): LoadedWorkspace {
-        val allTexts = sourceTexts?.toMap() ?: buildMap {
-            // 構成ファイルは一覧から除外された外部リンクでも拒否する（従来の detectLayout と同じ境界）。
-            val configId = DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}")
-            store.read(configId)?.let { put(configId, it.text) }
-            for (doc in store.list()) if (doc.id != configId) store.read(doc.id)?.let { put(doc.id, it.text) }
+        // 段階の時間は、呼び出し側が置いた記録（Timings.within）へ書く（開く処理の内訳。置かれていなければ何もしない）
+        val allTexts = sourceTexts?.toMap() ?: Timings.measure("ファイルの読み取り") {
+            buildMap {
+                // 構成ファイルは一覧から除外された外部リンクでも拒否する（従来の detectLayout と同じ境界）。
+                val configId = DocumentId("${WorkspaceLayout.CONFIG_DIR}/${WorkspaceLayout.CONFIG_FILE}")
+                store.read(configId)?.let { put(configId, it.text) }
+                for (doc in store.list()) if (doc.id != configId) store.read(doc.id)?.let { put(doc.id, it.text) }
+            }
         }
         val layout = detectLayout(allTexts)
         val texts = allTexts.filterKeys { !layout.isState(it.value) }
@@ -406,7 +409,7 @@ object WorkspaceReader {
         //    `_schemas` 文書への EditDocument で自身を書き換える。意味解析への載せ方は derive 側で絞る
         val rawDocuments = linkedMapOf<DocumentId, YDocument>()
         val parseErrors = linkedMapOf<DocumentId, String>()
-        for ((id, text) in texts) {
+        Timings.measure("文書の解析（YAML）") { for ((id, text) in texts) {
             val rel = id.value
             if (layout.zoneOf(rel) == null && layout.configDir != null &&
                 (rel == layout.configDir || rel.startsWith("${layout.configDir}/"))
@@ -417,16 +420,16 @@ object WorkspaceReader {
             } catch (e: Exception) {
                 parseErrors[id] = e.message ?: e.toString()
             }
-        }
+        } }
 
         // 2) スキーマ束の組み立て（利用者スキーマ→組込→derive 展開。導出元は台帳の一般文書＝C-2）
         val schemaSources = texts.filterKeys { layout.zoneOf(it.value) == WorkspaceLayout.Zone.SCHEMAS }.toList()
-        val built = buildSchemas(schemaSources, builtins, rawDocuments.map { (id, d) -> id to d }, layout)
+        val built = Timings.measure("スキーマの組み立て") { buildSchemas(schemaSources, builtins, rawDocuments.map { (id, d) -> id to d }, layout) }
         val linked = built.schemas
 
         // 3) スキーマ割当（`_schemas` 配下はメタスキーマだけ・一般スキーマの match は及ばない）
         val documents = linkedMapOf<DocumentId, WorkspaceDocument>()
-        for ((id, parsed) in rawDocuments) {
+        Timings.measure("スキーマの割当と保存基準の書き出し") { for ((id, parsed) in rawDocuments) {
             val rel = id.value
             documents[id] = WorkspaceDocument(
                 document = parsed,
@@ -434,7 +437,7 @@ object WorkspaceReader {
                 schemaId = assignSchemaId(rel, parsed, linked, layout),
                 inLedger = layout.inLedger(rel),
             )
-        }
+        } }
 
         // 4) 構造検証＋意味解析（WorkspaceSession の apply / undo / redo と共有する導出）
         val declarations = built.declarations
@@ -467,10 +470,11 @@ object WorkspaceReader {
     ): WorkspaceDerivedState {
         val byId = schemas.associateBy { it.id }
         val structuralIssues = linkedMapOf<DocumentId, List<StructuralIssue>>()
-        for ((id, d) in documents) {
+        // 構造のスキーマの導出（スキーマ 1 件ごとに 1 回）も、最初に使う文書の検証の中で起きる
+        Timings.measure("構造の検証") { for ((id, d) in documents) {
             structuralIssues[id] = validateOne(d, byId) ?: continue
-        }
-        val semantic = SemanticEngine.build(semanticInput(documents, schemas, declarations, layout, version))
+        } }
+        val semantic = Timings.measure("意味の導出") { SemanticEngine.build(semanticInput(documents, schemas, declarations, layout, version)) }
         return WorkspaceDerivedState(version, structuralIssues, semantic)
     }
 

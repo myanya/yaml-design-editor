@@ -6,6 +6,7 @@ import dev.toros.yde.app.core.FileWatcher
 import dev.toros.yde.app.service.SourceDraftWorker
 import dev.toros.yde.app.service.WorkspaceHost
 import dev.toros.yde.app.service.WorkspaceOwnership
+import dev.toros.yde.workspace.Timings
 import dev.toros.yde.workspace.WorkspaceInit
 import dev.toros.yde.app.service.WorkspaceOperations
 import dev.toros.yde.app.service.WorkspaceWork
@@ -89,22 +90,27 @@ internal class DesktopRuntime(
                 val root = path.toAbsolutePath().normalize()
                 val previous = lease
                 var next = previous
+                // 段階ごとの時間（最初の描画で閉じて .yde/state/timings.log へ追記する。AppState.finishOpenTimings）
+                val timings = Timings("ワークスペースを開く: $root")
                 try {
                     // 所有権を取ってから読む。読込失敗では旧所有権と旧ジョブを保つ。
                     val (candidate, fresh, workspaceId) = withContext(Dispatchers.IO) {
-                        if (previous?.root != ownership.identity(root)) next = ownership.acquire(root)
-                        val loaded = host.documents.prepareReload(root)
-                        Triple(loaded, loaded.workspace.mirror.fork(), ChangeSets.contentHash(root.toRealPath().toString()))
+                        Timings.within(timings) {
+                            if (previous?.root != ownership.identity(root)) next = timings.phase("所有権を取る") { ownership.acquire(root) }
+                            val loaded = timings.phase("読み込み") { host.documents.prepareReload(root) }
+                            Triple(loaded, timings.phase("編集用の写しを作る") { loaded.workspace.mirror.fork() }, ChangeSets.contentHash(root.toRealPath().toString()))
+                        }
                     }
                     check(!stopping) { "終了中はワークスペースを切り替えられません" }
                     jobs?.stop()
                     // activateWorkspace は最初に workspace を切り替える。以降は新しい場所の所有権を持つ。
                     lease = next
-                    try { host.activateWorkspace(root, candidate, fresh) }
+                    try { timings.phase("切り替え") { host.activateWorkspace(root, candidate, fresh) } }
                     finally { if (previous !== next) previous?.close() }
                     connectionWorkspace = root to workspaceId
-                    state.afterWorkspaceOpened(root)
+                    timings.phase("画面の状態を戻す") { state.afterWorkspaceOpened(root) }
                     jobs = WorkspaceJobs(root)
+                    state.openTimings = timings
                 } finally {
                     if (next !== lease) next?.close()
                 }

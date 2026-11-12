@@ -99,6 +99,13 @@ private fun AppRootContent(
     remember { state.rightPaneOpen = uiPreferences.getBoolean("rightOpen", true); true }
     val rightOpen = state.rightPaneOpen
     LaunchedEffect(rightOpen) { uiPreferences.putBoolean("rightOpen", rightOpen) }
+    // ワークスペースを開いた後の最初の描画を待って、開く処理の時間の記録を閉じる（.yde/state/timings.log）
+    val openTimings = state.openTimings
+    LaunchedEffect(openTimings) {
+        if (openTimings == null) return@LaunchedEffect
+        withFrameNanos { }
+        state.finishOpenTimings(openTimings)
+    }
     var entityRenameOpen by remember { mutableStateOf(false) }
     // ワークスペース切替（R10-05）: ツールバー・コマンドパレット共通。未保存確認（W-07）を一元化する
     var pendingWorkspace by remember { mutableStateOf<Path?>(null) }

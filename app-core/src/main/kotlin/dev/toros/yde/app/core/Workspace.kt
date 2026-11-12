@@ -11,6 +11,7 @@ import dev.toros.yde.semantic.schema.EntityTypeDef
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.workspace.FileSystemDocumentStore
 import dev.toros.yde.workspace.FileSystemListing
+import dev.toros.yde.workspace.Timings
 import dev.toros.yde.workspace.WorkspacePaths
 import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.workspace.changeset.ChangeSet
@@ -213,18 +214,18 @@ class Workspace private constructor(val root: Path) {
     fun refresh() {
         layout = WorkspaceLayout.of(root)
         val store = FileSystemDocumentStore(root)
-        val read = store.capture()
+        // 段階の時間は、呼び出し側が置いた記録（Timings.within）へ書く（開く処理の内訳）
+        val read = Timings.measure("ファイルの一覧と本文の読み取り") { store.capture() }
         val capturedLayout = dev.toros.yde.workspace.WorkspaceReader.detectLayout(read.texts)
         // 構成も本文と同じ読取から解釈する。空の .yde はディレクトリの判定を保つ。
         if (capturedLayout.configDir != null || layout.configDir == null) layout = capturedLayout
         // スキーマを読むのは、カーネルの経路（セッション）だけ。ここは、その結果からアプリの形（SchemaDef）を作り、
         // アプリだけに残る点検を足す——以前は root の SchemaLoader でもう一度読んでいた（P27 段C の C-3b・意図的差分 D-32）
-        val opened = WorkspaceSession(
-            store,
-            builtins = BuiltinSchemas.kernelSchemas(layout), viewKinds = Extensions.viewKinds,
-            sourceTexts = read.texts,
-        )
-        acceptSession(opened)
+        val builtins = Timings.measure("組込みスキーマの読み込み") { BuiltinSchemas.kernelSchemas(layout) }
+        val opened = Timings.measure("セッションの読み込み") {
+            WorkspaceSession(store, builtins = builtins, viewKinds = Extensions.viewKinds, sourceTexts = read.texts)
+        }
+        Timings.measure("索引と定義の窓口") { acceptSession(opened) }
         loadedFiles = read.listing
         files = read.listing.yamlTimes.keys.filter { layout.inLedger(it.value) || layout.isReserved(it.value) }
             .map { root.resolve(it.value) }.sortedBy { it.toString() }
