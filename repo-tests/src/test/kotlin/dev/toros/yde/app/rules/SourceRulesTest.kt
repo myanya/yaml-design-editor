@@ -143,6 +143,7 @@ class SourceRulesTest {
     @Test fun `規則18 agent のファイルの間に循環を作らない`() = check(18)
     @Test fun `規則19 画面は決めたパッケージに置き、機能のパッケージは互いを使わない`() = check(19)
     @Test fun `規則20 ローカル接続の通信依存と入口を隔離する`() = check(20)
+    @Test fun `規則21 テストは labs の下のワークスペースを読まない`() = check(21)
 
     @Test
     fun `規則20 は通信の漏れとサーバから入口への逆依存を拒否する`() {

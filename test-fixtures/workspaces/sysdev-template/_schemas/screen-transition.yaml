@@ -1,0 +1,59 @@
+# 画面遷移のスキーマ（基本設計。1ファイル＝遷移の原本）
+#
+# 人間レビューで確定させるシンプルな遷移一覧（遷移元・遷移先・契機）＋開始/終端の宣言。
+# レビューの流れ: 画面一覧とこの遷移をレビューして確定させてから、画面定義に入る。
+# 画面ごとの遷移の逆引きはビュー screen-transition（射影）で見る。
+# 到達性・行き止まりの検証（flow。R28-04）は画面一覧スキーマ側の flow 宣言が、この文書の
+# 遷移行（transition-from / transitions-to）と開始・終端（flow-start / flow-terminal）を読む。
+id: screen-transition
+name: 画面遷移
+match: 30_basic-design/screen-transitions.yaml
+description: 画面遷移の原本。1行 = 1遷移（遷移元 → 遷移先と契機）。開始・終端画面もここで宣言する。
+root:
+  type: object
+  fields:
+    - key: start
+      label: 開始画面
+      type: array
+      required: true
+      description: 遷移の起点となる画面（到達性検証の開始点。複数可）。
+      item:
+        type: ref
+        idPattern: "SCR-*"
+        relation: flow-start
+        scope:
+          schemaIds: [screen-list]
+    - key: terminal
+      label: 終端画面
+      type: array
+      description: 出る遷移がなくてよい画面（行き止まり検出から除外。例 完了画面）。
+      item:
+        type: ref
+        idPattern: "SCR-*"
+        relation: flow-terminal
+        scope:
+          schemaIds: [screen-list]
+    - key: transitions
+      label: 遷移一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - key: from
+            label: 遷移元画面
+            type: ref
+            required: true
+            idPattern: "SCR-*"
+            relation: transition-from
+            scope:
+              schemaIds: [screen-list]
+          - key: to
+            label: 遷移先画面
+            type: ref
+            required: true
+            idPattern: "SCR-*"
+            relation: transitions-to
+            scope:
+              schemaIds: [screen-list]
+          - { key: trigger, label: 契機, type: string, required: true, description: 例 「予約する」ボタン押下。 }

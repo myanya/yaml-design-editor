@@ -1,0 +1,27 @@
+id: categories
+name: 費目一覧
+kind: document
+match: book/categories.yaml
+entity:
+  type: category
+  idPattern: "CAT-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: categories
+      label: 費目
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: ID, type: id, required: true }
+          - { key: name, label: 名前, type: string, role: title, required: true }
+          - key: kind
+            label: 区分
+            type: enum
+            required: true
+            values:
+              - { value: income, label: 収入 }
+              - { value: expense, label: 支出 }

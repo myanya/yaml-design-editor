@@ -1,0 +1,32 @@
+id: "BF-005"
+trigger: "総務部が定期報告や会議室運用の見直しのため、利用状況を確認する。"
+outcome: "対象期間・会議室の予約件数と予約時間の合計を把握できる。"
+participants:
+  - actor: "ACT-002"
+    role: "総務部（利用状況の確認担当）"
+start:
+  - "BFN-005-START"
+terminal:
+  - "BFN-005-DONE"
+nodes:
+  - id: "BFN-005-START"
+    name: "利用状況を振り返る必要が生じる"
+    kind: "event"
+  - id: "BFN-005-REPORT"
+    name: "会議室の利用実績を集計する"
+    kind: "usecase"
+    usecase: "UC-012"
+    actor: "ACT-002"
+  - id: "BFN-005-DONE"
+    name: "予約上の利用傾向を把握する"
+    kind: "state"
+transitions:
+  - id: "BFT-005-01"
+    from: "BFN-005-START"
+    to: "BFN-005-REPORT"
+    condition: "対象期間・会議室を決める"
+  - id: "BFT-005-02"
+    from: "BFN-005-REPORT"
+    to: "BFN-005-DONE"
+    condition: "集計結果を確認する"
+notes: "取消済みを除く終了済み予約を対象とする。実入退室時刻や実利用時間は記録しない。集計後の運用改善の意思決定はシステム外。"

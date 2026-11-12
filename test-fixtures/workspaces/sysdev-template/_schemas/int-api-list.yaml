@@ -1,0 +1,51 @@
+# 内部API一覧のスキーマ（IAPI-* の定義出現）
+#
+# 内部API = 画面等のフロントエンドからのみ呼ばれるAPI。外部公開はしない。
+# 「どの画面からも呼ばれない内部API」（死にAPI）を constraints で検出する。
+id: int-api-list
+name: 内部API一覧
+match: 30_basic-design/int-api-list.yaml
+description: |
+  画面から呼ばれる内部API（IAPI-*）の台帳。論理定義は内部API定義（int-apis/*.yaml）、
+  物理設計は内部API設計書（40_detail-design/int-apis/*.yaml）へ同一IDで詳細化する。
+entity:
+  type: int-api
+  idPattern: "IAPI-*"
+  defines: true
+coverage:
+  - description: 全内部APIは内部API定義（30_basic-design/int-apis/ に同ID文書）を持つこと
+    detailIn:
+      schemaIds: [int-api-def]
+    level: warning
+constraints:
+  - id: iapi-called
+    description: 内部APIはいずれかの画面から呼ばれること（呼び出し元のない死にAPIの検出）
+    match:
+      - node: { entity: int-api, bind: api }
+      - edge: { dir: in, relation: calls }
+      - node: { entity: screen }
+    expect: exists
+    level: warning
+root:
+  type: object
+  fields:
+    - key: apis
+      label: 内部API一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: APIID, type: id, required: true, description: 例 IAPI-001。 }
+          - { key: name, label: API名, type: string, required: true }
+          - key: derived_from
+            label: 導出元
+            type: array
+            required: true
+            description: このAPIを必要とする根拠（ユーザアクション／ユースケース）。
+            item:
+              type: ref
+              relation: derived-from
+              scope:
+                schemaIds: [domain-detail, usecase-list]
+          - { key: summary, label: 概要, type: string }

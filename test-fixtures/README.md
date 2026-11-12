@@ -3,7 +3,9 @@
 3層コア移行（[3層コア移行計画](../docs/archive/three-layer-core-migration-plan.md) Phase 0）の検証データ。
 新モジュールのテストはここを読み取り専用で参照する。**変更を伴うテストは一時ディレクトリへコピーしてから行う。**
 
-由来: 当時の実験場（旧 `sample-workspace/_schemas`）の記法（match / fields / enum values / cases / definitions+$ref / ref scope）に合わせて手書きした最小データ。実験場（`labs/` 配下）のワークスペースは複製・変更しない。
+由来: 当時の実験場（旧 `sample-workspace/_schemas`）の記法（match / fields / enum values / cases / definitions+$ref / ref scope）に合わせて手書きした最小データ。実験場（`labs/` 配下）のワークスペースは変更しない。
+
+テストは `labs/` を読まない（実験場は試作に合わせて変わり続けるため。規則テストの規則 21）。labs の試作を使うテストは、その時点の写しをここに置いて読む（`schemas/guild-quest`・`workspaces/sysdev-template`・`workspaces/kakeibo`）。写しは labs と同期しない。
 
 期待結果はすべて現行実装（2026-08-16、コミット 677fc43 相当）のCLIで確認済み。移行後の新実装はこの結果と一致すること（意図的差分は [意図的差分一覧](../docs/archive/intentional-diffs.md) 参照）。
 
@@ -20,6 +22,14 @@
 | ファイル | 内容 | 期待結果 |
 |---|---|---|
 | task.yaml | `definitions` + `$ref: step`、enum `kind` の `cases`（manual→assignee必須／scheduled→cron必須）、`type: ref` + `scope.schemaIds` | パース・`$ref`解決・定義検証が通る（`workspaces/legacy-basic/_schemas/task.yaml` と同一内容。適用結果はlegacy-basicで確認済み） |
+
+### guild-quest/ — 冒険者ギルドの依頼の振る舞い（labs/adventurers-guild の写し）
+
+`BehaviorChecksTest` が使う。業務の State / Lifecycle を入れたとき（2026-11-11、コミット e11b8bb）の、依頼の振る舞いの宣言と、それが参照する定義だけの写し（`quest-behavior.yaml`・`quest.yaml`・`common.yaml`・`relations.yaml`）。
+
+| 期待結果 |
+|---|
+| スキーマの読み込みと振る舞いの宣言のコンパイルに誤りが無い。依頼の Lifecycle は State 9・遷移 14（どれも操作による遷移） |
 
 ## transforms/ — YAML から YAML への変換の定義（P27 段C で追加）
 
@@ -73,6 +83,18 @@
 - 期限順ビューは `TODO-001` ～ `TODO-005` の順（個票のない `TODO-005` は末尾）。更新日はコメントの順序によらず最新の日付。
 - コピー先に不正データを入れると、期限と作成日の前後関係・完了日の欠落・ID の形式・タイトルの改行を指摘する。
 
+### sysdev-template（設計情報テンプレート。labs/sysdev-template の写し）
+
+`ActionCliTest`（cli）が使う。2026-11-12 の labs/sysdev-template を、計画やメモの Markdown を除いて写した。テストは一時ディレクトリへコピーしてから操作を適用する。
+
+期待結果: `validate` → errors: 0 / warnings: 20。CLI `action` の一覧・計画・`--apply`・前提で止まる操作は `ActionCliTest` のとおり。
+
+### kakeibo（家計簿の試作。labs/kakeibo の写し）
+
+`KakeiboLabTest`（repo-tests）が使う。2026-11-12 の labs/kakeibo を、計画やメモの Markdown を除いて写した。テストは一時ディレクトリへコピーしてから開く。
+
+期待結果: `validate` → errors: 2 / warnings: 1（わざと入れてある食い違い）。ビューと skill の読み込み・取り込みのプレビュー・クロス集計と列を広げる書き方の一致は `KakeiboLabTest` のとおり。
+
 ## 確認コマンド
 
 ```bash
@@ -83,4 +105,6 @@
 ./gradlew runCli -q --args="validate test-fixtures/workspaces/yde-basic"
 ./gradlew runCli -q --args="catalog test-fixtures/workspaces/yde-basic"
 ./gradlew runCli -q --args="entity test-fixtures/workspaces/rename-target rename REQ-001 REQ-100"
+./gradlew runCli -q --args="validate test-fixtures/workspaces/kakeibo"
+./gradlew runCli -q --args="validate test-fixtures/workspaces/sysdev-template"
 ```

@@ -1,0 +1,11 @@
+id: IAPI-001
+endpoint: GET /api/rooms/availability
+request:
+  - { name: 利用日, required: true }
+  - { name: 開始時刻, required: false }
+  - { name: 終了時刻, required: false }
+  - { name: 会議室コード, required: false, description: 未指定なら全会議室 }
+response:
+  - { name: 会議室一覧, description: 会議室ごとの空き時間帯の配列 }
+errors:
+  - 利用日が過去日付（業務エラー）

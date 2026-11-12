@@ -1,0 +1,105 @@
+# 処理設計書のスキーマ（詳細設計。1ファイル1処理。PROC-* の定義出現）
+#
+# 処理はユーザアクション・システムイベントに紐づく（realizes。レジストリの outMin: 1）。
+# 準拠する方式設計（follows-policy）・使用テーブル（uses-table）・根拠ルール（based-on）を宣言する。
+# 「全処理はテスト項目→テストケースまで到達すること」を constraints で機械検証する。
+id: process-design
+name: 処理設計書
+match: 40_detail-design/processes/*.{yaml,yml}
+description: ユーザアクション・システムイベントに紐づく処理の設計書（PROC-*）。
+entity:
+  type: process
+  idPattern: "PROC-*"
+  defines: true
+constraints:
+  - id: proc-tested
+    description: 全処理は、単体テスト項目を経てテストケースまで到達していること（詳細設計向け試験の存在）
+    match:
+      - node: { entity: process, bind: proc }
+      - edge: { dir: in, relation: verifies }
+      - node: { entity: test-item, schema: unit-test-item }
+      - edge: { dir: in, relation: covers }
+      - node: { entity: test-case }
+    expect: exists
+    level: warning
+  - id: proc-unit-min2
+    description: 各処理の単体テスト項目は2件以上あること（正常系＋異常・境界の最低ライン）
+    match:
+      - node: { entity: process, bind: proc }
+      - edge: { dir: in, relation: verifies }
+      - node: { entity: test-item, schema: unit-test-item, bind: item }
+    count: { min: 2 }
+    level: warning
+matrix:
+  - id: proc-viewpoint-matrix
+    description: 各処理は全試験観点（正常系・境界値・排他/競合）の単体テスト項目を持つこと（対象外は excluded の行で明示する）
+    rows: { entity: process }
+    columns: { entity: test-viewpoint }
+    witness:
+      node: { entity: test-item, schema: unit-test-item }
+      row: { relation: verifies }
+      column: { relation: viewpoint }
+    level: warning
+root:
+  type: object
+  fields:
+    - key: id
+      label: 処理ID
+      type: id
+      required: true
+      description: 例 PROC-001。
+    - key: name
+      label: 処理名
+      type: string
+      required: true
+    - key: realizes
+      label: 紐づくアクション・イベント
+      type: array
+      required: true
+      description: この処理が実現するユーザアクション（UA-*）またはシステムイベント（EV-*）。
+      item:
+        type: ref
+        relation: realizes
+        scope:
+          schemaIds: [domain-detail]
+    - key: policy
+      label: 準拠方式
+      type: ref
+      required: true
+      idPattern: "POL-*"
+      relation: follows-policy
+      scope:
+        schemaIds: [arch-policy]
+    - key: based_on
+      label: 根拠ルール
+      type: array
+      description: この処理のロジックの根拠となるビジネスルール。
+      item:
+        type: ref
+        idPattern: "BR-*"
+        relation: based-on
+        scope:
+          schemaIds: [business-rule]
+    - key: uses_tables
+      label: 使用テーブル
+      type: array
+      required: true
+      item:
+        type: ref
+        idPattern: "TBL-*"
+        relation: uses-table
+        scope:
+          schemaIds: [table-design]
+    - key: steps
+      label: 処理手順
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: no, label: 手順番号, type: int, required: true }
+          - { key: action, label: 処理内容, type: string, required: true }
+    - key: error_handling
+      label: エラー処理
+      type: text
+      description: 異常時の振る舞い（準拠方式のエラー方針・リラン方式に従う）。

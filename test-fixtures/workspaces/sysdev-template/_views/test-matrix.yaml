@@ -1,0 +1,21 @@
+id: test-matrix
+name: テスト項目マトリクス
+description: |
+  試験3階層（単体・結合・総合）のテスト項目（TI-* = 検証対象 × 試験観点）の消化状況。
+  「消化ケース」列は covers（手順単位の消化宣言）のバックリンク。
+  空のセルはテストケース未作成（レジストリの covers inMin: 1 の警告対象）。
+rows:
+  idPattern: "TI-*"
+  schemaIds: [unit-test-item, integration-test-item, system-test-item]
+columns:
+  - label: 検証対象
+    path: target
+  - label: 観点
+    path: viewpoint
+  - label: 確認内容
+    path: description
+    editable: true
+  - label: 消化ケース
+    backlinks:
+      relation: covers
+      schemaIds: [test-case]

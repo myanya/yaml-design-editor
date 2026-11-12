@@ -1,0 +1,10 @@
+id: TBL-ROOM
+name: 会議室
+physical_name: t_room
+implements: ENT-ROOM
+pii: false
+columns:
+  - { id: COL-ROOM-CODE, name: room_code, logical_name: 会議室コード, origin: エンティティ由来, implements: EA-ROOM-CODE, dtype: DT-ROOM-CODE, nullable: false, pk: true }
+  - { id: COL-ROOM-NAME, name: room_name, logical_name: 会議室名, origin: エンティティ由来, implements: EA-ROOM-NAME, dtype: DT-ROOM-NAME, nullable: false }
+  - { id: COL-ROOM-CAPACITY, name: capacity, logical_name: 収容人数, origin: エンティティ由来, implements: EA-ROOM-CAPACITY, dtype: DT-ROOM-CAPACITY, nullable: false }
+  - { id: COL-ROOM-AVAILABLE, name: available, logical_name: 利用可否, origin: エンティティ由来, implements: EA-ROOM-AVAILABLE, dtype: DT-AVAILABLE-FLAG, nullable: false }

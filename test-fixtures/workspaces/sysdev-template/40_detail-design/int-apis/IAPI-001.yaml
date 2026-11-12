@@ -1,0 +1,10 @@
+id: IAPI-001
+uses_tables: [TBL-RESERVATION, TBL-ROOM]
+request:
+  - { logical_name: 利用日, physical_name: useDate, type: date }
+  - { logical_name: 開始時刻, physical_name: startTime, type: datetime }
+  - { logical_name: 終了時刻, physical_name: endTime, type: datetime }
+  - { logical_name: 会議室コード, physical_name: roomCode, type: string }
+response:
+  - { logical_name: 会議室一覧, physical_name: rooms, type: string }
+notes: 利用可否 false の会議室（t_room.available = false）は結果から除外する。

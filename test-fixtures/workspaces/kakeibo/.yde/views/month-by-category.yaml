@@ -1,0 +1,16 @@
+id: month-by-category
+name: 月×費目（クロス集計）
+description: 行＝月、列＝費目（費目一覧の並び）。セルはその月にその費目で書かれた取引の金額の合計。合計の行と列は自動
+kind: matrix
+rows: { idPattern: "M-*" }
+display: grouped
+unclassified: false                               # 費目は取引の必須項目なので、費目の無い取引の列は出さない（未分類は費目 CAT-UNSORTED の列）
+cells:
+  match:                                          # 行（月）を起点に、その月の取引を集める（値の式の all と同じ書き方）
+    - node: { entity: month, bind: m }
+    - edge: { via: month, dir: in }
+    - node: { entity: transaction, bind: tx }
+  of: tx
+  columns: { via: category, idPattern: "CAT-*", order: { schemaId: categories } }   # 列＝取引の費目（費目一覧の順）
+  aggregate: sum
+  path: amount

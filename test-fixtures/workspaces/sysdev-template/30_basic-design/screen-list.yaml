@@ -1,0 +1,16 @@
+# 画面一覧: フェーズは詳細設計まで進んでいる想定。
+# SCR-RESERVE-DETAIL の画面設計書は意図的に未作成（詳細化不足の検出デモ。検証パネルに警告が出る）。
+phase: 詳細設計
+screens:
+  - id: SCR-ROOM-LIST
+    name: 空き状況照会画面
+    derived_from: [UA-003]
+    summary: 日付・時間帯・会議室で絞り込んで空き状況を一覧表示する
+  - id: SCR-RESERVE-INPUT
+    name: 予約登録画面
+    derived_from: [UA-001]
+    summary: 選んだ会議室・時間帯で予約内容を入力して登録する
+  - id: SCR-RESERVE-DETAIL
+    name: 予約詳細画面
+    derived_from: [UA-002]
+    summary: 予約内容の確認と取消を行う

@@ -1,0 +1,9 @@
+id: SCR-ROOM-LIST
+url: /rooms
+items:
+  - { id: SI-ROOM-LIST-DATE, name: 利用日, kind: 入力, source: EA-RESERVE-DATE }
+  - { id: SI-ROOM-LIST-TIME, name: 時間帯, kind: 入力, source: EA-RESERVE-START, description: 開始時刻での絞り込み }
+  - { id: SI-ROOM-LIST-ROOM, name: 会議室, kind: 選択, source: EA-ROOM-CODE, description: 未指定なら全会議室 }
+  - { id: SI-ROOM-LIST-AVAILABILITY, name: 空き状況一覧, kind: 表示, description: 会議室×時間帯の空き状況（複数属性の合成表示のため source なし） }
+  - { id: SI-ROOM-LIST-RESERVE, name: 予約する, kind: ボタン, description: 空き枠を選んで予約登録画面へ }
+calls: [IAPI-001]

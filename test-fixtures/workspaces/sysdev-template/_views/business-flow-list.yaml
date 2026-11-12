@@ -1,0 +1,14 @@
+id: business-flow-list
+name: 業務フロー一覧
+rows:
+  idPattern: "BF-*"
+  schemaIds: [business-flow-list]
+columns:
+  - { label: 業務フロー名, schemaId: business-flow-list, path: name }
+  - { label: 区分, schemaId: business-flow-list, path: category }
+  - { label: 目的・概要, schemaId: business-flow-list, path: summary }
+  - { label: 開始の契機, schemaId: business-flow-detail, path: trigger }
+  - { label: 完了結果, schemaId: business-flow-detail, path: outcome }
+detail:
+  schemaId: business-flow-detail
+  filePattern: "10_requirements/business-flows/{id}.yaml"

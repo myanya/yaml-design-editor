@@ -1,0 +1,17 @@
+# 物理型マッピング表: 業務データ型（DT-*）→ 物理データ型（DDL型）の単一真実源。
+# カラム（COL-*）は dtype で業務型を指すだけで、DDL上の型はこの表で決まる。
+mappings:
+  - { id: MAP-MEMBER-NO, dtype: DT-MEMBER-NO, physical: VARCHAR(10) }
+  - { id: MAP-PERSON-NAME, dtype: DT-PERSON-NAME, physical: VARCHAR(50) }
+  - { id: MAP-DEPT-NAME, dtype: DT-DEPT-NAME, physical: VARCHAR(50) }
+  - { id: MAP-MAIL-ADDRESS, dtype: DT-MAIL-ADDRESS, physical: VARCHAR(100) }
+  - { id: MAP-RESERVATION-NO, dtype: DT-RESERVATION-NO, physical: VARCHAR(20) }
+  - { id: MAP-ROOM-CODE, dtype: DT-ROOM-CODE, physical: VARCHAR(10) }
+  - { id: MAP-ROOM-NAME, dtype: DT-ROOM-NAME, physical: VARCHAR(50) }
+  - { id: MAP-ROOM-CAPACITY, dtype: DT-ROOM-CAPACITY, physical: INTEGER }
+  - { id: MAP-AVAILABLE-FLAG, dtype: DT-AVAILABLE-FLAG, physical: BOOLEAN }
+  - { id: MAP-USE-DATE, dtype: DT-USE-DATE, physical: DATE }
+  - { id: MAP-RESERVE-TIME, dtype: DT-RESERVE-TIME, physical: TIMESTAMP }
+  - { id: MAP-PURPOSE, dtype: DT-PURPOSE, physical: VARCHAR(100) }
+  - { id: MAP-AUDIT-TIME, dtype: DT-AUDIT-TIME, physical: TIMESTAMP }
+  - { id: MAP-RESERVE-STATUS, dtype: DT-RESERVE-STATUS, physical: VARCHAR(10), notes: 区分値は RESERVED / CANCELED }

@@ -1,0 +1,13 @@
+id: PROC-002
+name: 開始前リマインド送信処理
+realizes: [EV-001]
+policy: POL-BATCH
+uses_tables: [TBL-RESERVATION, TBL-MEMBER]
+steps:
+  - { no: 1, action: 30分後に開始する状態 RESERVED の予約を t_reservation から抽出する }
+  - { no: 2, action: 予約者のメールアドレスを t_member から取得する }
+  - { no: 3, action: リマインドメールを送信し、送信済みフラグを更新する }
+  - { no: 4, action: 処理件数・成功／失敗件数をログ出力する（POL-LOG） }
+error_handling: |
+  送信失敗は該当予約をスキップして継続（POL-BATCH: 1件のエラーで全体を止めない）。
+  再実行時は送信済みフラグで二重送信を防ぐ（冪等）。

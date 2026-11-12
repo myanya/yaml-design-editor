@@ -18,9 +18,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 家計簿の試作（labs/kakeibo）の基準を守るテスト。README「わざと入れてある食い違い」の件数、ビューと skill が読めること、
+ * 家計簿の試作（labs/kakeibo）の写し test-fixtures/workspaces/kakeibo の基準を守るテスト。README「わざと入れてある食い違い」の件数、ビューと skill が読めること、
  * 取り込みのプレビュー（採番・費目の規則）、クロス集計と「列を広げる書き方」が同じ表になること。
- * labs は読み取り専用に扱い、一時ディレクトリへ写してから開く。
+ * fixture は読み取り専用に扱い、一時ディレクトリへ写してから開く。
  */
 class KakeiboLabTest {
 
@@ -30,7 +30,7 @@ class KakeiboLabTest {
     @BeforeTest
     fun setup() {
         dir = createTempDirectory("yde-kakeibo")
-        val source = Path.of("labs/kakeibo")
+        val source = Path.of(System.getProperty("fixtures.root")).resolve("workspaces/kakeibo")
         Files.walk(source).use { stream ->
             stream.forEach { p ->
                 val target = dir.resolve(source.relativize(p).toString())

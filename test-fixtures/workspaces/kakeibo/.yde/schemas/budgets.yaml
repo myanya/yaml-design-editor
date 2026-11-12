@@ -1,0 +1,62 @@
+id: budgets
+name: 予算
+kind: document
+match: "book/budgets/*.yaml"
+entity:
+  type: budget
+  idPattern: "BG-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: items
+      label: 予算
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: ID, type: id, required: true }
+          - { key: month, label: 月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] }, required: true }
+          - { key: category, label: 費目, type: ref, idPattern: "CAT-*", scope: { schemaIds: [categories] }, required: true }
+          - { key: amount, label: 予算額, type: int, required: true, display: grouped }
+constraints:
+  - id: budget-overrun
+    description: 費目の支出の合計が、その月の予算を超えていないこと
+    match:
+      - node: { entity: budget, bind: bg }
+      - edge: { via: month }
+      - node: { entity: month, bind: m }
+    also:
+      from: bg
+      steps:
+        - edge: { via: category }
+        - node: { entity: category, bind: cat }
+        - edge: { via: category, dir: in }
+        - node: { entity: transaction, bind: tx }
+        - edge: { via: month }
+        - node: { same: m }
+    where:
+      - { of: tx, path: kind, equals: expense }
+    check:
+      - { lte: [ { sum: { all: { of: tx, path: amount } } }, { of: bg, path: amount } ] }
+    level: warning
+    message: "{m.title} の {cat.title} の支出 {left} が予算 {right} を超えています"
+  - id: budget-unique
+    description: 同じ月に同じ費目の予算が 2 つ以上無いこと
+    match:
+      - node: { entity: budget, bind: bg }
+      - edge: { via: month }
+      - node: { entity: month, bind: m }
+    also:
+      from: bg
+      steps:
+        - edge: { via: category }
+        - node: { entity: category, bind: cat }
+        - edge: { via: category, dir: in }
+        - node: { entity: budget, bind: other }
+        - edge: { via: month }
+        - node: { same: m }
+    count: { max: 1 }                           # 自分自身を含めて 1 件だけ
+    level: error
+    message: "{m.title} の {cat.title} の予算が {count} 件あります"

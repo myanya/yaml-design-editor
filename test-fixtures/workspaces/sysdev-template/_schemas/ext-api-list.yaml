@@ -1,0 +1,56 @@
+# 外部API一覧のスキーマ（EAPI-* の定義出現）
+#
+# 外部API = 外部システムへ公開するAPI。画面（フロントエンド）からは呼ばない（レイヤ規約）。
+# 「個人情報テーブルを使用する外部APIは認可方式を明記すること」を constraints で強制する
+# （条件付き義務: where の exists: false ＋ expect: absent による「〜のない組合せが存在しないこと」）。
+id: ext-api-list
+name: 外部API一覧
+match: 30_basic-design/ext-api-list.yaml
+description: |
+  外部に公開するAPI（EAPI-*）の台帳。論理定義は外部API定義（ext-apis/*.yaml）、
+  物理設計は外部API設計書（40_detail-design/ext-apis/*.yaml）へ同一IDで詳細化する。
+entity:
+  type: ext-api
+  idPattern: "EAPI-*"
+  defines: true
+coverage:
+  - description: 全外部APIは外部API定義（30_basic-design/ext-apis/ に同ID文書）を持つこと
+    detailIn:
+      schemaIds: [ext-api-def]
+    level: warning
+constraints:
+  - id: eapi-auth-for-pii
+    description: 個人情報テーブル（pii）を使用する外部APIは、認可方式（auth）を明記すること
+    match:
+      - node: { entity: ext-api, bind: api }
+      - edge: { dir: out, relation: uses-table }
+      - node: { entity: db-table, bind: tbl }
+    where:
+      - { of: tbl, path: pii, equals: "true" }
+      - { of: api, path: auth, exists: false }
+    expect: absent
+    level: error
+root:
+  type: object
+  fields:
+    - key: apis
+      label: 外部API一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: APIID, type: id, required: true, description: 例 EAPI-001。 }
+          - { key: name, label: API名, type: string, required: true }
+          - key: derived_from
+            label: 導出元
+            type: array
+            required: true
+            description: このAPIを必要とする根拠（ユーザアクション／ユースケース）。
+            item:
+              type: ref
+              relation: derived-from
+              scope:
+                schemaIds: [domain-detail, usecase-list]
+          - { key: consumer, label: 想定利用者, type: string, required: true, description: 呼び出す外部システム・組織。 }
+          - { key: summary, label: 概要, type: string }

@@ -1,0 +1,44 @@
+# 内部API定義のスキーマ（基本設計・論理。1ファイル1API。IAPI-* の詳細化出現）
+id: int-api-def
+name: 内部API定義
+match: 30_basic-design/int-apis/*.{yaml,yml}
+description: 内部APIの論理定義（エンドポイント・リクエスト・レスポンスの論理項目）。
+entity:
+  type: int-api
+  idPattern: "IAPI-*"
+  aspect: basic
+root:
+  type: object
+  fields:
+    - key: id
+      label: APIID
+      type: id
+      required: true
+      description: 内部API一覧と同じID。名前・導出元は一覧側に書く。
+    - key: endpoint
+      label: エンドポイント
+      type: string
+      required: true
+      description: 論理的なパスとメソッド（例 GET /api/rooms/availability）。
+    - key: request
+      label: リクエスト項目（論理）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: name, label: 項目名, type: string, required: true }
+          - { key: required, label: 必須, type: boolean }
+          - { key: description, label: 説明, type: string }
+    - key: response
+      label: レスポンス項目（論理）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: name, label: 項目名, type: string, required: true }
+          - { key: description, label: 説明, type: string }
+    - key: errors
+      label: エラー応答
+      type: array
+      description: 業務エラーの一覧（方式設計 POL-ONLINE のエラー応答方針に従う）。
+      item: { type: string }

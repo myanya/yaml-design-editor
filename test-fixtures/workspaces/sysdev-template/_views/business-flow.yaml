@@ -1,0 +1,37 @@
+id: business-flow
+name: 業務フロー図
+kind: flow
+schemaId: business-flow-detail
+layout: { direction: down }
+projection:
+  id: business-flow-projection
+  build:
+    lanes:
+      $each: participants
+      $build:
+        key: { $copy: actor }
+        label: { $copy: role }
+    nodes:
+      $each: nodes
+      $build:
+        key: { $copy: id }
+        label: { $copy: name }
+        lane: { $copy: actor }
+        shape:
+          $map: { $copy: kind }
+          $using:
+            usecase: box
+            decision: diamond
+            event: rounded
+            state: rounded
+            external: rounded
+            automatic: rounded
+        detail: { $copy: . }
+    edges:
+      $each: transitions
+      $build:
+        key: { $copy: id }
+        from: { $copy: from }
+        to: { $copy: to }
+        label: { $copy: condition }
+        detail: { $copy: . }

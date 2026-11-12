@@ -1,0 +1,30 @@
+# ドメイン一覧のスキーマ（ドメイン概要を含む台帳。DOM-* の定義出現）
+id: domain-list
+name: ドメイン一覧
+match: 30_basic-design/domain-list.yaml
+description: |
+  ユースケースをグルーピングした業務ドメイン（DOM-*）の一覧。
+  各ドメインの詳細（エンティティ・ユーザアクション・システムイベント）は
+  同じIDのドメイン定義書（domains/*.yaml）で詳細化する。
+entity:
+  type: domain
+  idPattern: "DOM-*"
+  defines: true
+coverage:
+  - description: 全ドメインはドメイン定義書（30_basic-design/domains/ に同ID文書）を持つこと
+    detailIn:
+      schemaIds: [domain-detail]
+    level: warning
+root:
+  type: object
+  fields:
+    - key: domains
+      label: ドメイン一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: ドメインID, type: id, required: true, description: 例 DOM-001。 }
+          - { key: name, label: ドメイン名, type: string, required: true }
+          - { key: summary, label: ドメイン概要, type: text, required: true }

@@ -1,0 +1,23 @@
+id: business-flow-list
+name: 業務フロー一覧
+match: 10_requirements/business-flow-list.yaml
+description: 代表的な業務の流れと付随する自動処理を、目的と完了結果の単位で一覧化する。
+entity: { type: business-flow, idPattern: "BF-*", defines: true }
+coverage:
+  - description: 業務フローは同じIDの業務フロー定義書を持つこと
+    detailIn: { schemaIds: [business-flow-detail] }
+    level: error
+root:
+  type: object
+  fields:
+    - key: flows
+      label: 業務フロー一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 業務フローID, type: id, required: true }
+          - { key: name, label: 業務フロー名, type: string, required: true }
+          - { key: category, label: 区分, type: enum, values: [業務, 補助], required: true }
+          - { key: summary, label: 目的・概要, type: text, required: true }

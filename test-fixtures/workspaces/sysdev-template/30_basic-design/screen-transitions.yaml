@@ -1,0 +1,9 @@
+# 画面遷移（原本）: 人間レビューで確定させるシンプルな遷移一覧＋開始画面の宣言。
+# レビューの流れ: 画面一覧とこの遷移を確定させてから、画面定義に入る。
+# start / terminal は到達性検証（flow）の開始・終端。全画面が循環しているため終端はなし。
+start: [SCR-ROOM-LIST]
+transitions:
+  - { from: SCR-ROOM-LIST, to: SCR-RESERVE-INPUT, trigger: 「予約する」ボタン押下（空き枠選択時） }
+  - { from: SCR-RESERVE-INPUT, to: SCR-RESERVE-DETAIL, trigger: 登録成功時 }
+  - { from: SCR-RESERVE-INPUT, to: SCR-ROOM-LIST, trigger: 「戻る」ボタン押下 }
+  - { from: SCR-RESERVE-DETAIL, to: SCR-ROOM-LIST, trigger: 取消成功時・「一覧へ戻る」押下 }

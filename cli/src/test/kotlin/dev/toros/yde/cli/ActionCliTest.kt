@@ -13,7 +13,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * CLI `action`（P41 段階 1）を labs/sysdev-template の定義で通す。labs は読み取り専用に扱い、一時ディレクトリへ写してから開く。
+ * CLI `action`（P41 段階 1）を、設計情報テンプレート（labs/sysdev-template）の写し test-fixtures/workspaces/sysdev-template の定義で通す。fixture は読み取り専用に扱い、一時ディレクトリへ写してから開く。
  * - 引数なしは使える操作の一覧（横断の操作と型の操作）
  * - 既定は計画だけ: 変更セットと、適用後の姿の検証（新しい画面が行き止まりになる、を到達性の検査が指摘する）
  * - --apply は検証エラーが残るなら書かない。--allow-errors で書く
@@ -26,7 +26,7 @@ class ActionCliTest {
     @BeforeTest
     fun setup() {
         dir = createTempDirectory("yde-actions")
-        val source = Path.of("labs/sysdev-template")
+        val source = Path.of(System.getProperty("fixtures.root")).resolve("workspaces/sysdev-template")
         Files.walk(source).use { stream ->
             stream.forEach { p ->
                 val target = dir.resolve(source.relativize(p).toString())

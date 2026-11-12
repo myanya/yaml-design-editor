@@ -1,0 +1,10 @@
+id: SCR-RESERVE-INPUT
+items:
+  - { id: SPI-RESERVE-INPUT-ROOM, origin: 論理項目由来, item: SI-RESERVE-INPUT-ROOM, physical_name: roomName, type: text }
+  - { id: SPI-RESERVE-INPUT-DATE, origin: 論理項目由来, item: SI-RESERVE-INPUT-DATE, physical_name: useDate, type: date }
+  - { id: SPI-RESERVE-INPUT-START, origin: 論理項目由来, item: SI-RESERVE-INPUT-START, physical_name: startTime, type: datetime }
+  - { id: SPI-RESERVE-INPUT-END, origin: 論理項目由来, item: SI-RESERVE-INPUT-END, physical_name: endTime, type: datetime }
+  - { id: SPI-RESERVE-INPUT-PURPOSE, origin: 論理項目由来, item: SI-RESERVE-INPUT-PURPOSE, physical_name: purpose, type: text, max_length: 100 }
+  - { id: SPI-RESERVE-INPUT-SUBMIT, origin: 論理項目由来, item: SI-RESERVE-INPUT-SUBMIT, physical_name: submitButton, type: button }
+  - { id: SPI-RESERVE-INPUT-CSRF, origin: 技術項目, reason: CSRF対策のトークン送信用hidden, physical_name: csrfToken, type: text }
+notes: 開始・終了時刻は30分刻みのプルダウン。登録は IAPI-002 を呼び、業務エラーはメッセージ表示（POL-ONLINE）。

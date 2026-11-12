@@ -1,6 +1,5 @@
 package dev.toros.yde.workspace
 
-import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.yaml.model.DocumentId
 import java.nio.file.Files
 import java.nio.file.Path
@@ -136,7 +135,8 @@ class BehaviorChecksTest {
     @Test
     fun `冒険者ギルドの依頼を元データを書き換えずに検証できる`() {
         val fixtures = System.getProperty("fixtures.root") ?: error("fixtures.root が未設定")
-        val schemaDir = Path.of(fixtures).parent.resolve("labs/adventurers-guild/.yde/schemas")
+        // 冒険者ギルド（labs/adventurers-guild）の、このテストを書いた時点の依頼の定義の写し（test-fixtures/README.md）
+        val schemaDir = Path.of(fixtures).resolve("schemas/guild-quest")
         val sources = Files.list(schemaDir).use { paths ->
             paths.filter { it.fileName.toString().endsWith(".yaml") }
                 .sorted()
@@ -149,8 +149,6 @@ class BehaviorChecksTest {
         assertTrue(catalog.errors.isEmpty(), "${catalog.errors}")
         val quest = catalog.lifecycles.single { it.id == "quest-lifecycle" }
         assertEquals(9, quest.states.size)
-        // 操作による遷移はオーナーが置いた 14 本。そのあと、事実（Event）による遷移を足している（labs の Q70）
-        assertEquals(14, quest.transitions.count { it.by is TransitionCause.Action })
-        assertTrue(quest.transitions.any { it.by is TransitionCause.Event })
+        assertEquals(14, quest.transitions.size)
     }
 }

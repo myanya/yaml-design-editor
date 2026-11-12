@@ -1,0 +1,32 @@
+# ドメイン定義書: ユースケースをグルーピングし、このドメインのエンティティ（概念ER）・
+# ユーザアクション・システムイベントを定義する。依存方向は基本設計→要件。
+id: DOM-001
+usecases: [UC-001, UC-002, UC-003]
+entities:
+  - id: ENT-RESERVATION
+    name: 予約
+    summary: 会議室の利用予約。利用者・会議室・時間帯・目的を持つ。
+  - id: ENT-ROOM
+    name: 会議室
+    summary: 予約対象の会議室。収容人数・設備を持つマスタ。
+  - id: ENT-MEMBER
+    name: 利用者
+    summary: 予約を行う社員。氏名・所属・連絡先を持つマスタ。
+user_actions:
+  - id: UA-001
+    name: 予約登録
+    summary: 空きを確認して予約を登録する
+    usecases: [UC-001]
+  - id: UA-002
+    name: 予約取消
+    summary: 自分の予約を取り消す
+    usecases: [UC-002]
+  - id: UA-003
+    name: 空き照会
+    summary: 日付・時間帯・会議室で空きを調べる
+    usecases: [UC-003, UC-001]
+system_events:
+  - id: EV-001
+    name: 開始前リマインド
+    summary: 利用開始30分前に予約者へ通知する
+    usecases: [UC-001]

@@ -1,0 +1,15 @@
+id: TC-201
+name: 画面遷移の通し確認
+steps:
+  - no: 1
+    operation: 空き状況照会画面で空き枠を選び「予約する」を押す
+    expected: 予約登録画面へ遷移する
+    items: [TI-201]
+  - no: 2
+    operation: 予約内容を入力し「登録する」を押す
+    expected: 予約詳細画面へ遷移する
+    items: [TI-201]
+  - no: 3
+    operation: 「一覧へ戻る」を押す
+    expected: 空き状況照会画面へ戻り、登録分が反映されている
+    items: [TI-201]

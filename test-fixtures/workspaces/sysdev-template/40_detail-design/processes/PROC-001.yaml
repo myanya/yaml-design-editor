@@ -1,0 +1,15 @@
+id: PROC-001
+name: 予約登録処理
+realizes: [UA-001]
+policy: POL-ONLINE
+based_on: [BR-001, BR-002]
+uses_tables: [TBL-RESERVATION, TBL-ROOM]
+steps:
+  - { no: 1, action: 会議室の存在と利用可否（t_room.available）を確認する }
+  - { no: 2, action: 指定時間帯が営業時間内（平日 9:00〜18:00）であることを確認する（BR-001） }
+  - { no: 3, action: 同一会議室・時間帯重なりの既存予約がないことを確認する（BR-002） }
+  - { no: 4, action: 予約番号を採番し t_reservation へ登録する（状態 RESERVED） }
+  - { no: 5, action: 処理結果をログ出力する（POL-LOG） }
+error_handling: |
+  手順1〜3の業務エラーはエラーメッセージを返して終了（登録しない）。
+  システムエラーはトランザクションをロールバックし、エラーIDを採番してログへ記録する。

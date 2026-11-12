@@ -1,0 +1,11 @@
+id: business-flow-document
+name: 業務フロー定義書
+kind: document
+schemaId: business-flow-detail
+sections:
+  - label: 目的と前提
+    fields: { include: [id, trigger, outcome, notes] }
+  - label: 業務フロー図
+    flow: { view: business-flow }
+  - label: フローの原本
+    fields: { include: [participants, related_usecases, start, terminal, nodes, transitions] }

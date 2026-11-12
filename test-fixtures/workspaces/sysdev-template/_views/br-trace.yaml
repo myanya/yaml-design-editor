@@ -1,0 +1,37 @@
+id: br-trace
+name: ビジネスルールのトレーサビリティ
+description: |
+  ビジネスルール（BR-*）ごとに、どの文書種別が根拠として参照しているかを種別ごとの列で逆引きする。
+  すべての参照列が空の承認済みルール＝取りこぼし（制約 br-referenced の警告対象）。
+rows:
+  idPattern: "BR-*"
+  schemaIds: [business-rule]
+columns:
+  - label: ルール名
+    schemaId: business-rule
+    path: name
+    editable: true
+  - label: 状態
+    schemaId: business-rule
+    path: status
+    editable: true
+  - label: ユースケース
+    backlinks:
+      relation: based-on
+      schemaIds: [usecase-detail]
+  - label: 処理設計
+    backlinks:
+      relation: based-on
+      schemaIds: [process-design]
+  - label: 単体テスト
+    backlinks:
+      relation: based-on
+      schemaIds: [unit-test-item]
+  - label: 結合テスト
+    backlinks:
+      relation: based-on
+      schemaIds: [integration-test-item]
+  - label: 総合テスト
+    backlinks:
+      relation: based-on
+      schemaIds: [system-test-item]

@@ -1,0 +1,6 @@
+id: ENT-MEMBER
+attributes:
+  - { id: EA-MEMBER-NO, name: 社員番号, dtype: DT-MEMBER-NO, required: true }
+  - { id: EA-MEMBER-NAME, name: 氏名, dtype: DT-PERSON-NAME, required: true }
+  - { id: EA-MEMBER-DEPT, name: 所属部署, dtype: DT-DEPT-NAME, required: true }
+  - { id: EA-MEMBER-MAIL, name: メールアドレス, dtype: DT-MAIL-ADDRESS, required: true, description: リマインド通知の宛先 }

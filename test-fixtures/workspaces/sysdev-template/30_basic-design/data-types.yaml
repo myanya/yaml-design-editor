@@ -1,0 +1,75 @@
+# 業務データ型一覧: 業務的な意味を持つドメイン型の台帳。
+# 属性（EA-*）・カラム（COL-*）の型はここへの dtype 参照で宣言する。
+# 物理型への対応は 40_detail-design/type-mapping.yaml（マッピング表）が単一真実源。
+types:
+  - id: DT-MEMBER-NO
+    name: 社員番号
+    base: 文字列
+    max_length: 10
+    pattern: "^[0-9]{6,10}$"
+    description: 人事システムが採番する社員の識別番号。
+  - id: DT-PERSON-NAME
+    name: 氏名
+    base: 文字列
+    max_length: 50
+    description: 利用者の氏名（姓名スペース区切り）。
+  - id: DT-DEPT-NAME
+    name: 部署名
+    base: 文字列
+    max_length: 50
+    description: 所属部署の正式名称。
+  - id: DT-MAIL-ADDRESS
+    name: メールアドレス
+    base: 文字列
+    max_length: 100
+    pattern: "^[^@]+@[^@]+$"
+    description: リマインド通知等の宛先となる社内メールアドレス。
+  - id: DT-RESERVATION-NO
+    name: 予約番号
+    base: 文字列
+    max_length: 20
+    description: システムが採番する予約の識別番号。
+  - id: DT-ROOM-CODE
+    name: 会議室コード
+    base: 文字列
+    max_length: 10
+    description: 会議室の識別コード（例 R-101）。予約の会議室参照にも使う。
+  - id: DT-ROOM-NAME
+    name: 会議室名
+    base: 文字列
+    max_length: 50
+    description: 会議室の表示名。
+  - id: DT-ROOM-CAPACITY
+    name: 収容人数
+    base: 整数
+    min: 1
+    max: 100
+    description: 会議室に入れる人数の上限。
+  - id: DT-AVAILABLE-FLAG
+    name: 利用可否
+    base: 真偽
+    description: 改装中などで予約対象から外すときに false にするフラグ。
+  - id: DT-USE-DATE
+    name: 利用日
+    base: 日付
+    description: 会議室を利用する日（当日以降のみ有効）。
+  - id: DT-RESERVE-TIME
+    name: 予約時刻
+    base: 日時
+    description: 予約の開始・終了時刻（30分刻み）。
+  - id: DT-PURPOSE
+    name: 利用目的
+    base: 文字列
+    max_length: 100
+    description: 会議の目的・議題の自由記述。
+  - id: DT-AUDIT-TIME
+    name: 監査日時
+    base: 日時
+    description: レコードの作成・更新の監査記録用タイムスタンプ（技術カラム向け）。
+  - id: DT-RESERVE-STATUS
+    name: 予約状態
+    base: 区分
+    values:
+      - { value: RESERVED, label: 予約中 }
+      - { value: CANCELED, label: 取消済み }
+    description: 予約のライフサイクル状態。

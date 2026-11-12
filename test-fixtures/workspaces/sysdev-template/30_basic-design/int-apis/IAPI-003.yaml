@@ -1,0 +1,9 @@
+id: IAPI-003
+endpoint: DELETE /api/reservations/{予約番号}
+request:
+  - { name: 予約番号, required: true }
+response:
+  - { name: 結果, description: 取消結果 }
+errors:
+  - 開始1時間前を過ぎている（業務エラー。BR-003）
+  - 他人の予約は取消不可（業務エラー）

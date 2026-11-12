@@ -1,0 +1,39 @@
+# テスト実施結果のスキーマ（RES-* の定義出現）
+id: test-result
+name: テスト実施結果
+match: "{60_unit-test,70_integration-test,80_e2e-test}/results.yaml"
+description: テストケースの実施記録（RES-*）。1回の実施 = 1行。試験3階層それぞれの配下に置く。
+entity:
+  type: test-result
+  idPattern: "RES-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: results
+      label: 実施結果一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 記録ID, type: id, required: true, description: 例 RES-001。 }
+          - key: testcase
+            label: 対象ケース
+            type: ref
+            required: true
+            idPattern: "TC-*"
+            relation: records
+            scope:
+              schemaIds: [test-case]
+          - { key: date, label: 実施日, type: date, required: true }
+          - key: result
+            label: 結果
+            type: enum
+            required: true
+            values:
+              - { value: ok, label: OK }
+              - { value: ng, label: NG }
+              - { value: blocked, label: 実施不能 }
+          - { key: tester, label: 実施者, type: string, required: true }
+          - { key: note, label: 備考, type: text, description: NG・実施不能の場合は内容と対処方針を書く。 }

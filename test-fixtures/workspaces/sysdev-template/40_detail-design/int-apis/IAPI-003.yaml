@@ -1,0 +1,7 @@
+id: IAPI-003
+uses_tables: [TBL-RESERVATION]
+request:
+  - { logical_name: 予約番号, physical_name: reservationNo, type: string }
+response:
+  - { logical_name: 結果, physical_name: result, type: string }
+notes: 物理削除はせず状態を「取消済み」に更新する（履歴保全）。

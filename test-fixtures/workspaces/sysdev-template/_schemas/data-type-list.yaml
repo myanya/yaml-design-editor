@@ -1,0 +1,65 @@
+# 業務データ型一覧のスキーマ（基本設計。DT-* の定義出現）
+#
+# 業務的な意味を含むドメイン型（例: メールアドレス・収容人数）を一覧で管理する。
+# 業務型 = 基本データ型（base）＋制約。制約欄は base の cases で型ごとに変わる。
+# エンティティ属性・カラムは dtype 参照でここを指す（表記でなく意味で型を共有する）。
+# 物理型への対応は物理型マッピング表（40_detail-design/type-mapping.yaml）が maps-type 参照で行う。
+id: data-type-list
+name: 業務データ型一覧
+match: 30_basic-design/data-types.yaml
+description: 業務的な意味を持つデータ型（基本型＋制約）の台帳。属性・カラムの型はここへの参照で宣言する。
+entity:
+  type: data-type
+  idPattern: "DT-*"
+  defines: true
+constraints:
+  # 台帳の自己整合（check 判定述語 R28-08。同一の型の中で下限・上限が逆転していないこと。
+  # 片方しか書かれていない型は判定保留＝黙る）
+  - id: dtype-bounds-ordered
+    description: 業務データ型の下限・上限の指定が逆転していないこと（文字数・数値範囲・小数桁）
+    match:
+      - node: { entity: data-type, bind: t }
+    check:
+      - lte: [{ of: t, path: min_length }, { of: t, path: max_length }]
+      - lte: [{ of: t, path: min }, { of: t, path: max }]
+      - lte: [{ of: t, path: scale }, { of: t, path: precision }]
+    level: error
+root:
+  type: object
+  fields:
+    - key: types
+      label: 業務データ型
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 型ID, type: id, required: true, description: 例 DT-MAIL-ADDRESS。 }
+          - { key: name, label: 型名, type: string, required: true, description: 業務語彙での名前（例 メールアドレス）。 }
+          - key: base
+            label: 基本データ型
+            type: enum
+            required: true
+            values: [文字列, 整数, 小数, 日付, 日時, 真偽, 区分]
+            cases:
+              文字列:
+                - { key: max_length, label: 最大文字数, type: int }
+                - { key: min_length, label: 最小文字数, type: int }
+                - { key: pattern, label: 形式（正規表現）, type: string }
+              整数:
+                - { key: min, label: 最小値, type: int }
+                - { key: max, label: 最大値, type: int }
+              小数:
+                - { key: precision, label: 全体桁数, type: int }
+                - { key: scale, label: 小数桁数, type: int }
+              区分:
+                - key: values
+                  label: 区分値
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    fields:
+                      - { key: value, label: 値, type: string, required: true }
+                      - { key: label, label: 表示名, type: string, required: true }
+          - { key: description, label: 業務的な意味, type: string, required: true, description: この型が表す業務上の概念・使いどころ。 }

@@ -1,0 +1,67 @@
+# 総合テスト項目一覧のスキーマ（要件向け試験。TI-3xx の定義出現）
+#
+# 検証対象は要件（ユースケース）に限定する（scope で機械強制）。
+# UC一覧の制約 uc-tested は、この総合テスト項目を経由した到達だけを「試験あり」と数える。
+id: system-test-item
+name: 総合テスト項目一覧
+match: 80_e2e-test/test-items.yaml
+description: 要件（ユースケース）× 試験観点で抽出した総合テスト項目の台帳。
+entity:
+  type: test-item
+  idPattern: "TI-*"
+  defines: true
+constraints:
+  - id: ti-covered
+    description: 対象外（excluded）でない全テスト項目は、いずれかのテストケースの手順に消化されること
+    match:
+      - node: { entity: test-item, schema: system-test-item, bind: ti }
+      - edge: { dir: in, relation: covers }
+      - node: { entity: test-case }
+    where:
+      - { of: ti, path: excluded, exists: false }
+    expect: exists
+    level: warning
+root:
+  type: object
+  fields:
+    - key: items
+      label: テスト項目一覧
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - { key: id, label: 項目ID, type: id, required: true, description: 例 TI-301（総合は 3xx）。 }
+          - key: target
+            label: 検証対象
+            type: ref
+            required: true
+            idPattern: "UC-*"
+            relation: verifies
+            scope:
+              schemaIds: [usecase-list]
+          - key: viewpoint
+            label: 試験観点
+            type: ref
+            required: true
+            idPattern: "VP-*"
+            relation: viewpoint
+            scope:
+              schemaIds: [test-viewpoint]
+          - { key: description, label: 確認内容, type: string, required: true }
+          - key: excluded
+            label: 対象外
+            type: boolean
+            description: あえて試験しないセルはこの行を残して true にする（網羅判定は充足扱い・消化は不要）。
+          - key: exclude_reason
+            label: 対象外の理由
+            type: string
+          - key: based_on
+            label: 根拠ルール
+            type: array
+            item:
+              type: ref
+              idPattern: "BR-*"
+              relation: based-on
+              scope:
+                schemaIds: [business-rule]

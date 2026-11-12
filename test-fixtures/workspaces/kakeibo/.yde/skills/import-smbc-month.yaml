@@ -1,0 +1,13 @@
+id: import-smbc-month
+name: 三井住友銀行の CSV から月の文書を作る
+description: "CSV の期間（対象日（自））と期首の残高行（月が空の行の残高）から、月の文書 book/months/M-YYYY-MM.yaml を作る。取引を取り込む前にこれを適用する。既にあれば年月と期首残高だけ合わせる。前月（prev）は月次サマリの表で書く"
+kind: import
+input: { format: csv, encoding: UTF-8 }
+target:
+  file: "book/months/{id}.yaml"                  # 組み立てた明細の id（M-YYYY-MM）がファイル名
+build:
+  $when: { path: 月, exists: false }             # 期首の残高行だけ（取引の行は飛ばす）
+  $then:
+    id: { $format: "M-{ym}", $with: { ym: { $date: { $format: "{対象日（自）_年}-{対象日（自）_月}-{対象日（自）_日}" }, $as: yyyy-MM } } }
+    yearMonth: { $date: { $format: "{対象日（自）_年}-{対象日（自）_月}-{対象日（自）_日}" }, $as: yyyy-MM }
+    opening: { $number: { $copy: 残高 } }         # 期間の開始時点の残高

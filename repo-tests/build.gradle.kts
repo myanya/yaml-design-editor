@@ -26,7 +26,7 @@ dependencies {
 }
 
 tasks.withType<Test>().configureEach {
-    // samples/・labs/・test-fixtures/・docs/ をリポジトリの根からの相対パスで読む
+    // samples/・test-fixtures/・docs/ をリポジトリの根からの相対パスで読む（labs/ は読まない。規則テストの規則 21）
     workingDir = rootDir
 }
 

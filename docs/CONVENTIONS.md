@@ -118,7 +118,7 @@
 - **文書とコメントでは接頭辞を省いた短い形**（`schema.FieldDef`・`validate/Validator.kt`）で書き、同じ短い名前が複数のモジュールにあるとき（`schema`・`validate`・`core`）はモジュール名を添える。
 - **root にソースを置かない**: root はビルド全体の設定（settings.gradle.kts・buildSrc）だけ。テストは試す対象のモジュールに置き、1 つのモジュールの依存で書けないもの（入口どうし・入口と拡張の一覧をまたぐもの）と規則テストだけを repo-tests（テストだけのモジュール）に置く。
 - **移動であって複製ではない**: ファイルをモジュール間で移すときは `git mv` し、旧位置に残さない。各ステップで `./gradlew test` を緑に保つ。
-- **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない。
+- **fixture は読み取り専用**: `test-fixtures/` の期待結果は [test-fixtures/README.md](../test-fixtures/README.md) にある。変更を伴うテストは一時ディレクトリへコピーして使う。`labs/` 配下をテストから読まない（labs は試作に合わせて変わり続け、テストの入力にも入らない）。labs の試作を使いたいときは、その時点の写しを `test-fixtures/` に置いて読む（規則テストの規則 21 が止める）。
 - **設計の決定を変えるとき**は、既存の ADR を書き換えず、新しい ADR で上書きを宣言する。
 - **機械で確かめられる規約は規則テストに足す**: 依存の向き・禁止する API・置き場の決まりのような規約は、文章に書くだけでなく `rules/SourceRules` の表に 1 つ足す（architecture/README.md「ソース規則テスト」）。
 - **新しいモジュールの build.gradle.kts は 3 行から**: `plugins { id("yde.kotlin-module") }` と dependencies、固有の設定（資源の生成・テストの作業ディレクトリなど）だけを書く。共通の設定（Kotlin の版・toolchain 21・テストの依存・JUnit Platform・`fixtures.root`・絞り込みで失敗にしない）は buildSrc の convention plugin `yde.kotlin-module` が持つ。Kotlin の版は buildSrc/build.gradle.kts が正で、desktop の compose 用プラグインも同じ版にそろえる。Compose を使うモジュール（desktop）は Compose の版と JUnit 4 が絡むので別に書く。

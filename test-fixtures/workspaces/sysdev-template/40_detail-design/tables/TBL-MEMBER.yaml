@@ -1,0 +1,10 @@
+id: TBL-MEMBER
+name: 利用者
+physical_name: t_member
+implements: ENT-MEMBER
+pii: true
+columns:
+  - { id: COL-MEMBER-NO, name: member_no, logical_name: 社員番号, origin: エンティティ由来, implements: EA-MEMBER-NO, dtype: DT-MEMBER-NO, nullable: false, pk: true }
+  - { id: COL-MEMBER-NAME, name: name, logical_name: 氏名, origin: エンティティ由来, implements: EA-MEMBER-NAME, dtype: DT-PERSON-NAME, nullable: false }
+  - { id: COL-MEMBER-DEPT, name: department, logical_name: 所属部署, origin: エンティティ由来, implements: EA-MEMBER-DEPT, dtype: DT-DEPT-NAME, nullable: false }
+  - { id: COL-MEMBER-MAIL, name: email, logical_name: メールアドレス, origin: エンティティ由来, implements: EA-MEMBER-MAIL, dtype: DT-MAIL-ADDRESS, nullable: false }

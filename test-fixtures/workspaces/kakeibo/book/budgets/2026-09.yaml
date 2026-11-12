@@ -1,0 +1,3 @@
+items:
+  - { id: BG-2026-09-FOOD, month: M-2026-09, category: CAT-FOOD, amount: 40000 }
+  - { id: BG-2026-09-RENT, month: M-2026-09, category: CAT-RENT, amount: 80000 }

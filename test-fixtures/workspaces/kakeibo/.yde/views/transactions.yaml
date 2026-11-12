@@ -1,0 +1,12 @@
+id: transactions
+name: 取引明細（日付順）
+rows:
+  idPattern: "TX-*"
+order: { schemaId: transactions, path: date, type: date, direction: desc }   # 新しい日付が上。ID の並びに頼らない
+columns:
+  - { label: 日付, schemaId: transactions, path: date }
+  - { label: 区分, schemaId: transactions, path: kind }
+  - { label: 金額, schemaId: transactions, path: amount, editable: true }
+  - { label: 費目, schemaId: transactions, path: category, editable: true }
+  - { label: 月, schemaId: transactions, path: month }
+  - { label: メモ, schemaId: transactions, path: memo, editable: true }

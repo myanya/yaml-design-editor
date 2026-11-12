@@ -1,0 +1,13 @@
+apis:
+  - id: IAPI-001
+    name: 空き状況検索API
+    derived_from: [UA-003]
+    summary: 日付・時間帯・会議室の条件で空き状況を返す
+  - id: IAPI-002
+    name: 予約登録API
+    derived_from: [UA-001]
+    summary: 営業時間・重複チェックのうえ予約を登録する
+  - id: IAPI-003
+    name: 予約取消API
+    derived_from: [UA-002]
+    summary: 取消期限チェックのうえ予約を取り消す

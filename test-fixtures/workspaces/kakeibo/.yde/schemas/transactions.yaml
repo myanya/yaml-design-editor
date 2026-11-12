@@ -1,0 +1,53 @@
+id: transactions
+name: 取引
+kind: document
+match: "book/tx/*.yaml"
+entity:
+  type: transaction
+  idPattern: "TX-*"
+  defines: true
+root:
+  type: object
+  fields:
+    - key: entries
+      label: 明細
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: ID, type: id, required: true, description: "TX-YYYYMMDD-NN" }
+          - { key: date, label: 日付, type: date, required: true }
+          - key: kind
+            label: 区分
+            type: enum
+            required: true
+            values:
+              - { value: income, label: 収入 }
+              - { value: expense, label: 支出 }
+          - { key: amount, label: 金額, type: int, required: true, display: grouped }
+          - { key: category, label: 費目, type: ref, idPattern: "CAT-*", scope: { schemaIds: [categories] }, required: true }
+          - { key: month, label: 月, type: ref, idPattern: "M-*", scope: { schemaIds: [months] }, required: true }
+          - { key: memo, label: メモ, type: string, role: title }
+constraints:
+  - id: unsorted-category
+    description: 取り込んだ取引の費目が、未分類（CAT-UNSORTED）のままになっていないこと
+    match:
+      - node: { entity: transaction, bind: tx }
+      - edge: { via: category }
+      - node: { id: CAT-UNSORTED }
+    expect: absent
+    level: warning
+    message: "{tx.id} の費目が未分類です"
+  - id: category-kind-matches
+    description: 取引の区分（収入・支出）が、費目の区分と一致していること（未分類は除く）
+    match:
+      - node: { entity: transaction, bind: tx }
+      - edge: { via: category }
+      - node: { entity: category, bind: cat }
+    where:
+      - { of: cat, path: id, notEquals: CAT-UNSORTED }
+    check:
+      - { eq: [ { of: tx, path: kind }, { of: cat, path: kind } ] }
+    level: error
+    message: "{tx.id} の区分 {left} が、費目 {cat.title} の区分 {right} と違います"

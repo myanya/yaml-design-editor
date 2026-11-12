@@ -1,0 +1,50 @@
+# 外部API定義のスキーマ（基本設計・論理。1ファイル1API。EAPI-* の詳細化出現）
+id: ext-api-def
+name: 外部API定義
+match: 30_basic-design/ext-apis/*.{yaml,yml}
+description: 外部公開APIの論理定義。認可方式（auth）はここで決める（個人情報を扱う場合は必須）。
+entity:
+  type: ext-api
+  idPattern: "EAPI-*"
+  aspect: basic
+root:
+  type: object
+  fields:
+    - key: id
+      label: APIID
+      type: id
+      required: true
+      description: 外部API一覧と同じID。名前・導出元は一覧側に書く。
+    - key: endpoint
+      label: エンドポイント
+      type: string
+      required: true
+    - key: auth
+      label: 認可方式
+      type: enum
+      values:
+        - { value: api-key, label: APIキー }
+        - { value: oauth2, label: OAuth 2.0 }
+        - { value: mtls, label: 相互TLS }
+      description: 外部公開の認可方式。個人情報テーブルを使用するAPIでは必須（制約 eapi-auth-for-pii）。
+    - key: request
+      label: リクエスト項目（論理）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: name, label: 項目名, type: string, required: true }
+          - { key: required, label: 必須, type: boolean }
+          - { key: description, label: 説明, type: string }
+    - key: response
+      label: レスポンス項目（論理）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: name, label: 項目名, type: string, required: true }
+          - { key: description, label: 説明, type: string }
+    - key: errors
+      label: エラー応答
+      type: array
+      item: { type: string }

@@ -1,0 +1,12 @@
+# 総合テスト項目一覧（要件向け: ユースケースが対象）
+# UC-003（空き状況照会）の項目は意図的に未作成（テスト未到達の検出デモ。UC一覧に警告が出る）。
+items:
+  - id: TI-301
+    target: UC-001
+    viewpoint: VP-001
+    description: UC-001 の基本フローが最初から最後まで通しで実施できること。
+  - id: TI-302
+    target: UC-002
+    viewpoint: VP-002
+    description: UC-002 の代替フロー（期限超過の取消不可）を含めて実施できること。
+    based_on: [BR-003]

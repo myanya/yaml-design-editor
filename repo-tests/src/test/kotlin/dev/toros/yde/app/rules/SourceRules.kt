@@ -224,7 +224,18 @@ object SourceRules {
             why = "Ktor・MCP は local-server だけに置く。local-server は app-core とカーネルまでを使い、app-core・agent・拡張からは依存しない",
             doc = "architecture/local-connections.md「規律」",
         ) { files -> ModuleRules.localConnectionDependencies(files) },
+        Rule(
+            21, "テストは labs の下のワークスペースを読まない",
+            why = "labs は実験場で、試作に合わせて定義もデータも変わり続ける。テストが読むと、試作を変えただけで製品のテストが落ちる。" +
+                "しかも labs はテストの入力に入らないので、手元では前の結果が使われて落ちたことに気づけない（CI だけが落ちる）。" +
+                "要る形は、その時点の写しを test-fixtures に置いて読む",
+            doc = "CONVENTIONS「モジュールの規約」",
+            scope = Rule.Scope.TEST,
+        ) { files -> files.flatMap { it.find(labsPathLiteral) } },
     )
+
+    /** `"labs/…"`・`"../labs/…"` のような、labs の下を指す文字列（コメントは見ない）。 */
+    private val labsPathLiteral = Regex("""["/]labs/""")
 
     /** `Path.of("C:/…")`・`Paths.get("C:\\…")` のようなドライブ文字の絶対パスの直書き。 */
     private val drivePathLiteral = Regex("""\b(Path\.of|Paths\.get)\(\s*"[A-Za-z]:[/\\]""")
