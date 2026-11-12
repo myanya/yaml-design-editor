@@ -143,11 +143,11 @@ class WorkspaceSession private constructor(
         clock: () -> Instant = { Instant.now() },
     ) : this(store, incrementalDerive, builtins, viewKinds, sourceTexts?.let {
         val loaded = WorkspaceReader.load(store, builtins = builtins, sourceTexts = it)
-        Seed(loaded, loaded.storeTexts)
+        Seed(loaded, loaded.storeTexts, readerDumps(loaded))
     }, clock)
 
-    /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。 */
-    private class Seed(val loaded: LoadedWorkspace, val storeTexts: Map<DocumentId, String>)
+    /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。dumps は書き出しの覚え（木の同一性で確かめるので、未保存を含む写しにも渡せる）。 */
+    private class Seed(val loaded: LoadedWorkspace, val storeTexts: Map<DocumentId, String>, val dumps: Map<DocumentId, Pair<YDocument, String>>)
 
     var layout: WorkspaceLayout
         private set
@@ -171,6 +171,18 @@ class WorkspaceSession private constructor(
 
     /** 読取・保存時点のストア生テキスト（外部変更検出用。dirty 判定＝persistedText とは別の基準）。 */
     private val storeTexts = mutableMapOf<DocumentId, String>()
+
+    /**
+     * 未保存の判定の覚え: 文書 → （書き出した木, その書き出し）。working の木は差し替えでだけ変わる（ADR-0003 の copy-on-write。
+     * 増分導出も同一性で入れ替わりを見る）ので、同じ木なら書き出しも同じ。状態の通知のたびに全文書を書き出していたのを、
+     * 入れ替わった文書だけにする。覚えは文書ごとに 1 つなので、文書の数より増えない。所有スレッド以外（fork を作る IO）からも読む。
+     */
+    private val dumps = java.util.concurrent.ConcurrentHashMap<DocumentId, Pair<YDocument, String>>()
+
+    private fun dumpOf(id: DocumentId, document: YDocument): String {
+        dumps[id]?.let { (tree, text) -> if (tree === document) return text }
+        return DefaultYamlCodec.dump(document).also { dumps[id] = document to it }
+    }
 
     /** 削除予約（apply 済み・save でストアから消す）。 */
     private val pendingDeletes = mutableSetOf<DocumentId>()
@@ -259,6 +271,10 @@ class WorkspaceSession private constructor(
     private companion object {
         /** 連続入力を1記録へ合体する時間窓（ms。EditBuffer.COALESCE_WINDOW_MS と同値）。 */
         const val COALESCE_WINDOW_MS = 1000L
+
+        /** ストアから読んだ状態の書き出しの覚え。読み取り（WorkspaceReader.load）は保存基準を、その木を書き出して作る。 */
+        fun readerDumps(loaded: LoadedWorkspace): Map<DocumentId, Pair<YDocument, String>> =
+            loaded.snapshot.documents.mapNotNull { (id, d) -> d.persistedText?.let { id to (d.document to it) } }.toMap()
     }
 
     /** 合体の連鎖を断ち切る（Undo/Redo・取り込み・適用など、編集の連続性が切れる操作で呼ぶ）。 */
@@ -281,6 +297,7 @@ class WorkspaceSession private constructor(
         version = loaded.snapshot.version
         derived = loaded.derived
         storeTexts.putAll(seed?.storeTexts ?: loaded.storeTexts)
+        dumps.putAll(seed?.dumps ?: readerDumps(loaded))
     }
 
     /**
@@ -296,7 +313,7 @@ class WorkspaceSession private constructor(
             layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
             parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
         )
-        return WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap()), clock)
+        return WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap(), HashMap(dumps)), clock)
     }
 
     /**
@@ -336,7 +353,7 @@ class WorkspaceSession private constructor(
             layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
             parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
         )
-        return WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap()), clock)
+        return WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap(), HashMap(dumps)), clock)
     }
 
     private fun prepareFileOperation(action: (WorkspaceSession) -> TransactionResult): PendingFileOperation {
@@ -346,7 +363,7 @@ class WorkspaceSession private constructor(
             layout = layout, schemas = schemas, declarations = declarations, schemaErrors = schemaErrors,
             parseErrors = emptyMap(), snapshot = WorkspaceSnapshot(version, workingDocuments.toMap()), derived = derived,
         )
-        val work = WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, baseTexts), clock)
+        val work = WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, baseTexts, HashMap(dumps)), clock)
         work.copyMutableStateFrom(this)
         return PendingFileOperation(
             executeAction = { action(work) },
@@ -564,7 +581,7 @@ class WorkspaceSession private constructor(
     /** dirty か（保存済みテキストと現在の dump 結果の比較。ADR-0007）。 */
     fun isDirty(id: DocumentId): Boolean {
         val d = workingDocuments[id] ?: return false
-        return d.persistedText != DefaultYamlCodec.dump(d.document)
+        return d.persistedText != dumpOf(id, d.document)
     }
 
     /** dirty な文書と削除予約の一覧。 */
@@ -646,7 +663,7 @@ class WorkspaceSession private constructor(
         }
         for ((id, d) in workingDocuments) {
             if (selection != null && id !in selection) continue
-            val text = DefaultYamlCodec.dump(d.document)
+            val text = dumpOf(id, d.document)
             if (!force && text == d.persistedText) continue
             runCatching { checkSave(id); store.write(id, text) }
                 .onSuccess {
@@ -796,7 +813,7 @@ class WorkspaceSession private constructor(
         val plans = try {
             // 保存を行わない計画専用の写し。公開の fork と違い、未保存の木と保存基準をそのまま使う。
             val loaded = LoadedWorkspace(layout, schemas, declarations, schemaErrors, emptyMap(), snapshot, derived)
-            val candidate = WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap()), clock)
+            val candidate = WorkspaceSession(store, incrementalDerive, builtins, viewKinds, Seed(loaded, storeTexts.toMap(), HashMap(dumps)), clock)
             val prepared = candidate.apply(tx)
             if (!prepared.ok) return AutoValuesApplied(prepared, emptyMap())
             candidate.autoValuePlans(ids, now)
