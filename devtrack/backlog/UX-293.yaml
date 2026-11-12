@@ -1,12 +1,17 @@
 id: UX-293
-title: 業務シナリオ（behavior-scenarios）が、ケースが増えて関係が密になると十数分かかる
+title: ワークスペースを開く・検証・業務シナリオが、定義の文書が大きいと遅い（構造の検証の effectiveFields が時間の 85〜89%）
 status: todo
 origin_on: 2026-11-11
-origin: labs/adventurers-guild の業務シナリオを、パーティと受講の Lifecycle まで広げたとき
+origin: labs/adventurers-guild の業務シナリオを、パーティと受講の Lifecycle まで広げたとき（オーナーも、ワークスペースを開くのが遅くなったと気づいた）
 memo: |-
-  68 件（Lifecycle 7・State 29。素材の在庫の State は、動きの記録を all で集める述語）で、CLI の実行が十数分かかった（53 件のころは 10 分以内）。
-  ケースごとに、変わった文書から参照と保有を辿って関係先の State を前後で調べる（S-30）ため、冒険者 → パーティ → 受注 → 依頼 … と大きな連結成分を毎回たどっていると思われる。
-  シナリオを足すたびに待ち時間が延び、Lifecycle を基本にする作りの手直しの往復が重くなる。関係先の候補を Lifecycle の対象の型に絞る・述語の State の評価を共有する、などで縮められないか
+  測った値（2026-11-12、CLI を installDist で直接起動。JFR の profile 設定）:
+  - validate labs/adventurers-guild が 12 秒（samples/orders は 2 秒）。データ 499 文書を外して定義だけにしても 10 秒で、時間の大半は定義の文書（.yde/schemas、common.yaml は 1,600 行）の構造の検証。
+  - 検証の時間の 85% が StructureSchema.effectiveFields$append（yaml-core/structure/StructureSchema.kt の effectiveFields）。呼び手は WorkspaceReader.load → derive → validateOne（開くとき。全体の 44%）と Validator.validateDetailed（検証のとき。50%）で、同じ構造の検証を 2 回している。
+  - behavior-scenarios は 2 件で 25 秒（1 件あたり約 10 秒、68 件で十数分）。ケースごとに ChangeSetApplier.prepare → ChangeSetValidation.validate → WorkspaceCheckRunner.validateAll がワークスペース全体（定義を含む）を検証し直していて、時間の 89% が同じ effectiveFields。前に書いた「関係先を広く辿るため」という見立ては外れていた。
+  見立て: effectiveFields は、選択肢ごとの項目（cases）を持つ enum について、いまの値で使えない項目の案内（inactive）を、項目の節ごとに作り直している。
+  使えない項目ごとに、すべての値と cases を探し直す（eff.values.filter { eff.cases[v]... }）ので、値の数 × cases の項目数 × 値の数 の HashMap の引きが、項目の定義（メタスキーマの type の選択肢）の数だけ起きる。
+  直し方の候補: (1) 判別の項目（StructureField）ごとに「項目のキー → それを使える値」の表を 1 度だけ作って使い回す、(2) 内容の変わらない文書の構造の検証の結果を、開く・検証・変更セットの検証で使い回す、(3) シナリオと変更セットの検証は、変わった文書と影響する文書だけを検証する。
+  大きい定義（labs/adventurers-guild）での開く・検証の時間を、fileTreeBenchmark のような計測のタスクで見張れるとよい
 features:
+  - V-01
   - S-34
-  - S-30
