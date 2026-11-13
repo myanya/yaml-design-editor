@@ -119,23 +119,26 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
     }
 
     /**
-     * 全読込の候補。本文の直前にも対象の実パスを確認し、一覧の検査結果を使い回さない。
+     * 全読込の候補。YAML の実パスは本文を読む直前の 1 回だけ確かめ、一覧の検査結果を使い回さない。
+     * 一覧では、フォルダ（外のフォルダへ降りない枝刈り）・リンクのファイル（リンク先の時刻を読む前に）・Markdown（読まずに一覧に出す）を確かめる。
+     * 読む直前に確かめられない文書（外を指す・一覧の後に外へ差し替わった）は、読まずに一覧から外す。
      * 段階の時間（一覧・本文と、文書ごとの実パスの確認・読み取りの合計）は、呼び出し側が置いた記録（Timings.within）へ書く。
      */
     fun capture(): FileSystemRead {
         val boundary = Timings.measure("ルートの実パス") { WorkspacePaths.ReadBoundary(root) }
-        val listing = Timings.measure("一覧（走査と実パスの確認）") { scan(boundary, includeMarkdown = true) }
+        val listing = Timings.measure("一覧（走査と実パスの確認）") { scan(boundary, includeMarkdown = true, checkPlainYaml = false) }
         val texts = linkedMapOf<DocumentId, String>()
         Timings.measure("本文（読む直前の実パスの確認と読み取り）") {
             for (id in listing.yamlTimes.keys) {
-                val file = Timings.measureEach("読む直前の実パスの確認") { boundary.resolve(id.value) }
+                val file = runCatching { Timings.measureEach("読む直前の実パスの確認") { boundary.resolve(id.value) } }.getOrNull() ?: continue
                 Timings.measureEach("本文の読み取り") { readFile(file) }?.let { texts[id] = it.text }
             }
         }
         return FileSystemRead(texts, FileSystemListing(listing.yamlTimes.filterKeys { it in texts }, listing.markdown))
     }
 
-    private fun scan(boundary: WorkspacePaths.ReadBoundary, includeMarkdown: Boolean): FileSystemListing {
+    /** checkPlainYaml が false なら、リンクでない YAML のファイルは一覧で確かめない（読む直前に確かめる全読込用）。 */
+    private fun scan(boundary: WorkspacePaths.ReadBoundary, includeMarkdown: Boolean, checkPlainYaml: Boolean = true): FileSystemListing {
         val layout = dev.toros.yde.workspace.layout.WorkspaceLayout.of(root)
         val yaml = linkedMapOf<DocumentId, Long>()
         val markdown = mutableListOf<DocumentId>()
@@ -155,7 +158,8 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
                 val isMarkdown = includeMarkdown && name.endsWith(".md", ignoreCase = true)
                 if (!name.startsWith(".") && (isYaml || isMarkdown)) {
                     val id = DocumentId(root.relativize(file).toString().replace('\\', '/'))
-                    if (runCatching { Timings.measureEach("一覧の実パスの確認（ファイル）") { boundary.resolve(id.value) } }.isSuccess) {
+                    val checkedLater = isYaml && !checkPlainYaml && !attrs.isSymbolicLink
+                    if (checkedLater || runCatching { Timings.measureEach("一覧の実パスの確認（ファイル）") { boundary.resolve(id.value) } }.isSuccess) {
                         if (isYaml) yaml[id] = if (attrs.isSymbolicLink) {
                             runCatching { Files.getLastModifiedTime(file).toMillis() }.getOrDefault(0L)
                         } else attrs.lastModifiedTime().toMillis()

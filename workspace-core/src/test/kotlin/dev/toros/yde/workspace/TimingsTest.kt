@@ -68,12 +68,14 @@ class TimingsTest {
             java.nio.file.Files.createDirectories(root.resolve("items"))
             java.nio.file.Files.writeString(root.resolve("items/a.yaml"), "id: A-1\n")
             java.nio.file.Files.writeString(root.resolve("items/b.yaml"), "id: B-1\n")
+            java.nio.file.Files.writeString(root.resolve("README.md"), "説明\n")
             val t = Timings("開く")
             val read = Timings.within(t) { FileSystemDocumentStore(root).capture() }
             assertEquals(2, read.texts.size)
             val names = t.entries().map { it.name }
+            // YAML は読む直前の 1 回だけ確かめ、一覧で確かめるのは読まない Markdown だけ
             listOf(
-                "ルートの実パス", "一覧（走査と実パスの確認）", "一覧の実パスの確認（フォルダ）（1 回の合計）", "一覧の実パスの確認（ファイル）（2 回の合計）",
+                "ルートの実パス", "一覧（走査と実パスの確認）", "一覧の実パスの確認（フォルダ）（1 回の合計）", "一覧の実パスの確認（ファイル）（1 回の合計）",
                 "本文（読む直前の実パスの確認と読み取り）", "読む直前の実パスの確認（2 回の合計）", "本文の読み取り（2 回の合計）",
             ).forEach { assertTrue(it in names, "$it が無い: $names") }
         } finally {

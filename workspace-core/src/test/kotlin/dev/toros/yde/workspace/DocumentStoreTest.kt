@@ -110,6 +110,29 @@ class DocumentStoreTest {
         assertEquals(Files.getLastModifiedTime(dir.resolve("a.yaml")).toMillis(), captured.listing.yamlTimes[DocumentId("a.yaml")])
     }
 
+    @Test
+    fun `全読込は外を指すYAMLのリンクを読まずに外し、開く処理を失敗にしない`() {
+        val root = Files.createDirectory(dir.resolve("workspace"))
+        val outside = Files.createDirectory(dir.resolve("outside"))
+        Files.writeString(root.resolve("a.yaml"), "inside")
+        Files.writeString(outside.resolve("secret.yaml"), "outside")
+        // ファイルのリンクは Windows では権限が要るので、作れない環境では確かめない
+        val linked = runCatching {
+            Files.createSymbolicLink(root.resolve("out.yaml"), outside.resolve("secret.yaml"))
+            Files.createSymbolicLink(root.resolve("in.yaml"), root.resolve("a.yaml"))
+        }.isSuccess
+        if (!linked) return
+        val t = Timings("全読込")
+        val captured = Timings.within(t) { FileSystemDocumentStore(root).capture() }
+        assertEquals(setOf(DocumentId("a.yaml"), DocumentId("in.yaml")), captured.texts.keys)
+        assertEquals(captured.texts.keys, captured.listing.yamlTimes.keys)
+        assertEquals("inside", captured.texts.getValue(DocumentId("in.yaml")))
+        // リンクでない YAML は一覧で確かめず、読む直前の 1 回だけ。リンクのファイルは一覧でも確かめ、外を指すものはそこで外れる
+        val names = t.entries().map { it.name }
+        assertTrue("一覧の実パスの確認（ファイル）（2 回の合計）" in names, names.toString())
+        assertTrue("読む直前の実パスの確認（2 回の合計）" in names, names.toString())
+    }
+
     private lateinit var dir: Path
 
     @BeforeTest

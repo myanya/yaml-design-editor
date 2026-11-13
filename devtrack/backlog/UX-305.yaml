@@ -1,6 +1,6 @@
 id: UX-305
 title: Windows で開くと、ファイルの一覧と本文の読み取りに 0.46〜3.0 秒かかる（YAML 1 件ごとに実パスを 2 回確かめ、1 回ごとにパスの段の数だけ名前を調べる）
-status: discussing
+status: in-progress
 origin_on: 2026-11-12
 origin: オーナーの Windows の timings.log（labs/adventurers-guild を 3 度開いた記録）
 memo: |-
@@ -14,3 +14,9 @@ related:
 features:
   - C-01
   - W-04
+resolutions:
+  - date: 2026-11-13
+    kind: 一部
+    note: 案 G1 を入れた（2026-11-13 オーナーの判断）。全読込で、リンクでない YAML の実パスを一覧では確かめず、読む直前の 1 回だけにした（確認 1,194 回 → 610 回）。G3 は採らない（読込中の親フォルダの差し替えを見逃すため、読む直前に確かめる決まりを守る）。Windows
+      での効果はオーナーの次の timings.log で確かめる
+    targets: FileSystemDocumentStore.capture・DocumentStoreTest
