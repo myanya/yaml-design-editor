@@ -98,7 +98,52 @@ Lifecycle の `entry` は生成に相当する入り口、`transitions` は「�
 結果によって行き先が分かれる操作（同じ状態・同じ操作で、成功なら A・失敗なら B）には `lifecycle` を書かず、手で状態を書きます（照合は今までどおり）。
 ダッシュボードの業務の流れも `flow: {lifecycle: ID, view, group}` で同じ Lifecycle から作れます（[dashboards.md](dashboards.md)「業務の流れ（flow）」）。実例は `samples/todos` です。
 
-スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。小さな公開の例は `samples/todos` の `.yde/schemas/todo-behavior.yaml`（状態 4 つ・遷移 6 本）と、業務シナリオ `scenarios/lifecycle.yaml` です。
+### State の中の流れを詳しく書く（詳細化）
+
+Lifecycle の 1 つの State（親）の中の流れを、`refinements` に同じ ID で別に書けます（ADR-0030）。粗い Lifecycle は書き換えません。
+親は `predicate` を書かずに宣言します。値は子に保存し、親は「子のどれか」のとき真になります（子が同じ項目の enum から作った State のとき）。
+
+```yaml
+states:
+  - source: { entity: todo, path: status, enum: common#ステータス }
+    idPrefix: todo-
+  - { id: todo-ACTIVE, entity: todo, label: 未完了 }   # 親（述語を書かない）
+lifecycles:
+  - id: todo-lifecycle
+    entity: todo
+    states: [todo-ACTIVE, todo-CLOSED, todo-CANCELED]
+    entry: [ { to: todo-ACTIVE, by: { action: register-todo } } ]
+    transitions:
+      - { from: todo-ACTIVE, to: todo-CLOSED, by: { action: complete-todo } }
+      - { from: todo-ACTIVE, to: todo-CANCELED, by: { action: cancel-todo } }
+    termination: { terminal: [todo-CLOSED, todo-CANCELED] }
+refinements:
+  - state: todo-ACTIVE
+    states: [todo-OPEN, todo-IN_PROGRESS, todo-SUSPENDED]
+    entry: [ { to: todo-OPEN, by: { action: register-todo } } ]
+    transitions:
+      - { from: todo-OPEN, to: todo-IN_PROGRESS, by: { action: start-todo } }
+      - { from: todo-IN_PROGRESS, to: todo-SUSPENDED, by: { action: suspend-todo } }
+      - { from: todo-SUSPENDED, to: todo-IN_PROGRESS, by: { action: resume-todo } }
+    exits:
+      - { by: { action: complete-todo }, from: [todo-IN_PROGRESS] }
+```
+
+| キー | 意味 |
+|---|---|
+| `state` | 詳しくする親の State |
+| `states` | 子の State（子をさらに詳細化してもよい。子の親は 1 つ） |
+| `entry` | 親へ入る原因ごとに、入る子。親へ入る原因の全部に書き、親へ入らない原因は書きません |
+| `transitions` | 子どうしの移り方 |
+| `exits` | 親から出る移り方を、出られる子に狭めます。書かない原因はどの子からも出られます（上の例の中止）。親から出ない原因は書けません |
+
+操作・業務の流れ（`flow: {lifecycle}`）・業務シナリオは、親を子へ展開した流れを使います。上の例では、完了は対応中からだけ、中止は未着手・対応中・中断のどれからでもできます。
+断るときは子がそろった親の名前でまとめます（「「TODO-007」は「中止」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）」）。
+粗い流れはそれだけで点検し、展開した流れも同じ規則（中の行き止まり・到達・enum の網羅）で点検します。終端の State の詳細化には移り方を書けません。
+
+### 読み込みの点検
+
+スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。小さな公開の例は `samples/todos` の `.yde/schemas/todo-behavior.yaml`（粗い流れと未完了の詳細化。展開すると状態 5 つ・遷移 8 本）と、業務シナリオ `scenarios/lifecycle.yaml` です。
 
 ### 実データの State と Action の遷移確認（S-29）
 

@@ -445,7 +445,7 @@ object ActionPlanner {
             }
             val to = moves.firstOrNull { it.from == current.id }?.to
                 ?: fail("「$id」は「${current.label ?: current.id}」なので、「${action.displayName}」はできません" +
-                    "（できるのは「${moves.map { stateLabel(it.from) }.distinct().joinToString("」「")}」のとき）")
+                    "（できるのは「${behavior.collapse(moves.map { it.from }).map(::stateLabel).joinToString("」「")}」のとき）")
             return current to stateOf(to)
         }
 

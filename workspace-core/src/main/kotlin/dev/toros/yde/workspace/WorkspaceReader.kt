@@ -3,6 +3,7 @@ package dev.toros.yde.workspace
 import dev.toros.yde.semantic.schema.ActionDef
 import dev.toros.yde.semantic.schema.EventDef
 import dev.toros.yde.semantic.schema.LifecycleDef
+import dev.toros.yde.semantic.schema.RefinementDef
 import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.CheckerRule
@@ -96,6 +97,8 @@ class WorkspaceSchema(
     val events: List<EventDef> = emptyList(),
     /** エンティティの Lifecycle の宣言。 */
     val lifecycles: List<LifecycleDef> = emptyList(),
+    /** State の詳細化の宣言（BehaviorChecks が Lifecycle を葉の State へ展開する）。 */
+    val refinements: List<RefinementDef> = emptyList(),
 ) {
     /**
      * エンティティ型の宣言（ID の型 idType を、このスキーマの木（定義の目録を含む）で解決したもの。P33）。
@@ -110,6 +113,7 @@ class WorkspaceSchema(
     ): WorkspaceSchema = WorkspaceSchema(
         id, kind, match, tree, declaredEntities, isTemplate, source, derive, constraints, checkers, expandedChecks, vocabularySource,
         name, description, relations, entityTypes, enforcement, checkLibrary, expressions, scaffold, actions, states, events, lifecycles,
+        refinements,
     )
 
     /** 式を受け取る項目の値（ルートからのキーの並びで指す。例: expressionAt("filePattern")）。 */
@@ -142,6 +146,7 @@ class WorkspaceSchema(
             states = parsed.states,
             events = parsed.events,
             lifecycles = parsed.lifecycles,
+            refinements = parsed.refinements,
         )
     }
 

@@ -34,6 +34,7 @@
 | [ADR-0027](0027-lens-definition-selection.md) | レンズの定義に箱の絞り込みを持たせる | 承認済み |
 | [ADR-0028](0028-flow-edge-vias.md) | フロー図の線の経由点（ラベルの位置）を表示状態に記録する | 承認済み |
 | [ADR-0029](0029-lifecycle-drives-state.md) | エンティティの状態は Lifecycle を正にし、操作と業務の流れを Lifecycle から導く | 承認済み |
+| [ADR-0030](0030-lifecycle-state-refinement.md) | Lifecycle の State の中の流れは、同じ ID の詳細化として別に書く | 承認済み |
 
 関連文書:
 

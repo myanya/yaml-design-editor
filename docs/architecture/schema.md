@@ -15,8 +15,8 @@
 | `WorkspaceSchema` | workspace-core/workspace/WorkspaceReader.kt | スキーマの中身の原本（名前・説明・項目の木・関係の宣言・検査・式・導出した構造 `structures`） |
 | `SchemaDef` / `SchemaLoader` / `SchemaCatalog` | schema/Schema.kt | app-core の薄い型（`WorkspaceSchema` ＋ ファイルの場所）と、カーネルの読み込み結果をアプリの形にする `fromKernel`。`SchemaCatalog` は全スキーマと library の定義を `(moduleId, definitionName)` でリンクする |
 | `SchemaDocuments` | workspace-core/workspace/SchemaDocuments.kt | スキーマ文書 1 件の読み取り（ID・種類・適用先・derive・エンティティ型・関係レジストリ・項目の木・検査の展開）と関係レジストリの集約の 1 実装 |
-| `StateDeclaration` / `StateDef` / `EventDef` / `LifecycleDef` | semantic-core/schema/Behavior.kt | 名前付き State と Event 種別の宣言、Lifecycle の生成・遷移・終端の記述（S-28・S-31） |
-| `BehaviorChecks` | workspace-core/workspace/BehaviorChecks.kt | State / Event / Lifecycle の横断解決、原因と到達可能性の静的点検（S-28・S-31） |
+| `StateDeclaration` / `StateDef` / `EventDef` / `LifecycleDef` / `RefinementDef` | semantic-core/schema/Behavior.kt | 名前付き State と Event 種別の宣言、Lifecycle の生成・遷移・終端の記述、State の詳細化（S-28・S-31・S-36） |
+| `BehaviorChecks` | workspace-core/workspace/BehaviorChecks.kt | State / Event / Lifecycle の横断解決、原因と到達可能性の静的点検、詳細化の展開（S-28・S-31・S-36） |
 | `BehaviorRuntime` | workspace-core/workspace/BehaviorRuntime.kt | 既存の `SemanticRules` による State 4 値判定と Action / Event の前後差分の Lifecycle 照合（S-29・S-31） |
 | `BehaviorImpact` | workspace-core/workspace/BehaviorImpact.kt | Action の直接変更から参照・保有を介する State 影響候補の抽出（S-30） |
 | `WorkspaceReader` | workspace-core | スキーマ文書・組込みスキーマ・derive の展開を読み込み、スキーマの定義の点検を読み込みエラーへ足す（`buildSchemas`） |
@@ -176,6 +176,9 @@
 - 計算体系の分類: State = `Query + Predicate`、Lifecycle = 名前付き定義間の関係（`Term` / 静的整合）、Action 原因 = 既存 `Rewrite` への参照。新しいデータの永続化・評価器・変更経路は導入しない（CORE-CALCULUS の S-28 設計レビュー）。
 - **Lifecycle を正にする**（ADR-0029）: enum から作った State は値の項目（`StateDef.enumPath`）と述語の原文（`predicateRaw`）を持つ。アクションの `lifecycle`（`ActionLifecycle`）は、`ActionPlanner` の前提（`BehaviorRuntime.evaluate` のいまの State から、この操作の遷移があるか）・状態の値の `PatchOp.Set`・`LifecycleDef.history` の配列への記録の行を作る（操作の変更セットに入り、適用は今までどおり）。ダッシュボードの `flow.lifecycle` は `ViewDefinitions` が段・区画（filter は `predicateRaw`）・工程・入口・履歴へ展開する。
   点検（`BehaviorChecks.actionLifecycleErrors`）は、入口か遷移の存在・受け手の型・行き先が State ごとに 1 つ・行き先が enum 由来であることを確かめる。
+- **State の詳細化**（ADR-0030）: `refinements`（`RefinementDef`）は親の State の中の流れを同じ ID で別に持つ。親は述語を書かない State（`StateDeclaration.Composite`）で、`BehaviorChecks.compile` が葉の enum の値の `oneOf` を述語として導き、`Catalog.states` に入れる。
+  `Catalog.lifecycles` は展開済み（`Flattener`。親へ入る遷移は同じ原因の詳細化の入口の子へ、親から出る遷移は `exits` で狭めた子か全部の子から、中の遷移はそのまま）で、計画器・業務の流れ・照合・シナリオ・監査はこれだけを読む。書いたままの粗い Lifecycle は展開の前に同じ規則で点検し、展開した流れも点検する。
+  `Catalog.children` と `collapse` は、断る文面の「できるのは」を、子がそろった親でまとめるのに使う。
 
 ### State の実評価と Action の遷移照合（S-29）
 

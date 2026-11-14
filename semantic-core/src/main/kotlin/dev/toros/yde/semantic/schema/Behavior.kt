@@ -22,6 +22,12 @@ data class StateDef(
 sealed interface StateDeclaration {
     data class Named(val definition: StateDef) : StateDeclaration
 
+    /**
+     * 述語を書かない State＝詳細化（refinements）した親。値は子の葉に保存し、親は「子のどれか」が真のとき真。
+     * 述語は子から導く（BehaviorChecks）。
+     */
+    data class Composite(val id: String, val entity: String, val label: String?) : StateDeclaration
+
     /** 列挙型の全値を名前付き State に展開する。idPrefix は値の前に付ける。 */
     data class FromEnum(val entity: String, val path: String, val enumRef: String, val idPrefix: String) : StateDeclaration
 
@@ -44,6 +50,7 @@ sealed interface StateDeclaration {
                 m.onlyKeys(where, "id", "entity", "label", "predicate")
                 val id = m.required("id", where)
                 val entity = m.required("entity", where)
+                if (m["predicate"] == null) return@mapIndexed Composite(id, entity, m["label"]?.toString())
                 val rule = ConstraintRule.parse(m["predicate"], "$where.predicate")
                 require(entity in rule.spec.start.entities) {
                     "$where.predicate: 起点の entity は「$entity」を含む必要があります"
@@ -143,19 +150,8 @@ data class LifecycleDef(
             m.onlyKeys(where, "id", "entity", "states", "entry", "transitions", "termination", "history")
             val states = names(m["states"], "$where.states")
             require(states.isNotEmpty()) { "$where.states は空にできません" }
-            val starts = entries(m["entry"], "$where.entry").mapIndexed { j, rawEntry ->
-                val at = "$where.entry[$j]"
-                val e = rawEntry.asObject(at)
-                e.onlyKeys(at, "to", "by")
-                LifecycleEntry(e.required("to", at), TransitionCause.parse(e["by"], "$at.by"))
-            }
-            require(starts.isNotEmpty()) { "$where.entry に生成時の入り口を1つ以上指定してください" }
-            val transitions = entries(m["transitions"], "$where.transitions").mapIndexed { j, rawTransition ->
-                val at = "$where.transitions[$j]"
-                val t = rawTransition.asObject(at)
-                t.onlyKeys(at, "from", "to", "by")
-                LifecycleTransition(t.required("from", at), t.required("to", at), TransitionCause.parse(t["by"], "$at.by"))
-            }
+            val starts = parseEntries(m["entry"], where)
+            val transitions = parseTransitions(m["transitions"], where)
             val termination = m["termination"].asObject("$where.termination")
             termination.onlyKeys("$where.termination", "terminal", "openEnded")
             val terminal = names(termination["terminal"], "$where.termination.terminal")
@@ -174,6 +170,65 @@ data class LifecycleDef(
         }
     }
 }
+
+/**
+ * State の詳細化（段階的詳細化の丙。ADR-0030）。粗い Lifecycle の 1 つの State（親）の中の流れを、同じ ID で別に書く。
+ * 粗い Lifecycle はそれだけで完結し、詳細化はその State の中だけを決める。入口は親へ入る原因ごとに 1 つ、
+ * 出口（exits）は親から出る遷移を出られる子に狭めるだけ（書かなければどの子からも出られる）。
+ */
+data class RefinementDef(
+    val state: String,
+    val states: List<String>,
+    val entry: List<LifecycleEntry>,
+    val transitions: List<LifecycleTransition>,
+    val exits: List<RefinementExit>,
+) {
+    companion object {
+        fun parseAll(raw: Any?): List<RefinementDef> = entries(raw, "refinements").mapIndexed { i, entry ->
+            val where = "refinements[$i]"
+            val m = entry.asObject(where)
+            m.onlyKeys(where, "state", "states", "entry", "transitions", "exits")
+            val states = names(m["states"], "$where.states")
+            require(states.isNotEmpty()) { "$where.states は空にできません" }
+            RefinementDef(
+                state = m.required("state", where),
+                states = states,
+                entry = parseEntries(m["entry"], where),
+                transitions = parseTransitions(m["transitions"], where),
+                exits = entries(m["exits"], "$where.exits").mapIndexed { j, rawExit ->
+                    val at = "$where.exits[$j]"
+                    val x = rawExit.asObject(at)
+                    x.onlyKeys(at, "by", "from")
+                    val from = names(x["from"], "$at.from")
+                    require(from.isNotEmpty()) { "$at.from は空にできません（出られる子の State を書きます）" }
+                    RefinementExit(TransitionCause.parse(x["by"], "$at.by"), from)
+                },
+            )
+        }
+    }
+}
+
+/** 親から出る遷移（原因 by）を、出られる子（from）に狭める。 */
+data class RefinementExit(val by: TransitionCause, val from: List<String>)
+
+private fun parseEntries(raw: Any?, where: String): List<LifecycleEntry> {
+    val starts = entries(raw, "$where.entry").mapIndexed { j, rawEntry ->
+        val at = "$where.entry[$j]"
+        val e = rawEntry.asObject(at)
+        e.onlyKeys(at, "to", "by")
+        LifecycleEntry(e.required("to", at), TransitionCause.parse(e["by"], "$at.by"))
+    }
+    require(starts.isNotEmpty()) { "$where.entry に生成時の入り口を1つ以上指定してください" }
+    return starts
+}
+
+private fun parseTransitions(raw: Any?, where: String): List<LifecycleTransition> =
+    entries(raw, "$where.transitions").mapIndexed { j, rawTransition ->
+        val at = "$where.transitions[$j]"
+        val t = rawTransition.asObject(at)
+        t.onlyKeys(at, "from", "to", "by")
+        LifecycleTransition(t.required("from", at), t.required("to", at), TransitionCause.parse(t["by"], "$at.by"))
+    }
 
 private fun Any?.asObject(where: String): Map<*, *> =
     this as? Map<*, *> ?: error("$where は object である必要があります")

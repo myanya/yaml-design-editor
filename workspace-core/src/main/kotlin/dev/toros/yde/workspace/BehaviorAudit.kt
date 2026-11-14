@@ -59,7 +59,10 @@ object BehaviorAudit {
 
     fun inspect(schemas: List<WorkspaceSchema>): BehaviorAuditReport {
         val catalog = BehaviorChecks.compile(schemas)
-        val includedStates = catalog.lifecycles.flatMap { it.states }.toSet()
+        // 詳細化した State（親）は、葉が Lifecycle に含まれていれば含まれる。
+        val includedStates = catalog.lifecycles.flatMap { it.states }.toSet().let { leaves ->
+            leaves + catalog.children.keys.filter { parent -> catalog.leavesOf(parent).any { it in leaves } }
+        }
         val linkedEvents = catalog.lifecycles.flatMap { lifecycle ->
             lifecycle.entry.map { it.by } + lifecycle.transitions.map { it.by }
         }.filterIsInstance<TransitionCause.Event>().map { it.id }.toSet()

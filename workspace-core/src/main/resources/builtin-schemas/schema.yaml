@@ -54,7 +54,7 @@ definitions:
       - { key: id, label: State ID, type: string, role: title }
       - { key: entity, label: エンティティ型, type: string }
       - { key: label, label: 表示名, type: string }
-      - { key: predicate, label: 状態の判定条件（既存 Query / Predicate）, type: any }
+      - { key: predicate, label: 状態の判定条件（既存 Query / Predicate）, type: any, description: "書かない State は詳細化（refinements）した親で、子のどれかが真のとき真（値は子に保存する）" }
       - key: source
         label: 列挙型の全値から展開
         type: object
@@ -121,6 +121,39 @@ definitions:
         description: "lifecycle を書いた操作が、移るたびに 1 行足す配列（エンティティの要素からの相対パス。その項目を持つ出現の配列）。行の項目は date・action・from・to と、操作の lifecycle.history の値"
         fields:
           - { key: path, label: 配列の場所, type: string, required: true }
+  refinement-exit:
+    type: object
+    fields:
+      - { key: by, label: 親から出る遷移の原因, $ref: lifecycle-cause, required: true }
+      - key: from
+        label: 出られる子の State
+        type: array
+        item: { type: string }
+        required: true
+  refinement:
+    type: object
+    fields:
+      - { key: state, label: 詳細化する State, type: string, required: true, role: title, description: "predicate を書かずに宣言した State（親）" }
+      - key: states
+        label: 子の State
+        type: array
+        item: { type: string }
+        required: true
+      - key: entry
+        label: 入口
+        type: array
+        item: { $ref: lifecycle-entry }
+        required: true
+        description: 親へ入る原因ごとに、入る子の State
+      - key: transitions
+        label: 中の遷移
+        type: array
+        item: { $ref: lifecycle-transition }
+      - key: exits
+        label: 出口（狭める）
+        type: array
+        item: { $ref: refinement-exit }
+        description: 親から出る遷移を、出られる子に狭める。書かない原因は、どの子からも出られる
   method:
     type: object
     fields:
@@ -482,6 +515,12 @@ root:
       display: list
       item: { $ref: lifecycle }
       description: "対象 entity の State、生成 entry、遷移 transitions、終端の方針 termination を宣言する。原因 Action と Event の参照を静的検証する。"
+    - key: refinements
+      label: 状態の詳細化（behavior）
+      type: array
+      display: list
+      item: { $ref: refinement }
+      description: "Lifecycle の 1 つの State（親）の中の流れを、同じ ID で別に書く。粗い Lifecycle はそのまま完結し、操作・業務の流れ・シナリオは親を子へ展開した流れを使う。入口は親へ入る原因ごと、出口（exits）は親から出る遷移を出られる子に狭めるだけ。"
     - key: root
       label: ルート定義
       $ref: field

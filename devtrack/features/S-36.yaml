@@ -1,0 +1,18 @@
+id: S-36
+title: Lifecycle の State の詳細化（`refinements`＝親の中の流れを同じ ID で別に書く・入口は原因ごと・`exits` は狭めるだけ・展開した流れを操作と業務の流れが使う）
+implementation:
+- path: semantic-core/schema/Behavior.kt
+  module: semantic-core
+- path: workspace-core/workspace/BehaviorChecks.kt
+  module: workspace-core
+- path: workspace-core/workspace/ActionPlanner.kt
+  module: workspace-core
+tests:
+- name: LifecycleRefinementTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: 業務上の State / Lifecycle
+manual:
+- link: manual/schema.md
+  heading: State の中の流れを詳しく書く（詳細化）

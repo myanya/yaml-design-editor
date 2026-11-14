@@ -3,6 +3,7 @@ package dev.toros.yde.workspace
 import dev.toros.yde.semantic.schema.ActionDef
 import dev.toros.yde.semantic.schema.EventDef
 import dev.toros.yde.semantic.schema.LifecycleDef
+import dev.toros.yde.semantic.schema.RefinementDef
 import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.CheckLibrary
 import dev.toros.yde.semantic.schema.DeriveDef
@@ -60,6 +61,8 @@ class ParsedSchemaDocument(
     val events: List<EventDef> = emptyList(),
     /** エンティティの生成・状態遷移・終了のモデル。 */
     val lifecycles: List<LifecycleDef> = emptyList(),
+    /** State の詳細化（親の State の中の流れ。ADR-0030）。 */
+    val refinements: List<RefinementDef> = emptyList(),
 )
 
 /**
@@ -116,12 +119,13 @@ object SchemaDocuments {
         }
         require(actions.isEmpty() || kind != SchemaKind.RELATIONS) { "actions は kind: relations の文書には書けません" }
         actions.groupBy { it.id }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { error("actions: 操作の ID「$it」が重複しています") }
-        require(kind == SchemaKind.BEHAVIOR || (raw["states"] == null && raw["events"] == null && raw["lifecycles"] == null)) {
-            "states / events / lifecycles は kind: behavior の文書でのみ定義できます"
+        require(kind == SchemaKind.BEHAVIOR || listOf("states", "events", "lifecycles", "refinements").all { raw[it] == null }) {
+            "states / events / lifecycles / refinements は kind: behavior の文書でのみ定義できます"
         }
         val states = StateDeclaration.parseAll(raw["states"])
         val events = EventDef.parseAll(raw["events"])
         val lifecycles = LifecycleDef.parseAll(raw["lifecycles"])
+        val refinements = RefinementDef.parseAll(raw["refinements"])
         // 検査: constraints に書いた検査と語彙を、基本の検査へ展開してからパースする（CheckCatalog）
         val ownLibrary = CheckLibrary.parse(raw, sourceName)
         val effectiveLibrary = library ?: (CheckCatalog.builtinLibrary + ownLibrary)
@@ -146,6 +150,7 @@ object SchemaDocuments {
             states = states,
             events = events,
             lifecycles = lifecycles,
+            refinements = refinements,
         )
     }
 
