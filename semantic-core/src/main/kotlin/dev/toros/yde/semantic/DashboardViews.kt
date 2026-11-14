@@ -1,6 +1,7 @@
 package dev.toros.yde.semantic
 
 import dev.toros.yde.semantic.schema.ActionRequire
+import dev.toros.yde.semantic.schema.RefScope
 import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
@@ -24,6 +25,8 @@ enum class DashboardInputType(val id: String, val label: String) {
     DATE("date", "日付"),
     ENUM("enum", "選択"),
     STRING("string", "文字"),
+    /** 参照（候補は索引の ID と表示名。参照の項目と同じ絞り込み）。 */
+    REF("ref", "参照"),
     ;
 
     companion object {
@@ -43,7 +46,25 @@ data class DashboardInput(
     /** 選択の候補（値と見出し。enum のとき）。 */
     val values: List<Pair<String, String?>> = emptyList(),
     val default: String? = null,
+    /** 参照の候補の ID の絞り込み（type: ref。参照の項目と同じ層＝すべての層のどれかの glob に合う ID）。 */
+    val refPatterns: List<List<String>> = emptyList(),
+    /** 参照の候補の範囲（type: ref。参照の項目の scope と同じ）。 */
+    val refScope: RefScope = RefScope(),
+    /** 複数を選べる（enum / ref）。値は選んだものの並びで、受け渡しはカンマ区切りの文字（split / join）。 */
+    val multiple: Boolean = false,
+    /** 型の名前（`type: common#タグ参照` と書いたとき。候補と種類はその型から）。 */
+    val typeName: String? = null,
 ) {
+    /** 選択の候補を持つ種類か（enum・ref）。 */
+    val choice: Boolean get() = type == DashboardInputType.ENUM || type == DashboardInputType.REF
+
+    /** 条件へ差し込む値（複数を選べる入力は並び。空は null＝絞らない）。 */
+    fun bound(text: String?): Any? = when {
+        text.isNullOrBlank() -> null
+        multiple -> split(text).takeIf { it.isNotEmpty() }
+        else -> text
+    }
+
     /** 基準日から決めた初期値（無ければ null＝絞らない）。 */
     fun defaultFor(date: LocalDate): String? = when (default) {
         null -> null
@@ -51,6 +72,45 @@ data class DashboardInput(
         "\$monthStart" -> date.withDayOfMonth(1).toString()
         "\$monthEnd" -> date.withDayOfMonth(date.lengthOfMonth()).toString()
         else -> default
+    }
+
+    companion object {
+        /** 複数の値の受け渡しの形（カンマ区切り）を並びへ。空の要素は落とし、同じ値は 1 つにする。 */
+        fun split(text: String): List<String> = text.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+        fun join(values: List<String>): String = values.distinct().joinToString(",")
+    }
+}
+
+/** 共有の入力の候補と値の点検（画面・業務 Web・CLI・保存版の読み出しが共有する）。 */
+object DashboardInputs {
+    /** 選択の候補（値と見出し）。enum は定義の値、ref は索引の ID（ID の順）と表示名。その他は無し。 */
+    fun options(input: DashboardInput, ids: Map<String, List<ScannedId>>): List<Pair<String, String?>> = when (input.type) {
+        DashboardInputType.ENUM -> input.values
+        DashboardInputType.REF -> ids.entries.asSequence()
+            .filter { (id, occurrences) -> idMatchesLayers(id, input.refPatterns) && occurrences.any { inScope(it, input.refScope) } }
+            .map { (id, occurrences) -> id to SemanticExpression.preferDefining(occurrences).firstNotNullOfOrNull { it.title } }
+            .sortedBy { it.first }.toList()
+        else -> emptyList()
+    }
+
+    private fun inScope(occurrence: ScannedId, scope: RefScope): Boolean =
+        (scope.schemaIds.isEmpty() || occurrence.schemaId in scope.schemaIds) &&
+            (scope.documentIds.isEmpty() || occurrence.documentId in scope.documentIds)
+
+    /** 入力の値の誤り（日付として読めない・候補に無い）。誤りが無ければ null。空は「絞らない」で誤りではない。 */
+    fun invalid(input: DashboardInput, text: String?, ids: Map<String, List<ScannedId>>): String? {
+        if (text.isNullOrBlank()) return null
+        val values = if (input.multiple) DashboardInput.split(text) else listOf(text)
+        return when (input.type) {
+            DashboardInputType.DATE -> values.firstOrNull { runCatching { LocalDate.parse(it) }.isFailure }
+                ?.let { "共有の入力「${input.label}」の値「$it」は日付（YYYY-MM-DD）ではありません" }
+            DashboardInputType.STRING -> null
+            DashboardInputType.ENUM, DashboardInputType.REF -> {
+                val known = options(input, ids).map { it.first }.toSet()
+                values.firstOrNull { it !in known }?.let { "共有の入力「${input.label}」に「$it」はありません（候補から選びます）" }
+            }
+        }
     }
 }
 
@@ -107,8 +167,16 @@ data class DashboardSectionResult(
     fun selected(key: String?): VirtualRow? = rows.singleOrNull { it.key == key && it.occurrences.isNotEmpty() }
 }
 
-/** 解決の結果。inputs は効かせた入力の値（鍵＝入力の名前。null＝絞っていない）。 */
-data class DashboardResolution(val date: LocalDate, val sections: List<DashboardSectionResult>, val inputs: Map<String, String?> = emptyMap())
+/**
+ * 解決の結果。inputs は効かせた入力の値（鍵＝入力の名前。null＝絞っていない）。options は選択の入力の候補（値と見出し。
+ * 参照は索引から作る）で、画面・業務 Web・CLI が同じ候補を見せる。
+ */
+data class DashboardResolution(
+    val date: LocalDate,
+    val sections: List<DashboardSectionResult>,
+    val inputs: Map<String, String?> = emptyMap(),
+    val options: Map<String, List<Pair<String, String?>>> = emptyMap(),
+)
 
 /** 演算は既存評価器へ委譲し、画面・CLI・エージェントに同じ行と判定理由を返す。 */
 object DashboardViews {
@@ -128,7 +196,11 @@ object DashboardViews {
         /** 共有の入力の値（鍵＝入力の名前。空か null＝絞らない）。 */
         inputs: Map<String, String?> = emptyMap(),
     ): DashboardResolution {
-        val given: Map<String, Any?> = inputs.filterValues { !it.isNullOrBlank() }
+        // 複数を選べる入力は並びにして差し込む（受け渡しはカンマ区切り）。空は外す（絞らない）
+        val given: Map<String, Any?> = inputs.mapNotNull { (key, text) ->
+            val input = dashboard.inputs.firstOrNull { it.key == key }
+            (input?.bound(text) ?: text?.takeIf { input == null && it.isNotBlank() })?.let { key to it }
+        }.toMap()
         val optional = dashboard.inputs.map { it.key }.toSet()
         // 同じ表は同じ値で一度だけ解決する（表の params に無い値は渡さないので、鍵は表の ID と渡す値）
         val cache = mutableMapOf<Pair<String, Map<String, Any?>>, ResolvedRows>()
@@ -171,6 +243,6 @@ object DashboardViews {
                 }
                 DashboardSectionResult(section, grid, selected, pending, truncation = resolved.takeIf { it.truncated })
             }.getOrElse { DashboardSectionResult(section, grid, emptyList(), error = it.message ?: "表示を解決できません") }
-        }, inputs)
+        }, inputs, dashboard.inputs.filter { it.choice }.associate { it.key to DashboardInputs.options(it, ids) })
     }
 }

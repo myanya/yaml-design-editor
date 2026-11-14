@@ -1,5 +1,5 @@
 id: X-13
-title: ダッシュボード（開始画面・業務詳細と参照・共通基準日・区画の群と並べ方・共有の入力 `inputs`〔区画の filter と表の params へ。空＝絞らない〕・CLIとread_view）
+title: ダッシュボード（開始画面・業務詳細と参照・共通基準日・区画の群と並べ方・共有の入力 `inputs`〔区画の filter と表の params へ。空＝絞らない。型の名前・参照の候補を索引から・複数選択 `multiple`〕・CLIとread_view）
 implementation:
 - path: semantic/DashboardViews.kt
   module: semantic-core
@@ -10,6 +10,10 @@ implementation:
 tests:
 - name: DashboardDefinitionsTest
 - name: DashboardsTest
+- name: DashboardInputsTest
+- name: DashboardInputCandidatesTest
+- name: DashboardFlowUiTest
+  kind: ui
 design:
 - label: dashboards
   link: architecture/dashboards.md

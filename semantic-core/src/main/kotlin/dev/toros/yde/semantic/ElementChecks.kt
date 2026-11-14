@@ -112,6 +112,11 @@ object SemanticElementChecks {
             val kind = pred.kind ?: kindAt(pred.path) ?: ValueExpr.OrderKind.NUMBER
             val test = pred.test
             val plain: Boolean? = when {
+                // 配列を受け取る条件（includes / includesAny）: 項目の配列の要素で比べる（要素の型が数なら数として）
+                test != null && test.first.arrayLeft -> (node as? YNode.Seq)?.let { seq ->
+                    val numeric = tree.fieldAt(root, path + pred.path + 0)?.type.let { it == FieldType.INT || it == FieldType.NUMBER }
+                    SemanticExpression.testArray(seq.items.map { scalarText(it) }, test.second, numeric)
+                }
                 pred.equals != null -> text?.let { it == pred.equals }
                 pred.notEquals != null -> text?.let { it != pred.notEquals }
                 pred.exists != null -> (node != null) == pred.exists
@@ -143,9 +148,19 @@ object SemanticElementChecks {
                 for (term in check.terms) {
                     val left = SemanticValues.evaluate(term.left, env)
                     val rights = term.rights.map { SemanticValues.evaluate(it, env) }
-                    val comparable = left != null && left.isScalar && rights.all { it == null || it.isScalar }
+                    val comparable = left != null && (left.isScalar != term.op.arrayLeft) && rights.all { it == null || it.isScalar }
                     val kind = term.kind ?: left?.kind ?: rights.firstNotNullOfOrNull { it?.kind } ?: ValueExpr.OrderKind.NUMBER
-                    val plain = left?.takeIf { comparable }?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }, kind) }
+                    val plain = left?.takeIf { comparable }?.let {
+                        // 配列を受け取る条件（includes / includesAny）は、左の配列の要素で比べる
+                        if (term.op.arrayLeft) (it.node as? YNode.Seq)?.let { seq ->
+                            // 要素の型が数なら数として比べる（要素の出どころの項目の型から）
+                            val element = it.elements?.firstOrNull { e -> e.document == document && e.path != null }
+                            val numeric = it.kind == ValueExpr.OrderKind.NUMBER ||
+                                element?.path?.let { p -> tree.fieldAt(root, p)?.type.let { t -> t == FieldType.INT || t == FieldType.NUMBER } } == true
+                            SemanticExpression.testArray(seq.items.map { e -> scalarText(e) }, rights.map { r -> r?.text }, numeric)
+                        }
+                        else SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }, kind)
+                    }
                     if (left == null || plain == null) {
                         unknown = true
                         if (left == null || rights.any { it == null }) noValue = true

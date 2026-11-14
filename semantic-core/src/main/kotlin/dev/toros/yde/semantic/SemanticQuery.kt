@@ -20,6 +20,7 @@ import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QueryNodeStep
 import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.QueryWhere
+import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.RefTarget
 
 /**
@@ -810,6 +811,19 @@ object SemanticQuery {
                 ?: candidates.firstNotNullOfOrNull { fieldAt(it.document, it.path + pred.path)?.let { f -> ValueExpr.OrderKind.ofType(f.type) } }
                 ?: ValueExpr.OrderKind.NUMBER
             val plain: Boolean? = when {
+                // 配列を受け取る条件（includes / includesAny）: どれかの出現の配列が、値を要素に持てば成立
+                test != null && test.first.arrayLeft -> {
+                    val results = candidates.zip(nodes).mapNotNull { (occ, node) ->
+                        val seq = node as? YNode.Seq ?: return@mapNotNull null
+                        val numeric = fieldAt(occ.document, occ.path + pred.path + 0)?.type.let { it == FieldType.INT || it == FieldType.NUMBER }
+                        SemanticExpression.testArray(seq.items.map { scalarText(it) }, test.second, numeric)
+                    }
+                    when {
+                        results.any { it == true } -> true
+                        results.isEmpty() || results.any { it == null } -> null
+                        else -> false
+                    }
+                }
                 pred.equals != null -> if (texts.isEmpty()) null else texts.any { it == pred.equals }
                 // notEquals（R28-02）: 値が1つ以上あり、どの出現の値も指定値でない
                 // （equals の OR 解釈の否定。値がなければ黙る＝判定保留）
@@ -939,9 +953,15 @@ object SemanticQuery {
                         val rights = term.rights.map { evalExpr(it, row, assignment) }
                         // 値の条件は共有評価部——評価できない（null）条件は判定保留。配列やマップは比べられない（スカラーだけ）。
                         // 順序の比較の種類は `type` の宣言か、左右の値を読んだ項目の型（左を優先。決まらなければ数値）
-                        val comparable = left != null && left.isScalar && rights.all { it == null || it.isScalar }
+                        val comparable = left != null && (left.isScalar != term.op.arrayLeft) && rights.all { it == null || it.isScalar }
                         val kind = term.kind ?: left?.kind ?: rights.firstNotNullOfOrNull { it?.kind } ?: ValueExpr.OrderKind.NUMBER
-                        val plain = left?.takeIf { comparable }?.let { SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }, kind) }
+                        val plain = left?.takeIf { comparable }?.let {
+                            // 配列を受け取る条件（includes / includesAny）は、左の配列の要素で比べる
+                            if (term.op.arrayLeft) (it.node as? YNode.Seq)?.let { seq ->
+                                SemanticExpression.testArray(seq.items.map { e -> scalarText(e) }, rights.map { r -> r?.text }, numericElements(it))
+                            }
+                            else SemanticExpression.test(term.op, it.text, rights.map { r -> r?.text }, kind)
+                        }
                         if (left == null || plain == null) {
                             unknown = true
                             if (left == null || rights.any { it == null }) noValue = true else incomparable = true
@@ -989,6 +1009,14 @@ object SemanticQuery {
          * 評価そのものは SemanticValues（1つの環境での値の式の評価。P31）——解の束縛と出現の割当てを環境に写して呼ぶ。
          * 集合から値へ落とす all には、同じ起点の全ての解（checkFrom が先に集める）と、起点を固定した照合（この評価器で解く）を渡す。
          */
+        /** 配列の値（読み出した項目）の要素の型が数か（includes / includesAny で数として比べる。要素の出どころの項目の型から）。 */
+        private fun numericElements(side: SemanticCheckSide): Boolean {
+            if (side.kind == ValueExpr.OrderKind.NUMBER) return true
+            val element = side.elements?.firstOrNull { it.document != null && it.path != null } ?: return false
+            val type = fieldAt(element.document!!, element.path!!)?.type
+            return type == FieldType.INT || type == FieldType.NUMBER
+        }
+
         private fun evalExpr(
             expr: ValueExpr,
             row: SemanticQueryRow,

@@ -1,7 +1,13 @@
 id: todo-by-due
 name: 期限順
+# 受け取る値: タグ（複数）とカテゴリ（TODO管理と同じ。空なら絞らない）
+params: [tags, category]
 rows:
-  idPattern: TODO-*
+  match:
+    - node: { entity: todo, bind: t }
+  where:
+    - { of: t, path: tags, includesAny: $tags }
+    - { of: t, path: category, equals: $category }
 order:
   schemaId: todo-detail
   path: due_on

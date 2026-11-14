@@ -1,6 +1,6 @@
 id: UX-317
 title: ダッシュボードの共有の入力（inputs）の選択肢を、マスタ（タグ一覧など）から取れない
-status: todo
+status: resolved
 origin_on: 2026-11-14
 origin: samples/todos にタグを足し、ダッシュボードをタグで絞り込めるかを考えたとき
 memo: |-
@@ -8,3 +8,10 @@ memo: |-
   候補: 入力の type に ref（idPattern・scope は参照の型と同じ）を足し、区画の filter は $名前 で参照の一致を書く
 features:
   - X-13
+closed_on: 2026-11-14
+resolutions:
+  - date: 2026-11-14
+    kind: 解決
+    note: '共有の入力の type に型の名前（common#タグ参照 など）と ref（idPattern / scope）を書けるようにし、候補を型の選択肢か索引の ID と表示名から作る（DashboardInputs.options。画面・業務 Web・CLI・保存版の読み出しが共有）。複数選択 multiple を足し（受け渡しはカンマ区切り）、配列を受け取る条件 includes / includesAny を where と check に足した（oneOf も値 1 つを受ける）。samples/todos にタグ（複数）とカテゴリの入力、samples/orders の顧客区分を名前付きの型に'
+    targets: semantic-core/semantic/DashboardViews.kt
+targets: semantic-core/semantic/DashboardViews.kt

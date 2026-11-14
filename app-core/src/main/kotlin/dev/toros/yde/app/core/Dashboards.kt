@@ -125,13 +125,27 @@ object Dashboards {
         ) },
     )
 
+    /**
+     * 共有の入力 1 つの開示: 名前・見出し・種類・効かせた値・初期値・複数を選べるか・候補（選択と参照。参照は索引から）。
+     * 値は受け渡しの形（複数ならカンマ区切り）。CLI・read_view・業務 Web が同じ形を受け取る。
+     */
+    fun inputReport(input: dev.toros.yde.semantic.DashboardInput, result: DashboardResolution): Map<String, Any?> = linkedMapOf(
+        "key" to input.key, "label" to input.label, "type" to input.type.id, "value" to result.inputs[input.key], "default" to input.default,
+        "multiple" to input.multiple,
+        "options" to result.options[input.key].orEmpty().map { (value, label) -> linkedMapOf("value" to value, "label" to (label ?: value)) },
+    )
+
+    /** 共有の入力の値の誤り（日付として読めない・候補に無い。CLI・保存版の読み出しが渡された値を確かめる）。 */
+    fun inputErrors(view: VirtualDashboardDef, inputs: Map<String, String?>, index: IdIndex): List<String> =
+        view.inputs.mapNotNull { input -> inputs[input.key]?.let { dev.toros.yde.semantic.DashboardInputs.invalid(input, it, index.entries) } }
+
     /** CLIとread_viewは同じ解決結果を、原本の座標と判定できなかった対象つきで開示する。 */
     fun report(view: VirtualDashboardDef, result: DashboardResolution, errors: List<String> = emptyList(), flow: DashboardFlowResult? = null): Map<String, Any?> =
         linkedMapOf(
             "view" to view.id, "kind" to "dashboard", "date" to result.date.toString(), "actions" to view.actions,
             "placement" to view.placement.id,
             // 共有の入力: 定義と、今回効かせた値（null＝絞っていない）
-            "inputs" to view.inputs.map { i -> linkedMapOf("key" to i.key, "label" to i.label, "type" to i.type.id, "value" to result.inputs[i.key], "default" to i.default) },
+            "inputs" to view.inputs.map { i -> inputReport(i, result) },
             "sections" to result.sections.map { section -> linkedMapOf(
                 "id" to section.definition.id, "label" to section.definition.label, "view" to section.definition.view,
                 "group" to section.definition.group,

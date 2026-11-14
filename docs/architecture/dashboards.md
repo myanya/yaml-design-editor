@@ -65,6 +65,8 @@
   matrixへのfilterは合計との不一致を防ぐため拒否する。埋め込みの循環を許さない。
 - 解決失敗とゼロ件を区別する。CLIでは失敗した区画のcountはnull、画面では理由を表示する。
 - 場所は `NavLocation` のダッシュボードIDと対象ID。区画・行・基準日・分割・スクロールは `ScreenMemory` が持つ。
+- **入力の種類と候補**: `ViewDefinitions.parseInputs` が型の名前（`common#タグ参照`）をスキーマの型から引き、基底の種類（選択肢・参照・日付・文字）と候補の元（選択肢の値・参照の `idPatternLayers` / `scope`）を `DashboardInput` に写す。候補は `DashboardInputs.options`（参照は索引の ID と、定義の出現を優先した表示名）で、`DashboardViews.resolve` が `DashboardResolution.options` に入れ、画面・業務 Web・CLI・保存版の読み出しは同じ候補を見せる。値の点検（候補に無い・日付でない）は `DashboardInputs.invalid`（`Dashboards.inputErrors`）。
+  複数を選べる入力（`multiple`）の値は、受け渡しではカンマ区切りの文字（`DashboardInput.split` / `join`）で、条件へ差し込むときに並びへ戻す（`DashboardInput.bound`）。空の並びは「与えられていない」（`ActionRequire.isGiven`）。
 - 共有の入力は「空＝絞らない」。外すのは `ActionRequire.prune`（where / check の項目）の 1 か所で、ビューの `params` も同じ規則。`match` に書いた入力は空にできない（誤り）。値の式の列（`all`）には渡らない。初期値（`$today` / `$monthStart` / `$monthEnd`）は `DashboardInput.defaultFor` が基準日から決め、画面の覚え（`ScreenMemory.dashboardInputs`）に鍵があればそれを使う。
 - 区画の並べ方（横・縦・auto）と群は定義が決め、群の畳みは `ScreenMemory` が持つ。auto は画面が一覧の幅から折り返しの段数を見積もり、3段以上なら縦にする。分割中は auto を横に決め、vertical は一覧を狭める（表を潰さない）。
   見積もりは画面の都合で、定義・索引・CLIの結果に置かない。

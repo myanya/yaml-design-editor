@@ -29,7 +29,8 @@ internal object SchemaValueForms {
     private fun obj(vararg pairs: Pair<String, Any?>) = linkedMapOf(*pairs)
     private fun preset(group: String, label: String, vararg pairs: Pair<String, Any?>) = SchemaValuePreset(group, label, obj(*pairs))
     private val comparisonLabels = mapOf("eq" to "等しい", "ne" to "等しくない", "lt" to "より小さい", "lte" to "以下", "gt" to "より大きい", "gte" to "以上",
-        "oneOf" to "選択肢のいずれか", "matches" to "正規表現に一致", "startsWith" to "で始まる", "endsWith" to "で終わる", "contains" to "を含む")
+        "oneOf" to "選択肢のいずれか", "matches" to "正規表現に一致", "startsWith" to "で始まる", "endsWith" to "で終わる", "contains" to "を含む",
+        "includes" to "配列が要素に持つ", "includesAny" to "配列が並びのどれかを持つ")
     private val leaf = obj("path" to "status", "equals" to "OPEN")
     private val check = obj("eq" to listOf(obj("path" to "status"), "OPEN"))
     private val step = obj("set" to obj("path" to "status", "value" to "OPEN"))
@@ -90,9 +91,13 @@ internal object SchemaValueForms {
         preset("値の式", "合計", "sum" to obj("path" to "items[*].amount")),
         preset("値の式", "加算", "add" to listOf(1, 2))
     ) + CheckOp.entries.map { op ->
-        preset("判定", comparisonLabels.getValue(op.id), op.id to listOf(obj("path" to "status"), if (op == CheckOp.ONE_OF) listOf("OPEN", "IN_PROGRESS") else "OPEN"))
+        // 配列を受け取る条件（includes / includesAny）は、左に配列の項目（tags）を読む
+        val left = if (op.arrayLeft) "tags" else "status"
+        val right: Any = when { op.listRight -> listOf("OPEN", "IN_PROGRESS"); op.arrayLeft -> "TAG-001"; else -> "OPEN" }
+        preset("判定", comparisonLabels.getValue(op.id), op.id to listOf(obj("path" to left), right))
     } + CheckOp.entries.filter { it !in setOf(CheckOp.EQ, CheckOp.NE) }.map { op ->
-        preset("条件", comparisonLabels.getValue(op.id), "path" to "status", op.id to if (op == CheckOp.ONE_OF) listOf("OPEN", "IN_PROGRESS") else "OPEN")
+        val right: Any = when { op.listRight -> listOf("OPEN", "IN_PROGRESS"); op.arrayLeft -> "TAG-001"; else -> "OPEN" }
+        preset("条件", comparisonLabels.getValue(op.id), "path" to if (op.arrayLeft) "tags" else "status", op.id to right)
     }
 
     fun groupFor(path: YPath): String {

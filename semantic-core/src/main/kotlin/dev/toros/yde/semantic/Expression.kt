@@ -100,6 +100,18 @@ object SemanticExpression {
      * oneOf は「どれかと等しければ成立」——等しい選択肢がなく、得られなかった選択肢が残るなら null
      * （その選択肢が等しかったかもしれないため判定保留）。kind は順序系の演算子が比べる種類。
      */
+    /**
+     * 配列を受け取る条件（includes / includesAny）: 左の配列の要素のどれかが、右のどれかと等しい。numeric なら数として比べる
+     * （要素の項目の型が int / number のとき。1 と 1.0 は同じ）。等しい組が無く、読めない値（null）が残れば判定保留（null）。
+     */
+    fun testArray(elements: List<String?>, rights: List<String?>, numeric: Boolean = false): Boolean? {
+        fun same(a: String, b: String): Boolean = a == b ||
+            numeric && (a.toBigDecimalOrNull()?.let { x -> b.toBigDecimalOrNull()?.let { y -> x.compareTo(y) == 0 } } == true)
+        val wanted = rights.filterNotNull()
+        if (elements.filterNotNull().any { e -> wanted.any { same(e, it) } }) return true
+        return if (rights.any { it == null } || elements.any { it == null }) null else false
+    }
+
     fun test(op: CheckOp, left: String, rights: List<String?>, kind: ValueExpr.OrderKind = ValueExpr.OrderKind.NUMBER): Boolean? {
         if (op != CheckOp.ONE_OF) return rights.firstOrNull()?.let { compare(op, left, it, kind) }
         if (rights.any { it != null && it == left }) return true

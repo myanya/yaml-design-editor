@@ -47,6 +47,7 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="query my-ws --spec '{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}'"  # グラフパターン照合（束縛の表。ビューのクエリ行・foreach source: query・constraints の試作台。spec はファイル指定も可）
 ./gradlew runCli -q --args="view sample-workspace screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
 ./gradlew runCli -q --args="view samples/orders order-dashboard --date 2026-10-26 --param from=2026-10-01"   # ダッシュボード（基準日と共有の入力。空文字で絞らない）
+./gradlew runCli -q --args="view samples/todos todo-dashboard --param tags=TAG-002,TAG-003"   # 複数を選べる入力はカンマ区切り（候補に無い値は誤り）
 ./gradlew runCli -q --args="view samples/orders order-dashboard --entity ORD-105"   # 業務の流れの中の位置（いる段・次にできる工程と可否・履歴）
 ./gradlew runCli -q --args="view my-ws actor-document 00-requirements/01-actors.yaml"  # 文書ビューの解決（適用対象1件なら file 省略可）
 ./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か。構造の検証・参照の解決などの指摘にも付く）

@@ -129,20 +129,14 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
                 readRequire(query.offset == 0 && query.limit == 50, ReadFailureCode.INVALID_REQUEST, "ダッシュボードにはページ範囲を指定できません")
                 val view = requireNotNull(catalog.dashboard(definition.id))
                 readRequire(query.inputs.keys.all { key -> view.inputs.any { it.key == key } }, ReadFailureCode.INVALID_REQUEST, "未定義の共有入力があります")
-                view.inputs.forEach { input -> query.inputs[input.key]?.takeIf(String::isNotBlank)?.let { value ->
-                    val valid = when (input.type) {
-                        DashboardInputType.DATE -> runCatching { LocalDate.parse(value) }.isSuccess
-                        DashboardInputType.ENUM -> input.values.any { it.first == value }
-                        DashboardInputType.STRING -> true
-                    }
-                    readRequire(valid, ReadFailureCode.INVALID_REQUEST, "共有入力「${input.label}」の値を確認してください")
-                } }
+                // 値の点検（日付として読めない・候補に無い）は画面・CLI と同じ（Dashboards.inputErrors）
+                Dashboards.inputErrors(view, query.inputs, workspace.index).firstOrNull()?.let { message ->
+                    readRequire(false, ReadFailureCode.INVALID_REQUEST, message)
+                }
                 val result = Dashboards.resolve(view, date, catalog, workspace.index, ::schema, ::tree, query.inputs)
                 val report = Dashboards.report(view, result)
                 if (!query.business) report else report + mapOf(
-                    "inputs" to view.inputs.map { i -> mapOf("key" to i.key, "label" to i.label, "type" to i.type.id,
-                        "value" to result.inputs[i.key], "default" to i.default,
-                        "options" to i.values.map { (value, label) -> mapOf("value" to value, "label" to (label ?: value)) }) },
+                    "inputs" to view.inputs.map { i -> Dashboards.inputReport(i, result) },
                     "sections" to result.sections.mapIndexed { index, section ->
                         @Suppress("UNCHECKED_CAST")
                         val raw = (report["sections"] as List<Map<String, Any?>>)[index]

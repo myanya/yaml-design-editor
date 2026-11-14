@@ -1,5 +1,5 @@
 id: C-12
-title: パターン照合エンジン（クエリコア・`match` / `also` / `where` / `limit` / `same`・束縛の表・決定的）
+title: パターン照合エンジン（クエリコア・`match` / `also` / `where` / `limit` / `same`・束縛の表・決定的・配列を受け取る条件 `includes` / `includesAny`）
 implementation:
 - path: semantic-core/schema/QuerySpec.kt
   module: semantic-core
@@ -8,6 +8,7 @@ implementation:
 tests:
 - name: QueryTest
 - name: TraverseTest
+- name: ArrayConditionsTest
 design:
 - label: graph-query
   link: architecture/graph-query.md

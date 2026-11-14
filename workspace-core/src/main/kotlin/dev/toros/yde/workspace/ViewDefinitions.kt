@@ -41,6 +41,9 @@ import dev.toros.yde.semantic.VirtualDashboardDef
 import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.DashboardInputType
 import dev.toros.yde.semantic.DashboardInput
+import dev.toros.yde.semantic.schema.SchemaTreeParser
+import dev.toros.yde.semantic.schema.RefTarget
+import dev.toros.yde.semantic.schema.RefScope
 import dev.toros.yde.semantic.DashboardSection
 import dev.toros.yde.semantic.DashboardFlow
 import dev.toros.yde.semantic.DashboardFlowDirection
@@ -268,29 +271,66 @@ object ViewDefinitions {
     }
 
     /** ダッシュボードの共有の入力（inputs）。 */
-    private fun parseInputs(raw: Any?): List<DashboardInput> {
+    /**
+     * 共有の入力（inputs）。type は基底の種類（date / enum / string / ref）か、スキーマの型の名前（`common#タグ参照`。項目の定義と同じ）。
+     * 型の名前は、その型の基底の種類で決まる: 選択肢なら型の選択肢、参照なら型の idPattern / scope が候補になる。
+     * ref を直接書くときは、参照の項目と同じ idPattern / idPatterns / scope で候補を絞る。multiple は選択（enum / ref）だけ。
+     */
+    private fun parseInputs(raw: Any?, schemas: List<WorkspaceSchema>): List<DashboardInput> {
         val list = when (raw) {
             null -> return emptyList()
             is List<*> -> raw
             else -> error("dashboard.inputs は配列で書きます")
         }
+        val tree = schemas.firstOrNull()?.tree
         val inputs = list.mapIndexed { i, item ->
             val at = "dashboard.inputs[$i]"
             val m = item as? Map<*, *> ?: error("$at はobjectで指定してください")
-            m.keys.map { it.toString() }.firstOrNull { it !in setOf("key", "label", "type", "values", "default") }?.let { error("$at: 未知のキーです: $it") }
+            m.keys.map { it.toString() }.firstOrNull { it !in setOf("key", "label", "type", "values", "default", "multiple", "idPattern", "idPatterns", "scope") }
+                ?.let { error("$at: 未知のキーです: $it") }
             val key = m["key"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.key（名前）が必要です")
             require(PARAM_NAME.matches(key)) { "$at.key は英字で始まる英数字で書きます: $key" }
             require(key != "today") { "$at.key に today は使えません（基準日の名前）" }
-            val type = if (m["type"] == null) DashboardInputType.STRING else DashboardInputType.parse(m["type"]?.toString(), "$at.type")
-            val values = (m["values"] as? List<*>)?.map { v ->
+            val typeText = m["type"]?.toString()?.takeIf { it.isNotBlank() }
+            val baseKind = typeText?.let { t -> DashboardInputType.entries.firstOrNull { it.id == t } }
+            // 型の名前: スキーマの定義を引き、基底の種類と候補（選択肢・参照の絞り込み）をその型から取る
+            val named = if (typeText != null && baseKind == null) {
+                require('#' in typeText) { "$at.type: 型の名前はモジュールを付けて書きます（例 common#タグ参照）。基底の種類なら ${DashboardInputType.entries.joinToString(" / ") { it.id }}: $typeText" }
+                tree?.resolveTypeName(typeText)?.let { tree.resolve(it) ?: it } ?: error("$at.type: 型「$typeText」が見つかりません")
+            } else null
+            val type = baseKind ?: when (named?.type) {
+                null -> DashboardInputType.STRING
+                FieldType.ENUM -> DashboardInputType.ENUM
+                FieldType.REF -> DashboardInputType.REF
+                FieldType.DATE -> DashboardInputType.DATE
+                FieldType.STRING -> DashboardInputType.STRING
+                else -> error("$at.type: 型「$typeText」（${named.type.id}）は入力に使えません（使えるのは日付・選択肢・文字・参照の型）")
+            }
+            val written = (m["values"] as? List<*>)?.map { v ->
                 when (v) {
                     is Map<*, *> -> (v["value"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$at.values の各要素は値か {value, label} で書きます")) to v["label"]?.toString()
                     else -> v.toString() to null
                 }
             }.orEmpty()
+            if (named != null) require(written.isEmpty()) { "$at: 型の名前を書いた入力には values を書きません（候補は型から）" }
+            val values = named?.takeIf { type == DashboardInputType.ENUM }?.enumOptions()?.map { it.value to it.label } ?: written
             if (type == DashboardInputType.ENUM) require(values.isNotEmpty()) { "$at: type: enum には values（選択の候補）が必要です" }
             if (type != DashboardInputType.ENUM) require(values.isEmpty()) { "$at: values は type: enum のときだけ書きます" }
-            DashboardInput(key, m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: key, type, values, m["default"]?.toString()?.takeIf { it.isNotBlank() })
+            // 参照の候補の絞り込み: 型の名前ならその型の idPattern / scope、直接書くなら参照の項目と同じキー
+            val refKeys = listOf("idPattern", "idPatterns", "scope").filter { m[it] != null }
+            if (type != DashboardInputType.REF || named != null) require(refKeys.isEmpty()) {
+                "$at: ${refKeys.joinToString(" / ")} は type: ref を直接書いた入力のときだけ書きます（型の名前なら、その型の決まりを使います）"
+            }
+            val inline = if (baseKind == DashboardInputType.REF) SchemaTreeParser.parseField(
+                linkedMapOf("type" to "ref", "idPattern" to m["idPattern"], "idPatterns" to m["idPatterns"], "scope" to m["scope"]).filterValues { it != null },
+                null, "dashboard",
+            ) else null
+            val ref = named?.takeIf { type == DashboardInputType.REF } ?: inline
+            require(ref == null || ref.refTarget == RefTarget.ENTITY) { "$at: 文書への参照（target: document）は入力に使えません" }
+            val multiple = m["multiple"]?.let { it as? Boolean ?: error("$at.multiple は true / false で書きます") } ?: false
+            require(!multiple || type == DashboardInputType.ENUM || type == DashboardInputType.REF) { "$at: multiple は選択（enum）か参照（ref）の入力のときだけ書きます" }
+            DashboardInput(key, m["label"]?.toString()?.takeIf { it.isNotBlank() } ?: key, type, values, m["default"]?.toString()?.takeIf { it.isNotBlank() },
+                refPatterns = ref?.idPatternLayers.orEmpty(), refScope = ref?.scope ?: RefScope(), multiple = multiple, typeName = named?.let { typeText })
         }
         require(inputs.map { it.key }.distinct().size == inputs.size) { "dashboard.inputs の key が重複しています" }
         return inputs
@@ -305,7 +345,7 @@ object ViewDefinitions {
         keys(raw, setOf("id", "name", "description", "kind", "sections", "actions", "default", "placement", "inputs", "flow"), "dashboard")
         require(!raw.containsKey("default") || raw["default"] is Boolean) { "dashboard.default は真偽値で指定してください" }
         val id = text(raw, "id", "dashboard")
-        val inputs = parseInputs(raw["inputs"])
+        val inputs = parseInputs(raw["inputs"], schemas)
         // 流れを Lifecycle から作るときは、段の区画も Lifecycle の State から作り、書いた区画の前に置く
         val flowMap = raw["flow"] as? Map<*, *>
         val fromLifecycle = flowMap?.takeIf { it.containsKey("lifecycle") }?.let { flowFromLifecycle(it, schemas, inputs) }

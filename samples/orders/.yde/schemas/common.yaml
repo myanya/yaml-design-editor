@@ -104,6 +104,12 @@ definitions:
     placeholder: 03-1234-5678
     description: ハイフン区切りの数字です。
   # 注文状態: 保存する値は英語、画面の表示は日本語。並びは流れの順（未処理 → 受注確定 → 出荷済み、取消済みは途中から）
+  # 顧客の区分: 顧客の型と、ダッシュボードの共有の入力（order-dashboard.yaml の kind）が同じ選択肢を使う
+  顧客区分:
+    type: enum
+    values:
+      - { value: individual, label: 個人 }
+      - { value: corporate, label: 法人 }
   注文状態:
     type: enum
     values:
@@ -368,12 +374,9 @@ definitions:
         required: true
       - key: kind
         label: 区分
-        type: enum
+        type: 顧客区分
         required: true
         default: individual
-        values:
-          - { value: individual, label: 個人 }
-          - { value: corporate, label: 法人 }
         description: 個人か法人か。法人には所属会社が要り、個人には書きません（検査が確かめます）。
       - key: name
         label: 顧客名

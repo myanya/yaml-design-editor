@@ -2327,7 +2327,13 @@
                   "type": "string"
                 },
                 "type": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "date",
+                    "enum",
+                    "string",
+                    "ref"
+                  ]
                 },
                 "value": {
                   "anyOf": [
@@ -2348,6 +2354,30 @@
                       "type": "null"
                     }
                   ]
+                },
+                "multiple": {
+                  "type": "boolean",
+                  "description": "複数を選べる（値は選んだものをカンマで区切った文字）"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "選択（enum）と参照（ref）の入力の候補。参照の候補は索引の ID と表示名"
                 }
               },
               "required": [
@@ -2355,7 +2385,9 @@
                 "label",
                 "type",
                 "value",
-                "default"
+                "default",
+                "multiple",
+                "options"
               ],
               "additionalProperties": false
             }

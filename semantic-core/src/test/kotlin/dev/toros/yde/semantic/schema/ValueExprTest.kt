@@ -57,7 +57,8 @@ class ValueExprTest {
         // 演算子を値として渡す形（定義体のひな型用）でも同じ
         val long = ConstraintCheck.parse(mapOf("op" to "oneOf", "left" to get, "right" to listOf("draft", "approved")), "c")
         assertEquals(short, long)
-        assertFailsWith<IllegalStateException> { ConstraintCheck.parse(mapOf("oneOf" to listOf(get, "draft")), "c") }
+        // oneOf の右は値の式 1 つでもよい（共有の入力の差し込みで、選んだ 1 つでも並びでもよい）
+        assertEquals(1, ConstraintCheck.parse(mapOf("oneOf" to listOf(get, "draft")), "c").terms.single().rights.size)
         assertFailsWith<IllegalStateException> { ConstraintCheck.parse(mapOf("eq" to listOf(get, listOf("a", "b"))), "c") }
     }
 
@@ -80,7 +81,8 @@ class ValueExprTest {
         assertFailsWith<IllegalStateException> {
             QueryWhere.parse(mapOf("of" to "item", "path" to "status", "equals" to "a", "contains" to "b"), "w")
         }
-        assertFailsWith<IllegalStateException> { QueryWhere.parse(mapOf("of" to "item", "path" to "status", "oneOf" to "draft"), "w") }
+        // oneOf は値 1 つでもよい（共有の入力の差し込み）
+        assertEquals(listOf("draft"), QueryWhere.parse(mapOf("of" to "item", "path" to "status", "oneOf" to "draft"), "w").test?.second)
         assertFailsWith<IllegalStateException> { QueryWhere.parse(mapOf("of" to "item", "path" to "status", "empty" to "yes"), "w") }
         assertFailsWith<IllegalStateException> { QueryWhere.parse(mapOf("of" to "item", "path" to "code", "matches" to "([A-Z"), "w") }
     }

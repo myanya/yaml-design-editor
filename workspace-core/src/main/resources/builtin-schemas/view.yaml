@@ -159,16 +159,29 @@ root:
         fields:
           - { key: key, label: 名前, type: string, required: true }
           - { key: label, label: 見出し, type: string }
-          - { key: type, label: 種類, type: enum, values: [date, enum, string], default: string }
+          - key: type
+            label: 種類
+            type: string
+            default: string
+            description: "date / enum / string / ref か、スキーマの型の名前（例 common#タグ参照。項目の定義と同じ）。型の名前なら、その型の選択肢（enum）か参照の絞り込み（ref）が候補になる"
           - key: values
             label: 選択の候補（enum）
             type: array
             item: { type: any }
-            description: "値の文字か {value, label}"
+            description: "値の文字か {value, label}（type: enum を直接書いたとき）"
+          - { key: idPattern, label: 参照の候補の ID パターン（ref）, type: string, description: "type: ref を直接書いたとき。参照の項目と同じ" }
+          - { key: idPatterns, label: 参照の候補の ID パターン（ref・複数）, type: array, item: { type: string } }
+          - key: scope
+            label: 参照の候補の範囲（ref）
+            type: object
+            fields:
+              - { key: schemaIds, label: スキーマID, type: array, item: { type: string } }
+              - { key: documentIds, label: 文書ID, type: array, item: { type: string } }
+          - { key: multiple, label: 複数を選べる, type: boolean, description: "選択（enum）と参照（ref）の入力で。値は選んだものの並び（受け渡しはカンマ区切り）。条件は includesAny / oneOf で受ける" }
           - key: default
             label: 初期値
             type: string
-            description: "値か、$today / $monthStart / $monthEnd（基準日から決める）"
+            description: "値か、$today / $monthStart / $monthEnd（基準日から決める）。複数を選べる入力はカンマ区切り"
     - key: flow
       label: 業務の流れ（dashboard）
       type: object
@@ -543,7 +556,7 @@ root:
         - key: where
           label: プロパティ述語
           type: any
-          description: "束縛ノードの値の絞り込み（例 [{of: scr, path: status, equals: approved}]）。条件はスキーマの constraints の where と同じ（equals / notEquals / exists / empty / oneOf / matches / startsWith / endsWith / contains / lt / lte / gt / gte）"
+          description: "束縛ノードの値の絞り込み（例 [{of: scr, path: status, equals: approved}]）。条件はスキーマの constraints の where と同じ（equals / notEquals / exists / empty / oneOf / matches / startsWith / endsWith / contains / lt / lte / gt / gte / includes / includesAny / state）"
         - key: rowKey
           label: 行キーの束縛名
           type: string

@@ -173,8 +173,10 @@ constraints:
 値がなければ黙る）。
 - **値の条件**（`check` と `where` が同じ演算子・同じ判定を共有します）: `eq` / `ne`（文字列として等しい・等しくない。`12` と `12.0` は別の値——数値として比べたいときは値の式 `number` を通す）・`lte` / `gte` / `lt` / `gt`（順序の大小。
 **比べ方は値を読んだ項目の型で決まります**: `int` / `number` なら数、`date` / `time` / `datetime` なら日付・時刻・日時の値（`09:30` と `09:30:00` は同じ時刻）。項目の型が分からなければ数。その種類として読めなければ評価しません。
-決まった値どうしを日付として比べるときだけ `{lte: [左, 右], type: date}` と添えます。例 `{lte: [{of: t, path: start}, {of: t, path: end}]}`＝開始日は終了日以前。`samples/todos` の `common.yaml` の型「TODO個票」の「期限は作成日以降」が実例）・`oneOf`（選択肢のどれかと等しい。`check` では `{oneOf: [左, [選択肢, ...]]}`、`where` では `oneOf: [値, ...]`）・`matches`（正規表現の**全体**一致。
+決まった値どうしを日付として比べるときだけ `{lte: [左, 右], type: date}` と添えます。例 `{lte: [{of: t, path: start}, {of: t, path: end}]}`＝開始日は終了日以前。`samples/todos` の `common.yaml` の型「TODO個票」の「期限は作成日以降」が実例）・`oneOf`（選択肢のどれかと等しい。`check` では `{oneOf: [左, [選択肢, ...]]}`、`where` では `oneOf: [値, ...]`。値 1 つでもよい）・`matches`（正規表現の**全体**一致。
 フィールドの `pattern` と同じ規則。決まった値で書いた正規表現が読めなければスキーマの読み込みエラー）・`startsWith` / `endsWith` / `contains`（前方・後方・部分の一致）。`where` では `eq` / `ne` の代わりに `equals` / `notEquals` を使います。
+- **配列を受け取る条件**: `includes`（項目の配列がその値を要素に持つ）と `includesAny`（項目の配列が、並びのどれかを持つ。値 1 つでもよい）。`where` では `{of: t, path: tags, includes: TAG-001}`、`check` では `{includes: [{of: t, path: tags}, TAG-001]}` と書きます。
+  項目の値（配列）をそのまま受け取り、要素の型が `int` / `number` なら数として比べます（`1` と `1.0` は同じ）。配列でない値（書かれていない・スカラー）は判定しません（判定保留）。文字列の部分一致の `contains` とは別です。ダッシュボードの複数を選べる入力は `includesAny: $tags` で受けます。
 - **State の名前で書く条件**: `where` には、値の条件の代わりに `{of: t, state: todo-ACTIVE}`（`state` に State の ID か、その配列）を書けます。状態の流れ（`kind: behavior`）の State の条件に置き換えて判定します（[schema.md](schema.md)「条件に State の名前を書く」）。
 - **型の検査**: 同じ `where` と `check` を object の定義に書くと、その型の要素ごとに評価されます（`of` を省くとその要素。ID の無い要素にも書ける。[schema.md](schema.md)「オブジェクト型」）。
 - **型の「または」と否定**: `node` の `entity` には型の並びを書けます（`entity: [usecase, batch]`＝どれか）。`node: { not: { entity: [...], schema: ..., id: ... } }` は、その絞り込みに**合わない**ノードだけを残します（型が宣言されていない要素は、型の否定では残しません＝判定保留）。

@@ -493,7 +493,7 @@ data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val ref
      * rule と同じく誤り（黙って外れない）。
      */
     fun ruleOrNull(values: Map<String, Any?>, optional: Set<String>): ConstraintRule? {
-        val given = values.filterValues { it != null && it.toString().isNotBlank() }
+        val given = values.filterValues { isGiven(it) }
         val missing = optional.filter { it !in given }.toSet()
         val pruned = prune(raw, missing)
         if (RULE_KEYS.none { pruned.containsKey(it) }) return null
@@ -503,6 +503,13 @@ data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val ref
     companion object {
         private val PARAM = Regex("""\$([A-Za-z][A-Za-z0-9_]*)""")
         private val RULE_KEYS = setOf("expect", "count", "check", "forAll")
+
+        /** 値が与えられているか（null・空文字・空の並びは「無い」＝絞らない）。 */
+        fun isGiven(value: Any?): Boolean = when (value) {
+            null -> false
+            is Collection<*> -> value.isNotEmpty()
+            else -> value.toString().isNotBlank()
+        }
 
         /** 原文の中で参照している受け取る値の名前（`$$` は文字）。ビューの params の点検にも使う。 */
         fun referencedNames(raw: Any?): Set<String> = referencedIn(raw)

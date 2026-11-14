@@ -466,7 +466,7 @@ object VirtualViews {
      */
     fun bindParams(view: VirtualGridDef, params: Map<String, Any?>): VirtualGridDef {
         if (view.params.isEmpty()) return view
-        val given = params.filterKeys { it in view.params }.filterValues { it != null && it.toString().isNotBlank() }
+        val given = params.filterKeys { it in view.params }.filterValues { ActionRequire.isGiven(it) }
         val missing = view.params.filter { it !in given }.toSet()
         @Suppress("UNCHECKED_CAST")
         fun bind(raw: Map<String, Any?>): Map<String, Any?> =

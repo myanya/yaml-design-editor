@@ -296,8 +296,9 @@ data class QueryWhere(
             val test = TEST_OPS.firstOrNull { m[it.id] != null }?.let { op ->
                 val v = m[op.id]
                 val operands = when {
-                    op == CheckOp.ONE_OF -> (v as? List<*>)?.takeIf { it.isNotEmpty() }?.map { it.toString() }
-                        ?: error("$where.${op.id} は値の配列（1つ以上）である必要があります")
+                    // 並びを受け取る演算子（oneOf / includesAny）は、並びか値 1 つ（共有の入力の差し込みで、選んだ 1 つでも並びでもよい）
+                    op.listRight -> ((v as? List<*>)?.map { it.toString() } ?: listOf(v.toString())).takeIf { it.isNotEmpty() }
+                        ?: error("$where.${op.id} は値か値の配列（1つ以上）である必要があります")
                     v is List<*> || v is Map<*, *> -> error("$where.${op.id} は決まった値（文字列・数値）で書きます")
                     else -> listOf(v.toString())
                 }
@@ -574,9 +575,11 @@ data class ConstraintCount(val min: Int? = null, val max: Int? = null) {
  * 値の条件の演算子（R28-08・P29 Phase 6 の部品 SP-10）。check（判定）と where（ノードの絞り込み）が共有する。
  * - eq / ne: スカラー文字列の等値（数値の表記は揃えない。揃えたいときは値の計算 number を通す）
  * - lte / gte / lt / gt: 数値比較（数値として読めなければ評価できない＝判定保留）
- * - oneOf: 選択肢のどれかと等しい（右辺は値の並び）
+ * - oneOf: 選択肢のどれかと等しい（右辺は値の並びか値 1 つ）
  * - matches: 正規表現の全体一致（フィールドの pattern と同じ規則）
  * - startsWith / endsWith / contains: 前方・後方・部分の一致
+ * - includes / includesAny: 左が配列で、その要素に右（includes は 1 つ・includesAny は並びのどれか）がある（ADR-0010 の
+ *   「値は項」を条件の側へ。要素の型が数なら数として比べる）。配列でない左は評価しない（判定保留）
  * violationSymbol は、条件を満たさなかった組を文面に示すときに左右の間へ置く言葉。
  */
 enum class CheckOp(val id: String, val violationSymbol: String, val satisfiedSymbol: String) {
@@ -590,7 +593,15 @@ enum class CheckOp(val id: String, val violationSymbol: String, val satisfiedSym
     MATCHES("matches", "が次の正規表現に一致しない:", "が次の正規表現に一致する:"),
     STARTS_WITH("startsWith", "が次で始まらない:", "が次で始まる:"),
     ENDS_WITH("endsWith", "が次で終わらない:", "が次で終わる:"),
-    CONTAINS("contains", "が次を含まない:", "が次を含む:");
+    CONTAINS("contains", "が次を含まない:", "が次を含む:"),
+    INCLUDES("includes", "が次を要素に持たない:", "が次を要素に持つ:"),
+    INCLUDES_ANY("includesAny", "が次のどれも要素に持たない:", "が次のどれかを要素に持つ:");
+
+    /** 左に配列を受け取る演算子。 */
+    val arrayLeft: Boolean get() = this == INCLUDES || this == INCLUDES_ANY
+
+    /** 右に値の並びを受け取る演算子（oneOf は並びだけ・includesAny は並びか値 1 つ）。 */
+    val listRight: Boolean get() = this == ONE_OF || this == INCLUDES_ANY
 
     /** 決まった値として書かれた右辺の、定義時の点検（正規表現として読めること）。 */
     fun requireValidOperand(literal: String, where: String) {
@@ -717,12 +728,12 @@ data class ConstraintCheck(val terms: List<CheckTerm>) {
 
         /** 右辺のパース。oneOf は値の式の並び（1つ以上）・他は値の式1つ。決まった値は定義時に点検する（正規表現など）。 */
         private fun parseRights(op: CheckOp, raw: Any?, where: String, current: Boolean): List<ValueExpr> {
-            val rights = if (op == CheckOp.ONE_OF) {
-                val list = (raw as? List<*>)?.takeIf { it.isNotEmpty() }
-                    ?: error("$where は選択肢の配列（1つ以上）である必要があります")
-                list.mapIndexed { i, e -> ValueExpr.parse(e, "$where[$i]", current) }
+            // 並びを受け取る演算子（oneOf / includesAny）は、並びか値の式 1 つ
+            val rights = if (op.listRight && raw is List<*>) {
+                raw.takeIf { it.isNotEmpty() }?.mapIndexed { i, e -> ValueExpr.parse(e, "$where[$i]", current) }
+                    ?: error("$where は値の配列（1つ以上）である必要があります")
             } else {
-                if (raw is List<*>) error("$where は値の式1つで書きます（配列を書けるのは oneOf の選択肢だけです）")
+                if (raw is List<*>) error("$where は値の式1つで書きます（配列を書けるのは oneOf の選択肢と includesAny の値だけです）")
                 listOf(ValueExpr.parse(raw, where, current))
             }
             rights.forEach { r -> (r as? ValueExpr.Literal)?.value?.let { op.requireValidOperand(it, where) } }

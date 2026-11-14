@@ -96,11 +96,24 @@ function DashboardContent({ report, memory, change, open }: { report: api.Dashbo
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
         <TextField label="基準日" size="small" type="date" value={date ?? report.date} onChange={(event) => setDate(event.target.value)} required
           helperText={date || memory.date ? '指定した日' : '本日（自動更新）'} slotProps={{ inputLabel: { shrink: true } }} />
-        {report.inputs.map((input) => <TextField key={input.key} label={input.label} size="small" select={input.type === 'enum'} type={input.type === 'date' ? 'date' : 'text'}
-          value={inputs[input.key] ?? (Object.hasOwn(inputs, input.key) ? '' : input.value ?? '')} onChange={(event) => setInputs({ ...inputs, [input.key]: event.target.value })}
-          sx={{ minWidth: 160 }} slotProps={{ inputLabel: { shrink: true }, htmlInput: { maxLength: 500 }, select: { displayEmpty: true } }}>
-          {input.type === 'enum' && [<MenuItem key="" value="">絞り込まない</MenuItem>, ...input.options.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)]}
-        </TextField>)}
+        {report.inputs.map((input) => {
+          // 候補のある入力（選択肢・参照）は選択。複数を選べる入力は値をカンマで区切って受け渡す（サーバと同じ形）
+          const choice = input.type === 'enum' || input.type === 'ref';
+          const text = inputs[input.key] ?? (Object.hasOwn(inputs, input.key) ? '' : input.value ?? '');
+          const value = input.multiple ? text.split(',').map((item) => item.trim()).filter((item) => item !== '') : text;
+          const label = (item: string) => input.options.find((option) => option.value === item)?.label ?? item;
+          return <TextField key={input.key} label={input.label} size="small" select={choice} type={input.type === 'date' ? 'date' : 'text'}
+            value={value} onChange={(event) => {
+              const next = event.target.value as string | string[];
+              setInputs({ ...inputs, [input.key]: Array.isArray(next) ? next.filter((item) => item !== '').join(',') : next });
+            }}
+            sx={{ minWidth: 160 }} slotProps={{ inputLabel: { shrink: true }, htmlInput: { maxLength: 500 },
+              select: { displayEmpty: true, multiple: input.multiple,
+                renderValue: input.multiple ? (selected) => (selected as string[]).length === 0 ? '絞り込まない' : (selected as string[]).map(label).join('・') : undefined } }}>
+            {choice && [...(input.multiple ? [] : [<MenuItem key="" value="">絞り込まない</MenuItem>]),
+              ...input.options.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)]}
+          </TextField>;
+        })}
         <Button type="submit" variant="contained">条件を反映</Button><Button onClick={() => { setDate(undefined); setInputs({}); change({ date: undefined, inputs: {} }); }}>条件をリセット</Button>
       </Stack>
     </Paper>

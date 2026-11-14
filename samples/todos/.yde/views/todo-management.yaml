@@ -1,7 +1,14 @@
 id: todo-management
 name: TODO管理
+# 受け取る値: タグ（複数）とカテゴリ（ダッシュボードの入力から。ビュータブでは上の欄。空なら絞らない）
+params: [tags, category]
 rows:
-  idPattern: TODO-*
+  # クエリ行: 行＝エンティティ todo。タグ（配列）は選んだタグのどれかを持つもの、カテゴリは等しいもの
+  match:
+    - node: { entity: todo, bind: t }
+  where:
+    - { of: t, path: tags, includesAny: $tags }
+    - { of: t, path: category, equals: $category }
 order:
   fileGlob: todos/todo-list.yaml
 columns:

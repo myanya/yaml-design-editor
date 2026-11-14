@@ -226,4 +226,23 @@ class DashboardFlowUiTest {
             onAllNodesWithTag("flow-next-complete-todo").assertCountEquals(0)
         } finally { cleanup(root) }
     }
+
+    @Test fun `共有の入力のタグは候補をタグ一覧から出し 複数をチェックで選ぶとすぐ効く`() = runComposeUiTest {
+        val root = copySample("todos")
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            setContent { Box(Modifier.size(1400.dp, 900.dp)) { DashboardPane(state) { id -> Text("詳細 ${'$'}id") } } }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("dashboard-input-tags").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithTag("dashboard-input-tags").assertTextContains("（すべて）").performClick()
+            // 候補はタグ一覧（表示名と ID）。2 つ選ぶと、値はカンマ区切りで覚える
+            waitUntil(timeoutMillis = 5_000) { onAllNodesWithTag("dashboard-input-tags-TAG-002").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithTag("dashboard-input-tags-TAG-002").performClick()
+            onNodeWithTag("dashboard-input-tags-TAG-003").performClick()
+            runOnIdle { assertEquals("TAG-002,TAG-003", state.memory.dashboardInputs["todo-dashboard" to "tags"]) }
+            // もう一度押すと外れる
+            onNodeWithTag("dashboard-input-tags-TAG-002").performClick()
+            runOnIdle { assertEquals("TAG-003", state.memory.dashboardInputs["todo-dashboard" to "tags"]) }
+        } finally { cleanup(root) }
+    }
 }

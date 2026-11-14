@@ -12,6 +12,7 @@ Ctrl+Kの「ダッシュボードを表示」からも移動できます。定�
 4. 詳細の「この対象の操作」または一覧の「⋯」から、対象の操作を始めます。
 5. 上部の「操作」から登録等の対象を持たない操作を始められます。
 6. 定義に共有の入力（`inputs`）があれば、基準日の横に欄が並びます。日付と文字は「反映」で、選択はすぐに効き、全区画の件数・一覧・図が揃って絞られます。空は「絞らない」で、「入力を戻す」で初期値に戻ります。
+   選択の候補は、参照なら索引の ID と表示名です（10 件を超えると検索欄が付きます）。複数を選べる入力はチェックで選び、ボタンには選んだものの見出し（3 件以上は「◯◯ ほか n 件」）が出ます。
 
 操作は既存の入力・確認・差分・適用の流れを使い、閲覧専用でも実行できます。
 未保存編集が操作の対象にあると適用できません。先に「すべて保存」で保存してください。
@@ -71,7 +72,7 @@ sections:
 | default | trueなら開始時の入口、指定はワークスペース内で1件 |
 | actions | 対象を持たないアクションIDの並び |
 | placement | 区画のタイルの並べ方。auto（既定。幅に応じて判断）・horizontal（横に折り返す）・vertical（左の縦一覧） |
-| inputs | 全区画に共有する入力の配列。`key`（名前）、`label`、`type`（`date` / `enum` / `string`。既定は string）、`values`（enum の候補。値か `{value, label}`）、`default`（初期値。`$today` / `$monthStart` / `$monthEnd` は基準日から） |
+| inputs | 全区画に共有する入力の配列。`key`（名前）、`label`、`type`（下の「入力の種類と候補」）、`values`（enum を直接書くときの候補。値か `{value, label}`）、`multiple`（複数を選べる）、`default`（初期値。`$today` / `$monthStart` / `$monthEnd` は基準日から。複数ならカンマ区切り） |
 | sections | 表示順に並べる区画の配列 |
 | sections[].id / label | 画面内で一意な区画IDと見出し |
 | sections[].group | 群の名前。同じ名前の区画を見出し付きでまとめ、見出しで畳めます。書かない区画は無名の群として先頭に並びます |
@@ -84,6 +85,37 @@ defaultを省略すると、一意なIDを持つダッシュボードを定義�
 filterは既存の検査と同じ `match` ＋ `expect / count / check / forAll` のいずれかです。
 `where` で対象範囲を限定できます。条件を満たした行だけを表示します。
 `$today` は基準日です。共有の入力は `$名前` で使えます（例 `{of: t, path: assignee, equals: $assignee}`）。それ以外のパラメータ、指摘の重大度や修正応答は指定できません。
+
+**入力の種類と候補**: `type` には基底の種類か、スキーマの型の名前を書きます（項目の定義と同じ）。
+
+| 書き方 | 欄 | 候補 |
+|---|---|---|
+| `date` / `string` | 日付・文字の欄（「反映」で効く） | なし |
+| `enum` ＋ `values` | 選択 | 書いた値 |
+| `ref` ＋ `idPattern` / `idPatterns` / `scope` | 選択 | 索引の ID と表示名（参照の項目と同じ絞り込み） |
+| 型の名前（`common#タグ参照`・`common#顧客区分` など） | 選択（日付・文字の型なら欄） | 型が選択肢ならその値、参照なら型の絞り込みに合う ID |
+
+```yaml
+inputs:
+  - { key: tags, label: タグ, type: common#タグ参照, multiple: true }   # 候補＝タグ一覧。複数選べる
+  - { key: category, label: カテゴリ, type: common#カテゴリ参照 }
+  - { key: kind, label: 顧客区分, type: common#顧客区分 }              # 選択肢を書き写さない（orders）
+```
+
+型の名前は `モジュール#名前` で書きます。型の名前を書いた入力には `values`・`idPattern`・`scope` を書きません（型の決まりを使います）。
+`multiple: true`（選択と参照のときだけ）は複数を選べる入力で、値は選んだものの並びです。条件では、配列の項目なら `includesAny`、値の項目なら `oneOf` で受けます（[checks.md](checks.md)「値の条件」）。何も選ばなければ絞りません。
+受け渡し（画面の覚え・CLI の `--param`・業務 Web）では、複数の値をカンマで区切った 1 つの文字にします（`--param tags=TAG-001,TAG-002`）。カンマを含む値は複数選択に使えません。
+候補に無い値・日付として読めない値は、CLI と業務 Web の読み出しで誤りになります。
+
+```yaml
+# 表（TODO 管理）の params と条件（samples/todos）
+params: [tags, category]
+rows:
+  match: [{ node: { entity: todo, bind: t } }]
+  where:
+    - { of: t, path: tags, includesAny: $tags }      # タグのどれかが、選んだタグのどれか
+    - { of: t, path: category, equals: $category }
+```
 
 共有の入力の値は、区画の `filter` と、区画が参照する表（グリッド・クロス集計・チャートの元の表）の `params`（[views.md](views.md)）に `$名前` で渡ります。
 空の値は「絞らない」で、その値を使う条件（`where` / `check` の項目）が外れます。`match` の中で使うと空にできません（誤りになります）。

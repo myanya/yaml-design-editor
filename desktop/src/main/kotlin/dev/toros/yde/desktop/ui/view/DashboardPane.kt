@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -21,6 +22,9 @@ import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.semantic.DashboardInput
 import dev.toros.yde.semantic.DashboardInputType
+import dev.toros.yde.semantic.DashboardInputs
+import dev.toros.yde.desktop.ui.common.ChoiceMenu
+import dev.toros.yde.desktop.ui.common.ChoiceOption
 import dev.toros.yde.semantic.DashboardPlacement
 import dev.toros.yde.semantic.DashboardResolution
 import dev.toros.yde.semantic.DashboardSection
@@ -276,7 +280,52 @@ private fun DashboardHeader(state: AppState, catalog: Views.LoadResult, view: Vi
 }
 
 /**
- * 共有の入力（inputs）の欄。文字と日付は「反映」で効かせ、選択はすぐ効く。空は「絞らない」。
+ * 選択の入力 1 つ（選択肢・参照）。1 つ選ぶ入力は候補の一覧（多いときは検索欄つき）、複数を選べる入力はチェックの一覧で、
+ * どちらも選ぶとすぐ効く。「（すべて）」は絞らない。ボタンには選んだものの見出し（複数は件数）を出す。
+ */
+@Composable
+private fun ChoiceInput(input: DashboardInput, options: List<Pair<String, String?>>, current: String, choose: (String) -> Unit) {
+    var open by remember(input.key) { mutableStateOf(false) }
+    fun label(value: String) = options.firstOrNull { it.first == value }?.let { it.second ?: it.first } ?: value
+    val chosen = if (input.multiple) DashboardInput.split(current) else listOfNotNull(current.takeIf { it.isNotBlank() })
+    val shown = when {
+        chosen.isEmpty() -> "（すべて）"
+        chosen.size <= 2 -> chosen.joinToString("・") { label(it) }
+        else -> "${label(chosen.first())} ほか ${chosen.size - 1} 件"
+    }
+    Box {
+        OutlinedButton(onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+            modifier = Modifier.testTag("dashboard-input-${input.key}")) {
+            Text(shown, fontSize = 12.sp)
+        }
+        if (!input.multiple) {
+            ChoiceMenu(
+                expanded = open, onDismissRequest = { open = false },
+                options = listOf(ChoiceOption<String?>(null, "（すべて）", selected = chosen.isEmpty())) + options.map { (value, title) ->
+                    ChoiceOption<String?>(value, title ?: value, subtitle = value.takeIf { title != null && it != title }.orEmpty(),
+                        selected = value in chosen, searchText = value)
+                },
+                onSelect = { choose(it.orEmpty()) },
+            )
+        } else DropdownMenu(open, { open = false }) {
+            DropdownMenuItem(text = { Text("（すべて）＝選択を外す", fontSize = 12.sp) }, onClick = { choose("") })
+            options.forEach { (value, title) ->
+                val on = value in chosen
+                DropdownMenuItem(
+                    text = { Text(listOfNotNull(title, value.takeIf { title != null && it != title }).joinToString("  "), fontSize = 12.sp) },
+                    leadingIcon = { Checkbox(on, onCheckedChange = null, modifier = Modifier.size(20.dp)) },
+                    onClick = { choose(DashboardInput.join(if (on) chosen - value else options.map { it.first }.filter { it in chosen || it == value })) },
+                    modifier = Modifier.testTag("dashboard-input-${input.key}-$value"),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 共有の入力（inputs）の欄。文字と日付は「反映」で効かせ、選択（選択肢・参照）はすぐ効く。空は「絞らない」。
+ * 選択の候補は、選択肢なら定義・型の値、参照なら索引の ID と表示名（DashboardInputs.options。業務 Web・CLI と同じ）。
+ * 複数を選べる入力はチェックで選び、値は選んだものをカンマで区切って覚える。
  * 欄の値は画面の覚え（鍵が無ければ定義の初期値を見せる）。「入力を戻す」で初期値に戻す。
  */
 @Composable
@@ -286,20 +335,9 @@ private fun DashboardInputs(state: AppState, view: VirtualDashboardDef, date: Lo
     fun effective(input: DashboardInput): String = state.memory.dashboardInputs[view.id to input.key] ?: input.defaultFor(date).orEmpty()
     view.inputs.forEach { input ->
         Text(input.label, fontSize = 12.sp)
-        if (input.type == DashboardInputType.ENUM) {
-            var open by remember(view.id, input.key) { mutableStateOf(false) }
-            val current = effective(input)
-            Box {
-                OutlinedButton(onClick = { open = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)) {
-                    Text(input.values.firstOrNull { it.first == current }?.let { it.second ?: it.first } ?: current.ifEmpty { "（すべて）" }, fontSize = 12.sp)
-                }
-                DropdownMenu(open, { open = false }) {
-                    DropdownMenuItem(text = { Text("（すべて）") }, onClick = { open = false; state.memory.dashboardInputs[view.id to input.key] = "" })
-                    input.values.forEach { (v, label) ->
-                        DropdownMenuItem(text = { Text(label ?: v) }, onClick = { open = false; state.memory.dashboardInputs[view.id to input.key] = v })
-                    }
-                }
-            }
+        if (input.choice) {
+            val options = remember(view, input, state.indexVersion, state.editVersion) { DashboardInputs.options(input, state.overlayIndex().entries) }
+            ChoiceInput(input, options, effective(input)) { state.memory.dashboardInputs[view.id to input.key] = it }
         } else {
             CompactTextField(
                 texts[input.key] ?: effective(input), { texts[input.key] = it }, singleLine = true,
@@ -307,8 +345,8 @@ private fun DashboardInputs(state: AppState, view: VirtualDashboardDef, date: Lo
             )
         }
     }
-    if (view.inputs.any { it.type != DashboardInputType.ENUM }) TextButton(onClick = {
-        view.inputs.filter { it.type != DashboardInputType.ENUM }.forEach { input ->
+    if (view.inputs.any { !it.choice }) TextButton(onClick = {
+        view.inputs.filter { !it.choice }.forEach { input ->
             state.memory.dashboardInputs[view.id to input.key] = texts[input.key] ?: effective(input)
         }
     }) { Text("反映") }

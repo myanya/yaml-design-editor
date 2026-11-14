@@ -95,6 +95,8 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                 ?: error("流れの中の位置を求められません")
             return asData(Dashboards.positionReport(dashboard, position))
         }
+        // 値の点検（日付として読めない・候補に無い。複数を選べる入力はカンマ区切り）は画面・保存版の読み出しと同じ
+        Dashboards.inputErrors(dashboard, inputs, ws.index).firstOrNull()?.let { error(it) }
         val result = Dashboards.resolve(dashboard, date, loaded, ws.index, ws::schemaFor, ws::treeOf, inputs)
         val flow = dashboard.flow?.let { Dashboards.flow(dashboard, result, ws.mirror) }
         return asData(Dashboards.report(dashboard, result, loaded.errors, flow))
