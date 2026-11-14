@@ -10,5 +10,6 @@ memo: |-
 theme: T-04
 related:
   - UX-305
+  - UX-256
 features:
   - C-01

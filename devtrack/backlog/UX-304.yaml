@@ -9,3 +9,9 @@ memo: |-
 theme: T-04
 features:
   - C-01
+resolutions:
+  - date: 2026-11-14
+    kind: 一部
+    note: ファイルの本文の読み取りは、案 G2 で文書ごとに並列にした（UX-305・ParallelReads）。組込みスキーマを読み取りと重ねる案（C1 の一部）は見送った。計算の段（文書の解析・スキーマの組み立て・書き出し・構造の検証・意味の導出）は
+      1 本のまま
+    targets: ParallelReads

@@ -1,5 +1,5 @@
 id: C-20
-title: 開く処理の時間の記録（`Timings`・CLI `--timings`・画面の `.yde/state/timings.log`）
+title: 開く処理の時間の記録（`Timings`＝段階・文書ごとの合計 `measureEach`・スレッドをまたぐ記録 `carrier` / `carry`・CLI `--timings`・画面の `.yde/state/timings.log`）
 implementation:
   - path: workspace/Timings.kt
     module: workspace-core

@@ -1,0 +1,13 @@
+id: UX-307
+title: 構成ファイル（.yde/workspace.yaml）を、構成を求めるたびにディスクから読み直し、ファイルの許可と台帳を別々に解析する
+status: when-needed
+origin_on: 2026-11-12
+origin: 開く処理の分析（docs/archive/workspace-open-analysis.md の「重複と無駄」10）
+memo: |-
+  WorkspaceLayout.of(root) は呼ばれるたびに構成ファイルを読み、parseFilesText と parseLedgerText でそれぞれ解析する。開く処理の読み込みで 8 回、ビュー定義の読み込み（Views.load）のたびに 2 回。1 回は軽く、いまの負担は小さい。
+  当たり: 1 回の読み込みで決めた構成を、同じ操作の中で渡して使う（Workspace.layout・セッションの layout を引く）。ビュー定義の読み込みを 1 か所にまとめる案（UX-299）と合わせて直すのが自然
+theme: T-04
+related:
+  - UX-299
+features:
+  - W-11

@@ -1,6 +1,6 @@
 id: UX-258
 title: 未保存の判定（`WorkspaceSession.dirtyDocuments`）が全文書を毎回書き出して比べ、外部変更の取り込みのたびに 2〜3 回走る
-status: todo
+status: resolved
 origin_on: 2026-11-05
 origin: UX-256 の計測
 body: '**未保存の判定（`WorkspaceSession.dirtyDocuments`）が全文書を毎回書き出して比べ、外部変更の取り込みのたびに 2〜3 回走る**: labs/aws-webapp の写し（276 件・Linux）で
@@ -12,3 +12,11 @@ related:
   - UX-256
 features:
   - C-09
+closed_on: 2026-11-12
+resolutions:
+  - date: 2026-11-12
+    kind: 解決
+    note: 103d877 で解決。isDirty の書き出しを、文書ごとに木の同一性で覚える（WorkspaceSession.dumpOf）。読み込みの保存基準の書き出しで覚えを埋め、fork などの写しにも渡すので、木が差し替わった文書だけを書き出す。全件の確認の呼び出し（開いてから最初の描画までに
+      9 回）と refreshFrom の重複は減らしていないが、1 件ごとは同一性の比較だけで、書き出しは起きない（2026-11-12 の開く処理の分析で確かめた）
+    targets: WorkspaceSession.isDirty・dumpOf
+targets: WorkspaceSession.isDirty・dumpOf

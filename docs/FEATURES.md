@@ -38,7 +38,7 @@
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 |  |
 | W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/shell/Shell.kt` | `NavigationHistoryTest`・手動（画面） | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 | UX-193・UX-212 |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/run/RunsSpace.kt`（`InboxTab`）・`ui/shell/AppRoot.kt`（`StatusBar`） | 手動 | architecture/ui.md「UI シェル」 | manual/ai.md「外部からの提出を受信箱で確認する」 | UX-52・UX-55 |
-| W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`・`core/Workspace.kt` | `WorkspaceLayoutTest`・`DocumentStoreTest` | architecture/workspace.md「ワークスペース構造と layout」 | manual/README.md「.yde 構成」 |  |
+| W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`・`core/Workspace.kt` | `WorkspaceLayoutTest`・`DocumentStoreTest` | architecture/workspace.md「ワークスペース構造と layout」 | manual/README.md「.yde 構成」 | UX-307 |
 | W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`・`desktop/AppState.kt`（`editorOnlyFiles`） | `WorkspaceLayoutTest`・`DocumentStoreTest` | architecture/workspace.md「エディタ層と台帳層」 | manual/README.md「.yde 構成」 | UX-118 |
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）・`ui/common/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) | manual/README.md「ビルドと起動」 | UX-148 |
 | W-14 | Markdown の読取専用表示・相対リンク・外部変更の反映 | `ui/file/MarkdownPane.kt`・`ui/common/MarkdownView.kt` | `MarkdownLinkTest` | architecture/ui.md「ファイル一覧と参考資料」 | manual/README.md「画面構成」 | UX-149・UX-150 |
@@ -272,7 +272,7 @@
 | C-06 | CLI（カーネルの命令 `yaml …` / `workspace …` と応用の命令〔探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・skill・初期化ほか〕・全命令の `--format yaml\|json\|text`） | `cli/Main.kt`・`cli/AppCli.kt`・`cli/ExploreCommands.kt` | `AppCliTest`・`CliTest`・`WorkspaceCliTest` | [workspace](architecture/workspace.md) | manual/cli.md「ヘッドレス CLI」 | UX-09 |
 | C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`） | `core/Views.kt` | `ViewsTest`・`VirtualViewsTest` | architecture/views.md「ビュー機構」 | manual/cli.md「コマンド例」 | UX-219・UX-247・UX-299 |
 | C-08 | 性能ベンチマーク（カーネルの全再構築・増分更新の計測・CLI `workspace bench`） | `cli/Commands.kt` | `CliTest`・`IdIndexIncrementalTest` | [workspace](architecture/workspace.md) | manual/cli.md「コマンド例」 |  |
-| C-09 | 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け） | `core/Documents.kt`・`core/Workspace.kt` | `DocumentsTest` | architecture/workspace.md「文書キャッシュと Workspace」 | —（内部） | UX-258 |
+| C-09 | 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け） | `core/Documents.kt`・`core/Workspace.kt` | `DocumentsTest` | architecture/workspace.md「文書キャッシュと Workspace」 | —（内部） |  |
 | C-10 | エンティティ操作（rename / merge / delete を 1 つの計画に・1 トランザクションで Undo 1 回・CLI とパレットとエンティティページ） | `semantic-core/semantic/Refactor.kt`・`workspace-core/workspace/WorkspaceSession.kt`（`planRefactoring`） | `RefactoringTest`・`AppStateRefactorTest` | architecture/graph-query.md「エンティティ操作」 | manual/checks.md「エンティティ操作」 | UX-165 |
 | C-11 | ファイル移動・改名の一級化（文書参照の書き換えと物理移動を 1 計画に・影響プレビュー） | `semantic-core/semantic/Refactor.kt`・`workspace-core/workspace/RefactoringImpact.kt` | `DocRefTest`・`RefactoringTest` | architecture/workspace.md「リファクタリングの影響」 | manual/checks.md「エンティティ操作」 |  |
 | C-12 | パターン照合エンジン（クエリコア・`match` / `also` / `where` / `limit` / `same`・束縛の表・決定的） | `semantic-core/schema/QuerySpec.kt`・`semantic-core/semantic/SemanticQuery.kt` | `QueryTest`・`TraverseTest` | architecture/graph-query.md「クエリコア」 | manual/checks.md「パターン制約」 | UX-284 |
@@ -283,7 +283,7 @@
 | C-17 | フローの解決・複数文書sources・来歴・CLI | `view/flow/FlowViewKind.kt`・`FlowViews.kt`・`FlowReports.kt` | `FlowViewsTest`・`FlowViewDefinitionsTest`・`FlowViewsIntegrationTest` | architecture/views.md「フローの解決」 | manual/flow-views.md「フロービュー」 |  |
 | C-18 | フローの配置切替・配置の調整・線のラベルの表示切替・スイムレーン・文書埋め込み・原本フォームと履歴・改名影響 | `ui/common/GraphLayouts.kt`・`ui/common/FlowSwimlanes.kt`・`ui/view/FlowViewPane.kt` | `FlowLayoutsTest`・UI `DiagramLayoutOptionsUiTest`・`DiagramLabelVisibilityTest`・`FlowSelectionTest`・`NavigationHistoryTest`・`FlowRefactoringTest`・`FlowRefactoringGoldenTest` | architecture/views.md「フローの画面と配置」 | manual/flow-views.md「画面での操作」・manual/flow-views.md「文書への埋め込み」 | UX-252・UX-253・UX-303 |
 | C-19 | 変換の局所名と可変長の連結（`$bind`・`$flatten`） | `schema/TemplateBindings.kt`・`TransformDef.kt`・`semantic/Transform.kt` | `NestedTransformTest`・`FlowViewsTest` | architecture/transform.md「変換」 | manual/cli.md「コマンド例」 |  |
-| C-20 | 開く処理の時間の記録（`Timings`・CLI `--timings`・画面の `.yde/state/timings.log`） | `workspace/Timings.kt`・`desktop/OpenTimings.kt`・`cli/AppCli.kt` | `TimingsTest`・`OpenTimingsLogTest` | [workspace](architecture/workspace.md) | manual/cli.md「コマンド例」 |  |
+| C-20 | 開く処理の時間の記録（`Timings`＝段階・文書ごとの合計 `measureEach`・スレッドをまたぐ記録 `carrier` / `carry`・CLI `--timings`・画面の `.yde/state/timings.log`） | `workspace/Timings.kt`・`desktop/OpenTimings.kt`・`cli/AppCli.kt` | `TimingsTest`・`OpenTimingsLogTest` | [workspace](architecture/workspace.md) | manual/cli.md「コマンド例」 |  |
 
 ## 10. skill（フォーマット適合）
 
