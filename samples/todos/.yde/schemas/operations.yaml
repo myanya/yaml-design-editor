@@ -10,12 +10,8 @@ description: 業務上の操作を、確認して適用できる変更セット�
 actions:
   - id: register-todo
     label: TODOを登録する
-    description: 一覧と未着手の個票を一度に作成し、作成日と状態の履歴の最初の行を記録します。IDは未使用の番号を指定してください。
+    description: 一覧と未着手の個票を一度に作成し、作成日と状態の履歴の最初の行を記録します。TODO番号は、使われている番号の次を自動で振ります。
     params:
-      - key: id
-        label: TODO番号
-        type: common#TODO番号
-        required: true
       - key: title
         label: タイトル
         type: common#一行の文
@@ -33,27 +29,13 @@ actions:
       - key: details
         label: 詳細
         type: common#文章
-    require:
-      - match:
-          - node:
-              id: $id
-        expect: absent
-        message: $id は既に使われています
     do:
-      - insert:
-          in:
-            schemaId: todo-list
-          path: todos
-          value:
-            id: $id
-            title: $title
-            summary: $summary
-            category:
-              $copy: category
+      # 個票を先に作り、番号を採番で決める（TODO- と 3 桁。一覧と個票で使われている番号の次）。作った個票は todo で後の手から指せる
       - create:
           schema: todo-detail
+          id: { prefix: "TODO-", digits: 3 }
+          bind: todo
           params:
-            id: $id
             status: OPEN
             due_on:
               $copy: due
@@ -64,6 +46,17 @@ actions:
             # 日付を空にした行は、適用したときに本日が入る（行の日付は auto: created。common.yaml の「状態の記録」）
             history:
               - { date: '', action: register-todo, to: OPEN }
+      # 一覧に、採番した番号で行を足す
+      - insert:
+          in:
+            schemaId: todo-list
+          path: todos
+          value:
+            id: { $copy: id, $of: todo }
+            title: $title
+            summary: $summary
+            category:
+              $copy: category
   - id: add-todo-comment
     label: TODOにコメントを追加する
     input:

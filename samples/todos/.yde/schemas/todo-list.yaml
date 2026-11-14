@@ -12,4 +12,8 @@ root:
       type: array
       default: []
       display: table
+      # 一覧の「追加」とビューの新規行で、番号を自動で振る（「TODOを登録する」と同じ TODO- と 3 桁）
+      methods:
+        insert:
+          id: { path: id, prefix: "TODO-", digits: 3 }
       item: { type: common#TODO一覧の行 }

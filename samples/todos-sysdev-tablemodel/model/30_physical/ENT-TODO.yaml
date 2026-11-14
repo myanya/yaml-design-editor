@@ -25,7 +25,7 @@ checks:
   - { name: ck_todos_completion, columns: [ATTR-TODO-STATUS, ATTR-TODO-COMPLETED, ATTR-TODO-RESULT], condition: CLOSEDなら完了日と空白だけではない結果が必要。CLOSED以外では完了日をNULLにする。 }
 physical_notes: |
   一覧と個票を一つのレコードにまとめる。
-  初期状態OPENと登録日は登録操作から渡し、DB既定値や自動採番に依存しない。
+  TODO番号は登録操作が採番し（使われている番号の最大の次）、初期状態OPENと登録日も登録操作から渡す。DB既定値やDBの自動採番には依存しない。
   更新日は、行を更新するたびにアプリケーションが入れる。DBのトリガーには頼らない。
   カテゴリ別一覧と期限順一覧の検索を想定し、二つの非一意索引を置く。性能測定による確定は後続の検討とする。
   カテゴリの削除とキー変更は参照中なら拒否する。未分類への変更は明示的な操作で行う。

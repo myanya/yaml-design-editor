@@ -7,7 +7,7 @@ cases:
   - id: register
     action: register-todo
     at: 2026-11-14T10:00:00
-    params: { id: TODO-008, title: シナリオの登録, summary: 登録で未着手になる }
+    params: { title: シナリオの登録, summary: 登録で未着手になる }   # 番号は採番（使われている番号の次 TODO-008）
     expect:
       - { lifecycle: todo-lifecycle, entity: TODO-008, before: [], after: [todo-OPEN], verdict: MATCHED }
   - id: start-open
