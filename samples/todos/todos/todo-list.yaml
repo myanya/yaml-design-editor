@@ -23,3 +23,7 @@ todos:
     title: TODOサンプルの動作確認
     summary: TODOサンプルに対して、登録・完了・再開の操作を行う
     category: CAT-002
+  - id: TODO-007
+    title: カテゴリに色を付ける
+    summary: カテゴリごとに色を決め、一覧で見分けやすくする。
+    category: CAT-001

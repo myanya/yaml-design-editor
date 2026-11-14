@@ -1,0 +1,11 @@
+id: TODO-007
+status: CANCELED
+created_on: 2026-10-26
+updated_on: 2026-10-28
+due_on: 2026-11-30
+details: カテゴリごとに色を決め、TODO管理の一覧で見分けやすくする。
+result: 表示の色はYDEの画面の機能で決めることにし、このサンプルでは扱わない。
+comments: []
+history:
+  - { date: 2026-10-26, action: register-todo, to: OPEN }
+  - { date: 2026-10-28, action: cancel-todo, from: OPEN, to: CANCELED, note: 表示の色はYDEの画面の機能で決めることにし、このサンプルでは扱わない。 }

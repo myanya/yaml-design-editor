@@ -73,7 +73,7 @@ states:
 
 Lifecycle の `entry` は生成に相当する入り口、`transitions` は「どの State からどこへ、何によって移るか」、`termination.terminal` は終端 State です。終端は削除を意味しません。破棄／終了しないエンティティでは、終端の列挙に代えて `termination: {openEnded: true}` を明示できます。State の遷移を伴わない Action は列挙する必要がありません。
 
-スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。
+スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。小さな公開の例は `samples/todos` の `.yde/schemas/todo-behavior.yaml`（状態 4 つ・遷移 6 本）と、業務シナリオ `scenarios/lifecycle.yaml` です。
 
 ### 実データの State と Action の遷移確認（S-29）
 
@@ -504,7 +504,7 @@ root:
 - **`$ref` との関係**: `$ref: 名前` も同じ意味で使えます（構造＝`object` などの定義は今までどおり `$ref` で）。ただしメタスキーマは、`$ref` を書いた項目の決まりのキー（`maxLength` など）を「型が string のときのみ」と警告するので、型は `type: 名前` で書いてください。型の名前は読み込み時にメタスキーマの `type` の選択肢へ足されます。
 - **順序は型で決まる**: 検査の `lt` / `lte` / `gt` / `gte`、集計の `min` / `max`、ビューの行の並びは、値を読んだ項目の型で比べ方が決まります（`int` は数・`date` は日付。[checks.md](checks.md)「値の条件」・[views.md](views.md)「行の並び」）。読み方は数で読みます（`¥10,000` のような文字の金額は読みません。金額は `int` の型に `format` を付けて表示だけ整えます）。
 - **ID の型をエンティティ型の判別に**: `画面ID: { type: id, pattern: "^SCR-\\d{3}$" }` のような型は、スキーマの `entity` の `idType: 画面ID` にも書けます（`idPattern` の glob の代わりに、型の形式で判別。[checks.md](checks.md)「エンティティ型宣言」）。
-- **実例**: `samples/todos` の `.yde/schemas/common.yaml`（値の型＝ID の形式・日付の見せ方・1 行の文・複数行の文章・ステータスと、オブジェクト型＝一覧の行・個票・コメント。一覧と個票のスキーマは `type: common#名前` で使う）。
+- **実例**: `samples/todos` の `.yde/schemas/common.yaml`（値の型＝ID の形式・日付の見せ方・1 行の文・複数行の文章・ステータス・操作の名前と、オブジェクト型＝一覧の行・個票・コメント・状態の履歴の行。一覧と個票のスキーマは `type: common#名前` で使う）。
 - **スキーマ設計画面**: 構成の「名前付き定義 → ＋ 追加」で「型（スカラー）」を選ぶとスカラーの定義になり、項目の「型」の選択肢に基底の種類と型の名前が並びます。型の名前を選ぶと、その基底の種類で書ける決まりの入力欄が出ます。文字で打つ型（string / 数 / 日付など / id / ref）には「入力欄の案内」「サンプル値」、string には「複数行で編集」（`display: multiline`）と「行数」の欄があり、エンティティ節には「ID の型」の選択肢（id を狭めた型）が出ます。
 - **リファクタリング**: `extract-definition` はスカラーの項目を型として抽出し、使う側を `type: 名前` にします（構造は `$ref`）。`rename-definition` は `type: 名前` の言及も書き換えます。`convert-type` の string ↔ text は型の名前の書き換えだけで、文書は変わりません。
 ### オブジェクト型（object の定義に同一性を持たせ、項目を足す）

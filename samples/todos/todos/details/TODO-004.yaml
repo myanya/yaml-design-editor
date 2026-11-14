@@ -1,6 +1,7 @@
 id: TODO-004
 status: IN_PROGRESS
 created_on: 2026-10-01
+updated_on: 2026-10-02
 due_on: 2026-10-15
 details: |-
   ID・日付・文字列・ステータスの型を .yde/schemas/common.yaml に定義する。
@@ -10,3 +11,6 @@ comments:
     body: 共通の型を定義し、一覧と個票のスキーマを型の名前に書き換えた。
   - date: 2026-10-01
     body: 共通化する型の候補を整理した。
+history:
+  - { date: 2026-10-01, action: register-todo, to: OPEN }
+  - { date: 2026-10-01, action: start-todo, from: OPEN, to: IN_PROGRESS }

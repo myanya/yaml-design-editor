@@ -23,14 +23,10 @@ columns:
   - label: 作成日
     schemaId: todo-detail
     path: created_on
+  # 更新日は個票の項目（保存と操作の適用で自動で入る）
   - label: 更新日
     schemaId: todo-detail
-    format: yyyy年M月d日
-    value:
-      first:
-        - max:
-            path: comments[*].date
-        - 未更新
+    path: updated_on
 detail:
   fileGlob: todos/details/*.yaml
   filePattern: todos/details/{id}.yaml

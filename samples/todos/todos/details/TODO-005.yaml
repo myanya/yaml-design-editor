@@ -1,0 +1,8 @@
+id: TODO-005
+status: OPEN
+created_on: 2026-10-03
+updated_on: 2026-10-03
+details: 期限順ビューで、期限の近い順に並び、期限未定のTODOが後ろに来ることを確かめる。
+comments: []
+history:
+  - { date: 2026-10-03, action: edit-todo, to: OPEN }

@@ -1,0 +1,29 @@
+id: todo-behavior
+name: TODOの振る舞い
+kind: behavior
+description: >-
+  TODOの状態（個票の status）を業務の State にし、登録・着手・完了・再開・中止の流れを宣言します。
+  状態を変えるのは operations.yaml の 5 つの操作だけです（「TODOを編集する」とコメントの追加は状態を変えません）。
+  遷移は業務シナリオ scenarios/lifecycle.yaml で確かめます。
+# State: 個票の status の値ごとに 1 つ（todo-OPEN・todo-IN_PROGRESS・todo-CLOSED・todo-CANCELED）。
+# 表示名は選択肢の label（未着手・対応中・完了・中止）。State を別に保存するのではなく、「status がその値と等しい」という述語です
+states:
+  - source: { entity: todo, path: status, enum: common#ステータス }
+    idPrefix: todo-
+# Event（外から起きる事実）は置きません。個人の TODO では、状態を変える出来事はどれも本人の操作として記録するためです
+lifecycles:
+  - id: todo-lifecycle
+    entity: todo
+    states: [todo-OPEN, todo-IN_PROGRESS, todo-CLOSED, todo-CANCELED]
+    entry:
+      - { to: todo-OPEN, by: { action: register-todo } }
+    transitions:
+      - { from: todo-OPEN, to: todo-IN_PROGRESS, by: { action: start-todo } }
+      - { from: todo-OPEN, to: todo-CLOSED, by: { action: complete-todo } }
+      - { from: todo-OPEN, to: todo-CANCELED, by: { action: cancel-todo } }
+      - { from: todo-IN_PROGRESS, to: todo-CLOSED, by: { action: complete-todo } }
+      - { from: todo-IN_PROGRESS, to: todo-CANCELED, by: { action: cancel-todo } }
+      - { from: todo-CLOSED, to: todo-IN_PROGRESS, by: { action: reopen-todo } }
+    # 完了は再開できる（次の遷移がある）ので終端にしません。終端は中止だけです
+    termination:
+      terminal: [todo-CANCELED]

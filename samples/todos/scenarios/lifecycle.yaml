@@ -1,0 +1,60 @@
+# TODO の状態の流れ（todo-lifecycle）の業務シナリオ。リポジトリの根で次のように実行します:
+#   ./gradlew runCli -q --args="behavior-scenarios samples/todos samples/todos/scenarios/lifecycle.yaml"
+# どのケースも保存済みの同じデータから評価し、原本は変えません（ケースの間で変更を引き継ぎません）。
+# 前段の操作が要らないよう、データに各状態の TODO を置いています: 未着手 TODO-005・対応中 TODO-004・完了 TODO-001・中止 TODO-007
+cases:
+  # ---- 状態を変える操作（宣言した入口と遷移をすべて通る） ----
+  - id: register
+    action: register-todo
+    at: 2026-11-14T10:00:00
+    params: { id: TODO-008, title: シナリオの登録, summary: 登録で未着手になる }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-008, before: [], after: [todo-OPEN], verdict: MATCHED }
+  - id: start-open
+    action: start-todo
+    target: TODO-005
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-005, before: [todo-OPEN], after: [todo-IN_PROGRESS], verdict: MATCHED }
+  - id: complete-open
+    action: complete-todo
+    target: TODO-005
+    params: { date: 2026-11-14, result: 着手する前に済んだ }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-005, before: [todo-OPEN], after: [todo-CLOSED], verdict: MATCHED }
+  - id: cancel-open
+    action: cancel-todo
+    target: TODO-005
+    params: { reason: 不要になった }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-005, before: [todo-OPEN], after: [todo-CANCELED], verdict: MATCHED }
+  - id: complete-in-progress
+    action: complete-todo
+    target: TODO-004
+    params: { date: 2026-11-14, result: 型の共通化を終えた }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-004, before: [todo-IN_PROGRESS], after: [todo-CLOSED], verdict: MATCHED }
+  - id: cancel-in-progress
+    action: cancel-todo
+    target: TODO-004
+    params: { reason: 方針が変わった }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-004, before: [todo-IN_PROGRESS], after: [todo-CANCELED], verdict: MATCHED }
+  - id: reopen-closed
+    action: reopen-todo
+    target: TODO-001
+    params: { date: 2026-11-14, reason: 見直しが要る }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-001, before: [todo-CLOSED], after: [todo-IN_PROGRESS], verdict: MATCHED }
+  # ---- 状態を変えない操作（遷移の宣言は要らない） ----
+  - id: comment-keeps-state
+    action: add-todo-comment
+    target: TODO-007
+    params: { date: 2026-11-14, body: 中止の後の記録 }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-007, before: [todo-CANCELED], after: [todo-CANCELED], verdict: UNCHANGED }
+  - id: edit-keeps-state
+    action: edit-todo
+    target: TODO-004
+    params: { due_on: 2026-11-30 }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-004, before: [todo-IN_PROGRESS], after: [todo-IN_PROGRESS], verdict: UNCHANGED }

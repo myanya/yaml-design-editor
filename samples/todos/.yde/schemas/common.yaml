@@ -46,6 +46,16 @@ definitions:
       - { value: IN_PROGRESS, label: 対応中 }
       - { value: CLOSED, label: 完了 }
       - { value: CANCELED, label: 中止 }
+  # 操作の名前（状態の履歴に残す。operations.yaml の actions の id）
+  TODOの操作:
+    type: enum
+    values:
+      - { value: register-todo, label: TODOを登録する }
+      - { value: start-todo, label: TODOに着手する }
+      - { value: complete-todo, label: TODOを完了する }
+      - { value: reopen-todo, label: TODOを再開する }
+      - { value: cancel-todo, label: TODOを中止する }
+      - { value: edit-todo, label: TODOを編集する（個票の作成） }
 
   # ---- オブジェクト型 ----
   # 一覧の行: この形の要素はエンティティ todo の定義（誕生）。ID の形で見分けなくても、要素の形で型が決まります
@@ -78,6 +88,22 @@ definitions:
     fields:
       - { key: date, label: 日付, type: 年月日, required: true }
       - { key: body, label: コメント本文, type: text, required: true }
+  # 状態の履歴の行: 状態を変える操作が 1 行ずつ足す（いつ・どの操作で・どこからどこへ）。ID を持たない部品
+  # 日付は auto: created。操作が日付を渡さずに足した行（登録・着手・中止）には、適用した日が入る
+  状態の記録:
+    type: object
+    label: 状態の記録
+    fields:
+      - key: date
+        label: 日付
+        type: 年月日
+        required: true
+        auto: created
+        description: 完了と再開は入力した日付、ほかの操作は適用した日です。
+      - { key: action, label: 操作, type: TODOの操作, required: true }
+      - { key: from, label: 前の状態, type: ステータス, description: 登録と個票の作成の行には書きません。 }
+      - { key: to, label: 後の状態, type: ステータス, required: true }
+      - { key: note, label: 理由, type: 文章, description: 中止と再開の理由です。 }
   # 個票: 同じエンティティ todo の詳細化（defines: false）。日付の検査は型に書く（要素ごとに評価される）
   TODO個票:
     type: object
@@ -100,6 +126,12 @@ definitions:
         required: true
         auto: created
         description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
+      - key: updated_on
+        label: 更新日
+        type: 年月日
+        required: true
+        auto: updated
+        description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
       - key: due_on
         label: 期限
         type: 年月日
@@ -121,14 +153,25 @@ definitions:
         type: array
         default: []
         display: list
-        description: 並び順は任意です。ビューの「更新日」は、コメントの日付のいちばん新しいものです。
+        description: 並び順は任意です。
         item: { type: コメント }
+      - key: history
+        label: 状態の履歴
+        type: array
+        default: []
+        display: table
+        description: 登録・着手・完了・再開・中止の操作が、古い順に 1 行ずつ足します。手で書き足す必要はありません。
+        item: { type: 状態の記録 }
     # 型の検査: 個票の要素ごとに評価する。日付の項目どうしの比較は日付として比べる（of を省くとこの要素の値）
     constraints:
       - id: due-not-before-created
         description: 期限は作成日以降であること
         where: [ { path: due_on, exists: true } ]            # 期限を書いた個票だけが対象（書いていない個票は対象外）
         check: [ { gte: [ { path: due_on }, { path: created_on } ] } ]
+        level: error
+      - id: updated-not-before-created
+        description: 更新日は作成日以降であること
+        check: [ { gte: [ { path: updated_on }, { path: created_on } ] } ]
         level: error
       - id: completed-not-before-created
         description: 完了日は作成日以降であること
