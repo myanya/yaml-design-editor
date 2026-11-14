@@ -1,5 +1,5 @@
 id: OP-02
-title: アクションの定義と点検（文書を作る手の採番 `create.id`〔接頭辞は受け取った値でも埋まる〕を含む）
+title: アクションの定義と点検（文書を作る手の採番 `create.id`〔接頭辞は受け取った値でも埋まる〕・作った文書の束縛 `create.bind`・入れ子の行の採番を含む）
 implementation:
 - path: semantic-core/schema/Action.kt
   module: semantic-core

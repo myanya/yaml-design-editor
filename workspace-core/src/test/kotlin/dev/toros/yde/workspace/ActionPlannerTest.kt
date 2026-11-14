@@ -140,6 +140,60 @@ class ActionPlannerTest {
         assertTrue(errors.any { "create.id" in it && "path" in it }, errors.toString())
     }
 
+    /** 会員と名簿の定義（create の bind・入れ子の採番）を足した一式。既存の会員 MEM-001 が 1 人。 */
+    private fun memberFiles(): MutableMap<String, String> = files().also {
+        it["_schemas/member.yaml"] = fixture("_schemas/member.yaml")
+        it["_schemas/roster.yaml"] = fixture("_schemas/roster.yaml")
+        it["members/MEM-001.yaml"] = "id: MEM-001\nname: 既存\nfees:\n  - { id: MEM-001-F01, amount: 500 }\n"
+        it["roster.yaml"] = "members:\n  - { member: MEM-001, name: 既存 }\n"
+    }
+
+    @Test
+    fun `create の bind で 採番した ID を後の手が読み 作った文書へ書け 中の配列の行にも番号が付く`() {
+        val s = session(memberFiles())
+        val plan = plan(s, "join", null, "name" to "山田", "fee" to 1000)
+        assertEquals(listOf("roster.yaml", "members/MEM-002.yaml"), plan.changeSet.changes.map { it.file })
+        // 名簿の行は、作った会員の採番した ID を写す（$copy: id, $of: m）
+        val row = plan.change("roster.yaml").ops.single() as PatchOp.Insert
+        assertEquals("MEM-002", scalarText(getAt(row.value, parseYPath("member"))))
+        // ルートの型の create が ID を受け取らなくても止まらず、ID は採番の値。params に入れ子で書いた会費の行は配列の決まりで番号が付き、
+        // 後の手（of: m）で足した行は続き番号になる
+        val created = plan.change("members/MEM-002.yaml").content!!
+        assertEquals("MEM-002", scalarText(getAt(created, parseYPath("id"))))
+        assertEquals("山田", scalarText(getAt(created, parseYPath("name"))))
+        assertEquals("MEM-002-F01", scalarText(getAt(created, parseYPath("fees[0].id"))))
+        assertEquals("1000", scalarText(getAt(created, parseYPath("fees[0].amount"))))
+        assertEquals("MEM-002-F02", scalarText(getAt(created, parseYPath("fees[1].id"))))
+        // 変更セットは適用器をそのまま通る（参照は解決し、必須の ID は欠けない）
+        val applied = ChangeSetApplier.apply(s, plan.changeSet, requireValid = true, now = now)
+        assertTrue(applied.ok, applied.results.joinToString { "${it.file}: ${it.message} ${it.issues.map { i -> i.message }}" })
+        // 作った要素は索引に無いので、照合の起点にはできない（黙って 0 件にしない）
+        val e = assertFailsWith<ActionFailure> { plan(session(memberFiles()), "join-and-match", null, "name" to "鈴木") }
+        assertTrue("照合の起点にできません" in e.message!!, e.message)
+    }
+
+    @Test
+    fun `create の bind は後の手でだけ使え 既に使っている名前は付けられない`() {
+        fun errorsOf(steps: String): List<String> = WorkspaceSession(InMemoryDocumentStore(memberFiles().also {
+            it["_schemas/x.yaml"] = "id: x\nkind: library\ndefinitions:\n  名前: { type: string }\nactions:\n  - id: a\n    target: { entity: member, bind: who }\n    do:\n$steps"
+        })).schemaErrors
+        // 作る前の手からは指せない
+        val before = errorsOf(
+            "      - set: { of: m, path: name, value: x }\n" +
+                "      - create: { schema: member, id: { prefix: MEM-, digits: 3 }, bind: m, params: { name: x } }\n"
+        )
+        assertTrue(before.any { "束縛名「m」は宣言されていません" in it }, before.toString())
+        // 受け手の名前と重なる
+        val clash = errorsOf("      - create: { schema: member, id: { prefix: MEM-, digits: 3 }, bind: who, params: { name: x } }\n")
+        assertTrue(clash.any { "束縛名「who」は既に使われています" in it }, clash.toString())
+        // 後の手（each の中を含む）からは指せる
+        val ok = errorsOf(
+            "      - create: { schema: member, id: { prefix: MEM-, digits: 3 }, bind: m, params: { name: x } }\n" +
+                "      - each: { path: fees, do: [ { set: { of: m, path: name, value: y } } ] }\n"
+        )
+        assertEquals(emptyList(), ok)
+    }
+
     @Test
     fun `前提に反する操作は 理由を示して止まる`() {
         val s = session()

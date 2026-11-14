@@ -1,0 +1,13 @@
+# テスト用: 名簿（会員を参照で並べる。入会の操作が、作った会員の採番した ID を写して足す）
+id: roster
+match: roster.yaml
+root:
+  type: object
+  fields:
+    - key: members
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: member, type: ref, idPattern: "MEM-*", required: true }
+          - { key: name, type: string }

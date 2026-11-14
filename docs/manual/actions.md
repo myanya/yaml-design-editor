@@ -144,7 +144,7 @@ input:
 | `set` | `{of, in, path, value}` | 値を入れる（無ければ作る） |
 | `insert` | `{of, in, path, params}` または `{..., value}` | 配列の末尾へ足す（`params` は要素の型の `create` へ渡す値、`value` は要素そのもののひな型） |
 | `delete` | `{of, in, path}` | 要素や値を消す |
-| `create` | `{schema, params, id}` | そのスキーマの文書を作る（中身はルートの型の `create`、置き場所は `filePattern` か単純な `match`）。`id: {prefix, digits}` を書くと、ID を渡さないときに採番する |
+| `create` | `{schema, params, id, bind}` | そのスキーマの文書を作る（中身はルートの型の `create`、置き場所は `filePattern` か単純な `match`）。`id: {prefix, digits}` を書くと、ID を渡さないときに採番する。`bind` は作った文書を後の手から指す名前 |
 | `call` | `{of, method, params}` | 要素の型の操作を呼ぶ |
 | `each` | `{from, match, where, do}` | 起点を固定した照合の解ごとに、中の手を当てる（`from` 省略時は受け手） |
 | `each` | `{of, in, path, do}` | 配列の要素ごとに、その要素を受け手として中の手を当てる |
@@ -155,6 +155,19 @@ input:
 - `create` の採番（`id: {prefix: "UX-", digits: 2}`）は、配列の追加の採番と同じ数え方です。ワークスペースの既存の ID と、同じ操作で作った ID のうち、同じ接頭辞の最大の番号の次を振ります。
   接頭辞のひな型は、作る文書の値に加えて操作の受け取った値でも埋まります（例 `prefix: {$format: "{f}-", $with: {f: $family}}`＝受け取った系統ごとに数える）。
   ID の項目は文書のスキーマが決めるので `path` は書きません。ID を渡せばその ID を使います。1 件 1 ファイルの台帳の登録で、CLI やエージェントが番号を調べずに済みます。
+  ルートの型の `create` が受け取る値（`params`）に ID を宣言していなくても、採番した ID は文書に入ります（`build` で ID を使うときだけ、`params` に ID を宣言します）。
+- `create` に `bind: 名前` を書くと、作った文書を同じ並びの後の手（とその中の手）から、その名前で指せます。採番した ID は `{$copy: id, $of: 名前}` で読め、`of: 名前` でその文書へ書けます。
+  一覧に行を足して詳細の文書も作る登録で、番号を採番に任せられます。例は `samples/todos` の「TODOを登録する」です。
+
+  ```yaml
+  do:
+    - create: { schema: todo-detail, id: { prefix: "TODO-", digits: 3 }, bind: todo, params: { status: OPEN } }
+    - insert: { in: { schemaId: todo-list }, path: todos, value: { id: { $copy: id, $of: todo }, title: $title } }
+  ```
+
+  名前は、受け手の `bind`・照合の束縛・前の `create` の `bind` と別にします。`when` で飛ばした `create` の名前は、後の手で指せません。
+- `create` と `insert` で作る要素の中に、配列の行を入れ子で書くと（`params: {fees: [{amount: $fee}]}` など）、その配列の追加の決まり（`methods.insert.id`）で、ID が空の行に番号が付きます。
+  追加ボタンと同じ数え方で、同じ配列の行・同じ操作で作った ID も数えます。接頭辞の `$of: owner` は、作った文書（ID を持つ最も近い外側の要素）を読みます。
 
 ### 前提（`require`）
 
@@ -288,5 +301,5 @@ tools: [explore, validate, actions]              # edit を外すと、書込は
 - 対象は 1 件ずつです。一覧の行や構成内の項目を選ぶと、右ペインの「選択中」に所有要素が表示され、操作へ引き継がれます。スクロールや背後の選択では入力中の操作対象を変えません。
 - 型の操作から他の要素・文書は変えられません（設計どおり）。必要ならアクションに書きます。
 - `each` の照合は起点を固定した形だけです（受け手か束縛から辿る）。
-- 新しく作った要素や文書を、同じ操作の後の手で束縛として指すことはできません（照合は操作を始める前の索引で行います）。受け取った値（ID など）で指してください。
+- 新しく作った文書は、`create` の `bind` で後の手から指せます。ただし照合（`each` の `from`）の起点にはできません（照合は操作を始める前の索引で行います）。作った文書へ書くときは `of: 名前` を使います。`insert` で足した要素は束縛にできません。
 - 人の実行は履歴（Undo）に残り、実行記録（`_runs`）には残しません。

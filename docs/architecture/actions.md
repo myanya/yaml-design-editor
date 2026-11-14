@@ -36,6 +36,10 @@
 - **配列の `insert` の決まり**: `id`（ID の項目が空なら接頭辞＋連番。既存は索引の全 ID と配列の ID とこの計画で付けた ID）・`key`（同じ値の要素があれば足さない）。配列がまだ無ければ要素 1 つの配列を置く 1 つの操作にする。接頭辞のひな型のいまの場所は新しい要素で、配列を持つ要素（親）は `holder` として渡し `$of: self`、ID を持つ最も近い外側の要素は `owner`（`ActionPlanner.ownerOf`＝スキーマの id 型の項目に値がある object を上へたどる）として渡し `$of: owner` で読める（`applyInsertRuleTo`。アクションの `insert`・追加ボタン・新規行の `newElement` が渡す。skill の取り込みは渡していない）。
 - **文書の `create`**: スキーマのルートの型の `create` で中身を作り、置き場所は `DocumentScaffolds.filePatternOf` と `pathFor`（ID だけの元）。既にあれば止める。
   ID が無く手に採番（`id`。`IdNumbering`）があれば、索引の全 ID とこの計画で作った ID から `IdSeries.next` で振る（配列の追加の採番と同じ数え方）。
+  ルートの型の `create` の `params` が ID を宣言していなければ、ID を除いて渡し、中身を作ってから ID を入れる。
+- **`create` の束縛**（`bind`）: `run` は手の並びを順に当てながら、`create` が返す束縛（作った文書のルート）を、同じ並びの後の手の `Scope.bindings` に足す。中の手（`each`）には写しの `Scope` で渡るので、外の並びへは漏れない。
+  読み込みの点検（`ActionSteps.bindNames`）も同じ並びの順で数え、名前の重なりは `createBindConflict` が止める。作った要素は索引に無いので、`each` の `from` には使えない（計画が止める）。
+- **入れ子の行の採番**: `create` と `insert` で作る要素の中の配列の行のうち、ID が空のものに、その配列の `insert` の決まりの採番を当てる（`numberNested`。同じ明細の見分けはしない。`owner` は ID を持つ最も近い外側の要素）。
 - **適用**: 変更セットは `ChangeSetApplier` をそのまま通る（競合・自動で入る値・適用後の姿の検証・1 トランザクション）。CLI は既定で計画だけを出し、`--apply` で書く。検証エラーが残るなら書かず、`--allow-errors` で書く。
 - **画面**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）は `AppState.startAction(entry, target)` を呼ぶだけで、受け手を知らない入口は `target = null` で呼ぶ。`Main` が載せる浮いたパネル（`ActionPanelHost`。「AI で作成」と同じ幅）に、対象の欄と受け取る値の欄が出る。
 - 対象の欄（`TargetPicker`）は要素を受け手にする操作（`ActionEntry.entityType`）だけに出る。候補は上書き索引のうちその型の出現を持つ ID（`entityCandidates`）で、値は `ActionWork.targetHolder` の木に入り、`work.target` で読む。受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。

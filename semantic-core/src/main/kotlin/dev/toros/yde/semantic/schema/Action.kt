@@ -47,6 +47,8 @@ sealed interface ActionStep {
     /**
      * 文書を作る（そのスキーマのルートの型の create）。id は採番（受け取った値に ID が無ければ、接頭辞＋連番。
      * 配列の追加の決まり・skill の取り込みと同じ綴りの {prefix, digits}。ID の項目は文書のスキーマから決まる）。
+     * bind は作った文書を後の手から指す束縛名（`$copy: id, $of: 名前` で採番した ID を読む・`of: 名前` でその文書へ書く）。
+     * 使えるのは同じ並びの後の手と、その中の手だけ。
      */
     data class Create(
         val schemaId: String,
@@ -54,6 +56,7 @@ sealed interface ActionStep {
         override val conditions: List<TemplateCondition>,
         override val origin: String,
         val id: IdNumbering? = null,
+        val bind: String? = null,
     ) : ActionStep
 
     /** 要素の型の操作を呼ぶ。 */
@@ -85,6 +88,7 @@ enum class StepScope { METHOD, ACTION }
 object ActionSteps {
     private val KINDS = listOf("set", "insert", "delete", "create", "call", "each")
     private val SITE_KEYS = setOf("of", "in", "path")
+    private val BIND = Regex("""[A-Za-z][A-Za-z0-9_-]*""")
 
     fun parse(raw: Any?, where: String, scope: StepScope): List<ActionStep> {
         val list = raw as? List<*> ?: error("$where は手の配列である必要があります")
@@ -134,8 +138,8 @@ object ActionSteps {
             }
             "create" -> {
                 require(scope == StepScope.ACTION) { "$where.create: 文書を作るのはアクションだけです（型の操作は受け手の要素の中だけを書き換えます）" }
-                body.keys.map { it.toString() }.firstOrNull { it !in setOf("schema", "params", "id") }
-                    ?.let { error("$where.create: 未知のキーです: $it（使えるキー: schema, params, id）") }
+                body.keys.map { it.toString() }.firstOrNull { it !in setOf("schema", "params", "id", "bind") }
+                    ?.let { error("$where.create: 未知のキーです: $it（使えるキー: schema, params, id, bind）") }
                 val schemaId = body["schema"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.create.schema（作る文書のスキーマ ID）が必要です")
                 // 採番は {prefix, digits}。ID の項目は文書のスキーマが決めるので path は書かない
                 val id = body["id"]?.let { raw ->
@@ -143,7 +147,11 @@ object ActionSteps {
                         ?.let { error("$where.create.id: 未知のキーです: $it（使えるキー: prefix, digits。ID の項目は文書のスキーマから決まります）") }
                     IdNumbering.parse(raw, "$where.create.id")
                 }
-                ActionStep.Create(schemaId, template("params", true)!!, conditions, where, id)
+                val bind = body["bind"]?.let { raw ->
+                    raw.toString().takeIf { BIND.matches(it) }
+                        ?: error("$where.create.bind: 束縛名は英字で始まる英数字（- _ 可）で書きます: $raw")
+                }
+                ActionStep.Create(schemaId, template("params", true)!!, conditions, where, id, bind)
             }
             "call" -> {
                 require(scope == StepScope.ACTION) { "$where.call: 他の要素の操作を呼べるのはアクションだけです" }
@@ -201,27 +209,53 @@ object ActionSteps {
         return out
     }
 
-    /** 手の中で使っている束縛名（`of` / `from`。宣言の点検に使う。中の each が付ける名前は除く）。 */
+    /**
+     * 手の中で使っている束縛名（`of` / `from`。宣言の点検に使う）。中の each が付ける名前と、前の create が bind で付けた名前
+     * （同じ並びの後の手と、その中の手で使える）は除く。
+     */
     fun bindNames(steps: List<ActionStep>): Set<String> {
         val out = LinkedHashSet<String>()
-        fun walk(s: ActionStep, declared: Set<String>) {
-            fun site(site: StepSite) { site.of?.let { if (it !in declared) out += it } }
-            when (s) {
-                is ActionStep.Set -> { site(s.site); s.value.bindNames().forEach { if (it !in declared) out += it } }
-                is ActionStep.Insert -> { site(s.site); listOfNotNull(s.params, s.value).flatMap { it.bindNames() }.forEach { if (it !in declared) out += it } }
-                is ActionStep.Delete -> site(s.site)
-                is ActionStep.Create -> s.params.bindNames().forEach { if (it !in declared) out += it }
-                is ActionStep.Call -> { site(s.site); s.params.bindNames().forEach { if (it !in declared) out += it } }
-                is ActionStep.EachMatch -> {
-                    s.from?.let { if (it !in declared) out += it }
-                    s.steps.forEach { walk(it, declared + s.spec.binds) }
-                }
-                is ActionStep.EachPath -> { site(s.site); s.steps.forEach { walk(it, declared) } }
-            }
-            s.conditions.forEach { c -> c.alternatives.forEach { t -> t.site.of?.let { if (it !in declared) out += it } } }
-        }
-        steps.forEach { walk(it, emptySet()) }
+        walkBinds(steps, emptySet(), out)
         return out
+    }
+
+    private fun walkBinds(steps: List<ActionStep>, outer: Set<String>, out: MutableSet<String>) {
+        var declared = outer
+        for (s in steps) {
+            fun use(name: String?) { if (name != null && name !in declared) out += name }
+            when (s) {
+                is ActionStep.Set -> { use(s.site.of); s.value.bindNames().forEach(::use) }
+                is ActionStep.Insert -> { use(s.site.of); listOfNotNull(s.params, s.value).flatMap { it.bindNames() }.forEach(::use) }
+                is ActionStep.Delete -> use(s.site.of)
+                is ActionStep.Create -> s.params.bindNames().forEach(::use)
+                is ActionStep.Call -> { use(s.site.of); s.params.bindNames().forEach(::use) }
+                is ActionStep.EachMatch -> { use(s.from); walkBinds(s.steps, declared + s.spec.binds, out) }
+                is ActionStep.EachPath -> { use(s.site.of); walkBinds(s.steps, declared, out) }
+            }
+            s.conditions.forEach { c -> c.alternatives.forEach { t -> use(t.site.of) } }
+            if (s is ActionStep.Create && s.bind != null) declared = declared + s.bind
+        }
+    }
+
+    /**
+     * create の bind が、そこで既に使える名前（受け手・照合の束縛・前の create の bind）と重ならないこと。重なれば誤りの文。
+     * outer はアクションの受け手の束縛名。
+     */
+    fun createBindConflict(steps: List<ActionStep>, outer: Set<String>): String? {
+        var declared = outer
+        for (s in steps) {
+            val inner = when (s) {
+                is ActionStep.EachMatch -> createBindConflict(s.steps, declared + s.spec.binds)
+                is ActionStep.EachPath -> createBindConflict(s.steps, declared)
+                else -> null
+            }
+            if (inner != null) return inner
+            if (s is ActionStep.Create && s.bind != null) {
+                if (s.bind in declared || s.bind == MethodDef.SELF) return "${s.origin}.create.bind: 束縛名「${s.bind}」は既に使われています（受け手・照合の束縛・前の create と別の名前にします）"
+                declared = declared + s.bind
+            }
+        }
+        return null
     }
 }
 
@@ -550,8 +584,9 @@ data class ActionDef(
             ActionSteps.paramNames(steps).firstOrNull { it !in declared }
                 ?.let { error("$where: 受け取る値「\$$it」が params に宣言されていません") }
             val binds = setOfNotNull(target?.bind)
+            ActionSteps.createBindConflict(steps, binds)?.let { error(it) }
             ActionSteps.bindNames(steps).firstOrNull { it !in binds }
-                ?.let { error("$where: 束縛名「$it」は宣言されていません（受け手は target の bind、照合で付けた名前は each の中だけで使えます）") }
+                ?.let { error("$where: 束縛名「$it」は宣言されていません（受け手は target の bind、照合で付けた名前は each の中だけ、create の bind はその後の手で使えます）") }
             return ActionDef(
                 id = id,
                 label = m["label"]?.toString()?.takeIf { it.isNotBlank() },

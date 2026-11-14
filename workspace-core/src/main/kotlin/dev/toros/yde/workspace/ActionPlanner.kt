@@ -517,21 +517,26 @@ object ActionPlanner {
         private fun holds(conditions: List<TemplateCondition>, scope: Scope): Boolean =
             SemanticTransform.holds(conditions, scope.params, scope.here, scope.templateBindings())
 
+        /** 手を順に当てる。create の bind は、同じ並びの後の手（とその中の手）の束縛に足す。 */
         private fun run(steps: List<ActionStep>, scope: Scope) {
+            var current = scope
             for (step in steps) {
-                if (!holds(step.conditions, scope)) {
+                if (!holds(step.conditions, current)) {
                     summary += "飛ばした: ${step.origin}（when の条件に合わない）"
                     continue
                 }
                 try {
                     when (step) {
-                        is ActionStep.Set -> doSet(step, scope)
-                        is ActionStep.Insert -> doInsert(step, scope)
-                        is ActionStep.Delete -> doDelete(step, scope)
-                        is ActionStep.Create -> doCreate(step, scope)
-                        is ActionStep.Call -> doCall(step, scope)
-                        is ActionStep.EachMatch -> doEachMatch(step, scope)
-                        is ActionStep.EachPath -> doEachPath(step, scope)
+                        is ActionStep.Set -> doSet(step, current)
+                        is ActionStep.Insert -> doInsert(step, current)
+                        is ActionStep.Delete -> doDelete(step, current)
+                        is ActionStep.Create -> {
+                            val made = doCreate(step, current)
+                            step.bind?.let { name -> current = current.copy(bindings = current.bindings + (name to made)) }
+                        }
+                        is ActionStep.Call -> doCall(step, current)
+                        is ActionStep.EachMatch -> doEachMatch(step, current)
+                        is ActionStep.EachPath -> doEachPath(step, current)
                     }
                 } catch (e: ActionFailure) {
                     throw e
@@ -626,16 +631,21 @@ object ActionPlanner {
                 build(s.value!!, scope) ?: run { summary += "飛ばした: ${s.origin}（値が得られない）"; return }
             }
             val rule = arrayDef?.insertRule
+            // ID を持つ最も近い外側の要素: 採番の接頭辞から `$of: owner` で読める
+            val owner = schema?.tree?.let { t -> ownerOf(t, editable(doc), arrayPath) }
             if (rule != null) {
-                // 配列を持つ要素（親）と ID を持つ最も近い外側の要素: 採番の接頭辞から `$of: self` / `$of: owner` で読める
+                // 配列を持つ要素（親）: 採番の接頭辞から `$of: self` で読める
                 val holder = if (arrayPath.isEmpty()) null else getAt(editable(doc), arrayPath.subList(0, arrayPath.size - 1))
-                val owner = schema?.tree?.let { t -> ownerOf(t, editable(doc), arrayPath) }
                 val skipped = applyInsertRuleTo(rule, element, array, graph.entities.keys + newIds, holder = holder, owner = owner)
                 if (skipped != null) {
                     summary += "飛ばした: ${s.origin}（$skipped）"
                     return
                 }
             }
+            // 足す要素の中の配列の行にも、その配列の追加の決まりの採番を当てる
+            val tree = schema?.tree
+            val itemDef = arrayDef?.item
+            if (tree != null && itemDef != null) numberNested(tree, itemDef, element, owner)
             val index = array.items.size
             if (existing == null) record(doc, PatchOp.Set(arrayPath, YNode.Seq(mutableListOf(element))))
             else record(doc, PatchOp.Insert(arrayPath + index, element))
@@ -645,7 +655,8 @@ object ActionPlanner {
 
         private fun createElement(tree: SchemaTree, def: FieldDef, given: YNode.Map, label: String): YNode = buildElement(tree, def, given, label, now)
 
-        private fun doCreate(s: ActionStep.Create, scope: Scope) {
+        /** 文書を作る。返すのは作った文書を指す束縛（create の bind が後の手へ渡す）。 */
+        private fun doCreate(s: ActionStep.Create, scope: Scope): Bound {
             val schema = schemas.firstOrNull { it.id == s.schemaId } ?: fail("${s.origin}: スキーマ「${s.schemaId}」がありません")
             if (schema.kind != SchemaKind.DOCUMENT || schema.isTemplate) fail("${s.origin}: 「${s.schemaId}」は文書のスキーマではありません")
             val given = build(s.params, scope) as? YNode.Map ?: fail("${s.origin}: params はobjectで書きます")
@@ -666,11 +677,52 @@ object ActionPlanner {
             val relPath = DocumentScaffolds.pathFor(pattern, ScaffoldSource.idOnly(id))
             val docId = DocumentId(relPath)
             if (session.hasDocument(docId) || docId in creates) fail("${s.origin}: 既に同名のファイルが存在します: $relPath")
-            val content = createElement(tree, rootDef, given, "${s.origin} の文書") as? YNode.Map ?: fail("${s.origin}: 文書の中身がobjectになりません")
+            // ルートの型の create が受け取る値を宣言していて、その中に ID が無ければ、ID は渡さない（ID は下で入れる。
+            // 採番した ID を「受け取りません」で止めない）
+            val createParams = rootDef.methods.firstOrNull { it.isCreate }?.params.orEmpty()
+            val forCreate = if (createParams.isNotEmpty() && createParams.none { it.key == idKey })
+                YNode.Map(LinkedHashMap(given.entries.filterKeys { it != idKey })) else given
+            val content = createElement(tree, rootDef, forCreate, "${s.origin} の文書") as? YNode.Map ?: fail("${s.origin}: 文書の中身がobjectになりません")
             content.entries[idKey] = YNode.Scalar(id)
-            creates[docId] = schema to content
             newIds += id
+            // 中の配列の行（params に入れ子で書いた要素）にも、その配列の追加の決まりの採番を当てる
+            numberNested(tree, rootDef, content, owner = null)
+            creates[docId] = schema to content
             summary += "作成: $relPath"
+            return Bound(id) { selector ->
+                if (selector == null || selector.matches(schema.id, relPath)) TemplatePlace(editable(docId), docId, emptyList()) else null
+            }
+        }
+
+        /**
+         * 作る要素の中の配列の行に、その配列の追加の決まり（`methods.insert.id`）の採番を当てる。ID が空の行だけで、
+         * 同じ明細の見分けはしない（受け取った値の行をそのまま足す）。既存は索引の全 ID・この計画で作った ID・同じ配列の行。
+         * 接頭辞の `$of: self` は配列を持つ要素、`$of: owner` は ID を持つ最も近い外側の要素（追加ボタンと同じ）。
+         */
+        private fun numberNested(tree: SchemaTree, def: FieldDef, node: YNode, owner: YNode?) {
+            val resolved = tree.resolve(def) ?: def
+            if (resolved.type != FieldType.OBJECT) return
+            val map = node as? YNode.Map ?: return
+            val fields = tree.effectiveFields(resolved.fields, map).fields
+            val hasId = fields.any { f ->
+                (tree.resolve(f) ?: f).type == FieldType.ID && f.key?.let { !scalarText(map.entries[it]).isNullOrBlank() } == true
+            }
+            val inner = if (hasId) map else owner
+            for (f in fields) {
+                val child = f.key?.let { map.entries[it] } ?: continue
+                val field = tree.resolve(f) ?: f
+                if (field.type != FieldType.ARRAY) { numberNested(tree, f, child, inner); continue }
+                val seq = child as? YNode.Seq ?: continue
+                val rule = f.insertRule ?: field.insertRule
+                for (item in seq.items) {
+                    val numbering = rule?.id
+                    if (rule != null && numbering != null && scalarText(getAt(item, numbering.path)).isNullOrBlank()) {
+                        applyInsertRuleTo(rule, item, seq, graph.entities.keys + newIds, dedupe = false, holder = map, owner = inner)
+                        scalarText(getAt(item, numbering.path))?.let { newIds += it }
+                    }
+                    field.item?.let { numberNested(tree, it, item, inner) }
+                }
+            }
         }
 
         private fun doCall(s: ActionStep.Call, scope: Scope) {
@@ -696,6 +748,9 @@ object ActionPlanner {
         private fun doEachMatch(s: ActionStep.EachMatch, scope: Scope) {
             val from = s.from ?: scope.receiverName ?: fail("${s.origin}: 起点の要素が決まりません（from に束縛名を書くか、target で受け手を宣言します）")
             val startId = scope.bindings[from]?.id ?: fail("${s.origin}: 束縛「$from」は要素ではありません")
+            if (startId in newIds && graph.entities[startId] == null) {
+                fail("${s.origin}: 束縛「$from」（$startId）はこの操作で作った要素なので、照合の起点にできません（照合は保存済みの索引を読みます。作った文書へ書くなら of: $from を使います）")
+            }
             val rows = SemanticQuery.matchesFrom(ids, refs, graph, s.spec, startId, fieldAt, loader).rows
             summary += "照合: ${s.origin} は ${rows.size} 件"
             for (row in rows) {

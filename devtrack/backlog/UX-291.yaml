@@ -1,6 +1,6 @@
 id: UX-291
 title: アクションの create で作った文書の ID を後の手で使えず、作る文書の中の配列の要素にも採番されない
-status: todo
+status: resolved
 origin_on: 2026-11-11
 origin: labs/adventurers-guild の「冒険者を登録する」で、登録の年会費の記録（番号つき）を一緒に作ろうとしたとき
 memo: |-
@@ -8,6 +8,17 @@ memo: |-
   params に入れた配列の要素（ID の項目を持つ型）には、配列の `methods.insert.id` の採番も当たらないので、必須の ID が欠けて検証で止まる。
   ルートの型に `methods.create.build` を書くと、採番が既存と重なる ID（ADV-0001）を出して「既に同名のファイル」で止まった。
   いまは登録と年会費の受け取りを 2 つの操作に分けている。create に `bind`（作った文書を束縛名で後の手から指す）か、入れ子の配列への採番があれば 1 つの操作で書ける
+closed_on: 2026-11-14
+resolutions:
+  - date: 2026-11-14
+    kind: 解決
+    note: |-
+      create に bind を足した（作った文書を同じ並びの後の手から指す。採番した ID は `$copy: id, $of: 名前` で読み、`of: 名前` でその文書へ書く。名前の重なりと、作る前の手からの参照は読み込みで止める）。
+      create と insert で作る要素の中の配列の行に、その配列の追加の決まりの採番を当てるようにした（ID が空の行だけ。`$of: owner` は作った文書）。
+      ルートの型の create が params に ID を宣言していないと、採番した ID を「受け取りません」で止めていたので、ID を除いて渡すようにした。ADV-0001 の重なりそのものは、同じ形の定義で再現できなかった（再現したのはこの止まり方）。
+      作った要素は索引に無いので、each の from（照合の起点）には使えない。計画がその旨で止める。samples/todos の「TODOを登録する」は、これで番号を自動で振る形にした
+    targets: semantic-core/schema/Action.kt・workspace-core/ActionPlanner.kt・manual/actions.md
+targets: semantic-core/schema/Action.kt・workspace-core/ActionPlanner.kt・manual/actions.md
 features:
   - OP-01
   - OP-02

@@ -1,0 +1,57 @@
+# テスト用: 会員（create の bind・作る文書の中の配列の採番・ルートの型の create が ID を受け取らないとき）
+id: member
+match: "members/*.yaml"
+filePattern: "members/{id}.yaml"
+entity: { type: member, idPattern: "MEM-*", defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: name, type: string, required: true }
+    - key: fees
+      type: array
+      methods:
+        insert:
+          # 会費の番号は、ID を持つ外側の要素（会員）の番号から（MEM-002-F01 …）
+          id: { path: id, prefix: { $format: "{id}-F", $of: owner }, digits: 2 }
+      item:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: amount, type: int, required: true }
+  # ルートの型の create は ID を受け取らない（ID は操作の採番が入れる）
+  methods:
+    create:
+      params:
+        - { key: name, type: string, required: true }
+        - key: fees
+          type: array
+          item:
+            type: object
+            fields:
+              - { key: amount, type: int, required: true }
+      build: { name: $name, fees: $fees }
+actions:
+  - id: join
+    label: 入会する
+    params:
+      - { key: name, type: string, required: true }
+      - { key: fee, type: int, required: true }
+    do:
+      # 会員を採番して作り、作った会員を m で指す。入れ子の会費の行にも番号が付く
+      - create: { schema: member, id: { prefix: "MEM-", digits: 3 }, bind: m, params: { name: $name, fees: [ { amount: $fee } ] } }
+      # 名簿へ、採番した ID を写して足す
+      - insert: { in: { schemaId: roster }, path: members, value: { member: { $copy: id, $of: m }, name: $name } }
+      # 作った文書へ書く（会費の行をもう 1 行。続き番号になる）
+      - insert: { of: m, path: fees, value: { amount: 0 } }
+  # 作った要素は照合の起点にできない（照合は保存済みの索引を読む）
+  - id: join-and-match
+    params:
+      - { key: name, type: string, required: true }
+    do:
+      - create: { schema: member, id: { prefix: "MEM-", digits: 3 }, bind: m, params: { name: $name } }
+      - each:
+          from: m
+          match: [ { node: { entity: member } } ]
+          do:
+            - set: { of: m, path: name, value: x }
