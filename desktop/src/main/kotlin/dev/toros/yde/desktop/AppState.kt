@@ -727,7 +727,8 @@ class AppState(
     fun addArrayElement(doc: OpenDocument, arrayPath: YPath, field: FieldDef): Result<Int?> = runCatching {
         val insert = documents.arrayInsert(doc.state, arrayPath, field)
         val create = insert.create
-        if (create != null && !readOnlyMode) {
+        // 操作の入力の欄（受け取る値）へ足すときは、要素の型の create のカードを開かない（開くと入力中の操作が置き換わる）
+        if (create != null && !readOnlyMode && doc !== actionWork?.form) {
             val entry = ActionEntry("insert", "insert", "${insert.arrayDef.displayLabel} に行を追加", create.description, null, create.params, doc.schema?.id ?: "")
             // 橋渡し: この配列へ足すアクションがあれば、パネルで「操作に切り替える」を案内する
             newActionWork(entry, null, InsertTarget(doc, arrayPath, insert.arrayDef, insert.alternatives))

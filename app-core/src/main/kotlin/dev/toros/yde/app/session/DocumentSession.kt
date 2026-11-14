@@ -1649,9 +1649,11 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     /**
      * 配列の末尾へ要素を足す: 要素の中身は型の create と配列の insert の決まり（カーネルの 1 実装）。配列が無ければ作る。
      * 足した要素は未保存の編集（Undo 可）。戻り値は番号。
+     * 閲覧専用モードで封じるのは、セッションが持つ文書（ワークスペースの文書）の編集だけ。操作の入力の欄（セッションの外の
+     * 入れ物）は文書ではないので、閲覧専用でも足せる（閲覧専用が封じるのは編集で、操作は通す）。
      */
     fun insertArrayElement(doc: DocumentState, arrayPath: YPath, arrayDef: FieldDef, params: Map<String, Any?>, now: LocalDateTime = LocalDateTime.now()): Int {
-        check(!readOnlyMode) { "閲覧専用モードでは編集できません" }
+        check(!readOnlyMode || documentMap[doc.file] !== doc) { "閲覧専用モードでは編集できません" }
         val root = doc.root as? YNode.Map ?: error("文書をパースできません: ${doc.parseError}")
         val seq = ensureSeq(root, arrayPath)
         val tree = doc.schema?.tree

@@ -1,0 +1,17 @@
+id: UX-318
+title: 閲覧専用モードで、操作の入力の配列（登録のタグなど）に「追加」が効かない
+status: resolved
+origin_on: 2026-11-15
+origin: 'オーナーが samples/todos の「TODOを登録する」を閲覧専用モードで使い、タグの欄に要素を足そうとしたとき'
+memo: |-
+  操作の入力の欄（受け取る値）はワークスペースの文書ではなく操作パネルの入れ物だが、配列へ足す処理（DocumentSession.insertArrayElement）が閲覧専用モードを一律に拒んでいた（「閲覧専用モードでは編集できません」）。
+  閲覧専用が封じるのは文書の編集で、操作は通す決まりなので、操作の入力は閲覧専用でも使えるべき
+closed_on: 2026-11-15
+resolutions:
+  - date: 2026-11-15
+    kind: 解決
+    note: '閲覧専用モードで拒むのを、セッションが持つ文書（ワークスペースの文書）への追加だけにした。操作の入力の欄へ足すときは、要素の型の create のカードを開かない（開くと入力中の操作が置き換わる）。ActionInputReadOnlyTest で、閲覧専用でも操作の入力には足せ、文書の配列には足せないことを確かめる'
+    targets: app-core/session/DocumentSession.kt
+targets: app-core/session/DocumentSession.kt
+features:
+  - E-12
