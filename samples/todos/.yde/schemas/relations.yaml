@@ -4,6 +4,8 @@ kind: relations
 entities:
   - { type: todo, label: TODO }
   - { type: category, label: カテゴリ }
+  - { type: tag, label: タグ }
+  - { type: todo-task, label: 作業項目 }
 relations:
   - name: in-category
     label: カテゴリ
@@ -12,6 +14,12 @@ relations:
     target: [category]
     cardinality: { outMax: 1 }
     description: TODO はカテゴリを 1 つまで参照します（未分類なら参照しません）。参照は一覧の行に書きます
+  - name: tagged
+    label: タグ
+    inverseLabel: このタグのTODO
+    source: [todo]
+    target: [tag]
+    description: TODO はタグをいくつでも参照します（多対多）。参照は一覧の行の tags に書きます
   - name: follow-up-of
     label: 元のTODO
     inverseLabel: 続きのTODO

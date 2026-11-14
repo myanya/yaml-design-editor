@@ -6,3 +6,17 @@ match: "todos/details/*.yaml"
 filePattern: "todos/details/{id}.yaml"
 # 文書のルートがオブジェクト型 TODO個票（同一性＝エンティティ todo の詳細化・日付の検査つき）。スキーマの entity と constraints は型が持ちます
 root: { type: common#TODO個票 }
+# 作業項目（個票が保有する TODO-002-S01 など）を見る検査は、要素の型ではなくスキーマに書く（入れ子の線 contains で辿る）
+constraints:
+  - id: closed-has-no-open-task
+    description: 完了したTODOには、済んでいない作業項目が無いこと
+    match:
+      - node: { entity: todo, bind: t }
+      - edge: { contains: true }
+      - node: { entity: todo-task, bind: s }
+    where:
+      - { of: t, path: status, equals: CLOSED }
+      - { of: s, path: done, equals: false }
+    expect: absent
+    level: error
+    message: "完了したTODO「{id}」に、済んでいない作業項目があります"

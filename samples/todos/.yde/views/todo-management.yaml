@@ -12,6 +12,29 @@ columns:
   - label: ステータス
     schemaId: todo-detail
     path: status
+  # 作業項目の進み具合（済の数/全部の数）。済の数は、個票が保有する作業項目（入れ子の線 contains）のうち done が true のもの
+  # 作業項目が無い TODO は空にする（map の using で「0/0」を空に置き換える）
+  - label: 作業
+    schemaId: todo-detail
+    value:
+      map:
+        format: "{done}/{all}"
+        with:
+          done:
+            count:
+              all:
+                match:
+                  - node: { entity: todo, bind: t }
+                  - edge: { contains: true }
+                  - node: { entity: todo-task, bind: s }
+                where: [{ of: s, path: done, equals: true }]
+                of: s
+          all: { count: { path: "tasks[*].id" } }
+      using: { "0/0": "" }
+  - label: タグ
+    schemaId: todo-list
+    path: tags
+    editable: true
   - label: 期限
     schemaId: todo-detail
     path: due_on

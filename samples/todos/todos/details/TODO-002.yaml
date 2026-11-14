@@ -10,6 +10,10 @@ details: |-
   - ３つのTODOの追加
   - 各TODOに関する個票の作成
 result: TODO一覧に対して、３つのTODOを起票。
+tasks:
+  - { id: TODO-002-S01, title: サンプルTODO一覧の作成を起票する, done: true }
+  - { id: TODO-002-S02, title: ３つのTODOの追加を起票する, done: true }
+  - { id: TODO-002-S03, title: 各TODOに対する個票の作成を起票する, done: true }
 comments:
   - date: 2026-09-23
     body: ３つのTODOを起票した。

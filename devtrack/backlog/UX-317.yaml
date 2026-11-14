@@ -1,0 +1,10 @@
+id: UX-317
+title: ダッシュボードの共有の入力（inputs）の選択肢を、マスタ（タグ一覧など）から取れない
+status: todo
+origin_on: 2026-11-14
+origin: samples/todos にタグを足し、ダッシュボードをタグで絞り込めるかを考えたとき
+memo: |-
+  inputs の type は date / enum / string で、enum の values は定義に書いた固定の値。タグ一覧（todos/tag-list.yaml）の ID と名前を候補にできないので、タグで全区画を絞る入力は作らず、タグ×状況のクロス集計だけにした。
+  候補: 入力の type に ref（idPattern・scope は参照の型と同じ）を足し、区画の filter は $名前 で参照の一致を書く
+features:
+  - X-13

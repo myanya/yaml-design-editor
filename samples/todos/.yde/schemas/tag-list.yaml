@@ -1,0 +1,49 @@
+id: tag-list
+name: タグ一覧
+kind: document
+description: TODOに付けるタグを管理します。カテゴリ（1 つまで）と違い、1 件のTODOにいくつでも付けられます。
+match: todos/tag-list.yaml
+entity:
+  type: tag
+  idType: common#タグ番号   # ID の形式は共通の型から（「TAG-」と 3 桁以上の数字）
+  defines: true
+  owns: [name]
+root:
+  type: object
+  fields:
+    - key: tags
+      label: タグ一覧
+      type: array
+      default: []
+      display: table
+      methods:
+        insert:
+          id: { path: id, prefix: "TAG-", digits: 3 }
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ID
+            type: common#タグ番号
+            required: true
+            description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
+          - key: name
+            label: タグ名
+            type: common#一行の文
+            role: title
+            required: true
+actions:
+  - id: add-tag
+    label: タグを追加する
+    description: TODOに付けるタグを作ります。IDは一覧の追加規則で自動採番します。
+    params:
+      - key: name
+        label: タグ名
+        type: common#一行の文
+        minLength: 1
+        required: true
+    do:
+      - insert:
+          in: { schemaId: tag-list }
+          path: tags
+          params: { name: $name }

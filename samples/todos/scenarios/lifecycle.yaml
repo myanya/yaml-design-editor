@@ -58,6 +58,12 @@ cases:
     params: { date: 2026-11-14, body: 中止の後の記録 }
     expect:
       - { lifecycle: todo-lifecycle, entity: TODO-007, before: [todo-CANCELED], after: [todo-CANCELED], verdict: UNCHANGED }
+  - id: add-task-keeps-state
+    action: add-todo-task
+    target: TODO-004
+    params: { title: シナリオの作業項目 }
+    expect:
+      - { lifecycle: todo-lifecycle, entity: TODO-004, before: [todo-IN_PROGRESS], after: [todo-IN_PROGRESS], verdict: UNCHANGED }
   - id: edit-keeps-state
     action: edit-todo
     target: TODO-004

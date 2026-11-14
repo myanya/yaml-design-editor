@@ -1,0 +1,25 @@
+id: tag-status-matrix
+name: タグ×ステータス
+kind: matrix
+description: 行＝タグ、列＝TODOの状態、セル＝そのタグを付けたTODOの件数です。1 件のTODOに複数のタグを付けられるので、同じTODOが複数の行に数えられます（そのため合計の行と列は出しません）。セルを押すと、数えたTODOへ移動できます。
+# 行の軸＝タグ（タグ一覧の順）
+rows: { idPattern: "TAG-*" }
+order: { schemaId: tag-list }
+unclassified: false
+# 1 件のTODOが複数のタグの行に入るので、行をまたぐ合計はTODOの件数になりません
+totals: false
+cells:
+  # 行のタグを起点に、関係 tagged を逆にたどって、そのタグを付けた TODO を集めます（多対多）
+  match:
+    - node: { entity: tag, bind: tag }
+    - edge: { relation: tagged, dir: in }
+    - node: { entity: todo, bind: t }
+  of: t
+  columns:
+    path: status
+    values:
+      - { value: OPEN, label: 未着手 }
+      - { value: IN_PROGRESS, label: 対応中 }
+      - { value: SUSPENDED, label: 中断 }
+      - { value: CLOSED, label: 完了 }
+      - { value: CANCELED, label: 中止 }

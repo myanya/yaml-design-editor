@@ -1,0 +1,12 @@
+id: UX-315
+title: 状態を変えない操作の前提に、Lifecycle の State（詳細化の親「未完了」など）を書けず、状態の値を require に並べ直すことになる
+status: todo
+origin_on: 2026-11-14
+origin: samples/todos に「作業項目を追加する」（未完了のときだけできる、状態を変えない操作）を足したとき
+memo: |-
+  状態を変える操作は lifecycle: で前提が Lifecycle から決まる（ADR-0029）が、状態を変えない操作には遷移が無いので lifecycle: を書けない。
+  そのため add-todo-task の require に「status が OPEN・IN_PROGRESS・SUSPENDED のどれか」を書いた。詳細化の親 todo-ACTIVE（未完了）と同じ意味を、状態の流れの外にもう一度書いている（状態を足すと直し漏れる）。
+  候補: require や検査の where で State を名前で指す（例 { of: t, state: todo-ACTIVE }。State は名前付きの述語なので、その述語を当てる）。業務の流れの「段に留まる工程」（orders の明細の追加）を Lifecycle から作るときにも同じものが要る
+features:
+  - S-35
+  - S-36

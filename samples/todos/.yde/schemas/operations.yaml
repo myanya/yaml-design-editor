@@ -25,6 +25,10 @@ actions:
       - key: category
         label: カテゴリ
         type: common#カテゴリ参照
+      - key: tags
+        label: タグ
+        type: array
+        item: { type: common#タグ参照 }
       - key: follows
         label: 元のTODO
         type: common#TODO参照
@@ -58,6 +62,8 @@ actions:
             summary: $summary
             category:
               $copy: category
+            tags:
+              $copy: tags
             follows:
               $copy: follows
   - id: add-todo-comment
@@ -80,6 +86,28 @@ actions:
           path: comments
           value: { date: $date, body: $body }
           of: self
+  - id: add-todo-task
+    label: 作業項目を追加する
+    description: 個票のある未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
+    target: { entity: todo }
+    params:
+      - { key: title, label: 作業, type: common#一行の文, minLength: 1, required: true }
+    require:
+      - match: [{ node: { entity: todo, schema: todo-detail } }]
+        expect: exists
+        message: "{id} は個票が必要です。先に「TODOを編集する」で作成してください"
+      # 状態の条件（未完了＝未着手・対応中・中断のどれか）。状態を変えない操作なので Lifecycle からは導かず、値を並べる
+      - match: [{ node: { entity: todo, bind: t } }]
+        where: [{ of: t, path: status, oneOf: [OPEN, IN_PROGRESS, SUSPENDED] }]
+        expect: exists
+        message: "{id} は完了か中止をしているので、作業項目を足せません"
+    do:
+      # 番号は配列の追加の決まり（個票の tasks の methods.insert）が振る。空の id を先に書くと、番号が行の先頭に入る
+      - insert:
+          in: { schemaId: todo-detail }
+          path: tasks
+          value: { id: '', title: $title, done: false }
+          of: self
   - id: edit-todo
     label: TODOを編集する
     description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。個票がなければ未着手の個票を作成します。
@@ -89,6 +117,7 @@ actions:
         title: { $copy: title, $of: self, $in: { schemaId: todo-list } }
         summary: { $copy: summary, $of: self, $in: { schemaId: todo-list } }
         category: { $copy: category, $of: self, $in: { schemaId: todo-list } }
+        tags: { $copy: tags, $of: self, $in: { schemaId: todo-list } }
         created_on: { $copy: created_on, $of: self, $in: { schemaId: todo-detail } }
         due_on: { $copy: due_on, $of: self, $in: { schemaId: todo-detail } }
         details: { $copy: details, $of: self, $in: { schemaId: todo-detail } }
@@ -107,6 +136,11 @@ actions:
       - key: category
         label: カテゴリ
         type: common#カテゴリ参照
+      - key: tags
+        label: タグ
+        type: array
+        item: { type: common#タグ参照 }
+        description: 入力した並びで全体を置き換えます。
       - key: created_on
         label: 作成日
         type: common#年月日
@@ -131,6 +165,7 @@ actions:
         description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
         fields:
           - { key: category, label: "カテゴリを消す", type: boolean }
+          - { key: tags, label: "タグを消す", type: boolean }
           - { key: due_on, label: "期限を消す", type: boolean }
           - { key: details, label: "詳細を消す", type: boolean }
           - { key: result, label: "結果・中止理由を消す", type: boolean }
@@ -160,6 +195,13 @@ actions:
           in: { schemaId: todo-list }
           path: category
           value: $category
+          of: self
+      - when:
+          - { path: tags, exists: true }
+        set:
+          in: { schemaId: todo-list }
+          path: tags
+          value: $tags
           of: self
       - when:
           - { path: created_on, exists: true }
@@ -206,6 +248,12 @@ actions:
         delete:
           in: { schemaId: todo-list }
           path: category
+          of: self
+      - when:
+          - { path: clear.tags, equals: true }
+        delete:
+          in: { schemaId: todo-list }
+          path: tags
           of: self
       - when:
           - { path: clear.due_on, equals: true }
@@ -313,11 +361,20 @@ actions:
     input:
       initial:
         date: { $copy: today, $of: context }
-    description: 対応中の作業を完了にし、完了日と成果を記録します。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
+    description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
     target: { entity: todo }
     params:
       - { key: date, label: 完了日, type: common#年月日, required: true }
       - { key: result, label: 完了結果, type: 操作の記録, required: true }
+    # 状態の条件（対応中から）は Lifecycle から。作業項目の条件は個票が保有する作業項目（入れ子の線 contains）を見る
+    require:
+      - match:
+          - node: { entity: todo, bind: t }
+          - edge: { contains: true }
+          - node: { entity: todo-task, bind: s }
+        where: [{ of: s, path: done, equals: false }]
+        expect: absent
+        message: "{id} には済んでいない作業項目があります（済にしてから完了します）"
     lifecycle:
       id: todo-lifecycle
       history: { date: $date }

@@ -1,7 +1,7 @@
 id: common
 name: 共通の型
 kind: library
-description: TODO 管理で使う型を 1 か所にまとめます。値の型（ID の形式・日付の見せ方・文字の長さ・ステータスの選択肢）と、オブジェクト型（一覧の行・個票・コメントの形と、その検査）です。
+description: TODO 管理で使う型を 1 か所にまとめます。値の型（ID の形式・日付の見せ方・文字の長さ・ステータスの選択肢）と、オブジェクト型（一覧の行・個票・作業項目・コメントの形と、その検査）です。
 definitions:
   # ---- 値の型 ----
   # ID の型: 形式（pattern）は一覧・個票の id 項目と、スキーマの entity の idType（どの ID がどの型か）の両方で使います
@@ -17,6 +17,19 @@ definitions:
     placeholder: CAT-001
     sample: CAT-001
     description: 「CAT-」と 3 桁以上の数字。
+  タグ番号:
+    type: id
+    pattern: "^TAG-[0-9]{3,}$"
+    placeholder: TAG-001
+    sample: TAG-001
+    description: 「TAG-」と 3 桁以上の数字。
+  # 作業項目の番号: 個票の中の明細。TODO の番号に「-S」と 2 桁以上の続き番号を付けます
+  作業項目番号:
+    type: id
+    pattern: "^TODO-[0-9]{3,}-S[0-9]{2,}$"
+    placeholder: TODO-001-S01
+    sample: TODO-001-S01
+    description: TODO の番号・「-S」・2 桁以上の数字。追加すると、その TODO の中の続き番号を自動で振ります。
   # 参照の型: 候補と検証の対象をカテゴリ一覧に限定します。関係の名前（relation）は関係レジストリ relations.yaml に宣言します
   カテゴリ参照:
     type: ref
@@ -25,6 +38,14 @@ definitions:
     scope:
       schemaIds: [category-list]
     description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+  # タグへの参照の型: カテゴリは 1 つまで、タグはいくつでも付けられます（多対多）
+  タグ参照:
+    type: ref
+    idPattern: "TAG-*"
+    relation: tagged
+    scope:
+      schemaIds: [tag-list]
+    description: タグ一覧の ID を 1 件。
   # TODO への参照の型: 完了したTODOの続きとして登録するときの「元のTODO」。関係の名前は relations.yaml に宣言します
   TODO参照:
     type: ref
@@ -92,6 +113,11 @@ definitions:
       - key: category
         label: カテゴリ
         type: カテゴリ参照
+      - key: tags
+        label: タグ
+        type: array
+        description: いくつでも付けられます（カテゴリは 1 つまで）。付けなければ省略します。
+        item: { type: タグ参照 }
       - key: follows
         label: 元のTODO
         type: TODO参照
@@ -131,6 +157,33 @@ definitions:
         where: [ { path: resume_on, exists: true } ]
         check: [ { gte: [ { path: resume_on }, { path: date } ] } ]
         level: error
+  # 作業項目: 個票の中の明細（TODO-002-S01）。ID を持つので、エンティティ todo-task を定義する（個票の TODO が保有する）
+  作業項目:
+    type: object
+    label: 作業項目
+    entity: { type: todo-task, defines: true }
+    fields:
+      - key: id
+        label: ID
+        type: 作業項目番号
+        required: true
+        description: 追加すると自動で振ります（例 TODO-002-S01）。
+      - key: title
+        label: 作業
+        type: 一行の文
+        role: title
+        required: true
+      - key: done
+        label: 済
+        type: boolean
+        required: true
+        default: false
+    # 型の操作: 作業項目 1 件を受け手にする（個票の作業項目の行の「⋯」から）。書き換えるのは作業項目の中だけ
+    methods:
+      finish:
+        label: 作業項目を済にする
+        do:
+          - set: { path: done, value: true }
   # 個票: 同じエンティティ todo の詳細化（defines: false）。日付の検査は型に書く（要素ごとに評価される）
   TODO個票:
     type: object
@@ -175,6 +228,17 @@ definitions:
         label: 結果
         type: 文章
         description: 対応結果や中止理由を記載します。
+      - key: tasks
+        label: 作業項目
+        type: array
+        default: []
+        display: table
+        description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
+        # 追加の決まり: 番号は、個票（ID を持つ外側の要素）の番号に「-S」と 2 桁の続き番号（TODO-002-S01）
+        methods:
+          insert:
+            id: { path: id, prefix: { $format: "{id}-S", $of: owner }, digits: 2 }
+        item: { type: 作業項目 }
       - key: comments
         label: コメント一覧
         type: array

@@ -8,6 +8,10 @@ details: |-
   - TODO登録（本登録）
   - TODO着手・中断・再開（本TODOに対して行う）
   - TODO完了（本TODOに対して行う）
+tasks:
+  - { id: TODO-006-S01, title: TODOを登録する, done: true }
+  - { id: TODO-006-S02, title: 着手・中断・再開を試す, done: false }
+  - { id: TODO-006-S03, title: 完了を試す, done: false }
 comments:
   - date: 2026-10-24
     body: 登録と着手を確認した。
