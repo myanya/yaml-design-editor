@@ -12,3 +12,11 @@ relations:
     target: [category]
     cardinality: { outMax: 1 }
     description: TODO はカテゴリを 1 つまで参照します（未分類なら参照しません）。参照は一覧の行に書きます
+  - name: follow-up-of
+    label: 元のTODO
+    inverseLabel: 続きのTODO
+    source: [todo]
+    target: [todo]
+    cardinality: { outMax: 1 }
+    acyclic: true
+    description: 完了したTODOに追加の作業が要るとき、新しく登録したTODOが元のTODOを 1 つまで参照します。参照は一覧の行に書きます

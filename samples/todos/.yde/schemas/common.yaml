@@ -25,6 +25,14 @@ definitions:
     scope:
       schemaIds: [category-list]
     description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+  # TODO への参照の型: 完了したTODOの続きとして登録するときの「元のTODO」。関係の名前は relations.yaml に宣言します
+  TODO参照:
+    type: ref
+    idPattern: "TODO-*"
+    relation: follow-up-of
+    scope:
+      schemaIds: [todo-list]
+    description: 元のTODOの番号を 1 件。
   # 日付の型: ファイルには YYYY-MM-DD で書き、画面では「2026年9月22日」の形で見せます（値は変わりません）
   年月日:
     type: date
@@ -44,6 +52,7 @@ definitions:
     values:
       - { value: OPEN, label: 未着手 }
       - { value: IN_PROGRESS, label: 対応中 }
+      - { value: SUSPENDED, label: 中断 }
       - { value: CLOSED, label: 完了 }
       - { value: CANCELED, label: 中止 }
   # 操作の名前（状態の履歴に残す。operations.yaml の actions の id）
@@ -53,7 +62,8 @@ definitions:
       - { value: register-todo, label: TODOを登録する }
       - { value: start-todo, label: TODOに着手する }
       - { value: complete-todo, label: TODOを完了する }
-      - { value: reopen-todo, label: TODOを再開する }
+      - { value: suspend-todo, label: TODOを中断する }
+      - { value: resume-todo, label: TODOを再開する }
       - { value: cancel-todo, label: TODOを中止する }
       - { value: edit-todo, label: TODOを編集する（個票の作成） }
 
@@ -82,14 +92,24 @@ definitions:
       - key: category
         label: カテゴリ
         type: カテゴリ参照
+      - key: follows
+        label: 元のTODO
+        type: TODO参照
+        description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
+    constraints:
+      - id: follows-not-self
+        description: 元のTODOは自分以外であること
+        where: [ { path: follows, exists: true } ]
+        check: [ { ne: [ { path: follows }, { path: id } ] } ]
+        level: error
   # コメント: ID を持たない部品。日付と本文
   コメント:
     type: object
     fields:
       - { key: date, label: 日付, type: 年月日, required: true }
       - { key: body, label: コメント本文, type: text, required: true }
-  # 状態の履歴の行: 状態を変える操作が 1 行ずつ足す（いつ・どの操作で・どこからどこへ）。ID を持たない部品
-  # 日付は auto: created。操作が日付を渡さずに足した行（登録・着手・中止）には、適用した日が入る
+  # 状態の履歴の行: 状態の流れ（todo-behavior.yaml の history）が、状態を変える操作のたびに 1 行足す（いつ・どの操作で・どこからどこへ）。ID を持たない部品
+  # 日付は、操作が渡した日付（完了日など）か、適用した日。手で足した行（個票の作成）の空の日付には auto: created で適用した日が入る
   状態の記録:
     type: object
     label: 状態の記録
@@ -99,11 +119,18 @@ definitions:
         type: 年月日
         required: true
         auto: created
-        description: 完了と再開は入力した日付、ほかの操作は適用した日です。
+        description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
       - { key: action, label: 操作, type: TODOの操作, required: true }
       - { key: from, label: 前の状態, type: ステータス, description: 登録と個票の作成の行には書きません。 }
       - { key: to, label: 後の状態, type: ステータス, required: true }
-      - { key: note, label: 理由, type: 文章, description: 中止と再開の理由です。 }
+      - { key: note, label: 理由, type: 文章, description: 中止と中断の理由、再開のメモです。 }
+      - { key: resume_on, label: 再開予定日, type: 年月日, description: 中断の行にだけ書きます。 }
+    constraints:
+      - id: resume-not-before-suspend
+        description: 再開予定日は中断した日以降であること
+        where: [ { path: resume_on, exists: true } ]
+        check: [ { gte: [ { path: resume_on }, { path: date } ] } ]
+        level: error
   # 個票: 同じエンティティ todo の詳細化（defines: false）。日付の検査は型に書く（要素ごとに評価される）
   TODO個票:
     type: object
@@ -160,7 +187,7 @@ definitions:
         type: array
         default: []
         display: table
-        description: 登録・着手・完了・再開・中止の操作が、古い順に 1 行ずつ足します。手で書き足す必要はありません。
+        description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
         item: { type: 状態の記録 }
     # 型の検査: 個票の要素ごとに評価する。日付の項目どうしの比較は日付として比べる（of を省くとこの要素の値）
     constraints:

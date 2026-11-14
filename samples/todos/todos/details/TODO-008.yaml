@@ -1,0 +1,9 @@
+id: TODO-008
+status: OPEN
+created_on: 2026-11-02
+updated_on: 2026-11-02
+due_on: 2026-11-30
+details: TODO-003 で作った個票の書き方（詳細・結果の書き方）をそろえる。
+comments: []
+history:
+  - { date: 2026-11-02, action: register-todo, to: OPEN }

@@ -29,7 +29,7 @@ YDE の考え方は、この一行に尽きます。
 
 | 作りたいもの | 形（構造化） | 操作 | 例 |
 |---|---|---|---|
-| TODO 管理 | TODO、カテゴリ、状態、期限 | 登録、着手、完了、再開、中止の操作と、期限超過を映すダッシュボード | [samples/todos](samples/todos/README.md) |
+| TODO 管理 | TODO、カテゴリ、状態、期限 | 登録、着手、中断、再開、完了、中止の操作（状態の流れから決まる）と、期限超過を映すダッシュボード | [samples/todos](samples/todos/README.md) |
 | 注文管理 | 注文、注文明細、顧客、会社、商品、商品カテゴリー | 明細の金額と合計の検査、顧客別・会社別・カテゴリー別・月別の集計とチャート、確定・出荷・取消の操作と履歴 | [samples/orders](samples/orders/README.md) |
 | 家計簿 | 月、費目、取引、期首残高 | 銀行の CSV の取り込み、月と費目ごとの集計、残高の検査 | [labs/kakeibo](labs/kakeibo/README.md) |
 | システム開発の設計情報 | 要件、業務フロー、画面、API、テーブル、試験 | 参照の網羅、多重度、状態遷移の到達性の検査と、準備完了レポート | [labs/sysdev-template](labs/sysdev-template/README.md) |

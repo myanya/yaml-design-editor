@@ -2,11 +2,12 @@ id: todo-behavior
 name: TODOの振る舞い
 kind: behavior
 description: >-
-  TODOの状態（個票の status）を業務の State にし、登録・着手・完了・再開・中止の流れを宣言します。
-  状態を変えるのは operations.yaml の 5 つの操作だけです（「TODOを編集する」とコメントの追加は状態を変えません）。
+  TODOの状態の流れの原本です。状態（個票の status の値）・入口・移り方・終わり・状態の履歴をここに書きます。
+  状態を変える操作（operations.yaml の lifecycle: todo-lifecycle）は、ここに書いた移り方から、できる状態・移り先・履歴の行が決まり、
+  ダッシュボードの業務の流れ（todo-dashboard.yaml の flow）も、ここから段と線が決まります。
   遷移は業務シナリオ scenarios/lifecycle.yaml で確かめます。
-# State: 個票の status の値ごとに 1 つ（todo-OPEN・todo-IN_PROGRESS・todo-CLOSED・todo-CANCELED）。
-# 表示名は選択肢の label（未着手・対応中・完了・中止）。State を別に保存するのではなく、「status がその値と等しい」という述語です
+# State: 個票の status の値ごとに 1 つ（todo-OPEN・todo-IN_PROGRESS・todo-SUSPENDED・todo-CLOSED・todo-CANCELED）。
+# 表示名は選択肢の label（未着手・対応中・中断・完了・中止）。State を別に保存するのではなく、「status がその値と等しい」という述語です
 states:
   - source: { entity: todo, path: status, enum: common#ステータス }
     idPrefix: todo-
@@ -14,16 +15,19 @@ states:
 lifecycles:
   - id: todo-lifecycle
     entity: todo
-    states: [todo-OPEN, todo-IN_PROGRESS, todo-CLOSED, todo-CANCELED]
+    states: [todo-OPEN, todo-IN_PROGRESS, todo-SUSPENDED, todo-CLOSED, todo-CANCELED]
     entry:
       - { to: todo-OPEN, by: { action: register-todo } }
     transitions:
       - { from: todo-OPEN, to: todo-IN_PROGRESS, by: { action: start-todo } }
-      - { from: todo-OPEN, to: todo-CLOSED, by: { action: complete-todo } }
       - { from: todo-OPEN, to: todo-CANCELED, by: { action: cancel-todo } }
+      - { from: todo-IN_PROGRESS, to: todo-SUSPENDED, by: { action: suspend-todo } }
       - { from: todo-IN_PROGRESS, to: todo-CLOSED, by: { action: complete-todo } }
       - { from: todo-IN_PROGRESS, to: todo-CANCELED, by: { action: cancel-todo } }
-      - { from: todo-CLOSED, to: todo-IN_PROGRESS, by: { action: reopen-todo } }
-    # 完了は再開できる（次の遷移がある）ので終端にしません。終端は中止だけです
+      - { from: todo-SUSPENDED, to: todo-IN_PROGRESS, by: { action: resume-todo } }
+      - { from: todo-SUSPENDED, to: todo-CANCELED, by: { action: cancel-todo } }
+    # 完了と中止が終わり。完了から戻る移り方はありません（追加の作業は、元のTODOを選んで新しく登録します）
     termination:
-      terminal: [todo-CANCELED]
+      terminal: [todo-CLOSED, todo-CANCELED]
+    # 状態の履歴: 移るたびに、個票の history へ 1 行（date・action・from・to と、操作が足す値）
+    history: { path: history }

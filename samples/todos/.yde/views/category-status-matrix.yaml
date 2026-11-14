@@ -20,5 +20,6 @@ cells:
     values:
       - { value: OPEN, label: 未着手 }
       - { value: IN_PROGRESS, label: 対応中 }
+      - { value: SUSPENDED, label: 中断 }
       - { value: CLOSED, label: 完了 }
       - { value: CANCELED, label: 中止 }

@@ -13,7 +13,8 @@ CREATE TABLE todos (
     title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 100),
     summary TEXT NOT NULL CHECK (length(summary) BETWEEN 1 AND 100),
     category_id TEXT,
-    status TEXT NOT NULL CHECK (status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CANCELED')),
+    follows_todo_id TEXT,
+    status TEXT NOT NULL CHECK (status IN ('OPEN', 'IN_PROGRESS', 'SUSPENDED', 'CLOSED', 'CANCELED')),
     created_on TEXT NOT NULL,
     updated_on TEXT NOT NULL,
     due_on TEXT,
@@ -22,6 +23,9 @@ CREATE TABLE todos (
     result TEXT,
     FOREIGN KEY (category_id) REFERENCES categories(category_id)
         ON DELETE RESTRICT ON UPDATE RESTRICT,
+    FOREIGN KEY (follows_todo_id) REFERENCES todos(todo_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT ck_todos_follows CHECK (follows_todo_id IS NULL OR follows_todo_id <> todo_id),
     CONSTRAINT ck_todos_due CHECK (due_on IS NULL OR due_on >= created_on),
     CONSTRAINT ck_todos_completed CHECK (completed_on IS NULL OR completed_on >= created_on),
     CONSTRAINT ck_todos_updated CHECK (updated_on >= created_on),
@@ -49,12 +53,14 @@ CREATE TABLE todo_status_history (
     todo_id TEXT NOT NULL,
     history_no INTEGER NOT NULL CHECK (history_no >= 1),
     changed_on TEXT NOT NULL,
-    action TEXT NOT NULL CHECK (action IN ('register-todo', 'start-todo', 'complete-todo', 'reopen-todo', 'cancel-todo', 'edit-todo')),
-    from_status TEXT CHECK (from_status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CANCELED')),
-    to_status TEXT NOT NULL CHECK (to_status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CANCELED')),
+    action TEXT NOT NULL CHECK (action IN ('register-todo', 'start-todo', 'complete-todo', 'suspend-todo', 'resume-todo', 'cancel-todo', 'edit-todo')),
+    from_status TEXT CHECK (from_status IN ('OPEN', 'IN_PROGRESS', 'SUSPENDED', 'CLOSED', 'CANCELED')),
+    to_status TEXT NOT NULL CHECK (to_status IN ('OPEN', 'IN_PROGRESS', 'SUSPENDED', 'CLOSED', 'CANCELED')),
     note TEXT,
+    resume_on TEXT,
     PRIMARY KEY (todo_id, history_no),
     FOREIGN KEY (todo_id) REFERENCES todos(todo_id)
         ON DELETE RESTRICT ON UPDATE RESTRICT,
-    CONSTRAINT ck_history_moves CHECK (from_status IS NULL OR from_status <> to_status)
+    CONSTRAINT ck_history_moves CHECK (from_status IS NULL OR from_status <> to_status),
+    CONSTRAINT ck_history_resume CHECK (resume_on IS NULL OR resume_on >= changed_on)
 );

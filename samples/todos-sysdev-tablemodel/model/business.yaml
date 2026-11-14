@@ -1,7 +1,7 @@
 entities:
   - id: ENT-TODO
     name: TODO
-    meaning: 個人が実施する作業。タイトル・概要・進捗・期限・完了結果を管理する。
+    meaning: 個人が実施する作業。タイトル・概要・進捗（未着手・対応中・中断・完了・中止）・期限・完了結果を管理する。完了と中止で終わり、完了したTODOは戻さない。
   - id: ENT-CATEGORY
     name: カテゴリ
     meaning: TODOを分類するための区分。未分類のTODOを許す。
@@ -10,7 +10,7 @@ entities:
     meaning: 一つのTODOに添える日付と本文の記録。再開時には前回の完了結果を残す。
   - id: ENT-STATUS-HISTORY
     name: 状態の履歴
-    meaning: TODOの状態を変えた操作の記録。いつ・どの操作で・どの状態からどの状態へ移ったかと、中止・再開の理由を残す。追記だけで、書き換えない。
+    meaning: TODOの状態を変えた操作の記録。いつ・どの操作で・どの状態からどの状態へ移ったかと、中止・中断の理由、中断の再開予定日を残す。追記だけで、書き換えない。
 relationships:
   - id: REL-TODO-CATEGORY
     name: TODOの分類
@@ -39,6 +39,15 @@ relationships:
     source_min: 1
     source_max: "1"
     meaning: TODOは登録の記録を含む1件以上の履歴を持ち、履歴は必ず一つのTODOに属する。最後の履歴の後の状態が、TODOの現在の状態になる。
+  - id: REL-TODO-FOLLOWS
+    name: TODOの続き
+    source: ENT-TODO
+    target: ENT-TODO
+    target_min: 0
+    target_max: "1"
+    source_min: 0
+    source_max: many
+    meaning: TODOは0または1件の元のTODOを持つ。完了したTODOに追加の作業が要るとき、新しいTODOが元のTODOを指す。
 operations:
   - id: OP-CATEGORY-ADD
     name: カテゴリを追加する
@@ -57,8 +66,8 @@ operations:
     inputs:
       - タイトル
       - 概要
-      - カテゴリ・期限・詳細（任意）
-    conditions: 指定したカテゴリが存在すること。期限は登録日以降。
+      - カテゴリ・元のTODO・期限・詳細（任意）
+    conditions: 指定したカテゴリと元のTODOが存在すること。期限は登録日以降。
     effect: TODO番号を採番し（使われている番号の最大の次）、一覧と個票を同時に作り、状態をOPENにする。作成日・更新日は本日を自動記入し、過去分の作成日は編集で修正できる。状態の履歴に登録の行（本日・OPENへ）を残す。
   - id: OP-TODO-COMMENT
     name: TODOにコメントを追加する
@@ -89,8 +98,31 @@ operations:
     purpose: 作業を開始したことを状態に反映する。
     inputs:
       - TODO番号
-    conditions: OPENの個票があること。
+    conditions: OPENの個票があること（状態の流れの遷移）。
     effect: 状態をIN_PROGRESSにし、状態の履歴に着手の行（適用した日）を残す。着手日の項目は持たない。
+  - id: OP-TODO-SUSPEND
+    name: TODOを中断する
+    target: ENT-TODO
+    action: suspend-todo
+    purpose: 対応中の作業を一時止める。
+    inputs:
+      - TODO番号
+      - 中断日
+      - 中断理由
+      - 再開予定日（任意）
+    conditions: IN_PROGRESSの個票があること。中断理由は空でなく、再開予定日は中断日以降。
+    effect: 状態をSUSPENDEDにし、状態の履歴に中断の行（中断日・理由・再開予定日）を残す。
+  - id: OP-TODO-RESUME
+    name: TODOを再開する
+    target: ENT-TODO
+    action: resume-todo
+    purpose: 中断した作業を再び進める。
+    inputs:
+      - TODO番号
+      - 再開日
+      - メモ（任意）
+    conditions: SUSPENDEDの個票があること。
+    effect: 状態をIN_PROGRESSにし、状態の履歴に再開の行（再開日・メモ）を残す。
   - id: OP-TODO-CANCEL
     name: TODOを中止する
     target: ENT-TODO
@@ -99,7 +131,7 @@ operations:
     inputs:
       - TODO番号
       - 中止理由
-    conditions: OPENまたはIN_PROGRESSの個票があり、中止理由は空でないこと。
+    conditions: OPEN・IN_PROGRESS・SUSPENDEDのいずれかの個票があり、中止理由は空でないこと。
     effect: 状態をCANCELEDにし、結果欄を中止理由で置き換える。状態の履歴に中止の行（適用した日・中止理由）を残す。中止日の項目は持たない。
   - id: OP-TODO-COMPLETE
     name: TODOを完了する
@@ -110,16 +142,5 @@ operations:
       - TODO番号
       - 完了日
       - 完了結果
-    conditions: OPENまたはIN_PROGRESSの個票があり、完了日は登録日以降。結果は空にしない。
+    conditions: IN_PROGRESSの個票があり（未着手から直接は完了しない）、完了日は登録日以降。結果は空にしない。
     effect: CLOSEDへ変更し、完了日と結果を保存する。状態の履歴に完了の行（完了日）を残す。
-  - id: OP-TODO-REOPEN
-    name: TODOを再開する
-    target: ENT-TODO
-    action: reopen-todo
-    purpose: 完了した作業に追加対応を行う。
-    inputs:
-      - TODO番号
-      - 再開日
-      - 再開理由
-    conditions: CLOSEDであり、再開日は前回の完了日以降。
-    effect: 前回の結果と再開理由をコメントに残し、IN_PROGRESSにする。完了日と結果を外す。状態の履歴に再開の行（再開日・再開理由）を残す。

@@ -24,6 +24,7 @@ types:
     values:
       - OPEN
       - IN_PROGRESS
+      - SUSPENDED
       - CLOSED
       - CANCELED
   - id: DT-NUMBER
@@ -41,6 +42,7 @@ types:
       - register-todo
       - start-todo
       - complete-todo
-      - reopen-todo
+      - suspend-todo
+      - resume-todo
       - cancel-todo
       - edit-todo

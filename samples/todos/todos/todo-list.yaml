@@ -27,3 +27,8 @@ todos:
     title: カテゴリに色を付ける
     summary: カテゴリごとに色を決め、一覧で見分けやすくする。
     category: CAT-001
+  - id: TODO-008
+    title: 個票の書き方をそろえる
+    summary: 完了した個票の作成の続きとして、詳細と結果の書き方をそろえる。
+    category: CAT-002
+    follows: TODO-003

@@ -1,19 +1,17 @@
 id: TODO-006
-status: IN_PROGRESS
+status: SUSPENDED
 created_on: 2026-10-24
-updated_on: 2026-10-24
+updated_on: 2026-10-26
 due_on: 2026-10-24
 details: |-
   以下の作業を行う。
   - TODO登録（本登録）
+  - TODO着手・中断・再開（本TODOに対して行う）
   - TODO完了（本TODOに対して行う）
-  - TODO再開（本TODOに対して行う）
 comments:
   - date: 2026-10-24
-    body: |-
-      再開: テスト用操作
-      前回の完了結果: テスト用操作
+    body: 登録と着手を確認した。
 history:
   - { date: 2026-10-24, action: register-todo, to: OPEN }
-  - { date: 2026-10-24, action: complete-todo, from: OPEN, to: CLOSED }
-  - { date: 2026-10-24, action: reopen-todo, from: CLOSED, to: IN_PROGRESS, note: テスト用操作 }
+  - { date: 2026-10-24, action: start-todo, from: OPEN, to: IN_PROGRESS }
+  - { date: 2026-10-26, action: suspend-todo, from: IN_PROGRESS, to: SUSPENDED, note: 状態の流れを見直すまで止める, resume_on: 2026-11-20 }

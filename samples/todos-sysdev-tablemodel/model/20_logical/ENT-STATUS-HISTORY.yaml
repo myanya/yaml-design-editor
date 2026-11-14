@@ -36,10 +36,15 @@ attributes:
     dtype: DT-TEXT
     required: false
     source: 個票.history[*].note
+  - id: ATTR-HISTORY-RESUME
+    name: 再開予定日
+    dtype: DT-DATE
+    required: false
+    source: 個票.history[*].resume_on
 key:
   - ATTR-HISTORY-TODO
   - ATTR-HISTORY-NUMBER
 notes: |-
   履歴番号はTODO内で一意。配列順（古い順）を番号として保存する。同じ日に同じ操作を繰り返せるため、日付や操作をキーにしない。
-  前の状態は、登録と個票の作成の行には無い。理由は中止と再開の行にだけある。
+  前の状態は、登録と個票の作成の行には無い。理由は中止と中断の行（再開ではメモ）、再開予定日は中断の行にだけある。
   行は追記だけで、書き換えと削除をしない。最後の行の後の状態は、TODOの状態と一致する。

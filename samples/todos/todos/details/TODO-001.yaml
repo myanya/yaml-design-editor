@@ -17,4 +17,5 @@ comments:
       内容をRVし、問題ないことを確認。
 history:
   - { date: 2026-09-22, action: register-todo, to: OPEN }
-  - { date: 2026-09-22, action: complete-todo, from: OPEN, to: CLOSED }
+  - { date: 2026-09-22, action: start-todo, from: OPEN, to: IN_PROGRESS }
+  - { date: 2026-09-22, action: complete-todo, from: IN_PROGRESS, to: CLOSED }

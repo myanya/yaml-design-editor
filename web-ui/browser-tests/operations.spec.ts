@@ -9,7 +9,7 @@ test('TODO の入力と確認を経て保存し、応答が途切れても再適
   await page.getByLabel('接続コード', { exact: true }).fill(process.env.YDE_WEB_CODE!);
   await page.getByRole('button', { name: '接続する', exact: true }).click();
   await page.getByRole('button', { name: /^対応中\s/ }).click();
-  await page.getByRole('table', { name: '業務一覧' }).getByRole('button', { name: /TODO-006/ }).click();
+  await page.getByRole('table', { name: '業務一覧' }).getByRole('button', { name: /TODO-004/ }).click();
   await page.getByRole('button', { name: 'TODOを編集する', exact: true }).click();
   await expect(page.getByLabel('タイトル', { exact: true })).not.toHaveValue('');
   await expect(page.getByText('変更した項目を送ります。', { exact: false })).toBeVisible();

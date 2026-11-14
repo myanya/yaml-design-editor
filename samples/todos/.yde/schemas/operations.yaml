@@ -5,12 +5,14 @@ definitions:
   操作の記録:
     type: common#文章
     minLength: 1
-    description: 完了結果・中止理由・再開理由・コメントとして残す空でない文章。
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
 description: 業務上の操作を、確認して適用できる変更セットとして実行します。
 actions:
   - id: register-todo
     label: TODOを登録する
-    description: 一覧と未着手の個票を一度に作成し、作成日と状態の履歴の最初の行を記録します。TODO番号は、使われている番号の次を自動で振ります。
+    description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
+    # 状態の流れの入口（todo-behavior.yaml の entry）。作った個票に、初めの状態と履歴の行を書く
+    lifecycle: todo-lifecycle
     params:
       - key: title
         label: タイトル
@@ -23,6 +25,10 @@ actions:
       - key: category
         label: カテゴリ
         type: common#カテゴリ参照
+      - key: follows
+        label: 元のTODO
+        type: common#TODO参照
+        description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
       - key: due
         label: 期限
         type: common#年月日
@@ -36,16 +42,11 @@ actions:
           id: { prefix: "TODO-", digits: 3 }
           bind: todo
           params:
-            status: OPEN
             due_on:
               $copy: due
             details:
               $copy: details
             comments: []
-            # 状態の履歴の最初の行（登録）。状態を変える操作が行を足していく
-            # 日付を空にした行は、適用したときに本日が入る（行の日付は auto: created。common.yaml の「状態の記録」）
-            history:
-              - { date: '', action: register-todo, to: OPEN }
       # 一覧に、採番した番号で行を足す
       - insert:
           in:
@@ -57,6 +58,8 @@ actions:
             summary: $summary
             category:
               $copy: category
+            follows:
+              $copy: follows
   - id: add-todo-comment
     label: TODOにコメントを追加する
     input:
@@ -267,212 +270,68 @@ actions:
               $copy: comments
             history:
               - { date: '', action: edit-todo, to: OPEN }
+  # ---- 状態を変える操作 ----
+  # どの状態からできるか・どの状態へ移るか・状態の履歴の行は、状態の流れ（todo-behavior.yaml の transitions）から決まる。
+  # ここに書くのは、状態のほかに書く値（完了日・結果）と、履歴の行に足す値（理由・日付・再開予定日）だけ
   - id: start-todo
     label: TODOに着手する
-    description: 未着手の作業を対応中にします。追加の入力はありません。状態の履歴には本日の日付で残します。
-    target:
-      entity: todo
-    require:
-      - match:
-          - node:
-              entity: todo
-              bind: task
-        where:
-          - of: task
-            path: status
-            equals: OPEN
-        expect: exists
-        message: "{id} は未着手の個票が必要です"
-    do:
-      # 状態の履歴に 1 行足す。日付は空にしておき、適用したときに本日が入る
-      - insert:
-          in: { schemaId: todo-detail }
-          path: history
-          value: { date: '', action: start-todo, from: OPEN, to: IN_PROGRESS }
-          of: self
-      - set:
-          in: { schemaId: todo-detail }
-          path: status
-          value: IN_PROGRESS
-          of: self
-  - id: cancel-todo
-    label: TODOを中止する
-    description: 未着手または対応中の作業を中止し、理由を結果欄と状態の履歴（本日の日付）に記録します。
-    target:
-      entity: todo
+    description: 未着手の作業を対応中にします。追加の入力はありません。
+    target: { entity: todo }
+    lifecycle: todo-lifecycle
+  - id: suspend-todo
+    label: TODOを中断する
+    description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: todo }
     params:
-      - key: reason
-        label: 中止理由
-        type: 操作の記録
-        required: true
-    require:
-      - match:
-          - node:
-              entity: todo
-              bind: task
-        where:
-          - of: task
-            path: status
-            oneOf: [OPEN, IN_PROGRESS]
-        expect: exists
-        message: "{id} は未着手または対応中の個票が必要です"
-    do:
-      # 履歴の「前の状態」は受け手のいまの状態を読むので、状態を変える前に足す
-      - insert:
-          in: { schemaId: todo-detail }
-          path: history
-          value:
-            date: ''
-            action: cancel-todo
-            from: { $copy: status, $of: self, $in: { schemaId: todo-detail } }
-            to: CANCELED
-            note: $reason
-          of: self
-      - set:
-          in: { schemaId: todo-detail }
-          path: status
-          value: CANCELED
-          of: self
-      - set:
-          in: { schemaId: todo-detail }
-          path: result
-          value: $reason
-          of: self
+      - { key: date, label: 中断日, type: common#年月日, required: true }
+      - { key: reason, label: 中断理由, type: 操作の記録, required: true }
+      - key: resume_on
+        label: 再開予定日
+        type: common#年月日
+        description: 決まっていれば入れます。中断日以降の日付です。
+    lifecycle:
+      id: todo-lifecycle
+      history: { date: $date, note: $reason, resume_on: { $copy: resume_on } }
+  - id: resume-todo
+    label: TODOを再開する
+    description: 中断した作業を対応中に戻します。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: todo }
+    params:
+      - { key: date, label: 再開日, type: common#年月日, required: true }
+      - { key: note, label: メモ, type: common#文章 }
+    lifecycle:
+      id: todo-lifecycle
+      history: { date: $date, note: { $copy: note } }
   - id: complete-todo
     label: TODOを完了する
     input:
       initial:
         date: { $copy: today, $of: context }
-    description: 未着手または対応中の作業を完了にし、完了日と成果を記録します。状態の履歴には完了日で残します。
-    target:
-      entity: todo
+    description: 対応中の作業を完了にし、完了日と成果を記録します。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
+    target: { entity: todo }
     params:
-      - key: date
-        label: 完了日
-        type: common#年月日
-        required: true
-      - key: result
-        label: 完了結果
-        type: 操作の記録
-        required: true
-    require:
-      - match:
-          - node:
-              entity: todo
-              bind: task
-        where:
-          - of: task
-            path: status
-            oneOf:
-              - OPEN
-              - IN_PROGRESS
-        expect: exists
-        message: "{id} は未着手または対応中の個票が必要です"
+      - { key: date, label: 完了日, type: common#年月日, required: true }
+      - { key: result, label: 完了結果, type: 操作の記録, required: true }
+    lifecycle:
+      id: todo-lifecycle
+      history: { date: $date }
     do:
-      # 履歴の「前の状態」は受け手のいまの状態を読むので、状態を変える前に足す
-      - insert:
-          in: { schemaId: todo-detail }
-          path: history
-          value:
-            date: $date
-            action: complete-todo
-            from: { $copy: status, $of: self, $in: { schemaId: todo-detail } }
-            to: CLOSED
-          of: self
-      - set:
-          in:
-            schemaId: todo-detail
-          path: status
-          value: CLOSED
-          of: self
-      - set:
-          in:
-            schemaId: todo-detail
-          path: completed_on
-          value: $date
-          of: self
-      - set:
-          in:
-            schemaId: todo-detail
-          path: result
-          value: $result
-          of: self
-  - id: reopen-todo
-    label: TODOを再開する
-    input:
-      initial:
-        date: { $copy: today, $of: context }
-    description: 完了した作業を対応中に戻します。前回の結果と再開理由をコメントに、再開理由を状態の履歴（再開日）に残し、完了日と結果を外します。
-    target:
-      entity: todo
+      - set: { in: { schemaId: todo-detail }, path: completed_on, value: $date, of: self }
+      - set: { in: { schemaId: todo-detail }, path: result, value: $result, of: self }
+  - id: cancel-todo
+    label: TODOを中止する
+    description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
+    target: { entity: todo }
     params:
-      - key: date
-        label: 再開日
-        type: common#年月日
-        required: true
-      - key: reason
-        label: 再開理由
-        type: 操作の記録
-        required: true
-    require:
-      - match:
-          - node:
-              entity: todo
-              bind: task
-        where:
-          - of: task
-            path: status
-            equals: CLOSED
-        expect: exists
-        message: "{id} は完了した個票が必要です"
-      - match:
-          - node:
-              entity: todo
-              bind: task
-        check:
-          - lte:
-              - of: task
-                path: completed_on
-                in:
-                  schemaId: todo-detail
-              - $date
-        message: 再開日は完了日以降にしてください
+      - { key: reason, label: 中止理由, type: 操作の記録, required: true }
+    lifecycle:
+      id: todo-lifecycle
+      history: { note: $reason }
     do:
-      - insert:
-          in:
-            schemaId: todo-detail
-          path: comments
-          value:
-            date: $date
-            body:
-              $format: |-
-                再開: {reason}
-                前回の完了結果: {previous}
-              $with:
-                previous:
-                  $copy: result
-                  $of: self
-                  $in:
-                    schemaId: todo-detail
-          of: self
-      - insert:
-          in: { schemaId: todo-detail }
-          path: history
-          value: { date: $date, action: reopen-todo, from: CLOSED, to: IN_PROGRESS, note: $reason }
-          of: self
-      - set:
-          in:
-            schemaId: todo-detail
-          path: status
-          value: IN_PROGRESS
-          of: self
-      - delete:
-          in:
-            schemaId: todo-detail
-          path: completed_on
-          of: self
-      - delete:
-          in:
-            schemaId: todo-detail
-          path: result
-          of: self
+      - set: { in: { schemaId: todo-detail }, path: result, value: $reason, of: self }
