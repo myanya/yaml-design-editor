@@ -3,10 +3,13 @@ title: ヘッドレスワークスペース API（開く・読む・保存・検
 implementation:
 - path: core/Workspace.kt
   module: app-core
+- path: workspace/ParallelReads.kt
+  module: workspace-core
 tests:
 - name: WorkspaceCliTest
 - name: WorkspaceLoadingTest
 - name: DocumentStoreTest
+- name: ParallelReadsTest
 design:
 - label: workspace
   link: architecture/workspace.md

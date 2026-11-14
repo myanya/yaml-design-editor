@@ -19,6 +19,7 @@
 | `RefactoringImpact` | workspace-core/workspace/RefactoringImpact.kt | リファクタリングの計画のうち定義文書を見て決まる分 |
 | `Disclosure` | core/Disclosure.kt | 段階的開示（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） |
 | `Bench` | core/Bench.kt | 合成ワークスペースの生成と計測（[README.md「規模の計測」](README.md)） |
+| `ParallelReads` | workspace-core/workspace/ParallelReads.kt | 全読込の本文を読む並列。文書ごとの「読む直前の実パスの確認 → 読み取り」の組を流し、結果を入力の順に並べる。本数は環境変数 `YDE_READ_THREADS`（既定 8・1 で並列にしない）、32 件未満は呼び手のスレッドで読む |
 | `Timings` / `OpenTimingsLog` | workspace-core/workspace/Timings.kt・desktop/OpenTimings.kt | 処理の段階ごとの時間の記録。読み込みは呼び出し側がスレッドに置いた記録へ書き（`Timings.within` / `measure`）、画面は開く処理を最初の描画まで測って `.yde/state/timings.log` に追記する。CLI は `--timings` |
 | `BuildInfo` | core/BuildInfo.kt | ビルド時に生成される `build-info.properties`（外部バージョン・内部バージョン・コミット）を読む |
 | `WorkspaceTemplate` / `WorkspaceTemplates` | workspace-core/WorkspaceTemplates.kt | 出発点のテンプレート（資源 `templates/`。台帳 `template.yaml` の名前・説明・問い `params` と、写すファイル） |
@@ -69,6 +70,7 @@
 - `WorkspaceReader.load` の原文を `LoadedWorkspace.storeTexts` から保存基準へ渡す。解析後に原文を読み直して基準だけを新しくせず、読込中の変更も後の照合・保存競合で検出する。
 - `WorkspacePaths.ReadBoundary` は一回の列挙・読込の間だけルート実パスを固定し、対象の実パスは本文へのアクセス直前にも確認する。外部リンクを拒否し、対象の検査結果や書込の境界を操作間で使い回さない。
 - 全読込（`capture`）では、YAML の実パスを本文を読む直前の 1 回だけ確かめる。守りはこの確認で、一覧で確かめるのはフォルダ（外のフォルダへ降りない枝刈り）・リンクのファイル（リンク先の時刻を読む前に）・読まずに一覧に出す Markdown だけ。読む直前に確かめられない文書は読まずに一覧から外し、開く処理は続ける。フォルダの実パスを覚えて読む直前の確認を省くことはしない（読込中の親フォルダの差し替えを見逃すため）。
+- 全読込の本文は `ParallelReads` で文書ごとに並列に読み、一覧の順に並べ直す。確認と読み取りは同じスレッドで続けて行う。読めない文書があれば、全部を待ってから一覧の順で最初の誤りを投げる（1 本で読んだときと同じ誤り）。スレッドに渡すのはパスと境界（変わらない値）だけで、返すのは原文だけ。セッションや文書の木には触れない。
 
 ## 外部変更の取り込み
 
@@ -112,6 +114,7 @@
 - 段階の区切りは `Timings.measure` で書く。記録はスレッドに置いたもの（`Timings.within`）にだけ書き、置かれていなければ何もしない。ふだんの処理と、ほかのスレッドの処理には影響しない。
 - 区切りは、読み込み（`WorkspaceReader.load` のファイルの読み取り・YAML の解析・スキーマの組み立て・保存基準の書き出し・構造の検証・意味の導出）と、`Workspace.refresh`（ファイルの一覧と本文・組込みスキーマ・セッション・索引と定義の窓口）に置く。
 - 何度も呼ぶ小さな処理（文書ごとの実パスの確認・本文の読み取り）は `Timings.measureEach` で名前ごとに合計し、「名前（n 回の合計）」の 1 行で出す。`FileSystemDocumentStore.capture` は、ルートの実パス・一覧・本文と、その中の文書ごとの実パスの確認と読み取りの合計を区切る。
+- 処理を別のスレッドへ分けるときは、分ける側で `Timings.carrier` を取り、分けた先で `Timings.carry` する（記録と、分けた時点の深さを渡す）。複数のスレッドで測った合計には本数を添える（各スレッドの時間の合計なので、経過より長くなる）。
 - 画面は `DesktopRuntime.openWorkspace` が所有権・読み込み・写し・切り替え・画面の状態を測り、`AppRoot` が開いた後の最初の描画を待って閉じる（`AppState.finishOpenTimings`）。記録は表示状態の置き場の `timings.log` に新しい 50 件まで残し、状態欄に合計を添える。
 - CLI は `--timings` を付けたコマンドの、開く段階とコマンドの処理（`validate` は全体の検証）を標準エラーに出す。
 

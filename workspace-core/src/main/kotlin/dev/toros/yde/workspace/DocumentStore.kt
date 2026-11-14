@@ -107,7 +107,11 @@ class InMemoryDocumentStore(
  * ファイルシステム実装。root（ワークスペースルート）配下だけを扱い、
  * ルート外へ出るID（絶対パス・`..` 上抜け）は拒否する（計画書 Phase 7 作業3・Phase 8 保存の安全性）。
  */
-class FileSystemDocumentStore(private val root: Path) : DocumentStore {
+class FileSystemDocumentStore(
+    private val root: Path,
+    /** 全読込の本文を読む本数（1 なら 1 本で読む。既定は環境変数 `YDE_READ_THREADS`＝[ParallelReads.threads]）。 */
+    private val readThreads: Int = ParallelReads.threads,
+) : DocumentStore {
 
     /** IDをルート配下の実パスへ解決する（正規化してルート外を拒否）。 */
     private fun resolve(id: DocumentId): Path {
@@ -122,6 +126,7 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
      * 全読込の候補。YAML の実パスは本文を読む直前の 1 回だけ確かめ、一覧の検査結果を使い回さない。
      * 一覧では、フォルダ（外のフォルダへ降りない枝刈り）・リンクのファイル（リンク先の時刻を読む前に）・Markdown（読まずに一覧に出す）を確かめる。
      * 読む直前に確かめられない文書（外を指す・一覧の後に外へ差し替わった）は、読まずに一覧から外す。
+     * 本文は文書ごとの「確認 → 読み取り」の組を並列に流し（[ParallelReads]）、結果は一覧の順に並べる。読めない文書があれば、一覧の順で最初の誤りを投げる。
      * 段階の時間（一覧・本文と、文書ごとの実パスの確認・読み取りの合計）は、呼び出し側が置いた記録（Timings.within）へ書く。
      */
     fun capture(): FileSystemRead {
@@ -129,10 +134,16 @@ class FileSystemDocumentStore(private val root: Path) : DocumentStore {
         val listing = Timings.measure("一覧（走査と実パスの確認）") { scan(boundary, includeMarkdown = true, checkPlainYaml = false) }
         val texts = linkedMapOf<DocumentId, String>()
         Timings.measure("本文（読む直前の実パスの確認と読み取り）") {
-            for (id in listing.yamlTimes.keys) {
-                val file = runCatching { Timings.measureEach("読む直前の実パスの確認") { boundary.resolve(id.value) } }.getOrNull() ?: continue
-                Timings.measureEach("本文の読み取り") { readFile(file) }?.let { texts[id] = it.text }
+            val ids = listing.yamlTimes.keys.toList()
+            val carrier = Timings.carrier()
+            val contents = ParallelReads.mapInOrder(ids, readThreads) { id ->
+                Timings.carry(carrier) {
+                    // 確認と読み取りは、同じスレッドで続けて行う（読む直前に確かめる）
+                    val file = runCatching { Timings.measureEach("読む直前の実パスの確認") { boundary.resolve(id.value) } }.getOrNull()
+                    file?.let { Timings.measureEach("本文の読み取り") { readFile(it) } }
+                }
             }
+            ids.zip(contents).forEach { (id, content) -> content?.let { texts[id] = it.text } }
         }
         return FileSystemRead(texts, FileSystemListing(listing.yamlTimes.filterKeys { it in texts }, listing.markdown))
     }

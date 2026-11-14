@@ -264,7 +264,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 | 未解決の指摘 |
 |---|---|---|---|---|---|---|
-| C-01 | ヘッドレスワークスペース API（開く・読む・保存・検証・相対パスの脱出防止） | `core/Workspace.kt` | `WorkspaceCliTest`・`WorkspaceLoadingTest`・`DocumentStoreTest` | architecture/workspace.md「文書キャッシュと Workspace」 | manual/cli.md「ヘッドレス CLI」 | UX-296・UX-297・UX-298・UX-301・UX-302・UX-304・UX-305 |
+| C-01 | ヘッドレスワークスペース API（開く・読む・保存・検証・相対パスの脱出防止） | `core/Workspace.kt`・`workspace/ParallelReads.kt` | `WorkspaceCliTest`・`WorkspaceLoadingTest`・`DocumentStoreTest`・`ParallelReadsTest` | architecture/workspace.md「文書キャッシュと Workspace」 | manual/cli.md「ヘッドレス CLI」 | UX-296・UX-297・UX-298・UX-301・UX-302・UX-304・UX-305・UX-306 |
 | C-02 | YPath パッチ（set / insert / delete / move / rename / reorder）と YPath のパース | `yaml-core/patch/Patch.kt`・`yaml-core/model/YNode.kt`（`parseYPath`） | `PatchTest`・`YPathTest` | architecture/yaml-model.md「変更の基礎命令と 2 層」 | manual/cli.md「コマンド例」 |  |
 | C-03 | 変更セット（複数ファイルのパッチ束と新規作成・base ハッシュの競合検出・適用後の姿の検証・`--require-valid`・適用の本体はカーネル） | `workspace-core/changeset/ChangeSets.kt`・`workspace-core/workspace/ChangeSetApplier.kt` | `ChangeSetApplierTest`・`WorkspaceCliTest` | architecture/workspace.md「変更セットの適用」 | manual/cli.md「コマンド例」 | UX-118・UX-168・UX-226 |
 | C-04 | 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） | `core/Disclosure.kt` | `WorkspaceCliTest` | architecture/agents.md「コンテキスト」 | manual/cli.md「コマンド例」 |  |

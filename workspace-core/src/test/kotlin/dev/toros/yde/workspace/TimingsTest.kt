@@ -84,6 +84,27 @@ class TimingsTest {
     }
 
     @Test
+    fun `別のスレッドへ分けた処理は、分けた時点の深さに合計し、スレッドの本数を添える`() {
+        val t = Timings("開く")
+        Timings.within(t) {
+            t.phase("本文") {
+                val carrier = Timings.carrier()
+                val workers = (1..2).map { Thread { Timings.carry(carrier) { Timings.measureEach("読み取り") { } } } }
+                workers.forEach { it.start() }
+                workers.forEach { it.join() }
+            }
+        }
+        val entries = t.entries()
+        val sum = entries.single { it.name.startsWith("読み取り") }
+        assertEquals("読み取り（2 回の合計・2 本のスレッド）", sum.name)
+        assertEquals(entries.single { it.name == "本文" }.depth + 1, sum.depth)
+        assertTrue(sum.thread.endsWith(" ほか"), sum.thread)
+        // 記録の無いスレッドへの印は null で、そのまま行う
+        assertNull(Timings.carrier())
+        assertEquals(1, Timings.carry(null) { 1 })
+    }
+
+    @Test
     fun `読み込みの段階を記録する`() {
         val store = InMemoryDocumentStore(
             mapOf(

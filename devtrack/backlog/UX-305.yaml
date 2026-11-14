@@ -21,3 +21,9 @@ resolutions:
     note: 案 G1 を入れた（2026-11-13 オーナーの判断）。全読込で、リンクでない YAML の実パスを一覧では確かめず、読む直前の 1 回だけにした（確認 1,194 回 → 610 回）。G3 は採らない（読込中の親フォルダの差し替えを見逃すため、読む直前に確かめる決まりを守る）。Windows
       での効果はオーナーの次の timings.log で確かめる
     targets: FileSystemDocumentStore.capture・DocumentStoreTest
+  - date: 2026-11-14
+    kind: 一部
+    note: 案 G2 を入れた（2026-11-14 オーナーの判断）。全読込の本文を、文書ごとの「読む直前の実パスの確認 → 読み取り」の組で並列に読む（ParallelReads。既定 8 本・環境変数 YDE_READ_THREADS・32
+      件未満は 1 本）。結果は一覧の順、読めない文書は一覧の順で最初の誤り。組込みスキーマを読み取りと重ねるのは見送った。この環境では本文の段が 0.124 → 0.060 秒。Windows での効果はオーナーの次の timings.log
+      で確かめる
+    targets: ParallelReads・FileSystemDocumentStore.capture・ParallelReadsTest

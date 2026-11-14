@@ -8,6 +8,7 @@ package dev.toros.yde.workspace
  *
  * カーネルとアプリの読み込みは [measure] で段階を区切り、呼び出し側がそのスレッドに置いた記録（[within]）へ書く。
  * 置かれていなければ何もしない（ふだんの処理と、ほかのスレッドの処理には影響しない）。
+ * 処理を別のスレッドへ分けるときは、分ける側で [carrier] を取り、分けた先で [carry] する（記録と、分けた時点の深さを渡す）。
  */
 class Timings(val title: String, private val clock: () -> Long = System::nanoTime) {
 
@@ -18,9 +19,12 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
     private val recorded = mutableListOf<Entry>()
     private val depth = ThreadLocal.withInitial { 0 }
 
-    /** 合計で測る処理（[each]）の、名前ごとの最初の始まり・深さ・スレッド・合計・回数。 */
-    private class Sum(val startNanos: Long, val depth: Int, val thread: String, var nanos: Long = 0, var count: Int = 0)
+    /** 合計で測る処理（[each]）の、名前ごとの最初の始まり・深さ・測ったスレッド・合計・回数。 */
+    private class Sum(val startNanos: Long, val depth: Int, val threads: LinkedHashSet<String> = LinkedHashSet(), var nanos: Long = 0, var count: Int = 0)
     private val sums = LinkedHashMap<String, Sum>()
+
+    /** 別のスレッドへ記録を渡す印（記録と、渡した時点の深さ）。[carrier] で取り、[carry] で使う。 */
+    class Carrier internal constructor(internal val timings: Timings, internal val level: Int)
 
     /** 始めてからの経過（ナノ秒）。 */
     val elapsedNanos: Long get() = clock() - origin
@@ -60,15 +64,33 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
     @Synchronized private fun add(entry: Entry) { recorded += entry }
 
     @Synchronized private fun addSum(name: String, start: Long, level: Int, nanos: Long) {
-        val sum = sums.getOrPut(name) { Sum(start - origin, level, Thread.currentThread().name) }
+        val sum = sums.getOrPut(name) { Sum(start - origin, level) }
+        sum.threads += Thread.currentThread().name
         sum.nanos += nanos
         sum.count++
     }
 
-    /** 始まりの順（同じ時刻なら外側が先）。段階は終わったときに足すので、記録の順のままでは内側が先に並ぶ。 */
+    /** このスレッドの深さを level にして block を行う（別のスレッドで、分けた時点の深さに記録するため）。 */
+    private fun <T> atDepth(level: Int, block: () -> T): T {
+        val previous = depth.get()
+        depth.set(level)
+        try {
+            return block()
+        } finally {
+            depth.set(previous)
+        }
+    }
+
+    /**
+     * 始まりの順（同じ時刻なら外側が先）。段階は終わったときに足すので、記録の順のままでは内側が先に並ぶ。
+     * 合計は、複数のスレッドで測ったら「n 回の合計・m 本のスレッド」と添える（各スレッドの時間の合計なので、経過より長くなる）。
+     */
     @Synchronized fun entries(): List<Entry> =
-        (recorded + sums.map { (name, s) -> Entry("$name（${s.count} 回の合計）", s.depth, s.startNanos, s.nanos, s.thread) })
-            .sortedWith(compareBy<Entry>({ it.startNanos }, { it.depth }))
+        (recorded + sums.map { (name, s) ->
+            val label = if (s.threads.size <= 1) "$name（${s.count} 回の合計）" else "$name（${s.count} 回の合計・${s.threads.size} 本のスレッド）"
+            val thread = if (s.threads.size <= 1) s.threads.firstOrNull().orEmpty() else "${s.threads.first()} ほか"
+            Entry(label, s.depth, s.startNanos, s.nanos, thread)
+        }).sortedWith(compareBy<Entry>({ it.startNanos }, { it.depth }))
 
     /**
      * 人が読む表。各行は「始めてからの経過・段階の時間・名前」で、入れ子は字下げで表す。
@@ -107,5 +129,12 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
 
         /** このスレッドに置かれた記録（無ければ null）。 */
         fun current(): Timings? = ambient.get()
+
+        /** 処理を別のスレッドへ分ける前に取る印（このスレッドに記録が無ければ null）。 */
+        fun carrier(): Carrier? = ambient.get()?.let { Carrier(it, it.depth.get()) }
+
+        /** 分けた先のスレッドで、印の記録と深さを置いて block を行う（印が null なら、そのまま行う）。 */
+        fun <T> carry(carrier: Carrier?, block: () -> T): T =
+            if (carrier == null) block() else carrier.timings.atDepth(carrier.level) { within(carrier.timings, block) }
     }
 }

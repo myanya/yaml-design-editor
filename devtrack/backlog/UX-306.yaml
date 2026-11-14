@@ -1,0 +1,14 @@
+id: UX-306
+title: 全読込（capture）を通らない読み込みの経路は、文書 1 件ごとに実パスを 3 回確かめる（G1・G2 が効かない）
+status: todo
+origin_on: 2026-11-14
+origin: G2 の影響を調べたとき（全読込の呼び手と、それ以外の読み込みの経路を洗い出した）
+memo: |-
+  WorkspaceReader.load にストアだけを渡す経路（CLI の loadWorkspace / openSession と shell、Schema.loadAllWithErrors、DocumentSession.openSession の読み直しの分岐）は、FileSystemDocumentStore.capture を使わず、store.list() と store.read(id) で 1 件ずつ読む。
+  list() は一覧でファイルごとに実パスを確かめ、read(id) は WorkspacePaths.resolve で読むたびに境界を作り直す（ルートと対象の toRealPath）。Windows で深い置き場所だと、G1 の前の全読込より重い。
+  当たり: これらの経路も capture の結果（sourceTexts）を渡すか、WorkspaceReader.load の読み取りを capture にそろえる。画面で開く経路ではないので、急がない
+theme: T-04
+related:
+  - UX-305
+features:
+  - C-01

@@ -133,6 +133,21 @@ class DocumentStoreTest {
         assertTrue("読む直前の実パスの確認（2 回の合計）" in names, names.toString())
     }
 
+    @Test
+    fun `全読込は1本で読んでも並列に読んでも同じ本文と一覧になる`() {
+        repeat(40) { i ->
+            val folder = Files.createDirectories(dir.resolve("items/g${i % 4}"))
+            Files.writeString(folder.resolve("i$i.yaml"), "id: I-$i\n")
+        }
+        Files.writeString(dir.resolve("README.md"), "説明")
+        val sequential = FileSystemDocumentStore(dir, readThreads = 1).capture()
+        val parallel = FileSystemDocumentStore(dir, readThreads = 8).capture()
+        assertEquals(40, sequential.texts.size)
+        assertEquals(sequential.texts.toList(), parallel.texts.toList(), "本文と、その並び（一覧の順）が同じ")
+        assertEquals(sequential.listing.yamlTimes.toList(), parallel.listing.yamlTimes.toList())
+        assertEquals(sequential.listing.markdown, parallel.listing.markdown)
+    }
+
     private lateinit var dir: Path
 
     @BeforeTest
