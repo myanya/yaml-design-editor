@@ -1,0 +1,18 @@
+id: UX-314
+title: フロー表記（{…} / […]）の配列要素の前の行にコメントがあると、書き出した YAML の要素が行頭に出て読めなくなる（フォームで保存すると文書が壊れる）
+status: resolved
+origin_on: 2026-11-14
+origin: 'samples/todos の todo-behavior.yaml（Lifecycle の transitions の要素の前にコメント）を、スキーマのフォーム編集で開いたとき'
+memo: |-
+  フォーム編集だけ「スキーマを解析できません: while scanning a simple key」になり、検証には出なかった（フォームは書き出し直したテキストを読み直すため）。
+  SnakeYAML のエミッタは、配列の要素の前行コメントを「- # コメント」に後置したあと、要素がフロー表記だと字下げを書かずに行頭から書く。エミッタは final で直せない。
+  直す前は、リポジトリの YAML 2481 件のうち 32 件（samples/orders のビュー・labs/adventurers-guild の振る舞い・devtrack の common.yaml など）が、書き出し直すと読めなくなっていた。ディスクの原本は壊れていない
+closed_on: 2026-11-14
+resolutions:
+  - date: 2026-11-14
+    kind: 解決
+    note: YamlIO の書き出しの後で、「- 」の後ろが空かコメントだけの行に続く行頭のフロー表記を、要素の位置まで字下げする（indentFlowItemsAfterComments）。YamlIOTest に、先頭・途中・空行つき・入れ子・ルートの配列・コメントの中の「- #」の形を足した。リポジトリの YAML 2481 件が書き出し直して同じ構造に読める
+    targets: yaml-core/yaml/YamlIO.kt
+targets: yaml-core/yaml/YamlIO.kt
+features:
+  - E-06

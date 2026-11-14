@@ -32,7 +32,8 @@ import java.io.StringWriter
  * - アンカー／エイリアスは読み込み時に展開される（保存すると実体化する）
  * - インデントはブロックスタイル時 2 に正規化される（リスト記号も親から一段下げる）
  * - ブロック配列の要素の前行コメントは、SnakeYAML エミッタの制約により「- # コメント」の形に
- *   後置される（内容は保持され、以降の往復は安定する）
+ *   後置される（内容は保持され、以降の往復は安定する）。要素がフロー表記（{…} / […]）のときに
+ *   エミッタが字下げを落とす不具合は、書き出した後で直す（indentFlowItemsAfterComments）
  */
 object YamlIO {
 
@@ -168,7 +169,36 @@ object YamlIO {
         serializer.open()
         serializer.serialize(root)
         serializer.close()
-        return writer.toString()
+        return if (withComments) indentFlowItemsAfterComments(writer.toString()) else writer.toString()
+    }
+
+    /** 「- 」の後に何も無いかコメントだけの行（ブロック配列の要素で、前行コメントを後置したもの）。 */
+    private val ITEM_WITH_COMMENT = Regex("""^([ \-]*?)- ?(#.*)?$""")
+    private val COMMENT_LINE = Regex("""^ +#.*$""")
+
+    /**
+     * SnakeYAML のエミッタは、ブロック配列の要素の前行コメントを「- # コメント」に後置したあと、要素がフロー表記
+     * （{…} / […]）だと字下げを書かずに行頭から書く（読めない YAML になる。エミッタは final で直せない）。
+     * その行だけを、要素の位置（「- 」の後ろ）まで字下げする。行頭のフロー表記は、ほかの場所では書き出されない。
+     */
+    internal fun indentFlowItemsAfterComments(text: String): String {
+        if ("\n{" !in text && "\n[" !in text) return text
+        val lines = text.split("\n").toMutableList()
+        var itemColumn: Int? = null
+        for (i in lines.indices) {
+            val line = lines[i]
+            val item = ITEM_WITH_COMMENT.matchEntire(line)
+            when {
+                item != null -> itemColumn = item.groupValues[1].length + 2
+                itemColumn != null && COMMENT_LINE.matches(line) -> Unit
+                itemColumn != null && (line.startsWith("{") || line.startsWith("[")) -> {
+                    lines[i] = " ".repeat(itemColumn) + line
+                    itemColumn = null
+                }
+                else -> itemColumn = null
+            }
+        }
+        return lines.joinToString("\n")
     }
 
     // ---------------------------------------------------------------- Node -> YNode

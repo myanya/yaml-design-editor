@@ -128,6 +128,31 @@ class YamlIOTest {
     }
 
     @Test
+    fun `comments before flow items in a block sequence keep the item indented`() {
+        // エミッタはコメントを後置した要素がフロー表記だと行頭から書く（読めない YAML になる）。書き出し後に字下げを直す
+        val texts = listOf(
+            "items:\n  # 1件目\n  - {a: 1}\n  - {a: 2}\n",
+            "items:\n  - {a: 1}\n  # 2件目\n  - {a: 2}\n",
+            "items:\n  - {a: 1}\n\n  # c1\n  # c2\n  - [x, y]\n",
+            "l:\n  - id: x\n    transitions:\n      - {a: 1}\n      # c\n      - {a: 2}\n    term: 1\n",
+            "items:\n  - - x\n    # c\n    - {a: 2}\n",
+            "- {a: 1}\n# c\n- {a: 2}\n",
+            "items:\n  - {a: 1}\n  # x - # y\n  - {a: 2}\n",
+        )
+        for (text in texts) {
+            val once = YamlIO.dump(YamlIO.parse(text))
+            val twice = YamlIO.dump(YamlIO.parse(once))
+            assertEquals(YamlIO.dumpPlain(YamlIO.parse(text)), YamlIO.dumpPlain(YamlIO.parse(twice)), twice)
+            // コメントの前の空行は初回の保存で詰まることがある（後置の制約）。以降の往復は安定する
+            assertEquals(twice, YamlIO.dump(YamlIO.parse(twice)), "往復が安定する: $twice")
+        }
+        val once = YamlIO.dump(YamlIO.parse(texts[1]))
+        assertTrue("# 2件目" in once && "    {a: 2}" in once, once)
+        // フロー表記の文書（行頭の { ）は触らない
+        assertEquals("{a: 1, b: [x]}\n", YamlIO.dump(YamlIO.parse("{a: 1, b: [x]}\n")))
+    }
+
+    @Test
     fun `round trip is idempotent for commented documents`() {
         val text = "# head\n" +
             "a: 1 # inline\n" +

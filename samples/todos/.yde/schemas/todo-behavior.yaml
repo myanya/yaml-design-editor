@@ -25,9 +25,9 @@ lifecycles:
     states: [todo-ACTIVE, todo-CLOSED, todo-CANCELED]
     entry:
       - { to: todo-ACTIVE, by: { action: register-todo } }
+    # 完了も中止も未完了から出る 1 本。中止は未完了のどの状態からでもでき、完了は詳細化の exits で対応中に狭めます
     transitions:
       - { from: todo-ACTIVE, to: todo-CLOSED, by: { action: complete-todo } }
-      # 中止は未完了のどの状態からでもできます（詳細化の exits で狭めていないため）
       - { from: todo-ACTIVE, to: todo-CANCELED, by: { action: cancel-todo } }
     # 完了と中止が終わり。完了から戻る移り方はありません（追加の作業は、元のTODOを選んで新しく登録します）
     termination:
@@ -44,6 +44,6 @@ refinements:
       - { from: todo-OPEN, to: todo-IN_PROGRESS, by: { action: start-todo } }
       - { from: todo-IN_PROGRESS, to: todo-SUSPENDED, by: { action: suspend-todo } }
       - { from: todo-SUSPENDED, to: todo-IN_PROGRESS, by: { action: resume-todo } }
+    # 出口: 完了できるのは対応中からだけ（中止は書かないので、どの子からも出られます）
     exits:
-      # 完了できるのは対応中からだけ
       - { by: { action: complete-todo }, from: [todo-IN_PROGRESS] }
