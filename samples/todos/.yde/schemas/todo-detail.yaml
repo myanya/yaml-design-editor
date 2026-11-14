@@ -15,7 +15,7 @@ constraints:
       - edge: { contains: true }
       - node: { entity: todo-task, bind: s }
     where:
-      - { of: t, path: status, equals: CLOSED }
+      - { of: t, state: todo-CLOSED }
       - { of: s, path: done, equals: false }
     expect: absent
     level: error

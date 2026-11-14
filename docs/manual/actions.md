@@ -185,6 +185,8 @@ input:
   lifecycle: { id: todo-lifecycle, history: { note: $reason, resume_on: { $copy: resume_on } } }
 ```
 
+状態を変えない操作で「この状態のときだけ」を書くときは、`require` の `where` に State の名前を書きます（`{of: t, state: todo-ACTIVE}`。[schema.md](schema.md)「条件に State の名前を書く」）。状態の値を操作の側に並べ直しません。
+
 ### 前提（`require`）
 
 - 受け手があるアクションでは、`match` の先頭の node が受け手に当たり、検査と同じ 4 つの結果で決めます。**違反と保留（相手の見つからない参照などで決められない）は実行しません。**理由が文面に出ます。

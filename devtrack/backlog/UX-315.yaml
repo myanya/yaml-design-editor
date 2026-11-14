@@ -1,6 +1,6 @@
 id: UX-315
 title: 状態を変えない操作の前提に、Lifecycle の State（詳細化の親「未完了」など）を書けず、状態の値を require に並べ直すことになる
-status: todo
+status: resolved
 origin_on: 2026-11-14
 origin: samples/todos に「作業項目を追加する」（未完了のときだけできる、状態を変えない操作）を足したとき
 memo: |-
@@ -10,3 +10,10 @@ memo: |-
 features:
   - S-35
   - S-36
+closed_on: 2026-11-14
+resolutions:
+  - date: 2026-11-14
+    kind: 解決
+    note: '条件に State を名前で書けるようにした（where の {of, state}。enum から作った State と詳細化の親だけ）。読み込みのときに State の値の条件（equals / oneOf）へ置き換える名前付きの述語の置き換えで、新しい評価器は持たない（StateConditions）。状態を変えない操作を状態の流れに書く案（UML の内部遷移）は、状態の流れの受け持ちからはみ出すのでオーナー判断で採らなかった。samples/todos の作業項目の追加の前提・期限超過の区画・完了日と結果の検査を State の名前に書き換えた'
+    targets: workspace-core/workspace/StateConditions.kt
+targets: workspace-core/workspace/StateConditions.kt

@@ -22,7 +22,7 @@ sections:
       match:
         - node: {entity: todo, bind: t}
       where:
-        - {of: t, path: status, oneOf: [OPEN, IN_PROGRESS]}
+        - {of: t, state: [todo-OPEN, todo-IN_PROGRESS]}   # 状態は State の名前で（todo-behavior.yaml）
         - {of: t, path: due_on, exists: true}
       check:
         - lt: [{of: t, in: {schemaId: todo-detail}, path: due_on}, $today]

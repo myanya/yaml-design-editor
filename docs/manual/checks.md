@@ -175,6 +175,7 @@ constraints:
 **比べ方は値を読んだ項目の型で決まります**: `int` / `number` なら数、`date` / `time` / `datetime` なら日付・時刻・日時の値（`09:30` と `09:30:00` は同じ時刻）。項目の型が分からなければ数。その種類として読めなければ評価しません。
 決まった値どうしを日付として比べるときだけ `{lte: [左, 右], type: date}` と添えます。例 `{lte: [{of: t, path: start}, {of: t, path: end}]}`＝開始日は終了日以前。`samples/todos` の `common.yaml` の型「TODO個票」の「期限は作成日以降」が実例）・`oneOf`（選択肢のどれかと等しい。`check` では `{oneOf: [左, [選択肢, ...]]}`、`where` では `oneOf: [値, ...]`）・`matches`（正規表現の**全体**一致。
 フィールドの `pattern` と同じ規則。決まった値で書いた正規表現が読めなければスキーマの読み込みエラー）・`startsWith` / `endsWith` / `contains`（前方・後方・部分の一致）。`where` では `eq` / `ne` の代わりに `equals` / `notEquals` を使います。
+- **State の名前で書く条件**: `where` には、値の条件の代わりに `{of: t, state: todo-ACTIVE}`（`state` に State の ID か、その配列）を書けます。状態の流れ（`kind: behavior`）の State の条件に置き換えて判定します（[schema.md](schema.md)「条件に State の名前を書く」）。
 - **型の検査**: 同じ `where` と `check` を object の定義に書くと、その型の要素ごとに評価されます（`of` を省くとその要素。ID の無い要素にも書ける。[schema.md](schema.md)「オブジェクト型」）。
 - **型の「または」と否定**: `node` の `entity` には型の並びを書けます（`entity: [usecase, batch]`＝どれか）。`node: { not: { entity: [...], schema: ..., id: ... } }` は、その絞り込みに**合わない**ノードだけを残します（型が宣言されていない要素は、型の否定では残しません＝判定保留）。
 - **条件の否定と「または」**: `where` と `check` の各項目には、条件のほかに `{not: 条件}`（条件が成り立たない）と `{or: [条件, ...]}`（どれかが成り立つ）を書けます。入れ子は1段まで（`or` の中に書けるのは条件かその否定）・「かつ」は並べて書きます・`where` の `or` は同じ束縛（`of`）の条件どうしに限ります。

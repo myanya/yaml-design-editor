@@ -85,6 +85,17 @@ object SchemaDocuments {
         metaschema: SchemaTree? = null,
     ): ParsedSchemaDocument {
         val raw = YamlIO.parseToRaw(text) as? Map<*, *> ?: error("スキーマのルートはobjectである必要があります")
+        return parseRaw(raw, fallbackId, sourceName, library, metaschema)
+    }
+
+    /** 読んだままの値（YAML を読んだ map）から読む。State の条件を置き換えた写しの読み直し（StateConditions）に使う。 */
+    fun parseRaw(
+        raw: Map<*, *>,
+        fallbackId: String,
+        sourceName: String,
+        library: CheckLibrary?,
+        metaschema: SchemaTree? = null,
+    ): ParsedSchemaDocument {
         val id = raw["id"]?.toString() ?: fallbackId
         val kind = SchemaKind.parse(raw["kind"]?.toString())
         val derive = SchemaDerivation.parse(raw["derive"])

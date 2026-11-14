@@ -1,5 +1,5 @@
 id: S-35
-title: Lifecycle を正にする操作（`lifecycle:`＝状態の前提・状態の値の書き込み・記録の行 `history`）と、Lifecycle から作る業務の流れ（`flow.lifecycle`）
+title: Lifecycle を正にする操作（`lifecycle:`＝状態の前提・状態の値の書き込み・記録の行 `history`）と、Lifecycle から作る業務の流れ（`flow.lifecycle`）・条件に State の名前（`where` の `state`。状態を変えない操作の前提・検査・区画）
 implementation:
 - path: semantic-core/schema/Behavior.kt
   module: semantic-core
@@ -11,8 +11,11 @@ implementation:
   module: workspace-core
 - path: workspace-core/workspace/ViewDefinitions.kt
   module: workspace-core
+- path: workspace-core/workspace/StateConditions.kt
+  module: workspace-core
 tests:
 - name: LifecycleActionsTest
+- name: StateConditionsTest
 design:
 - label: schema
   link: architecture/schema.md
@@ -20,3 +23,5 @@ design:
 manual:
 - link: manual/schema.md
   heading: Lifecycle を正にする（操作と業務の流れを導く）
+- link: manual/schema.md
+  heading: 条件に State の名前を書く

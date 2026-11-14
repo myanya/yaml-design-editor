@@ -97,9 +97,9 @@ actions:
       - match: [{ node: { entity: todo, schema: todo-detail } }]
         expect: exists
         message: "{id} は個票が必要です。先に「TODOを編集する」で作成してください"
-      # 状態の条件（未完了＝未着手・対応中・中断のどれか）。状態を変えない操作なので Lifecycle からは導かず、値を並べる
+      # 状態の条件は State の名前で書く（未完了＝todo-behavior.yaml の詳細化の親。中身の状態は状態の流れだけが知る）
       - match: [{ node: { entity: todo, bind: t } }]
-        where: [{ of: t, path: status, oneOf: [OPEN, IN_PROGRESS, SUSPENDED] }]
+        where: [{ of: t, state: todo-ACTIVE }]
         expect: exists
         message: "{id} は完了か中止をしているので、作業項目を足せません"
     do:

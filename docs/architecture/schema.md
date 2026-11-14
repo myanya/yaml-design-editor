@@ -179,6 +179,9 @@
 - **State の詳細化**（ADR-0030）: `refinements`（`RefinementDef`）は親の State の中の流れを同じ ID で別に持つ。親は述語を書かない State（`StateDeclaration.Composite`）で、`BehaviorChecks.compile` が葉の enum の値の `oneOf` を述語として導き、`Catalog.states` に入れる。
   `Catalog.lifecycles` は展開済み（`Flattener`。親へ入る遷移は同じ原因の詳細化の入口の子へ、親から出る遷移は `exits` で狭めた子か全部の子から、中の遷移はそのまま）で、計画器・業務の流れ・照合・シナリオ・監査はこれだけを読む。書いたままの粗い Lifecycle は展開の前に同じ規則で点検し、展開した流れも点検する。
   `Catalog.children` と `collapse` は、断る文面の「できるのは」を、子がそろった親でまとめるのに使う。
+- **条件に State の名前**（`where` の `{of, state}`）: 名前付きの述語の置き換えで、新しい評価器は持たない。semantic-core の `QueryWhere` は置き換え前の形（`states`）を持てるだけで、評価では判定保留にする。
+  置き換えは `StateConditions`（workspace-core）: `WorkspaceReader.parseSchemas` が全文書をいったん読み、リンクした後に `BehaviorChecks.compile` から置き換え表（enum の State と詳細化の親 → 値の項目と値）を作り、`state` を書いた文書だけを置き換えた写しで読み直す。ビューは `ViewDefinitions.parseView` の入口で置き換える。
+  状態を変えない操作を状態の流れに書く（UML の内部遷移）案は採らなかった（状態の流れは状態と遷移だけを持ち、「いつできるか」は操作の側が State を指す）。
 
 ### State の実評価と Action の遷移照合（S-29）
 

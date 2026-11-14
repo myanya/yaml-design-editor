@@ -141,6 +141,27 @@ refinements:
 断るときは子がそろった親の名前でまとめます（「「TODO-007」は「中止」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）」）。
 粗い流れはそれだけで点検し、展開した流れも同じ規則（中の行き止まり・到達・enum の網羅）で点検します。終端の State の詳細化には移り方を書けません。
 
+### 条件に State の名前を書く
+
+状態を変えない操作の前提（「未完了のときだけ」）、検査、ダッシュボードの区画の条件には、状態の値を並べる代わりに State の名前を書けます。
+`where` の項目に `{of: 束縛名, state: State の ID}`（並べるなら配列）と書き、型の検査では `of` を省けます。
+
+```yaml
+# 操作の前提（samples/todos の「作業項目を追加する」）
+require:
+  - match: [{ node: { entity: todo, bind: t } }]
+    where: [{ of: t, state: todo-ACTIVE }]            # 未完了＝未着手・対応中・中断のどれか
+    expect: exists
+# ダッシュボードの区画（期限超過は未着手と対応中だけ）
+where: [{ of: t, state: [todo-OPEN, todo-IN_PROGRESS] }]
+# 型の検査（完了以外には完了日を残さない）
+where: [{ not: { state: todo-CLOSED } }, { path: completed_on, exists: true }]
+```
+
+- 読み込みのときに、State の条件（値の項目が値と等しい・値のどれか）へ置き換えます。詳細化の親は子の値のどれかになるので、状態を足しても条件を直さずに済みます。
+- 書けるのは、enum から作った State と、その詳細化の親です。`predicate` で書いた State、見つからない State、`state` と `path` を一緒に書いた条件は、読み込みのエラーになります。並べる State は、同じエンティティの同じ項目のものにします。
+- 状態を変える操作の前提は、今までどおり `lifecycle:` が状態の流れから決めます。状態を変えない操作は状態の流れに書かず、操作の側から State の名前を指します。
+
 ### 読み込みの点検
 
 スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。小さな公開の例は `samples/todos` の `.yde/schemas/todo-behavior.yaml`（粗い流れと未完了の詳細化。展開すると状態 5 つ・遷移 8 本）と、業務シナリオ `scenarios/lifecycle.yaml` です。

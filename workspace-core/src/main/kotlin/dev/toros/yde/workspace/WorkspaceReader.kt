@@ -234,16 +234,19 @@ object WorkspaceReader {
         val registry = mutableListOf<SchemaDocuments.RegistryPart>()
         // 検査の定義と語彙の定義（functions / vocabulary）は、どのスキーマ文書に書いてもワークスペース全体で使える。
         // 先に全文書から集めてから、各スキーマの検査を展開する（root の SchemaLoader と同じ実装＝CheckCatalog）
-        val raws = sources.mapNotNull { (id, text) ->
-            (runCatching { YamlIO.parseToRaw(text) }.getOrNull() as? Map<*, *>)?.let { id.value.substringAfterLast('/') to it }
-        }
+        val rawById = sources.associate { (id, text) -> id to (runCatching { YamlIO.parseToRaw(text) }.getOrNull() as? Map<*, *>) }
+        val raws = sources.mapNotNull { (id, _) -> rawById[id]?.let { id.value.substringAfterLast('/') to it } }
         val library = CheckCatalog.libraryOf(raws) { name, e -> errors += "$name: ${e.message ?: e::class.simpleName}" }
+        // State を名前で書いた条件（where の state。UX-315）を使う文書。State は全部の文書を読んでから組み立てるので、
+        // いったん読み（条件は置き換え前のまま）、State の条件へ置き換えた写しでもう一度読む
+        val usingStates = mutableListOf<Pair<Int, DocumentId>>()
         for ((id, text) in sources) {
             val rel = id.value
             val fileName = rel.substringAfterLast('/')
             try {
                 // スキーマ文書1件の読み取りは、アプリ側と同じ1実装（SchemaDocuments。P27 段C の C-3a・意図的差分 D-31）
                 val parsed = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library, metaschema)
+                if (StateConditions.uses(rawById[id])) usingStates += schemas.size to id
                 schemas += WorkspaceSchema.of(parsed, id)
                 if (parsed.kind == SchemaKind.RELATIONS) {
                     registry += SchemaDocuments.RegistryPart(fileName, parsed.relations, parsed.entityTypes, parsed.enforcement)
@@ -259,8 +262,22 @@ object WorkspaceReader {
         // 関係レジストリの集約（複数の文書での重複は誤りにして、先に読んだほうを採る。アプリ側と同じ実装）
         val registryDeclarations = SchemaDocuments.declarationsOf(registry, errors)
         // `$ref` の横断解決（module#name）: 全モジュールの定義をリンクする（SchemaLoader と同じ流儀）
-        val catalog = SchemaCatalog.linked(schemas.map { it.id to it.tree.definitions })
-        val linked = schemas.map { it.copy(tree = it.tree.copy(definitionCatalog = catalog)) }
+        var catalog = SchemaCatalog.linked(schemas.map { it.id to it.tree.definitions })
+        var linked = schemas.map { it.copy(tree = it.tree.copy(definitionCatalog = catalog)) }
+        if (usingStates.isNotEmpty()) {
+            val lowerings = StateConditions.loweringsOf(BehaviorChecks.compile(linked))
+            for ((index, id) in usingStates) {
+                val fileName = id.value.substringAfterLast('/')
+                val found = mutableListOf<String>()
+                val expanded = StateConditions.expand(rawById[id], lowerings, found) as Map<*, *>
+                found.distinct().forEach { errors += "${id.value}: $it" }
+                runCatching { SchemaDocuments.parseRaw(expanded, fileName.substringBeforeLast('.'), fileName, library, metaschema) }
+                    .onSuccess { schemas[index] = WorkspaceSchema.of(it, id) }
+                    .onFailure { errors += "${id.value}: ${it.message}" }
+            }
+            catalog = SchemaCatalog.linked(schemas.map { it.id to it.tree.definitions })
+            linked = schemas.map { it.copy(tree = it.tree.copy(definitionCatalog = catalog)) }
+        }
         // エンティティ型の表示名の既定（オブジェクト型。P33 第三弾）: レジストリに宣言の無い型は、object の entity を書いた型の label を表示名にする
         val declarations = registryDeclarations.copy(entityTypes = registryDeclarations.entityTypes + objectEntityTypes(linked, registryDeclarations))
         return SchemaLoadResult(linked, declarations, errors, library)

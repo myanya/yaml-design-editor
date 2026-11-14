@@ -231,9 +231,16 @@ object ViewDefinitions {
      * kinds は入口が登録した拡張の種類（ADR-0014）。登録していない種類は「使える種類」を並べた誤りになる。
      */
     fun parseView(
-        raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema> = emptyList(), kinds: List<ViewKind> = emptyList(),
-    ): VirtualViewDefinition =
-        when (val kind = raw["kind"]?.toString()) {
+        given: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema> = emptyList(), kinds: List<ViewKind> = emptyList(),
+    ): VirtualViewDefinition {
+        // 条件に State を名前で書いた（where の state。UX-315）定義は、State の条件へ置き換えてから読む
+        val raw = if (!StateConditions.uses(given)) given else {
+            val found = mutableListOf<String>()
+            val expanded = StateConditions.expand(given, StateConditions.loweringsOf(BehaviorChecks.compile(schemas)), found) as Map<*, *>
+            found.firstOrNull()?.let { error(it) }
+            expanded
+        }
+        return when (val kind = raw["kind"]?.toString()) {
             null, "grid" -> parseGridView(raw, source, schemas)
             "document" -> parseDocView(raw, source, schemas, kinds)
             "matrix" -> parseMatrixView(raw, source)
@@ -243,6 +250,7 @@ object ViewDefinitions {
             else -> kinds.firstOrNull { it.id == kind }?.parse(raw, source)
                 ?: error("kind は ${(CORE_KINDS + kinds.map { it.id }).joinToString(" / ")} のいずれかである必要があります: $kind")
         }
+    }
 
     private val PARAM_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 

@@ -799,6 +799,8 @@ object SemanticQuery {
          * 値が無くて判定できないときは null（否定しても null＝ノードは選ばれない）。
          */
         private fun predValue(pred: QueryWhere, key: NodeKey): Boolean? {
+            // 置き換えていない State の条件（ワークスペースの読み込みの外で読んだ定義）は評価しない
+            if (pred.states.isNotEmpty()) return null
             val candidates = sigmaCandidates(key.kind, key.id)
             val nodes = candidates.map { SemanticExpression.nodeAt(::tree, it, pred.path) }
             val texts = nodes.mapNotNull { scalarText(it) }

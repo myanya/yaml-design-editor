@@ -255,6 +255,11 @@ data class QueryWhere(
     val negated: Boolean = false,
     /** 順序の比較（lt / lte / gt / gte）の種類（`type: date`）。null＝項目の型から決める（決まらなければ数値）。 */
     val kind: ValueExpr.OrderKind? = null,
+    /**
+     * State を名前で書いた条件（`{of, state}`。UX-315）の、まだ置き換えていない形。ワークスペースの読み込みが、State の条件
+     * （値の項目の equals / oneOf）へ置き換える（workspace.StateConditions）。置き換わらずに残った条件は評価しない（判定保留）。
+     */
+    val states: List<String> = emptyList(),
 ) {
     companion object {
         /** 「いまの要素」を指す束縛名（型の検査＝要素ごとの検査で `of` を省いたとき。利用者の束縛名とは重ならない綴り）。 */
@@ -264,7 +269,7 @@ data class QueryWhere(
         private val TEST_OPS = CheckOp.entries.filter { it != CheckOp.EQ && it != CheckOp.NE }
         private val ORDER_OPS = setOf(CheckOp.LT, CheckOp.LTE, CheckOp.GT, CheckOp.GTE)
         private val CONDITION_KEYS = listOf("equals", "notEquals", "exists", "empty") + TEST_OPS.map { it.id }
-        private val KEYS = setOf("of", "path", "type") + CONDITION_KEYS
+        private val KEYS = setOf("of", "path", "type", "state") + CONDITION_KEYS
 
         /** current は「いまの要素」のある場面（型の検査）: `of` を省くといまの要素（SELF）。 */
         fun parse(raw: Any?, where: String, current: Boolean = false): QueryWhere {
@@ -273,6 +278,17 @@ data class QueryWhere(
                 ?.let { error("$where: 未知のキーです: $it（使えるキー: ${KEYS.joinToString(", ")}）") }
             val of = m["of"]?.toString()?.takeIf { it.isNotBlank() }
                 ?: if (current) SELF else error("$where.of（束縛名）が必要です")
+            // State を名前で書いた条件（UX-315）: of と state だけ。置き換えはワークスペースの読み込みが行う
+            m["state"]?.let { raw ->
+                m.keys.map { it.toString() }.firstOrNull { it != "of" && it != "state" }
+                    ?.let { error("$where: state を書いた条件には of と state だけを書きます（$it は書けません）") }
+                val states = when (raw) {
+                    is List<*> -> raw.map { it?.toString()?.takeIf(String::isNotBlank) ?: error("$where.state の State ID は空にできません") }
+                    else -> listOf(raw.toString().takeIf(String::isNotBlank) ?: error("$where.state は空にできません"))
+                }
+                require(states.isNotEmpty()) { "$where.state は State ID か、その配列（1つ以上）で書きます" }
+                return QueryWhere(of = of, path = emptyList(), states = states)
+            }
             val path = parseYPath(m["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.path が必要です"))
             val given = CONDITION_KEYS.filter { m[it] != null }
             if (given.size != 1) error("$where: 条件（${CONDITION_KEYS.joinToString(" / ")}）のいずれか一つが必要です")

@@ -105,6 +105,8 @@ object SemanticElementChecks {
 
         /** 要素を絞る条件（3 値）: 値が無く判定できなければ null。 */
         fun predValue(pred: QueryWhere): Boolean? {
+            // 置き換えていない State の条件（ワークスペースの読み込みの外で読んだ定義）は評価しない
+            if (pred.states.isNotEmpty()) return null
             val node = getAt(element, pred.path)
             val text = scalarText(node)
             val kind = pred.kind ?: kindAt(pred.path) ?: ValueExpr.OrderKind.NUMBER
