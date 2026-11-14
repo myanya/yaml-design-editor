@@ -33,6 +33,17 @@ object BehaviorChecks {
         /** State の葉（詳細化していなければ自分）。 */
         fun leavesOf(id: String): List<String> = leaves(id, children)
 
+        /** 詳細化した State の子孫（子・孫…。詳細化していなければ空）。 */
+        fun descendantsOf(id: String): Set<String> {
+            val found = linkedSetOf<String>()
+            val stack = ArrayDeque(children[id].orEmpty())
+            while (stack.isNotEmpty()) {
+                val next = stack.removeLast()
+                if (found.add(next)) stack.addAll(children[next].orEmpty())
+            }
+            return found
+        }
+
         /**
          * State の並びを、葉が全部そろった親でまとめる（表示用。「できるのは「未完了」のとき」）。
          * まとめられる親のうち外側を選び、並びは最初に出た位置に置く。

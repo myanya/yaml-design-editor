@@ -284,6 +284,8 @@ internal fun FlowCanvas(
      * architecture/dashboards.md「業務の流れ」）。
      */
     editable: Boolean = true,
+    /** 枠（レーン）の空いた所を押したら、レーンの出力位置を NODE として choose に渡す（業務の流れの群の区画）。 */
+    laneTaps: Boolean = false,
     choose: (FlowElementKind, YPath) -> Unit,
 ) {
     val memory = remember(state.workspace, context) { state.diagramPositions(context) }
@@ -545,6 +547,7 @@ internal fun FlowCanvas(
                             .any { it.bounds.contains(Offset(p.x, p.y)) }
                     } == true || route.points.zipWithNext().any { (a, b) -> nearSegment(p, a, b, 8f / zoom) }
                 }?.let { latestChoose(FlowElementKind.EDGE, it.output) }
+                    ?: if (laneTaps) latestArrangement.lanes.entries.lastOrNull { it.value.contains(p) }?.let { latestChoose(FlowElementKind.NODE, it.key) } else null
             } }) {
             if (editable && memory.grid.enabled) {
                 val boxes = arrangement.nodes.values.map { LensBox(it.x, it.y, it.width, it.height) }

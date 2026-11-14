@@ -69,7 +69,9 @@ internal object PinnedFlow {
         } else {
             val roots = lanes.map { l -> laneSizes.getValue(l.output).let { LensNodeSize(l.key.orEmpty(), it.width, it.height) } } +
                 unassigned.map { n -> sizes.getValue(n.output).let { LensNodeSize(n.key.orEmpty(), it.width, it.height) } }
+            // 線の端が枠（レーン）そのもののこともある（業務の流れの群から出る工程）
             fun rootOf(path: YPath?): Int? = if (path == null) null else laneOf[path]?.let { p -> lanes.indexOfFirst { it.output == p } }
+                ?: lanes.indexOfFirst { it.output == path }.takeIf { it >= 0 }
                 ?: unassigned.indexOfFirst { it.output == path }.takeIf { it >= 0 }?.plus(lanes.size)
             val edges = model.edges.mapNotNull { e -> rootOf(e.from.target)?.let { f -> rootOf(e.to.target)?.let { t -> LensEdgeSpec(f, t) } } }
             val fixed = (lanes.mapIndexedNotNull { i, n -> lanePositions[n.output]?.let { i to LensPoint(it.x, it.y) } } +
@@ -93,7 +95,15 @@ internal object PinnedFlow {
     fun routed(model: FlowModel, labels: Map<YPath, FlowSize>, boxes: Map<YPath, FlowRect>, lanes: Map<YPath, FlowRect>,
                direction: String, previous: FlowArrangement? = null, changed: Set<YPath>? = null): FlowArrangement {
         fun FlowRect.box() = LensBox(x, y, width, height)
+        // 線の端は箱か枠（レーン）。枠から出る線は、枠の縁から出る（枠の中の箱は障害物にしない）
+        val ends = lanes + boxes
         val obstacles = boxes.values.map { LensBox(it.x, it.y, it.width, it.height) }
+        fun obstaclesFor(e: FlowEdge): List<LensBox> {
+            val frames = listOfNotNull(lanes[e.from.target], lanes[e.to.target])
+            if (frames.isEmpty()) return obstacles
+            return boxes.values.filter { b -> frames.none { f -> b.x >= f.x && b.y >= f.y && b.right <= f.right && b.bottom <= f.bottom } }
+                .map { LensBox(it.x, it.y, it.width, it.height) }
+        }
         val oldRoutes = previous?.edges?.associateBy { it.output }.orEmpty()
         val moved = changed.orEmpty().mapNotNull { boxes[it]?.box() }
         val unchanged = if (changed == null) emptyMap() else model.edges.mapNotNull { e ->
@@ -106,16 +116,16 @@ internal object PinnedFlow {
         val parallels = model.edges.groupBy { setOf(it.from.target, it.to.target) }
         fun ordinal(e: FlowEdge) = parallels.getValue(setOf(e.from.target, e.to.target)).indexOf(e)
         val hints = model.edges.mapNotNull { e ->
-            val a = boxes[e.from.target]?.box() ?: return@mapNotNull null
-            val b = boxes[e.to.target]?.box() ?: return@mapNotNull null
+            val a = ends[e.from.target]?.box() ?: return@mapNotNull null
+            val b = ends[e.to.target]?.box() ?: return@mapNotNull null
             val oldA = previous?.nodes?.get(e.from.target)?.box() ?: return@mapNotNull null
             val oldB = previous.nodes[e.to.target]?.box() ?: return@mapNotNull null
             val points = oldRoutes[e.output]?.points?.map { LensPoint(it.x, it.y) }.orEmpty()
             OrthogonalRouting.hint(oldA, oldB, points)?.takeIf { OrthogonalRouting.faces(a, b, it) }?.let { e.output to it }
         }.toMap()
         val ports = model.edges.mapNotNull { e ->
-            val a = boxes[e.from.target]?.box() ?: return@mapNotNull null
-            val b = boxes[e.to.target]?.box() ?: return@mapNotNull null
+            val a = ends[e.from.target]?.box() ?: return@mapNotNull null
+            val b = ends[e.to.target]?.box() ?: return@mapNotNull null
             e.output to (hints[e.output] ?: OrthogonalRouting.preferred(a, b, direction == "right", ordinal(e)))
         }.toMap()
         // 同じ面につながる辺を相手の位置の順で分ける。図中の無関係な辺の番号ではずらさない。
@@ -126,7 +136,7 @@ internal object PinnedFlow {
             if (e.output in hints || e.from.target == e.to.target) return port
             val group = incidents.getValue((if (source) e.from.target else e.to.target) to port.side).sortedBy { (path, from) ->
                 val edge = model.edges.first { it.output == path }
-                val other = boxes[if (from) edge.to.target else edge.from.target]
+                val other = ends[if (from) edge.to.target else edge.from.target]
                 if (port.side.horizontal) other?.center?.y ?: 0f else other?.center?.x ?: 0f
             }
             return port.copy(fraction = .2f + .6f * (group.indexOf(e.output to source) + 1) / (group.size + 1))
@@ -136,10 +146,10 @@ internal object PinnedFlow {
         val usedLabels = unchanged.values.map { it.label.box() }.toMutableList()
         val routes = model.edges.map { e ->
             unchanged[e.output]?.let { return@map it }
-            val a = boxes[e.from.target]; val b = boxes[e.to.target]
+            val a = ends[e.from.target]; val b = ends[e.to.target]
             val p = ports[e.output]?.let { OrthogonalRouting.Ports(allocated(e, true, it.from), allocated(e, false, it.to)) }
             val points = if (a == null || b == null) emptyList() else OrthogonalRouting.route(
-                a.box(), b.box(), obstacles, direction == "right", ordinal(e), p)
+                a.box(), b.box(), obstaclesFor(e), direction == "right", ordinal(e), p)
             val preferred = points.getOrNull(points.size / 2) ?: LensPoint(24f, (obstacles.maxOfOrNull { it.y + it.height } ?: 0f) + 40f)
             val size = labels[e.output] ?: FlowSize(100f, 24f)
             val label = OrthogonalRouting.label(points, LensNodeSize("", size.width + 12f, size.height + 12f), obstacles + usedLabels, preferred)

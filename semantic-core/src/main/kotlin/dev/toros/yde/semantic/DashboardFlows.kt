@@ -25,6 +25,12 @@ data class DashboardMove(val from: String, val action: String, val to: String? =
     val stays: Boolean get() = to == null || to == from
 }
 
+/**
+ * 段の群（枠）: 区画（id）の中に段（steps）を囲む。群から出る工程（from が群の id）は、中のどの段の対象にも当たる。
+ * Lifecycle の詳細化（ADR-0030）の親から作る（区画の filter は「子のどれか」）。
+ */
+data class DashboardFlowGroup(val id: String, val steps: List<String>)
+
 /** 流れの入口: 受け手を持たない操作で、作った対象が入る段。 */
 data class DashboardFlowStart(val action: String, val to: String)
 
@@ -48,11 +54,20 @@ data class DashboardFlow(
     val start: DashboardFlowStart? = null,
     val direction: DashboardFlowDirection = DashboardFlowDirection.RIGHT,
     val history: DashboardHistory? = null,
+    /** 段の群（枠）。群から出る工程は、中の段から出る工程として扱う。 */
+    val groups: List<DashboardFlowGroup> = emptyList(),
 ) {
-    fun movesFrom(step: String): List<DashboardMove> = moves.filter { it.from == step }
+    /** 段を囲む群。 */
+    fun groupsOf(step: String): List<DashboardFlowGroup> = groups.filter { step in it.steps }
+
+    /** 段から出る工程（段を囲む群から出る工程を含む）。 */
+    fun movesFrom(step: String): List<DashboardMove> {
+        val around = groupsOf(step).map { it.id }.toSet()
+        return moves.filter { it.from == step || it.from in around }
+    }
 
     /** 出る工程（別の段へ移す工程）が無い段＝終点。 */
-    fun terminal(step: String): Boolean = moves.none { it.from == step && !it.stays }
+    fun terminal(step: String): Boolean = movesFrom(step).none { !it.stays }
 }
 
 /** 操作の可否（ActionPlanner.availability の写し。画面・CLI がそれぞれのセッションで判定して渡す）。 */
@@ -85,8 +100,13 @@ data class DashboardFlowResult(
     val steps: List<DashboardFlowStepResult>,
     val moves: List<DashboardFlowMoveResult>,
     val startLabel: String? = null,
+    /** 段の群（枠）の区画と件数（終点は持たない）。 */
+    val groups: List<DashboardFlowStepResult> = emptyList(),
 ) {
     fun step(id: String): DashboardFlowStepResult? = steps.firstOrNull { it.section.id == id }
+
+    /** 段か群の区画（工程の from は群のこともある）。 */
+    fun section(id: String): DashboardFlowStepResult? = step(id) ?: groups.firstOrNull { it.section.id == id }
 }
 
 data class DashboardFlowPositionMove(val move: DashboardMove, val label: String, val check: DashboardMoveCheck)
@@ -139,8 +159,14 @@ object DashboardFlows {
         val errors = mutableListOf<String>()
         val sections = dashboard.sections.associateBy { it.id }
         flow.steps.filter { it !in sections }.forEach { errors += "flow.steps の「$it」は区画（sections）の id ではありません" }
+        val groups = flow.groups.map { it.id }.toSet()
+        flow.groups.forEach { g ->
+            if (g.id !in sections) errors += "flow の群「${g.id}」は区画（sections）の id ではありません"
+            if (g.id in flow.steps) errors += "flow の群「${g.id}」は段（steps）とは別の区画にします"
+            g.steps.filter { it !in flow.steps }.forEach { errors += "flow の群「${g.id}」の段「$it」は flow.steps にありません" }
+        }
         flow.moves.forEach { m ->
-            if (m.from !in flow.steps) errors += "flow.moves の from「${m.from}」は flow.steps にありません"
+            if (m.from !in flow.steps && m.from !in groups) errors += "flow.moves の from「${m.from}」は flow.steps にありません"
             if (m.to != null && m.to !in flow.steps) errors += "flow.moves の to「${m.to}」は flow.steps にありません"
         }
         flow.start?.let { if (it.to !in flow.steps) errors += "flow.start.to「${it.to}」は flow.steps にありません" }
@@ -174,6 +200,10 @@ object DashboardFlows {
             val section = sections[step] ?: return@mapNotNull null
             DashboardFlowStepResult(section.definition, if (section.error == null) section.count else null, flow.terminal(step), section.error)
         }
+        val groups = flow.groups.mapNotNull { g ->
+            val section = sections[g.id] ?: return@mapNotNull null
+            DashboardFlowStepResult(section.definition, if (section.error == null) section.count else null, false, section.error)
+        }
         val moves = flow.moves.map { move ->
             val rows = sections[move.from]?.takeIf { it.error == null }?.rows.orEmpty().filter { it.occurrences.isNotEmpty() }
             val ready = mutableListOf<VirtualRow>()
@@ -184,7 +214,7 @@ object DashboardFlows {
             }
             DashboardFlowMoveResult(move, label(move.action) ?: move.action, ready, blocked, rows.drop(limit))
         }
-        return DashboardFlowResult(flow, steps, moves, flow.start?.let { label(it.action) ?: it.action })
+        return DashboardFlowResult(flow, steps, moves, flow.start?.let { label(it.action) ?: it.action }, groups)
     }
 
     /**

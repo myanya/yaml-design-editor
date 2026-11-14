@@ -21,9 +21,11 @@ import kotlin.test.*
  */
 @OptIn(ExperimentalTestApi::class)
 class DashboardFlowUiTest {
-    private fun copyOrders(): Path {
+    private fun copyOrders(): Path = copySample("orders")
+
+    private fun copySample(name: String): Path {
         val root = createTempDirectory("dashboard-flow-ui")
-        val sample = Path.of("samples/orders")
+        val sample = Path.of("samples/$name")
         Files.walk(sample).use { paths -> paths.forEach { source ->
             val relative = sample.relativize(source)
             if (!relative.startsWith(Path.of(".yde/state"))) {
@@ -191,6 +193,37 @@ class DashboardFlowUiTest {
             waitForIdle()
             assertEquals(dev.toros.yde.desktop.UiSpace.DASHBOARD, state.uiSpace)
             assertEquals(saved, state.diagramPositions(context).positions)
+        } finally { cleanup(root) }
+    }
+
+    @Test fun `詳細化した状態は枠になり 枠から出る中止の作業一覧は未完了の全部を対象にし 位置は親の名前を添える`() = runComposeUiTest {
+        // TODO サンプル: 未完了（未着手・対応中・中断）を詳細化した Lifecycle（ADR-0030）
+        val root = copySample("todos")
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            setContent { Box(Modifier.size(1400.dp, 900.dp)) { DashboardPane(state) { id -> DashboardPositionPanel(state, id) } } }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-canvas").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("段か枠を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録").assertExists()
+            // 枠から出る中止の線を押したときと同じ選択: 未完了の 4 件がどれも中止できる
+            runOnIdle { state.memory.dashboardMove["todo-dashboard"] = "todo-ACTIVE|cancel-todo|todo-CANCELED" }
+            waitUntil(timeoutMillis = 10_000) { onAllNodesWithText("いま操作できる（4）").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("TODOを中止する（未完了 → 中止）").assertExists()
+            onNodeWithTag("flow-run-TODO-006").assertExists()
+        } finally { cleanup(root) }
+    }
+
+    @Test fun `業務詳細の位置は 枠の中の段に枠の名前を添え 枠から出る工程も次にできることに出す`() = runComposeUiTest {
+        val root = copySample("todos")
+        val state = AppState()
+        try {
+            state.openWorkspace(root)
+            setContent { Box(Modifier.size(1200.dp, 700.dp)) { DashboardPositionPanel(state, "TODO-006") } }
+            waitUntil(timeoutMillis = 20_000) { onAllNodesWithTag("flow-position").fetchSemanticsNodes().isNotEmpty() }
+            onNodeWithText("いま「未完了 › 中断」にいます").assertExists()
+            onNodeWithTag("flow-next-resume-todo").assertExists()
+            onNodeWithTag("flow-next-cancel-todo").assertExists()
+            onAllNodesWithTag("flow-next-complete-todo").assertCountEquals(0)
         } finally { cleanup(root) }
     }
 }

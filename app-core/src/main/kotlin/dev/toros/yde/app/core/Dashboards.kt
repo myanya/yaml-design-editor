@@ -100,12 +100,21 @@ object Dashboards {
             "blocked" to m.blocked.map { linkedMapOf("id" to it.row.id, "reason" to it.reason) },
             "unchecked" to m.unchecked.map { it.id },
         ) },
-    )
+    ).also { m ->
+        // 段の群（枠）: Lifecycle の詳細化の親。群から出る工程は、中のどの段の対象にも当たる
+        if (result.groups.isNotEmpty()) m["groups"] = result.groups.map { g -> linkedMapOf(
+            "id" to g.section.id, "label" to g.section.label, "count" to g.count?.toIntOrNull(),
+            "steps" to result.flow.groups.firstOrNull { it.id == g.section.id }?.steps.orEmpty(),
+        ) }
+    }
 
     /** 対象 1 件の位置の開示（CLI の view --entity）。 */
     fun positionReport(view: VirtualDashboardDef, position: DashboardFlowPosition): Map<String, Any?> = linkedMapOf(
         "view" to view.id, "kind" to "dashboard-position", "id" to position.id,
         "steps" to position.steps.map { step -> linkedMapOf("id" to step, "label" to view.sections.firstOrNull { it.id == step }?.label) },
+        // いる段を囲む群（枠）
+        "groups" to position.steps.flatMap { view.flow?.groupsOf(it).orEmpty() }.distinct()
+            .map { g -> linkedMapOf("id" to g.id, "label" to view.sections.firstOrNull { it.id == g.id }?.label) },
         "undetermined" to position.undetermined.map { (step, reason) -> linkedMapOf("id" to step, "reason" to reason) },
         "moves" to position.moves.map { m -> linkedMapOf(
             "from" to m.move.from, "action" to m.move.action, "label" to m.label, "to" to m.move.to,

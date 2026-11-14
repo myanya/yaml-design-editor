@@ -35,7 +35,9 @@ internal fun DrawScope.drawFlow(scene: FlowScene, selected: YPath? = null) {
     val (model, arrangement, texts, bodies, edgeVisuals, colors, selectedColor) = scene
     val border = colors.border; val primary = colors.accent; val surface = colors.surface; val subtext = colors.muted
     arrangement.lanes.forEach { (path, r) ->
-        drawRect(border, Offset(r.x, r.y), Size(r.width, r.height), style = Stroke(1f))
+        // 選んだ枠（業務の流れの群の区画）は選択の色で
+        if (path == selected) drawRect(primary, Offset(r.x, r.y), Size(r.width, r.height), style = Stroke(2f))
+        else drawRect(border, Offset(r.x, r.y), Size(r.width, r.height), style = Stroke(1f))
         val header = arrangement.laneHeaders[path]
         texts[path]?.let { drawText(it, topLeft = Offset(header?.x ?: (r.x + 8f), header?.y ?: (r.y + 8f))) }
     }

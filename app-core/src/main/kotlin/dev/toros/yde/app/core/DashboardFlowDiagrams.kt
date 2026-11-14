@@ -5,6 +5,8 @@ import dev.toros.yde.app.view.flow.FlowConnectionState
 import dev.toros.yde.app.view.flow.FlowDetail
 import dev.toros.yde.app.view.flow.FlowEdge
 import dev.toros.yde.app.view.flow.FlowElementKind
+import dev.toros.yde.app.view.flow.FlowLane
+import dev.toros.yde.app.view.flow.FlowLayoutMode
 import dev.toros.yde.app.view.flow.FlowLocation
 import dev.toros.yde.app.view.flow.FlowModel
 import dev.toros.yde.app.view.flow.FlowNode
@@ -26,20 +28,25 @@ data class DashboardFlowDiagram(
     val moves: Map<YPath, DashboardMove>,
     /** 入口のノード（流れに start があり、図に入口を出すとき）。 */
     val start: YPath? = null,
+    /** 段の群（枠）のレーンの出力位置 → 群（区画）の id。 */
+    val groups: Map<YPath, String> = emptyMap(),
 ) {
+    /** 群があれば枠で囲む配置（フロービューの「グループ」）、無ければレーンなし。 */
+    val mode: FlowLayoutMode get() = if (groups.isEmpty()) FlowLayoutMode.PLAIN else FlowLayoutMode.GROUPED
+
     sealed interface Target {
         data class Step(val id: String) : Target
         data class Move(val move: DashboardMove) : Target
         data object Start : Target
     }
 
-    /** 押した要素（ノードか辺の出力位置）の行き先。入口の線は入口へ。 */
+    /** 押した要素（ノードか辺の出力位置。枠はレーンの出力位置）の行き先。入口の線は入口へ、枠は群の区画へ。 */
     fun target(kind: FlowElementKind, output: YPath): Target? = when (kind) {
-        FlowElementKind.NODE -> if (output == start) Target.Start else steps[output]?.let { Target.Step(it) }
+        FlowElementKind.NODE -> if (output == start) Target.Start else (steps[output] ?: groups[output])?.let { Target.Step(it) }
         FlowElementKind.EDGE -> moves[output]?.let { Target.Move(it) } ?: Target.Start.takeIf { start != null && isStartEdge(output) }
     }
 
-    fun stepPath(id: String): YPath? = steps.entries.firstOrNull { it.value == id }?.key
+    fun stepPath(id: String): YPath? = (steps.entries + groups.entries).firstOrNull { it.value == id }?.key
     fun movePath(move: DashboardMove): YPath? = moves.entries.firstOrNull { it.value == move }?.key
 
     private fun isStartEdge(output: YPath): Boolean =
@@ -63,6 +70,11 @@ object DashboardFlowDiagrams {
                     else -> "$name\n${s.count} 件" + if (s.terminal) "（終点）" else ""
                 }
             },
+            group = { id ->
+                val g = result.groups.firstOrNull { it.section.id == id }
+                val name = g?.section?.label ?: id
+                if (g?.count != null) "$name ${g.count} 件" else name
+            },
             move = { m ->
                 val r = moves[m]
                 if (r == null) m.action else {
@@ -80,6 +92,7 @@ object DashboardFlowDiagrams {
                 val name = view.sections.firstOrNull { it.id == id }?.label ?: id
                 if (id in position.steps) "$name\nいまここ" else name
             },
+            group = { id -> view.sections.firstOrNull { it.id == id }?.label ?: id },
             move = { m ->
                 val n = next[m]
                 when {
@@ -91,7 +104,9 @@ object DashboardFlowDiagrams {
     }
 
     /** startLabel は入口の線に載せる操作の名前（入口を出さないなら null）。入口の箱は「入口」で、工程と同じく線が操作を表す。 */
-    private fun build(view: VirtualDashboardDef, startLabel: String?, step: (String) -> String, move: (DashboardMove) -> String): DashboardFlowDiagram {
+    private fun build(
+        view: VirtualDashboardDef, startLabel: String?, step: (String) -> String, group: (String) -> String, move: (DashboardMove) -> String,
+    ): DashboardFlowDiagram {
         val flow = requireNotNull(view.flow) { "ダッシュボード「${view.id}」には流れ（flow）がありません" }
         fun detail(path: YPath) = FlowDetail(null, listOf(FlowLocation(view.source, path)), editable = false)
         val nodes = mutableListOf<FlowNode>()
@@ -101,13 +116,20 @@ object DashboardFlowDiagrams {
             start = listOf("nodes", nodes.size)
             nodes += FlowNode(start, START_KEY, "入口", "box", null, detail(listOf("flow", "start")))
         }
+        // 段の群は枠（レーン）。中の段はその枠に入れ、群から出る工程は枠から出す
+        val lanes = flow.groups.mapIndexed { i, g -> FlowLane(listOf("lanes", i), g.id, group(g.id)) }
+        val groupPaths = lanes.associate { it.output to it.key!! }
+        fun laneOf(id: String): FlowConnection? = flow.groupsOf(id).firstOrNull()?.let { g ->
+            lanes.firstOrNull { it.key == g.id }?.let { FlowConnection(g.id, FlowConnectionState.RESOLVED, it.output) }
+        }
         flow.steps.forEachIndexed { i, id ->
             val path = listOf<Any>("nodes", nodes.size)
             stepPaths[path] = id
-            nodes += FlowNode(path, id, step(id), "rounded", null, detail(listOf("flow", "steps", i)))
+            nodes += FlowNode(path, id, step(id), "rounded", laneOf(id), detail(listOf("flow", "steps", i)))
         }
         fun end(key: String): FlowConnection {
-            val target = if (key == START_KEY) start else stepPaths.entries.firstOrNull { it.value == key }?.key
+            val target = if (key == START_KEY) start
+                else (stepPaths.entries + groupPaths.entries).firstOrNull { it.value == key }?.key
             return FlowConnection(key, if (target != null) FlowConnectionState.RESOLVED else FlowConnectionState.MISSING, target)
         }
         val edges = mutableListOf<FlowEdge>()
@@ -121,6 +143,6 @@ object DashboardFlowDiagrams {
             // 段に留まる工程は、その段への自己ループ（フローの配置が閉路・自己ループをまとめて置く）
             edges += FlowEdge(path, "${m.from}|${m.action}|${m.to.orEmpty()}", move(m), end(m.from), end(m.to ?: m.from), detail(listOf("flow", "moves", i)))
         }
-        return DashboardFlowDiagram(FlowModel(nodes, edges, emptyList()), flow.direction.id, stepPaths, movePaths, start)
+        return DashboardFlowDiagram(FlowModel(nodes, edges, lanes), flow.direction.id, stepPaths, movePaths, start, groupPaths)
     }
 }

@@ -240,9 +240,11 @@ object GraphLayouts {
                     height = dimensions.height.toDouble()
                 }
             }
+            // 線の端は箱か枠（グループのレーン。業務の流れの群から出る工程）。ELK は入れ子の箱から出る線も配置する
+            fun end(path: YPath?): ElkNode? = nodes[path] ?: lanes[path]
             val edges = model.edges.associate { edge ->
-                val from = nodes[edge.from.target]
-                val to = nodes[edge.to.target]
+                val from = end(edge.from.target)
+                val to = end(edge.to.target)
                 edge.output to if (from == null || to == null) null else {
                     ElkGraphUtil.createSimpleEdge(from, to).apply {
                         identifier = edge.key
@@ -302,7 +304,7 @@ object GraphLayouts {
                     // ELK が経路を返さない線（折り返しと閉路が重なるときなど）は、箱を避けた直交線で引く
                     val missing = points.size < 2 && source.from.target != source.to.target
                     if (missing) {
-                        val a = box(nodes[source.from.target]!!); val b = box(nodes[source.to.target]!!)
+                        val a = box(end(source.from.target)!!); val b = box(end(source.to.target)!!)
                         points.clear()
                         points += OrthogonalRouting.route(a.lens(), b.lens(), allBoxes.map { it.lens() }, direction == "right")
                             .map { FlowPoint(it.x, it.y) }

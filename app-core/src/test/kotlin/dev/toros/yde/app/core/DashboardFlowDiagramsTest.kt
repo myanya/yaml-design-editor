@@ -59,4 +59,43 @@ class DashboardFlowDiagramsTest {
         assertEquals(listOf("未着手\nいまここ", "対応中", "完了"), d.model.nodes.map { it.label })
         assertEquals(listOf("着手する（できない）", "メモを書く", "完了する"), d.model.edges.map { it.label })
     }
+
+    @Test
+    fun `段の群は枠になり 中の段は枠に入り 群から出る工程は枠から出て 枠を押すと群の区画を引く`() {
+        val grouped = DashboardFlow(
+            steps = listOf("open", "doing", "done", "dropped"),
+            moves = listOf(DashboardMove("open", "start", "doing"), DashboardMove("doing", "finish", "done"), DashboardMove("active", "drop", "dropped")),
+            start = DashboardFlowStart("register", "open"),
+            groups = listOf(DashboardFlowGroup("active", listOf("open", "doing"))),
+        )
+        val sections = listOf(DashboardSection("active", "未完了", "grid"), DashboardSection("open", "未着手", "grid"),
+            DashboardSection("doing", "対応中", "grid"), DashboardSection("done", "完了", "grid"), DashboardSection("dropped", "中止", "grid"))
+        val v = VirtualDashboardDef("home", "home", null, DocumentId(".yde/views/home.yaml"), sections, flow = grouped)
+        val r = DashboardFlowResult(grouped,
+            listOf(DashboardFlowStepResult(sections[1], "2", false), DashboardFlowStepResult(sections[2], "1", false),
+                DashboardFlowStepResult(sections[3], "5", true), DashboardFlowStepResult(sections[4], "1", true)),
+            listOf(
+                DashboardFlowMoveResult(grouped.moves[0], "着手する", listOf(row("T-1")), emptyList()),
+                DashboardFlowMoveResult(grouped.moves[1], "完了する", emptyList(), emptyList()),
+                DashboardFlowMoveResult(grouped.moves[2], "中止する", listOf(row("T-1"), row("T-2")), emptyList()),
+            ), startLabel = "登録する", groups = listOf(DashboardFlowStepResult(sections[0], "3", false)))
+        val d = DashboardFlowDiagrams.overview(v, r)
+        assertEquals(dev.toros.yde.app.view.flow.FlowLayoutMode.GROUPED, d.mode)
+        val lane = d.model.lanes.single()
+        assertEquals("未完了 3 件", lane.label)
+        // 中の段は枠に入り、外の段・入口は入らない
+        assertEquals(listOf(null, lane.output, lane.output, null, null), d.model.nodes.map { it.lane?.target })
+        // 群から出る工程（中止）は枠から出る
+        val drop = d.model.edges.single { it.label == "中止する 2/2" }
+        assertEquals(lane.output, drop.from.target)
+        assertEquals(FlowConnectionState.RESOLVED, drop.from.state)
+        // 枠を押すと群の区画、群の区画を選ぶと枠が選ばれる
+        assertEquals(DashboardFlowDiagram.Target.Step("active"), d.target(FlowElementKind.NODE, lane.output))
+        assertEquals(lane.output, d.stepPath("active"))
+        // 群が無ければ今までどおりレーンなし
+        assertEquals(dev.toros.yde.app.view.flow.FlowLayoutMode.PLAIN, DashboardFlowDiagrams.overview(view, result).mode)
+        // 位置の図の枠は群の見出し
+        val position = DashboardFlowDiagrams.position(v, DashboardFlowPosition("T-1", listOf("doing"))) { null }
+        assertEquals("未完了", position.model.lanes.single().label)
+    }
 }

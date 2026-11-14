@@ -112,6 +112,41 @@ class FlowLayoutsTest {
     }
 
     @Test
+    fun `枠（グループのレーン）から出る線は枠の縁から相手の箱へ引く（自動配置でも保存した位置でも）`() {
+        // 業務の流れの群: 未着手・対応中・中断を「未完了」の枠に入れ、中止の線は枠から 1 本
+        val fromLane = FlowEdge(listOf("edges", 4), "E4", "TODOを中止する 4/4",
+            FlowConnection("L0", FlowConnectionState.RESOLVED, listOf("lanes", 0)),
+            FlowConnection("N4", FlowConnectionState.RESOLVED, listOf("nodes", 4)), detail)
+        val model = FlowModel(listOf(node(0, "未着手\n2 件", lane = 0), node(1, "対応中\n1 件", lane = 0), node(2, "中断\n1 件", lane = 0),
+                node(3, "完了\n3 件（終点）"), node(4, "中止\n1 件（終点）")),
+            listOf(edge(0, 0, 1, "TODOに着手する 2/2"), edge(1, 1, 2, "TODOを中断する 1/1"), edge(2, 2, 1, "TODOを再開する 1/1"),
+                edge(3, 1, 3, "TODOを完了する 1/1"), fromLane),
+            listOf(FlowLane(listOf("lanes", 0), "L0", "未完了 4 件")))
+        val texts = texts(model)
+        val sizes = texts.mapValues { measure(it.value) }
+        fun onBorder(r: FlowRect, p: FlowPoint) = (kotlin.math.abs(p.x - r.x) < 1f || kotlin.math.abs(p.x - r.right) < 1f) && p.y in r.y - 1f..r.bottom + 1f ||
+            (kotlin.math.abs(p.y - r.y) < 1f || kotlin.math.abs(p.y - r.bottom) < 1f) && p.x in r.x - 1f..r.right + 1f
+        for (direction in listOf("down", "right")) {
+            val auto = GraphLayouts.arrangeFlow(model, sizes, direction, FlowLayoutMode.GROUPED)
+            render(model, auto, texts, "groups-$direction")
+            val lane = auto.lanes.getValue(listOf("lanes", 0))
+            (0..2).forEach { assertTrue(lane.contains(auto.nodes.getValue(listOf("nodes", it)).center), "中の段は枠の中") }
+            val route = auto.edges.single { it.output == fromLane.output }
+            assertTrue(route.points.size >= 2, "$direction: 枠から出る線に経路がある")
+            assertTrue(onBorder(lane, route.points.first()), "$direction: 枠の縁から出る ${route.points.first()} $lane")
+            assertTrue(onBorder(auto.nodes.getValue(listOf("nodes", 4)), route.points.last()), "$direction: 相手の箱の縁に着く")
+            // 保存した位置から組み立てる配置（台帳のフロータブで動かした後）でも同じ
+            val pins = model.nodes.filter { it.lane == null }.associate { it.output to auto.nodes.getValue(it.output).let { r -> FlowPoint(r.x, r.y) } }
+            val pinned = GraphLayouts.arrangeFlow(model, sizes, direction, FlowLayoutMode.GROUPED,
+                pins = pins, lanePositions = mapOf(listOf<Any>("lanes", 0) to FlowPoint(lane.x, lane.y)))
+            render(model, pinned, texts, "groups-pinned-$direction")
+            val pinnedRoute = pinned.edges.single { it.output == fromLane.output }
+            assertTrue(pinnedRoute.points.size >= 2, "$direction: 保存した位置でも経路がある")
+            assertTrue(onBorder(pinned.lanes.getValue(listOf("lanes", 0)), pinnedRoute.points.first()), "$direction: 保存した位置でも枠の縁から出る")
+        }
+    }
+
+    @Test
     fun `空の図と長い鎖を配置できる`() {
         for (mode in FlowLayoutMode.entries) for (direction in listOf("down", "right")) {
             assertTrue(GraphLayouts.arrangeFlow(FlowModel(emptyList(), emptyList(), emptyList()), emptyMap(), direction, mode).nodes.isEmpty())

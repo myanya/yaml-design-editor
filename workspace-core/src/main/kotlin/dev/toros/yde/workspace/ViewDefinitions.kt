@@ -44,6 +44,7 @@ import dev.toros.yde.semantic.DashboardInput
 import dev.toros.yde.semantic.DashboardSection
 import dev.toros.yde.semantic.DashboardFlow
 import dev.toros.yde.semantic.DashboardFlowDirection
+import dev.toros.yde.semantic.DashboardFlowGroup
 import dev.toros.yde.semantic.DashboardFlowStart
 import dev.toros.yde.semantic.DashboardFlows
 import dev.toros.yde.semantic.DashboardHistory
@@ -328,6 +329,7 @@ object ViewDefinitions {
      * Lifecycle から作る流れ（`flow: {lifecycle, view, group, direction}`。ADR-0029）: 段は Lifecycle の State（区画の id は
      * State の ID・見出しは State の表示名・filter は State の判定）、工程は操作による遷移、入口は操作による入口、履歴は
      * Lifecycle の記録。区画（段）は view のグリッドで並べ、group の見出しの群に入れる。
+     * 詳細化した State（ADR-0030）は段を囲む群（枠）と区画になり、群の全部の段から出る工程は群から出る 1 本にまとめる。
      */
     private fun flowFromLifecycle(
         map: Map<*, *>, schemas: List<WorkspaceSchema>, inputs: List<DashboardInput>,
@@ -343,20 +345,41 @@ object ViewDefinitions {
         if (schemas.isEmpty()) error("dashboard.flow.lifecycle「$id」の展開にはスキーマ情報が必要です")
         val catalog = BehaviorChecks.compile(schemas)
         val lifecycle = catalog.lifecycles.firstOrNull { it.id == id } ?: error("dashboard.flow.lifecycle「$id」が見つかりません")
-        val sections = lifecycle.states.map { stateId ->
+        fun section(stateId: String): DashboardSection {
             val state = catalog.states.firstOrNull { it.id == stateId } ?: error("dashboard.flow.lifecycle「$id」の State「$stateId」が見つかりません")
             val predicate = state.predicateRaw ?: error("dashboard.flow.lifecycle「$id」の State「$stateId」の判定の原文がありません")
-            DashboardSection(
+            return DashboardSection(
                 state.id, state.label ?: state.id, view,
                 ActionRequire.parse(predicate, "dashboard.flow.lifecycle の State「$stateId」", setOf("today") + inputs.map { it.key }, hasStart = true),
                 group = group,
             )
         }
-        val moves = lifecycle.transitions.mapNotNull { t -> (t.by as? TransitionCause.Action)?.let { DashboardMove(t.from, it.id, t.to) } }.distinct()
+        val leaves = lifecycle.states
+        // 詳細化の親（ADR-0030）: 葉が全部この流れにある、いちばん外側の親が段の群（枠）になり、区画（子のどれか）も作る。
+        // 入れ子の詳細化は外側の親だけを枠にする（内側の親は枠にしない）
+        val parents = catalog.children.keys.filter { p -> catalog.leavesOf(p).let { it.isNotEmpty() && it.all { leaf -> leaf in leaves } } }
+        val outer = parents.filter { p -> parents.none { o -> o != p && p in catalog.descendantsOf(o) } }
+            .sortedBy { p -> catalog.leavesOf(p).minOf { leaves.indexOf(it) } }
+        val groups = outer.map { p -> DashboardFlowGroup(p, leaves.filter { it in catalog.leavesOf(p) }) }
+        // 区画の並び: 群の区画は、その最初の段の前に置く
+        val groupAt = groups.associateBy { it.steps.first() }
+        val sections = leaves.flatMap { leaf -> listOfNotNull(groupAt[leaf]?.let { section(it.id) }, section(leaf)) }
+        // 工程: 群の全部の段から同じ操作で同じ外の段へ移る工程は、群から出る 1 本にまとめる（出口で狭めていない移り方）
+        val moves = lifecycle.transitions.mapNotNull { t -> (t.by as? TransitionCause.Action)?.let { DashboardMove(t.from, it.id, t.to) } }
+            .distinct().toMutableList()
+        groups.forEach { g ->
+            moves.filter { it.from in g.steps && it.to !in g.steps }.groupBy { it.action to it.to }
+                .filterValues { list -> list.map { it.from }.toSet() == g.steps.toSet() }
+                .forEach { (key, list) ->
+                    val at = moves.indexOf(list.first())
+                    moves.removeAll(list)
+                    moves.add(at.coerceAtMost(moves.size), DashboardMove(g.id, key.first, key.second))
+                }
+        }
         val start = lifecycle.entry.firstNotNullOfOrNull { e -> (e.by as? TransitionCause.Action)?.let { DashboardFlowStart(it.id, e.to) } }
         val history = lifecycle.history?.let { DashboardHistory(it.path) }
         val direction = map["direction"]?.let { DashboardFlowDirection.parse(it as? String, "dashboard.flow.direction") } ?: DashboardFlowDirection.RIGHT
-        return DashboardFlow(lifecycle.states, moves, start, direction, history) to sections
+        return DashboardFlow(leaves, moves, start, direction, history, groups) to sections
     }
 
 

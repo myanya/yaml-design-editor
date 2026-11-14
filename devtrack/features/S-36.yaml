@@ -1,5 +1,5 @@
 id: S-36
-title: Lifecycle の State の詳細化（`refinements`＝親の中の流れを同じ ID で別に書く・入口は原因ごと・`exits` は狭めるだけ・展開した流れを操作と業務の流れが使う）
+title: Lifecycle の State の詳細化（`refinements`＝親の中の流れを同じ ID で別に書く・入口は原因ごと・`exits` は狭めるだけ・展開した流れを操作と業務の流れが使う・業務の流れでは親を枠と区画にし全部の子から出る工程を枠から 1 本に・位置に「親 › 子」）
 implementation:
 - path: semantic-core/schema/Behavior.kt
   module: semantic-core
@@ -7,8 +7,23 @@ implementation:
   module: workspace-core
 - path: workspace-core/workspace/ActionPlanner.kt
   module: workspace-core
+- path: workspace-core/workspace/ViewDefinitions.kt
+  detail: '`flowFromLifecycle`'
+  module: workspace-core
+- path: semantic-core/semantic/DashboardFlows.kt
+  detail: '`DashboardFlowGroup`'
+  module: semantic-core
+- path: app-core/core/DashboardFlowDiagrams.kt
+  module: app-core
+- path: ui/view/DashboardFlowPane.kt
+  module: desktop
 tests:
 - name: LifecycleRefinementTest
+- name: DashboardFlowsTest
+- name: DashboardFlowDiagramsTest
+- name: FlowLayoutsTest
+- name: DashboardFlowUiTest
+  kind: ui
 design:
 - label: schema
   link: architecture/schema.md

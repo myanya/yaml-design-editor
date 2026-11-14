@@ -66,4 +66,35 @@ class DashboardFlowsTest {
         // 同じ操作が段ごとに違う移り先を持つ（取消は未処理からも対応中からも）
         assertEquals(listOf<String?>("dropped"), DashboardFlows.declaredTargets(d, listOf("doing"), "drop"))
     }
+
+    @Test
+    fun `段の群から出る工程は中のどの段からも出る工程になり 群の区画と段の整合を点検する`() {
+        // 未完了（open・doing を囲む群）から出る中止は 1 本
+        val grouped = DashboardFlow(
+            steps = listOf("open", "doing", "done", "dropped"),
+            moves = listOf(
+                DashboardMove("open", "start", "doing"),
+                DashboardMove("doing", "finish", "done"),
+                DashboardMove("active", "drop", "dropped"),
+            ),
+            start = DashboardFlowStart("register", "open"),
+            groups = listOf(DashboardFlowGroup("active", listOf("open", "doing"))),
+        )
+        val d = VirtualDashboardDef("home", "home", null, DocumentId(".yde/views/home.yaml"),
+            listOf("active", "open", "doing", "done", "dropped").map { DashboardSection(it, it, "grid") }, flow = grouped)
+        assertEquals(emptyList(), DashboardFlows.lint(d))
+        assertEquals(listOf("start", "drop"), grouped.movesFrom("open").map { it.action })
+        assertEquals(listOf("finish", "drop"), grouped.movesFrom("doing").map { it.action })
+        assertEquals(listOf("active"), grouped.groupsOf("doing").map { it.id })
+        assertTrue(grouped.groupsOf("done").isEmpty())
+        assertFalse(grouped.terminal("open"))
+        assertTrue(grouped.terminal("dropped"))
+        // 群から出る工程は、中の段からの移り先の予告にも入る
+        assertEquals(listOf<String?>("dropped"), DashboardFlows.declaredTargets(d, listOf("doing"), "drop"))
+        // 群は区画で、段とは別。中の段は flow.steps にあること
+        val noSection = d.copy(sections = d.sections.filter { it.id != "active" })
+        assertTrue(DashboardFlows.lint(noSection).any { "群「active」は区画" in it }, DashboardFlows.lint(noSection).toString())
+        val strayStep = d.copy(flow = grouped.copy(groups = listOf(DashboardFlowGroup("active", listOf("open", "nowhere")))))
+        assertTrue(DashboardFlows.lint(strayStep).any { "nowhere" in it })
+    }
 }

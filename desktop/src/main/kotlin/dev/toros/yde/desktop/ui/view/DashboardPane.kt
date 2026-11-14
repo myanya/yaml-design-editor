@@ -74,7 +74,8 @@ fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit)
         // 流れ図を畳んだら、段の区画はタイルの並びに戻し、工程の作業一覧も出さない（工程の選択は覚えたまま、開けば戻る）
         val flowShown = flow != null && state.memory.dashboardFlowCollapsed[view.id] != true
         val move = if (!flowShown) null else state.memory.dashboardMove[view.id]?.let { key -> flow?.moves?.firstOrNull { moveKey(it.move) == key } }
-        val inFlow = if (flowShown) flow?.flow?.steps?.toSet().orEmpty() else emptySet()
+        // 段の群（枠）の区画も流れ図に出す（枠を押すとその一覧）
+        val inFlow = if (flowShown) flow?.flow?.let { it.steps + it.groups.map { g -> g.id } }?.toSet().orEmpty() else emptySet()
         val entity = state.dashboardEntityId
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (entity != null) {

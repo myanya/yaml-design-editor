@@ -1,5 +1,8 @@
 package dev.toros.yde.workspace
 
+import dev.toros.yde.semantic.DashboardFlowGroup
+import dev.toros.yde.semantic.DashboardFlows
+import dev.toros.yde.semantic.DashboardMove
 import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.patch.PatchOp
@@ -126,9 +129,21 @@ class LifecycleRefinementTest {
             listOf(DocumentId(".yde/views/home.yaml") to dashboard, DocumentId(".yde/views/tasks.yaml") to grid), s.schemas,
         )
         assertTrue(catalog.errors.isEmpty(), catalog.errors.toString())
-        val flow = assertNotNull(catalog.dashboards.single().flow)
+        val home = catalog.dashboards.single()
+        val flow = assertNotNull(home.flow)
         assertEquals(listOf("task-new", "task-doing", "task-paused", "task-done", "task-dropped"), flow.steps)
         assertEquals("create-task", flow.start?.action)
+        // 詳細化の親は段を囲む群（枠）になり、区画（子のどれか）もできる。区画は最初の子の前
+        assertEquals(listOf(DashboardFlowGroup("task-open", listOf("task-new", "task-doing", "task-paused"))), flow.groups)
+        assertEquals(listOf("task-open", "task-new", "task-doing", "task-paused", "task-done", "task-dropped"), home.sections.map { it.id })
+        assertEquals("未完了", home.sections.first().label)
+        // 全部の子から出る中止は群から出る 1 本、出口で狭めた完了は対応中から
+        assertEquals(listOf(DashboardMove("task-open", "drop-task", "task-dropped")), flow.moves.filter { it.action == "drop-task" })
+        assertEquals(listOf(DashboardMove("task-doing", "finish-task", "task-done")), flow.moves.filter { it.action == "finish-task" })
+        assertEquals(listOf("finish-task", "drop-task", "start-task", "pause-task", "resume-task").sorted(), flow.moves.map { it.action }.sorted())
+        // 中断から出られるのは、中の再開と、群から出る中止
+        assertEquals(listOf("drop-task", "resume-task"), flow.movesFrom("task-paused").map { it.action }.sorted())
+        assertEquals(emptyList(), DashboardFlows.lint(home))
     }
 
     @Test

@@ -41,14 +41,26 @@ internal fun moveKey(m: DashboardMove): String = "${m.from}|${m.action}|${m.to.o
  * ダッシュボードの流れ図と業務詳細の位置の図は読むだけ（editable = false）。文書に埋め込んだフロー図と台帳のフロータブの関係と同じ。
  */
 
-/** 業務の流れの図の位置の記録の見分け（図＝ダッシュボード ID、条件＝表示モード plain と定義の向き）。3 つの図で共有する。 */
+/**
+ * 業務の流れの図の位置の記録の見分け（図＝ダッシュボード ID、条件＝表示モードと定義の向き）。3 つの図で共有する。
+ * 表示モードは、段の群（枠）があればグループ、無ければレーンなし（DashboardFlowDiagram.mode と同じ）。
+ */
 internal fun dashboardFlowContext(view: VirtualDashboardDef): DiagramContext = DiagramContext(
     mapOf("kind" to "dashboard-flow", "view" to view.id),
-    mapOf("mode" to listOf(FlowLayoutMode.PLAIN.name.lowercase()), "direction" to listOf(view.flow?.direction?.id ?: "right")),
+    mapOf("mode" to listOf(dashboardFlowMode(view).name.lowercase()), "direction" to listOf(view.flow?.direction?.id ?: "right")),
 )
 
+internal fun dashboardFlowMode(view: VirtualDashboardDef): FlowLayoutMode =
+    if (view.flow?.groups.isNullOrEmpty()) FlowLayoutMode.PLAIN else FlowLayoutMode.GROUPED
+
+/** 段の見出しに、囲む群（枠）の見出しを添える（「未完了 › 中断」）。 */
+internal fun dashboardStepPath(view: VirtualDashboardDef, step: String): String {
+    fun label(id: String) = view.sections.firstOrNull { it.id == id }?.label ?: id
+    return (view.flow?.groupsOf(step).orEmpty().map { label(it.id) } + label(step)).joinToString(" › ")
+}
+
 /**
- * ダッシュボードの流れ図。段を押すと区画の一覧、工程の線を押すと作業一覧、入口を押すと登録の操作。
+ * ダッシュボードの流れ図。段を押すと区画の一覧（枠を押すと群の区画の一覧）、工程の線を押すと作業一覧、入口を押すと登録の操作。
  * 見出しで畳める（区画の群と同じ見出し・同じ覚え方。畳むと段の区画はタイルの並びに戻る）。
  */
 @Composable
@@ -67,14 +79,15 @@ internal fun DashboardFlowOverview(
             }
             Spacer(Modifier.width(8.dp))
             Text(if (collapsed) "畳んでいる間は、段の区画を下のタイルに並べます"
+                else if (result.flow.groups.isNotEmpty()) "段か枠を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録"
                 else "段を押すとその一覧、工程の線を押すと作業一覧、入口を押すと登録", fontSize = 11.sp, color = Palette.SubText,
                 modifier = Modifier.weight(1f))
             // 文書に埋め込んだフロー図と同じく、台帳のフロータブで大きく開く（箱の位置はそこで編集する）
             if (!collapsed) TextButton(onClick = { state.openFlowView(view.id) }) { Text("拡大表示（配置の編集）", fontSize = 11.sp) }
         }
-        if (!collapsed) FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, selected,
+        if (!collapsed) FlowCanvas(state, diagram.model, diagram.direction, diagram.mode, selected,
             Modifier.fillMaxWidth().height(300.dp).testTag("dashboard-flow"),
-            dashboardFlowContext(view), editable = false) { kind, path ->
+            dashboardFlowContext(view), editable = false, laneTaps = true) { kind, path ->
             when (val target = diagram.target(kind, path)) {
                 is DashboardFlowDiagram.Target.Step -> { state.memory.dashboardSection[view.id] = target.id; state.memory.dashboardMove.remove(view.id) }
                 is DashboardFlowDiagram.Target.Move -> state.memory.dashboardMove[view.id] = moveKey(target.move)
@@ -93,7 +106,7 @@ private fun total(r: DashboardFlowMoveResult): Int = r.ready.size + r.blocked.si
  */
 @Composable
 internal fun ColumnScope.MoveBody(state: AppState, result: DashboardFlowResult, move: DashboardFlowMoveResult) {
-    fun label(step: String) = result.step(step)?.section?.label ?: step
+    fun label(step: String) = result.section(step)?.section?.label ?: step
     val from = label(move.move.from)
     val to = move.move.to?.let(::label)
     Text("${move.label}（$from → ${to ?: "$from のまま"}）", Modifier.padding(start = 12.dp, top = 12.dp, end = 12.dp), fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -163,14 +176,15 @@ fun DashboardPositionPanel(state: AppState, id: String) {
                 state.memory.dashboardPositionCollapsed[view.id] = !collapsed
             }
             Spacer(Modifier.width(8.dp))
-            Text(if (position.steps.isEmpty()) "どの段にいるか判定できません" else "いま「${position.steps.joinToString("・") { label(it) }}」にいます",
+            Text(if (position.steps.isEmpty()) "どの段にいるか判定できません"
+                else "いま「${position.steps.joinToString("・") { dashboardStepPath(view, it) }}」にいます",
                 fontSize = 12.sp, color = if (position.steps.isEmpty()) Palette.WarnOrange else Palette.Primary)
         }
         position.undetermined.forEach { (step, reason) -> Text("「${label(step)}」は判定できません: $reason", fontSize = 11.sp, color = Palette.WarnOrange) }
         if (collapsed) return@Column
         Spacer(Modifier.height(6.dp))
         // いまいる段を選択の色で示す。いまの段から出る工程の線を押すとその操作、できない工程は理由を知らせる
-        FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, position.steps.firstOrNull()?.let(diagram::stepPath),
+        FlowCanvas(state, diagram.model, diagram.direction, diagram.mode, position.steps.firstOrNull()?.let(diagram::stepPath),
             Modifier.fillMaxWidth().height(260.dp),
             dashboardFlowContext(view), editable = false) { kind, path ->
             val target = diagram.target(kind, path) as? DashboardFlowDiagram.Target.Move ?: return@FlowCanvas
@@ -223,7 +237,7 @@ internal fun DashboardFlowEditor(state: AppState, view: VirtualDashboardDef, cat
         }
         if (flow == null) { Text("業務の流れを解決できません", color = Palette.ErrorRed); return@Column }
         val diagram = remember(view, flow) { DashboardFlowDiagrams.overview(view, flow) }
-        FlowCanvas(state, diagram.model, diagram.direction, FlowLayoutMode.PLAIN, selected, Modifier.weight(1f).fillMaxWidth().testTag("dashboard-flow-editor"),
+        FlowCanvas(state, diagram.model, diagram.direction, diagram.mode, selected, Modifier.weight(1f).fillMaxWidth().testTag("dashboard-flow-editor"),
             dashboardFlowContext(view)) { _, path -> selected = path }
     }
 }
