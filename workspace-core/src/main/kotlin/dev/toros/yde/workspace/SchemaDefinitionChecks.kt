@@ -92,6 +92,13 @@ object SchemaDefinitionChecks {
         val phases = tree.phases
         val issues = mutableListOf<SchemaIssue>()
         issues += filePatternIssues(schema)
+        // 定義の索引の種類（yde-*）は業務モデルの定義が定義の出現を持つ。利用者は詳細化（defines: false）としてだけ宣言できる
+        (entities + definitions.values.mapNotNull { it.entity } + listOfNotNull(root.entity))
+            .filter { it.defines && it.type.startsWith(DefinitionIndex.PREFIX) }
+            .map { it.type }.distinct()
+            .forEach { type ->
+                issues += SchemaIssue("エンティティ型「$type」は業務モデルの定義の種類です（定義の出現は YDE が作ります）。defines: false の詳細化として宣言します", "entity")
+            }
         if (name.isBlank()) issues += SchemaIssue("スキーマ名が空です", "name")
         if (id.isBlank()) issues += SchemaIssue("スキーマIDが空です", "id")
         val deriveDef = derive

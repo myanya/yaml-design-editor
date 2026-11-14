@@ -23,6 +23,9 @@
 | 表記 | 引用符・リテラル・フロー表記・コメントのような書き方の情報で、値の意味を決めない | 構文木の trivia・書式 | [architecture/yaml-model.md「コメントと表記の保持」](architecture/yaml-model.md) |
 | 出現 | ある ID の要素が 1 つの文書に書かれた 1 か所で、同じ ID は複数の文書に出現してよい | — | [architecture/index-references.md「ID と参照の意味」](architecture/index-references.md) |
 | 定義出現 | 同じ ID の出現のうち要素を定義する側（ほかは詳細化の出現）で、表示とジャンプはこれを優先する | 主キーを持つ行 | [architecture/index-references.md「ID と参照の意味」](architecture/index-references.md) |
+| 定義の索引 | 業務モデルの定義（操作・State・Lifecycle・エンティティ型・名前を付けた前提）を、定義を書いた場所の定義出現として索引に載せたもの。種類は `yde-*` | シンボルテーブル | [architecture/index-references.md「ID と参照の意味」](architecture/index-references.md) |
+| 業務モデルの項 | スキーマに分けて書いた業務モデルを、生成が読める 1 つの YAML に展開したもの。操作の効果は do・Lifecycle・自動の値を 1 列にまとめる | 中間表現 | [manual/generate.md「業務モデルを展開した形」](manual/generate.md) |
+| 生成物 | 生成の定義が業務モデルから作った文書。先頭の見出しで見分け、手で直さず作り直す | コード生成の出力 | [manual/generate.md](manual/generate.md) |
 | 詳細化 | 同じ ID を別の文書にもう一度書いて中身を足すこと（段階的詳細化）で、重複の誤りにしない | 部分クラス（partial class） | [architecture/index-references.md「段階的詳細化の規約」](architecture/index-references.md) |
 | アスペクト | 出現が受け持つエンティティの側面の名前（`entity.aspect`）で、全体像は出現をアスペクトごとに並べて 1 枚にする | 部分ビュー・ファセット | [architecture/graph-query.md「エンティティページ」](architecture/graph-query.md) |
 | 索引の二層 | 保存済みの内容から作る索引（ディスク索引）と、未保存の編集を重ねた索引を分けて持つこと | 確定済みのスナップショットと作業中の差分 | [architecture/index-references.md「索引の二層」](architecture/index-references.md) |

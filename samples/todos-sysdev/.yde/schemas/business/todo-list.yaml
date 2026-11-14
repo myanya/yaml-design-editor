@@ -1,0 +1,24 @@
+id: todo-list
+name: TODO一覧
+kind: document
+description: ID・タイトル・概要・カテゴリを管理する一覧。個票と同じIDを使用します。
+match: todos/todo-list.yaml
+# 行の形（オブジェクト型 TODO一覧の行）が同一性（エンティティ todo の定義）を持つので、スキーマの entity は要りません
+root:
+  type: object
+  fields:
+    - key: todos
+      label: TODO一覧
+      type: array
+      default: []
+      display: table
+      item: { type: common#TODO一覧の行 }
+# TODO は「TODOを登録する」で一覧の行と個票を一緒に作る。一覧だけの TODO（個票の無い TODO）は作らない
+# （システムでは一覧と個票が 1 つのレコードになるので、個票の無い途中の状態を持たない）
+constraints:
+  - id: has-detail
+    description: 一覧のTODOには個票があること
+    match: [{ node: { entity: todo, bind: t } }]
+    check: [{ gte: [{ occurrenceCount: { of: t, schema: todo-detail } }, 1] }]
+    level: error
+    message: "TODO「{id}」に個票がありません（TODOは「TODOを登録する」で一覧と個票を一緒に作ります）"

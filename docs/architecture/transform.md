@@ -30,6 +30,7 @@
   | `{$date: ひな型, $as: 形}` | 年月日をそろえる（`2021/8/21`・`20210821`・`2021年8月21日` → `yyyy-MM-dd`。`$as` は y・M・d と区切りの形。読めなければ「無い」。`SemanticExpression.readDate` / `formatDate`） |
   | `{$number: ひな型, $as: 形}` | 数として読む（桁区切り・通貨記号・全角・`▲` の負を許す。値の式の `number` と同じ `SemanticExpression.numberOf`。整数は YAML を読んだときと同じ Int / Long）。`$as` は DecimalFormat の形（`00`・`#,##0`）で、その形の文字にする（連番の 0 詰め） |
   | `{$trim: ひな型}` | 前後の空白を落とし、続く空白（全角も）を 1 つに（`SemanticExpression.squashSpaces`。空なら「無い」） |
+  | `{$case: ひな型, $as: 書き方}` | 名前の書き方をそろえる（`schema.NameCase`。camel・pascal・snake・kebab・constant。語は英数字以外の文字と大文字の境目で分け、英語の文法は入れない） |
   | `{$value: 値の式}` | 値の式（`ValueExpr`。検査の `check`・ビューの列と同じ書き方）をいまの場所で計算する。いまの場所と、式が `of` で指す束縛の要素だけを読める合成の環境（仮の文書名）で `SemanticValues` を呼ぶ。グラフ・項目の型は無いので `all` / `refCount` / `occurrenceCount` は「無い」、順序の種類は `type` で宣言する。数の結果は数の項・配列は配列の項・それ以外は文字 |
   | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index`＝0 始まり / `$position`＝1 始まり / `$key`。`no` は YAML が真偽値に読むので名前にしない）。`$each` の源には `{$view: ID, $where}` も書け、ビューの行を 1 行ずつ場所にする（レポート。`Template.Each.rows`） |
   | `$bind: 名前`（繰り返しに添える） | 現在の要素を名前付きの場所として、その `$build` の中で `$of` / `of` から読む |
@@ -39,6 +40,7 @@
   | `{$concat: [ひな型, …]}` | 配列をつなげる |
   | `{$when: 条件, $then: ひな型}`・マップに `$when` を添える | 条件に合うときだけ出す |
 
+- 呼び出し側が渡す名前の付いた場所（`TransformDef.places`。生成の `model` と `element`）も `$of` で読める。宣言していない名前は、クエリの束縛名と同じく定義の誤り。条件の比べる値には、決まった値・受け取った値のほかに、別の場所の値（`{$copy: パス, $of: 名前}`）を書ける。
 - 場所の指定には `$of: 束縛名`（省略＝いまの場所）と `$in: {schemaId, fileGlob}`（どの文書の出現から読むか。定義した側を優先して 1 つ）を添えられる。文字列 `$名前` は受け取った値、`$$` は文字 `$`。条件はクエリの `where` と同じ書き方で、`path: $名前` は場所の値の代わりに受け取った値・繰り返しの番号を比べる（条件の `param`。例 `{path: $index, gt: 0}`）。値が得られず決められない条件は成り立たない。
 - **必ず終わる**: 同じ規則を同じ場所に当てている最中にもう一度同じ規則を同じ場所に当てると定義エラー。規則は `$at`・`$each`・`$eachEntry`・`$zip` で入力の木の子へ向かって当てる。
 - **出どころ**: `TransformResult` は組み立てた項と、出力の場所 → 入力の文書と場所の一覧を持つ。`$concat` でつなげた配列も、つなげた後の番号で入力の場所を指す。fromを使った場合はクエリ結果も保持し、消費側で打切り・未解決経路を開示できる。
@@ -48,6 +50,19 @@
 - **既存の共有部品を使う**: クエリは `SemanticQuery.run`、値の条件は `SemanticExpression.test` / `isEmpty`、文字のひな型と辞書は `Projection`、出現の選び方は `SemanticExpression.preferDefining`。
 - **使いどころ**: CLI `transform <workspace> <定義.yaml> [--input] [--param] [--origins]`（定義に `builtin:structural-schema` と書くと組込みの定義）・構造のスキーマの導出（[schema.md「構造スキーマの導出」](schema.md)）・スキーマの `scaffold`（新しい文書のひな型の中身）・skill の取り込みの `build`（表の行か JSON の要素を項にして当てる。行の番号は `run` の `loop` で `$index` / `$position` に。取り込み先と採番の接頭辞も同じひな型）と書き出しの `build`（文書ごとに JSON の値を組み立てる。番号の位置 `output.index` と空き `output.fill` も同じひな型。[agents.md「skill」](agents.md)）。
 - 拡張と応用（繰り返しの源にクエリ・値の式をひな型の指示として・利用者の変換定義の置き場・Markdown への派生）は ROADMAP の変換のテーマ。
+
+## 生成（業務モデルから文書へ）
+
+業務モデルを展開した項（`BusinessModel`）を入力に変換を当て、作った YAML を生成物の文書として書く（ADR-0031）。
+
+| 部品 | ファイル | 責務 |
+|---|---|---|
+| `BusinessModel` | workspace-core/workspace/BusinessModel.kt | スキーマに分けて書いた業務モデルを 1 つの項に展開する（`entities`・`actions`・`states`・`lifecycles`）。操作の効果は do・Lifecycle・自動の値を 1 列に |
+| `Generators` / `GeneratorDef` / `GenerationPlan` | workspace-core/workspace/Generators.kt | 生成の定義（transforms ゾーン）の読み込み・計画（作る・作り直す・消す・変わらない）・セッションの 1 トランザクション |
+| CLI `generate` | cli/commands/GenerateCommands.kt | 計画・検証・書き込み・最新かの検査・業務モデルの項の表示（引数を写すだけ） |
+
+- **流れ**: `Generators.plan` → 定義ごとに `each` の要素へ `SemanticTransform.runAt`（場所 `model` と `element` を渡す）→ `output` を `TextTemplate.render` で埋める → 見出しのコメントを付けて文字にし、保存済みの内容と比べる → `WorkspaceTransaction`（作成・置き換え・削除）。
+- **規律**: 生成物は原本ではない（原本は業務モデルと生成の定義）。見出し（`Generators.marker`）で見分け、見出しの無い文書は消さない。書き込みはセッションの取引だけで、検証・保存は今までの経路。業務モデルの項に設計の規則（表や URL の決め方）を入れない（規則は生成の定義に書く）。定義の種類（`yde-*`）を詳細化する文書のスキーマは、業務のエンティティ型として数えない。
 
 ## レポート（YAML から文字へ）
 

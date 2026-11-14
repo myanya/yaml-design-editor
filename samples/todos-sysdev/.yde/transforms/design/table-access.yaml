@@ -1,0 +1,93 @@
+id: table-access
+name: テーブルアクセス設計書（Repository）
+description: >-
+  エンティティ型ごとに Mapper を 1 つ作り、その型を主体にする操作ごとの読み書きを文の組み立て（表・列・値・条件）で書く。
+  SQL の文字は、この組み立てから作る（MyBatis の XML。③で）。決め打ちの規則（表と列の名前は仮。データの筋で決める）:
+  表＝型の名前のスネーク・ID の無い繰り返し（コメント・履歴）は「型_項目」の子の表・参照の並び（タグ）も「型_項目」の表・
+  要素がエンティティの並び（作業項目）はその型の表・列＝項目のキー・受け取った値は $名前（MyBatis では #{名前}）
+each: entities
+output: "design/generated/table-access/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $format: "{label}の読み書き" }
+  table: { $case: { $copy: id }, $as: snake }
+  mapper: { $format: "{name}Mapper", $with: { name: { $case: { $copy: id }, $as: pascal } } }
+  accesses:
+    $each: actions
+    $of: model
+    $bind: a
+    $build:
+      $when: [{ path: subject, equals: { $copy: id, $of: element } }]
+      operation: { $copy: id }
+      method: { $case: { $copy: id }, $as: camel }
+      statements:
+        $concat:
+          # 受け手を読む
+          - $when: [{ path: target.entity, exists: true }]
+            $then:
+              - kind: select
+                table: { $case: { $copy: subject }, $as: snake }
+                where: [{ column: id, value: $$id }]
+          # 業務モデルの前提: 条件を SQL に写す規則は、前提の形ごとに決める（いまは写さず、手で書く印を付ける）
+          - $each: require
+            $build:
+              $when: [{ path: id, exists: true }]
+              kind: check
+              precondition: { $format: "{action}.{rule}", $with: { action: { $copy: id, $of: a }, rule: { $copy: id } } }
+              sql: 手で書く（前提の形から SQL へ写す規則は、まだ無い）
+          # 書く: この型の項目への効果を 1 つずつ文にする（同じ表への書き込みを 1 文にまとめる計算は、まだ無い）
+          - $each: effects
+            $apply: write
+rules:
+  # 一覧へ要素を足す・文書を作る（その型の表へ 1 行）
+  - id: write
+    when: [{ path: op, equals: create }]
+    build:
+      kind: insert
+      table: { $case: { $copy: entity }, $as: snake }
+      values: { $copy: values }
+  - id: write
+    when: [{ path: field.item.entity, exists: true }, { path: op, equals: insert }]
+    build:
+      kind: insert
+      table: { $case: { $copy: field.item.entity }, $as: snake }
+      values: { $first: [{ $copy: value }, { $copy: params }] }
+      source: { $copy: source }
+  # ID の無い繰り返し・参照の並びへ 1 行足す（子の表）
+  - id: write
+    when: [{ path: op, equals: insert }, { path: field.base, equals: array }]
+    build:
+      kind: insert
+      table: { $format: "{type}_{key}", $with: { type: { $case: { $copy: entity }, $as: snake }, key: { $copy: field.key } } }
+      values: { $copy: value }
+      source: { $copy: source }
+  # 繰り返しを丸ごと置き換える（子の表の行を消して入れ直す）
+  - id: write
+    when: [{ path: op, equals: set }, { path: field.base, equals: array }]
+    build:
+      kind: replace
+      table: { $format: "{type}_{key}", $with: { type: { $case: { $copy: entity }, $as: snake }, key: { $copy: field.key } } }
+      values: { $copy: value }
+      source: { $copy: source }
+  # 列を書く・消す
+  - id: write
+    when: [{ path: op, equals: set }]
+    build:
+      kind: update
+      table: { $case: { $copy: entity }, $as: snake }
+      set: [{ column: { $copy: path }, value: { $copy: value } }]
+      where: [{ column: id, value: $$id }]
+      source: { $copy: source }
+  - id: write
+    when: [{ path: op, equals: delete }, { path: field.base, equals: array }]
+    build:
+      kind: delete
+      table: { $format: "{type}_{key}", $with: { type: { $case: { $copy: entity }, $as: snake }, key: { $copy: field.key } } }
+      where: [{ column: { $format: "{type}_id", $with: { type: { $case: { $copy: entity }, $as: snake } } }, value: $$id }]
+  - id: write
+    when: [{ path: op, equals: delete }]
+    build:
+      kind: update
+      table: { $case: { $copy: entity }, $as: snake }
+      set: [{ column: { $copy: path }, value: null }]
+      where: [{ column: id, value: $$id }]

@@ -98,7 +98,9 @@ object Readiness {
         }
 
         val withheldById = withheld.groupingBy { it.second.subjectId }.eachCount()
+        // 業務モデルの定義（定義の索引の yde-*）は台帳の要素ではないので、準備の状況には数えない
         val entities = ws.index.graph.entities.values
+            .filter { it.entityType?.startsWith(dev.toros.yde.workspace.DefinitionIndex.PREFIX) != true }
             .sortedBy { it.id }
             .map { node ->
                 val anchor = node.defining ?: node.occurrences.firstOrNull()

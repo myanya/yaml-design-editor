@@ -1,0 +1,21 @@
+id: status-rule
+name: 状態の判定（処理設計書）
+kind: document
+description: 詳細設計。Lifecycle 1 つから、状態の enum（保存する値）・詳細化の親の判定・操作ごとにできる状態と移り先を作る。生成物（.yde/transforms/design/status-rules.yaml）で、手で直さない
+match: "design/generated/status/*.yaml"
+entity: { type: yde-lifecycle, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: Lifecycle, type: id, required: true }
+    - { key: entity, label: エンティティ型, type: ref }
+    - key: enum
+      label: 状態の enum
+      type: object
+      fields:
+        - { key: name, label: 名前, type: string, required: true }
+        - { key: values, label: 値, type: array, display: table, item: { type: any } }
+    - { key: groups, label: まとめた状態の判定, type: array, display: table, item: { type: any } }
+    - { key: entry, label: 作るときの状態, type: array, display: table, item: { type: any } }
+    - { key: transitions, label: 操作ごとの遷移, type: array, display: table, item: { type: any } }
+    - { key: terminal, label: 終わりの状態, type: array, item: { type: string } }

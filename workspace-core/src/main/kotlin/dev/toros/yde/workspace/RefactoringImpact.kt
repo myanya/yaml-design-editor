@@ -27,18 +27,18 @@ import dev.toros.yde.yaml.YamlIO
  */
 object RefactoringImpact {
 
-    /** 文書のファイル名（警告の文面の先頭に使う）。 */
-    private fun fileName(id: DocumentId): String = id.value.substringAfterLast('/')
+    /** 文書の名前（警告の文面の先頭に使う。ゾーンから見た場所＝下のフォルダなら `business/todo.yaml`）。 */
+    private fun fileName(id: DocumentId): String = WorkspaceLayout.nameInZone(id.value)
 
-    /** ディレクトリの直下にある YAML 文書（ファイル名順。下の階層は含めない）。 */
-    private fun documentsDirectlyUnder(session: WorkspaceSession, dir: String): List<DocumentId> =
+    /** 定義ゾーンの YAML 文書（下のフォルダも。ゾーンの中の場所の順＝WorkspaceLayout.definitionFiles と同じ）。 */
+    private fun documentsIn(session: WorkspaceSession, zone: WorkspaceLayout.Zone): List<DocumentId> =
         session.storedDocuments()
-            .filter { it.value.substringBeforeLast('/', "") == dir }
+            .filter { session.layout.zoneOf(it.value) == zone }
             .sortedBy { fileName(it) }
 
-    /** views ゾーンの定義文書の一覧（ファイル名順）。 */
+    /** views ゾーンの定義文書の一覧（下のフォルダも）。 */
     internal fun viewDocuments(session: WorkspaceSession): List<DocumentId> =
-        documentsDirectlyUnder(session, session.layout.viewsDir)
+        documentsIn(session, WorkspaceLayout.Zone.VIEWS)
 
     /** 計画への補強: 追加の文書変更（ビュー追随。全てスカラー Set）と警告。 */
     data class Impact(val changes: List<PlannedDocumentChange>, val warnings: List<String>)
@@ -246,9 +246,8 @@ object RefactoringImpact {
     private fun definitionDocMentions(session: WorkspaceSession, token: String): List<String> {
         val re = tokenRegex(token)
         val mentioned = mutableListOf<String>()
-        val layout = session.layout
-        for (dir in listOf(layout.activitiesDir, layout.agentsDir, layout.skillsDir, layout.evalsDir)) {
-            for (id in documentsDirectlyUnder(session, dir)) {
+        for (zone in listOf(WorkspaceLayout.Zone.ACTIVITIES, WorkspaceLayout.Zone.AGENTS, WorkspaceLayout.Zone.SKILLS, WorkspaceLayout.Zone.EVALS)) {
+            for (id in documentsIn(session, zone)) {
                 val text = session.storedText(id) ?: continue
                 if (re.containsMatchIn(text)) mentioned += id.value
             }

@@ -1,0 +1,45 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: start-todo
+name: TODOに着手する
+description: 未着手の作業を対応中にします。追加の入力はありません。
+kind: action
+subject: todo
+inputs: []
+state:
+  lifecycle: todo-lifecycle
+  transitions:
+    - from:
+        - todo-OPEN
+      to: todo-IN_PROGRESS
+preconditions:
+  - id: start-todo.state
+    kind: state
+    allowed:
+      - 未着手
+    message: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+effects:
+  - op: set
+    entity: todo
+    path: status
+    value: IN_PROGRESS
+    source: lifecycle
+  - op: insert
+    entity: todo
+    path: history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: start-todo
+      from:
+        $copy: status
+        $of: self
+      to: IN_PROGRESS
+    source: lifecycle
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

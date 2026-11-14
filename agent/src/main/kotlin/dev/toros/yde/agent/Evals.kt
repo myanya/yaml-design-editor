@@ -79,21 +79,21 @@ object Evals {
             .getOrElse { return LoadResult(emptyList(), listOf(it.message ?: "評価定義の場所を解決できません")) }
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val errors = mutableListOf<String>()
-        val files = Files.list(dir).use { stream ->
-            stream.filter { p ->
-                val n = p.fileName.toString()
-                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
-            }.toList()
-        }.sortedBy { it.fileName.toString() }
+        // 下のフォルダも読む（フォルダは置き場所の整理だけ。ID はゾーン全体で 1 つ）
+        val files = WorkspaceLayout.of(workspace).definitionFiles(workspace, WorkspaceLayout.Zone.EVALS)
+        val base = workspace.toAbsolutePath().normalize()
+        fun name(file: Path) = WorkspaceLayout.nameInZone(base.relativize(file.toAbsolutePath().normalize()).toString())
         val evals = files.mapNotNull { file ->
             runCatching {
-                WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(file).toString())
                 val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
-                parseEval(raw, file)
-            }.onFailure { errors += "${file.fileName}: ${it.message ?: it::class.simpleName}" }.getOrNull()
+                file to parseEval(raw, file)
+            }.onFailure { errors += "${name(file)}: ${it.message ?: it::class.simpleName}" }.getOrNull()
         }
-        return LoadResult(evals, errors)
+        evals.groupBy { it.second.id }.filterValues { it.size > 1 }.forEach { (id, found) ->
+            errors += "評価ID「$id」が重複しています（${found.joinToString(", ") { name(it.first) }}）"
+        }
+        return LoadResult(evals.map { it.second }, errors)
     }
 
     internal fun parseEval(raw: Map<*, *>, source: Path): EvalDef {

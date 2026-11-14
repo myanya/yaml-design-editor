@@ -1,0 +1,62 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: cancel-todo
+name: TODOを中止する
+description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
+kind: action
+subject: todo
+inputs:
+  - key: reason
+    label: 中止理由
+    type: todo-operations#操作の記録
+    base: string
+    required: true
+    minLength: 1
+    multiline: true
+state:
+  lifecycle: todo-lifecycle
+  transitions:
+    - from:
+        - todo-OPEN
+        - todo-IN_PROGRESS
+        - todo-SUSPENDED
+      to: todo-CANCELED
+preconditions:
+  - id: cancel-todo.state
+    kind: state
+    allowed:
+      - 未着手
+      - 対応中
+      - 中断
+    message: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+effects:
+  - op: set
+    entity: todo
+    path: result
+    value: $reason
+    source: do
+  - op: set
+    entity: todo
+    path: status
+    value: CANCELED
+    source: lifecycle
+  - op: insert
+    entity: todo
+    path: history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: cancel-todo
+      from:
+        $copy: status
+        $of: self
+      to: CANCELED
+      note: $reason
+    source: lifecycle
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

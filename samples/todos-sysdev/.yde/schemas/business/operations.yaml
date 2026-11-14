@@ -1,0 +1,345 @@
+id: todo-operations
+name: TODOの操作
+kind: library
+definitions:
+  操作の記録:
+    type: common#文章
+    minLength: 1
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+description: 業務上の操作を、確認して適用できる変更セットとして実行します。
+actions:
+  - id: register-todo
+    label: TODOを登録する
+    description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
+    # 状態の流れの入口（todo-behavior.yaml の entry）。作った個票に、初めの状態と履歴の行を書く
+    lifecycle: todo-lifecycle
+    params:
+      - key: title
+        label: タイトル
+        type: common#一行の文
+        required: true
+      - key: summary
+        label: 概要
+        type: common#一行の文
+        required: true
+      - key: category
+        label: カテゴリ
+        type: common#カテゴリ参照
+      - key: tags
+        label: タグ
+        type: array
+        unique: true
+        item: { type: common#タグ参照 }
+      - key: follows
+        label: 元のTODO
+        type: common#TODO参照
+        description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+      - key: due
+        label: 期限
+        type: common#年月日
+      - key: details
+        label: 詳細
+        type: common#文章
+    do:
+      # 個票を先に作り、番号を採番で決める（TODO- と 3 桁。一覧と個票で使われている番号の次）。作った個票は todo で後の手から指せる
+      - create:
+          schema: todo-detail
+          id: { prefix: "TODO-", digits: 3 }
+          bind: todo
+          params:
+            due_on:
+              $copy: due
+            details:
+              $copy: details
+            comments: []
+      # 一覧に、採番した番号で行を足す
+      - insert:
+          in:
+            schemaId: todo-list
+          path: todos
+          value:
+            id: { $copy: id, $of: todo }
+            title: $title
+            summary: $summary
+            category:
+              $copy: category
+            tags:
+              $copy: tags
+            follows:
+              $copy: follows
+  - id: add-todo-comment
+    label: TODOにコメントを追加する
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    description: TODOの個票へ、状態に関係なく日付と本文を記録します。
+    target: { entity: todo }
+    params:
+      - { key: date, label: 記録日, type: common#年月日, required: true }
+      - { key: body, label: コメント本文, type: 操作の記録, required: true }
+    do:
+      - insert:
+          in: { schemaId: todo-detail }
+          path: comments
+          value: { date: $date, body: $body }
+          of: self
+  - id: add-todo-task
+    label: 作業項目を追加する
+    description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
+    target: { entity: todo }
+    params:
+      - { key: title, label: 作業, type: common#一行の文, minLength: 1, required: true }
+    # 前提には名前（id）を付ける。断りの種類の名前になる（設計書のエラー定義とメッセージのキー add-todo-task.active）
+    require:
+      # 状態の条件は State の名前で書く（未完了＝todo-behavior.yaml の詳細化の親。中身の状態は状態の流れだけが知る）
+      - id: active
+        match: [{ node: { entity: todo, bind: t } }]
+        where: [{ of: t, state: todo-ACTIVE }]
+        expect: exists
+        message: "{id} は完了か中止をしているので、作業項目を足せません"
+    do:
+      # 番号は配列の追加の決まり（個票の tasks の methods.insert）が振る。空の id を先に書くと、番号が行の先頭に入る
+      - insert:
+          in: { schemaId: todo-detail }
+          path: tasks
+          value: { id: '', title: $title, done: false }
+          of: self
+  - id: edit-todo
+    label: TODOを編集する
+    description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
+    input:
+      submit: changed
+      initial:
+        title: { $copy: title, $of: self, $in: { schemaId: todo-list } }
+        summary: { $copy: summary, $of: self, $in: { schemaId: todo-list } }
+        category: { $copy: category, $of: self, $in: { schemaId: todo-list } }
+        tags: { $copy: tags, $of: self, $in: { schemaId: todo-list } }
+        created_on: { $copy: created_on, $of: self, $in: { schemaId: todo-detail } }
+        due_on: { $copy: due_on, $of: self, $in: { schemaId: todo-detail } }
+        details: { $copy: details, $of: self, $in: { schemaId: todo-detail } }
+        result: { $copy: result, $of: self, $in: { schemaId: todo-detail } }
+        comments: { $copy: comments, $of: self, $in: { schemaId: todo-detail } }
+    target: { entity: todo }
+    params:
+      - key: title
+        label: タイトル
+        type: common#一行の文
+        minLength: 1
+      - key: summary
+        label: 概要
+        type: common#一行の文
+        minLength: 1
+      - key: category
+        label: カテゴリ
+        type: common#カテゴリ参照
+      - key: tags
+        label: タグ
+        type: array
+        unique: true
+        item: { type: common#タグ参照 }
+        description: 入力した並びで全体を置き換えます。
+      - key: created_on
+        label: 作成日
+        type: common#年月日
+      - key: due_on
+        label: 期限
+        type: common#年月日
+      - key: details
+        label: 詳細
+        type: common#文章
+      - key: result
+        label: 結果・中止理由
+        type: common#文章
+      - key: comments
+        label: コメント一覧
+        type: array
+        item: { type: common#コメント }
+        description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
+      - key: clear
+        label: 値を消す
+        type: object
+        default: {}
+        description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+        fields:
+          - { key: category, label: "カテゴリを消す", type: boolean }
+          - { key: tags, label: "タグを消す", type: boolean }
+          - { key: due_on, label: "期限を消す", type: boolean }
+          - { key: details, label: "詳細を消す", type: boolean }
+          - { key: result, label: "結果・中止理由を消す", type: boolean }
+          - { key: comments, label: "コメント一覧を消す", type: boolean }
+    do:
+      - when:
+          - { path: title, exists: true }
+        set:
+          in: { schemaId: todo-list }
+          path: title
+          value: $title
+          of: self
+      - when:
+          - { path: summary, exists: true }
+        set:
+          in: { schemaId: todo-list }
+          path: summary
+          value: $summary
+          of: self
+      - when:
+          - { path: category, exists: true }
+        set:
+          in: { schemaId: todo-list }
+          path: category
+          value: $category
+          of: self
+      - when:
+          - { path: tags, exists: true }
+        set:
+          in: { schemaId: todo-list }
+          path: tags
+          value: $tags
+          of: self
+      - when:
+          - { path: created_on, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: created_on
+          value: $created_on
+          of: self
+      - when:
+          - { path: due_on, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: due_on
+          value: $due_on
+          of: self
+      - when:
+          - { path: details, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: details
+          value: $details
+          of: self
+      - when:
+          - { path: result, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: result
+          value: $result
+          of: self
+      - when:
+          - { path: comments, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: comments
+          value: $comments
+          of: self
+      - when:
+          - { path: clear.category, equals: true }
+        delete:
+          in: { schemaId: todo-list }
+          path: category
+          of: self
+      - when:
+          - { path: clear.tags, equals: true }
+        delete:
+          in: { schemaId: todo-list }
+          path: tags
+          of: self
+      - when:
+          - { path: clear.due_on, equals: true }
+        delete:
+          in: { schemaId: todo-detail }
+          path: due_on
+          of: self
+      - when:
+          - { path: clear.details, equals: true }
+        delete:
+          in: { schemaId: todo-detail }
+          path: details
+          of: self
+      - when:
+          - { path: clear.result, equals: true }
+        delete:
+          in: { schemaId: todo-detail }
+          path: result
+          of: self
+      - when:
+          - { path: clear.comments, equals: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: comments
+          value: []
+          of: self
+  # ---- 状態を変える操作 ----
+  # どの状態からできるか・どの状態へ移るか・状態の履歴の行は、状態の流れ（todo-behavior.yaml の transitions）から決まる。
+  # ここに書くのは、状態のほかに書く値（完了日・結果）と、履歴の行に足す値（理由・日付・再開予定日）だけ
+  - id: start-todo
+    label: TODOに着手する
+    description: 未着手の作業を対応中にします。追加の入力はありません。
+    target: { entity: todo }
+    lifecycle: todo-lifecycle
+  - id: suspend-todo
+    label: TODOを中断する
+    description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: todo }
+    params:
+      - { key: date, label: 中断日, type: common#年月日, required: true }
+      - { key: reason, label: 中断理由, type: 操作の記録, required: true }
+      - key: resume_on
+        label: 再開予定日
+        type: common#年月日
+        description: 決まっていれば入れます。中断日以降の日付です。
+    lifecycle:
+      id: todo-lifecycle
+      history: { date: $date, note: $reason, resume_on: { $copy: resume_on } }
+  - id: resume-todo
+    label: TODOを再開する
+    description: 中断した作業を対応中に戻します。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: todo }
+    params:
+      - { key: date, label: 再開日, type: common#年月日, required: true }
+      - { key: note, label: メモ, type: common#文章 }
+    lifecycle:
+      id: todo-lifecycle
+      history: { date: $date, note: { $copy: note } }
+  - id: complete-todo
+    label: TODOを完了する
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
+    target: { entity: todo }
+    params:
+      - { key: date, label: 完了日, type: common#年月日, required: true }
+      - { key: result, label: 完了結果, type: 操作の記録, required: true }
+    # 状態の条件（対応中から）は Lifecycle から。作業項目の条件は個票が保有する作業項目（入れ子の線 contains）を見る
+    require:
+      - id: no-open-task
+        match:
+          - node: { entity: todo, bind: t }
+          - edge: { contains: true }
+          - node: { entity: todo-task, bind: s }
+        where: [{ of: s, path: done, equals: false }]
+        expect: absent
+        message: "{id} には済んでいない作業項目があります（済にしてから完了します）"
+    lifecycle:
+      id: todo-lifecycle
+      history: { date: $date }
+    do:
+      - set: { in: { schemaId: todo-detail }, path: completed_on, value: $date, of: self }
+      - set: { in: { schemaId: todo-detail }, path: result, value: $result, of: self }
+  - id: cancel-todo
+    label: TODOを中止する
+    description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
+    target: { entity: todo }
+    params:
+      - { key: reason, label: 中止理由, type: 操作の記録, required: true }
+    lifecycle:
+      id: todo-lifecycle
+      history: { note: $reason }
+    do:
+      - set: { in: { schemaId: todo-detail }, path: result, value: $reason, of: self }

@@ -1,0 +1,60 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: resume-todo
+name: TODOを再開する
+description: 中断した作業を対応中に戻します。
+kind: action
+subject: todo
+inputs:
+  - key: date
+    label: 再開日
+    type: common#年月日
+    base: date
+    required: true
+    format: yyyy年M月d日
+  - key: note
+    label: メモ
+    type: common#文章
+    base: string
+    multiline: true
+initial:
+  date:
+    $copy: today
+    $of: context
+state:
+  lifecycle: todo-lifecycle
+  transitions:
+    - from:
+        - todo-SUSPENDED
+      to: todo-IN_PROGRESS
+preconditions:
+  - id: resume-todo.state
+    kind: state
+    allowed:
+      - 中断
+    message: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+effects:
+  - op: set
+    entity: todo
+    path: status
+    value: IN_PROGRESS
+    source: lifecycle
+  - op: insert
+    entity: todo
+    path: history
+    value:
+      date: $date
+      action: resume-todo
+      from:
+        $copy: status
+        $of: self
+      to: IN_PROGRESS
+      note:
+        $copy: note
+    source: lifecycle
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

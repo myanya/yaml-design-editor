@@ -1,0 +1,18 @@
+id: C-22
+title: 変換の名前の書き方 `$case`（camel・pascal・snake・kebab・constant）・呼び出し側が渡す場所（`places`）・条件の比べる値に場所の値（`{$copy, $of}`）
+implementation:
+- path: semantic-core/schema/NameCase.kt
+  module: semantic-core
+- path: semantic-core/schema/TransformDef.kt
+  module: semantic-core
+- path: semantic-core/semantic/Transform.kt
+  module: semantic-core
+tests:
+- name: TransformPlacesTest
+design:
+- label: transform
+  link: architecture/transform.md
+  heading: 変換
+manual:
+- link: manual/generate.md
+  heading: 生成の定義（`.yde/transforms/`）

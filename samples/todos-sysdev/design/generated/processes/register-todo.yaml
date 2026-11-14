@@ -1,0 +1,75 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: register-todo
+name: TODOを登録する
+service:
+  class: TodoService
+  method: registerTodo
+  arguments:
+    - title
+    - summary
+    - category
+    - tags
+    - follows
+    - due
+    - details
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: write
+    op: create
+    value:
+      due_on:
+        $copy: due
+      details:
+        $copy: details
+      comments: []
+    source: do
+  - step: write
+    op: insert
+    entity: todo
+    path: todos
+    value:
+      id:
+        $copy: id
+        $of: todo
+      title: $title
+      summary: $summary
+      category:
+        $copy: category
+      tags:
+        $copy: tags
+      follows:
+        $copy: follows
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: status
+    value: OPEN
+    source: lifecycle
+  - step: write
+    op: insert
+    entity: todo
+    path: history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: register-todo
+      to: OPEN
+    source: lifecycle
+  - step: write
+    op: set
+    entity: todo
+    path: created_on
+    value:
+      $copy: today
+      $of: context
+    source: auto
+  - step: write
+    op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

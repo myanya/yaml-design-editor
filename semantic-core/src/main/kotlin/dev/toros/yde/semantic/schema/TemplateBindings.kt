@@ -10,7 +10,7 @@ internal fun Template.bindNames(): Set<String> {
         }
     }
     fun conditions(cs: List<TemplateCondition>, local: Set<String>) =
-        cs.forEach { c -> c.alternatives.forEach { site(it.site, local) } }
+        cs.forEach { c -> c.alternatives.forEach { test -> site(test.site, local); test.operands.filterIsInstance<Template.Copy>().forEach { site(it.site, local) } } }
     fun walk(t: Template, local: Set<String>) {
         when (t) {
             is Template.Literal, is Template.Param -> Unit
@@ -23,6 +23,7 @@ internal fun Template.bindNames(): Set<String> {
             is Template.DateOf -> walk(t.input, local)
             is Template.NumberOf -> walk(t.input, local)
             is Template.TrimOf -> walk(t.input, local)
+            is Template.CaseOf -> walk(t.input, local)
             is Template.ValueOf -> out += t.expr.binds() - local
             is Template.ViewRows -> conditions(t.conditions, local)
             is Template.Each -> { site(t.site, local); t.rows?.let { walk(it, local) }; walk(t.body, local + listOfNotNull(t.bind)) }

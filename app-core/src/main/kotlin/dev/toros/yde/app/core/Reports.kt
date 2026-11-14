@@ -35,12 +35,8 @@ object Reports {
         val dir = runCatching { WorkspacePaths.resolve(workspace, WorkspaceLayout.of(workspace).reportsDir) }
             .getOrElse { return LoadResult(emptyList(), listOf(it.message ?: "レポート定義の場所を解決できません")) }
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
-        val files = Files.list(dir).use { stream ->
-            stream.filter { p ->
-                val n = p.fileName.toString()
-                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
-            }.toList()
-        }.sortedBy { it.fileName.toString() }
+        // 下のフォルダも読む（ひな形は定義と同じ場所からの相対パスで、レポートのゾーンの中を指す）
+        val files = WorkspaceLayout.of(workspace).definitionFiles(workspace, WorkspaceLayout.Zone.REPORTS)
         val errors = mutableListOf<String>()
         val base = dir.toAbsolutePath().normalize()
         val reports = files.mapNotNull { file ->
@@ -54,11 +50,13 @@ object Reports {
                 val text = Files.readString(templateFile)
                 TextTemplate.check(text)?.let { error("ひな形「${def.template}」: $it") }
                 Loaded(def, text, templateFile)
-            }.getOrElse { errors += "${file.fileName}: ${it.message}"; null }
+            }.getOrElse { errors += "${WorkspaceLayout.nameInZone(rel)}: ${it.message}"; null }
         }
-        val duplicated = reports.groupBy { it.def.id }.filterValues { it.size > 1 }.keys
-        duplicated.forEach { errors += "レポートID「$it」が重複しています" }
-        return LoadResult(reports.filter { it.def.id !in duplicated }, errors)
+        val duplicated = reports.groupBy { it.def.id }.filterValues { it.size > 1 }
+        duplicated.forEach { (id, found) ->
+            errors += "レポートID「$id」が重複しています（${found.joinToString(", ") { WorkspaceLayout.nameInZone(it.def.source.value) }}）"
+        }
+        return LoadResult(reports.filter { it.def.id !in duplicated.keys }, errors)
     }
 
     /** 値の一式を作り、ひな形にはめ込む。ビューの行（`$view`）は同じ索引・原本の読み手で解決する。 */

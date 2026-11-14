@@ -1,0 +1,9 @@
+id: UX-322
+title: 生成を画面から使えない（生成の定義の置き場 transforms を設計スペースに出す・計画を見て書く）
+status: todo
+origin_on: 2026-11-15
+origin: 'samples/todos-sysdev の生成を CLI だけで作ったとき'
+memo: |-
+  生成は CLI generate だけにある。デスクトップでは transforms ゾーンの文書が設計スペースに出ず、計画（作る・作り直す・消す）を見て書く画面も無い。レポートの画面（ビュータブの一覧から選ぶ）と同じ置き方が考えられる
+features:
+  - C-21

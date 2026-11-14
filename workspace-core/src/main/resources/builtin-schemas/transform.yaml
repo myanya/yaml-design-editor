@@ -1,0 +1,41 @@
+id: builtin-transform
+name: 生成の定義（業務モデルから文書へ）
+description: 業務モデルを展開した形（操作・State・Lifecycle・エンティティ型）から、YAML の文書を組み立てる変換（build・rules）と、作る文書の場所（output）。作った文書は生成物で、手で直さず、業務モデルか生成の定義を直して作り直す（CLI generate）
+match: "_transforms/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - key: id
+      label: 生成の定義ID
+      type: id
+      required: true
+    - key: name
+      label: 表示名
+      type: string
+    - key: description
+      label: 説明
+      type: text
+    - key: each
+      label: 文書ごとの要素
+      type: string
+      description: "業務モデルのどの並びの要素ごとに 1 文書を作るか（entities・actions・states・lifecycles）。省くと業務モデル全体から 1 文書。build が何も作らなかった要素（$when で外したもの）は文書を作らない"
+    - key: output
+      label: 作る文書の場所
+      type: string
+      required: true
+      description: "ワークスペース相対の YAML のパス。穴 {パス} は要素の値で埋める（例 design/generated/actions/{id}.yaml）。.yde の下と定義の置き場には書けない。穴を * にした場所にある、この定義の生成物で作り直さなかったものは消す"
+    - key: build
+      label: 文書の中身（変換のひな型）
+      type: any
+      required: true
+      description: "変換のひな型（$copy / $format / $value / $each / $case など）。いまの場所は要素（each を省けば業務モデル全体）。業務モデル全体は $of: model、いまの要素は（繰り返しの中からも）$of: element で読める"
+    - key: rules
+      label: 名前を付けた組み立て
+      type: array
+      description: "同じ形を何か所でも組み立てるときに 1 か所に書く（変換の rules と同じ）。build の中から {$apply: 規則名} か {$each: パス, $apply: 規則名} で使う"
+      item:
+        type: object
+        fields:
+          - { key: id, label: 規則名, type: string, required: true }
+          - { key: when, label: 条件, type: any, description: "検査の where と同じ書き方の並び。省くといつでも合う" }
+          - { key: build, label: ひな型, type: any, required: true }

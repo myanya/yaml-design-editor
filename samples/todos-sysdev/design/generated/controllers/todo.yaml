@@ -1,0 +1,173 @@
+# 生成物（screen-flows）: 手で直さず、業務モデルか生成の定義（design/screen-flows.yaml）を直して作り直します（CLI generate）。
+id: todo
+name: TODOの画面の動き
+controller: TodoController
+handlers:
+  - action: register-todo
+    name: TODOを登録する
+    method: registerTodo
+    open:
+      method: GET
+      url: /todo/register-todo
+      fragment: todo/register-todo
+    submit:
+      method: POST
+      url: /todo/register-todo
+      form: RegisterTodoForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions: []
+    on_success:
+      redirect: /todo/{id}
+      notice: register-todo.done
+  - action: add-todo-comment
+    name: TODOにコメントを追加する
+    method: addTodoComment
+    open:
+      method: GET
+      url: /todo/{id}/add-todo-comment
+      fragment: todo/add-todo-comment
+    submit:
+      method: POST
+      url: /todo/{id}/add-todo-comment
+      form: AddTodoCommentForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions: []
+    on_success:
+      redirect: /todo/{id}
+      notice: add-todo-comment.done
+  - action: add-todo-task
+    name: 作業項目を追加する
+    method: addTodoTask
+    open:
+      method: GET
+      url: /todo/{id}/add-todo-task
+      fragment: todo/add-todo-task
+    submit:
+      method: POST
+      url: /todo/{id}/add-todo-task
+      form: AddTodoTaskForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions:
+        - add-todo-task.active
+    on_success:
+      redirect: /todo/{id}
+      notice: add-todo-task.done
+  - action: edit-todo
+    name: TODOを編集する
+    method: editTodo
+    open:
+      method: GET
+      url: /todo/{id}/edit-todo
+      fragment: todo/edit-todo
+    submit:
+      method: POST
+      url: /todo/{id}/edit-todo
+      form: EditTodoForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions: []
+    on_success:
+      redirect: /todo/{id}
+      notice: edit-todo.done
+  - action: start-todo
+    name: TODOに着手する
+    method: startTodo
+    open:
+      method: GET
+      url: /todo/{id}/start-todo
+      fragment: todo/start-todo
+    submit:
+      method: POST
+      url: /todo/{id}/start-todo
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions:
+        - start-todo.state
+    on_success:
+      redirect: /todo/{id}
+      notice: start-todo.done
+  - action: suspend-todo
+    name: TODOを中断する
+    method: suspendTodo
+    open:
+      method: GET
+      url: /todo/{id}/suspend-todo
+      fragment: todo/suspend-todo
+    submit:
+      method: POST
+      url: /todo/{id}/suspend-todo
+      form: SuspendTodoForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions:
+        - suspend-todo.state
+    on_success:
+      redirect: /todo/{id}
+      notice: suspend-todo.done
+  - action: resume-todo
+    name: TODOを再開する
+    method: resumeTodo
+    open:
+      method: GET
+      url: /todo/{id}/resume-todo
+      fragment: todo/resume-todo
+    submit:
+      method: POST
+      url: /todo/{id}/resume-todo
+      form: ResumeTodoForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions:
+        - resume-todo.state
+    on_success:
+      redirect: /todo/{id}
+      notice: resume-todo.done
+  - action: complete-todo
+    name: TODOを完了する
+    method: completeTodo
+    open:
+      method: GET
+      url: /todo/{id}/complete-todo
+      fragment: todo/complete-todo
+    submit:
+      method: POST
+      url: /todo/{id}/complete-todo
+      form: CompleteTodoForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions:
+        - complete-todo.state
+        - complete-todo.no-open-task
+    on_success:
+      redirect: /todo/{id}
+      notice: complete-todo.done
+  - action: cancel-todo
+    name: TODOを中止する
+    method: cancelTodo
+    open:
+      method: GET
+      url: /todo/{id}/cancel-todo
+      fragment: todo/cancel-todo
+    submit:
+      method: POST
+      url: /todo/{id}/cancel-todo
+      form: CancelTodoForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions:
+        - cancel-todo.state
+    on_success:
+      redirect: /todo/{id}
+      notice: cancel-todo.done

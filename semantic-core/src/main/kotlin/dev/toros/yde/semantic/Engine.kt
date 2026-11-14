@@ -28,6 +28,11 @@ data class SemanticInput(
     val workspaceVersion: Long,
     val documents: List<SemanticDocument>,
     val declarations: SemanticDeclarations = SemanticDeclarations(),
+    /**
+     * 走査しない文書（スキーマ）に置く出現＝定義の索引（業務モデルの操作・State など。上位層が組み立てた定義から作る）。
+     * 文書の走査結果と同じ形で集約に混ぜる。スキーマが変わると上位層が全部を作り直すので、増分更新では前の結果を引き継ぐ。
+     */
+    val definitions: List<DocumentScan> = emptyList(),
 )
 
 /**
@@ -140,7 +145,7 @@ object SemanticEngine {
     /** 全再構築（oracle）。 */
     fun build(input: SemanticInput): SemanticSnapshot {
         // 文書ID順で安定化（ルート IdIndex.derive のパス順ソートと同じ考え方）
-        val scans = input.documents.sortedBy { it.id.value }.map(::scanOne)
+        val scans = (input.documents.map(::scanOne) + input.definitions).sortedBy { it.document.value }
         return aggregate(input.workspaceVersion, scans, input.declarations)
     }
 

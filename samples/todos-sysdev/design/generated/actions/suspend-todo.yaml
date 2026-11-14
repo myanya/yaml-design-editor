@@ -1,0 +1,68 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: suspend-todo
+name: TODOを中断する
+description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。
+kind: action
+subject: todo
+inputs:
+  - key: date
+    label: 中断日
+    type: common#年月日
+    base: date
+    required: true
+    format: yyyy年M月d日
+  - key: reason
+    label: 中断理由
+    type: todo-operations#操作の記録
+    base: string
+    required: true
+    minLength: 1
+    multiline: true
+  - key: resume_on
+    label: 再開予定日
+    type: common#年月日
+    base: date
+    format: yyyy年M月d日
+initial:
+  date:
+    $copy: today
+    $of: context
+state:
+  lifecycle: todo-lifecycle
+  transitions:
+    - from:
+        - todo-IN_PROGRESS
+      to: todo-SUSPENDED
+preconditions:
+  - id: suspend-todo.state
+    kind: state
+    allowed:
+      - 対応中
+    message: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+effects:
+  - op: set
+    entity: todo
+    path: status
+    value: SUSPENDED
+    source: lifecycle
+  - op: insert
+    entity: todo
+    path: history
+    value:
+      date: $date
+      action: suspend-todo
+      from:
+        $copy: status
+        $of: self
+      to: SUSPENDED
+      note: $reason
+      resume_on:
+        $copy: resume_on
+    source: lifecycle
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

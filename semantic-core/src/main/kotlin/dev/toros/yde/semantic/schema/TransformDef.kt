@@ -82,6 +82,9 @@ sealed interface Template {
     /** 前後の空白を落とし、続く空白を 1 つにまとめる。 */
     data class TrimOf(val input: Template) : Template
 
+    /** 名前の書き方をそろえる（style は camel・pascal・snake・kebab・constant。`SemanticExpression.nameCase`）。 */
+    data class CaseOf(val input: Template, val style: String) : Template
+
     /** 値の式をいまの場所で計算する（R30-01。`of` の省略＝いまの場所、束縛は `of: 名前`）。 */
     data class ValueOf(val expr: ValueExpr) : Template
 
@@ -142,6 +145,11 @@ data class TransformDef(
     val from: QuerySpec?,
     val build: Template,
     val rules: List<TransformRule>,
+    /**
+     * 呼び出し側が渡す、名前の付いた場所（`$of: 名前` で読む。例 生成の `model`＝業務モデルを展開した形）。
+     * クエリで付けた名前と同じく、宣言していない名前は定義の誤り。
+     */
+    val places: Set<String> = emptySet(),
 ) {
     companion object {
         private val TOP_KEYS = setOf("id", "name", "description", "params", "from", "build", "rules")
@@ -173,6 +181,7 @@ data class TransformDef(
         private const val DATE = "\$date"
         private const val NUMBER = "\$number"
         private const val TRIM = "\$trim"
+        private const val CASE = "\$case"
         private const val VALUE = "\$value"
         private const val AS = "\$as"
         private const val WITH = "\$with"
@@ -181,7 +190,7 @@ data class TransformDef(
         private const val ONE = "\$one"
         private const val BIND = "\$bind"
         private const val FLATTEN = "\$flatten"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, VALUE, VIEW)
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW)
         private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
@@ -190,7 +199,7 @@ data class TransformDef(
         private val CONDITION_OPS = CheckOp.entries.filter { it != CheckOp.EQ && it != CheckOp.NE }
         private val CONDITION_KEYS = listOf("equals", "notEquals", "exists", "empty") + CONDITION_OPS.map { it.id }
 
-        fun parse(raw: Any?, where: String = "transform"): TransformDef {
+        fun parse(raw: Any?, where: String = "transform", places: Set<String> = emptySet()): TransformDef {
             val m = raw as? Map<*, *> ?: error("$where はobjectである必要があります")
             m.keys.map { it.toString() }.firstOrNull { it !in TOP_KEYS }
                 ?.let { error("$where: 未知のキーです: $it（使えるキー: ${TOP_KEYS.joinToString(", ")}）") }
@@ -220,7 +229,7 @@ data class TransformDef(
                 )
             }
             val build = parseTemplate(m["build"] ?: error("$where.build が必要です"), "$where.build")
-            val def = TransformDef(id, m["description"]?.toString(), params, from, build, rules)
+            val def = TransformDef(id, m["description"]?.toString(), params, from, build, rules, places)
             def.requireClosed(where)
             return def
         }
@@ -316,6 +325,12 @@ data class TransformDef(
                         Template.NumberOf(parseTemplate(m[NUMBER], "$where.$NUMBER"), pattern)
                     }
                     TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
+                    CASE -> {
+                        allow(AS)
+                        val style = m[AS]?.toString()?.takeIf { it in NameCase.STYLES }
+                            ?: error("$where.$AS は名前の書き方（${NameCase.STYLES.joinToString("・")}）で書きます: ${m[AS]}")
+                        Template.CaseOf(parseTemplate(m[CASE], "$where.$CASE"), style)
+                    }
                     VALUE -> { allow(); Template.ValueOf(ValueExpr.parse(m[VALUE], "$where.$VALUE", current = true)) }
                     VIEW -> {
                         // ビューの行（レポート）: $where＝行の上の条件、$one＝最初の 1 行
@@ -433,7 +448,14 @@ data class TransformDef(
                 path = if (param != null || pathText == "." || pathText.isBlank()) emptyList() else parseYPath(unescape(pathText)),
             )
             fun flag(key: String): Boolean = m[key] as? Boolean ?: error("$where.$key は true / false で書きます")
-            fun operand(v: Any?): Template = if (v is String) parseString(v) else Template.Literal(v)
+            // 比べる値: 決まった値・受け取った値（$名前）・別の場所の値（{$copy: パス, $of: 名前}。例 外側の要素の ID と比べる）
+            fun operand(v: Any?): Template = when (v) {
+                is String -> parseString(v)
+                is Map<*, *> -> parseTemplate(v, "$where.値").also {
+                    require(it is Template.Copy) { "$where: 比べる値に書ける場所の指示は {\$copy: パス, \$of: 名前} だけです" }
+                }
+                else -> Template.Literal(v)
+            }
             return when (val key = given.single()) {
                 "equals" -> TemplateTest(site, TemplateTest.Kind.EQUALS, operands = listOf(operand(m[key])), param = param)
                 "notEquals" -> TemplateTest(site, TemplateTest.Kind.NOT_EQUALS, operands = listOf(operand(m[key])), param = param)
@@ -444,7 +466,7 @@ data class TransformDef(
                     val v = m[key]
                     val operands = when {
                         v is List<*> -> v.map(::operand)
-                        v is Map<*, *> -> error("$where.$key は決まった値か、受け取った値（\$名前）で書きます")
+                        v is Map<*, *> && "\$copy" !in v -> error("$where.$key は決まった値か、受け取った値（\$名前）か、場所の値（{\$copy: パス, \$of: 名前}）で書きます")
                         else -> listOf(operand(v))
                     }
                     operands.filterIsInstance<Template.Literal>().forEach { op.requireValidOperand(it.value.toString(), "$where.$key") }
@@ -457,10 +479,10 @@ data class TransformDef(
     /** 使っている規則名と受け取る値の名前が、すべて宣言されていること（定義の段階で点検する）。 */
     private fun requireClosed(where: String) {
         val ruleIds = rules.map { it.id }.toSet()
-        val binds = from?.binds.orEmpty().toSet()
+        val binds = from?.binds.orEmpty().toSet() + places
         fun checkBindings(t: Template) {
             t.bindNames().forEach { name ->
-                require(name in binds) { "$where: \$of / of の「$name」は、from のクエリで付けた名前ではありません（繰り返しの \$bind はその中だけで使えます）" }
+                require(name in binds) { "$where: \$of / of の「$name」は、from のクエリで付けた名前ではありません（渡される場所の名前: ${places.joinToString("・").ifEmpty { "なし" }}。繰り返しの \$bind はその中だけで使えます）" }
             }
         }
         fun walk(t: Template) {
@@ -478,6 +500,7 @@ data class TransformDef(
                 is Template.DateOf -> walk(t.input)
                 is Template.NumberOf -> walk(t.input)
                 is Template.TrimOf -> walk(t.input)
+                is Template.CaseOf -> walk(t.input)
                 is Template.ValueOf -> Unit
                 is Template.ViewRows -> t.conditions.forEach(::condition)
                 is Template.Each -> { t.rows?.let(::walk); walk(t.body) }

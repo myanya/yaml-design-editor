@@ -1,0 +1,40 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: add-todo-comment
+name: TODOにコメントを追加する
+description: TODOの個票へ、状態に関係なく日付と本文を記録します。
+kind: action
+subject: todo
+inputs:
+  - key: date
+    label: 記録日
+    type: common#年月日
+    base: date
+    required: true
+    format: yyyy年M月d日
+  - key: body
+    label: コメント本文
+    type: todo-operations#操作の記録
+    base: string
+    required: true
+    minLength: 1
+    multiline: true
+initial:
+  date:
+    $copy: today
+    $of: context
+preconditions: []
+effects:
+  - op: insert
+    entity: todo
+    path: comments
+    value:
+      date: $date
+      body: $body
+    source: do
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

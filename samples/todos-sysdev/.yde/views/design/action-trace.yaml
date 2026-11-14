@@ -1,0 +1,11 @@
+id: action-trace
+name: 操作の設計の対応
+description: 業務モデルの操作ごとに、どの設計書に降りているかの対応表（トレーサビリティ）。行は業務モデルの操作（定義の索引）で、数が 0 の欄は設計が無い
+rows:
+  match: [{ node: { entity: yde-action, bind: a } }]
+columns:
+  - { label: 操作名, schemaId: action-spec, path: name }
+  - { label: 主体, schemaId: action-spec, path: subject }
+  - { label: アクション定義書, value: { occurrenceCount: { of: a, schema: action-spec } } }
+  - { label: 処理設計書, value: { occurrenceCount: { of: a, schema: process } } }
+  - { label: 扱う Controller と Mapper, value: { refCount: { of: a, dir: in } } }

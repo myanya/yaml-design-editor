@@ -1,0 +1,25 @@
+id: category-status-matrix
+name: カテゴリ×ステータス
+kind: matrix
+description: 行＝カテゴリ、列＝TODOの状態、セル＝そのカテゴリのTODOの件数です。合計の行と列は自動で付きます。セルを押すと、数えたTODOへ移動できます。
+# 行の軸＝カテゴリ（カテゴリ一覧の順）
+rows: { idPattern: "CAT-*" }
+order: { schemaId: category-list }
+# 状態は必須なので、選択肢に無い値の列（未分類）は出しません
+unclassified: false
+cells:
+  # 行のカテゴリを起点に、関係 in-category を逆にたどって、そのカテゴリを参照する TODO を集めます
+  match:
+    - node: { entity: category, bind: cat }
+    - edge: { relation: in-category, dir: in }
+    - node: { entity: todo, bind: t }
+  of: t
+  # 列の軸＝TODO の状態（個票の status）。並びと見出しは流れの順
+  columns:
+    path: status
+    values:
+      - { value: OPEN, label: 未着手 }
+      - { value: IN_PROGRESS, label: 対応中 }
+      - { value: SUSPENDED, label: 中断 }
+      - { value: CLOSED, label: 完了 }
+      - { value: CANCELED, label: 中止 }

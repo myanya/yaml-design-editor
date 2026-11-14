@@ -1,0 +1,45 @@
+id: action-specs
+name: アクション定義書
+description: 業務モデルの操作ごとに、外から見た振る舞いを 1 枚にする。値はすべて業務モデルから写し、設計の判断は入れない
+each: actions
+output: "design/generated/actions/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $copy: label }
+  description: { $copy: description }
+  kind: { $copy: kind }
+  subject: { $copy: subject }
+  inputs: { $copy: params }
+  initial: { $copy: input.initial }
+  state:
+    $when: [{ path: lifecycle, exists: true }]
+    lifecycle: { $copy: lifecycle.id }
+    entry: { $each: lifecycle.entry, $build: { $copy: id } }
+    transitions:
+      $each: lifecycle.transitions
+      $build:
+        from: { $each: from, $build: { $copy: id } }
+        to: { $copy: to.id }
+  # 前提は断りの種類ごとに名前を付ける（操作ID.state＝状態が合わない・操作ID.前提ID＝業務モデルの前提）
+  preconditions:
+    $concat:
+      - $when: [{ path: lifecycle.refusal, exists: true }]
+        $then:
+          - id: { $format: "{id}.state" }
+            kind: state
+            allowed: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { $copy: label } } }
+            message: { $copy: lifecycle.refusal }
+      - $each: require
+        $build:
+          $when: [{ path: id, exists: true }]
+          id: { $format: "{action}.{rule}", $with: { action: { $copy: id, $of: element }, rule: { $copy: id } } }
+          kind: rule
+          message: { $copy: message }
+  effects:
+    $each: effects
+    $build:
+      op: { $copy: op }
+      entity: { $copy: entity }
+      path: { $copy: path }
+      value: { $first: [{ $copy: value }, { $copy: params }, { $copy: values }] }
+      source: { $copy: source }

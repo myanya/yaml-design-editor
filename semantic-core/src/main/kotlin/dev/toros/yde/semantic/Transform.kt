@@ -7,6 +7,7 @@ import dev.toros.yde.yaml.model.getAt
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.semantic.schema.DerivationSelector
+import dev.toros.yde.semantic.schema.NameCase
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.Template
@@ -62,10 +63,13 @@ object SemanticTransform {
     fun runAt(
         def: TransformDef, input: TemplatePlace, params: Map<String, Any?> = emptyMap(),
         views: (String) -> YNode? = { null }, loop: Map<String, Any?> = emptyMap(),
+        /** 名前の付いた場所（定義の places に宣言した名前。`$of: 名前` で読む）。 */
+        places: Map<String, TemplatePlace> = emptyMap(),
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です" }
         require(loop.keys.all { it in TransformDef.LOOP_NAMES }) { "繰り返しの名前ではない入力があります" }
-        val run = Run(def, params, bindings = emptyMap(), views = views)
+        def.places.firstOrNull { it !in places }?.let { error("変換「${def.id}」: 場所「$it」が渡されていません") }
+        val run = Run(def, params, bindings = places.mapValues { (_, place) -> { _: DerivationSelector? -> place } }, views = views)
         return TransformResult(run.build(def.build, input, emptyList(), loop), run.origins)
     }
 
@@ -247,6 +251,9 @@ object SemanticTransform {
             is Template.TrimOf -> build(t.input, here, out, loop)?.let { input ->
                 scalarText(input)?.let { SemanticExpression.squashSpaces(it) }?.takeIf { it.isNotEmpty() }?.let { YNode.Scalar(it) }
             }
+            is Template.CaseOf -> build(t.input, here, out, loop)?.let { input ->
+                scalarText(input)?.let { NameCase.convert(it, t.style) }?.takeIf { it.isNotEmpty() }?.let { YNode.Scalar(it) }
+            }
             is Template.ValueOf -> valueOf(t.expr, here, out)
             // ビューの行（レポートの $view）: 呼び出し側が渡した行の配列を、条件で絞って写す（解決した行は派生なので出どころは持たない）
             is Template.ViewRows -> {
@@ -391,6 +398,8 @@ object SemanticTransform {
                         is Collection<*> -> v.map { it?.toString() }
                         else -> listOf(v?.toString())
                     }
+                    // 別の場所の値（外側の要素の ID など）
+                    is Template.Copy -> listOf(place(operand.site, here)?.node?.let(::scalarText))
                     else -> listOf(null)
                 }
             }

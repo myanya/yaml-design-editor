@@ -36,6 +36,8 @@ data class WorkspaceLayout(
         SKILLS("_skills", "skills"),
         VIEWS("_views", "views"),
         REPORTS("_reports", "reports"),
+        /** 生成の定義（業務モデルから文書を作る変換。CLI generate）。 */
+        TRANSFORMS("_transforms", "transforms"),
     }
 
     /** ゾーンの相対ディレクトリ（例: `_schemas` または `.yde/schemas`）。 */
@@ -49,6 +51,7 @@ data class WorkspaceLayout(
     val skillsDir: String get() = dir(Zone.SKILLS)
     val viewsDir: String get() = dir(Zone.VIEWS)
     val reportsDir: String get() = dir(Zone.REPORTS)
+    val transformsDir: String get() = dir(Zone.TRANSFORMS)
 
     /** 配布できる表示状態。定義ゾーン・台帳・編集履歴には載せない。 */
     val stateDir: String get() = configDir?.let { "$it/state" } ?: "_state"
@@ -71,6 +74,29 @@ data class WorkspaceLayout(
         if (isState(n)) return true
         if (configDir != null && under(n, configDir)) return true
         return zoneOf(n) != null
+    }
+
+    /**
+     * 定義ゾーンの YAML ファイル（下のフォルダも読む。順はゾーンの中の場所＝`business/todo.yaml` の文字の順）。
+     * フォルダは置き場所の整理だけで、定義の ID はゾーン全体で 1 つ（名前空間にしない。重なりは各読み込みが誤りにする）。
+     * 点で始まるフォルダ・ファイルと、ワークスペースの外を指すリンクは読まない。定義を読む入口はここを通す
+     * （`Files.list` でゾーンのすぐ下だけを読む書き方を各所に持たない）。
+     */
+    fun definitionFiles(root: Path, zone: Zone): List<Path> {
+        val dir = runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(root, dir(zone)) }.getOrNull() ?: return emptyList()
+        if (!Files.isDirectory(dir)) return emptyList()
+        val boundary = dev.toros.yde.workspace.WorkspacePaths.ReadBoundary(root)
+        val base = root.toAbsolutePath().normalize()
+        return Files.walk(dir).use { stream ->
+            stream.filter { p ->
+                val n = p.fileName.toString()
+                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml")) &&
+                    dir.relativize(p).none { it.toString().startsWith(".") }
+            }.toList()
+        }.mapNotNull { p ->
+            val rel = base.relativize(p.toAbsolutePath().normalize()).toString().replace('\\', '/')
+            runCatching { boundary.resolve(rel) }.getOrNull()?.let { rel to it }
+        }.sortedBy { (rel, _) -> nameInZone(rel) }.map { it.second }
     }
 
     /** メタアクティビティ（meta: true）が書込を提案できるゾーンか（schemas / runs・構成ファイルは常に不可）。 */
@@ -110,6 +136,16 @@ data class WorkspaceLayout(
 
         /** レガシー構成（従来動作）。 */
         val LEGACY = WorkspaceLayout(configDir = null, ledger = emptyList())
+
+        /**
+         * 定義の誤りの文に出す名前: ゾーンのディレクトリから見た場所（`todo.yaml`・下のフォルダなら `business/todo.yaml`）。
+         * ゾーンの外ならファイル名。`.yde` 構成とレガシー構成のどちらのゾーンの場所も読む（ディレクトリ名は Zone が正）。
+         */
+        fun nameInZone(rel: String): String {
+            val n = rel.replace('\\', '/').trimStart('/')
+            val prefix = Zone.entries.flatMap { listOf("$CONFIG_DIR/${it.ydeName}/", "${it.legacyDir}/") }.firstOrNull { n.startsWith(it) }
+            return prefix?.let { n.removePrefix(it) } ?: n.substringAfterLast('/')
+        }
 
         /**
          * ワークスペースの構成を判定する。`.yde/` が無ければレガシー構成。

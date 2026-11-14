@@ -104,7 +104,8 @@ object ViewDefinitions {
     val CORE_KINDS: List<String> = listOf("grid", "document", "matrix", "lens", "dashboard", "diagram-notation")
 
     /** ビュー定義文書のファイル名（エラーの文面の先頭に使う）。 */
-    private fun fileName(source: DocumentId): String = source.value.substringAfterLast('/')
+    /** 誤りの文に出す名前（ゾーンから見た場所。下のフォルダなら `business/todo.yaml`）。 */
+    private fun fileName(source: DocumentId): String = dev.toros.yde.workspace.layout.WorkspaceLayout.nameInZone(source.value)
 
     /**
      * ビュー定義の一式を読み込む（エラー収集つき）。sources は（文書ID, 本文）の、定義ファイル名順。

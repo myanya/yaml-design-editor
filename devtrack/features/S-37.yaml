@@ -1,0 +1,20 @@
+id: S-37
+title: 定義の索引（業務モデルの操作・型の操作・名前を付けた前提・State・Lifecycle・エンティティ型を `yde-*` の定義出現として索引に載せる・設計書は同じ ID の詳細化・`yde-*` を定義として宣言すると誤り）
+implementation:
+- path: workspace-core/workspace/DefinitionIndex.kt
+  module: workspace-core
+- path: semantic-core/semantic/Engine.kt
+  detail: '`SemanticInput.definitions`'
+  module: semantic-core
+- path: workspace-core/workspace/SchemaDefinitionChecks.kt
+  module: workspace-core
+tests:
+- name: DefinitionIndexTest
+- name: TodosSysdevTest
+design:
+- label: index-references
+  link: architecture/index-references.md
+  heading: ID と参照の意味
+manual:
+- link: manual/generate.md
+  heading: 業務モデルの定義を指す（定義の索引）

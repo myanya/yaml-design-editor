@@ -25,10 +25,9 @@ internal class SavedReadReports(private val root: Path, private val texts: Map<D
     }
     private val presentation by lazy { BusinessReadPresentation(workspace, ::tree, ::schema) }
     private val catalog by lazy {
-        val source = texts.filterKeys { id ->
-            val prefix = layout.viewsDir + "/"
-            id.value.startsWith(prefix) && '/' !in id.value.removePrefix(prefix)
-        }.toList()
+        // views ゾーンの定義（下のフォルダも。並びは WorkspaceLayout.definitionFiles と同じゾーンの中の場所の順）
+        val source = texts.filterKeys { id -> layout.zoneOf(id.value) == WorkspaceLayout.Zone.VIEWS }
+            .toList().sortedBy { (id, _) -> WorkspaceLayout.nameInZone(id.value) }
         val loaded = ViewDefinitions.load(source, workspace.schemas.map { it.kernel }, Extensions.viewKinds)
         readRequire(loaded.errors.isEmpty(), ReadFailureCode.INVALID_DEFINITIONS, "ビュー定義に誤りがあります。デスクトップで確認してください")
         Views.LoadResult(loaded.views, loaded.docViews, loaded.errors, loaded.lensViews, loaded.dashboards, loaded.extensionViews, loaded.notations)

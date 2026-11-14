@@ -1,0 +1,486 @@
+# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
+id: todo
+name: TODOの読み書き
+table: todo
+mapper: TodoMapper
+accesses:
+  - operation: register-todo
+    method: registerTodo
+    statements:
+      - kind: insert
+        values:
+          due_on:
+            $copy: due
+          details:
+            $copy: details
+          comments: []
+      - kind: insert
+        table: todo
+        values:
+          id:
+            $copy: id
+            $of: todo
+          title: $title
+          summary: $summary
+          category:
+            $copy: category
+          tags:
+            $copy: tags
+          follows:
+            $copy: follows
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: status
+            value: OPEN
+        where:
+          - column: id
+            value: $id
+        source: lifecycle
+      - kind: insert
+        table: todo_history
+        values:
+          date:
+            $copy: today
+            $of: context
+          action: register-todo
+          to: OPEN
+        source: lifecycle
+      - kind: update
+        table: todo
+        set:
+          - column: created_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: add-todo-comment
+    method: addTodoComment
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: insert
+        table: todo_comments
+        values:
+          date: $date
+          body: $body
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: add-todo-task
+    method: addTodoTask
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: check
+        precondition: add-todo-task.active
+        sql: 手で書く（前提の形から SQL へ写す規則は、まだ無い）
+      - kind: insert
+        table: todo_task
+        values:
+          id: ''
+          title: $title
+          done: false
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: edit-todo
+    method: editTodo
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: title
+            value: $title
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: summary
+            value: $summary
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: category
+            value: $category
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: replace
+        table: todo_tags
+        values: $tags
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: created_on
+            value: $created_on
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: due_on
+            value: $due_on
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: details
+            value: $details
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: result
+            value: $result
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: replace
+        table: todo_comments
+        values: $comments
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: category
+            value: null
+        where:
+          - column: id
+            value: $id
+      - kind: delete
+        table: todo_tags
+        where:
+          - column: todo_id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: due_on
+            value: null
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: details
+            value: null
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: result
+            value: null
+        where:
+          - column: id
+            value: $id
+      - kind: replace
+        table: todo_comments
+        values: []
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: start-todo
+    method: startTodo
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: status
+            value: IN_PROGRESS
+        where:
+          - column: id
+            value: $id
+        source: lifecycle
+      - kind: insert
+        table: todo_history
+        values:
+          date:
+            $copy: today
+            $of: context
+          action: start-todo
+          from:
+            $copy: status
+            $of: self
+          to: IN_PROGRESS
+        source: lifecycle
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: suspend-todo
+    method: suspendTodo
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: status
+            value: SUSPENDED
+        where:
+          - column: id
+            value: $id
+        source: lifecycle
+      - kind: insert
+        table: todo_history
+        values:
+          date: $date
+          action: suspend-todo
+          from:
+            $copy: status
+            $of: self
+          to: SUSPENDED
+          note: $reason
+          resume_on:
+            $copy: resume_on
+        source: lifecycle
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: resume-todo
+    method: resumeTodo
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: status
+            value: IN_PROGRESS
+        where:
+          - column: id
+            value: $id
+        source: lifecycle
+      - kind: insert
+        table: todo_history
+        values:
+          date: $date
+          action: resume-todo
+          from:
+            $copy: status
+            $of: self
+          to: IN_PROGRESS
+          note:
+            $copy: note
+        source: lifecycle
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: complete-todo
+    method: completeTodo
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: check
+        precondition: complete-todo.no-open-task
+        sql: 手で書く（前提の形から SQL へ写す規則は、まだ無い）
+      - kind: update
+        table: todo
+        set:
+          - column: completed_on
+            value: $date
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: result
+            value: $result
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: status
+            value: CLOSED
+        where:
+          - column: id
+            value: $id
+        source: lifecycle
+      - kind: insert
+        table: todo_history
+        values:
+          date: $date
+          action: complete-todo
+          from:
+            $copy: status
+            $of: self
+          to: CLOSED
+        source: lifecycle
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto
+  - operation: cancel-todo
+    method: cancelTodo
+    statements:
+      - kind: select
+        table: todo
+        where:
+          - column: id
+            value: $id
+      - kind: update
+        table: todo
+        set:
+          - column: result
+            value: $reason
+        where:
+          - column: id
+            value: $id
+        source: do
+      - kind: update
+        table: todo
+        set:
+          - column: status
+            value: CANCELED
+        where:
+          - column: id
+            value: $id
+        source: lifecycle
+      - kind: insert
+        table: todo_history
+        values:
+          date:
+            $copy: today
+            $of: context
+          action: cancel-todo
+          from:
+            $copy: status
+            $of: self
+          to: CANCELED
+          note: $reason
+        source: lifecycle
+      - kind: update
+        table: todo
+        set:
+          - column: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - column: id
+            value: $id
+        source: auto

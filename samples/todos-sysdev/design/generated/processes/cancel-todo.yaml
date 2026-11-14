@@ -1,0 +1,55 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: cancel-todo
+name: TODOを中止する
+service:
+  class: TodoService
+  method: cancelTodo
+  arguments:
+    - id
+    - reason
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    entity: todo
+    key: id
+  - step: check
+    precondition: cancel-todo.state
+    allowed:
+      - OPEN
+      - IN_PROGRESS
+      - SUSPENDED
+  - step: write
+    op: set
+    entity: todo
+    path: result
+    value: $reason
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: status
+    value: CANCELED
+    source: lifecycle
+  - step: write
+    op: insert
+    entity: todo
+    path: history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: cancel-todo
+      from:
+        $copy: status
+        $of: self
+      to: CANCELED
+      note: $reason
+    source: lifecycle
+  - step: write
+    op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

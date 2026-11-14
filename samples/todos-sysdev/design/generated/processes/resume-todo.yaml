@@ -1,0 +1,47 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: resume-todo
+name: TODOを再開する
+service:
+  class: TodoService
+  method: resumeTodo
+  arguments:
+    - id
+    - date
+    - note
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    entity: todo
+    key: id
+  - step: check
+    precondition: resume-todo.state
+    allowed:
+      - SUSPENDED
+  - step: write
+    op: set
+    entity: todo
+    path: status
+    value: IN_PROGRESS
+    source: lifecycle
+  - step: write
+    op: insert
+    entity: todo
+    path: history
+    value:
+      date: $date
+      action: resume-todo
+      from:
+        $copy: status
+        $of: self
+      to: IN_PROGRESS
+      note:
+        $copy: note
+    source: lifecycle
+  - step: write
+    op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

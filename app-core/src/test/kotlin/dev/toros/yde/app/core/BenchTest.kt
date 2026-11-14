@@ -47,7 +47,8 @@ class BenchTest {
         assertEquals(0, result.errors)
         assertEquals(0, result.warnings)
         // 数えた要素の数は、索引の要素の数と一致する
-        assertEquals(size.entities, Workspace.open(dir).index.graph.entities.size)
+        // 台帳の要素の数（業務モデルの定義＝定義の索引の yde-* は数えない）
+        assertEquals(size.entities, Workspace.open(dir).index.graph.entities.values.count { it.entityType?.startsWith("yde-") != true })
     }
 
     @Test

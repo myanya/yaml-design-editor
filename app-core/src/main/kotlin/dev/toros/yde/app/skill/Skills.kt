@@ -145,21 +145,20 @@ object Skills {
             .getOrElse { return LoadResult(emptyList(), listOf(it.message ?: "skill 定義の場所を解決できません")) }
         if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList())
         val errors = mutableListOf<String>()
-        val files = Files.list(dir).use { stream ->
-            stream.filter { p ->
-                val n = p.fileName.toString()
-                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
-            }.toList()
-        }.sortedBy { it.fileName.toString() }
+        // 下のフォルダも読む（フォルダは置き場所の整理だけ。ID はゾーン全体で 1 つ）
+        val files = WorkspaceLayout.of(workspace).definitionFiles(workspace, WorkspaceLayout.Zone.SKILLS)
+        val base = workspace.toAbsolutePath().normalize()
+        fun name(file: Path) = WorkspaceLayout.nameInZone(base.relativize(file.toAbsolutePath().normalize()).toString())
         val skills = files.mapNotNull { file ->
             runCatching {
-                dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(file).toString())
                 val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
                 parseSkill(raw, file)
-            }.onFailure { errors += "${file.fileName}: ${it.message ?: it::class.simpleName}" }.getOrNull()
+            }.onFailure { errors += "${name(file)}: ${it.message ?: it::class.simpleName}" }.getOrNull()
         }
-        skills.groupBy { it.id }.filterValues { it.size > 1 }.keys.forEach { errors += "skillID「$it」が重複しています" }
+        skills.groupBy { it.id }.filterValues { it.size > 1 }.forEach { (id, found) ->
+            errors += "skillID「$id」が重複しています（${found.joinToString(", ") { name(it.source) }}）"
+        }
         return LoadResult(checkBundles(skills, errors), errors)
     }
 

@@ -1,0 +1,74 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: complete-todo
+name: TODOを完了する
+service:
+  class: TodoService
+  method: completeTodo
+  arguments:
+    - id
+    - date
+    - result
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    entity: todo
+    key: id
+  - step: check
+    precondition: complete-todo.state
+    allowed:
+      - IN_PROGRESS
+  - step: check
+    precondition: complete-todo.no-open-task
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+        - edge:
+            contains: true
+        - node:
+            entity: todo-task
+            bind: s
+      where:
+        - of: s
+          path: done
+          equals: false
+      expect: absent
+  - step: write
+    op: set
+    entity: todo
+    path: completed_on
+    value: $date
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: result
+    value: $result
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: status
+    value: CLOSED
+    source: lifecycle
+  - step: write
+    op: insert
+    entity: todo
+    path: history
+    value:
+      date: $date
+      action: complete-todo
+      from:
+        $copy: status
+        $of: self
+      to: CLOSED
+    source: lifecycle
+  - step: write
+    op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

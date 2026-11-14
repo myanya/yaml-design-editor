@@ -1,0 +1,46 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: add-todo-task
+name: 作業項目を追加する
+service:
+  class: TodoService
+  method: addTodoTask
+  arguments:
+    - id
+    - title
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    entity: todo
+    key: id
+  - step: check
+    precondition: add-todo-task.active
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      where:
+        - of: t
+          path: status
+          oneOf:
+            - OPEN
+            - IN_PROGRESS
+            - SUSPENDED
+      expect: exists
+  - step: write
+    op: insert
+    entity: todo-task
+    path: tasks
+    value:
+      id: ''
+      title: $title
+      done: false
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

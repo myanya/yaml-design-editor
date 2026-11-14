@@ -1,0 +1,50 @@
+id: action-spec
+name: アクション定義書
+kind: document
+description: 基本設計。業務モデルの操作 1 つの、外から見た振る舞い（受け取る値・前提・状態の移り方・結果）。生成物（.yde/transforms/design/action-specs.yaml）で、手で直さない
+match: "design/generated/actions/*.yaml"
+# 業務の操作と同じ ID の詳細化（定義は業務モデルの操作。業務モデルから消えた操作の定義書は「浮いた詳細化」として分かる）
+entity: { type: yde-action, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: 操作ID, type: id, required: true }
+    - { key: name, label: 操作名, type: string, role: title, required: true }
+    - { key: description, label: 説明, type: text }
+    - key: kind
+      label: 種類
+      type: enum
+      values: [{ value: action, label: 操作 }, { value: method, label: 型の操作 }]
+    - { key: subject, label: 主体のエンティティ型, type: ref }
+    - key: inputs
+      label: 受け取る値
+      type: array
+      display: table
+      item: { type: any }
+    - { key: initial, label: 入力の初期値, type: any }
+    - key: state
+      label: 状態の移り方
+      type: object
+      fields:
+        - { key: lifecycle, label: Lifecycle, type: ref }
+        - { key: entry, label: 作るときの状態, type: array, item: { type: ref } }
+        - { key: transitions, label: 遷移, type: array, item: { type: any } }
+    - key: preconditions
+      label: 前提（断りの種類）
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: 前提ID, type: string, required: true }
+          - key: kind
+            label: 種類
+            type: enum
+            values: [{ value: state, label: 状態 }, { value: rule, label: 条件 }]
+          - { key: allowed, label: できる状態, type: array, item: { type: string } }
+          - { key: message, label: 断りの文, type: string }
+    - key: effects
+      label: 結果
+      type: array
+      display: table
+      item: { type: any }

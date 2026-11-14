@@ -1,5 +1,5 @@
 id: W-11
-title: ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・CLI `migrate`）
+title: ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・定義ゾーンの下のフォルダ `definitionFiles`・CLI `migrate`）
 implementation:
 - path: workspace-core/layout/WorkspaceLayout.kt
   module: workspace-core
@@ -8,6 +8,8 @@ implementation:
 tests:
 - name: WorkspaceLayoutTest
 - name: DocumentStoreTest
+- name: DefinitionSubfoldersTest
+- name: AgentDefinitionSubfoldersTest
 design:
 - label: workspace
   link: architecture/workspace.md

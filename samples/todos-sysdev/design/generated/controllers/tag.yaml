@@ -1,0 +1,23 @@
+# 生成物（screen-flows）: 手で直さず、業務モデルか生成の定義（design/screen-flows.yaml）を直して作り直します（CLI generate）。
+id: tag
+name: タグの画面の動き
+controller: TagController
+handlers:
+  - action: add-tag
+    name: タグを追加する
+    method: addTag
+    open:
+      method: GET
+      url: /tag/add-tag
+      fragment: tag/add-tag
+    submit:
+      method: POST
+      url: /tag/add-tag
+      form: AddTagForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions: []
+    on_success:
+      redirect: /tag
+      notice: add-tag.done

@@ -1,0 +1,24 @@
+id: process
+name: 処理設計書（Service）
+kind: document
+description: 詳細設計。操作 1 つの Service のメソッドと、1 トランザクションの中の手順（読む・前提を確かめる・書く）。生成物（.yde/transforms/design/processes.yaml）で、手で直さない
+match: "design/generated/processes/*.yaml"
+entity: { type: yde-action, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: 操作ID, type: id, required: true }
+    - { key: name, label: 操作名, type: string, role: title, required: true }
+    - key: service
+      label: Service
+      type: object
+      fields:
+        - { key: class, label: クラス, type: string, required: true }
+        - { key: method, label: メソッド, type: string, required: true }
+        - { key: arguments, label: 引数, type: array, item: { type: string } }
+    - { key: transaction, label: トランザクション, type: string }
+    - key: steps
+      label: 手順
+      type: array
+      display: table
+      item: { type: any }

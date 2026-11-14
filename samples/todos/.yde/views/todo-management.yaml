@@ -60,6 +60,3 @@ columns:
 detail:
   fileGlob: todos/details/*.yaml
   filePattern: todos/details/{id}.yaml
-newRow:
-  file: todos/todo-list.yaml
-  path: todos

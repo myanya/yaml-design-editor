@@ -72,15 +72,11 @@ actions:
     input:
       initial:
         date: { $copy: today, $of: context }
-    description: 個票のあるTODOへ、状態に関係なく日付と本文を記録します。
+    description: TODOの個票へ、状態に関係なく日付と本文を記録します。
     target: { entity: todo }
     params:
       - { key: date, label: 記録日, type: common#年月日, required: true }
       - { key: body, label: コメント本文, type: 操作の記録, required: true }
-    require:
-      - match: [{ node: { entity: todo, schema: todo-detail } }]
-        expect: exists
-        message: "{id} は個票が必要です。先に「TODOを編集する」で作成してください"
     do:
       - insert:
           in: { schemaId: todo-detail }
@@ -89,16 +85,15 @@ actions:
           of: self
   - id: add-todo-task
     label: 作業項目を追加する
-    description: 個票のある未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
+    description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
     target: { entity: todo }
     params:
       - { key: title, label: 作業, type: common#一行の文, minLength: 1, required: true }
+    # 前提には名前（id）を付ける。断りの種類の名前になる（設計書のエラー定義とメッセージのキー add-todo-task.active）
     require:
-      - match: [{ node: { entity: todo, schema: todo-detail } }]
-        expect: exists
-        message: "{id} は個票が必要です。先に「TODOを編集する」で作成してください"
       # 状態の条件は State の名前で書く（未完了＝todo-behavior.yaml の詳細化の親。中身の状態は状態の流れだけが知る）
-      - match: [{ node: { entity: todo, bind: t } }]
+      - id: active
+        match: [{ node: { entity: todo, bind: t } }]
         where: [{ of: t, state: todo-ACTIVE }]
         expect: exists
         message: "{id} は完了か中止をしているので、作業項目を足せません"
@@ -111,7 +106,7 @@ actions:
           of: self
   - id: edit-todo
     label: TODOを編集する
-    description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。個票がなければ未着手の個票を作成します。
+    description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
     input:
       submit: changed
       initial:
@@ -172,10 +167,6 @@ actions:
           - { key: details, label: "詳細を消す", type: boolean }
           - { key: result, label: "結果・中止理由を消す", type: boolean }
           - { key: comments, label: "コメント一覧を消す", type: boolean }
-    require:
-      - match: [{ node: { entity: todo, schema: todo-list } }]
-        expect: exists
-        message: "{id} はTODO一覧の定義が必要です"
     do:
       - when:
           - { path: title, exists: true }
@@ -207,7 +198,6 @@ actions:
           of: self
       - when:
           - { path: created_on, exists: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         set:
           in: { schemaId: todo-detail }
           path: created_on
@@ -215,7 +205,6 @@ actions:
           of: self
       - when:
           - { path: due_on, exists: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         set:
           in: { schemaId: todo-detail }
           path: due_on
@@ -223,7 +212,6 @@ actions:
           of: self
       - when:
           - { path: details, exists: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         set:
           in: { schemaId: todo-detail }
           path: details
@@ -231,7 +219,6 @@ actions:
           of: self
       - when:
           - { path: result, exists: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         set:
           in: { schemaId: todo-detail }
           path: result
@@ -239,7 +226,6 @@ actions:
           of: self
       - when:
           - { path: comments, exists: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         set:
           in: { schemaId: todo-detail }
           path: comments
@@ -259,67 +245,29 @@ actions:
           of: self
       - when:
           - { path: clear.due_on, equals: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         delete:
           in: { schemaId: todo-detail }
           path: due_on
           of: self
       - when:
           - { path: clear.details, equals: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         delete:
           in: { schemaId: todo-detail }
           path: details
           of: self
       - when:
           - { path: clear.result, equals: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         delete:
           in: { schemaId: todo-detail }
           path: result
           of: self
       - when:
           - { path: clear.comments, equals: true }
-          - { of: self, in: { schemaId: todo-detail }, path: id, exists: true }
         set:
           in: { schemaId: todo-detail }
           path: comments
           value: []
           of: self
-      # 一覧だけのTODOも操作で詳細化できる。新しい個票への値はcreateのparamsへまとめて渡す。
-      # 状態は既定の未着手（OPEN）で、状態の履歴の最初の行に「個票の作成」を残す
-      - when: { of: self, in: { schemaId: todo-detail }, path: id, exists: false }
-        create:
-          schema: todo-detail
-          params:
-            id: { $copy: id, $of: self, $in: { schemaId: todo-list } }
-            created_on: { $copy: created_on }
-            due_on:
-              $when:
-                or:
-                  - { path: clear.due_on, exists: false }
-                  - { path: clear.due_on, equals: false }
-              $copy: due_on
-            details:
-              $when:
-                or:
-                  - { path: clear.details, exists: false }
-                  - { path: clear.details, equals: false }
-              $copy: details
-            result:
-              $when:
-                or:
-                  - { path: clear.result, exists: false }
-                  - { path: clear.result, equals: false }
-              $copy: result
-            comments:
-              $when:
-                or:
-                  - { path: clear.comments, exists: false }
-                  - { path: clear.comments, equals: false }
-              $copy: comments
-            history:
-              - { date: '', action: edit-todo, to: OPEN }
   # ---- 状態を変える操作 ----
   # どの状態からできるか・どの状態へ移るか・状態の履歴の行は、状態の流れ（todo-behavior.yaml の transitions）から決まる。
   # ここに書くのは、状態のほかに書く値（完了日・結果）と、履歴の行に足す値（理由・日付・再開予定日）だけ
@@ -370,7 +318,8 @@ actions:
       - { key: result, label: 完了結果, type: 操作の記録, required: true }
     # 状態の条件（対応中から）は Lifecycle から。作業項目の条件は個票が保有する作業項目（入れ子の線 contains）を見る
     require:
-      - match:
+      - id: no-open-task
+        match:
           - node: { entity: todo, bind: t }
           - edge: { contains: true }
           - node: { entity: todo-task, bind: s }

@@ -232,6 +232,21 @@ object SourceRules {
             doc = "CONVENTIONS「モジュールの規約」",
             scope = Rule.Scope.TEST,
         ) { files -> files.flatMap { it.find(labsPathLiteral) } },
+        Rule(
+            22, "定義ゾーンのファイルの一覧は WorkspaceLayout.definitionFiles",
+            why = "定義（ビュー・レポート・skill・エージェントなど）はゾーンの下のフォルダにも置ける。Files.list ですぐ下だけを読むと、" +
+                "下のフォルダの定義が誤りも出さずに消える。フォルダの一覧を読む所（実行記録・作業記録・初期化）だけ許す",
+            doc = "architecture/workspace.md「ワークスペース構造と layout」",
+        ) { files -> onlyIn(files, Regex("""\bFiles\.list\("""), filesListAllowed) },
+    )
+
+    /** Files.list を直接呼んでよいファイル（定義ゾーンではないフォルダを読む所）。 */
+    private val filesListAllowed = setOf(
+        "agent/src/main/kotlin/dev/toros/yde/agent/eval/Metrics.kt", // 実行記録（runs ゾーンは記録で、定義ではない）
+        "app-core/src/main/kotlin/dev/toros/yde/app/service/WorkJournal.kt",
+        "app-core/src/main/kotlin/dev/toros/yde/app/service/OperationJournal.kt",
+        "$UI/shell/InitWizard.kt",
+        "workspace-core/src/main/kotlin/dev/toros/yde/workspace/WorkspaceInit.kt",
     )
 
     /** `"labs/…"`・`"../labs/…"` のような、labs の下を指す文字列（コメントは見ない）。 */

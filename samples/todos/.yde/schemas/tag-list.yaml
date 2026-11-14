@@ -21,6 +21,7 @@ root:
           id: { path: id, prefix: "TAG-", digits: 3 }
       item:
         type: object
+        label: タグ
         fields:
           - key: id
             label: ID

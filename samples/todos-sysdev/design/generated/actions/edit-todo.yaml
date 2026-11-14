@@ -1,0 +1,238 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: edit-todo
+name: TODOを編集する
+description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
+kind: action
+subject: todo
+inputs:
+  - key: title
+    label: タイトル
+    type: common#一行の文
+    base: string
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+  - key: summary
+    label: 概要
+    type: common#一行の文
+    base: string
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+  - key: category
+    label: カテゴリ
+    type: common#カテゴリ参照
+    base: ref
+    relation: in-category
+    idPatterns:
+      - CAT-*
+    schemas:
+      - category-list
+  - key: tags
+    label: タグ
+    type: array
+    base: array
+    unique: true
+    item:
+      type: common#タグ参照
+      base: ref
+      relation: tagged
+      idPatterns:
+        - TAG-*
+      schemas:
+        - tag-list
+  - key: created_on
+    label: 作成日
+    type: common#年月日
+    base: date
+    format: yyyy年M月d日
+  - key: due_on
+    label: 期限
+    type: common#年月日
+    base: date
+    format: yyyy年M月d日
+  - key: details
+    label: 詳細
+    type: common#文章
+    base: string
+    multiline: true
+  - key: result
+    label: 結果・中止理由
+    type: common#文章
+    base: string
+    multiline: true
+  - key: comments
+    label: コメント一覧
+    type: array
+    base: array
+    item:
+      type: common#コメント
+      base: object
+      fields:
+        - key: date
+          label: 日付
+          type: common#年月日
+          base: date
+          required: true
+          format: yyyy年M月d日
+        - key: body
+          label: コメント本文
+          type: text
+          base: string
+          required: true
+          multiline: true
+  - key: clear
+    label: 値を消す
+    type: object
+    base: object
+    default: {}
+    fields:
+      - key: category
+        label: カテゴリを消す
+        type: boolean
+        base: boolean
+      - key: tags
+        label: タグを消す
+        type: boolean
+        base: boolean
+      - key: due_on
+        label: 期限を消す
+        type: boolean
+        base: boolean
+      - key: details
+        label: 詳細を消す
+        type: boolean
+        base: boolean
+      - key: result
+        label: 結果・中止理由を消す
+        type: boolean
+        base: boolean
+      - key: comments
+        label: コメント一覧を消す
+        type: boolean
+        base: boolean
+initial:
+  title:
+    $copy: title
+    $of: self
+    $in:
+      schemaId: todo-list
+  summary:
+    $copy: summary
+    $of: self
+    $in:
+      schemaId: todo-list
+  category:
+    $copy: category
+    $of: self
+    $in:
+      schemaId: todo-list
+  tags:
+    $copy: tags
+    $of: self
+    $in:
+      schemaId: todo-list
+  created_on:
+    $copy: created_on
+    $of: self
+    $in:
+      schemaId: todo-detail
+  due_on:
+    $copy: due_on
+    $of: self
+    $in:
+      schemaId: todo-detail
+  details:
+    $copy: details
+    $of: self
+    $in:
+      schemaId: todo-detail
+  result:
+    $copy: result
+    $of: self
+    $in:
+      schemaId: todo-detail
+  comments:
+    $copy: comments
+    $of: self
+    $in:
+      schemaId: todo-detail
+preconditions: []
+effects:
+  - op: set
+    entity: todo
+    path: title
+    value: $title
+    source: do
+  - op: set
+    entity: todo
+    path: summary
+    value: $summary
+    source: do
+  - op: set
+    entity: todo
+    path: category
+    value: $category
+    source: do
+  - op: set
+    entity: todo
+    path: tags
+    value: $tags
+    source: do
+  - op: set
+    entity: todo
+    path: created_on
+    value: $created_on
+    source: do
+  - op: set
+    entity: todo
+    path: due_on
+    value: $due_on
+    source: do
+  - op: set
+    entity: todo
+    path: details
+    value: $details
+    source: do
+  - op: set
+    entity: todo
+    path: result
+    value: $result
+    source: do
+  - op: set
+    entity: todo
+    path: comments
+    value: $comments
+    source: do
+  - op: delete
+    entity: todo
+    path: category
+    source: do
+  - op: delete
+    entity: todo
+    path: tags
+    source: do
+  - op: delete
+    entity: todo
+    path: due_on
+    source: do
+  - op: delete
+    entity: todo
+    path: details
+    source: do
+  - op: delete
+    entity: todo
+    path: result
+    source: do
+  - op: set
+    entity: todo
+    path: comments
+    value: []
+    source: do
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

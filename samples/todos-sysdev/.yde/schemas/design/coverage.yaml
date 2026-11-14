@@ -1,0 +1,37 @@
+id: design-coverage
+name: 設計の対応の検査
+kind: library
+description: >-
+  業務モデルの定義（定義の索引の操作・エンティティ型・Lifecycle）が、どれも設計書に降りていることを確かめる。
+  業務モデルを写し直したのに作り直していない・生成の定義が要素を落とした、のどちらも指摘になる（指摘は業務モデルの定義の場所に出る）
+constraints:
+  - id: action-has-spec
+    description: どの操作にもアクション定義書がある
+    match: [{ node: { entity: yde-action, bind: a } }]
+    check: [{ gte: [{ occurrenceCount: { of: a, schema: action-spec } }, 1] }]
+    level: error
+    message: "操作「{id}」にアクション定義書がありません（generate で作り直します）"
+  - id: action-has-process
+    description: どの操作にも処理設計書がある
+    match: [{ node: { entity: yde-action, bind: a } }]
+    check: [{ gte: [{ occurrenceCount: { of: a, schema: process } }, 1] }]
+    level: error
+    message: "操作「{id}」に処理設計書がありません（generate で作り直します）"
+  - id: action-has-handler
+    description: どの操作にも Controller のハンドラがある
+    match: [{ node: { entity: yde-action, bind: a } }]
+    check: [{ gte: [{ refCount: { of: a, dir: in, via: action } }, 1] }]
+    level: error
+    message: "操作「{id}」を扱う Controller のハンドラがありません（主体のエンティティ型が決まらない操作かもしれません）"
+  - id: action-has-access
+    description: どの操作にも Mapper の読み書きがある
+    match: [{ node: { entity: yde-action, bind: a } }]
+    check: [{ gte: [{ refCount: { of: a, dir: in, via: operation } }, 1] }]
+    level: error
+    message: "操作「{id}」の読み書きがテーブルアクセス設計書にありません"
+  - id: lifecycle-has-status-rule
+    description: どの Lifecycle にも状態の判定がある
+    match: [{ node: { entity: yde-lifecycle, bind: l } }]
+    check: [{ gte: [{ occurrenceCount: { of: l, schema: status-rule } }, 1] }]
+    level: error
+    message: "Lifecycle「{id}」に状態の判定（enum と遷移）がありません（generate で作り直します）"

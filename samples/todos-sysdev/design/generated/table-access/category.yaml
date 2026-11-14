@@ -1,0 +1,14 @@
+# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
+id: category
+name: カテゴリの読み書き
+table: category
+mapper: CategoryMapper
+accesses:
+  - operation: add-category
+    method: addCategory
+    statements:
+      - kind: insert
+        table: category
+        values:
+          name: $name
+        source: do

@@ -1,0 +1,23 @@
+id: table-access
+name: テーブルアクセス設計書（Repository）
+kind: document
+description: 詳細設計。エンティティ型ごとの Mapper と、操作ごとの読み書き（どの表の・どの列を・どの条件で）。MyBatis の XML に書く SQL の元。表と列の名前は仮（データの筋で決める）。生成物（.yde/transforms/design/table-access.yaml）で、手で直さない
+match: "design/generated/table-access/*.yaml"
+entity: { type: yde-entity, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: エンティティ型, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: table, label: 表（仮）, type: string, required: true }
+    - { key: mapper, label: Mapper, type: string, required: true }
+    - key: accesses
+      label: 操作ごとの読み書き
+      type: array
+      display: list
+      item:
+        type: object
+        fields:
+          - { key: operation, label: 操作, type: ref, required: true }
+          - { key: method, label: Mapper のメソッドの頭, type: string }
+          - { key: statements, label: 文, type: array, display: table, item: { type: any } }

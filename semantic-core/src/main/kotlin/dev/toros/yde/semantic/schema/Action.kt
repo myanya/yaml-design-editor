@@ -275,6 +275,7 @@ internal fun Template.paramNames(): Set<String> {
             is Template.DateOf -> walk(t.input)
             is Template.NumberOf -> walk(t.input)
             is Template.TrimOf -> walk(t.input)
+            is Template.CaseOf -> walk(t.input)
             is Template.ValueOf -> Unit
             is Template.ViewRows -> Unit
             is Template.Each -> walk(t.body)
@@ -479,6 +480,12 @@ data class ActionTarget(val entity: String?, val schema: String?, val bind: Stri
  * 検査の形に読むため、原文のまま持つ。定義の段階では仮の値で形だけ確かめる。
  */
 data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val referenced: Set<String> = emptySet()) {
+    /**
+     * 前提の名前（`id`。書かなければ null）。操作の中で 1 つで、断りの種類を指す名前になる（設計書のエラー定義・
+     * メッセージのキー `操作ID.前提ID`）。判定には使わない。
+     */
+    val id: String? get() = raw["id"]?.toString()?.takeIf { it.isNotBlank() }
+
     /** 受け取った値を差し込んだ検査。使っている値が無ければ（省かれた任意の値）誤り——黙って絞り込みが外れるのを防ぐ。 */
     fun rule(values: Map<String, Any?>): ConstraintRule {
         referenced.firstOrNull { values[it] == null }
@@ -502,6 +509,7 @@ data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val ref
 
     companion object {
         private val PARAM = Regex("""\$([A-Za-z][A-Za-z0-9_]*)""")
+        private val REQUIRE_ID = Regex("""[A-Za-z][A-Za-z0-9_-]*""")
         private val RULE_KEYS = setOf("expect", "count", "check", "forAll")
 
         /** 値が与えられているか（null・空文字・空の並びは「無い」＝絞らない）。 */
@@ -542,6 +550,9 @@ data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val ref
                 ?.let { error("$where: 前提に $it は書けません（前提は実行できるかを決めるだけで、指摘は出しません）") }
             val referenced = referencedIn(map)
             referenced.firstOrNull { it !in params }?.let { error("$where: 受け取る値「\$$it」が params に宣言されていません") }
+            map["id"]?.let { id ->
+                require(id is String && REQUIRE_ID.matches(id)) { "$where.id: 前提の ID は英字で始まる英数字（- _ 可）で書きます: $id" }
+            }
             val require = ActionRequire(map, where, referenced)
             // 形の点検: 受け取る値に仮の値を入れて、検査として読めること
             val rule = require.rule(params.associateWith { "X" })
@@ -613,6 +624,8 @@ data class ActionDef(
                 is List<*> -> r.mapIndexed { i, e -> ActionRequire.parse(e, "$where.require[$i]", declared, hasStart = target?.entity != null) }
                 else -> error("$where.require は前提の配列である必要があります")
             }
+            require.mapNotNull { it.id }.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()
+                ?.let { error("$where.require: 前提の ID「$it」が重複しています（操作の中で 1 つにします）") }
             val lifecycle = m["lifecycle"]?.let { ActionLifecycle.parse(it, "$where.lifecycle") }
             // Lifecycle を書いた操作は、状態の書き込みと記録を Lifecycle から作るので、手が無くてもよい
             val steps = m["do"]?.let { ActionSteps.parse(it, "$where.do", StepScope.ACTION) }

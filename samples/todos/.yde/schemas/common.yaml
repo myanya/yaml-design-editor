@@ -86,7 +86,6 @@ definitions:
       - { value: suspend-todo, label: TODOを中断する }
       - { value: resume-todo, label: TODOを再開する }
       - { value: cancel-todo, label: TODOを中止する }
-      - { value: edit-todo, label: TODOを編集する（個票の作成） }
 
   # ---- オブジェクト型 ----
   # 一覧の行: この形の要素はエンティティ todo の定義（誕生）。ID の形で見分けなくても、要素の形で型が決まります
@@ -136,7 +135,7 @@ definitions:
       - { key: date, label: 日付, type: 年月日, required: true }
       - { key: body, label: コメント本文, type: text, required: true }
   # 状態の履歴の行: 状態の流れ（todo-behavior.yaml の history）が、状態を変える操作のたびに 1 行足す（いつ・どの操作で・どこからどこへ）。ID を持たない部品
-  # 日付は、操作が渡した日付（完了日など）か、適用した日。手で足した行（個票の作成）の空の日付には auto: created で適用した日が入る
+  # 日付は、操作が渡した日付（完了日など）か、適用した日。手で足した行の空の日付には auto: created で適用した日が入る
   状態の記録:
     type: object
     label: 状態の記録
@@ -148,7 +147,7 @@ definitions:
         auto: created
         description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
       - { key: action, label: 操作, type: TODOの操作, required: true }
-      - { key: from, label: 前の状態, type: ステータス, description: 登録と個票の作成の行には書きません。 }
+      - { key: from, label: 前の状態, type: ステータス, description: 登録の行には書きません。 }
       - { key: to, label: 後の状態, type: ステータス, required: true }
       - { key: note, label: 理由, type: 文章, description: 中止と中断の理由、再開のメモです。 }
       - { key: resume_on, label: 再開予定日, type: 年月日, description: 中断の行にだけ書きます。 }

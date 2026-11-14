@@ -157,16 +157,10 @@ object Views {
         workspace: Path, schemas: List<SchemaDef> = emptyList(),
         loader: ((DocumentId) -> YNode?)? = null,
     ): LoadResult {
-        val dir = runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, WorkspaceLayout.of(workspace).viewsDir) }
+        runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, WorkspaceLayout.of(workspace).viewsDir) }
             .getOrElse { return LoadResult(emptyList(), emptyList(), listOf(it.message ?: "ビュー定義の場所を解決できません")) }
-        if (!Files.isDirectory(dir)) return LoadResult(emptyList(), emptyList(), emptyList())
-        val files = Files.list(dir).use { stream ->
-            stream.filter { p ->
-                val n = p.fileName.toString()
-                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
-                    && runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(p).toString()) }.isSuccess
-            }.toList()
-        }.sortedBy { it.fileName.toString() }
+        // 下のフォルダも読む（フォルダは置き場所の整理だけ。ID はゾーン全体で 1 つ）
+        val files = WorkspaceLayout.of(workspace).definitionFiles(workspace, WorkspaceLayout.Zone.VIEWS)
         val sources = files.map { file ->
             val document = documentIdOf(workspace, file)
             document to if (loader == null) Files.readString(file) else loader(document)?.let(YamlIO::dumpPlain).orEmpty()

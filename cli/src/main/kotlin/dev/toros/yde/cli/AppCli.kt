@@ -43,6 +43,10 @@ internal const val CLI_USAGE = """コマンド:
            入力のどこから来たかを添える。出力は保存しない（原本は変わらない）
            定義に「builtin:structural-schema」と書くと、組込みの変換定義（構造のスキーマの導出）を使う
            （例: transform <workspace> builtin:structural-schema --input _schemas/x.yaml＝そのスキーマから導出される、最小の構造のスキーマ）
+  generate <workspace> [<定義ID>...] [--apply [--allow-errors]] [--check] [--model]
+           業務モデルから文書を作る（生成の定義は .yde/transforms）。引数なしは計画だけ（作る・作り直す・消す文書と、作る文書の検証）。
+           --apply で書く（作る文書に検証エラーがあれば書かない）。--check は生成物が最新でなければ失敗（終了コード 1）。
+           --model は業務モデルを展開した形（生成の入力: entities・actions・states・lifecycles）を出す
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            ダッシュボード（kind: dashboard）は --date YYYY-MM-DD で基準日を指定（省略時は本日）。共有の入力（inputs）は --param 名前=値（省略時は定義の default。空文字で絞らない）。
@@ -169,6 +173,7 @@ private fun dispatchAppCommand(command: String, rest: List<String>): CliResult {
         "query" -> queryCommand(rest)
         "report" -> reportCommand(rest)
         "transform" -> transformCommand(rest)
+        "generate" -> generateCommand(rest)
         "search" -> searchCommand(rest)
         "view" -> viewCommand(rest)
         "validate" -> validateCommand(rest)

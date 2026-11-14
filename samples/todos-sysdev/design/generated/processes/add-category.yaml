@@ -1,0 +1,17 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: add-category
+name: カテゴリを追加する
+service:
+  class: CategoryService
+  method: addCategory
+  arguments:
+    - name
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: write
+    op: insert
+    entity: category
+    path: categories
+    value:
+      name: $name
+    source: do

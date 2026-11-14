@@ -32,16 +32,6 @@ sections:
       check:
         - lt: [{of: t, in: {schemaId: todo-detail}, path: due_on}, $today]
           type: date
-  # フォームやビューの新規行で一覧だけを作った TODO（状態の流れに入る前。配布時のデータでは 0 件）
-  - id: missing-detail
-    label: 個票未作成
-    group: 注意
-    view: todo-management
-    filter:
-      match:
-        - node: {entity: todo, bind: t}
-      check:
-        - eq: [{occurrenceCount: {of: t, schema: todo-detail}}, 0]
   - id: all
     label: すべてのTODO
     group: 全体

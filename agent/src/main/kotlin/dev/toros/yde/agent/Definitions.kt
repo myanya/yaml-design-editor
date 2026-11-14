@@ -223,8 +223,8 @@ object Definitions {
     fun load(workspace: Path): LoadResult {
         val layout = WorkspaceLayout.of(workspace)
         val errors = mutableListOf<String>()
-        val agents = loadDir(workspace, layout.agentsDir, errors, ::parseAgent)
-        val activities = loadDir(workspace, layout.activitiesDir, errors, ::parseActivity)
+        val agents = loadDir(workspace, WorkspaceLayout.Zone.AGENTS, "エージェント", errors, { it.id }, ::parseAgent)
+        val activities = loadDir(workspace, WorkspaceLayout.Zone.ACTIVITIES, "アクティビティ", errors, { it.id }, ::parseActivity)
         activities.forEach { activity ->
             if (agents.none { it.id == activity.agentId }) {
                 errors += "${activity.source.fileName}: エージェント「${activity.agentId}」が ${layout.agentsDir} に見つかりません"
@@ -238,24 +238,30 @@ object Definitions {
         return LoadResult(agents, activities, errors)
     }
 
-    private fun <T> loadDir(workspace: Path, relative: String, errors: MutableList<String>, parse: (Map<*, *>, Path) -> T): List<T> {
-        val dir = runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, relative) }
-            .getOrElse { errors += "$relative: ${it.message}"; return emptyList() }
-        if (!Files.isDirectory(dir)) return emptyList()
-        val files = Files.list(dir).use { stream ->
-            stream.filter { p ->
-                val n = p.fileName.toString()
-                Files.isRegularFile(p) && (n.endsWith(".yaml") || n.endsWith(".yml"))
-            }.toList()
-        }.sortedBy { it.fileName.toString() }
-        return files.mapNotNull { file ->
+    /**
+     * 定義ゾーンの一式を読む（下のフォルダも。フォルダは置き場所の整理だけで、ID はゾーン全体で 1 つ＝重なりは誤り）。
+     * kind は重なりの文に出す呼び名（エージェント・アクティビティ）。
+     */
+    private fun <T> loadDir(
+        workspace: Path, zone: WorkspaceLayout.Zone, kind: String, errors: MutableList<String>,
+        idOf: (T) -> String, parse: (Map<*, *>, Path) -> T,
+    ): List<T> {
+        val layout = WorkspaceLayout.of(workspace)
+        runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, layout.dir(zone)) }
+            .getOrElse { errors += "${layout.dir(zone)}: ${it.message}"; return emptyList() }
+        val base = workspace.toAbsolutePath().normalize()
+        fun name(file: Path) = WorkspaceLayout.nameInZone(base.relativize(file.toAbsolutePath().normalize()).toString())
+        val loaded = layout.definitionFiles(workspace, zone).mapNotNull { file ->
             runCatching {
-                dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, workspace.toAbsolutePath().relativize(file).toString())
                 val raw = YamlIO.parseToRaw(Files.readString(file)) as? Map<*, *>
                     ?: error("ルートはobjectである必要があります")
-                parse(raw, file)
-            }.onFailure { errors += "${file.fileName}: ${it.message ?: it::class.simpleName}" }.getOrNull()
+                file to parse(raw, file)
+            }.onFailure { errors += "${name(file)}: ${it.message ?: it::class.simpleName}" }.getOrNull()
         }
+        loaded.groupBy { idOf(it.second) }.filterValues { it.size > 1 }.forEach { (id, found) ->
+            errors += "${kind}ID「$id」が重複しています（${found.joinToString(", ") { name(it.first) }}）"
+        }
+        return loaded.map { it.second }
     }
 
     internal fun parseAgent(raw: Map<*, *>, source: Path): AgentDef {

@@ -1,0 +1,121 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: register-todo
+name: TODOを登録する
+description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
+kind: action
+subject: todo
+inputs:
+  - key: title
+    label: タイトル
+    type: common#一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+  - key: summary
+    label: 概要
+    type: common#一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+  - key: category
+    label: カテゴリ
+    type: common#カテゴリ参照
+    base: ref
+    relation: in-category
+    idPatterns:
+      - CAT-*
+    schemas:
+      - category-list
+  - key: tags
+    label: タグ
+    type: array
+    base: array
+    unique: true
+    item:
+      type: common#タグ参照
+      base: ref
+      relation: tagged
+      idPatterns:
+        - TAG-*
+      schemas:
+        - tag-list
+  - key: follows
+    label: 元のTODO
+    type: common#TODO参照
+    base: ref
+    relation: follow-up-of
+    idPatterns:
+      - TODO-*
+    schemas:
+      - todo-list
+  - key: due
+    label: 期限
+    type: common#年月日
+    base: date
+    format: yyyy年M月d日
+  - key: details
+    label: 詳細
+    type: common#文章
+    base: string
+    multiline: true
+state:
+  lifecycle: todo-lifecycle
+  entry:
+    - todo-OPEN
+preconditions: []
+effects:
+  - op: create
+    value:
+      due_on:
+        $copy: due
+      details:
+        $copy: details
+      comments: []
+    source: do
+  - op: insert
+    entity: todo
+    path: todos
+    value:
+      id:
+        $copy: id
+        $of: todo
+      title: $title
+      summary: $summary
+      category:
+        $copy: category
+      tags:
+        $copy: tags
+      follows:
+        $copy: follows
+    source: do
+  - op: set
+    entity: todo
+    path: status
+    value: OPEN
+    source: lifecycle
+  - op: insert
+    entity: todo
+    path: history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: register-todo
+      to: OPEN
+    source: lifecycle
+  - op: set
+    entity: todo
+    path: created_on
+    value:
+      $copy: today
+      $of: context
+    source: auto
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

@@ -1,0 +1,58 @@
+id: screen-flows
+name: 画面遷移設計（Controller）
+description: >-
+  エンティティ型ごとに Controller を 1 つ作り、その型を主体にする操作ごとにハンドラを書く。
+  決め打ちの規則: URL は業務の ID をそのまま（/型/{id}/操作）・名前はケバブからの機械的な変換だけ・入力は htmx の断片で開く・
+  成功したら受け手（作ったもの）の画面へ、受け手の無い一覧への追加は一覧へ戻る・断りは断片に出して返す
+each: entities
+output: "design/generated/controllers/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $format: "{label}の画面の動き" }
+  controller: { $format: "{name}Controller", $with: { name: { $case: { $copy: id }, $as: pascal } } }
+  handlers:
+    $each: actions
+    $of: model
+    $bind: a
+    $build:
+      $when: [{ path: subject, equals: { $copy: id, $of: element } }]
+      action: { $copy: id }
+      name: { $copy: label }
+      method: { $case: { $copy: id }, $as: camel }
+      # 受け手のある操作は /型/{id}/操作、受け手の無い操作は /型/操作
+      open:
+        method: GET
+        url:
+          $first:
+            - $when: [{ path: target.entity, exists: true }]
+              $then: { $format: "/{type}/{key}/{action}", $with: { type: { $copy: subject }, key: "{id}", action: { $copy: id } } }
+            - { $format: "/{type}/{action}", $with: { type: { $copy: subject }, action: { $copy: id } } }
+        fragment: { $format: "{type}/{action}", $with: { type: { $copy: subject }, action: { $copy: id } } }
+      submit:
+        method: POST
+        url:
+          $first:
+            - $when: [{ path: target.entity, exists: true }]
+              $then: { $format: "/{type}/{key}/{action}", $with: { type: { $copy: subject }, key: "{id}", action: { $copy: id } } }
+            - { $format: "/{type}/{action}", $with: { type: { $copy: subject }, action: { $copy: id } } }
+        form:
+          $when: [{ path: params, empty: false }]
+          $then: { $format: "{name}Form", $with: { name: { $case: { $copy: id }, $as: pascal } } }
+      on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+      on_business_error:
+        fragment: 入力の断片に断りの文を出して返す
+        preconditions:
+          $concat:
+            - $when: [{ path: lifecycle.refusal, exists: true }]
+              $then: [{ $format: "{id}.state" }]
+            - $each: require
+              $build:
+                $when: [{ path: id, exists: true }]
+                $then: { $format: "{action}.{rule}", $with: { action: { $copy: id, $of: a }, rule: { $copy: id } } }
+      on_success:
+        redirect:
+          $first:
+            - $when: { or: [{ path: target.entity, exists: true }, { path: lifecycle.entry, exists: true }] }
+              $then: { $format: "/{type}/{key}", $with: { type: { $copy: subject }, key: "{id}" } }
+            - { $format: "/{type}", $with: { type: { $copy: subject } } }
+        notice: { $format: "{action}.done", $with: { action: { $copy: id } } }

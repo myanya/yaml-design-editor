@@ -1,0 +1,23 @@
+# 生成物（screen-flows）: 手で直さず、業務モデルか生成の定義（design/screen-flows.yaml）を直して作り直します（CLI generate）。
+id: category
+name: カテゴリの画面の動き
+controller: CategoryController
+handlers:
+  - action: add-category
+    name: カテゴリを追加する
+    method: addCategory
+    open:
+      method: GET
+      url: /category/add-category
+      fragment: category/add-category
+    submit:
+      method: POST
+      url: /category/add-category
+      form: AddCategoryForm
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions: []
+    on_success:
+      redirect: /category
+      notice: add-category.done

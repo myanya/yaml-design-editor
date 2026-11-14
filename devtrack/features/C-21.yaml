@@ -1,0 +1,20 @@
+id: C-21
+title: 生成（業務モデルから文書へ。業務モデルを展開した項 `BusinessModel`・生成の定義 `.yde/transforms`・生成物の見出しと消す決まり・CLI `generate` の `--apply` `--check` `--model`）
+implementation:
+- path: workspace-core/workspace/BusinessModel.kt
+  module: workspace-core
+- path: workspace-core/workspace/Generators.kt
+  module: workspace-core
+- path: cli/commands/GenerateCommands.kt
+  module: cli
+tests:
+- name: GenerationTest
+- name: BusinessModelTest
+- name: TodosSysdevTest
+design:
+- label: transform
+  link: architecture/transform.md
+  heading: 生成（業務モデルから文書へ）
+manual:
+- link: manual/generate.md
+  heading: 生成の定義（`.yde/transforms/`）

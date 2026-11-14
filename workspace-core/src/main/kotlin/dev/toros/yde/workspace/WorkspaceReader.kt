@@ -518,7 +518,8 @@ object WorkspaceReader {
     ): SemanticInput {
         val byId = schemas.associateBy { it.id }
         val docs = documents.mapNotNull { (id, d) -> semanticDocument(id, d, byId, layout) }
-        return SemanticInput(version, docs, declarations)
+        // 業務モデルの定義（操作・State など）も索引の要素にする（定義の索引。スキーマは走査しないので、組み立てた定義から作る）
+        return SemanticInput(version, docs, declarations, DefinitionIndex.scans(documents, schemas, layout))
     }
 
     /** 意味解析へ載せる文書1件の組立（載せない文書＝索引除外・台帳外の一般文書・空文書は null）。 */

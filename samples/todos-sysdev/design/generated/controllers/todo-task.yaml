@@ -1,0 +1,22 @@
+# 生成物（screen-flows）: 手で直さず、業務モデルか生成の定義（design/screen-flows.yaml）を直して作り直します（CLI generate）。
+id: todo-task
+name: 作業項目の画面の動き
+controller: TodoTaskController
+handlers:
+  - action: todo-task.finish
+    name: 作業項目を済にする
+    method: todoTaskFinish
+    open:
+      method: GET
+      url: /todo-task/{id}/todo-task.finish
+      fragment: todo-task/todo-task.finish
+    submit:
+      method: POST
+      url: /todo-task/{id}/todo-task.finish
+    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
+    on_business_error:
+      fragment: 入力の断片に断りの文を出して返す
+      preconditions: []
+    on_success:
+      redirect: /todo-task/{id}
+      notice: todo-task.finish.done

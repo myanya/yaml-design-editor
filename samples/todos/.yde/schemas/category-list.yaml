@@ -21,6 +21,7 @@ root:
           id: { path: id, prefix: "CAT-", digits: 3 }
       item:
         type: object
+        label: カテゴリ
         fields:
           - key: id
             label: ID

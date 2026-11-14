@@ -2,6 +2,8 @@
 
 `_schemas/*.yaml`（`.yde` 構成では `.yde/schemas/*.yaml`）に、1 ファイル 1 スキーマまたは宣言文書で配置します。種類は `document`（既定）・`library`・`relations`・`behavior` です。
 
+定義が増えたら、下のフォルダに分けて置けます（例 `.yde/schemas/business/common.yaml` と `.yde/schemas/design/process.yaml`）。フォルダは置き場所の整理だけで、参照（`common#型の名前` など）にフォルダ名は入りません。ID はフォルダをまたいで 1 つです。ビュー・レポート・skill・エージェント・アクティビティ・評価の定義も同じです（別のフォルダに同じ ID があれば、両方の場所を示して誤りにします）。点で始まるフォルダは読みません。
+
 ```yaml
 id: requirement                       # 安定したスキーマID（省略時はスキーマファイル名）
 name: 要求                             # 表示用のスキーマ名
@@ -769,7 +771,7 @@ filePattern:                                          # ドメインごとのデ
 - **読み込み時の点検**: 代表値で解決した作成先がそのスキーマの `match` に合わなければ、スキーマの読み込みエラーになります。`{id}` を含まないときは注意が出ます（同じ名前になる要素があると、作成は「既に同名のファイルが存在します」で止まります）。項目の改名（スキーマ・リファクタリング）では、`filePattern` / `scaffold` に旧名の言及があれば警告します（自動では書き換えません）。
 - **中身**: `scaffold` を書くと、必須の項目の初期値の上に、元の要素から組み立てた内容を重ねられます。
 書き方は変換のひな型（CLI `transform` の変換定義の `build` と同じ。`$copy` / `$format`（`$with` で計算した値を穴へ）/ `$map` / `$first` / `$each` / `$zip`（並んだ配列を同じ番号で 1 行に）/ `$when`、
-値をそろえる `$date`（年月日を `yyyy-MM-dd` に。`$as` で形）/ `$number`（桁区切りや `¥` を許して数に。`$as: "00"` のような形を添えるとその形の文字に）/ `$trim`（前後の空白を落とす）、
+値をそろえる `$date`（年月日を `yyyy-MM-dd` に。`$as` で形）/ `$number`（桁区切りや `¥` を許して数に。`$as: "00"` のような形を添えるとその形の文字に）/ `$trim`（前後の空白を落とす）/ `$case`（名前の書き方をそろえる。`$as` は camel・pascal・snake・kebab・constant。[generate.md](generate.md)）、
 値の式で計算する `$value`（検査の `check` やビューの列と同じ値の式を、いまの場所で計算する。例 `{$value: {multiply: [{path: unitPrice}, {path: quantity}]}}`・`{$value: {sum: {each: {path: lines}, value: {multiply: [{path: unitPrice}, {path: quantity}]}}}}`。四則演算・集計・日付の部分など。線を辿る `all` などは使えません）。
 繰り返し（`$each`・`$zip`）の中では `$index`（0 始まり）と `$position`（1 始まり。`{$number: $position, $as: "00"}` で `01`）が使え、条件の `path` にも書けます（`{$when: {path: $index, gt: 0}, $then: …}`）。いまの場所＝元の要素。[cli.md](cli.md)・skill の取り込みの `build` は [ai.md](ai.md)）です。ルート直下の ID の項目には、今までどおり ID が入ります。
 

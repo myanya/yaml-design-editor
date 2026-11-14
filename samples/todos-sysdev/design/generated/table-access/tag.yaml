@@ -1,0 +1,14 @@
+# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
+id: tag
+name: タグの読み書き
+table: tag
+mapper: TagMapper
+accesses:
+  - operation: add-tag
+    method: addTag
+    statements:
+      - kind: insert
+        table: tag
+        values:
+          name: $name
+        source: do

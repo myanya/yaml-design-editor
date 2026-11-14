@@ -781,6 +781,10 @@ Core Calculus = 定義を実行する
 | ダッシュボードの入力の候補（型の名前・参照・`multiple`） | Term（型の連鎖の再利用）＋ Query（索引からの候補の列挙）。値は既存の差し込みで条件へ渡る |
 | 条件に State の名前（`where` の `state`） | Predicate（名前付きの述語の置き換え。読み込みのときに State の値の条件へ下ろし、新しい評価器を持たない） |
 | 配列の要素の重なりの禁止（`unique`） | Predicate（文法プリミティブ＝構造の検査。配列 1 つの値の組の重なり。核に「重ならない」の演算が無いため語彙を 1 つ足した。値の比較は数だけ数として） |
+| 定義の索引（業務の定義を `yde-*` の定義の出現に） | Term（組み立てた定義から索引の要素を作る。走査の結果と同じ形で集約に混ぜ、新しい評価器を持たない） |
+| 業務モデルの項（`BusinessModel`） | Construct（分けて書いた定義を 1 つの項に展開する。操作の効果は do・Lifecycle・自動の値の 3 か所を 1 列に） |
+| 生成（`.yde/transforms`・CLI generate） | Construct（変換定義のひな型）＋ Rewrite（生成物の作成・置き換え・削除を 1 トランザクションで） |
+| 名前の書き方（`$case`）・渡す場所（`$of: model`）・条件の値の `$copy` | Construct（ひな型の指示の追加。値の項の上の決定的な変換と、場所の読み出し） |
 | ワークスペースの初期化（テンプレートの展開） | Construct（答えを「いまの場所」として変換定義のひな型で YAML を組み立てる。書き込みは開く前の 1 回で、Rewrite も履歴も通らない） |
 | Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |
 | Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |

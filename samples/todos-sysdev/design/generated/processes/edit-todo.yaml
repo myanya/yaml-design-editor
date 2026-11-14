@@ -1,0 +1,116 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+id: edit-todo
+name: TODOを編集する
+service:
+  class: TodoService
+  method: editTodo
+  arguments:
+    - id
+    - title
+    - summary
+    - category
+    - tags
+    - createdOn
+    - dueOn
+    - details
+    - result
+    - comments
+    - clear
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    entity: todo
+    key: id
+  - step: write
+    op: set
+    entity: todo
+    path: title
+    value: $title
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: summary
+    value: $summary
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: category
+    value: $category
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: tags
+    value: $tags
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: created_on
+    value: $created_on
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: due_on
+    value: $due_on
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: details
+    value: $details
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: result
+    value: $result
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: comments
+    value: $comments
+    source: do
+  - step: write
+    op: delete
+    entity: todo
+    path: category
+    source: do
+  - step: write
+    op: delete
+    entity: todo
+    path: tags
+    source: do
+  - step: write
+    op: delete
+    entity: todo
+    path: due_on
+    source: do
+  - step: write
+    op: delete
+    entity: todo
+    path: details
+    source: do
+  - step: write
+    op: delete
+    entity: todo
+    path: result
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: comments
+    value: []
+    source: do
+  - step: write
+    op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

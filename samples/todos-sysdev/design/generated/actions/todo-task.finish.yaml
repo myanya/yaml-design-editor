@@ -1,0 +1,20 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+id: todo-task.finish
+name: 作業項目を済にする
+kind: method
+subject: todo-task
+inputs: []
+preconditions: []
+effects:
+  - op: set
+    entity: todo-task
+    path: done
+    value: true
+    source: do
+  - op: set
+    entity: todo
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto

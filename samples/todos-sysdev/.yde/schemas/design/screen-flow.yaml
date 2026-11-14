@@ -1,0 +1,28 @@
+id: screen-flow
+name: 画面遷移設計（Controller）
+kind: document
+description: 詳細設計。エンティティ型ごとの Controller と、操作ごとのハンドラ（URL・受け取るフォーム・断片・成功と失敗の行き先）。Thymeleaf と htmx（部分更新）。生成物（.yde/transforms/design/screen-flows.yaml）で、手で直さない
+match: "design/generated/controllers/*.yaml"
+# 業務のエンティティ型と同じ ID の詳細化（Controller はエンティティ型ごと）
+entity: { type: yde-entity, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: エンティティ型, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: controller, label: Controller, type: string, required: true }
+    - key: handlers
+      label: ハンドラ
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: action, label: 操作, type: ref, required: true }
+          - { key: name, label: 操作名, type: string }
+          - { key: method, label: メソッド, type: string }
+          - { key: open, label: 入力を開く, type: any }
+          - { key: submit, label: 送る, type: any }
+          - { key: on_input_error, label: 入力の誤り, type: string }
+          - { key: on_business_error, label: 断り, type: any }
+          - { key: on_success, label: 成功, type: any }

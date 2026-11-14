@@ -1,0 +1,50 @@
+id: processes
+name: 処理設計書（Service）
+description: >-
+  操作ごとに Service のメソッドと手順を書く。決め打ちの規則: 1 操作＝1 トランザクション・受け手を先に読む・
+  状態の前提（Lifecycle）→ 業務モデルの前提の順に確かめる・書く手順は業務モデルの効果（do・Lifecycle・自動の値）の順
+each: actions
+output: "design/generated/processes/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $copy: label }
+  service:
+    class: { $format: "{name}Service", $with: { name: { $case: { $copy: subject }, $as: pascal } } }
+    method: { $case: { $copy: id }, $as: camel }
+    arguments:
+      $concat:
+        - $when: [{ path: target.entity, exists: true }]
+          $then: [id]
+        - $each: params
+          $build: { $case: { $copy: key }, $as: camel }
+  transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+  steps:
+    $concat:
+      # 受け手を読む（無ければ「見つかりません」）
+      - $when: [{ path: target.entity, exists: true }]
+        $then:
+          - step: read
+            entity: { $copy: subject }
+            key: id
+      # 状態の前提（Lifecycle）: 今の状態がこの操作のできる状態か
+      - $when: [{ path: lifecycle.transitions, exists: true }]
+        $then:
+          - step: check
+            precondition: { $format: "{id}.state" }
+            allowed: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { $copy: value } } }
+      # 業務モデルの前提（名前を付けたもの）。条件は業務モデルの書き方のまま写す（SQL への写し方はテーブルアクセス設計書で決める）
+      - $each: require
+        $build:
+          $when: [{ path: id, exists: true }]
+          step: check
+          precondition: { $format: "{action}.{rule}", $with: { action: { $copy: id, $of: element }, rule: { $copy: id } } }
+          rule: { $copy: rule }
+      # 書く（業務モデルの効果の順）
+      - $each: effects
+        $build:
+          step: write
+          op: { $copy: op }
+          entity: { $copy: entity }
+          path: { $copy: path }
+          value: { $first: [{ $copy: value }, { $copy: params }, { $copy: values }] }
+          source: { $copy: source }
