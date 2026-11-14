@@ -19,6 +19,7 @@ node_modules/
 /samples/**/_state/
 /labs/**/.yde/state/
 /labs/**/_state/
+devtrack/.yde/state/
 
 # AI の実行記録には会話・原文バックアップが含まれる
 _runs/

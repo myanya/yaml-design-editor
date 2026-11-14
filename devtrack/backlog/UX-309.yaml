@@ -1,0 +1,11 @@
+id: UX-309
+title: クロス集計の行を値の式で広げる（rows.value）と、enum の値の見出しが label にならず、並びも宣言の順にならない。複数の側面を持つ要素の値は in を書かないと読めない
+status: todo
+origin_on: 2026-11-14
+origin: 'samples/todos の「カテゴリ×ステータス」を kind: matrix に書き直す検討（行と列を入れ替えた試作）'
+memo: |-
+  行＝TODO の状態・列＝カテゴリ（参照の無い TODO は未分類の列）にしようとして `rows: { value: { path: status } }` と書くと、すべての TODO が「（未分類）」の行に入った。状態は個票（詳細化の側面）にあり、`of` を省いた読み出しが定義の側（一覧の行）しか見ないため。`{ in: { schemaId: todo-detail }, path: status }` にすると読めた。
+  読めたあとも、行の見出しは保存した値（CLOSED・IN_PROGRESS・OPEN）のままで、並びは文字の順。列の軸（`columns.path` ＋ `values`）のように enum の label と宣言の順で出せない。データに無い値（CANCELED）の行は出ない。
+  サンプルは行＝カテゴリ・列＝状態の向きにして避けた（この向きでは、カテゴリの無い TODO は数えられない）。考えられる直し方: 行の値が enum の項目なら label と宣言の順を使う（`rows.values` を書ける）、`of` を省いた読み出しで、条件の `where` と同じく全部の側面を見る
+features:
+  - X-17

@@ -1,0 +1,15 @@
+id: UX-308
+title: Lifecycle の生成入口に操作か Event しか書けず、フォームで作った途中の要素（個票の無い TODO）がどの State にも当たらないと、関係の無い操作の照合でも INCONSISTENT が出る
+status: todo
+origin_on: 2026-11-14
+origin: samples/todos に振る舞いの宣言を足す検討（写しで behavior-scenarios を回したとき）
+memo: |-
+  samples/todos の TODO は、一覧の行（定義）と個票（詳細化）の 2 つの側面を持ち、状態は個票にある。フォームやビューの新規行で一覧だけを作ると、個票の無い TODO（当時の TODO-005）ができ、State（個票の status の値）のどれにも当たらない。
+  - 登録の操作（register-todo）は一覧の文書に行を足すので、同じ文書にある個票の無い TODO も照合の対象に入り、「Lifecycle に属する State は存在するエンティティにつき一つに特定する必要があります（前: 0、後: 0）」の INCONSISTENT が出る（登録したものではない TODO の注意が、確認画面とシナリオに出る）。
+  - 「個票未作成」を述語の State（`occurrenceCount` が 0）にして Lifecycle に入れると、「State は entry から到達できません」のスキーマの誤りになる。入口の `by` に書けるのは操作か Event だけで、フォームでの作成を書けない。
+  - 編集の操作で個票を作ると、前の State が 0 個なので MATCHED にならない（前: 0、後: 1 の INCONSISTENT）。
+  サンプルは、配る TODO にはすべて個票を付けて避けた（Q1 甲）。考えられる直し方: 段階的詳細化の途中（詳細化の側面がまだ無い）を「Lifecycle の前」とみなして照合から外す・入口の原因に「フォームでの作成」を書ける・変更していない要素の INCONSISTENT は出さない、のどれか
+features:
+  - S-28
+  - S-29
+  - S-34
