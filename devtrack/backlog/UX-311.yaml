@@ -1,0 +1,10 @@
+id: UX-311
+title: samples を読むテスト（local-server の WebBusinessTest・cli の AppCliTest）が Gradle の入力に samples を持たず、samples だけを変えるとテストが最新とみなされて走らない
+status: todo
+origin_on: 2026-11-14
+origin: samples/todos の追従で、ダッシュボードとデータを変えたあとに該当のテストを回したとき（--rerun を付けるまで実行されなかった）
+memo: |-
+  WebBusinessTest は samples/todos と samples/orders を一時ディレクトリへ写して読み、AppCliTest は samples/todos の catalog と outline を読む。どちらもテストのタスクの入力に samples が無いので、コードを変えずに samples だけを変えた変更では UP-TO-DATE になり、落ちるテストに気づけない（labs で同じ形だった UX-294 と同じ）。
+  直し方の候補: 読む samples をそれぞれのテストの入力に足す、または test-fixtures にその時点の写しを置いて読む（UX-294 の形。ただし Web のテストは公開サンプルそのものが動くことを見たいので、入力に足す方が目的に合う）
+related:
+  - UX-294
