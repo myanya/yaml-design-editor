@@ -19,7 +19,7 @@ flow:
     - { from: in-progress, action: cancel-todo, to: canceled }
     - { from: closed, action: reopen-todo, to: in-progress }
   # 業務詳細の「流れの中の位置」に出す履歴（個票の状態の履歴。行の項目は date / action / from / to / note）。
-  # いまは定義の出現（一覧の行）の下しか読まれず、個票の履歴は出ない（devtrack の UX-312）。直れば出る
+  # 一覧の行に無いので、同じ ID の個票から読まれる
   history: { path: history }
 # 区画は group で群に分け、見出し付きで並べる（群は畳める）。流れの段にした区画は流れ図に出る
 sections:

@@ -184,6 +184,91 @@ class DashboardFlowTest {
     }
 
     @Test
+    fun `履歴が一覧の行でなく同じ ID の詳細の文書にあれば そこから読む`() {
+        val other = createTempDirectory("yde-dashboard-flow-detail-")
+        fun put(path: String, text: String) = other.resolve(path).let { Files.createDirectories(it.parent); Files.writeString(it, text.trimIndent()) }
+        try {
+            put(".yde/workspace.yaml", "ledger: [items]")
+            // 一覧の行が定義（タイトル）、詳細の文書が詳細化（状態と履歴）
+            put(".yde/schemas/item-list.yaml", """
+                id: item-list
+                match: items/list.yaml
+                entity: {type: item, idPattern: 'I-*', defines: true}
+                root:
+                  type: object
+                  fields:
+                    - key: items
+                      type: array
+                      item:
+                        type: object
+                        fields:
+                          - {key: id, type: id, required: true}
+                          - {key: title, type: string, role: title}
+            """)
+            put(".yde/schemas/item-detail.yaml", """
+                id: item-detail
+                match: "items/details/*.yaml"
+                filePattern: "items/details/{id}.yaml"
+                entity: {type: item, idPattern: 'I-*', defines: false}
+                root:
+                  type: object
+                  fields:
+                    - {key: id, type: id, required: true}
+                    - {key: status, type: enum, values: [{value: open, label: 未着手}, {value: done, label: 完了}]}
+                    - key: log
+                      type: array
+                      item:
+                        type: object
+                        fields:
+                          - {key: date, type: date}
+                          - {key: action, type: string}
+                          - {key: from, type: enum, values: [{value: open, label: 未着手}, {value: done, label: 完了}]}
+                          - {key: to, type: enum, values: [{value: open, label: 未着手}, {value: done, label: 完了}]}
+                actions:
+                  - id: register
+                    label: 登録する
+                    params: [{key: id, type: id, required: true}]
+                    do:
+                      - create: {schema: item-detail, params: {id: ${'$'}id, status: open}}
+                  - id: finish
+                    label: 完了する
+                    target: {entity: item}
+                    do:
+                      - set: {in: {schemaId: item-detail}, of: self, path: status, value: done}
+            """)
+            put("items/list.yaml", "items:\n  - {id: I-1, title: 一}")
+            put("items/details/I-1.yaml", "id: I-1\nstatus: done\nlog:\n  - {date: 2026-11-08, action: finish, from: open, to: done}")
+            put(".yde/views/items.yaml", "id: items\nrows:\n  match: [{node: {entity: item, bind: t}}]\ncolumns:\n  - {label: 状態, path: status}")
+            put(".yde/views/home.yaml", """
+                id: home
+                kind: dashboard
+                flow:
+                  start: {action: register, to: open}
+                  steps: [open, done]
+                  moves:
+                    - {from: open, action: finish, to: done}
+                  history: {path: log}
+                sections:
+                  - id: open
+                    view: items
+                    filter: {match: [{node: {entity: item, bind: t}}], where: [{of: t, path: status, equals: open}], expect: exists}
+                  - id: done
+                    view: items
+                    filter: {match: [{node: {entity: item, bind: t}}], where: [{of: t, path: status, equals: done}], expect: exists}
+            """)
+            val position = cli("view", other.toString(), "home", "--entity", "I-1", "--date", date.toString())
+            assertEquals(listOf(mapOf("id" to "done", "label" to "done")), position["steps"])
+            val history = (position["history"] as List<*>).single() as Map<*, *>
+            assertEquals("finish", history["action"])
+            assertEquals("完了する", history["label"])
+            assertEquals("未着手", history["from"])
+            assertEquals("完了", history["to"])
+        } finally {
+            Files.walk(other).use { it.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
+        }
+    }
+
+    @Test
     fun `移り先の予告は計画を重ねた状態で段を求め宣言にない移り方を見分ける`() {
         val ws = Workspace.open(dir)
         val view = assertNotNull(Views.load(dir, ws.schemas).dashboard("home"))

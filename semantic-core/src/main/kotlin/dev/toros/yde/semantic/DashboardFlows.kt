@@ -247,7 +247,7 @@ object DashboardFlows {
         return before.flatMap { flow.movesFrom(it) }.filter { it.action == action }.map { if (it.stays) null else it.to }
     }
 
-    /** 履歴の行（定義出現の要素の配列。新しい行が後ろ）。 */
+    /** 履歴の行（その ID の出現の要素の配列。定義の出現を優先。新しい行が後ろ）。 */
     private fun history(
         flow: DashboardFlow,
         id: String,
@@ -257,10 +257,13 @@ object DashboardFlows {
         fieldAt: FieldResolver,
     ): List<DashboardHistoryRow> {
         val h = flow.history ?: return emptyList()
-        val occurrence = SemanticExpression.preferDefining(ids[id].orEmpty()).firstOrNull() ?: return emptyList()
-        val root = loader(occurrence.document) ?: return emptyList()
-        val arrayPath: YPath = occurrence.path + parseYPath(h.path)
-        val array = getAt(root, arrayPath) as? YNode.Seq ?: return emptyList()
+        // 定義の出現を先に、無ければ詳細化の出現も順に見て、path の配列がある最初の出現から読む
+        // （一覧の行と個票のように、状態と履歴が詳細化の側面にあることがある）
+        val (occurrence, arrayPath, array) = SemanticExpression.preferDefining(ids[id].orEmpty()).firstNotNullOfOrNull { occ ->
+            val root = loader(occ.document) ?: return@firstNotNullOfOrNull null
+            val path: YPath = occ.path + parseYPath(h.path)
+            (getAt(root, path) as? YNode.Seq)?.let { Triple(occ, path, it) }
+        } ?: return emptyList()
         return array.items.mapIndexedNotNull { i, item ->
             val row = item as? YNode.Map ?: return@mapIndexedNotNull null
             fun text(key: String): String? = row.entries[key]?.let { scalarText(it) }?.takeIf { it.isNotBlank() }

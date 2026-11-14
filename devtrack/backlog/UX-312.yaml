@@ -1,11 +1,18 @@
 id: UX-312
 title: ダッシュボードの業務の流れの履歴（flow.history）が定義の出現からしか読まれず、詳細化の出現（個票）にある履歴が「流れの中の位置」に出ない
-status: todo
+status: resolved
 origin_on: 2026-11-14
 origin: 'samples/todos の個票に状態の履歴を持たせ、TODOダッシュボードに `history: { path: history }` を書いて、TODO-004 の業務詳細を画面で見たとき'
 memo: |-
   「流れの中の位置」に履歴が出ず、CLI `view samples/todos todo-dashboard --entity TODO-004` も `history: []` だった。
   semantic-core の DashboardFlows.history が `SemanticExpression.preferDefining(...).firstOrNull()`（定義の出現＝一覧の行）だけを見て、その要素の下の path を読んでいる。samples/todos では状態と履歴が個票（詳細化の出現）にあるので、配列が見つからない。
   注文サンプルは注文の文書が定義の出現なので出ていた。直し方の候補: 定義の出現を先に、無ければ詳細化の出現も順に見て、path の配列がある最初の出現を使う。または `history: { path, in: { schemaId } }` で読む文書を指定できるようにする（値の式の in と同じ）
+closed_on: 2026-11-14
+resolutions:
+  - date: 2026-11-14
+    kind: 解決
+    note: 定義の出現を先に、無ければ詳細化の出現も順に見て、path の配列がある最初の出現から履歴を読むようにした（DashboardFlows.history）。repo-tests の DashboardFlowTest に、一覧の行と詳細の文書に分かれた形のテストを足した。samples/todos の README とダッシュボードの注記を外した
+    targets: semantic-core/semantic/DashboardFlows.kt
+targets: semantic-core/semantic/DashboardFlows.kt
 features:
   - X-26
