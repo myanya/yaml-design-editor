@@ -194,6 +194,40 @@ class SemanticAutoValuesTest {
     }
 
     @Test
+    fun `名前の付いた型の項目にも入り 型に書いた印は使う側に引き継がれる`() {
+        val t = SchemaTreeParser.parse(
+            """
+            id: todo
+            definitions:
+              年月日: { type: date, format: "yyyy年M月d日" }
+              記録日: { type: 年月日, auto: created }
+              記録:
+                type: object
+                fields:
+                  - { key: date, type: 記録日, required: true }
+                  - { key: note, type: string }
+            root:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: updated_on, type: 年月日, auto: updated }
+                - { key: history, type: array, item: { type: 記録 } }
+            """.trimIndent(),
+            "todo",
+        )
+        val saved = "id: T-1\nupdated_on: 2026-09-01\nhistory:\n  - { date: 2026-09-01, note: 登録 }\n"
+        val working = YamlIO.parse(saved + "  - { note: 着手 }\n")
+        // 足した行は新しい要素なので日付が入り、行が増えた文書は更新日が今日になる。既存の行は触らない
+        assertEquals(
+            mapOf("updated_on" to "2026-10-05", "history[1].date" to "2026-10-05"),
+            ops(SemanticAutoValues.plan(t, YamlIO.parse(saved), working, now)),
+        )
+        // 保存済みの無い新しい文書でも、入れ子の行の空の日付が埋まる（操作の create で足した最初の行）
+        val created = YamlIO.parse("id: T-2\nhistory:\n  - { note: 登録 }\n")
+        assertEquals(mapOf("updated_on" to "2026-10-05", "history[0].date" to "2026-10-05"), ops(SemanticAutoValues.stamp(t, null, created, now)))
+    }
+
+    @Test
     fun `ひな型は now を渡すと自動の項目を新しい要素の値で埋める`() {
         val t = tree()
         val item = t.root.fields.first { it.key == "sections" }.item!!

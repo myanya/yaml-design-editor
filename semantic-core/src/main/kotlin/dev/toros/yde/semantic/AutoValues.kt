@@ -167,7 +167,8 @@ object SemanticAutoValues {
                 SemanticRewrite.walkDocument(
                     schema, root,
                     onObject = { path, map, fields ->
-                        val autoFields = fields.filter { it.auto != null && it.key != null }
+                        // 印と型は解決して読む（名前の付いた型 `年月日` の項目や、型に書いた印も対象。ひな型の初期値と同じ）
+                        val autoFields = fields.map { schema.resolve(it) ?: it }.filter { it.auto != null && it.key != null }
                         if (autoFields.isNotEmpty()) elements += Element(path, map, autoFields)
                         autoFields.forEach { autoPaths += path + it.key!! }
                         if (path.lastOrNull() is Int) {
