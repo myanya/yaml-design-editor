@@ -1,0 +1,22 @@
+id: S-35
+title: Lifecycle を正にする操作（`lifecycle:`＝状態の前提・状態の値の書き込み・記録の行 `history`）と、Lifecycle から作る業務の流れ（`flow.lifecycle`）
+implementation:
+- path: semantic-core/schema/Behavior.kt
+  module: semantic-core
+- path: semantic-core/schema/Action.kt
+  module: semantic-core
+- path: workspace-core/workspace/ActionPlanner.kt
+  module: workspace-core
+- path: workspace-core/workspace/BehaviorChecks.kt
+  module: workspace-core
+- path: workspace-core/workspace/ViewDefinitions.kt
+  module: workspace-core
+tests:
+- name: LifecycleActionsTest
+design:
+- label: schema
+  link: architecture/schema.md
+  heading: 業務上の State / Lifecycle
+manual:
+- link: manual/schema.md
+  heading: Lifecycle を正にする（操作と業務の流れを導く）

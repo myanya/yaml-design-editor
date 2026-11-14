@@ -49,6 +49,7 @@ import dev.toros.yde.semantic.DashboardFlows
 import dev.toros.yde.semantic.DashboardHistory
 import dev.toros.yde.semantic.DashboardMove
 import dev.toros.yde.semantic.schema.ActionRequire
+import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.semantic.VirtualMatrixCells
 import dev.toros.yde.semantic.VirtualMatrixDef
@@ -237,7 +238,7 @@ object ViewDefinitions {
             "matrix" -> parseMatrixView(raw, source)
             "lens" -> parseLensView(raw, source)
             "diagram-notation" -> DiagramDefinitions.parse(raw, source)
-            "dashboard" -> parseDashboard(raw, source)
+            "dashboard" -> parseDashboard(raw, source, schemas)
             else -> kinds.firstOrNull { it.id == kind }?.parse(raw, source)
                 ?: error("kind は ${(CORE_KINDS + kinds.map { it.id }).joinToString(" / ")} のいずれかである必要があります: $kind")
         }
@@ -286,7 +287,7 @@ object ViewDefinitions {
         return inputs
     }
 
-    private fun parseDashboard(raw: Map<*, *>, source: DocumentId): VirtualDashboardDef {
+    private fun parseDashboard(raw: Map<*, *>, source: DocumentId, schemas: List<WorkspaceSchema> = emptyList()): VirtualDashboardDef {
         fun keys(map: Map<*, *>, allowed: Set<String>, at: String) {
             map.keys.firstOrNull { it !in allowed }?.let { error("$at: 未知のキーです: $it") }
         }
@@ -296,9 +297,12 @@ object ViewDefinitions {
         require(!raw.containsKey("default") || raw["default"] is Boolean) { "dashboard.default は真偽値で指定してください" }
         val id = text(raw, "id", "dashboard")
         val inputs = parseInputs(raw["inputs"])
-        val sections = (raw["sections"] as? List<*>)?.takeIf { it.isNotEmpty() }
+        // 流れを Lifecycle から作るときは、段の区画も Lifecycle の State から作り、書いた区画の前に置く
+        val flowMap = raw["flow"] as? Map<*, *>
+        val fromLifecycle = flowMap?.takeIf { it.containsKey("lifecycle") }?.let { flowFromLifecycle(it, schemas, inputs) }
+        val sections = (raw["sections"] as? List<*>)?.takeIf { it.isNotEmpty() || fromLifecycle != null }
             ?: error("dashboard.sections は1件以上の配列で指定してください")
-        val parsed = sections.mapIndexed { i, item ->
+        val parsed = fromLifecycle?.second.orEmpty() + sections.mapIndexed { i, item ->
             val at = "dashboard.sections[$i]"
             val map = item as? Map<*, *> ?: error("$at はobjectで指定してください")
             keys(map, setOf("id", "label", "view", "filter", "group"), at)
@@ -307,7 +311,7 @@ object ViewDefinitions {
                 map["filter"]?.let { ActionRequire.parse(it, "$at.filter", setOf("today") + inputs.map { i -> i.key }, hasStart = true) },
                 group = map["group"]?.let { text(map, "group", at) })
         }
-        require(parsed.map { it.id }.distinct().size == parsed.size) { "dashboard.sections のidが重複しています" }
+        require(parsed.map { it.id }.distinct().size == parsed.size) { "dashboard.sections のidが重複しています（流れを Lifecycle から作ると、State の ID の区画ができます）" }
         val actions = when (val value = raw["actions"]) {
             null -> emptyList()
             is List<*> -> value.map { (it as? String)?.takeIf(String::isNotBlank) ?: error("dashboard.actions は操作IDの配列です") }
@@ -317,8 +321,44 @@ object ViewDefinitions {
         return VirtualDashboardDef(id, raw["name"]?.let { text(raw, "name", "dashboard") } ?: id,
             raw["description"]?.let { text(raw, "description", "dashboard") }, source, parsed, actions, raw["default"] == true,
             placement = raw["placement"]?.let { DashboardPlacement.parse(it as? String, "dashboard.placement") } ?: DashboardPlacement.AUTO,
-            inputs = inputs, flow = raw["flow"]?.let { parseFlow(it) })
+            inputs = inputs, flow = fromLifecycle?.first ?: raw["flow"]?.let { parseFlow(it) })
     }
+
+    /**
+     * Lifecycle から作る流れ（`flow: {lifecycle, view, group, direction}`。ADR-0029）: 段は Lifecycle の State（区画の id は
+     * State の ID・見出しは State の表示名・filter は State の判定）、工程は操作による遷移、入口は操作による入口、履歴は
+     * Lifecycle の記録。区画（段）は view のグリッドで並べ、group の見出しの群に入れる。
+     */
+    private fun flowFromLifecycle(
+        map: Map<*, *>, schemas: List<WorkspaceSchema>, inputs: List<DashboardInput>,
+    ): Pair<DashboardFlow, List<DashboardSection>> {
+        map.keys.firstOrNull { it !in setOf("lifecycle", "view", "group", "direction") }?.let {
+            error("dashboard.flow: lifecycle を書いたときに使えるキーは lifecycle・view・group・direction です（段・工程・入口・履歴は Lifecycle から作ります）: $it")
+        }
+        fun text(key: String): String =
+            (map[key] as? String)?.takeIf { it.isNotBlank() } ?: error("dashboard.flow.$key は空でない文字列で指定してください")
+        val id = text("lifecycle")
+        val view = text("view")
+        val group = map["group"]?.let { text("group") }
+        if (schemas.isEmpty()) error("dashboard.flow.lifecycle「$id」の展開にはスキーマ情報が必要です")
+        val catalog = BehaviorChecks.compile(schemas)
+        val lifecycle = catalog.lifecycles.firstOrNull { it.id == id } ?: error("dashboard.flow.lifecycle「$id」が見つかりません")
+        val sections = lifecycle.states.map { stateId ->
+            val state = catalog.states.firstOrNull { it.id == stateId } ?: error("dashboard.flow.lifecycle「$id」の State「$stateId」が見つかりません")
+            val predicate = state.predicateRaw ?: error("dashboard.flow.lifecycle「$id」の State「$stateId」の判定の原文がありません")
+            DashboardSection(
+                state.id, state.label ?: state.id, view,
+                ActionRequire.parse(predicate, "dashboard.flow.lifecycle の State「$stateId」", setOf("today") + inputs.map { it.key }, hasStart = true),
+                group = group,
+            )
+        }
+        val moves = lifecycle.transitions.mapNotNull { t -> (t.by as? TransitionCause.Action)?.let { DashboardMove(t.from, it.id, t.to) } }.distinct()
+        val start = lifecycle.entry.firstNotNullOfOrNull { e -> (e.by as? TransitionCause.Action)?.let { DashboardFlowStart(it.id, e.to) } }
+        val history = lifecycle.history?.let { DashboardHistory(it.path) }
+        val direction = map["direction"]?.let { DashboardFlowDirection.parse(it as? String, "dashboard.flow.direction") } ?: DashboardFlowDirection.RIGHT
+        return DashboardFlow(lifecycle.states, moves, start, direction, history) to sections
+    }
+
 
     /** 流れ（flow）: 段（区画の id）・工程（from の段の対象に action を当てて to の段へ）・入口・履歴・向き。 */
     private fun parseFlow(raw: Any): DashboardFlow {

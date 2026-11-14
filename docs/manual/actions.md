@@ -169,6 +169,22 @@ input:
 - `create` と `insert` で作る要素の中に、配列の行を入れ子で書くと（`params: {fees: [{amount: $fee}]}` など）、その配列の追加の決まり（`methods.insert.id`）で、ID が空の行に番号が付きます。
   追加ボタンと同じ数え方で、同じ配列の行・同じ操作で作った ID も数えます。接頭辞の `$of: owner` は、作った文書（ID を持つ最も近い外側の要素）を読みます。
 
+### 状態を Lifecycle に任せる（`lifecycle`）
+
+状態を変える操作に `lifecycle: Lifecycle の ID`（か `{id, history}`）を書くと、どの状態からできるか・状態の値の書き込み・状態の履歴の行を、Lifecycle の遷移から作ります（ADR-0029。書き方と点検は [schema.md](schema.md)「Lifecycle を正にする」）。
+状態の条件を `require` に、状態の値の `set` や履歴の `insert` を `do` に書く必要はありません。`do` を省くこともできます。
+
+```yaml
+- id: start-todo
+  label: TODOに着手する
+  target: { entity: todo }
+  lifecycle: todo-lifecycle                 # 未着手 → 対応中（todo-behavior.yaml の transitions）
+- id: suspend-todo
+  target: { entity: todo }
+  params: [ { key: reason, type: 操作の記録, required: true }, { key: resume_on, type: common#年月日 } ]
+  lifecycle: { id: todo-lifecycle, history: { note: $reason, resume_on: { $copy: resume_on } } }
+```
+
 ### 前提（`require`）
 
 - 受け手があるアクションでは、`match` の先頭の node が受け手に当たり、検査と同じ 4 つの結果で決めます。**違反と保留（相手の見つからない参照などで決められない）は実行しません。**理由が文面に出ます。

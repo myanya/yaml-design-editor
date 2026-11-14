@@ -137,6 +137,46 @@ object BehaviorChecks {
                 (members - canFinish).forEach { issue("State「$it」から終端に到達できません（openEnded: true なら無期限の継続を許容します）") }
             }
         }
+        errors += actionLifecycleErrors(schemas, lifecycles.associateBy { it.id }, byState)
         return Catalog(states, lifecycles, errors, events)
+    }
+
+    /**
+     * Lifecycle を書いた操作（`lifecycle:`。ADR-0029）の点検: その Lifecycle に入口か遷移があること・受け手の型・
+     * 同じ State からの行き先が 1 つに決まること・行き先が書き込める（enum から作った）State であること。
+     */
+    private fun actionLifecycleErrors(
+        schemas: List<WorkspaceSchema>, lifecycles: Map<String, LifecycleDef>, states: Map<String, StateDef>,
+    ): List<String> {
+        val errors = mutableListOf<String>()
+        for (schema in schemas) for (action in schema.actions) {
+            val ref = action.lifecycle ?: continue
+            val at = "${schema.source.value} [actions:${action.id}.lifecycle]"
+            val lifecycle = lifecycles[ref.id] ?: run { errors += "$at: Lifecycle「${ref.id}」が見つかりません"; null } ?: continue
+            fun byThis(cause: TransitionCause) = cause is TransitionCause.Action && cause.id == action.id
+            val entries = lifecycle.entry.filter { byThis(it.by) }
+            val moves = lifecycle.transitions.filter { byThis(it.by) }
+            if (entries.isEmpty() && moves.isEmpty()) {
+                errors += "$at: Lifecycle「${lifecycle.id}」に、この操作の入口も遷移もありません（by: {action: ${action.id}} を書きます）"
+                continue
+            }
+            if (moves.isNotEmpty() && action.target?.entity != lifecycle.entity) {
+                errors += "$at: 遷移を起こす操作の受け手は、Lifecycle の対象にします（target: {entity: ${lifecycle.entity}}）"
+            }
+            if (entries.isNotEmpty() && action.target != null) {
+                errors += "$at: 入口の操作（新しい ${lifecycle.entity} を作る）は、受け手を持たない操作にします"
+            }
+            if (entries.size > 1) errors += "$at: この操作の入口が 2 つ以上あります（${entries.joinToString(", ") { it.to }}）"
+            moves.groupBy { it.from }.filterValues { list -> list.map { it.to }.distinct().size > 1 }.forEach { (from, list) ->
+                errors += "$at: 「$from」からの行き先が 2 つ以上あります（${list.joinToString(", ") { it.to }}）。行き先が分かれる操作には lifecycle を書かず、手で状態を書きます"
+            }
+            (entries.map { it.to } + moves.map { it.to }).distinct().forEach { to ->
+                val state = states[to]
+                if (state != null && (state.enumPath == null || state.enumValue == null)) {
+                    errors += "$at: 行き先の State「$to」は述語で定義されているので、操作から書き込めません（enum から作った State にします）"
+                }
+            }
+        }
+        return errors
     }
 }

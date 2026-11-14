@@ -174,6 +174,8 @@
 - `BehaviorChecks.compile` は全スキーマの定義カタログをリンクした後で enum を展開する。State と Lifecycle の ID 重複、参照の不存在、対象 Entity 不一致、原因 Action の不存在／重複、終端からの遷移、非終端の行き止まり、入口からの到達不能、無期限でない Lifecycle の終端への到達不能をスキーマ読込エラーとして報告する。同じ enum の State の一部しか Lifecycle に含めていなければ網羅性不足も検出する。**Action の対象 Entity と Lifecycle の対象 Entity は一致しなくてもよい**（S-30：関連 Entity に波及する操作）。**単一 enum から全値を展開した State 同士の排他性は値の等価比較から成立する**が、任意の複合述語まで含めた状態集合の排他性・網羅性の証明は動的検証の対象。
 - Action の参照が存在することは、**Action の実際の効果が宣言した遷移を必ず成立させることの証明ではない**。実データの State 判定と Action 変更候補の前後差分の照合は S-29、関係先への波及は S-30、Event の種類の宣言と前後差分の照合は S-31、Event 発生の**申告記録**は S-32 で追加。Event の発生自体の真偽は証明せず、外部通知の自動収集はまだ扱わない。業務仕様が未完成であることを誤って「検証済み」としない。
 - 計算体系の分類: State = `Query + Predicate`、Lifecycle = 名前付き定義間の関係（`Term` / 静的整合）、Action 原因 = 既存 `Rewrite` への参照。新しいデータの永続化・評価器・変更経路は導入しない（CORE-CALCULUS の S-28 設計レビュー）。
+- **Lifecycle を正にする**（ADR-0029）: enum から作った State は値の項目（`StateDef.enumPath`）と述語の原文（`predicateRaw`）を持つ。アクションの `lifecycle`（`ActionLifecycle`）は、`ActionPlanner` の前提（`BehaviorRuntime.evaluate` のいまの State から、この操作の遷移があるか）・状態の値の `PatchOp.Set`・`LifecycleDef.history` の配列への記録の行を作る（操作の変更セットに入り、適用は今までどおり）。ダッシュボードの `flow.lifecycle` は `ViewDefinitions` が段・区画（filter は `predicateRaw`）・工程・入口・履歴へ展開する。
+  点検（`BehaviorChecks.actionLifecycleErrors`）は、入口か遷移の存在・受け手の型・行き先が State ごとに 1 つ・行き先が enum 由来であることを確かめる。
 
 ### State の実評価と Action の遷移照合（S-29）
 

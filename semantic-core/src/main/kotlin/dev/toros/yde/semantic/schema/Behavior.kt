@@ -13,6 +13,10 @@ data class StateDef(
     val enumValue: String? = null,
     /** 同じ列挙型の全候補であることを静的に証明するための出どころ。 */
     val enumOrigin: String? = null,
+    /** enum 由来の State の値を持つ項目（エンティティの要素からの相対パス）。Lifecycle を書いた操作がこの値を書き込む。 */
+    val enumPath: String? = null,
+    /** 述語の原文（検査と同じ書き方）。業務の流れの段の区画（filter）を Lifecycle から作るときに使う。 */
+    val predicateRaw: Map<String, Any?>? = null,
 )
 
 sealed interface StateDeclaration {
@@ -44,7 +48,9 @@ sealed interface StateDeclaration {
                 require(entity in rule.spec.start.entities) {
                     "$where.predicate: 起点の entity は「$entity」を含む必要があります"
                 }
-                Named(StateDef(id, entity, m["label"]?.toString(), rule))
+                @Suppress("UNCHECKED_CAST")
+                val raw = (m["predicate"] as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value } as Map<String, Any?>?
+                Named(StateDef(id, entity, m["label"]?.toString(), rule, predicateRaw = raw))
             }
         }
     }
@@ -58,15 +64,13 @@ fun StateDeclaration.FromEnum.expand(tree: SchemaTree): List<StateDef> {
         "states.source.enum「$enumRef」は値を持つ enum 型である必要があります"
     }
     return type.enumOptions().map { option ->
-        val predicate = ConstraintRule.parse(
-            mapOf(
-                "match" to listOf(mapOf("node" to mapOf("entity" to entity, "bind" to "self"))),
-                "where" to listOf(mapOf("of" to "self", "path" to path, "equals" to option.value)),
-                "expect" to "exists",
-            ),
-            "states.source[$enumRef:${option.value}]",
+        val raw: Map<String, Any?> = mapOf(
+            "match" to listOf(mapOf("node" to mapOf("entity" to entity, "bind" to "self"))),
+            "where" to listOf(mapOf("of" to "self", "path" to path, "equals" to option.value)),
+            "expect" to "exists",
         )
-        StateDef(idPrefix + option.value, entity, option.label, predicate, option.value, "$entity:$path:$enumRef")
+        val predicate = ConstraintRule.parse(raw, "states.source[$enumRef:${option.value}]")
+        StateDef(idPrefix + option.value, entity, option.label, predicate, option.value, "$entity:$path:$enumRef", enumPath = path, predicateRaw = raw)
     }
 }
 
@@ -111,6 +115,12 @@ sealed interface TransitionCause {
 }
 
 data class LifecycleEntry(val to: String, val by: TransitionCause)
+
+/**
+ * 遷移の記録を書く配列（エンティティの要素からの相対パス。その項目を持つ出現の配列）。行の項目は
+ * date / action / from / to（業務の流れの履歴と同じ名前）。Lifecycle を書いた操作が 1 行ずつ足す。
+ */
+data class LifecycleHistory(val path: String)
 data class LifecycleTransition(val from: String, val to: String, val by: TransitionCause)
 
 data class LifecycleDef(
@@ -123,12 +133,14 @@ data class LifecycleDef(
     val terminal: List<String>,
     /** エンティティが終端せずに存在し続ける場合は明示する。 */
     val openEnded: Boolean,
+    /** 遷移の記録（省略可）。 */
+    val history: LifecycleHistory? = null,
 ) {
     companion object {
         fun parseAll(raw: Any?): List<LifecycleDef> = entries(raw, "lifecycles").mapIndexed { i, entry ->
             val where = "lifecycles[$i]"
             val m = entry.asObject(where)
-            m.onlyKeys(where, "id", "entity", "states", "entry", "transitions", "termination")
+            m.onlyKeys(where, "id", "entity", "states", "entry", "transitions", "termination", "history")
             val states = names(m["states"], "$where.states")
             require(states.isNotEmpty()) { "$where.states は空にできません" }
             val starts = entries(m["entry"], "$where.entry").mapIndexed { j, rawEntry ->
@@ -153,7 +165,12 @@ data class LifecycleDef(
             require(terminal.isNotEmpty() || openEnded) {
                 "$where.termination: 終端 state を列挙するか openEnded: true を明示してください"
             }
-            LifecycleDef(m.required("id", where), m.required("entity", where), states, starts, transitions, terminal, openEnded)
+            val history = m["history"]?.let { raw ->
+                val h = raw.asObject("$where.history")
+                h.onlyKeys("$where.history", "path")
+                LifecycleHistory(h.required("path", "$where.history"))
+            }
+            LifecycleDef(m.required("id", where), m.required("entity", where), states, starts, transitions, terminal, openEnded, history)
         }
     }
 }

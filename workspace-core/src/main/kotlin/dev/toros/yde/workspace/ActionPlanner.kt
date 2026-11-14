@@ -20,14 +20,17 @@ import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.IdSeries
 import dev.toros.yde.semantic.schema.InsertRule
+import dev.toros.yde.semantic.schema.LifecycleDef
 import dev.toros.yde.semantic.schema.MethodDef
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaScaffold
 import dev.toros.yde.semantic.schema.SchemaTree
+import dev.toros.yde.semantic.schema.StateDef
 import dev.toros.yde.semantic.schema.StepSite
 import dev.toros.yde.semantic.schema.Template
 import dev.toros.yde.semantic.schema.TemplateCondition
+import dev.toros.yde.semantic.schema.TransitionCause
 import dev.toros.yde.workspace.changeset.ChangeSet
 import dev.toros.yde.workspace.changeset.ChangeSets
 import dev.toros.yde.workspace.changeset.FileChange
@@ -37,6 +40,7 @@ import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.model.deepCopy
 import dev.toros.yde.yaml.model.getAt
+import dev.toros.yde.yaml.model.parseYPath
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.yaml.patch.PatchOp
@@ -297,6 +301,10 @@ object ActionPlanner {
         private val creates = LinkedHashMap<DocumentId, Pair<WorkspaceSchema, YNode.Map>>()
         private val newIds = LinkedHashSet<String>()
         private val summary = mutableListOf<String>()
+        /** この計画で作った文書の要素（ID → 文書・エンティティ型）。Lifecycle の入口が初めの状態を書く先。 */
+        private val created = LinkedHashMap<String, Pair<DocumentId, String?>>()
+        /** State / Lifecycle の宣言（Lifecycle を書いた操作が使う）。 */
+        private val behavior by lazy { BehaviorChecks.compile(schemas) }
 
         private fun fail(message: String): Nothing = throw ActionFailure(message)
         private fun rel(d: DocumentId): String = d.value
@@ -387,6 +395,8 @@ object ActionPlanner {
                     ActionAvailability(true)
                 } else {
                     val (scope, startId) = actionScope(found.first, found.second, request, validate = false)
+                    // Lifecycle を書いた操作は、いまの状態で行けるかをメニューで示す
+                    lifecycleOf(found.second)?.let { lc -> if (startId != null) lifecycleMove(lc, found.second, startId) }
                     val waiting = checkRequire(found.second, scope, startId, targetOnly = true)
                     ActionAvailability(true, if (waiting) "入力後に前提を確認します" else null, waiting)
                 }
@@ -399,15 +409,114 @@ object ActionPlanner {
 
         private fun runAction(schema: WorkspaceSchema, action: ActionDef, request: ActionRequest): String {
             val (scope, startId) = actionScope(schema, action, request)
+            // Lifecycle を書いた操作: いまの状態から行き先を決める（行けなければ止める）。手のあとで状態と記録を書く
+            val lifecycle = lifecycleOf(action)
+            val move = if (lifecycle != null && startId != null) lifecycleMove(lifecycle, action, startId) else null
             checkRequire(action, scope, startId)
             run(action.steps, scope)
+            if (lifecycle != null) {
+                if (move != null) writeTransition(lifecycle, action, scope, startId!!, move.first, move.second)
+                else writeEntry(lifecycle, action, scope)
+            }
             return action.displayName + (request.target?.let { "（$it）" } ?: "")
+        }
+
+        // ---- Lifecycle を書いた操作（ADR-0029） ----
+
+        private fun lifecycleOf(action: ActionDef): LifecycleDef? = action.lifecycle?.let { ref ->
+            behavior.lifecycles.firstOrNull { it.id == ref.id } ?: fail("操作「${action.displayName}」の Lifecycle「${ref.id}」が見つかりません")
+        }
+
+        private fun stateOf(id: String): StateDef = behavior.states.firstOrNull { it.id == id } ?: fail("State「$id」が見つかりません")
+        private fun stateLabel(id: String): String = behavior.states.firstOrNull { it.id == id }?.label ?: id
+        private fun byAction(cause: TransitionCause, action: ActionDef) = cause is TransitionCause.Action && cause.id == action.id
+
+        /**
+         * 受け手のいまの State（Lifecycle の State のうち真のもの。ちょうど 1 つ）と、この操作の遷移の行き先。
+         * いまの State からこの操作の遷移が無ければ、できる State を添えて止める。
+         */
+        private fun lifecycleMove(lifecycle: LifecycleDef, action: ActionDef, id: String): Pair<StateDef, StateDef> {
+            val moves = lifecycle.transitions.filter { byAction(it.by, action) }
+            val truths = BehaviorRuntime.evaluate(session, id).filter { it.stateId in lifecycle.states && it.truth == StateTruth.TRUE }
+            val current = when (truths.size) {
+                1 -> stateOf(truths.single().stateId)
+                0 -> fail("「$id」の状態が決まっていません（Lifecycle「${lifecycle.id}」のどの State にも当たりません。状態の項目が無いかもしれません）")
+                else -> fail("「$id」の状態が 1 つに決まりません（${truths.joinToString("・") { stateLabel(it.stateId) }}）")
+            }
+            val to = moves.firstOrNull { it.from == current.id }?.to
+                ?: fail("「$id」は「${current.label ?: current.id}」なので、「${action.displayName}」はできません" +
+                    "（できるのは「${moves.map { stateLabel(it.from) }.distinct().joinToString("」「")}」のとき）")
+            return current to stateOf(to)
+        }
+
+        /** 遷移を書く: 状態の値（State の項目）と、Lifecycle の記録の行。 */
+        private fun writeTransition(lifecycle: LifecycleDef, action: ActionDef, scope: Scope, id: String, from: StateDef, to: StateDef) {
+            writeStateValue(id, to, action)
+            appendHistory(lifecycle, action, scope, id, from, to)
+            summary += "状態: $id ${from.label ?: from.id} → ${to.label ?: to.id}（Lifecycle ${lifecycle.id}）"
+        }
+
+        /** 入口を書く: この計画で作った、Lifecycle の対象の要素（ちょうど 1 つ）に、初めの状態と記録の行。 */
+        private fun writeEntry(lifecycle: LifecycleDef, action: ActionDef, scope: Scope) {
+            val entry = lifecycle.entry.firstOrNull { byAction(it.by, action) }
+                ?: fail("操作「${action.displayName}」は Lifecycle「${lifecycle.id}」の入口ではありません（受け手が要ります）")
+            val made = created.filterValues { it.second == lifecycle.entity }.keys
+            val id = made.singleOrNull() ?: fail(
+                if (made.isEmpty()) "操作「${action.displayName}」は Lifecycle「${lifecycle.id}」の入口ですが、${lifecycle.entity} の文書を作っていません"
+                else "操作「${action.displayName}」が ${lifecycle.entity} を 2 つ以上作るので、入口の状態を書く先が決まりません（${made.joinToString(", ")}）"
+            )
+            val to = stateOf(entry.to)
+            writeStateValue(id, to, action)
+            appendHistory(lifecycle, action, scope, id, null, to)
+            summary += "状態: $id → ${to.label ?: to.id}（Lifecycle ${lifecycle.id} の入口）"
+        }
+
+        /** 要素の出現のうち、その項目をスキーマに持つもの（この計画で作った文書を先に、次に定義の出現を優先）。 */
+        private fun elementHaving(id: String, path: YPath): TemplatePlace? {
+            val candidates = buildList {
+                created[id]?.let { (doc, _) -> add(doc to emptyList<Any>()) }
+                graph.entities[id]?.occurrences?.let { occs -> SemanticExpression.preferDefining(occs).forEach { add(it.document to it.path) } }
+            }
+            for ((doc, at) in candidates) {
+                val root = tree(doc) ?: continue
+                val schemaTree = schemaOf(doc)?.tree ?: continue
+                if (getAt(root, at) !is YNode.Map) continue
+                if (schemaTree.fieldAt(root, at + path) != null) return getAt(editable(doc), at)?.let { TemplatePlace(it, doc, at) }
+            }
+            return null
+        }
+
+        private fun writeStateValue(id: String, state: StateDef, action: ActionDef) {
+            val path = state.enumPath?.let(::parseYPath) ?: fail("State「${state.id}」は述語で定義されているので、操作「${action.displayName}」から書き込めません")
+            val value = state.enumValue ?: fail("State「${state.id}」に値がありません")
+            val at = elementHaving(id, path) ?: fail("「$id」に状態の項目（${state.enumPath}）を持つ文書がありません")
+            record(at.document!!, PatchOp.Set(at.path + path, YNode.Scalar(value)))
+        }
+
+        /** 記録の行を足す: date（今日）・action・from・to の上に、操作の lifecycle.history のひな型を重ねる。 */
+        private fun appendHistory(lifecycle: LifecycleDef, action: ActionDef, scope: Scope, id: String, from: StateDef?, to: StateDef) {
+            val history = lifecycle.history ?: return
+            val path = parseYPath(history.path)
+            val at = elementHaving(id, path) ?: fail("「$id」に Lifecycle「${lifecycle.id}」の記録の項目（${history.path}）を持つ文書がありません")
+            val doc = at.document!!
+            val row = linkedMapOf<String, YNode>("date" to YNode.Scalar(now.toLocalDate().toString()), "action" to YNode.Scalar(action.id))
+            from?.let { row["from"] = YNode.Scalar(it.enumValue ?: it.id) }
+            row["to"] = YNode.Scalar(to.enumValue ?: to.id)
+            action.lifecycle?.history?.let { t -> (build(t, scope) as? YNode.Map)?.entries?.forEach { (k, v) -> row[k] = v } }
+            val arrayPath = at.path + path
+            val element = YNode.Map(LinkedHashMap(row))
+            when (val existing = getAt(editable(doc), arrayPath)) {
+                null -> record(doc, PatchOp.Set(arrayPath, YNode.Seq(mutableListOf(element))))
+                is YNode.Seq -> record(doc, PatchOp.Insert(arrayPath + existing.items.size, element))
+                else -> fail("「$id」の記録の項目（${history.path}）が配列ではありません")
+            }
         }
 
         fun checkPreconditions(request: ActionRequest) {
             val found = schemas.flatMap { s -> s.actions.map { s to it } }.firstOrNull { it.second.id == request.name }
                 ?: return // 型の操作には require がない。対象と値は plan で検証する。
             val (scope, startId) = actionScope(found.first, found.second, request)
+            lifecycleOf(found.second)?.let { lc -> if (startId != null) lifecycleMove(lc, found.second, startId) }
             checkRequire(found.second, scope, startId)
         }
 
@@ -685,6 +794,7 @@ object ActionPlanner {
             val content = createElement(tree, rootDef, forCreate, "${s.origin} の文書") as? YNode.Map ?: fail("${s.origin}: 文書の中身がobjectになりません")
             content.entries[idKey] = YNode.Scalar(id)
             newIds += id
+            created[id] = docId to (rootDef.entity?.type ?: schema.entities.firstOrNull { it.matchesId(id) }?.type)
             // 中の配列の行（params に入れ子で書いた要素）にも、その配列の追加の決まりの採番を当てる
             numberNested(tree, rootDef, content, owner = null)
             creates[docId] = schema to content

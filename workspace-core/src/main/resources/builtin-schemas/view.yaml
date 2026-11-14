@@ -172,8 +172,14 @@ root:
     - key: flow
       label: 業務の流れ（dashboard）
       type: object
-      description: 区画を段、操作を工程として流れ図に並べる。段にいるかは区画の filter、工程を押すとその段の対象が操作の可否で分かれて並ぶ
+      description: 区画を段、操作を工程として流れ図に並べる。段にいるかは区画の filter、工程を押すとその段の対象が操作の可否で分かれて並ぶ。lifecycle を書くと、段・区画・工程・入口・履歴を Lifecycle から作る（ADR-0029）
       fields:
+        - key: lifecycle
+          label: Lifecycle から作る
+          type: string
+          description: "Lifecycle の ID。段は State（区画の id は State の ID・見出しは State の表示名・filter は State の判定）、工程は操作による遷移、入口は操作による入口、履歴は Lifecycle の記録。書いたときは steps・moves・start・history を書かない"
+        - { key: view, label: 段の区画のグリッド, type: string, description: lifecycle を書いたときの、段の区画で対象を並べるグリッドのビュー }
+        - { key: group, label: 段の区画の群, type: string, description: lifecycle を書いたときの、段の区画の見出しの群 }
         - key: direction
           label: 向き
           type: enum
@@ -191,9 +197,8 @@ root:
         - key: steps
           label: 段（区画のID）
           type: array
-          required: true
           item: { type: string }
-          description: 流れに載せる区画を流れの順に。区画の filter が「その段にいる」の定義
+          description: 流れに載せる区画を流れの順に。区画の filter が「その段にいる」の定義（lifecycle を書かないときは必須）
         - key: moves
           label: 工程
           type: array

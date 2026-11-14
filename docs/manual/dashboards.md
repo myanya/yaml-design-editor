@@ -122,8 +122,22 @@ flow:
 | start | 入口で、`action` は対象を持たないアクション、`to` は作った対象が入る段です |
 | history | 業務詳細に出す履歴で、`path` は対象の要素の配列、行の項目名は `date` / `action` / `from` / `to` / `note` です（違う名前なら同じキーで書きます）。配列は定義の文書を先に探し、無ければ同じ ID の詳細の文書（一覧の行に対する個票など）から読みます |
 | direction | 流れ図の向きです |
+| lifecycle | Lifecycle から流れを作ります（下の「Lifecycle から作る」）。書いたときは steps・moves・start・history を書きません |
 
-流れは見せ方と進め方の宣言で、状態の書き換えは操作の定義（前提と手）が行います。
+**Lifecycle から作る**: `flow: {lifecycle: todo-lifecycle, view: todo-management, group: 状況}` と書くと、段・区画・工程・入口・履歴を Lifecycle から作ります（ADR-0029）。
+段は Lifecycle の State で、State ごとに区画（id は State の ID、見出しは State の表示名、filter は State の判定）ができ、`view` のグリッドで対象を並べ、`group` の群に入ります。
+工程は操作による遷移、入口は操作による入口、履歴は Lifecycle の `history` です。Event による遷移は工程にしません。書いた区画（期限超過など）は、State の区画の後ろに並びます。
+
+```yaml
+flow:
+  lifecycle: todo-lifecycle   # samples/todos の todo-behavior.yaml
+  view: todo-management
+  group: 状況
+sections:
+  - { id: overdue, label: 期限超過, view: todo-by-due, filter: { ... } }
+```
+
+流れは見せ方と進め方の宣言で、状態の書き換えは操作の定義（前提と手。Lifecycle を書いた操作は Lifecycle）が行います。
 段が区画にあること、工程と入口の操作の種類、入口からどの段へも工程で着けることを読み込みのときに点検し、誤りは定義エラーとして出ます。
 
 **流れ図**: 上部に流れ図が出て、段にした区画は下のタイルの並びから外れます。図は[フロービュー](flow-views.md)と同じ描き方（自動の配置・拡大と縮小・「全体」・「PNG に保存」）です。

@@ -72,6 +72,31 @@ states:
 ```
 
 Lifecycle の `entry` は生成に相当する入り口、`transitions` は「どの State からどこへ、何によって移るか」、`termination.terminal` は終端 State です。終端は削除を意味しません。破棄／終了しないエンティティでは、終端の列挙に代えて `termination: {openEnded: true}` を明示できます。State の遷移を伴わない Action は列挙する必要がありません。
+`history: {path: history}` を書くと、Lifecycle を正にした操作（下の「Lifecycle を正にする」）が移るたびに、その配列へ記録の行（`date`・`action`・`from`・`to`）を足します。`path` はエンティティの要素からの相対で、その項目を持つ出現（一覧の行と個票なら個票）の配列です。
+
+### Lifecycle を正にする（操作と業務の流れを導く）
+
+状態はLifecycleを正にして管理できます（ADR-0029）。アクションに `lifecycle: Lifecycle の ID` を書くと、その操作の次の 3 つを Lifecycle の遷移（`by: {action: この操作}`）から作ります。操作には、状態の条件も状態の値の書き込みも書きません（`do` を省けます）。
+
+| 作るもの | 内容 |
+|---|---|
+| 前提 | 受け手のいまの State から、この操作の遷移があること。無ければ「「TODO-005」は「未着手」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）」のように止め、メニューも同じ理由で無効にします |
+| 状態の値 | 行き先の State の値を、その State の項目（`source.path`）を持つ出現へ書きます。入口の操作は、同じ操作で作った対象の文書に初めの State を書きます |
+| 記録の行 | Lifecycle に `history` があれば 1 行足します。操作の `lifecycle: {id, history: {date: $date, note: $reason}}` で値を足し、上書きできます |
+
+```yaml
+# 操作（operations.yaml）: 状態以外に書く値と、記録の行に足す値だけを書く
+- id: complete-todo
+  target: { entity: todo }
+  params: [ { key: date, type: common#年月日, required: true }, { key: result, type: 操作の記録, required: true } ]
+  lifecycle: { id: todo-lifecycle, history: { date: $date } }
+  do:
+    - set: { in: { schemaId: todo-detail }, path: completed_on, value: $date, of: self }
+```
+
+読み込みのときに、その Lifecycle に入口か遷移があること・受け手の型が Lifecycle の対象であること・同じ State から行き先が 1 つに決まること・行き先が enum から作った State であることを確かめます。
+結果によって行き先が分かれる操作（同じ状態・同じ操作で、成功なら A・失敗なら B）には `lifecycle` を書かず、手で状態を書きます（照合は今までどおり）。
+ダッシュボードの業務の流れも `flow: {lifecycle: ID, view, group}` で同じ Lifecycle から作れます（[dashboards.md](dashboards.md)「業務の流れ（flow）」）。実例は `samples/todos` です。
 
 スキーマの読込時に、State／Lifecycle の参照、原因 Action／Event の存在、生成入口、終端と行き止まり、入口からの到達可能性を静的検証します。**静的検証だけでは Action の実行結果や Event の実際の発生まで証明できません。** Event の種類の定義と検査用APIは S-31 で追加しました。実例は `labs/adventurers-guild/.yde/schemas/quest-behavior.yaml` を参照してください。小さな公開の例は `samples/todos` の `.yde/schemas/todo-behavior.yaml`（状態 4 つ・遷移 6 本）と、業務シナリオ `scenarios/lifecycle.yaml` です。
 
@@ -94,7 +119,7 @@ Lifecycle の `entry` は生成に相当する入り口、`transitions` は「�
 - `UNDETERMINED`: 参照未解決などで一部の State が確定できない。
 - `INCONSISTENT`: 生存するエンティティが Lifecycle の State に一つも該当しない、または複数該当する。
 
-確認はデータを保存せず、実際の Action の計画を使います。「要確認」は業務仕様の改善に向けた**診断**です。現時点では Action の適用を強制的には止めません。
+確認はデータを保存せず、実際の Action の計画を使います。「要確認」は業務仕様の改善に向けた**診断**です。Action の適用を強制的には止めません（`lifecycle` を書いた操作は、計画の前提として止めます）。
 
 ### 関係先の State への波及（S-30）
 

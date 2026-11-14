@@ -37,13 +37,17 @@ definitions:
         display: list
         item: { $ref: field }
       - { key: input, label: フォームの初期設定, $ref: action-input }
+      - key: lifecycle
+        label: 従う Lifecycle
+        type: any
+        description: "Lifecycle の ID か {id, history}。書くと、状態の前提（いまの State からこの操作の遷移があるか）・状態の値の書き込み・Lifecycle の記録の行を、その Lifecycle の遷移（by: {action: この操作}）から作る（ADR-0029）。history は記録の行に足す・上書きする値のひな型（例 {date: $date, note: $reason}）。行き先が State ごとに 1 つに決まり、行き先が enum から作った State であること"
       - { key: require, label: 前提条件, type: any }
       - key: do
         label: 処理手順
         type: array
-        required: true
         display: list
         item: { type: any }
+        description: 手の並び。lifecycle を書いた操作では、状態の書き込みと記録は Lifecycle が行うので、省けます
   state:
     type: object
     fields:
@@ -111,6 +115,12 @@ definitions:
             type: array
             item: { type: string }
           - { key: openEnded, label: 終端せず続く可能性がある, type: boolean }
+      - key: history
+        label: 遷移の記録
+        type: object
+        description: "lifecycle を書いた操作が、移るたびに 1 行足す配列（エンティティの要素からの相対パス。その項目を持つ出現の配列）。行の項目は date・action・from・to と、操作の lifecycle.history の値"
+        fields:
+          - { key: path, label: 配列の場所, type: string, required: true }
   method:
     type: object
     fields:

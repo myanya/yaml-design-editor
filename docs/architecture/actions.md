@@ -39,6 +39,8 @@
   ルートの型の `create` の `params` が ID を宣言していなければ、ID を除いて渡し、中身を作ってから ID を入れる。
 - **`create` の束縛**（`bind`）: `run` は手の並びを順に当てながら、`create` が返す束縛（作った文書のルート）を、同じ並びの後の手の `Scope.bindings` に足す。中の手（`each`）には写しの `Scope` で渡るので、外の並びへは漏れない。
   読み込みの点検（`ActionSteps.bindNames`）も同じ並びの順で数え、名前の重なりは `createBindConflict` が止める。作った要素は索引に無いので、`each` の `from` には使えない（計画が止める）。
+- **Lifecycle を書いた操作**（`ActionDef.lifecycle`。ADR-0029）: `runAction` は受け手の解決のあと、`lifecycleMove`（いまの State を `BehaviorRuntime.evaluate` で 1 つに決め、この操作の遷移の行き先を引く。無ければ止める）→ 前提 → 手 → `writeTransition`（行き先の State の値を、その項目を持つ出現へ `PatchOp.Set`。`appendHistory` で Lifecycle の記録の行を足す）の順に当てる。
+  入口の操作は、手で作った文書（`created`。この計画で作った ID → 文書とエンティティ型）のうち Lifecycle の対象のものに、初めの State と記録を書く（`writeEntry`）。メニューの可否（`availability`）も `lifecycleMove` で判定する。
 - **入れ子の行の採番**: `create` と `insert` で作る要素の中の配列の行のうち、ID が空のものに、その配列の `insert` の決まりの採番を当てる（`numberNested`。同じ明細の見分けはしない。`owner` は ID を持つ最も近い外側の要素）。
 - **適用**: 変更セットは `ChangeSetApplier` をそのまま通る（競合・自動で入る値・適用後の姿の検証・1 トランザクション）。CLI は既定で計画だけを出し、`--apply` で書く。検証エラーが残るなら書かず、`--allow-errors` で書く。
 - **画面**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）は `AppState.startAction(entry, target)` を呼ぶだけで、受け手を知らない入口は `target = null` で呼ぶ。`Main` が載せる浮いたパネル（`ActionPanelHost`。「AI で作成」と同じ幅）に、対象の欄と受け取る値の欄が出る。

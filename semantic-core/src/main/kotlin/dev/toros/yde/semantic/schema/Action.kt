@@ -548,6 +548,30 @@ data class ActionRequire(val raw: Map<String, Any?>, val origin: String, val ref
     }
 }
 
+/**
+ * アクションが従う Lifecycle（`lifecycle: ID` か `{id, history}`）。書いた操作は、状態の前提・状態の値の書き込み・
+ * 遷移の記録の行を、その Lifecycle の遷移（`by: {action: この操作}`）から作る（ADR-0029）。history は記録の行に足す・
+ * 上書きする値のひな型（例 `{date: $date, note: $reason}`）。
+ */
+data class ActionLifecycle(val id: String, val history: Template? = null) {
+    companion object {
+        fun parse(raw: Any?, where: String): ActionLifecycle = when (raw) {
+            is String -> ActionLifecycle(raw.takeIf { it.isNotBlank() } ?: error("$where は Lifecycle の ID です"))
+            is Map<*, *> -> {
+                raw.keys.map { it.toString() }.firstOrNull { it !in setOf("id", "history") }
+                    ?.let { error("$where: 未知のキーです: $it（使えるキー: id, history）") }
+                val id = raw["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.id（Lifecycle の ID）が必要です")
+                val history = raw["history"]?.let { h ->
+                    require(h is Map<*, *>) { "$where.history は記録の行に足す値の object です" }
+                    TransformDef.parseTemplate(h, "$where.history")
+                }
+                ActionLifecycle(id, history)
+            }
+            else -> error("$where は Lifecycle の ID か {id, history} です")
+        }
+    }
+}
+
 /** 横断の操作 1 件。 */
 data class ActionDef(
     val id: String,
@@ -559,11 +583,13 @@ data class ActionDef(
     val steps: List<ActionStep>,
     val origin: String,
     val input: ActionInput? = null,
+    /** 従う Lifecycle（書けば、状態の前提・書き込み・記録の行を Lifecycle の遷移から作る）。 */
+    val lifecycle: ActionLifecycle? = null,
 ) {
     val displayName: String get() = label ?: id
 
     companion object {
-        private val KEYS = setOf("id", "label", "description", "target", "params", "require", "do", "input")
+        private val KEYS = setOf("id", "label", "description", "target", "params", "require", "do", "input", "lifecycle")
         private val ID = Regex("""[A-Za-z][A-Za-z0-9_-]*""")
 
         fun parse(raw: Any?, where: String, definitionScope: String): ActionDef {
@@ -580,9 +606,14 @@ data class ActionDef(
                 is List<*> -> r.mapIndexed { i, e -> ActionRequire.parse(e, "$where.require[$i]", declared, hasStart = target?.entity != null) }
                 else -> error("$where.require は前提の配列である必要があります")
             }
-            val steps = ActionSteps.parse(m["do"] ?: error("$where.do（手の並び）が必要です"), "$where.do", StepScope.ACTION)
-            ActionSteps.paramNames(steps).firstOrNull { it !in declared }
+            val lifecycle = m["lifecycle"]?.let { ActionLifecycle.parse(it, "$where.lifecycle") }
+            // Lifecycle を書いた操作は、状態の書き込みと記録を Lifecycle から作るので、手が無くてもよい
+            val steps = m["do"]?.let { ActionSteps.parse(it, "$where.do", StepScope.ACTION) }
+                ?: if (lifecycle != null) emptyList() else error("$where.do（手の並び）が必要です")
+            (ActionSteps.paramNames(steps) + lifecycle?.history?.paramNames().orEmpty()).firstOrNull { it !in declared }
                 ?.let { error("$where: 受け取る値「\$$it」が params に宣言されていません") }
+            lifecycle?.history?.bindNames()?.firstOrNull { it != (target?.bind ?: MethodDef.SELF) }
+                ?.let { error("$where.lifecycle.history: 指せる要素は受け手（${target?.bind ?: MethodDef.SELF}）だけです: $it") }
             val binds = setOfNotNull(target?.bind)
             ActionSteps.createBindConflict(steps, binds)?.let { error(it) }
             ActionSteps.bindNames(steps).firstOrNull { it !in binds }
@@ -597,6 +628,7 @@ data class ActionDef(
                 steps = steps,
                 origin = where,
                 input = ActionInput.parse(m["input"], params, target?.bind, "$where.input"),
+                lifecycle = lifecycle,
             )
         }
     }
