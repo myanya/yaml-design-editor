@@ -1,68 +1,24 @@
 id: category-status-matrix
 name: カテゴリ×ステータス
-rows:
-  idPattern: "CAT-*"
-columns:
-  - label: カテゴリ名
-    schemaId: category-list
-    path: name
-  # 行（カテゴリ）を起点に、そのカテゴリを参照する TODO を all で集め、状態ごとに count で数える（読み取り専用の計算列）。
-  # セルをクリックすると、数えた TODO の一覧から個々の TODO へ移動できます。
-  - label: 未着手
-    schemaId: category-list
-    value:
-      count:
-        all:
-          of: t
-          match:
-            - node: { entity: category, bind: cat }
-            - edge: { via: category, dir: in }
-            - node: { entity: todo, bind: t }
-          where:
-            - { of: t, path: status, equals: OPEN }
-  - label: 対応中
-    schemaId: category-list
-    value:
-      count:
-        all:
-          of: t
-          match:
-            - node: { entity: category, bind: cat }
-            - edge: { via: category, dir: in }
-            - node: { entity: todo, bind: t }
-          where:
-            - { of: t, path: status, equals: IN_PROGRESS }
-  - label: 完了
-    schemaId: category-list
-    value:
-      count:
-        all:
-          of: t
-          match:
-            - node: { entity: category, bind: cat }
-            - edge: { via: category, dir: in }
-            - node: { entity: todo, bind: t }
-          where:
-            - { of: t, path: status, equals: CLOSED }
-  - label: 中止
-    schemaId: category-list
-    value:
-      count:
-        all:
-          of: t
-          match:
-            - node: { entity: category, bind: cat }
-            - edge: { via: category, dir: in }
-            - node: { entity: todo, bind: t }
-          where:
-            - { of: t, path: status, equals: CANCELED }
-  - label: 合計
-    schemaId: category-list
-    value:
-      count:
-        all:
-          of: t
-          match:
-            - node: { entity: category, bind: cat }
-            - edge: { via: category, dir: in }
-            - node: { entity: todo, bind: t }
+kind: matrix
+description: 行＝カテゴリ、列＝TODOの状態、セル＝そのカテゴリのTODOの件数です。合計の行と列は自動で付きます。セルを押すと、数えたTODOへ移動できます。
+# 行の軸＝カテゴリ（カテゴリ一覧の順）
+rows: { idPattern: "CAT-*" }
+order: { schemaId: category-list }
+# 状態は必須なので、選択肢に無い値の列（未分類）は出しません
+unclassified: false
+cells:
+  # 行のカテゴリを起点に、関係 in-category を逆にたどって、そのカテゴリを参照する TODO を集めます
+  match:
+    - node: { entity: category, bind: cat }
+    - edge: { relation: in-category, dir: in }
+    - node: { entity: todo, bind: t }
+  of: t
+  # 列の軸＝TODO の状態（個票の status）。並びと見出しは流れの順
+  columns:
+    path: status
+    values:
+      - { value: OPEN, label: 未着手 }
+      - { value: IN_PROGRESS, label: 対応中 }
+      - { value: CLOSED, label: 完了 }
+      - { value: CANCELED, label: 中止 }

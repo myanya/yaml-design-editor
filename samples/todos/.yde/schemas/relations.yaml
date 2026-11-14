@@ -1,0 +1,14 @@
+# 関係レジストリ: TODO 管理の関係の語彙。表示名と、参照の向き・多重度の決まりを 1 か所に書きます
+id: todo-relations
+kind: relations
+entities:
+  - { type: todo, label: TODO }
+  - { type: category, label: カテゴリ }
+relations:
+  - name: in-category
+    label: カテゴリ
+    inverseLabel: このカテゴリのTODO
+    source: [todo]
+    target: [category]
+    cardinality: { outMax: 1 }
+    description: TODO はカテゴリを 1 つまで参照します（未分類なら参照しません）。参照は一覧の行に書きます

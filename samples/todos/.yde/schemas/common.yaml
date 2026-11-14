@@ -17,10 +17,11 @@ definitions:
     placeholder: CAT-001
     sample: CAT-001
     description: 「CAT-」と 3 桁以上の数字。
-  # 参照の型: 候補と検証の対象をカテゴリ一覧に限定します
+  # 参照の型: 候補と検証の対象をカテゴリ一覧に限定します。関係の名前（relation）は関係レジストリ relations.yaml に宣言します
   カテゴリ参照:
     type: ref
     idPattern: "CAT-*"
+    relation: in-category
     scope:
       schemaIds: [category-list]
     description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
