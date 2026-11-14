@@ -1,6 +1,6 @@
 id: UX-316
 title: 配列の値の重複を禁じる書き方が無い（同じタグを 1 件の TODO に 2 回付けられる）
-status: todo
+status: resolved
 origin_on: 2026-11-14
 origin: samples/todos の一覧の行にタグ（tags。タグ参照の配列＝多対多）を足したとき
 memo: |-
@@ -8,3 +8,11 @@ memo: |-
   テーブルモデルでは中間テーブルの主キー（todo_id, tag_id）で防ぐ制約にあたる。README には「現段階では禁止していません」と書いた
 features:
   - S-02
+  - S-18
+closed_on: 2026-11-14
+resolutions:
+  - date: 2026-11-14
+    kind: 解決
+    note: '配列の項目の決まり unique を足した（スカラーの要素は true・object の要素は比べる項目のキーの一覧）。構造の検査が重なった要素を指摘し、数は数として比べ、項目の無い要素は比べない。型に書けば使う側に引き継がれ、使う側は足せる。書き方の誤りはスキーマの定義の点検。設計画面に「重複を許さない」、フォームと操作の受け取る値の候補で、同じ配列のほかの要素が使っている値を選べなくした。samples/todos のタグに unique: true を付けた'
+    targets: yaml-core/structure/StructureValidator.kt
+targets: yaml-core/structure/StructureValidator.kt

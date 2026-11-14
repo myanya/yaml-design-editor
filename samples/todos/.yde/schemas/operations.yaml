@@ -28,6 +28,7 @@ actions:
       - key: tags
         label: タグ
         type: array
+        unique: true
         item: { type: common#タグ参照 }
       - key: follows
         label: 元のTODO
@@ -139,6 +140,7 @@ actions:
       - key: tags
         label: タグ
         type: array
+        unique: true
         item: { type: common#タグ参照 }
         description: 入力した並びで全体を置き換えます。
       - key: created_on

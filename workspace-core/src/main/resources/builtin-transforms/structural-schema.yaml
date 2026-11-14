@@ -66,6 +66,7 @@ rules:
       max: { $copy: max }
       minLength: { $copy: minLength }
       maxLength: { $copy: maxLength }
+      unique: { $copy: unique }        # 配列の要素が重ならないこと（true かキーの一覧。UX-316）
       unknownFields: { $copy: unknownFields }
       $$ref: { $first: [ { $copy: $$ref }, { $copy: ref } ] }   # 定義への参照は写すだけで、辿らない
       fields: { $each: fields, $apply: field }                 # 入れ子＝同じ規則を、子の項目に当てる

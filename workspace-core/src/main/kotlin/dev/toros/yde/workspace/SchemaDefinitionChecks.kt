@@ -220,6 +220,38 @@ object SchemaDefinitionChecks {
             disjoint("scope.documentIds", use.scope.documentIds, def.scope.documentIds)
         }
 
+        /**
+         * 配列の要素が重ならないこと（unique。UX-316）: 配列だけに書ける。スカラーの要素は true、object の要素は比べる項目のキー
+         * （要素の項目にあること）。属性付き参照（{to, 属性…} でも書ける参照）はスカラーとして値を比べる。
+         */
+        fun checkUnique(f: FieldDef, path: String) {
+            if (f.unique.isEmpty()) return
+            if (f.type != FieldType.ARRAY) {
+                issues += SchemaIssue("unique（要素が重ならない）は type: array の項目でのみ使用できます", path)
+                return
+            }
+            val item = f.item?.let { tree.resolve(it) ?: it }
+            if (item == null) {
+                issues += SchemaIssue("unique を書いた配列には、要素の定義（item）が要ります", path)
+                return
+            }
+            val objectItem = item.type == FieldType.OBJECT
+            val scalarItem = item.type !in setOf(FieldType.OBJECT, FieldType.ARRAY, FieldType.MAP, FieldType.ANY)
+            f.unique.forEach { keys ->
+                when {
+                    keys.isEmpty() && objectItem ->
+                        issues += SchemaIssue("要素が object の配列の unique は、比べる項目のキーの一覧で書きます（例 unique: [name]）", path)
+                    keys.isEmpty() && !scalarItem ->
+                        issues += SchemaIssue("unique: true は要素がスカラー（文字・数・選択肢・参照など）の配列でのみ使用できます", path)
+                    keys.isNotEmpty() && !objectItem ->
+                        issues += SchemaIssue("unique のキーは、要素が object の配列で比べる項目を書きます（要素がスカラーなら unique: true）", path)
+                    keys.isNotEmpty() -> keys.filter { k -> item.fields.none { it.key == k } }.forEach {
+                        issues += SchemaIssue("unique のキー「$it」は要素の項目にありません", path)
+                    }
+                }
+            }
+        }
+
         // 制約語彙（R16-01）の妥当性: 型との適合・範囲の整合・正規表現の可否
         fun checkConstraints(f: FieldDef, path: String) {
             val stringy = f.type == FieldType.STRING
@@ -248,6 +280,7 @@ object SchemaDefinitionChecks {
             if ((f.min != null || f.max != null) && f.type != FieldType.INT && f.type != FieldType.NUMBER) {
                 issues += SchemaIssue("min / max は int / number 型でのみ使用できます", path)
             }
+            checkUnique(f, path)
             // relation は参照の関係名（ref）か、ID を持つ要素を書く項目の保有の関係名（array / object / map）
             if (f.relation != null && f.type !in RELATION_TYPES) {
                 issues += SchemaIssue("relation は ref か、ID を持つ要素を書く項目（array / object / map）でのみ使用できます", path)

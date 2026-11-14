@@ -553,6 +553,11 @@ object SemanticSchemaRefactor {
                     }
                 }
                 builder.add(schemaFile, YamlOperation.SetScalar(res.site.path + "type", targetTypeId))
+                // 要素が重ならない決まり（unique）は配列だけのもの。解除すると意味が無くなるので外す
+                if ("unique" in node.entries) {
+                    builder.add(schemaFile, YamlOperation.Remove(res.site.path + "unique"))
+                    warnings += "unique は配列用のため削除します"
+                }
                 val itemNode = node.entries["item"] as? YNode.Map
                 constraintKeys.forEach { k ->
                     itemNode?.entries?.get(k)?.let { builder.add(schemaFile, YamlOperation.Replace(res.site.path + k, it.deepCopy())) }

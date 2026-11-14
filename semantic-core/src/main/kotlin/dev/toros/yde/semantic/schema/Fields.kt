@@ -297,6 +297,11 @@ data class FieldDef(
     val pattern: String? = null,             // STRING / TEXT / ID: 正規表現（完全一致。R16-01 / UX-79）
     val min: Double? = null,                 // INT / NUMBER: 最小値（R16-01）
     val max: Double? = null,                 // INT / NUMBER: 最大値（R16-01）
+    /**
+     * ARRAY: 要素が重ならないこと（`unique`。UX-316）。決まり 1 つは比べる項目のキーの組で、空ならスカラーの要素の値そのもの。
+     * 型と使う側の両方に書けば両方が効く（狭めるだけ）。検査は構造の検査（導出した構造のスキーマ）。
+     */
+    val unique: List<List<String>> = emptyList(),
     val extensions: List<String> = emptyList(), // FILE: 許す拡張子（小文字・ドットなし。空 = 制限なし。使う側が書けば狭める）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
     val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning

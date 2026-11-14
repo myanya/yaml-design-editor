@@ -121,6 +121,8 @@ internal fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
         return
     }
     var open by remember { mutableStateOf(false) }
+    // 要素が重ならない配列（unique）では、ほかの要素が使っている値を選べなくする
+    val taken = LocalUniqueTaken.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box {
             OutlinedButton(shape = PanelShape, onClick = { open = true },
@@ -131,9 +133,11 @@ internal fun EnumEditor(ctx: FormCtx, field: FieldDef, slot: Slot) {
             ChoiceMenu(
                 expanded = open, onDismissRequest = { open = false },
                 options = field.enumOptions().map { option ->
+                    val used = option.value != current && option.value in taken
                     ChoiceOption<String?>(option.value, option.displayLabel,
-                        subtitle = option.value.takeIf { it != option.displayLabel }.orEmpty(),
-                        description = option.description, selected = option.value == current, searchText = option.value)
+                        subtitle = listOfNotNull("この一覧で選択済み".takeIf { used }, option.value.takeIf { it != option.displayLabel })
+                            .joinToString(" — "),
+                        description = option.description, selected = option.value == current, searchText = option.value, enabled = !used)
                 } + ChoiceOption(null, "（未設定にする）", selected = current == null),
                 onSelect = { value ->
                     if (value == null) slot.remove() else slot.set(YNode.Scalar(value))

@@ -159,11 +159,17 @@ internal fun RefScalarEditor(ctx: FormCtx, field: FieldDef, slot: Slot, titleInF
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+            // 要素が重ならない配列（unique）では、ほかの要素が使っている ID を選べなくする
+            val taken = LocalUniqueTaken.current
             if (menuOpen) ChoiceMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                options = candidates.map { e -> ChoiceOption(e.id, e.id,
-                    listOfNotNull(e.title, e.document.value).joinToString(" — "), selected = e.id == current) },
+                options = candidates.map { e ->
+                    val used = e.id != current && e.id in taken
+                    ChoiceOption(e.id, e.id,
+                        listOfNotNull("この一覧で選択済み".takeIf { used }, e.title, e.document.value).joinToString(" — "),
+                        selected = e.id == current, enabled = !used)
+                },
                 onSelect = { ctx.setScalar(slot, it, FieldType.REF) },
             )
         }

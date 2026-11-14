@@ -65,6 +65,11 @@ object FieldYaml {
         }
         f.min?.let { m["min"] = it }
         f.max?.let { m["max"] = it }
+        // 重ならない決まり: 1 つなら利用者の書き方（true かキーの一覧）、複数なら一覧の一覧
+        when {
+            f.unique.size > 1 -> m["unique"] = f.unique
+            f.unique.size == 1 -> m["unique"] = f.unique[0].ifEmpty { true }
+        }
         f.default?.let { m["default"] = it }
         f.description?.let { m["description"] = it }
         if (typeName == null) f.ref?.let { ref -> m["\$ref"] = qualify(ref, f.definitionScope, moduleId) }

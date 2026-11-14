@@ -116,4 +116,54 @@ class StructureValidatorTest {
             assertFailsWith<IllegalStateException>(field) { schema("id: s\nroot:\n  type: object\n  fields:\n    - $field") }
         }
     }
+
+    @Test
+    fun `配列の unique は重なった要素を指摘し 数は数として比べ 値の無い要素は比べない`() {
+        val tags = schema(
+            """
+            id: s
+            root:
+              type: object
+              fields:
+                - { key: tags, label: タグ, type: array, unique: true, item: { type: string } }
+                - { key: scores, type: array, unique: true, item: { type: number } }
+                - key: columns
+                  label: カラム
+                  type: array
+                  unique: [name]
+                  item:
+                    type: object
+                    fields:
+                      - { key: name, label: 名前, type: string }
+                      - { key: type, type: string }
+                - key: pairs
+                  type: array
+                  unique: [[a, b], [c]]   # 決まりを複数（型と使う側の両方に書いたときの導出の出力）
+                  item:
+                    type: object
+                    fields:
+                      - { key: a, type: string }
+                      - { key: b, type: string }
+                      - { key: c, type: string }
+            """
+        )
+        val dup = validate(tags, "tags: [TAG-001, TAG-002, TAG-002]").single()
+        assertEquals(StructuralIssueKind.UNIQUE, dup.kind)
+        assertEquals(Severity.ERROR, dup.severity)
+        assertEquals(listOf<Any>("tags", 2), dup.path)
+        assertEquals("「タグ」に同じ値「TAG-002」があります（2 件目と同じ）", dup.message)
+        assertTrue(validate(tags, "tags: [TAG-001, TAG-002]").isEmpty())
+        // 数は数として比べる（1 と 1.0 は同じ）
+        assertEquals(listOf<Any>("scores", 1), validate(tags, "scores: [1, 1.0, 2]").single().path)
+        // object の要素は書いたキーの値で比べる。キーが書かれていない要素は比べない
+        val col = validate(tags, "columns: [{name: id, type: int}, {type: x}, {type: y}, {name: id, type: text}]").single()
+        assertEquals(listOf<Any>("columns", 3), col.path)
+        assertEquals("「カラム」の「名前」が「id」の要素が重なっています（1 件目と同じ）", col.message)
+        // 決まりが複数なら、どれも成り立つこと
+        val pairs = validate(tags, "pairs: [{a: x, b: y, c: p}, {a: x, b: z, c: p}, {a: x, b: y, c: q}]")
+        assertEquals(listOf(listOf<Any>("pairs", 2), listOf<Any>("pairs", 1)), pairs.map { it.path })
+        // 書き方の誤り
+        assertFailsWith<IllegalStateException> { schema("id: s\nroot:\n  type: object\n  fields:\n    - { key: a, type: array, unique: yes-please }") }
+        assertFailsWith<IllegalArgumentException> { schema("id: s\nroot:\n  type: object\n  fields:\n    - { key: a, type: array, unique: [] }") }
+    }
 }

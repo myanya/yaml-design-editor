@@ -1,5 +1,5 @@
 id: S-18
-title: 制約語彙（`minLength` / `maxLength` / `pattern` / `min` / `max`・AI 生成の JSON Schema へ伝搬）
+title: 制約語彙（`minLength` / `maxLength` / `pattern` / `min` / `max`・配列の要素の重なり `unique`〔候補で選択済みを選べなくする〕・AI 生成の JSON Schema へ伝搬）
 implementation:
 - path: schema/Schema.kt
   module: app-core
@@ -7,6 +7,10 @@ implementation:
   module: yaml-core
 tests:
 - name: ConstraintTest
+- name: StructureValidatorTest
+- name: ArrayUniqueTest
+- name: UniqueChoicesUiTest
+  kind: ui
 design:
 - label: schema
   link: architecture/schema.md
@@ -14,3 +18,5 @@ design:
 manual:
 - link: manual/schema.md
   heading: フィールド定義のプロパティ
+- link: manual/schema.md
+  heading: 配列の要素を重ねない（`unique`）

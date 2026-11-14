@@ -45,6 +45,39 @@ object StructureValidator {
         }
     }
 
+    /**
+     * 配列の要素が重ならないこと（unique）。keys が空ならスカラーの要素の値、そうでなければ object の要素のその項目の組を比べる。
+     * 指摘は後から出た要素（重なった方）に付ける。値が無い要素（スカラーでない・項目が書かれていない）は比べない（SQL の NULL と同じ）。
+     * 数（int / number）は数として比べ（1 と 1.0 は同じ）、ほかは書いた値で比べる（日付は正準の形に決まっている）。
+     */
+    private fun checkUnique(
+        keys: List<String>, label: String, item: StructureField, node: YNode.Seq, path: YPath,
+        issues: MutableList<StructuralIssue>, schema: StructureSchema,
+    ) {
+        fun canonical(text: String, type: ValueType): String =
+            if (type == ValueType.INT || type == ValueType.NUMBER) text.toBigDecimalOrNull()?.stripTrailingZeros()?.toPlainString() ?: text
+            else text
+        val keyFields = keys.map { k -> item.fields.firstOrNull { it.key == k }?.let { schema.resolve(it) ?: it } }
+        val first = HashMap<List<String>, Int>()
+        node.items.forEachIndexed { i, child ->
+            val values: List<String> = if (keys.isEmpty()) {
+                val text = (child as? YNode.Scalar)?.let { scalarText(it) } ?: return@forEachIndexed
+                listOf(canonical(text, item.type))
+            } else {
+                val map = child as? YNode.Map ?: return@forEachIndexed
+                keys.mapIndexed { j, k ->
+                    val text = scalarText(map.entries[k] ?: return@forEachIndexed) ?: return@forEachIndexed
+                    canonical(text, keyFields[j]?.type ?: ValueType.STRING)
+                }
+            }
+            val earlier = first.putIfAbsent(values, i) ?: return@forEachIndexed
+            val shown = values.joinToString("・")
+            val message = if (keys.isEmpty()) "「$label」に同じ値「$shown」があります（${earlier + 1} 件目と同じ）"
+            else "「$label」の「${keys.mapIndexed { j, k -> keyFields[j]?.displayLabel ?: k }.joinToString("・")}」が「$shown」の要素が重なっています（${earlier + 1} 件目と同じ）"
+            issues += StructuralIssue(Severity.ERROR, message, path + i, StructuralIssueKind.UNIQUE)
+        }
+    }
+
     private fun unknownSeverity(f: StructureField): Severity? = when (f.unknownFields ?: UnknownFieldsPolicy.WARNING) {
         UnknownFieldsPolicy.ALLOW -> null
         UnknownFieldsPolicy.WARNING -> Severity.WARNING
@@ -115,6 +148,7 @@ object StructureValidator {
                     node.items.forEachIndexed { i, child ->
                         checkField(itemDef.copy(label = "$label[$i]"), child, path + i, issues, schema)
                     }
+                    f.unique.forEach { keys -> checkUnique(keys, label, schema.resolve(itemDef) ?: itemDef, node, path, issues, schema) }
                 }
             }
             ValueType.MAP -> {

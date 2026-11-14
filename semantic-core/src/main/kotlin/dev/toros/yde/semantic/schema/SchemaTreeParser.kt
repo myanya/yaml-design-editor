@@ -1,6 +1,7 @@
 package dev.toros.yde.semantic.schema
 
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.structure.StructureParser
 import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
 
 /**
@@ -164,6 +165,11 @@ object SchemaTreeParser {
             pattern = m["pattern"]?.toString(),
             min = (m["min"] as? Number)?.toDouble(),
             max = (m["max"] as? Number)?.toDouble(),
+            unique = m["unique"]?.let { raw ->
+                // 型の名前を書いた項目は、基底の種類が解決まで分からない（配列でなければ定義の点検が指摘する）
+                require(type == FieldType.ARRAY || namedType != null || explicitRef != null) { "unique（要素が重ならない）は type: array の項目でのみ書けます" }
+                StructureParser.parseUnique(raw, "unique")
+            }.orEmpty(),
             extensions = (m["extensions"] as? List<*>)?.map { it.toString().trim().removePrefix(".").lowercase() }
                 ?.filter { it.isNotEmpty() }.orEmpty(),
             ref = explicitRef ?: namedType,

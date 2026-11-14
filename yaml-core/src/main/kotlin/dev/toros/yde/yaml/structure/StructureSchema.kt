@@ -60,6 +60,11 @@ data class StructureField(
     val patterns: List<String> = emptyList(),
     val min: Double? = null,
     val max: Double? = null,
+    /**
+     * 配列の要素が重ならないこと（`unique`）。決まり 1 つは比べる項目のキーの組で、空ならスカラーの要素の値そのものを比べる。
+     * 決まりが複数あれば、どれも成り立つこと（型と使う側の両方に書いたとき）。
+     */
+    val unique: List<List<String>> = emptyList(),
     val unknownFields: UnknownFieldsPolicy? = null,
     /** 定義への参照（`名前` か `モジュール#名前`）。 */
     val ref: String? = null,
@@ -99,6 +104,7 @@ data class StructureSchema(
                 patterns = (target.patterns + current.patterns).distinct(),
                 min = current.min ?: target.min,
                 max = current.max ?: target.max,
+                unique = (target.unique + current.unique).distinct(),
             )
         }
         return current
@@ -159,7 +165,7 @@ object StructureParser {
     private val TOP_KEYS = setOf("id", "root", "definitions")
     private val FIELD_KEYS = setOf(
         "key", "label", "type", "required", "values", "cases", "item", "value", "fields",
-        "minLength", "maxLength", "pattern", "min", "max", "unknownFields", "\$ref", "shapes",
+        "minLength", "maxLength", "pattern", "min", "max", "unique", "unknownFields", "\$ref", "shapes",
     )
     private val SHAPE_KEYS = setOf("scalar", "object", "array")
 
@@ -216,6 +222,7 @@ object StructureParser {
             },
             min = (m["min"] as? Number)?.toDouble(),
             max = (m["max"] as? Number)?.toDouble(),
+            unique = parseUnique(m["unique"], "$where.unique"),
             unknownFields = m["unknownFields"]?.toString()?.let { raw ->
                 UnknownFieldsPolicy.parse(raw) ?: error("$where.unknownFields は allow / warning / error のいずれかである必要があります: $raw")
             },
@@ -223,5 +230,22 @@ object StructureParser {
             module = moduleId,
             shapes = shapes,
         )
+    }
+
+    /**
+     * 配列の重ならない決まり: `true`（スカラーの要素の値）・キーの一覧（object の要素の、その項目の組）・
+     * 一覧の一覧（決まりを複数。型と使う側の両方に書いたときの導出の出力）。`false` と未指定は決まり無し。
+     */
+    fun parseUnique(raw: Any?, where: String): List<List<String>> = when (raw) {
+        null, false -> emptyList()
+        true -> listOf(emptyList())
+        is List<*> -> if (raw.isNotEmpty() && raw.all { it is List<*> }) raw.map { keys(it as List<*>, where) }
+            else listOf(keys(raw, where))
+        else -> error("$where は true か、比べる項目のキーの一覧で書きます: $raw")
+    }
+
+    private fun keys(raw: List<*>, where: String): List<String> {
+        require(raw.isNotEmpty()) { "$where: 比べる項目のキーを 1 つ以上書きます（スカラーの要素なら true）" }
+        return raw.map { k -> k?.toString()?.takeIf { it.isNotBlank() } ?: error("$where: キーは空にできません") }
     }
 }

@@ -36,6 +36,9 @@ enum class StructuralIssueKind(val code: String) {
 
     /** phases に定義されていないフェーズの申告。 */
     PHASE("phase"),
+
+    /** 配列の要素が重なっている（unique）。 */
+    UNIQUE("unique"),
 }
 
 /**

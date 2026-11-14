@@ -8,6 +8,8 @@ internal data class ChoiceOption<T>(
     val description: String? = null,
     val selected: Boolean = false,
     val searchText: String = "",
+    /** 選べる候補か（unique の配列で、ほかの要素が使っている値は選べない。一覧には残して理由を添える）。 */
+    val enabled: Boolean = true,
 )
 
 internal fun <T> filterChoiceOptions(options: List<ChoiceOption<T>>, query: String): List<ChoiceOption<T>> {

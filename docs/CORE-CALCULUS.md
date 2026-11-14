@@ -777,6 +777,7 @@ Core Calculus = 定義を実行する
 | flowの複数文書入力（`sources`） | Query + Construct + Predicate。独立したクエリ変換の結果と原本座標を合成し、表示へ再射影する。新しい演算・書込経路はない |
 | 入れ子の配列の射影（`$each` の `$bind`・`$flatten`） | Construct（要素の局所的な場所の束縛・可変長の連結。原本座標を保持） |
 | 構造のスキーマの導出・スキーマの図 | Construct（変換定義・宣言からの導出） |
+| 配列の要素の重なりの禁止（`unique`） | Predicate（文法プリミティブ＝構造の検査。配列 1 つの値の組の重なり。核に「重ならない」の演算が無いため語彙を 1 つ足した。値の比較は数だけ数として） |
 | ワークスペースの初期化（テンプレートの展開） | Construct（答えを「いまの場所」として変換定義のひな型で YAML を組み立てる。書き込みは開く前の 1 回で、Rewrite も履歴も通らない） |
 | Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |
 | Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |

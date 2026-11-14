@@ -458,7 +458,7 @@ internal fun FieldDefinitionEditor(
         val base = types.baseKindOf(type)
         return listOfNotNull(
             "fields".takeIf { base != "object" }, "unknownFields".takeIf { base != "object" },
-            "item".takeIf { base != "array" }, "display".takeIf { base != "array" && base != "map" },
+            "item".takeIf { base != "array" }, "unique".takeIf { base != "array" }, "display".takeIf { base != "array" && base != "map" },
             "value".takeIf { base != "map" }, "cases".takeIf { base != "enum" },
         ).filter { it in map.entries }
     }
@@ -535,7 +535,8 @@ internal fun FieldDefinitionEditor(
             }
             ObjectEntityEditor(map, doc, definitionName)
         }
-        "array", "map" -> DisplayHintRow(map, doc)
+        "array" -> { DisplayHintRow(map, doc); UniqueRow(map, doc) }
+        "map" -> DisplayHintRow(map, doc)
         "enum" -> EnumValuesEditor(map, doc)
         "ref" -> {
             StringListEditor(map, if ("idPattern" in map.entries && "idPatterns" !in map.entries) "idPattern" else "idPatterns", "IDパターン", "ACTOR-*, ROLE-*", doc)
@@ -621,6 +622,45 @@ private val HINT_KINDS = setOf(
     FieldType.STRING.id, FieldType.INT.id, FieldType.NUMBER.id, FieldType.DATE.id, FieldType.TIME.id, FieldType.DATETIME.id,
     FieldType.FILE.id, FieldType.ID.id, FieldType.REF.id,
 )
+
+/**
+ * 配列の要素が重ならないこと（unique。UX-316）。要素がスカラーならチェック（unique: true）、object なら比べる項目のキー
+ * （カンマ区切り。複数ならその組で比べる。空にすると外す）。要素の型の名前が型の選択肢（スカラーの型）に無ければ object とみなす。
+ */
+@Composable
+private fun UniqueRow(map: YNode.Map, doc: OpenDocument) {
+    doc.version
+    val types = LocalTypeChoices.current
+    val item = map.entries["item"] as? YNode.Map
+    val itemType = item?.let { scalar(it, "type") }
+    // 属性付き参照（type: ref に fields）は値（参照先 ID）で比べるので、スカラーと同じチェック
+    val objectItem = item != null && itemType != "ref" && ("fields" in item.entries || "\$ref" in item.entries || "ref" in item.entries ||
+        itemType == "object" || (itemType != null && !FieldType.isBaseKind(itemType) && itemType !in types.names))
+    if (!objectItem) {
+        val on = (map.entries["unique"] as? YNode.Scalar)?.value == true
+        SchemaSettingRow("重複を許さない") {
+            SchemaCheckbox(on, { if (it) map.entries["unique"] = YNode.Scalar(true) else map.entries.remove("unique"); doc.markEdited() })
+            Text("同じ値を 2 回書けない（unique: true）", fontSize = 10.sp, color = Palette.SubText)
+        }
+        return
+    }
+    val keys = (item?.entries?.get("fields") as? YNode.Seq)?.items?.mapNotNull { (it as? YNode.Map)?.let { f -> scalar(f, "key") } }.orEmpty()
+    val current = map.entries["unique"]
+    val text = (current as? YNode.Seq)?.items?.mapNotNull { (it as? YNode.Scalar)?.value?.toString() }?.joinToString(", ")
+        ?: (current as? YNode.Scalar)?.value?.toString().orEmpty()
+    SchemaSettingRow("重複を許さない項目") {
+        SchemaTextField(text, { raw ->
+            val list = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            if (list.isEmpty()) map.entries.remove("unique")
+            else map.entries["unique"] = YNode.Seq(list.map { YNode.Scalar(it) }.toMutableList())
+            doc.markEdited(coalesceWith = map to "unique")
+        }, singleLine = true, placeholder = {
+            Text(if (keys.isEmpty()) "比べる項目のキー（例 name）" else "比べる項目のキー（${keys.joinToString(", ")} から）")
+        }, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
+        Text("その項目の値（複数ならその組）が同じ要素を 2 つ書けない", fontSize = 10.sp, color = Palette.SubText)
+    }
+}
 
 /** 一覧表示形式のヒント（R12-06）。array / map で共有。省略時はフォーム側が列構成から自動判定する。 */
 @Composable

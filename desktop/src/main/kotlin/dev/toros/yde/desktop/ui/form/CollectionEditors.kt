@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.YPath
+import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.app.schema.Display
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.desktop.ui.common.CompactTextField
@@ -33,6 +34,16 @@ import dev.toros.yde.desktop.ui.common.Slot
  * 入れ物の編集欄: 配列（ArrayEditor。縦の並びか表）・入れ子のオブジェクト（NestedObjectEditor）・map（MapEditor）。
  * FormView.kt から分けた（R47-22）。部品の地図は docs/architecture/ui.md「フォームと FormCtx」。
  */
+
+/**
+ * 要素が重ならない配列（`unique: true`。UX-316）で、ほかの要素が使っている値。要素の編集（参照・選択肢）の候補で選べなくする。
+ * 重なりの検査は構造の検査が行い、これは入力の手伝いだけ（打ち込んだ値は止めない）。
+ */
+internal val LocalUniqueTaken = compositionLocalOf<Set<String>> { emptySet() }
+
+/** 要素 index 以外の要素の値（スカラーの要素だけ）。 */
+internal fun uniqueTaken(node: YNode.Seq, index: Int): Set<String> =
+    node.items.filterIndexed { i, _ -> i != index }.mapNotNull { (it as? YNode.Scalar)?.let(::scalarText) }.toSet()
 
 @Composable
 internal fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
@@ -88,7 +99,10 @@ internal fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath)
                         modifier = Modifier.padding(top = if (ctx.readOnly) 2.dp else 12.dp, end = 6.dp),
                     )
                     Box(Modifier.weight(1f)) {
-                        ValueEditor(ctx, field.item ?: FieldDef(), SeqSlot(node, i), path + i)
+                        val taken = if (field.unique.any { it.isEmpty() }) uniqueTaken(node, i) else emptySet()
+                        CompositionLocalProvider(LocalUniqueTaken provides taken) {
+                            ValueEditor(ctx, field.item ?: FieldDef(), SeqSlot(node, i), path + i)
+                        }
                     }
                     if (!ctx.readOnly) {
                     Column {

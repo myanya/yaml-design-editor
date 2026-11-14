@@ -28,7 +28,7 @@ internal fun schemaFieldHandledKeys(type: String, allowKey: Boolean, referenced:
     if (referenced) return common
     val specific = when (type) {
         "object" -> setOf("fields", "entity", "unknownFields")
-        "array" -> setOf("item", "display")
+        "array" -> setOf("item", "display", "unique")
         "map" -> setOf("value", "display")
         "enum" -> setOf("values", "cases", "default")
         "ref" -> setOf("idPattern", "idPatterns", "scope", "relation", "target", "fields")

@@ -43,7 +43,12 @@ fun fieldToJsonSchema(original: FieldDef, schema: SchemaDef, depth: Int = 0, can
     if (depth > 16) return buildJsonObject { put("type", "object"); putJsonObject("properties") {}; putJsonArray("required") {}; put("additionalProperties", false) }
     val field = schema.resolve(original) ?: original
     return buildJsonObject {
-        field.description?.takeIf { it.isNotBlank() }?.let { put("description", it) }
+        // 配列の要素が重ならない決まり（unique。UX-316）は説明の文で伝える（uniqueItems はモデルの構造化出力で使えない場合がある）
+        val uniqueNote = field.unique.takeIf { field.type == FieldType.ARRAY }?.joinToString(" ") { keys ->
+            if (keys.isEmpty()) "要素の値は重ならないこと（同じ値を 2 回書かない）。" else "要素の「${keys.joinToString("・")}」は重ならないこと。"
+        }?.takeIf { it.isNotEmpty() }
+        listOfNotNull(field.description?.takeIf { it.isNotBlank() }, uniqueNote).joinToString(" ").takeIf { it.isNotEmpty() }
+            ?.let { put("description", it) }
         when (field.type) {
             FieldType.STRING -> {
                 put("type", "string")

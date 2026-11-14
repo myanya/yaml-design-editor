@@ -116,7 +116,8 @@ definitions:
       - key: tags
         label: タグ
         type: array
-        description: いくつでも付けられます（カテゴリは 1 つまで）。付けなければ省略します。
+        unique: true            # 同じタグは 1 度だけ（中間テーブルの主キー (todo_id, tag_id) にあたる）
+        description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
         item: { type: タグ参照 }
       - key: follows
         label: 元のTODO

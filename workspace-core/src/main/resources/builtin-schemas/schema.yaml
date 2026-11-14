@@ -308,6 +308,10 @@ definitions:
               type: enum
               values: [table, list]
               description: table は表形式に固定、list は縦並びに固定（省略時は列構成から自動判定）
+            - key: unique
+              label: 重複を許さない
+              type: any
+              description: "要素が重ならないこと（UX-316）。要素がスカラー（文字・数・選択肢・参照など）なら true（同じ値を 2 回書けない）、object なら比べる項目のキーの一覧（例 [name]。複数書けばその組で比べる）。重なった要素（後から出た方）を構造の検査が指摘する。数は数として比べ、項目が書かれていない要素は比べない。型に書けば使う側に引き継がれ、使う側は足せるが外せない"
             - key: relation
               label: 保有の関係名
               type: string

@@ -60,6 +60,7 @@ internal fun <T> ChoiceMenu(
         listState.scrollToItem(active)
     }
     fun select(option: ChoiceOption<T>) {
+        if (!option.enabled) return
         onSelect(option.value)
         onDismissRequest()
     }
@@ -150,6 +151,7 @@ internal fun <T> ChoiceMenu(
                         itemsIndexed(filtered) { index, option ->
                             ChoiceMenuItem(
                                 selected = option.selected,
+                                enabled = option.enabled,
                                 text = {
                                     Column {
                                         Text(option.label, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
