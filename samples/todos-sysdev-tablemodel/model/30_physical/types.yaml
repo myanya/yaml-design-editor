@@ -12,3 +12,5 @@ types:
   - { id: DT-DATE, sql_type: TEXT }
   - { id: DT-STATUS, sql_type: TEXT }
   - { id: DT-NUMBER, sql_type: INTEGER }
+  - { id: DT-HISTORY-NUMBER, sql_type: INTEGER }
+  - { id: DT-ACTION, sql_type: TEXT }

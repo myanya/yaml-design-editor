@@ -30,3 +30,17 @@ types:
     name: コメント番号
     base: integer
     min: 1
+  - id: DT-HISTORY-NUMBER
+    name: 履歴番号
+    base: integer
+    min: 1
+  - id: DT-ACTION
+    name: 状態を変えた操作
+    base: text
+    values:
+      - register-todo
+      - start-todo
+      - complete-todo
+      - reopen-todo
+      - cancel-todo
+      - edit-todo

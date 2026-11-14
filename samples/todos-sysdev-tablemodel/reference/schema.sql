@@ -15,6 +15,7 @@ CREATE TABLE todos (
     category_id TEXT,
     status TEXT NOT NULL CHECK (status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CANCELED')),
     created_on TEXT NOT NULL,
+    updated_on TEXT NOT NULL,
     due_on TEXT,
     completed_on TEXT,
     details TEXT,
@@ -23,6 +24,7 @@ CREATE TABLE todos (
         ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT ck_todos_due CHECK (due_on IS NULL OR due_on >= created_on),
     CONSTRAINT ck_todos_completed CHECK (completed_on IS NULL OR completed_on >= created_on),
+    CONSTRAINT ck_todos_updated CHECK (updated_on >= created_on),
     CONSTRAINT ck_todos_completion CHECK (
         (status = 'CLOSED' AND completed_on IS NOT NULL
             AND result IS NOT NULL AND length(trim(result)) > 0)
@@ -41,4 +43,18 @@ CREATE TABLE comments (
     PRIMARY KEY (todo_id, comment_no),
     FOREIGN KEY (todo_id) REFERENCES todos(todo_id)
         ON DELETE RESTRICT ON UPDATE RESTRICT
+);
+
+CREATE TABLE todo_status_history (
+    todo_id TEXT NOT NULL,
+    history_no INTEGER NOT NULL CHECK (history_no >= 1),
+    changed_on TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('register-todo', 'start-todo', 'complete-todo', 'reopen-todo', 'cancel-todo', 'edit-todo')),
+    from_status TEXT CHECK (from_status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CANCELED')),
+    to_status TEXT NOT NULL CHECK (to_status IN ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CANCELED')),
+    note TEXT,
+    PRIMARY KEY (todo_id, history_no),
+    FOREIGN KEY (todo_id) REFERENCES todos(todo_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
+    CONSTRAINT ck_history_moves CHECK (from_status IS NULL OR from_status <> to_status)
 );

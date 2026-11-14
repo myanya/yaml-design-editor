@@ -1,0 +1,21 @@
+id: ENT-STATUS-HISTORY
+physical_name: todo_status_history
+columns:
+  - { id: ATTR-HISTORY-TODO, physical_name: todo_id }
+  - { id: ATTR-HISTORY-NUMBER, physical_name: history_no }
+  - { id: ATTR-HISTORY-DATE, physical_name: changed_on }
+  - { id: ATTR-HISTORY-ACTION, physical_name: action }
+  - { id: ATTR-HISTORY-FROM, physical_name: from_status }
+  - { id: ATTR-HISTORY-TO, physical_name: to_status }
+  - { id: ATTR-HISTORY-NOTE, physical_name: note }
+primary_key: [ATTR-HISTORY-TODO, ATTR-HISTORY-NUMBER]
+foreign_keys:
+  - { column: ATTR-HISTORY-TODO, target: ATTR-TODO-ID, on_delete: RESTRICT, on_update: RESTRICT }
+indexes: []
+checks:
+  - { name: ck_history_moves, columns: [ATTR-HISTORY-FROM, ATTR-HISTORY-TO], condition: 前の状態がNULLでないなら、後の状態と異なる。 }
+physical_notes: |
+  TODO番号と履歴番号で一意に識別する。履歴番号はTODO内で1から順に割り当て、行は追記だけで変更しない。
+  状態を変える操作は、todosの状態の更新と履歴の追記を同じトランザクションで行う。最後の行のto_statusとtodos.statusの一致はアプリケーションの責務とし、DBでは保証しない。
+  前の状態と後の状態はDT-STATUSの選択肢、操作はDT-ACTIONの選択肢で、DB制約への対応はほかの選択肢の型と同じく別途検討する。
+  履歴があるTODOの削除とキー変更は拒否する。

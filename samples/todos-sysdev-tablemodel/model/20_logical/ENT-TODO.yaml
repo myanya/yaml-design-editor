@@ -31,6 +31,11 @@ attributes:
     dtype: DT-DATE
     required: true
     source: 個票.created_on
+  - id: ATTR-TODO-UPDATED
+    name: 更新日
+    dtype: DT-DATE
+    required: true
+    source: 個票.updated_on
   - id: ATTR-TODO-DUE
     name: 期限
     dtype: DT-DATE
@@ -53,4 +58,7 @@ attributes:
     source: 個票.result
 key:
   - ATTR-TODO-ID
-notes: 一覧と個票は同じTODOの側面。DBでは一つのレコードにまとめる。個票未作成のTODOはDBへの登録がまだ完了していない状態として扱う。
+notes: |-
+  一覧と個票は同じTODOの側面。DBでは一つのレコードにまとめる。個票未作成のTODOはDBへの登録がまだ完了していない状態として扱う。
+  更新日は、YDEでは個票の中身を変えたときだけ入る（一覧の側だけの変更では変わらない）。DBでは一つのレコードなので、どの属性を変えても更新日を入れる。
+  状態の移り変わりは状態の履歴（ENT-STATUS-HISTORY）に残し、TODOには現在の状態だけを持つ。
