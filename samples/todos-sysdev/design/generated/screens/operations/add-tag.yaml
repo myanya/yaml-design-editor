@@ -31,4 +31,4 @@ execute:
   returns: 起点の画面（starts の画面。画面の ID で受け取る）
   notice: add-tag.done
   refusals: []
-  onRefusal: 確認画面に断りの文を出す
+  onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

@@ -1,0 +1,11 @@
+id: UX-331
+title: todos-sysdev のエラー設計書で、要求の形の誤り（URL のパラメータが読めない・決まっていない HTTP メソッドなど）が想定外（500）に入る
+status: todo
+origin_on: 2026-11-15
+origin: samples/todos-sysdev のエラーとメッセージ系の生成（エラー設計書の @ControllerAdvice）
+memo: |-
+  エラー設計書は NotFoundException（404）・InvalidTokenException（起点の画面へ）・そのほかの例外（500。受付番号）の 3 つを受ける。
+  利用者の要求の誤り（MethodArgumentTypeMismatchException・MissingServletRequestParameterException・HttpRequestMethodNotSupportedException など）は、
+  いまは想定外として 500 になり、ERROR のログが出る。400 番台に分けるか（画面と文・ログの重さ）を議論で決める
+features:
+  - C-21

@@ -72,3 +72,25 @@ methods:
     operations:
       - complete-todo
     screens: []
+  - name: countClosedHasNoOpenTask
+    kind: count
+    table: todo_task
+    join:
+      - table: todo
+        item: id
+        equalsItem: todo_id
+    where:
+      - item: todo_id
+        param: todoId
+      - table: todo
+        item: status
+        equals: CLOSED
+      - item: done
+        equals: false
+    constraint: closed-has-no-open-task
+    expect: absent
+    operations:
+      - add-todo-task
+      - complete-todo
+      - todo-task.finish
+    screens: []

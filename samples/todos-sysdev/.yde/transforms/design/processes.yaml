@@ -4,8 +4,11 @@ description: >-
   操作ごとに Service のメソッドと手順を書く。手順は、テーブルアクセス設計書の Mapper のメソッドを呼ぶ形で書く（名前の決まりは同じ）。
   決め打ちの規則: 1 操作＝1 トランザクション・受け手を先に読む（findById）・状態の前提（Lifecycle）は読んだ行の状態で確かめる（Java）・
   業務モデルの前提は、受け手の中の要素の条件なら件数（Mapper の count）、受け手の値の条件なら読んだ行（Java）で確かめる・
-  採番は使われている番号の次（maxId）・書く手順は、同じテーブルへの値をまとめた insert か update と、明細の行（並び順は maxSeq の次）。
-  型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない
+  採番は使われている番号の次（maxId）・書く手順は、同じテーブルへの値をまとめた insert か update と、明細の行（並び順は maxSeq の次）・
+  データの決まり（業務モデルの操作の checks＝書くと破れうる決まり）は、要素ごとの決まりと循環の決まりは書いた後の値を計算して書く前に Java で、
+  入れ子の要素の決まりは書いた後に同じトランザクションで件数を数えて確かめる（違反なら例外で書いたものを取り消す）。断るのはエラーの決まりだけ・
+  受け取る値が原因で破れうる Java の決まりは、確認へでも確かめる（confirm のメソッド。書かない）。
+  型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない。断りの文はメッセージのキー（メッセージ定義書）で書く
 scope: business
 each: actions
 output: "design/generated/processes/{id}.yaml"
@@ -21,6 +24,30 @@ build:
           $then: [id]
         - $each: params
           $build: { $case: { $copy: key }, $as: camel }
+  # 確認へで呼ぶ確かめ（書かない）: 受け取る値が原因で破れうる、Java で確かめる決まり。違反は欄ごとに返し、入力画面に出す
+  confirm:
+    $group:
+      $each: checks
+      $build:
+        $when: [{ path: params, exists: true }, { path: level, equals: error }, { or: [{ path: form, equals: element }, { path: kind, equals: acyclic }] }]
+        $then: { $copy: . }
+    $by: confirm
+    $build:
+      method: { $format: "check{n}", $with: { n: { $case: { $copy: id, $of: element }, $as: pascal } } }
+      arguments:
+        $concat:
+          - $when: [{ of: element, path: target.entity, exists: true }]
+            $then: [id]
+          - $each: params
+            $of: element
+            $build: { $case: { $copy: key }, $as: camel }
+      does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
+      constraints:
+        $each: items
+        $build:
+          constraint: { $copy: constraint }
+          field: { $case: { $copy: "params[0]" }, $as: camel }
+          message: { $format: "check.{c}", $with: { c: { $copy: constraint } } }
   transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
   steps:
     $concat:
@@ -30,7 +57,7 @@ build:
           - step: read
             call: { $format: "{n}Mapper.findById", $with: { n: { $case: { $copy: target.entity }, $as: pascal } } }
             key: id
-            missing: 見つからなければ「見つかりません」で断る
+            missing: { $format: "見つからなければ NotFoundException（error.notFound.{e}）", $with: { e: { $copy: target.entity } } }
       # 状態の前提（Lifecycle）: 読んだ行の状態が、この操作のできる状態か
       - $when: [{ path: lifecycle.transitions, exists: true }]
         $then:
@@ -38,7 +65,8 @@ build:
             precondition: { $format: "{id}.state" }
             by: Java（読んだ行の状態）
             allowed: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { $copy: value } } }
-            message: { $copy: lifecycle.refusal }
+            message: { $format: "{id}.state" }
+            text: { $copy: lifecycle.refusal }
       # 業務モデルの前提（名前を付けたもの）
       - $each: require
         $build:
@@ -52,6 +80,34 @@ build:
           entity: { $first: [{ $copy: field.item.entity }, { $copy: entity }] }
           call: { $format: "{n}Mapper.maxId", $with: { n: { $case: { $first: [{ $copy: field.item.entity }, { $copy: entity }] }, $as: pascal } } }
           rule: { $copy: numbering }
+      # データの決まり（Java）: 書いた後の値を計算し、書く前に確かめる（要素ごとの決まり・循環の決まり）
+      - $each: checks
+        $bind: c
+        $flatten: true
+        $build:
+          $each: constraints
+          $of: model
+          $build:
+            $when: [{ path: id, equals: { $copy: constraint, $of: c } }, { path: level, equals: error }, { or: [{ path: form, equals: element }, { path: kind, equals: acyclic }] }]
+            $then:
+              $first:
+                - $when: [{ path: kind, equals: acyclic }]
+                  $then:
+                    step: check
+                    constraint: { $copy: id }
+                    by: Java（参照の先をたどる）
+                    follow: { $copy: "fields[0].key" }
+                    call: { $format: "{n}Mapper.findById", $with: { n: { $case: { $copy: entity }, $as: pascal } } }
+                    how: 書く参照の先から、同じ項目の参照を findById でたどり、受け手（作る操作は作る要素）に戻れば断る
+                    field: { $case: { $copy: "params[0]", $of: c }, $as: camel }
+                    message: { $format: "check.{id}" }
+                - step: check
+                  constraint: { $copy: id }
+                  by: Java（書いた後の値）
+                  at: { $when: [{ path: at, exists: true }], $then: { $format: "足す {a} の行", $with: { a: { $copy: at } } } }
+                  rule: { $copy: rule }
+                  field: { $case: { $copy: "params[0]", $of: c }, $as: camel }
+                  message: { $format: "check.{id}" }
       # 書く: 同じテーブルへの値は 1 つの insert か update に、明細は行ごとに
       - $group: { $apply: writes }
         $by: { $first: [{ $copy: row }, { $copy: call }] }
@@ -73,6 +129,39 @@ build:
           seq: { $copy: "items[0].seq" }
           where: { $copy: "items[0].where" }
           when: { $copy: "items[0].when" }
+      # データの決まり（SQL）: 入れ子の要素の決まりは、書いた後に同じトランザクションで件数を数える（違反なら例外で取り消す）
+      - $each: checks
+        $bind: c
+        $flatten: true
+        $build:
+          $each: constraints
+          $of: model
+          $bind: k
+          $build:
+            $when:
+              - { path: id, equals: { $copy: constraint, $of: c } }
+              - { path: level, equals: error }
+              - { path: form, equals: pattern }
+              - { path: "rule.match[1].edge.contains", equals: true }
+            step: check
+            constraint: { $copy: id }
+            by: SQL（件数。書いた後）
+            call:
+              $format: "{m}Mapper.count{n}"
+              $with:
+                m: { $case: { $copy: "rule.match[2].node.entity" }, $as: pascal }
+                n: { $case: { $copy: id }, $as: pascal }
+            # 数える外側の要素: 受け手が外側の型ならその ID、内側の型なら読んだ行の外側の ID
+            key:
+              $first:
+                - $when: [{ of: element, path: target.entity, equals: { $copy: "rule.match[0].node.entity" } }]
+                  $then: id
+                - $when: [{ of: element, path: target.entity, equals: { $copy: "rule.match[2].node.entity" } }]
+                  $then: { $format: "読んだ行の {p}_id", $with: { p: { $case: { $copy: "rule.match[0].node.entity" }, $as: snake } } }
+                - 作った要素の ID
+            expect: { $map: { $copy: rule.expect }, $using: { absent: 0 件なら通す, exists: 1 件以上なら通す } }
+            violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
+            message: { $format: "check.{id}" }
 rules:
   # いまの場所＝前提。受け手の中の要素の条件は件数、受け手の値の条件は読んだ行、そのほかは手で書く
   - id: precondition
@@ -87,7 +176,8 @@ rules:
           m: { $case: { $copy: "rule.match[2].node.entity" }, $as: pascal }
           n: { $case: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }, $as: pascal }
       expect: { $map: { $copy: rule.expect }, $using: { absent: 0 件なら通す, exists: 1 件以上なら通す } }
-      message: { $copy: message }
+      message: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
+      text: { $copy: message }
   - id: precondition
     when: [{ path: "rule.match[1]", exists: false }, { path: "rule.match[0].node.entity", equals: { $copy: target.entity, $of: element } }]
     build:
@@ -95,14 +185,16 @@ rules:
       precondition: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
       by: Java（読んだ行）
       rule: { $copy: rule.where }
-      message: { $copy: message }
+      message: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
+      text: { $copy: message }
   - id: precondition
     build:
       step: check
       precondition: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
       by: 手で書く（前提の形から写す規則が無い）
       rule: { $copy: rule }
-      message: { $copy: message }
+      message: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
+      text: { $copy: message }
   # いまの場所＝操作。書く値の並び（{call, kind, item, value} は同じ呼び出しでまとめ、row を持つものは行ごと）
   - id: writes
     build:

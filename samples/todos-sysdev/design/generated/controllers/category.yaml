@@ -28,8 +28,10 @@ handlers:
       - handler: addCategoryConfirm
         request: POST /category/add-category/confirm
         screen: add-category/confirm
-        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+          hidden 項目）
         reads: []
+        calls: []
         session:
           puts:
             - token
@@ -39,7 +41,7 @@ handlers:
         does: hidden 項目の値で入力画面を出す
       - handler: addCategory
         request: POST /category/add-category
-        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
         session:
           reads:
             - token

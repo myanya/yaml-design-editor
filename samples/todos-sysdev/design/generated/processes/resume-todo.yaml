@@ -8,18 +8,41 @@ service:
     - id
     - date
     - note
+confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
     call: TodoMapper.findById
     key: id
-    missing: 見つからなければ「見つかりません」で断る
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
   - step: check
     precondition: resume-todo.state
     by: Java（読んだ行の状態）
     allowed:
       - SUSPENDED
-    message: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+    message: resume-todo.state
+    text: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
+  - step: check
+    constraint: unfinished-has-no-completed-on
+    by: Java（書いた後の値）
+    rule:
+      where:
+        - not:
+            path: status
+            equals: CLOSED
+        - path: completed_on
+          exists: true
+      expect: absent
+    message: check.unfinished-has-no-completed-on
   - step: write
     call: TodoMapper.resumeTodo
     kind: update

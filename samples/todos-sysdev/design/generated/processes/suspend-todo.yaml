@@ -9,18 +9,66 @@ service:
     - date
     - reason
     - resumeOn
+confirm:
+  - method: checkSuspendTodo
+    arguments:
+      - id
+      - date
+      - reason
+      - resumeOn
+    does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
+    constraints:
+      - constraint: resume-not-before-suspend
+        field: resumeOn
+        message: check.resume-not-before-suspend
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
     call: TodoMapper.findById
     key: id
-    missing: 見つからなければ「見つかりません」で断る
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
   - step: check
     precondition: suspend-todo.state
     by: Java（読んだ行の状態）
     allowed:
       - IN_PROGRESS
-    message: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+    message: suspend-todo.state
+    text: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
+  - step: check
+    constraint: unfinished-has-no-completed-on
+    by: Java（書いた後の値）
+    rule:
+      where:
+        - not:
+            path: status
+            equals: CLOSED
+        - path: completed_on
+          exists: true
+      expect: absent
+    message: check.unfinished-has-no-completed-on
+  - step: check
+    constraint: resume-not-before-suspend
+    by: Java（書いた後の値）
+    at: 足す history[*] の行
+    rule:
+      where:
+        - path: resume_on
+          exists: true
+      check:
+        - gte:
+            - path: resume_on
+            - path: date
+    field: resumeOn
+    message: check.resume-not-before-suspend
   - step: write
     call: TodoMapper.suspendTodo
     kind: update

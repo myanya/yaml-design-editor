@@ -27,6 +27,7 @@
 | 業務モデルの項 | スキーマに分けて書いた業務モデルを、生成が読める 1 つの YAML に展開したもの。操作の効果は do・Lifecycle・自動の値を 1 列にまとめる | 中間表現 | [manual/generate.md「業務モデルを展開した形」](manual/generate.md) |
 | 生成物 | 生成の定義が業務モデルから作った文書。先頭の見出しで見分け、手で直さず作り直す | コード生成の出力 | [manual/generate.md](manual/generate.md) |
 | たどれる範囲 | ダッシュボードから、区画の一覧・参照の項目・操作のボタンでたどれるエンティティ型と操作（業務モデルの項の `reach`）。アプリにするときの画面の範囲 | サイトマップ | [manual/generate.md「業務モデルを展開した形」](manual/generate.md) |
+| 書くと破れうる決まり | 操作が書く項目とデータの決まり（型の検査・スキーマの検査・関係レジストリ）が読む項目が重なり、書いた後の値が決まりの絞り込みに入りうるもの（業務モデルの項の操作の `checks`）。アプリでその操作のときに確かめる決まり | 不変条件の影響分析 | [manual/generate.md「業務モデルを展開した形」](manual/generate.md) |
 | スコープ | 名前のある定義体のまとまり（業務モデル・設計など）。中身は置き場所で指定し、使う向き（uses）を一方向に決める。生成は業務モデルのスコープだけを読む | Gradle の sourceSets・モジュールの依存方向 | [manual/generate.md「スコープ（業務モデルとして読む範囲）」](manual/generate.md) |
 | 詳細化 | 同じ ID を別の文書にもう一度書いて中身を足すこと（段階的詳細化）で、重複の誤りにしない | 部分クラス（partial class） | [architecture/index-references.md「段階的詳細化の規約」](architecture/index-references.md) |
 | アスペクト | 出現が受け持つエンティティの側面の名前（`entity.aspect`）で、全体像は出現をアスペクトごとに並べて 1 枚にする | 部分ビュー・ファセット | [architecture/graph-query.md「エンティティページ」](architecture/graph-query.md) |

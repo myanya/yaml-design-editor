@@ -20,6 +20,7 @@ import dev.toros.yde.yaml.model.YNode
  * - **actions**: 操作（スキーマの actions と、型の操作）。受け取る値・前提（名前つき）・従う Lifecycle（展開した遷移）と、
  *   **効果**（do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめたもの）
  * - **states / lifecycles**: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle
+ * - **constraints**: データの決まり（型の検査・スキーマの検査・関係レジストリ）と、操作ごとの書くと破れうる決まり（操作の `checks`。[BusinessModelRules]）
  * - **views / dashboards / reach**: ビューとダッシュボードと、ダッシュボードからたどれる範囲（[BusinessModelViews]。ADR-0033）
  *
  * 値の書き方は変換のひな型と同じ（受け取った値 `$date`・今日 `{$copy: today, $of: context}`・今の値 `{$copy: パス, $of: self}`）。
@@ -72,8 +73,10 @@ object BusinessModel {
         // エンティティ型 → 見出しの項目（参照の値の名前を出すときに読む項目。項目の targetTitle）
         val titles = aspects.groupBy { it.entity }.mapValues { (_, list) -> titleKeyOf(list) }.filterValues { it != null }.mapValues { it.value!! }
         val ctx = Ctx(targets, stateEnums, titles)
-        val actions = schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects, ctx) } +
-            schemas.flatMap { s -> methodTerms(s, raw[s.id], aspects) }
+        // データの決まりと、操作ごとに書くと破れうる決まり（BusinessModelRules）
+        val rules = BusinessModelRules.rules(schemas, raw, catalog)
+        val actions = (schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects, ctx) } + schemas.flatMap { s -> methodTerms(s, raw[s.id], aspects) })
+            .map { a -> LinkedHashMap(a).apply { put("checks", BusinessModelRules.checksOf(a, rules)) } }
         // 文書を作る手（create）の採番は、作る文書のエンティティ型の採番（配列の追加の決まりが無い型）
         @Suppress("UNCHECKED_CAST")
         val createNumbering = actions.flatMap { a -> (a["effects"] as? List<Map<String, Any?>>).orEmpty() }
@@ -86,6 +89,7 @@ object BusinessModel {
         model["actions"] = actions
         model["states"] = catalog?.let { stateTerms(schemas, it) }.orEmpty()
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
+        model["constraints"] = rules.map { it.term }
         @Suppress("UNCHECKED_CAST")
         model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions, model["states"] as List<Map<String, Any?>>))
         return YamlIO.fromAny(model)

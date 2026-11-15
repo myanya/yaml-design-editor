@@ -35,7 +35,16 @@ entity: { type: yde-action, defines: false }
 - `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・作るエンティティ型（`creates`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
   文書を作る手と要素を足す手には、書く値の項目ごとの基底の種類（`written`）と採番（`numbering`）が付きます。
   受け取る値のうち、別の真偽値の受け取る値で消せるもの（効果の条件が `clear.category が true` で、その項目を消す）には `clearedBy` が付きます。
+  操作の `checks` は、その操作が書くと破れうるデータの決まりです（下の `constraints`）。操作が書く項目と決まりが読む項目が重なる（要素の直下のキーで比べる）決まりのうち、
+  書いた後の要素が決まりの絞り込み（`where`）に入らないと定義から分かるもの（状態を「中断」に書く操作と「完了した TODO には…」・完了日を書かずに作る要素と「完了日は…」・
+  再開予定日を書かない明細の行と「再開予定日は…」）を除きます。重なった項目（`items`）と、決まりが読む値を入れる受け取る値（`params`。あれば、受け取る値が原因で破れうる）、
+  決まりの形と重さ（`form`・`level`・`kind`・`multiple`）を持ちます。
 - `states`・`lifecycles`: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle です。State は ID・名前・値の組で書きます。
+- `constraints`: データの決まりです。型の検査・スキーマの検査（`constraints` に直接書いたもの）・関係レジストリの宣言を 1 列にし、名前（`label`＝説明）・文（`message`）・
+  重さ（`level`）・形（`form`）・起点のエンティティ型（`entity`）・明細の行の決まりなら場所（`at`。`history[*]`）・読む項目（`reads`。`todo.status` のように型と項目）・
+  書かれた形（`rule`。State の名前は値の条件へ置き換えたもの）・書かれた場所（`source`）を持ちます。形は、要素ごとの決まり `element`・入れ子の線や参照を辿る決まり `pattern`・
+  書かれた場所の数の決まり `occurrence`・関係レジストリの宣言 `relation`（`kind` は acyclic・outMax・outMin・inMax・inMin・types）です。
+  どの決まりをどう確かめるか（設計書の上の確かめ方）は、生成の定義が決めます（`samples/todos-sysdev` のエラー定義書と処理設計書）。
 - `views`・`dashboards`: ビュー（ID・名前・種類 grid / matrix / chart・行の型 `rows`・行の条件 `where`・並び `order`・列の見出しと読む項目と、項目の型を解いた `field`・
   計算の列の値の式 `value`。集計は数える要素の型 `counts` と、そこへの線 `match`）と、ダッシュボード（絞り込みの入力と、その型を解いた `field`・
   上部の操作・区画・区画の条件が基準日を使うか `usesToday`）です。条件の State の名前は、値の条件（`{path: status, oneOf: [OPEN, …]}`）へ置き換えて持ちます。

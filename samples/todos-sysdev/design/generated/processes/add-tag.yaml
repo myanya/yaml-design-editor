@@ -6,6 +6,7 @@ service:
   method: addTag
   arguments:
     - name
+confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: number

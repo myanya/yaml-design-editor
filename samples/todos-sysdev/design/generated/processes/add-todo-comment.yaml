@@ -8,12 +8,22 @@ service:
     - id
     - date
     - body
+confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
     call: TodoMapper.findById
     key: id
-    missing: 見つからなければ「見つかりません」で断る
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
   - step: write
     call: TodoMapper.insertTodoComments
     kind: insert

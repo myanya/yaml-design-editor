@@ -3,7 +3,7 @@ name: 設計の対応の検査
 kind: library
 description: >-
   業務モデルの定義（定義の索引の操作・エンティティ型・Lifecycle）が、どれも設計書に降りていることを確かめる。
-  操作はアクション定義書・処理設計書・Controller のハンドラ・Mapper のメソッドへ、エンティティ型はエンティティ定義書・
+  操作はアクション定義書・処理設計書・エラー定義書・Controller のハンドラ・Mapper のメソッドへ、エンティティ型はエンティティ定義書・
   テーブル設計書・テーブルアクセス設計書へ降りる。ダッシュボードは画面遷移定義書・一覧画面の画面定義書・Controller へ降り、
   操作はダッシュボードからたどれれば画面定義書（入力画面と確認画面）へ降りる（たどれない操作は、業務モデルのダッシュボードの不足）。
   業務モデルを写し直したのに作り直していない・生成の定義が要素を落とした、のどちらも指摘になる（指摘は業務モデルの定義の場所に出る）
@@ -32,6 +32,12 @@ constraints:
     check: [{ gte: [{ refCount: { of: a, dir: in, via: operations } }, 1] }]
     level: error
     message: "操作「{id}」の読み書きがテーブルアクセス設計書にありません"
+  - id: action-has-error-definition
+    description: どの操作もエラー定義書に載っている（断りの種類と出す場所）
+    match: [{ node: { entity: yde-action, bind: a } }]
+    check: [{ gte: [{ occurrenceCount: { of: a, schema: error-definition } }, 1] }]
+    level: error
+    message: "操作「{id}」がエラー定義書にありません（generate で作り直します）"
   - id: lifecycle-has-status-rule
     description: どの Lifecycle にも状態の判定がある
     match: [{ node: { entity: yde-lifecycle, bind: l } }]

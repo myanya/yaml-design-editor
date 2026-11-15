@@ -1,0 +1,103 @@
+id: error-handling
+name: エラー設計書
+description: >-
+  詳細設計。例外のクラス（投げる所・受ける所・HTTP の状態・ログ）と、まとめて受ける @ControllerAdvice、エラー画面の部品の木、Spring Boot の設定を 1 本にする。
+  決め打ちの規則（エラーとメッセージの議論で決めたもの）: 業務の断り（状態・前提・データの決まり）は RefusedException で、確定のハンドラが受けて
+  確認画面に断りの文を出す（確認へで見つけた違反は、Service の確かめの戻り値で入力画面の欄に出す）・ID を指定して見つからなければ NotFoundException で
+  見つからない画面（404）・トークンが無い・違うなら InvalidTokenException で起点の画面へリダイレクトし、知らせを出す・そのほかは想定外としてエラー画面（500）に
+  受付番号だけを出し、例外と受付番号をログに残す・画面にスタックトレース・SQL・例外の文を出さない・絞り込みの結果が 0 件は例外にしない（正常）
+scope: business
+output: "design/generated/error-handling.yaml"
+build:
+  id: error-handling
+  name: エラー設計書
+  exceptions:
+    - class: RefusedException
+      extends: RuntimeException
+      holds: メッセージのキー・穴の値（id・state・left・right）・欄の名前（受け取る値が原因のとき）
+      means: 業務の断り（状態・前提・データの決まり）
+      thrownBy: Service（処理設計書の check の手順で断るとき）
+      caughtBy: 各 Controller の確定のハンドラ（確認画面に断りの文を出す。HTTP 200）
+      transaction: 取り消す（RuntimeException なので、@Transactional が書いたものを取り消す）
+      log: 出さない（業務の断りは正常な応答）
+    - class: NotFoundException
+      extends: RuntimeException
+      holds: エンティティ型・ID
+      means: ID を指定して読んで、無い（URL の ID・hidden 項目の ID）
+      thrownBy: Service（findById・findDetail の結果が無いとき）
+      caughtBy: GlobalExceptionHandler（見つからない画面。HTTP 404）
+      transaction: 取り消す
+      log: INFO（エンティティ型と ID）
+    - class: InvalidTokenException
+      extends: RuntimeException
+      holds: 起点の画面の ID
+      means: 確定のトークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+      thrownBy: Controller（確定のハンドラがトークンを照合するとき）
+      caughtBy: GlobalExceptionHandler（起点の画面へリダイレクトし、知らせ error.token を置く）
+      transaction: 始めない（照合は Service を呼ぶ前）
+      log: INFO（起点の画面の ID）
+    - class: そのほかの例外（Exception）
+      means: 想定外（DB の誤り・外部キーで書けない参照の値・プログラムの誤り）
+      caughtBy: GlobalExceptionHandler（エラー画面。HTTP 500）
+      transaction: 取り消す
+      log: ERROR（受付番号・例外・スタックトレース）
+  advice:
+    class: GlobalExceptionHandler
+    annotation: "@ControllerAdvice"
+    handlers:
+      - { exception: NotFoundException, status: 404, view: error/not-found, message: "error.notFound.型", model: [message] }
+      - { exception: InvalidTokenException, status: 302, redirect: 起点の画面（画面の ID から URL を引く。無い・知らない ID なら最初の画面）, notice: error.token }
+      - { exception: Exception, status: 500, view: error/unexpected, message: error.unexpected, model: [message], number: 受付番号（UUID の先頭 8 文字）を作り、画面とログに出す }
+  # Service が断る手順（処理設計書の check）の一覧。確定のハンドラは RefusedException を受けて確認画面に出す
+  refusals:
+    $each: actions
+    $of: model
+    $bind: a
+    $build:
+      operation: { $copy: id }
+      service: { $format: "{s}Service.{m}", $with: { s: { $case: { $copy: subject }, $as: pascal }, m: { $case: { $copy: id }, $as: camel } } }
+      handler:
+        $first:
+          - $when: [{ of: model, path: reach.operations, includes: { $copy: id } }]
+            $then: { $format: "{s}Controller.{m}", $with: { s: { $case: { $copy: subject }, $as: pascal }, m: { $case: { $copy: id }, $as: camel } } }
+          - 無い（ダッシュボードからたどれない）
+      throws:
+        $concat:
+          - $when: [{ path: target.entity, exists: true }]
+            $then: [NotFoundException]
+          - $when: [{ or: [{ path: lifecycle.refusal, exists: true }, { path: require, empty: false }, { path: checks, empty: false }] }]
+            $then: [RefusedException]
+      confirm:
+        $group:
+          $each: checks
+          $build:
+            $when: [{ path: params, exists: true }, { path: level, equals: error }, { or: [{ path: form, equals: element }, { path: kind, equals: acyclic }] }]
+            $then: { $copy: . }
+        $by: confirm
+        $build: { $format: "{s}Service.check{m}（違反を返す。例外にしない）", $with: { s: { $case: { $copy: subject, $of: a }, $as: pascal }, m: { $case: { $copy: id, $of: a }, $as: pascal } } }
+  # エラー画面の部品の木（画面設計書と同じ部品。③で Thymeleaf のテンプレートに写す）
+  screens:
+    - id: error/not-found
+      template: error/not-found
+      page:
+        title: 見つかりません
+        width: s
+        body:
+          - notice: { kind: errors, text: message }
+          - actions: [{ label: 最初の画面へ, kind: link, to: 最初の画面, emphasis: primary }]
+    - id: error/unexpected
+      template: error/unexpected
+      page:
+        title: 処理できませんでした
+        width: s
+        body:
+          - notice: { kind: errors, text: message }
+          - actions: [{ label: 最初の画面へ, kind: link, to: 最初の画面, emphasis: primary }]
+  # 画面に中身を出さないための Spring Boot の設定（application.properties）
+  settings:
+    - { key: server.error.include-stacktrace, value: never, why: スタックトレースを画面に出さない }
+    - { key: server.error.include-message, value: never, why: 例外の文を画面に出さない }
+    - { key: server.error.include-exception, value: "false", why: 例外のクラス名を画面に出さない }
+    - { key: server.error.include-binding-errors, value: never, why: 入力の誤りの中身をエラー画面に出さない（入力画面で出す） }
+    - { key: server.error.whitelabel.enabled, value: "false", why: 既定の誤りの画面を出さない（GlobalExceptionHandler の画面を出す） }
+    - { key: spring.messages.basename, value: messages, why: メッセージ定義書の文（messages.properties）を読む }

@@ -62,11 +62,12 @@
 |---|---|---|
 | `BusinessModel` | workspace-core/workspace/BusinessModel.kt | スキーマに分けて書いた業務モデルを 1 つの項に展開する（`entities`・`actions`・`states`・`lifecycles`）。操作の効果は do・Lifecycle・自動の値を 1 列に |
 | `BusinessModelViews` | workspace-core/workspace/BusinessModelViews.kt | 業務モデルの項のビューの側（`views`・`dashboards`）と、ダッシュボードからたどれる範囲（`reach`。ADR-0033） |
+| `BusinessModelRules` | workspace-core/workspace/BusinessModelRules.kt | 業務モデルの項のデータの決まりの側（`constraints`。型の検査・スキーマの検査・関係レジストリ）と、操作が書くと破れうる決まり（操作の `checks`） |
 | `Generators` / `GeneratorDef` / `GenerationPlan` | workspace-core/workspace/Generators.kt | 生成の定義（transforms ゾーン）の読み込み・計画（作る・作り直す・消す・変わらない）・セッションの 1 トランザクション |
 | CLI `generate` | cli/commands/GenerateCommands.kt | 計画・検証・書き込み・最新かの検査・業務モデルの項の表示（引数を写すだけ） |
 
 - **流れ**: `Generators.plan` → 定義の `scope` ごとに業務モデルの項を 1 回作る（スコープのスキーマだけから。ADR-0032）→ 定義ごとに `each` の要素へ `SemanticTransform.runAt`（場所 `model` と `element` を渡す）→ `output` を `TextTemplate.render` で埋める → 見出しのコメントを付けて文字にし、保存済みの内容と比べる → `WorkspaceTransaction`（作成・置き換え・削除）。
-- **規律**: 生成物は原本ではない（原本は業務モデルと生成の定義）。見出し（`Generators.marker`）で見分け、見出しの無い文書は消さない。書き込みはセッションの取引だけで、検証・保存は今までの経路。業務モデルの項に設計の規則（表や URL の決め方）を入れない（規則は生成の定義に書く。項が持つのは、参照先の型・State の値の列挙型・採番・入れ子の外側・作る型・書く値の項目ごとの基底の種類のような業務の事実だけ）。定義の種類（`yde-*`）を詳細化する文書のスキーマは、業務のエンティティ型として数えない。
+- **規律**: 生成物は原本ではない（原本は業務モデルと生成の定義）。見出し（`Generators.marker`）で見分け、見出しの無い文書は消さない。書き込みはセッションの取引だけで、検証・保存は今までの経路。業務モデルの項に設計の規則（表や URL の決め方）を入れない（規則は生成の定義に書く。項が持つのは、参照先の型・State の値の列挙型・採番・入れ子の外側・作る型・書く値の項目ごとの基底の種類・操作が書くと破れうるデータの決まりのような業務の事実だけ。決まりをどう確かめるか（Java か SQL か対象外か）は生成の定義が決める）。定義の種類（`yde-*`）を詳細化する文書のスキーマは、業務のエンティティ型として数えない。
 
 ## レポート（YAML から文字へ）
 

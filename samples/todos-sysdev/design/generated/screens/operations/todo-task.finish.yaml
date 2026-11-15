@@ -15,5 +15,9 @@ execute:
   request: POST /todo-task/{id}/todo-task.finish
   returns: 起点の画面（starts の画面。画面の ID で受け取る）
   notice: todo-task.finish.done
-  refusals: []
-  onRefusal: 確認画面に断りの文を出す
+  refusals:
+    - key: check.updated-not-before-created
+      message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+    - key: check.closed-has-no-open-task
+      message: 完了したTODO「{id}」に、済んでいない作業項目があります
+  onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

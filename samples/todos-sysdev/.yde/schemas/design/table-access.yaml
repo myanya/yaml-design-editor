@@ -37,9 +37,11 @@ root:
           - { key: columns, label: 列, type: any }
           - { key: item, label: 読む項目, type: string }
           - { key: set, label: 書く項目, type: array, display: table, item: { type: any } }
+          - { key: join, label: つなぐテーブル, type: array, display: table, item: { type: any } }
           - { key: where, label: 条件, type: any }
           - { key: numbering, label: 採番の決まり, type: any }
           - { key: precondition, label: 業務モデルの前提, type: ref }
+          - { key: constraint, label: 業務モデルのデータの決まり, type: string }
           - key: expect
             label: 通す件数
             type: enum

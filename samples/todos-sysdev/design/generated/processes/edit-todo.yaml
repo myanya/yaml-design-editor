@@ -16,12 +16,88 @@ service:
     - result
     - comments
     - clear
+confirm:
+  - method: checkEditTodo
+    arguments:
+      - id
+      - title
+      - summary
+      - category
+      - tags
+      - createdOn
+      - dueOn
+      - details
+      - result
+      - comments
+      - clear
+    does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
+    constraints:
+      - constraint: due-not-before-created
+        field: dueOn
+        message: check.due-not-before-created
+      - constraint: updated-not-before-created
+        field: createdOn
+        message: check.updated-not-before-created
+      - constraint: completed-not-before-created
+        field: createdOn
+        message: check.completed-not-before-created
+      - constraint: closed-has-result
+        field: result
+        message: check.closed-has-result
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
     call: TodoMapper.findById
     key: id
-    missing: 見つからなければ「見つかりません」で断る
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
+  - step: check
+    constraint: due-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      where:
+        - path: due_on
+          exists: true
+      check:
+        - gte:
+            - path: due_on
+            - path: created_on
+    field: dueOn
+    message: check.due-not-before-created
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    field: createdOn
+    message: check.updated-not-before-created
+  - step: check
+    constraint: completed-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      where:
+        - path: completed_on
+          exists: true
+      check:
+        - gte:
+            - path: completed_on
+            - path: created_on
+    field: createdOn
+    message: check.completed-not-before-created
+  - step: check
+    constraint: closed-has-result
+    by: Java（書いた後の値）
+    rule:
+      where:
+        - path: status
+          equals: CLOSED
+        - path: result
+          empty: true
+      expect: absent
+    field: result
+    message: check.closed-has-result
   - step: write
     call: TodoMapper.editTodo
     kind: update

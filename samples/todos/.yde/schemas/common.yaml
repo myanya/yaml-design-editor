@@ -128,6 +128,7 @@ definitions:
         where: [ { path: follows, exists: true } ]
         check: [ { ne: [ { path: follows }, { path: id } ] } ]
         level: error
+        message: "TODO「{id}」の元のTODOに、自分自身は選べません"
   # コメント: ID を持たない部品。日付と本文
   コメント:
     type: object
@@ -157,6 +158,7 @@ definitions:
         where: [ { path: resume_on, exists: true } ]
         check: [ { gte: [ { path: resume_on }, { path: date } ] } ]
         level: error
+        message: "再開予定日（{left}）は、中断した日（{right}）より前にできません"
   # 作業項目: 個票の中の明細（TODO-002-S01）。ID を持つので、エンティティ todo-task を定義する（個票の TODO が保有する）
   作業項目:
     type: object
@@ -260,15 +262,18 @@ definitions:
         where: [ { path: due_on, exists: true } ]            # 期限を書いた個票だけが対象（書いていない個票は対象外）
         check: [ { gte: [ { path: due_on }, { path: created_on } ] } ]
         level: error
+        message: "TODO「{id}」の期限（{left}）が、作成日（{right}）より前です"
       - id: updated-not-before-created
         description: 更新日は作成日以降であること
         check: [ { gte: [ { path: updated_on }, { path: created_on } ] } ]
         level: error
+        message: "TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です"
       - id: completed-not-before-created
         description: 完了日は作成日以降であること
         where: [ { path: completed_on, exists: true } ]
         check: [ { gte: [ { path: completed_on }, { path: created_on } ] } ]
         level: error
+        message: "TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です"
       - id: closed-has-completed-on
         description: 完了した TODO には完了日があること
         where:
@@ -282,8 +287,10 @@ definitions:
         where: [{ state: todo-CLOSED }, { path: result, empty: true }]
         expect: absent
         level: error
+        message: "完了した TODO「{id}」に結果がありません"
       - id: unfinished-has-no-completed-on
         description: 完了以外のTODOには完了日を残さないこと
         where: [{ not: { state: todo-CLOSED } }, { path: completed_on, exists: true }]
         expect: absent
         level: error
+        message: "完了していない TODO「{id}」に完了日が残っています"

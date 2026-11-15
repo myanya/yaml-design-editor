@@ -44,7 +44,7 @@ class TodosSysdevTest {
         val methods = list(doc("design/generated/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
         assertEquals(listOf("completed_on", "result", "status", "updated_on"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update")
-        val count = list(doc("design/generated/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["kind"] == "count" }
+        val count = list(doc("design/generated/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
         assertEquals("complete-todo.no-open-task", count["precondition"])
         assertEquals(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), count["where"])
         val crud = list(doc("design/generated/entities/todo.yaml"), "crud").map { it as Map<*, *> }
@@ -102,6 +102,65 @@ class TodosSysdevTest {
         assertEquals("aggregate", matrix["kind"])
         val all = java.nio.file.Files.walk(root.resolve("design/generated")).use { s -> s.filter { it.toString().endsWith(".yaml") }.toList() }
         assertTrue(all.none { "手で書く" in java.nio.file.Files.readString(it) }, "todos の業務モデルは、どれも写す規則で作れる")
+    }
+
+    /**
+     * エラーとメッセージ系（エラー定義書・メッセージ定義書・エラー設計書と、処理設計書のデータの決まりの手順）は、業務モデルから計算で作る:
+     * 確かめるのは操作が書くと破れうるデータの決まりだけ（中断の行の決まりは再開予定日を書く操作だけ）・確かめない決まりには理由・
+     * 受け取る値が原因の決まりは確認へでも確かめる・入れ子の要素の決まりは書いた後に件数で・使うメッセージのキーはどれもメッセージ定義書にある。
+     */
+    @Test
+    fun `エラーとメッセージ系の設計書は業務モデルから計算で作る`() {
+        fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
+        fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+        val errors = doc("design/generated/errors.yaml")
+        val rules = list(errors, "constraints").associateBy { it["constraint"] }
+        assertEquals("SQL", rules["closed-has-no-open-task"]?.get("by"))
+        assertEquals("対象外", rules["has-detail"]?.get("by"), "一覧の行と個票は 1 テーブルなので、書かれた場所の決まりは起きない")
+        assertEquals("対象外", rules["in-category.outMax"]?.get("by"), "警告は断らない")
+        assertEquals(listOf("suspend-todo"), rules["resume-not-before-suspend"]?.get("operations"), "中断の行の決まりは、再開予定日を書く操作だけが確かめる")
+        assertEquals(listOf("complete-todo"), rules["closed-has-completed-on"]?.get("operations"), "状態を完了以外に書く操作は、完了の決まりを確かめない")
+        val complete = doc("design/generated/processes/complete-todo.yaml")
+        val confirm = list(complete, "confirm").single()
+        assertEquals("checkCompleteTodo", confirm["method"])
+        assertEquals(
+            listOf("completed-not-before-created" to "date", "closed-has-completed-on" to "date", "closed-has-result" to "result"),
+            list(confirm, "constraints").map { it["constraint"] to it["field"] }, "受け取る値が原因で破れうる決まりは、確認へでも確かめる",
+        )
+        val steps = list(complete, "steps")
+        assertTrue(steps.indexOfLast { it["step"] == "write" } < steps.indexOfFirst { it["constraint"] == "closed-has-no-open-task" }, "入れ子の要素の決まりは書いた後に数える")
+        // 使うメッセージのキー（処理設計書・エラー定義書・一覧の 0 件・フォームの検査）は、どれもメッセージ定義書にある
+        val messages = doc("design/generated/messages.yaml")
+        val keys = (list(messages, "messages").map { it["key"].toString() } + list(messages, "validation").flatMap { list(it, "messages").map { m -> m["key"].toString() } }).toSet()
+        fun collect(x: Any?, out: MutableList<String>, names: Set<String>) {
+            when (x) {
+                is Map<*, *> -> x.forEach { (k, v) -> if (k in names && v is String && "." in v && " " !in v) out += v else collect(v, out, names) }
+                is List<*> -> x.forEach { collect(it, out, names) }
+            }
+        }
+        val used = mutableListOf<String>()
+        java.nio.file.Files.list(root.resolve("design/generated/processes")).use { s -> s.toList() }.forEach { collect(doc("design/generated/processes/${it.fileName}"), used, setOf("message")) }
+        collect(list(errors, "operations"), used, setOf("message"))
+        collect(doc("design/generated/screen-designs/lists/todo-dashboard.yaml"), used, setOf("empty"))
+        java.nio.file.Files.list(root.resolve("design/generated/screen-designs/operations")).use { s -> s.toList() }.forEach { f ->
+            val form = doc("design/generated/screen-designs/operations/${f.fileName}")["form"] as? Map<*, *> ?: return@forEach
+            val name = form["class"].toString().replaceFirstChar { it.lowercase() }
+            fun fields(fs: Any?, prefix: String) = (fs as List<*>).map { it as Map<*, *> }.forEach { field ->
+                list(field, "validations").map { it["name"].toString() }.filter { it != "Valid" }.forEach { v ->
+                    used += "validation.${if (v == "DateTimeFormat") "typeMismatch" else v}.$name.$prefix${field["name"]}"
+                }
+            }
+            fields(form["fields"], "")
+            // 行のクラス（object の配列の要素）は、その配列の項目の下
+            list(form, "fields").filter { it["type"].toString().startsWith("List<") && it["type"].toString().endsWith("Row>") }.forEach { arr ->
+                val row = list(form, "classes").single { "List<${it["name"]}>" == arr["type"] }
+                fields(row["fields"], "${arr["name"]}.")
+            }
+        }
+        assertTrue(used.size > 50, "キーを集められている: ${used.size}")
+        assertEquals(emptyList(), used.distinct().filter { it !in keys }, "メッセージ定義書に無いキー")
+        val handling = doc("design/generated/error-handling.yaml")
+        assertEquals(listOf("RefusedException", "NotFoundException", "InvalidTokenException"), list(handling, "exceptions").take(3).map { it["class"] })
     }
 
     @Test

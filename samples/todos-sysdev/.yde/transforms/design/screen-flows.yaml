@@ -3,7 +3,8 @@ name: 画面遷移設計（Controller）
 description: >-
   詳細設計。ダッシュボードからたどれるエンティティ型（と入れ子の型）ごとに Controller を 1 つ作り、詳細画面のハンドラと、その型を主体にする
   操作のハンドラ（入力・確認・入力へ戻る・確定）を書く。決め打ちの規則（画面系の議論で決めたもの）: 状態を変えるのは POST だけ（GET は読むだけ）・
-  確認で入力検査（Bean Validation）・確定でトークンを照合し、Service が入力検査・状態・前提を確かめ直す・確定の後は起点の画面へリダイレクト（PRG）・
+  確認で入力検査（Bean Validation）と、受け取る値が原因で破れうるデータの決まり（Service の確かめ）・確定でトークンを照合し、Service が入力検査・状態・前提・
+  データの決まりを確かめ直す・断りは確認画面に出す（例外とメッセージのキーはエラー設計書）・確定の後は起点の画面へリダイレクト（PRG）・
   起点の画面は画面の ID（パラメータ from）で受け取る・セッションは「セッション情報設計」のキーだけを使う。フォームの項目は画面設計書で決める（ここはクラス名で指す）
 scope: business
 each: entities
@@ -55,12 +56,23 @@ build:
               does:
                 $first:
                   - $when: [{ path: params, empty: false }]
-                    $then: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+                    $then: >-
+                      フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを
+                      Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
                   - 受け手を読んで確認画面を出す
               reads:
                 $concat:
                   - $when: [{ path: target.entity, exists: true }]
                     $then: [{ $format: "{n}Mapper.findById", $with: { n: { $case: { $copy: target.entity }, $as: pascal } } }]
+              # 確認へで呼ぶ Service の確かめ（処理設計書の confirm と同じ決まり）
+              calls:
+                $group:
+                  $each: checks
+                  $build:
+                    $when: [{ path: params, exists: true }, { path: level, equals: error }, { or: [{ path: form, equals: element }, { path: kind, equals: acyclic }] }]
+                    $then: { $copy: . }
+                $by: confirm
+                $build: { $format: "{s}Service.check{m}", $with: { s: { $case: { $copy: subject, $of: a }, $as: pascal }, m: { $case: { $copy: id, $of: a }, $as: pascal } } }
               session: { puts: [token] }
           - $when: [{ path: params, empty: false }]
             $then:
@@ -71,8 +83,8 @@ build:
           - - handler: { $case: { $copy: id }, $as: camel }
               request: { $format: "POST {u}", $with: { u: { $apply: url } } }
               does: >-
-                トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く →
-                断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+                トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く →
+                断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
               session: { reads: [token], removes: [token], puts: [notice] }
               refusals:
                 $concat:
@@ -82,6 +94,13 @@ build:
                     $build:
                       $when: [{ path: id, exists: true }]
                       $then: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }
+                  # データの決まり（処理設計書で確かめるもの）
+                  - $each: checks
+                    $build:
+                      $when:
+                        - { path: level, equals: error }
+                        - or: [{ path: form, equals: element }, { path: form, equals: pattern }, { path: kind, equals: acyclic }]
+                      $then: { $format: "check.{c}", $with: { c: { $copy: constraint } } }
 rules:
   # いまの場所＝操作。入力画面で読むもの（受け手と、参照の欄の候補）
   - id: input-reads

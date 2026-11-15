@@ -7,12 +7,13 @@ service:
   arguments:
     - id
     - title
+confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
     call: TodoMapper.findById
     key: id
-    missing: 見つからなければ「見つかりません」で断る
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
   - step: check
     precondition: add-todo-task.active
     by: Java（読んだ行）
@@ -23,7 +24,8 @@ steps:
           - OPEN
           - IN_PROGRESS
           - SUSPENDED
-    message: '{id} は完了か中止をしているので、作業項目を足せません'
+    message: add-todo-task.active
+    text: '{id} は完了か中止をしているので、作業項目を足せません'
   - step: number
     entity: todo-task
     call: TodoTaskMapper.maxId
@@ -33,6 +35,15 @@ steps:
         $format: '{id}-S'
         $of: owner
       digits: 2
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
   - step: write
     call: TodoTaskMapper.insert
     kind: insert
@@ -53,3 +64,11 @@ steps:
     where:
       - item: id
         param: id
+  - step: check
+    constraint: closed-has-no-open-task
+    by: SQL（件数。書いた後）
+    call: TodoTaskMapper.countClosedHasNoOpenTask
+    key: id
+    expect: 0 件なら通す
+    violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
+    message: check.closed-has-no-open-task

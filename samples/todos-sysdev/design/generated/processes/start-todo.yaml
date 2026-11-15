@@ -6,18 +6,41 @@ service:
   method: startTodo
   arguments:
     - id
+confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
     call: TodoMapper.findById
     key: id
-    missing: 見つからなければ「見つかりません」で断る
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
   - step: check
     precondition: start-todo.state
     by: Java（読んだ行の状態）
     allowed:
       - OPEN
-    message: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+    message: start-todo.state
+    text: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
+  - step: check
+    constraint: unfinished-has-no-completed-on
+    by: Java（書いた後の値）
+    rule:
+      where:
+        - not:
+            path: status
+            equals: CLOSED
+        - path: completed_on
+          exists: true
+      expect: absent
+    message: check.unfinished-has-no-completed-on
   - step: write
     call: TodoMapper.startTodo
     kind: update

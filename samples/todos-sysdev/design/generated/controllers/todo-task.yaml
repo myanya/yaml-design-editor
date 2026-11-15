@@ -14,12 +14,13 @@ handlers:
         does: 受け手を読んで確認画面を出す
         reads:
           - TodoTaskMapper.findById
+        calls: []
         session:
           puts:
             - token
       - handler: todoTaskFinish
         request: POST /todo-task/{id}/todo-task.finish
-        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
         session:
           reads:
             - token
@@ -27,4 +28,6 @@ handlers:
             - token
           puts:
             - notice
-        refusals: []
+        refusals:
+          - check.updated-not-before-created
+          - check.closed-has-no-open-task

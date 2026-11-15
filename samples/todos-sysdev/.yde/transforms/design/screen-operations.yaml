@@ -101,7 +101,26 @@ build:
             $when: [{ path: id, exists: true }]
             key: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
             message: { $copy: message }
-    onRefusal: 確認画面に断りの文を出す
+        # データの決まり（エラー定義書で確かめるもの）
+        - $each: checks
+          $bind: c
+          $flatten: true
+          $build:
+            $each: constraints
+            $of: model
+            $build:
+              $when:
+                - { path: id, equals: { $copy: constraint, $of: c } }
+                - { path: level, equals: error }
+                - or: [{ path: form, equals: element }, { path: "rule.match[1].edge.contains", equals: true }, { path: kind, equals: acyclic }]
+              key: { $format: "check.{id}" }
+              message:
+                $first:
+                  - { $copy: message }
+                  - $when: [{ path: kind, equals: acyclic }]
+                    $then: { $format: "「{r}」をたどると、自分（{id}）に戻ります（循環はできません）", $with: { r: { $copy: relationLabel }, id: "{id}" } }
+                  - { $copy: label }
+    onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
 rules:
   - id: shown-when
     when: [{ path: lifecycle.transitions, exists: true }]

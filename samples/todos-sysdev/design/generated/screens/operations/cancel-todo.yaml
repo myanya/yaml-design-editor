@@ -49,4 +49,8 @@ execute:
   refusals:
     - key: cancel-todo.state
       message: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
-  onRefusal: 確認画面に断りの文を出す
+    - key: check.updated-not-before-created
+      message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+    - key: check.unfinished-has-no-completed-on
+      message: 完了していない TODO「{id}」に完了日が残っています
+  onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

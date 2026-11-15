@@ -6,7 +6,8 @@ description: >-
   列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書の columns の item から引く（SQL の文字は③で MyBatis の XML に作る）。
   決め打ちの規則: 受け手は findById で読む・作る操作は insert（すべての列）・採番は maxId（使われている番号の最大）・
   明細の並び順は maxSeq・値を書く操作は操作ごとの update（書く列だけ）・配列を置き換える操作は明細を消して入れ直す・
-  前提のうち「受け手の中の要素の条件」は件数を数える count（ほかの前提は Service が読んだ行で確かめる）
+  前提のうち「受け手の中の要素の条件」は件数を数える count（ほかの前提は Service が読んだ行で確かめる）・
+  データの決まりのうち「入れ子の要素の条件」も件数を数える count（書いた後に、同じトランザクションで数える）
 scope: business
 each: entities
 output: "design/generated/table-access/{id}.yaml"
@@ -32,9 +33,11 @@ build:
       set:
         $when: [{ path: "items[0].kind", equals: update }]
         $then: { $each: items, $build: { $copy: set } }
+      join: { $copy: "items[0].join" }
       where: { $copy: "items[0].where" }
       numbering: { $copy: "items[0].numbering" }
       precondition: { $copy: "items[0].precondition" }
+      constraint: { $copy: "items[0].constraint" }
       expect: { $copy: "items[0].expect" }
       # 読み出し（画面系の 2 回目）: 列・並び・明細と入れ子の型・参照先の名前・集計
       includes: { $copy: "items[0].includes" }
@@ -313,6 +316,56 @@ rules:
               expect: { $copy: rule.expect }
               precondition: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }
               operation: { $copy: id, $of: a }
+        # データの決まりのうち「入れ子の要素の条件」（書いた後に数える）: その要素のテーブルの件数。使う操作は、その決まりを確かめる操作
+        - $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: checks
+            $bind: c
+            $flatten: true
+            $build:
+              $each: constraints
+              $of: model
+              $bind: k
+              $build:
+                $when:
+                  - { path: id, equals: { $copy: constraint, $of: c } }
+                  - { path: level, equals: error }
+                  - { path: form, equals: pattern }
+                  - { path: "rule.match[1].edge.contains", equals: true }
+                  - { path: "rule.match[2].node.entity", equals: { $copy: id, $of: element } }
+                name: { $format: "count{n}", $with: { n: { $case: { $copy: id }, $as: pascal } } }
+                kind: count
+                table: { $case: { $copy: id, $of: element }, $as: snake }
+                # 起点（外側）の要素の条件は、外側のテーブルをつないで見る（書いた後の行）
+                join:
+                  - table: { $case: { $copy: "rule.match[0].node.entity" }, $as: snake }
+                    item: id
+                    equalsItem: { $format: "{p}_id", $with: { p: { $case: { $copy: owner.entity, $of: element }, $as: snake } } }
+                where:
+                  $concat:
+                    - - item: { $format: "{p}_id", $with: { p: { $case: { $copy: owner.entity, $of: element }, $as: snake } } }
+                        param: { $format: "{p}Id", $with: { p: { $case: { $copy: owner.entity, $of: element }, $as: camel } } }
+                    - $each: rule.where
+                      $build:
+                        $when: [{ path: of, equals: { $copy: "rule.match[0].node.bind", $of: k } }]
+                        table: { $case: { $copy: "rule.match[0].node.entity", $of: k }, $as: snake }
+                        item: { $copy: path }
+                        equals: { $copy: equals }
+                        notEquals: { $copy: notEquals }
+                        oneOf: { $copy: oneOf }
+                    - $each: rule.where
+                      $build:
+                        $when: [{ path: of, equals: { $copy: "rule.match[2].node.bind", $of: k } }]
+                        item: { $copy: path }
+                        equals: { $copy: equals }
+                        notEquals: { $copy: notEquals }
+                        oneOf: { $copy: oneOf }
+                expect: { $copy: rule.expect }
+                constraint: { $copy: id }
+                operation: { $copy: id, $of: a }
   # いまの場所＝ビューの行の条件 1 つ（where・check）。SQL の条件の組み立て（B-2。写せない形は「手で書く」）
   - id: cond
     when: [{ path: includesAny, exists: true }]

@@ -38,4 +38,8 @@ execute:
   refusals:
     - key: add-todo-task.active
       message: '{id} は完了か中止をしているので、作業項目を足せません'
-  onRefusal: 確認画面に断りの文を出す
+    - key: check.updated-not-before-created
+      message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+    - key: check.closed-has-no-open-task
+      message: 完了したTODO「{id}」に、済んでいない作業項目があります
+  onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

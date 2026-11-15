@@ -43,7 +43,7 @@ attributes:
       - TodoTaskController.todoTaskFinish
     removes: 確定で照合したとき（使った・違った）と、セッションの期限
   - key: notice
-    contents: 完了の知らせ（「TODO-006 を登録しました」。メッセージのキーは 操作ID.done）
+    contents: 完了の知らせ（「TODO-006 を登録しました」。メッセージのキーは 操作ID.done）と、二重の確定・時間切れの知らせ（error.token）
     purpose: 利便（確定の後のリダイレクト（PRG）の先で 1 回だけ出す）
     puts:
       - CategoryController.addCategory
@@ -58,6 +58,7 @@ attributes:
       - TodoController.cancelTodo
       - TagController.addTag
       - TodoTaskController.todoTaskFinish
+      - GlobalExceptionHandler（InvalidTokenException。エラー設計書）
     reads:
       - TodoDashboardController.show
       - TodoController.show

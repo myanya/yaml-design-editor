@@ -78,6 +78,7 @@ screens:
                   body:
                     - table:
                         read: TodoMapper.selectTodoDashboardOverdue
+                        empty: list.empty.todo
                         columns:
                           - label: ID
                             item: id
@@ -179,6 +180,7 @@ screens:
                   body:
                     - table:
                         read: TodoMapper.selectTodoDashboardAll
+                        empty: list.empty.todo
                         columns:
                           - label: ID
                             item: id
@@ -308,6 +310,7 @@ screens:
                             by: その行と列で絞る（URL のパラメータ）
                           align: end
                         totals: 行と列の合計
+                        empty: list.empty.category
               - section:
                   id: tags
                   title: タグ別の状況
@@ -331,6 +334,7 @@ screens:
                             by: その行と列で絞る（URL のパラメータ）
                           align: end
                         totals: 行と列の合計
+                        empty: list.empty.tag
         - section:
             title: マスタ
             gap: l
@@ -342,6 +346,7 @@ screens:
                   body:
                     - table:
                         read: CategoryMapper.selectTodoDashboardCategoriesMaster
+                        empty: list.empty.category
                         columns:
                           - label: ID
                             item: id
@@ -359,6 +364,7 @@ screens:
                   body:
                     - table:
                         read: TagMapper.selectTodoDashboardTagsMaster
+                        empty: list.empty.tag
                         columns:
                           - label: ID
                             item: id

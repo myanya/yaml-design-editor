@@ -67,5 +67,13 @@ execute:
   request: POST /todo/register-todo
   returns: 起点の画面（starts の画面。画面の ID で受け取る）
   notice: register-todo.done
-  refusals: []
-  onRefusal: 確認画面に断りの文を出す
+  refusals:
+    - key: check.due-not-before-created
+      message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+    - key: check.updated-not-before-created
+      message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+    - key: check.follows-not-self
+      message: TODO「{id}」の元のTODOに、自分自身は選べません
+    - key: check.follow-up-of.acyclic
+      message: 「元のTODO」をたどると、自分（{id}）に戻ります（循環はできません）
+  onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

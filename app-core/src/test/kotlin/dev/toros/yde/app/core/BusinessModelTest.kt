@@ -182,4 +182,42 @@ class BusinessModelTest {
         assertEquals("todo", create["entity"])
         assertEquals(listOf("due_on" to "date", "details" to "string", "comments" to "array"), list("written", create).map { it["key"] to it["base"] })
     }
+
+    @Test
+    fun `データの決まりと 操作が書くと破れうる決まり`() {
+        // 決まりの形: 型の検査（要素ごと。ID の無い明細の行は場所 at）・入れ子の線の検査・書かれた場所の検査・関係レジストリ
+        val due = byId("constraints", "due-not-before-created")
+        assertEquals("element", due["form"])
+        assertEquals(listOf("todo.due_on", "todo.created_on"), due["reads"])
+        assertEquals("TODO「{id}」の期限（{left}）が、作成日（{right}）より前です", due["message"])
+        assertEquals("common#TODO個票", due["source"], "書かれた場所は型を書いた文書と型の名前")
+        val resume = byId("constraints", "resume-not-before-suspend")
+        assertEquals("history[*]", resume["at"])
+        assertEquals(listOf("todo.history[*].resume_on", "todo.history[*].date"), resume["reads"])
+        val noOpen = byId("constraints", "closed-has-no-open-task")
+        assertEquals("pattern", noOpen["form"])
+        assertEquals(listOf("todo.status", "todo-task.done", "todo.tasks"), noOpen["reads"], "State の名前は値の項目に、入れ子の線は外側の項目に")
+        assertEquals("occurrence", byId("constraints", "has-detail")["form"])
+        val acyclic = byId("constraints", "follow-up-of.acyclic")
+        assertEquals(listOf("relation", "acyclic", "error", listOf("todo.follows")), listOf(acyclic["form"], acyclic["kind"], acyclic["level"], acyclic["reads"]))
+        assertEquals("warning", byId("constraints", "in-category.outMax")["level"], "関係の多重度の重さは関係の宣言の level（既定は警告）")
+        // 操作の checks: 書く項目と読む項目が重なり、書いた後の要素が絞り込みに入りうるものだけ
+        fun checks(action: String) = list("checks", byId("actions", action)).associateBy { it["constraint"] }
+        val complete = checks("complete-todo")
+        assertEquals(
+            setOf("updated-not-before-created", "completed-not-before-created", "closed-has-completed-on", "closed-has-result", "closed-has-no-open-task"),
+            complete.keys,
+            "完了は、完了以外の決まり（完了日を残さない）と、再開予定日の無い行の決まりを確かめない",
+        )
+        assertEquals(listOf("result"), complete["closed-has-result"]?.get("params"), "受け取る値が原因で破れうる")
+        assertEquals(listOf("todo.status", "todo.result"), complete["closed-has-result"]?.get("items"))
+        assertEquals("element", complete["closed-has-result"]?.get("form"), "決まりの形を写して持つ")
+        assertEquals(listOf("resume_on", "date"), checks("suspend-todo")["resume-not-before-suspend"]?.get("params"))
+        val register = checks("register-todo")
+        assertTrue("completed-not-before-created" !in register && "closed-has-result" !in register, "新しく作る要素は、書かない項目と、書く状態の値で絞り込みを外す")
+        assertEquals(listOf("due"), register["due-not-before-created"]?.get("params"))
+        assertEquals(listOf("result"), checks("edit-todo")["closed-has-result"]?.get("params"), "「値を消す」で消すのも、その受け取る値が原因")
+        assertEquals(setOf("updated-not-before-created", "closed-has-no-open-task"), checks("todo-task.finish").keys)
+        assertEquals(emptyMap(), checks("add-category"))
+    }
 }
