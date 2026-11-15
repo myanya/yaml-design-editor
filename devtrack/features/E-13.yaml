@@ -1,5 +1,5 @@
 id: E-13
-title: '配列と map のテーブル表示（自動判定と `display: table / list`・セル編集・展開フォーム・列幅・行の操作は取っ手と ⋯・参照セルは名前つき）'
+title: '配列と map のテーブル表示（自動判定と `display: table / list`・要素が any の table は列を要素のキーから・セル編集・展開フォーム・列幅・行の操作は取っ手と ⋯・参照セルは名前つき）'
 implementation:
 - path: ui/form/FormTables.kt
   detail: '`ObjectTable`・`ArrayRowMenu`・`RefCell`'

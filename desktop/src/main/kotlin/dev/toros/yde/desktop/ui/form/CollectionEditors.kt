@@ -76,7 +76,7 @@ internal fun ArrayEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath)
     val header = Display.seqHeaderText(node, ctx.doc.schema, field.item, titleLookup = ctx.indexTitleLookup())
     // テーブル表示（R12-06）: 列はスキーマの適否判定（自動＋display ヒント）で決まり、
     // 実データが全て map のときだけ表にする（型がずれた要素は縦リストの汎用表示で扱う）
-    val columns = Display.tableColumns(ctx.doc.schema, field)
+    val columns = Display.tableColumns(ctx.doc.schema, field, node.items)
     val tabular = columns != null && node.items.isNotEmpty() && node.items.all { it is YNode.Map }
     FormGroup(nested = path.isNotEmpty()) {
         FormFoldHeader(header, expanded) { ctx.setExpanded(path, !expanded) }
@@ -213,7 +213,7 @@ internal fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
         return
     }
     // テーブル表示（R12-06）: 適否判定は配列と共有し、値が全て map のときだけキー列つきの表にする
-    val columns = Display.tableColumns(ctx.doc.schema, field)
+    val columns = Display.tableColumns(ctx.doc.schema, field, node.entries.values.toList())
     val tabular = columns != null && node.entries.isNotEmpty() && node.entries.values.all { it is YNode.Map }
     FormGroup(nested = path.isNotEmpty()) {
         FormFoldHeader("${node.entries.size} 件", expanded) { ctx.setExpanded(path, !expanded) }

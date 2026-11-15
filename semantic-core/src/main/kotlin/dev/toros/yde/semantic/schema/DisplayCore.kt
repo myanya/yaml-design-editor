@@ -182,4 +182,29 @@ object DisplayCore {
             else -> null
         }
     }
+
+    /**
+     * 表示の列（スキーマで決まる列 [tableColumns] が無ければ、データから決める列）。要素の型が any の配列・map に
+     * `display: table` を明示したときだけ、列を要素のキーから決める（初出順・型は文字）。生成物の CRUD 表のように、
+     * 列が文書ごとに変わる表のため。要素がどれも map で、値がどれもスカラーでなければ表にしない。
+     */
+    fun tableColumns(schema: SchemaTree?, field: FieldDef?, elements: List<YNode>): List<FieldDef>? =
+        tableColumns(schema, field) ?: dataColumns(schema, field, elements)
+
+    private fun dataColumns(schema: SchemaTree?, field: FieldDef?, elements: List<YNode>): List<FieldDef>? {
+        val container = schema?.resolve(field) ?: field ?: return null
+        if (container.display != CollectionDisplay.TABLE) return null
+        val elementDef = when (container.type) {
+            FieldType.ARRAY -> container.item
+            FieldType.MAP -> container.value
+            else -> return null
+        }
+        val item = elementDef?.let { schema?.resolve(it) ?: it }
+        if (item != null && item.type != FieldType.ANY) return null
+        val maps = elements.map { it as? YNode.Map ?: return null }
+        if (maps.isEmpty() || maps.any { m -> m.entries.values.any { it !is YNode.Scalar } }) return null
+        val keys = LinkedHashSet<String>()
+        maps.forEach { keys += it.entries.keys }
+        return keys.map { FieldDef(key = it, type = FieldType.STRING) }
+    }
 }

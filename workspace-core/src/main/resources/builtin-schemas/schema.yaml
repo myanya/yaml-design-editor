@@ -307,7 +307,7 @@ definitions:
               label: 一覧の表示形式
               type: enum
               values: [table, list]
-              description: table は表形式に固定、list は縦並びに固定（省略時は列構成から自動判定）
+              description: table は表形式に固定、list は縦並びに固定（省略時は列構成から自動判定）。要素の型が any の配列に table を書くと、列は要素のキーから決まる
             - key: unique
               label: 重複を許さない
               type: any

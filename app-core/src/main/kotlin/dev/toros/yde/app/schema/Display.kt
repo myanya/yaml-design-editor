@@ -66,4 +66,8 @@ object Display {
     /** 配列・map をテーブル表示すべきときの列定義（R12-06）。 */
     fun tableColumns(schema: SchemaDef?, field: FieldDef?): List<FieldDef>? =
         DisplayCore.tableColumns(schema?.tree, field)
+
+    /** 表示の列（スキーマで決まらなければ、要素の型が any の `display: table` に限り、要素のキーから）。 */
+    fun tableColumns(schema: SchemaDef?, field: FieldDef?, elements: List<dev.toros.yde.yaml.model.YNode>): List<FieldDef>? =
+        DisplayCore.tableColumns(schema?.tree, field, elements)
 }

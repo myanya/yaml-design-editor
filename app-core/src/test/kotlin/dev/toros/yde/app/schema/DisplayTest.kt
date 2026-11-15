@@ -414,6 +414,37 @@ class DisplayTest {
         assertNull(Display.tableColumns(scalars, firstField(scalars)))
     }
 
+    @Test
+    fun `要素が any の配列に display table を書くと 列は要素のキーから決める`() {
+        fun schema(display: String) = schemaOf(
+            """
+            id: t
+            name: t
+            match: "docs/**/*.yaml"
+            root:
+              type: object
+              fields:
+                - key: crud
+                  type: array
+                  $display
+                  item: { type: any }
+            """
+        )
+        // 生成物の CRUD 表: 列は操作の ID で、文書ごとに変わる（キーの初出順。型は文字）
+        val rows = YamlIO.parseFirst(
+            "- { 項目: status, register-todo: C, start-todo: U }\n- { 項目: done, todo-task.finish: U }",
+        ) as YNode.Seq
+        val table = schema("display: table")
+        val cols = Display.tableColumns(table, firstField(table), rows.items)
+        assertEquals(listOf("項目", "register-todo", "start-todo", "todo-task.finish"), cols!!.map { it.key })
+        assertEquals(FieldType.STRING, cols.first().type)
+        // 明示しなければ表にしない（スキーマで列が決まらない）・値がスカラーでない要素があれば表にしない
+        val auto = schema("description: 明示なし")
+        assertNull(Display.tableColumns(auto, firstField(auto), rows.items))
+        val nested = YamlIO.parseFirst("- { 項目: status, ops: [C, U] }") as YNode.Seq
+        assertNull(Display.tableColumns(table, firstField(table), nested.items))
+    }
+
     /** 9列のスカラーフィールドを持つ配列スキーマ（インデントは列挙生成のため手組み）。 */
     private fun manyColumnsSchema(display: String?): SchemaDef {
         val fields = (1..9).joinToString("\n") { "        - { key: c$it, type: string }" }
