@@ -8,10 +8,16 @@ service:
     - name
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: write
-    op: insert
+  - step: number
     entity: tag
-    path: tags
-    value:
+    call: TagMapper.maxId
+    rule:
+      path: id
+      prefix: TAG-
+      digits: 3
+  - step: write
+    call: TagMapper.insert
+    kind: insert
+    values:
+      id: 採番した番号
       name: $name
-    source: do

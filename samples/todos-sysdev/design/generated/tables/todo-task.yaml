@@ -1,0 +1,53 @@
+# 生成物（table-designs）: 手で直さず、業務モデルか生成の定義（design/table-designs.yaml）を直して作り直します（CLI generate）。
+id: todo-task
+name: 作業項目のテーブル
+tables:
+  - name: todo_task
+    kind: main
+    class: TodoTask
+    columns:
+      - name: id
+        item: id
+        label: ID
+        type: VARCHAR
+        notNull: true
+        primaryKey: true
+        java:
+          name: id
+          type: String
+      - name: todo_id
+        label: 親の ID
+        type: VARCHAR
+        notNull: true
+        references:
+          table: todo
+          column: id
+        java:
+          name: todoId
+          type: String
+      - name: seq
+        label: 並び順（業務モデルの配列の順。1 から）
+        type: INTEGER
+        notNull: true
+        java:
+          name: seq
+          type: int
+      - name: title
+        item: title
+        label: 作業
+        type: VARCHAR(100)
+        notNull: true
+        java:
+          name: title
+          type: String
+      - name: done
+        item: done
+        label: 済
+        type: BOOLEAN
+        notNull: true
+        default: false
+        java:
+          name: done
+          type: boolean
+    primaryKey:
+      - id

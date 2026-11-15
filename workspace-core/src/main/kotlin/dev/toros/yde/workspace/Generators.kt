@@ -17,6 +17,8 @@ data class GeneratorDef(
     val description: String?,
     /** 業務モデルのどの並びの要素ごとに 1 文書を作るか（null＝業務モデル全体から 1 文書）。 */
     val each: String?,
+    /** 業務モデルを、どのスコープ（workspace.yaml の scopes）の定義体から作るか（null＝ワークスペースのすべてのスキーマ）。 */
+    val scope: String?,
     /** 作る文書の場所（ワークスペース相対の YAML。穴 `{パス}` は要素の値）。 */
     val output: String,
     /** 文書の中身を組み立てる変換（いまの場所＝要素。業務モデル全体は `$of: model`）。 */
@@ -56,7 +58,7 @@ object Generators {
     /** 生成の定義が `$of` で読む、いまの要素（each の要素。繰り返しの中から外側の要素を読む）の名前。 */
     const val ELEMENT = "element"
 
-    private val KEYS = setOf("id", "name", "description", "each", "output", "build", "rules")
+    private val KEYS = setOf("id", "name", "description", "scope", "each", "output", "build", "rules")
 
     /** 生成物の見出しの始まり（この定義の生成物かを見分ける）。 */
     fun marker(generator: String): String = "# 生成物（$generator）"
@@ -78,7 +80,8 @@ object Generators {
             linkedMapOf("id" to id, "description" to m["description"], "build" to m["build"], "rules" to m["rules"]).filterValues { it != null },
             where, places = setOf(MODEL, ELEMENT),
         )
-        return GeneratorDef(id, m["name"]?.toString() ?: id, m["description"]?.toString(), each, output, transform, source)
+        val scope = m["scope"]?.toString()?.takeIf { it.isNotBlank() }
+        return GeneratorDef(id, m["name"]?.toString() ?: id, m["description"]?.toString(), each, scope, output, transform, source)
     }
 
     /** セッションの transforms ゾーンの生成の定義（下のフォルダも。ID の重なりは誤り）。 */
@@ -103,10 +106,14 @@ object Generators {
         val errors = defErrors.toMutableList()
         only.filter { name -> defs.none { it.id == name } }.forEach { errors += "生成の定義「$it」がありません（ある定義: ${defs.joinToString(", ") { d -> d.id }.ifEmpty { "なし" }}）" }
         val selected = if (only.isEmpty()) defs else defs.filter { it.id in only }
-        val model = BusinessModel.of(session)
-        val modelPlace = SemanticTransform.TemplatePlace(model, null, emptyList())
+        // 業務モデルは、生成の定義が読むスコープごとに 1 回だけ作る
+        val models = HashMap<String?, YNode?>()
         val outputs = mutableListOf<GeneratedDocument>()
         for (def in selected) {
+            val model = models.getOrPut(def.scope) {
+                runCatching { BusinessModel.of(session, def.scope) }.getOrElse { errors += "${def.id}: ${it.message}"; null }
+            } ?: continue
+            val modelPlace = SemanticTransform.TemplatePlace(model, null, emptyList())
             for ((index, element) in elementsOf(def, model, errors).withIndex()) {
                 val (node, path) = element
                 val term = runCatching {

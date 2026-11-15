@@ -1,93 +1,212 @@
 id: table-access
 name: テーブルアクセス設計書（Repository）
 description: >-
-  エンティティ型ごとに Mapper を 1 つ作り、その型を主体にする操作ごとの読み書きを文の組み立て（表・列・値・条件）で書く。
-  SQL の文字は、この組み立てから作る（MyBatis の XML。③で）。決め打ちの規則（表と列の名前は仮。データの筋で決める）:
-  表＝型の名前のスネーク・ID の無い繰り返し（コメント・履歴）は「型_項目」の子の表・参照の並び（タグ）も「型_項目」の表・
-  要素がエンティティの並び（作業項目）はその型の表・列＝項目のキー・受け取った値は $名前（MyBatis では #{名前}）
+  詳細設計。エンティティ型ごとに Mapper を 1 つ作り、その型のテーブル（主のテーブルと明細テーブル）を読み書きするメソッドを書く。
+  メソッドは操作をまたいで 1 つにまとめ、使う操作を operations に並べる。同じテーブルへの値の書き込みは、操作ごとに 1 つの update にまとめる。
+  列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書の columns の item から引く（SQL の文字は③で MyBatis の XML に作る）。
+  決め打ちの規則: 受け手は findById で読む・作る操作は insert（すべての列）・採番は maxId（使われている番号の最大）・
+  明細の並び順は maxSeq・値を書く操作は操作ごとの update（書く列だけ）・配列を置き換える操作は明細を消して入れ直す・
+  前提のうち「受け手の中の要素の条件」は件数を数える count（ほかの前提は Service が読んだ行で確かめる）
+scope: business
 each: entities
 output: "design/generated/table-access/{id}.yaml"
 build:
   id: { $copy: id }
   name: { $format: "{label}の読み書き" }
-  table: { $case: { $copy: id }, $as: snake }
-  mapper: { $format: "{name}Mapper", $with: { name: { $case: { $copy: id }, $as: pascal } } }
-  accesses:
-    $each: actions
-    $of: model
-    $bind: a
+  mapper: { $format: "{n}Mapper", $with: { n: { $case: { $copy: id }, $as: pascal } } }
+  tables:
+    $concat:
+      - [{ $case: { $copy: id }, $as: snake }]
+      - $group: { $apply: fields }
+        $by: { $when: [{ path: field.base, equals: array }, { path: field.item.entity, exists: false }], $then: { $copy: field.key } }
+        $build: { $apply: detail-name }
+  methods:
+    $group: { $apply: methods }
+    $by: { $copy: name }
     $build:
-      $when: [{ path: subject, equals: { $copy: id, $of: element } }]
-      operation: { $copy: id }
-      method: { $case: { $copy: id }, $as: camel }
-      statements:
-        $concat:
-          # 受け手を読む
-          - $when: [{ path: target.entity, exists: true }]
-            $then:
-              - kind: select
-                table: { $case: { $copy: subject }, $as: snake }
-                where: [{ column: id, value: $$id }]
-          # 業務モデルの前提: 条件を SQL に写す規則は、前提の形ごとに決める（いまは写さず、手で書く印を付ける）
-          - $each: require
-            $build:
-              $when: [{ path: id, exists: true }]
-              kind: check
-              precondition: { $format: "{action}.{rule}", $with: { action: { $copy: id, $of: a }, rule: { $copy: id } } }
-              sql: 手で書く（前提の形から SQL へ写す規則は、まだ無い）
-          # 書く: この型の項目への効果を 1 つずつ文にする（同じ表への書き込みを 1 文にまとめる計算は、まだ無い）
-          - $each: effects
-            $apply: write
+      name: { $copy: key }
+      kind: { $copy: "items[0].kind" }
+      table: { $copy: "items[0].table" }
+      columns: { $copy: "items[0].columns" }
+      item: { $copy: "items[0].item" }
+      set:
+        $when: [{ path: "items[0].kind", equals: update }]
+        $then: { $each: items, $build: { $copy: set } }
+      where: { $copy: "items[0].where" }
+      numbering: { $copy: "items[0].numbering" }
+      precondition: { $copy: "items[0].precondition" }
+      expect: { $copy: "items[0].expect" }
+      operations: { $group: items, $by: { $copy: operation }, $build: { $copy: key } }
 rules:
-  # 一覧へ要素を足す・文書を作る（その型の表へ 1 行）
-  - id: write
-    when: [{ path: op, equals: create }]
+  # いまの場所＝エンティティ型。側面ごとの項目を 1 列に（{field: 項目, schema: 書かれた文書の種類}）
+  - id: fields
     build:
-      kind: insert
-      table: { $case: { $copy: entity }, $as: snake }
-      values: { $copy: values }
-  - id: write
-    when: [{ path: field.item.entity, exists: true }, { path: op, equals: insert }]
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build: { field: { $copy: . }, schema: { $copy: schema, $of: asp } }
+  # いまの場所＝まとめた項目（{key}）。明細テーブルの名前（テーブル設計書と同じ）
+  - id: detail-name
+    build: { $format: "{t}_{k}", $with: { t: { $case: { $copy: id, $of: element }, $as: snake }, k: { $copy: key } } }
+  # いまの場所＝エンティティ型。この型のテーブルを読み書きするメソッドの、操作ごとの並び（名前でまとめる前）
+  - id: methods
     build:
-      kind: insert
-      table: { $case: { $copy: field.item.entity }, $as: snake }
-      values: { $first: [{ $copy: value }, { $copy: params }] }
-      source: { $copy: source }
-  # ID の無い繰り返し・参照の並びへ 1 行足す（子の表）
-  - id: write
-    when: [{ path: op, equals: insert }, { path: field.base, equals: array }]
-    build:
-      kind: insert
-      table: { $format: "{type}_{key}", $with: { type: { $case: { $copy: entity }, $as: snake }, key: { $copy: field.key } } }
-      values: { $copy: value }
-      source: { $copy: source }
-  # 繰り返しを丸ごと置き換える（子の表の行を消して入れ直す）
-  - id: write
-    when: [{ path: op, equals: set }, { path: field.base, equals: array }]
-    build:
-      kind: replace
-      table: { $format: "{type}_{key}", $with: { type: { $case: { $copy: entity }, $as: snake }, key: { $copy: field.key } } }
-      values: { $copy: value }
-      source: { $copy: source }
-  # 列を書く・消す
-  - id: write
-    when: [{ path: op, equals: set }]
-    build:
-      kind: update
-      table: { $case: { $copy: entity }, $as: snake }
-      set: [{ column: { $copy: path }, value: { $copy: value } }]
-      where: [{ column: id, value: $$id }]
-      source: { $copy: source }
-  - id: write
-    when: [{ path: op, equals: delete }, { path: field.base, equals: array }]
-    build:
-      kind: delete
-      table: { $format: "{type}_{key}", $with: { type: { $case: { $copy: entity }, $as: snake }, key: { $copy: field.key } } }
-      where: [{ column: { $format: "{type}_id", $with: { type: { $case: { $copy: entity }, $as: snake } } }, value: $$id }]
-  - id: write
-    when: [{ path: op, equals: delete }]
-    build:
-      kind: update
-      table: { $case: { $copy: entity }, $as: snake }
-      set: [{ column: { $copy: path }, value: null }]
-      where: [{ column: id, value: $$id }]
+      $concat:
+        # 受け手を読む
+        - $each: actions
+          $of: model
+          $build:
+            $when: [{ path: target.entity, equals: { $copy: id, $of: element } }]
+            name: findById
+            kind: select
+            table: { $case: { $copy: id, $of: element }, $as: snake }
+            where: [{ item: id, param: id }]
+            operation: { $copy: id }
+        # この型の要素を作る: すべての列の insert・採番（使われている番号の最大）・入れ子の型の並び順
+        - $each: actions
+          $of: model
+          $flatten: true
+          $build:
+            $when: [{ path: creates, includes: { $copy: id, $of: element } }]
+            $then:
+              $concat:
+                - - name: insert
+                    kind: insert
+                    table: { $case: { $copy: id, $of: element }, $as: snake }
+                    columns: テーブル設計書のすべての列
+                    operation: { $copy: id }
+                - $when: [{ of: element, path: numbering, exists: true }, { of: element, path: owner.entity, exists: false }]
+                  $then:
+                    - name: maxId
+                      kind: max
+                      table: { $case: { $copy: id, $of: element }, $as: snake }
+                      item: id
+                      where: [{ item: id, startsWith: { $copy: numbering.prefix, $of: element } }]
+                      numbering: { $copy: numbering, $of: element }
+                      operation: { $copy: id }
+                - $when: [{ of: element, path: owner.entity, exists: true }]
+                  $then:
+                    - name: maxId
+                      kind: max
+                      table: { $case: { $copy: id, $of: element }, $as: snake }
+                      item: id
+                      where: [{ item: { $format: "{p}_id", $with: { p: { $case: { $copy: owner.entity, $of: element }, $as: snake } } }, param: id }]
+                      numbering: { $copy: numbering, $of: element }
+                      operation: { $copy: id }
+                    - name: maxSeq
+                      kind: max
+                      table: { $case: { $copy: id, $of: element }, $as: snake }
+                      item: seq
+                      where: [{ item: { $format: "{p}_id", $with: { p: { $case: { $copy: owner.entity, $of: element }, $as: snake } } }, param: id }]
+                      operation: { $copy: id }
+        # 業務モデルの効果から: 値の update・明細の行・明細の置き換え・作る値の中の配列
+        - $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: effects
+            $bind: e
+            $flatten: true
+            $build:
+              $concat:
+                # 値を書く・消す（作る操作の値は insert に入るので、ここには出さない）。操作ごとに 1 つの update にまとめる
+                - $when:
+                    - { path: entity, equals: { $copy: id, $of: element } }
+                    - { or: [{ path: op, equals: set }, { path: op, equals: delete }] }
+                    - { not: { path: field.base, oneOf: [array, object, map] } }
+                    - { not: { of: a, path: creates, includes: { $copy: id, $of: element } } }
+                  $then:
+                    - name: { $case: { $copy: id, $of: a }, $as: camel }
+                      kind: update
+                      table: { $case: { $copy: id, $of: element }, $as: snake }
+                      set: { item: { $copy: field.key }, value: { $first: [{ $copy: value }, null] }, when: { $copy: when } }
+                      where:
+                        - item: id
+                          param:
+                            $first:
+                              - { $when: [{ path: entity, equals: { $copy: target.entity, $of: a } }], $then: id }
+                              - { $format: "{e}Id", $with: { e: { $case: { $copy: entity }, $as: camel } } }
+                      operation: { $copy: id, $of: a }
+                # 明細へ 1 行足す（ID の無い繰り返し・参照の並び）。並び順は使われている最大の次
+                - $when:
+                    - { path: entity, equals: { $copy: id, $of: element } }
+                    - { path: op, equals: insert }
+                    - { path: field.base, equals: array }
+                    - { path: field.item.entity, exists: false }
+                  $then:
+                    - name: { $format: "insert{n}", $with: { n: { $case: { $apply: effect-detail-name }, $as: pascal } } }
+                      kind: insert
+                      table: { $apply: effect-detail-name }
+                      columns: テーブル設計書のすべての列
+                      operation: { $copy: id, $of: a }
+                    - name: { $format: "maxSeq{n}", $with: { n: { $case: { $apply: effect-detail-name }, $as: pascal } } }
+                      kind: max
+                      table: { $apply: effect-detail-name }
+                      item: seq
+                      where: [{ item: { $format: "{p}_id", $with: { p: { $case: { $copy: id, $of: element }, $as: snake } } }, param: id }]
+                      operation: { $copy: id, $of: a }
+                # 配列の項目に値を入れる＝明細を置き換える（消して入れ直す）
+                - $when:
+                    - { path: entity, equals: { $copy: id, $of: element } }
+                    - { path: op, equals: set }
+                    - { path: field.base, equals: array }
+                    - { path: field.item.entity, exists: false }
+                  $then:
+                    - name: { $format: "delete{n}", $with: { n: { $case: { $apply: effect-detail-name }, $as: pascal } } }
+                      kind: delete
+                      table: { $apply: effect-detail-name }
+                      where: [{ item: { $format: "{p}_id", $with: { p: { $case: { $copy: id, $of: element }, $as: snake } } }, param: id }]
+                      operation: { $copy: id, $of: a }
+                    - name: { $format: "insert{n}", $with: { n: { $case: { $apply: effect-detail-name }, $as: pascal } } }
+                      kind: insert
+                      table: { $apply: effect-detail-name }
+                      columns: テーブル設計書のすべての列
+                      operation: { $copy: id, $of: a }
+                # 作る要素の値の中の配列（登録のタグなど）: 明細へ要素ごとに 1 行
+                - $when:
+                    - { or: [{ path: op, equals: create }, { path: op, equals: insert }] }
+                    - { or: [{ path: entity, equals: { $copy: id, $of: element } }, { path: field.item.entity, equals: { $copy: id, $of: element } }] }
+                    - { or: [{ path: op, equals: create }, { path: field.item.entity, exists: true }] }
+                  $then:
+                    $each: written
+                    $build:
+                      $when: [{ path: base, equals: array }, { path: item.entity, exists: false }, { path: value, empty: false }]
+                      name: { $format: "insert{n}", $with: { n: { $case: { $format: "{t}_{k}", $with: { t: { $case: { $copy: id, $of: element }, $as: snake }, k: { $copy: key } } }, $as: pascal } } }
+                      kind: insert
+                      table: { $format: "{t}_{k}", $with: { t: { $case: { $copy: id, $of: element }, $as: snake }, k: { $copy: key } } }
+                      columns: テーブル設計書のすべての列
+                      operation: { $copy: id, $of: a }
+        # 前提のうち「受け手の中の要素の条件」（入れ子の線と値の条件）: その要素のテーブルの件数
+        - $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: require
+            $bind: r
+            $build:
+              $when:
+                - { path: "rule.match[1].edge.contains", equals: true }
+                - { path: "rule.match[2].node.entity", equals: { $copy: id, $of: element } }
+              name: { $format: "count{n}", $with: { n: { $case: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }, $as: pascal } } }
+              kind: count
+              table: { $case: { $copy: id, $of: element }, $as: snake }
+              where:
+                $concat:
+                  - [{ item: { $format: "{p}_id", $with: { p: { $case: { $copy: owner.entity, $of: element }, $as: snake } } }, param: id }]
+                  - $each: rule.where
+                    $build:
+                      $when: [{ path: of, equals: { $copy: "rule.match[2].node.bind", $of: r } }]
+                      item: { $copy: path }
+                      equals: { $copy: equals }
+                      notEquals: { $copy: notEquals }
+                      oneOf: { $copy: oneOf }
+              expect: { $copy: rule.expect }
+              precondition: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }
+              operation: { $copy: id, $of: a }
+  # いまの場所＝効果。書く配列の項目の明細テーブルの名前
+  - id: effect-detail-name
+    build: { $format: "{t}_{k}", $with: { t: { $case: { $copy: entity }, $as: snake }, k: { $copy: field.key } } }

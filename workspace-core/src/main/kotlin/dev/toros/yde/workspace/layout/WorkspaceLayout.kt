@@ -21,6 +21,8 @@ data class WorkspaceLayout(
     val ledger: List<String>,
     /** file 型の値（ファイルの場所）の許可（`files:`。外・許す場所・無いファイル）。 */
     val files: FilePolicy = FilePolicy.DEFAULT,
+    /** 定義体のスコープ（`scopes:`。業務モデルなど）。空なら全体が 1 つのまとまり。 */
+    val scopes: DefinitionScopes = DefinitionScopes.NONE,
 ) {
 
     /**
@@ -67,6 +69,17 @@ data class WorkspaceLayout(
         val n = norm(rel)
         return Zone.entries.firstOrNull { under(n, dir(it)) }
     }
+
+    /** 定義体（ワークスペース相対の場所）が入るスコープ。構成ディレクトリの外・どのスコープにも入らなければ空。 */
+    fun scopesOf(rel: String): List<DefinitionScope> {
+        val config = configDir ?: return emptyList()
+        val n = norm(rel)
+        if (!n.startsWith("$config/")) return emptyList()
+        return scopes.scopesOf(n.removePrefix("$config/"))
+    }
+
+    /** 定義体が入るスコープ（重なっていれば最初のもの。重なりは ScopeChecks が誤りにする）。 */
+    fun scopeOf(rel: String): DefinitionScope? = scopesOf(rel).firstOrNull()
 
     /** 予約領域（定義・記録ゾーンおよび構成ディレクトリ全体）か。台帳の文書ではない。 */
     fun isReserved(rel: String): Boolean {
@@ -158,8 +171,12 @@ data class WorkspaceLayout(
                 ?.let { runCatching { Files.readString(it) }.getOrNull() }
             val ledger = text?.let { runCatching { parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
             val files = text?.let { runCatching { parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
-            return WorkspaceLayout(configDir = CONFIG_DIR, ledger = ledger, files = files)
+            return WorkspaceLayout(configDir = CONFIG_DIR, ledger = ledger, files = files, scopes = parseScopesText(text))
         }
+
+        /** 構成ファイル本文から定義体のスコープ（`scopes:`）を読む。読めない本文は「スコープ無し」。 */
+        fun parseScopesText(text: String?): DefinitionScopes =
+            text?.let { runCatching { DefinitionScopes.parse(YamlIO.parseFirst(it) as? YNode.Map) }.getOrNull() } ?: DefinitionScopes.NONE
 
         /** 構成ファイル本文から file 型の値の許可（`files:`）を読む。無ければ既定。 */
         fun parseFilesText(text: String): FilePolicy = FilePolicy.parse(YamlIO.parseFirst(text) as? YNode.Map)

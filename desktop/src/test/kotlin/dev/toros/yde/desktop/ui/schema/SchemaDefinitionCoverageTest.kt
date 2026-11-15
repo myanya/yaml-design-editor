@@ -36,6 +36,7 @@ class SchemaDefinitionCoverageTest {
         check(MethodDef::class.java, "method", mapOf("steps" to "do", "builds" to "build"))
         check(InsertRule::class.java, "insert-rule")
         val numbering = tree.definitions.getValue("insert-rule").fields.first { it.key == "id" }.fields.map { it.key }
-        assertTrue(members(IdNumbering::class.java).all { it in numbering })
+        // prefixRaw は prefix の書かれたままの形（業務モデルの項へ写すため）であり、値の入力欄ではない
+        assertTrue(members(IdNumbering::class.java).filter { it != "prefixRaw" }.all { it in numbering })
     }
 }

@@ -9,19 +9,26 @@ service:
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
-    entity: todo-task
+    call: TodoTaskMapper.findById
     key: id
+    missing: 見つからなければ「見つかりません」で断る
   - step: write
-    op: set
-    entity: todo-task
-    path: done
-    value: true
-    source: do
+    call: TodoTaskMapper.todoTaskFinish
+    kind: update
+    set:
+      - item: done
+        value: true
+    where:
+      - item: id
+        param: id
   - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    call: TodoMapper.todoTaskFinish
+    kind: update
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: todoId

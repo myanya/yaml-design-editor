@@ -36,6 +36,7 @@
 | [ADR-0029](0029-lifecycle-drives-state.md) | エンティティの状態は Lifecycle を正にし、操作と業務の流れを Lifecycle から導く | 承認済み |
 | [ADR-0030](0030-lifecycle-state-refinement.md) | Lifecycle の State の中の流れは、同じ ID の詳細化として別に書く | 承認済み |
 | [ADR-0031](0031-definitions-index-and-generation.md) | 業務モデルの定義を索引に載せ、設計書は業務モデルから生成する | 承認済み |
+| [ADR-0032](0032-definition-scopes.md) | 定義体のスコープを定義し、生成は業務モデルのスコープだけを読む | 承認済み |
 
 関連文書:
 

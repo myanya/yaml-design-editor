@@ -10,37 +10,46 @@ service:
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
-    entity: todo
+    call: TodoMapper.findById
     key: id
+    missing: 見つからなければ「見つかりません」で断る
   - step: check
     precondition: add-todo-task.active
+    by: Java（読んだ行）
     rule:
-      match:
-        - node:
-            entity: todo
-            bind: t
-      where:
-        - of: t
-          path: status
-          oneOf:
-            - OPEN
-            - IN_PROGRESS
-            - SUSPENDED
-      expect: exists
-  - step: write
-    op: insert
+      - of: t
+        path: status
+        oneOf:
+          - OPEN
+          - IN_PROGRESS
+          - SUSPENDED
+    message: '{id} は完了か中止をしているので、作業項目を足せません'
+  - step: number
     entity: todo-task
-    path: tasks
-    value:
-      id: ''
+    call: TodoTaskMapper.maxId
+    rule:
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+  - step: write
+    call: TodoTaskMapper.insert
+    kind: insert
+    values:
+      id: 採番した番号
       title: $title
       done: false
-    source: do
+      todo_id: $id
+      seq: 次の並び順（TodoTaskMapper.maxSeq の次）
   - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    call: TodoMapper.addTodoTask
+    kind: update
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: id

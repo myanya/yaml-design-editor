@@ -3,8 +3,8 @@ name: 操作の設計書（基本から詳細まで）
 kind: document
 schemaId: action-spec
 description: >-
-  アクション定義書を開いたとき、同じ操作の処理設計書（同じ ID の別の文書）を 1 枚に並べ、この操作を扱う Controller と Mapper へ案内する。
-  レビューは、この 1 枚で基本設計から詳細設計までを縦に読む
+  アクション定義書を開いたとき、同じ操作の処理設計書（同じ ID の別の文書）を 1 つの画面に並べ、この操作を扱う Controller と Mapper へ案内する。
+  レビューは、この画面で基本設計から詳細設計までを縦に読む
 sections:
   - { label: 外から見た振る舞い（アクション定義書）, fields: { include: [id, name, description, kind, subject, inputs, initial, state, preconditions, effects] } }
   - { label: 内部の手順（処理設計書）, fields: { in: { schemaId: process }, include: [service, transaction, steps] } }

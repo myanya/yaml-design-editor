@@ -1,6 +1,6 @@
 id: UX-319
 title: 生成で、同じ表への書き込みを 1 つの文にまとめる計算（グループ化）が変換に無い
-status: todo
+status: resolved
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のテーブルアクセス設計書を生成したとき（操作の筋）'
 memo: |-
@@ -8,3 +8,8 @@ memo: |-
   変換に「並びをキーでまとめる」指示（$groupBy のような）を足すか、データの筋で表の決まりを決めた後に、業務モデルの項の側で表ごとの書き込みを持つかを決める。どちらも「表と列の名前の決まり」（データの筋）が先
 features:
   - C-21
+closed_on: 2026-11-15
+resolutions:
+  - date: 2026-11-15
+    kind: 解決
+    note: '変換に、まとめる指示（$group。キーが同じ要素ごとに組み立てる）を足し、todos-sysdev のテーブルアクセス設計書で、同じテーブルへの値の書き込みを操作ごとに 1 つの update にまとめた（完了は UPDATE todo SET completed_on・result・status・updated_on の 1 文）。登録は、一覧の行と個票を 1 テーブルにしたので insert が 1 文になった'

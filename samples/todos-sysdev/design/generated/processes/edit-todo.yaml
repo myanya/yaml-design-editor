@@ -19,98 +19,117 @@ service:
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
-    entity: todo
+    call: TodoMapper.findById
     key: id
+    missing: 見つからなければ「見つかりません」で断る
   - step: write
-    op: set
-    entity: todo
-    path: title
-    value: $title
-    source: do
+    call: TodoMapper.editTodo
+    kind: update
+    set:
+      - item: title
+        value: $title
+        when:
+          - path: title
+            exists: true
+      - item: summary
+        value: $summary
+        when:
+          - path: summary
+            exists: true
+      - item: category
+        value: $category
+        when:
+          - path: category
+            exists: true
+      - item: created_on
+        value: $created_on
+        when:
+          - path: created_on
+            exists: true
+      - item: due_on
+        value: $due_on
+        when:
+          - path: due_on
+            exists: true
+      - item: details
+        value: $details
+        when:
+          - path: details
+            exists: true
+      - item: result
+        value: $result
+        when:
+          - path: result
+            exists: true
+      - item: category
+        value: null
+        when:
+          - path: clear.category
+            equals: true
+      - item: due_on
+        value: null
+        when:
+          - path: clear.due_on
+            equals: true
+      - item: details
+        value: null
+        when:
+          - path: clear.details
+            equals: true
+      - item: result
+        value: null
+        when:
+          - path: clear.result
+            equals: true
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: id
+    when:
+      - path: title
+        exists: true
   - step: write
-    op: set
-    entity: todo
-    path: summary
-    value: $summary
-    source: do
+    call: TodoMapper.deleteTodoTags
+    kind: delete
+    when:
+      - path: tags
+        exists: true
   - step: write
-    op: set
-    entity: todo
-    path: category
-    value: $category
-    source: do
+    call: TodoMapper.insertTodoTags
+    kind: insert
+    each: $tags
+    seq: 配列の順（1 から）
+    when:
+      - path: tags
+        exists: true
   - step: write
-    op: set
-    entity: todo
-    path: tags
-    value: $tags
-    source: do
+    call: TodoMapper.deleteTodoComments
+    kind: delete
+    when:
+      - path: comments
+        exists: true
   - step: write
-    op: set
-    entity: todo
-    path: created_on
-    value: $created_on
-    source: do
+    call: TodoMapper.insertTodoComments
+    kind: insert
+    each: $comments
+    seq: 配列の順（1 から）
+    when:
+      - path: comments
+        exists: true
   - step: write
-    op: set
-    entity: todo
-    path: due_on
-    value: $due_on
-    source: do
+    call: TodoMapper.deleteTodoComments
+    kind: delete
+    when:
+      - path: clear.comments
+        equals: true
   - step: write
-    op: set
-    entity: todo
-    path: details
-    value: $details
-    source: do
-  - step: write
-    op: set
-    entity: todo
-    path: result
-    value: $result
-    source: do
-  - step: write
-    op: set
-    entity: todo
-    path: comments
-    value: $comments
-    source: do
-  - step: write
-    op: delete
-    entity: todo
-    path: category
-    source: do
-  - step: write
-    op: delete
-    entity: todo
-    path: tags
-    source: do
-  - step: write
-    op: delete
-    entity: todo
-    path: due_on
-    source: do
-  - step: write
-    op: delete
-    entity: todo
-    path: details
-    source: do
-  - step: write
-    op: delete
-    entity: todo
-    path: result
-    source: do
-  - step: write
-    op: set
-    entity: todo
-    path: comments
-    value: []
-    source: do
-  - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    call: TodoMapper.insertTodoComments
+    kind: insert
+    each: []
+    seq: 配列の順（1 から）
+    when:
+      - path: clear.comments
+        equals: true

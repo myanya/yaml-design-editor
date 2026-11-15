@@ -43,7 +43,7 @@ internal const val CLI_USAGE = """コマンド:
            入力のどこから来たかを添える。出力は保存しない（原本は変わらない）
            定義に「builtin:structural-schema」と書くと、組込みの変換定義（構造のスキーマの導出）を使う
            （例: transform <workspace> builtin:structural-schema --input _schemas/x.yaml＝そのスキーマから導出される、最小の構造のスキーマ）
-  generate <workspace> [<定義ID>...] [--apply [--allow-errors]] [--check] [--model]
+  generate <workspace> [<定義ID>...] [--apply [--allow-errors]] [--check] [--model [--scope <スコープ>]]
            業務モデルから文書を作る（生成の定義は .yde/transforms）。引数なしは計画だけ（作る・作り直す・消す文書と、作る文書の検証）。
            --apply で書く（作る文書に検証エラーがあれば書かない）。--check は生成物が最新でなければ失敗（終了コード 1）。
            --model は業務モデルを展開した形（生成の入力: entities・actions・states・lifecycles）を出す

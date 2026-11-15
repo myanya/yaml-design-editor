@@ -2,6 +2,7 @@ package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
+import dev.toros.yde.semantic.schema.IdNumbering
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.StateDeclaration
@@ -25,11 +26,21 @@ import dev.toros.yde.yaml.model.YNode
  */
 object BusinessModel {
 
-    /** 読み込んだワークスペースの業務モデルの項。 */
-    fun of(ws: LoadedWorkspace): YNode = term(ws.schemas, schemaDocuments(ws.snapshot, ws.layout))
+    /** 読み込んだワークスペースの業務モデルの項（scope を渡すと、そのスコープのスキーマだけから）。 */
+    fun of(ws: LoadedWorkspace, scope: String? = null): YNode = term(inScope(ws.schemas, ws.layout, scope), schemaDocuments(ws.snapshot, ws.layout))
 
-    /** セッション（未保存の編集を含む）の業務モデルの項。 */
-    fun of(session: WorkspaceSession): YNode = term(session.schemas, schemaDocuments(session.snapshot, session.layout))
+    /** セッション（未保存の編集を含む）の業務モデルの項（scope を渡すと、そのスコープのスキーマだけから）。 */
+    fun of(session: WorkspaceSession, scope: String? = null): YNode =
+        term(inScope(session.schemas, session.layout, scope), schemaDocuments(session.snapshot, session.layout))
+
+    /** スコープ（workspace.yaml の scopes）に入るスキーマ。scope が null なら全部（スコープを書かないワークスペースと同じ）。 */
+    private fun inScope(schemas: List<WorkspaceSchema>, layout: dev.toros.yde.workspace.layout.WorkspaceLayout, scope: String?): List<WorkspaceSchema> {
+        if (scope == null) return schemas
+        requireNotNull(layout.scopes.byId(scope)) {
+            "スコープ「$scope」がありません（workspace.yaml の scopes: ${layout.scopes.scopes.joinToString(", ") { it.id }.ifEmpty { "なし" }}）"
+        }
+        return schemas.filter { layout.scopeOf(it.source.value)?.id == scope }
+    }
 
     private fun schemaDocuments(snapshot: WorkspaceSnapshot, layout: dev.toros.yde.workspace.layout.WorkspaceLayout): Map<DocumentId, YNode> =
         snapshot.documents.filterKeys { layout.zoneOf(it.value) == dev.toros.yde.workspace.layout.WorkspaceLayout.Zone.SCHEMAS }
@@ -40,10 +51,23 @@ object BusinessModel {
         val catalog = runCatching { BehaviorChecks.compile(schemas) }.getOrNull()
         val aspects = aspectsOf(schemas)
         val raw = schemas.associate { it.id to (schemaDocuments[it.source] as? YNode.Map) }
-        val model = LinkedHashMap<String, Any?>()
-        model["entities"] = aspects.groupBy { it.entity }.map { (entity, list) -> entityTerm(entity, list.sortedByDescending { it.defines }) }
-        model["actions"] = schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects) } +
+        // 参照先のスキーマ → そのスキーマが定義するエンティティ型（参照の項目の target）
+        val targets = aspects.filter { it.defines }.groupBy { it.schema.id }.mapValues { (_, list) -> list.first().entity }
+        // 列挙型 → その値を State として持つエンティティ型（states の source。項目の stateOf）
+        val stateEnums = schemas.flatMap { it.states }.filterIsInstance<StateDeclaration.FromEnum>().associate { it.enumRef to it.entity }
+        val ctx = Ctx(targets, stateEnums)
+        val actions = schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects, ctx) } +
             schemas.flatMap { s -> methodTerms(s, raw[s.id], aspects) }
+        // 文書を作る手（create）の採番は、作る文書のエンティティ型の採番（配列の追加の決まりが無い型）
+        @Suppress("UNCHECKED_CAST")
+        val createNumbering = actions.flatMap { a -> (a["effects"] as? List<Map<String, Any?>>).orEmpty() }
+            .filter { it["op"] == "create" && it["numbering"] != null && it["entity"] != null }
+            .associate { it["entity"].toString() to it["numbering"] }
+        val model = LinkedHashMap<String, Any?>()
+        model["entities"] = aspects.groupBy { it.entity }.map { (entity, list) ->
+            entityTerm(entity, list.sortedByDescending { it.defines }, createNumbering[entity], ctx)
+        }
+        model["actions"] = actions
         model["states"] = catalog?.let { stateTerms(schemas, it) }.orEmpty()
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
         return YamlIO.fromAny(model)
@@ -51,8 +75,15 @@ object BusinessModel {
 
     // ================================================================ エンティティ型と側面
 
-    /** エンティティ型の 1 つの側面: どのスキーマの文書の、どこ（`todos[*]`・ルートは空）に、どの項目で書かれるか。 */
-    private class Aspect(val entity: String, val schema: WorkspaceSchema, val at: String, val defines: Boolean, val def: FieldDef, val label: String?)
+    /**
+     * エンティティ型の 1 つの側面: どのスキーマの文書の、どこ（`todos[*]`・ルートは空）に、どの項目で書かれるか。
+     * owner は、この側面を入れ子で持つ外側のエンティティの側面（作業項目なら TODO の個票）と、その項目のキー（ownerField）。
+     * numbering は、この側面の要素を足すときの採番（入っている配列の追加の決まり `methods.insert` の id）。
+     */
+    private class Aspect(
+        val entity: String, val schema: WorkspaceSchema, val at: String, val defines: Boolean, val def: FieldDef, val label: String?,
+        val owner: Aspect? = null, val ownerField: String? = null, val numbering: IdNumbering? = null,
+    )
 
     /** 文書のスキーマの木を歩き、エンティティ型を持つ object（オブジェクト型か、スキーマの entity の宣言で ID を持つ object）を集める。 */
     private fun aspectsOf(schemas: List<WorkspaceSchema>): List<Aspect> {
@@ -60,44 +91,66 @@ object BusinessModel {
         for (s in schemas.filter { it.kind == SchemaKind.DOCUMENT && !it.isTemplate }) {
             val tree = s.tree
             val schemaLevel = s.entities.firstOrNull()
-            fun walk(f0: FieldDef, at: String, depth: Int) {
+            fun walk(f0: FieldDef, at: String, depth: Int, owner: Aspect?, numbering: IdNumbering?) {
                 if (depth > 12) return
                 val f = tree.resolve(f0) ?: f0
                 when (f.type) {
                     FieldType.OBJECT -> {
                         val decl = f.entity ?: schemaLevel?.takeIf { f.fields.any { c -> (tree.resolve(c) ?: c).type == FieldType.ID } }
+                        var here = owner
                         // 定義の種類（yde-*）を詳細化する文書（設計書など）は、業務のエンティティ型ではない
-                        if (decl != null && !decl.type.startsWith(DefinitionIndex.PREFIX)) out += Aspect(decl.type, s, at, decl.defines, f, f.label ?: f0.label)
-                        f.fields.forEach { c -> c.key?.let { k -> walk(c, if (at.isEmpty()) k else "$at.$k", depth + 1) } }
+                        if (decl != null && !decl.type.startsWith(DefinitionIndex.PREFIX)) {
+                            val ownerField = owner?.let { o -> (if (o.at.isEmpty()) at else at.removePrefix("${o.at}.")).removeSuffix("[*]") }
+                            here = Aspect(decl.type, s, at, decl.defines, f, f.label ?: f0.label, owner, ownerField, numbering).also { out += it }
+                        }
+                        f.fields.forEach { c -> c.key?.let { k -> walk(c, if (at.isEmpty()) k else "$at.$k", depth + 1, here, null) } }
                     }
-                    FieldType.ARRAY -> f.item?.let { walk(it, "$at[*]", depth + 1) }
-                    FieldType.MAP -> f.value?.let { walk(it, "$at.*", depth + 1) }
+                    FieldType.ARRAY -> f.item?.let { walk(it, "$at[*]", depth + 1, owner, f.insertRule?.id) }
+                    FieldType.MAP -> f.value?.let { walk(it, "$at.*", depth + 1, owner, null) }
                     else -> Unit
                 }
             }
-            walk(tree.root, "", 0)
+            walk(tree.root, "", 0, null, null)
         }
         return out
     }
 
-    private fun entityTerm(entity: String, aspects: List<Aspect>): Map<String, Any?> = linkedMapOf(
-        "id" to entity,
-        "label" to (aspects.firstNotNullOfOrNull { it.label } ?: entity),
-        "aspects" to aspects.map { a ->
+    /**
+     * エンティティ型の項: 名前・採番（足すときの配列の決まりか、作る手の id。無ければ書かない）・入れ子で持つ外側のエンティティ
+     * （owner: {entity, field}）・側面（どの文書のどこに、どの項目で書かれるか）。
+     */
+    private fun entityTerm(entity: String, aspects: List<Aspect>, created: Any?, ctx: Ctx): Map<String, Any?> {
+        val m = LinkedHashMap<String, Any?>()
+        m["id"] = entity
+        m["label"] = aspects.firstNotNullOfOrNull { it.label } ?: entity
+        (aspects.firstNotNullOfOrNull { it.numbering }?.let(::numberingTerm) ?: created)?.let { m["numbering"] = it }
+        aspects.firstNotNullOfOrNull { a -> a.owner?.let { o -> linkedMapOf("entity" to o.entity, "field" to a.ownerField) } }?.let { m["owner"] = it }
+        m["aspects"] = aspects.map { a ->
             linkedMapOf<String, Any?>(
                 "schema" to a.schema.id,
                 "defines" to a.defines,
                 "at" to a.at,
-                "fields" to a.def.fields.map { fieldTerm(a.schema.tree, it, 0) },
-            )
-        },
-    )
+                "owner" to a.owner?.let { o -> linkedMapOf("entity" to o.entity, "field" to a.ownerField) },
+                "fields" to a.def.fields.map { fieldTerm(a.schema.tree, it, 0, ctx) },
+            ).filterValues { it != null }
+        }
+        return m
+    }
+
+    /** 採番の決まり（ID の項目・接頭辞は書かれたまま・桁）。 */
+    private fun numberingTerm(n: IdNumbering): Map<String, Any?> =
+        linkedMapOf("path" to n.path.joinToString("."), "prefix" to n.prefixRaw, "digits" to n.digits)
 
     /**
      * 項目 1 つを型を解いた形で（型の名前は書かれたとおり `type`、基底の種類は `base`）。要素がエンティティの配列・object は、
      * 項目を広げずエンティティ型の名前（`entity`）だけを書く（その項目はエンティティの側面にある）。
      */
-    private fun fieldTerm(tree: SchemaTree, f0: FieldDef, depth: Int): Map<String, Any?> {
+    /** 項目の項を作るときの、ワークスペース全体から引く事実（参照先のエンティティ型・State の値を持つ列挙型）。 */
+    private class Ctx(val targets: Map<String, String>, val stateEnums: Map<String, String>) {
+        companion object { val NONE = Ctx(emptyMap(), emptyMap()) }
+    }
+
+    private fun fieldTerm(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx = Ctx.NONE): Map<String, Any?> {
         val f = tree.resolve(f0) ?: f0
         val m = LinkedHashMap<String, Any?>()
         f0.key?.let { m["key"] = it }
@@ -114,18 +167,24 @@ object BusinessModel {
         f.max?.let { m["max"] = it }
         f.format?.let { m["format"] = it }
         if (f.multiline) m["multiline"] = true
-        if (f.type == FieldType.ENUM) m["values"] = f.enumOptions().map { o -> linkedMapOf("value" to o.value, "label" to (o.label ?: o.value)) }
+        if (f.type == FieldType.ENUM) {
+            m["values"] = f.enumOptions().map { o -> linkedMapOf("value" to o.value, "label" to (o.label ?: o.value)) }
+            // 値が State の値の列挙型（状態の流れの source。状態の履歴の前後の状態も同じ型）なら、その State のエンティティ型
+            (f.lineage + listOfNotNull(f0.typeName, f.typeName)).firstNotNullOfOrNull { ctx.stateEnums[it] }?.let { m["stateOf"] = it }
+        }
         if (f.type == FieldType.REF) {
             f.relation?.let { m["relation"] = it }
             if (f.idPatterns.isNotEmpty()) m["idPatterns"] = f.idPatterns
             if (f.scope.schemaIds.isNotEmpty()) m["schemas"] = f.scope.schemaIds
+            // 参照先のエンティティ型（参照先のスキーマが定義する型）
+            f.scope.schemaIds.mapNotNull { ctx.targets[it] }.distinct().takeIf { it.isNotEmpty() }?.let { m["target"] = if (it.size == 1) it[0] else it }
         }
         if (f.unique.isNotEmpty()) m["unique"] = if (f.unique.size == 1) f.unique[0].ifEmpty { true } else f.unique
         if (depth < 8) {
             when (f.type) {
-                FieldType.ARRAY -> f.item?.let { m["item"] = nested(tree, it, depth) }
-                FieldType.MAP -> f.value?.let { m["value"] = nested(tree, it, depth) }
-                FieldType.OBJECT -> if (f.entity != null) m["entity"] = f.entity!!.type else m["fields"] = f.fields.map { fieldTerm(tree, it, depth + 1) }
+                FieldType.ARRAY -> f.item?.let { m["item"] = nested(tree, it, depth, ctx) }
+                FieldType.MAP -> f.value?.let { m["value"] = nested(tree, it, depth, ctx) }
+                FieldType.OBJECT -> if (f.entity != null) m["entity"] = f.entity!!.type else m["fields"] = f.fields.map { fieldTerm(tree, it, depth + 1, ctx) }
                 else -> Unit
             }
         }
@@ -139,16 +198,18 @@ object BusinessModel {
     private fun typeNameOf(f0: FieldDef, f: FieldDef): String =
         f.lineage.firstOrNull()?.removePrefix("builtin-types#") ?: f0.typeName ?: f.typeName ?: f.type.id
 
-    private fun nested(tree: SchemaTree, f0: FieldDef, depth: Int): Map<String, Any?> {
+    private fun nested(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx): Map<String, Any?> {
         val f = tree.resolve(f0) ?: f0
         return if (f.type == FieldType.OBJECT && f.entity != null) {
             linkedMapOf("type" to typeNameOf(f0, f), "base" to f.type.id, "entity" to f.entity!!.type)
-        } else fieldTerm(tree, f0, depth + 1)
+        } else fieldTerm(tree, f0, depth + 1, ctx)
     }
 
     // ================================================================ 操作
 
-    private fun actionTerms(s: WorkspaceSchema, raw: YNode.Map?, catalog: BehaviorChecks.Catalog?, aspects: List<Aspect>): List<Map<String, Any?>> {
+    private fun actionTerms(
+        s: WorkspaceSchema, raw: YNode.Map?, catalog: BehaviorChecks.Catalog?, aspects: List<Aspect>, ctx: Ctx,
+    ): List<Map<String, Any?>> {
         val rawById = (raw?.entries?.get("actions") as? YNode.Seq)?.items.orEmpty()
             .mapNotNull { it as? YNode.Map }.associateBy { (it.entries["id"] as? YNode.Scalar)?.value?.toString() }
         return s.actions.map { a ->
@@ -159,7 +220,7 @@ object BusinessModel {
             m["label"] = a.label ?: a.id
             a.description?.let { m["description"] = it }
             a.target?.let { t -> m["target"] = linkedMapOf<String, Any?>("entity" to t.entity, "schema" to t.schema).filterValues { it != null } }
-            m["params"] = a.params.map { fieldTerm(s.tree, it, 0) }
+            m["params"] = a.params.map { fieldTerm(s.tree, it, 0, ctx) }
             r?.entries?.get("input")?.let { m["input"] = YamlIO.toAny(it) }
             m["require"] = a.require.map { q ->
                 linkedMapOf<String, Any?>("id" to q.id, "message" to q.raw["message"], "rule" to q.raw.filterKeys { it != "id" && it != "message" })
@@ -172,6 +233,7 @@ object BusinessModel {
             if (lifecycle != null && catalog != null) effects += lifecycleEffects(a.id, lifecycle, catalog, r, aspects)
             effects += autoEffects(effects, aspects)
             m["effects"] = effects.map { withField(it, aspects) }
+            m["creates"] = createsOf(m["effects"])
             subjectOf(a.target?.entity, a.target?.schema, effects, aspects)?.let { m["subject"] = it }
             m
         }
@@ -198,6 +260,7 @@ object BusinessModel {
                 val effects = (mm.entries["do"] as? YNode.Seq)?.items.orEmpty()
                     .mapNotNull { stepTerm(YamlIO.toAny(it))?.let { e -> e + ("source" to "do") + (if ("schema" !in e && schemaOf != null) mapOf("schema" to schemaOf, "within" to entity) else emptyMap()) } }
                 m["effects"] = (effects + autoEffects(effects, aspects)).map { withField(it, aspects) }
+                m["creates"] = createsOf(m["effects"])
                 m["subject"] = entity
                 if (parsed == null) m["type"] = typeName
                 out += m
@@ -205,6 +268,16 @@ object BusinessModel {
         }
         return out
     }
+
+    /** 操作が新しく作るエンティティ型（文書を作る手の型と、エンティティの要素を配列へ足す手の要素の型。現れた順）。 */
+    @Suppress("UNCHECKED_CAST")
+    private fun createsOf(effects: Any?): List<String> = (effects as? List<Map<String, Any?>>).orEmpty().mapNotNull { e ->
+        when (e["op"]) {
+            "create" -> e["entity"]?.toString()
+            "insert" -> ((e["field"] as? Map<String, Any?>)?.get("item") as? Map<String, Any?>)?.get("entity")?.toString()
+            else -> null
+        }
+    }.distinct()
 
     /** do の手 1 つを、種類（op）と対象のスキーマ（schema）とパスの形にそろえる（値は書かれたとおり）。 */
     @Suppress("UNCHECKED_CAST")
@@ -223,6 +296,10 @@ object BusinessModel {
             "create" -> {
                 m["schema"] = body["schema"]
                 body["id"]?.let { m["id"] = it }
+                // 採番（id: {prefix, digits}）は、配列の追加の決まりと同じ形（path・prefix・digits）でも持つ
+                (body["id"] as? Map<String, Any?>)?.takeIf { "prefix" in it }?.let { n ->
+                    m["numbering"] = linkedMapOf("path" to (n["path"] ?: "id"), "prefix" to n["prefix"], "digits" to (n["digits"] ?: 3))
+                }
                 body["bind"]?.let { m["bind"] = it }
                 body["params"]?.let { m["values"] = it }
             }
@@ -290,22 +367,56 @@ object BusinessModel {
      */
     private fun withField(effect: Map<String, Any?>, aspects: List<Aspect>): Map<String, Any?> {
         val schema = effect["schema"]?.toString() ?: return effect
+        // 文書を作る: 書くのは、その文書のルートのエンティティの要素（値の項目ごとの基底の種類を written に）
+        if (effect["op"] == "create") {
+            val a = aspects.filter { it.schema.id == schema && it.at.isEmpty() }.maxByOrNull { if (it.defines) 1 else 0 } ?: return effect
+            return effect + linkedMapOf("entity" to a.entity, "written" to writtenOf(effect["values"], a.def, a.schema.tree))
+        }
         val key = effect["path"]?.toString()?.substringBefore('.')?.substringBefore('[') ?: return effect
         val within = effect["within"]?.toString()
-        // エンティティの一覧そのもの（`todos[*]` の要素がエンティティ）へ足す・消す: 書くのはその型の要素
-        aspects.firstOrNull { it.schema.id == schema && it.at == "$key[*]" && within == null }?.let { a ->
-            return effect + linkedMapOf("entity" to a.entity, "field" to linkedMapOf("key" to key, "base" to "array", "item" to linkedMapOf("base" to "object", "entity" to a.entity)))
+        val inserted = effect["value"] ?: effect["params"]
+        // エンティティの一覧そのもの（`todos[*]` の要素がエンティティ）へ足す・消す: 書くのはその型の要素。
+        // 外側のエンティティの項目の配列（個票の tasks）は一覧ではなく、外側の要素の項目を書く（下の場合）
+        aspects.firstOrNull { it.schema.id == schema && it.at == "$key[*]" && within == null && it.owner == null }?.let { a ->
+            val extra = LinkedHashMap<String, Any?>()
+            if (effect["op"] == "insert") {
+                extra["written"] = writtenOf(inserted, a.def, a.schema.tree)
+                a.numbering?.let { extra["numbering"] = numberingTerm(it) }
+            }
+            return effect + linkedMapOf("entity" to a.entity, "field" to linkedMapOf("key" to key, "base" to "array", "item" to linkedMapOf("base" to "object", "entity" to a.entity))) + extra
         }
         val aspect = aspects.filter { it.schema.id == schema && (within == null || it.entity == within) }
             .firstOrNull { a -> a.def.fields.any { it.key == key } } ?: return effect
         val f0 = aspect.def.fields.first { it.key == key }
-        val f = aspect.schema.tree.resolve(f0) ?: f0
+        val tree = aspect.schema.tree
+        val f = tree.resolve(f0) ?: f0
         val field = linkedMapOf<String, Any?>("key" to key, "base" to f.type.id)
+        val extra = LinkedHashMap<String, Any?>()
         f.item?.let { i0 ->
-            val i = aspect.schema.tree.resolve(i0) ?: i0
+            val i = tree.resolve(i0) ?: i0
             field["item"] = linkedMapOf<String, Any?>("base" to i.type.id, "entity" to i.entity?.type).filterValues { it != null }
+            // 配列へ 1 つ足す: 足す要素の項目ごとの基底の種類と、採番（要素がエンティティならその型の側面の採番）
+            if (effect["op"] == "insert" && i.type == FieldType.OBJECT) {
+                val itemAspect = i.entity?.let { e -> aspects.firstOrNull { it.schema.id == schema && it.entity == e.type && it.at.endsWith("$key[*]") } }
+                extra["written"] = writtenOf(inserted, itemAspect?.def ?: i, tree)
+                (itemAspect?.numbering ?: f.insertRule?.id)?.let { extra["numbering"] = numberingTerm(it) }
+            }
         }
-        return effect + linkedMapOf("entity" to aspect.entity, "field" to field)
+        return effect + linkedMapOf("entity" to aspect.entity, "field" to field) + extra
+    }
+
+    /** 書く値（項目名 → 値）を、項目ごとの {key, value, base, item} の並びにする（基底の種類はその要素の項目の定義から）。 */
+    private fun writtenOf(values: Any?, def: FieldDef, tree: SchemaTree): List<Map<String, Any?>> {
+        val m = values as? Map<*, *> ?: return emptyList()
+        return m.entries.map { (k, v) ->
+            val f0 = def.fields.firstOrNull { it.key == k.toString() }
+            val f = f0?.let { tree.resolve(it) ?: it }
+            val item = f?.item?.let { i0 ->
+                val i = tree.resolve(i0) ?: i0
+                linkedMapOf<String, Any?>("base" to i.type.id, "entity" to i.entity?.type).filterValues { it != null }
+            }
+            linkedMapOf("key" to k.toString(), "value" to v, "base" to f?.type?.id, "item" to item).filterValues { it != null }
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

@@ -1,0 +1,37 @@
+# 生成物（entity-specs）: 手で直さず、業務モデルか生成の定義（design/entity-specs.yaml）を直して作り直します（CLI generate）。
+id: category
+name: カテゴリ
+numbering:
+  path: id
+  prefix: CAT-
+  digits: 3
+documents:
+  - category-list
+items:
+  - key: id
+    label: ID
+    type: common#カテゴリ番号
+    base: id
+    required: true
+    pattern: ^CAT-[0-9]{3,}$
+    documents:
+      - category-list
+  - key: name
+    label: カテゴリ名
+    type: common#一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    documents:
+      - category-list
+operations:
+  - id: add-category
+    label: カテゴリを追加する
+crud:
+  - 項目: id
+    名前: ID
+    add-category: ''
+  - 項目: name
+    名前: カテゴリ名
+    add-category: C

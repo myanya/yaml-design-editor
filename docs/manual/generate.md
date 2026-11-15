@@ -28,8 +28,39 @@ entity: { type: yde-action, defines: false }
 生成の入力は、業務モデルを展開した 1 つの項です。`generate <ws> --model` で見られます。
 
 - `entities`: エンティティ型と、その側面（どのスキーマの文書の、どこに書かれ、どの項目を持つか）。項目は型を解いた形（型の名前 `type`・基底の種類 `base`・必須・文字数・選択肢など）です。
-- `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
+  参照の項目には参照先のエンティティ型（`target`）、State の値を持つ列挙型の項目には、その State のエンティティ型（`stateOf`）が付きます。
+  型には ID の振り方（`numbering`。配列の追加の決まり `methods.insert` か、文書を作る手の `id`）と、入れ子で書かれる型なら外側の型と項目（`owner`。作業項目なら `{entity: todo, field: tasks}`）が付きます。
+- `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・作るエンティティ型（`creates`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
+  文書を作る手と要素を足す手には、書く値の項目ごとの基底の種類（`written`）と採番（`numbering`）が付きます。
 - `states`・`lifecycles`: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle です。State は ID・名前・値の組で書きます。
+
+## スコープ（業務モデルとして読む範囲）
+
+業務モデルと設計書を同じワークスペースに置くと、設計書独自のエンティティ型（アクター定義書のアクターなど）を、生成が業務モデルと取り違えます（業務の型と同じ決まりで、テーブルや Controller の設計書を作ってしまう）。
+`.yde/workspace.yaml` にスコープを定義し、生成の定義に読むスコープを書きます。
+
+```yaml
+# .yde/workspace.yaml
+scopes:
+  - id: business
+    name: 業務モデル
+    include: [schemas/business/**, views/business/**]    # 入る定義体（.yde から見た場所の glob）
+  - id: design
+    name: 設計
+    include: [schemas/design/**, views/design/**, transforms/design/**]
+    uses: [business]                                     # 設計は業務モデルを使ってよい（逆は誤り）
+```
+
+```yaml
+# .yde/transforms/design/table-designs.yaml
+scope: business      # 業務モデルのスコープのスキーマだけから、業務モデルを展開する
+each: entities
+```
+
+- スコープは名前のある定義で、置き場所（`include`）は中身を指定する書き方の 1 つです。1 つの定義体が入るスコープは 1 つだけです。
+- `uses` は使ってよい別のスコープです。スキーマが、`uses` に書いていないスコープのスキーマを使う（型の名前 `スキーマ#型`・参照先のスキーマ・エンティティ型・操作の受け手）と、スキーマの誤りになります。使う向きは一方向で、たどって戻る書き方は誤りです。
+- スコープを書かないワークスペースと、`scope` を書かない生成の定義は、今までどおりワークスペースのすべてのスキーマから読みます。
+- `generate <ws> --model --scope business` で、スコープから展開した業務モデルを見られます。
 
 ## 生成の定義（`.yde/transforms/`）
 
@@ -56,6 +87,18 @@ build:                                        # 文書の中身（変換のひ�
     $build:
       $when: [{ path: subject, equals: { $copy: id, $of: element } }]
       action: { $copy: id }
+  ```
+
+- 同じ値ごとにまとめるのは `$group`、キーを計算で決めるマップは `$entries` です（[schema.md](schema.md) の変換のひな型）。例: 操作の効果のうち、同じテーブルへの値の書き込みを 1 つの update にまとめる・CRUD 表の行（列が操作の ID）を作る。
+
+  ```yaml
+  methods:
+    $group: { $apply: methods }     # 操作ごとのメソッドの並び（規則で組み立てる）
+    $by: { $copy: name }            # メソッド名が同じものを 1 つに
+    $build:
+      name: { $copy: key }
+      set: { $each: items, $build: { $copy: set } }
+      operations: { $group: items, $by: { $copy: operation }, $build: { $copy: key } }
   ```
 
 - `build` が何も作らなかった要素（`$when` で外したもの）は、文書を作りません。

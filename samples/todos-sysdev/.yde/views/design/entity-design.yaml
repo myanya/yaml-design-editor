@@ -1,0 +1,12 @@
+id: entity-design
+name: エンティティの設計書（基本から詳細まで）
+kind: document
+schemaId: entity-spec
+description: >-
+  エンティティ定義書を開いたとき、同じエンティティ型のテーブル設計書とテーブルアクセス設計書（同じ ID の別の文書）を 1 つの画面に並べる。
+  レビューは、この画面で、システムが持つ項目と CRUD 表から、テーブルと Mapper のメソッドまでを縦に読む
+sections:
+  - { label: システムが持つ項目（エンティティ定義書）, fields: { include: [id, name, numbering, owner, documents, items] } }
+  - { label: どの操作がどの項目を書くか（CRUD 表）, fields: { include: [operations, crud] } }
+  - { label: テーブル（テーブル設計書）, fields: { in: { schemaId: table-design }, include: [tables] } }
+  - { label: 読み書き（テーブルアクセス設計書）, fields: { in: { schemaId: table-access }, include: [mapper, tables, methods] } }

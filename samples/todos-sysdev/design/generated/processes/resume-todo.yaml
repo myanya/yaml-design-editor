@@ -11,23 +11,33 @@ service:
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
-    entity: todo
+    call: TodoMapper.findById
     key: id
+    missing: 見つからなければ「見つかりません」で断る
   - step: check
     precondition: resume-todo.state
+    by: Java（読んだ行の状態）
     allowed:
       - SUSPENDED
+    message: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
   - step: write
-    op: set
-    entity: todo
-    path: status
-    value: IN_PROGRESS
-    source: lifecycle
+    call: TodoMapper.resumeTodo
+    kind: update
+    set:
+      - item: status
+        value: IN_PROGRESS
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: id
   - step: write
-    op: insert
-    entity: todo
-    path: history
-    value:
+    call: TodoMapper.insertTodoHistory
+    kind: insert
+    values:
+      todo_id: $id
       date: $date
       action: resume-todo
       from:
@@ -36,12 +46,4 @@ steps:
       to: IN_PROGRESS
       note:
         $copy: note
-    source: lifecycle
-  - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    seq: TodoMapper.maxSeqTodoHistory の次

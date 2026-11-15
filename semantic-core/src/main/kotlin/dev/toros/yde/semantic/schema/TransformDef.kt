@@ -38,6 +38,15 @@ import java.text.DecimalFormat
  *                                         （同上。長さが違えば長い方に合わせ、足りない配列の名前は行に無い。行の中のパスは元の配列の場所を指す）
  *   {$apply: 規則名, $at: パス}           名前を付けた規則を、その場所に当てる
  *   {$concat: [ひな型, …]}                配列をつなげる
+ *   {$group: パスかひな型, $by: ひな型, $build: ひな型}
+ *                                         配列の要素を、`$by`（要素をいまの場所にして計算したキー）が同じものごとにまとめ、まとまりごとに
+ *                                         組み立てて配列を作る（`$apply: 規則名` とも書ける）。まとまりの場所は {key: キー, items: [要素, …]}。
+ *                                         `$bind: 名前` で、中からまとまりを名前で読める（`$each` の `$bind` と同じ）。
+ *                                         まとまりの順は、そのキーが初めて出た順。キーが「無い」要素は、どのまとまりにも入らない
+ *                                         （XSLT の for-each-group・SQL の GROUP BY と同じ考え方）
+ *   {$entries: ひな型}                    {key, value} の並び（になるひな型）からマップを作る。同じキーは後の値で置き換え、位置は初めの
+ *                                         ところのまま。key がスカラーでない・value が「無い」項目は飛ばす（キーを計算で決めるマップ。
+ *                                         JavaScript の Object.fromEntries と同じ考え方）
  *   {$when: 条件, $then: ひな型}          条件に合うときだけ、その値
  * 場所の指定には、`$of: 束縛名`（クエリで付けた名前。省略＝いまの場所）と `$in: {schemaId, fileGlob}`（どの文書の出現か）を添えられる。
  * 文字列 `$名前` は受け取った値（params）への参照。`$$` は文字 `$`（出力のキーや値を `$` で始めたいとき）。
@@ -108,6 +117,15 @@ sealed interface Template {
     data class Zip(val sites: List<Pair<String, TemplateSite>>, val body: Template) : Template
     data class Apply(val rule: String, val site: TemplateSite) : Template
     data class Concat(val parts: List<Template>) : Template
+
+    /**
+     * まとめる（`$group`）: input（配列）の要素を、by（要素をいまの場所にして計算したキー）が同じものごとにまとめ、
+     * まとまり {key, items} をいまの場所にして body を組み立てる。出力は配列。
+     */
+    data class Group(val input: Template, val by: Template, val body: Template, val bind: String? = null) : Template
+
+    /** {key, value} の並びからマップを作る（`$entries`。キーを計算で決めるマップ）。 */
+    data class EntriesOf(val input: Template) : Template
 
     /** 条件に合うときだけ出す。 */
     data class Guarded(val conditions: List<TemplateCondition>, val inner: Template) : Template
@@ -190,8 +208,11 @@ data class TransformDef(
         private const val ONE = "\$one"
         private const val BIND = "\$bind"
         private const val FLATTEN = "\$flatten"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW)
-        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN)
+        private const val GROUP = "\$group"
+        private const val BY = "\$by"
+        private const val ENTRIES = "\$entries"
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES)
+        private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN, BY)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
         private val DATE_PATTERN = Regex("""[yMd\-/.]+""")
@@ -277,8 +298,8 @@ data class TransformDef(
                     .map { (k, v) -> unescape(k.toString()) to parseTemplate(v, "$where.$k") }
                 return guarded(Template.MapOf(entries))
             }
-            // $each / $eachEntry / $zip は、繰り返す中身として $apply を取れる（それ以外は、指示は1つだけ）
-            val main = primary.firstOrNull { it == EACH || it == EACH_ENTRY || it == ZIP } ?: primary.first()
+            // $each / $eachEntry / $zip / $group は、繰り返す中身として $apply を取れる（それ以外は、指示は1つだけ）
+            val main = primary.firstOrNull { it == EACH || it == EACH_ENTRY || it == ZIP || it == GROUP } ?: primary.first()
             keys.firstOrNull { !it.startsWith("\$") || it.startsWith("\$\$") }
                 ?.let { error("$where: 指示（$main）と、出力のキー（$it）は一緒に書けません") }
             fun allow(vararg modifiers: String) {
@@ -325,6 +346,7 @@ data class TransformDef(
                         Template.NumberOf(parseTemplate(m[NUMBER], "$where.$NUMBER"), pattern)
                     }
                     TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
+                    ENTRIES -> { allow(); Template.EntriesOf(parseTemplate(m[ENTRIES], "$where.$ENTRIES")) }
                     CASE -> {
                         allow(AS)
                         val style = m[AS]?.toString()?.takeIf { it in NameCase.STYLES }
@@ -388,6 +410,29 @@ data class TransformDef(
                         } else {
                             Template.Each(site(m[main], "$where.$main"), entries = main == EACH_ENTRY, body = body, bind = bind, flatten = flatten)
                         }
+                    }
+                    GROUP -> {
+                        allow(OF, IN, BY, BUILD, APPLY, BIND)
+                        // まとめる配列: パス（$of / $in を添えられる）か、配列になるひな型（$concat など）
+                        val input = when (val raw = m[GROUP]) {
+                            is String -> Template.Copy(site(raw, "$where.$GROUP"))
+                            else -> {
+                                if (m.containsKey(OF) || m.containsKey(IN)) error("$where: \$group にひな型を書くときは $OF / $IN を書きません（ひな型の中に書きます）")
+                                parseTemplate(raw, "$where.$GROUP")
+                            }
+                        }
+                        val by = parseTemplate(m[BY] ?: error("$where: \$group には $BY（まとめるキーのひな型）が必要です"), "$where.$BY")
+                        val body = when {
+                            m.containsKey(BUILD) && m.containsKey(APPLY) -> error("$where: $BUILD と $APPLY は、どちらか一方を書きます")
+                            m.containsKey(BUILD) -> parseTemplate(m[BUILD], "$where.$BUILD")
+                            m.containsKey(APPLY) -> Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), TemplateSite())
+                            else -> error("$where: \$group には、$BUILD（ひな型）か $APPLY（規則名）が必要です")
+                        }
+                        val bind = if (m.containsKey(BIND)) {
+                            (m[BIND] as? String)?.takeIf { PARAM_NAME.matches(it) && it !in LOOP_NAMES }
+                                ?: error("$where.$BIND は英字で始まる名前で書きます（key・index・position は予約名です）")
+                        } else null
+                        Template.Group(input, by, body, bind)
                     }
                     APPLY -> { allow(OF, IN, AT); Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), site(m[AT], "$where.$AT")) }
                     CONCAT -> {
@@ -509,6 +554,8 @@ data class TransformDef(
                     require(t.rule in ruleIds) { "$where: 規則「${t.rule}」が rules にありません（ある規則: ${ruleIds.joinToString(", ").ifEmpty { "なし" }}）" }
                 }
                 is Template.Concat -> t.parts.forEach(::walk)
+                is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
+                is Template.EntriesOf -> walk(t.input)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }

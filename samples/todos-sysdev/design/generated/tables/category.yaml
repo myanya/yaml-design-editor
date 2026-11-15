@@ -1,0 +1,27 @@
+# 生成物（table-designs）: 手で直さず、業務モデルか生成の定義（design/table-designs.yaml）を直して作り直します（CLI generate）。
+id: category
+name: カテゴリのテーブル
+tables:
+  - name: category
+    kind: main
+    class: Category
+    columns:
+      - name: id
+        item: id
+        label: ID
+        type: VARCHAR
+        notNull: true
+        primaryKey: true
+        java:
+          name: id
+          type: String
+      - name: name
+        item: name
+        label: カテゴリ名
+        type: VARCHAR(100)
+        notNull: true
+        java:
+          name: name
+          type: String
+    primaryKey:
+      - id

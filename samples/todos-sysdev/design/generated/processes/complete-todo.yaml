@@ -11,64 +11,47 @@ service:
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
-    entity: todo
+    call: TodoMapper.findById
     key: id
+    missing: 見つからなければ「見つかりません」で断る
   - step: check
     precondition: complete-todo.state
+    by: Java（読んだ行の状態）
     allowed:
       - IN_PROGRESS
+    message: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
   - step: check
     precondition: complete-todo.no-open-task
-    rule:
-      match:
-        - node:
-            entity: todo
-            bind: t
-        - edge:
-            contains: true
-        - node:
-            entity: todo-task
-            bind: s
-      where:
-        - of: s
-          path: done
-          equals: false
-      expect: absent
+    by: SQL（件数）
+    call: TodoTaskMapper.countCompleteTodoNoOpenTask
+    expect: 0 件なら通す
+    message: '{id} には済んでいない作業項目があります（済にしてから完了します）'
   - step: write
-    op: set
-    entity: todo
-    path: completed_on
-    value: $date
-    source: do
+    call: TodoMapper.completeTodo
+    kind: update
+    set:
+      - item: completed_on
+        value: $date
+      - item: result
+        value: $result
+      - item: status
+        value: CLOSED
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: id
   - step: write
-    op: set
-    entity: todo
-    path: result
-    value: $result
-    source: do
-  - step: write
-    op: set
-    entity: todo
-    path: status
-    value: CLOSED
-    source: lifecycle
-  - step: write
-    op: insert
-    entity: todo
-    path: history
-    value:
+    call: TodoMapper.insertTodoHistory
+    kind: insert
+    values:
+      todo_id: $id
       date: $date
       action: complete-todo
       from:
         $copy: status
         $of: self
       to: CLOSED
-    source: lifecycle
-  - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    seq: TodoMapper.maxSeqTodoHistory の次

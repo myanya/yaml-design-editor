@@ -8,10 +8,16 @@ service:
     - name
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: write
-    op: insert
+  - step: number
     entity: category
-    path: categories
-    value:
+    call: CategoryMapper.maxId
+    rule:
+      path: id
+      prefix: CAT-
+      digits: 3
+  - step: write
+    call: CategoryMapper.insert
+    kind: insert
+    values:
+      id: 採番した番号
       name: $name
-    source: do

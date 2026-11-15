@@ -1,6 +1,7 @@
 id: action-specs
 name: アクション定義書
-description: 業務モデルの操作ごとに、外から見た振る舞いを 1 枚にする。値はすべて業務モデルから写し、設計の判断は入れない
+description: 業務モデルの操作ごとに、外から見た振る舞いを 1 本の文書にする。値はすべて業務モデルから写し、設計の判断は入れない
+scope: business
 each: actions
 output: "design/generated/actions/{id}.yaml"
 build:

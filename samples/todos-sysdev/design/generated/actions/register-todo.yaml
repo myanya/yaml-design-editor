@@ -28,6 +28,7 @@ inputs:
       - CAT-*
     schemas:
       - category-list
+    target: category
   - key: tags
     label: タグ
     type: array
@@ -41,6 +42,7 @@ inputs:
         - TAG-*
       schemas:
         - tag-list
+      target: tag
   - key: follows
     label: 元のTODO
     type: common#TODO参照
@@ -50,6 +52,7 @@ inputs:
       - TODO-*
     schemas:
       - todo-list
+    target: todo
   - key: due
     label: 期限
     type: common#年月日
@@ -67,6 +70,7 @@ state:
 preconditions: []
 effects:
   - op: create
+    entity: todo
     value:
       due_on:
         $copy: due

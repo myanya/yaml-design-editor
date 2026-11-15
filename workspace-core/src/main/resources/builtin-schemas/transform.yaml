@@ -15,6 +15,10 @@ root:
     - key: description
       label: 説明
       type: text
+    - key: scope
+      label: スコープ
+      type: string
+      description: "業務モデルを、どのスコープ（.yde/workspace.yaml の scopes）の定義体から作るか（例 business）。省くと、ワークスペースのすべてのスキーマから作る"
     - key: each
       label: 文書ごとの要素
       type: string

@@ -7,7 +7,8 @@
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
-| `WorkspaceLayout` | workspace-core/layout/WorkspaceLayout.kt | 配置ポリシー。レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf` / `isReserved`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`） |
+| `WorkspaceLayout` | workspace-core/layout/WorkspaceLayout.kt | 配置ポリシー。レガシー／`.yde` 構成の判定・ゾーン解決（`zoneOf` / `isReserved`）・台帳判定（`inLedger`）・索引除外（`indexExcluded`）・定義体のスコープ（`scopes` / `scopeOf`） |
+| `DefinitionScopes` / `ScopeChecks` | workspace-core/layout/DefinitionScopes.kt・workspace/ScopeChecks.kt | 定義体のスコープの宣言の読み取り（`workspace.yaml` の `scopes:`）と、スコープの点検（宣言の誤り・重なり・使ってよいとしていないスコープを使う誤り） |
 | `Workspace` / `WorkspaceScan` | core/Workspace.kt | ヘッドレスなワークスペース操作の窓口（開く・読む・保存・検証・変更セット適用・`schemaFor`・`refresh`）。相対パス解決はワークスペース外への脱出を拒否 |
 | `WorkspaceSession` | workspace-core | カーネルのセッション（読み込み・派生状態・履歴・トランザクション・保存・`fork`・`planRefactoring` / `applyRefactoring`） |
 | `WorkspaceReader` | workspace-core | 読み込み（スキーマ・文書・派生状態の導出 `derive`） |
@@ -35,6 +36,7 @@
 - 構成ファイル（`workspace.yaml`）にはスキーマを当てない（`schemaFor` は null）。`_runs/`（runs ゾーン）は索引対象外。
 - 生成の定義の置き場は transforms ゾーン（`.yde/transforms`・レガシーは `_transforms`。メタスキーマ `builtin-transform`）。生成は [transform.md「生成（業務モデルから文書へ）」](transform.md)。
 - **定義ゾーンの下のフォルダ**: ゾーンの判定（`zoneOf`）とメタスキーマの match は深さを問わない。ファイルから定義を読む入口（ビュー・レポート・skill・エージェント・アクティビティ・評価）は `WorkspaceLayout.definitionFiles` で一覧を取り、下のフォルダも読む（点で始まるフォルダと、外を指すリンクは除く。並びはゾーンの中の場所の順）。フォルダは置き場所の整理だけで名前空間にしない。ID はゾーン全体で 1 つで、重なりは各読み込みが両方の場所を示して誤りにする。誤りの文の名前は `WorkspaceLayout.nameInZone`（`business/todo.yaml`）。`Files.list` でゾーンのすぐ下だけを読む書き方は、ソース規則テストが拒む。
+- **定義体のスコープ**（ADR-0032）: `.yde/workspace.yaml` の `scopes:` は、名前のある定義体のまとまり（業務モデル・設計など）。中身は構成ディレクトリから見た場所の glob（`include`）で書き、`WorkspaceLayout.scopeOf` が定義体の場所から引く。1 つの定義体は 1 つのスコープで、`uses` は使ってよい別のスコープ（一方向）。点検は `ScopeChecks` がスキーマの読み込みの誤りに出す。スコープが変わると構成が変わるので、定義を読み直す（`layout != disk.layout`）。生成はスコープのスキーマだけから業務モデルの項を作る（[transform.md「生成（業務モデルから文書へ）」](transform.md)）。
 - 表示状態は `WorkspaceLayout.stateDir`（レガシーは `_state`、`.yde` 構成は `.yde/state`）。文書集合・台帳・索引から除外し、外部変更通知でも意味の再計算を行わない。CLI `migrate` はこの領域も移す（[図の手動位置](diagram-positions.md)）。
 
 ## ワークスペースの初期化

@@ -3,6 +3,8 @@ name: 設計の対応の検査
 kind: library
 description: >-
   業務モデルの定義（定義の索引の操作・エンティティ型・Lifecycle）が、どれも設計書に降りていることを確かめる。
+  操作はアクション定義書・処理設計書・Controller のハンドラ・Mapper のメソッドへ、エンティティ型はエンティティ定義書・
+  テーブル設計書・テーブルアクセス設計書へ降りる。
   業務モデルを写し直したのに作り直していない・生成の定義が要素を落とした、のどちらも指摘になる（指摘は業務モデルの定義の場所に出る）
 constraints:
   - id: action-has-spec
@@ -26,7 +28,7 @@ constraints:
   - id: action-has-access
     description: どの操作にも Mapper の読み書きがある
     match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ refCount: { of: a, dir: in, via: operation } }, 1] }]
+    check: [{ gte: [{ refCount: { of: a, dir: in, via: operations } }, 1] }]
     level: error
     message: "操作「{id}」の読み書きがテーブルアクセス設計書にありません"
   - id: lifecycle-has-status-rule
@@ -35,3 +37,21 @@ constraints:
     check: [{ gte: [{ occurrenceCount: { of: l, schema: status-rule } }, 1] }]
     level: error
     message: "Lifecycle「{id}」に状態の判定（enum と遷移）がありません（generate で作り直します）"
+  - id: entity-has-spec
+    description: どのエンティティ型にもエンティティ定義書がある
+    match: [{ node: { entity: yde-entity, bind: e } }]
+    check: [{ gte: [{ occurrenceCount: { of: e, schema: entity-spec } }, 1] }]
+    level: error
+    message: "エンティティ型「{id}」にエンティティ定義書がありません（generate で作り直します）"
+  - id: entity-has-table
+    description: どのエンティティ型にもテーブル設計書がある
+    match: [{ node: { entity: yde-entity, bind: e } }]
+    check: [{ gte: [{ occurrenceCount: { of: e, schema: table-design } }, 1] }]
+    level: error
+    message: "エンティティ型「{id}」にテーブル設計書がありません（generate で作り直します）"
+  - id: entity-has-mapper
+    description: どのエンティティ型にもテーブルアクセス設計書（Mapper）がある
+    match: [{ node: { entity: yde-entity, bind: e } }]
+    check: [{ gte: [{ occurrenceCount: { of: e, schema: table-access } }, 1] }]
+    level: error
+    message: "エンティティ型「{id}」にテーブルアクセス設計書がありません（generate で作り直します）"

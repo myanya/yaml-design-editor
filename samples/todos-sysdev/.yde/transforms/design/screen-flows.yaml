@@ -4,6 +4,7 @@ description: >-
   エンティティ型ごとに Controller を 1 つ作り、その型を主体にする操作ごとにハンドラを書く。
   決め打ちの規則: URL は業務の ID をそのまま（/型/{id}/操作）・名前はケバブからの機械的な変換だけ・入力は htmx の断片で開く・
   成功したら受け手（作ったもの）の画面へ、受け手の無い一覧への追加は一覧へ戻る・断りは断片に出して返す
+scope: business
 each: entities
 output: "design/generated/controllers/{id}.yaml"
 build:

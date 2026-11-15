@@ -295,6 +295,9 @@ files:               # file 型の値（ファイルの場所）の扱い（省�
   allowedRoots:      # 外でも許す場所（絶対パスの接頭辞）。ここに入る場所は外として扱わない
     - C:/shared/diagrams
   missing: error     # 無いファイル（場所は読めるが存在しない）: allow / warning / error。既定 error
+scopes:              # 定義体のスコープ（省略可。生成が業務モデルとして読む範囲。generate.md「スコープ」）
+  - { id: business, name: 業務モデル, include: [schemas/business/**] }
+  - { id: design, name: 設計, include: [schemas/design/**, transforms/**], uses: [business] }
 ```
 
 機能は2層に分かれます。**エディタ層**（ソース／スキーマフォーム編集・単文書検証など、1ファイルで完結する機能）は台帳外のYAMLにも効きます——スキーマの `match` は常にワークスペース相対で、台帳外にもマッチします。**台帳層**（ID索引・参照解決・カバレッジ・ビュー・エージェント・自動化・skill）は `ledger` 配下だけが対象です。台帳外の文書では未解決参照が情報レベルに降格され、ファイルツリーでは薄色・折りたたみで区別されます。

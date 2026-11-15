@@ -1,0 +1,312 @@
+id: table-designs
+name: テーブル設計書（Entity・DDL）
+description: >-
+  詳細設計。エンティティ型ごとに、テーブル（主のテーブルと明細テーブル）・カラム・SQL の型・主キー・外部キー・CHECK と、
+  Java の Entity のクラスと項目を 1 本にする（schema.sql と Entity クラスの元）。決め打ちの規則（データ系の議論で決めたもの）:
+  テーブル名＝型の名前のスネーク・明細テーブル＝「親のテーブル名_項目のキー」（ID の無い繰り返しと、参照の並び）・
+  カラム名＝項目のキーのまま（SQL の予約語に当たれば末尾に _）・入れ子の型と明細テーブルは親の ID（親のテーブル名_id）と並び順（seq）を足す・
+  一覧の行と個票のように 2 か所に書かれた項目は 1 テーブル・文字は上限があれば VARCHAR(n)、無ければ長さなしの VARCHAR・
+  選択肢は CHECK（値だけ）・参照は外部キー・pattern は DB では確かめない（入力検査で確かめる）
+scope: business
+each: entities
+output: "design/generated/tables/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $format: "{label}のテーブル" }
+  tables:
+    $concat:
+      - - { $apply: main-table }
+      # 明細テーブル: 要素がエンティティでない配列の項目（ID の無い繰り返し・参照の並び）
+      - $group: { $apply: fields }
+        $by: { $when: [{ path: field.base, equals: array }, { path: field.item.entity, exists: false }], $then: { $copy: field.key } }
+        $apply: detail-table
+rules:
+  # いまの場所＝エンティティ型。側面ごとの項目を 1 列に（{field: 項目, schema: 書かれた文書の種類}）
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build: { field: { $copy: . }, schema: { $copy: schema, $of: asp } }
+  # いまの場所＝エンティティ型。主のテーブル（ID の列・入れ子なら親の ID と並び順・配列でない項目の列）
+  - id: main-table
+    build:
+      name: { $case: { $copy: id }, $as: snake }
+      kind: main
+      class: { $case: { $copy: id }, $as: pascal }
+      columns:
+        $concat:
+          - $group: { $apply: fields }
+            $by: { $when: [{ path: field.base, equals: id }], $then: { $copy: field.key } }
+            $build: { $apply: column, $at: "items[0].field" }
+          - $when: [{ path: owner.entity, exists: true }]
+            $then:
+              - { $apply: parent-column, $at: owner }
+              - { $apply: seq-column }
+          - $group: { $apply: fields }
+            $by:
+              $when: [{ not: { path: field.base, oneOf: [id, array, object, map] } }]
+              $then: { $copy: field.key }
+            $build: { $apply: column, $at: "items[0].field" }
+      primaryKey:
+        $group: { $apply: fields }
+        $by: { $when: [{ path: field.base, equals: id }], $then: { $copy: field.key } }
+        $build: { $apply: column-name, $at: "items[0].field" }
+  # いまの場所＝まとめた項目（{key, items: [{field, schema}]}）。要素の種類ごとの明細テーブル
+  - id: detail-table
+    when: [{ path: "items[0].field.item.base", equals: object }]
+    build:
+      name: { $apply: detail-name }
+      kind: detail
+      item: { $copy: key }
+      label: { $copy: "items[0].field.label" }
+      class: { $case: { $apply: detail-name }, $as: pascal }
+      columns:
+        $concat:
+          - - { $apply: parent-column, $of: element }
+            - { $apply: seq-column }
+          - $each: "items[0].field.item.fields"
+            $apply: column
+      primaryKey:
+        - { $apply: parent-column-name, $of: element }
+        - seq
+  - id: detail-table
+    when: [{ path: "items[0].field.item.base", equals: ref }]
+    build:
+      name: { $apply: detail-name }
+      kind: link
+      item: { $copy: key }
+      label: { $copy: "items[0].field.label" }
+      class: { $case: { $apply: detail-name }, $as: pascal }
+      columns:
+        - { $apply: parent-column, $of: element }
+        - { $apply: seq-column }
+        - { $apply: link-column, $at: "items[0].field.item" }
+      primaryKey:
+        - { $apply: parent-column-name, $of: element }
+        - seq
+      unique:
+        $when: [{ path: "items[0].field.unique", exists: true }]
+        $then:
+          - - { $apply: parent-column-name, $of: element }
+            - { $apply: link-column-name, $at: "items[0].field.item" }
+  - id: detail-table
+    build:
+      name: { $apply: detail-name }
+      kind: values
+      item: { $copy: key }
+      label: { $copy: "items[0].field.label" }
+      class: { $case: { $apply: detail-name }, $as: pascal }
+      columns:
+        - { $apply: parent-column, $of: element }
+        - { $apply: seq-column }
+        - name: { $map: { $copy: key }, $using: { value: value_ } }
+          type: { $apply: sql-type, $at: "items[0].field.item" }
+          notNull: true
+          java: { name: { $case: { $copy: key }, $as: camel }, type: { $apply: java-type, $at: "items[0].field.item" } }
+      primaryKey:
+        - { $apply: parent-column-name, $of: element }
+        - seq
+  - id: detail-name
+    build: { $format: "{t}_{k}", $with: { t: { $case: { $copy: id, $of: element }, $as: snake }, k: { $copy: key } } }
+  # いまの場所＝項目。カラム 1 つ
+  - id: column
+    build:
+      name: { $apply: column-name }
+      item: { $copy: key }
+      label: { $copy: label }
+      type: { $apply: sql-type }
+      notNull: { $when: [{ path: required, equals: true }], $then: true }
+      primaryKey: { $when: [{ path: base, equals: id }], $then: true }
+      default: { $when: [{ not: { path: base, oneOf: [array, object, map] } }], $then: { $copy: default } }
+      check: { $when: [{ path: base, equals: enum }], $then: { $each: values, $build: { $copy: value } } }
+      references:
+        $when: [{ path: base, equals: ref }, { path: target, exists: true }]
+        $then: { table: { $case: { $copy: target }, $as: snake }, column: id }
+      java: { name: { $case: { $copy: key }, $as: camel }, type: { $apply: java-type } }
+  # 親の ID の列（いまの場所＝親。入れ子の型の owner {entity} か、エンティティ型 {id}）
+  - id: parent-column
+    build:
+      name: { $apply: parent-column-name }
+      label: 親の ID
+      type: VARCHAR
+      notNull: true
+      references: { table: { $case: { $first: [{ $copy: entity }, { $copy: id }] }, $as: snake }, column: id }
+      java: { name: { $format: "{p}Id", $with: { p: { $case: { $first: [{ $copy: entity }, { $copy: id }] }, $as: camel } } }, type: String }
+  - id: parent-column-name
+    build: { $format: "{p}_id", $with: { p: { $case: { $first: [{ $copy: entity }, { $copy: id }] }, $as: snake } } }
+  - id: seq-column
+    build:
+      name: seq
+      label: 並び順（業務モデルの配列の順。1 から）
+      type: INTEGER
+      notNull: true
+      java: { name: seq, type: int }
+  # 参照の並びの列（いまの場所＝配列の要素の項目。参照先の型の ID）
+  - id: link-column
+    build:
+      name: { $apply: link-column-name }
+      label: { $copy: label }
+      type: VARCHAR
+      notNull: true
+      references: { table: { $case: { $copy: target }, $as: snake }, column: id }
+      java: { name: { $format: "{t}Id", $with: { t: { $case: { $copy: target }, $as: camel } } }, type: String }
+  - id: link-column-name
+    build: { $format: "{t}_id", $with: { t: { $case: { $copy: target }, $as: snake } } }
+  # カラム名は項目のキーのまま。SQL の予約語（H2 2.x の一覧）に当たれば末尾に _ を付ける（項目ごとの付け替えは UX-324）
+  - id: column-name
+    build:
+      $map: { $copy: key }
+      $using:
+        all: all_
+        and: and_
+        any: any_
+        array: array_
+        as: as_
+        asymmetric: asymmetric_
+        authorization: authorization_
+        between: between_
+        both: both_
+        case: case_
+        cast: cast_
+        check: check_
+        constraint: constraint_
+        cross: cross_
+        current_catalog: current_catalog_
+        current_date: current_date_
+        current_path: current_path_
+        current_role: current_role_
+        current_schema: current_schema_
+        current_time: current_time_
+        current_timestamp: current_timestamp_
+        current_user: current_user_
+        day: day_
+        default: default_
+        distinct: distinct_
+        else: else_
+        end: end_
+        except: except_
+        exists: exists_
+        "false": false_
+        fetch: fetch_
+        for: for_
+        foreign: foreign_
+        from: from_
+        full: full_
+        group: group_
+        groups: groups_
+        having: having_
+        hour: hour_
+        if: if_
+        ilike: ilike_
+        in: in_
+        inner: inner_
+        intersect: intersect_
+        interval: interval_
+        is: is_
+        join: join_
+        key: key_
+        leading: leading_
+        left: left_
+        like: like_
+        limit: limit_
+        localtime: localtime_
+        localtimestamp: localtimestamp_
+        minus: minus_
+        minute: minute_
+        month: month_
+        natural: natural_
+        not: not_
+        "null": null_
+        offset: offset_
+        "on": on_
+        or: or_
+        order: order_
+        over: over_
+        partition: partition_
+        primary: primary_
+        qualify: qualify_
+        range: range_
+        regexp: regexp_
+        right: right_
+        row: row_
+        rownum: rownum_
+        rows: rows_
+        second: second_
+        select: select_
+        session_user: session_user_
+        set: set_
+        some: some_
+        symmetric: symmetric_
+        system_user: system_user_
+        table: table_
+        to: to_
+        top: top_
+        trailing: trailing_
+        "true": true_
+        uescape: uescape_
+        union: union_
+        unique: unique_
+        unknown: unknown_
+        user: user_
+        using: using_
+        value: value_
+        values: values_
+        when: when_
+        where: where_
+        window: window_
+        with: with_
+        year: year_
+  # いまの場所＝項目。SQL の型（データ系の議論の型の対応）
+  - id: sql-type
+    when: [{ path: base, equals: string }, { path: maxLength, exists: true }]
+    build: { $format: "VARCHAR({maxLength})" }
+  - id: sql-type
+    when: [{ path: base, equals: date }]
+    build: DATE
+  - id: sql-type
+    when: [{ path: base, equals: datetime }]
+    build: TIMESTAMP
+  - id: sql-type
+    when: [{ path: base, equals: time }]
+    build: TIME
+  - id: sql-type
+    when: [{ path: base, equals: boolean }]
+    build: BOOLEAN
+  - id: sql-type
+    when: [{ path: base, equals: int }]
+    build: INTEGER
+  - id: sql-type
+    when: [{ path: base, equals: number }]
+    build: DECIMAL
+  - id: sql-type
+    build: VARCHAR
+  # いまの場所＝項目。Java の型（State の値の列挙型は状態の判定の enum。日付は LocalDate）
+  - id: java-type
+    when: [{ path: stateOf, exists: true }]
+    build: { $format: "{e}Status", $with: { e: { $case: { $copy: stateOf }, $as: pascal } } }
+  - id: java-type
+    when: [{ path: base, equals: date }]
+    build: LocalDate
+  - id: java-type
+    when: [{ path: base, equals: datetime }]
+    build: LocalDateTime
+  - id: java-type
+    when: [{ path: base, equals: time }]
+    build: LocalTime
+  - id: java-type
+    when: [{ path: base, equals: boolean }, { path: required, equals: true }]
+    build: boolean
+  - id: java-type
+    when: [{ path: base, equals: boolean }]
+    build: Boolean
+  - id: java-type
+    when: [{ path: base, equals: int }]
+    build: Integer
+  - id: java-type
+    when: [{ path: base, equals: number }]
+    build: BigDecimal
+  - id: java-type
+    build: String

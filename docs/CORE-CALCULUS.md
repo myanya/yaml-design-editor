@@ -785,6 +785,8 @@ Core Calculus = 定義を実行する
 | 業務モデルの項（`BusinessModel`） | Construct（分けて書いた定義を 1 つの項に展開する。操作の効果は do・Lifecycle・自動の値の 3 か所を 1 列に） |
 | 生成（`.yde/transforms`・CLI generate） | Construct（変換定義のひな型）＋ Rewrite（生成物の作成・置き換え・削除を 1 トランザクションで） |
 | 名前の書き方（`$case`）・渡す場所（`$of: model`）・条件の値の `$copy` | Construct（ひな型の指示の追加。値の項の上の決定的な変換と、場所の読み出し） |
+| まとめる（`$group`）・キーを計算するマップ（`$entries`）・ひな型の条件の `includes` | Construct（ひな型の指示の追加。配列の項を構造のキーで分ける・{key, value} の並びをマップの項にする決定的な組み替え）＋ Predicate（条件の演算子を where・check と共有） |
+| 定義体のスコープ（`workspace.yaml` の `scopes`・生成の `scope`） | Term（業務モデルの項を作る入力のスキーマを選ぶだけ。新しい評価器を持たない）＋ Predicate（使う向きの点検は、スキーマの参照の組の比較） |
 | ワークスペースの初期化（テンプレートの展開） | Construct（答えを「いまの場所」として変換定義のひな型で YAML を組み立てる。書き込みは開く前の 1 回で、Rewrite も履歴も通らない） |
 | Scaffold・Import | Expression ＋ Construct（`scaffold` / `build`）＋ Rewrite（作成・追記・採番） |
 | Bulk edit / Schema Refactoring / Entity operations | Query + Rewrite |

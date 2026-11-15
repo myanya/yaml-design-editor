@@ -1,0 +1,18 @@
+id: W-23
+title: 定義体のスコープ（`.yde/workspace.yaml` の `scopes`・`include` と `uses`・`DefinitionScopes`・使う向きの点検 `ScopeChecks`・生成の `scope`）
+implementation:
+- path: workspace-core/layout/DefinitionScopes.kt
+  module: workspace-core
+- path: workspace-core/workspace/ScopeChecks.kt
+  module: workspace-core
+- path: workspace-core/layout/WorkspaceLayout.kt
+  module: workspace-core
+tests:
+- name: DefinitionScopesTest
+design:
+- label: workspace
+  link: architecture/workspace.md
+  heading: ワークスペース構造と layout
+manual:
+- link: manual/generate.md
+  heading: スコープ（業務モデルとして読む範囲）

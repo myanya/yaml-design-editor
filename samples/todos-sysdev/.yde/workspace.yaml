@@ -1,1 +1,13 @@
 ledger: [design]
+# 定義体のスコープ。生成は業務モデルのスコープだけを読む（.yde/transforms の scope: business）。
+# 中身は置き場所で書いているが、スコープそのものは名前のある定義。設計は業務モデルを使ってよく、業務モデルから設計は使えない
+scopes:
+  - id: business
+    name: 業務モデル
+    description: samples/todos から写した業務モデル（要件定義）。写すのは指示があったときで、ここを直さず samples/todos を直してから写す
+    include: [schemas/business/**, views/business/**]
+  - id: design
+    name: 設計
+    description: 業務モデルから生成した設計書と、その検査・ビュー・生成の定義
+    include: [schemas/design/**, views/design/**, transforms/design/**]
+    uses: [business]

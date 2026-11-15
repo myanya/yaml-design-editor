@@ -332,6 +332,8 @@ object WorkspaceReader {
         errors += SchemaDefinitionChecks.loadErrors(parsed.schemas, parsed.declarations.relations)
         // 名前付き State と Lifecycle の参照・入り口・到達可能性（実データの状態判定は別段階）。
         errors += BehaviorChecks.loadErrors(parsed.schemas)
+        // 定義体のスコープ: 宣言の誤り・スキーマが入るスコープの重なり・使ってよいとしていないスコープの定義を使う誤り
+        errors += ScopeChecks.loadErrors(parsed.schemas, layout)
         // 検査の対応「操作を起動する」（responses の action）が指す操作は、ワークスペースのどこかに定義されていること（P41）
         val knownActions = ActionPlanner.catalog(expanded).filter { it.kind != "create" }.map { it.name }.toSet()
         for (schema in parsed.schemas) {
@@ -579,6 +581,6 @@ object WorkspaceReader {
         if (!hasConfigDir) return WorkspaceLayout.LEGACY
         val ledger = configText?.let { runCatching { WorkspaceLayout.parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
         val files = configText?.let { runCatching { WorkspaceLayout.parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
-        return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger, files = files)
+        return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger, files = files, scopes = WorkspaceLayout.parseScopesText(configText))
     }
 }

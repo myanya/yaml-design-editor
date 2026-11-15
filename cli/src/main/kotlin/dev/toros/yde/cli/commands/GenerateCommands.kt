@@ -16,13 +16,14 @@ import dev.toros.yde.yaml.YamlIO
  * - `generate <ws> [<定義ID>…]` 計画だけ（作る・作り直す・消す・変わらない文書と、作る文書の検証）
  * - `--apply` 書く（作る文書に検証エラーがあれば書かない。`--allow-errors` で書く）
  * - `--check` 生成物が最新でなければ失敗（終了コード 1。台帳の検査・CI 用）
- * - `--model` 業務モデルを展開した形（生成の入力）を出す
+ * - `--model [--scope <スコープ>]` 業務モデルを展開した形（生成の入力）を出す（--scope でスコープの定義体だけから）
  */
 internal fun generateCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val session = ws.mirror
-    if ("--model" in rest) return@run asData(YamlIO.toAny(BusinessModel.of(session)))
-    val names = rest.drop(1).filter { !it.startsWith("--") }.toSet()
+    val scope = rest.indexOf("--scope").takeIf { it >= 0 }?.let { rest.getOrNull(it + 1) ?: error("--scope にはスコープの id を書きます") }
+    if ("--model" in rest) return@run asData(YamlIO.toAny(BusinessModel.of(session, scope)))
+    val names = rest.drop(1).filterIndexed { i, a -> !a.startsWith("--") && rest.getOrNull(i) != "--scope" }.toSet()
     val plan = Generators.plan(session, names)
     // 作る・作り直す文書を重ねて検証する（適用と同じ検証。生成物の書き方の誤りは、ここで分かる）
     val overlays = plan.outputs.filter { it.document in plan.created || it.document in plan.updated }

@@ -282,6 +282,8 @@ internal fun Template.paramNames(): Set<String> {
             is Template.Zip -> walk(t.body)
             is Template.Apply -> Unit
             is Template.Concat -> t.parts.forEach(::walk)
+            is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
+            is Template.EntriesOf -> walk(t.input)
             is Template.Guarded -> {
                 t.conditions.forEach { c ->
                     c.alternatives.forEach { a ->
@@ -315,8 +317,11 @@ data class InsertRule(val id: IdNumbering?, val key: List<YPath>, val origin: St
     }
 }
 
-/** 採番: 要素の ID の項目（path）が空なら、接頭辞（要素で埋めるひな型）＋連番（digits 桁）を付ける。 */
-data class IdNumbering(val path: YPath, val prefix: Template, val digits: Int) {
+/**
+ * 採番: 要素の ID の項目（path）が空なら、接頭辞（要素で埋めるひな型）＋連番（digits 桁）を付ける。
+ * prefixRaw は接頭辞の書かれたままの形（業務モデルの項が、設計書へ採番の決まりを写すため）。
+ */
+data class IdNumbering(val path: YPath, val prefix: Template, val digits: Int, val prefixRaw: Any? = null) {
     companion object {
         fun parse(raw: Any?, where: String): IdNumbering {
             val m = raw as? Map<*, *> ?: error("$where は {path, prefix, digits} のobjectである必要があります")
@@ -326,7 +331,7 @@ data class IdNumbering(val path: YPath, val prefix: Template, val digits: Int) {
             val prefix = TransformDef.parseTemplate(m["prefix"] ?: error("$where.prefix（接頭辞）が必要です"), "$where.prefix")
             val digits = (m["digits"] as? Number)?.toInt() ?: 3
             require(digits in 1..9) { "$where.digits は 1〜9 です: $digits" }
-            return IdNumbering(path, prefix, digits)
+            return IdNumbering(path, prefix, digits, m["prefix"])
         }
     }
 }

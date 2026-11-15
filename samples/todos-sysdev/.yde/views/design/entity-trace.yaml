@@ -1,0 +1,11 @@
+id: entity-trace
+name: エンティティの設計の対応
+description: 業務モデルのエンティティ型ごとに、どの設計書に降りているかの対応表（トレーサビリティ）。行は業務モデルのエンティティ型（定義の索引）で、数が 0 の欄は設計が無い
+rows:
+  match: [{ node: { entity: yde-entity, bind: e } }]
+columns:
+  - { label: 名前, schemaId: entity-spec, path: name }
+  - { label: エンティティ定義書, value: { occurrenceCount: { of: e, schema: entity-spec } } }
+  - { label: テーブル設計書, value: { occurrenceCount: { of: e, schema: table-design } } }
+  - { label: テーブルアクセス設計書, value: { occurrenceCount: { of: e, schema: table-access } } }
+  - { label: 画面遷移設計（Controller）, value: { occurrenceCount: { of: e, schema: screen-flow } } }

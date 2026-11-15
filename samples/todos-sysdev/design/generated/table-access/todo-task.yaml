@@ -1,34 +1,68 @@
 # 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
 id: todo-task
 name: 作業項目の読み書き
-table: todo_task
 mapper: TodoTaskMapper
-accesses:
-  - operation: todo-task.finish
-    method: todoTaskFinish
-    statements:
-      - kind: select
-        table: todo_task
-        where:
-          - column: id
-            value: $id
-      - kind: update
-        table: todo_task
-        set:
-          - column: done
-            value: true
-        where:
-          - column: id
-            value: $id
-        source: do
-      - kind: update
-        table: todo
-        set:
-          - column: updated_on
-            value:
-              $copy: today
-              $of: context
-        where:
-          - column: id
-            value: $id
-        source: auto
+tables:
+  - todo_task
+methods:
+  - name: findById
+    kind: select
+    table: todo_task
+    where:
+      - item: id
+        param: id
+    operations:
+      - todo-task.finish
+  - name: insert
+    kind: insert
+    table: todo_task
+    columns: テーブル設計書のすべての列
+    operations:
+      - add-todo-task
+  - name: maxId
+    kind: max
+    table: todo_task
+    item: id
+    where:
+      - item: todo_id
+        param: id
+    numbering:
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+    operations:
+      - add-todo-task
+  - name: maxSeq
+    kind: max
+    table: todo_task
+    item: seq
+    where:
+      - item: todo_id
+        param: id
+    operations:
+      - add-todo-task
+  - name: todoTaskFinish
+    kind: update
+    table: todo_task
+    set:
+      - item: done
+        value: true
+    where:
+      - item: id
+        param: id
+    operations:
+      - todo-task.finish
+  - name: countCompleteTodoNoOpenTask
+    kind: count
+    table: todo_task
+    where:
+      - item: todo_id
+        param: id
+      - item: done
+        equals: false
+    precondition: complete-todo.no-open-task
+    expect: absent
+    operations:
+      - complete-todo

@@ -19,7 +19,7 @@ preconditions:
     message: '{id} は完了か中止をしているので、作業項目を足せません'
 effects:
   - op: insert
-    entity: todo-task
+    entity: todo
     path: tasks
     value:
       id: ''

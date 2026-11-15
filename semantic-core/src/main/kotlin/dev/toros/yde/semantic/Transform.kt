@@ -289,7 +289,53 @@ object SemanticTransform {
                 }
                 YNode.Seq(items)
             }
+            is Template.Group -> group(t, here, out, loop)
+            // {key, value} の並びからマップ（同じキーは後の値で置き換え、位置は初めのところ）。並びの出どころは捨てる（組み替えた値）
+            is Template.EntriesOf -> {
+                val recordedBefore = origins.size
+                val built = build(t.input, here, out, loop) as? YNode.Seq
+                while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
+                built?.let { seq ->
+                    val entries = LinkedHashMap<String, YNode>()
+                    for (item in seq.items) {
+                        val m = item as? YNode.Map ?: continue
+                        val key = (m.entries["key"] as? YNode.Scalar)?.let(::scalarText) ?: continue
+                        val value = m.entries["value"] ?: continue
+                        entries[key] = value
+                    }
+                    YNode.Map(entries)
+                }
+            }
             is Template.Guarded -> if (t.conditions.all { holds(it, here, loop) }) build(t.inner, here, out, loop) else null
+        }
+
+        /**
+         * まとめる（`$group`）: 配列の要素を、キー（要素をいまの場所にして計算した値）が同じものごとにまとめ、まとまり
+         * {key, items} をいまの場所にして組み立てる。キーは構造で比べ、まとまりの順はキーが初めて出た順。キーが「無い」要素は落とす。
+         * まとめた後の場所は入力の座標を持たないので、要素とキーを計算した間に記録した出どころは捨てる。
+         */
+        private fun group(t: Template.Group, here: TemplatePlace?, out: YPath, loop: Map<String, Any?>): YNode? {
+            val recordedBefore = origins.size
+            val input = build(t.input, here, out, loop) as? YNode.Seq
+            val groups = LinkedHashMap<String, Pair<YNode, MutableList<YNode>>>()
+            input?.items?.forEachIndexed { i, item ->
+                val key = build(t.by, TemplatePlace(item, null, emptyList()), out, loop + ("index" to i) + ("position" to i + 1))
+                    ?: return@forEachIndexed
+                groups.getOrPut(YamlIO.dumpPlain(key)) { key to mutableListOf() }.second += item
+            }
+            while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
+            if (input == null) return null
+            val items = mutableListOf<YNode>()
+            groups.values.forEachIndexed { i, (key, members) ->
+                val place = TemplatePlace(YNode.Map(linkedMapOf("key" to key, "items" to YNode.Seq(members))), null, emptyList())
+                val previous = t.bind?.let { localBindings.put(it, place) }
+                try {
+                    build(t.body, place, out + items.size, loop + ("index" to i) + ("position" to i + 1))?.let { items += it }
+                } finally {
+                    t.bind?.let { if (previous == null) localBindings.remove(it) else localBindings[it] = previous }
+                }
+            }
+            return YNode.Seq(items)
         }
 
         /**
@@ -408,7 +454,9 @@ object SemanticTransform {
                 TemplateTest.Kind.EMPTY -> SemanticExpression.isEmpty(node) == test.flag
                 TemplateTest.Kind.EQUALS -> scalarText(node)?.let { text -> operands().firstOrNull()?.let { text == it } }
                 TemplateTest.Kind.NOT_EQUALS -> scalarText(node)?.let { text -> operands().firstOrNull()?.let { text != it } }
-                TemplateTest.Kind.TEST -> scalarText(node)?.let { text -> SemanticExpression.test(test.op!!, text, operands()) }
+                // 配列を受け取る条件（includes / includesAny）は、場所の配列の要素で比べる（where・check と同じ）
+                TemplateTest.Kind.TEST -> if (test.op!!.arrayLeft) (node as? YNode.Seq)?.let { seq -> SemanticExpression.testArray(seq.items.map { scalarText(it) }, operands()) }
+                    else scalarText(node)?.let { text -> SemanticExpression.test(test.op, text, operands()) }
             }
         }
 

@@ -28,6 +28,7 @@ inputs:
       - CAT-*
     schemas:
       - category-list
+    target: category
   - key: tags
     label: タグ
     type: array
@@ -41,6 +42,7 @@ inputs:
         - TAG-*
       schemas:
         - tag-list
+      target: tag
   - key: created_on
     label: 作成日
     type: common#年月日

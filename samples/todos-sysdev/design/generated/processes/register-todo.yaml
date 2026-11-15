@@ -14,62 +14,49 @@ service:
     - details
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
+  - step: number
+    entity: todo
+    call: TodoMapper.maxId
+    rule:
+      path: id
+      prefix: TODO-
+      digits: 3
   - step: write
-    op: create
-    value:
+    call: TodoMapper.insert
+    kind: insert
+    values:
+      id: 採番した番号
       due_on:
         $copy: due
       details:
         $copy: details
-      comments: []
-    source: do
-  - step: write
-    op: insert
-    entity: todo
-    path: todos
-    value:
-      id:
-        $copy: id
-        $of: todo
       title: $title
       summary: $summary
       category:
         $copy: category
-      tags:
-        $copy: tags
       follows:
         $copy: follows
-    source: do
+      status: OPEN
+      created_on:
+        $copy: today
+        $of: context
+      updated_on:
+        $copy: today
+        $of: context
   - step: write
-    op: set
-    entity: todo
-    path: status
-    value: OPEN
-    source: lifecycle
+    call: TodoMapper.insertTodoTags
+    kind: insert
+    each:
+      $copy: tags
+    seq: 配列の順（1 から）
   - step: write
-    op: insert
-    entity: todo
-    path: history
-    value:
+    call: TodoMapper.insertTodoHistory
+    kind: insert
+    values:
+      todo_id: 採番した番号
       date:
         $copy: today
         $of: context
       action: register-todo
       to: OPEN
-    source: lifecycle
-  - step: write
-    op: set
-    entity: todo
-    path: created_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
-  - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    seq: TodoMapper.maxSeqTodoHistory の次

@@ -11,21 +11,25 @@ service:
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
   - step: read
-    entity: todo
+    call: TodoMapper.findById
     key: id
+    missing: 見つからなければ「見つかりません」で断る
   - step: write
-    op: insert
-    entity: todo
-    path: comments
-    value:
+    call: TodoMapper.insertTodoComments
+    kind: insert
+    values:
+      todo_id: $id
       date: $date
       body: $body
-    source: do
+    seq: TodoMapper.maxSeqTodoComments の次
   - step: write
-    op: set
-    entity: todo
-    path: updated_on
-    value:
-      $copy: today
-      $of: context
-    source: auto
+    call: TodoMapper.addTodoComment
+    kind: update
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: id

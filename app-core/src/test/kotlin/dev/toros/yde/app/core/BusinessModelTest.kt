@@ -103,4 +103,38 @@ class BusinessModelTest {
         assertEquals(listOf("todo-ACTIVE"), list("groups", lifecycle).map { it["id"] })
         assertEquals(listOf("todo-CLOSED", "todo-CANCELED"), list("terminal", lifecycle).map { it["id"] })
     }
+
+    @Test
+    fun `採番 入れ子の外側 参照先 State の値 作るエンティティ 書く項目`() {
+        // 採番: 作る手の id（TODO）・配列の追加の決まり（作業項目は外側の番号に -S と 2 桁、カテゴリは CAT- と 3 桁）
+        assertEquals(mapOf("path" to "id", "prefix" to "TODO-", "digits" to 3), byId("entities", "todo")["numbering"])
+        val task = byId("entities", "todo-task")
+        assertEquals(mapOf("path" to "id", "prefix" to mapOf("\$format" to "{id}-S", "\$of" to "owner"), "digits" to 2), task["numbering"])
+        assertEquals(mapOf("entity" to "todo", "field" to "tasks"), task["owner"], "作業項目は TODO の個票の tasks に入れ子で書かれる")
+        assertEquals(mapOf("path" to "id", "prefix" to "CAT-", "digits" to 3), byId("entities", "category")["numbering"])
+        // 参照先のエンティティ型と、State の値を持つ列挙型（状態の履歴の前後の状態も同じ型）
+        val todoAspects = list("aspects", byId("entities", "todo"))
+        assertEquals("category", list("fields", todoAspects[0]).first { it["key"] == "category" }["target"])
+        assertEquals("tag", (list("fields", todoAspects[0]).first { it["key"] == "tags" }["item"] as Map<*, *>)["target"])
+        assertEquals("todo", list("fields", todoAspects[1]).first { it["key"] == "status" }["stateOf"])
+        val historyItem = (list("fields", todoAspects[1]).first { it["key"] == "history" }["item"] as Map<*, *>)
+        @Suppress("UNCHECKED_CAST")
+        val historyFields = historyItem["fields"] as List<Map<String, Any?>>
+        assertEquals("todo", historyFields.first { it["key"] == "to" }["stateOf"])
+        assertEquals(null, historyFields.first { it["key"] == "action" }["stateOf"], "操作の選択肢は State の値ではない")
+        // 操作が作るエンティティ型（文書を作る手・エンティティの要素を足す手）
+        assertEquals(listOf("todo"), byId("actions", "register-todo")["creates"])
+        assertEquals(listOf("todo-task"), byId("actions", "add-todo-task")["creates"])
+        assertEquals(emptyList<Any>(), byId("actions", "complete-todo")["creates"])
+        // 個票の tasks へ足す手は、TODO の項目 tasks を書く（一覧そのものではない）。足す要素の項目ごとの基底の種類と採番
+        val insertTask = list("effects", byId("actions", "add-todo-task")).first { it["op"] == "insert" }
+        assertEquals("todo", insertTask["entity"])
+        assertEquals("todo-task", ((insertTask["field"] as Map<*, *>)["item"] as Map<*, *>)["entity"])
+        assertEquals(listOf("id" to "id", "title" to "string", "done" to "boolean"), list("written", insertTask).map { it["key"] to it["base"] })
+        assertEquals(2, (insertTask["numbering"] as Map<*, *>)["digits"])
+        // 文書を作る手は、作る文書のルートの型と、書く値の項目ごとの基底の種類
+        val create = list("effects", byId("actions", "register-todo")).first { it["op"] == "create" }
+        assertEquals("todo", create["entity"])
+        assertEquals(listOf("due_on" to "date", "details" to "string", "comments" to "array"), list("written", create).map { it["key"] to it["base"] })
+    }
 }
