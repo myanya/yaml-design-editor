@@ -1,4 +1,4 @@
-# 生成物（messages）: 手で直さず、業務モデルか生成の定義（design/messages.yaml）を直して作り直します（CLI generate）。
+# 生成物（messages）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/messages.yaml）を直して作り直します（CLI generate）。
 id: messages
 name: メッセージ定義書
 file: src/main/resources/messages.properties

@@ -1,4 +1,4 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+# 生成物（processes）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
 id: resume-todo
 name: TODOを再開する
 service:
@@ -52,6 +52,10 @@ steps:
       - item: updated_on
         value:
           $copy: today
+          $of: context
+      - item: updated_by
+        value:
+          $copy: actor
           $of: context
     where:
       - item: id

@@ -1,0 +1,24 @@
+id: C-23
+title: 段の項（段階的詳細化。`workspace.yaml` の `stages`・段の規則と補正 `.yde/stages`（each・where・set・add・after）・出どころ origin・生成の定義の `stage`・CLI `generate --model --stage`）
+implementation:
+- path: semantic-core/semantic/TermChanges.kt
+  module: semantic-core
+- path: workspace-core/workspace/Stages.kt
+  module: workspace-core
+- path: workspace-core/workspace/layout/DefinitionStages.kt
+  module: workspace-core
+- path: workspace-core/workspace/Generators.kt
+  module: workspace-core
+- path: cli/commands/GenerateCommands.kt
+  module: cli
+tests:
+- name: TermChangesTest
+- name: StagesTest
+- name: TodosSysdevTest
+design:
+- label: transform
+  link: architecture/transform.md
+  heading: 段の項（段階的詳細化）
+manual:
+- link: manual/generate.md
+  heading: 段（基本設計・詳細設計）と、規則・補正

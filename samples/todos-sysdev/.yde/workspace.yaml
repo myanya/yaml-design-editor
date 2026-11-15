@@ -9,5 +9,14 @@ scopes:
   - id: design
     name: 設計
     description: 業務モデルから生成した設計書と、その検査・ビュー・生成の定義
-    include: [schemas/design/**, views/design/**, transforms/design/**]
+    include: [schemas/design/**, views/design/**, transforms/design/**, stages/design/**]
     uses: [business]
+# 段（段階的詳細化。ADR-0034）。段の項＝前の段の項に、その段の規則と補正（.yde/stages の stage）を当てたもの。
+# 最初の段の入力は業務モデルの項。生成の定義は stage で読む段を選ぶ（基本設計書は basic、詳細設計書は detail）
+stages:
+  - id: basic
+    name: 基本設計
+    description: 業務モデルに、システムとして当たり前に要るもの（監査の項目など）を足す
+  - id: detail
+    name: 詳細設計
+    description: 基本設計に、実装の決まりを足す

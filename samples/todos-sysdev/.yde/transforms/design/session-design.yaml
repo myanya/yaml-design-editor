@@ -6,6 +6,7 @@ description: >-
   入力の値は hidden 項目で持ち回り（確定で確かめ直す）、絞り込みは URL のパラメータ、起点の画面は画面の ID で持つ。
   Controller はここにあるキーだけを使う
 scope: business
+stage: detail
 output: "design/generated/session.yaml"
 build:
   id: session

@@ -1,4 +1,4 @@
-# 生成物（screen-transitions）: 手で直さず、業務モデルか生成の定義（design/screen-transitions.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-transitions）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-transitions.yaml）を直して作り直します（CLI generate）。
 id: todo-dashboard
 name: TODOダッシュボードからの画面遷移
 start: todo-dashboard

@@ -1,4 +1,4 @@
-# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（action-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
 id: suspend-todo
 name: TODOを中断する
 description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。
@@ -69,3 +69,10 @@ effects:
       $copy: today
       $of: context
     source: auto
+  - op: set
+    entity: todo
+    path: updated_by
+    value:
+      $copy: actor
+      $of: context
+    origin: 基本設計「更新者を記録する」（audit-updated-by）

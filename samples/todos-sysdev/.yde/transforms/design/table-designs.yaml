@@ -8,6 +8,7 @@ description: >-
   一覧の行と個票のように 2 か所に書かれた項目は 1 テーブル・文字は上限があれば VARCHAR(n)、無ければ長さなしの VARCHAR・
   選択肢は CHECK（値だけ）・参照は外部キー・pattern は DB では確かめない（入力検査で確かめる）
 scope: business
+stage: detail
 each: entities
 output: "design/generated/tables/{id}.yaml"
 build:
@@ -126,6 +127,7 @@ rules:
         $when: [{ path: base, equals: ref }, { path: target, exists: true }]
         $then: { table: { $case: { $copy: target }, $as: snake }, column: id }
       java: { name: { $case: { $copy: key }, $as: camel }, type: { $apply: java-type } }
+      origin: { $format: "{stageLabel}「{label}」（{by}）", $at: origin }
   # 親の ID の列（いまの場所＝親。入れ子の型の owner {entity} か、エンティティ型 {id}）
   - id: parent-column
     build:

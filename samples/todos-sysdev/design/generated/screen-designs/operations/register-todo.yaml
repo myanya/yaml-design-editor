@@ -1,4 +1,4 @@
-# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
 id: register-todo
 name: TODOを登録する（画面設計書）
 form:

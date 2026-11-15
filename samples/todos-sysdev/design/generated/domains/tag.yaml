@@ -1,4 +1,4 @@
-# 生成物（domains）: 手で直さず、業務モデルか生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
+# 生成物（domains）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
 id: tag
 name: タグ
 description: TODO に付ける目印です。1 件の TODO に、いくつでも付けられます。

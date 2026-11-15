@@ -7,6 +7,7 @@ import dev.toros.yde.cli.workspaceOf
 import dev.toros.yde.workspace.BusinessModel
 import dev.toros.yde.workspace.ChangeSetValidation
 import dev.toros.yde.workspace.Generators
+import dev.toros.yde.workspace.Stages
 import dev.toros.yde.yaml.DefaultYamlCodec
 import dev.toros.yde.yaml.YamlIO
 
@@ -16,16 +17,24 @@ import dev.toros.yde.yaml.YamlIO
  * - `generate <ws> [<定義ID>…]` 計画だけ（作る・作り直す・消す・変わらない文書と、作る文書の検証）
  * - `--apply` 書く（作る文書に検証エラーがあれば書かない。`--allow-errors` で書く）
  * - `--check` 生成物が最新でなければ失敗（終了コード 1。台帳の検査・CI 用）
- * - `--model [--scope <スコープ>]` 業務モデルを展開した形（生成の入力）を出す（--scope でスコープの定義体だけから）
+ * - `--model [--scope <スコープ>] [--stage <段>]` 業務モデルを展開した形（生成の入力）を出す（--scope でスコープの定義体だけから。
+ *   --stage でその段の項＝段の規則と補正を当てたもの。当てられなかった誤りがあれば失敗）
  * - `--lineage` 生成の系譜（生成の定義ごとに、業務モデルの項のどこを読むか）を出す
  */
 internal fun generateCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val session = ws.mirror
     val scope = rest.indexOf("--scope").takeIf { it >= 0 }?.let { rest.getOrNull(it + 1) ?: error("--scope にはスコープの id を書きます") }
-    if ("--model" in rest) return@run asData(YamlIO.toAny(BusinessModel.of(session, scope)))
+    val stage = rest.indexOf("--stage").takeIf { it >= 0 }?.let { rest.getOrNull(it + 1) ?: error("--stage には段の id を書きます") }
+    if ("--model" in rest) {
+        val model = BusinessModel.of(session, scope)
+        if (stage == null) return@run asData(YamlIO.toAny(model))
+        val staged = Stages.term(session, model, stage)
+        if (staged.errors.isNotEmpty()) error("段「$stage」の項を作れません" + staged.errors.distinct().joinToString("") { "\n- $it" })
+        return@run asData(YamlIO.toAny(staged.term))
+    }
     if ("--lineage" in rest) return@run asData(mapOf("generators" to Generators.lineage(session)))
-    val names = rest.drop(1).filterIndexed { i, a -> !a.startsWith("--") && rest.getOrNull(i) != "--scope" }.toSet()
+    val names = rest.drop(1).filterIndexed { i, a -> !a.startsWith("--") && rest.getOrNull(i) != "--scope" && rest.getOrNull(i) != "--stage" }.toSet()
     val plan = Generators.plan(session, names)
     // 作る・作り直す文書を重ねて検証する（適用と同じ検証。生成物の書き方の誤りは、ここで分かる）
     val overlays = plan.outputs.filter { it.document in plan.created || it.document in plan.updated }

@@ -23,6 +23,8 @@ data class WorkspaceLayout(
     val files: FilePolicy = FilePolicy.DEFAULT,
     /** 定義体のスコープ（`scopes:`。業務モデルなど）。空なら全体が 1 つのまとまり。 */
     val scopes: DefinitionScopes = DefinitionScopes.NONE,
+    /** 段の並び（`stages:`。段階的詳細化の基本設計・詳細設計など）。空なら段は無い。 */
+    val stages: DefinitionStages = DefinitionStages.NONE,
 ) {
 
     /**
@@ -40,6 +42,8 @@ data class WorkspaceLayout(
         REPORTS("_reports", "reports"),
         /** 生成の定義（業務モデルから文書を作る変換。CLI generate）。 */
         TRANSFORMS("_transforms", "transforms"),
+        /** 段の規則と補正（段の項を作る、項の変更。ADR-0034）。 */
+        STAGES("_stages", "stages"),
     }
 
     /** ゾーンの相対ディレクトリ（例: `_schemas` または `.yde/schemas`）。 */
@@ -54,6 +58,7 @@ data class WorkspaceLayout(
     val viewsDir: String get() = dir(Zone.VIEWS)
     val reportsDir: String get() = dir(Zone.REPORTS)
     val transformsDir: String get() = dir(Zone.TRANSFORMS)
+    val stagesDir: String get() = dir(Zone.STAGES)
 
     /** 配布できる表示状態。定義ゾーン・台帳・編集履歴には載せない。 */
     val stateDir: String get() = configDir?.let { "$it/state" } ?: "_state"
@@ -171,12 +176,16 @@ data class WorkspaceLayout(
                 ?.let { runCatching { Files.readString(it) }.getOrNull() }
             val ledger = text?.let { runCatching { parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
             val files = text?.let { runCatching { parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
-            return WorkspaceLayout(configDir = CONFIG_DIR, ledger = ledger, files = files, scopes = parseScopesText(text))
+            return WorkspaceLayout(configDir = CONFIG_DIR, ledger = ledger, files = files, scopes = parseScopesText(text), stages = parseStagesText(text))
         }
 
         /** 構成ファイル本文から定義体のスコープ（`scopes:`）を読む。読めない本文は「スコープ無し」。 */
         fun parseScopesText(text: String?): DefinitionScopes =
             text?.let { runCatching { DefinitionScopes.parse(YamlIO.parseFirst(it) as? YNode.Map) }.getOrNull() } ?: DefinitionScopes.NONE
+
+        /** 構成ファイル本文から段の並び（`stages:`）を読む。読めない本文は「段無し」。 */
+        fun parseStagesText(text: String?): DefinitionStages =
+            text?.let { runCatching { DefinitionStages.parse(YamlIO.parseFirst(it) as? YNode.Map) }.getOrNull() } ?: DefinitionStages.NONE
 
         /** 構成ファイル本文から file 型の値の許可（`files:`）を読む。無ければ既定。 */
         fun parseFilesText(text: String): FilePolicy = FilePolicy.parse(YamlIO.parseFirst(text) as? YNode.Map)

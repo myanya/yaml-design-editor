@@ -7,6 +7,7 @@ description: >-
   データの決まりを確かめ直す・断りは確認画面に出す（例外とメッセージのキーはエラー設計書）・確定の後は起点の画面へリダイレクト（PRG）・
   起点の画面は画面の ID（パラメータ from）で受け取る・セッションは「セッション情報設計」のキーだけを使う。フォームの項目は画面設計書で決める（ここはクラス名で指す）
 scope: business
+stage: detail
 each: entities
 output: "design/generated/controllers/{id}.yaml"
 build:

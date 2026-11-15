@@ -40,6 +40,7 @@ root:
                 - { key: name, label: カラム名, type: string, required: true }
                 - { key: item, label: 業務モデルの項目, type: string }
                 - { key: label, label: 名前, type: string }
+                - { key: origin, label: 出どころ, type: string, description: "業務モデルに無く、段の規則・補正で足した列（段「名前」（ID））" }
                 - { key: type, label: SQL の型, type: string, required: true }
                 - { key: notNull, label: NOT NULL, type: boolean }
                 - { key: primaryKey, label: 主キー, type: boolean }

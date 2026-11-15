@@ -1,4 +1,4 @@
-# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（action-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
 id: edit-todo
 name: TODOを編集する
 description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
@@ -256,3 +256,10 @@ effects:
       $copy: today
       $of: context
     source: auto
+  - op: set
+    entity: todo
+    path: updated_by
+    value:
+      $copy: actor
+      $of: context
+    origin: 基本設計「更新者を記録する」（audit-updated-by）

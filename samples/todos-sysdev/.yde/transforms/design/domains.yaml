@@ -5,6 +5,7 @@ description: >-
   （説明・構成・情報・状態の流れ・提供する操作・データの決まり・ほかのドメインとの関係）。テーブル・列・クラスのようなシステムの言葉は書かない。
   人が読む文書で、ほかの設計書の入力にはしない（設計書は業務モデルを直接読む）。ドメインの範囲を関係で決める仕組みは今後（UX-332）
 scope: business
+stage: basic
 each: entities
 output: "design/generated/domains/{id}.yaml"
 build:

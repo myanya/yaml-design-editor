@@ -9,6 +9,7 @@ description: >-
   前提のうち「受け手の中の要素の条件」は件数を数える count（ほかの前提は Service が読んだ行で確かめる）・
   データの決まりのうち「入れ子の要素の条件」も件数を数える count（書いた後に、同じトランザクションで数える）
 scope: business
+stage: detail
 each: entities
 output: "design/generated/table-access/{id}.yaml"
 build:

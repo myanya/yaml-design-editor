@@ -65,10 +65,22 @@
 | `BusinessModelRules` | workspace-core/workspace/BusinessModelRules.kt | 業務モデルの項のデータの決まりの側（`constraints`。型の検査・スキーマの検査・関係レジストリ）と、操作が書くと破れうる決まり（操作の `checks`） |
 | `Generators` / `GeneratorDef` / `GenerationPlan` | workspace-core/workspace/Generators.kt | 生成の定義（transforms ゾーン）の読み込み・計画（作る・作り直す・消す・変わらない）・セッションの 1 トランザクション・生成の系譜（`lineage`） |
 | `TransformReads` | semantic-core/semantic/TransformReads.kt | 変換の定義が読む入力の場所（入力の足あと）を、定義を当てずに取り出す（名前の付いた入れ物からのパスのパターン） |
+| `Stages` / `StageChangeDef` | workspace-core/workspace/Stages.kt | 段の項（業務モデルの項に、段の並びの順に規則と補正を当てる）・stages ゾーンの読み込み・段の項の頭の `stages` |
+| `TermChanges` / `TermChangeDoc` / `TermChange` | semantic-core/semantic/TermChanges.kt | 項の変更（段の規則と補正）の読み取りと当て方（`each`・`where`・`set`・`add`・`after`・入れ子の `changes`・出どころ） |
 | CLI `generate` | cli/commands/GenerateCommands.kt | 計画・検証・書き込み・最新かの検査・業務モデルの項の表示（引数を写すだけ） |
 
-- **流れ**: `Generators.plan` → 定義の `scope` ごとに業務モデルの項を 1 回作る（スコープのスキーマだけから。ADR-0032）→ 定義ごとに `each` の要素へ `SemanticTransform.runAt`（場所 `model` と `element` を渡す）→ `output` を `TextTemplate.render` で埋める → 見出しのコメントを付けて文字にし、保存済みの内容と比べる → `WorkspaceTransaction`（作成・置き換え・削除）。
-- **規律**: 生成物は原本ではない（原本は業務モデルと生成の定義）。見出し（`Generators.marker`）で見分け、見出しの無い文書は消さない。書き込みはセッションの取引だけで、検証・保存は今までの経路。業務モデルの項に設計の規則（表や URL の決め方）を入れない（規則は生成の定義に書く。項が持つのは、参照先の型・State の値の列挙型・採番・入れ子の外側・作る型・書く値の項目ごとの基底の種類・操作が書くと破れうるデータの決まりのような業務の事実だけ。決まりをどう確かめるか（Java か SQL か対象外か）は生成の定義が決める）。定義の種類（`yde-*`）を詳細化する文書のスキーマは、業務のエンティティ型として数えない。
+- **流れ**: `Generators.plan` → 定義の `scope` ごとに業務モデルの項を 1 回作る（スコープのスキーマだけから。ADR-0032）→ 定義に `stage` があれば、スコープと段の組ごとに段の項を 1 回作る（[段の項（段階的詳細化）](#段の項段階的詳細化)）→ 定義ごとに `each` の要素へ `SemanticTransform.runAt`（場所 `model` と `element` を渡す）→ `output` を `TextTemplate.render` で埋める → 見出しのコメントを付けて文字にし、保存済みの内容と比べる → `WorkspaceTransaction`（作成・置き換え・削除）。
+- **規律**: 生成物は原本ではない（原本は業務モデルと生成の定義）。見出し（`Generators.marker`）で見分け、見出しの無い文書は消さない。書き込みはセッションの取引だけで、検証・保存は今までの経路。業務モデルの項に設計の規則（表や URL の決め方）を入れない（規則は段の規則か生成の定義に書く。項が持つのは、参照先の型・State の値の列挙型・採番・入れ子の外側・作る型・書く値の項目ごとの基底の種類・操作が書くと破れうるデータの決まりのような業務の事実だけ。決まりをどう確かめるか（Java か SQL か対象外か）は生成の定義が決める）。定義の種類（`yde-*`）を詳細化する文書のスキーマは、業務のエンティティ型として数えない。
+
+## 段の項（段階的詳細化）
+
+業務モデルの項に、段の並び（`.yde/workspace.yaml` の `stages:`）の順に、その段の規則と補正を当てたものが段の項（ADR-0034）。
+生成の定義は `stage` で段を選び、その段の項を `model` として読む。形は業務モデルの項と同じなので、段を変えても生成の定義の書き方は変わらない。
+
+- **流れ**: `Stages.term` → `DefinitionStages.upTo(段)` で最初の段からの並び → 段ごとに、stages ゾーンの文書のうちその段のものを、規則（`kind: rule`）→ 補正（`kind: patch`）の順に（どちらも置き場の名前の順）`TermChanges.apply` で当てる → 項の頭に `stages`（当てた段と、段ごとの規則・補正の一覧）を足す。
+- **当て方**（`TermChanges`）: 変更ごとに、いまの場所から `each`（`[*]` で入れ子の並びにも広がる。`PathPattern.expand`）の並びの要素を選び、`where`（変換の `$when` と同じ条件）に合うものへ、置き換え（`set`）→ 中へ足す（`add`）→ 後ろへ足す（`after`）→ 中の変更（`changes`）の順に当てる。値は変換のひな型（`SemanticTransform.runAt`）で、いまの場所は選んだ要素、`$of: model` は文書を当てる前の項、`$of: <bind>` は外側の変更で選んだ要素。
+- **出どころ**: 足した object に `origin`（`{stage, stageLabel, by, label, kind}`）を付け、置き換えた場所は要素の `origins` に `{path, …}` を足す。業務モデルから来たものには付かない。
+- **規律**: 段の項を作る計算は決定的で、渡した項を変えない（写しに当てる）。業務モデルの項には段の規則の結果を混ぜない（段を書かない生成の定義は、今までどおり業務モデルの項を読む）。補正は当たる要素が無い変更を誤りにし、規則は誤りにしない（全体の方針は、当たる要素が無いワークスペースでも書いてよい）。段の宣言と規則・補正の誤りは、その段を読む生成の誤りに出す。
 
 ## レポート（YAML から文字へ）
 

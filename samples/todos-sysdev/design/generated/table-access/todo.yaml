@@ -1,4 +1,4 @@
-# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
+# 生成物（table-access）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODOの読み書き
 mapper: TodoMapper
@@ -272,6 +272,10 @@ methods:
         value:
           $copy: today
           $of: context
+      - item: updated_by
+        value:
+          $copy: actor
+          $of: context
     where:
       - item: id
         param: id
@@ -285,6 +289,10 @@ methods:
       - item: updated_on
         value:
           $copy: today
+          $of: context
+      - item: updated_by
+        value:
+          $copy: actor
           $of: context
     where:
       - item: id
@@ -355,6 +363,10 @@ methods:
         value:
           $copy: today
           $of: context
+      - item: updated_by
+        value:
+          $copy: actor
+          $of: context
     where:
       - item: id
         param: id
@@ -389,6 +401,10 @@ methods:
         value:
           $copy: today
           $of: context
+      - item: updated_by
+        value:
+          $copy: actor
+          $of: context
     where:
       - item: id
         param: id
@@ -405,6 +421,10 @@ methods:
         value:
           $copy: today
           $of: context
+      - item: updated_by
+        value:
+          $copy: actor
+          $of: context
     where:
       - item: id
         param: id
@@ -420,6 +440,10 @@ methods:
       - item: updated_on
         value:
           $copy: today
+          $of: context
+      - item: updated_by
+        value:
+          $copy: actor
           $of: context
     where:
       - item: id
@@ -441,6 +465,10 @@ methods:
         value:
           $copy: today
           $of: context
+      - item: updated_by
+        value:
+          $copy: actor
+          $of: context
     where:
       - item: id
         param: id
@@ -459,6 +487,10 @@ methods:
         value:
           $copy: today
           $of: context
+      - item: updated_by
+        value:
+          $copy: actor
+          $of: context
     where:
       - item: id
         param: id
@@ -472,6 +504,10 @@ methods:
       - item: updated_on
         value:
           $copy: today
+          $of: context
+      - item: updated_by
+        value:
+          $copy: actor
           $of: context
     where:
       - item: id

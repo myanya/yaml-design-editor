@@ -19,6 +19,10 @@ root:
       label: スコープ
       type: string
       description: "業務モデルを、どのスコープ（.yde/workspace.yaml の scopes）の定義体から作るか（例 business）。省くと、ワークスペースのすべてのスキーマから作る"
+    - key: stage
+      label: 段
+      type: string
+      description: "どの段（.yde/workspace.yaml の stages）の項を読むか（例 basic）。段の項は、業務モデルの項に、その段までの規則と補正（.yde/stages）を当てたもので、形は業務モデルの項と同じ（足したものに出どころ origin が付く）。省くと業務モデルの項そのもの"
     - key: each
       label: 文書ごとの要素
       type: string

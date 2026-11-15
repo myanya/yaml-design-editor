@@ -6,6 +6,7 @@ description: >-
   区画の行の ID → 詳細・集計のセル → 一覧（行と列で絞る）・ボタン → 操作の最初の画面・参照の項目 → 参照先の詳細・
   入力 → 確認 → 確定 → 起点の画面（確認から入力へ戻れる）。業務の流れの図（flow）は、いまは外す
 scope: business
+stage: basic
 each: dashboards
 output: "design/generated/screens/transitions/{id}.yaml"
 build:

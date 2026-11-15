@@ -6,6 +6,7 @@ description: >-
   CRUD 表は、項目ごとに、どの操作がその項目を作る（C）・書き換える（U）かを並べる（列は、この型の項目を書く操作）。
   値はすべて業務モデルから写し、設計の判断は入れない
 scope: business
+stage: basic
 each: entities
 output: "design/generated/entities/{id}.yaml"
 build:
@@ -38,6 +39,8 @@ build:
       item: { $copy: "items[0].field.item" }
       fields: { $copy: "items[0].field.fields" }
       documents: { $each: items, $build: { $copy: schema } }
+      # 業務モデルに無く、段の規則・補正で足した項目の出どころ
+      origin: { $format: "{stageLabel}「{label}」（{by}）", $at: "items[0].field.origin" }
   # CRUD 表の列（この型の項目を書く操作）の名前
   operations:
     $group: { $apply: marks }

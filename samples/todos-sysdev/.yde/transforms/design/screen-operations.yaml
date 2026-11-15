@@ -6,6 +6,7 @@ description: >-
   入力の値は hidden 項目で持ち回り、確定で入力検査・状態・前提をすべて確かめ直す・確定の後は起点の画面へリダイレクトし、完了の知らせを出す・
   起点の画面は画面の ID で受け取る（URL は受け取らない）・断ったときは確認画面に断りの文を出す。URL は業務の ID のまま
 scope: business
+stage: basic
 each: actions
 output: "design/generated/screens/operations/{id}.yaml"
 build:

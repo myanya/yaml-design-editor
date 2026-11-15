@@ -1,4 +1,4 @@
-# 生成物（screen-details）: 手で直さず、業務モデルか生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-details）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODO詳細
 kind: detail
@@ -35,6 +35,9 @@ items:
   - key: updated_on
     label: 更新日
     type: common#年月日
+  - key: updated_by
+    label: 更新者
+    type: 利用者ID
   - key: due_on
     label: 期限
     type: common#年月日

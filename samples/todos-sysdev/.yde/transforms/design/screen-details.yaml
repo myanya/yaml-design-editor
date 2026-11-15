@@ -6,6 +6,7 @@ description: >-
   ID の無い繰り返し（コメント・履歴）は表・入れ子の型（作業項目）は表にして、行の右にその型の操作のボタン・
   画面の下に、この型を受け手にする操作のボタン（Lifecycle の状態で出す・出さない）。直接の編集は無い（閲覧専用の範囲）
 scope: business
+stage: basic
 each: entities
 output: "design/generated/screens/details/{id}.yaml"
 build:

@@ -4,6 +4,7 @@ description: >-
   詳細設計。ダッシュボードごとに、一覧画面の Controller を 1 つ作る。絞り込み（ダッシュボードの共有の入力）と、集計のセルから来たときの
   行と列の絞り込みは URL のパラメータで受け取る（タブごとに独立。セッションには置かない）。完了の知らせ（flash）を読む
 scope: business
+stage: detail
 each: dashboards
 output: "design/generated/controllers/dashboards/{id}.yaml"
 build:

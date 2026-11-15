@@ -6,6 +6,7 @@ description: >-
   上部の操作はボタン・一覧の区画の行の右に、行の型を受け手にする操作のボタン（Lifecycle の状態で出す・出さない）・
   行の ID は詳細画面へ・集計のセルは、その行と列で絞った一覧へ・ボタンは操作の入力画面（入力が無ければ確認画面）へ
 scope: business
+stage: basic
 each: dashboards
 output: "design/generated/screens/lists/{id}.yaml"
 build:

@@ -8,6 +8,7 @@ description: >-
   空の欄は未入力（null。前後の空白は落とさない）・値を消すは、効果の「when: clear.項目」から、その項目の欄の横にチェック・
   変わった項目だけを送る操作は、確認画面に変わる項目だけを「今の値 → 新しい値」で出す（今の値は DB から）・物理パラメータは既定の表から
 scope: business
+stage: detail
 each: actions
 output: "design/generated/screen-designs/operations/{id}.yaml"
 build:

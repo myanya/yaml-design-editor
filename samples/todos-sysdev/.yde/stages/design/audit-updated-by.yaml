@@ -1,0 +1,28 @@
+id: audit-updated-by
+name: 更新者を記録する
+stage: basic
+kind: rule
+# 業務モデルには無い、システムの監査のための項目。値は操作した人（文脈の値 actor）で、誰をどう決めるかは、ここでは決めない
+description: 更新日を記録する型には、更新した人（更新者）も記録する。更新日を書く操作は、同じところへ更新者も書く
+changes:
+  # 更新日（保存時に自動で入る updated）の項目の後ろに、更新者の項目を足す
+  - each: "entities[*].aspects[*].fields"
+    where: [{ path: auto, equals: updated }]
+    after:
+      - key: updated_by
+        label: 更新者
+        type: 利用者ID
+        base: string
+        required: true
+        maxLength: 50
+        description: 最後に中身を変えた人。更新日と同じときに入る
+  # 更新日を書く効果の後ろに、更新者を書く効果を足す（同じ文書・同じ型へ）
+  - each: "actions[*].effects"
+    where: [{ path: auto, equals: updated }]
+    after:
+      - op: set
+        schema: { $copy: schema }
+        entity: { $copy: entity }
+        path: updated_by
+        value: { $$copy: actor, $$of: context }
+        field: { key: updated_by, base: string }

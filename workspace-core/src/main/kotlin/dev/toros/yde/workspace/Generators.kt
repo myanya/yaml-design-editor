@@ -24,6 +24,11 @@ data class GeneratorDef(
     /** 文書の中身を組み立てる変換（いまの場所＝要素。業務モデル全体は `$of: model`）。 */
     val transform: TransformDef,
     val source: DocumentId,
+    /**
+     * どの段（workspace.yaml の stages）の項を読むか（null＝業務モデルの項そのもの）。段の項は、業務モデルの項に、その段までの
+     * 規則と補正を当てたもの（[Stages]。形は同じで、足したものに出どころが付く）。
+     */
+    val stage: String? = null,
 )
 
 /** 生成した文書 1 つ（文字は保存する形＝見出しのコメントつき）。 */
@@ -58,13 +63,15 @@ object Generators {
     /** 生成の定義が `$of` で読む、いまの要素（each の要素。繰り返しの中から外側の要素を読む）の名前。 */
     const val ELEMENT = "element"
 
-    private val KEYS = setOf("id", "name", "description", "scope", "each", "output", "build", "rules")
+    private val KEYS = setOf("id", "name", "description", "scope", "stage", "each", "output", "build", "rules")
 
     /** 生成物の見出しの始まり（この定義の生成物かを見分ける）。 */
     fun marker(generator: String): String = "# 生成物（$generator）"
 
     private fun header(def: GeneratorDef): String =
-        "${marker(def.id)}: 手で直さず、業務モデルか生成の定義（${WorkspaceLayout.nameInZone(def.source.value)}）を直して作り直します（CLI generate）。"
+        if (def.stage == null) "${marker(def.id)}: 手で直さず、業務モデルか生成の定義（${WorkspaceLayout.nameInZone(def.source.value)}）を直して作り直します（CLI generate）。"
+        // 段の項を読む生成物は、段の規則・補正（.yde/stages）でも直せる（ADR-0034）
+        else "${marker(def.id)}: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（${WorkspaceLayout.nameInZone(def.source.value)}）を直して作り直します（CLI generate）。"
 
     /** 生成の定義 1 件を読む。 */
     fun parse(raw: Any?, source: DocumentId): GeneratorDef {
@@ -81,7 +88,8 @@ object Generators {
             where, places = setOf(MODEL, ELEMENT),
         )
         val scope = m["scope"]?.toString()?.takeIf { it.isNotBlank() }
-        return GeneratorDef(id, m["name"]?.toString() ?: id, m["description"]?.toString(), each, scope, output, transform, source)
+        val stage = m["stage"]?.toString()?.takeIf { it.isNotBlank() }
+        return GeneratorDef(id, m["name"]?.toString() ?: id, m["description"]?.toString(), each, scope, output, transform, source, stage)
     }
 
     /** セッションの transforms ゾーンの生成の定義（下のフォルダも。ID の重なりは誤り）。 */
@@ -124,7 +132,7 @@ object Generators {
             }
         }.distinct().let { all -> all.filter { c -> '.' in c || all.none { it.startsWith("$c.") } } }
         linkedMapOf<String, Any?>(
-            "id" to def.id, "name" to def.name, "scope" to def.scope, "each" to def.each, "output" to def.output,
+            "id" to def.id, "name" to def.name, "scope" to def.scope, "stage" to def.stage, "each" to def.each, "output" to def.output,
             "concepts" to concepts, "reads" to reads,
         ).filterValues { it != null }
     }
@@ -135,12 +143,20 @@ object Generators {
         val errors = defErrors.toMutableList()
         only.filter { name -> defs.none { it.id == name } }.forEach { errors += "生成の定義「$it」がありません（ある定義: ${defs.joinToString(", ") { d -> d.id }.ifEmpty { "なし" }}）" }
         val selected = if (only.isEmpty()) defs else defs.filter { it.id in only }
-        // 業務モデルは、生成の定義が読むスコープごとに 1 回だけ作る
-        val models = HashMap<String?, YNode?>()
+        // 業務モデルは、生成の定義が読むスコープごとに 1 回だけ作る。段の項は、スコープと段の組ごとに 1 回（誤りも 1 回だけ出す）
+        val business = HashMap<String?, YNode?>()
+        val models = HashMap<Pair<String?, String?>, YNode?>()
         val outputs = mutableListOf<GeneratedDocument>()
         for (def in selected) {
-            val model = models.getOrPut(def.scope) {
-                runCatching { BusinessModel.of(session, def.scope) }.getOrElse { errors += "${def.id}: ${it.message}"; null }
+            val model = models.getOrPut(def.scope to def.stage) {
+                val base = business.getOrPut(def.scope) {
+                    runCatching { BusinessModel.of(session, def.scope) }.getOrElse { errors += "${def.id}: ${it.message}"; null }
+                } ?: return@getOrPut null
+                if (def.stage == null) base else Stages.term(session, base, def.stage).let { staged ->
+                    // 前の段の誤りは、後の段の項を作るときにも出るので、計画の最後に重なりを除く
+                    errors += staged.errors
+                    staged.term
+                }
             } ?: continue
             val modelPlace = SemanticTransform.TemplatePlace(model, null, emptyList())
             for ((index, element) in elementsOf(def, model, errors).withIndex()) {
@@ -188,7 +204,7 @@ object Generators {
         }.distinct().sortedBy { it.value }
         deleted.forEach { operations += WorkspaceOperation.DeleteDocument(it) }
         return GenerationPlan(
-            unique, created, updated, deleted, unchanged, errors,
+            unique, created, updated, deleted, unchanged, errors.distinct(),
             WorkspaceTransaction(session.version, ChangeIntent("生成: ${selected.joinToString("・") { it.name }}"), operations),
         )
     }

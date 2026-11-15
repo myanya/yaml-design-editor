@@ -7,6 +7,7 @@ description: >-
   （セルは、その行と列で絞った一覧へ）・行が 0 件なら表の代わりに「該当する…はありません」（正常。メッセージのキー list.empty.型）・
   読み出しは区画ごとの Mapper の select と count
 scope: business
+stage: detail
 each: dashboards
 output: "design/generated/screen-designs/lists/{id}.yaml"
 build:

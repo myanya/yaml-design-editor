@@ -581,6 +581,6 @@ object WorkspaceReader {
         if (!hasConfigDir) return WorkspaceLayout.LEGACY
         val ledger = configText?.let { runCatching { WorkspaceLayout.parseLedgerText(it) }.getOrDefault(emptyList()) }.orEmpty()
         val files = configText?.let { runCatching { WorkspaceLayout.parseFilesText(it) }.getOrDefault(FilePolicy.DEFAULT) } ?: FilePolicy.DEFAULT
-        return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger, files = files, scopes = WorkspaceLayout.parseScopesText(configText))
+        return WorkspaceLayout(configDir = WorkspaceLayout.CONFIG_DIR, ledger = ledger, files = files, scopes = WorkspaceLayout.parseScopesText(configText), stages = WorkspaceLayout.parseStagesText(configText))
     }
 }

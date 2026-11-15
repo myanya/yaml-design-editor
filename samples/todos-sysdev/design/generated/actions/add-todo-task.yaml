@@ -1,4 +1,4 @@
-# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（action-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
 id: add-todo-task
 name: 作業項目を追加する
 description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
@@ -33,3 +33,10 @@ effects:
       $copy: today
       $of: context
     source: auto
+  - op: set
+    entity: todo
+    path: updated_by
+    value:
+      $copy: actor
+      $of: context
+    origin: 基本設計「更新者を記録する」（audit-updated-by）

@@ -6,6 +6,7 @@ description: >-
   参照は名前と ID で参照先の詳細へのリンク・文章は改行を保つ）・繰り返しと入れ子の型は見出しつきの表（入れ子の型の行の右に、その型の操作のボタン）・
   画面の下に操作のボタン（Lifecycle の状態で出す・出さない。押すと操作の最初の画面へ。起点の画面の ID を from で渡す）・読み出しは Mapper の findDetail
 scope: business
+stage: detail
 each: entities
 output: "design/generated/screen-designs/details/{id}.yaml"
 build:

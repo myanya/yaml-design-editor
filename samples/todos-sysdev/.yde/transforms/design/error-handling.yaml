@@ -7,6 +7,7 @@ description: >-
   見つからない画面（404）・トークンが無い・違うなら InvalidTokenException で起点の画面へリダイレクトし、知らせを出す・そのほかは想定外としてエラー画面（500）に
   受付番号だけを出し、例外と受付番号をログに残す・画面にスタックトレース・SQL・例外の文を出さない・絞り込みの結果が 0 件は例外にしない（正常）
 scope: business
+stage: detail
 output: "design/generated/error-handling.yaml"
 build:
   id: error-handling

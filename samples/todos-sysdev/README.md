@@ -21,10 +21,11 @@
 
 | 場所 | 中身 |
 |---|---|
-| `.yde/workspace.yaml` | 台帳（`design/`）と、定義体のスコープ（業務モデル・設計。設計は業務モデルを使ってよく、逆は誤り） |
+| `.yde/workspace.yaml` | 台帳（`design/`）と、定義体のスコープ（業務モデル・設計。設計は業務モデルを使ってよく、逆は誤り）と、段の並び（基本設計・詳細設計） |
 | `.yde/schemas/business/`・`.yde/views/business/` | 業務モデルの写し（todos の `.yde/schemas` と `.yde/views` を丸ごと。手で直さない） |
 | `.yde/schemas/design/` | 設計書の形（操作系・データ系・画面系・エラーとメッセージ系の設計書）と、設計の対応の検査（`coverage.yaml`） |
-| `.yde/transforms/design/` | 生成の定義（業務モデルのスコープから設計書を作る YAML の計算） |
+| `.yde/transforms/design/` | 生成の定義（段の項から設計書を作る YAML の計算。基本設計書は基本設計の段、詳細設計書は詳細設計の段を読む） |
+| `.yde/stages/design/` | 段の規則と補正（業務モデルに無いが、システムとして要るものを段の項に足す。いまは基本設計の規則「更新者を記録する」） |
 | `.yde/views/design/` | 統合のビュー（操作ごと・エンティティ型ごとに基本から詳細までを 1 つの画面に・設計の対応表） |
 | `design/generated/` | 生成物の設計書（手で直さない。業務モデルか生成の定義を直して作り直す） |
 
@@ -54,6 +55,20 @@
 前提（断りの種類）は `操作ID.前提ID`（`complete-todo.no-open-task`）、状態が合わない断りは `操作ID.state`、データの決まりの違反は `check.決まりID`（`check.closed-has-result`）です。
 
 名前は業務の ID から機械的に作ります（`complete-todo` → `completeTodo`・`CompleteTodoForm`・`TodoController`）。英語の文法の規則（複数形など）は入れません。URL も業務の ID をそのまま使います（`POST /todo/{id}/complete-todo`）。
+
+## 段（基本設計・詳細設計）
+
+設計書は、業務モデルの項から直接ではなく、段の項から作ります（ADR-0034）。基本設計書は基本設計の段の項、詳細設計書は詳細設計の段の項を読みます。
+段の項は、前の段の項に、その段の規則と補正（`.yde/stages/design/`）を当てたもので、形は業務モデルの項と同じです。
+
+| 段 | 当てる規則・補正 | 効くところ |
+|---|---|---|
+| 基本設計 | 規則「更新者を記録する」（`audit-updated-by`）: 更新日を記録する型に更新者（`updated_by`）を足し、更新日を書く操作は更新者に操作した人（文脈の値 `actor`）を書く | エンティティ定義書の項目と CRUD 表・アクション定義書の結果・ドメイン定義書の情報・画面定義書の詳細画面・テーブル設計書の列・処理設計書と Mapper の書く値 |
+| 詳細設計 | まだ無い | ― |
+
+- 業務モデルに無く、段の規則・補正で足したものには出どころが付きます（エンティティ定義書の項目・テーブル設計書の列・アクション定義書の結果の `origin`。例「基本設計「更新者を記録する」（audit-updated-by）」）。
+- 直すところは 3 つです。業務の事実は業務モデル（samples/todos）、全体の方針は段の規則、個別の例外は段の補正に書きます。生成物は直しません。
+- 誰が操作したか（`actor`）の決め方は、まだ決めていません（ログインはありません）。
 
 ## ドメインの決まり
 
@@ -163,6 +178,15 @@
    - `design/generated/processes/complete-todo.yaml`: 確認へで呼ぶ `checkCompleteTodo` と、データの決まりの手順（書く前に Java・書いた後に件数）。
    - `design/generated/messages.yaml` と `design/generated/error-handling.yaml`: キーと文・入力の誤りの文（フォームの項目ごと）・例外のクラスと受ける所・エラー画面・設定。
 10. 作業用コピーで、業務モデルのダッシュボード（`.yde/views/business/todo-dashboard.yaml`）から区画「カテゴリ一覧」を消して作り直すと、カテゴリの詳細画面は TODO の参照からたどれるので残ります。上部のボタン「カテゴリを追加する」を消すと、その操作の画面とハンドラが消え、検証が「ダッシュボードからたどれず、画面がありません」「Controller のハンドラがありません」と警告します（設計書の側に案内として出ます）。
+11. 段の項を見ます。
+
+    ```bash
+    ./gradlew runCli -q --args="generate samples/todos-sysdev --model --scope business --stage detail"
+    ```
+
+    `entities` の `todo` で、更新日（`updated_on`）の後ろに更新者（`updated_by`）があり、`origin` が付いていることを確かめます。末尾の `stages` に、当てた段と規則の一覧があります。
+    `--stage` を外すと、業務モデルの項には更新者が無いことも見られます。
+    生成物では、`design/generated/entities/todo.yaml` と `design/generated/tables/todo.yaml` の更新者に出どころ（`origin`）が付き、`design/generated/processes/start-todo.yaml` の書く値に更新者が入ります。
 
 ## 業務モデルの追従
 

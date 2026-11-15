@@ -5,6 +5,7 @@ description: >-
   ドメインの中の入れ子（保有）を 1 本にする。業務の言葉で書き、人が読む文書（ほかの設計書の入力にはしない）。
   元と先はドメイン定義書の ID（エンティティ型の ID）で書き、YDE の図で関係を見られる
 scope: business
+stage: basic
 output: "design/generated/domain-relations.yaml"
 build:
   id: domain-relations

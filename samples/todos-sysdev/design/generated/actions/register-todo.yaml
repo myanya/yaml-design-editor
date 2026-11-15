@@ -1,4 +1,4 @@
-# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（action-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
 id: register-todo
 name: TODOを登録する
 description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
@@ -133,3 +133,10 @@ effects:
       $copy: today
       $of: context
     source: auto
+  - op: set
+    entity: todo
+    path: updated_by
+    value:
+      $copy: actor
+      $of: context
+    origin: 基本設計「更新者を記録する」（audit-updated-by）

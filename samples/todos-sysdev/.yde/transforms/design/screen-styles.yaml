@@ -5,6 +5,7 @@ description: >-
   ③では、この表から CSS を作る（各クラスを @apply で定義する）。HTML には決まった名前のクラスだけを書き、見た目はこの表で変える。
   クラスの名前の決まり: 部品の名前（page・section・facts・table・field など）と、パラメータの値（w-m・w-40ch・cols-2・button-primary・align-end・gap-l）
 scope: business
+stage: detail
 output: "design/generated/screen-designs/styles.yaml"
 build:
   id: screen-styles

@@ -7,6 +7,7 @@ description: >-
   状態・前提・データの決まりは確定のときに確認画面に・ID を指定して見つからなければ見つからない画面（404）・絞り込みの結果が 0 件は正常（一覧に文）・
   二重の確定と時間切れは起点の画面へ戻して知らせ・想定外はエラー画面（受付番号だけ。500）・断るのはエラーの決まりだけ（警告は断らない）
 scope: business
+stage: basic
 output: "design/generated/errors.yaml"
 build:
   id: errors

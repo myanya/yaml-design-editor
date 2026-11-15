@@ -1,0 +1,77 @@
+id: builtin-stage
+name: 段の規則と補正（段の項の変更）
+description: 段（.yde/workspace.yaml の stages）の項を作るときに、前の段の項へ当てる変更。規則（rule）は全体の方針（更新者・テナント分離・名前の決まりなど）を条件で選んだ要素に当て、補正（patch）は個別の例外を ID で選んだ要素に当てる。足した要素と置き換えた場所には出どころが付く。生成の定義は stage で段を選んで、その段の項を読む
+match: "_stages/**/*.{yaml,yml}"
+root:
+  type: object
+  fields:
+    - key: id
+      label: 規則・補正ID
+      type: id
+      required: true
+    - key: name
+      label: 表示名
+      type: string
+      description: 出どころに出す名前（例 更新者を記録する）
+    - key: description
+      label: 説明
+      type: text
+    - key: stage
+      label: 段
+      type: string
+      required: true
+      description: "当てる段の id（.yde/workspace.yaml の stages。例 basic）。その段の項は、前の段の項にこの段の規則と補正を当てたもの"
+    - key: kind
+      label: 種類
+      type: enum
+      required: true
+      values:
+        - { value: rule, label: 規則（全体の方針） }
+        - { value: patch, label: 補正（個別の例外） }
+      description: "段の中では規則を先に、補正を後に当てる（どちらも置き場の名前の順）。補正は、当たる要素が 1 つも無い変更を誤りにする"
+    - key: changes
+      label: 変更
+      type: array
+      required: true
+      description: 上から順に当てる変更
+      item:
+        type: object
+        fields:
+          - key: each
+            label: 選ぶ並び
+            type: string
+            description: "いまの場所から見た並びの場所（例 entities・actions[*].effects・entities[*].aspects[*].fields）。並びの要素ごとに当てる。省くと、いまの場所そのもの"
+          - key: where
+            label: 条件
+            type: any
+            description: "要素を選ぶ条件の並び（変換の $when と同じ書き方。例 [{path: id, equals: todo}]）。省くとすべての要素"
+          - key: bind
+            label: 名前
+            type: string
+            description: "選んだ要素の名前。中の変更の値と条件から $of で読める"
+          - key: set
+            label: 置き換える
+            type: any
+            description: "「要素の中の場所: 値」。値は変換のひな型（いまの場所は選んだ要素・当てる前の項は $of: model）。置き換えた場所は要素の origins に記録する"
+          - key: add
+            label: 中へ足す
+            type: any
+            description: "「要素の中の並びの場所: 足す値」。値が並びなら、その要素をすべて足す。足した object には origin が付く"
+          - key: after
+            label: 後ろへ足す
+            type: any
+            description: "選んだ要素の後ろ（同じ並びの次）へ足す値。値が並びなら、その要素をすべて足す。足した object には origin が付く"
+          - key: changes
+            label: 中の変更
+            type: any
+            description: 選んだ要素をいまの場所にして当てる変更の並び（書き方はこの並びと同じ）
+    - key: rules
+      label: 名前を付けた組み立て
+      type: array
+      description: "値のひな型から {$apply: 規則名} で使う組み立て（生成の定義の rules と同じ）"
+      item:
+        type: object
+        fields:
+          - { key: id, label: 規則名, type: string, required: true }
+          - { key: when, label: 条件, type: any }
+          - { key: build, label: ひな型, type: any, required: true }

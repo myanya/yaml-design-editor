@@ -7,6 +7,7 @@ description: >-
   （必須は欄の種類で「入力して」か「選んで」）・完了の知らせは操作の名前の末尾の「する」を「しました」にして ID を添える・
   絞り込みの結果が 0 件は「該当する…はありません」・見つからない・二重の確定・想定外は決まった文。確かめない決まり（エラー定義書の対象外）の文は載せない
 scope: business
+stage: basic
 output: "design/generated/messages.yaml"
 build:
   id: messages

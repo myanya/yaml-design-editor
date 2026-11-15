@@ -1,4 +1,4 @@
-# 生成物（screen-styles）: 手で直さず、業務モデルか生成の定義（design/screen-styles.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-styles）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-styles.yaml）を直して作り直します（CLI generate）。
 id: screen-styles
 name: 画面のクラスの対応表（Tailwind CSS）
 naming:

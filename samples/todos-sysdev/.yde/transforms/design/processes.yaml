@@ -10,6 +10,7 @@ description: >-
   受け取る値が原因で破れうる Java の決まりは、確認へでも確かめる（confirm のメソッド。書かない）。
   型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない。断りの文はメッセージのキー（メッセージ定義書）で書く
 scope: business
+stage: detail
 each: actions
 output: "design/generated/processes/{id}.yaml"
 build:

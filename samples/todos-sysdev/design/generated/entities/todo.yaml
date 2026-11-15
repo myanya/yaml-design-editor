@@ -1,4 +1,4 @@
-# 生成物（entity-specs）: 手で直さず、業務モデルか生成の定義（design/entity-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（entity-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/entity-specs.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODO
 numbering:
@@ -109,6 +109,15 @@ items:
     format: yyyy年M月d日
     documents:
       - todo-detail
+  - key: updated_by
+    label: 更新者
+    type: 利用者ID
+    base: string
+    required: true
+    maxLength: 50
+    documents:
+      - todo-detail
+    origin: 基本設計「更新者を記録する」（audit-updated-by）
   - key: due_on
     label: 期限
     type: common#年月日
@@ -377,6 +386,18 @@ crud:
     todo-task.finish: ''
   - 項目: updated_on
     名前: 更新日
+    register-todo: C
+    add-todo-comment: U
+    add-todo-task: U
+    edit-todo: U
+    start-todo: U
+    suspend-todo: U
+    resume-todo: U
+    complete-todo: U
+    cancel-todo: U
+    todo-task.finish: U
+  - 項目: updated_by
+    名前: 更新者
     register-todo: C
     add-todo-comment: U
     add-todo-task: U

@@ -4,6 +4,7 @@ description: >-
   Lifecycle ごとに、状態の enum（保存する値）と、詳細化の親の判定と、操作ごとにできる状態と移り先を書く。
   決め打ちの規則: enum の名前は「型の名前＋Status」・定数は保存する値・親の判定は「is＋親の ID」のメソッド
 scope: business
+stage: detail
 each: lifecycles
 output: "design/generated/status/{id}.yaml"
 build:

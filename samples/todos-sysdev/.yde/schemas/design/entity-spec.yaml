@@ -37,6 +37,7 @@ root:
           - { key: maxLength, label: 最大文字数, type: int }
           - { key: target, label: 参照先, type: any }
           - { key: documents, label: 業務モデルの文書, type: array, item: { type: string } }
+          - { key: origin, label: 出どころ, type: string, description: "業務モデルに無く、段の規則・補正で足した項目（段「名前」（ID））" }
     - key: operations
       label: CRUD 表の列（操作）
       type: array

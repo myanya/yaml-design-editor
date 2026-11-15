@@ -1,7 +1,7 @@
 # 生成（業務モデルから文書へ）
 
 業務モデル（スキーマの操作・State・Lifecycle・エンティティ型）から、設計書のような YAML の文書を作ります。
-作った文書は生成物です。手で直さず、業務モデルか生成の定義を直して作り直します。実例は `samples/todos-sysdev` です。
+作った文書は生成物です。手で直さず、業務モデルか生成の定義（段を読むなら段の規則・補正も）を直して作り直します。実例は `samples/todos-sysdev` です。
 
 ## 業務モデルの定義を指す（定義の索引）
 
@@ -127,6 +127,54 @@ build:                                        # 文書の中身（変換のひ�
 - `build` が何も作らなかった要素（`$when` で外したもの）は、文書を作りません。
 - 作った文書の先頭には「# 生成物（定義ID）」の見出しが付きます。作り直すたびに、出力の場所（穴を `*` にした場所）にある、同じ定義の生成物で作らなかったものは消します。見出しの無い文書は消しません。
 - 定義はゾーンの下のフォルダに分けて置けます。ID はゾーン全体で 1 つです。
+
+## 段（基本設計・詳細設計）と、規則・補正
+
+設計書を、業務モデルの項から直接ではなく、段の項から作れます（段階的詳細化）。段の項は、前の段の項に、その段の規則と補正を当てたものです。
+業務モデルに無いが、システムとして当たり前に要るもの（更新者・テナント分離・名前の決まりなど）を、段の規則として外付けで差し込みます。
+
+```yaml
+# .yde/workspace.yaml
+stages:                      # 並びの順に当てる。最初の段の入力は業務モデルの項
+  - id: basic
+    name: 基本設計
+  - id: detail
+    name: 詳細設計
+```
+
+```yaml
+# .yde/transforms/design/table-designs.yaml
+scope: business
+stage: detail                # 詳細設計の段の項を読む（基本設計の規則・補正も当たっている）
+each: entities
+```
+
+規則と補正は `.yde/stages/` に置きます。
+
+```yaml
+# .yde/stages/design/audit-updated-by.yaml
+id: audit-updated-by
+name: 更新者を記録する
+stage: basic
+kind: rule                                   # rule＝全体の方針・patch＝個別の例外
+changes:
+  - each: "entities[*].aspects[*].fields"    # 並びの要素ごとに（[*] で入れ子の並びにも広がる）
+    where: [{ path: auto, equals: updated }] # 選ぶ条件（変換の $when と同じ書き方）
+    after:                                   # 選んだ要素の後ろへ足す
+      - { key: updated_by, label: 更新者, type: 利用者ID, base: string, required: true, maxLength: 50 }
+  - each: "actions[*].effects"
+    where: [{ path: auto, equals: updated }]
+    after:
+      - { op: set, schema: { $copy: schema }, entity: { $copy: entity }, path: updated_by, value: { $$copy: actor, $$of: context } }
+```
+
+- 変更の書き方は、選ぶ（`each`・`where`）と、置き換える（`set: {場所: 値}`）・中へ足す（`add: {並びの場所: 値}`）・後ろへ足す（`after`）です。入れ子の `changes` と、選んだ要素の名前 `bind` も書けます。
+- 値は変換のひな型です。いまの場所は選んだ要素で、当てる前の項は `$of: model`、外側の変更で選んだ要素は `$of: <bind>` で読めます。出力のキーを `$` で始めるときは `$$` と書きます。
+- 段の中では、規則を先に、補正を後に当てます（どちらも置き場の名前の順）。補正は規則の結果も直せます。
+- 補正は、当たる要素が 1 つも無い変更を誤りにします（業務モデルの ID や名前が変わったことに気づくため）。規則は誤りにしません。
+- 足した要素には出どころ `origin`（段・規則か補正の ID と名前・種類）が付き、置き換えた場所は要素の `origins` に残ります。設計書はこれを写して、業務モデルに無い項目がなぜあるかを示せます。段の項の頭の `stages` は、当てた段と規則・補正の一覧です。
+- 直すところは 3 つです。業務の事実は業務モデル、全体の方針は段の規則、個別の例外は段の補正に書きます。生成物は直しません。
+- `generate <ws> --model --scope business --stage basic` で、段の項を見られます。
 
 ## 作る・作り直す
 
