@@ -105,6 +105,27 @@ class BusinessModelTest {
     }
 
     @Test
+    fun `ビューとダッシュボードと ダッシュボードからたどれる範囲`() {
+        val management = byId("views", "todo-management")
+        assertEquals("grid", management["kind"])
+        assertEquals("todo", management["rows"])
+        assertEquals("カテゴリ", list("columns", management).first()["label"])
+        val matrix = byId("views", "category-status-matrix")
+        assertEquals("category" to "todo", matrix["rows"] to matrix["counts"], "集計は行の型と、数える要素の型")
+        val dashboard = byId("dashboards", "todo-dashboard")
+        assertEquals(true, dashboard["default"])
+        assertEquals(listOf("register-todo", "add-category", "add-tag"), dashboard["actions"])
+        assertTrue(list("sections", dashboard).any { it["id"] == "categories-master" && it["view"] == "category-management" })
+        // たどれる範囲: 区画の行の型（todo・category・tag）と参照先、入れ子の型（作業項目）、上部の操作と受け手がたどれる型の操作
+        val reach = dashboard["reach"] as Map<*, *>
+        assertEquals(listOf("todo", "category", "tag"), reach["entities"])
+        assertEquals(listOf("todo-task"), reach["nested"])
+        assertEquals(12, (reach["operations"] as List<*>).size)
+        assertTrue("todo-task.finish" in (reach["operations"] as List<*>), "入れ子の型の操作も、詳細画面の表からたどれる")
+        assertEquals(reach, model["reach"], "ダッシュボードが 1 つなら、和も同じ")
+    }
+
+    @Test
     fun `採番 入れ子の外側 参照先 State の値 作るエンティティ 書く項目`() {
         // 採番: 作る手の id（TODO）・配列の追加の決まり（作業項目は外側の番号に -S と 2 桁、カテゴリは CAT- と 3 桁）
         assertEquals(mapOf("path" to "id", "prefix" to "TODO-", "digits" to 3), byId("entities", "todo")["numbering"])

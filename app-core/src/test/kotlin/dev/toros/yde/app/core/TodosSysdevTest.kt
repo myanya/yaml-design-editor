@@ -54,6 +54,30 @@ class TodosSysdevTest {
         assertEquals("", status["edit-todo"], "編集は状態を変えない")
     }
 
+    /**
+     * 画面系（画面遷移定義書・画面定義書・Controller・セッション情報設計）は、ダッシュボードを起点に業務モデルから計算で作る:
+     * 一覧画面 1・詳細画面 3（入れ子の作業項目は画面にしない）・入力画面 10・確認画面 12 の 26 画面。ビューは定義の索引の yde-view。
+     */
+    @Test
+    fun `画面系の設計書はダッシュボードを起点に計算で作る`() {
+        fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
+        fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+        val transitions = doc("design/generated/screens/transitions/todo-dashboard.yaml")
+        val kinds = list(transitions, "screens").groupingBy { it["kind"].toString() }.eachCount()
+        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 10, "confirm" to 12), kinds)
+        assertTrue(java.nio.file.Files.notExists(root.resolve("design/generated/screens/details/todo-task.yaml")), "入れ子の型は詳細画面にしない")
+        val start = doc("design/generated/screens/operations/start-todo.yaml")
+        kotlin.test.assertNull(start["input"], "受け取る値が無い操作は、入力画面を作らない")
+        assertEquals("GET /todo/{id}/start-todo/confirm", (start["confirm"] as Map<*, *>)["request"])
+        assertEquals(listOf(mapOf("value" to "OPEN", "label" to "未着手")), start["shownWhen"], "ボタンは Lifecycle の状態で出す")
+        val list = doc("design/generated/screens/lists/todo-dashboard.yaml")
+        assertEquals(listOf("register-todo", "add-category", "add-tag"), list(list, "buttons").map { it["operation"] }, "上部のボタンはダッシュボードに書いた順")
+        val session = doc("design/generated/session.yaml")
+        assertEquals(listOf("csrf", "token", "notice"), list(session, "attributes").map { it["key"] })
+        val index = dev.toros.yde.app.core.Workspace.open(root).index
+        assertEquals("yde-view", index.entries["todo-dashboard"]?.firstOrNull { it.role == dev.toros.yde.semantic.schema.EntityRole.DEFINING }?.entityType, "ビューの定義は定義の索引の yde-view")
+    }
+
     @Test
     fun `検証にエラーが無い`() {
         val ws = WorkspaceReader.load(FileSystemDocumentStore(root), builtins = dev.toros.yde.app.schema.BuiltinSchemas.kernelSchemas(dev.toros.yde.workspace.layout.WorkspaceLayout.of(root)))

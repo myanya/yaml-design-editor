@@ -1,59 +1,84 @@
 id: screen-flows
 name: 画面遷移設計（Controller）
 description: >-
-  エンティティ型ごとに Controller を 1 つ作り、その型を主体にする操作ごとにハンドラを書く。
-  決め打ちの規則: URL は業務の ID をそのまま（/型/{id}/操作）・名前はケバブからの機械的な変換だけ・入力は htmx の断片で開く・
-  成功したら受け手（作ったもの）の画面へ、受け手の無い一覧への追加は一覧へ戻る・断りは断片に出して返す
+  詳細設計。ダッシュボードからたどれるエンティティ型（と入れ子の型）ごとに Controller を 1 つ作り、詳細画面のハンドラと、その型を主体にする
+  操作のハンドラ（入力・確認・入力へ戻る・確定）を書く。決め打ちの規則（画面系の議論で決めたもの）: 状態を変えるのは POST だけ（GET は読むだけ）・
+  確認で入力検査（Bean Validation）・確定でトークンを照合し、Service が入力検査・状態・前提を確かめ直す・確定の後は起点の画面へリダイレクト（PRG）・
+  起点の画面は画面の ID（パラメータ from）で受け取る・セッションは「セッション情報設計」のキーだけを使う。フォームの項目は画面設計書で決める（ここはクラス名で指す）
 scope: business
 each: entities
 output: "design/generated/controllers/{id}.yaml"
 build:
+  $when: [{ or: [{ of: model, path: reach.entities, includes: { $copy: id } }, { of: model, path: reach.nested, includes: { $copy: id } }] }]
   id: { $copy: id }
   name: { $format: "{label}の画面の動き" }
   controller: { $format: "{name}Controller", $with: { name: { $case: { $copy: id }, $as: pascal } } }
+  screens:
+    $when: [{ of: model, path: reach.entities, includes: { $copy: id } }]
+    $then:
+      - screen: { $copy: id }
+        handler: show
+        request: { $format: "GET /{t}/{k}", $with: { t: { $copy: id }, k: "{id}" } }
+        does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+        session: { reads: [notice] }
   handlers:
     $each: actions
     $of: model
     $bind: a
     $build:
-      $when: [{ path: subject, equals: { $copy: id, $of: element } }]
+      $when: [{ path: subject, equals: { $copy: id, $of: element } }, { of: model, path: reach.operations, includes: { $copy: id } }]
       action: { $copy: id }
       name: { $copy: label }
-      method: { $case: { $copy: id }, $as: camel }
-      # 受け手のある操作は /型/{id}/操作、受け手の無い操作は /型/操作
-      open:
-        method: GET
-        url:
-          $first:
-            - $when: [{ path: target.entity, exists: true }]
-              $then: { $format: "/{type}/{key}/{action}", $with: { type: { $copy: subject }, key: "{id}", action: { $copy: id } } }
-            - { $format: "/{type}/{action}", $with: { type: { $copy: subject }, action: { $copy: id } } }
-        fragment: { $format: "{type}/{action}", $with: { type: { $copy: subject }, action: { $copy: id } } }
-      submit:
-        method: POST
-        url:
-          $first:
-            - $when: [{ path: target.entity, exists: true }]
-              $then: { $format: "/{type}/{key}/{action}", $with: { type: { $copy: subject }, key: "{id}", action: { $copy: id } } }
-            - { $format: "/{type}/{action}", $with: { type: { $copy: subject }, action: { $copy: id } } }
-        form:
-          $when: [{ path: params, empty: false }]
-          $then: { $format: "{name}Form", $with: { name: { $case: { $copy: id }, $as: pascal } } }
-      on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-      on_business_error:
-        fragment: 入力の断片に断りの文を出して返す
-        preconditions:
-          $concat:
-            - $when: [{ path: lifecycle.refusal, exists: true }]
-              $then: [{ $format: "{id}.state" }]
-            - $each: require
-              $build:
-                $when: [{ path: id, exists: true }]
-                $then: { $format: "{action}.{rule}", $with: { action: { $copy: id, $of: a }, rule: { $copy: id } } }
-      on_success:
-        redirect:
-          $first:
-            - $when: { or: [{ path: target.entity, exists: true }, { path: lifecycle.entry, exists: true }] }
-              $then: { $format: "/{type}/{key}", $with: { type: { $copy: subject }, key: "{id}" } }
-            - { $format: "/{type}", $with: { type: { $copy: subject } } }
-        notice: { $format: "{action}.done", $with: { action: { $copy: id } } }
+      form:
+        $when: [{ path: params, empty: false }]
+        $then: { $format: "{name}Form", $with: { name: { $case: { $copy: id }, $as: pascal } } }
+      service: { $format: "{s}Service.{m}", $with: { s: { $case: { $copy: subject }, $as: pascal }, m: { $case: { $copy: id }, $as: camel } } }
+      returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+      steps:
+        $concat:
+          - $when: [{ path: params, empty: false }]
+            $then:
+              - handler: { $format: "{m}Input", $with: { m: { $case: { $copy: id }, $as: camel } } }
+                request: { $format: "GET {u}", $with: { u: { $apply: url } } }
+                screen: { $format: "{id}/input" }
+                does: 受け手を読み、初期値でフォームを作って入力画面を出す
+          - - handler: { $format: "{m}Confirm", $with: { m: { $case: { $copy: id }, $as: camel } } }
+              request:
+                $first:
+                  - $when: [{ path: params, empty: false }]
+                    $then: { $format: "POST {u}/confirm", $with: { u: { $apply: url } } }
+                  - { $format: "GET {u}/confirm", $with: { u: { $apply: url } } }
+              screen: { $format: "{id}/confirm" }
+              does:
+                $first:
+                  - $when: [{ path: params, empty: false }]
+                    $then: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+                  - 受け手を読んで確認画面を出す
+              session: { puts: [token] }
+          - $when: [{ path: params, empty: false }]
+            $then:
+              - handler: { $format: "{m}Back", $with: { m: { $case: { $copy: id }, $as: camel } } }
+                request: { $format: "POST {u}/back", $with: { u: { $apply: url } } }
+                screen: { $format: "{id}/input" }
+                does: hidden 項目の値で入力画面を出す
+          - - handler: { $case: { $copy: id }, $as: camel }
+              request: { $format: "POST {u}", $with: { u: { $apply: url } } }
+              does: >-
+                トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く →
+                断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+              session: { reads: [token], removes: [token], puts: [notice] }
+              refusals:
+                $concat:
+                  - $when: [{ path: lifecycle.refusal, exists: true }]
+                    $then: [{ $format: "{id}.state" }]
+                  - $each: require
+                    $build:
+                      $when: [{ path: id, exists: true }]
+                      $then: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }
+rules:
+  # いまの場所＝操作。受け手のある操作は /型/{id}/操作、受け手の無い操作は /型/操作（型は主体のエンティティ型。画面定義書と同じ）
+  - id: url
+    when: [{ path: target.entity, exists: true }]
+    build: { $format: "/{t}/{k}/{a}", $with: { t: { $copy: subject }, k: "{id}", a: { $copy: id } } }
+  - id: url
+    build: { $format: "/{t}/{a}", $with: { t: { $copy: subject }, a: { $copy: id } } }

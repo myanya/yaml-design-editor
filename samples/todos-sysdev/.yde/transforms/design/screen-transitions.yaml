@@ -1,0 +1,162 @@
+id: screen-transitions
+name: 画面遷移定義書
+description: >-
+  基本設計。ダッシュボードを起点に、たどれる画面の一覧と、画面の移り方を 1 本にする（業務モデルの項の reach）。
+  画面は 一覧画面（ダッシュボード）・詳細画面（たどれるエンティティ型ごと）・操作の入力画面と確認画面。移り方は
+  区画の行の ID → 詳細・集計のセル → 一覧（行と列で絞る）・ボタン → 操作の最初の画面・参照の項目 → 参照先の詳細・
+  入力 → 確認 → 確定 → 起点の画面（確認から入力へ戻れる）。業務の流れの図（flow）は、いまは外す
+scope: business
+each: dashboards
+output: "design/generated/screens/transitions/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $format: "{label}からの画面遷移" }
+  start: { $copy: id }
+  screens:
+    $concat:
+      - [{ id: { $copy: id }, kind: list, label: { $copy: label } }]
+      - $each: reach.entities
+        $bind: e
+        $flatten: true
+        $build:
+          $each: entities
+          $of: model
+          $build:
+            $when: [{ path: id, equals: { $copy: ., $of: e } }]
+            id: { $copy: id }
+            kind: detail
+            label: { $format: "{label}詳細" }
+      - $each: actions
+        $of: model
+        $flatten: true
+        $build:
+          $when: [{ of: element, path: reach.operations, includes: { $copy: id } }]
+          $then:
+            $concat:
+              - $when: [{ path: params, empty: false }]
+                $then: [{ id: { $format: "{id}/input" }, kind: input, label: { $format: "{label}（入力）" } }]
+              - [{ id: { $format: "{id}/confirm" }, kind: confirm, label: { $format: "{label}（確認）" } }]
+  transitions:
+    $concat:
+      # 一覧画面: 区画の行の ID → 詳細画面、集計のセル → 一覧画面（行と列で絞る）
+      - $each: sections
+        $bind: sec
+        $flatten: true
+        $build:
+          $each: views
+          $of: model
+          $build:
+            $when: [{ path: id, equals: { $copy: view, $of: sec } }, { path: rows, exists: true }]
+            from: { $copy: id, $of: element }
+            by:
+              $first:
+                - $when: [{ path: kind, equals: matrix }]
+                  $then: { $format: "区画「{l}」のセル", $with: { l: { $copy: label, $of: sec } } }
+                - { $format: "区画「{l}」の行の ID", $with: { l: { $copy: label, $of: sec } } }
+            to: { $first: [{ $when: [{ path: kind, equals: matrix }], $then: { $copy: id, $of: element } }, { $copy: rows }] }
+            note: { $when: [{ path: kind, equals: matrix }], $then: その行と列で絞る（URL のパラメータ） }
+      # 一覧画面: 上部のボタン → 操作の最初の画面
+      - $each: actions
+        $bind: aid
+        $flatten: true
+        $build:
+          $each: actions
+          $of: model
+          $build:
+            $when: [{ path: id, equals: { $copy: ., $of: aid } }]
+            from: { $copy: id, $of: element }
+            by: { $format: "ボタン「{label}」" }
+            to: { $apply: first-screen }
+      # 一覧画面: 区画の行のボタン（行の型を受け手にする操作）
+      - $each: sections
+        $bind: sec
+        $flatten: true
+        $build:
+          $each: views
+          $of: model
+          $bind: v
+          $flatten: true
+          $build:
+            $when: [{ path: id, equals: { $copy: view, $of: sec } }, { path: kind, equals: grid }]
+            $then:
+              $each: actions
+              $of: model
+              $build:
+                $when: [{ path: target.entity, equals: { $copy: rows, $of: v } }]
+                from: { $copy: id, $of: element }
+                by: { $format: "区画「{s}」の行のボタン「{l}」", $with: { s: { $copy: label, $of: sec }, l: { $copy: label } } }
+                to: { $apply: first-screen }
+      # 詳細画面: 参照の項目 → 参照先の詳細画面、画面のボタン → 操作の最初の画面
+      - $each: reach.entities
+        $bind: e
+        $flatten: true
+        $build:
+          $each: entities
+          $of: model
+          $bind: ent
+          $flatten: true
+          $build:
+            $when: [{ path: id, equals: { $copy: ., $of: e } }]
+            $then:
+              $concat:
+                - $group: { $apply: fields }
+                  $by:
+                    $when: [{ or: [{ path: field.target, exists: true }, { path: field.item.target, exists: true }] }]
+                    $then: { $copy: field.key }
+                  $build:
+                    from: { $copy: id, $of: ent }
+                    by: { $format: "項目「{l}」", $with: { l: { $copy: "items[0].field.label" } } }
+                    to: { $first: [{ $copy: "items[0].field.target" }, { $copy: "items[0].field.item.target" }] }
+                - $each: actions
+                  $of: model
+                  $build:
+                    $when: [{ path: target.entity, equals: { $copy: id, $of: ent } }]
+                    from: { $copy: id, $of: ent }
+                    by: { $format: "ボタン「{label}」" }
+                    to: { $apply: first-screen }
+      # 詳細画面: 入れ子の型の表の行のボタン
+      - $each: reach.nested
+        $bind: n
+        $flatten: true
+        $build:
+          $each: entities
+          $of: model
+          $bind: ent
+          $flatten: true
+          $build:
+            $when: [{ path: id, equals: { $copy: ., $of: n } }]
+            $then:
+              $each: actions
+              $of: model
+              $build:
+                $when: [{ path: target.entity, equals: { $copy: id, $of: ent } }]
+                from: { $copy: owner.entity, $of: ent }
+                by: { $format: "表「{t}」の行のボタン「{l}」", $with: { t: { $copy: label, $of: ent }, l: { $copy: label } } }
+                to: { $apply: first-screen }
+      # 操作の画面: 入力 → 確認 → 確定 → 起点の画面（確認から入力へ戻れる）
+      - $each: actions
+        $of: model
+        $flatten: true
+        $build:
+          $when: [{ of: element, path: reach.operations, includes: { $copy: id } }]
+          $then:
+            $concat:
+              - $when: [{ path: params, empty: false }]
+                $then:
+                  - { from: { $format: "{id}/input" }, by: ボタン「確認へ」, to: { $format: "{id}/confirm" } }
+                  - { from: { $format: "{id}/confirm" }, by: ボタン「入力へ戻る」, to: { $format: "{id}/input" } }
+              - [{ from: { $format: "{id}/confirm" }, by: ボタン「確定」, to: 起点の画面, note: 完了の知らせを出す }]
+rules:
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build: { field: { $copy: . }, schema: { $copy: schema, $of: asp } }
+  - id: first-screen
+    when: [{ path: params, empty: false }]
+    build: { $format: "{id}/input" }
+  - id: first-screen
+    build: { $format: "{id}/confirm" }

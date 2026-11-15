@@ -5,18 +5,24 @@ controller: TodoTaskController
 handlers:
   - action: todo-task.finish
     name: 作業項目を済にする
-    method: todoTaskFinish
-    open:
-      method: GET
-      url: /todo-task/{id}/todo-task.finish
-      fragment: todo-task/todo-task.finish
-    submit:
-      method: POST
-      url: /todo-task/{id}/todo-task.finish
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions: []
-    on_success:
-      redirect: /todo-task/{id}
-      notice: todo-task.finish.done
+    service: TodoTaskService.todoTaskFinish
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: todoTaskFinishConfirm
+        request: GET /todo-task/{id}/todo-task.finish/confirm
+        screen: todo-task.finish/confirm
+        does: 受け手を読んで確認画面を出す
+        session:
+          puts:
+            - token
+      - handler: todoTaskFinish
+        request: POST /todo-task/{id}/todo-task.finish
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals: []

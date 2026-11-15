@@ -93,8 +93,9 @@ object SchemaDefinitionChecks {
         val issues = mutableListOf<SchemaIssue>()
         issues += filePatternIssues(schema)
         // 定義の索引の種類（yde-*）は業務モデルの定義が定義の出現を持つ。利用者は詳細化（defines: false）としてだけ宣言できる
+        // （組込みのメタスキーマ builtin-view は、ビューの文書を yde-view の定義の出現にするため宣言する。ADR-0033）
         (entities + definitions.values.mapNotNull { it.entity } + listOfNotNull(root.entity))
-            .filter { it.defines && it.type.startsWith(DefinitionIndex.PREFIX) }
+            .filter { it.defines && it.type.startsWith(DefinitionIndex.PREFIX) && !(id == "builtin-view" && it.type == DefinitionIndex.VIEW) }
             .map { it.type }.distinct()
             .forEach { type ->
                 issues += SchemaIssue("エンティティ型「$type」は業務モデルの定義の種類です（定義の出現は YDE が作ります）。defines: false の詳細化として宣言します", "entity")

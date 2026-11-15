@@ -1,0 +1,14 @@
+# 生成物（screen-details）: 手で直さず、業務モデルか生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
+id: category
+name: カテゴリ詳細
+kind: detail
+url: /category/{id}
+items:
+  - key: id
+    label: ID
+    type: common#カテゴリ番号
+  - key: name
+    label: カテゴリ名
+    type: common#一行の文
+tables: []
+buttons: []

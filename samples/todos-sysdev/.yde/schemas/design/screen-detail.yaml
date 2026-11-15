@@ -1,0 +1,18 @@
+id: screen-detail
+name: 画面定義書（詳細画面）
+kind: document
+description: >-
+  基本設計。ダッシュボードからたどれるエンティティ型 1 つの詳細画面（項目・参照の先・繰り返しと入れ子の型の表・操作のボタンと、それを出す状態）。
+  生成物（.yde/transforms/design/screen-details.yaml）で、手で直さない
+match: "design/generated/screens/details/*.yaml"
+entity: { type: yde-entity, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: エンティティ型, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: kind, label: 種類, type: string }
+    - { key: url, label: URL, type: string }
+    - { key: items, label: 項目, type: array, display: table, item: { type: any } }
+    - { key: tables, label: 表, type: array, display: list, item: { type: any } }
+    - { key: buttons, label: 操作のボタン, type: array, display: table, item: { type: any } }

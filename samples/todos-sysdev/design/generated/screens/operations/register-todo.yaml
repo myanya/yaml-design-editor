@@ -1,0 +1,71 @@
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+id: register-todo
+name: TODOを登録する
+kind: operation
+starts:
+  - screen: todo-dashboard
+    place: 上部のボタン
+shownWhen: いつも
+input:
+  screen: register-todo/input
+  request: GET /todo/register-todo
+  items:
+    - key: title
+      label: タイトル
+      type: common#一行の文
+      base: string
+      required: true
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+    - key: summary
+      label: 概要
+      type: common#一行の文
+      base: string
+      required: true
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+    - key: category
+      label: カテゴリ
+      type: common#カテゴリ参照
+      base: ref
+      target: category
+    - key: tags
+      label: タグ
+      type: array
+      base: array
+      target: tag
+      many: true
+    - key: follows
+      label: 元のTODO
+      type: common#TODO参照
+      base: ref
+      target: todo
+    - key: due
+      label: 期限
+      type: common#年月日
+      base: date
+    - key: details
+      label: 詳細
+      type: common#文章
+      base: string
+      multiline: true
+confirm:
+  screen: register-todo/confirm
+  request: POST /todo/register-todo/confirm
+  shows:
+    - タイトル
+    - 概要
+    - カテゴリ
+    - タグ
+    - 元のTODO
+    - 期限
+    - 詳細
+  back:
+    request: POST /todo/register-todo/back
+    to: register-todo/input
+execute:
+  request: POST /todo/register-todo
+  returns: 起点の画面（starts の画面。画面の ID で受け取る）
+  notice: register-todo.done
+  refusals: []
+  onRefusal: 確認画面に断りの文を出す

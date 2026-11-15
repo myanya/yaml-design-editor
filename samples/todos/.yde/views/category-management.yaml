@@ -1,0 +1,15 @@
+id: category-management
+name: カテゴリ一覧
+description: カテゴリを並べ、名前と、そのカテゴリのTODOの数を見ます。ダッシュボードの「マスタ」の区画から開きます。カテゴリの追加はダッシュボード上部の操作です。
+rows:
+  match:
+    - node: { entity: category, bind: c }
+order:
+  schemaId: category-list
+columns:
+  - label: カテゴリ名
+    schemaId: category-list
+    path: name
+  # このカテゴリを参照するTODOの数（関係 in-category を逆にたどる）
+  - label: TODOの数
+    value: { refCount: { of: c, dir: in, relation: in-category } }

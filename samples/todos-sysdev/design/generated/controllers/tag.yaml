@@ -2,22 +2,44 @@
 id: tag
 name: タグの画面の動き
 controller: TagController
+screens:
+  - screen: tag
+    handler: show
+    request: GET /tag/{id}
+    does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+    session:
+      reads:
+        - notice
 handlers:
   - action: add-tag
     name: タグを追加する
-    method: addTag
-    open:
-      method: GET
-      url: /tag/add-tag
-      fragment: tag/add-tag
-    submit:
-      method: POST
-      url: /tag/add-tag
-      form: AddTagForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions: []
-    on_success:
-      redirect: /tag
-      notice: add-tag.done
+    form: AddTagForm
+    service: TagService.addTag
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: addTagInput
+        request: GET /tag/add-tag
+        screen: add-tag/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: addTagConfirm
+        request: POST /tag/add-tag/confirm
+        screen: add-tag/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: addTagBack
+        request: POST /tag/add-tag/back
+        screen: add-tag/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: addTag
+        request: POST /tag/add-tag
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals: []

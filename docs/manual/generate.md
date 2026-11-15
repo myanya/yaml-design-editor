@@ -14,6 +14,7 @@
 | `yde-state` | State の ID（`todo-CLOSED`・詳細化の親 `todo-ACTIVE`） | `states` の要素（列挙型から作ったものは `source` の宣言） |
 | `yde-lifecycle` | Lifecycle の ID | `lifecycles` の要素 |
 | `yde-entity` | エンティティ型の名前（`todo`） | `entity: {type: …}` を書いた object（定義の宣言を優先） |
+| `yde-view` | ビューの ID（ダッシュボード `todo-dashboard`・表 `todo-management` など） | ビューの定義の文書（`.yde/views`）のルート |
 
 ```yaml
 # 設計書のスキーマ: 業務の操作と同じ ID の詳細化
@@ -33,6 +34,11 @@ entity: { type: yde-action, defines: false }
 - `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・作るエンティティ型（`creates`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
   文書を作る手と要素を足す手には、書く値の項目ごとの基底の種類（`written`）と採番（`numbering`）が付きます。
 - `states`・`lifecycles`: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle です。State は ID・名前・値の組で書きます。
+- `views`・`dashboards`: ビュー（ID・名前・種類 grid / matrix / chart・行の型 `rows`・列の見出しと読む項目。集計は数える要素の型 `counts`）と、
+  ダッシュボード（絞り込みの入力・上部の操作・区画）です。スコープを書いたときは、そのスコープのビューだけを読みます。
+- `reach`（と各ダッシュボードの `reach`）: ダッシュボードからたどれる範囲です。区画のビューの行と数える要素の型から、参照の項目の参照先をたどった
+  エンティティ型（`entities`）、その中に入れ子で書かれた型（`nested`）、上部の操作と、たどれる型を受け手にする操作（`operations`）。
+  業務の流れ（`flow`）の図は、いまは数えません。ダッシュボードからたどれるものを画面にする生成は、ここを読みます（`samples/todos-sysdev` の画面系）。
 
 ## スコープ（業務モデルとして読む範囲）
 

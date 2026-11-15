@@ -1,0 +1,37 @@
+id: dashboard-flows
+name: 画面遷移設計（一覧画面の Controller）
+description: >-
+  詳細設計。ダッシュボードごとに、一覧画面の Controller を 1 つ作る。絞り込み（ダッシュボードの共有の入力）と、集計のセルから来たときの
+  行と列の絞り込みは URL のパラメータで受け取る（タブごとに独立。セッションには置かない）。完了の知らせ（flash）を読む
+scope: business
+each: dashboards
+output: "design/generated/controllers/dashboards/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $format: "{label}の画面の動き" }
+  controller: { $format: "{name}Controller", $with: { name: { $case: { $copy: id }, $as: pascal } } }
+  screens:
+    - screen: { $copy: id }
+      handler: show
+      request:
+        $first:
+          - $when: [{ path: default, equals: true }]
+            $then: GET /
+          - { $format: "GET /{id}" }
+      params:
+        $concat:
+          - $each: inputs
+            $build: { key: { $copy: key }, label: { $copy: label }, multiple: { $copy: multiple } }
+          # 集計のセルから来たときの絞り込み（行の型と、列の項目）
+          - $each: sections
+            $bind: sec
+            $flatten: true
+            $build:
+              $each: views
+              $of: model
+              $build:
+                $when: [{ path: id, equals: { $copy: view, $of: sec } }, { path: kind, equals: matrix }]
+                key: { $format: "{s}.cell", $with: { s: { $copy: id, $of: sec } } }
+                label: { $format: "区画「{l}」のセル（行と列）", $with: { l: { $copy: label, $of: sec } } }
+      does: 絞り込みで区画の一覧と集計を読んで、一覧画面を出す
+      session: { reads: [notice] }

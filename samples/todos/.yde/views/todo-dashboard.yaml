@@ -44,3 +44,12 @@ sections:
     label: タグ別の状況
     group: 全体
     view: tag-status-matrix
+  # マスタ: カテゴリとタグを並べて見る（追加は上部の操作）。ダッシュボードからたどれるものが、アプリの画面になる
+  - id: categories-master
+    label: カテゴリ一覧
+    group: マスタ
+    view: category-management
+  - id: tags-master
+    label: タグ一覧
+    group: マスタ
+    view: tag-management

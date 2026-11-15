@@ -1,0 +1,52 @@
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+id: cancel-todo
+name: TODOを中止する
+kind: operation
+target: todo
+starts:
+  - screen: todo-dashboard
+    place: 区画「期限超過」の行のボタン
+  - screen: todo-dashboard
+    place: 区画「すべてのTODO」の行のボタン
+  - screen: todo
+    place: 画面のボタン
+shownWhen:
+  - value: OPEN
+    label: 未着手
+  - value: IN_PROGRESS
+    label: 対応中
+  - value: SUSPENDED
+    label: 中断
+input:
+  screen: cancel-todo/input
+  request: GET /todo/{id}/cancel-todo
+  items:
+    - key: reason
+      label: 中止理由
+      type: todo-operations#操作の記録
+      base: string
+      required: true
+      minLength: 1
+      multiline: true
+confirm:
+  screen: cancel-todo/confirm
+  request: POST /todo/{id}/cancel-todo/confirm
+  shows:
+    - 中止理由
+  stateChange:
+    - from:
+        - 未着手
+        - 対応中
+        - 中断
+      to: 中止
+  back:
+    request: POST /todo/{id}/cancel-todo/back
+    to: cancel-todo/input
+execute:
+  request: POST /todo/{id}/cancel-todo
+  returns: 起点の画面（starts の画面。画面の ID で受け取る）
+  notice: cancel-todo.done
+  refusals:
+    - key: cancel-todo.state
+      message: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+  onRefusal: 確認画面に断りの文を出す

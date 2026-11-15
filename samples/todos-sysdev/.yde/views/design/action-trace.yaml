@@ -8,4 +8,5 @@ columns:
   - { label: 主体, schemaId: action-spec, path: subject }
   - { label: アクション定義書, value: { occurrenceCount: { of: a, schema: action-spec } } }
   - { label: 処理設計書, value: { occurrenceCount: { of: a, schema: process } } }
+  - { label: 画面定義書（入力と確認）, value: { occurrenceCount: { of: a, schema: screen-operation } } }
   - { label: 扱う Controller と Mapper, value: { refCount: { of: a, dir: in } } }

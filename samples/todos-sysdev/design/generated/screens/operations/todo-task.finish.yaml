@@ -1,0 +1,19 @@
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+id: todo-task.finish
+name: 作業項目を済にする
+kind: operation
+target: todo-task
+starts:
+  - screen: todo
+    place: 表「作業項目」の行のボタン
+shownWhen: いつも
+confirm:
+  screen: todo-task.finish/confirm
+  request: GET /todo-task/{id}/todo-task.finish/confirm
+  shows: []
+execute:
+  request: POST /todo-task/{id}/todo-task.finish
+  returns: 起点の画面（starts の画面。画面の ID で受け取る）
+  notice: todo-task.finish.done
+  refusals: []
+  onRefusal: 確認画面に断りの文を出す

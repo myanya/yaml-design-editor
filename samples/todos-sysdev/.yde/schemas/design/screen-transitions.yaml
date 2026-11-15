@@ -1,0 +1,43 @@
+id: screen-transitions
+name: 画面遷移定義書
+kind: document
+description: >-
+  基本設計。ダッシュボードを起点に、たどれる画面（一覧画面・詳細画面・操作の入力画面と確認画面）の一覧と、画面の移り方。
+  生成物（.yde/transforms/design/screen-transitions.yaml）で、手で直さない
+match: "design/generated/screens/transitions/*.yaml"
+# 業務のダッシュボード（ビュー）と同じ ID の詳細化
+entity: { type: yde-view, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: ダッシュボード, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: start, label: 最初の画面, type: string }
+    - key: screens
+      label: 画面
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: 画面の ID, type: string, required: true }
+          - key: kind
+            label: 種類
+            type: enum
+            values:
+              - { value: list, label: 一覧画面 }
+              - { value: detail, label: 詳細画面 }
+              - { value: input, label: 入力画面 }
+              - { value: confirm, label: 確認画面 }
+          - { key: label, label: 名前, type: string }
+    - key: transitions
+      label: 移り方
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: from, label: 元の画面, type: string, required: true }
+          - { key: by, label: きっかけ, type: string, required: true }
+          - { key: to, label: 移る先, type: string }
+          - { key: note, label: 補足, type: string }

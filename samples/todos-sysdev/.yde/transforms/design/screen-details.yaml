@@ -1,0 +1,91 @@
+id: screen-details
+name: 画面定義書（詳細画面）
+description: >-
+  基本設計。ダッシュボードからたどれるエンティティ型ごとに、詳細画面を 1 つ作る（業務モデルの項の reach.entities）。
+  決め打ちの規則: 項目は業務モデルの 2 か所（一覧の行と個票）をまとめて並べる・参照の項目は参照先の詳細画面へ・
+  ID の無い繰り返し（コメント・履歴）は表・入れ子の型（作業項目）は表にして、行の右にその型の操作のボタン・
+  画面の下に、この型を受け手にする操作のボタン（Lifecycle の状態で出す・出さない）。直接の編集は無い（閲覧専用の範囲）
+scope: business
+each: entities
+output: "design/generated/screens/details/{id}.yaml"
+build:
+  $when: [{ of: model, path: reach.entities, includes: { $copy: id } }]
+  id: { $copy: id }
+  name: { $format: "{label}詳細" }
+  kind: detail
+  url: { $format: "/{t}/{k}", $with: { t: { $copy: id }, k: "{id}" } }
+  items:
+    $group: { $apply: fields }
+    $by:
+      $when: [{ or: [{ not: { path: field.base, oneOf: [array, object, map] } }, { path: field.item.base, equals: ref }] }]
+      $then: { $copy: field.key }
+    $build:
+      key: { $copy: key }
+      label: { $copy: "items[0].field.label" }
+      type: { $copy: "items[0].field.type" }
+      many: { $when: [{ path: "items[0].field.base", equals: array }], $then: true }
+      link: { $first: [{ $copy: "items[0].field.target" }, { $copy: "items[0].field.item.target" }] }
+  tables:
+    $concat:
+      # ID の無い繰り返し（コメント・履歴）
+      - $group: { $apply: fields }
+        $by:
+          $when: [{ path: field.base, equals: array }, { path: field.item.base, equals: object }, { path: field.item.entity, exists: false }]
+          $then: { $copy: field.key }
+        $build:
+          item: { $copy: key }
+          label: { $copy: "items[0].field.label" }
+          columns: { $each: "items[0].field.item.fields", $build: { $copy: label } }
+      # 入れ子の型（作業項目）: 行の右に、その型の操作のボタン
+      - $group: { $apply: fields }
+        $by: { $when: [{ path: field.item.entity, exists: true }], $then: { $copy: field.key } }
+        $bind: t
+        $build:
+          item: { $copy: key }
+          label: { $copy: "items[0].field.label" }
+          entity: { $copy: "items[0].field.item.entity" }
+          columns:
+            $each: entities
+            $of: model
+            $flatten: true
+            $build:
+              $when: [{ path: id, equals: { $copy: "items[0].field.item.entity", $of: t } }]
+              $then: { $each: "aspects[0].fields", $build: { $copy: label } }
+          rowButtons:
+            $each: actions
+            $of: model
+            $build:
+              $when: [{ path: target.entity, equals: { $copy: "items[0].field.item.entity", $of: t } }]
+              operation: { $copy: id }
+              label: { $copy: label }
+              shownWhen: { $apply: shown-when }
+              to: { $apply: first-screen }
+  buttons:
+    $each: actions
+    $of: model
+    $build:
+      $when: [{ path: target.entity, equals: { $copy: id, $of: element } }]
+      operation: { $copy: id }
+      label: { $copy: label }
+      shownWhen: { $apply: shown-when }
+      to: { $apply: first-screen }
+rules:
+  # いまの場所＝エンティティ型。側面ごとの項目を 1 列に（{field: 項目, schema: 書かれた文書の種類}）
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build: { field: { $copy: . }, schema: { $copy: schema, $of: asp } }
+  - id: shown-when
+    when: [{ path: lifecycle.transitions, exists: true }]
+    build: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { value: { $copy: value }, label: { $copy: label } } } }
+  - id: shown-when
+    build: いつも
+  - id: first-screen
+    when: [{ path: params, empty: false }]
+    build: { $format: "{id}/input" }
+  - id: first-screen
+    build: { $format: "{id}/confirm" }

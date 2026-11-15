@@ -1,6 +1,8 @@
 id: builtin-view
 name: ビュー定義（横断一覧・文書ビュー）
 match: "_views/**/*.{yaml,yml}"
+# ビュー（ダッシュボード・表・集計など）は業務モデルの定義（定義の索引の yde-view。ADR-0033）。画面の設計書は同じ ID の詳細化として書く
+entity: { type: yde-view, defines: true }
 definitions:
   notationInput:
     type: object

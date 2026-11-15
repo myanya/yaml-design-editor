@@ -2,172 +2,298 @@
 id: todo
 name: TODOの画面の動き
 controller: TodoController
+screens:
+  - screen: todo
+    handler: show
+    request: GET /todo/{id}
+    does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+    session:
+      reads:
+        - notice
 handlers:
   - action: register-todo
     name: TODOを登録する
-    method: registerTodo
-    open:
-      method: GET
-      url: /todo/register-todo
-      fragment: todo/register-todo
-    submit:
-      method: POST
-      url: /todo/register-todo
-      form: RegisterTodoForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions: []
-    on_success:
-      redirect: /todo/{id}
-      notice: register-todo.done
+    form: RegisterTodoForm
+    service: TodoService.registerTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: registerTodoInput
+        request: GET /todo/register-todo
+        screen: register-todo/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: registerTodoConfirm
+        request: POST /todo/register-todo/confirm
+        screen: register-todo/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: registerTodoBack
+        request: POST /todo/register-todo/back
+        screen: register-todo/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: registerTodo
+        request: POST /todo/register-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals: []
   - action: add-todo-comment
     name: TODOにコメントを追加する
-    method: addTodoComment
-    open:
-      method: GET
-      url: /todo/{id}/add-todo-comment
-      fragment: todo/add-todo-comment
-    submit:
-      method: POST
-      url: /todo/{id}/add-todo-comment
-      form: AddTodoCommentForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions: []
-    on_success:
-      redirect: /todo/{id}
-      notice: add-todo-comment.done
+    form: AddTodoCommentForm
+    service: TodoService.addTodoComment
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: addTodoCommentInput
+        request: GET /todo/{id}/add-todo-comment
+        screen: add-todo-comment/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: addTodoCommentConfirm
+        request: POST /todo/{id}/add-todo-comment/confirm
+        screen: add-todo-comment/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: addTodoCommentBack
+        request: POST /todo/{id}/add-todo-comment/back
+        screen: add-todo-comment/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: addTodoComment
+        request: POST /todo/{id}/add-todo-comment
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals: []
   - action: add-todo-task
     name: 作業項目を追加する
-    method: addTodoTask
-    open:
-      method: GET
-      url: /todo/{id}/add-todo-task
-      fragment: todo/add-todo-task
-    submit:
-      method: POST
-      url: /todo/{id}/add-todo-task
-      form: AddTodoTaskForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions:
-        - add-todo-task.active
-    on_success:
-      redirect: /todo/{id}
-      notice: add-todo-task.done
+    form: AddTodoTaskForm
+    service: TodoService.addTodoTask
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: addTodoTaskInput
+        request: GET /todo/{id}/add-todo-task
+        screen: add-todo-task/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: addTodoTaskConfirm
+        request: POST /todo/{id}/add-todo-task/confirm
+        screen: add-todo-task/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: addTodoTaskBack
+        request: POST /todo/{id}/add-todo-task/back
+        screen: add-todo-task/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: addTodoTask
+        request: POST /todo/{id}/add-todo-task
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - add-todo-task.active
   - action: edit-todo
     name: TODOを編集する
-    method: editTodo
-    open:
-      method: GET
-      url: /todo/{id}/edit-todo
-      fragment: todo/edit-todo
-    submit:
-      method: POST
-      url: /todo/{id}/edit-todo
-      form: EditTodoForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions: []
-    on_success:
-      redirect: /todo/{id}
-      notice: edit-todo.done
+    form: EditTodoForm
+    service: TodoService.editTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: editTodoInput
+        request: GET /todo/{id}/edit-todo
+        screen: edit-todo/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: editTodoConfirm
+        request: POST /todo/{id}/edit-todo/confirm
+        screen: edit-todo/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: editTodoBack
+        request: POST /todo/{id}/edit-todo/back
+        screen: edit-todo/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: editTodo
+        request: POST /todo/{id}/edit-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals: []
   - action: start-todo
     name: TODOに着手する
-    method: startTodo
-    open:
-      method: GET
-      url: /todo/{id}/start-todo
-      fragment: todo/start-todo
-    submit:
-      method: POST
-      url: /todo/{id}/start-todo
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions:
-        - start-todo.state
-    on_success:
-      redirect: /todo/{id}
-      notice: start-todo.done
+    service: TodoService.startTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: startTodoConfirm
+        request: GET /todo/{id}/start-todo/confirm
+        screen: start-todo/confirm
+        does: 受け手を読んで確認画面を出す
+        session:
+          puts:
+            - token
+      - handler: startTodo
+        request: POST /todo/{id}/start-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - start-todo.state
   - action: suspend-todo
     name: TODOを中断する
-    method: suspendTodo
-    open:
-      method: GET
-      url: /todo/{id}/suspend-todo
-      fragment: todo/suspend-todo
-    submit:
-      method: POST
-      url: /todo/{id}/suspend-todo
-      form: SuspendTodoForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions:
-        - suspend-todo.state
-    on_success:
-      redirect: /todo/{id}
-      notice: suspend-todo.done
+    form: SuspendTodoForm
+    service: TodoService.suspendTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: suspendTodoInput
+        request: GET /todo/{id}/suspend-todo
+        screen: suspend-todo/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: suspendTodoConfirm
+        request: POST /todo/{id}/suspend-todo/confirm
+        screen: suspend-todo/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: suspendTodoBack
+        request: POST /todo/{id}/suspend-todo/back
+        screen: suspend-todo/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: suspendTodo
+        request: POST /todo/{id}/suspend-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - suspend-todo.state
   - action: resume-todo
     name: TODOを再開する
-    method: resumeTodo
-    open:
-      method: GET
-      url: /todo/{id}/resume-todo
-      fragment: todo/resume-todo
-    submit:
-      method: POST
-      url: /todo/{id}/resume-todo
-      form: ResumeTodoForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions:
-        - resume-todo.state
-    on_success:
-      redirect: /todo/{id}
-      notice: resume-todo.done
+    form: ResumeTodoForm
+    service: TodoService.resumeTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: resumeTodoInput
+        request: GET /todo/{id}/resume-todo
+        screen: resume-todo/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: resumeTodoConfirm
+        request: POST /todo/{id}/resume-todo/confirm
+        screen: resume-todo/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: resumeTodoBack
+        request: POST /todo/{id}/resume-todo/back
+        screen: resume-todo/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: resumeTodo
+        request: POST /todo/{id}/resume-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - resume-todo.state
   - action: complete-todo
     name: TODOを完了する
-    method: completeTodo
-    open:
-      method: GET
-      url: /todo/{id}/complete-todo
-      fragment: todo/complete-todo
-    submit:
-      method: POST
-      url: /todo/{id}/complete-todo
-      form: CompleteTodoForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions:
-        - complete-todo.state
-        - complete-todo.no-open-task
-    on_success:
-      redirect: /todo/{id}
-      notice: complete-todo.done
+    form: CompleteTodoForm
+    service: TodoService.completeTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: completeTodoInput
+        request: GET /todo/{id}/complete-todo
+        screen: complete-todo/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: completeTodoConfirm
+        request: POST /todo/{id}/complete-todo/confirm
+        screen: complete-todo/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: completeTodoBack
+        request: POST /todo/{id}/complete-todo/back
+        screen: complete-todo/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: completeTodo
+        request: POST /todo/{id}/complete-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - complete-todo.state
+          - complete-todo.no-open-task
   - action: cancel-todo
     name: TODOを中止する
-    method: cancelTodo
-    open:
-      method: GET
-      url: /todo/{id}/cancel-todo
-      fragment: todo/cancel-todo
-    submit:
-      method: POST
-      url: /todo/{id}/cancel-todo
-      form: CancelTodoForm
-    on_input_error: 入力の断片を、項目ごとの誤りを添えて返す
-    on_business_error:
-      fragment: 入力の断片に断りの文を出して返す
-      preconditions:
-        - cancel-todo.state
-    on_success:
-      redirect: /todo/{id}
-      notice: cancel-todo.done
+    form: CancelTodoForm
+    service: TodoService.cancelTodo
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: cancelTodoInput
+        request: GET /todo/{id}/cancel-todo
+        screen: cancel-todo/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+      - handler: cancelTodoConfirm
+        request: POST /todo/{id}/cancel-todo/confirm
+        screen: cancel-todo/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        session:
+          puts:
+            - token
+      - handler: cancelTodoBack
+        request: POST /todo/{id}/cancel-todo/back
+        screen: cancel-todo/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: cancelTodo
+        request: POST /todo/{id}/cancel-todo
+        does: トークンを照合して消す（無い・違うなら断る）→ Service で入力検査・状態・前提を確かめ直して書く → 断れば確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - cancel-todo.state

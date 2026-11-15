@@ -1,0 +1,15 @@
+id: dashboard-flow
+name: 画面遷移設計（一覧画面の Controller）
+kind: document
+description: >-
+  詳細設計。ダッシュボード 1 つの一覧画面の Controller（URL・URL のパラメータで受け取る絞り込み・セッションのキー）。
+  生成物（.yde/transforms/design/dashboard-flows.yaml）で、手で直さない
+match: "design/generated/controllers/dashboards/*.yaml"
+entity: { type: yde-view, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: ダッシュボード, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: controller, label: Controller, type: string, required: true }
+    - { key: screens, label: 画面のハンドラ, type: array, display: list, item: { type: any } }

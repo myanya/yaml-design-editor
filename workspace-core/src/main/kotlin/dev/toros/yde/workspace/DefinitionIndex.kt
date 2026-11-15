@@ -34,9 +34,14 @@ object DefinitionIndex {
     const val ENTITY = "yde-entity"
     /** 操作の前提（名前 `id` を付けたものだけ）。 */
     const val REQUIRE = "yde-require"
+    /**
+     * ビュー（ダッシュボード・表・集計など）。定義の出現はビューの定義の文書のルートで、ここではなく組込みのメタスキーマ
+     * builtin-view の `entity` の宣言で載る（ビューの文書はもともと索引に載る）。
+     */
+    const val VIEW = "yde-view"
 
     /** 定義の索引が使うエンティティ型。利用者のスキーマは、これを定義（defines: true）として宣言できない。 */
-    val types: Set<String> = setOf(ACTION, STATE, LIFECYCLE, ENTITY, REQUIRE)
+    val types: Set<String> = setOf(ACTION, STATE, LIFECYCLE, ENTITY, REQUIRE, VIEW)
 
     /** 予約した接頭辞（利用者の型の名前に使わない）。 */
     const val PREFIX = "yde-"

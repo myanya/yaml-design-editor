@@ -1,0 +1,139 @@
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+id: edit-todo
+name: TODOを編集する
+kind: operation
+target: todo
+starts:
+  - screen: todo-dashboard
+    place: 区画「期限超過」の行のボタン
+  - screen: todo-dashboard
+    place: 区画「すべてのTODO」の行のボタン
+  - screen: todo
+    place: 画面のボタン
+shownWhen: いつも
+input:
+  screen: edit-todo/input
+  request: GET /todo/{id}/edit-todo
+  items:
+    - key: title
+      label: タイトル
+      type: common#一行の文
+      base: string
+      minLength: 1
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+    - key: summary
+      label: 概要
+      type: common#一行の文
+      base: string
+      minLength: 1
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+    - key: category
+      label: カテゴリ
+      type: common#カテゴリ参照
+      base: ref
+      target: category
+    - key: tags
+      label: タグ
+      type: array
+      base: array
+      target: tag
+      many: true
+    - key: created_on
+      label: 作成日
+      type: common#年月日
+      base: date
+    - key: due_on
+      label: 期限
+      type: common#年月日
+      base: date
+    - key: details
+      label: 詳細
+      type: common#文章
+      base: string
+      multiline: true
+    - key: result
+      label: 結果・中止理由
+      type: common#文章
+      base: string
+      multiline: true
+    - key: comments
+      label: コメント一覧
+      type: array
+      base: array
+      many: true
+    - key: clear
+      label: 値を消す
+      type: object
+      base: object
+  initial:
+    title:
+      $copy: title
+      $of: self
+      $in:
+        schemaId: todo-list
+    summary:
+      $copy: summary
+      $of: self
+      $in:
+        schemaId: todo-list
+    category:
+      $copy: category
+      $of: self
+      $in:
+        schemaId: todo-list
+    tags:
+      $copy: tags
+      $of: self
+      $in:
+        schemaId: todo-list
+    created_on:
+      $copy: created_on
+      $of: self
+      $in:
+        schemaId: todo-detail
+    due_on:
+      $copy: due_on
+      $of: self
+      $in:
+        schemaId: todo-detail
+    details:
+      $copy: details
+      $of: self
+      $in:
+        schemaId: todo-detail
+    result:
+      $copy: result
+      $of: self
+      $in:
+        schemaId: todo-detail
+    comments:
+      $copy: comments
+      $of: self
+      $in:
+        schemaId: todo-detail
+  submit: changed
+confirm:
+  screen: edit-todo/confirm
+  request: POST /todo/{id}/edit-todo/confirm
+  shows:
+    - タイトル
+    - 概要
+    - カテゴリ
+    - タグ
+    - 作成日
+    - 期限
+    - 詳細
+    - 結果・中止理由
+    - コメント一覧
+    - 値を消す
+  back:
+    request: POST /todo/{id}/edit-todo/back
+    to: edit-todo/input
+execute:
+  request: POST /todo/{id}/edit-todo
+  returns: 起点の画面（starts の画面。画面の ID で受け取る）
+  notice: edit-todo.done
+  refusals: []
+  onRefusal: 確認画面に断りの文を出す

@@ -1,0 +1,15 @@
+id: tag-management
+name: タグ一覧
+description: タグを並べ、名前と、そのタグを付けたTODOの数を見ます。ダッシュボードの「マスタ」の区画から開きます。タグの追加はダッシュボード上部の操作です。
+rows:
+  match:
+    - node: { entity: tag, bind: g }
+order:
+  schemaId: tag-list
+columns:
+  - label: タグ名
+    schemaId: tag-list
+    path: name
+  # このタグを付けたTODOの数（関係 tagged を逆にたどる）
+  - label: TODOの数
+    value: { refCount: { of: g, dir: in, relation: tagged } }

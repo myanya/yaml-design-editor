@@ -1,0 +1,31 @@
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+id: start-todo
+name: TODOに着手する
+kind: operation
+target: todo
+starts:
+  - screen: todo-dashboard
+    place: 区画「期限超過」の行のボタン
+  - screen: todo-dashboard
+    place: 区画「すべてのTODO」の行のボタン
+  - screen: todo
+    place: 画面のボタン
+shownWhen:
+  - value: OPEN
+    label: 未着手
+confirm:
+  screen: start-todo/confirm
+  request: GET /todo/{id}/start-todo/confirm
+  shows: []
+  stateChange:
+    - from:
+        - 未着手
+      to: 対応中
+execute:
+  request: POST /todo/{id}/start-todo
+  returns: 起点の画面（starts の画面。画面の ID で受け取る）
+  notice: start-todo.done
+  refusals:
+    - key: start-todo.state
+      message: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+  onRefusal: 確認画面に断りの文を出す

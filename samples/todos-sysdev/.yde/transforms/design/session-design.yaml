@@ -1,0 +1,61 @@
+id: session-design
+name: セッション情報設計
+description: >-
+  詳細設計。セッションに置くもの（キー・中身・置くハンドラ・読むハンドラ・消すとき）と、置かないものの置き場を 1 本にする。
+  決め打ちの規則（画面系の議論で決めたもの）: セキュリティに要るものを先に、次にタブをまたいでよいものだけを置く。
+  入力の値は hidden 項目で持ち回り（確定で確かめ直す）、絞り込みは URL のパラメータ、起点の画面は画面の ID で持つ。
+  Controller はここにあるキーだけを使う
+scope: business
+output: "design/generated/session.yaml"
+build:
+  id: session
+  name: セッション情報設計
+  policy:
+    - セキュリティに要るもの（CSRF トークン・二重確定を防ぐトークン）を先に置く
+    - そのほかは、タブをまたいで共有してよいものだけを置く（セッションはすべてのタブで共有される）
+    - Controller は、ここにあるキーだけを使う
+  attributes:
+    - key: csrf
+      contents: CSRF トークン
+      purpose: セキュリティ（よそのサイトからの POST を断る）
+      puts: Spring Security（入れるときに議論する）
+      reads: すべての POST
+      status: 将来
+    - key: token
+      contents: 二重確定を防ぐトークン（流れの ID → トークン。流れの ID は確認画面の hidden 項目で持つので、タブごとに別）
+      purpose: セキュリティ（同じ確定を 2 回通さない・確認画面を経ない確定を断る）
+      puts:
+        $each: actions
+        $of: model
+        $build:
+          $when: [{ of: model, path: reach.operations, includes: { $copy: id } }]
+          $then: { $format: "{c}Controller.{m}Confirm", $with: { c: { $case: { $copy: subject }, $as: pascal }, m: { $case: { $copy: id }, $as: camel } } }
+      reads:
+        $each: actions
+        $of: model
+        $build:
+          $when: [{ of: model, path: reach.operations, includes: { $copy: id } }]
+          $then: { $format: "{c}Controller.{m}", $with: { c: { $case: { $copy: subject }, $as: pascal }, m: { $case: { $copy: id }, $as: camel } } }
+      removes: 確定で照合したとき（使った・違った）と、セッションの期限
+    - key: notice
+      contents: 完了の知らせ（「TODO-006 を登録しました」。メッセージのキーは 操作ID.done）
+      purpose: 利便（確定の後のリダイレクト（PRG）の先で 1 回だけ出す）
+      puts:
+        $each: actions
+        $of: model
+        $build:
+          $when: [{ of: model, path: reach.operations, includes: { $copy: id } }]
+          $then: { $format: "{c}Controller.{m}", $with: { c: { $case: { $copy: subject }, $as: pascal }, m: { $case: { $copy: id }, $as: camel } } }
+      reads:
+        $concat:
+          - $each: dashboards
+            $of: model
+            $build: { $format: "{c}Controller.show", $with: { c: { $case: { $copy: id }, $as: pascal } } }
+          - $each: reach.entities
+            $of: model
+            $build: { $format: "{c}Controller.show", $with: { c: { $case: { $copy: . }, $as: pascal } } }
+      removes: 1 回読んだとき（Spring の flash 属性）
+  notKept:
+    - { what: 入力の値, where: 確認画面の hidden 項目（確定で入力検査・状態・前提を確かめ直す） }
+    - { what: 絞り込み, where: URL のパラメータ（タブごとに独立） }
+    - { what: 起点の画面, where: 画面の ID（パラメータ from。URL は受け取らない） }

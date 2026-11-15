@@ -20,18 +20,32 @@ import dev.toros.yde.yaml.model.YNode
  * - **actions**: 操作（スキーマの actions と、型の操作）。受け取る値・前提（名前つき）・従う Lifecycle（展開した遷移）と、
  *   **効果**（do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめたもの）
  * - **states / lifecycles**: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle
+ * - **views / dashboards / reach**: ビューとダッシュボードと、ダッシュボードからたどれる範囲（[BusinessModelViews]。ADR-0033）
  *
  * 値の書き方は変換のひな型と同じ（受け取った値 `$date`・今日 `{$copy: today, $of: context}`・今の値 `{$copy: パス, $of: self}`）。
  * 項の出どころは業務モデルの定義だけで、文書（データ）は読まない。計算は決定的で、同じ定義からは同じ項になる。
  */
 object BusinessModel {
 
-    /** 読み込んだワークスペースの業務モデルの項（scope を渡すと、そのスコープのスキーマだけから）。 */
-    fun of(ws: LoadedWorkspace, scope: String? = null): YNode = term(inScope(ws.schemas, ws.layout, scope), schemaDocuments(ws.snapshot, ws.layout))
+    /** 読み込んだワークスペースの業務モデルの項（scope を渡すと、そのスコープのスキーマとビューだけから）。 */
+    fun of(ws: LoadedWorkspace, scope: String? = null): YNode =
+        term(inScope(ws.schemas, ws.layout, scope), schemaDocuments(ws.snapshot, ws.layout), viewDocuments(ws.snapshot, ws.layout, scope))
 
-    /** セッション（未保存の編集を含む）の業務モデルの項（scope を渡すと、そのスコープのスキーマだけから）。 */
+    /** セッション（未保存の編集を含む）の業務モデルの項（scope を渡すと、そのスコープのスキーマとビューだけから）。 */
     fun of(session: WorkspaceSession, scope: String? = null): YNode =
-        term(inScope(session.schemas, session.layout, scope), schemaDocuments(session.snapshot, session.layout))
+        term(
+            inScope(session.schemas, session.layout, scope), schemaDocuments(session.snapshot, session.layout),
+            viewDocuments(session.snapshot, session.layout, scope),
+        )
+
+    /** ビューの定義の原文（ゾーンの中の場所の順。scope を渡すと、そのスコープに入るものだけ）。 */
+    @Suppress("UNCHECKED_CAST")
+    private fun viewDocuments(snapshot: WorkspaceSnapshot, layout: dev.toros.yde.workspace.layout.WorkspaceLayout, scope: String?): List<Map<String, Any?>> =
+        snapshot.documents.entries
+            .filter { layout.zoneOf(it.key.value) == dev.toros.yde.workspace.layout.WorkspaceLayout.Zone.VIEWS }
+            .filter { scope == null || layout.scopeOf(it.key.value)?.id == scope }
+            .sortedBy { dev.toros.yde.workspace.layout.WorkspaceLayout.nameInZone(it.key.value) }
+            .mapNotNull { (_, d) -> d.document.documents.firstOrNull()?.let { YamlIO.toAny(it) as? Map<String, Any?> } }
 
     /** スコープ（workspace.yaml の scopes）に入るスキーマ。scope が null なら全部（スコープを書かないワークスペースと同じ）。 */
     private fun inScope(schemas: List<WorkspaceSchema>, layout: dev.toros.yde.workspace.layout.WorkspaceLayout, scope: String?): List<WorkspaceSchema> {
@@ -47,7 +61,7 @@ object BusinessModel {
             .mapNotNull { (id, d) -> d.document.documents.firstOrNull()?.let { id to it } }.toMap()
 
     /** schemaDocuments はスキーマの文書の原文（操作の do・入力の初期値などを書かれたとおりに写すため）。 */
-    fun term(schemas: List<WorkspaceSchema>, schemaDocuments: Map<DocumentId, YNode>): YNode {
+    fun term(schemas: List<WorkspaceSchema>, schemaDocuments: Map<DocumentId, YNode>, viewDocuments: List<Map<String, Any?>> = emptyList()): YNode {
         val catalog = runCatching { BehaviorChecks.compile(schemas) }.getOrNull()
         val aspects = aspectsOf(schemas)
         val raw = schemas.associate { it.id to (schemaDocuments[it.source] as? YNode.Map) }
@@ -70,6 +84,8 @@ object BusinessModel {
         model["actions"] = actions
         model["states"] = catalog?.let { stateTerms(schemas, it) }.orEmpty()
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions))
         return YamlIO.fromAny(model)
     }
 
