@@ -23,6 +23,7 @@ inputs:
     label: カテゴリ
     type: common#カテゴリ参照
     base: ref
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
     relation: in-category
     idPatterns:
       - CAT-*
@@ -30,6 +31,7 @@ inputs:
       - category-list
     target: category
     targetTitle: name
+    targetLabel: カテゴリ
   - key: tags
     label: タグ
     type: array
@@ -38,6 +40,7 @@ inputs:
     item:
       type: common#タグ参照
       base: ref
+      description: タグ一覧の ID を 1 件。
       relation: tagged
       idPatterns:
         - TAG-*
@@ -45,10 +48,12 @@ inputs:
         - tag-list
       target: tag
       targetTitle: name
+      targetLabel: タグ
   - key: follows
     label: 元のTODO
     type: common#TODO参照
     base: ref
+    description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
     relation: follow-up-of
     idPatterns:
       - TODO-*
@@ -56,10 +61,12 @@ inputs:
       - todo-list
     target: todo
     targetTitle: title
+    targetLabel: TODO
   - key: due
     label: 期限
     type: common#年月日
     base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
     format: yyyy年M月d日
   - key: details
     label: 詳細

@@ -101,6 +101,33 @@ internal object BusinessModelRules {
         return out
     }
 
+    /**
+     * 関係レジストリの関係（業務モデルの項の relations）: 名前・表示名・逆向きの表示名・説明・元と先の型・多重度（宣言したものだけ）・
+     * 非循環・その関係の参照を書く項目（型・キー・複数か）。
+     */
+    fun relations(schemas: List<WorkspaceSchema>): List<Map<String, Any?>> {
+        val refFields = walk(schemas).refFields
+        return schemas.filter { it.kind == SchemaKind.RELATIONS }.flatMap { s ->
+            s.relations.map { r ->
+                val m = LinkedHashMap<String, Any?>()
+                m["id"] = r.name
+                m["label"] = r.displayLabel
+                m["inverseLabel"] = r.displayInverseLabel
+                r.description?.let { m["description"] = it }
+                m["source"] = r.source
+                m["target"] = r.target
+                r.cardinality?.let { c ->
+                    linkedMapOf("outMin" to c.outMin, "outMax" to c.outMax, "inMin" to c.inMin, "inMax" to c.inMax).filterValues { it != null }
+                        .takeIf { it.isNotEmpty() }?.let { m["cardinality"] = it }
+                }
+                if (r.acyclic) m["acyclic"] = true
+                m["fields"] = refFields.filter { it.relation == r.name }.distinctBy { it.entity to it.key }
+                    .map { linkedMapOf("entity" to it.entity, "key" to it.key, "multiple" to it.multiple) }
+                m
+            }
+        }
+    }
+
     /** 操作の項（効果は項目の事実を添えた形）が書くと破れうる決まり。 */
     @Suppress("UNCHECKED_CAST")
     fun checksOf(action: Map<String, Any?>, rules: List<Rule>): List<Map<String, Any?>> {

@@ -220,4 +220,24 @@ class BusinessModelTest {
         assertEquals(setOf("updated-not-before-created", "closed-has-no-open-task"), checks("todo-task.finish").keys)
         assertEquals(emptyMap(), checks("add-category"))
     }
+
+    @Test
+    fun `型の説明と集約 関係 参照先と操作の名前`() {
+        val todo = byId("entities", "todo")
+        assertTrue(todo["description"].toString().startsWith("やることを 1 件ずつ管理する単位です"), "型の説明は関係レジストリの宣言から")
+        assertEquals("todo", todo["aggregate"])
+        assertEquals("todo", byId("entities", "todo-task")["aggregate"], "入れ子の型の集約は、いちばん外側の持ち主")
+        assertEquals("category", byId("entities", "category")["aggregate"])
+        val follow = byId("relations", "follow-up-of")
+        assertEquals(listOf("元のTODO", "続きのTODO", listOf("todo"), listOf("todo"), true), listOf(follow["label"], follow["inverseLabel"], follow["source"], follow["target"], follow["acyclic"]))
+        assertEquals(mapOf("outMax" to 1), follow["cardinality"])
+        assertEquals(listOf(mapOf("entity" to "todo", "key" to "tags", "multiple" to true)), byId("relations", "tagged")["fields"])
+        // 参照先の型の名前・入れ子の型の名前・項目の説明・遷移の操作の名前
+        val fields = list("aspects", todo).flatMap { list("fields", it) }
+        assertEquals("カテゴリ", fields.first { it["key"] == "category" }["targetLabel"])
+        assertEquals("作業項目", (fields.first { it["key"] == "tasks" }["item"] as Map<*, *>)["entityLabel"])
+        assertEquals("未定の場合は省略します。作成日より前の日付は検査が指摘します。", fields.first { it["key"] == "due_on" }["description"])
+        val complete = list("transitions", byId("lifecycles", "todo-lifecycle")).first { it["action"] == "complete-todo" }
+        assertEquals("TODOを完了する", complete["actionLabel"])
+    }
 }

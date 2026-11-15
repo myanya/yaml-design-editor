@@ -9,6 +9,7 @@ inputs:
     label: 中止理由
     type: todo-operations#操作の記録
     base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
     required: true
     minLength: 1
     multiline: true

@@ -52,6 +52,7 @@ items:
     item:
       type: common#タグ参照
       base: ref
+      description: タグ一覧の ID を 1 件。
       relation: tagged
       idPatterns:
         - TAG-*
@@ -59,6 +60,7 @@ items:
         - tag-list
       target: tag
       targetTitle: name
+      targetLabel: タグ
     documents:
       - todo-list
   - key: follows
@@ -144,6 +146,7 @@ items:
       type: common#作業項目
       base: object
       entity: todo-task
+      entityLabel: 作業項目
     documents:
       - todo-detail
   - key: comments
@@ -159,6 +162,7 @@ items:
           label: 日付
           type: common#年月日
           base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
           required: true
           format: yyyy年M月d日
         - key: body
@@ -183,6 +187,7 @@ items:
           label: 日付
           type: common#年月日
           base: date
+          description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
           required: true
           auto: created
           format: yyyy年M月d日
@@ -208,6 +213,7 @@ items:
           label: 前の状態
           type: common#ステータス
           base: enum
+          description: 登録の行には書きません。
           values:
             - value: OPEN
               label: 未着手
@@ -241,11 +247,13 @@ items:
           label: 理由
           type: common#文章
           base: string
+          description: 中止と中断の理由、再開のメモです。
           multiline: true
         - key: resume_on
           label: 再開予定日
           type: common#年月日
           base: date
+          description: 中断の行にだけ書きます。
           format: yyyy年M月d日
     documents:
       - todo-detail

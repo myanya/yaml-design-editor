@@ -31,7 +31,9 @@ entity: { type: yde-action, defines: false }
 - `entities`: エンティティ型と、その側面（どのスキーマの文書の、どこに書かれ、どの項目を持つか）。項目は型を解いた形（型の名前 `type`・基底の種類 `base`・必須・文字数・選択肢など）です。
   参照の項目には参照先のエンティティ型（`target`）、State の値を持つ列挙型の項目には、その State のエンティティ型（`stateOf`）が付きます。
   型には ID の振り方（`numbering`。配列の追加の決まり `methods.insert` か、文書を作る手の `id`）と、入れ子で書かれる型なら外側の型と項目（`owner`。作業項目なら `{entity: todo, field: tasks}`）、
-  見出しの項目（`title`。表示解決と同じ順＝`role: title`・title・name・label）が付きます。参照の項目には、参照先の見出しの項目（`targetTitle`）も付きます。
+  見出しの項目（`title`。表示解決と同じ順＝`role: title`・title・name・label）が付きます。参照の項目には、参照先の見出しの項目（`targetTitle`）と参照先の型の名前（`targetLabel`）も付きます。
+  型には、関係レジストリの宣言の説明（`description`）と、集約（`aggregate`。入れ子の持ち主をたどった、いちばん外側の型。持ち主がいなければ自分）が付きます。
+  項目には、項目に書いた説明（無ければ型の説明。`description`）が付き、要素がエンティティの配列には要素の型の名前（`item.entityLabel`）が付きます。
 - `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・作るエンティティ型（`creates`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
   文書を作る手と要素を足す手には、書く値の項目ごとの基底の種類（`written`）と採番（`numbering`）が付きます。
   受け取る値のうち、別の真偽値の受け取る値で消せるもの（効果の条件が `clear.category が true` で、その項目を消す）には `clearedBy` が付きます。
@@ -39,7 +41,9 @@ entity: { type: yde-action, defines: false }
   書いた後の要素が決まりの絞り込み（`where`）に入らないと定義から分かるもの（状態を「中断」に書く操作と「完了した TODO には…」・完了日を書かずに作る要素と「完了日は…」・
   再開予定日を書かない明細の行と「再開予定日は…」）を除きます。重なった項目（`items`）と、決まりが読む値を入れる受け取る値（`params`。あれば、受け取る値が原因で破れうる）、
   決まりの形と重さ（`form`・`level`・`kind`・`multiple`）を持ちます。
-- `states`・`lifecycles`: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle です。State は ID・名前・値の組で書きます。
+- `states`・`lifecycles`: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle です。State は ID・名前・値の組で書きます。入口と遷移には、操作の名前（`actionLabel`）が付きます。
+- `relations`: 関係レジストリの関係です。名前（`id`）・表示名（`label`）・逆向きの表示名（`inverseLabel`）・説明・元と先の型（`source`・`target`）・宣言した多重度（`cardinality`）・
+  非循環（`acyclic`）と、その関係の参照を書く項目（`fields`。型・キー・複数か）を持ちます。
 - `constraints`: データの決まりです。型の検査・スキーマの検査（`constraints` に直接書いたもの）・関係レジストリの宣言を 1 列にし、名前（`label`＝説明）・文（`message`）・
   重さ（`level`）・形（`form`）・起点のエンティティ型（`entity`）・明細の行の決まりなら場所（`at`。`history[*]`）・読む項目（`reads`。`todo.status` のように型と項目）・
   書かれた形（`rule`。State の名前は値の条件へ置き換えたもの）・書かれた場所（`source`）を持ちます。形は、要素ごとの決まり `element`・入れ子の線や参照を辿る決まり `pattern`・
@@ -135,3 +139,15 @@ build:                                        # 文書の中身（変換のひ�
 - 作る文書は、書く前に今までの検証を通します。検証エラーがあれば書きません（`--allow-errors` で書きます）。
 - 書き込みは 1 トランザクションです。生成物は git に入れておくと、作り直した後の差分で、何が変わったかを読めます。
 - 生成物が最新かをテストで確かめると、業務モデルを直したのに作り直し忘れた、を防げます（`samples/todos-sysdev` は app-core の `TodosSysdevTest`）。
+
+## 生成の系譜（どの概念から作るか）
+
+```bash
+./gradlew runCli -q --args="generate samples/todos-sysdev --lineage"
+```
+
+生成の定義ごとに、業務モデルの項のどこを読むかを出します。定義を当てずに読むので、業務モデルの中身に関係なく分かります。
+
+- `reads`: 読む場所のパターン（`actions[*].effects[*].field.key`）。`$copy`・`$format` の穴・`$each` の源・条件・値の式・規則（同じ名前の規則はすべて）から集めます。
+  `$group` の入力が場所なら、まとまりの `items[n]` はその要素として数えます。計算した値の中（まとまりのキーなど）の読み取りは数えません。
+- `concepts`: 読む場所の見出し（頭のキーと、その下で中を読む入れ物。`actions.effects`・`entities.aspects`）。設計書がどの概念から作られるかの一覧になります。

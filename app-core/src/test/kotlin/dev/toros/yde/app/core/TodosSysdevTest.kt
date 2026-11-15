@@ -163,6 +163,45 @@ class TodosSysdevTest {
         assertEquals(listOf("RefusedException", "NotFoundException", "InvalidTokenException"), list(handling, "exceptions").take(3).map { it["class"] })
     }
 
+    /**
+     * ドメイン定義書とドメイン関連定義書は、業務モデルから計算で作る: ドメインは集約（入れ子の持ち主がいない型と、その中の型）で、
+     * todos では TODO（作業項目を含む）・カテゴリ・タグの 3 つ。業務の言葉で書き、関係は出る向きと入る向きの両方。
+     */
+    @Test
+    fun `ドメインの設計書は集約ごとに計算で作る`() {
+        fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
+        fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+        val names = java.nio.file.Files.list(root.resolve("design/generated/domains")).use { s -> s.map { it.fileName.toString() }.sorted().toList() }
+        assertEquals(listOf("category.yaml", "tag.yaml", "todo.yaml"), names, "入れ子の型（作業項目）は集約の中なので、ドメインにしない")
+        val todo = doc("design/generated/domains/todo.yaml")
+        assertEquals(listOf("集約の中心", "「TODO」の中にだけある"), list(todo, "members").map { it["role"] })
+        val items = list(list(todo, "information")[0], "items").associateBy { it["key"] }
+        assertEquals("一行の文（100 文字まで）", items["title"]?.get("kind"))
+        assertEquals("カテゴリを 1 つ指す", items["category"]?.get("kind"))
+        assertEquals("作業項目の並び", items["tasks"]?.get("kind"))
+        assertEquals(listOf("未着手", "対応中", "中断", "完了", "中止"), items["status"]?.get("choices"))
+        val text = java.nio.file.Files.readString(root.resolve("design/generated/domains/todo.yaml"))
+        assertTrue(listOf("VARCHAR", "Mapper", "テーブル", "Controller").none { it in text }, "ドメイン定義書はシステムの言葉を書かない")
+        assertEquals(listOf("出る" to "category", "出る" to "tag", "出る" to "todo", "入る" to "todo"), list(todo, "relations").map { it["direction"] to it["to"] })
+        val category = doc("design/generated/domains/category.yaml")
+        assertEquals(listOf("このカテゴリのTODO"), list(category, "relations").map { it["label"] }, "関係は入る向きにも出る（逆向きの名前で）")
+        val relations = doc("design/generated/domain-relations.yaml")
+        assertEquals(listOf("in-category", "tagged", "follow-up-of"), list(relations, "relations").map { it["relation"] })
+        assertEquals(listOf("todo" to "todo-task"), list(relations, "holdings").map { it["from"] to it["to"] })
+    }
+
+    /** 生成の系譜: 生成の定義ごとに、業務モデルの項のどこを読むかを定義から取り出す（設計書がどの概念から作られるか）。 */
+    @Test
+    fun `生成の系譜は定義から取り出す`() {
+        @Suppress("UNCHECKED_CAST")
+        val lineage = Generators.lineage(WorkspaceSession(FileSystemDocumentStore(root))).associateBy { it["id"] }
+        fun concepts(id: String) = lineage[id]?.get("concepts") as List<*>
+        assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "constraints.rule").all { it in concepts("processes") }, "処理設計書: ${concepts("processes")}")
+        assertTrue("relations.cardinality" in concepts("domains") && "lifecycles.transitions" in concepts("domains"), "ドメイン定義書: ${concepts("domains")}")
+        assertEquals(emptyList<Any>(), concepts("screen-styles"), "クラスの対応表は業務モデルを読まない（決まった表）")
+        assertTrue((lineage["processes"]?.get("reads") as List<*>).contains("actions[*].effects[*].field.key"))
+    }
+
     @Test
     fun `検証にエラーが無い`() {
         val ws = WorkspaceReader.load(FileSystemDocumentStore(root), builtins = dev.toros.yde.app.schema.BuiltinSchemas.kernelSchemas(dev.toros.yde.workspace.layout.WorkspaceLayout.of(root)))

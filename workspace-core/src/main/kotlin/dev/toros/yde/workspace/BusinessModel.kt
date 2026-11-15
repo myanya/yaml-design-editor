@@ -16,7 +16,8 @@ import dev.toros.yde.yaml.model.YNode
  * 生成はこの項を「いまの場所」として、設計書の文書を組み立てる（YAML の計算で、業務モデルから設計体系へ）。
  *
  * - **entities**: エンティティ型と、その側面（どのスキーマの文書の、どこに書かれ、どの項目を持つか）。項目は型を解いた形
- *   （型の名前・基底の種類・必須・文字数・選択肢など。型の連鎖から引き継いだ値も入る）
+ *   （型の名前・基底の種類・必須・文字数・選択肢など。型の連鎖から引き継いだ値も入る）。説明（関係レジストリの宣言）と、集約（入れ子の持ち主をたどった、いちばん外側の型）も持つ
+ * - **relations**: 関係レジストリの関係（名前・逆向きの名前・元と先の型・多重度・非循環・参照を書く項目。[BusinessModelRules]）
  * - **actions**: 操作（スキーマの actions と、型の操作）。受け取る値・前提（名前つき）・従う Lifecycle（展開した遷移）と、
  *   **効果**（do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめたもの）
  * - **states / lifecycles**: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle
@@ -72,7 +73,9 @@ object BusinessModel {
         val stateEnums = schemas.flatMap { it.states }.filterIsInstance<StateDeclaration.FromEnum>().associate { it.enumRef to it.entity }
         // エンティティ型 → 見出しの項目（参照の値の名前を出すときに読む項目。項目の targetTitle）
         val titles = aspects.groupBy { it.entity }.mapValues { (_, list) -> titleKeyOf(list) }.filterValues { it != null }.mapValues { it.value!! }
-        val ctx = Ctx(targets, stateEnums, titles)
+        // エンティティ型 → 名前（参照先の型の名前 targetLabel・入れ子の型の名前 entityLabel）
+        val labels = aspects.groupBy { it.entity }.mapValues { (e, list) -> list.sortedByDescending { it.defines }.firstNotNullOfOrNull { it.label } ?: e }
+        val ctx = Ctx(targets, stateEnums, titles, labels)
         // データの決まりと、操作ごとに書くと破れうる決まり（BusinessModelRules）
         val rules = BusinessModelRules.rules(schemas, raw, catalog)
         val actions = (schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects, ctx) } + schemas.flatMap { s -> methodTerms(s, raw[s.id], aspects) })
@@ -83,9 +86,12 @@ object BusinessModel {
             .filter { it["op"] == "create" && it["numbering"] != null && it["entity"] != null }
             .associate { it["entity"].toString() to it["numbering"] }
         val model = LinkedHashMap<String, Any?>()
+        // 関係レジストリのエンティティ型の宣言（説明）
+        val declared = schemas.flatMap { it.entityTypes }.associateBy { it.type }
         model["entities"] = aspects.groupBy { it.entity }.map { (entity, list) ->
-            entityTerm(entity, list.sortedByDescending { it.defines }, createNumbering[entity], ctx)
+            entityTerm(entity, list.sortedByDescending { it.defines }, createNumbering[entity], ctx, declared[entity]?.description)
         }
+        model["relations"] = BusinessModelRules.relations(schemas)
         model["actions"] = actions
         model["states"] = catalog?.let { stateTerms(schemas, it) }.orEmpty()
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
@@ -141,12 +147,15 @@ object BusinessModel {
      * エンティティ型の項: 名前・採番（足すときの配列の決まりか、作る手の id。無ければ書かない）・入れ子で持つ外側のエンティティ
      * （owner: {entity, field}）・側面（どの文書のどこに、どの項目で書かれるか）。
      */
-    private fun entityTerm(entity: String, aspects: List<Aspect>, created: Any?, ctx: Ctx): Map<String, Any?> {
+    private fun entityTerm(entity: String, aspects: List<Aspect>, created: Any?, ctx: Ctx, description: String?): Map<String, Any?> {
         val m = LinkedHashMap<String, Any?>()
         m["id"] = entity
         m["label"] = aspects.firstNotNullOfOrNull { it.label } ?: entity
+        description?.let { m["description"] = it }
         (aspects.firstNotNullOfOrNull { it.numbering }?.let(::numberingTerm) ?: created)?.let { m["numbering"] = it }
         aspects.firstNotNullOfOrNull { a -> a.owner?.let { o -> linkedMapOf("entity" to o.entity, "field" to a.ownerField) } }?.let { m["owner"] = it }
+        // 集約: 入れ子の持ち主をたどった、いちばん外側の型（持ち主がいなければ自分）
+        m["aggregate"] = aspects.firstOrNull { it.owner != null }?.let { a -> generateSequence(a) { it.owner }.last().entity } ?: entity
         // 見出しの項目（表示解決と同じ順）。参照先の名前を出すときに読む
         titleKeyOf(aspects)?.let { m["title"] = it }
         m["aspects"] = aspects.map { a ->
@@ -170,7 +179,10 @@ object BusinessModel {
      * 項目を広げずエンティティ型の名前（`entity`）だけを書く（その項目はエンティティの側面にある）。
      */
     /** 項目の項を作るときの、ワークスペース全体から引く事実（参照先のエンティティ型・State の値を持つ列挙型）。 */
-    private class Ctx(val targets: Map<String, String>, val stateEnums: Map<String, String>, val titles: Map<String, String> = emptyMap()) {
+    private class Ctx(
+        val targets: Map<String, String>, val stateEnums: Map<String, String>, val titles: Map<String, String> = emptyMap(),
+        val labels: Map<String, String> = emptyMap(),
+    ) {
         companion object { val NONE = Ctx(emptyMap(), emptyMap()) }
     }
 
@@ -188,6 +200,8 @@ object BusinessModel {
         (f0.label ?: f.label)?.let { m["label"] = it }
         m["type"] = typeNameOf(f0, f)
         m["base"] = f.type.id
+        // 説明（項目に書いたもの。無ければ型の説明）
+        (f0.description ?: f.description)?.let { m["description"] = it }
         if (f.required || f0.required) m["required"] = true
         (f0.auto ?: f.auto)?.let { m["auto"] = it.id }
         f.default?.let { m["default"] = it }
@@ -211,6 +225,8 @@ object BusinessModel {
             f.scope.schemaIds.mapNotNull { ctx.targets[it] }.distinct().takeIf { it.isNotEmpty() }?.let { m["target"] = if (it.size == 1) it[0] else it }
             // 参照先の見出しの項目（参照の値の名前）
             f.scope.schemaIds.mapNotNull { ctx.targets[it] }.firstOrNull()?.let { t -> ctx.titles[t] }?.let { m["targetTitle"] = it }
+            // 参照先の型の名前
+            f.scope.schemaIds.mapNotNull { ctx.targets[it] }.firstOrNull()?.let { t -> ctx.labels[t] }?.let { m["targetLabel"] = it }
         }
         if (f.unique.isNotEmpty()) m["unique"] = if (f.unique.size == 1) f.unique[0].ifEmpty { true } else f.unique
         if (depth < 8) {
@@ -234,7 +250,8 @@ object BusinessModel {
     private fun nested(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx): Map<String, Any?> {
         val f = tree.resolve(f0) ?: f0
         return if (f.type == FieldType.OBJECT && f.entity != null) {
-            linkedMapOf("type" to typeNameOf(f0, f), "base" to f.type.id, "entity" to f.entity!!.type)
+            linkedMapOf<String, Any?>("type" to typeNameOf(f0, f), "base" to f.type.id, "entity" to f.entity!!.type, "entityLabel" to ctx.labels[f.entity!!.type])
+                .filterValues { it != null }
         } else fieldTerm(tree, f0, depth + 1, ctx)
     }
 
@@ -556,6 +573,8 @@ object BusinessModel {
 
     private fun lifecycleTerms(schemas: List<WorkspaceSchema>, catalog: BehaviorChecks.Catalog): List<Map<String, Any?>> {
         val coarse = schemas.flatMap { it.lifecycles }.associateBy { it.id }
+        // 操作の名前（入口と遷移の actionLabel）
+        val actionLabels = schemas.flatMap { it.actions }.associate { it.id to (it.label ?: it.id) }
         return catalog.lifecycles.map { lc ->
             val groups = coarse[lc.id]?.states.orEmpty().filter { it in catalog.children }
             linkedMapOf<String, Any?>(
@@ -563,13 +582,17 @@ object BusinessModel {
                 "entity" to lc.entity,
                 "states" to lc.states.map { stateRef(it, catalog) },
                 "groups" to groups.map { g -> linkedMapOf("id" to g, "label" to stateLabel(g, catalog), "states" to catalog.leavesOf(g).map { stateRef(it, catalog) }) },
-                "entry" to lc.entry.map { e -> linkedMapOf("to" to stateRef(e.to, catalog), (if (e.by is TransitionCause.Action) "action" else "event") to e.by.id) },
+                "entry" to lc.entry.map { e ->
+                    linkedMapOf<String, Any?>("to" to stateRef(e.to, catalog), (if (e.by is TransitionCause.Action) "action" else "event") to e.by.id)
+                        .also { m -> actionLabels[e.by.id]?.takeIf { e.by is TransitionCause.Action }?.let { m["actionLabel"] = it } }
+                },
                 "transitions" to lc.transitions.groupBy { it.by.id to it.to }.map { (key, list) ->
                     linkedMapOf(
                         (if (list[0].by is TransitionCause.Action) "action" else "event") to key.first,
+                        "actionLabel" to actionLabels[key.first]?.takeIf { list[0].by is TransitionCause.Action },
                         "from" to list.map { it.from }.distinct().map { stateRef(it, catalog) },
                         "to" to stateRef(key.second, catalog),
-                    )
+                    ).filterValues { it != null }
                 },
                 "terminal" to lc.terminal.map { stateRef(it, catalog) },
                 "history" to lc.history?.let { linkedMapOf("path" to it.path) },

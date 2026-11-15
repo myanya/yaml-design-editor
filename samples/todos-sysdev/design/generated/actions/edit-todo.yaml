@@ -23,6 +23,7 @@ inputs:
     label: カテゴリ
     type: common#カテゴリ参照
     base: ref
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
     relation: in-category
     idPatterns:
       - CAT-*
@@ -30,15 +31,18 @@ inputs:
       - category-list
     target: category
     targetTitle: name
+    targetLabel: カテゴリ
     clearedBy: clear.category
   - key: tags
     label: タグ
     type: array
     base: array
+    description: 入力した並びで全体を置き換えます。
     unique: true
     item:
       type: common#タグ参照
       base: ref
+      description: タグ一覧の ID を 1 件。
       relation: tagged
       idPatterns:
         - TAG-*
@@ -46,16 +50,19 @@ inputs:
         - tag-list
       target: tag
       targetTitle: name
+      targetLabel: タグ
     clearedBy: clear.tags
   - key: created_on
     label: 作成日
     type: common#年月日
     base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
     format: yyyy年M月d日
   - key: due_on
     label: 期限
     type: common#年月日
     base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
     format: yyyy年M月d日
     clearedBy: clear.due_on
   - key: details
@@ -74,6 +81,7 @@ inputs:
     label: コメント一覧
     type: array
     base: array
+    description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
     item:
       type: common#コメント
       base: object
@@ -82,6 +90,7 @@ inputs:
           label: 日付
           type: common#年月日
           base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
           required: true
           format: yyyy年M月d日
         - key: body
@@ -95,6 +104,7 @@ inputs:
     label: 値を消す
     type: object
     base: object
+    description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
     default: {}
     fields:
       - key: category

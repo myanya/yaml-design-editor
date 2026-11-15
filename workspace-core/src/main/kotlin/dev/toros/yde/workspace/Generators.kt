@@ -100,6 +100,35 @@ object Generators {
         return defs.distinctBy { it.id } to errors
     }
 
+    /**
+     * 生成の系譜: 生成の定義ごとに、業務モデルの項のどこを読むか（[dev.toros.yde.semantic.TransformReads]）。定義を当てずに読むので、
+     * 業務モデルが空でも分かる。concepts は読む場所の見出し（頭のキーと、その下の中を読む入れ物。`actions.effects`。設計書がどの概念から作られるか）。
+     */
+    fun lineage(session: WorkspaceSession): List<Map<String, Any?>> = definitions(session).first.map { def ->
+        val element = def.each?.let { dev.toros.yde.semantic.schema.PathPattern.parse(it) + dev.toros.yde.semantic.schema.AnyIndex }
+        val places = buildMap<String, List<Any>> {
+            put("model", emptyList())
+            element?.let { put("element", it) }
+        }
+        val reads = dev.toros.yde.semantic.TransformReads.of(def.transform, places, element ?: emptyList())
+        // 概念: 頭のキーと、その下の入れ物（さらに中を読むもの。actions.effects・entities.aspects）。値（id・label）は頭のキーに含める
+        val concepts = reads.mapNotNull { r ->
+            val p = if (r == "(root)") emptyList() else dev.toros.yde.semantic.schema.PathPattern.parse(r)
+            val names = p.filterIsInstance<String>()
+            val second = names.getOrNull(1)
+            when {
+                names.isEmpty() -> null
+                second != null && (names.size >= 3 || p.indexOf(second).let { i -> p.getOrNull(i + 1) === dev.toros.yde.semantic.schema.AnyIndex }) ->
+                    "${names[0]}.$second"
+                else -> names[0]
+            }
+        }.distinct().let { all -> all.filter { c -> '.' in c || all.none { it.startsWith("$c.") } } }
+        linkedMapOf<String, Any?>(
+            "id" to def.id, "name" to def.name, "scope" to def.scope, "each" to def.each, "output" to def.output,
+            "concepts" to concepts, "reads" to reads,
+        ).filterValues { it != null }
+    }
+
     /** 生成を計画する（only を渡すとその定義だけ）。保存はしない。 */
     fun plan(session: WorkspaceSession, only: Set<String> = emptySet()): GenerationPlan {
         val (defs, defErrors) = definitions(session)

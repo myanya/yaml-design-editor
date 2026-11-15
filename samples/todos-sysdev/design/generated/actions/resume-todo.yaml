@@ -9,6 +9,7 @@ inputs:
     label: 再開日
     type: common#年月日
     base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
     required: true
     format: yyyy年M月d日
   - key: note

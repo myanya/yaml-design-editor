@@ -53,7 +53,7 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か。構造の検証・参照の解決などの指摘にも付く）
 ./gradlew runCli -q --args="report samples/orders monthly-report --param month=2026-10 --print"   # レポート（.yde/reports の定義）: 変換で値の一式を作り、ひな形にはめ込む。--out で書く・引数なしで一覧（manual/reports.md）
 ./gradlew runCli -q --args="transform test-fixtures/workspaces/rename-target test-fixtures/transforms/req-list.yaml --origins"   # YAML から YAML への変換（試作台）: 定義（from＝クエリで選ぶ／build＝出力のひな型／rules＝入れ子に当てる規則）を評価して、組み立てた YAML と出どころを返す。出力は保存しない
-./gradlew runCli -q --args="generate samples/todos-sysdev [--apply|--check|--model [--scope business]]"   # 業務モデルから文書を作る（生成の定義は .yde/transforms。計画・書く・最新かの検査・業務モデルを展開した形（--scope でスコープから）。[generate.md](generate.md)）
+./gradlew runCli -q --args="generate samples/todos-sysdev [--apply|--check|--model [--scope business]|--lineage]"   # 業務モデルから文書を作る（生成の定義は .yde/transforms。計画・書く・最新かの検査・業務モデルを展開した形（--scope でスコープから）・生成の系譜。[generate.md](generate.md)）
 ./gradlew runCli -q --args="readiness sample-workspace --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
 ./gradlew runCli -q --args="bench --modules 2,4,8,16"                    # 規模の計測（合成ワークスペースを作り、開く・全体の検証・準備完了レポートの時間と、規模に対する伸び方を出す。--keep <dir> で作ったものを残す）
 ./gradlew runCli -q --args="validate sample-workspace --timings"         # 時間の内訳（どのコマンドにも付けられる。ワークスペースを開く段階＝ファイルの読み取り・YAML の解析・スキーマの組み立て・構造の検証・意味の導出など＝とコマンドの処理の時間を標準エラーに出す）

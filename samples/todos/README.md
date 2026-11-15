@@ -23,7 +23,7 @@ TODOの状態は、状態の流れ（`todo-behavior.yaml`の Lifecycle）を正�
 | `.yde/schemas/common.yaml` | 共通型と整合検査 |
 | `.yde/schemas/todo-list.yaml`・`todo-detail.yaml`・`category-list.yaml`・`tag-list.yaml` | 型を文書に適用する定義（個票の作業項目の検査は `todo-detail.yaml`） |
 | `.yde/schemas/operations.yaml` | TODOの登録・状態を変える操作・コメント追加・作業項目の追加・編集の実行定義 |
-| `.yde/schemas/relations.yaml` | 関係レジストリ（カテゴリへの参照 `in-category`、タグへの参照 `tagged`、元のTODOへの参照 `follow-up-of`） |
+| `.yde/schemas/relations.yaml` | 関係レジストリ（カテゴリへの参照 `in-category`、タグへの参照 `tagged`、元のTODOへの参照 `follow-up-of`）と、エンティティ型の表示名と説明 |
 | `.yde/views/` | TODOダッシュボード（業務の流れつき）・TODO管理・期限順・カテゴリ×ステータスとタグ×ステータスの集計・カテゴリ一覧とタグ一覧（マスタ） |
 | `scenarios/lifecycle.yaml` | 状態の流れを確かめる業務シナリオ |
 

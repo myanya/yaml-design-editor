@@ -1,11 +1,20 @@
 # 関係レジストリ: TODO 管理の関係の語彙。表示名と、参照の向き・多重度の決まりを 1 か所に書きます
 id: todo-relations
 kind: relations
+# 型の説明（description）は、業務の概念としての説明です（設計書のドメイン定義書にも載ります）
 entities:
-  - { type: todo, label: TODO }
-  - { type: category, label: カテゴリ }
-  - { type: tag, label: タグ }
-  - { type: todo-task, label: 作業項目 }
+  - type: todo
+    label: TODO
+    description: やることを 1 件ずつ管理する単位です。タイトル・概要・分類（カテゴリとタグ）を一覧に、進み具合（状態・日付・結果・作業項目・コメント・状態の履歴）を個票に書きます。
+  - type: category
+    label: カテゴリ
+    description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
+  - type: tag
+    label: タグ
+    description: TODO に付ける目印です。1 件の TODO に、いくつでも付けられます。
+  - type: todo-task
+    label: 作業項目
+    description: TODO を小分けにした作業です。TODO の中にだけあり、済んでいない作業項目があるうちは TODO を完了できません。
 relations:
   - name: in-category
     label: カテゴリ

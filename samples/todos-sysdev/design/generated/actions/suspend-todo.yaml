@@ -9,12 +9,14 @@ inputs:
     label: 中断日
     type: common#年月日
     base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
     required: true
     format: yyyy年M月d日
   - key: reason
     label: 中断理由
     type: todo-operations#操作の記録
     base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
     required: true
     minLength: 1
     multiline: true
@@ -22,6 +24,7 @@ inputs:
     label: 再開予定日
     type: common#年月日
     base: date
+    description: 決まっていれば入れます。中断日以降の日付です。
     format: yyyy年M月d日
 initial:
   date:

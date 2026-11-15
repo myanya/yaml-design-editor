@@ -17,12 +17,14 @@ import dev.toros.yde.yaml.YamlIO
  * - `--apply` 書く（作る文書に検証エラーがあれば書かない。`--allow-errors` で書く）
  * - `--check` 生成物が最新でなければ失敗（終了コード 1。台帳の検査・CI 用）
  * - `--model [--scope <スコープ>]` 業務モデルを展開した形（生成の入力）を出す（--scope でスコープの定義体だけから）
+ * - `--lineage` 生成の系譜（生成の定義ごとに、業務モデルの項のどこを読むか）を出す
  */
 internal fun generateCommand(rest: List<String>): CliResult = run {
     val ws = workspaceOf(rest)
     val session = ws.mirror
     val scope = rest.indexOf("--scope").takeIf { it >= 0 }?.let { rest.getOrNull(it + 1) ?: error("--scope にはスコープの id を書きます") }
     if ("--model" in rest) return@run asData(YamlIO.toAny(BusinessModel.of(session, scope)))
+    if ("--lineage" in rest) return@run asData(mapOf("generators" to Generators.lineage(session)))
     val names = rest.drop(1).filterIndexed { i, a -> !a.startsWith("--") && rest.getOrNull(i) != "--scope" }.toSet()
     val plan = Generators.plan(session, names)
     // 作る・作り直す文書を重ねて検証する（適用と同じ検証。生成物の書き方の誤りは、ここで分かる）

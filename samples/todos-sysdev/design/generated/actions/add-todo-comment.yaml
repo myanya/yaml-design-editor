@@ -9,12 +9,14 @@ inputs:
     label: 記録日
     type: common#年月日
     base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
     required: true
     format: yyyy年M月d日
   - key: body
     label: コメント本文
     type: todo-operations#操作の記録
     base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
     required: true
     minLength: 1
     multiline: true
