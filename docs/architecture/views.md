@@ -156,6 +156,8 @@
 
 ## 規律
 
+- **補正を重ねるのは見るときだけ**: 表の `corrections` は、解決のときに path の列のセルへ補正の値を出す（`VirtualViews.resolveDetailed` の `correctedCell`）。原本も索引も変えず、重ねたセルは読み取り専用で、来歴に補正の ID と元の値を持つ。生成など、ほかの読み手が補正を読むときも、同じ「当たり先の参照 × 置き換える値」で読み、別の重ね方を作らない。
+
 - ビュー専用の書込経路を作らない。UI は docCache の木の直接編集、エージェントは `read_view` → `apply_patch`。
 - ビュー定義の型はカーネルの型（`semantic/VirtualViews.kt`）で、app-core の型はその別名。app-core にビュー定義の型や読み取りを書き足さない。
 - 定義項目の追加は、宣言の型・`ViewDefinitions.parseView`・メタスキーマ `builtin-view`（`builtin-schemas/view.yaml`）を対で更新する。差し込み口を通る種類なら、その種類の型・`ViewKind.parse`・断片を対で更新する。

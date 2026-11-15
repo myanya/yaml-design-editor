@@ -80,6 +80,34 @@ class VirtualViewsTest {
     }
 
     @Test
+    fun `補正を重ねるビューは 当たり先が行の補正の値をセルに出し 元の値を来歴に持つ`() {
+        val cDoc = DocumentId("corrections/c.yaml")
+        val corrections = YamlIO.parse("corrections:\n  - id: COR-1\n    target: IT-001\n    set: { status: closed }\n")
+        val corrId = ScannedId("COR-1", cDoc, listOf("corrections", 0), null, "corr", "corrections/c.yaml")
+        val corrRef = ScannedRef(targetId = "IT-001", document = cDoc, path = listOf("corrections", 0, "target"), viaKey = "target", sourceSchemaId = "corr")
+        val ids = mapOf("IT-001" to listOf(aId), "IT-002" to listOf(bId), "COR-1" to listOf(corrId))
+        val view = VirtualGridDef(
+            id = "v", name = "一覧",
+            rows = VirtualRowsDef(idPattern = "IT-*"),
+            columns = listOf(VirtualViewColumn(label = "状態", path = listOf("status")), VirtualViewColumn(label = "名前", path = listOf("title"))),
+            source = DocumentId("_views/v.yaml"),
+            corrections = VirtualCorrectionsDef(schemaIds = listOf("corr")),
+        )
+        val all = trees + ("corrections/c.yaml" to corrections)
+        val rows = VirtualViews.resolve(view, ids, listOf(corrRef), graphOf(ids, listOf(corrRef)), rel = { it.value }, tree = { all[it.value] })
+        val status = rows.single { it.id == "IT-001" }.cells[0]
+        assertEquals("closed", scalarText(status.value), "補正の値を重ねる")
+        assertEquals(cDoc, status.document, "座標は補正の値の場所")
+        assertEquals(listOf<Any>("corrections", 0, "set", "status"), status.path)
+        assertTrue(status.computed, "重ねたセルは読み取り専用")
+        assertTrue("COR-1" in status.trace!!.raw && "open" in status.trace!!.raw, status.trace!!.raw)
+        assertEquals(listOf<Any>("status"), status.trace!!.inputs.single().path, "元の値の場所")
+        assertEquals("A", scalarText(rows.single { it.id == "IT-001" }.cells[1].value), "補正に無い項目は元の値")
+        assertEquals(null, rows.single { it.id == "IT-002" }.cells[0].value, "当たり先でない行は元のまま")
+        assertEquals("open", scalarText(getAt(trees.getValue("items/a.yaml"), listOf("status"))), "原本は変えない")
+    }
+
+    @Test
     fun `orderByは出現の文書内順でschemaIdsは行を絞る`() {
         val z = ScannedId("ZZ-01", aDoc, emptyList(), null, "item", "items/a.yaml")
         val a2 = ScannedId("AA-02", bDoc, emptyList(), null, "item", "items/b.yaml")

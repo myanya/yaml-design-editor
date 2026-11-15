@@ -1,5 +1,5 @@
 id: S-37
-title: 定義の索引（業務モデルの操作・型の操作・名前を付けた前提・State・Lifecycle・エンティティ型・ビュー（`yde-view`）を `yde-*` の定義出現として索引に載せる・設計書は同じ ID の詳細化・`yde-*` を定義として宣言すると誤り）
+title: 定義の索引（業務モデルの操作・型の操作・名前を付けた前提・State・Lifecycle・エンティティ型・ビュー（`yde-view`）・項目（`yde-field`＝型.キー）を `yde-*` の定義出現として索引に載せる・設計書は同じ ID の詳細化・`yde-*` を定義として宣言すると誤り）
 implementation:
 - path: workspace-core/workspace/DefinitionIndex.kt
   module: workspace-core

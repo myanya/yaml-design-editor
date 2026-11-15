@@ -1,0 +1,956 @@
+# 生成物（basic-entities）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/basic-entities.yaml）を直して作り直します（CLI generate）。
+entities:
+  - id: ENT-category
+    label: カテゴリ
+    description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
+    source: category
+    numbering:
+      item: FLD-category.id
+      path: id
+      prefix: CAT-
+      digits: 3
+      description: 「CAT-」に 3 桁の番号を続ける（使われている番号の次）
+    documents:
+      - category-list
+    items:
+      - seq: '01'
+        id: FLD-category.id
+        key: id
+        label: ID
+        type: common#カテゴリ番号
+        base: id
+        required: true
+        pattern: ^CAT-[0-9]{3,}$
+        description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
+        source: category.id
+        documents:
+          - category-list
+      - seq: '02'
+        id: FLD-category.name
+        key: name
+        label: カテゴリ名
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        source: category.name
+        documents:
+          - category-list
+    operations:
+      - seq: '01'
+        id: OPS-category.add-category
+        action: add-category
+        label: カテゴリを追加する
+        crud: C
+        writes:
+          - id: CRUD-category.add-category.name
+            entity: ENT-category
+            operation: OPS-category.add-category
+            item: FLD-category.name
+            crud: C
+    crud:
+      - 項目: id
+        名称: ID
+        add-category: ''
+      - 項目: name
+        名称: カテゴリ名
+        add-category: C
+  - id: ENT-tag
+    label: タグ
+    description: TODO に付ける目印です。1 件の TODO に、いくつでも付けられます。
+    source: tag
+    numbering:
+      item: FLD-tag.id
+      path: id
+      prefix: TAG-
+      digits: 3
+      description: 「TAG-」に 3 桁の番号を続ける（使われている番号の次）
+    documents:
+      - tag-list
+    items:
+      - seq: '01'
+        id: FLD-tag.id
+        key: id
+        label: ID
+        type: common#タグ番号
+        base: id
+        required: true
+        pattern: ^TAG-[0-9]{3,}$
+        description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
+        source: tag.id
+        documents:
+          - tag-list
+      - seq: '02'
+        id: FLD-tag.name
+        key: name
+        label: タグ名
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        source: tag.name
+        documents:
+          - tag-list
+    operations:
+      - seq: '01'
+        id: OPS-tag.add-tag
+        action: add-tag
+        label: タグを追加する
+        crud: C
+        writes:
+          - id: CRUD-tag.add-tag.name
+            entity: ENT-tag
+            operation: OPS-tag.add-tag
+            item: FLD-tag.name
+            crud: C
+    crud:
+      - 項目: id
+        名称: ID
+        add-tag: ''
+      - 項目: name
+        名称: タグ名
+        add-tag: C
+  - id: ENT-todo
+    label: TODO
+    description: やることを 1 件ずつ管理する単位です。タイトル・概要・分類（カテゴリとタグ）を一覧に、進み具合（状態・日付・結果・作業項目・コメント・状態の履歴）を個票に書きます。
+    source: todo
+    numbering:
+      item: FLD-todo.id
+      path: id
+      prefix: TODO-
+      digits: 3
+      description: 「TODO-」に 3 桁の番号を続ける（使われている番号の次）
+    documents:
+      - todo-list
+      - todo-detail
+    items:
+      - seq: '01'
+        id: FLD-todo.id
+        key: id
+        label: ID
+        type: common#TODO番号
+        base: id
+        required: true
+        pattern: ^TODO-[0-9]{3,}$
+        description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+        source: todo.id
+        documents:
+          - todo-list
+          - todo-detail
+      - seq: '02'
+        id: FLD-todo.title
+        key: title
+        label: タイトル
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        source: todo.title
+        documents:
+          - todo-list
+      - seq: '03'
+        id: FLD-todo.summary
+        key: summary
+        label: 概要
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        source: todo.summary
+        documents:
+          - todo-list
+      - seq: '04'
+        id: FLD-todo.category
+        key: category
+        label: カテゴリ
+        type: common#カテゴリ参照
+        base: ref
+        target: ENT-category
+        description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        source: todo.category
+        documents:
+          - todo-list
+      - seq: '05'
+        id: FLD-todo.tags
+        key: tags
+        label: タグ
+        type: array
+        base: array
+        itemType: common#タグ参照
+        item:
+          type: common#タグ参照
+          base: ref
+          target: ENT-tag
+        unique: true
+        description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
+        source: todo.tags
+        documents:
+          - todo-list
+      - seq: '06'
+        id: FLD-todo.follows
+        key: follows
+        label: 元のTODO
+        type: common#TODO参照
+        base: ref
+        target: ENT-todo
+        description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
+        source: todo.follows
+        documents:
+          - todo-list
+      - seq: '07'
+        id: FLD-todo.status
+        key: status
+        label: ステータス
+        type: common#ステータス
+        base: enum
+        required: true
+        default: OPEN
+        values:
+          - value: OPEN
+            label: 未着手
+          - value: IN_PROGRESS
+            label: 対応中
+          - value: SUSPENDED
+            label: 中断
+          - value: CLOSED
+            label: 完了
+          - value: CANCELED
+            label: 中止
+        source: todo.status
+        documents:
+          - todo-detail
+      - seq: '08'
+        id: FLD-todo.created_on
+        key: created_on
+        label: 作成日
+        type: common#年月日
+        base: date
+        required: true
+        auto: created
+        description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
+        source: todo.created_on
+        documents:
+          - todo-detail
+      - seq: '09'
+        id: FLD-todo.updated_on
+        key: updated_on
+        label: 更新日
+        type: common#年月日
+        base: date
+        required: true
+        auto: updated
+        description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
+        source: todo.updated_on
+        documents:
+          - todo-detail
+      - seq: '10'
+        id: FLD-todo.due_on
+        key: due_on
+        label: 期限
+        type: common#年月日
+        base: date
+        description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
+        source: todo.due_on
+        documents:
+          - todo-detail
+      - seq: '11'
+        id: FLD-todo.completed_on
+        key: completed_on
+        label: 完了日
+        type: common#年月日
+        base: date
+        description: 完了時に入力します。未完了・中止の場合は省略します。
+        source: todo.completed_on
+        documents:
+          - todo-detail
+      - seq: '12'
+        id: FLD-todo.details
+        key: details
+        label: 詳細
+        type: common#文章
+        base: string
+        description: 作業内容や完了条件を記載します。
+        source: todo.details
+        documents:
+          - todo-detail
+      - seq: '13'
+        id: FLD-todo.result
+        key: result
+        label: 結果
+        type: common#文章
+        base: string
+        description: 対応結果や中止理由を記載します。
+        source: todo.result
+        documents:
+          - todo-detail
+      - seq: '14'
+        id: FLD-todo.tasks
+        key: tasks
+        label: 作業項目
+        type: array
+        base: array
+        itemType: common#作業項目
+        default: []
+        item:
+          type: common#作業項目
+          base: object
+          entity: ENT-todo-task
+        description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
+        source: todo.tasks
+        documents:
+          - todo-detail
+      - seq: '15'
+        id: FLD-todo.comments
+        key: comments
+        label: コメント一覧
+        type: array
+        base: array
+        itemType: common#コメント
+        default: []
+        item:
+          type: common#コメント
+          base: object
+          fields:
+            - key: date
+              label: 日付
+              type: common#年月日
+              base: date
+              required: true
+            - key: body
+              label: コメント本文
+              type: text
+              base: string
+              required: true
+        description: 並び順は任意です。
+        source: todo.comments
+        documents:
+          - todo-detail
+      - seq: '16'
+        id: FLD-todo.history
+        key: history
+        label: 状態の履歴
+        type: array
+        base: array
+        itemType: common#状態の記録
+        default: []
+        item:
+          type: common#状態の記録
+          base: object
+          fields:
+            - key: date
+              label: 日付
+              type: common#年月日
+              base: date
+              required: true
+            - key: action
+              label: 操作
+              type: common#TODOの操作
+              base: enum
+              required: true
+            - key: from
+              label: 前の状態
+              type: common#ステータス
+              base: enum
+            - key: to
+              label: 後の状態
+              type: common#ステータス
+              base: enum
+              required: true
+            - key: note
+              label: 理由
+              type: common#文章
+              base: string
+            - key: resume_on
+              label: 再開予定日
+              type: common#年月日
+              base: date
+        description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
+        source: todo.history
+        documents:
+          - todo-detail
+    operations:
+      - seq: '01'
+        id: OPS-todo.register-todo
+        action: register-todo
+        label: TODOを登録する
+        crud: C
+        writes:
+          - id: CRUD-todo.register-todo.due_on
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.due_on
+            crud: C
+          - id: CRUD-todo.register-todo.details
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.details
+            crud: C
+          - id: CRUD-todo.register-todo.comments
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.comments
+            crud: C
+          - id: CRUD-todo.register-todo.id
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.id
+            crud: C
+          - id: CRUD-todo.register-todo.title
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.title
+            crud: C
+          - id: CRUD-todo.register-todo.summary
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.summary
+            crud: C
+          - id: CRUD-todo.register-todo.category
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.category
+            crud: C
+          - id: CRUD-todo.register-todo.tags
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.tags
+            crud: C
+          - id: CRUD-todo.register-todo.follows
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.follows
+            crud: C
+          - id: CRUD-todo.register-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.status
+            crud: C
+          - id: CRUD-todo.register-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.history
+            crud: C
+          - id: CRUD-todo.register-todo.created_on
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.created_on
+            crud: C
+          - id: CRUD-todo.register-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.updated_on
+            crud: C
+      - seq: '02'
+        id: OPS-todo.add-todo-comment
+        action: add-todo-comment
+        label: TODOにコメントを追加する
+        crud: U
+        writes:
+          - id: CRUD-todo.add-todo-comment.comments
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-comment
+            item: FLD-todo.comments
+            crud: U
+          - id: CRUD-todo.add-todo-comment.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-comment
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '03'
+        id: OPS-todo.add-todo-task
+        action: add-todo-task
+        label: 作業項目を追加する
+        crud: U
+        writes:
+          - id: CRUD-todo.add-todo-task.tasks
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-task
+            item: FLD-todo.tasks
+            crud: U
+          - id: CRUD-todo.add-todo-task.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-task
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '04'
+        id: OPS-todo.edit-todo
+        action: edit-todo
+        label: TODOを編集する
+        crud: U
+        writes:
+          - id: CRUD-todo.edit-todo.title
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.title
+            crud: U
+          - id: CRUD-todo.edit-todo.summary
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.summary
+            crud: U
+          - id: CRUD-todo.edit-todo.category
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.category
+            crud: U
+          - id: CRUD-todo.edit-todo.tags
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.tags
+            crud: U
+          - id: CRUD-todo.edit-todo.created_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.created_on
+            crud: U
+          - id: CRUD-todo.edit-todo.due_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.due_on
+            crud: U
+          - id: CRUD-todo.edit-todo.details
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.details
+            crud: U
+          - id: CRUD-todo.edit-todo.result
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.result
+            crud: U
+          - id: CRUD-todo.edit-todo.comments
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.comments
+            crud: U
+          - id: CRUD-todo.edit-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '05'
+        id: OPS-todo.start-todo
+        action: start-todo
+        label: TODOに着手する
+        crud: U
+        writes:
+          - id: CRUD-todo.start-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.start-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.start-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.start-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.start-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.start-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '06'
+        id: OPS-todo.suspend-todo
+        action: suspend-todo
+        label: TODOを中断する
+        crud: U
+        writes:
+          - id: CRUD-todo.suspend-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.suspend-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.suspend-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.suspend-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.suspend-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.suspend-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '07'
+        id: OPS-todo.resume-todo
+        action: resume-todo
+        label: TODOを再開する
+        crud: U
+        writes:
+          - id: CRUD-todo.resume-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.resume-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.resume-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.resume-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.resume-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.resume-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '08'
+        id: OPS-todo.complete-todo
+        action: complete-todo
+        label: TODOを完了する
+        crud: U
+        writes:
+          - id: CRUD-todo.complete-todo.completed_on
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.completed_on
+            crud: U
+          - id: CRUD-todo.complete-todo.result
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.result
+            crud: U
+          - id: CRUD-todo.complete-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.complete-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.complete-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '09'
+        id: OPS-todo.cancel-todo
+        action: cancel-todo
+        label: TODOを中止する
+        crud: U
+        writes:
+          - id: CRUD-todo.cancel-todo.result
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.result
+            crud: U
+          - id: CRUD-todo.cancel-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.cancel-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.cancel-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '10'
+        id: OPS-todo.todo-task.finish
+        action: todo-task.finish
+        label: 作業項目を済にする
+        crud: U
+        writes:
+          - id: CRUD-todo.todo-task.finish.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.todo-task.finish
+            item: FLD-todo.updated_on
+            crud: U
+    crud:
+      - 項目: id
+        名称: ID
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: ''
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: title
+        名称: タイトル
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: summary
+        名称: 概要
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: category
+        名称: カテゴリ
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: tags
+        名称: タグ
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: follows
+        名称: 元のTODO
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: ''
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: status
+        名称: ステータス
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: ''
+        start-todo: U
+        suspend-todo: U
+        resume-todo: U
+        complete-todo: U
+        cancel-todo: U
+        todo-task.finish: ''
+      - 項目: created_on
+        名称: 作成日
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: updated_on
+        名称: 更新日
+        register-todo: C
+        add-todo-comment: U
+        add-todo-task: U
+        edit-todo: U
+        start-todo: U
+        suspend-todo: U
+        resume-todo: U
+        complete-todo: U
+        cancel-todo: U
+        todo-task.finish: U
+      - 項目: due_on
+        名称: 期限
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: completed_on
+        名称: 完了日
+        register-todo: ''
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: ''
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: U
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: details
+        名称: 詳細
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: result
+        名称: 結果
+        register-todo: ''
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: U
+        cancel-todo: U
+        todo-task.finish: ''
+      - 項目: tasks
+        名称: 作業項目
+        register-todo: ''
+        add-todo-comment: ''
+        add-todo-task: U
+        edit-todo: ''
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: comments
+        名称: コメント一覧
+        register-todo: C
+        add-todo-comment: U
+        add-todo-task: ''
+        edit-todo: U
+        start-todo: ''
+        suspend-todo: ''
+        resume-todo: ''
+        complete-todo: ''
+        cancel-todo: ''
+        todo-task.finish: ''
+      - 項目: history
+        名称: 状態の履歴
+        register-todo: C
+        add-todo-comment: ''
+        add-todo-task: ''
+        edit-todo: ''
+        start-todo: U
+        suspend-todo: U
+        resume-todo: U
+        complete-todo: U
+        cancel-todo: U
+        todo-task.finish: ''
+  - id: ENT-todo-task
+    label: 作業項目
+    description: TODO を小分けにした作業です。TODO の中にだけあり、済んでいない作業項目があるうちは TODO を完了できません。
+    source: todo-task
+    parent: ENT-todo
+    parentField: FLD-todo.tasks
+    numbering:
+      item: FLD-todo-task.id
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+      description: 親の ID に「-S」と 2 桁の番号を続ける（使われている番号の次）
+    documents:
+      - todo-detail
+    items:
+      - seq: '01'
+        id: FLD-todo-task.id
+        key: id
+        label: ID
+        type: common#作業項目番号
+        base: id
+        required: true
+        pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+        description: 追加すると自動で振ります（例 TODO-002-S01）。
+        source: todo-task.id
+        documents:
+          - todo-detail
+      - seq: '02'
+        id: FLD-todo-task.title
+        key: title
+        label: 作業
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        source: todo-task.title
+        documents:
+          - todo-detail
+      - seq: '03'
+        id: FLD-todo-task.done
+        key: done
+        label: 済
+        type: boolean
+        base: boolean
+        required: true
+        default: false
+        source: todo-task.done
+        documents:
+          - todo-detail
+    operations:
+      - seq: '01'
+        id: OPS-todo-task.add-todo-task
+        action: add-todo-task
+        label: 作業項目を追加する
+        crud: C
+        writes:
+          - id: CRUD-todo-task.add-todo-task.id
+            entity: ENT-todo-task
+            operation: OPS-todo-task.add-todo-task
+            item: FLD-todo-task.id
+            crud: C
+          - id: CRUD-todo-task.add-todo-task.title
+            entity: ENT-todo-task
+            operation: OPS-todo-task.add-todo-task
+            item: FLD-todo-task.title
+            crud: C
+          - id: CRUD-todo-task.add-todo-task.done
+            entity: ENT-todo-task
+            operation: OPS-todo-task.add-todo-task
+            item: FLD-todo-task.done
+            crud: C
+      - seq: '02'
+        id: OPS-todo-task.todo-task.finish
+        action: todo-task.finish
+        label: 作業項目を済にする
+        crud: U
+        writes:
+          - id: CRUD-todo-task.todo-task.finish.done
+            entity: ENT-todo-task
+            operation: OPS-todo-task.todo-task.finish
+            item: FLD-todo-task.done
+            crud: U
+    crud:
+      - 項目: id
+        名称: ID
+        add-todo-task: C
+        todo-task.finish: ''
+      - 項目: title
+        名称: 作業
+        add-todo-task: C
+        todo-task.finish: ''
+      - 項目: done
+        名称: 済
+        add-todo-task: C
+        todo-task.finish: U

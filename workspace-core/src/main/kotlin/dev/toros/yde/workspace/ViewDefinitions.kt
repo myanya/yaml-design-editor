@@ -30,6 +30,7 @@ import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.VirtualDocViewDef
 import dev.toros.yde.semantic.VirtualEachDef
 import dev.toros.yde.semantic.VirtualGridDef
+import dev.toros.yde.semantic.VirtualCorrectionsDef
 import dev.toros.yde.semantic.LensArrow
 import dev.toros.yde.semantic.LensFilter
 import dev.toros.yde.semantic.LensFilterMode
@@ -885,6 +886,16 @@ object ViewDefinitions {
             source = source,
             params = params,
             rowsRaw = if (rowsQuery != null && params.isNotEmpty()) rowsMap.entries.associate { it.key.toString() to it.value } else null,
+            corrections = (raw["corrections"] as? Map<*, *>)?.let { m ->
+                // 補正を重ねる: 補正の文書のスキーマ（必須）・当たり先の参照の項目・置き換える値の object の項目
+                m.keys.map { it.toString() }.firstOrNull { it !in setOf("schemaIds", "target", "set") }
+                    ?.let { error("corrections: 未知のキーです: $it（使えるキー: schemaIds, target, set）") }
+                VirtualCorrectionsDef(
+                    schemaIds = stringList(m["schemaIds"]).ifEmpty { error("corrections.schemaIds（補正の文書のスキーマ）が必要です") },
+                    target = m["target"]?.toString()?.takeIf { it.isNotBlank() } ?: "target",
+                    set = m["set"]?.toString()?.takeIf { it.isNotBlank() } ?: "set",
+                )
+            } ?: (raw["corrections"]?.let { error("corrections は object（schemaIds・target・set）で書きます") }),
         )
     }
 

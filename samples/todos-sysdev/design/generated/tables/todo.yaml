@@ -82,15 +82,6 @@ tables:
         java:
           name: updatedOn
           type: LocalDate
-      - name: updated_by
-        item: updated_by
-        label: 更新者
-        type: VARCHAR(50)
-        notNull: true
-        java:
-          name: updatedBy
-          type: String
-        origin: 基本設計「更新者を記録する」（audit-updated-by）
       - name: due_on
         item: due_on
         label: 期限

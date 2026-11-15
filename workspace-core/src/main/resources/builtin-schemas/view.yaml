@@ -697,6 +697,24 @@ root:
           type: string
           expression: true
           description: "「作成」の作り先。値の式を受け取る項目（短い書き方は {パス} を含む文字列。例 designs/{id}_{name}.yaml＝穴は行の要素の値・{id} は行のID・{title} は表示の解決結果。完全な書き方は {format, with} などの値の式）。穴に入った値はファイル名に使える文字に直される"
+    - key: corrections
+      label: 補正を重ねる
+      type: object
+      description: "path の列のセルに、補正の文書の置き換える値を重ねて出す（元の文書は変えない）。当たり先（target の参照）が行の要素の補正の、set の中の列の path の値。同じ行の補正は文書の中の後のものが勝ち、重ねたセルは読み取り専用で、来歴に補正の ID と元の値が出る"
+      fields:
+        - key: schemaIds
+          label: 補正の文書のスキーマ
+          type: array
+          required: true
+          item: { type: string }
+        - key: target
+          label: 当たり先の項目
+          type: string
+          description: 補正の要素の中の、当たり先（行の要素）を指す参照の項目のキー（省くと target）
+        - key: set
+          label: 置き換える値の項目
+          type: string
+          description: 補正の要素の中の、置き換える値を書いた object の項目のキー（キーは列の path。省くと set）
     - key: newRow
       label: 新規行の入口
       type: object

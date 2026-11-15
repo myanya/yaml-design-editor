@@ -15,6 +15,7 @@
 | `yde-lifecycle` | Lifecycle の ID | `lifecycles` の要素 |
 | `yde-entity` | エンティティ型の名前（`todo`） | `entity: {type: …}` を書いた object（定義の宣言を優先） |
 | `yde-view` | ビューの ID（ダッシュボード `todo-dashboard`・表 `todo-management` など） | ビューの定義の文書（`.yde/views`）のルート |
+| `yde-field` | `エンティティ型.キー`（`todo.title`。同じ型の同じキーは先に見つけた 1 か所） | エンティティ型を持つ object の `fields` の要素（名前付きの型の定義の中・文書のルート） |
 
 ```yaml
 # 設計書のスキーマ: 業務の操作と同じ ID の詳細化

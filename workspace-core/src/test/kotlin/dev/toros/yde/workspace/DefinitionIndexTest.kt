@@ -136,6 +136,14 @@ class DefinitionIndexTest {
             assertEquals("_schemas/task.yaml", it.document.value)
         }
         assertEquals(listOf<Any>("definitions", "step"), definition("task-step").path)
+        // 項目（エンティティ型.キー）: 項目を書いた場所。スキーマの entity の宣言の文書はルートの項目、名前付きの型は定義の中
+        definition("task.status").let {
+            assertEquals(DefinitionIndex.FIELD, it.entityType)
+            assertEquals("_schemas/task.yaml", it.document.value)
+            assertEquals(listOf<Any>("root", "fields", 1), it.path)
+        }
+        assertEquals(listOf<Any>("definitions", "step", "fields", 1), definition("task-step.done").path)
+        assertTrue(index.ids.keys.none { it.startsWith("yde-") || it.startsWith("action-spec.") }, "定義の種類を詳細化する設計書の項目は載せない")
         // 設計書の出現は、同じ ID の詳細化
         assertEquals(listOf(EntityRole.DEFINING, EntityRole.DETAIL), index.occurrences("finish-task").map { it.role })
     }

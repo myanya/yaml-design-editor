@@ -4,8 +4,8 @@ description: 業務モデルのエンティティ型ごとに、どの設計書�
 rows:
   match: [{ node: { entity: yde-entity, bind: e } }]
 columns:
-  - { label: 名前, schemaId: entity-spec, path: name }
-  - { label: エンティティ定義書, value: { occurrenceCount: { of: e, schema: entity-spec } } }
+  - { label: 名前, value: "{title}" }
+  - { label: 基本設計項目一覧, value: { refCount: { of: e, dir: in, via: source } } }
   - { label: テーブル設計書, value: { occurrenceCount: { of: e, schema: table-design } } }
   - { label: テーブルアクセス設計書, value: { occurrenceCount: { of: e, schema: table-access } } }
   - { label: 画面遷移設計（Controller）, value: { occurrenceCount: { of: e, schema: screen-flow } } }

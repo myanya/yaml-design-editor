@@ -39,9 +39,15 @@ object DefinitionIndex {
      * builtin-view の `entity` の宣言で載る（ビューの文書はもともと索引に載る）。
      */
     const val VIEW = "yde-view"
+    /**
+     * 項目（エンティティ型の側面に、項目の並び fields として書いた項目）。ID は `型.キー`（`todo.title`）。出現は項目を書いた場所
+     * （名前付きの型の定義の中・文書のルートの中）。同じ型の同じキーを 2 か所に書いていれば、先に見つけた 1 か所。
+     * 設計の項目が「どの業務の項目から来たか」を参照で指し、リンクで辿るのに使う。
+     */
+    const val FIELD = "yde-field"
 
     /** 定義の索引が使うエンティティ型。利用者のスキーマは、これを定義（defines: true）として宣言できない。 */
-    val types: Set<String> = setOf(ACTION, STATE, LIFECYCLE, ENTITY, REQUIRE, VIEW)
+    val types: Set<String> = setOf(ACTION, STATE, LIFECYCLE, ENTITY, REQUIRE, VIEW, FIELD)
 
     /** 予約した接頭辞（利用者の型の名前に使わない）。 */
     const val PREFIX = "yde-"
@@ -55,6 +61,8 @@ object DefinitionIndex {
             .sortedBy { it.key.value }
             .mapNotNull { (id, d) -> (d.document.documents.firstOrNull() as? YNode.Map)?.let { Source(id, d, it, bySource.getValue(id)) } }
         val entities = entityDeclarations(sources)
+        // 項目は型とキーの組ごとに 1 か所（文書をまたいで、先に見つけたもの）
+        val seenFields = HashSet<String>()
         return sources.mapNotNull { src ->
             val ids = mutableListOf<ScannedId>()
             fun add(id: String, path: YPath, type: String, title: String?, holderKey: String?) {
@@ -70,6 +78,7 @@ object DefinitionIndex {
             states(src, catalog, ::add)
             lifecycles(src, ::add)
             entities[src.id].orEmpty().forEach { e -> add(e.type, e.path, ENTITY, e.title, null) }
+            fields(src, seenFields, ::add)
             ids.takeIf { it.isNotEmpty() }?.let { DocumentScan(src.id, DocumentMeta.idOf(src.root, src.id.value), it, emptyList()) }
         }
     }
@@ -171,6 +180,44 @@ object DefinitionIndex {
         return found.groupBy { it.second.type }
             .map { (_, all) -> all.firstOrNull { it.second.defines } ?: all.first() }
             .groupBy({ it.first }, { it.second })
+    }
+
+    /**
+     * 項目: スキーマの木（型を解いたもの）と原文を一緒に歩き、エンティティ型を持つ object（オブジェクト型か、スキーマの entity の
+     * 宣言で ID の項目を持つ object。業務モデルの項の側面と同じ見分け方）の、原文に書いた fields の項目を載せる。
+     * 名前付きの型を使う所（`type: common#TODO個票`）には原文の fields が無いので、その型を書いた定義の側で載る。
+     */
+    private fun fields(src: Source, seen: MutableSet<String>, add: Add) {
+        val tree = src.schema.tree
+        val schemaLevel = src.schema.entities.firstOrNull()
+        fun walk(f0: dev.toros.yde.semantic.schema.FieldDef, raw: YNode.Map?, path: YPath, depth: Int) {
+            if (raw == null || depth > 12) return
+            val f = tree.resolve(f0) ?: f0
+            when (f.type) {
+                dev.toros.yde.semantic.schema.FieldType.OBJECT -> {
+                    val rawFields = (raw.entries["fields"] as? YNode.Seq)?.items ?: return
+                    val decl = f.entity ?: schemaLevel?.takeIf {
+                        f.fields.any { c -> (tree.resolve(c) ?: c).type == dev.toros.yde.semantic.schema.FieldType.ID }
+                    }
+                    rawFields.forEachIndexed { i, node ->
+                        val m = node as? YNode.Map ?: return@forEachIndexed
+                        val key = scalarText(m.entries["key"]) ?: return@forEachIndexed
+                        if (decl != null && !decl.type.startsWith(PREFIX) && seen.add("${decl.type}.$key")) {
+                            add("${decl.type}.$key", path + listOf("fields", i), FIELD, scalarText(m.entries["label"]), "fields")
+                        }
+                        val child = f0.fields.firstOrNull { it.key == key } ?: f.fields.firstOrNull { it.key == key } ?: return@forEachIndexed
+                        walk(child, m, path + listOf("fields", i), depth + 1)
+                    }
+                }
+                dev.toros.yde.semantic.schema.FieldType.ARRAY -> f.item?.let { walk(it, raw.entries["item"] as? YNode.Map, path + "item", depth + 1) }
+                dev.toros.yde.semantic.schema.FieldType.MAP -> f.value?.let { walk(it, raw.entries["value"] as? YNode.Map, path + "value", depth + 1) }
+                else -> Unit
+            }
+        }
+        (src.root.entries["definitions"] as? YNode.Map)?.entries?.forEach { (name, def) ->
+            tree.definitions[name]?.let { walk(it, def as? YNode.Map, listOf("definitions", name), 0) }
+        }
+        walk(tree.root, src.root.entries["root"] as? YNode.Map, listOf("root"), 0)
     }
 
     private fun entityTypeOf(owner: YNode.Map): String? =

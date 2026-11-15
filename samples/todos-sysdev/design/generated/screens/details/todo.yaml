@@ -35,9 +35,6 @@ items:
   - key: updated_on
     label: 更新日
     type: common#年月日
-  - key: updated_by
-    label: 更新者
-    type: 利用者ID
   - key: due_on
     label: 期限
     type: common#年月日

@@ -45,11 +45,11 @@ constraints:
     level: error
     message: "Lifecycle「{id}」に状態の判定（enum と遷移）がありません（generate で作り直します）"
   - id: entity-has-spec
-    description: どのエンティティ型にもエンティティ定義書がある
+    description: どのエンティティ型にも基本設計項目一覧のエンティティがある（導出元 source で業務のエンティティ型を指す）
     match: [{ node: { entity: yde-entity, bind: e } }]
-    check: [{ gte: [{ occurrenceCount: { of: e, schema: entity-spec } }, 1] }]
+    check: [{ gte: [{ refCount: { of: e, dir: in, via: source } }, 1] }]
     level: error
-    message: "エンティティ型「{id}」にエンティティ定義書がありません（generate で作り直します）"
+    message: "エンティティ型「{id}」が基本設計項目一覧にありません（generate で作り直します）"
   - id: entity-has-table
     description: どのエンティティ型にもテーブル設計書がある
     match: [{ node: { entity: yde-entity, bind: e } }]
@@ -65,7 +65,8 @@ constraints:
   - id: dashboard-has-screens
     description: どのダッシュボードにも画面遷移定義書・一覧画面の画面定義書・一覧画面の Controller がある
     match: [{ node: { entity: yde-view, bind: v } }]
-    where: [{ of: v, path: kind, equals: dashboard }]
+    # 設計書のビュー（エンティティ定義書）はアプリの画面にしない。検査がスコープで絞れるようになったら、業務モデルのダッシュボードだけにする
+    where: [{ of: v, path: kind, equals: dashboard }, { of: v, path: id, notEquals: entity-definition }]
     check:
       - { gte: [{ occurrenceCount: { of: v, schema: screen-transitions } }, 1] }
       - { gte: [{ occurrenceCount: { of: v, schema: screen-list } }, 1] }

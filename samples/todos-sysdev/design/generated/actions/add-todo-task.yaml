@@ -33,10 +33,3 @@ effects:
       $copy: today
       $of: context
     source: auto
-  - op: set
-    entity: todo
-    path: updated_by
-    value:
-      $copy: actor
-      $of: context
-    origin: 基本設計「更新者を記録する」（audit-updated-by）

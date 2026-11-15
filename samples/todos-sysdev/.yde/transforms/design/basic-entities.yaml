@@ -1,0 +1,185 @@
+id: basic-entities
+name: 基本設計項目一覧（エンティティ）
+description: >-
+  基本設計の段の項（業務モデル＋基本設計のルール）から、エンティティの設計項目を 1 本の一覧にする。
+  エンティティは ENT-型、項目は FLD-型.キー、操作は OPS-型.操作、書く項目は CRUD-型.操作.キー の ID を持ち、導出元（業務モデルのエンティティ型・項目・操作）を参照で指す。
+  値は業務モデルの項と同じ書き方（YDE の標準。型の名前・auto・選択肢の value・採番）のまま持ち、日本語に言い換えない。人が読む言葉は説明（description）に書く。
+  一覧の行と個票のように業務モデルで 2 か所に書かれた項目は 1 つにまとめる。人が読む設計書はビュー「エンティティ定義書」
+scope: business
+stage: basic
+output: design/basic/entities.yaml
+build:
+  entities:
+    $each: entities
+    $bind: ent
+    $build:
+      id: { $format: "ENT-{id}" }
+      label: { $copy: label }
+      description: { $copy: description }
+      source: { $copy: id }
+      parent: { $when: [{ path: owner.entity, exists: true }], $then: { $format: "ENT-{owner.entity}" } }
+      parentField: { $when: [{ path: owner.entity, exists: true }], $then: { $format: "FLD-{owner.entity}.{owner.field}" } }
+      # ID形式: 業務モデルの採番のまま（ID を入れる項目 path・接頭辞 prefix・桁 digits）と、ID項目（項目一覧の設計項目）と説明
+      numbering:
+        $when: [{ path: numbering, exists: true }]
+        $then:
+          item: { $format: "FLD-{id}.{numbering.path}" }
+          path: { $copy: numbering.path }
+          prefix: { $copy: numbering.prefix }
+          digits: { $copy: numbering.digits }
+          description:
+            $first:
+              # 接頭辞を親の ID から作るとき（作業項目 TODO-002-S01）
+              - $when: [{ path: "numbering.prefix.$of", equals: owner }]
+                $then:
+                  $format: "親の ID に「{s}」と {numbering.digits} 桁の番号を続ける（使われている番号の次）"
+                  $with: { s: { $value: { extract: [{ path: "numbering.prefix.$format" }, '\}(.*)$'] } } }
+              - { $format: "「{numbering.prefix}」に {numbering.digits} 桁の番号を続ける（使われている番号の次）" }
+      documents: { $each: aspects, $build: { $copy: schema } }
+      # 項目一覧: 側面ごとの項目をキーでまとめる（初出順）。値は業務モデルの項の項目と同じ書き方
+      items:
+        $group: { $apply: fields }
+        $by: { $copy: field.key }
+        $build:
+          seq: { $number: $position, $as: "00" }
+          id: { $format: "FLD-{e}.{k}", $with: { e: { $copy: id, $of: ent }, k: { $copy: key } } }
+          key: { $copy: key }
+          label: { $copy: "items[0].field.label" }
+          type: { $copy: "items[0].field.type" }
+          base: { $copy: "items[0].field.base" }
+          # 配列の要素の論理型（基底の種類が array のとき。表で読めるように要素から写す）
+          itemType: { $copy: "items[0].field.item.type" }
+          required: { $copy: "items[0].field.required" }
+          minLength: { $copy: "items[0].field.minLength" }
+          maxLength: { $copy: "items[0].field.maxLength" }
+          pattern: { $copy: "items[0].field.pattern" }
+          default: { $copy: "items[0].field.default" }
+          auto: { $copy: "items[0].field.auto" }
+          values: { $copy: "items[0].field.values" }
+          target: { $when: [{ path: "items[0].field.base", equals: ref }], $then: { $format: "ENT-{t}", $with: { t: { $copy: "items[0].field.target" } } } }
+          item: { $apply: item, $at: "items[0].field.item" }
+          unique: { $copy: "items[0].field.unique" }
+          description: { $copy: "items[0].field.description" }
+          # 導出元: 業務モデルの項目（ルールで足した項目は、業務モデルに無いので書かない）
+          source:
+            $when: [{ path: "items[0].field.origin", exists: false }]
+            $then: { $format: "{e}.{k}", $with: { e: { $copy: id, $of: ent }, k: { $copy: key } } }
+          rule: { $copy: "items[0].field.origin.by" }
+          documents: { $each: items, $build: { $copy: schema } }
+      # 操作一覧: この型の項目を作成（C）・更新（U）する操作（操作ごとに、書く項目）
+      operations:
+        $group:
+          $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: effects
+            $flatten: true
+            $build:
+              $concat:
+                # 項目を書く（値を入れる・消す・配列へ足す。別の型の要素を足す配列も、この型の項目を書く）
+                - $when:
+                    - { path: entity, equals: { $copy: id, $of: ent } }
+                    - { or: [{ path: op, equals: set }, { path: op, equals: delete }, { path: op, equals: insert }] }
+                    - { or: [{ path: field.item.entity, exists: false }, { path: field.item.entity, notEquals: { $copy: id, $of: ent } }] }
+                  $then: [{ item: { $copy: field.key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } }]
+                # この型の要素を作る（文書を作る・一覧や入れ子の配列へ足す）: 書いた項目はどれも作成
+                - $when: [{ path: op, equals: create }, { path: entity, equals: { $copy: id, $of: ent } }]
+                  $then: { $each: written, $build: { item: { $copy: key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } } }
+                - $when: [{ path: op, equals: insert }, { path: field.item.entity, equals: { $copy: id, $of: ent } }]
+                  $then: { $each: written, $build: { item: { $copy: key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } } }
+        $by: { $copy: action }
+        $bind: op
+        $build:
+          seq: { $number: $position, $as: "00" }
+          id: { $format: "OPS-{e}.{a}", $with: { e: { $copy: id, $of: ent }, a: { $copy: key } } }
+          action: { $copy: key }
+          label: { $copy: "items[0].label" }
+          crud: { $first: [{ $when: [{ path: "items[0].creates", equals: true }], $then: C }, U] }
+          # 書く項目（CRUD 表のセル）: 項目ごとに、作成（C）か更新（U）か
+          writes:
+            $group: items
+            $by: { $copy: item }
+            $build:
+              id: { $format: "CRUD-{e}.{a}.{k}", $with: { e: { $copy: id, $of: ent }, a: { $copy: key, $of: op }, k: { $copy: key } } }
+              entity: { $format: "ENT-{e}", $with: { e: { $copy: id, $of: ent } } }
+              operation: { $format: "OPS-{e}.{a}", $with: { e: { $copy: id, $of: ent }, a: { $copy: key, $of: op } } }
+              item: { $format: "FLD-{e}.{k}", $with: { e: { $copy: id, $of: ent }, k: { $copy: key } } }
+              crud: { $first: [{ $when: [{ of: op, path: "items[0].creates", equals: true }], $then: C }, U] }
+      # CRUD 表: 行＝項目、列＝操作 ID、値＝作成 C か更新 U（書かなければ空）。上の操作一覧と同じ書く印から作る
+      crud:
+        $group: { $apply: fields }
+        $by: { $copy: field.key }
+        $bind: row
+        $build:
+          $entries:
+            $concat:
+              - - { key: 項目, value: { $copy: key } }
+                - { key: 名称, value: { $first: [{ $copy: "items[0].field.label" }, { $copy: key }] } }
+              - $group:
+                  $each: actions
+                  $of: model
+                  $bind: a
+                  $flatten: true
+                  $build:
+                    $each: effects
+                    $flatten: true
+                    $build:
+                      $concat:
+                        # 項目を書く（値を入れる・消す・配列へ足す。別の型の要素を足す配列も、この型の項目を書く）
+                        - $when:
+                            - { path: entity, equals: { $copy: id, $of: ent } }
+                            - { or: [{ path: op, equals: set }, { path: op, equals: delete }, { path: op, equals: insert }] }
+                            - { or: [{ path: field.item.entity, exists: false }, { path: field.item.entity, notEquals: { $copy: id, $of: ent } }] }
+                          $then: [{ item: { $copy: field.key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } }]
+                        # この型の要素を作る（文書を作る・一覧や入れ子の配列へ足す）: 書いた項目はどれも作成
+                        - $when: [{ path: op, equals: create }, { path: entity, equals: { $copy: id, $of: ent } }]
+                          $then: { $each: written, $build: { item: { $copy: key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } } }
+                        - $when: [{ path: op, equals: insert }, { path: field.item.entity, equals: { $copy: id, $of: ent } }]
+                          $then: { $each: written, $build: { item: { $copy: key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } } }
+                $by: { $copy: action }
+                $build: { key: { $copy: key }, value: '' }
+              - $group:
+                  $each: actions
+                  $of: model
+                  $bind: a
+                  $flatten: true
+                  $build:
+                    $each: effects
+                    $flatten: true
+                    $build:
+                      $concat:
+                        # 項目を書く（値を入れる・消す・配列へ足す。別の型の要素を足す配列も、この型の項目を書く）
+                        - $when:
+                            - { path: entity, equals: { $copy: id, $of: ent } }
+                            - { or: [{ path: op, equals: set }, { path: op, equals: delete }, { path: op, equals: insert }] }
+                            - { or: [{ path: field.item.entity, exists: false }, { path: field.item.entity, notEquals: { $copy: id, $of: ent } }] }
+                          $then: [{ item: { $copy: field.key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } }]
+                        # この型の要素を作る（文書を作る・一覧や入れ子の配列へ足す）: 書いた項目はどれも作成
+                        - $when: [{ path: op, equals: create }, { path: entity, equals: { $copy: id, $of: ent } }]
+                          $then: { $each: written, $build: { item: { $copy: key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } } }
+                        - $when: [{ path: op, equals: insert }, { path: field.item.entity, equals: { $copy: id, $of: ent } }]
+                          $then: { $each: written, $build: { item: { $copy: key }, action: { $copy: id, $of: a }, label: { $copy: label, $of: a }, creates: { $when: [{ of: a, path: creates, includes: { $copy: id, $of: ent } }], $then: true } } }
+                $by: { $when: [{ path: item, equals: { $copy: key, $of: row } }], $then: { $copy: action } }
+                $build: { key: { $copy: key }, value: { $first: [{ $when: [{ path: "items[0].creates", equals: true }], $then: C }, U] } }
+rules:
+  # いまの場所＝エンティティ型。側面ごとの項目を 1 列に（{field: 項目, schema: 書かれた文書の種類}）
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build: { field: { $copy: . }, schema: { $copy: schema, $of: asp } }
+  # 配列の要素（いまの場所＝業務モデルの項の item）: 型・基底の種類・参照先・入れ子のエンティティ・行の項目
+  - id: item
+    build:
+      type: { $copy: type }
+      base: { $copy: base }
+      target: { $when: [{ path: target, exists: true }], $then: { $format: "ENT-{target}" } }
+      entity: { $when: [{ path: entity, exists: true }], $then: { $format: "ENT-{entity}" } }
+      fields:
+        $when: [{ path: fields, exists: true }]
+        $then: { $each: fields, $build: { key: { $copy: key }, label: { $copy: label }, type: { $copy: type }, base: { $copy: base }, required: { $copy: required }, maxLength: { $copy: maxLength } } }

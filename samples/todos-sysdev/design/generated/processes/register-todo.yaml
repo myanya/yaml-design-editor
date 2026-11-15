@@ -107,9 +107,6 @@ steps:
       updated_on:
         $copy: today
         $of: context
-      updated_by:
-        $copy: actor
-        $of: context
   - step: write
     call: TodoMapper.insertTodoTags
     kind: insert

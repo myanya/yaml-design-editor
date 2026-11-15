@@ -56,10 +56,6 @@ steps:
         value:
           $copy: today
           $of: context
-      - item: updated_by
-        value:
-          $copy: actor
-          $of: context
     where:
       - item: id
         param: id

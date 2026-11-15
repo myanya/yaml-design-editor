@@ -63,11 +63,6 @@ information:
         required: 必ずある
         auto: 書き換えたときの日付が入る
         note: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
-      - key: updated_by
-        label: 更新者
-        kind: 利用者ID（50 文字まで）
-        required: 必ずある
-        note: 最後に中身を変えた人。更新日と同じときに入る
       - key: due_on
         label: 期限
         kind: 年月日

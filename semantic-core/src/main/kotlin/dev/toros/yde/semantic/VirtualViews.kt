@@ -73,6 +73,17 @@ data class VirtualBacklinksDef(
 }
 
 /**
+ * 補正を重ねる（`corrections`）: 補正の文書（schemaIds のスキーマ）の要素のうち、当たり先（target の参照）が行の要素のものから、
+ * 置き換える値（set の object。キーは列の path）を読み、path の列のセルに重ねて出す。元の値は原本のまま（重ねるのは見るときだけ）。
+ * 同じ行に補正が 2 つ以上あれば、文書の中の後のものが勝つ。重ねたセルは読み取り専用で、来歴に補正の ID と元の値を持つ。
+ */
+data class VirtualCorrectionsDef(
+    val schemaIds: List<String>,
+    val target: String = "target",
+    val set: String = "set",
+)
+
+/**
  * ビューの1列。出現要素からの相対YPathで値を指すか、backlinks / value（値の式）/ of（クエリ束縛）の列にする。
  * value は列の値を値の式で決める読み取り専用の派生列（from で選んだ行の出現の要素が「いまの要素」）。
  */
@@ -243,6 +254,8 @@ data class VirtualGridDef(
     val params: List<String> = emptyList(),
     /** クエリ行の原文（params を差し込んで読み直すため。params が無ければ null）。 */
     val rowsRaw: Map<String, Any?>? = null,
+    /** 補正を重ねる（path の列のセルに、補正の文書の置き換える値を出す）。 */
+    val corrections: VirtualCorrectionsDef? = null,
 ) : VirtualViewDefinition
 
 // ---------------------------------------------------------------- 文書ビューの宣言（カーネル座標。RC-02）
@@ -568,6 +581,43 @@ object VirtualViews {
             )
         }
 
+        /**
+         * 補正を重ねたセル（無ければ null）: 補正の要素のうち、当たり先が行の要素（id）のものの、置き換える値（set の中の列の path）。
+         * 文書の中の後の補正が勝つ。座標は補正の値の場所（クリックで補正へ）、来歴は補正の ID と元の値（とその場所）。
+         */
+        fun correctedCell(column: VirtualViewColumn, id: String, original: VirtualCell): VirtualCell? {
+            val def = view.corrections ?: return null
+            if (column.path.isEmpty()) return null
+            val hits = refs.filter { r ->
+                r.targetId == id && r.sourceSchemaId in def.schemaIds && r.path.lastOrNull() == def.target
+            }.mapNotNull { r ->
+                val element = r.path.dropLast(1)
+                val node = cachedTree(r.document)?.let { getAt(it, element + def.set + column.path) } ?: return@mapNotNull null
+                val correctionId = entriesByDoc[r.document].orEmpty().firstOrNull { it.path == element }?.id
+                Triple(r, element, node) to correctionId
+            }.sortedWith(compareBy({ rel(it.first.first.document) }, { pathSortKey(it.first.second) }))
+            val (hit, correctionId) = hits.lastOrNull() ?: return null
+            val (ref, element, node) = hit
+            val before = original.value?.let { v -> (v as? YNode.Scalar)?.value?.toString() ?: "（値の組）" } ?: "（無し）"
+            return VirtualCell(
+                column = column,
+                document = ref.document,
+                path = element + def.set + column.path,
+                value = node,
+                computed = true,
+                trace = VirtualComputedTrace(
+                    raw = "補正 ${correctionId ?: "（ID なし）"} で置き換え（元の値: $before）",
+                    inputs = listOf(VirtualComputedInput("元の値", before, original.document, original.path)),
+                ),
+            )
+        }
+
+        /** path の列のセル（補正を重ねるビューなら、重ねた値）。 */
+        fun pathCell(column: VirtualViewColumn, id: String, document: DocumentId?, absolute: YPath?): VirtualCell {
+            val original = VirtualCell(column, document, absolute, if (document == null || absolute == null) null else cachedTree(document)?.let { getAt(it, absolute) })
+            return correctedCell(column, id, original) ?: original
+        }
+
         /** 従来の行（1 論理 ID）を、値の式の「いまの要素」として表すノード。 */
         fun entityNode(id: String, occurrences: List<ScannedId>): SemanticQueryNodeRef = SemanticQueryNodeRef(
             kind = QueryNodeKind.ENTITY,
@@ -605,11 +655,8 @@ object VirtualViews {
                         }
                         else -> {
                             val occurrence = occurrencesOf(node.id).firstOrNull { column.from.matches(it, rel(it.document)) }
-                            if (occurrence == null) VirtualCell(column, null, null, null)
-                            else {
-                                val absolute = occurrence.path + column.path
-                                VirtualCell(column, occurrence.document, absolute, cachedTree(occurrence.document)?.let { getAt(it, absolute) })
-                            }
+                            if (occurrence == null) pathCell(column, node.id, null, null)
+                            else pathCell(column, node.id, occurrence.document, occurrence.path + column.path)
                         }
                     }
                 }
@@ -647,11 +694,8 @@ object VirtualViews {
                     when {
                         backlinksDef != null -> VirtualCell(column, null, null, null, backlinks = backlinksFor(id, backlinksDef))
                         valueDef != null -> valueCell(column, valueDef, entityNode(id, occurrences), occurrences, emptyMap(), emptyList())
-                        occurrence == null -> VirtualCell(column, null, null, null)
-                        else -> {
-                            val absolute = occurrence.path + column.path
-                            VirtualCell(column, occurrence.document, absolute, cachedTree(occurrence.document)?.let { getAt(it, absolute) })
-                        }
+                        occurrence == null -> pathCell(column, id, null, null)
+                        else -> pathCell(column, id, occurrence.document, occurrence.path + column.path)
                     }
                 }
                 val detailOccurrence = view.detail?.let { d ->

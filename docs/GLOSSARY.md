@@ -31,6 +31,7 @@
 | 集約 | 入れ子の持ち主がいないエンティティ型と、その中に入れ子で書かれた型のまとまり（業務モデルの項の `aggregate`）。samples/todos-sysdev ではドメインの単位 | DDD の集約 | [manual/generate.md「業務モデルを展開した形」](manual/generate.md) |
 | 段・段の項 | 段は段階的詳細化の 1 段（基本設計・詳細設計など。`workspace.yaml` の `stages:`）。段の項は、前の段の項にその段の規則と補正を当てたもので、形は業務モデルの項と同じ | MDA の PIM・PSM | [manual/generate.md「段（基本設計・詳細設計）と、規則・補正」](manual/generate.md) |
 | 段の規則・補正 | 段の項を作るときに当てる項の変更（`.yde/stages/`）。規則は全体の方針（更新者・テナント分離など。横ぐしの設計）、補正は個別の例外で、当たる要素が無いと誤り | Kustomize の overlay・AOP の横断的関心事 | [manual/generate.md「段（基本設計・詳細設計）と、規則・補正」](manual/generate.md) |
+| 補正を重ねる | 原本を変えずに、別の文書に書いた補正（当たり先の参照と置き換える値）を、表を見るときだけ重ねて出すこと（ビューの `corrections`） | データベースのビュー（元の表＋上書きの表） | [manual/views.md「ビューグリッドとビュー定義（`_views`）」](manual/views.md) |
 | 出どころ（origin） | 段の規則・補正で足した要素に付く印（段・規則か補正の ID と名前）。業務モデルに無い項目がなぜあるかを設計書で示す | 来歴（provenance） | [manual/generate.md「段（基本設計・詳細設計）と、規則・補正」](manual/generate.md) |
 | スコープ | 名前のある定義体のまとまり（業務モデル・設計など）。中身は置き場所で指定し、使う向き（uses）を一方向に決める。生成は業務モデルのスコープだけを読む | Gradle の sourceSets・モジュールの依存方向 | [manual/generate.md「スコープ（業務モデルとして読む範囲）」](manual/generate.md) |
 | 詳細化 | 同じ ID を別の文書にもう一度書いて中身を足すこと（段階的詳細化）で、重複の誤りにしない | 部分クラス（partial class） | [architecture/index-references.md「段階的詳細化の規約」](architecture/index-references.md) |

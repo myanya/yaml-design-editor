@@ -1,0 +1,17 @@
+id: UX-335
+title: 設計のデータ型と初期値の書き方を定義でき、YDE の型・初期化の仕方から設計書体系での書き方へ、さらに SQL・Java などのロジックへ写せる対応のマスタを作れない
+status: todo
+origin_on: 2026-11-16
+origin: 'samples/todos-sysdev のエンティティ定義書（基本設計項目一覧）のレビュー。オーナー: エンティティ定義書はいったん OK。その上で登録'
+memo: |-
+  やりたいこと（オーナー）: 設計用のデータ型と初期値の記載方法を定義できるようにしておく。
+  「YDE での型がこれで、初期化の方法がこの場合は、この設計書体系ではこう表現する」を決め、そう表現したものを、SQL の場合・Java の場合などへ、あとからロジックに変換できるマスタを作れるようにする。
+  例（todos の作成日）: YDE の型 common#年月日（base: date）・auto: created
+    → 設計書体系での書き方（例 日付型・作成時に設定）
+    → SQL: DATE NOT NULL（初期値は作成時の日付）/ Java: LocalDate（Service が作成時に入れる）
+  例（タイトル）: common#一行の文（line・maxLength 100）→ VARCHAR(100) / String ＋ @Size(max = 100)
+  いまは、型から SQL・Java への写し方が、生成の定義（table-designs の sql-type・java-type の規則など）に直書きで、設計書体系としての書き方の層も無い。
+  基本設計項目一覧の値は YDE の標準のまま持っている（論理型 common#年月日・auto: created）ので、そこから引くマスタになる。
+  論理型を基本設計項目にするか（TYP-年月日 のように型の性質を 1 か所に持つ）の議論とつながる
+features:
+  - C-21

@@ -1,0 +1,33 @@
+id: entity-definition-items
+name: エンティティ定義書（項目一覧）
+description: 基本設計項目一覧の項目に、補正一覧を重ねた一覧（エンティティ定義書の 1 区画）。行はエンティティの中の項目（FLD-*）
+params: [entity]
+rows:
+  match:
+    - node: { id: "ENT-*", bind: e }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where:
+    - { of: e, path: id, equals: $entity }
+order: { schemaId: basic-entity-list }
+corrections: { schemaIds: [basic-corrections] }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 項目, path: key }
+  - { label: 名称, path: label }
+  - { label: 論理型, path: type }
+  - { label: 基底の種類, path: base }
+  - { label: 要素の論理型, path: itemType }
+  - { label: 必須, path: required }
+  - { label: 最大文字数, path: maxLength }
+  - { label: 形, path: pattern }
+  - { label: 初期値, path: default }
+  - { label: 自動で入る値, path: auto }
+  - { label: 選択肢, value: { path: "values[*].value" } }
+  - { label: 参照先, path: target }
+  - { label: 要素の参照先, path: item.target }
+  - { label: 説明, path: description }
+  - { label: 導出元, path: source }
+  - { label: ルール, path: rule }
+  - { label: 補正, backlinks: { schemaIds: [basic-corrections] } }

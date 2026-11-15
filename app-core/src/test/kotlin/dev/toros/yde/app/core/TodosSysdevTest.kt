@@ -43,11 +43,12 @@ class TodosSysdevTest {
         assertEquals(listOf("id", "todo_id", "seq", "title", "done"), taskColumns, "入れ子の型は親の ID と並び順を足す")
         val methods = list(doc("design/generated/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
-        assertEquals(listOf("completed_on", "result", "status", "updated_on", "updated_by"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update（更新者は基本設計の規則）")
+        assertEquals(listOf("completed_on", "result", "status", "updated_on"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update")
         val count = list(doc("design/generated/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
         assertEquals("complete-todo.no-open-task", count["precondition"])
         assertEquals(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), count["where"])
-        val crud = list(doc("design/generated/entities/todo.yaml"), "crud").map { it as Map<*, *> }
+        val todo = list(doc("design/basic/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
+        val crud = list(todo, "crud").map { it as Map<*, *> }
         val status = crud.single { it["項目"] == "status" }
         assertEquals("C", status["register-todo"])
         assertEquals("U", status["complete-todo"])
@@ -191,33 +192,39 @@ class TodosSysdevTest {
     }
 
     /**
-     * 段（基本設計・詳細設計。ADR-0034）: 基本設計の規則「更新者を記録する」で足した更新者が、基本設計書（エンティティ定義書・
-     * アクション定義書）から詳細設計書（テーブル設計書・処理設計書）へ引き継がれ、業務モデルに無いものには出どころが付く。
+     * エンティティ定義書の原本（基本設計項目一覧。ADR-0035）: 設計項目は ID（ENT-・FLD-・OPS-・CRUD-）と導出元の参照を持ち、
+     * 値は業務モデルの項と同じ書き方（型の名前・auto・選択肢・採番）のまま。CRUD はエンティティの中に、操作一覧と同じ書く印から作る。
      */
     @Test
-    fun `段の規則で足した更新者は基本設計から詳細設計へ引き継がれる`() {
+    fun `基本設計項目一覧は業務モデルの値のまま設計項目に ID と導出元を持つ`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val origin = "基本設計「更新者を記録する」（audit-updated-by）"
-        val items = list(doc("design/generated/entities/todo.yaml"), "items").associateBy { it["key"] }
-        assertEquals(listOf("updated_on", "updated_by"), items.keys.filter { it.toString().startsWith("updated") }, "更新日の後ろに足す")
-        assertEquals(origin, items["updated_by"]?.get("origin"))
-        assertEquals(null, items["updated_on"]?.get("origin"), "業務モデルから来た項目には出どころが付かない")
-        val effects = list(doc("design/generated/actions/start-todo.yaml"), "effects")
-        assertEquals(origin, effects.single { it["path"] == "updated_by" }["origin"])
-        val columns = list(list(doc("design/generated/tables/todo.yaml"), "tables")[0], "columns").associateBy { it["name"] }
-        assertEquals("VARCHAR(50)", columns["updated_by"]?.get("type"))
-        assertEquals(origin, columns["updated_by"]?.get("origin"))
-        val write = list(doc("design/generated/processes/start-todo.yaml"), "steps").first { it["step"] == "write" }
-        assertEquals(listOf("status", "updated_on", "updated_by"), list(write, "set").map { it["item"] })
-        // 業務モデルの項は変えない（段を書かない生成の定義は、今までどおり業務モデルの項を読む）
+        val entities = list(doc("design/basic/entities.yaml"), "entities")
+        assertEquals(listOf("ENT-category", "ENT-tag", "ENT-todo", "ENT-todo-task"), entities.map { it["id"] })
+        val todo = entities.single { it["id"] == "ENT-todo" }
+        assertEquals("todo", todo["source"], "導出元は業務のエンティティ型")
+        val numbering = todo["numbering"] as Map<*, *>
+        assertEquals(listOf("FLD-todo.id", "id", "TODO-", 3), listOf(numbering["item"], numbering["path"], numbering["prefix"], numbering["digits"]), "採番は業務モデルの書き方のまま")
+        val items = list(todo, "items").associateBy { it["key"] }
+        items["created_on"]!!.let {
+            assertEquals(listOf("01", "FLD-todo.id"), list(todo, "items").first().let { f -> listOf(f["seq"], f["id"]) })
+            assertEquals("common#年月日", it["type"], "論理型は業務モデルの型の名前")
+            assertEquals("created", it["auto"], "auto は日本語に言い換えない")
+            assertEquals("todo.created_on", it["source"], "導出元は業務の項目（定義の索引の yde-field）")
+            assertEquals(null, it["format"], "表示形式は型の性質なので、エンティティ定義には書かない")
+        }
+        assertEquals("common#タグ参照", items["tags"]?.get("itemType"), "配列は要素の論理型を持つ")
+        assertEquals(mapOf("value" to "OPEN", "label" to "未着手"), (items["status"]?.get("values") as List<*>).first())
+        val task = entities.single { it["id"] == "ENT-todo-task" }
+        assertEquals(listOf("ENT-todo", "FLD-todo.tasks"), listOf(task["parent"], task["parentField"]))
+        val finish = list(todo, "operations").single { it["action"] == "todo-task.finish" }
+        assertEquals(listOf("FLD-todo.updated_on" to "U"), list(finish, "writes").map { it["item"] to it["crud"] }, "作業項目を済にすると個票の更新日が変わる")
+        // 段: ルールが無くても段の項は作れ、頭に当てた段の一覧が付く
         val session = WorkspaceSession(FileSystemDocumentStore(root))
-        val business = dev.toros.yde.workspace.BusinessModel.of(session, "business")
-        assertTrue("updated_by" !in dev.toros.yde.yaml.YamlIO.dumpPlain(business))
-        val detail = dev.toros.yde.workspace.Stages.term(session, business, "detail")
+        val detail = dev.toros.yde.workspace.Stages.term(session, dev.toros.yde.workspace.BusinessModel.of(session, "business"), "detail")
         assertEquals(emptyList(), detail.errors)
         val stages = (dev.toros.yde.yaml.YamlIO.toAny(detail.term) as Map<*, *>)["stages"] as List<*>
-        assertEquals(listOf("basic", "detail"), stages.map { (it as Map<*, *>)["id"] }, "段の項の頭に、当てた段の一覧")
+        assertEquals(listOf("basic", "detail"), stages.map { (it as Map<*, *>)["id"] })
     }
 
     /** 生成の系譜: 生成の定義ごとに、業務モデルの項のどこを読むかを定義から取り出す（設計書がどの概念から作られるか）。 */
@@ -229,7 +236,7 @@ class TodosSysdevTest {
         assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "constraints.rule").all { it in concepts("processes") }, "処理設計書: ${concepts("processes")}")
         assertTrue("relations.cardinality" in concepts("domains") && "lifecycles.transitions" in concepts("domains"), "ドメイン定義書: ${concepts("domains")}")
         assertEquals(emptyList<Any>(), concepts("screen-styles"), "クラスの対応表は業務モデルを読まない（決まった表）")
-        assertEquals("basic", lineage["entity-specs"]?.get("stage"), "基本設計書は基本設計の段を読む")
+        assertEquals("basic", lineage["basic-entities"]?.get("stage"), "基本設計項目一覧は基本設計の段を読む")
         assertEquals("detail", lineage["processes"]?.get("stage"))
         assertTrue((lineage["processes"]?.get("reads") as List<*>).contains("actions[*].effects[*].field.key"))
     }

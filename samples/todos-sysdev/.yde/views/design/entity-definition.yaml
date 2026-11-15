@@ -1,0 +1,15 @@
+id: entity-definition
+name: エンティティ定義書
+kind: dashboard
+description: >-
+  基本設計の設計書（ビュー）。基本設計項目一覧（design/basic/entities.yaml）のエンティティ 1 つ分に、補正一覧（design/basic/corrections.yaml）を
+  重ねて見せる。エンティティを選ぶと、概要・項目一覧・操作一覧・CRUD がそのエンティティに絞られる（最初は TODO）。
+  CRUD は行＝項目・列＝操作で、操作一覧の書く項目（作成 C・更新 U）から作る。
+  補正で置き換えた値はクリックで補正と元の値へ移れ、導出元は業務モデルの定義へ移れる
+inputs:
+  - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, default: ENT-todo }
+sections:
+  - { id: summary, label: 概要, group: エンティティ定義書, view: entity-definition-summary }
+  - { id: items, label: 項目一覧, group: エンティティ定義書, view: entity-definition-items }
+  - { id: operations, label: 操作一覧, group: エンティティ定義書, view: entity-definition-operations }
+  - { id: crud, label: CRUD, group: エンティティ定義書, view: entity-definition-crud }
