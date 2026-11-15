@@ -29,6 +29,8 @@ inputs:
     schemas:
       - category-list
     target: category
+    targetTitle: name
+    clearedBy: clear.category
   - key: tags
     label: タグ
     type: array
@@ -43,6 +45,8 @@ inputs:
       schemas:
         - tag-list
       target: tag
+      targetTitle: name
+    clearedBy: clear.tags
   - key: created_on
     label: 作成日
     type: common#年月日
@@ -53,16 +57,19 @@ inputs:
     type: common#年月日
     base: date
     format: yyyy年M月d日
+    clearedBy: clear.due_on
   - key: details
     label: 詳細
     type: common#文章
     base: string
     multiline: true
+    clearedBy: clear.details
   - key: result
     label: 結果・中止理由
     type: common#文章
     base: string
     multiline: true
+    clearedBy: clear.result
   - key: comments
     label: コメント一覧
     type: array
@@ -83,6 +90,7 @@ inputs:
           base: string
           required: true
           multiline: true
+    clearedBy: clear.comments
   - key: clear
     label: 値を消す
     type: object

@@ -1,0 +1,14 @@
+id: screen-design-list
+name: 画面設計書（一覧画面）
+kind: document
+description: >-
+  詳細設計。ダッシュボード 1 つの、一覧画面の部品の木（page・notice・filters・actions・section・table・matrix）と、区画ごとの読み出し。
+  HTML の手前の形で、③で Thymeleaf のテンプレートに機械的に写す。生成物（.yde/transforms/design/screen-designs-lists.yaml）で、手で直さない
+match: "design/generated/screen-designs/lists/*.yaml"
+entity: { type: yde-view, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: ダッシュボード, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: screens, label: 画面（部品の木）, type: array, display: list, item: { type: any } }

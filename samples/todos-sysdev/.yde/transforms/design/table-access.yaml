@@ -36,7 +36,16 @@ build:
       numbering: { $copy: "items[0].numbering" }
       precondition: { $copy: "items[0].precondition" }
       expect: { $copy: "items[0].expect" }
+      # 読み出し（画面系の 2 回目）: 列・並び・明細と入れ子の型・参照先の名前・集計
+      includes: { $copy: "items[0].includes" }
+      names: { $copy: "items[0].names" }
+      order: { $copy: "items[0].order" }
+      groupBy: { $copy: "items[0].groupBy" }
+      counts: { $copy: "items[0].counts" }
+      via: { $copy: "items[0].via" }
+      params: { $copy: "items[0].params" }
       operations: { $group: items, $by: { $copy: operation }, $build: { $copy: key } }
+      screens: { $group: items, $by: { $copy: screen }, $build: { $copy: key } }
 rules:
   # いまの場所＝エンティティ型。側面ごとの項目を 1 列に（{field: 項目, schema: 書かれた文書の種類}）
   - id: fields
@@ -54,6 +63,103 @@ rules:
   - id: methods
     build:
       $concat:
+        # 読み出し: 詳細画面（主のテーブルと明細テーブル・入れ子の型・参照先の名前）と、参照の候補（すべての行の ID と見出し）
+        - $when: [{ of: model, path: reach.entities, includes: { $copy: id } }]
+          $then:
+            - name: findDetail
+              kind: select
+              table: { $case: { $copy: id }, $as: snake }
+              where: [{ item: id, param: id }]
+              includes:
+                $concat:
+                  - $group: { $apply: fields }
+                    $by: { $when: [{ path: field.base, equals: array }, { path: field.item.entity, exists: false }], $then: { $copy: field.key } }
+                    $build: { item: { $copy: key }, table: { $apply: detail-name }, order: [{ item: seq }] }
+                  - $each: entities
+                    $of: model
+                    $build:
+                      $when: [{ path: owner.entity, equals: { $copy: id, $of: element } }]
+                      item: { $copy: owner.field }
+                      table: { $case: { $copy: id }, $as: snake }
+                      order: [{ item: seq }]
+              names:
+                $group: { $apply: fields }
+                $by: { $when: [{ or: [{ path: field.target, exists: true }, { path: field.item.target, exists: true }] }], $then: { $copy: field.key } }
+                $build:
+                  item: { $copy: key }
+                  table: { $case: { $first: [{ $copy: "items[0].field.target" }, { $copy: "items[0].field.item.target" }] }, $as: snake }
+                  name: { $first: [{ $copy: "items[0].field.targetTitle" }, { $copy: "items[0].field.item.targetTitle" }] }
+              screen: { $copy: id }
+            - name: selectAll
+              kind: select
+              table: { $case: { $copy: id }, $as: snake }
+              columns: { $concat: [[id], { $when: [{ path: title, exists: true }], $then: [{ $copy: title }] }] }
+              order: [{ item: id }]
+              screen: 参照の候補
+        # 読み出し: ダッシュボードの区画の一覧（ビューの行の条件と区画の条件・列・並び）と件数、集計
+        - $each: dashboards
+          $of: model
+          $bind: d
+          $flatten: true
+          $build:
+            $each: sections
+            $bind: sec
+            $flatten: true
+            $build:
+              $each: views
+              $of: model
+              $bind: v
+              $flatten: true
+              $build:
+                $when: [{ path: id, equals: { $copy: view, $of: sec } }, { path: rows, equals: { $copy: id, $of: element } }]
+                $then:
+                  $first:
+                    # 集計: 行の型のテーブルを、数える要素へたどって、列の値ごとに数える
+                    - $when: [{ path: kind, equals: matrix }]
+                      $then:
+                        - name: { $format: "select{d}{s}", $with: { d: { $case: { $copy: id, $of: d }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                          kind: aggregate
+                          table: { $case: { $copy: rows }, $as: snake }
+                          counts: { $case: { $copy: counts }, $as: snake }
+                          via: { $copy: "match[1].edge" }
+                          groupBy: [{ item: id }, { item: { $copy: columns.path }, of: { $copy: counts }, values: { $each: columns.values, $build: { $copy: value } } }]
+                          order: { $first: [{ $apply: order, $at: order }, [{ item: id }]] }
+                          screen: { $copy: id, $of: d }
+                        - name: { $format: "count{d}{s}", $with: { d: { $case: { $copy: id, $of: d }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                          kind: count
+                          table: { $case: { $copy: rows }, $as: snake }
+                          screen: { $copy: id, $of: d }
+                    # 一覧: ビューの行の条件と区画の条件・列・並び。件数は同じ条件
+                    - - name: { $format: "select{d}{s}", $with: { d: { $case: { $copy: id, $of: d }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                        kind: select
+                        table: { $case: { $copy: rows }, $as: snake }
+                        params: { $concat: [{ $first: [{ $copy: params }, []] }, { $when: [{ of: sec, path: filter.check, exists: true }], $then: [today] }] }
+                        where:
+                          $concat:
+                            - { $first: [{ $each: where, $apply: cond }, []] }
+                            - { $first: [{ $each: filter.where, $of: sec, $apply: cond }, []] }
+                            - { $first: [{ $each: filter.check, $of: sec, $apply: cond }, []] }
+                        columns:
+                          $concat:
+                            - [{ item: id }]
+                            - $each: columns
+                              $build:
+                                label: { $copy: label }
+                                item: { $copy: path }
+                                computed: { $when: [{ path: computed, equals: true }], $then: { $apply: expr, $at: value } }
+                                names:
+                                  $first:
+                                    - $when: [{ path: field.target, exists: true }]
+                                      $then: { table: { $case: { $copy: field.target }, $as: snake }, name: { $copy: field.targetTitle } }
+                                    - $when: [{ path: field.item.target, exists: true }]
+                                      $then: { table: { $case: { $copy: field.item.target }, $as: snake }, name: { $copy: field.item.targetTitle }, many: true }
+                        order: { $first: [{ $apply: order, $at: order }, [{ item: id }]] }
+                        screen: { $copy: id, $of: d }
+                      - name: { $format: "count{d}{s}", $with: { d: { $case: { $copy: id, $of: d }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                        kind: count
+                        table: { $case: { $copy: rows }, $as: snake }
+                        where: 上の select と同じ条件
+                        screen: { $copy: id, $of: d }
         # 受け手を読む
         - $each: actions
           $of: model
@@ -207,6 +313,71 @@ rules:
               expect: { $copy: rule.expect }
               precondition: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }
               operation: { $copy: id, $of: a }
+  # いまの場所＝ビューの行の条件 1 つ（where・check）。SQL の条件の組み立て（B-2。写せない形は「手で書く」）
+  - id: cond
+    when: [{ path: includesAny, exists: true }]
+    build:
+      item: { $copy: path }
+      op: includesAny
+      value: { $copy: includesAny }
+      via: { $format: "{t}_{k}", $with: { t: { $case: { $copy: id, $of: element }, $as: snake }, k: { $copy: path } } }
+      skipIfEmpty: { $when: [{ path: includesAny, startsWith: "$$" }], $then: true }
+  - id: cond
+    when: [{ path: equals, exists: true }]
+    build: { item: { $copy: path }, op: equals, value: { $copy: equals }, skipIfEmpty: { $when: [{ path: equals, startsWith: "$$" }], $then: true } }
+  - id: cond
+    when: [{ path: oneOf, exists: true }]
+    build: { item: { $copy: path }, op: in, values: { $copy: oneOf } }
+  - id: cond
+    when: [{ path: exists, equals: true }]
+    build: { item: { $copy: path }, op: notNull }
+  - id: cond
+    when: [{ path: exists, equals: false }]
+    build: { item: { $copy: path }, op: isNull }
+  - id: cond
+    when: [{ path: lt, exists: true }]
+    build: { item: { $copy: "lt[0].path" }, op: lt, value: { $copy: "lt[1]" } }
+  - id: cond
+    when: [{ path: lte, exists: true }]
+    build: { item: { $copy: "lte[0].path" }, op: lte, value: { $copy: "lte[1]" } }
+  - id: cond
+    when: [{ path: gt, exists: true }]
+    build: { item: { $copy: "gt[0].path" }, op: gt, value: { $copy: "gt[1]" } }
+  - id: cond
+    when: [{ path: gte, exists: true }]
+    build: { item: { $copy: "gte[0].path" }, op: gte, value: { $copy: "gte[1]" } }
+  - id: cond
+    build: { op: 手で書く, raw: { $copy: . } }
+  # いまの場所＝ビューの並び（order）。一覧の文書の順は番号の順、項目の順はその項目（値の無いものは後ろ）
+  - id: order
+    when: [{ path: path, exists: true }]
+    build: [{ item: { $copy: path }, nulls: last }]
+  - id: order
+    build: [{ item: id }]
+  # いまの場所＝計算の列の値の式。SQL の組み立て（写せない形は「手で書く」）
+  - id: expr
+    when: [{ path: map, exists: true }]
+    build: { of: { $apply: expr, $at: map }, replace: { $copy: using } }
+  - id: expr
+    when: [{ path: format, exists: true }]
+    build: { format: { $copy: format }, parts: { $eachEntry: with, $apply: expr } }
+  - id: expr
+    when: [{ path: "count.all.match[1].edge.contains", equals: true }]
+    build:
+      count: { $case: { $copy: "count.all.match[2].node.entity" }, $as: snake }
+      parent: 行の ID
+      where: { $each: count.all.where, $apply: cond }
+  - id: expr
+    when: [{ path: count.path, exists: true }]
+    build:
+      count: 入れ子の要素
+      item: { $value: { extract: [{ path: count.path }, "^[^\\[]+"] } }
+      parent: 行の ID
+  - id: expr
+    when: [{ path: refCount, exists: true }]
+    build: { count: 参照してくる要素, relation: { $copy: refCount.relation }, dir: { $copy: refCount.dir } }
+  - id: expr
+    build: { op: 手で書く, raw: { $copy: . } }
   # いまの場所＝効果。書く配列の項目の明細テーブルの名前
   - id: effect-detail-name
     build: { $format: "{t}_{k}", $with: { t: { $case: { $copy: entity }, $as: snake }, k: { $copy: field.key } } }

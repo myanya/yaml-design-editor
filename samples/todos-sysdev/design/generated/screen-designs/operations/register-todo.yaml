@@ -1,0 +1,180 @@
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+id: register-todo
+name: TODOを登録する（画面設計書）
+form:
+  class: RegisterTodoForm
+  emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+  fields:
+    - name: title
+      item: title
+      type: String
+      validations:
+        - name: NotNull
+        - name: Size
+          max: 100
+        - name: Pattern
+          regexp: ^[^\r\n]*$
+    - name: summary
+      item: summary
+      type: String
+      validations:
+        - name: NotNull
+        - name: Size
+          max: 100
+        - name: Pattern
+          regexp: ^[^\r\n]*$
+    - name: category
+      item: category
+      type: String
+      validations: []
+    - name: tags
+      item: tags
+      type: List<String>
+      validations:
+        - name: UniqueElements
+    - name: follows
+      item: follows
+      type: String
+      validations: []
+    - name: due
+      item: due
+      type: LocalDate
+      validations:
+        - name: DateTimeFormat
+          iso: DATE
+    - name: details
+      item: details
+      type: String
+      validations: []
+  classes: []
+screens:
+  - id: register-todo/input
+    template: todo/register-todo/input
+    page:
+      title: TODOを登録する
+      width: m
+      body:
+        - notice:
+            kind: errors
+            for: form
+        - form:
+            action: POST /todo/register-todo/confirm
+            object: RegisterTodoForm
+            hidden:
+              - from
+            body:
+              - field:
+                  item: title
+                  label: タイトル
+                  control: text
+                  required: true
+                  width: 40ch
+              - field:
+                  item: summary
+                  label: 概要
+                  control: text
+                  required: true
+                  width: 40ch
+              - field:
+                  item: category
+                  label: カテゴリ
+                  control: select
+                  candidates:
+                    entity: category
+                    name: name
+                    read: CategoryMapper.selectAll
+                    empty: 未選択を選べる
+              - choices:
+                  item: tags
+                  label: タグ
+                  control: checkboxes
+                  candidates:
+                    entity: tag
+                    name: name
+                    read: TagMapper.selectAll
+                    empty: 未選択を選べる
+              - field:
+                  item: follows
+                  label: 元のTODO
+                  control: select
+                  candidates:
+                    entity: todo
+                    name: title
+                    read: TodoMapper.selectAll
+                    empty: 未選択を選べる
+              - field:
+                  item: due
+                  label: 期限
+                  control: date
+                  width: 10ch
+              - field:
+                  item: details
+                  label: 詳細
+                  control: textarea
+                  rows: 5
+              - actions:
+                  - label: 確認へ
+                    kind: submit
+                    emphasis: primary
+                  - label: やめる
+                    kind: link
+                    to: 起点の画面
+                    emphasis: secondary
+  - id: register-todo/confirm
+    template: todo/register-todo/confirm
+    page:
+      title: TODOを登録する（確認）
+      width: m
+      body:
+        - notice:
+            kind: refusal
+        - facts:
+            title: 入力した値
+            of: form
+            items:
+              - item: title
+                label: タイトル
+              - item: summary
+                label: 概要
+              - item: category
+                label: カテゴリ
+                name:
+                  entity: category
+                  item: name
+              - item: tags
+                label: タグ
+                name:
+                  entity: tag
+                  item: name
+              - item: follows
+                label: 元のTODO
+                name:
+                  entity: todo
+                  item: title
+              - item: due
+                label: 期限
+                format: yyyy年M月d日
+              - item: details
+                label: 詳細
+                keepBreaks: true
+        - form:
+            action: POST /todo/register-todo
+            hidden:
+              - title
+              - summary
+              - category
+              - tags
+              - follows
+              - due
+              - details
+              - flow
+              - from
+            body:
+              - actions:
+                  - label: 確定
+                    kind: submit
+                    emphasis: primary
+                  - label: 入力へ戻る
+                    kind: submit
+                    action: POST /todo/register-todo/back
+                    emphasis: secondary

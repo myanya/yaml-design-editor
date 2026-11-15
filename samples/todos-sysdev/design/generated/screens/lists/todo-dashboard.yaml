@@ -37,9 +37,10 @@ sections:
             bind: t
       where:
         - of: t
-          state:
-            - todo-OPEN
-            - todo-IN_PROGRESS
+          path: status
+          oneOf:
+            - OPEN
+            - IN_PROGRESS
         - of: t
           path: due_on
           exists: true

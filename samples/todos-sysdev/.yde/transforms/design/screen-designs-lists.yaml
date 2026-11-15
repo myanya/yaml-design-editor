@@ -1,0 +1,152 @@
+id: screen-designs-lists
+name: 画面設計書（一覧画面）
+description: >-
+  詳細設計。ダッシュボードごとに、一覧画面の部品の木（page・notice・filters・actions・section・table・matrix）を 1 本にする。
+  HTML の手前の形で、③で Thymeleaf のテンプレートに機械的に写す。決め打ちの規則: 絞り込みは GET のフォーム（共有の入力と、区画が基準日を使えば基準日）・
+  上部の操作はボタン（操作の最初の画面へ）・区画は群ごとの見出しの下に、件数つきの見出しと表（行の ID は詳細へ・行の右に操作のボタン）か集計
+  （セルは、その行と列で絞った一覧へ）・読み出しは区画ごとの Mapper の select と count
+scope: business
+each: dashboards
+output: "design/generated/screen-designs/lists/{id}.yaml"
+build:
+  id: { $copy: id }
+  name: { $format: "{label}（画面設計書）" }
+  screens:
+    - id: { $copy: id }
+      template: { $format: "{id}/list" }
+      page:
+        title: { $copy: label }
+        width: l
+        body:
+          $concat:
+            - [{ notice: { kind: done } }]
+            - - filters:
+                  action: { $apply: list-url }
+                  body:
+                    $concat:
+                      - $each: inputs
+                        $apply: input-field
+                      - $when: [{ path: usesToday, equals: true }]
+                        $then: [{ field: { item: date, label: 基準日, control: date, width: 10ch, default: 今日 } }]
+                      - - actions:
+                            - { label: 絞る, kind: submit, emphasis: primary }
+                            - { label: 戻す, kind: link, to: { $apply: list-url }, emphasis: secondary }
+            - - actions:
+                  $each: actions
+                  $bind: aid
+                  $flatten: true
+                  $build:
+                    $each: actions
+                    $of: model
+                    $build:
+                      $when: [{ path: id, equals: { $copy: ., $of: aid } }]
+                      $then: { $apply: button }
+            # 区画は群ごとに見出しの下へ（群の無い区画は群「その他」）
+            - $group: sections
+              $by: { $first: [{ $copy: group }, その他] }
+              $build:
+                section:
+                  title: { $copy: key }
+                  gap: l
+                  body:
+                    $each: items
+                    $bind: sec
+                    $flatten: true
+                    $build:
+                      $each: views
+                      $of: model
+                      $bind: v
+                      $flatten: true
+                      $build:
+                        $when: [{ path: id, equals: { $copy: view, $of: sec } }]
+                        $then:
+                          - section:
+                              id: { $copy: id, $of: sec }
+                              title: { $copy: label, $of: sec }
+                              count: { $format: "{m}Mapper.count{d}{s}", $with: { m: { $case: { $copy: rows }, $as: pascal }, d: { $case: { $copy: id, $of: element }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                              body:
+                                - $first:
+                                    - $when: [{ path: kind, equals: matrix }]
+                                      $then:
+                                        matrix:
+                                          read: { $format: "{m}Mapper.select{d}{s}", $with: { m: { $case: { $copy: rows }, $as: pascal }, d: { $case: { $copy: id, $of: element }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                                          rows: { entity: { $copy: rows }, link: { to: { $copy: rows } } }
+                                          columns: { $each: columns.values, $build: { $copy: label } }
+                                          cell: { link: { to: { $copy: id, $of: element }, by: その行と列で絞る（URL のパラメータ） }, align: end }
+                                          totals: { $first: [{ $when: [{ path: unclassified, equals: false }], $then: 行と列の合計 }, 行と列の合計と未分類] }
+                                    - table:
+                                        read: { $format: "{m}Mapper.select{d}{s}", $with: { m: { $case: { $copy: rows }, $as: pascal }, d: { $case: { $copy: id, $of: element }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+                                        columns:
+                                          $concat:
+                                            - [{ label: ID, item: id, link: { to: { $copy: rows } } }]
+                                            - $each: columns
+                                              $build:
+                                                label: { $copy: label }
+                                                item: { $copy: path }
+                                                computed: { $copy: computed }
+                                                format: { $first: [{ $copy: field.format }, { $copy: field.item.format }] }
+                                                labels: { $when: [{ path: field.base, equals: enum }], $then: { $copy: field.values } }
+                                                link:
+                                                  $first:
+                                                    - $when: [{ path: field.base, equals: ref }]
+                                                      $then: { to: { $copy: field.target }, name: { $copy: field.targetTitle } }
+                                                    - $when: [{ path: field.item.base, equals: ref }]
+                                                      $then: { to: { $copy: field.item.target }, name: { $copy: field.item.targetTitle }, many: true }
+                                        rowActions:
+                                          $each: actions
+                                          $of: model
+                                          $build:
+                                            $when: [{ path: target.entity, equals: { $copy: rows, $of: v } }]
+                                            $then: { $apply: button }
+rules:
+  - id: list-url
+    when: [{ path: default, equals: true }]
+    build: GET /
+  - id: list-url
+    build: { $format: "GET /{id}" }
+  # いまの場所＝共有の入力。絞り込みの欄（参照の複数は choices、参照は select、日付は date）
+  - id: input-field
+    when: [{ path: field.base, equals: ref }, { path: multiple, equals: true }]
+    build:
+      choices: { item: { $copy: key }, label: { $copy: label }, control: checkboxes, candidates: { $apply: candidates } }
+  - id: input-field
+    when: [{ path: field.base, equals: ref }]
+    build:
+      field: { item: { $copy: key }, label: { $copy: label }, control: select, candidates: { $apply: candidates } }
+  - id: input-field
+    when: [{ path: field.base, equals: date }]
+    build:
+      field: { item: { $copy: key }, label: { $copy: label }, control: date, width: 10ch }
+  - id: input-field
+    when: [{ path: field.base, equals: enum }]
+    build:
+      field: { item: { $copy: key }, label: { $copy: label }, control: select, values: { $copy: field.values } }
+  - id: input-field
+    build:
+      field: { item: { $copy: key }, label: { $copy: label }, control: text, width: 20ch }
+  - id: candidates
+    build:
+      entity: { $copy: field.target }
+      name: { $copy: field.targetTitle }
+      read: { $format: "{n}Mapper.selectAll", $with: { n: { $case: { $copy: field.target }, $as: pascal } } }
+      empty: 未選択（絞らない）
+  # いまの場所＝操作。操作のボタン（押すと操作の最初の画面へ。起点の画面の ID を from で渡す）
+  - id: button
+    build:
+      operation: { $copy: id }
+      label: { $copy: label }
+      kind: link
+      to: { $first: [{ $when: [{ path: params, empty: false }], $then: { $format: "GET {u}", $with: { u: { $apply: url } } } }, { $format: "GET {u}/confirm", $with: { u: { $apply: url } } }] }
+      from: { $copy: id, $of: element }
+      emphasis: secondary
+      shownWhen: { $apply: shown-when }
+  - id: url
+    when: [{ path: target.entity, exists: true }]
+    build: { $format: "/{t}/{k}/{a}", $with: { t: { $copy: subject }, k: "{id}", a: { $copy: id } } }
+  - id: url
+    build: { $format: "/{t}/{a}", $with: { t: { $copy: subject }, a: { $copy: id } } }
+  - id: shown-when
+    when: [{ path: lifecycle.transitions, exists: true }]
+    build: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { $copy: value } } }
+  - id: shown-when
+    build: いつも

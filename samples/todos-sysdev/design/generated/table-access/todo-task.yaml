@@ -13,12 +13,14 @@ methods:
         param: id
     operations:
       - todo-task.finish
+    screens: []
   - name: insert
     kind: insert
     table: todo_task
     columns: テーブル設計書のすべての列
     operations:
       - add-todo-task
+    screens: []
   - name: maxId
     kind: max
     table: todo_task
@@ -34,6 +36,7 @@ methods:
       digits: 2
     operations:
       - add-todo-task
+    screens: []
   - name: maxSeq
     kind: max
     table: todo_task
@@ -43,6 +46,7 @@ methods:
         param: id
     operations:
       - add-todo-task
+    screens: []
   - name: todoTaskFinish
     kind: update
     table: todo_task
@@ -54,6 +58,7 @@ methods:
         param: id
     operations:
       - todo-task.finish
+    screens: []
   - name: countCompleteTodoNoOpenTask
     kind: count
     table: todo_task
@@ -66,3 +71,4 @@ methods:
     expect: absent
     operations:
       - complete-todo
+    screens: []

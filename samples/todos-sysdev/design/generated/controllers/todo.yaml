@@ -7,6 +7,9 @@ screens:
     handler: show
     request: GET /todo/{id}
     does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+    service: TodoService.findDetail
+    reads:
+      - TodoMapper.findDetail
     session:
       reads:
         - notice
@@ -20,11 +23,16 @@ handlers:
       - handler: registerTodoInput
         request: GET /todo/register-todo
         screen: register-todo/input
-        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        does: 初期値でフォームを作って入力画面を出す
+        reads:
+          - CategoryMapper.selectAll
+          - TagMapper.selectAll
+          - TodoMapper.selectAll
       - handler: registerTodoConfirm
         request: POST /todo/register-todo/confirm
         screen: register-todo/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads: []
         session:
           puts:
             - token
@@ -53,10 +61,14 @@ handlers:
         request: GET /todo/{id}/add-todo-comment
         screen: add-todo-comment/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
       - handler: addTodoCommentConfirm
         request: POST /todo/{id}/add-todo-comment/confirm
         screen: add-todo-comment/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -85,10 +97,14 @@ handlers:
         request: GET /todo/{id}/add-todo-task
         screen: add-todo-task/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
       - handler: addTodoTaskConfirm
         request: POST /todo/{id}/add-todo-task/confirm
         screen: add-todo-task/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -118,10 +134,16 @@ handlers:
         request: GET /todo/{id}/edit-todo
         screen: edit-todo/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
+          - CategoryMapper.selectAll
+          - TagMapper.selectAll
       - handler: editTodoConfirm
         request: POST /todo/{id}/edit-todo/confirm
         screen: edit-todo/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -149,6 +171,8 @@ handlers:
         request: GET /todo/{id}/start-todo/confirm
         screen: start-todo/confirm
         does: 受け手を読んで確認画面を出す
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -174,10 +198,14 @@ handlers:
         request: GET /todo/{id}/suspend-todo
         screen: suspend-todo/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
       - handler: suspendTodoConfirm
         request: POST /todo/{id}/suspend-todo/confirm
         screen: suspend-todo/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -207,10 +235,14 @@ handlers:
         request: GET /todo/{id}/resume-todo
         screen: resume-todo/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
       - handler: resumeTodoConfirm
         request: POST /todo/{id}/resume-todo/confirm
         screen: resume-todo/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -240,10 +272,14 @@ handlers:
         request: GET /todo/{id}/complete-todo
         screen: complete-todo/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
       - handler: completeTodoConfirm
         request: POST /todo/{id}/complete-todo/confirm
         screen: complete-todo/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token
@@ -274,10 +310,14 @@ handlers:
         request: GET /todo/{id}/cancel-todo
         screen: cancel-todo/input
         does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
       - handler: cancelTodoConfirm
         request: POST /todo/{id}/cancel-todo/confirm
         screen: cancel-todo/confirm
         does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+        reads:
+          - TodoMapper.findById
         session:
           puts:
             - token

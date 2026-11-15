@@ -1,5 +1,5 @@
 id: C-21
-title: 生成（業務モデルから文書へ。業務モデルを展開した項 `BusinessModel`（採番・owner・target・stateOf・creates・written・views・dashboards・たどれる範囲 reach）・生成の定義 `.yde/transforms` と `scope`・生成物の見出しと消す決まり・CLI `generate` の `--apply` `--check` `--model` `--scope`）
+title: 生成（業務モデルから文書へ。業務モデルを展開した項 `BusinessModel`（採番・owner・title・target・targetTitle・stateOf・creates・written・clearedBy・views・dashboards・たどれる範囲 reach・条件の State を値の条件へ）・生成の定義 `.yde/transforms` と `scope`・生成物の見出しと消す決まり・CLI `generate` の `--apply` `--check` `--model` `--scope`）
 implementation:
 - path: workspace-core/workspace/BusinessModel.kt
   module: workspace-core

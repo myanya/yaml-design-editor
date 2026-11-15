@@ -69,7 +69,9 @@ object BusinessModel {
         val targets = aspects.filter { it.defines }.groupBy { it.schema.id }.mapValues { (_, list) -> list.first().entity }
         // 列挙型 → その値を State として持つエンティティ型（states の source。項目の stateOf）
         val stateEnums = schemas.flatMap { it.states }.filterIsInstance<StateDeclaration.FromEnum>().associate { it.enumRef to it.entity }
-        val ctx = Ctx(targets, stateEnums)
+        // エンティティ型 → 見出しの項目（参照の値の名前を出すときに読む項目。項目の targetTitle）
+        val titles = aspects.groupBy { it.entity }.mapValues { (_, list) -> titleKeyOf(list) }.filterValues { it != null }.mapValues { it.value!! }
+        val ctx = Ctx(targets, stateEnums, titles)
         val actions = schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects, ctx) } +
             schemas.flatMap { s -> methodTerms(s, raw[s.id], aspects) }
         // 文書を作る手（create）の採番は、作る文書のエンティティ型の採番（配列の追加の決まりが無い型）
@@ -85,7 +87,7 @@ object BusinessModel {
         model["states"] = catalog?.let { stateTerms(schemas, it) }.orEmpty()
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
         @Suppress("UNCHECKED_CAST")
-        model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions))
+        model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions, model["states"] as List<Map<String, Any?>>))
         return YamlIO.fromAny(model)
     }
 
@@ -141,6 +143,8 @@ object BusinessModel {
         m["label"] = aspects.firstNotNullOfOrNull { it.label } ?: entity
         (aspects.firstNotNullOfOrNull { it.numbering }?.let(::numberingTerm) ?: created)?.let { m["numbering"] = it }
         aspects.firstNotNullOfOrNull { a -> a.owner?.let { o -> linkedMapOf("entity" to o.entity, "field" to a.ownerField) } }?.let { m["owner"] = it }
+        // 見出しの項目（表示解決と同じ順）。参照先の名前を出すときに読む
+        titleKeyOf(aspects)?.let { m["title"] = it }
         m["aspects"] = aspects.map { a ->
             linkedMapOf<String, Any?>(
                 "schema" to a.schema.id,
@@ -162,8 +166,15 @@ object BusinessModel {
      * 項目を広げずエンティティ型の名前（`entity`）だけを書く（その項目はエンティティの側面にある）。
      */
     /** 項目の項を作るときの、ワークスペース全体から引く事実（参照先のエンティティ型・State の値を持つ列挙型）。 */
-    private class Ctx(val targets: Map<String, String>, val stateEnums: Map<String, String>) {
+    private class Ctx(val targets: Map<String, String>, val stateEnums: Map<String, String>, val titles: Map<String, String> = emptyMap()) {
         companion object { val NONE = Ctx(emptyMap(), emptyMap()) }
+    }
+
+    /** 見出しの項目（表示解決と同じ順: role: title ＞ title・name・label）。 */
+    private fun titleKeyOf(aspects: List<Aspect>): String? {
+        val fields = aspects.flatMap { a -> a.def.fields.map { f0 -> f0 to (a.schema.tree.resolve(f0) ?: f0) } }
+        return fields.firstOrNull { (f0, f) -> (f0.role ?: f.role) == dev.toros.yde.semantic.schema.FieldRole.TITLE }?.first?.key
+            ?: listOf("title", "name", "label").firstOrNull { k -> fields.any { it.first.key == k } }
     }
 
     private fun fieldTerm(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx = Ctx.NONE): Map<String, Any?> {
@@ -194,6 +205,8 @@ object BusinessModel {
             if (f.scope.schemaIds.isNotEmpty()) m["schemas"] = f.scope.schemaIds
             // 参照先のエンティティ型（参照先のスキーマが定義する型）
             f.scope.schemaIds.mapNotNull { ctx.targets[it] }.distinct().takeIf { it.isNotEmpty() }?.let { m["target"] = if (it.size == 1) it[0] else it }
+            // 参照先の見出しの項目（参照の値の名前）
+            f.scope.schemaIds.mapNotNull { ctx.targets[it] }.firstOrNull()?.let { t -> ctx.titles[t] }?.let { m["targetTitle"] = it }
         }
         if (f.unique.isNotEmpty()) m["unique"] = if (f.unique.size == 1) f.unique[0].ifEmpty { true } else f.unique
         if (depth < 8) {
@@ -250,9 +263,27 @@ object BusinessModel {
             effects += autoEffects(effects, aspects)
             m["effects"] = effects.map { withField(it, aspects) }
             m["creates"] = createsOf(m["effects"])
+            m["params"] = withClearedBy(m["params"], effects)
             subjectOf(a.target?.entity, a.target?.schema, effects, aspects)?.let { m["subject"] = it }
             m
         }
+    }
+
+    /**
+     * 受け取る値に、それを消す受け取る値を添える（clearedBy）: 効果のうち、条件が「真偽値の受け取る値 X.Y が true」で、
+     * その項目を消す（delete か、空の配列にする）もの。編集の「値を消す」のチェックが、どの欄のものかを表す。
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun withClearedBy(params: Any?, effects: List<Map<String, Any?>>): List<Map<String, Any?>> {
+        val list = (params as? List<Map<String, Any?>>).orEmpty()
+        val clears = effects.mapNotNull { e ->
+            val cond = (e["when"] as? List<*>)?.singleOrNull() as? Map<String, Any?> ?: return@mapNotNull null
+            val flag = cond["path"]?.toString()?.takeIf { '.' in it && cond["equals"] == true } ?: return@mapNotNull null
+            val clears = e["op"] == "delete" || (e["op"] == "set" && (e["value"] as? List<*>)?.isEmpty() == true)
+            if (!clears) return@mapNotNull null
+            e["path"]?.toString()?.let { it to flag }
+        }.toMap()
+        return list.map { p -> clears[p["key"]]?.let { p + ("clearedBy" to it) } ?: p }
     }
 
     /** 型の操作（`エンティティ型.操作名`）。受け手はその型の要素 1 つで、書き換えるのは受け手の中だけ。 */

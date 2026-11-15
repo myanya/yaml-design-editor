@@ -12,6 +12,8 @@ handlers:
         request: GET /todo-task/{id}/todo-task.finish/confirm
         screen: todo-task.finish/confirm
         does: 受け手を読んで確認画面を出す
+        reads:
+          - TodoTaskMapper.findById
         session:
           puts:
             - token

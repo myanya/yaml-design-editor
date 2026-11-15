@@ -1,0 +1,119 @@
+id: screen-designs-details
+name: 画面設計書（詳細画面）
+description: >-
+  詳細設計。ダッシュボードからたどれるエンティティ型ごとに、詳細画面の部品の木（page・notice・facts・section・table・actions）を 1 本にする。
+  HTML の手前の形で、③で Thymeleaf のテンプレートに機械的に写す。決め打ちの規則: 項目は 2 段の facts（日付は型の format・選択肢は表示名・
+  参照は名前と ID で参照先の詳細へのリンク・文章は改行を保つ）・繰り返しと入れ子の型は見出しつきの表（入れ子の型の行の右に、その型の操作のボタン）・
+  画面の下に操作のボタン（Lifecycle の状態で出す・出さない。押すと操作の最初の画面へ。起点の画面の ID を from で渡す）・読み出しは Mapper の findDetail
+scope: business
+each: entities
+output: "design/generated/screen-designs/details/{id}.yaml"
+build:
+  $when: [{ of: model, path: reach.entities, includes: { $copy: id } }]
+  id: { $copy: id }
+  name: { $format: "{label}詳細（画面設計書）" }
+  screens:
+    - id: { $copy: id }
+      template: { $format: "{id}/detail" }
+      read: { $format: "{n}Mapper.findDetail", $with: { n: { $case: { $copy: id }, $as: pascal } } }
+      page:
+        title: { $format: "{label}詳細" }
+        width: l
+        body:
+          $concat:
+            - [{ notice: { kind: done } }]
+            - - facts:
+                  of: { $copy: id }
+                  columns: 2
+                  items:
+                    $group: { $apply: fields }
+                    $by:
+                      $when: [{ or: [{ not: { path: field.base, oneOf: [array, object, map] } }, { path: field.item.base, equals: ref }] }]
+                      $then: { $copy: field.key }
+                    $build: { $apply: show, $at: "items[0].field" }
+            # ID の無い繰り返し（コメント・履歴）
+            - $group: { $apply: fields }
+              $by:
+                $when: [{ path: field.base, equals: array }, { path: field.item.base, equals: object }, { path: field.item.entity, exists: false }]
+                $then: { $copy: field.key }
+              $build:
+                section:
+                  title: { $copy: "items[0].field.label" }
+                  body:
+                    - table:
+                        of: { $copy: key }
+                        columns: { $each: "items[0].field.item.fields", $apply: show }
+            # 入れ子の型（作業項目）: 行の右に、その型の操作のボタン
+            - $group: { $apply: fields }
+              $by: { $when: [{ path: field.item.entity, exists: true }], $then: { $copy: field.key } }
+              $bind: t
+              $build:
+                section:
+                  title: { $copy: "items[0].field.label" }
+                  body:
+                    - table:
+                        of: { $copy: key }
+                        columns:
+                          $each: entities
+                          $of: model
+                          $flatten: true
+                          $build:
+                            $when: [{ path: id, equals: { $copy: "items[0].field.item.entity", $of: t } }]
+                            $then: { $each: "aspects[0].fields", $apply: show }
+                        rowActions:
+                          $each: actions
+                          $of: model
+                          $build:
+                            $when: [{ path: target.entity, equals: { $copy: "items[0].field.item.entity", $of: t } }]
+                            $then: { $apply: button }
+            - - actions:
+                  $each: actions
+                  $of: model
+                  $build:
+                    $when: [{ path: target.entity, equals: { $copy: id, $of: element } }]
+                    $then: { $apply: button }
+rules:
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build: { field: { $copy: . }, schema: { $copy: schema, $of: asp } }
+  # いまの場所＝項目。表示の形（A-3）
+  - id: show
+    build:
+      item: { $copy: key }
+      label: { $copy: label }
+      format: { $first: [{ $copy: format }, { $copy: item.format }] }
+      labels: { $when: [{ path: base, equals: enum }], $then: { $copy: values } }
+      link:
+        $first:
+          - $when: [{ path: base, equals: ref }]
+            $then: { to: { $copy: target }, name: { $copy: targetTitle } }
+          - $when: [{ path: item.base, equals: ref }]
+            $then: { to: { $copy: item.target }, name: { $copy: item.targetTitle }, many: true }
+      keepBreaks: { $when: [{ path: multiline, equals: true }], $then: true }
+      mark: { $when: [{ path: base, equals: boolean }], $then: { "true": 済, "false": 未 } }
+      align: { $when: [{ path: base, oneOf: [int, number] }], $then: end }
+  # いまの場所＝操作。操作のボタン（押すと操作の最初の画面へ。起点の画面の ID を from で渡す）
+  - id: button
+    build:
+      operation: { $copy: id }
+      label: { $copy: label }
+      kind: link
+      to: { $first: [{ $when: [{ path: params, empty: false }], $then: { $format: "GET {u}", $with: { u: { $apply: url } } } }, { $format: "GET {u}/confirm", $with: { u: { $apply: url } } }] }
+      from: { $copy: id, $of: element }
+      emphasis: secondary
+      shownWhen: { $apply: shown-when }
+  - id: url
+    when: [{ path: target.entity, exists: true }]
+    build: { $format: "/{t}/{k}/{a}", $with: { t: { $copy: subject }, k: "{id}", a: { $copy: id } } }
+  - id: url
+    build: { $format: "/{t}/{a}", $with: { t: { $copy: subject }, a: { $copy: id } } }
+  - id: shown-when
+    when: [{ path: lifecycle.transitions, exists: true }]
+    build: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { $copy: value } } }
+  - id: shown-when
+    build: いつも

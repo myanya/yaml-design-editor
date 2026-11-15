@@ -34,4 +34,22 @@ build:
                 key: { $format: "{s}.cell", $with: { s: { $copy: id, $of: sec } } }
                 label: { $format: "区画「{l}」のセル（行と列）", $with: { l: { $copy: label, $of: sec } } }
       does: 絞り込みで区画の一覧と集計を読んで、一覧画面を出す
+      service: { $format: "{n}Service.show", $with: { n: { $case: { $copy: id }, $as: pascal } } }
+      reads:
+        $each: sections
+        $bind: sec
+        $flatten: true
+        $build:
+          $each: views
+          $of: model
+          $build:
+            $when: [{ path: id, equals: { $copy: view, $of: sec } }, { path: rows, exists: true }]
+            section: { $copy: id, $of: sec }
+            select: { $format: "{m}Mapper.select{d}{s}", $with: { m: { $case: { $copy: rows }, $as: pascal }, d: { $case: { $copy: id, $of: element }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+            count: { $format: "{m}Mapper.count{d}{s}", $with: { m: { $case: { $copy: rows }, $as: pascal }, d: { $case: { $copy: id, $of: element }, $as: pascal }, s: { $case: { $copy: id, $of: sec }, $as: pascal } } }
+      candidates:
+        $each: inputs
+        $build:
+          $when: [{ path: field.target, exists: true }]
+          $then: { $format: "{n}Mapper.selectAll", $with: { n: { $case: { $copy: field.target }, $as: pascal } } }
       session: { reads: [notice] }

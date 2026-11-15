@@ -29,6 +29,7 @@ inputs:
     schemas:
       - category-list
     target: category
+    targetTitle: name
   - key: tags
     label: タグ
     type: array
@@ -43,6 +44,7 @@ inputs:
       schemas:
         - tag-list
       target: tag
+      targetTitle: name
   - key: follows
     label: 元のTODO
     type: common#TODO参照
@@ -53,6 +55,7 @@ inputs:
     schemas:
       - todo-list
     target: todo
+    targetTitle: title
   - key: due
     label: 期限
     type: common#年月日

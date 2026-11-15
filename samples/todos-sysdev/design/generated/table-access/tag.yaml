@@ -5,12 +5,89 @@ mapper: TagMapper
 tables:
   - tag
 methods:
+  - name: findDetail
+    kind: select
+    table: tag
+    where:
+      - item: id
+        param: id
+    includes: []
+    names: []
+    operations: []
+    screens:
+      - tag
+  - name: selectAll
+    kind: select
+    table: tag
+    columns:
+      - id
+      - name
+    order:
+      - item: id
+    operations: []
+    screens:
+      - 参照の候補
+  - name: selectTodoDashboardTags
+    kind: aggregate
+    table: tag
+    order:
+      - item: id
+    groupBy:
+      - item: id
+      - item: status
+        of: todo
+        values:
+          - OPEN
+          - IN_PROGRESS
+          - SUSPENDED
+          - CLOSED
+          - CANCELED
+    counts: todo
+    via:
+      relation: tagged
+      dir: in
+    operations: []
+    screens:
+      - todo-dashboard
+  - name: countTodoDashboardTags
+    kind: count
+    table: tag
+    operations: []
+    screens:
+      - todo-dashboard
+  - name: selectTodoDashboardTagsMaster
+    kind: select
+    table: tag
+    columns:
+      - item: id
+      - label: タグ名
+        item: name
+      - label: TODOの数
+        computed:
+          count: 参照してくる要素
+          relation: tagged
+          dir: in
+    where: []
+    order:
+      - item: id
+    params: []
+    operations: []
+    screens:
+      - todo-dashboard
+  - name: countTodoDashboardTagsMaster
+    kind: count
+    table: tag
+    where: 上の select と同じ条件
+    operations: []
+    screens:
+      - todo-dashboard
   - name: insert
     kind: insert
     table: tag
     columns: テーブル設計書のすべての列
     operations:
       - add-tag
+    screens: []
   - name: maxId
     kind: max
     table: tag
@@ -24,3 +101,4 @@ methods:
       digits: 3
     operations:
       - add-tag
+    screens: []

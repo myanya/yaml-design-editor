@@ -58,6 +58,7 @@ items:
       schemas:
         - tag-list
       target: tag
+      targetTitle: name
     documents:
       - todo-list
   - key: follows

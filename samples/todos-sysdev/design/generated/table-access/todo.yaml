@@ -8,6 +8,172 @@ tables:
   - todo_comments
   - todo_history
 methods:
+  - name: findDetail
+    kind: select
+    table: todo
+    where:
+      - item: id
+        param: id
+    includes:
+      - item: tags
+        table: todo_tags
+        order:
+          - item: seq
+      - item: comments
+        table: todo_comments
+        order:
+          - item: seq
+      - item: history
+        table: todo_history
+        order:
+          - item: seq
+      - item: tasks
+        table: todo_task
+        order:
+          - item: seq
+    names:
+      - item: category
+        table: category
+        name: name
+      - item: tags
+        table: tag
+        name: name
+      - item: follows
+        table: todo
+        name: title
+    operations: []
+    screens:
+      - todo
+  - name: selectAll
+    kind: select
+    table: todo
+    columns:
+      - id
+      - title
+    order:
+      - item: id
+    operations: []
+    screens:
+      - 参照の候補
+  - name: selectTodoDashboardOverdue
+    kind: select
+    table: todo
+    columns:
+      - item: id
+      - label: タイトル
+        item: title
+      - label: ステータス
+        item: status
+      - label: 期限
+        item: due_on
+      - label: 完了日
+        item: completed_on
+    where:
+      - item: tags
+        op: includesAny
+        value: $tags
+        via: todo_tags
+        skipIfEmpty: true
+      - item: category
+        op: equals
+        value: $category
+        skipIfEmpty: true
+      - item: status
+        op: in
+        values:
+          - OPEN
+          - IN_PROGRESS
+      - item: due_on
+        op: notNull
+      - item: due_on
+        op: lt
+        value: $today
+    order:
+      - item: due_on
+        nulls: last
+    params:
+      - tags
+      - category
+      - today
+    operations: []
+    screens:
+      - todo-dashboard
+  - name: countTodoDashboardOverdue
+    kind: count
+    table: todo
+    where: 上の select と同じ条件
+    operations: []
+    screens:
+      - todo-dashboard
+  - name: selectTodoDashboardAll
+    kind: select
+    table: todo
+    columns:
+      - item: id
+      - label: カテゴリ
+        item: category
+        names:
+          table: category
+          name: name
+      - label: ステータス
+        item: status
+      - label: 作業
+        computed:
+          of:
+            format: '{done}/{all}'
+            parts:
+              done:
+                count: todo_task
+                parent: 行の ID
+                where:
+                  - item: done
+                    op: equals
+                    value: true
+              all:
+                count: 入れ子の要素
+                item: tasks
+                parent: 行の ID
+          replace:
+            0/0: ''
+      - label: タグ
+        item: tags
+        names:
+          table: tag
+          name: name
+          many: true
+      - label: 期限
+        item: due_on
+      - label: 概要
+        item: summary
+      - label: 作成日
+        item: created_on
+      - label: 更新日
+        item: updated_on
+    where:
+      - item: tags
+        op: includesAny
+        value: $tags
+        via: todo_tags
+        skipIfEmpty: true
+      - item: category
+        op: equals
+        value: $category
+        skipIfEmpty: true
+    order:
+      - item: id
+    params:
+      - tags
+      - category
+    operations: []
+    screens:
+      - todo-dashboard
+  - name: countTodoDashboardAll
+    kind: count
+    table: todo
+    where: 上の select と同じ条件
+    operations: []
+    screens:
+      - todo-dashboard
   - name: findById
     kind: select
     table: todo
@@ -23,12 +189,14 @@ methods:
       - resume-todo
       - complete-todo
       - cancel-todo
+    screens: []
   - name: insert
     kind: insert
     table: todo
     columns: テーブル設計書のすべての列
     operations:
       - register-todo
+    screens: []
   - name: maxId
     kind: max
     table: todo
@@ -42,6 +210,7 @@ methods:
       digits: 3
     operations:
       - register-todo
+    screens: []
   - name: insertTodoTags
     kind: insert
     table: todo_tags
@@ -49,6 +218,7 @@ methods:
     operations:
       - register-todo
       - edit-todo
+    screens: []
   - name: insertTodoHistory
     kind: insert
     table: todo_history
@@ -60,6 +230,7 @@ methods:
       - resume-todo
       - complete-todo
       - cancel-todo
+    screens: []
   - name: maxSeqTodoHistory
     kind: max
     table: todo_history
@@ -74,6 +245,7 @@ methods:
       - resume-todo
       - complete-todo
       - cancel-todo
+    screens: []
   - name: insertTodoComments
     kind: insert
     table: todo_comments
@@ -81,6 +253,7 @@ methods:
     operations:
       - add-todo-comment
       - edit-todo
+    screens: []
   - name: maxSeqTodoComments
     kind: max
     table: todo_comments
@@ -90,6 +263,7 @@ methods:
         param: id
     operations:
       - add-todo-comment
+    screens: []
   - name: addTodoComment
     kind: update
     table: todo
@@ -103,6 +277,7 @@ methods:
         param: id
     operations:
       - add-todo-comment
+    screens: []
   - name: addTodoTask
     kind: update
     table: todo
@@ -116,6 +291,7 @@ methods:
         param: id
     operations:
       - add-todo-task
+    screens: []
   - name: editTodo
     kind: update
     table: todo
@@ -184,6 +360,7 @@ methods:
         param: id
     operations:
       - edit-todo
+    screens: []
   - name: deleteTodoTags
     kind: delete
     table: todo_tags
@@ -192,6 +369,7 @@ methods:
         param: id
     operations:
       - edit-todo
+    screens: []
   - name: deleteTodoComments
     kind: delete
     table: todo_comments
@@ -200,6 +378,7 @@ methods:
         param: id
     operations:
       - edit-todo
+    screens: []
   - name: startTodo
     kind: update
     table: todo
@@ -215,6 +394,7 @@ methods:
         param: id
     operations:
       - start-todo
+    screens: []
   - name: suspendTodo
     kind: update
     table: todo
@@ -230,6 +410,7 @@ methods:
         param: id
     operations:
       - suspend-todo
+    screens: []
   - name: resumeTodo
     kind: update
     table: todo
@@ -245,6 +426,7 @@ methods:
         param: id
     operations:
       - resume-todo
+    screens: []
   - name: completeTodo
     kind: update
     table: todo
@@ -264,6 +446,7 @@ methods:
         param: id
     operations:
       - complete-todo
+    screens: []
   - name: cancelTodo
     kind: update
     table: todo
@@ -281,6 +464,7 @@ methods:
         param: id
     operations:
       - cancel-todo
+    screens: []
   - name: todoTaskFinish
     kind: update
     table: todo
@@ -294,3 +478,4 @@ methods:
         param: todoId
     operations:
       - todo-task.finish
+    screens: []

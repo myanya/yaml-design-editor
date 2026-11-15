@@ -123,6 +123,30 @@ class BusinessModelTest {
         assertEquals(12, (reach["operations"] as List<*>).size)
         assertTrue("todo-task.finish" in (reach["operations"] as List<*>), "入れ子の型の操作も、詳細画面の表からたどれる")
         assertEquals(reach, model["reach"], "ダッシュボードが 1 つなら、和も同じ")
+        // 区画の条件の State の名前は、値の条件へ置き換える（YDE の読み込みと同じ）
+        val overdue = list("sections", dashboard).first { it["id"] == "overdue" }
+        @Suppress("UNCHECKED_CAST")
+        val where = (overdue["filter"] as Map<String, Any?>)["where"] as List<Map<String, Any?>>
+        assertEquals(mapOf("of" to "t", "path" to "status", "oneOf" to listOf("OPEN", "IN_PROGRESS")), where.first())
+        // 共有の入力は、同じ型を使う項目から型を解いた形を添える。区画が基準日を使う
+        val tags = list("inputs", dashboard).first { it["key"] == "tags" }
+        assertEquals("tag", (tags["field"] as Map<*, *>)["target"])
+        assertEquals(true, dashboard["usesToday"])
+        // ビューの列は、読む項目の型を解いた形を添える（参照なら参照先と見出しの項目）
+        val categoryColumn = list("columns", management).first { it["label"] == "カテゴリ" }
+        assertEquals(mapOf("type" to "common#カテゴリ参照", "base" to "ref", "target" to "category", "targetTitle" to "name"), categoryColumn["field"])
+    }
+
+    @Test
+    fun `見出しの項目と 値を消す受け取る値`() {
+        assertEquals("title", byId("entities", "todo")["title"])
+        assertEquals("name", byId("entities", "category")["title"])
+        val edit = byId("actions", "edit-todo")
+        val params = list("params", edit).associateBy { it["key"] }
+        assertEquals("clear.category", params.getValue("category")["clearedBy"], "値を消すのチェックが、どの欄のものか（効果の when から）")
+        assertEquals("clear.comments", params.getValue("comments")["clearedBy"], "空の配列にするのも消す")
+        assertEquals(null, params.getValue("title")["clearedBy"])
+        assertEquals("name", params.getValue("category")["targetTitle"], "参照の値の名前は参照先の見出しの項目")
     }
 
     @Test

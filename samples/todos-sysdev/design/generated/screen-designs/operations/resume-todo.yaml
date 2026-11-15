@@ -1,0 +1,109 @@
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+id: resume-todo
+name: TODOを再開する（画面設計書）
+form:
+  class: ResumeTodoForm
+  emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+  fields:
+    - name: date
+      item: date
+      type: LocalDate
+      validations:
+        - name: NotNull
+        - name: DateTimeFormat
+          iso: DATE
+    - name: note
+      item: note
+      type: String
+      validations: []
+  classes: []
+screens:
+  - id: resume-todo/input
+    template: todo/resume-todo/input
+    page:
+      title: TODOを再開する
+      width: m
+      body:
+        - notice:
+            kind: errors
+            for: form
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - form:
+            action: POST /todo/{id}/resume-todo/confirm
+            object: ResumeTodoForm
+            hidden:
+              - from
+            body:
+              - field:
+                  item: date
+                  label: 再開日
+                  control: date
+                  required: true
+                  width: 10ch
+              - field:
+                  item: note
+                  label: メモ
+                  control: textarea
+                  rows: 5
+              - actions:
+                  - label: 確認へ
+                    kind: submit
+                    emphasis: primary
+                  - label: やめる
+                    kind: link
+                    to: 起点の画面
+                    emphasis: secondary
+  - id: resume-todo/confirm
+    template: todo/resume-todo/confirm
+    page:
+      title: TODOを再開する（確認）
+      width: m
+      body:
+        - notice:
+            kind: refusal
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - facts:
+            title: 入力した値
+            of: form
+            items:
+              - item: date
+                label: 再開日
+                format: yyyy年M月d日
+              - item: note
+                label: メモ
+                keepBreaks: true
+        - facts:
+            title: 状態の移り方
+            items:
+              - label: 状態
+                from:
+                  - 中断
+                to: 対応中
+        - form:
+            action: POST /todo/{id}/resume-todo
+            hidden:
+              - date
+              - note
+              - flow
+              - from
+            body:
+              - actions:
+                  - label: 確定
+                    kind: submit
+                    emphasis: primary
+                  - label: 入力へ戻る
+                    kind: submit
+                    action: POST /todo/{id}/resume-todo/back
+                    emphasis: secondary

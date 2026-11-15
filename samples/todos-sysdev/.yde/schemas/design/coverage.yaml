@@ -64,11 +64,14 @@ constraints:
       - { gte: [{ occurrenceCount: { of: v, schema: screen-transitions } }, 1] }
       - { gte: [{ occurrenceCount: { of: v, schema: screen-list } }, 1] }
       - { gte: [{ occurrenceCount: { of: v, schema: dashboard-flow } }, 1] }
+      - { gte: [{ occurrenceCount: { of: v, schema: screen-design-list } }, 1] }
     level: error
     message: "ダッシュボード「{id}」の画面の設計書がそろっていません（generate で作り直します）"
   - id: action-has-screen
     description: どの操作にも画面定義書（入力画面と確認画面）がある＝ダッシュボードからたどれる
     match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ occurrenceCount: { of: a, schema: screen-operation } }, 1] }]
+    check:
+      - { gte: [{ occurrenceCount: { of: a, schema: screen-operation } }, 1] }
+      - { gte: [{ occurrenceCount: { of: a, schema: screen-design-operation } }, 1] }
     level: warning
     message: "操作「{id}」はダッシュボードからたどれず、画面がありません（業務モデルのダッシュボードに、操作のボタンか、受け手の型の一覧を足します）"

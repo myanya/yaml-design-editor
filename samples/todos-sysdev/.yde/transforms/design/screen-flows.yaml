@@ -20,6 +20,8 @@ build:
         handler: show
         request: { $format: "GET /{t}/{k}", $with: { t: { $copy: id }, k: "{id}" } }
         does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+        service: { $format: "{n}Service.findDetail", $with: { n: { $case: { $copy: id }, $as: pascal } } }
+        reads: [{ $format: "{n}Mapper.findDetail", $with: { n: { $case: { $copy: id }, $as: pascal } } }]
         session: { reads: [notice] }
   handlers:
     $each: actions
@@ -41,7 +43,8 @@ build:
               - handler: { $format: "{m}Input", $with: { m: { $case: { $copy: id }, $as: camel } } }
                 request: { $format: "GET {u}", $with: { u: { $apply: url } } }
                 screen: { $format: "{id}/input" }
-                does: 受け手を読み、初期値でフォームを作って入力画面を出す
+                does: { $first: [{ $when: [{ path: target.entity, exists: true }], $then: 受け手を読み、初期値でフォームを作って入力画面を出す }, 初期値でフォームを作って入力画面を出す] }
+                reads: { $apply: input-reads }
           - - handler: { $format: "{m}Confirm", $with: { m: { $case: { $copy: id }, $as: camel } } }
               request:
                 $first:
@@ -54,6 +57,10 @@ build:
                   - $when: [{ path: params, empty: false }]
                     $then: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
                   - 受け手を読んで確認画面を出す
+              reads:
+                $concat:
+                  - $when: [{ path: target.entity, exists: true }]
+                    $then: [{ $format: "{n}Mapper.findById", $with: { n: { $case: { $copy: target.entity }, $as: pascal } } }]
               session: { puts: [token] }
           - $when: [{ path: params, empty: false }]
             $then:
@@ -76,6 +83,15 @@ build:
                       $when: [{ path: id, exists: true }]
                       $then: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: a }, r: { $copy: id } } }
 rules:
+  # いまの場所＝操作。入力画面で読むもの（受け手と、参照の欄の候補）
+  - id: input-reads
+    build:
+      $concat:
+        - $when: [{ path: target.entity, exists: true }]
+          $then: [{ $format: "{n}Mapper.findById", $with: { n: { $case: { $copy: target.entity }, $as: pascal } } }]
+        - $group: { $each: params, $build: { $first: [{ $copy: target }, { $copy: item.target }] } }
+          $by: { $copy: . }
+          $build: { $format: "{n}Mapper.selectAll", $with: { n: { $case: { $copy: key }, $as: pascal } } }
   # いまの場所＝操作。受け手のある操作は /型/{id}/操作、受け手の無い操作は /型/操作（型は主体のエンティティ型。画面定義書と同じ）
   - id: url
     when: [{ path: target.entity, exists: true }]

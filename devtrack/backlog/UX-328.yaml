@@ -1,0 +1,11 @@
+id: UX-328
+title: 生成の定義（.yde/transforms）の YAML の書き方が誤っていると、generate はその定義を黙って飛ばす（validate では指摘が出る）
+status: todo
+origin_on: 2026-11-15
+origin: 'samples/todos-sysdev の画面のクラスの対応表の生成の定義に、引用符の無い [ を書いたとき'
+memo: |-
+  Generators.definitions はセッションの読めた文書だけを見るので、YAML として読めない生成の定義は、生成の誤りにも出ずに消える（作る文書も作らない）。
+  validate では「YAML パースエラー」が出るので気づけるが、generate の結果（errors）にも「生成の定義を読めません」と出すのがよい。
+  セッションに、読めなかった文書（parseErrors）を引く入口が要る
+features:
+  - C-21

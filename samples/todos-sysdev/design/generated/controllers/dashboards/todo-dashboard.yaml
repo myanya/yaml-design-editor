@@ -17,6 +17,29 @@ screens:
       - key: tags.cell
         label: 区画「タグ別の状況」のセル（行と列）
     does: 絞り込みで区画の一覧と集計を読んで、一覧画面を出す
+    service: TodoDashboardService.show
+    reads:
+      - section: overdue
+        select: TodoMapper.selectTodoDashboardOverdue
+        count: TodoMapper.countTodoDashboardOverdue
+      - section: all
+        select: TodoMapper.selectTodoDashboardAll
+        count: TodoMapper.countTodoDashboardAll
+      - section: categories
+        select: CategoryMapper.selectTodoDashboardCategories
+        count: CategoryMapper.countTodoDashboardCategories
+      - section: tags
+        select: TagMapper.selectTodoDashboardTags
+        count: TagMapper.countTodoDashboardTags
+      - section: categories-master
+        select: CategoryMapper.selectTodoDashboardCategoriesMaster
+        count: CategoryMapper.countTodoDashboardCategoriesMaster
+      - section: tags-master
+        select: TagMapper.selectTodoDashboardTagsMaster
+        count: TagMapper.countTodoDashboardTagsMaster
+    candidates:
+      - TagMapper.selectAll
+      - CategoryMapper.selectAll
     session:
       reads:
         - notice

@@ -1,0 +1,16 @@
+id: screen-design-operation
+name: 画面設計書（操作の画面）
+kind: document
+description: >-
+  詳細設計。ダッシュボードからたどれる操作 1 つの、入力画面と確認画面の部品の木（page・notice・facts・form・field・choices・rows・actions）と、
+  フォームのクラス（項目の Java の型と Bean Validation）。HTML の手前の形で、③で Thymeleaf のテンプレートに機械的に写す。
+  生成物（.yde/transforms/design/screen-designs-operations.yaml）で、手で直さない
+match: "design/generated/screen-designs/operations/*.yaml"
+entity: { type: yde-action, defines: false }
+root:
+  type: object
+  fields:
+    - { key: id, label: 操作, type: id, required: true }
+    - { key: name, label: 名前, type: string, role: title }
+    - { key: form, label: フォームのクラス, type: any }
+    - { key: screens, label: 画面（部品の木）, type: array, display: list, item: { type: any } }

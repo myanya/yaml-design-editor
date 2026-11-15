@@ -32,15 +32,24 @@ root:
               - { value: delete, label: 消す }
               - { value: max, label: 最大の値 }
               - { value: count, label: 件数 }
+              - { value: aggregate, label: 集計 }
           - { key: table, label: テーブル, type: string, required: true }
-          - { key: columns, label: 列, type: string }
+          - { key: columns, label: 列, type: any }
           - { key: item, label: 読む項目, type: string }
           - { key: set, label: 書く項目, type: array, display: table, item: { type: any } }
-          - { key: where, label: 条件, type: array, display: table, item: { type: any } }
+          - { key: where, label: 条件, type: any }
           - { key: numbering, label: 採番の決まり, type: any }
           - { key: precondition, label: 業務モデルの前提, type: ref }
           - key: expect
             label: 通す件数
             type: enum
             values: [{ value: absent, label: 0 件 }, { value: exists, label: 1 件以上 }]
+          - { key: includes, label: 一緒に読む明細, type: array, display: table, item: { type: any } }
+          - { key: names, label: 一緒に読む参照先の名前, type: array, display: table, item: { type: any } }
+          - { key: order, label: 並び, type: array, item: { type: any } }
+          - { key: groupBy, label: まとめる単位, type: array, item: { type: any } }
+          - { key: counts, label: 数える要素のテーブル, type: string }
+          - { key: via, label: 数える要素への線, type: any }
+          - { key: params, label: 受け取る値, type: array, item: { type: string } }
           - { key: operations, label: 使う操作, type: array, item: { type: ref } }
+          - { key: screens, label: 使う画面, type: array, item: { type: string } }

@@ -30,12 +30,16 @@ entity: { type: yde-action, defines: false }
 
 - `entities`: エンティティ型と、その側面（どのスキーマの文書の、どこに書かれ、どの項目を持つか）。項目は型を解いた形（型の名前 `type`・基底の種類 `base`・必須・文字数・選択肢など）です。
   参照の項目には参照先のエンティティ型（`target`）、State の値を持つ列挙型の項目には、その State のエンティティ型（`stateOf`）が付きます。
-  型には ID の振り方（`numbering`。配列の追加の決まり `methods.insert` か、文書を作る手の `id`）と、入れ子で書かれる型なら外側の型と項目（`owner`。作業項目なら `{entity: todo, field: tasks}`）が付きます。
+  型には ID の振り方（`numbering`。配列の追加の決まり `methods.insert` か、文書を作る手の `id`）と、入れ子で書かれる型なら外側の型と項目（`owner`。作業項目なら `{entity: todo, field: tasks}`）、
+  見出しの項目（`title`。表示解決と同じ順＝`role: title`・title・name・label）が付きます。参照の項目には、参照先の見出しの項目（`targetTitle`）も付きます。
 - `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・作るエンティティ型（`creates`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
   文書を作る手と要素を足す手には、書く値の項目ごとの基底の種類（`written`）と採番（`numbering`）が付きます。
+  受け取る値のうち、別の真偽値の受け取る値で消せるもの（効果の条件が `clear.category が true` で、その項目を消す）には `clearedBy` が付きます。
 - `states`・`lifecycles`: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle です。State は ID・名前・値の組で書きます。
-- `views`・`dashboards`: ビュー（ID・名前・種類 grid / matrix / chart・行の型 `rows`・列の見出しと読む項目。集計は数える要素の型 `counts`）と、
-  ダッシュボード（絞り込みの入力・上部の操作・区画）です。スコープを書いたときは、そのスコープのビューだけを読みます。
+- `views`・`dashboards`: ビュー（ID・名前・種類 grid / matrix / chart・行の型 `rows`・行の条件 `where`・並び `order`・列の見出しと読む項目と、項目の型を解いた `field`・
+  計算の列の値の式 `value`。集計は数える要素の型 `counts` と、そこへの線 `match`）と、ダッシュボード（絞り込みの入力と、その型を解いた `field`・
+  上部の操作・区画・区画の条件が基準日を使うか `usesToday`）です。条件の State の名前は、値の条件（`{path: status, oneOf: [OPEN, …]}`）へ置き換えて持ちます。
+  スコープを書いたときは、そのスコープのビューだけを読みます。
 - `reach`（と各ダッシュボードの `reach`）: ダッシュボードからたどれる範囲です。区画のビューの行と数える要素の型から、参照の項目の参照先をたどった
   エンティティ型（`entities`）、その中に入れ子で書かれた型（`nested`）、上部の操作と、たどれる型を受け手にする操作（`operations`）。
   業務の流れ（`flow`）の図は、いまは数えません。ダッシュボードからたどれるものを画面にする生成は、ここを読みます（`samples/todos-sysdev` の画面系）。

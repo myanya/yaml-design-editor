@@ -78,6 +78,32 @@ class TodosSysdevTest {
         assertEquals("yde-view", index.entries["todo-dashboard"]?.firstOrNull { it.role == dev.toros.yde.semantic.schema.EntityRole.DEFINING }?.entityType, "ビューの定義は定義の索引の yde-view")
     }
 
+    /**
+     * 画面設計書（部品の木とフォームのクラス）と一覧の読み出し（Mapper の select）は、業務モデルから計算で作る:
+     * 入力検査は業務の型から・値を消すは効果から・区画の条件と計算の列は写す規則から（「手で書く」は無い）。
+     */
+    @Test
+    fun `画面設計書と一覧の読み出しは計算で作る`() {
+        fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
+        fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+        val complete = doc("design/generated/screen-designs/operations/complete-todo.yaml")
+        val form = complete["form"] as Map<*, *>
+        assertEquals("CompleteTodoForm", form["class"])
+        val result = list(form, "fields").single { it["name"] == "result" }
+        assertEquals(listOf(mapOf("name" to "NotNull"), mapOf("name" to "Size", "min" to 1)), result["validations"])
+        assertEquals(listOf("complete-todo/input", "complete-todo/confirm"), list(complete, "screens").map { it["id"] })
+        val edit = doc("design/generated/screen-designs/operations/edit-todo.yaml").toString()
+        assertTrue("flag=clear.category" in edit && "rows={item=comments" in edit, "値を消すのチェックと、コメント一覧の行の表")
+        val access = list(doc("design/generated/table-access/todo.yaml"), "methods")
+        val overdue = access.single { it["name"] == "selectTodoDashboardOverdue" }
+        assertTrue(mapOf("item" to "status", "op" to "in", "values" to listOf("OPEN", "IN_PROGRESS")) in (overdue["where"] as List<*>), "区画の条件の State は値の条件")
+        assertTrue(access.any { it["name"] == "findDetail" } && access.any { it["name"] == "selectAll" })
+        val matrix = list(doc("design/generated/table-access/category.yaml"), "methods").single { it["name"] == "selectTodoDashboardCategories" }
+        assertEquals("aggregate", matrix["kind"])
+        val all = java.nio.file.Files.walk(root.resolve("design/generated")).use { s -> s.filter { it.toString().endsWith(".yaml") }.toList() }
+        assertTrue(all.none { "手で書く" in java.nio.file.Files.readString(it) }, "todos の業務モデルは、どれも写す規則で作れる")
+    }
+
     @Test
     fun `検証にエラーが無い`() {
         val ws = WorkspaceReader.load(FileSystemDocumentStore(root), builtins = dev.toros.yde.app.schema.BuiltinSchemas.kernelSchemas(dev.toros.yde.workspace.layout.WorkspaceLayout.of(root)))
