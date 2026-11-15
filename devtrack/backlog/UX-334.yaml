@@ -1,0 +1,11 @@
+id: UX-334
+title: 補正で置き換えた値（項の origins）が設計書に出ない。足したもの（origin）だけが出る
+status: todo
+origin_on: 2026-11-16
+origin: 'samples/todos-sysdev で、補正「TODO の更新者は 100 文字まで」を書いて試したとき'
+memo: |-
+  補正の set は、要素の origins に {path, 段, 補正の ID と名前} を残すが、生成の定義はまだ origins を写していない。
+  エンティティ定義書の更新者は 100 文字に変わるが、出どころは「基本設計「更新者を記録する」」のままで、補正で長さを変えたことはレビューで分からない。
+  エンティティ定義書の項目・テーブル設計書の列・アクション定義書の結果に、置き換えた場所と補正の名前を写す（例 changes: [{path: maxLength, by: todo-updated-by-length}]）
+features:
+  - C-23
