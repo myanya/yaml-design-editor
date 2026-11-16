@@ -1,0 +1,12 @@
+id: KW-schema.enforcement
+key: "enforcement"
+context: CTX-schema
+group: identity
+status: stable
+forms:
+  - kinds: [relations]
+    value: "{undeclaredRelation, definingUniqueness}"
+    meaning: "ワークスペース単位で検査を強める切り替え。宣言していない関係の名前の扱いと、定義の出現が 1 つであることの扱いを決めます。"
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

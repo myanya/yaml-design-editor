@@ -5,6 +5,7 @@
 
 | 文書 | 内容 |
 |---|---|
+| [schema-document.md](schema-document.md) | スキーマ文書のトップレベルに書ける語と、`kind` に書ける種類 |
 | [schema-fields.md](schema-fields.md) | スキーマの項目定義に書ける語と、`type` に書ける基底の種類 |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

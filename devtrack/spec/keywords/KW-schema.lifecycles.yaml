@@ -1,0 +1,12 @@
+id: KW-schema.lifecycles
+key: "lifecycles"
+context: CTX-schema
+group: behavior
+status: stable
+forms:
+  - kinds: [behavior]
+    value: "Lifecycle の宣言の配列"
+    meaning: "ライフサイクル。1 件は {id, entity, states, entry, transitions, termination, history} の形で、対象の State・生成・遷移・終端を宣言します。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

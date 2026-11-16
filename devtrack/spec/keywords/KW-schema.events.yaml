@@ -1,0 +1,12 @@
+id: KW-schema.events
+key: "events"
+context: CTX-schema
+group: behavior
+status: stable
+forms:
+  - kinds: [behavior]
+    value: "Event の宣言の配列"
+    meaning: "出来事の種類。1 件は {id, entity, label, description} の形です。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

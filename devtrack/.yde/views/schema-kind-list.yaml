@@ -1,0 +1,9 @@
+id: schema-kind-list
+name: スキーマの種類の一覧
+description: スキーマ文書の kind に書ける種類を並べます。
+rows:
+  idPattern: "KIND-*"
+  schemaIds: [spec-schema-kind]
+columns:
+  - { label: 適用先, schemaId: spec-schema-kind, path: target }
+  - { label: 意味, schemaId: spec-schema-kind, path: description }

@@ -1,0 +1,4 @@
+id: KIND-library
+name: library
+target: "なし（文書には当たらない）"
+description: "共有する定義の置き場。型と構造の定義（definitions）と、検査の定義・操作を置き、ほかのスキーマから モジュールID#名前 で使います。root は書けません。"

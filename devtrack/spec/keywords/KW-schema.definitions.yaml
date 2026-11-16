@@ -1,0 +1,12 @@
+id: KW-schema.definitions
+key: "definitions"
+context: CTX-schema
+group: structure
+status: stable
+forms:
+  - kinds: [document, library, behavior]
+    value: "名前 → 項目定義 のマップ"
+    meaning: "名前付きの定義。構造の定義（$ref で使う）と、型の定義（項目の type に名前を書いて使う）を置きます。別のスキーマからは モジュールID#名前 で使います。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

@@ -1,0 +1,16 @@
+id: KW-schema.kind
+key: "kind"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - kinds: [document, library, behavior]
+    value: "document・library・relations・behavior のどれか"
+    default: "document"
+    meaning: "スキーマの種類。"
+  - kinds: [relations]
+    value: "relations"
+    meaning: "関係レジストリでは必ず書きます。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

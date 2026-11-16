@@ -1,0 +1,12 @@
+id: KW-schema.actions
+key: "actions"
+context: CTX-schema
+group: behavior
+status: stable
+forms:
+  - kinds: [document, library, behavior]
+    value: "操作の定義の配列"
+    meaning: "複数の要素や文書にまたがる操作。1 件は {id, label, description, target, params, input, lifecycle, require, do} の形です。同じ ID は書けません。関係レジストリには書けません。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

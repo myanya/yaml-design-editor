@@ -1,0 +1,12 @@
+id: KW-schema.root
+key: "root"
+context: CTX-schema
+group: structure
+status: stable
+forms:
+  - kinds: [document]
+    value: "項目定義"
+    meaning: "文書のルートの定義。document では必須です（derive を書いたスキーマは省けます）。ほかの種類には書けません。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

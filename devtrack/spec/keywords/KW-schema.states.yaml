@@ -1,0 +1,12 @@
+id: KW-schema.states
+key: "states"
+context: CTX-schema
+group: behavior
+status: stable
+forms:
+  - kinds: [behavior]
+    value: "State の宣言の配列"
+    meaning: "名前付きの状態。1 件は {id, entity, label, predicate} か、enum の全部の値から展開する {source: {entity, path, enum}, idPrefix} の形です。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

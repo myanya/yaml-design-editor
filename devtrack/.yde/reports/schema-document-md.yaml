@@ -1,0 +1,33 @@
+id: schema-document-md
+name: スキーマ文書（docs/spec/schema-document.md）
+description: 位置「スキーマ文書」の語とスキーマの種類から docs/spec/schema-document.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-schema } ], $one: true }
+  kinds: { $view: doc-schema-kinds }
+  # 語: 節は分類ごと。見出しと並びはここが正（分類を足すときは、ここと spec の 語の分類 に足す）
+  sections:
+    - title: 文書と適用先
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-schema }, { path: values.分類, equals: document } ] }, $apply: keyword }
+    - title: 形
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-schema }, { path: values.分類, equals: structure } ] }, $apply: keyword }
+    - title: 識別・参照・関係
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-schema }, { path: values.分類, equals: identity } ] }, $apply: keyword }
+    - title: 検査
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-schema }, { path: values.分類, equals: check } ] }, $apply: keyword }
+    - title: 操作と振る舞い
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-schema }, { path: values.分類, equals: behavior } ] }, $apply: keyword }
+rules:
+  # 語 1 つ: 形ごとに 1 行。スキーマの種類を限らない形には印 any を足す（ひな形は比べられないので）
+  - id: keyword
+    build:
+      key: { $copy: values.キー }
+      inherit: { $copy: values.引き継ぎ }
+      forms:
+        $each: values.形
+        $build:
+          kinds: { $copy: kinds }
+          any: { $when: { path: kinds, exists: false }, $then: true }
+          value: { $copy: value }
+          default: { $copy: default }
+          meaning: { $copy: meaning }
+template: schema-document-md.md

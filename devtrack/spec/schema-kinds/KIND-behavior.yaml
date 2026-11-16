@@ -1,0 +1,4 @@
+id: KIND-behavior
+name: behavior
+target: "なし（文書には当たらない）"
+description: "振る舞いの宣言。名前付きの State・Event の種類・Lifecycle・State の詳細化を書きます。"

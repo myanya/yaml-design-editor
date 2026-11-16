@@ -1,0 +1,13 @@
+id: KW-schema.match
+key: "match"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - kinds: [document]
+    value: "glob の文字列"
+    default: "すべての YAML（**/*.{yaml,yml}）"
+    meaning: "このスキーマを当てる文書（ワークスペース相対の glob）。複数のスキーマが合うときは、先に読んだスキーマが勝ちます。derive と一緒には書けません。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

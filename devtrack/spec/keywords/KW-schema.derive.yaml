@@ -1,0 +1,12 @@
+id: KW-schema.derive
+key: "derive"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - kinds: [document]
+    value: "派生の宣言の object"
+    meaning: "導出元の文書（例 表の定義書）から、検証用のスキーマを読み込みのときに作る宣言。適用先は derive の中の match で決まり、root は省けます。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

@@ -1,0 +1,12 @@
+id: KW-schema.relations
+key: "relations"
+context: CTX-schema
+group: identity
+status: stable
+forms:
+  - kinds: [relations]
+    value: "関係の宣言の配列"
+    meaning: "関係の一覧。関係レジストリでは必須です。1 件は {name, label, inverseLabel, source, target, cardinality, acyclic, level, description} の形です。"
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

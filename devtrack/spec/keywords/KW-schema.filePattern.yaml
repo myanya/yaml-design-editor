@@ -1,0 +1,12 @@
+id: KW-schema.filePattern
+key: "filePattern"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - kinds: [document]
+    value: "値の式（{パス} を含む文字列か、式の object）"
+    meaning: "このスキーマの文書を新しく作るときのファイルの場所（ワークスペース相対）。穴は元の要素の値で埋めます（{id} は ID）。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

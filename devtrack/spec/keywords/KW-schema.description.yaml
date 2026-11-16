@@ -1,0 +1,11 @@
+id: KW-schema.description
+key: "description"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - value: "文章"
+    meaning: "スキーマの説明。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

@@ -1,0 +1,12 @@
+id: KW-schema.refinements
+key: "refinements"
+context: CTX-schema
+group: behavior
+status: stable
+forms:
+  - kinds: [behavior]
+    value: "詳細化の宣言の配列"
+    meaning: "Lifecycle の 1 つの State（親）の中の流れ。1 件は {state, states, entry, transitions, exits} の形です。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

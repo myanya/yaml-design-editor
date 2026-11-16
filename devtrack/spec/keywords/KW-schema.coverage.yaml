@@ -1,0 +1,12 @@
+id: KW-schema.coverage
+key: "coverage"
+context: CTX-schema
+group: check
+status: stable
+forms:
+  - kinds: [document, library, behavior]
+    value: "規則の配列"
+    meaning: "詳細の文書があること（ID が、指定した場所にも書かれていること）の要求。組込みの語彙で、検証の前に基本の検査へ展開します。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

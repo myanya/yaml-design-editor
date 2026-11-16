@@ -19,6 +19,7 @@ build:
     - title: 識別・参照・関係
       rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: identity } ] }, $apply: keyword }
     - title: 値の式・自動の値・操作と検査
+      # 分類の名前は文書のトップレベルと共通（behavior）。この位置では型の検査 constraints もここに入る
       rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: behavior } ] }, $apply: keyword }
     - title: 表示と編集のヒント
       rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: presentation } ] }, $apply: keyword }

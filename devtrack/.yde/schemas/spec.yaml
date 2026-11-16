@@ -46,6 +46,16 @@ definitions:
   基底の種類:
     type: enum
     values: [string, int, number, boolean, enum, date, time, datetime, file, id, ref, array, map, object, any]
+  # スキーマ文書の kind に書く種類。実装（SchemaKind）とメタスキーマの選択肢と同じであることを SpecTest が見ます
+  スキーマの種類:
+    type: enum
+    values: [document, library, relations, behavior]
+  スキーマの種類ID:
+    type: id
+    pattern: "^KIND-[a-z]+$"
+    placeholder: KIND-document
+    sample: KIND-document
+    description: 「KIND-」と、kind に書く種類の名前。
   基底の種類の分類:
     type: enum
     values:
@@ -61,10 +71,12 @@ definitions:
   語の分類:
     type: enum
     values:
+      - { value: document, label: 文書と適用先 }
       - { value: structure, label: 形 }
       - { value: constraint, label: 必須と値の決まり }
       - { value: identity, label: 識別・参照・関係 }
-      - { value: behavior, label: 値の式・自動の値・操作と検査 }
+      - { value: check, label: 検査 }
+      - { value: behavior, label: 値の式・自動の値・操作と振る舞い }
       - { value: presentation, label: 表示と編集のヒント }
   語の状態:
     type: enum
@@ -115,7 +127,18 @@ definitions:
       - { key: value, label: 値の形, type: common#一行の文, required: true, description: この種類の項目に書く YAML の値の形。 }
       - { key: description, label: 意味, type: common#文章, required: true }
 
-  # 語の形: 語を書ける基底の種類ごとの、値の形と意味。基底の種類を限らない語は applies_to を省きます
+  # スキーマの種類: kind に書ける種類 1 つ。この形の要素がエンティティ schema-kind の定義
+  スキーマの種類の定義:
+    type: object
+    label: スキーマの種類
+    entity: { type: schema-kind, defines: true }
+    fields:
+      - { key: id, label: ID, type: スキーマの種類ID, required: true }
+      - { key: name, label: 名前, type: スキーマの種類, required: true, role: title, description: kind に書く文字。 }
+      - { key: target, label: 適用先, type: common#一行の文, required: true, description: この種類のスキーマが、どの文書に当たるか。 }
+      - { key: description, label: 意味, type: common#文章, required: true }
+
+  # 語の形: 語を書ける基底の種類（項目定義の語）かスキーマの種類（文書のトップレベルの語）ごとの、値の形と意味。限らない語は省きます
   語の形:
     type: object
     fields:
@@ -125,6 +148,12 @@ definitions:
         unique: true
         item: { type: 基底の種類 }
         description: この形で書ける項目の基底の種類。省くと、どの種類の項目にも書けます。
+      - key: kinds
+        label: 書けるスキーマの種類
+        type: array
+        unique: true
+        item: { type: スキーマの種類 }
+        description: この形で書けるスキーマ文書の種類（文書のトップレベルの語）。省くと、どの種類の文書にも書けます。
       - { key: value, label: 値の形, type: common#一行の文, required: true, description: 語に書く YAML の値の形（例 真偽値・正規表現の文字列）。 }
       - { key: default, label: 省いたとき, type: common#一行の文, description: 省いたときの扱い（既定の値）。 }
       - { key: meaning, label: 意味, type: common#文章, required: true }

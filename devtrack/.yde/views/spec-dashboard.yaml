@@ -18,6 +18,9 @@ sections:
       where:
         - { of: k, path: status, oneOf: [alias, deprecated] }
       expect: exists
+  - id: schema-kinds
+    label: スキーマの種類
+    view: schema-kind-list
   - id: base-types
     label: 基底の種類
     view: base-type-list

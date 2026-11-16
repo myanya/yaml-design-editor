@@ -13,6 +13,7 @@ entities:
   - { type: roadmap-decision, label: 決定 }
   - { type: context, label: 位置 }
   - { type: base-type, label: 基底の種類 }
+  - { type: schema-kind, label: スキーマの種類 }
   - { type: keyword, label: 語 }
 relations:
   - name: bundled-in

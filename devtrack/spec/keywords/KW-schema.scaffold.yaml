@@ -1,0 +1,12 @@
+id: KW-schema.scaffold
+key: "scaffold"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - kinds: [document]
+    value: "変換のひな型"
+    meaning: "このスキーマの文書を元の要素から作るときに、必須の項目の初期値の上へ重ねる中身。derive を書いたスキーマには書けません。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

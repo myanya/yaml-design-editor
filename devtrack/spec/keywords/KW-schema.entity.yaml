@@ -1,0 +1,12 @@
+id: KW-schema.entity
+key: "entity"
+context: CTX-schema
+group: identity
+status: stable
+forms:
+  - kinds: [document]
+    value: "{type, idPattern, idType, defines, aspect, owns} か、その配列"
+    meaning: "このスキーマの文書に現れる ID が、どのエンティティ型かの宣言。ID の形（idPattern の glob か、idType の型の名前）で型を見分けます。object の項目定義に書いた entity の方が優先します。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

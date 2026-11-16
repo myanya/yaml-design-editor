@@ -1,0 +1,12 @@
+id: KW-schema.consistency
+key: "consistency"
+context: CTX-schema
+group: check
+status: stable
+forms:
+  - kinds: [document, library, behavior]
+    value: "規則の配列"
+    meaning: "ID を持つ要素の値が、導出した期待の値と一致することの検査。組込みの語彙で、検証の前に基本の検査へ展開します。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

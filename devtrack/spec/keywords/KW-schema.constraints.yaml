@@ -1,0 +1,12 @@
+id: KW-schema.constraints
+key: "constraints"
+context: CTX-schema
+group: check
+status: stable
+forms:
+  - kinds: [document, library, behavior]
+    value: "検査の配列"
+    meaning: "検査を 1 件ずつ書きます。書き方は 2 通りで、match（クエリ）と expect・count・check のどれかを直接書くか、use（定義の名前）と with（渡す値）で定義を使います。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

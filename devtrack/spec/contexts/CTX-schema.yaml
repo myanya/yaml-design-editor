@@ -1,0 +1,8 @@
+id: CTX-schema
+title: スキーマ文書
+language: schema
+description: "スキーマ文書 1 つのトップレベル。スキーマの置き場（.yde/schemas/。従来の配置は _schemas/）の YAML 1 ファイルが 1 つのスキーマ文書で、種類（kind）によって書ける語が変わります。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root（kind: relations の文書は builtin-schemas/relations.yaml の root）"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"
+  manual: "manual/schema.md「スキーマ定義リファレンス」"

@@ -1,0 +1,4 @@
+id: KIND-relations
+name: relations
+target: "なし（文書には当たらない）"
+description: "関係レジストリ。関係の名前・向き・多重度と、エンティティ型の表示名を宣言します。"

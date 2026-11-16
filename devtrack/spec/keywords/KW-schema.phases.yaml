@@ -1,0 +1,13 @@
+id: KW-schema.phases
+key: "phases"
+context: CTX-schema
+group: structure
+status: stable
+forms:
+  - kinds: [document]
+    value: "フェーズの名前の配列か、{key, order}"
+    default: "フェーズを使いません"
+    meaning: "工程（フェーズ）の宣言。項目の requiredFrom と検査の activeFrom が、この並びで「このフェーズ以降」を決めます。文書の今のフェーズは、ルートの直下の項目に書きます。その項目のキーは {key, order} の key で決め、配列だけを書いたときと key を省いたときは phase です。order は必須です。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

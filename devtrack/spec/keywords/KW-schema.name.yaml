@@ -1,0 +1,12 @@
+id: KW-schema.name
+key: "name"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - value: "文字列"
+    default: "ID を表示します"
+    meaning: "スキーマの表示名。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

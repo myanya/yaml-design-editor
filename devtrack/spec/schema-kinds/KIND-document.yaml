@@ -1,0 +1,4 @@
+id: KIND-document
+name: document
+target: "match に合う文書"
+description: "文書に当てるスキーマ。kind を省くとこの種類です。root（文書のルートの定義）を持ちます。"

@@ -1,0 +1,12 @@
+id: KW-schema.id
+key: "id"
+context: CTX-schema
+group: document
+status: stable
+forms:
+  - value: "ID の文字列"
+    default: "ファイル名（拡張子を除く）"
+    meaning: "スキーマの ID。ほかの定義から、この ID でスキーマを指します（参照の scope.schemaIds・型の モジュールID#名前 など）。ワークスペースの中で重ならないこと。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

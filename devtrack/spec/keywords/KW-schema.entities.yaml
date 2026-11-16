@@ -1,0 +1,12 @@
+id: KW-schema.entities
+key: "entities"
+context: CTX-schema
+group: identity
+status: stable
+forms:
+  - kinds: [relations]
+    value: "エンティティ型の宣言の配列"
+    meaning: "エンティティ型の一覧。1 件は {type, label, description, aspects} の形で、型の表示名と、エンティティページで側面を並べる順を宣言します。"
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root"
+  reader: "workspace-core/workspace/SchemaDocuments.kt の parseRaw"

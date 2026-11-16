@@ -1,0 +1,7 @@
+id: spec-schema-kind
+name: スキーマの種類
+kind: document
+description: スキーマ文書の kind に書ける種類を 1 件 1 ファイルで持ちます。
+match: "spec/schema-kinds/*.yaml"
+filePattern: "spec/schema-kinds/{id}.yaml"
+root: { type: spec#スキーマの種類の定義 }
