@@ -1,0 +1,9 @@
+id: KW-consistency-expected.source
+key: "source"
+context: CTX-consistency-expected
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "{schemaId, fileGlob}"
+    meaning: "元の値を読む出現（同じ ID が書かれた文書のうち、どれから読むか）。"

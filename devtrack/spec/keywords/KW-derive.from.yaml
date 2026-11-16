@@ -1,0 +1,9 @@
+id: KW-derive.from
+key: "from"
+context: CTX-derive
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "glob の文字列"
+    meaning: "導出元の文書。"

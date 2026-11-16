@@ -1,0 +1,9 @@
+id: KW-coverage.level
+key: "level"
+context: CTX-coverage
+order: 5
+status: stable
+forms:
+  - value: "warning か error"
+    default: "warning"
+    meaning: "指摘の重さ。"

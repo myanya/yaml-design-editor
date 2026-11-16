@@ -1,0 +1,8 @@
+id: KW-consistency-expected.values
+key: "values"
+context: CTX-consistency-expected
+order: 4
+status: stable
+forms:
+  - value: "{schemaId, fileGlob} の配列"
+    meaning: "path の中の {パス} を埋めるのに使う出現。"

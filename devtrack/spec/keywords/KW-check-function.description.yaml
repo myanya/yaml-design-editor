@@ -1,0 +1,8 @@
+id: KW-check-function.description
+key: "description"
+context: CTX-check-function
+order: 2
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

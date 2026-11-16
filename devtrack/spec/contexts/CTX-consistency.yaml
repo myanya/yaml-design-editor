@@ -1,0 +1,10 @@
+id: CTX-consistency
+title: "値の整合（consistency）"
+language: schema
+description: "consistency の要素。ID を持つ要素の値が、導出した期待の値と合うことを確かめます。"
+meta:
+  schema: schema
+  path: [root, consistency, item]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.consistency.item"
+  reader: "builtin-definitions/consistency.yaml"

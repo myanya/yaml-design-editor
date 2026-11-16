@@ -1,0 +1,9 @@
+id: KW-matrix-witness.node
+key: "node"
+context: CTX-matrix-witness
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "エンティティの選択"
+    meaning: "証人にする要素の集まり。"

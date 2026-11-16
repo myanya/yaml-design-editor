@@ -1,0 +1,9 @@
+id: KW-flow.usage
+key: "usage"
+context: CTX-flow
+order: 7
+status: stable
+forms:
+  - value: "{from, to}"
+    default: "判定しません"
+    meaning: "使っている遷移。この集まりが、宣言した遷移に含まれることを求めます。"

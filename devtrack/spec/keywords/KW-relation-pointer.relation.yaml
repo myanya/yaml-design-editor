@@ -1,0 +1,9 @@
+id: KW-relation-pointer.relation
+key: "relation"
+context: CTX-relation-pointer
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "関係の名前の文字列"
+    meaning: "参照の関係の名前。"

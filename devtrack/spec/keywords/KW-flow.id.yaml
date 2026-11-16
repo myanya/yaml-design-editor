@@ -1,0 +1,8 @@
+id: KW-flow.id
+key: "id"
+context: CTX-flow
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "規則の ID。指摘の出どころとして表示します。"

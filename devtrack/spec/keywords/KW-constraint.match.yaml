@@ -1,0 +1,8 @@
+id: KW-constraint.match
+key: "match"
+context: CTX-constraint
+order: 3
+status: stable
+forms:
+  - value: "node と edge を交互に並べた配列"
+    meaning: "クエリ。先頭の node が起点で、エンティティを線（参照・保有）でたどる形を書きます。"

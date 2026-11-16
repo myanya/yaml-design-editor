@@ -1,0 +1,8 @@
+id: KW-constraint.with
+key: "with"
+context: CTX-constraint
+order: 20
+status: stable
+forms:
+  - value: "受け取る値の名前 → 値 のマップ"
+    meaning: "定義へ渡す値。"

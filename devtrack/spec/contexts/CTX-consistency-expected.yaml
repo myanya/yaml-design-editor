@@ -1,0 +1,10 @@
+id: CTX-consistency-expected
+title: "期待の値の導出"
+language: schema
+description: "consistency の expected。元の値を読む場所と、読んだ値の置き換えを書きます。"
+meta:
+  schema: schema
+  path: [root, consistency, item, expected]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.consistency.item.expected"
+  reader: "builtin-definitions/consistency.yaml"

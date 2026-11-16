@@ -1,0 +1,9 @@
+id: KW-check-vocabulary.word
+key: "word"
+context: CTX-check-vocabulary
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "語彙の名前。"

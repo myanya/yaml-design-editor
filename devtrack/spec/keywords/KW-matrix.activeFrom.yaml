@@ -1,0 +1,9 @@
+id: KW-matrix.activeFrom
+key: "activeFrom"
+context: CTX-matrix
+order: 7
+status: stable
+forms:
+  - value: "フェーズの名前の文字列"
+    default: "いつも判定します"
+    meaning: "判定を始めるフェーズ。文書がそのフェーズに達するまでは保留にします。"

@@ -1,0 +1,8 @@
+id: KW-constraint.checker
+key: "checker"
+context: CTX-constraint
+order: 21
+status: stable
+forms:
+  - value: "flow"
+    meaning: "専用チェッカーの名前。flow は遷移の検証です。"

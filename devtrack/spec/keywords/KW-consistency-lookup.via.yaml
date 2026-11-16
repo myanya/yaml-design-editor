@@ -1,0 +1,9 @@
+id: KW-consistency-lookup.via
+key: "via"
+context: CTX-consistency-lookup
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "たどる参照の項目（要素からの相対パス）。"

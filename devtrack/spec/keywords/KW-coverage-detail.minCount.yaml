@@ -1,0 +1,9 @@
+id: KW-coverage-detail.minCount
+key: "minCount"
+context: CTX-coverage-detail
+order: 2
+status: stable
+forms:
+  - value: "整数"
+    default: "1"
+    meaning: "必要な出現の数。"

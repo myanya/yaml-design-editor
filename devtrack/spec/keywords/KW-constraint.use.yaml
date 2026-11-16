@@ -1,0 +1,8 @@
+id: KW-constraint.use
+key: "use"
+context: CTX-constraint
+order: 19
+status: stable
+forms:
+  - value: "定義の名前の文字列"
+    meaning: "functions に定義した検査を名前で使います。use を書いた検査に書けるのは use と with だけです。"

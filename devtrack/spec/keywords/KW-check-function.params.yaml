@@ -1,0 +1,8 @@
+id: KW-check-function.params
+key: "params"
+context: CTX-check-function
+order: 3
+status: stable
+forms:
+  - value: "名前の配列"
+    meaning: "受け取る値の名前。"

@@ -1,0 +1,8 @@
+id: KW-occurrence.fileGlob
+key: "fileGlob"
+context: CTX-occurrence
+order: 2
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "読む出現のファイル。"

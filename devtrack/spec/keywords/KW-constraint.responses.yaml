@@ -1,0 +1,8 @@
+id: KW-constraint.responses
+key: "responses"
+context: CTX-constraint
+order: 15
+status: stable
+forms:
+  - value: "対応の宣言の配列"
+    meaning: "指摘への対応（値の出どころへ移る・値を書き込む・詳細の文書を作る など）。"

@@ -1,0 +1,10 @@
+id: CTX-matrix
+title: "網羅マトリクス（matrix）"
+language: schema
+description: "matrix の要素。行と列のすべての組み合わせに、両方を参照する証人の要素があることを確かめます。対象外にする組み合わせは、証人の側に excluded: true の行として残します。"
+meta:
+  schema: schema
+  path: [root, matrix, item]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.matrix.item"
+  reader: "builtin-definitions/matrix.yaml"

@@ -1,0 +1,10 @@
+id: CTX-matrix-witness
+title: "証人"
+language: schema
+description: "matrix の witness。"
+meta:
+  schema: schema
+  path: [root, matrix, item, witness]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.matrix.item.witness"
+  reader: "builtin-definitions/matrix.yaml"

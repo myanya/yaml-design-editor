@@ -1,0 +1,10 @@
+id: CTX-flow
+title: "遷移の検証（flow）"
+language: schema
+description: "flow の要素。宣言した遷移の集まりをたどって、到達できない要素・行き止まり・宣言の外の遷移を見つけます。"
+meta:
+  schema: schema
+  path: [root, flow, item]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.flow.item"
+  reader: "builtin-definitions/flow.yaml"

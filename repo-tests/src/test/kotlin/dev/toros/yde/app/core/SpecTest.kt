@@ -143,7 +143,11 @@ class SpecTest {
         val differing = contexts.mapNotNull { ctx ->
             val meta = ctx["meta"] as Map<*, *>
             val fields = metaFields(meta["schema"].toString(), (meta["path"] as List<*>).map(Any?::toString))
-            val metaKeys = fields.associate { it["key"].toString() to (it["required"] == true) }
+            // 分かっているずれ（読み取りは読むが、メタスキーマに無い語）: メタスキーマに足されたら、位置の meta.missing から外す
+            val missing = (meta["missing"] as List<*>?).orEmpty().map(Any?::toString)
+            val stale = missing.filter { key -> fields.any { it["key"] == key } }
+            if (stale.isNotEmpty()) return@mapNotNull "${ctx["id"]}: meta.missing の $stale は、もうメタスキーマにあります（missing から外す）"
+            val metaKeys = fields.associate { it["key"].toString() to (it["required"] == true) } + missing.associateWith { false }
             val specKeys = keywords[ctx["id"].toString()].orEmpty().associate { kw ->
                 kw["key"].toString() to (kw["forms"] as List<*>).any { (it as Map<*, *>)["required"] == true }
             }

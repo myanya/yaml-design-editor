@@ -1,0 +1,10 @@
+id: CTX-relation-pointer
+title: "関係の指定"
+language: schema
+description: "関係の名前で参照を指す object。matrix の row・column と、flow の edges・usage の from・to、start・terminal が同じ形です。"
+meta:
+  schema: schema
+  path: [root, matrix, item, witness, row]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.matrix.item.witness.row"
+  reader: "builtin-definitions/matrix.yaml・flow.yaml"

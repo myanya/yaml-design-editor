@@ -1,0 +1,9 @@
+id: KW-derive.match
+key: "match"
+context: CTX-derive
+order: 5
+status: stable
+forms:
+  - required: true
+    value: "glob の文字列"
+    meaning: "導出するスキーマを当てる文書。"

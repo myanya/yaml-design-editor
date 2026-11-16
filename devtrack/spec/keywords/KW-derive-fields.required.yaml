@@ -1,0 +1,8 @@
+id: KW-derive-fields.required
+key: "required"
+context: CTX-derive-fields
+order: 5
+status: stable
+forms:
+  - value: "パスの文字列"
+    meaning: "必須かどうかにする値の場所。"

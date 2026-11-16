@@ -1,0 +1,8 @@
+id: KW-constraint-count.min
+key: "min"
+context: CTX-constraint-count
+order: 1
+status: stable
+forms:
+  - value: "整数"
+    meaning: "件数の下限。"

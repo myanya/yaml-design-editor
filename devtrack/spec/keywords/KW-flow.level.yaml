@@ -1,0 +1,9 @@
+id: KW-flow.level
+key: "level"
+context: CTX-flow
+order: 8
+status: stable
+forms:
+  - value: "warning か error"
+    default: "warning"
+    meaning: "指摘の重さ。"

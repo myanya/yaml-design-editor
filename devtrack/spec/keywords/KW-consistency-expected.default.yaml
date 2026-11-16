@@ -1,0 +1,8 @@
+id: KW-consistency-expected.default
+key: "default"
+context: CTX-consistency-expected
+order: 6
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "元の値が辞書に無いときの値。"

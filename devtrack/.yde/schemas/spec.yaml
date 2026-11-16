@@ -120,6 +120,12 @@ definitions:
         required: true
         item: { type: word }
         description: ルートからたどるキーの並び。項目の並び（fields）を持つ場所では項目のキー、そうでない場所ではマップのキー（例 [definitions, action]・[root, relations, item]）。
+      - key: missing
+        label: メタスキーマに無い語
+        type: array
+        unique: true
+        item: { type: word }
+        description: 読み取りの実装は読むが、メタスキーマのこの場所に無いキー（分かっているずれ）。指摘を登録して、メタスキーマに足されたらここから外します。
 
   # 位置: 語を書ける場所（項目定義・文書のトップレベル・操作 …）。この形の要素がエンティティ context の定義
   位置:

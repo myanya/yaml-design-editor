@@ -1,0 +1,8 @@
+id: KW-derive-type.map
+key: "map"
+context: CTX-derive-type
+order: 2
+status: stable
+forms:
+  - value: "導出元の値 → 型 のマップ"
+    meaning: "値から項目の型への辞書（例 varchar → string）。"

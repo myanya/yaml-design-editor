@@ -1,0 +1,11 @@
+id: CTX-check-vocabulary
+title: "語彙の定義"
+language: schema
+description: "vocabulary の要素。検査を短く書くための書き方（語彙）を作ります。ここに無いキーは誤りになります。"
+meta:
+  schema: schema
+  path: [root, vocabulary, item]
+  missing: [requires, keys, removed]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.vocabulary.item"
+  reader: "semantic-core/schema/CheckDefinitions.kt の CheckLibrary"

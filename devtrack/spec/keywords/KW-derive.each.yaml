@@ -1,0 +1,9 @@
+id: KW-derive.each
+key: "each"
+context: CTX-derive
+order: 2
+status: stable
+forms:
+  - value: "パスの文字列"
+    default: "文書のルート"
+    meaning: "1 つの文書の複数の要素から導出するときの、配列の場所。"

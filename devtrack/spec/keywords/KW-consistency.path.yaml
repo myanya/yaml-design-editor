@@ -1,0 +1,9 @@
+id: KW-consistency.path
+key: "path"
+context: CTX-consistency
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "確かめる値の場所（ID を持つ要素からの相対パス）。"

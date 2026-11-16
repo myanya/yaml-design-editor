@@ -1,0 +1,10 @@
+id: CTX-derive
+title: "派生の宣言"
+language: schema
+description: "文書のスキーマの derive。書いたスキーマには match を書けず、root は省けます。"
+meta:
+  schema: schema
+  path: [root, derive]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.derive"
+  reader: "semantic-core/schema/SchemaDerivation.kt"

@@ -1,0 +1,8 @@
+id: KW-consistency-lookup.fileGlob
+key: "fileGlob"
+context: CTX-consistency-lookup
+order: 2
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "参照を読む出現のファイル。"

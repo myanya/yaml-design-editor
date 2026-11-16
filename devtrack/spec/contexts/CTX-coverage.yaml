@@ -1,0 +1,10 @@
+id: CTX-coverage
+title: "詳細の文書の要求（coverage）"
+language: schema
+description: "coverage の要素。このスキーマの文書に書かれた ID が、指定したスキーマの文書にも必要な数だけ書かれていることを求めます。"
+meta:
+  schema: schema
+  path: [root, coverage, item]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.coverage.item"
+  reader: "builtin-definitions/coverage.yaml"

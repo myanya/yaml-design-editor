@@ -1,0 +1,8 @@
+id: KW-coverage-detail.schemaIds
+key: "schemaIds"
+context: CTX-coverage-detail
+order: 1
+status: stable
+forms:
+  - value: "スキーマ ID か、その配列"
+    meaning: "詳細を書く文書のスキーマ。必ず書きます（語彙の点検が確かめます）。"

@@ -1,0 +1,9 @@
+id: KW-matrix-witness.column
+key: "column"
+context: CTX-matrix-witness
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "{relation}"
+    meaning: "証人から列への参照。"

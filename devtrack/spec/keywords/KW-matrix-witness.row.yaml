@@ -1,0 +1,9 @@
+id: KW-matrix-witness.row
+key: "row"
+context: CTX-matrix-witness
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "{relation}"
+    meaning: "証人から行への参照。"

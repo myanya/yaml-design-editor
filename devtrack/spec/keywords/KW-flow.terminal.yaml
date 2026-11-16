@@ -1,0 +1,8 @@
+id: KW-flow.terminal
+key: "terminal"
+context: CTX-flow
+order: 6
+status: stable
+forms:
+  - value: "{relation}"
+    meaning: "終端として許す点を指す参照。行き止まりの判定から外します。"

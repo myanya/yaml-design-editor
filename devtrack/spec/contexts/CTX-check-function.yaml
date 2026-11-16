@@ -1,0 +1,10 @@
+id: CTX-check-function
+title: "検査の定義"
+language: schema
+description: "functions の要素。名前と受け取る値を持つ検査の定義です。どのスキーマ文書に書いても、ワークスペース全体で使えます。同じ名前は書けません。"
+meta:
+  schema: schema
+  path: [root, functions, item]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.functions.item"
+  reader: "semantic-core/schema/CheckDefinitions.kt の CheckLibrary"

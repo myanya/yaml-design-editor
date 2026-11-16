@@ -1,0 +1,8 @@
+id: KW-constraint.fixSite
+key: "fixSite"
+context: CTX-constraint
+order: 14
+status: stable
+forms:
+  - value: "{schema, message}"
+    meaning: "直せる場所への案内。指摘が別の文書へ書き足すことで直るとき、書き足す先のスキーマの文書に、指摘が出ている ID の一覧を案内として出します。"

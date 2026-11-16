@@ -1,0 +1,37 @@
+id: schema-checks-md
+name: 検査（docs/spec/schema-checks.md）
+description: 検査の位置と語から docs/spec/schema-checks.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  sections:
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-constraint } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-constraint } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-constraint-count } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-constraint-count } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-check-function } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-check-function } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-check-vocabulary } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-check-vocabulary } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-coverage } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-coverage } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-coverage-detail } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-coverage-detail } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-consistency } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-consistency } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-consistency-expected } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-consistency-expected } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-consistency-lookup } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-consistency-lookup } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-occurrence } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-occurrence } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-matrix } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-matrix } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-matrix-witness } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-matrix-witness } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-relation-pointer } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-relation-pointer } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-edges } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-edges } ] }
+template: schema-checks-md.md

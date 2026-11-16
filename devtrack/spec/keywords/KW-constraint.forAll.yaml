@@ -1,0 +1,8 @@
+id: KW-constraint.forAll
+key: "forAll"
+context: CTX-constraint
+order: 10
+status: stable
+forms:
+  - value: "{node, from, steps}"
+    meaning: "もう 1 つの集まり（node）のすべての要素について、起点から steps をたどった流れに解があること。expect・count・check と一緒には書けません。"

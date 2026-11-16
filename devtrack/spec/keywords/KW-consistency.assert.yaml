@@ -1,0 +1,9 @@
+id: KW-consistency.assert
+key: "assert"
+context: CTX-consistency
+order: 6
+status: stable
+forms:
+  - value: "equals・lte・gte のどれか"
+    default: "equals"
+    meaning: "比べ方。確かめる値が期待の値と等しい・以下・以上であること。"

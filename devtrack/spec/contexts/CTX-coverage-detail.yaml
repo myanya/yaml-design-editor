@@ -1,0 +1,10 @@
+id: CTX-coverage-detail
+title: "詳細を書く先"
+language: schema
+description: "coverage の detailIn。"
+meta:
+  schema: schema
+  path: [root, coverage, item, detailIn]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.coverage.item.detailIn"
+  reader: "builtin-definitions/coverage.yaml"

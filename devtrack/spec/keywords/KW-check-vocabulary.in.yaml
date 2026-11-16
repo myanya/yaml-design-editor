@@ -1,0 +1,9 @@
+id: KW-check-vocabulary.in
+key: "in"
+context: CTX-check-vocabulary
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "場所の文字列"
+    meaning: "書ける場所。スキーマ文書の直下の配列の各要素（例 consistency[]）か、関係の宣言（relations[]）です。"

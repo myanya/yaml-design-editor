@@ -1,0 +1,8 @@
+id: KW-flow.description
+key: "description"
+context: CTX-flow
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "規則の説明。"

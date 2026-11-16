@@ -1,0 +1,9 @@
+id: KW-consistency.expected
+key: "expected"
+context: CTX-consistency
+order: 5
+status: stable
+forms:
+  - required: true
+    value: "{lookup, source, path, values, map, default}"
+    meaning: "期待の値の導出。"

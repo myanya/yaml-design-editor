@@ -1,0 +1,9 @@
+id: KW-derive-fields.source
+key: "source"
+context: CTX-derive-fields
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "項目にする配列の場所。"

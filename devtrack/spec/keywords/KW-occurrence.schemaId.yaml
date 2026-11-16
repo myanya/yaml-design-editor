@@ -1,0 +1,8 @@
+id: KW-occurrence.schemaId
+key: "schemaId"
+context: CTX-occurrence
+order: 1
+status: stable
+forms:
+  - value: "スキーマ ID"
+    meaning: "読む出現のスキーマ。"

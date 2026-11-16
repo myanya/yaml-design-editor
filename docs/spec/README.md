@@ -10,5 +10,7 @@
 | [schema-relations.md](schema-relations.md) | 関係レジストリ（関係・多重度・エンティティ型・強制の切り替え）と、エンティティ型の宣言に書ける語 |
 | [schema-behavior.md](schema-behavior.md) | State・Event・Lifecycle・State の詳細化に書ける語 |
 | [schema-actions.md](schema-actions.md) | 操作（アクション・型の操作・配列への追加の決まり）に書ける語 |
+| [schema-checks.md](schema-checks.md) | 検査（検査 1 件・検査の定義・語彙の定義と、組込みの語彙 coverage・consistency・matrix・flow）に書ける語 |
+| [schema-derive.md](schema-derive.md) | 派生スキーマの宣言に書ける語 |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

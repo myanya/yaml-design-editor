@@ -1,0 +1,9 @@
+id: KW-constraint.level
+key: "level"
+context: CTX-constraint
+order: 16
+status: stable
+forms:
+  - value: "warning か error"
+    default: "warning"
+    meaning: "指摘の重さ。"

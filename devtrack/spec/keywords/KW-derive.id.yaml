@@ -1,0 +1,9 @@
+id: KW-derive.id
+key: "id"
+context: CTX-derive
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "{パス} を含む文字列"
+    meaning: "導出するスキーマの ID。穴は導出元の要素の値で埋めます（例 record-{id}）。"

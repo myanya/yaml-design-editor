@@ -1,0 +1,10 @@
+id: CTX-flow-edges
+title: "遷移の組"
+language: schema
+description: "flow の edges と usage。"
+meta:
+  schema: schema
+  path: [root, flow, item, edges]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.flow.item.edges"
+  reader: "builtin-definitions/flow.yaml"

@@ -1,0 +1,9 @@
+id: KW-flow.activeFrom
+key: "activeFrom"
+context: CTX-flow
+order: 9
+status: stable
+forms:
+  - value: "フェーズの名前の文字列"
+    default: "いつも判定します"
+    meaning: "判定を始めるフェーズ。文書がそのフェーズに達するまでは保留にします。"

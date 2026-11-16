@@ -1,0 +1,9 @@
+id: KW-check-vocabulary.uses
+key: "uses"
+context: CTX-check-vocabulary
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "{when, unless, use, with} の配列"
+    meaning: "書かれた内容から、どの定義をどの値で使うか。1 件以上が必要です。when・unless は、そのキーが書かれている・いないときだけ有効にします。"

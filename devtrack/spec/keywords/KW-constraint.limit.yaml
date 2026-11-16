@@ -1,0 +1,9 @@
+id: KW-constraint.limit
+key: "limit"
+context: CTX-constraint
+order: 6
+status: stable
+forms:
+  - value: "1 以上の整数"
+    default: "実装の既定の上限"
+    meaning: "照合する解の数の上限。"

@@ -1,0 +1,9 @@
+id: KW-flow.nodes
+key: "nodes"
+context: CTX-flow
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "エンティティの選択"
+    meaning: "遷移の点にする要素の集まり。"

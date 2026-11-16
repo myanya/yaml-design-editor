@@ -1,0 +1,8 @@
+id: KW-consistency-expected.lookup
+key: "lookup"
+context: CTX-consistency-expected
+order: 1
+status: stable
+forms:
+  - value: "{schemaId, fileGlob, via}"
+    meaning: "参照を 1 段たどって、相手の要素から元の値を読みます。"

@@ -1,0 +1,9 @@
+id: KW-derive-type.path
+key: "path"
+context: CTX-derive-type
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "型を決める値の場所。"

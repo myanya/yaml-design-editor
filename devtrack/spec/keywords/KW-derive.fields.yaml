@@ -1,0 +1,9 @@
+id: KW-derive.fields
+key: "fields"
+context: CTX-derive
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "{source, key, label, description, required, type}"
+    meaning: "項目の写し方。"

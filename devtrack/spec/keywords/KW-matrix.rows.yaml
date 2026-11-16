@@ -1,0 +1,9 @@
+id: KW-matrix.rows
+key: "rows"
+context: CTX-matrix
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "エンティティの選択（{entity, schema, id}）"
+    meaning: "行にする要素の集まり。"

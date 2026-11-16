@@ -1,0 +1,8 @@
+id: KW-consistency.id
+key: "id"
+context: CTX-consistency
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "規則の ID。指摘の出どころとして表示します。"

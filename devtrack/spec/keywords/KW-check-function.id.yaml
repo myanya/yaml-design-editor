@@ -1,0 +1,9 @@
+id: KW-check-function.id
+key: "id"
+context: CTX-check-function
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "定義の名前。constraints の use と、語彙の uses から指します。"

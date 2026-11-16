@@ -1,0 +1,9 @@
+id: KW-coverage.detailIn
+key: "detailIn"
+context: CTX-coverage
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "{schemaIds, minCount}"
+    meaning: "詳細を書く先。"

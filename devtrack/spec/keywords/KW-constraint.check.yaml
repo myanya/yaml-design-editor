@@ -1,0 +1,8 @@
+id: KW-constraint.check
+key: "check"
+context: CTX-constraint
+order: 9
+status: stable
+forms:
+  - value: "比較の配列"
+    meaning: "値の比較。並べた比較はすべて成り立つこと。{演算子: [左, 右]} の形で、左右は値の式です。expect・count・forAll と一緒には書けません。"

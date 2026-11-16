@@ -1,0 +1,8 @@
+id: KW-check-vocabulary.removed
+key: "removed"
+context: CTX-check-vocabulary
+order: 7
+status: stable
+forms:
+  - value: "廃止したキー → 案内 のマップ"
+    meaning: "廃止したキーと、書かれたときに出す案内。"

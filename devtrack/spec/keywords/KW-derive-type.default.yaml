@@ -1,0 +1,8 @@
+id: KW-derive-type.default
+key: "default"
+context: CTX-derive-type
+order: 3
+status: stable
+forms:
+  - value: "型の名前の文字列"
+    meaning: "辞書に無い値のときの型。"

@@ -1,0 +1,9 @@
+id: KW-constraint.message
+key: "message"
+context: CTX-constraint
+order: 11
+status: stable
+forms:
+  - value: "ひな型の文字列"
+    default: "判定の種類ごとの既定の文面"
+    meaning: "指摘の文面。{id}・{束縛名.id}・{count}・{left}・{right} などを埋め込めます。"

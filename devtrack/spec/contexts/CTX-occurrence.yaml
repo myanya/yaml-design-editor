@@ -1,0 +1,10 @@
+id: CTX-occurrence
+title: "出現の指定"
+language: schema
+description: "expected の source と values の要素。同じ ID が書かれた文書のうち、どれを読むかをスキーマかファイルで指します。"
+meta:
+  schema: schema
+  path: [root, consistency, item, expected, source]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.consistency.item.expected.source"
+  reader: "builtin-definitions/consistency.yaml"

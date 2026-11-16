@@ -1,0 +1,8 @@
+id: KW-constraint.expect
+key: "expect"
+context: CTX-constraint
+order: 7
+status: stable
+forms:
+  - value: "exists か absent"
+    meaning: "解があること（exists）か、無いこと（absent）。count・check・forAll と一緒には書けません。"

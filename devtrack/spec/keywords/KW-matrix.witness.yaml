@@ -1,0 +1,9 @@
+id: KW-matrix.witness
+key: "witness"
+context: CTX-matrix
+order: 5
+status: stable
+forms:
+  - required: true
+    value: "{node, row, column}"
+    meaning: "証人。行と列の両方を参照していれば、その組み合わせを満たします。"

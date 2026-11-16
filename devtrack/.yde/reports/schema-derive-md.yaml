@@ -1,0 +1,13 @@
+id: schema-derive-md
+name: 派生スキーマ（docs/spec/schema-derive.md）
+description: 派生スキーマの位置と語から docs/spec/schema-derive.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  sections:
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-derive } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-derive } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-derive-fields } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-derive-fields } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-derive-type } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-derive-type } ] }
+template: schema-derive-md.md

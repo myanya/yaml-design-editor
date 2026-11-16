@@ -1,0 +1,8 @@
+id: KW-constraint.id
+key: "id"
+context: CTX-constraint
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "規則の ID。指摘の出どころとして表示します。"

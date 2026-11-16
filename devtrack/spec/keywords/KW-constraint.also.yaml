@@ -1,0 +1,8 @@
+id: KW-constraint.also
+key: "also"
+context: CTX-constraint
+order: 4
+status: stable
+forms:
+  - value: "{from, steps}"
+    meaning: "分岐。束縛したノードからの、もう 1 本の連鎖です。"

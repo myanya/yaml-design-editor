@@ -1,0 +1,8 @@
+id: KW-check-vocabulary.keys
+key: "keys"
+context: CTX-check-vocabulary
+order: 6
+status: stable
+forms:
+  - value: "キーの配列"
+    meaning: "書けるキーの一覧。外れていれば、スキーマの読み込みの誤りになります。"

@@ -1,0 +1,8 @@
+id: KW-constraint.count
+key: "count"
+context: CTX-constraint
+order: 8
+status: stable
+forms:
+  - value: "{min, max}"
+    meaning: "起点ごとの解の件数（重なりを除く）が範囲に入ること。expect・check・forAll と一緒には書けません。"

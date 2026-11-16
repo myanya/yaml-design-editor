@@ -1,0 +1,9 @@
+id: KW-flow.edges
+key: "edges"
+context: CTX-flow
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "{from, to}"
+    meaning: "宣言した遷移。同じ行の object の直下にある from の参照と to の参照の組を、遷移 1 本として読みます。"

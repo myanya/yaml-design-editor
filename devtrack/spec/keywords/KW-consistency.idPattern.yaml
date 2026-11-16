@@ -1,0 +1,9 @@
+id: KW-consistency.idPattern
+key: "idPattern"
+context: CTX-consistency
+order: 3
+status: stable
+forms:
+  - value: "glob の文字列"
+    default: "このスキーマの文書の ID すべて"
+    meaning: "対象にする ID の形。"

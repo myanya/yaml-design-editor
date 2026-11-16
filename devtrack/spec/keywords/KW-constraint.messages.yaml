@@ -1,0 +1,8 @@
+id: KW-constraint.messages
+key: "messages"
+context: CTX-constraint
+order: 23
+status: stable
+forms:
+  - value: "指摘の種類 → ひな型 のマップ"
+    meaning: "専用チェッカーの指摘の種類ごとの文面。書かなかった種類は指摘しません。"

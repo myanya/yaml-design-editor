@@ -1,0 +1,8 @@
+id: KW-constraint.levelFrom
+key: "levelFrom"
+context: CTX-constraint
+order: 17
+status: stable
+forms:
+  - value: "undeclaredRelation か definingUniqueness"
+    meaning: "関係レジストリの enforcement のキーの名前。そのキーが宣言されていれば、その重さで指摘します。"

@@ -1,0 +1,9 @@
+id: KW-matrix.level
+key: "level"
+context: CTX-matrix
+order: 6
+status: stable
+forms:
+  - value: "warning か error"
+    default: "warning"
+    meaning: "指摘の重さ。"

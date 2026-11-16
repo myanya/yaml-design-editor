@@ -1,0 +1,9 @@
+id: KW-flow.start
+key: "start"
+context: CTX-flow
+order: 5
+status: stable
+forms:
+  - value: "{relation}"
+    default: "到達できない要素を判定しません"
+    meaning: "開始の点を指す参照。"

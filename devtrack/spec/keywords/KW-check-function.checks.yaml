@@ -1,0 +1,9 @@
+id: KW-check-function.checks
+key: "checks"
+context: CTX-check-function
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "検査の配列"
+    meaning: "中身。constraints と同じ書き方で、文字列の $名前 に渡された値が入ります（文字列がちょうど $名前 なら値そのもの、文の中なら文字として。$ そのものは $$）。"

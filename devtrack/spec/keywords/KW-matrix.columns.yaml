@@ -1,0 +1,9 @@
+id: KW-matrix.columns
+key: "columns"
+context: CTX-matrix
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "エンティティの選択"
+    meaning: "列にする要素の集まり。"

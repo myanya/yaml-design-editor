@@ -1,0 +1,9 @@
+id: KW-flow-edges.from
+key: "from"
+context: CTX-flow-edges
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "{relation}"
+    meaning: "遷移の元への参照。"

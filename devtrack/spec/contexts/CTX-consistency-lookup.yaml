@@ -1,0 +1,10 @@
+id: CTX-consistency-lookup
+title: "参照の 1 段"
+language: schema
+description: "expected の lookup。"
+meta:
+  schema: schema
+  path: [root, consistency, item, expected, lookup]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の root.consistency.item.expected.lookup"
+  reader: "builtin-definitions/consistency.yaml"

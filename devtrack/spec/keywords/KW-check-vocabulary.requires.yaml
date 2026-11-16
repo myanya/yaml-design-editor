@@ -1,0 +1,8 @@
+id: KW-check-vocabulary.requires
+key: "requires"
+context: CTX-check-vocabulary
+order: 5
+status: stable
+forms:
+  - value: "キーのパスの配列"
+    meaning: "必ず書くキー。外れていれば、スキーマの読み込みの誤りになります。"

@@ -1,0 +1,8 @@
+id: KW-constraint-count.max
+key: "max"
+context: CTX-constraint-count
+order: 2
+status: stable
+forms:
+  - value: "整数"
+    meaning: "件数の上限。"

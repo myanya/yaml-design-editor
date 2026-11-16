@@ -1,0 +1,8 @@
+id: KW-constraint.where
+key: "where"
+context: CTX-constraint
+order: 5
+status: stable
+forms:
+  - value: "条件の配列"
+    meaning: "ノードを値で絞る条件。並べた条件はすべて成り立つこと。{not: 条件} と {or: [条件, …]} も書けます。"

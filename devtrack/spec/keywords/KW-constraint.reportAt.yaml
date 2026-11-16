@@ -1,0 +1,9 @@
+id: KW-constraint.reportAt
+key: "reportAt"
+context: CTX-constraint
+order: 12
+status: stable
+forms:
+  - value: "{of, in, path} か {ref}"
+    default: "起点を定義した場所"
+    meaning: "指摘を出す場所。値が書かれた場所か、参照が書かれた場所を指します。"
