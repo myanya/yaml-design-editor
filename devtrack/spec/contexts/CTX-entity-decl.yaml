@@ -2,5 +2,6 @@ id: CTX-entity-decl
 title: "エンティティ型の宣言（文書のスキーマ）"
 language: schema
 description: "文書のスキーマのトップレベルの entity。object 1 つか、その配列（ID の形で型を見分ける）で書きます。メタスキーマでは形を決めていないので、語は読み取りの実装から書いています。"
+features: [S-19]
 evidence:
   reader: "semantic-core/schema/SemanticDeclParser.kt の parseEntities"

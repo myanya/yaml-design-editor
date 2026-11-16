@@ -5,6 +5,7 @@ description: "skill の run。"
 meta:
   schema: skill
   path: [root, run]
+features: [SK-01, SK-07]
 evidence:
   metaschema: "builtin-schemas/skill.yaml の root.run"
   reader: "app-core/skill/Skills.kt"

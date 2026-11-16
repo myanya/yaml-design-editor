@@ -5,6 +5,7 @@ description: "グリッドの newRow。file と path の組か、filePattern の
 meta:
   schema: view
   path: [root, newRow]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.newRow"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

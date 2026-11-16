@@ -7,6 +7,7 @@ rows:
 columns:
   - { label: 定義の言語, schemaId: spec-context, path: language }
   - { label: 説明, schemaId: spec-context, path: description }
+  - { label: 実装する機能, schemaId: spec-context, path: features }
   # この位置に書ける語の数（語の側の参照を逆に辿る）
   - label: 語の数
     schemaId: spec-context

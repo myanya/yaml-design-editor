@@ -5,6 +5,7 @@ description: "グリッドの列 1 つ。path・backlinks・definition・value�
 meta:
   schema: view
   path: [root, columns, item]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.columns.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

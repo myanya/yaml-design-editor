@@ -12,6 +12,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseLensView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -25,6 +26,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.relations.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseLensView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -37,6 +39,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.filters.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseLensFilters
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -55,6 +58,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.filters.item.keepIfLinked
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseLensKeep
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -69,6 +73,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.appearance
 - 読む実装: workspace-core/workspace/DiagramDefinitions.kt の appearance
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-18
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -81,6 +86,7 @@ appearance の nodes の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.appearance.nodes.item
 - 読む実装: workspace-core/workspace/DiagramDefinitions.kt の appearance
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-18
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -95,6 +101,7 @@ appearance の edges の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.appearance.edges.item
 - 読む実装: workspace-core/workspace/DiagramDefinitions.kt の appearance
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-18
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -108,6 +115,7 @@ appearance の edges の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/DiagramDefinitions.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-18
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -122,6 +130,7 @@ appearance の edges の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.input
 - 読む実装: workspace-core/workspace/DiagramDefinitions.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-18
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -134,6 +143,7 @@ appearance の edges の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の definitions.notationInput
 - 読む実装: workspace-core/workspace/DiagramDefinitions.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-18
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

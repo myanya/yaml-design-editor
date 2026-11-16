@@ -4,5 +4,6 @@ language: expression
 description: "match・steps の node。いまの要素の集まりを絞ります。ここに無いキーは誤りになります。"
 code:
   sets: [QueryNodeStep.KEYS]
+features: [C-12]
 evidence:
   reader: "semantic-core/schema/QuerySpec.kt の QueryNodeStep"

@@ -5,6 +5,7 @@ description: "期待する結果の content の要素。"
 meta:
   schema: eval
   path: [root, cases, item, expect, content, item]
+features: [AG-20]
 evidence:
   metaschema: "builtin-schemas/eval.yaml の root.cases.item.expect.content.item"
   reader: "agent/Evals.kt の parseEval"

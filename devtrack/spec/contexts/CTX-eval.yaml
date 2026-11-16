@@ -5,6 +5,7 @@ description: "評価セット 1 つ。アクティビティを、決まった入
 meta:
   schema: eval
   path: [root]
+features: [AG-20]
 evidence:
   metaschema: "builtin-schemas/eval.yaml の root"
   reader: "agent/Evals.kt の parseEval"

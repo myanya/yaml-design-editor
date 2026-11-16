@@ -12,6 +12,7 @@
 
 - メタスキーマ: builtin-schemas/agent.yaml の root
 - 読む実装: agent/Definitions.kt の parseAgent
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-01
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -28,6 +29,7 @@
 
 - メタスキーマ: builtin-schemas/agent.yaml の root.model
 - 読む実装: agent/Definitions.kt の parseAgent
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-01
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -40,6 +42,7 @@
 
 - メタスキーマ: builtin-schemas/activity.yaml の root
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -69,6 +72,7 @@
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.target
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -80,6 +84,7 @@
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.context
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -91,6 +96,7 @@ context の items の要素。種別（kind）ごとに、書ける語が変わ�
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.context.items.item
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -104,6 +110,7 @@ context の items の要素。種別（kind）ごとに、書ける語が変わ�
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.limits
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -117,6 +124,7 @@ context の items の要素。種別（kind）ごとに、書ける語が変わ�
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.gates
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -128,6 +136,7 @@ context の items の要素。種別（kind）ごとに、書ける語が変わ�
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.trigger
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-11
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -142,6 +151,7 @@ context の items の要素。種別（kind）ごとに、書ける語が変わ�
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.chain
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -155,6 +165,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.chain.rules.item
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -167,6 +178,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.chain.rules.item.when
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -181,6 +193,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.retry
 - 読む実装: agent/Definitions.kt の parseActivity
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-13
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -192,6 +205,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/activity.yaml の root.foreach
 - 読む実装: agent/ForeachDef.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-26
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -216,6 +230,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/eval.yaml の root
 - 読む実装: agent/Evals.kt の parseEval
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-20
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -232,6 +247,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/eval.yaml の root.variants.item
 - 読む実装: agent/Evals.kt の parseEval
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-21
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -247,6 +263,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/eval.yaml の root.cases.item
 - 読む実装: agent/Evals.kt の parseEval
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-20
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -262,6 +279,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/eval.yaml の root.cases.item.setup.item
 - 読む実装: agent/Evals.kt の parseEval
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-20
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -274,6 +292,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/eval.yaml の root.cases.item.expect
 - 読む実装: agent/Evals.kt の parseEval
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-20
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -289,6 +308,7 @@ chain の rules の要素。
 
 - メタスキーマ: builtin-schemas/eval.yaml の root.cases.item.expect.content.item
 - 読む実装: agent/Evals.kt の parseEval
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: AG-20
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

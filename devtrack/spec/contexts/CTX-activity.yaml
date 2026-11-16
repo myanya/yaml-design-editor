@@ -5,6 +5,7 @@ description: "仕事の単位 1 つ。対象・指示・文脈・書いてよい
 meta:
   schema: activity
   path: [root]
+features: [AG-02]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root"
   reader: "agent/Definitions.kt の parseActivity"

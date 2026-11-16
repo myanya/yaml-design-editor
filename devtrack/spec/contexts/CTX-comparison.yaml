@@ -5,5 +5,6 @@ description: "check の要素。{演算子: [左, 右]} の 1 キーか、{op, l
 code:
   enums: [CheckOp]
   extra: [op, left, right, type, not, or]
+features: [V-09]
 evidence:
   reader: "semantic-core/schema/QuerySpec.kt の CheckOp"

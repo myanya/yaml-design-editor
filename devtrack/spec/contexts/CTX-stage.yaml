@@ -5,6 +5,7 @@ description: "段の規則・補正の定義（.yde/stages/ の YAML）。業務
 meta:
   schema: stage
   path: [root]
+features: [C-23]
 evidence:
   metaschema: "builtin-schemas/stage.yaml の root"
   reader: "workspace-core/workspace/Stages.kt"

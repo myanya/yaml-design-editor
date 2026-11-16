@@ -5,6 +5,7 @@ description: "元の表（グリッドかクロス集計）の行を横軸の項
 meta:
   schema: view-chart
   path: []
+features: [X-14]
 evidence:
   metaschema: "app-core の資源 view/chart/schema.yaml のルートの項目"
   reader: "app-core/view/chart/ChartViewKind.kt"

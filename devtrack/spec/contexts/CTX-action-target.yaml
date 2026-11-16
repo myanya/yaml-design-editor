@@ -5,6 +5,7 @@ description: "操作の target。entity と schema は、どちらか一方だ�
 meta:
   schema: schema
   path: [definitions, action, target]
+features: [OP-02, OP-03]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.action.target"
   reader: "semantic-core/schema/Action.kt の ActionTarget"

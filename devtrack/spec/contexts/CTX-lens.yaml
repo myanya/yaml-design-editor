@@ -5,6 +5,7 @@ description: "グラフレンズで、関係の線の向き・箱と線の記法
 meta:
   schema: view
   path: [root]
+features: [X-12]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensView"

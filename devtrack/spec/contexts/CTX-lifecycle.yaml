@@ -5,6 +5,7 @@ description: "lifecycles の要素。1 つのエンティティ型の、State・
 meta:
   schema: schema
   path: [definitions, lifecycle]
+features: [S-28]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle"
   reader: "semantic-core/schema/Behavior.kt の LifecycleDef"

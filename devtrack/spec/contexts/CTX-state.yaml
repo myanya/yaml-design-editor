@@ -5,6 +5,7 @@ description: "states の要素。名前付きの状態 1 つ（id と predicate�
 meta:
   schema: schema
   path: [definitions, state]
+features: [S-28]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.state"
   reader: "semantic-core/schema/Behavior.kt の StateDeclaration"

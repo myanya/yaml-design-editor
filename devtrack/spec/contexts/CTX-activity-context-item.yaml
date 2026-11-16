@@ -5,6 +5,7 @@ description: "context の items の要素。種別（kind）ごとに、書け�
 meta:
   schema: activity
   path: [root, context, items, item]
+features: [AG-28]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.context.items.item"
   reader: "agent/Definitions.kt の parseActivity"

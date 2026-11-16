@@ -12,6 +12,7 @@ states の要素。名前付きの状態 1 つ（id と predicate）か、enum �
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.state
 - 読む実装: semantic-core/schema/Behavior.kt の StateDeclaration
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -28,6 +29,7 @@ State の宣言の source。状態を持つ項目と、その enum の型を指�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.state.source
 - 読む実装: semantic-core/schema/Behavior.kt の StateDeclaration
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -41,6 +43,7 @@ events の要素。出来事の種類 1 つです。操作の実行ではなく�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.event
 - 読む実装: semantic-core/schema/Behavior.kt の EventDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-31
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -55,6 +58,7 @@ lifecycles の要素。1 つのエンティティ型の、State・生成・遷�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.lifecycle
 - 読む実装: semantic-core/schema/Behavior.kt の LifecycleDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -72,6 +76,7 @@ Lifecycle の entry と、詳細化の entry の要素。
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.lifecycle-entry
 - 読む実装: semantic-core/schema/Behavior.kt の LifecycleEntry
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -84,6 +89,7 @@ Lifecycle の transitions と、詳細化の transitions の要素。
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.lifecycle-transition
 - 読む実装: semantic-core/schema/Behavior.kt の LifecycleTransition
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -97,6 +103,7 @@ Lifecycle の transitions と、詳細化の transitions の要素。
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.lifecycle-cause
 - 読む実装: semantic-core/schema/Behavior.kt の TransitionCause
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -109,6 +116,7 @@ Lifecycle の termination。
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.lifecycle.termination
 - 読む実装: semantic-core/schema/Behavior.kt の LifecycleDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -121,6 +129,7 @@ Lifecycle の history。
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.lifecycle.history
 - 読む実装: semantic-core/schema/Behavior.kt の LifecycleHistory
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-28
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -132,6 +141,7 @@ refinements の要素。Lifecycle の 1 つの State（親）の中の流れを�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.refinement
 - 読む実装: semantic-core/schema/Behavior.kt の RefinementDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-36
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -147,6 +157,7 @@ refinements の要素。Lifecycle の 1 つの State（親）の中の流れを�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.refinement-exit
 - 読む実装: semantic-core/schema/Behavior.kt の RefinementExit
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-36
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

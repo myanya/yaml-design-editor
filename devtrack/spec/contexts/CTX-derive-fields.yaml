@@ -5,6 +5,7 @@ description: "derive の fields。導出元の配列の要素 1 つを、項目 
 meta:
   schema: schema
   path: [root, derive, fields]
+features: [S-17]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.derive.fields"
   reader: "semantic-core/schema/SchemaDerivation.kt"

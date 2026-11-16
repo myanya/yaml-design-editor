@@ -5,6 +5,7 @@ description: "チャートの scale。"
 meta:
   schema: view-chart
   path: [scale]
+features: [X-14]
 evidence:
   metaschema: "app-core の資源 view/chart/schema.yaml の scale"
   reader: "app-core/view/chart/ChartViewKind.kt"

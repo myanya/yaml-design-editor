@@ -5,6 +5,7 @@ description: "flow の要素。宣言した遷移の集まりをたどって、�
 meta:
   schema: schema
   path: [root, flow, item]
+features: [V-12]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.flow.item"
   reader: "builtin-definitions/flow.yaml"

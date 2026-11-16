@@ -12,6 +12,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDashboard
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-13
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -28,6 +29,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.inputs.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseInputs
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-13
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -47,6 +49,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.flow
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseFlow
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-26
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -65,6 +68,7 @@ flow の start。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.flow.start
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseFlow
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-26
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -77,6 +81,7 @@ flow の moves の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.flow.moves.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseFlow
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-26
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -90,6 +95,7 @@ flow の history。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.flow.history
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseFlow
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-26
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -106,6 +112,7 @@ flow の history。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.sections.item.filter
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDashboard
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-13
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

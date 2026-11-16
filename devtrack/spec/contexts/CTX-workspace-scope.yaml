@@ -4,5 +4,6 @@ language: workspace
 description: "workspace.yaml の scopes の要素。定義のファイルは、ちょうど 1 つのスコープに入ります。ここに無いキーは誤りになります。"
 code:
   sets: [workspace.layout.DefinitionScopes.KEYS]
+features: [C-21]
 evidence:
   reader: "workspace-core/workspace/layout/DefinitionScopes.kt の parse"

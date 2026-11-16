@@ -5,6 +5,7 @@ description: "consistency の要素。ID を持つ要素の値が、導出した
 meta:
   schema: schema
   path: [root, consistency, item]
+features: [V-07]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.consistency.item"
   reader: "builtin-definitions/consistency.yaml"

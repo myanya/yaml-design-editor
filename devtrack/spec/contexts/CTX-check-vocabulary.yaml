@@ -6,6 +6,7 @@ meta:
   schema: schema
   path: [root, vocabulary, item]
   missing: [requires, keys, removed]
+features: [V-14]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.vocabulary.item"
   reader: "semantic-core/schema/CheckDefinitions.kt の CheckLibrary"

@@ -5,6 +5,7 @@ description: "skill の columns の要素。"
 meta:
   schema: skill
   path: [root, columns, item]
+features: [SK-01, SK-03]
 evidence:
   metaschema: "builtin-schemas/skill.yaml の root.columns.item"
   reader: "app-core/skill/Skills.kt"

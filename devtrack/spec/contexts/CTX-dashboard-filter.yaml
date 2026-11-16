@@ -5,6 +5,7 @@ description: "区画の filter。検査 1 件と同じ形のうち、ここに�
 meta:
   schema: view
   path: [root, sections, item, filter]
+features: [X-13]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.sections.item.filter"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseDashboard"

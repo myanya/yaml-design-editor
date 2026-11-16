@@ -5,6 +5,7 @@ description: "Lifecycle の history。"
 meta:
   schema: schema
   path: [definitions, lifecycle, history]
+features: [S-28]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle.history"
   reader: "semantic-core/schema/Behavior.kt の LifecycleHistory"

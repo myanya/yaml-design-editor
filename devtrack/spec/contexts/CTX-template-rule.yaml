@@ -4,5 +4,6 @@ language: transform
 description: "変換定義・生成の定義・レポートの rules の要素。同じ名前の規則を並べると、上から順に when を調べて、最初に合ったものを使います。"
 code:
   sets: [TransformDef.RULE_KEYS]
+features: [C-15]
 evidence:
   reader: "semantic-core/schema/TransformDef.kt の TransformDef"

@@ -5,6 +5,7 @@ description: "関係の宣言の cardinality。1 つの要素について、そ�
 meta:
   schema: relations
   path: [root, relations, item, cardinality]
+features: [S-20, V-08]
 evidence:
   metaschema: "builtin-schemas/relations.yaml の root.relations.item.cardinality"
   reader: "semantic-core/schema/SemanticDeclParser.kt の parseRelations"

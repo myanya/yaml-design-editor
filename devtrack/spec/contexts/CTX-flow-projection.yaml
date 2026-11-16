@@ -5,6 +5,7 @@ description: "業務フロー図の projection。変換定義と同じ形のう�
 meta:
   schema: view-flow
   path: [projection]
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/schema.yaml の projection"
   reader: "app-core/view/flow/FlowViewKind.kt"

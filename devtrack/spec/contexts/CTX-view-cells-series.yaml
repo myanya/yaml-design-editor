@@ -5,6 +5,7 @@ description: "cells の series の要素。"
 meta:
   schema: view
   path: [root, cells, series, item]
+features: [X-16]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.cells.series.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseSeriesKey"

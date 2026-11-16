@@ -5,6 +5,7 @@ description: "アクティビティの trigger。"
 meta:
   schema: activity
   path: [root, trigger]
+features: [AG-11]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.trigger"
   reader: "agent/Definitions.kt の parseActivity"

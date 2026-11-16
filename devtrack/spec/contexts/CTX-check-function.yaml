@@ -5,6 +5,7 @@ description: "functions の要素。名前と受け取る値を持つ検査の�
 meta:
   schema: schema
   path: [root, functions, item]
+features: [V-14]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.functions.item"
   reader: "semantic-core/schema/CheckDefinitions.kt の CheckLibrary"

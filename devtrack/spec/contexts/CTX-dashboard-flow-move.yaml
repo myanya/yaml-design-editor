@@ -5,6 +5,7 @@ description: "flow の moves の要素。"
 meta:
   schema: view
   path: [root, flow, moves, item]
+features: [X-26]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.flow.moves.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseFlow"

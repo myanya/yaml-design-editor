@@ -5,6 +5,7 @@ description: "skill 1 つ。import は input・target と、mapping か build �
 meta:
   schema: skill
   path: [root]
+features: [SK-01, SK-02]
 evidence:
   metaschema: "builtin-schemas/skill.yaml の root"
   reader: "app-core/skill/Skills.kt"

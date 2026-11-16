@@ -5,6 +5,7 @@ description: "skill の mapping の要素。"
 meta:
   schema: skill
   path: [root, mapping, item]
+features: [SK-01, SK-02]
 evidence:
   metaschema: "builtin-schemas/skill.yaml の root.mapping.item"
   reader: "app-core/skill/Skills.kt"

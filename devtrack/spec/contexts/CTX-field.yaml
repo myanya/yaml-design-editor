@@ -2,6 +2,7 @@ id: CTX-field
 title: 項目定義
 language: schema
 description: "スキーマの項目 1 つの定義。文書のルート（root）・object の子（fields の要素）・array の要素（item）・map の値（value）・型の定義（definitions の値）・操作の受け取る値（params の要素）に、同じ形で再帰的に書きます。"
+features: [S-02, S-24]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.field"
   reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

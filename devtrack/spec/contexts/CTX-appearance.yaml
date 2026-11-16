@@ -5,6 +5,7 @@ description: "レンズの appearance。"
 meta:
   schema: view
   path: [root, appearance]
+features: [X-18]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.appearance"
   reader: "workspace-core/workspace/DiagramDefinitions.kt の appearance"

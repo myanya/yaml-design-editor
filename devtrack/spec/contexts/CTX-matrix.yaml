@@ -5,6 +5,7 @@ description: "matrix の要素。行と列のすべての組み合わせに、�
 meta:
   schema: schema
   path: [root, matrix, item]
+features: [V-11]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.matrix.item"
   reader: "builtin-definitions/matrix.yaml"

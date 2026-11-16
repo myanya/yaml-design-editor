@@ -11,6 +11,7 @@
 match・steps の node。いまの要素の集まりを絞ります。ここに無いキーは誤りになります。
 
 - 読む実装: semantic-core/schema/QuerySpec.kt の QueryNodeStep
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -28,6 +29,7 @@ match・steps の node。いまの要素の集まりを絞ります。ここに�
 match・steps の edge。いまの要素から線を 1 段たどります。ここに無いキーは誤りになります。
 
 - 読む実装: semantic-core/schema/QuerySpec.kt の QueryEdgeStep
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -45,6 +47,7 @@ match・steps の edge。いまの要素から線を 1 段たどります。こ�
 検査とビューの also。束縛したノードからの、もう 1 本の連鎖です（1 段だけ）。
 
 - 読む実装: semantic-core/schema/QuerySpec.kt の QueryBranch
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -56,6 +59,7 @@ match・steps の edge。いまの要素から線を 1 段たどります。こ�
 where の要素。ノードを値で絞る条件 1 つです。同じ ID が複数の文書に書かれているときは、どれかの出現の値が条件を満たせば成り立ちます。1 件に書ける条件は 1 つで、{not: 条件} と {or: [条件, …]} で包めます（入れ子は 1 段まで）。
 
 - 読む実装: semantic-core/schema/QuerySpec.kt の QueryWhere
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-09
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -86,6 +90,7 @@ where の要素。ノードを値で絞る条件 1 つです。同じ ID が複�
 check の要素。{演算子: [左, 右]} の 1 キーか、{op, left, right} で書きます。左と右は値の式です。値が得られない比較は、違反ではなく保留になります。
 
 - 読む実装: semantic-core/schema/QuerySpec.kt の CheckOp
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-09
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -114,6 +119,7 @@ check の要素。{演算子: [左, 右]} の 1 キーか、{op, left, right} �
 値を計算する式。決まった値（文字・数・真偽値）はそのまま書け、それ以外は下の語を 1 つ持つ object で書きます。{パス} を含む文字列は format の短い書き方です。検査の外（スキーマの値の式・ビューの列・each の value）では「いまの要素」があるので of を省けます。値が得られないときは「得られない」になり、それを使う計算も得られません。
 
 - 読む実装: semantic-core/schema/ValueExpr.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-23・X-09
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -158,6 +164,7 @@ check の要素。{演算子: [左, 右]} の 1 キーか、{op, left, right} �
 値を読む文書・参照が書かれた文書を指す object（値の式と edge の in、format の scopes の in）。schemaId か fileGlob のどちらかは必要で、両方書くと両方に合う文書です。
 
 - 読む実装: semantic-core/schema/ValueExpr.kt の parseSelector
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-23・X-09
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

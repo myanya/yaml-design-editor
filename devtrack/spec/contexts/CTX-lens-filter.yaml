@@ -5,6 +5,7 @@ description: "レンズの filters の要素。ここに無いキーは誤りに
 meta:
   schema: view
   path: [root, filters, item]
+features: [X-12]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.filters.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensFilters"

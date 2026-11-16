@@ -11,6 +11,7 @@
 .yde/workspace.yaml のトップレベル。読めないときは、台帳の宣言が無い（全体が台帳）ものとして続けます。
 
 - 読む実装: workspace-core/workspace/layout/WorkspaceLayout.kt の of
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: W-11
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -24,6 +25,7 @@
 workspace.yaml の files。
 
 - 読む実装: workspace-core/workspace/layout/FilePolicy.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-25・V-22
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -36,6 +38,7 @@ workspace.yaml の files。
 workspace.yaml の scopes の要素。定義のファイルは、ちょうど 1 つのスコープに入ります。ここに無いキーは誤りになります。
 
 - 読む実装: workspace-core/workspace/layout/DefinitionScopes.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-21
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -50,6 +53,7 @@ workspace.yaml の scopes の要素。定義のファイルは、ちょうど 1 
 workspace.yaml の stages の要素。書いた順が段の順です。ここに無いキーは誤りになります。
 
 - 読む実装: workspace-core/workspace/layout/DefinitionStages.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-23
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -63,6 +67,7 @@ workspace.yaml の stages の要素。書いた順が段の順です。ここに
 
 - メタスキーマ: builtin-schemas/stage.yaml の root
 - 読む実装: workspace-core/workspace/Stages.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-23
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -80,6 +85,7 @@ workspace.yaml の stages の要素。書いた順が段の順です。ここに
 
 - メタスキーマ: builtin-schemas/stage.yaml の root.changes.item
 - 読む実装: semantic-core/TermChanges.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-23
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

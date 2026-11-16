@@ -9,6 +9,7 @@
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.field
 - 読む実装: semantic-core/schema/SchemaTreeParser.kt の parseField
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-02・S-24
 
 ## 基底の種類
 

@@ -12,6 +12,7 @@ constraints の要素（object の項目定義の constraints も同じ形）。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.constraints.item
 - 読む実装: semantic-core/schema/QuerySpec.kt の ConstraintRule
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-09
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -45,6 +46,7 @@ constraints の要素（object の項目定義の constraints も同じ形）。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.constraints.item.count
 - 読む実装: semantic-core/schema/QuerySpec.kt の ConstraintRule
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-09
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -57,6 +59,7 @@ functions の要素。名前と受け取る値を持つ検査の定義です。�
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.functions.item
 - 読む実装: semantic-core/schema/CheckDefinitions.kt の CheckLibrary
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-14
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -71,6 +74,7 @@ vocabulary の要素。検査を短く書くための書き方（語彙）を作
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.vocabulary.item
 - 読む実装: semantic-core/schema/CheckDefinitions.kt の CheckLibrary
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-14
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -88,6 +92,7 @@ coverage の要素。このスキーマの文書に書かれた ID が、指定�
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.coverage.item
 - 読む実装: builtin-definitions/coverage.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-09・V-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -104,6 +109,7 @@ coverage の detailIn。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.coverage.item.detailIn
 - 読む実装: builtin-definitions/coverage.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-09・V-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -116,6 +122,7 @@ consistency の要素。ID を持つ要素の値が、導出した期待の値�
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.consistency.item
 - 読む実装: builtin-definitions/consistency.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -134,6 +141,7 @@ consistency の expected。元の値を読む場所と、読んだ値の置き�
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.consistency.item.expected
 - 読む実装: builtin-definitions/consistency.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -150,6 +158,7 @@ expected の lookup。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.consistency.item.expected.lookup
 - 読む実装: builtin-definitions/consistency.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -163,6 +172,7 @@ expected の source と values の要素。同じ ID が書かれた文書のう
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.consistency.item.expected.source
 - 読む実装: builtin-definitions/consistency.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -175,6 +185,7 @@ matrix の要素。行と列のすべての組み合わせに、両方を参照�
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.matrix.item
 - 読む実装: builtin-definitions/matrix.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-11
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -192,6 +203,7 @@ matrix の witness。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.matrix.item.witness
 - 読む実装: builtin-definitions/matrix.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-11
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -205,6 +217,7 @@ matrix の witness。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.matrix.item.witness.row
 - 読む実装: builtin-definitions/matrix.yaml・flow.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-11
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -216,6 +229,7 @@ flow の要素。宣言した遷移の集まりをたどって、到達できな
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.flow.item
 - 読む実装: builtin-definitions/flow.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -235,6 +249,7 @@ flow の edges と usage。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.flow.item.edges
 - 読む実装: builtin-definitions/flow.yaml
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: V-12
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

@@ -12,6 +12,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -26,6 +27,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -43,6 +45,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.rows
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView・parseMatrixView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -62,6 +65,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.order
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseOrderValue
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -78,6 +82,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.columns.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -100,6 +105,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.columns.item.each
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -114,6 +120,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.columns.item.backlinks
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -126,6 +133,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.detail
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -139,6 +147,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.newRow
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -152,6 +161,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.corrections
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-05
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -165,6 +175,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseMatrixView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-16
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -183,6 +194,7 @@
 
 - メタスキーマ: builtin-schemas/view.yaml の root.cells
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseMatrixView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-16
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -203,6 +215,7 @@ cells の series の要素。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.cells.series.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseSeriesKey
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-16
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -215,6 +228,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.cells.columns
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseMatrixKey
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-16
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -233,6 +247,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の root
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -247,6 +262,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.sections.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocView・parseDashboard
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -265,6 +281,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.sections.item.fields
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -280,6 +297,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.sections.item.grid
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -293,6 +311,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の definitions.docBacklinks
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocBacklinks
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -307,6 +326,7 @@ cells の columns。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.attachments.item
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

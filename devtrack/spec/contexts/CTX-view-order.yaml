@@ -5,6 +5,7 @@ description: "グリッドとクロス集計の order。条件に合う出現の
 meta:
   schema: view
   path: [root, order]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.order"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseOrderValue"

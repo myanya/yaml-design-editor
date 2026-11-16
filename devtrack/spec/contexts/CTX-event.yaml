@@ -5,6 +5,7 @@ description: "events の要素。出来事の種類 1 つです。操作の実�
 meta:
   schema: schema
   path: [definitions, event]
+features: [S-31]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.event"
   reader: "semantic-core/schema/Behavior.kt の EventDef"

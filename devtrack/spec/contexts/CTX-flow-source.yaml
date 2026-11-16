@@ -5,6 +5,7 @@ description: "業務フロー図の sources の要素。"
 meta:
   schema: view-flow
   path: [sources, item]
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/schema.yaml の sources.item"
   reader: "app-core/view/flow/FlowViewKind.kt"

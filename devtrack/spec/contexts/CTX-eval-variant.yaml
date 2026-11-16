@@ -5,6 +5,7 @@ description: "評価セットの variants の要素。"
 meta:
   schema: eval
   path: [root, variants, item]
+features: [AG-21]
 evidence:
   metaschema: "builtin-schemas/eval.yaml の root.variants.item"
   reader: "agent/Evals.kt の parseEval"

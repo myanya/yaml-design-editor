@@ -5,6 +5,7 @@ description: "文書ビューの区画の flow。fields・backlinks とは一緒
 meta:
   schema: view-flow
   path: [section]
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/schema.yaml の section"
   reader: "app-core/view/flow/FlowViewKind.kt"

@@ -12,6 +12,7 @@ skill 1 つ。import は input・target と、mapping か build を書きます�
 
 - メタスキーマ: builtin-schemas/skill.yaml の root
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -36,6 +37,7 @@ skill の input。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.input
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -54,6 +56,7 @@ skill の target。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.target
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -68,6 +71,7 @@ target の id。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.target.id
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -81,6 +85,7 @@ skill の mapping の要素。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.mapping.item
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-02
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -97,6 +102,7 @@ skill の source。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.source
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-03
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -110,6 +116,7 @@ skill の columns の要素。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.columns.item
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-03
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -123,6 +130,7 @@ skill の output。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.output
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-03
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -140,6 +148,7 @@ skill の run。
 
 - メタスキーマ: builtin-schemas/skill.yaml の root.run
 - 読む実装: app-core/skill/Skills.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: SK-01・SK-07
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

@@ -5,6 +5,7 @@ description: "アクティビティの chain。"
 meta:
   schema: activity
   path: [root, chain]
+features: [AG-12]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.chain"
   reader: "agent/Definitions.kt の parseActivity"

@@ -5,6 +5,7 @@ description: "matrix の witness。"
 meta:
   schema: schema
   path: [root, matrix, item, witness]
+features: [V-11]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.matrix.item.witness"
   reader: "builtin-definitions/matrix.yaml"

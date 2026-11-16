@@ -5,6 +5,7 @@ description: "skill の target。"
 meta:
   schema: skill
   path: [root, target]
+features: [SK-01, SK-02]
 evidence:
   metaschema: "builtin-schemas/skill.yaml の root.target"
   reader: "app-core/skill/Skills.kt"

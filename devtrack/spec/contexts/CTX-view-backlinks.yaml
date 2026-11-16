@@ -5,6 +5,7 @@ description: "区画と attachments の backlinks。"
 meta:
   schema: view
   path: [definitions, docBacklinks]
+features: [X-07]
 evidence:
   metaschema: "builtin-schemas/view.yaml の definitions.docBacklinks"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocBacklinks"

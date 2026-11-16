@@ -5,6 +5,7 @@ description: "検査の count。"
 meta:
   schema: schema
   path: [root, constraints, item, count]
+features: [V-09]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.constraints.item.count"
   reader: "semantic-core/schema/QuerySpec.kt の ConstraintRule"

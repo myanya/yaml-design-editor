@@ -5,6 +5,7 @@ description: "projection の build が組み立てる出力の形。ここに無
 meta:
   schema: flow-model
   path: [root]
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/flow-model.yaml の root"
   reader: "app-core/view/flow/FlowViews.kt"

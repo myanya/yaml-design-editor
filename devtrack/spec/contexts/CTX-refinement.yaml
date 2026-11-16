@@ -5,6 +5,7 @@ description: "refinements の要素。Lifecycle の 1 つの State（親）の�
 meta:
   schema: schema
   path: [definitions, refinement]
+features: [S-36]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.refinement"
   reader: "semantic-core/schema/Behavior.kt の RefinementDef"

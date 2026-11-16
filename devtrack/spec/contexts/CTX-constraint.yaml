@@ -5,6 +5,7 @@ description: "constraints の要素（object の項目定義の constraints も�
 meta:
   schema: schema
   path: [root, constraints, item]
+features: [V-09]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.constraints.item"
   reader: "semantic-core/schema/QuerySpec.kt の ConstraintRule"

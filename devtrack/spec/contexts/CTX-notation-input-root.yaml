@@ -5,6 +5,7 @@ description: "記法の input。"
 meta:
   schema: view
   path: [root, input]
+features: [X-18]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.input"
   reader: "workspace-core/workspace/DiagramDefinitions.kt の parse"

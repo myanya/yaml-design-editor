@@ -5,6 +5,7 @@ description: "レンズの relations の要素。"
 meta:
   schema: view
   path: [root, relations, item]
+features: [X-12]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.relations.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensView"

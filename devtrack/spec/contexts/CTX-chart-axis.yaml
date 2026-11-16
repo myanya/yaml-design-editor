@@ -5,6 +5,7 @@ description: "チャートの y。"
 meta:
   schema: view-chart
   path: [y]
+features: [X-14]
 evidence:
   metaschema: "app-core の資源 view/chart/schema.yaml の y"
   reader: "app-core/view/chart/ChartViewKind.kt"

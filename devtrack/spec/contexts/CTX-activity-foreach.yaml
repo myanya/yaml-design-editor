@@ -5,6 +5,7 @@ description: "アクティビティの foreach。並べる元（source）ごと�
 meta:
   schema: activity
   path: [root, foreach]
+features: [AG-26]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.foreach"
   reader: "agent/ForeachDef.kt"

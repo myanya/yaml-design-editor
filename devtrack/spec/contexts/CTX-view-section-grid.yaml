@@ -5,6 +5,7 @@ description: "区画の grid。"
 meta:
   schema: view
   path: [root, sections, item, grid]
+features: [X-07]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.sections.item.grid"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

@@ -5,6 +5,7 @@ description: "ダッシュボードの flow。lifecycle を書くと、段・区
 meta:
   schema: view
   path: [root, flow]
+features: [X-26]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.flow"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseFlow"

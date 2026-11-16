@@ -5,6 +5,7 @@ description: "エージェントの model と、評価セットの変異の mode
 meta:
   schema: agent
   path: [root, model]
+features: [AG-01]
 evidence:
   metaschema: "builtin-schemas/agent.yaml の root.model"
   reader: "agent/Definitions.kt の parseAgent"

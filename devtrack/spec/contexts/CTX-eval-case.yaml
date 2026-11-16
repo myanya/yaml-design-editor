@@ -5,6 +5,7 @@ description: "評価セットの cases の要素。"
 meta:
   schema: eval
   path: [root, cases, item]
+features: [AG-20]
 evidence:
   metaschema: "builtin-schemas/eval.yaml の root.cases.item"
   reader: "agent/Evals.kt の parseEval"

@@ -5,6 +5,7 @@ description: "関係の名前で参照を指す object。matrix の row・column
 meta:
   schema: schema
   path: [root, matrix, item, witness, row]
+features: [V-11]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.matrix.item.witness.row"
   reader: "builtin-definitions/matrix.yaml・flow.yaml"

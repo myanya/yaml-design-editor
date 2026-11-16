@@ -5,6 +5,7 @@ description: "エンティティ型の aspects の要素。同じ ID を書い�
 meta:
   schema: relations
   path: [root, entities, item, aspects, item]
+features: [S-22]
 evidence:
   metaschema: "builtin-schemas/relations.yaml の root.entities.item.aspects.item"
   reader: "semantic-core/schema/SemanticDeclParser.kt の parseEntityTypes"

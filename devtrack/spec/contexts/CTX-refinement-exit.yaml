@@ -5,6 +5,7 @@ description: "詳細化の exits の要素。"
 meta:
   schema: schema
   path: [definitions, refinement-exit]
+features: [S-36]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.refinement-exit"
   reader: "semantic-core/schema/Behavior.kt の RefinementExit"

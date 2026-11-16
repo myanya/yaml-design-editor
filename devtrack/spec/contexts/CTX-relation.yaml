@@ -5,6 +5,7 @@ description: "関係レジストリの relations の要素。関係 1 つの名�
 meta:
   schema: relations
   path: [root, relations, item]
+features: [S-20, V-08]
 evidence:
   metaschema: "builtin-schemas/relations.yaml の root.relations.item"
   reader: "semantic-core/schema/SemanticDeclParser.kt の parseRelations"

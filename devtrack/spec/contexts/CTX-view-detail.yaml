@@ -5,6 +5,7 @@ description: "グリッドの detail。"
 meta:
   schema: view
   path: [root, detail]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.detail"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

@@ -5,6 +5,7 @@ description: "アクティビティの limits。"
 meta:
   schema: activity
   path: [root, limits]
+features: [AG-02]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.limits"
   reader: "agent/Definitions.kt の parseActivity"

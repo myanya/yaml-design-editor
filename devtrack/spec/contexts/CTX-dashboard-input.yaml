@@ -5,6 +5,7 @@ description: "ダッシュボードの inputs の要素。"
 meta:
   schema: view
   path: [root, inputs, item]
+features: [X-13]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.inputs.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseInputs"

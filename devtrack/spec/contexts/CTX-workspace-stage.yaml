@@ -4,5 +4,6 @@ language: workspace
 description: "workspace.yaml の stages の要素。書いた順が段の順です。ここに無いキーは誤りになります。"
 code:
   sets: [workspace.layout.DefinitionStages.KEYS]
+features: [C-23]
 evidence:
   reader: "workspace-core/workspace/layout/DefinitionStages.kt の parse"

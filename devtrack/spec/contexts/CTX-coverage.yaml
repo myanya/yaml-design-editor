@@ -5,6 +5,7 @@ description: "coverage の要素。このスキーマの文書に書かれた ID
 meta:
   schema: schema
   path: [root, coverage, item]
+features: [S-09, V-05]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.coverage.item"
   reader: "builtin-definitions/coverage.yaml"

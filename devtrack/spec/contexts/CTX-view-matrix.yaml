@@ -5,6 +5,7 @@ description: "行と列の軸で要素を数える・集計する表。"
 meta:
   schema: view
   path: [root]
+features: [X-16]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseMatrixView"

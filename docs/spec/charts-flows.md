@@ -12,6 +12,7 @@
 
 - メタスキーマ: app-core の資源 view/chart/schema.yaml のルートの項目
 - 読む実装: app-core/view/chart/ChartViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-14
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -30,6 +31,7 @@
 
 - メタスキーマ: app-core の資源 view/chart/schema.yaml の y
 - 読む実装: app-core/view/chart/ChartViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-14
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -42,6 +44,7 @@
 
 - メタスキーマ: app-core の資源 view/chart/schema.yaml の scale
 - 読む実装: app-core/view/chart/ChartViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-14
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -54,6 +57,7 @@
 
 - メタスキーマ: app-core の資源 view/chart/schema.yaml の section
 - 読む実装: app-core/view/chart/ChartViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-14
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -74,6 +78,7 @@
 
 - メタスキーマ: app-core の資源 view/flow/schema.yaml のルートの項目
 - 読む実装: app-core/view/flow/FlowViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -87,6 +92,7 @@
 
 - メタスキーマ: app-core の資源 view/flow/schema.yaml の sources.item
 - 読む実装: app-core/view/flow/FlowViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -102,6 +108,7 @@
 
 - メタスキーマ: app-core の資源 view/flow/schema.yaml の layout
 - 読む実装: app-core/view/flow/FlowViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -113,6 +120,7 @@
 
 - メタスキーマ: app-core の資源 view/flow/schema.yaml の projection
 - 読む実装: app-core/view/flow/FlowViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -128,6 +136,7 @@
 
 - メタスキーマ: app-core の資源 view/flow/schema.yaml の section
 - 読む実装: app-core/view/flow/FlowViewKind.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -139,6 +148,7 @@ projection の build が組み立てる出力の形。ここに無いキーは�
 
 - メタスキーマ: app-core の資源 view/flow/flow-model.yaml の root
 - 読む実装: app-core/view/flow/FlowViews.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -152,6 +162,7 @@ projection の build が組み立てる出力の形。ここに無いキーは�
 
 - メタスキーマ: app-core の資源 view/flow/flow-model.yaml の root.nodes.item
 - 読む実装: app-core/view/flow/FlowViews.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -168,6 +179,7 @@ projection の build が組み立てる出力の形。ここに無いキーは�
 
 - メタスキーマ: app-core の資源 view/flow/flow-model.yaml の root.edges.item
 - 読む実装: app-core/view/flow/FlowViews.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -184,6 +196,7 @@ projection の build が組み立てる出力の形。ここに無いキーは�
 
 - メタスキーマ: app-core の資源 view/flow/flow-model.yaml の root.lanes.item
 - 読む実装: app-core/view/flow/FlowViews.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

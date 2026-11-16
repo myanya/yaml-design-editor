@@ -15,6 +15,9 @@ YAML から YAML を組み立てる「変換のひな型」の指示と、それ
 - メタスキーマ: {context.values.メタスキーマ}
 {/if}
 - 読む実装: {context.values.読む実装}
+{#if context.values.機能}
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: {#each context.values.機能}{.}{#if more}・{/if}{/each}
+{/if}
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

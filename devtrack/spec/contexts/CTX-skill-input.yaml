@@ -5,6 +5,7 @@ description: "skill の input。"
 meta:
   schema: skill
   path: [root, input]
+features: [SK-01, SK-02]
 evidence:
   metaschema: "builtin-schemas/skill.yaml の root.input"
   reader: "app-core/skill/Skills.kt"

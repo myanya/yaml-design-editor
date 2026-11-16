@@ -5,6 +5,7 @@ description: "グリッドの corrections。"
 meta:
   schema: view
   path: [root, corrections]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.corrections"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

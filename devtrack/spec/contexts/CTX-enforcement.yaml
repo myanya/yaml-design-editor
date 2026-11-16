@@ -5,6 +5,7 @@ description: "関係レジストリの enforcement。ワークスペース単位
 meta:
   schema: relations
   path: [root, enforcement]
+features: [S-20, V-08]
 evidence:
   metaschema: "builtin-schemas/relations.yaml の root.enforcement"
   reader: "semantic-core/schema/SemanticDeclParser.kt の parseEnforcement"

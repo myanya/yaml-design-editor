@@ -36,7 +36,7 @@ definitions:
       schemaIds: [spec-keyword]
     relation: alias-of
     description: 別の書き方である元の語。
-  # 参照の型: 語を実装する機能（FEATURES.md の行）。線の名前は implemented-by。機能の側には「定める語」として出ます
+  # 参照の型: 語・位置を実装する機能（FEATURES.md の行）。線の名前は implemented-by。機能の側には「定める語と位置」として出ます
   実装する機能:
     type: ref
     scope:
@@ -175,6 +175,12 @@ definitions:
       - { key: description, label: 説明, type: common#文章, required: true }
       - { key: meta, label: メタスキーマの中の場所, type: メタスキーマの場所, description: 書くと、この位置の語と必須がメタスキーマと同じであることを SpecTest が見ます。 }
       - { key: code, label: 実装の語の集まり, type: 実装の語の集まり, description: 書くと、この位置の語が、実装の集まり・列挙・そのほかの語の和と同じであることを SpecTest が見ます。 }
+      - key: features
+        label: 実装する機能
+        type: array
+        unique: true
+        item: { type: 実装する機能 }
+        description: この位置の語を読んで働く機能（FEATURES.md の行）。機能の個票に「定める語と位置」として出ます。語ごとに違うときは、語の側にも書きます。
       - { key: evidence, label: 根拠, type: 根拠 }
 
   # 基底の種類: type に書ける基底の種類 1 つ。この形の要素がエンティティ base-type の定義

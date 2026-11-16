@@ -5,6 +5,7 @@ description: "段の規則・補正の changes の要素。"
 meta:
   schema: stage
   path: [root, changes, item]
+features: [C-23]
 evidence:
   metaschema: "builtin-schemas/stage.yaml の root.changes.item"
   reader: "semantic-core/TermChanges.kt"

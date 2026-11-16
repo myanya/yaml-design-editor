@@ -5,6 +5,7 @@ description: "Lifecycle の termination。"
 meta:
   schema: schema
   path: [definitions, lifecycle, termination]
+features: [S-28]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle.termination"
   reader: "semantic-core/schema/Behavior.kt の LifecycleDef"

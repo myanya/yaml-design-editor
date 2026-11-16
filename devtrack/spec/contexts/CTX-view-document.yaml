@@ -5,6 +5,7 @@ description: "1 つの文書を、区画に分けて見せるビュー。"
 meta:
   schema: view
   path: [root]
+features: [X-07]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

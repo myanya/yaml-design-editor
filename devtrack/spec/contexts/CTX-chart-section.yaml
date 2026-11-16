@@ -5,6 +5,7 @@ description: "文書ビューの区画の chart。チャートを文書の表示
 meta:
   schema: view-chart
   path: [section]
+features: [X-14]
 evidence:
   metaschema: "app-core の資源 view/chart/schema.yaml の section"
   reader: "app-core/view/chart/ChartViewKind.kt"

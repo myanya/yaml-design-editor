@@ -5,6 +5,7 @@ description: "文書ビューの attachments の要素。"
 meta:
   schema: view
   path: [root, attachments, item]
+features: [X-07]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.attachments.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

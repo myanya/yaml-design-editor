@@ -5,6 +5,7 @@ description: "アクティビティの target。"
 meta:
   schema: activity
   path: [root, target]
+features: [AG-02]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.target"
   reader: "agent/Definitions.kt の parseActivity"

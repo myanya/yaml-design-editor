@@ -5,6 +5,7 @@ description: "flow の edges と usage。"
 meta:
   schema: schema
   path: [root, flow, item, edges]
+features: [V-12]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.flow.item.edges"
   reader: "builtin-definitions/flow.yaml"

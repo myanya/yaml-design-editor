@@ -5,6 +5,7 @@ description: "生成の定義（.yde/transforms/ の YAML）のトップレベ�
 meta:
   schema: transform
   path: [root]
+features: [C-21]
 evidence:
   metaschema: "builtin-schemas/transform.yaml の root"
   reader: "workspace-core/workspace/Generators.kt の GeneratorDef"

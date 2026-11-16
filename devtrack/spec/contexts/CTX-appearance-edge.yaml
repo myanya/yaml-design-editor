@@ -5,6 +5,7 @@ description: "appearance の edges の要素。"
 meta:
   schema: view
   path: [root, appearance, edges, item]
+features: [X-18]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.appearance.edges.item"
   reader: "workspace-core/workspace/DiagramDefinitions.kt の appearance"

@@ -11,6 +11,7 @@ YAML から YAML を組み立てる「変換のひな型」の指示と、それ
 ひな型は、出力の形をそのまま YAML で書いたものです。`$` で始まるキーを持つマップだけが指示で、それ以外は書いたとおりに出力します。値が得られない指示は「無い」になり、マップのキーごと出力から落ちます。文字列 $名前 は受け取った値で、繰り返しの中では $key・$index（0 始まり）・$position（1 始まり）を使えます。$$ は文字の $ です。
 
 - 読む実装: semantic-core/schema/TransformDef.kt の TransformDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-15
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -51,6 +52,7 @@ YAML から YAML を組み立てる「変換のひな型」の指示と、それ
 変換定義・生成の定義・レポートの rules の要素。同じ名前の規則を並べると、上から順に when を調べて、最初に合ったものを使います。
 
 - 読む実装: semantic-core/schema/TransformDef.kt の TransformDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-15
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -64,6 +66,7 @@ YAML から YAML を組み立てる「変換のひな型」の指示と、それ
 YAML から YAML への変換 1 つ。入力を選び（from）、ひな型で組み立てます（build）。出力は YAML の項で、ワークスペースの文書としては保存しません。ここに無いキーは誤りになります。
 
 - 読む実装: semantic-core/schema/TransformDef.kt の TransformDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-15
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -81,6 +84,7 @@ YAML から YAML への変換 1 つ。入力を選び（from）、ひな型で�
 
 - メタスキーマ: builtin-schemas/transform.yaml の root
 - 読む実装: workspace-core/workspace/Generators.kt の GeneratorDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-21
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -100,6 +104,7 @@ YAML から YAML への変換 1 つ。入力を選び（from）、ひな型で�
 
 - メタスキーマ: builtin-schemas/report.yaml の root
 - 読む実装: workspace-core/workspace/ReportDefinitions.kt の parse
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-15
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

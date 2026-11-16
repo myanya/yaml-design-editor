@@ -10,6 +10,7 @@
 
 - メタスキーマ: builtin-schemas/schema.yaml の root（kind: relations の文書は builtin-schemas/relations.yaml の root）
 - 読む実装: workspace-core/workspace/SchemaDocuments.kt の parseRaw
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-01・S-12・S-15
 
 ## スキーマの種類
 

@@ -5,6 +5,7 @@ description: "追加の決まりの id。"
 meta:
   schema: schema
   path: [definitions, insert-rule, id]
+features: [OP-01]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.insert-rule.id"
   reader: "semantic-core/schema/Action.kt の IdNumbering"

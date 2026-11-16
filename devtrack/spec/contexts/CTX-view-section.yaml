@@ -5,6 +5,7 @@ description: "文書ビューとダッシュボードの sections の要素。�
 meta:
   schema: view
   path: [root, sections, item]
+features: [X-07]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.sections.item"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView・parseDashboard"

@@ -5,6 +5,7 @@ description: "業務フロー図の layout。"
 meta:
   schema: view-flow
   path: [layout]
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/schema.yaml の layout"
   reader: "app-core/view/flow/FlowViewKind.kt"

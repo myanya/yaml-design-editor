@@ -5,6 +5,7 @@ description: "array の項目定義の methods の insert。配列へ要素を�
 meta:
   schema: schema
   path: [definitions, insert-rule]
+features: [OP-01]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.insert-rule"
   reader: "semantic-core/schema/Action.kt の InsertRule"

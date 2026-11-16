@@ -5,6 +5,7 @@ description: "グリッドとクロス集計の rows。論理 ID の形（idPatt
 meta:
   schema: view
   path: [root, rows]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.rows"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView・parseMatrixView"

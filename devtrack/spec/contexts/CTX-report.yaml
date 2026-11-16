@@ -5,6 +5,7 @@ description: "レポートの定義（.yde/reports/ の YAML）のトップレ�
 meta:
   schema: report
   path: [root]
+features: [X-15]
 evidence:
   metaschema: "builtin-schemas/report.yaml の root"
   reader: "workspace-core/workspace/ReportDefinitions.kt の parse"

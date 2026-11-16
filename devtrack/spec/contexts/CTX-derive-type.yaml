@@ -5,6 +5,7 @@ description: "fields の type。"
 meta:
   schema: schema
   path: [root, derive, fields, type]
+features: [S-17]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.derive.fields.type"
   reader: "semantic-core/schema/SchemaDerivation.kt"

@@ -5,6 +5,7 @@ description: "関係レジストリの entities の要素。エンティティ�
 meta:
   schema: relations
   path: [root, entities, item]
+features: [S-20, S-22, V-08]
 evidence:
   metaschema: "builtin-schemas/relations.yaml の root.entities.item"
   reader: "semantic-core/schema/SemanticDeclParser.kt の parseEntityTypes"

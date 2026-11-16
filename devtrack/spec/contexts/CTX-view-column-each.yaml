@@ -5,6 +5,7 @@ description: "列の each。"
 meta:
   schema: view
   path: [root, columns, item, each]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.columns.item.each"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

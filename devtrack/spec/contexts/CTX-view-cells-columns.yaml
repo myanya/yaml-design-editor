@@ -5,6 +5,7 @@ description: "cells の columns。"
 meta:
   schema: view
   path: [root, cells, columns]
+features: [X-16]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.cells.columns"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseMatrixKey"

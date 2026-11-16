@@ -5,6 +5,7 @@ description: "複数の文書を横断する表。行は論理 ID か、クエ�
 meta:
   schema: view
   path: [root]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

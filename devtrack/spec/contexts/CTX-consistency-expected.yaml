@@ -5,6 +5,7 @@ description: "consistency の expected。元の値を読む場所と、読んだ
 meta:
   schema: schema
   path: [root, consistency, item, expected]
+features: [V-07]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.consistency.item.expected"
   reader: "builtin-definitions/consistency.yaml"

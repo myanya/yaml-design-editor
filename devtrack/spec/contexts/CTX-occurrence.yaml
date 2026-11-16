@@ -5,6 +5,7 @@ description: "expected の source と values の要素。同じ ID が書かれ�
 meta:
   schema: schema
   path: [root, consistency, item, expected, source]
+features: [V-07]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.consistency.item.expected.source"
   reader: "builtin-definitions/consistency.yaml"

@@ -5,6 +5,7 @@ description: "エージェント 1 つ。性格と、使ってよい道具の範
 meta:
   schema: agent
   path: [root]
+features: [AG-01]
 evidence:
   metaschema: "builtin-schemas/agent.yaml の root"
   reader: "agent/Definitions.kt の parseAgent"

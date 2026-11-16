@@ -5,6 +5,7 @@ description: "操作の input。"
 meta:
   schema: schema
   path: [definitions, action-input]
+features: [OP-02, OP-03]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.action-input"
   reader: "semantic-core/schema/ActionInput.kt"

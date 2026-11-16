@@ -5,6 +5,7 @@ description: "列の backlinks。"
 meta:
   schema: view
   path: [root, columns, item, backlinks]
+features: [X-05]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.columns.item.backlinks"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

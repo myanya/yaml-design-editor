@@ -5,6 +5,7 @@ description: "flow の history。"
 meta:
   schema: view
   path: [root, flow, history]
+features: [X-26]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.flow.history"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseFlow"

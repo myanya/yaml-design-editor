@@ -12,6 +12,7 @@
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.derive
 - 読む実装: semantic-core/schema/SchemaDerivation.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -28,6 +29,7 @@ derive の fields。導出元の配列の要素 1 つを、項目 1 つにしま
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.derive.fields
 - 読む実装: semantic-core/schema/SchemaDerivation.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -44,6 +46,7 @@ fields の type。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.derive.fields.type
 - 読む実装: semantic-core/schema/SchemaDerivation.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-17
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

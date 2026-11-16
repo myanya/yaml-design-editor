@@ -12,6 +12,7 @@
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.action
 - 読む実装: semantic-core/schema/Action.kt の ActionDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: OP-02・OP-03
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -31,6 +32,7 @@
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.action.target
 - 読む実装: semantic-core/schema/Action.kt の ActionTarget
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: OP-02・OP-03
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -44,6 +46,7 @@
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.action-input
 - 読む実装: semantic-core/schema/ActionInput.kt
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: OP-02・OP-03
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -56,6 +59,7 @@ object の項目定義の methods の値。その object の要素 1 つを受�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.method
 - 読む実装: semantic-core/schema/Action.kt の MethodDef
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: OP-01
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -71,6 +75,7 @@ array の項目定義の methods の insert。配列へ要素を足すときの�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.insert-rule
 - 読む実装: semantic-core/schema/Action.kt の InsertRule
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: OP-01
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
@@ -85,6 +90,7 @@ array の項目定義の methods の insert。配列へ要素を足すときの�
 
 - メタスキーマ: builtin-schemas/schema.yaml の definitions.insert-rule.id
 - 読む実装: semantic-core/schema/Action.kt の IdNumbering
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: OP-01
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|

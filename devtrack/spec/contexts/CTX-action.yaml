@@ -5,6 +5,7 @@ description: "スキーマ文書の actions の要素。複数の要素や文書
 meta:
   schema: schema
   path: [definitions, action]
+features: [OP-02, OP-03]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.action"
   reader: "semantic-core/schema/Action.kt の ActionDef"

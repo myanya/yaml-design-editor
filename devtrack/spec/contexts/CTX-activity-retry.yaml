@@ -5,6 +5,7 @@ description: "アクティビティの retry。"
 meta:
   schema: activity
   path: [root, retry]
+features: [AG-13]
 evidence:
   metaschema: "builtin-schemas/activity.yaml の root.retry"
   reader: "agent/Definitions.kt の parseActivity"

@@ -5,6 +5,7 @@ description: "フローの図のモデルの nodes の要素。"
 meta:
   schema: flow-model
   path: [root, nodes, item]
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/flow-model.yaml の root.nodes.item"
   reader: "app-core/view/flow/FlowViews.kt"

@@ -5,6 +5,7 @@ description: "入口・遷移・出口の by。action か event のどちらか 
 meta:
   schema: schema
   path: [definitions, lifecycle-cause]
+features: [S-28]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle-cause"
   reader: "semantic-core/schema/Behavior.kt の TransitionCause"

@@ -5,6 +5,7 @@ description: "flow の start。"
 meta:
   schema: view
   path: [root, flow, start]
+features: [X-26]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.flow.start"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseFlow"

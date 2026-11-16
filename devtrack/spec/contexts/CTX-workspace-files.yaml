@@ -4,5 +4,6 @@ language: workspace
 description: "workspace.yaml の files。"
 code:
   extra: [outside, allowedRoots, missing]
+features: [S-25, V-22]
 evidence:
   reader: "workspace-core/workspace/layout/FilePolicy.kt の parse"

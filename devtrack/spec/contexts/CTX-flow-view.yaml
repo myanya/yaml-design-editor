@@ -5,6 +5,7 @@ description: "文書を、変換のひな型（projection）で箱・線・レ�
 meta:
   schema: view-flow
   path: []
+features: [C-17]
 evidence:
   metaschema: "app-core の資源 view/flow/schema.yaml のルートの項目"
   reader: "app-core/view/flow/FlowViewKind.kt"

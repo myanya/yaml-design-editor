@@ -83,7 +83,7 @@ relations:
     description: 別の書き方の語が、元の語を参照します
   - name: implemented-by
     label: 実装する機能
-    inverseLabel: 定める語
-    source: [keyword]
+    inverseLabel: 定める語と位置
+    source: [keyword, context]
     target: [feature]
-    description: 語が、その語を読んで働く機能（docs/FEATURES.md の行）を参照します
+    description: 語と位置が、それを読んで働く機能（docs/FEATURES.md の行）を参照します

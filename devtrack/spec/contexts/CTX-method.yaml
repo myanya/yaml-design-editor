@@ -5,6 +5,7 @@ description: "object の項目定義の methods の値。その object の要素
 meta:
   schema: schema
   path: [definitions, method]
+features: [OP-01]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.method"
   reader: "semantic-core/schema/Action.kt の MethodDef"

@@ -5,6 +5,7 @@ description: "Lifecycle の transitions と、詳細化の transitions の要素
 meta:
   schema: schema
   path: [definitions, lifecycle-transition]
+features: [S-28]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle-transition"
   reader: "semantic-core/schema/Behavior.kt の LifecycleTransition"

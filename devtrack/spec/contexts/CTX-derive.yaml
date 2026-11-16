@@ -5,6 +5,7 @@ description: "文書のスキーマの derive。書いたスキーマには matc
 meta:
   schema: schema
   path: [root, derive]
+features: [S-17]
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root.derive"
   reader: "semantic-core/schema/SchemaDerivation.kt"

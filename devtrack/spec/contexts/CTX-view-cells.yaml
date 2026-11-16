@@ -5,6 +5,7 @@ description: "クロス集計の cells。行の要素を起点に、数える要
 meta:
   schema: view
   path: [root, cells]
+features: [X-16]
 evidence:
   metaschema: "builtin-schemas/view.yaml の root.cells"
   reader: "workspace-core/workspace/ViewDefinitions.kt の parseMatrixView"
