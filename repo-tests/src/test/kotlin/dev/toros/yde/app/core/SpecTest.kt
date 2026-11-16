@@ -219,6 +219,8 @@ class SpecTest {
         if (ws.schemaErrors.isNotEmpty()) return "schema-error" to ws.schemaErrors
         val views = Views.load(dir, ws.schemas)
         if (views.errors.isNotEmpty()) return "view-error" to views.errors.map { it.toString() }
+        val reports = Reports.load(dir)
+        if (reports.errors.isNotEmpty()) return "report-error" to reports.errors.map { it.toString() }
         val issues = ws.files.flatMap { file -> ws.validate(ws.relPath(file)).map { it.severity to "${ws.relPath(file)} ${it.path.pretty()}: ${it.message}" } }
         val errors = issues.filter { it.first == Severity.ERROR }.map { it.second }
         val warnings = issues.filter { it.first == Severity.WARNING }.map { it.second }
@@ -251,6 +253,20 @@ class SpecTest {
         return if (differing.isEmpty()) null else "${example["id"]}: $differing（実際の行: $actual）"
     }
 
+    /** 例のレポートを作って、書いてある出力と突き合わせる（末尾の空白と改行は比べない）。同じなら null、違えばその文。 */
+    private fun reportDiff(example: Map<*, *>, expected: Map<*, *>, base: Path): String? {
+        val ws = Workspace.open(base.resolve(example["id"].toString()))
+        val report = Reports.load(ws.root).report(expected["id"].toString()) ?: return "${example["id"]}: レポート ${expected["id"]} がありません"
+        val params = (expected["params"] as Map<*, *>?).orEmpty().entries.associate { it.key.toString() to it.value }
+        val result = Reports.run(report, params, Views.load(ws.root, ws.schemas), ws.index, ws::treeOf, ws::schemaFor)
+        val wanted = expected["text"].toString().trimEnd()
+        return when {
+            result.missing.isNotEmpty() -> "${example["id"]}: 埋まらなかった穴 ${result.missing}（出力:\n${result.text}）"
+            result.text.trimEnd() != wanted -> "${example["id"]}: 出力が違います。実際:\n${result.text.trimEnd()}\n書いてあるのは:\n$wanted"
+            else -> null
+        }
+    }
+
     @Test
     fun `仕様の例は 開いて検証すると書いてあるとおりの結果になる`() {
         val examples = root.resolve("spec/examples").listDirectoryEntries("*.yaml").map(::raw)
@@ -265,6 +281,7 @@ class SpecTest {
                     result != expect["result"] -> "${example["id"]}: 結果は $result（書いてあるのは ${expect["result"]}）: $messages"
                     wanted != null && messages.none { wanted in it } -> "${example["id"]}: 文面に「$wanted」がありません: $messages"
                     else -> (expect["view"] as Map<*, *>?)?.let { viewDiff(example, it, base) }
+                        ?: (expect["report"] as Map<*, *>?)?.let { reportDiff(example, it, base) }
                 }
             }
             assertTrue(differing.isEmpty(), "仕様の例が、書いてあるとおりの結果になりません:\n" + differing.joinToString("\n"))

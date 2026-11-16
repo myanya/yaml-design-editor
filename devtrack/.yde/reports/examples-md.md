@@ -19,6 +19,14 @@
 {/each}
 {/if}
 
+{#if report}
+レポート `{report.id}` の出力{#if report.params}（渡す値: {#each report.params}{key}＝{value}{#if more}、{/if}{/each}）{/if}:
+
+```text
+{report.text}
+```
+
+{/if}
 {#each files}
 `{path}`
 

@@ -11,3 +11,4 @@ columns:
   - { label: 結果, schemaId: spec-example, path: expect.result }
   - { label: 文面, schemaId: spec-example, path: expect.message }
   - { label: ビュー, schemaId: spec-example, path: expect.view }
+  - { label: レポート, schemaId: spec-example, path: expect.report }

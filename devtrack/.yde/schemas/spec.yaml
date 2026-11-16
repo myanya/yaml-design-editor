@@ -43,6 +43,7 @@ definitions:
       - { value: error, label: 検証のエラー }
       - { value: warning, label: 検証の警告（エラーは無い） }
       - { value: view-error, label: ビューの定義の誤り }
+      - { value: report-error, label: レポートの定義の誤り }
   位置参照:
     type: ref
     idPattern: "CTX-*"
@@ -260,6 +261,14 @@ definitions:
         fields:
           - { key: result, label: 結果, type: 例の結果, required: true }
           - { key: message, label: 文面の一部, type: common#一行の文, description: 誤り・エラー・警告の文面に含まれる文字。通る例には書きません。 }
+          - key: report
+            label: レポートの出力
+            type: object
+            description: 結果が「通る」の例で、レポートを作ったときの文字。変換のひな型とレポートのひな形の動きを示します。
+            fields:
+              - { key: id, label: レポート, type: common#一行の文, required: true, description: 例の中のレポートの ID。 }
+              - { key: params, label: 渡す値, type: map, value: { type: common#一行の文 }, description: 受け取る値の名前 → 値。 }
+              - { key: text, label: 出力, type: text, required: true, rows: 8, description: 作った文字の全体（末尾の空白と改行は比べません）。 }
           - key: view
             label: ビューの行
             type: object
