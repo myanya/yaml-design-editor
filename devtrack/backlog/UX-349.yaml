@@ -1,6 +1,6 @@
 id: UX-349
 title: "manual/schema.md の「フィールド定義のプロパティ」の表に target・entity・constraints・methods・extensions が無く、冒頭の例の kind が document と library だけ"
-status: todo
+status: resolved
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-
@@ -11,3 +11,13 @@ features:
 spec:
   - CTX-field
   - CTX-schema
+closed_on: 2026-11-16
+resolutions:
+  - date: 2026-11-16
+    kind: 解決
+    note: |-
+      manual/schema.md「フィールド定義のプロパティ」の表を、生成した参照文書（docs/spec/schema-fields.md）への案内に置き換えた。
+      表にだけあった使い方の説明（label の既定・表示形式の自動判定・桁区切りの編集中の動き・AI 生成への伝わり方・ID の採番の提案）は、補足として残した。
+      表に無かった 5 つのキー（target・entity・constraints・methods・extensions）は、参照文書の一覧に載っていて、使い方を説明している文書を補足から案内した。
+      冒頭の例の kind のコメントに、relations と behavior を足した。
+    targets: manual/schema.md

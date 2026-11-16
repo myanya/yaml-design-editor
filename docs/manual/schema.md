@@ -7,7 +7,7 @@
 ```yaml
 id: requirement                       # 安定したスキーマID（省略時はスキーマファイル名）
 name: 要求                             # 表示用のスキーマ名
-kind: document                        # document（既定）/ library（共通定義のみ）
+kind: document                        # document（既定）/ library（共通定義のみ）/ relations（関係レジストリ）/ behavior（State・Lifecycle の宣言）
 description: |                         # スキーマ全体の説明（任意・複数行）
   要求事項を管理するスキーマです。
   要求の状態と関連を一貫した形式で記録します。
@@ -315,38 +315,19 @@ cases:
 
 ## フィールド定義のプロパティ
 
-| プロパティ | 説明 |
-|---|---|
-| `key` | 親オブジェクト内のキー名（ルート・配列要素では不要） |
-| `label` | フォームでの表示名（省略時は `key`） |
-| `type` | 下表の基底の種類か、型の名前（`definitions` に定義したスカラーの型・組込みの型 `text`＝後述「型の定義」。省略時 `string`） |
-| `required` | `true` で必須。未設定は検証エラー |
-| `requiredFrom` | フェーズ機構（後述）: このフェーズ以降で必須。`required` と併用不可 |
-| `expression` | `true` で、この項目の値は値の式でもよくなる（短い書き方＝`{パス}` を含む文字列・完全な書き方＝式の object）・基底の種類が string の型のみ。詳しくは「新しい文書の置き場所とひな型」 |
-| `auto` | 保存時に自動で入る値の印（`created` / `updated`＝date / time / datetime 型に今の日付・時刻、`revision`＝int 型に +1。詳しくは「保存時に自動で入る値」） |
-| `values` | `enum` の選択肢。文字列、または `{value, label, description}` のリッチ選択肢（後述） |
-| `role` | 表示役割 `title` / `subtitle`（後述の表示解決）。このフィールドの値を要素の要約タイトル／サブタイトルに使う |
-| `cases` | `enum` の値ごとに、親オブジェクトへ追加される兄弟フィールドを定義（後述） |
-| `item` | `array` の要素定義（フィールド定義を再帰的に記述） |
-| `unique` | `array` の要素が重ならないこと（下の「配列の要素を重ねない」） |
-| `display` | `array` / `map` のフォーム表示形式（`table`＝表形式に固定〔map はキー列つき〕、`list`＝縦並びに固定、省略時は自動判定＝要素〔array は `item`、map は `value`〕が object で、スカラー系の列が2〜8個 かつ 項目の過半を占めるとき表形式。選択肢で項目が変わる要素〔`cases` を持つ要素〕は、変わる項目が列に出ないので自動では表にしない）、`int` / `number` では `grouped`＝桁区切り（45000 → 45,000・フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えず、編集中は元の表記で、打ち込んだ区切りは落とす） |
-| `display`（`string` 系） | `multiline`＝複数行の欄で編集する（組込みの型 `text` のヒント。見せ方だけで値・検証は変えない） |
-| `rows` | 複数行の欄の行数（高さの目安。`text` など `display: multiline` の型で） |
-| `format` | 画面で見せる形（`int` / `number` は DecimalFormat のパターン＝例 `¥#,##0`・`date` / `time` / `datetime` は DateTimeFormatter のパターン＝例 `yyyy年M月d日`）。ファイルと編集中は素の値のままで、`display: grouped` より優先 |
-| `value` | `map` の値定義（必須。フィールド定義を再帰的に記述） |
-| `fields` | `object` の子フィールド定義のリスト |
-| `unknownFields` | `object` のスキーマ外項目を `allow` / `warning` / `error` で扱う（省略時 `warning`） |
-| `idPattern` / `idPatterns` | `ref` の参照先IDをglob（`*`, `?`）で限定。複数指定はOR |
-| `scope.schemaIds` | 参照先を特定スキーマIDに限定。配列内はOR |
-| `scope.documentIds` | 参照先を特定ドキュメントIDに限定。配列内はOR |
-| `relation` | `ref` の関係種別（例 `implements`。解決に影響しない）、または保有の関係名（[ids.md](ids.md)） |
-| `minLength` / `maxLength` | `string` / `text` の文字数制約。違反は検証エラーで、AI生成の JSON Schema にも伝搬する |
-| `pattern` | `string` / `text` / `id` の形式制約（正規表現＝値の全体が一致すること・例 `"^[a-z][a-z0-9_]*$"`）。`id` に書くとIDフォーマットの強制になり（例 `TASK-\d{3}`）、自動採番の提案（フォームのID入力メニュー）のパターン源にもなる |
-| `min` / `max` | `int` / `number` の範囲制約。違反は検証エラー |
-| `default` | 「追加」「作成」時の初期値 |
-| `placeholder` | 入力欄が空のときに薄く出す案内（例 `YYYY-MM-DD`）。型に書けば、その型を使う項目に引き継がれる |
-| `sample` | プレビューのサンプル YAML で、初期値が無いときに使う値（例 `2026-01-01`）。型に書けば引き継がれる |
-| `description` | フォームに表示される説明文（Markdown。`backlog/<ID>.yaml` のような山括弧は文字のまま出ます） |
+フィールド定義に書けるキーの一覧は、[仕様の参照文書「スキーマの項目定義」](../spec/schema-fields.md) にあります。キーごとに、書ける型・値の形・省いたとき・意味を載せています。
+この一覧は実装から突き合わせて作っているので、ここには写しを置きません。スキーマ文書のトップレベルのキーは [「スキーマ文書」](../spec/schema-document.md)、動きを確かめた例は [「仕様の例: スキーマ」](../spec/examples-schema.md) です。
+
+一覧には無い、使い方の補足です。
+
+- `label` を省くと、フォームには `key` が出ます。`description` は Markdown で書けます（`backlog/<ID>.yaml` のような山括弧は文字のまま出ます）。
+- `display` を省いた `array` / `map` は、表示形式を自動で決めます。要素〔array は `item`、map は `value`〕が object で、スカラー系の列が2〜8個 かつ 項目の過半を占めるとき表形式。選択肢で項目が変わる要素〔`cases` を持つ要素〕は、変わる項目が列に出ないので自動では表にしません。
+- `display: grouped`（`int` / `number`）は桁区切りです（45000 → 45,000。フォームとビューの見せ方だけで、値・検証・CLI や書き出しは変えず、編集中は元の表記で、打ち込んだ区切りは落とします）。
+- `minLength` / `maxLength` は、AI 生成の JSON Schema にも伝わります。
+- `pattern` を `id` に書くと ID の形の強制になり（例 `TASK-\d{3}`）、フォームの ID 入力メニューの採番の提案の元にもなります。
+- 使い方を別の節・別の文書で説明しているキー:
+  - `requiredFrom` は下の「フェーズ機構」、`expression` は「新しい文書の置き場所とひな型」、`auto` は「保存時に自動で入る値」、`unique` は「配列の要素を重ねない」、`cases` と `values` は enum の節。
+  - `entity`・`relation`・`target`・`idPattern`・`scope` は [ids.md](ids.md)、`constraints` は [checks.md](checks.md)、`methods` は [actions.md](actions.md)、`extensions` は [files.md](files.md)。
 
 ## 型一覧
 
