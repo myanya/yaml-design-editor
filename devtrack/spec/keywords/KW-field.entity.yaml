@@ -1,0 +1,13 @@
+id: KW-field.entity
+key: "entity"
+context: CTX-field
+group: identity
+status: stable
+forms:
+  - applies_to: [object]
+    value: "{type, defines, aspect, owns}"
+    meaning: "この object の要素がどのエンティティ型かの宣言。文書スキーマの entity より優先します。名前付きの型では、type を省くと定義の名前になります。defines: true は、この要素の出現がそのエンティティの定義であることを表します。"
+features: [S-19]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

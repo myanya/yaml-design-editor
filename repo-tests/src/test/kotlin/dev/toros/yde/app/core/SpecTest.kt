@@ -18,18 +18,15 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * 仕様（spec/）を CI で守る（spec/README.md「運用」）:
- * - 検証のエラーが無い。ビュー・ダッシュボード・レポートの定義が読める
- * - docs/spec/ の参照文書が、spec の YAML から作り直したものと同じ（古いままコミットしない）
- * - 仕様が今の実装と同じ: 位置「項目定義」の語と書ける基底の種類はメタスキーマ（builtin-schemas/schema.yaml の definitions.field）と、
- *   基底の種類は実装（FieldType）・メタスキーマの type の選択肢と一致する
+ * 仕様（devtrack/spec/。定義に書ける語）が今の実装と同じであることを CI で守る（devtrack/README.md「仕様」）。
+ * 検証のエラーが無いことと、docs/spec/ の参照文書が最新であることは DevtrackTest が見る。ここは実装との一致:
+ * - 位置「項目定義」の語と書ける基底の種類は、メタスキーマ（builtin-schemas/schema.yaml の definitions.field）と一致する
+ * - 基底の種類は、実装（FieldType）・メタスキーマの type の選択肢と一致する
+ * - 語の ID の形の検査が働く。ダッシュボード「仕様」が解決できる
  */
 class SpecTest {
 
-    private val root: Path = Path.of("spec")
-
-    /** レポート → 書き出す先（cli/build.gradle.kts の specReports と同じ）。 */
-    private val reports = mapOf("schema-fields-md" to "docs/spec/schema-fields.md")
+    private val root: Path = Path.of("devtrack")
 
     private fun errorsOf(ws: Workspace): List<String> = ws.files.flatMap { file ->
         val rel = ws.relPath(file)
@@ -40,7 +37,7 @@ class SpecTest {
 
     /** 位置 CTX-field の語: キー → 書ける基底の種類（null＝どの種類にも書ける）。 */
     private fun specFieldKeywords(): Map<String, Set<String>?> =
-        root.resolve("language/keywords").listDirectoryEntries("*.yaml").map(::raw).filter { it["context"] == "CTX-field" }.associate { kw ->
+        root.resolve("spec/keywords").listDirectoryEntries("*.yaml").map(::raw).filter { it["context"] == "CTX-field" }.associate { kw ->
             val forms = (kw["forms"] as List<*>).map { (it as Map<*, *>)["applies_to"] as List<*>? }
             (kw["key"] as String) to if (forms.any { it == null }) null else forms.flatMap { it!!.map(Any?::toString) }.toSet()
         }
@@ -61,37 +58,19 @@ class SpecTest {
         ((((raw("schema")["definitions"] as Map<*, *>)["field"] as Map<*, *>)["fields"] as List<*>).single { (it as Map<*, *>)["key"] == "type" }) as Map<*, *>
 
     @Test
-    fun `spec は検証のエラーが無く ビューとダッシュボードが解決できる`() {
+    fun `ダッシュボード「仕様」の区画が解決できる`() {
         val ws = Workspace.open(root)
-        assertTrue(ws.schemaErrors.isEmpty(), ws.schemaErrors.toString())
-        val errors = errorsOf(ws)
-        assertTrue(errors.isEmpty(), "spec の検証のエラー:\n" + errors.joinToString("\n"))
         val views = Views.load(root, ws.schemas)
-        assertTrue(views.errors.isEmpty(), views.errors.toString())
-        val dashboard = assertNotNull(views.defaultDashboard())
+        val dashboard = assertNotNull(views.dashboard("spec-dashboard"))
         val resolved = Dashboards.resolve(dashboard, LocalDate.of(2026, 11, 16), views, ws.index, { ws.schemaFor(it) }, ws::treeOf)
         resolved.sections.forEach { s -> assertEquals<String?>(null, s.error, s.definition.id) }
-    }
-
-    @Test
-    fun `docs の仕様の参照文書は spec から作り直したものと同じ`() {
-        val ws = Workspace.open(root)
-        val loaded = Reports.load(ws.root)
-        assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
-        val catalog = Views.load(ws.root, ws.schemas)
-        val stale = reports.filter { (report, target) ->
-            val result = Reports.run(assertNotNull(loaded.report(report), report), emptyMap(), catalog, ws.index, ws::treeOf, ws::schemaFor)
-            assertTrue(result.missing.isEmpty(), "$report の埋まらなかった穴: ${result.missing}")
-            Path.of(target).readText() != result.text
-        }.values
-        assertTrue(stale.isEmpty(), "spec から作り直していない文書があります: $stale（./gradlew specDocs で作り直してコミットする）")
     }
 
     @Test
     fun `項目定義の語と書ける基底の種類は メタスキーマと同じ`() {
         val spec = specFieldKeywords()
         val meta = metaFieldKeywords()
-        assertEquals(meta.keys.sorted(), spec.keys.sorted(), "仕様（spec/language/keywords の CTX-field）とメタスキーマ（definitions.field）で、語が違います")
+        assertEquals(meta.keys.sorted(), spec.keys.sorted(), "仕様（devtrack/spec/keywords の CTX-field）とメタスキーマ（definitions.field）で、語が違います")
         val differing = meta.keys.filter { meta[it] != spec[it] }.map { "$it: メタスキーマ ${meta[it] ?: "すべて"}・仕様 ${spec[it] ?: "すべて"}" }
         assertTrue(differing.isEmpty(), "書ける基底の種類が、仕様とメタスキーマで違います:\n" + differing.joinToString("\n"))
     }
@@ -100,10 +79,10 @@ class SpecTest {
     fun `基底の種類は 実装とメタスキーマの選択肢と仕様の型と文書で同じ`() {
         val implemented = FieldType.entries.map { it.id }
         assertEquals(implemented, (metaTypeField()["values"] as List<*>).map(Any?::toString), "メタスキーマの type の選択肢")
-        val specType = ((raw(root.resolve(".yde/schemas/common.yaml"))["definitions"] as Map<*, *>)["基底の種類"] as Map<*, *>)["values"] as List<*>
-        assertEquals(implemented, specType.map(Any?::toString), "spec の型「基底の種類」の選択肢")
-        val documented = root.resolve("language/base-types").listDirectoryEntries("*.yaml").map(::raw)
-        assertEquals(implemented.sorted(), documented.map { it["name"].toString() }.sorted(), "spec/language/base-types の文書")
+        val specType = ((raw(root.resolve(".yde/schemas/spec.yaml"))["definitions"] as Map<*, *>)["基底の種類"] as Map<*, *>)["values"] as List<*>
+        assertEquals(implemented, specType.map(Any?::toString), "devtrack の型 spec#基底の種類 の選択肢")
+        val documented = root.resolve("spec/base-types").listDirectoryEntries("*.yaml").map(::raw)
+        assertEquals(implemented.sorted(), documented.map { it["name"].toString() }.sorted(), "devtrack/spec/base-types の文書")
         documented.forEach { assertEquals("BT-${it["name"]}", it["id"], "基底の種類の ID は BT-＋名前") }
     }
 
@@ -111,11 +90,11 @@ class SpecTest {
     fun `語の ID が位置とキーから決まる形と違えば 検査のエラーになる`() {
         val base = createTempDirectory("spec-test")
         try {
-            val dir = base.resolve("spec")
+            val dir = base.resolve("devtrack")
             Files.walk(root).use { s ->
                 s.forEach { p -> val to = dir.resolve(root.relativize(p).toString()); if (Files.isDirectory(p)) Files.createDirectories(to) else Files.copy(p, to) }
             }
-            val file = dir.resolve("language/keywords/KW-field.required.yaml")
+            val file = dir.resolve("spec/keywords/KW-field.required.yaml")
             file.writeText(file.readText().replace("key: \"required\"", "key: \"must\""))
             val errors = errorsOf(Workspace.open(dir))
             assertTrue(errors.any { "KW-field.required" in it }, "ID とキーの食い違いを検査が見つけること: $errors")

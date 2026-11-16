@@ -11,6 +11,9 @@ entities:
   - { type: roadmap-outlook, label: ロードマップの展望 }
   - { type: roadmap-record, label: 記録の項 }
   - { type: roadmap-decision, label: 決定 }
+  - { type: context, label: 位置 }
+  - { type: base-type, label: 基底の種類 }
+  - { type: keyword, label: 語 }
 relations:
   - name: bundled-in
     label: テーマ
@@ -63,3 +66,23 @@ relations:
     source: [roadmap-item]
     target: [feature]
     description: R 項目で足した・直した機能（docs/FEATURES.md の行）を参照します
+  - name: placed-in
+    label: 位置
+    inverseLabel: 書ける語
+    source: [keyword]
+    target: [context]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 語は、書ける位置を 1 つ参照します
+  - name: alias-of
+    label: 元の語
+    inverseLabel: 別の書き方
+    source: [keyword]
+    target: [keyword]
+    cardinality: { outMax: 1 }
+    description: 別の書き方の語が、元の語を参照します
+  - name: implemented-by
+    label: 実装する機能
+    inverseLabel: 定める語
+    source: [keyword]
+    target: [feature]
+    description: 語が、その語を読んで働く機能（docs/FEATURES.md の行）を参照します

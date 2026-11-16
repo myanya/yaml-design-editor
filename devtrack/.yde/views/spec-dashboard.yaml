@@ -1,0 +1,23 @@
+id: spec-dashboard
+name: 仕様
+kind: dashboard
+description: 定義に書ける語の仕様を、位置・語・基底の種類から眺めます。
+sections:
+  - id: contexts
+    label: 位置
+    view: context-list
+  - id: keywords
+    label: 語
+    view: keyword-list
+  - id: aliases
+    label: 別の書き方・廃止予定の語
+    view: keyword-list
+    filter:
+      match:
+        - node: { entity: keyword, bind: k }
+      where:
+        - { of: k, path: status, oneOf: [alias, deprecated] }
+      expect: exists
+  - id: base-types
+    label: 基底の種類
+    view: base-type-list

@@ -27,6 +27,7 @@ tasks.register<JavaExec>("runCli") {
 val devtrackReports = mapOf(
     "backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md",
     "roadmap-md" to "docs/ROADMAP.md", "roadmap-history-md" to "docs/archive/roadmap-history.md",
+    "schema-fields-md" to "docs/spec/schema-fields.md",   // 仕様の参照文書（devtrack/spec/）
 )
 // 書き出す前に devtrack を検証する。読めない文書や検証のエラーがあれば止め、生成物を書かない
 // （読めない文書は索引から抜けるので、そのまま書くと生成物から黙って消える。BACKLOG UX-271）。workspace validate はエラーで終了コード 3
@@ -72,54 +73,6 @@ tasks.register("devtrackDocs") {
     group = "documentation"
     description = "devtrack の YAML から docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録を作り直す（先に検証する）"
     dependsOn(devtrackDocTasks)
-}
-
-// ./gradlew specDocs: 仕様（spec/）の YAML から docs/spec/ の参照文書を作り直す（spec/README.md「運用」）。
-// 形は devtrackDocs と同じ（先に検証し、report --print の文字を受け、成功したときだけ置き換える）。最新かどうかは repo-tests の SpecTest が見る
-val specReports = mapOf("schema-fields-md" to "docs/spec/schema-fields.md")
-val specValidate = tasks.register<JavaExec>("specValidate") {
-    group = "verification"
-    description = "spec を検証する（エラーがあれば失敗。specDocs の前に回る）"
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("dev.toros.yde.cli.MainKt")
-    workingDir = rootDir
-    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
-    args("workspace", "validate", "spec")
-    outputs.upToDateWhen { false }
-}
-val specDocTasks = specReports.map { (report, target) ->
-    val staged = layout.buildDirectory.file("spec/$report.md")
-    val targetFile = rootDir.resolve(target)
-    tasks.register<JavaExec>("specDoc-$report") {
-        group = "documentation"
-        description = "spec のレポート $report を $target へ書く"
-        classpath = sourceSets["main"].runtimeClasspath
-        mainClass.set("dev.toros.yde.cli.MainKt")
-        workingDir = rootDir
-        jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
-        args("report", "spec", report, "--print")
-        dependsOn(specValidate)
-        outputs.upToDateWhen { false }
-        var stream: java.io.OutputStream? = null
-        doFirst {
-            val file = staged.get().asFile
-            file.parentFile.mkdirs()
-            stream = file.outputStream().also { standardOutput = it }
-        }
-        doLast {
-            stream?.close()
-            val text = staged.get().asFile.readText(Charsets.UTF_8)
-            check("<!-- 埋まらなかった穴:" !in text) { "レポート $report に埋まらなかった穴があります（${staged.get().asFile}）" }
-            targetFile.parentFile.mkdirs()
-            targetFile.writeText(text, Charsets.UTF_8)
-            logger.lifecycle("$target を作り直しました")
-        }
-    }
-}
-tasks.register("specDocs") {
-    group = "documentation"
-    description = "spec の YAML から docs/spec/ の参照文書を作り直す（先に検証する）"
-    dependsOn(specDocTasks)
 }
 
 // :cli:run は runCli と同じ（application プラグインの run）。ルートで ./gradlew run（GUI）と打ったときに走らないよう、:cli:run と明示したときだけ有効

@@ -1,0 +1,12 @@
+id: KW-field.auto
+key: "auto"
+context: CTX-field
+group: behavior
+status: stable
+forms:
+  - value: "created・updated・revision のどれか"
+    meaning: "保存のときに自動で入る値の印。created は要素を新しく作ったとき、updated は要素の中身が変わって保存されるたびに、今の日付・時刻を入れます（date・time・datetime の項目に書く）。revision は保存のたびに保存済みの値に 1 を足します（int の項目に書く）。"
+features: [E-14]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

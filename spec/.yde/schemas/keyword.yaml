@@ -1,7 +1,0 @@
-id: keyword
-name: 語
-kind: document
-description: 定義に書けるキー（語）を 1 件 1 ファイルで持ちます。docs/spec/ の参照文書はここから生成します。
-match: "language/keywords/*.yaml"
-filePattern: "language/keywords/{id}.yaml"
-root: { type: common#語 }

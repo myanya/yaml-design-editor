@@ -1,0 +1,23 @@
+id: KW-field.pattern
+key: "pattern"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [string]
+    value: "正規表現の文字列"
+    meaning: "値の全体がこの正規表現に一致すること。"
+  - applies_to: [id]
+    value: "正規表現の文字列"
+    meaning: "ID の全体がこの正規表現に一致すること。ID の採番の候補の元にもなります。"
+  - applies_to: [date, time, datetime]
+    value: "正規表現の文字列"
+    meaning: "正準の形に加えて、さらに狭める形式。"
+  - applies_to: [file]
+    value: "正規表現の文字列"
+    meaning: "場所の文字が一致すべき形式。"
+inherit: "型に書けば引き継がれ、使う側は狭めるだけです"
+features: [S-18]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

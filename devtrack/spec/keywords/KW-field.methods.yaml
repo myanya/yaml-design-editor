@@ -1,0 +1,16 @@
+id: KW-field.methods
+key: "methods"
+context: CTX-field
+group: behavior
+status: stable
+forms:
+  - applies_to: [object]
+    value: "操作の名前 → 定義 のマップ"
+    meaning: "この object の要素 1 つを受け手にする操作。予約の名前 create は新しい要素の中身 {label, params, build} で、ほかの操作は {label, description, params, do} の形です。"
+  - applies_to: [array]
+    value: "{insert: 追加の決まり}"
+    meaning: "配列へ要素を足すときの決まり。書けるのは insert だけで、ID の採番（id）と、重複を見分ける項目（key）を書きます。"
+features: [OP-01]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

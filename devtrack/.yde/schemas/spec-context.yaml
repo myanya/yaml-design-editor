@@ -1,0 +1,7 @@
+id: spec-context
+name: 位置
+kind: document
+description: 語を書ける位置（項目定義・文書のトップレベルなど）を 1 件 1 ファイルで持ちます。
+match: "spec/contexts/*.yaml"
+filePattern: "spec/contexts/{id}.yaml"
+root: { type: spec#位置 }

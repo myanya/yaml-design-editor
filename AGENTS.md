@@ -23,9 +23,8 @@ git config core.hooksPath scripts/git-hooks   # コミット前フック（ク�
 ./gradlew packageDistributionForCurrentOS   # 配布物作成
 ./gradlew verifyWindowsDistribution --no-parallel # Windows同梱ランタイム・主要機能・ライセンスの検査
 ./gradlew windowsRelease --no-parallel       # 全テスト＋Windows ZIP・SHA-256・リリース本文（docs/releasing.md）
-./gradlew specDocs                          # 仕様（spec/）の YAML から docs/spec/ の参照文書を作り直す（先に検証する。spec/README.md）
 scripts/docs-lint.sh                        # 文書の形の機械チェック
-./gradlew devtrackDocs                      # 開発管理（devtrack/）の YAML から docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録を作り直す（先に検証し、エラーがあれば書かない。devtrack/README.md）
+./gradlew devtrackDocs                      # 開発管理（devtrack/）の YAML から docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録、仕様の参照文書（docs/spec/）を作り直す（先に検証し、エラーがあれば書かない。devtrack/README.md）
 ```
 
 要件: ビルドと実行は JDK 21（toolchain。無ければ Gradle が自動で取得する。`./gradlew` 自体は JDK 17 以上で動く）。初回ビルドは等幅フォント Cica の取得でネットワークが要る。GUI アプリのため `run` / `hotRun` は対話的に閉じる必要がある（検証はテスト・ビルド・`runCli` で行い、画面の確認は `.mcp.json` の Hot Reload MCP サーバで行い、手順は skill `ui-check`＝`.claude/skills/ui-check/SKILL.md`）。
@@ -40,9 +39,9 @@ Web のビルドは Gradle が固定版の Node・npm を取得し、`web-ui/pac
 - 着手前に読むのは [docs/FEATURES.md](docs/FEATURES.md) の該当行と [docs/architecture/](docs/architecture/README.md) の該当する主題。
 - このプロジェクトで決めた語（定義体・保有・受け手・射影など）は [docs/GLOSSARY.md](docs/GLOSSARY.md) で引く。
 - 記録（[docs/archive/](docs/archive/README.md)）は経緯を調べるときだけ読む。
-- 定義に書ける語（スキーマの語彙）の仕様の原本は [spec/](spec/README.md)（YDE のワークスペース）。docs/spec/ の参照文書は生成物で、直接直さない（`./gradlew specDocs` で作り直す）。語彙を変えたら、同じコミットで spec の語も直す。
 - 指摘・テーマ・所感メモと機能索引とロードマップの原本は [devtrack/](devtrack/README.md)（YDE のワークスペース）。docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md とそれぞれの記録（docs/archive/）は生成物で、直接直さない（`./gradlew devtrackDocs` で作り直す）。
   機能を足す・直すときは `devtrack/features/<ID>.yaml`（1 機能 1 ファイル）を、ロードマップのテーマと項目は `devtrack/roadmap/P<番号>.yaml` を書く。
+- 定義に書ける語（スキーマの語彙）の仕様の原本も devtrack（`devtrack/spec/`。1 語 1 ファイル）。[docs/spec/](docs/spec/README.md) の参照文書は生成物で、直接直さない。語彙を変えたら、同じコミットで語も直す（食い違いは repo-tests の `SpecTest` が止める）。
 
 ## ワークフロー
 

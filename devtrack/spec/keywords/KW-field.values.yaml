@@ -1,0 +1,13 @@
+id: KW-field.values
+key: "values"
+context: CTX-field
+group: structure
+status: stable
+forms:
+  - applies_to: [enum]
+    value: "配列"
+    meaning: "選択肢の一覧。要素は文字列か、{value, label, description} の形です。検証は value で行い、label と description は表示だけに使います。"
+features: [S-14]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

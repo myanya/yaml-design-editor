@@ -13,12 +13,14 @@ YDE で YDE 自身の開発を管理するワークスペースです。指摘�
 | `features/<ID>.yaml` | 機能（docs/FEATURES.md の行）。ID は系統の接頭辞（W・E・S・V・I・X・A・AG・C・SK・OP・LC）と番号 |
 | `roadmap/P<番号>.yaml` | ロードマップのテーマ（docs/ROADMAP.md の P）。本文・節・R 項目と、記録（docs/archive/roadmap-history.md）の項もこの中です |
 | `roadmap/outlook/OUTLOOK.yaml` | ROADMAP.md の末尾の 2 節（テーマの候補・リスクと未解決課題） |
+| `spec/contexts/CTX-*.yaml`・`spec/base-types/BT-*.yaml`・`spec/keywords/KW-*.yaml` | 仕様。定義に書ける語（キー）と、語を書ける位置、項目の `type` に書ける基底の種類（下の「仕様」） |
 | `.yde/schemas/common.yaml` | 型（ID・状態・日付）と、指摘・解決の記録・テーマ・メモ・機能・ロードマップ（テーマ・節・本文のかたまり・箇条・R 項目・展望）の形と検査 |
 | `.yde/schemas/item.yaml` | 指摘の文書と、業務の操作（登録・状態の変更・一部の解決・解決・再開） |
 | `.yde/schemas/theme.yaml`・`note.yaml`・`relations.yaml` | テーマとメモの文書、指摘からテーマへの関係（束ねる指摘）・指摘どうしの関係（関連する指摘）・指摘から機能への関係（関わる機能） |
 | `.yde/schemas/feature.yaml` | 機能の文書と、操作「機能を登録する」（系統ごとの採番） |
 | `.yde/schemas/roadmap.yaml`・`roadmap-outlook.yaml` | ロードマップのテーマと展望の文書。R 項目どうしの関係（移した先 `moved-to`・枝の元 `branch-of`）と記録の写しの元（`snapshot-of`）は `relations.yaml` |
 | `.yde/views/` | ダッシュボード「開発管理」と一覧・クロス集計。`doc-` で始まるものは生成用。`item-lens`（グラフレンズの見え方「指摘の状態」）と記法 `item-card` |
+| `.yde/schemas/spec.yaml`・`spec-context.yaml`・`spec-base-type.yaml`・`spec-keyword.yaml` | 仕様の型と検査、位置・基底の種類・語の文書。語から位置（書ける語）・元の語（別の書き方）・機能（定める語）への関係は `relations.yaml` |
 | `.yde/reports/` | docs/BACKLOG.md・docs/FEATURES.md・docs/ROADMAP.md と、それぞれの記録を作るレポート（定義とひな形） |
 
 ## 運用
@@ -119,6 +121,26 @@ docs/ROADMAP.md の原本は `roadmap/P<番号>.yaml`（1 テーマ 1 ファイ�
 - **テーマを終える**（`complete-theme`）: 状態を完了にし、本文と節を記録の新しい項（`RH-` の次の番号。記録の末尾）へ移します。記録の見出しは省くと「P50: 名前（日付）」、状態の要約は「完了（日付）」です。
 - **R 項目を足す**: 画面で表の追加ボタンを押し、ID を空のまま足すと、そのテーマの番号の中の最大の次（R52-07 の形）を振ります（採番の接頭辞が、ID を持つ外側の要素＝テーマを `$of: owner` で読む）。操作の受け手には ID が要るので、表に足す操作は置いていません。CLI とエージェントは YAML を書きます（ID は検証が見ます）。
 - 判断待ちを新しく起こすのも YAML です（箇条に `id`〔`DEC-` の次〕・`status: pending`・`date`・`by`・`text`）。
+
+### 仕様
+
+定義に書ける語（スキーマの語彙）の仕様の原本です。**今の実装が読むものの記述**で、[docs/spec/](../docs/spec/README.md) の参照文書はここから生成します。
+
+| 種類 | 場所 | ID の形 | 例 |
+|---|---|---|---|
+| 位置（語を書ける場所） | `spec/contexts/` | `CTX-` ＋ 位置の名前 | `CTX-field` |
+| 基底の種類 | `spec/base-types/` | `BT-` ＋ `type` に書く名前 | `BT-string` |
+| 語 | `spec/keywords/` | `KW-` ＋ 位置の名前 ＋ `.` ＋ キー | `KW-field.required` |
+
+- ID は番号ではなく名前で付けます（並行するセッションで重なりません）。語の ID が位置とキーから決まる形と違うと、検査のエラーになります。
+- 同じキーでも、基底の種類によって値の形や意味が変わるときは、語を分けずに `forms` を分けます。種類を限らない形は `applies_to` を省きます。
+- 語を読んで働く機能が分かれば `features`（FEATURES の ID の並び）に書きます。機能の個票に「定める語」として出ます。
+- 語彙を足す・変えるコミットでは、実装（パーサとメタスキーマ）と一緒に語も直します。repo-tests の `SpecTest` が、項目定義の語と書ける基底の種類がメタスキーマ（`builtin-schemas/schema.yaml` の `definitions.field`）と、基底の種類が実装（`FieldType`）と同じであることを見ます。
+- 仕様を書いていて見つけた実装のずれ（メタスキーマに無い語・説明の不足）は、指摘として登録します。
+- いま載っているのは、スキーマの項目定義（`CTX-field`）の語と基底の種類です。スキーマ文書のトップレベル・関係・振る舞い・検査・操作、値の式などの小さな言語、ビューやレポートなどほかの定義は、位置を足しながら広げます。
+
+画面ではダッシュボード「仕様」から、位置・語・基底の種類へ進みます。
+
 
 ### 検査
 

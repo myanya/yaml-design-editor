@@ -1,0 +1,12 @@
+id: KW-field.requiredFrom
+key: "requiredFrom"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - value: "フェーズの名前の文字列"
+    meaning: "スキーマの phases に並べたフェーズのうち、このフェーズ以降で必須になります。required と一緒には書けません。"
+features: [S-11, V-06]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

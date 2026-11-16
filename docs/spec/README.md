@@ -1,7 +1,7 @@
 # 仕様の参照文書
 
-定義に書ける語の一覧。今の実装が読むものを、仕様のワークスペース [spec/](../../spec/README.md) の YAML から生成する。
-ここの文書（この案内を除く）は直接直さない。足す・直すときは spec の YAML を書き、`./gradlew specDocs` で作り直す。
+定義に書ける語の一覧。今の実装が読むものを、開発管理のワークスペース [devtrack/](../../devtrack/README.md) の `spec/` の YAML から生成する。
+ここの文書（この案内を除く）は直接直さない。足す・直すときは devtrack の YAML を書き、`./gradlew devtrackDocs` で作り直す。
 
 | 文書 | 内容 |
 |---|---|

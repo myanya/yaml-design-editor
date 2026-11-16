@@ -1,0 +1,7 @@
+id: spec-base-type
+name: 基底の種類
+kind: document
+description: 項目の type に書ける基底の種類を 1 件 1 ファイルで持ちます。
+match: "spec/base-types/*.yaml"
+filePattern: "spec/base-types/{id}.yaml"
+root: { type: spec#基底の種類の定義 }

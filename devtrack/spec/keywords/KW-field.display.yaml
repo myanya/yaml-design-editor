@@ -1,0 +1,20 @@
+id: KW-field.display
+key: "display"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - applies_to: [string]
+    value: "multiline"
+    meaning: "複数行の欄で編集します。見せ方だけで、値と検証は変えません。"
+  - applies_to: [int, number]
+    value: "grouped"
+    meaning: "桁区切りで見せます（45000 → 45,000）。見せ方だけで、値・検証・書き出しは変えません。"
+  - applies_to: [array, map]
+    value: "table か list"
+    default: "列の構成から自動で決めます"
+    meaning: "一覧の表示の形。table は表の形に、list は縦並びに固定します。"
+features: [E-13]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

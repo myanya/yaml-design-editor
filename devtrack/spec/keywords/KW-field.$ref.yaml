@@ -1,0 +1,12 @@
+id: KW-field.$ref
+key: "$ref"
+context: CTX-field
+group: structure
+status: stable
+forms:
+  - value: "定義の名前の文字列"
+    meaning: "definitions の中の名前付きの定義を、この項目の定義として使います。別のモジュールの定義は モジュールID#名前 と書きます。再帰する形もこれで書きます。"
+features: [S-03]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

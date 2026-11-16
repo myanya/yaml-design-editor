@@ -1,0 +1,41 @@
+id: schema-fields-md
+name: スキーマの項目定義（docs/spec/schema-fields.md）
+description: 位置「項目定義」の語と基底の種類から docs/spec/schema-fields.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-field } ], $one: true }
+  # 基底の種類: 節は分類ごと。見出しと並びはここが正（分類を足すときは、ここと spec の 基底の種類の分類 に足す）
+  typeGroups:
+    - { title: 表現の基底（スカラー）, rows: { $view: doc-base-types, $where: [ { path: values.分類, equals: scalar } ] } }
+    - { title: 決まった形の文字（日付・時刻・ファイルの場所）, rows: { $view: doc-base-types, $where: [ { path: values.分類, equals: semantic } ] } }
+    - { title: 識別と参照, rows: { $view: doc-base-types, $where: [ { path: values.分類, equals: identity } ] } }
+    - { title: 構造, rows: { $view: doc-base-types, $where: [ { path: values.分類, equals: structure } ] } }
+    - { title: 制約なし, rows: { $view: doc-base-types, $where: [ { path: values.分類, equals: open } ] } }
+  # 語: 節は分類ごと。見出しと並びはここが正（分類を足すときは、ここと spec の 語の分類 に足す）
+  sections:
+    - title: 形
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: structure } ] }, $apply: keyword }
+    - title: 必須と値の決まり
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: constraint } ] }, $apply: keyword }
+    - title: 識別・参照・関係
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: identity } ] }, $apply: keyword }
+    - title: 値の式・自動の値・操作と検査
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: behavior } ] }, $apply: keyword }
+    - title: 表示と編集のヒント
+      rows: { $each: { $view: doc-keywords, $where: [ { path: values.位置, equals: CTX-field }, { path: values.分類, equals: presentation } ] }, $apply: keyword }
+rules:
+  # 語 1 つ: 形ごとに 1 行。基底の種類を限らない形には印 any を足す（ひな形は比べられないので）
+  - id: keyword
+    build:
+      key: { $copy: values.キー }
+      alias: { $when: { path: values.状態, equals: alias }, $then: true }
+      deprecated: { $when: { path: values.状態, equals: deprecated }, $then: true }
+      inherit: { $copy: values.引き継ぎ }
+      forms:
+        $each: values.形
+        $build:
+          types: { $copy: applies_to }
+          any: { $when: { path: applies_to, exists: false }, $then: true }
+          value: { $copy: value }
+          default: { $copy: default }
+          meaning: { $copy: meaning }
+template: schema-fields-md.md

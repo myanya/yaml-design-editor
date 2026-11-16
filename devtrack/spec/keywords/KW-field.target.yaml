@@ -1,0 +1,14 @@
+id: KW-field.target
+key: "target"
+context: CTX-field
+group: identity
+status: stable
+forms:
+  - applies_to: [ref]
+    value: "entity か document"
+    default: "entity"
+    meaning: "参照の相手の種類。document は文書そのものへの参照です。"
+features: [I-11]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

@@ -1,0 +1,13 @@
+id: KW-field.min
+key: "min"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [int, number]
+    value: "数"
+    meaning: "値の下限。"
+features: [S-18]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

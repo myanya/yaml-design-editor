@@ -1,9 +1,9 @@
 # スキーマの項目定義
 
-<!-- この文書は spec から生成する（./gradlew specDocs）。直接直さない。ひな形は spec/.yde/reports/schema-fields-md.md -->
+<!-- この文書は devtrack から生成する（./gradlew devtrackDocs）。直接直さない。ひな形は devtrack/.yde/reports/schema-fields-md.md -->
 
 スキーマの項目 1 つの定義に書ける語（キー）と、`type` に書ける基底の種類の一覧。今の実装が読む語を書いたもので、使い方の説明は [manual/schema.md](../manual/schema.md) にある。
-**原本は [spec/](../../spec/README.md) の `language/`**（1 語 1 ファイルの YAML）。足す・直すときは YAML を書き、`./gradlew specDocs` で作り直す。
+**原本は [devtrack/](../../devtrack/README.md) の `spec/`**（1 語 1 ファイルの YAML）。足す・直すときは YAML を書き、`./gradlew devtrackDocs` で作り直す。
 
 スキーマの項目 1 つの定義。文書のルート（root）・object の子（fields の要素）・array の要素（item）・map の値（value）・型の定義（definitions の値）・操作の受け取る値（params の要素）に、同じ形で再帰的に書きます。
 

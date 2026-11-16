@@ -1,0 +1,19 @@
+# 生成用: docs/spec/ の参照文書（レポート schema-fields-md）の語の表。キーの順。
+# 形は部分木のまま渡し、レポートが形ごとに 1 行に組み立てる
+id: doc-keywords
+name: 生成用：語の表
+rows:
+  idPattern: "KW-*"
+  schemaIds: [spec-keyword]
+order:
+  schemaId: spec-keyword
+  path: key
+  direction: asc
+columns:
+  - { label: キー, schemaId: spec-keyword, path: key }
+  - { label: 位置, schemaId: spec-keyword, path: context }
+  - { label: 分類, schemaId: spec-keyword, path: group }
+  - { label: 状態, schemaId: spec-keyword, path: status }
+  - { label: 元の語, schemaId: spec-keyword, path: alias_of }
+  - { label: 形, schemaId: spec-keyword, path: forms }
+  - { label: 引き継ぎ, schemaId: spec-keyword, path: inherit }
