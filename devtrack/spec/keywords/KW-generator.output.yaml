@@ -1,0 +1,9 @@
+id: KW-generator.output
+key: "output"
+context: CTX-generator
+order: 7
+status: stable
+forms:
+  - required: true
+    value: "{パス} を含む文字列"
+    meaning: "作る文書の場所（ワークスペース相対の YAML）。穴は要素の値で埋めます。.yde の下と定義の置き場には書けません。"

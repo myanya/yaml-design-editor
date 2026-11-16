@@ -1,0 +1,8 @@
+id: KW-template.$as
+key: "$as"
+context: CTX-template
+order: 25
+status: stable
+forms:
+  - value: "形の文字列"
+    meaning: "出力の形。$date では年月日の形（yyyyMMdd・yyyy-MM など）、$number では DecimalFormat の形（00・#,##0）、$case では名前の書き方です。"

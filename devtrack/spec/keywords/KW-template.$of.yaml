@@ -1,0 +1,9 @@
+id: KW-template.$of
+key: "$of"
+context: CTX-template
+order: 19
+status: stable
+forms:
+  - value: "束縛の名前"
+    default: "いまの場所"
+    meaning: "場所の指定。クエリで付けた名前・規則が受け取った名前・繰り返しの $bind の名前の要素を読みます。"

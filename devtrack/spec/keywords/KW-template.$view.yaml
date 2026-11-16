@@ -1,0 +1,8 @@
+id: KW-template.$view
+key: "$view"
+context: CTX-template
+order: 17
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "ビューの行を受け取ります（レポートで使います）。行は {id, title, key, cells, values} の形です。"

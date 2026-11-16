@@ -1,0 +1,8 @@
+id: KW-template.$value
+key: "$value"
+context: CTX-template
+order: 16
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "値の式を、いまの場所で計算します。グラフをたどる all・refCount・occurrenceCount は「無い」です。"

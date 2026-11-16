@@ -13,5 +13,6 @@
 | [schema-checks.md](schema-checks.md) | 検査（検査 1 件・検査の定義・語彙の定義と、組込みの語彙 coverage・consistency・matrix・flow）に書ける語 |
 | [schema-derive.md](schema-derive.md) | 派生スキーマの宣言に書ける語 |
 | [expressions.md](expressions.md) | クエリ（node・edge）・条件（where）・値の比較（check）・値の式に書ける語 |
+| [templates.md](templates.md) | 変換のひな型の指示と、変換定義・生成の定義・レポートの定義に書ける語 |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

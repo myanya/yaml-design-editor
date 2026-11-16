@@ -1,0 +1,8 @@
+id: KW-template.$by
+key: "$by"
+context: CTX-template
+order: 31
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "$group のキー。要素を「いまの場所」にして計算します。キーが「無い」要素は、どのまとまりにも入りません。"

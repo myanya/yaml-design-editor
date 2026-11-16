@@ -1,0 +1,8 @@
+id: KW-transform.rules
+key: "rules"
+context: CTX-transform
+order: 7
+status: stable
+forms:
+  - value: "{id, when, with, build} の配列"
+    meaning: "名前を付けた組み立て。"

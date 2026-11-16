@@ -1,0 +1,9 @@
+id: KW-generator.scope
+key: "scope"
+context: CTX-generator
+order: 4
+status: stable
+forms:
+  - value: "スコープの ID"
+    default: "ワークスペースのすべてのスキーマ"
+    meaning: "業務モデルを、どのスコープ（workspace.yaml の scopes）の定義から作るか。"

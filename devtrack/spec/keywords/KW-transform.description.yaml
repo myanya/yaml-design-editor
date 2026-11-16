@@ -1,0 +1,8 @@
+id: KW-transform.description
+key: "description"
+context: CTX-transform
+order: 3
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

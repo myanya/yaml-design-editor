@@ -1,0 +1,9 @@
+id: KW-report.output
+key: "output"
+context: CTX-report
+order: 8
+status: stable
+forms:
+  - value: "{名前} を含む文字列"
+    default: "表示するだけで、保存は CLI の --out だけです"
+    meaning: "既定の出力先（ワークスペース相対）。穴は build の値で埋めます。YAML には書けません。"

@@ -1,0 +1,9 @@
+id: KW-generator.stage
+key: "stage"
+context: CTX-generator
+order: 5
+status: stable
+forms:
+  - value: "段の ID"
+    default: "業務モデルの項そのもの"
+    meaning: "どの段（workspace.yaml の stages）の項を読むか。段の項は、業務モデルの項に、その段までの規則と補正を当てたものです。"

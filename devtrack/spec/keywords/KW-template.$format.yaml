@@ -1,0 +1,8 @@
+id: KW-template.$format
+key: "$format"
+context: CTX-template
+order: 2
+status: stable
+forms:
+  - value: "{パス} を含む文字列"
+    meaning: "文字のひな型を、その場所の値で埋めます。埋まらない穴があれば「無い」です。"

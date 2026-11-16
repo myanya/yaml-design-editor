@@ -1,0 +1,9 @@
+id: KW-template-rule.build
+key: "build"
+context: CTX-template-rule
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "ひな型"
+    meaning: "組み立てる中身。"

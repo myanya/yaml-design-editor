@@ -1,0 +1,8 @@
+id: KW-template.$trim
+key: "$trim"
+context: CTX-template
+order: 14
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "前後の空白を落とし、続く空白を 1 つにまとめます（全角の空白も）。空なら「無い」です。"

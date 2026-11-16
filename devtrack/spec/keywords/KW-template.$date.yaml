@@ -1,0 +1,8 @@
+id: KW-template.$date
+key: "$date"
+context: CTX-template
+order: 12
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "年月日をそろえます（2021/8/21・20210821・2021年8月21日 などを yyyy-MM-dd に）。読めなければ「無い」です。"

@@ -1,0 +1,9 @@
+id: KW-generator.build
+key: "build"
+context: CTX-generator
+order: 8
+status: stable
+forms:
+  - required: true
+    value: "ひな型"
+    meaning: "文書の中身。いまの場所は要素（each を省けば業務モデル全体）で、業務モデル全体は $of: model、いまの要素は $of: element で読めます。"

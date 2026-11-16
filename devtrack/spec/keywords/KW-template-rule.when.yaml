@@ -1,0 +1,9 @@
+id: KW-template-rule.when
+key: "when"
+context: CTX-template-rule
+order: 2
+status: stable
+forms:
+  - value: "条件の配列"
+    default: "いつでも合います"
+    meaning: "この規則を使う条件（where と同じ書き方）。"

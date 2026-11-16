@@ -1,0 +1,8 @@
+id: KW-template.$copy
+key: "$copy"
+context: CTX-template
+order: 1
+status: stable
+forms:
+  - value: "パス"
+    meaning: "その場所の値（部分木ごと）をそのまま写します。. は、いまの場所そのものです。"

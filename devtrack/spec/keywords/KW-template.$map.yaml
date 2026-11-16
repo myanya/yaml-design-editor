@@ -1,0 +1,8 @@
+id: KW-template.$map
+key: "$map"
+context: CTX-template
+order: 3
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "値を辞書（$using）で置き換えます。辞書に無い値はそのままです。"

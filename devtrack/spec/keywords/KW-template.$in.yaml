@@ -1,0 +1,8 @@
+id: KW-template.$in
+key: "$in"
+context: CTX-template
+order: 20
+status: stable
+forms:
+  - value: "{schemaId, fileGlob}"
+    meaning: "場所の指定。どの文書の出現を読むか。"

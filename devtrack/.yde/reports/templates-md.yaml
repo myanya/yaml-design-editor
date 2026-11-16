@@ -1,0 +1,17 @@
+id: templates-md
+name: 変換のひな型・生成・レポート（docs/spec/templates.md）
+description: 変換のひな型・生成・レポートの位置と語から docs/spec/templates.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  sections:
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-template } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-template } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-template-rule } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-template-rule } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-transform } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-transform } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-generator } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-generator } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-report } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-report } ] }
+template: templates-md.md

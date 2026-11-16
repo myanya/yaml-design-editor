@@ -1,0 +1,8 @@
+id: KW-template.$zip
+key: "$zip"
+context: CTX-template
+order: 7
+status: stable
+forms:
+  - value: "名前 → パス のマップ"
+    meaning: "並んだ配列を同じ番号で 1 行にまとめ、行ごとに組み立てて配列を作ります。長さが違えば長い方に合わせます。"

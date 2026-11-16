@@ -1,0 +1,8 @@
+id: KW-template.$bind
+key: "$bind"
+context: CTX-template
+order: 29
+status: stable
+forms:
+  - value: "名前（英字で始まる。key・index・position は使えません）"
+    meaning: "繰り返しの要素（$group ではまとまり）に名前を付け、中から $of で読めるようにします。"

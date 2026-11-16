@@ -1,0 +1,8 @@
+id: KW-template.$concat
+key: "$concat"
+context: CTX-template
+order: 10
+status: stable
+forms:
+  - value: "ひな型の配列"
+    meaning: "配列をつなげます。"

@@ -1,0 +1,9 @@
+id: KW-report.id
+key: "id"
+context: CTX-report
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "レポートの ID。"

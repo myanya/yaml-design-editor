@@ -1,0 +1,9 @@
+id: KW-transform.id
+key: "id"
+context: CTX-transform
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "変換の ID。"

@@ -1,0 +1,8 @@
+id: KW-template.$build
+key: "$build"
+context: CTX-template
+order: 22
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "繰り返し（$each・$eachEntry・$zip・$group）の、要素ごとの中身。$apply とは一緒に書けません。"

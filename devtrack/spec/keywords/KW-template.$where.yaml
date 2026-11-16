@@ -1,0 +1,8 @@
+id: KW-template.$where
+key: "$where"
+context: CTX-template
+order: 27
+status: stable
+forms:
+  - value: "条件の配列"
+    meaning: "$view の行を絞る条件。"

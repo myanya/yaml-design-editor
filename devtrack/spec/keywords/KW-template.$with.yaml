@@ -1,0 +1,8 @@
+id: KW-template.$with
+key: "$with"
+context: CTX-template
+order: 26
+status: stable
+forms:
+  - value: "名前 → ひな型 のマップ"
+    meaning: "$format では、計算した値を穴へ入れます。$apply では、規則へ渡す値です。"

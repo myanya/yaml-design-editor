@@ -1,0 +1,9 @@
+id: KW-template.$flatten
+key: "$flatten"
+context: CTX-template
+order: 30
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "$each の結果の配列を 1 段ならします。"

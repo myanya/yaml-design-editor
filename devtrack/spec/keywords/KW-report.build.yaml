@@ -1,0 +1,9 @@
+id: KW-report.build
+key: "build"
+context: CTX-report
+order: 5
+status: stable
+forms:
+  - required: true
+    value: "ひな型"
+    meaning: "値の一式。$view でビューの行を受け取れます。集計はビューの側で行います。"

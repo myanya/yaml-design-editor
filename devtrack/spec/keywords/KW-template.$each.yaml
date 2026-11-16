@@ -1,0 +1,8 @@
+id: KW-template.$each
+key: "$each"
+context: CTX-template
+order: 5
+status: stable
+forms:
+  - value: "パスか、{$view, $where}"
+    meaning: "配列の要素ごとに組み立てて、配列を作ります。中身は $build か $apply で書きます。{$view: ビューID} を書くと、ビューの行を 1 行ずつ「いまの場所」にします。"

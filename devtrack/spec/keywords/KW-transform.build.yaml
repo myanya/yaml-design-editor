@@ -1,0 +1,9 @@
+id: KW-transform.build
+key: "build"
+context: CTX-transform
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "ひな型"
+    meaning: "出力の中身。"

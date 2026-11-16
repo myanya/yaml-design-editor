@@ -1,0 +1,8 @@
+id: KW-template.$using
+key: "$using"
+context: CTX-template
+order: 21
+status: stable
+forms:
+  - value: "元の値 → 先の値 のマップ"
+    meaning: "$map の辞書。"

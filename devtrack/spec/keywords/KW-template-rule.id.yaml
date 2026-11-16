@@ -1,0 +1,9 @@
+id: KW-template-rule.id
+key: "id"
+context: CTX-template-rule
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "規則の名前。$apply から指します。"

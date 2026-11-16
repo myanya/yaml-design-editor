@@ -1,0 +1,10 @@
+id: CTX-generator
+title: "生成の定義"
+language: transform
+description: "生成の定義（.yde/transforms/ の YAML）のトップレベル。業務モデルの項から、YAML の文書を作ります。作った文書は生成物で、手で直さず作り直します。"
+meta:
+  schema: transform
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/transform.yaml の root"
+  reader: "workspace-core/workspace/Generators.kt の GeneratorDef"

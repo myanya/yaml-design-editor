@@ -1,0 +1,8 @@
+id: KW-template-rule.with
+key: "with"
+context: CTX-template-rule
+order: 3
+status: stable
+forms:
+  - value: "名前の配列"
+    meaning: "当てる側が $with で渡す値の名前。規則の中では $of: 名前 で読みます。"

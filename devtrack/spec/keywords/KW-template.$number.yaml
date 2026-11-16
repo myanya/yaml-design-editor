@@ -1,0 +1,8 @@
+id: KW-template.$number
+key: "$number"
+context: CTX-template
+order: 13
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "数として読みます（¥・桁区切り・全角、▲ の負を許します）。読めなければ「無い」です。"

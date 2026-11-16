@@ -1,0 +1,8 @@
+id: KW-template.$eachEntry
+key: "$eachEntry"
+context: CTX-template
+order: 6
+status: stable
+forms:
+  - value: "パス"
+    meaning: "マップの項目ごとに組み立てて、同じキーのマップを作ります。"

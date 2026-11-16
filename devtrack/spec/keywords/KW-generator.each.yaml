@@ -1,0 +1,9 @@
+id: KW-generator.each
+key: "each"
+context: CTX-generator
+order: 6
+status: stable
+forms:
+  - value: "entities・actions・states・lifecycles のどれか"
+    default: "業務モデル全体から 1 文書"
+    meaning: "業務モデルのどの並びの要素ごとに 1 文書を作るか。build が何も作らなかった要素は、文書を作りません。"

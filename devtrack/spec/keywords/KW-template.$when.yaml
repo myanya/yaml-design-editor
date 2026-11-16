@@ -1,0 +1,8 @@
+id: KW-template.$when
+key: "$when"
+context: CTX-template
+order: 24
+status: stable
+forms:
+  - value: "条件か、条件の配列"
+    meaning: "条件に合うときだけ出します。条件は where と同じ書き方で、of を省くと「いまの場所」です。path に $名前 を書くと、受け取った値や繰り返しの番号を比べます。"

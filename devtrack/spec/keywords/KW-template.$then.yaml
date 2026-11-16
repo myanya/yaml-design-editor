@@ -1,0 +1,8 @@
+id: KW-template.$then
+key: "$then"
+context: CTX-template
+order: 11
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "$when の条件に合うときに出す値。"

@@ -1,0 +1,8 @@
+id: CTX-transform
+title: "変換定義"
+language: transform
+description: "YAML から YAML への変換 1 つ。入力を選び（from）、ひな型で組み立てます（build）。出力は YAML の項で、ワークスペースの文書としては保存しません。ここに無いキーは誤りになります。"
+code:
+  sets: [TransformDef.TOP_KEYS]
+evidence:
+  reader: "semantic-core/schema/TransformDef.kt の TransformDef"

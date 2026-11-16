@@ -1,0 +1,8 @@
+id: KW-template.$entries
+key: "$entries"
+context: CTX-template
+order: 18
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "{key, value} の並びからマップを作ります。同じキーは後の値で置き換えます。"

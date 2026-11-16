@@ -1,0 +1,9 @@
+id: KW-template.$at
+key: "$at"
+context: CTX-template
+order: 23
+status: stable
+forms:
+  - value: "パス"
+    default: "いまの場所"
+    meaning: "$format・$apply を当てる場所。"

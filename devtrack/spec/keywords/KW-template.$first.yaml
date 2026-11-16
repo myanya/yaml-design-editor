@@ -1,0 +1,8 @@
+id: KW-template.$first
+key: "$first"
+context: CTX-template
+order: 4
+status: stable
+forms:
+  - value: "ひな型の配列"
+    meaning: "最初に得られた値。"

@@ -1,0 +1,8 @@
+id: KW-transform.params
+key: "params"
+context: CTX-transform
+order: 4
+status: stable
+forms:
+  - value: "名前の配列（英字で始まる英数字）"
+    meaning: "受け取る値の名前。ひな型の中では $名前 で読みます。key・index・position は使えません。"

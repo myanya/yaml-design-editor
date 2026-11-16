@@ -1,0 +1,9 @@
+id: KW-report.template
+key: "template"
+context: CTX-report
+order: 7
+status: stable
+forms:
+  - required: true
+    value: "ファイルの場所"
+    meaning: "文字のひな形のファイル（定義と同じ場所からの相対）。穴・繰り返し・条件だけを書けます。"

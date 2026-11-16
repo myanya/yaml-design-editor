@@ -1,0 +1,8 @@
+id: KW-template.$group
+key: "$group"
+context: CTX-template
+order: 8
+status: stable
+forms:
+  - value: "パスか、ひな型"
+    meaning: "配列の要素を、$by のキーが同じものごとにまとめ、まとまりごとに組み立てて配列を作ります。まとまりの場所は {key, items} で、順はキーが初めて出た順です。"

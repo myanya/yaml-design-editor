@@ -1,0 +1,9 @@
+id: KW-transform.from
+key: "from"
+context: CTX-transform
+order: 5
+status: stable
+forms:
+  - value: "{match, also, where, limit}"
+    default: "呼び出し側が渡した項 1 つが入力です"
+    meaning: "入力を選ぶクエリ。書くなら match が必要です。limit を書かなければ、すべての解を相手にします。"

@@ -187,6 +187,15 @@ class SpecTest {
     }
 
     @Test
+    fun `参照文書に 字下げで始まる行が無い`() {
+        // 4 文字の字下げは Markdown でコードの塊になり、見出しと表が崩れる（ひな形の字下げの写り込みを止める）
+        val indented = Path.of("docs/spec").listDirectoryEntries("*.md").flatMap { file ->
+            file.readText().lines().withIndex().filter { it.value.startsWith("    ") }.map { "${file.fileName}:${it.index + 1}" }
+        }
+        assertTrue(indented.isEmpty(), "字下げで始まる行があります（ひな形 devtrack/.yde/reports/*-md.md を直す）: ${indented.take(5)}")
+    }
+
+    @Test
     fun `どの位置も 参照文書のレポートのどれかに載っている`() {
         val reports = root.resolve(".yde/reports").listDirectoryEntries("*-md.yaml").joinToString("\n") { it.readText() }
         val missing = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map { raw(it)["id"].toString() }.filter { "equals: $it }" !in reports }

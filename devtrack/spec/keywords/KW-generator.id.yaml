@@ -1,0 +1,9 @@
+id: KW-generator.id
+key: "id"
+context: CTX-generator
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "生成の定義の ID。"

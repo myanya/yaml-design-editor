@@ -1,0 +1,9 @@
+id: KW-template.$one
+key: "$one"
+context: CTX-template
+order: 28
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "$view の最初の 1 行だけを受け取ります。無ければ「無い」です。"
