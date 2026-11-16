@@ -1,0 +1,8 @@
+id: KW-view-column.path
+key: "path"
+context: CTX-view-column
+order: 4
+status: stable
+forms:
+  - value: "パスの文字列"
+    meaning: "出現の要素から読む値の場所（例 name）。"

@@ -1,0 +1,8 @@
+id: KW-view-section.view
+key: "view"
+context: CTX-view-section
+order: 3
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "ダッシュボードの区画で対象を並べる、グリッドかクロス集計のビュー。"

@@ -1,0 +1,8 @@
+id: KW-view-cells-columns.idPattern
+key: "idPattern"
+context: CTX-view-cells-columns
+order: 4
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "via の列にする ID の形。"

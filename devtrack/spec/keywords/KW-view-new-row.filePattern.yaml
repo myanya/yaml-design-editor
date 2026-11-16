@@ -1,0 +1,8 @@
+id: KW-view-new-row.filePattern
+key: "filePattern"
+context: CTX-view-new-row
+order: 3
+status: stable
+forms:
+  - value: "{id} を含む文字列"
+    meaning: "文書を作る形。入力した ID で {id} を埋めた場所に、詳細の文書を作ります。"

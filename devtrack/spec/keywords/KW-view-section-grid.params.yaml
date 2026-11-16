@@ -1,0 +1,8 @@
+id: KW-view-section-grid.params
+key: "params"
+context: CTX-view-section-grid
+order: 2
+status: stable
+forms:
+  - value: "名前 → {path} のマップ"
+    meaning: "表の受け取る値に、開いた文書の中の値を渡します。値が無ければ区画は出ません。"

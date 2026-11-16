@@ -1,0 +1,8 @@
+id: KW-view-rows.value
+key: "value"
+context: CTX-view-rows
+order: 8
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "クロス集計だけ。起点の要素ごとに計算した値を行にし、同じ値を 1 行にまとめます。idPattern とは一緒に書けません。"

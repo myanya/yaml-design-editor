@@ -1,0 +1,8 @@
+id: KW-view-cells-columns.values
+key: "values"
+context: CTX-view-cells-columns
+order: 8
+status: stable
+forms:
+  - value: "値か {value, label} の配列"
+    meaning: "path の列の並びと見出し。"

@@ -1,0 +1,9 @@
+id: KW-view-column-backlinks.relation
+key: "relation"
+context: CTX-view-column-backlinks
+order: 1
+status: stable
+forms:
+  - value: "関係の名前"
+    default: "すべての参照元"
+    meaning: "この関係の参照元だけを並べます。"

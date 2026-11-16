@@ -1,0 +1,8 @@
+id: KW-view-matrix.cells
+key: "cells"
+context: CTX-view-matrix
+order: 2
+status: stable
+forms:
+  - value: "{match, where, also, of, in, path, aggregate, type, series, columns}"
+    meaning: "セルに集めるもの。必ず書きます。"

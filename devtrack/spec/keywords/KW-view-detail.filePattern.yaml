@@ -1,0 +1,8 @@
+id: KW-view-detail.filePattern
+key: "filePattern"
+context: CTX-view-detail
+order: 3
+status: stable
+forms:
+  - value: "値の式（{パス} を含む文字列）"
+    meaning: "「作成」の作り先。穴は行の要素の値で埋めます（{id} は行の ID）。"

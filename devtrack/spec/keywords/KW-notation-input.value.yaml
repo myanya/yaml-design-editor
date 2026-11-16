@@ -1,0 +1,8 @@
+id: KW-notation-input.value
+key: "value"
+context: CTX-notation-input
+order: 8
+status: stable
+forms:
+  - value: "入力の項目"
+    meaning: "map の値。"

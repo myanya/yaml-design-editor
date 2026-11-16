@@ -1,0 +1,8 @@
+id: KW-dashboard-input.scope
+key: "scope"
+context: CTX-dashboard-input
+order: 7
+status: stable
+forms:
+  - value: "{schemaIds, documentIds}"
+    meaning: "参照先を探す範囲。"

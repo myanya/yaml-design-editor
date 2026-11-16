@@ -1,0 +1,9 @@
+id: KW-view-grid.order
+key: "order"
+context: CTX-view-grid
+order: 3
+status: stable
+forms:
+  - value: "{schemaId, fileGlob, path, type, direction}"
+    default: "ID の順（クエリの行はクエリの順）"
+    meaning: "行の並び。"

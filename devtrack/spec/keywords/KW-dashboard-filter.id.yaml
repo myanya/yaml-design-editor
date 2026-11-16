@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.id
+key: "id"
+context: CTX-dashboard-filter
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "条件の ID。"

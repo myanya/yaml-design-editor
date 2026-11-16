@@ -1,0 +1,8 @@
+id: KW-appearance-node.level
+key: "level"
+context: CTX-appearance-node
+order: 1
+status: stable
+forms:
+  - value: "entity か type"
+    meaning: "当てる段。"

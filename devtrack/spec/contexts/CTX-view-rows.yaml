@@ -1,0 +1,10 @@
+id: CTX-view-rows
+title: "行（rows）"
+language: view
+description: "グリッドとクロス集計の rows。論理 ID の形（idPattern）か、クエリ（match）か、値の軸（value。クロス集計だけ）のどれかで書きます。"
+meta:
+  schema: view
+  path: [root, rows]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.rows"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView・parseMatrixView"

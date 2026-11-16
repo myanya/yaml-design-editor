@@ -1,0 +1,9 @@
+id: KW-view-matrix.cumulative
+key: "cumulative"
+context: CTX-view-matrix
+order: 6
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "行の順に、各列のセルをそれまでの行と合わせて畳みます（件数なら足し上げ）。行が値の軸のときだけ書けます。合計の行は出しません。"

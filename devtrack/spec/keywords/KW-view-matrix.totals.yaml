@@ -1,0 +1,9 @@
+id: KW-view-matrix.totals
+key: "totals"
+context: CTX-view-matrix
+order: 5
+status: stable
+forms:
+  - value: "真偽値"
+    default: "true"
+    meaning: "合計の行と列を出します。"

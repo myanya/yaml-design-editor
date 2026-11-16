@@ -1,0 +1,8 @@
+id: KW-notation-input.values
+key: "values"
+context: CTX-notation-input
+order: 5
+status: stable
+forms:
+  - value: "配列"
+    meaning: "enum の選択肢。"

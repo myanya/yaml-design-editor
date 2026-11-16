@@ -1,0 +1,8 @@
+id: KW-view-detail.schemaId
+key: "schemaId"
+context: CTX-view-detail
+order: 1
+status: stable
+forms:
+  - value: "スキーマ ID"
+    meaning: "出現のスキーマ。"

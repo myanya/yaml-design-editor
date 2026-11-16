@@ -1,0 +1,8 @@
+id: KW-view-cells-columns.order
+key: "order"
+context: CTX-view-cells-columns
+order: 6
+status: stable
+forms:
+  - value: "{schemaId, fileGlob} か、値の配列"
+    meaning: "列の並び。via では並びの基準の出現、value では先に並べる値です。"

@@ -1,0 +1,8 @@
+id: KW-view-cells.series
+key: "series"
+context: CTX-view-cells
+order: 9
+status: stable
+forms:
+  - value: "{label, key} の配列"
+    meaning: "列ごとの行の鍵。列ごとに、数える要素をどの行に数えるかを式で決めます。columns・rows・order・unclassified とは一緒に書けません。"

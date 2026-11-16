@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-history.date
+key: "date"
+context: CTX-dashboard-flow-history
+order: 2
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "date"
+    meaning: "行の日付の項目。"

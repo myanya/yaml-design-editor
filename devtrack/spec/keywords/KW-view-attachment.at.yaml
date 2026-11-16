@@ -1,0 +1,9 @@
+id: KW-view-attachment.at
+key: "at"
+context: CTX-view-attachment
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "パスの形（[*] を書けます）"
+    meaning: "差し込む先の要素（例 actors[*]）。"

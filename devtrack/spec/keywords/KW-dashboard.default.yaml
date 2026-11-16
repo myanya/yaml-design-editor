@@ -1,0 +1,9 @@
+id: KW-dashboard.default
+key: "default"
+context: CTX-dashboard
+order: 3
+status: stable
+forms:
+  - value: "真偽値"
+    default: "定義のファイル名の順で最初のもの"
+    meaning: "ワークスペースの開始の画面にするダッシュボード。"

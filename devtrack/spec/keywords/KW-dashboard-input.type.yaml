@@ -1,0 +1,9 @@
+id: KW-dashboard-input.type
+key: "type"
+context: CTX-dashboard-input
+order: 3
+status: stable
+forms:
+  - value: "date・enum・string・ref か、スキーマの型の名前"
+    default: "string"
+    meaning: "入力の型。型の名前なら、その型の選択肢か参照の絞り込みが候補になります。"

@@ -1,0 +1,8 @@
+id: KW-view-section.grid
+key: "grid"
+context: CTX-view-section
+order: 8
+status: stable
+forms:
+  - value: "{view, params, columns}"
+    meaning: "文書ビューで、グリッドかクロス集計のビューを区画に置きます。"

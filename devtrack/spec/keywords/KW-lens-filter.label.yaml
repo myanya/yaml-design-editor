@@ -1,0 +1,9 @@
+id: KW-lens-filter.label
+key: "label"
+context: CTX-lens-filter
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    default: "ID"
+    meaning: "表示名。"

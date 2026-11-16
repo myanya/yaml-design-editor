@@ -70,6 +70,7 @@ definitions:
       - { value: schema, label: スキーマ }
       - { value: expression, label: 値の式・条件・クエリ }
       - { value: transform, label: 変換・生成・レポート }
+      - { value: view, label: ビュー・ダッシュボード }
   語の分類:
     type: enum
     values:
@@ -118,6 +119,7 @@ definitions:
           - { value: relations, label: 関係レジストリ（builtin-schemas/relations.yaml） }
           - { value: transform, label: 生成の定義（builtin-schemas/transform.yaml） }
           - { value: report, label: レポート（builtin-schemas/report.yaml） }
+          - { value: view, label: ビュー（builtin-schemas/view.yaml） }
       - key: path
         label: たどる道
         type: array

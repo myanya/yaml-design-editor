@@ -1,0 +1,8 @@
+id: KW-view-column.label
+key: "label"
+context: CTX-view-column
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "列の見出し。path・backlinks・value の列では必須です。definition・each の列には書きません。"

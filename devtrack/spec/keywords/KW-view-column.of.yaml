@@ -1,0 +1,9 @@
+id: KW-view-column.of
+key: "of"
+context: CTX-view-column
+order: 6
+status: stable
+forms:
+  - value: "束縛の名前"
+    default: "行の鍵"
+    meaning: "クエリの行だけ。この列の値を取るノード。"

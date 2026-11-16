@@ -1,0 +1,8 @@
+id: KW-appearance-edge.relation
+key: "relation"
+context: CTX-appearance-edge
+order: 1
+status: stable
+forms:
+  - value: "関係の名前"
+    meaning: "当てる関係。"

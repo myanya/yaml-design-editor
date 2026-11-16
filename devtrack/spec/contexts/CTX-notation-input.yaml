@@ -1,0 +1,10 @@
+id: CTX-notation-input
+title: "入力の項目"
+language: view
+description: "記法の入力の項目 1 つ。スキーマの項目定義のうち、形と値の決まりだけを書けます。"
+meta:
+  schema: view
+  path: [definitions, notationInput]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の definitions.notationInput"
+  reader: "workspace-core/workspace/DiagramDefinitions.kt の parse"

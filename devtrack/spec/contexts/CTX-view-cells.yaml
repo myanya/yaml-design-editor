@@ -1,0 +1,10 @@
+id: CTX-view-cells
+title: "セルの集計（cells）"
+language: view
+description: "クロス集計の cells。行の要素を起点に、数える要素を集めます。"
+meta:
+  schema: view
+  path: [root, cells]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.cells"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseMatrixView"

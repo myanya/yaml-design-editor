@@ -1,0 +1,9 @@
+id: KW-dashboard-flow.direction
+key: "direction"
+context: CTX-dashboard-flow
+order: 4
+status: stable
+forms:
+  - value: "right か down"
+    default: "right"
+    meaning: "流れの向き。"

@@ -1,0 +1,9 @@
+id: KW-view-corrections.schemaIds
+key: "schemaIds"
+context: CTX-view-corrections
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "スキーマ ID の配列"
+    meaning: "補正の文書のスキーマ。"

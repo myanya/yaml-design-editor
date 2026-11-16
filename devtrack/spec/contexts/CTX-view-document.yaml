@@ -1,0 +1,10 @@
+id: CTX-view-document
+title: "文書ビュー（kind: document）"
+language: view
+description: "1 つの文書を、区画に分けて見せるビュー。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

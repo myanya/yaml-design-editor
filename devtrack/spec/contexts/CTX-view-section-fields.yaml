@@ -1,0 +1,10 @@
+id: CTX-view-section-fields
+title: "フォームの区画（fields）"
+language: view
+description: "区画の fields。"
+meta:
+  schema: view
+  path: [root, sections, item, fields]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.sections.item.fields"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

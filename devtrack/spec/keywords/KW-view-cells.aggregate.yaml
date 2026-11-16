@@ -1,0 +1,9 @@
+id: KW-view-cells.aggregate
+key: "aggregate"
+context: CTX-view-cells
+order: 7
+status: stable
+forms:
+  - value: "count・sum・min・max のどれか"
+    default: "count"
+    meaning: "集計の種類。"

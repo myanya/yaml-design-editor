@@ -1,0 +1,9 @@
+id: KW-view-section-fields.path
+key: "path"
+context: CTX-view-section-fields
+order: 1
+status: stable
+forms:
+  - value: "パスの文字列"
+    default: "ルート全体"
+    meaning: "フォームにする場所（文書のルートからの相対パス）。in とは一緒に書けません。"

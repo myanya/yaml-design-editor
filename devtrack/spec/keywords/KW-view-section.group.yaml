@@ -1,0 +1,9 @@
+id: KW-view-section.group
+key: "group"
+context: CTX-view-section
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    default: "名前の無い群として先頭に並びます"
+    meaning: "ダッシュボードで、同じ名前の区画を見出し付きでまとめます。"

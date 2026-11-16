@@ -1,0 +1,9 @@
+id: KW-view-section-grid.columns
+key: "columns"
+context: CTX-view-section-grid
+order: 3
+status: stable
+forms:
+  - value: "見出しの配列"
+    default: "表のすべての列"
+    meaning: "見せる列を、この順で並べます。クロス集計の表には書けません。"

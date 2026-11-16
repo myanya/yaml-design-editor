@@ -1,0 +1,8 @@
+id: KW-notation-input.max
+key: "max"
+context: CTX-notation-input
+order: 10
+status: stable
+forms:
+  - value: "数"
+    meaning: "値の上限。"

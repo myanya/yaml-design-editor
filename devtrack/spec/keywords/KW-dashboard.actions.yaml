@@ -1,0 +1,8 @@
+id: KW-dashboard.actions
+key: "actions"
+context: CTX-dashboard
+order: 2
+status: stable
+forms:
+  - value: "操作の ID の配列"
+    meaning: "対象を持たない操作を、表示の順に並べます。"

@@ -1,0 +1,9 @@
+id: KW-lens-filter.level
+key: "level"
+context: CTX-lens-filter
+order: 4
+status: stable
+forms:
+  - value: "entity か type"
+    default: "両方の段"
+    meaning: "効かせる段。"

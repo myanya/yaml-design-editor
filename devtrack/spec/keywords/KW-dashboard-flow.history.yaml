@@ -1,0 +1,8 @@
+id: KW-dashboard-flow.history
+key: "history"
+context: CTX-dashboard-flow
+order: 8
+status: stable
+forms:
+  - value: "{path, date, action, from, to, note}"
+    meaning: "履歴。業務詳細の「流れの中の位置」に出す、対象の要素の配列と行の項目の名前です。"

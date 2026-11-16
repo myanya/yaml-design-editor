@@ -1,0 +1,8 @@
+id: KW-view-document.match
+key: "match"
+context: CTX-view-document
+order: 1
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "このビューを当てる文書。schemaId と両方書くと、両方に合う文書です。"

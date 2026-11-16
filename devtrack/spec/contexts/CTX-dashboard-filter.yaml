@@ -1,0 +1,10 @@
+id: CTX-dashboard-filter
+title: "区画の条件（filter）"
+language: view
+description: "区画の filter。検査 1 件と同じ形のうち、ここに並ぶ語を書けます。"
+meta:
+  schema: view
+  path: [root, sections, item, filter]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.sections.item.filter"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDashboard"

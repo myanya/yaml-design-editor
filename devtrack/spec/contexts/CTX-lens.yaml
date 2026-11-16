@@ -1,0 +1,10 @@
+id: CTX-lens
+title: "グラフレンズの見え方（kind: lens）"
+language: view
+description: "グラフレンズで、関係の線の向き・箱と線の記法・絞り込みを決めます。表示だけで、検証とクエリの向きは変わりません。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensView"

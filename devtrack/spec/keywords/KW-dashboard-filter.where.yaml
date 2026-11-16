@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.where
+key: "where"
+context: CTX-dashboard-filter
+order: 4
+status: stable
+forms:
+  - value: "条件の配列"
+    meaning: "ノードを値で絞る条件。入力の値を $名前 で書けます。"

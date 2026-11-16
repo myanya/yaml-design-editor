@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-history.note
+key: "note"
+context: CTX-dashboard-flow-history
+order: 6
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "note"
+    meaning: "行の補足の項目。"

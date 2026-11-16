@@ -1,0 +1,8 @@
+id: KW-dashboard.flow
+key: "flow"
+context: CTX-dashboard
+order: 6
+status: stable
+forms:
+  - value: "{lifecycle, view, group} か {steps, moves, start, history}"
+    meaning: "業務の流れ。区画を段、操作を工程として流れ図に並べます。"

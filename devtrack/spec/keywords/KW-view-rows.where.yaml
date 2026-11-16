@@ -1,0 +1,8 @@
+id: KW-view-rows.where
+key: "where"
+context: CTX-view-rows
+order: 5
+status: stable
+forms:
+  - value: "条件の配列"
+    meaning: "束縛したノードの値で絞ります。受け取る値を $名前 で書けます。"

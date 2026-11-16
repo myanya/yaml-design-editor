@@ -1,0 +1,8 @@
+id: KW-view-cells.where
+key: "where"
+context: CTX-view-cells
+order: 2
+status: stable
+forms:
+  - value: "条件の配列"
+    meaning: "数える要素を絞る条件。受け取る値を $名前 で書けます。"

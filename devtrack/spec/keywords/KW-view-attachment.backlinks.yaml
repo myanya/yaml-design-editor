@@ -1,0 +1,9 @@
+id: KW-view-attachment.backlinks
+key: "backlinks"
+context: CTX-view-attachment
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "{idPattern, relation, schemaIds, columns}"
+    meaning: "差し込む参照元の条件。"

@@ -1,0 +1,8 @@
+id: KW-view-section-fields.exclude
+key: "exclude"
+context: CTX-view-section-fields
+order: 5
+status: stable
+forms:
+  - value: "キーの配列"
+    meaning: "並べたキーを外します。"

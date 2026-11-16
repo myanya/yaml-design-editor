@@ -1,0 +1,10 @@
+id: CTX-appearance-edge
+title: "線の記法（edges の要素）"
+language: view
+description: "appearance の edges の要素。"
+meta:
+  schema: view
+  path: [root, appearance, edges, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.appearance.edges.item"
+  reader: "workspace-core/workspace/DiagramDefinitions.kt の appearance"

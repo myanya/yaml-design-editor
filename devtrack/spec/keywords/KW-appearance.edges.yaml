@@ -1,0 +1,8 @@
+id: KW-appearance.edges
+key: "edges"
+context: CTX-appearance
+order: 2
+status: stable
+forms:
+  - value: "{relation, notation, inputs} の配列"
+    meaning: "線に当てる記法。"

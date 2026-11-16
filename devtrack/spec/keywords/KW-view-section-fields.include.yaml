@@ -1,0 +1,8 @@
+id: KW-view-section-fields.include
+key: "include"
+context: CTX-view-section-fields
+order: 4
+status: stable
+forms:
+  - value: "キーの配列"
+    meaning: "並べたキーだけを、この順で出します。exclude とは一緒に書けません。"

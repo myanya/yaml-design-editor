@@ -1,0 +1,8 @@
+id: KW-view-cells-columns.value
+key: "value"
+context: CTX-view-cells-columns
+order: 1
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "要素ごとに計算した値で列を広げます。列は、データに現れた値を順序の種類で並べます。"

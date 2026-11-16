@@ -1,0 +1,8 @@
+id: KW-view-section-fields.definition
+key: "definition"
+context: CTX-view-section-fields
+order: 3
+status: stable
+forms:
+  - value: "定義の名前"
+    meaning: "この区画が参照する名前付きの定義。場所の項目が、実際にこの定義を参照しているかを点検します。"

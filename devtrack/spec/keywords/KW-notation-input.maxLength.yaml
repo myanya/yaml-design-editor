@@ -1,0 +1,8 @@
+id: KW-notation-input.maxLength
+key: "maxLength"
+context: CTX-notation-input
+order: 12
+status: stable
+forms:
+  - value: "整数"
+    meaning: "文字数の上限。"

@@ -1,0 +1,8 @@
+id: KW-view-matrix.display
+key: "display"
+context: CTX-view-matrix
+order: 8
+status: stable
+forms:
+  - value: "grouped"
+    meaning: "桁区切りで見せます。画面の見せ方だけです。"

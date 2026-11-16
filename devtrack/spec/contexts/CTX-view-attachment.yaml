@@ -1,0 +1,10 @@
+id: CTX-view-attachment
+title: "差し込み（attachments の要素）"
+language: view
+description: "文書ビューの attachments の要素。"
+meta:
+  schema: view
+  path: [root, attachments, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.attachments.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

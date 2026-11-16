@@ -1,0 +1,8 @@
+id: KW-view-section-fields.in
+key: "in"
+context: CTX-view-section-fields
+order: 2
+status: stable
+forms:
+  - value: "{schemaId, fileGlob}"
+    meaning: "開いた文書のルートの ID について、同じ ID の別の出現を選び、その要素のフォームを出します（編集はその文書へ入ります）。"

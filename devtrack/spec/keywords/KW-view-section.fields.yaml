@@ -1,0 +1,8 @@
+id: KW-view-section.fields
+key: "fields"
+context: CTX-view-section
+order: 6
+status: stable
+forms:
+  - value: "{path, in, definition, include, exclude}"
+    meaning: "文書ビューで、スキーマのフォームを区画に出します。backlinks・grid とは一緒に書けません。"

@@ -1,0 +1,10 @@
+id: CTX-view-common
+title: "ビューに共通の語"
+language: view
+description: "どの種類のビューにも書く語。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseView"

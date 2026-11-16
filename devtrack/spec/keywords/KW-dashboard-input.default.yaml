@@ -1,0 +1,8 @@
+id: KW-dashboard-input.default
+key: "default"
+context: CTX-dashboard-input
+order: 9
+status: stable
+forms:
+  - value: "値か、$today・$monthStart・$monthEnd"
+    meaning: "初期の値。$ の名前は基準日から決めます。複数を選べる入力は、カンマで区切ります。"

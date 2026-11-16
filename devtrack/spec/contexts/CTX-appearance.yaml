@@ -1,0 +1,10 @@
+id: CTX-appearance
+title: "図の見え方（appearance）"
+language: view
+description: "レンズの appearance。"
+meta:
+  schema: view
+  path: [root, appearance]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.appearance"
+  reader: "workspace-core/workspace/DiagramDefinitions.kt の appearance"

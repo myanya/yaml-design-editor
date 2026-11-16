@@ -1,0 +1,10 @@
+id: CTX-appearance-node
+title: "箱の記法（nodes の要素）"
+language: view
+description: "appearance の nodes の要素。"
+meta:
+  schema: view
+  path: [root, appearance, nodes, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.appearance.nodes.item"
+  reader: "workspace-core/workspace/DiagramDefinitions.kt の appearance"

@@ -1,0 +1,9 @@
+id: KW-view-backlinks.idPattern
+key: "idPattern"
+context: CTX-view-backlinks
+order: 1
+status: stable
+forms:
+  - value: "glob の文字列"
+    default: "すべての ID"
+    meaning: "文書の中の、この形に合う ID だけを対象にします。"

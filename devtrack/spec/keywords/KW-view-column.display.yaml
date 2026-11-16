@@ -1,0 +1,8 @@
+id: KW-view-column.display
+key: "display"
+context: CTX-view-column
+order: 8
+status: stable
+forms:
+  - value: "grouped"
+    meaning: "桁区切りで見せます。画面の見せ方だけです。"

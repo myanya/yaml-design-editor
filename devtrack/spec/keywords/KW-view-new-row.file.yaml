@@ -1,0 +1,8 @@
+id: KW-view-new-row.file
+key: "file"
+context: CTX-view-new-row
+order: 1
+status: stable
+forms:
+  - value: "ファイルの場所"
+    meaning: "配列へ足す形。path と組で書き、一覧の文書の中の配列へ新しい要素を足します。"

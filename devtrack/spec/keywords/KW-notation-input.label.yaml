@@ -1,0 +1,8 @@
+id: KW-notation-input.label
+key: "label"
+context: CTX-notation-input
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "表示名。"

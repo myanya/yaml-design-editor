@@ -1,0 +1,10 @@
+id: CTX-view-section-grid
+title: "表の区画（grid）"
+language: view
+description: "区画の grid。"
+meta:
+  schema: view
+  path: [root, sections, item, grid]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.sections.item.grid"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.expect
+key: "expect"
+context: CTX-dashboard-filter
+order: 6
+status: stable
+forms:
+  - value: "exists か absent"
+    meaning: "解があること・無いこと。"

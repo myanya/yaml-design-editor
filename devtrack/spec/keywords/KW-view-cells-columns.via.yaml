@@ -1,0 +1,8 @@
+id: KW-view-cells-columns.via
+key: "via"
+context: CTX-view-cells-columns
+order: 3
+status: stable
+forms:
+  - value: "参照の項目"
+    meaning: "要素の参照先を列にします。"

@@ -1,0 +1,9 @@
+id: KW-lens-keep.depth
+key: "depth"
+context: CTX-lens-keep
+order: 4
+status: stable
+forms:
+  - value: "整数"
+    default: "1"
+    meaning: "たどる段の数。1 は直接つながる相手だけです。"

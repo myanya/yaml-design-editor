@@ -1,0 +1,10 @@
+id: CTX-lens-filter
+title: "絞り込み（filters の要素）"
+language: view
+description: "レンズの filters の要素。ここに無いキーは誤りになります。"
+meta:
+  schema: view
+  path: [root, filters, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.filters.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensFilters"

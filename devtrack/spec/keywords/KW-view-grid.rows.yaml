@@ -1,0 +1,8 @@
+id: KW-view-grid.rows
+key: "rows"
+context: CTX-view-grid
+order: 1
+status: stable
+forms:
+  - value: "{idPattern, schemaIds} か {match, also, where, rowKey, limit}"
+    meaning: "行になるもの。必ず書きます。"

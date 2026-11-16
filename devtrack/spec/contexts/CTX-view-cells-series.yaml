@@ -1,0 +1,10 @@
+id: CTX-view-cells-series
+title: "列ごとの行の鍵（series の要素）"
+language: view
+description: "cells の series の要素。"
+meta:
+  schema: view
+  path: [root, cells, series, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.cells.series.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseSeriesKey"

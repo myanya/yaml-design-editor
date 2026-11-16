@@ -1,0 +1,9 @@
+id: KW-view-rows.limit
+key: "limit"
+context: CTX-view-rows
+order: 7
+status: stable
+forms:
+  - value: "整数"
+    default: "100"
+    meaning: "クエリの行の上限。"

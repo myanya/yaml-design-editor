@@ -1,0 +1,9 @@
+id: KW-view-cells-series.label
+key: "label"
+context: CTX-view-cells-series
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "列の見出し。"

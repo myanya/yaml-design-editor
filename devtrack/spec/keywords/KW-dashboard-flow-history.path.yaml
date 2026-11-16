@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-history.path
+key: "path"
+context: CTX-dashboard-flow-history
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "履歴の配列の場所（対象の要素からの相対パス）。"

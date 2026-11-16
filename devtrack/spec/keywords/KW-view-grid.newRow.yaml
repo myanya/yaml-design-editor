@@ -1,0 +1,8 @@
+id: KW-view-grid.newRow
+key: "newRow"
+context: CTX-view-grid
+order: 6
+status: stable
+forms:
+  - value: "{file, path} か {filePattern}"
+    meaning: "新しい行の入口。一覧の文書の配列へ要素を足すか、新しい文書を作ります。"

@@ -1,0 +1,10 @@
+id: CTX-lens-keep
+title: "つながりで残す（keepIfLinked）"
+language: view
+description: "絞り込みの keepIfLinked。"
+meta:
+  schema: view
+  path: [root, filters, item, keepIfLinked]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.filters.item.keepIfLinked"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensKeep"

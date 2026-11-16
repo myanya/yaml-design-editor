@@ -1,0 +1,10 @@
+id: CTX-view-corrections
+title: "補正を重ねる（corrections）"
+language: view
+description: "グリッドの corrections。"
+meta:
+  schema: view
+  path: [root, corrections]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.corrections"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

@@ -1,0 +1,8 @@
+id: KW-view-matrix.rows
+key: "rows"
+context: CTX-view-matrix
+order: 1
+status: stable
+forms:
+  - value: "{idPattern, schemaIds} か {value, unclassified}"
+    meaning: "行の軸。cells.series を書かないときは必須です。"

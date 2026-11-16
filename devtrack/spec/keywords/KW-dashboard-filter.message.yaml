@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.message
+key: "message"
+context: CTX-dashboard-filter
+order: 10
+status: stable
+forms:
+  - value: "ひな型の文字列"
+    meaning: "文面。"

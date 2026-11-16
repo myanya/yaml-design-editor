@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-move.to
+key: "to"
+context: CTX-dashboard-flow-move
+order: 3
+status: stable
+forms:
+  - value: "区画の ID"
+    default: "段に留まる操作です"
+    meaning: "移る先の段。"

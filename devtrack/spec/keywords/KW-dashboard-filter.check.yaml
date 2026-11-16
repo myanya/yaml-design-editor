@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.check
+key: "check"
+context: CTX-dashboard-filter
+order: 8
+status: stable
+forms:
+  - value: "比較の配列"
+    meaning: "値の比較。"

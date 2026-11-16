@@ -1,0 +1,8 @@
+id: KW-view-section.filter
+key: "filter"
+context: CTX-view-section
+order: 4
+status: stable
+forms:
+  - value: "検査（match と、expect・count・check・forAll のどれか）"
+    meaning: "ダッシュボードの区画に出す行の条件。行の要素を起点に検査を評価し、満たした行を出します。$today は基準日です。"

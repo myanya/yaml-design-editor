@@ -1,0 +1,8 @@
+id: KW-dashboard-input.values
+key: "values"
+context: CTX-dashboard-input
+order: 4
+status: stable
+forms:
+  - value: "値か {value, label} の配列"
+    meaning: "type: enum を直接書いたときの選択肢。"

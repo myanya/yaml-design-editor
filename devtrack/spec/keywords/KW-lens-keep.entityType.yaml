@@ -1,0 +1,9 @@
+id: KW-lens-keep.entityType
+key: "entityType"
+context: CTX-lens-keep
+order: 2
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    default: "すべての型"
+    meaning: "相手の型。"

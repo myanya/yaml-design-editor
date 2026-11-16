@@ -1,0 +1,9 @@
+id: KW-lens-filter.id
+key: "id"
+context: CTX-lens-filter
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "絞り込みの ID。"

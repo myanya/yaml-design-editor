@@ -1,0 +1,9 @@
+id: KW-view-corrections.set
+key: "set"
+context: CTX-view-corrections
+order: 3
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "set"
+    meaning: "補正の要素の中の、置き換える値を書いた object の項目（キーは列の path）。"

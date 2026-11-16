@@ -1,0 +1,9 @@
+id: KW-view-common.name
+key: "name"
+context: CTX-view-common
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    default: "ID を表示します"
+    meaning: "表示名。"

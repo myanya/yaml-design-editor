@@ -1,0 +1,9 @@
+id: KW-view-order.path
+key: "path"
+context: CTX-view-order
+order: 3
+status: stable
+forms:
+  - value: "パスの文字列"
+    default: "出現の文書の中の順"
+    meaning: "並びの基準にする値の場所。"

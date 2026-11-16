@@ -1,0 +1,9 @@
+id: KW-view-order.type
+key: "type"
+context: CTX-view-order
+order: 4
+status: stable
+forms:
+  - value: "number か date"
+    default: "文字の順"
+    meaning: "値の比べ方。"

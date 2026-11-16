@@ -1,0 +1,8 @@
+id: KW-lens.appearance
+key: "appearance"
+context: CTX-lens
+order: 3
+status: stable
+forms:
+  - value: "{nodes, edges}"
+    meaning: "図の見え方。箱と線に当てる記法です。"

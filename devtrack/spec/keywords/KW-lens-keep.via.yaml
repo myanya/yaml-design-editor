@@ -1,0 +1,9 @@
+id: KW-lens-keep.via
+key: "via"
+context: CTX-lens-keep
+order: 1
+status: stable
+forms:
+  - value: "関係の名前の配列"
+    default: "すべての線（参照と保有）"
+    meaning: "たどる線。"

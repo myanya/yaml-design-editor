@@ -1,0 +1,9 @@
+id: KW-view-corrections.target
+key: "target"
+context: CTX-view-corrections
+order: 2
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "target"
+    meaning: "補正の要素の中の、当たり先（行の要素）を指す参照の項目。"

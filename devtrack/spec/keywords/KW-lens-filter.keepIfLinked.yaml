@@ -1,0 +1,8 @@
+id: KW-lens-filter.keepIfLinked
+key: "keepIfLinked"
+context: CTX-lens-filter
+order: 8
+status: stable
+forms:
+  - value: "{via, entityType, where, depth}"
+    meaning: "この絞り込みが隠す箱でも、線でたどって着く相手のどれかが合えば残します。"

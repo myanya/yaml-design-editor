@@ -1,0 +1,8 @@
+id: KW-dashboard-flow.steps
+key: "steps"
+context: CTX-dashboard-flow
+order: 6
+status: stable
+forms:
+  - value: "区画の ID の配列"
+    meaning: "流れに載せる区画を、流れの順に並べます。区画の filter が「その段にいる」の定義です。lifecycle を書かないときは必須です。"

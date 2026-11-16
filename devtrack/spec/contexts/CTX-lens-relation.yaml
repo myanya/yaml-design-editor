@@ -1,0 +1,10 @@
+id: CTX-lens-relation
+title: "関係の見え方（relations の要素）"
+language: view
+description: "レンズの relations の要素。"
+meta:
+  schema: view
+  path: [root, relations, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.relations.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseLensView"

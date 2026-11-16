@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.limit
+key: "limit"
+context: CTX-dashboard-filter
+order: 11
+status: stable
+forms:
+  - value: "整数"
+    meaning: "照合する解の数の上限。"

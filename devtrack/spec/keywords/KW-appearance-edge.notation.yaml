@@ -1,0 +1,9 @@
+id: KW-appearance-edge.notation
+key: "notation"
+context: CTX-appearance-edge
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "記法の ID"
+    meaning: "使う図の記法。"

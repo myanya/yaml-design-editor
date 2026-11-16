@@ -1,0 +1,8 @@
+id: KW-dashboard-flow.moves
+key: "moves"
+context: CTX-dashboard-flow
+order: 7
+status: stable
+forms:
+  - value: "{from, action, to} の配列"
+    meaning: "工程。from の段の対象に操作を当てて、to の段へ移します。"

@@ -1,0 +1,9 @@
+id: KW-appearance-node.notation
+key: "notation"
+context: CTX-appearance-node
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "記法の ID"
+    meaning: "使う図の記法。"

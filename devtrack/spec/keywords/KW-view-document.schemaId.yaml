@@ -1,0 +1,8 @@
+id: KW-view-document.schemaId
+key: "schemaId"
+context: CTX-view-document
+order: 2
+status: stable
+forms:
+  - value: "スキーマ ID"
+    meaning: "このスキーマの文書に当てます。"

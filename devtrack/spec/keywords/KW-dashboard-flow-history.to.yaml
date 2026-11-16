@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-history.to
+key: "to"
+context: CTX-dashboard-flow-history
+order: 5
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "to"
+    meaning: "行の先の段の項目。"

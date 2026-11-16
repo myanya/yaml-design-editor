@@ -1,0 +1,9 @@
+id: KW-lens-relation.arrow
+key: "arrow"
+context: CTX-lens-relation
+order: 2
+status: stable
+forms:
+  - value: "forward か reverse"
+    default: "forward"
+    meaning: "矢印の向き。forward は参照を書いた側から相手へ（文字は label）、reverse は相手から参照を書いた側へ（文字は inverseLabel）です。"

@@ -1,0 +1,8 @@
+id: KW-appearance-node.inputs
+key: "inputs"
+context: CTX-appearance-node
+order: 4
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "記法へ渡す入力を組み立てるひな型。"

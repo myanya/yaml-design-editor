@@ -1,0 +1,9 @@
+id: KW-view-cells.type
+key: "type"
+context: CTX-view-cells
+order: 8
+status: stable
+forms:
+  - value: "number か date"
+    default: "number"
+    meaning: "min・max の比べ方。"

@@ -1,0 +1,8 @@
+id: KW-notation-input-root.fields
+key: "fields"
+context: CTX-notation-input-root
+order: 2
+status: stable
+forms:
+  - value: "入力の項目の配列"
+    meaning: "入力の項目。"

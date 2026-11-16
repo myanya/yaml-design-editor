@@ -1,0 +1,8 @@
+id: KW-view-matrix.order
+key: "order"
+context: CTX-view-matrix
+order: 3
+status: stable
+forms:
+  - value: "{schemaId, fileGlob, path, type, direction}"
+    meaning: "行の並び。"

@@ -1,0 +1,9 @@
+id: KW-view-column-each.bind
+key: "bind"
+context: CTX-view-column-each
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "名前"
+    meaning: "value の式の中で、列の要素の ID を指す名前。"

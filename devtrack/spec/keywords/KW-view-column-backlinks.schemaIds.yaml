@@ -1,0 +1,9 @@
+id: KW-view-column-backlinks.schemaIds
+key: "schemaIds"
+context: CTX-view-column-backlinks
+order: 2
+status: stable
+forms:
+  - value: "スキーマ ID の配列"
+    default: "限りません"
+    meaning: "参照元の文書のスキーマを限ります。"

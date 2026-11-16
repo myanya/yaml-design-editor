@@ -1,0 +1,8 @@
+id: KW-view-cells.also
+key: "also"
+context: CTX-view-cells
+order: 3
+status: stable
+forms:
+  - value: "{from, steps}"
+    meaning: "クエリの分岐。"

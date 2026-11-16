@@ -1,0 +1,8 @@
+id: KW-view-grid.params
+key: "params"
+context: CTX-view-grid
+order: 4
+status: stable
+forms:
+  - value: "名前の配列"
+    meaning: "受け取る値の名前。rows.where に $名前 で書きます。ダッシュボードの inputs から渡り、値が無ければその条件は外れます。"

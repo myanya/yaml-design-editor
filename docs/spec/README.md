@@ -14,5 +14,8 @@
 | [schema-derive.md](schema-derive.md) | 派生スキーマの宣言に書ける語 |
 | [expressions.md](expressions.md) | クエリ（node・edge）・条件（where）・値の比較（check）・値の式に書ける語 |
 | [templates.md](templates.md) | 変換のひな型の指示と、変換定義・生成の定義・レポートの定義に書ける語 |
+| [views.md](views.md) | ビュー（グリッド・クロス集計・文書ビュー）に書ける語 |
+| [dashboards.md](dashboards.md) | ダッシュボード（入力・業務の流れ・区画の条件）に書ける語 |
+| [lens-diagrams.md](lens-diagrams.md) | グラフレンズの見え方と、図の記法に書ける語 |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

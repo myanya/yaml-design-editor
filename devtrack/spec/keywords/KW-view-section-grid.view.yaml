@@ -1,0 +1,9 @@
+id: KW-view-section-grid.view
+key: "view"
+context: CTX-view-section-grid
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ビュー ID"
+    meaning: "置くグリッドかクロス集計のビュー。"

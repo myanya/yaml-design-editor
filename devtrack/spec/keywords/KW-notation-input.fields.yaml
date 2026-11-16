@@ -1,0 +1,8 @@
+id: KW-notation-input.fields
+key: "fields"
+context: CTX-notation-input
+order: 6
+status: stable
+forms:
+  - value: "入力の項目の配列"
+    meaning: "object の子の項目。"

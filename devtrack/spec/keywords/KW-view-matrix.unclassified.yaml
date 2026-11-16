@@ -1,0 +1,9 @@
+id: KW-view-matrix.unclassified
+key: "unclassified"
+context: CTX-view-matrix
+order: 7
+status: stable
+forms:
+  - value: "見出しの文字列か false"
+    default: "（未分類）"
+    meaning: "列の軸に当たらない要素の列の見出し。false で出しません。"

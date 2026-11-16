@@ -1,0 +1,9 @@
+id: KW-view-common.id
+key: "id"
+context: CTX-view-common
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "ビューの ID。ダッシュボードの区画・レポートの $view・文書ビューの区画から指します。"

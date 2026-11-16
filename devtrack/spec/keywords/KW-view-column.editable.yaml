@@ -1,0 +1,9 @@
+id: KW-view-column.editable
+key: "editable"
+context: CTX-view-column
+order: 7
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "一覧の上で編集できる列にします。"

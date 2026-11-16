@@ -1,0 +1,8 @@
+id: KW-view-document.attachments
+key: "attachments"
+context: CTX-view-document
+order: 4
+status: stable
+forms:
+  - value: "{label, at, backlinks} の配列"
+    meaning: "at の形に合う要素のフォームの中に、その要素の ID への参照元の表を差し込みます。"

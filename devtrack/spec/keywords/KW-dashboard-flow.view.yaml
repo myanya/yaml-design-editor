@@ -1,0 +1,8 @@
+id: KW-dashboard-flow.view
+key: "view"
+context: CTX-dashboard-flow
+order: 2
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "lifecycle を書いたときの、段の区画で対象を並べるグリッド。"

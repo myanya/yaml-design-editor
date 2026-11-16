@@ -1,0 +1,8 @@
+id: KW-view-column.backlinks
+key: "backlinks"
+context: CTX-view-column
+order: 11
+status: stable
+forms:
+  - value: "{relation, schemaIds}"
+    meaning: "行の ID への参照元を並べる列にします。path・editable とは一緒に書けません。"

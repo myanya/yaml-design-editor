@@ -1,0 +1,8 @@
+id: KW-view-column-each.order
+key: "order"
+context: CTX-view-column-each
+order: 3
+status: stable
+forms:
+  - value: "{schemaId, fileGlob}"
+    meaning: "列の並びの基準にする出現。"

@@ -1,0 +1,10 @@
+id: CTX-dashboard
+title: "ダッシュボード（kind: dashboard）"
+language: view
+description: "業務の入口。区画ごとに件数と一覧を出し、対象の詳細と操作へ進みます。ここと共通の語のほかのキーは誤りになります。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDashboard"

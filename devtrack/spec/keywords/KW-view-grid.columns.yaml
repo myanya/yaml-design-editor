@@ -1,0 +1,8 @@
+id: KW-view-grid.columns
+key: "columns"
+context: CTX-view-grid
+order: 2
+status: stable
+forms:
+  - value: "列の配列"
+    meaning: "一覧の列。必ず書きます。"

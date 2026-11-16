@@ -1,0 +1,8 @@
+id: KW-notation.target
+key: "target"
+context: CTX-notation
+order: 1
+status: stable
+forms:
+  - value: "node か edge"
+    meaning: "記法の対象（箱か線）。"

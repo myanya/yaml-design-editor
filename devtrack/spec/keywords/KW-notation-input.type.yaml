@@ -1,0 +1,8 @@
+id: KW-notation-input.type
+key: "type"
+context: CTX-notation-input
+order: 3
+status: stable
+forms:
+  - value: "string・int・number・boolean・enum・array・map・object・any のどれか"
+    meaning: "項目の型。"

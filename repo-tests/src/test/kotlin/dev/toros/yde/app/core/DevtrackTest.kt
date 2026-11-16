@@ -73,6 +73,7 @@ class DevtrackTest {
             "schema-checks-md" to "docs/spec/schema-checks.md", "schema-derive-md" to "docs/spec/schema-derive.md",
             "expressions-md" to "docs/spec/expressions.md",
             "templates-md" to "docs/spec/templates.md",
+            "views-md" to "docs/spec/views.md", "dashboards-md" to "docs/spec/dashboards.md", "lens-diagrams-md" to "docs/spec/lens-diagrams.md",
         )
             .filter { (report, target) -> Path.of(target).readText() != render(ws, report) }
             .values

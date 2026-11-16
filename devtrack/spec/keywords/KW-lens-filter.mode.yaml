@@ -1,0 +1,9 @@
+id: KW-lens-filter.mode
+key: "mode"
+context: CTX-lens-filter
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "hide か show"
+    meaning: "合う箱を隠す（hide）か、合う箱だけを残す（show）か。show では、値が無くて決められない箱も隠します。"

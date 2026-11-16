@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-history.action
+key: "action"
+context: CTX-dashboard-flow-history
+order: 3
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "action"
+    meaning: "行の操作の項目。"

@@ -1,0 +1,9 @@
+id: KW-lens-filter.entityType
+key: "entityType"
+context: CTX-lens-filter
+order: 5
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    default: "すべての型"
+    meaning: "効かせる型。対象の外の箱には効きません。"

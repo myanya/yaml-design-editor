@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.count
+key: "count"
+context: CTX-dashboard-filter
+order: 7
+status: stable
+forms:
+  - value: "{min, max}"
+    meaning: "解の件数の範囲。"

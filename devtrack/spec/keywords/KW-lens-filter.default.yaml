@@ -1,0 +1,9 @@
+id: KW-lens-filter.default
+key: "default"
+context: CTX-lens-filter
+order: 7
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "初めから入れておきます。"

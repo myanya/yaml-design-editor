@@ -1,0 +1,9 @@
+id: KW-view-backlinks.columns
+key: "columns"
+context: CTX-view-backlinks
+order: 4
+status: stable
+forms:
+  - value: "{label, path} の配列"
+    default: "ID とタイトルの要約だけ"
+    meaning: "参照元の要素から出す値の列。"

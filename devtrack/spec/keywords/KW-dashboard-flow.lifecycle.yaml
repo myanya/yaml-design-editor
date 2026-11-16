@@ -1,0 +1,8 @@
+id: KW-dashboard-flow.lifecycle
+key: "lifecycle"
+context: CTX-dashboard-flow
+order: 1
+status: stable
+forms:
+  - value: "Lifecycle の ID"
+    meaning: "この Lifecycle から流れを作ります。段は State、工程は操作による遷移です。"

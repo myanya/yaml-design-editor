@@ -1,0 +1,10 @@
+id: CTX-view-grid
+title: "グリッド（kind: grid）"
+language: view
+description: "複数の文書を横断する表。行は論理 ID か、クエリの解です。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

@@ -1,0 +1,10 @@
+id: CTX-view-column-each
+title: "要素ごとの列（each）"
+language: view
+description: "列の each。"
+meta:
+  schema: view
+  path: [root, columns, item, each]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.columns.item.each"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

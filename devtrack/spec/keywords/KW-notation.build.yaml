@@ -1,0 +1,8 @@
+id: KW-notation.build
+key: "build"
+context: CTX-notation
+order: 3
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "表示の部品を組み立てるひな型。"

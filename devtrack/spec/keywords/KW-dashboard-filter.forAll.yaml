@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.forAll
+key: "forAll"
+context: CTX-dashboard-filter
+order: 9
+status: stable
+forms:
+  - value: "{node, from, steps}"
+    meaning: "もう 1 つの集まりのすべての要素について、解があること。"

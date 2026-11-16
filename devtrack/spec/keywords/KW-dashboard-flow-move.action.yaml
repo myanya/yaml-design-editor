@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-move.action
+key: "action"
+context: CTX-dashboard-flow-move
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "操作の ID"
+    meaning: "当てる操作。"

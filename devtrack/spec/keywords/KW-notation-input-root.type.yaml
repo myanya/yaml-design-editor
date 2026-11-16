@@ -1,0 +1,9 @@
+id: KW-notation-input-root.type
+key: "type"
+context: CTX-notation-input-root
+order: 1
+status: stable
+forms:
+  - value: "object"
+    default: "object"
+    meaning: "入力の形。"

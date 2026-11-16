@@ -1,0 +1,10 @@
+id: CTX-view-column
+title: "列（columns の要素）"
+language: view
+description: "グリッドの列 1 つ。path・backlinks・definition・value・each のどれか 1 つで、列の中身を決めます。"
+meta:
+  schema: view
+  path: [root, columns, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.columns.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

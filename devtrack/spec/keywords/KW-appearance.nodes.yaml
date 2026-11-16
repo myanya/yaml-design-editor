@@ -1,0 +1,8 @@
+id: KW-appearance.nodes
+key: "nodes"
+context: CTX-appearance
+order: 1
+status: stable
+forms:
+  - value: "{level, entityType, notation, inputs} の配列"
+    meaning: "箱に当てる記法。"

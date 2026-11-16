@@ -1,0 +1,9 @@
+id: KW-dashboard.placement
+key: "placement"
+context: CTX-dashboard
+order: 4
+status: stable
+forms:
+  - value: "auto・horizontal・vertical のどれか"
+    default: "auto"
+    meaning: "区画のタイル（見出しと件数）の並べ方。"

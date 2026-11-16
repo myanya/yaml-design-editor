@@ -1,0 +1,8 @@
+id: KW-notation-input.unknownFields
+key: "unknownFields"
+context: CTX-notation-input
+order: 14
+status: stable
+forms:
+  - value: "allow・warning・error のどれか"
+    meaning: "入力に無いキーの扱い。"

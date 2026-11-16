@@ -1,0 +1,8 @@
+id: KW-view-cells.in
+key: "in"
+context: CTX-view-cells
+order: 5
+status: stable
+forms:
+  - value: "{schemaId, fileGlob}"
+    meaning: "値を読む文書。"

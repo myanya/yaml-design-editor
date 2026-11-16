@@ -1,0 +1,8 @@
+id: KW-lens.filters
+key: "filters"
+context: CTX-lens
+order: 2
+status: stable
+forms:
+  - value: "絞り込みの配列"
+    meaning: "画面で入れる・外す絞り込み。入れた絞り込みのどれかが隠す箱は隠します（起点は隠しません）。"

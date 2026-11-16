@@ -1,0 +1,9 @@
+id: KW-dashboard-input.multiple
+key: "multiple"
+context: CTX-dashboard-input
+order: 8
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "選択と参照の入力で、複数を選べるようにします。条件は includesAny か oneOf で受けます。"

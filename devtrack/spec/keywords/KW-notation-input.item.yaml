@@ -1,0 +1,8 @@
+id: KW-notation-input.item
+key: "item"
+context: CTX-notation-input
+order: 7
+status: stable
+forms:
+  - value: "入力の項目"
+    meaning: "array の要素。"

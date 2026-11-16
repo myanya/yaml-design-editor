@@ -1,0 +1,10 @@
+id: CTX-view-matrix
+title: "クロス集計（kind: matrix）"
+language: view
+description: "行と列の軸で要素を数える・集計する表。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseMatrixView"

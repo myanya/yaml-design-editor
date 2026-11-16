@@ -141,18 +141,22 @@ class SpecTest {
         val keywords = root.resolve("spec/keywords").listDirectoryEntries("*.yaml").map(::raw).groupBy { it["context"].toString() }
         val contexts = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map(::raw).filter { it["meta"] != null }
         assertTrue(contexts.size >= 20, "メタスキーマの中の場所を書いた位置が読めていること: ${contexts.size}")
-        val differing = contexts.mapNotNull { ctx ->
-            val meta = ctx["meta"] as Map<*, *>
+        // 同じ場所を分け合う位置（ビューの種類ごとの位置が、ビューのメタスキーマの root を分け合う）は、語を合わせて突き合わせる
+        val differing = contexts.groupBy { ctx -> (ctx["meta"] as Map<*, *>).let { "${it["schema"]} ${(it["path"] as List<*>).joinToString(".")}" } }.mapNotNull { (place, sharing) ->
+            val ids = sharing.map { it["id"].toString() }
+            val meta = sharing.first()["meta"] as Map<*, *>
             val fields = metaFields(meta["schema"].toString(), (meta["path"] as List<*>).map(Any?::toString))
             // 分かっているずれ（読み取りは読むが、メタスキーマに無い語）: メタスキーマに足されたら、位置の meta.missing から外す
-            val missing = (meta["missing"] as List<*>?).orEmpty().map(Any?::toString)
+            val missing = sharing.flatMap { ((it["meta"] as Map<*, *>)["missing"] as List<*>?).orEmpty() }.map(Any?::toString)
             val stale = missing.filter { key -> fields.any { it["key"] == key } }
-            if (stale.isNotEmpty()) return@mapNotNull "${ctx["id"]}: meta.missing の $stale は、もうメタスキーマにあります（missing から外す）"
+            if (stale.isNotEmpty()) return@mapNotNull "$ids: meta.missing の $stale は、もうメタスキーマにあります（missing から外す）"
             val metaKeys = fields.associate { it["key"].toString() to (it["required"] == true) } + missing.associateWith { false }
-            val specKeys = keywords[ctx["id"].toString()].orEmpty().associate { kw ->
-                kw["key"].toString() to (kw["forms"] as List<*>).any { (it as Map<*, *>)["required"] == true }
+            val specKeys = ids.flatMap { keywords[it].orEmpty() }.groupBy { it["key"].toString() }.mapValues { (_, same) ->
+                same.any { kw -> (kw["forms"] as List<*>).any { (it as Map<*, *>)["required"] == true } }
             }
-            if (metaKeys == specKeys) null else "${ctx["id"]}: メタスキーマ（キー → 必須）$metaKeys・仕様 $specKeys"
+            if (metaKeys == specKeys) null
+            else "$ids（$place）: メタスキーマにあって仕様に無い ${(metaKeys.keys - specKeys.keys).sorted()}・仕様にあってメタスキーマに無い ${(specKeys.keys - metaKeys.keys).sorted()}・" +
+                "必須が違う ${metaKeys.keys.intersect(specKeys.keys).filter { metaKeys[it] != specKeys[it] }.sorted()}"
         }
         assertTrue(differing.isEmpty(), "語か必須が、仕様とメタスキーマで違います:\n" + differing.joinToString("\n"))
     }

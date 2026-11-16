@@ -1,0 +1,8 @@
+id: KW-dashboard-input.idPatterns
+key: "idPatterns"
+context: CTX-dashboard-input
+order: 6
+status: stable
+forms:
+  - value: "glob の文字列の配列"
+    meaning: "参照先の ID の形（複数）。"

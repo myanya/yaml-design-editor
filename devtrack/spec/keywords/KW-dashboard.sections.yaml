@@ -1,0 +1,8 @@
+id: KW-dashboard.sections
+key: "sections"
+context: CTX-dashboard
+order: 1
+status: stable
+forms:
+  - value: "区画の配列"
+    meaning: "区画。flow.lifecycle を書かないときは 1 つ以上が必要です。"

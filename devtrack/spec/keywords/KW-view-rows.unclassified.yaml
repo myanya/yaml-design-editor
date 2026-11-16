@@ -1,0 +1,9 @@
+id: KW-view-rows.unclassified
+key: "unclassified"
+context: CTX-view-rows
+order: 9
+status: stable
+forms:
+  - value: "見出しの文字列か false"
+    default: "列の unclassified と同じ"
+    meaning: "クロス集計で value と一緒に書きます。値が得られない要素をまとめた行の見出しです。false で出しません。"

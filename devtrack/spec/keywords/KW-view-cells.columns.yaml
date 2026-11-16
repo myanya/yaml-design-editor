@@ -1,0 +1,8 @@
+id: KW-view-cells.columns
+key: "columns"
+context: CTX-view-cells
+order: 10
+status: stable
+forms:
+  - value: "{via, idPattern, schemaIds, order} か {path, values} か {value, label, order}"
+    meaning: "列の軸。要素の参照先（via）・要素の値（path）・式で計算した値（value）のどれかです。"

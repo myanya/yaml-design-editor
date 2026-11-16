@@ -1,0 +1,9 @@
+id: KW-view-cells.of
+key: "of"
+context: CTX-view-cells
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "束縛の名前"
+    meaning: "セルに数える要素。"

@@ -1,0 +1,8 @@
+id: KW-dashboard-flow.group
+key: "group"
+context: CTX-dashboard-flow
+order: 3
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "lifecycle を書いたときの、段の区画の見出しの群。"

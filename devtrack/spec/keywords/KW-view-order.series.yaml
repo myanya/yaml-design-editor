@@ -1,0 +1,9 @@
+id: KW-view-order.series
+key: "series"
+context: CTX-view-order
+order: 6
+status: stable
+forms:
+  - value: "系列の名前"
+    default: "最初の系列"
+    meaning: "チャートだけ。この系列の値の順に項目を並べます。"

@@ -1,0 +1,9 @@
+id: KW-view-cells-columns.label
+key: "label"
+context: CTX-view-cells-columns
+order: 2
+status: stable
+forms:
+  - value: "値の式"
+    default: "値の文字"
+    meaning: "value の列の見出しを計算する式。"

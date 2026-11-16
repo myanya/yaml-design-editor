@@ -1,0 +1,8 @@
+id: KW-dashboard-filter.description
+key: "description"
+context: CTX-dashboard-filter
+order: 2
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

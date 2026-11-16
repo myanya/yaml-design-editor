@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-move.from
+key: "from"
+context: CTX-dashboard-flow-move
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "区画の ID"
+    meaning: "元の段。"

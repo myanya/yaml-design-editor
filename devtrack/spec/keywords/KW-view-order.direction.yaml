@@ -1,0 +1,9 @@
+id: KW-view-order.direction
+key: "direction"
+context: CTX-view-order
+order: 5
+status: stable
+forms:
+  - value: "asc か desc"
+    default: "asc"
+    meaning: "向き。desc は大きい順・新しい順です。値の無い行は、どちらでも後ろです。"

@@ -1,0 +1,8 @@
+id: KW-notation-input.minLength
+key: "minLength"
+context: CTX-notation-input
+order: 11
+status: stable
+forms:
+  - value: "整数"
+    meaning: "文字数の下限。"

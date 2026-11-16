@@ -1,0 +1,10 @@
+id: CTX-view-backlinks
+title: "参照元の一覧（backlinks）"
+language: view
+description: "区画と attachments の backlinks。"
+meta:
+  schema: view
+  path: [definitions, docBacklinks]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の definitions.docBacklinks"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocBacklinks"

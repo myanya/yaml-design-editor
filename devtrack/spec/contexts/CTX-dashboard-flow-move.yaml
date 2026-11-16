@@ -1,0 +1,10 @@
+id: CTX-dashboard-flow-move
+title: "工程（moves の要素）"
+language: view
+description: "flow の moves の要素。"
+meta:
+  schema: view
+  path: [root, flow, moves, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.flow.moves.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseFlow"

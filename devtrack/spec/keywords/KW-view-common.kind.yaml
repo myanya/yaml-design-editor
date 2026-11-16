@@ -1,0 +1,9 @@
+id: KW-view-common.kind
+key: "kind"
+context: CTX-view-common
+order: 4
+status: stable
+forms:
+  - value: "grid・document・matrix・lens・diagram-notation・dashboard のどれか（あとから足せる種類は chart・flow）"
+    default: "grid"
+    meaning: "ビューの種類。"

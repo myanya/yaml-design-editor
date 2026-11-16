@@ -1,0 +1,10 @@
+id: CTX-notation-input-root
+title: "入力の決まり（input）"
+language: view
+description: "記法の input。"
+meta:
+  schema: view
+  path: [root, input]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.input"
+  reader: "workspace-core/workspace/DiagramDefinitions.kt の parse"

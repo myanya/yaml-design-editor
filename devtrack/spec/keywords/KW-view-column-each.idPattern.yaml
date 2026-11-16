@@ -1,0 +1,9 @@
+id: KW-view-column-each.idPattern
+key: "idPattern"
+context: CTX-view-column-each
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "glob の文字列"
+    meaning: "列にする要素の ID の形。"

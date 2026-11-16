@@ -1,0 +1,8 @@
+id: KW-view-column.format
+key: "format"
+context: CTX-view-column
+order: 9
+status: stable
+forms:
+  - value: "DecimalFormat か DateTimeFormatter のパターン"
+    meaning: "画面で見せる形。値は変えません。"

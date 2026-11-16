@@ -1,0 +1,9 @@
+id: KW-view-rows.rowKey
+key: "rowKey"
+context: CTX-view-rows
+order: 6
+status: stable
+forms:
+  - value: "束縛の名前"
+    default: "先頭の bind"
+    meaning: "クエリの行の、行の鍵にするノード。"

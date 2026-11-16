@@ -1,0 +1,10 @@
+id: CTX-view-section
+title: "区画（sections の要素）"
+language: view
+description: "文書ビューとダッシュボードの sections の要素。文書ビューでは label と、fields・backlinks・grid のどれかを書きます。ダッシュボードでは id・label・group・view・filter を書きます。"
+meta:
+  schema: view
+  path: [root, sections, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.sections.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView・parseDashboard"

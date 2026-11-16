@@ -1,0 +1,8 @@
+id: KW-view-grid.corrections
+key: "corrections"
+context: CTX-view-grid
+order: 7
+status: stable
+forms:
+  - value: "{schemaIds, target, set}"
+    meaning: "補正を重ねます。path の列のセルに、補正の文書の置き換える値を重ねて出します（元の文書は変えません）。重ねたセルは読み取り専用です。"

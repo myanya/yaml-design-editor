@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-start.action
+key: "action"
+context: CTX-dashboard-flow-start
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "操作の ID"
+    meaning: "対象を作る操作。"

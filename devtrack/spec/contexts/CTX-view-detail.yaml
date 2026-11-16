@@ -1,0 +1,10 @@
+id: CTX-view-detail
+title: "詳細の文書（detail）"
+language: view
+description: "グリッドの detail。"
+meta:
+  schema: view
+  path: [root, detail]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.detail"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseGridView"

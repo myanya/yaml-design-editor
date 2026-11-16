@@ -1,0 +1,10 @@
+id: CTX-notation
+title: "図の記法（kind: diagram-notation）"
+language: view
+description: "箱か線 1 つの描き方。入力の形を決め、ひな型で表示の部品（box・text・image など）を組み立てます。"
+meta:
+  schema: view
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root"
+  reader: "workspace-core/workspace/DiagramDefinitions.kt の parse"

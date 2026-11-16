@@ -1,0 +1,8 @@
+id: KW-view-section.backlinks
+key: "backlinks"
+context: CTX-view-section
+order: 7
+status: stable
+forms:
+  - value: "{idPattern, relation, schemaIds, columns}"
+    meaning: "文書ビューで、文書の中の ID への参照元を並べます。"

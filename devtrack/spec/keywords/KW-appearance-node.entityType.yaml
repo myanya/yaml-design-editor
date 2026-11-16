@@ -1,0 +1,8 @@
+id: KW-appearance-node.entityType
+key: "entityType"
+context: CTX-appearance-node
+order: 2
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    meaning: "当てる型。"

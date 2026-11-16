@@ -1,0 +1,9 @@
+id: KW-dashboard-filter.match
+key: "match"
+context: CTX-dashboard-filter
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "node と edge を交互に並べた配列"
+    meaning: "クエリ。先頭の node が、区画の行の要素です。"

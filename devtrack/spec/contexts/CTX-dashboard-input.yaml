@@ -1,0 +1,10 @@
+id: CTX-dashboard-input
+title: "入力（inputs の要素）"
+language: view
+description: "ダッシュボードの inputs の要素。"
+meta:
+  schema: view
+  path: [root, inputs, item]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.inputs.item"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseInputs"

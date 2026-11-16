@@ -1,0 +1,9 @@
+id: KW-lens-relation.name
+key: "name"
+context: CTX-lens-relation
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "関係の名前"
+    meaning: "関係レジストリの関係の名前か、参照の項目の relation。"

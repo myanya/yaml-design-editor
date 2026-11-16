@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-history.from
+key: "from"
+context: CTX-dashboard-flow-history
+order: 4
+status: stable
+forms:
+  - value: "項目のキー"
+    default: "from"
+    meaning: "行の元の段の項目。"

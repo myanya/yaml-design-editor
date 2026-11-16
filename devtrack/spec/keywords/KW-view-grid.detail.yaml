@@ -1,0 +1,8 @@
+id: KW-view-grid.detail
+key: "detail"
+context: CTX-view-grid
+order: 5
+status: stable
+forms:
+  - value: "{schemaId, fileGlob, filePattern}"
+    meaning: "詳細の文書。行の ID の詳細と見なす出現と、「作成」の作り先です。"

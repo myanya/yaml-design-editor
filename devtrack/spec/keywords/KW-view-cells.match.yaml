@@ -1,0 +1,8 @@
+id: KW-view-cells.match
+key: "match"
+context: CTX-view-cells
+order: 1
+status: stable
+forms:
+  - value: "node と edge を交互に並べた配列"
+    meaning: "行の要素を起点に、セルに数える要素までたどるクエリ。"

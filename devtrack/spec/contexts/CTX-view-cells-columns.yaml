@@ -1,0 +1,10 @@
+id: CTX-view-cells-columns
+title: "列の軸（cells の columns）"
+language: view
+description: "cells の columns。"
+meta:
+  schema: view
+  path: [root, cells, columns]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.cells.columns"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseMatrixKey"

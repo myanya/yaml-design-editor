@@ -1,0 +1,8 @@
+id: KW-appearance-edge.inputs
+key: "inputs"
+context: CTX-appearance-edge
+order: 3
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "記法へ渡す入力を組み立てるひな型。"

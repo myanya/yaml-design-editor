@@ -1,0 +1,9 @@
+id: KW-lens-filter.where
+key: "where"
+context: CTX-lens-filter
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "条件か、条件の配列"
+    meaning: "箱の条件。変換の $when と同じ書き方で、箱の材料（id・title・entityType・data）を読みます。"

@@ -1,0 +1,8 @@
+id: KW-lens.relations
+key: "relations"
+context: CTX-lens
+order: 1
+status: stable
+forms:
+  - value: "{name, arrow} の配列"
+    meaning: "関係ごとの見え方。"

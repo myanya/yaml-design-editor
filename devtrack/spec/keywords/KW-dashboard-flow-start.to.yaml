@@ -1,0 +1,9 @@
+id: KW-dashboard-flow-start.to
+key: "to"
+context: CTX-dashboard-flow-start
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "区画の ID"
+    meaning: "作った対象が入る段。"

@@ -1,0 +1,8 @@
+id: KW-notation.input
+key: "input"
+context: CTX-notation
+order: 2
+status: stable
+forms:
+  - value: "{type, fields}"
+    meaning: "入力の決まり。記法が受け取る値の形です。"
