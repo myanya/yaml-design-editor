@@ -1,4 +1,4 @@
-# 生成用: docs/spec/examples.md（レポート examples-md）の例。ID の順
+# 生成用: docs/spec/examples-分野.md（分野ごとのレポート examples-分野-md）の例。ID の順
 id: doc-examples
 name: 生成用：例
 rows:
@@ -6,6 +6,7 @@ rows:
   schemaIds: [spec-example]
 columns:
   - { label: 題, schemaId: spec-example, path: title }
+  - { label: 分野, schemaId: spec-example, path: area }
   - { label: 示す仕様, schemaId: spec-example, path: illustrates }
   - { label: ファイル, schemaId: spec-example, path: files }
   - { label: 結果, schemaId: spec-example, path: expect.result }

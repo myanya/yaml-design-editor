@@ -1,5 +1,6 @@
 id: EX-field-ref-unresolved
 title: "参照先の ID が無い参照は、検証の指摘になる"
+area: schema
 illustrates: [CTX-field]
 files:
   - path: ".yde/schemas/task.yaml"

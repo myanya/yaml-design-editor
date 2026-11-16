@@ -1,0 +1,40 @@
+id: EX-constraint-use-function
+title: "検査の定義（functions）は、use と with で名前を指定して使う"
+area: checks
+illustrates: [CTX-check-function, KW-constraint.use, KW-constraint.with]
+files:
+  - path: ".yde/schemas/common.yaml"
+    text: |-
+      id: common
+      kind: library
+      functions:
+        - id: has-title
+          params: [type, level]
+          checks:
+            - id: has-title
+              match:
+                - node: { entity: $type, bind: x }
+              where:
+                - { of: x, path: title, empty: true }
+              expect: absent
+              level: $level
+              message: "{id} に題がありません"
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+      constraints:
+        - use: has-title
+          with: { type: req, level: error }
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+expect:
+  result: error
+  message: "REQ-1 に題がありません"

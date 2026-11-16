@@ -35,6 +35,14 @@ definitions:
     scope:
       schemaIds: [spec-context, spec-keyword]
     relation: illustrates
+  例の分野:
+    type: enum
+    values:
+      - { value: schema, label: スキーマ }
+      - { value: checks, label: 検査と振る舞い }
+      - { value: views, label: ビューと値の式 }
+      - { value: templates, label: 変換のひな型とレポート }
+      - { value: actions, label: 操作 }
   例の結果:
     type: enum
     values:
@@ -236,6 +244,7 @@ definitions:
     fields:
       - { key: id, label: ID, type: 例ID, required: true }
       - { key: title, label: 何を示すか, type: common#一行の文, required: true, role: title }
+      - { key: area, label: 分野, type: 例の分野, required: true, description: 参照文書を分ける分野（docs/spec/examples-分野.md）。 }
       - key: illustrates
         label: 示す仕様
         type: array

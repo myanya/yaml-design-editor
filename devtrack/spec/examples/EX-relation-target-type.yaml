@@ -1,0 +1,46 @@
+id: EX-relation-target-type
+title: "関係の target を宣言すると、参照先の型が違う参照は指摘になる"
+area: checks
+illustrates: [KW-relation.target, KW-relation.source]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+  - path: ".yde/schemas/test.yaml"
+    text: |-
+      id: test
+      match: "tests/*.yaml"
+      entity: { type: test, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: covers, type: ref, relation: covers }
+  - path: ".yde/schemas/relations.yaml"
+    text: |-
+      id: relations
+      kind: relations
+      relations:
+        - { name: covers, source: [test], target: [req], level: error }
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+      title: ログインできる
+  - path: "tests/a.yaml"
+    text: |-
+      id: TEST-1
+      covers: REQ-1
+  - path: "tests/b.yaml"
+    text: |-
+      id: TEST-2
+      covers: TEST-1
+expect:
+  result: error
+  message: "宣言（target: req）に一致しません"

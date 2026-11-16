@@ -1,5 +1,6 @@
 id: EX-action-require-fails
 title: "前提（require）を満たさないと、操作は断られる"
+area: actions
 illustrates: [KW-action.require]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,5 +1,6 @@
 id: EX-expr-aggregate-array
 title: "パスの [*] は配列を返し、集計は配列を受け取る"
+area: views
 illustrates: [KW-expr.max, KW-expr.count, KW-expr.path, KW-expr.type]
 files:
   - path: ".yde/schemas/task.yaml"

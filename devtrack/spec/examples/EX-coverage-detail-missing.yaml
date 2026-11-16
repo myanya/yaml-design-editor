@@ -1,0 +1,44 @@
+id: EX-coverage-detail-missing
+title: "coverage は、ID が詳細のスキーマの文書にも書かれていることを求める"
+area: checks
+illustrates: [CTX-coverage, CTX-coverage-detail, KW-schema.coverage]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+      coverage:
+        - id: req-has-detail
+          idPattern: "REQ-*"
+          detailIn: { schemaIds: [req-detail] }
+          level: error
+  - path: ".yde/schemas/req-detail.yaml"
+    text: |-
+      id: req-detail
+      match: "details/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: body, type: string }
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+      title: ログインできる
+  - path: "reqs/b.yaml"
+    text: |-
+      id: REQ-2
+      title: ログアウトできる
+  - path: "details/a.yaml"
+    text: |-
+      id: REQ-1
+      body: 詳しい説明
+expect:
+  result: error
+  message: "REQ-2"

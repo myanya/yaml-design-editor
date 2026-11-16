@@ -1,5 +1,6 @@
 id: EX-expr-format-short
 title: "{パス} を含む文字列は、format の短い書き方"
+area: views
 illustrates: [KW-expr.format, KW-view-column.value]
 files:
   - path: ".yde/schemas/task.yaml"

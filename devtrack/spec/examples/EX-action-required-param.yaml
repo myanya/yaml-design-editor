@@ -1,5 +1,6 @@
 id: EX-action-required-param
 title: "必須の受け取る値を渡さないと、操作は断られる"
+area: actions
 illustrates: [KW-action.params, KW-field.required]
 files:
   - path: ".yde/schemas/task.yaml"

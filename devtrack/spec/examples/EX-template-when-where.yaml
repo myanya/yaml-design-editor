@@ -1,5 +1,6 @@
 id: EX-template-when-where
 title: "$when は条件に合うときだけ出し、$where はビューの行を絞る"
+area: templates
 illustrates: [KW-template.$when, KW-template.$then, KW-template.$where]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,5 +1,6 @@
 id: EX-schema-root-not-in-library
 title: "root は、文書のスキーマ（kind: document）にだけ書ける"
+area: schema
 illustrates: [KW-schema.root, KW-schema.kind]
 files:
   - path: ".yde/schemas/common.yaml"

@@ -1,5 +1,6 @@
 id: EX-expr-arithmetic
 title: "四則演算は数を計算し、結果の表記をそろえる"
+area: views
 illustrates: [KW-expr.multiply, KW-expr.add, KW-expr.divide]
 files:
   - path: ".yde/schemas/task.yaml"

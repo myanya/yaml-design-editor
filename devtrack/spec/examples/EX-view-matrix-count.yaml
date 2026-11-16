@@ -1,5 +1,6 @@
 id: EX-view-matrix-count
 title: "クロス集計は、行の要素を起点に集めた要素を列の軸ごとに数え、既定では合計の行を出す"
+area: views
 illustrates: [CTX-view-matrix, CTX-view-cells, CTX-view-cells-columns, KW-view-matrix.totals]
 files:
   - path: ".yde/schemas/task.yaml"

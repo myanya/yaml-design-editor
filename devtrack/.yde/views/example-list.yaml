@@ -5,6 +5,7 @@ rows:
   idPattern: "EX-*"
   schemaIds: [spec-example]
 columns:
+  - { label: 分野, schemaId: spec-example, path: area }
   - { label: 示す仕様, schemaId: spec-example, path: illustrates }
   - { label: 結果, schemaId: spec-example, path: expect.result }
   - { label: 文面の一部, schemaId: spec-example, path: expect.message }

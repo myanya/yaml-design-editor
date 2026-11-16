@@ -1,5 +1,6 @@
 id: EX-field-type-narrowing
 title: "型の名前を書くと、型の定義の決まりを引き継ぐ"
+area: schema
 illustrates: [KW-field.type, KW-schema.definitions]
 files:
   - path: ".yde/schemas/task.yaml"

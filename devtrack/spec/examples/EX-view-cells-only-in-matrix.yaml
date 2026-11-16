@@ -1,5 +1,6 @@
 id: EX-view-cells-only-in-matrix
 title: "cells は、クロス集計（kind: matrix）にだけ書ける"
+area: views
 illustrates: [KW-view-matrix.cells, CTX-view-grid]
 files:
   - path: ".yde/schemas/task.yaml"

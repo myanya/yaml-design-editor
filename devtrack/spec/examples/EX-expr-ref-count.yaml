@@ -1,5 +1,6 @@
 id: EX-expr-ref-count
 title: "refCount は、出ていく・入ってくる参照の本数を数える"
+area: views
 illustrates: [KW-expr.refCount]
 files:
   - path: ".yde/schemas/task.yaml"

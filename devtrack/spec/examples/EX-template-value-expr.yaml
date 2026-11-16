@@ -1,5 +1,6 @@
 id: EX-template-value-expr
 title: "$value は、値の式をいまの場所で計算する"
+area: templates
 illustrates: [KW-template.$value, CTX-expr]
 files:
   - path: ".yde/schemas/task.yaml"

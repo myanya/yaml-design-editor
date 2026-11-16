@@ -1,5 +1,6 @@
 id: EX-action-delete
 title: "delete は値を消す"
+area: actions
 illustrates: [KW-action.do]
 files:
   - path: ".yde/schemas/task.yaml"

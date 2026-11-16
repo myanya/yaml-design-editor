@@ -1,5 +1,6 @@
 id: EX-action-create-numbering
 title: "create は文書を作り、id の決まりで採番する（同じ接頭辞の最大の番号の次）"
+area: actions
 illustrates: [KW-action.do, KW-schema.filePattern]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,5 +1,6 @@
 id: EX-template-params-loop
 title: "受け取る値は $名前 で読み、繰り返しの中では $position が使える"
+area: templates
 illustrates: [KW-report.params, CTX-template]
 files:
   - path: ".yde/schemas/task.yaml"

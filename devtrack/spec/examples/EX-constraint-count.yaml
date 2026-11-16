@@ -1,0 +1,49 @@
+id: EX-constraint-count
+title: "検査の count は、起点ごとの解の件数が範囲に入ることを求める"
+area: checks
+illustrates: [KW-constraint.count, CTX-constraint-count]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+      constraints:
+        - id: at-most-one-test
+          match:
+            - node: { entity: req, bind: r }
+            - edge: { relation: covers, dir: in }
+            - node: { entity: test, bind: t }
+          count: { max: 1 }
+          level: error
+          message: "要件 {id} を確かめる試験が {count} 件あります"
+  - path: ".yde/schemas/test.yaml"
+    text: |-
+      id: test
+      match: "tests/*.yaml"
+      entity: { type: test, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: covers, type: ref, relation: covers }
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+      title: ログインできる
+  - path: "tests/a.yaml"
+    text: |-
+      id: TEST-1
+      covers: REQ-1
+  - path: "tests/b.yaml"
+    text: |-
+      id: TEST-2
+      covers: REQ-1
+expect:
+  result: error
+  message: "要件 REQ-1 を確かめる試験が 2 件あります"

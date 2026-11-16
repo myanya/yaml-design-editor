@@ -1,5 +1,6 @@
 id: EX-template-format-missing
 title: "$format は、埋まらない穴があると「無い」になり、マップのキーごと落ちる"
+area: templates
 illustrates: [KW-template.$format, KW-template.$first]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,5 +1,6 @@
 id: EX-template-rules-apply
 title: "rules は名前を付けた組み立てで、同じ名前は上から when を調べて最初に合ったものを使う"
+area: templates
 illustrates: [CTX-template-rule, KW-template.$apply]
 files:
   - path: ".yde/schemas/task.yaml"

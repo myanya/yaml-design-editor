@@ -1,5 +1,6 @@
 id: EX-template-view-each
 title: "レポートは $view でビューの行を受け取り、ひな形の繰り返しで並べる"
+area: templates
 illustrates: [CTX-report, KW-template.$view, KW-template.$each, KW-template.$build, KW-template.$copy]
 files:
   - path: ".yde/schemas/task.yaml"

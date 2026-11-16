@@ -1,5 +1,6 @@
 id: EX-condition-oneof-order
 title: "条件の oneOf と、順序の比較（項目の型で比べる）"
+area: views
 illustrates: [KW-condition.oneOf, KW-condition.gte, KW-condition.exists]
 files:
   - path: ".yde/schemas/task.yaml"

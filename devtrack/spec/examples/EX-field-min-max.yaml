@@ -1,5 +1,6 @@
 id: EX-field-min-max
 title: "min・max の範囲の外の数はエラーになる"
+area: schema
 illustrates: [KW-field.min, KW-field.max]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,0 +1,46 @@
+id: EX-constraint-expect-absent
+title: "検査の expect: absent は、クエリの解があると違反になる"
+area: checks
+illustrates: [KW-constraint.expect, KW-constraint.match, KW-constraint.where, KW-constraint.message]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+  - path: ".yde/schemas/test.yaml"
+    text: |-
+      id: test
+      match: "tests/*.yaml"
+      entity: { type: test, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: covers, type: ref, relation: covers }
+      constraints:
+        - id: no-self-check
+          match:
+            - node: { entity: test, bind: t }
+            - edge: { relation: covers }
+            - node: { entity: req, bind: r }
+          where:
+            - { of: r, path: title, empty: true }
+          expect: absent
+          level: error
+          message: "試験 {id} が、題の無い要件 {r.id} を確かめています"
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+  - path: "tests/a.yaml"
+    text: |-
+      id: TEST-1
+      covers: REQ-1
+expect:
+  result: error
+  message: "試験 TEST-1 が、題の無い要件 REQ-1 を確かめています"

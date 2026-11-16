@@ -1,5 +1,6 @@
 id: EX-method-call
 title: "型の操作（methods）は、その object の要素を受け手にする。アクションの call から呼べる"
+area: actions
 illustrates: [CTX-method, KW-field.methods, KW-action.do]
 files:
   - path: ".yde/schemas/task.yaml"

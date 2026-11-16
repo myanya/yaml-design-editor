@@ -1,5 +1,6 @@
 id: EX-action-insert-numbering
 title: "insert は配列へ足し、配列の追加の決まり（methods.insert）で採番する。同じ鍵の要素があれば足さない"
+area: actions
 illustrates: [CTX-insert-rule, CTX-id-numbering, KW-field.methods]
 files:
   - path: ".yde/schemas/task.yaml"

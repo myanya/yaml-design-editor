@@ -1,0 +1,52 @@
+id: EX-relation-cardinality-in-min
+title: "多重度の inMin は、参照先の要素へ入ってくる参照の本数の下限"
+area: checks
+illustrates: [CTX-cardinality, KW-relation.cardinality, KW-relation.level]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+  - path: ".yde/schemas/test.yaml"
+    text: |-
+      id: test
+      match: "tests/*.yaml"
+      entity: { type: test, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: covers, type: ref, relation: covers }
+  - path: ".yde/schemas/relations.yaml"
+    text: |-
+      id: relations
+      kind: relations
+      relations:
+        - name: covers
+          label: 確かめる要件
+          inverseLabel: 確かめる試験
+          source: [test]
+          target: [req]
+          cardinality: { inMin: 1 }
+          level: error
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+      title: ログインできる
+  - path: "reqs/b.yaml"
+    text: |-
+      id: REQ-2
+      title: ログアウトできる
+  - path: "tests/a.yaml"
+    text: |-
+      id: TEST-1
+      covers: REQ-1
+expect:
+  result: error
+  message: "REQ-2"

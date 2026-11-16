@@ -34,7 +34,7 @@ val devtrackReports = mapOf(
     "templates-md" to "docs/spec/templates.md",
     "views-md" to "docs/spec/views.md", "dashboards-md" to "docs/spec/dashboards.md", "lens-diagrams-md" to "docs/spec/lens-diagrams.md",
     "agents-md" to "docs/spec/agents.md", "skills-md" to "docs/spec/skills.md", "workspace-config-md" to "docs/spec/workspace-config.md",
-    "charts-flows-md" to "docs/spec/charts-flows.md", "examples-md" to "docs/spec/examples.md",   // 仕様の参照文書（devtrack/spec/）
+    "charts-flows-md" to "docs/spec/charts-flows.md", "examples-schema-md" to "docs/spec/examples-schema.md", "examples-checks-md" to "docs/spec/examples-checks.md", "examples-views-md" to "docs/spec/examples-views.md", "examples-templates-md" to "docs/spec/examples-templates.md", "examples-actions-md" to "docs/spec/examples-actions.md",   // 仕様の参照文書（devtrack/spec/）
 )
 // 書き出す前に devtrack を検証する。読めない文書や検証のエラーがあれば止め、生成物を書かない
 // （読めない文書は索引から抜けるので、そのまま書くと生成物から黙って消える。BACKLOG UX-271）。workspace validate はエラーで終了コード 3

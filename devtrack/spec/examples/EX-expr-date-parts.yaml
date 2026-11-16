@@ -1,5 +1,6 @@
 id: EX-expr-date-parts
 title: "日付の部分を取り出す"
+area: views
 illustrates: [KW-expr.yearMonth, KW-expr.year, KW-expr.weekStart]
 files:
   - path: ".yde/schemas/task.yaml"

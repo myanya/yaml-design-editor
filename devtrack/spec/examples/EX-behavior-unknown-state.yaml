@@ -1,0 +1,42 @@
+id: EX-behavior-unknown-state
+title: "Lifecycle が宣言していない State を指すと、読み込みの点検で誤りになる"
+area: checks
+illustrates: [KW-lifecycle.states, KW-lifecycle-transition.to]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: status, type: enum, values: [open, closed] }
+      actions:
+        - id: open-task
+          do:
+            - create: { schema: task, params: { status: open } }
+        - id: close-task
+          target: { entity: task }
+          do:
+            - set: { path: status, value: closed }
+  - path: ".yde/schemas/behavior.yaml"
+    text: |-
+      id: task-behavior
+      kind: behavior
+      states:
+        - { id: task-open, entity: task, predicate: { match: [ { node: { entity: task, bind: t } } ], where: [ { of: t, path: status, equals: open } ], expect: exists } }
+        - { id: task-closed, entity: task, predicate: { match: [ { node: { entity: task, bind: t } } ], where: [ { of: t, path: status, equals: closed } ], expect: exists } }
+      lifecycles:
+        - id: task-lifecycle
+          entity: task
+          states: [task-open, task-closed]
+          entry:
+            - { to: task-open, by: { action: open-task } }
+          transitions:
+            - { from: task-open, to: task-archived, by: { action: close-task } }
+          termination: { terminal: [task-closed] }
+expect:
+  result: schema-error
+  message: "task-archived"

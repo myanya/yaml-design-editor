@@ -1,5 +1,6 @@
 id: EX-schema-actions-not-in-registry
 title: "actions は、関係レジストリには書けない"
+area: schema
 illustrates: [KW-schema.actions, KW-schema.kind]
 files:
   - path: ".yde/schemas/relations.yaml"

@@ -21,6 +21,10 @@
 | [skills.md](skills.md) | skill（取り込み・書き出し・コードの実行）の定義に書ける語 |
 | [workspace-config.md](workspace-config.md) | ワークスペースの構成（workspace.yaml）と、段の規則・補正に書ける語 |
 | [charts-flows.md](charts-flows.md) | チャートと業務フロー図（あとから足せる種類のビュー）に書ける語 |
-| [examples.md](examples.md) | 仕様の例（小さなワークスペースと、検証したときの結果。テストが実際に確かめている） |
+| [examples-schema.md](examples-schema.md) | 例: スキーマの項目定義と、スキーマ文書の種類ごとの決まりの例（テストが実際に確かめている） |
+| [examples-checks.md](examples-checks.md) | 例: 検査（constraints と組込みの語彙）、関係レジストリ、State と Lifecycle の例（テストが実際に確かめている） |
+| [examples-views.md](examples-views.md) | 例: ビュー（グリッド・クロス集計・ダッシュボード・レンズ）、クエリと条件、値の式の例（テストが実際に確かめている） |
+| [examples-templates.md](examples-templates.md) | 例: 変換のひな型の指示と、レポートの例（テストが実際に確かめている） |
+| [examples-actions.md](examples-actions.md) | 例: 操作（アクションと型の操作）の例（テストが実際に確かめている） |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

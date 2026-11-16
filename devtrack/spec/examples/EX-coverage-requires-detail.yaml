@@ -1,0 +1,21 @@
+id: EX-coverage-requires-detail
+title: "coverage の語彙は、detailIn.schemaIds を必ず書く（語彙の requires）"
+area: checks
+illustrates: [KW-check-vocabulary.requires, KW-coverage-detail.schemaIds]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+      coverage:
+        - id: req-has-detail
+          detailIn: { minCount: 1 }
+expect:
+  result: schema-error
+  message: "detailIn.schemaIds"

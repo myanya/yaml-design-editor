@@ -1,5 +1,6 @@
 id: EX-template-group
 title: "$group は、キーが同じ要素をまとめ、まとまりごとに組み立てる"
+area: templates
 illustrates: [KW-template.$group, KW-template.$by, KW-template.$bind]
 files:
   - path: ".yde/schemas/task.yaml"

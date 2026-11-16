@@ -75,7 +75,7 @@ class DevtrackTest {
             "templates-md" to "docs/spec/templates.md",
             "views-md" to "docs/spec/views.md", "dashboards-md" to "docs/spec/dashboards.md", "lens-diagrams-md" to "docs/spec/lens-diagrams.md",
             "agents-md" to "docs/spec/agents.md", "skills-md" to "docs/spec/skills.md", "workspace-config-md" to "docs/spec/workspace-config.md",
-            "charts-flows-md" to "docs/spec/charts-flows.md", "examples-md" to "docs/spec/examples.md",
+            "charts-flows-md" to "docs/spec/charts-flows.md", "examples-schema-md" to "docs/spec/examples-schema.md", "examples-checks-md" to "docs/spec/examples-checks.md", "examples-views-md" to "docs/spec/examples-views.md", "examples-templates-md" to "docs/spec/examples-templates.md", "examples-actions-md" to "docs/spec/examples-actions.md",
         )
             .filter { (report, target) -> Path.of(target).readText() != render(ws, report) }
             .values

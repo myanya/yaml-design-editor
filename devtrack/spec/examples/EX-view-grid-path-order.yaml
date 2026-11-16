@@ -1,5 +1,6 @@
 id: EX-view-grid-path-order
 title: "グリッドは ID の形で行を選び、order の値の順に並べる"
+area: views
 illustrates: [CTX-view-grid, CTX-view-rows, CTX-view-order, KW-view-column.path]
 files:
   - path: ".yde/schemas/task.yaml"

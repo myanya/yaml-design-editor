@@ -1,5 +1,6 @@
 id: EX-lens-filter-unknown-key
 title: "レンズの絞り込みに、決まった語でないキーは書けない"
+area: views
 illustrates: [CTX-lens-filter]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,5 +1,6 @@
 id: EX-template-concat-flatten
 title: "$concat は配列をつなげ、$flatten は $each の結果を 1 段ならす"
+area: templates
 illustrates: [KW-template.$concat, KW-template.$flatten]
 files:
   - path: ".yde/schemas/task.yaml"

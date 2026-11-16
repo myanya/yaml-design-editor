@@ -1,5 +1,6 @@
 id: EX-expr-all-count
 title: "all はクエリの解から配列を作り、count で件数になる"
+area: views
 illustrates: [KW-expr.all, KW-expr.count, CTX-query-edge]
 files:
   - path: ".yde/schemas/task.yaml"

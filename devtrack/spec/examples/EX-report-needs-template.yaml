@@ -1,5 +1,6 @@
 id: EX-report-needs-template
 title: "レポートには template が必要"
+area: templates
 illustrates: [KW-report.template]
 files:
   - path: ".yde/schemas/task.yaml"

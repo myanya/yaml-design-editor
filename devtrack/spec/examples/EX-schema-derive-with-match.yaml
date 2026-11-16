@@ -1,5 +1,6 @@
 id: EX-schema-derive-with-match
 title: "derive を書いたスキーマに、match は書けない"
+area: schema
 illustrates: [KW-schema.derive, KW-schema.match]
 files:
   - path: ".yde/schemas/record.yaml"

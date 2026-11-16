@@ -1,5 +1,6 @@
 id: EX-template-map-number-date
 title: "$map・$number・$date は、値を置き換え・数として読み・年月日をそろえる"
+area: templates
 illustrates: [KW-template.$map, KW-template.$using, KW-template.$number, KW-template.$date, KW-template.$as]
 files:
   - path: ".yde/schemas/task.yaml"

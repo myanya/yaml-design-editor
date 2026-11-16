@@ -1,5 +1,6 @@
 id: EX-dashboard-unknown-key
 title: "ダッシュボードに、ダッシュボードの語でないキーは書けない"
+area: views
 illustrates: [CTX-dashboard]
 files:
   - path: ".yde/schemas/task.yaml"

@@ -1,5 +1,6 @@
 id: EX-template-trim-case
 title: "$trim は空白をまとめ、$case は名前の書き方をそろえる"
+area: templates
 illustrates: [KW-template.$trim, KW-template.$case]
 files:
   - path: ".yde/schemas/task.yaml"

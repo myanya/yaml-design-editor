@@ -1,5 +1,6 @@
 id: EX-view-grid-needs-columns
 title: "グリッドには columns が必要"
+area: views
 illustrates: [KW-view-grid.columns]
 files:
   - path: ".yde/schemas/task.yaml"

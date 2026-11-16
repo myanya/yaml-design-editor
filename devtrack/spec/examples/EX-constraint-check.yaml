@@ -1,5 +1,6 @@
 id: EX-constraint-check
 title: "型の検査（constraints）は、要素ごとに値の比較を確かめる"
+area: checks
 illustrates: [KW-field.constraints, CTX-comparison, CTX-expr]
 files:
   - path: ".yde/schemas/task.yaml"

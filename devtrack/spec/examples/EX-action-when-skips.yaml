@@ -1,5 +1,6 @@
 id: EX-action-when-skips
 title: "手の when は、条件に合うときだけ当てる（受け取った値を読む）"
+area: actions
 illustrates: [KW-action.do]
 files:
   - path: ".yde/schemas/task.yaml"

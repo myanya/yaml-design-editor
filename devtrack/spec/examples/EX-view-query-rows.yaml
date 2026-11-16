@@ -1,5 +1,6 @@
 id: EX-view-query-rows
 title: "クエリの行は、解が行になり、of でほかの束縛の値を列にする"
+area: views
 illustrates: [KW-view-rows.match, KW-view-rows.where, KW-view-column.of, CTX-query-node, CTX-condition]
 files:
   - path: ".yde/schemas/task.yaml"

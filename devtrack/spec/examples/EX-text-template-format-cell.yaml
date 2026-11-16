@@ -1,5 +1,6 @@
 id: EX-text-template-format-cell
 title: "ひな形の穴は、形と表のセルの書き方を添えられる"
+area: templates
 illustrates: [KW-report.template]
 files:
   - path: ".yde/schemas/task.yaml"

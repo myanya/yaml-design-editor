@@ -1,0 +1,32 @@
+id: EX-relation-acyclic
+title: "acyclic の関係で循環を作ると、いつもエラーになる"
+area: checks
+illustrates: [KW-relation.acyclic]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: after, type: ref, relation: after }
+  - path: ".yde/schemas/relations.yaml"
+    text: |-
+      id: relations
+      kind: relations
+      relations:
+        - { name: after, acyclic: true }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      after: TASK-2
+  - path: "tasks/b.yaml"
+    text: |-
+      id: TASK-2
+      after: TASK-1
+expect:
+  result: error
+  message: "TASK-1"

@@ -1,9 +1,11 @@
-id: examples-md
-name: 仕様の例（docs/spec/examples.md）
-description: 仕様の例から docs/spec/examples.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+id: examples-views-md
+name: "仕様の例: ビューと値の式（docs/spec/examples-views.md）"
+description: "仕様の例（分野「ビューと値の式」）から docs/spec/examples-views.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。"
 build:
+  title: "ビューと値の式"
+  lead: "ビュー（グリッド・クロス集計・ダッシュボード・レンズ）、クエリと条件、値の式の例"
   examples:
-    $each: { $view: doc-examples }
+    $each: { $view: doc-examples, $where: [ { path: values.分野, equals: views } ] }
     $build:
       id: { $copy: id }
       title: { $copy: values.題 }

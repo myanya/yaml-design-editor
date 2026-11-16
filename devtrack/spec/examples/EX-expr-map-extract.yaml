@@ -1,5 +1,6 @@
 id: EX-expr-map-extract
 title: "辞書での置き換えと、文字の一部の取り出し"
+area: views
 illustrates: [KW-expr.map, KW-expr.using, KW-expr.extract]
 files:
   - path: ".yde/schemas/task.yaml"
