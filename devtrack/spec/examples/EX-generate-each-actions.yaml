@@ -1,0 +1,50 @@
+id: EX-generate-each-actions
+title: "生成の定義は、業務モデルの並びの要素ごとに 1 文書を作る"
+area: generation
+illustrates: [CTX-generator, KW-generator.each, KW-generator.output, KW-generator.build]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, done] }
+      actions:
+        - id: finish-task
+          label: 完了にする
+          target: { entity: task }
+          do:
+            - set: { path: status, value: done }
+        - id: reopen-task
+          label: やり直す
+          target: { entity: task }
+          do:
+            - set: { path: status, value: todo }
+  - path: ".yde/transforms/actions.yaml"
+    text: |-
+      id: action-specs
+      each: actions
+      output: "design/actions/{id}.yaml"
+      build:
+        id: { $copy: id }
+        name: { $copy: label }
+        method: { $case: { $copy: id }, $as: camel }
+expect:
+  result: ok
+  generate:
+    files:
+      - path: "design/actions/finish-task.yaml"
+        text: |-
+          id: finish-task
+          name: 完了にする
+          method: finishTask
+      - path: "design/actions/reopen-task.yaml"
+        text: |-
+          id: reopen-task
+          name: やり直す
+          method: reopenTask

@@ -14,3 +14,4 @@ columns:
   - { label: ビュー, schemaId: spec-example, path: expect.view }
   - { label: レポート, schemaId: spec-example, path: expect.report }
   - { label: 操作, schemaId: spec-example, path: expect.action }
+  - { label: 生成, schemaId: spec-example, path: expect.generate }

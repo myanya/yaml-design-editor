@@ -1,0 +1,62 @@
+id: EX-stage-patch-where
+title: "段の補正は、個別の要素を選んで変える"
+area: generation
+illustrates: [KW-stage.kind, KW-stage-change.where, KW-stage-change.set]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, done] }
+      actions:
+        - id: finish-task
+          label: 完了にする
+          target: { entity: task }
+          do:
+            - set: { path: status, value: done }
+        - id: reopen-task
+          label: やり直す
+          target: { entity: task }
+          do:
+            - set: { path: status, value: todo }
+  - path: ".yde/workspace.yaml"
+    text: |-
+      stages:
+        - { id: basic, name: 基本設計 }
+  - path: ".yde/stages/rename.yaml"
+    text: |-
+      id: rename
+      stage: basic
+      kind: patch
+      changes:
+        - each: actions
+          where: [ { path: id, equals: reopen-task } ]
+          set: { label: 差し戻す }
+  - path: ".yde/transforms/actions.yaml"
+    text: |-
+      id: action-specs
+      stage: basic
+      each: actions
+      output: "design/actions/{id}.yaml"
+      build:
+        id: { $copy: id }
+        name: { $copy: label }
+        audited: { $copy: audited }
+expect:
+  result: ok
+  generate:
+    files:
+      - path: "design/actions/finish-task.yaml"
+        text: |-
+          id: finish-task
+          name: 完了にする
+      - path: "design/actions/reopen-task.yaml"
+        text: |-
+          id: reopen-task
+          name: 差し戻す

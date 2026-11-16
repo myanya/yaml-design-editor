@@ -1,0 +1,45 @@
+id: EX-stage-unknown
+title: "生成の定義の stage は、workspace.yaml の stages にある段を指す"
+area: generation
+illustrates: [KW-generator.stage, KW-workspace.stages]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, done] }
+      actions:
+        - id: finish-task
+          label: 完了にする
+          target: { entity: task }
+          do:
+            - set: { path: status, value: done }
+        - id: reopen-task
+          label: やり直す
+          target: { entity: task }
+          do:
+            - set: { path: status, value: todo }
+  - path: ".yde/workspace.yaml"
+    text: |-
+      stages:
+        - { id: basic, name: 基本設計 }
+  - path: ".yde/transforms/actions.yaml"
+    text: |-
+      id: action-specs
+      stage: detail
+      each: actions
+      output: "design/actions/{id}.yaml"
+      build:
+        id: { $copy: id }
+        name: { $copy: label }
+        audited: { $copy: audited }
+expect:
+  result: ok
+  generate:
+    fails: "detail"

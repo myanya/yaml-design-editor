@@ -43,6 +43,7 @@ definitions:
       - { value: views, label: ビューと値の式 }
       - { value: templates, label: 変換のひな型とレポート }
       - { value: actions, label: 操作 }
+      - { value: generation, label: 生成と段 }
   例の結果:
     type: enum
     values:
@@ -292,6 +293,22 @@ definitions:
                 type: array
                 display: list
                 description: 適用のあとの中身（YAML として同じであること。書き方やキーの順は比べません）。確かめたいファイルだけを書きます。
+                item:
+                  type: object
+                  fields:
+                    - { key: path, label: 場所, type: common#一行の文, required: true, role: title }
+                    - { key: text, label: 中身, type: text, required: true, rows: 8 }
+          - key: generate
+            label: 生成の結果
+            type: object
+            description: 結果が「通る」の例で、生成を計画したときの結果。誤りになる例は fails、通る例は作る文書の中身を書きます。
+            fields:
+              - { key: fails, label: 誤りの文面の一部, type: common#一行の文, description: 生成の定義や組み立ての誤りになる例で、誤りの文面に含まれる文字。 }
+              - key: files
+                label: 作る文書
+                type: array
+                display: list
+                description: 作る文書の中身（YAML として同じであること）。確かめたい文書だけを書きます。
                 item:
                   type: object
                   fields:

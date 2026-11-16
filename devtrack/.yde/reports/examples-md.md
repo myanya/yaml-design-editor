@@ -37,6 +37,22 @@
 {/each}
 {/if}
 {/if}
+{#if generate}
+{#if generate.fails}
+生成は誤りになる（文面に「{generate.fails}」を含む）。
+
+{/if}
+{#if generate.files}
+{#each generate.files}
+生成する `{path}`
+
+```yaml
+{text}
+```
+
+{/each}
+{/if}
+{/if}
 {#if report}
 レポート `{report.id}` の出力{#if report.params}（渡す値: {#each report.params}{key}＝{value}{#if more}、{/if}{/each}）{/if}:
 

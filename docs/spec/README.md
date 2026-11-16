@@ -26,5 +26,6 @@
 | [examples-views.md](examples-views.md) | 例: ビュー（グリッド・クロス集計・ダッシュボード・レンズ）、クエリと条件、値の式の例（テストが実際に確かめている） |
 | [examples-templates.md](examples-templates.md) | 例: 変換のひな型の指示と、レポートの例（テストが実際に確かめている） |
 | [examples-actions.md](examples-actions.md) | 例: 操作（アクションと型の操作）の例（テストが実際に確かめている） |
+| [examples-generation.md](examples-generation.md) | 例: 生成の定義（.yde/transforms/）と、段の規則・補正の例（テストが実際に確かめている） |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

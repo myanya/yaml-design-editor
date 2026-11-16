@@ -19,4 +19,5 @@ build:
       view: { $copy: values.ビュー }
       report: { $copy: values.レポート }
       action: { $copy: values.操作 }
+      generate: { $copy: values.生成 }
 template: examples-md.md

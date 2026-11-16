@@ -6,6 +6,9 @@ import dev.toros.yde.workspace.ActionFailure
 import dev.toros.yde.workspace.ActionPlanner
 import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.BuiltinSchemaResources
+import dev.toros.yde.workspace.FileSystemDocumentStore
+import dev.toros.yde.workspace.Generators
+import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.scalarText
@@ -301,6 +304,27 @@ class SpecTest {
         return if (differing.isEmpty()) null else "${example["id"]}: $differing"
     }
 
+    /**
+     * 例の生成を計画して、書いてある結果と突き合わせる。誤りになる例は誤りの文面、通る例は作る文書の中身（YAML として同じであること）。
+     * 同じなら null、違えばその文。
+     */
+    private fun generateDiff(example: Map<*, *>, expected: Map<*, *>, base: Path): String? {
+        val plan = Generators.plan(WorkspaceSession(FileSystemDocumentStore(base.resolve(example["id"].toString()))))
+        val fails = expected["fails"]?.toString()
+        if (plan.errors.isNotEmpty()) return when {
+            fails == null -> "${example["id"]}: 生成が誤りになりました: ${plan.errors}"
+            plan.errors.none { fails in it } -> "${example["id"]}: 誤りの文面に「$fails」がありません: ${plan.errors}"
+            else -> null
+        }
+        if (fails != null) return "${example["id"]}: 生成が誤りになりませんでした（書いてあるのは「$fails」で誤りになること）。作る文書: ${plan.outputs.map { it.document.value }}"
+        val outputs = plan.outputs.associate { it.document.value to it.text }
+        val differing = (expected["files"] as List<*>?).orEmpty().map { it as Map<*, *> }.mapNotNull { file ->
+            val actual = outputs[file["path"].toString()] ?: return@mapNotNull "${file["path"]} を作りません（作る文書: ${outputs.keys}）"
+            if (YamlIO.parseToRaw(actual) == YamlIO.parseToRaw(file["text"].toString())) null else "${file["path"]} の中身は:\n$actual"
+        }
+        return if (differing.isEmpty()) null else "${example["id"]}: $differing"
+    }
+
     @Test
     fun `仕様の例は 開いて検証すると書いてあるとおりの結果になる`() {
         val examples = root.resolve("spec/examples").listDirectoryEntries("*.yaml").map(::raw)
@@ -317,6 +341,7 @@ class SpecTest {
                     else -> (expect["view"] as Map<*, *>?)?.let { viewDiff(example, it, base) }
                         ?: (expect["report"] as Map<*, *>?)?.let { reportDiff(example, it, base) }
                         ?: (expect["action"] as Map<*, *>?)?.let { actionDiff(example, it, base) }
+                        ?: (expect["generate"] as Map<*, *>?)?.let { generateDiff(example, it, base) }
                 }
             }
             assertTrue(differing.isEmpty(), "仕様の例が、書いてあるとおりの結果になりません:\n" + differing.joinToString("\n"))
