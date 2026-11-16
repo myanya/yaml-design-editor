@@ -20,7 +20,7 @@ root:
             label: 当たり先
             type: ref
             required: true
-            idPatterns: ["ENT-*", "FLD-*", "OPS-*"]
+            idPatterns: ["ENT-*", "FLD-*", "OPS-*", "TYP-*", "CRUD-*"]
             description: 置き換える設計項目（基本設計項目一覧の ID）
           - { key: set, label: 置き換える値, type: any, required: true, description: "設計項目の項目のキーと新しい値（例 maxLength: 100）" }
           - { key: reason, label: 理由, type: text, required: true }

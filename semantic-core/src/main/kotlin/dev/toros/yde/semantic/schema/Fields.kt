@@ -358,6 +358,8 @@ data class FieldDef(
      * 型を省いた（＝定義の型のまま狭める）のか、型を書いた（＝定義の型を狭めた型であること）のかを見分けるために持つ。
      */
     val typeGiven: Boolean = true,
+    /** 明記された属性の出どころ。型の合成で根拠を引き継ぐが、値の意味をこの記録から判定しない。 */
+    val declarations: List<FieldDeclaration> = emptyList(),
 ) {
     val label: String? get() = hints.label
     val description: String? get() = hints.description

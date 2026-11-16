@@ -58,8 +58,12 @@ object Stages {
     /** 段の並びの順に、段ごとの規則 → 補正を当てる（セッションを持たない純粋な部分。テストからも使う）。 */
     fun apply(model: YNode, chain: List<DefinitionStage>, defs: List<TermChangeDoc>, errors: MutableList<String> = mutableListOf()): StageTerm {
         var term = model
-        val applied = mutableListOf<Map<String, Any?>>()
-        for (stage in chain) {
+        val applied = ((YamlIO.toAny(model) as? Map<*, *>)?.get("stages") as? List<*>)
+            .orEmpty().mapNotNull { row -> (row as? Map<*, *>)?.entries?.associate { it.key.toString() to it.value } }.toMutableList()
+        if (applied.map { it["id"] } != chain.take(applied.size).map { it.id }) {
+            return StageTerm(model, errors + "入力の適用済みの段が、指定した段の並びの先頭と一致しません")
+        }
+        for (stage in chain.drop(applied.size)) {
             val inStage = defs.filter { it.stage == stage.id }
             val ordered = inStage.filter { it.kind == TermChangeDoc.Kind.RULE } + inStage.filter { it.kind == TermChangeDoc.Kind.PATCH }
             for (doc in ordered) {

@@ -1,0 +1,8 @@
+id: basic-model-types
+name: 基本設計の生成入力（論理型）
+description: 基本補正を重ねた論理型全体。項目固有の指定があるときは後段の変換で優先する
+rows: { idPattern: "TYP-*", schemaIds: [basic-type-list] }
+order: { schemaId: basic-type-list }
+corrections: { schemaIds: [basic-corrections] }
+columns:
+  - { label: record, path: . }

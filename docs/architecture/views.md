@@ -156,7 +156,8 @@
 
 ## 規律
 
-- **補正を重ねるのは見るときだけ**: 表の `corrections` は、解決のときに path の列のセルへ補正の値を出す（`VirtualViews.resolveDetailed` の `correctedCell`）。原本も索引も変えず、重ねたセルは読み取り専用で、来歴に補正の ID と元の値を持つ。生成など、ほかの読み手が補正を読むときも、同じ「当たり先の参照 × 置き換える値」で読み、別の重ね方を作らない。
+- **補正は読み取りの入力に重ねる**: `SemanticCorrections.project` が当たり先の参照と `set` を `TermChanges` へ下ろす。原本を変えない木と、その木の参照・索引を作り、`VirtualViews.resolveDetailed` の path 列・値の式・照合で共有する。補正したセルは読み取り専用で、元の値と補正の座標を来歴に残す。後段の生成も同じビューを読み、別の重ね方を作らない。ID の集合と場所は変えられない。
+- **照合で選ぶ列**: `columns.each.rows` は通常のクエリ行として下ろし、同じ入力と補正後の木で解決する。選んだ要素の ID を列の式に差し込み、解決した行から `columnsOf` で見出しを取る。
 
 - ビュー専用の書込経路を作らない。UI は docCache の木の直接編集、エージェントは `read_view` → `apply_patch`。
 - ビュー定義の型はカーネルの型（`semantic/VirtualViews.kt`）で、app-core の型はその別名。app-core にビュー定義の型や読み取りを書き足さない。

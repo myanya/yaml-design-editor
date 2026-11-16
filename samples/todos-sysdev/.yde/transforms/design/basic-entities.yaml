@@ -36,8 +36,8 @@ build:
                   $with: { s: { $value: { extract: [{ path: "numbering.prefix.$format" }, '\}(.*)$'] } } }
               - { $format: "「{numbering.prefix}」に {numbering.digits} 桁の番号を続ける（使われている番号の次）" }
       documents: { $each: aspects, $build: { $copy: schema } }
-      # 項目一覧: 側面ごとの項目をキーでまとめる（初出順）。型の性質（文字数・形・選択肢・参照先）は論理型（基本設計項目一覧（論理型））にだけ書き、
-      # ここは論理型への参照と、項目そのものの決まり（必須・初期値・自動で入る値・重ならない）だけを持つ
+      # 項目一覧: 側面ごとの項目をキーでまとめる（初出順）。共通の性質は論理型に、項目固有の制限は項目に持つ。
+      # 基底はすべての項目に記録する。型の参照と項目そのものの決まり（必須・初期値・自動・重ならない）も保持する
       items:
         $group: { $apply: fields }
         $by: { $copy: field.key }
@@ -49,11 +49,21 @@ build:
           # 論理型（TYP-…）。名前の無い入れ物（配列・マップ・名前の無い object・入れ子のエンティティ）は型を持たないので、基底の種類と、
           # 要素の論理型か要素のエンティティ（配列・マップ）か、入れ子の項目（名前の無い object）を持つ
           type: { $apply: type-of, $at: "items[0].field" }
-          base: { $apply: base-of, $at: "items[0].field" }
+          base: { $copy: "items[0].field.base" }
+          maxLength: { $copy: "items[0].field.overrides.maxLength" }
+          minLength: { $copy: "items[0].field.overrides.minLength" }
+          pattern: { $copy: "items[0].field.overrides.pattern" }
+          format: { $copy: "items[0].field.overrides.format" }
+          min: { $copy: "items[0].field.overrides.min" }
+          max: { $copy: "items[0].field.overrides.max" }
+          multiline: { $copy: "items[0].field.overrides.multiline" }
+          values: { $copy: "items[0].field.overrides.values" }
+          target: { $when: [{ path: "items[0].field.overrides.target", exists: true }], $then: { $format: "ENT-{t}", $with: { t: { $copy: "items[0].field.overrides.target" } } } }
           entity: { $apply: entity-of, $at: "items[0].field" }
           itemType: { $first: [{ $apply: type-of, $at: "items[0].field.item" }, { $apply: type-of, $at: "items[0].field.value" }] }
           itemEntity: { $first: [{ $apply: entity-of, $at: "items[0].field.item" }, { $apply: entity-of, $at: "items[0].field.value" }] }
           itemBase: { $first: [{ $apply: elem-base, $at: "items[0].field.item" }, { $apply: elem-base, $at: "items[0].field.value" }] }
+          itemOverrides: { $first: [{ $copy: "items[0].field.item.overrides" }, { $copy: "items[0].field.value.overrides" }] }
           required: { $copy: "items[0].field.required" }
           default: { $copy: "items[0].field.default" }
           auto: { $copy: "items[0].field.auto" }
@@ -184,24 +194,16 @@ rules:
   # 名前の無い入れ物（配列・マップ・名前の無い object・入れ子のエンティティ）でなければ、論理型への参照（いまの場所は項目か要素）
   - id: type-of
     when:
-      - { not: { path: base, oneOf: [array, map] } }
+      - { or: [{ not: { path: base, oneOf: [array, map] } }, { path: type, contains: "#" }] }
       - { path: entity, exists: false }
       - { or: [{ path: base, notEquals: object }, { path: type, contains: "#" }] }
     build: { $apply: typ-ref }
-  # 名前の無い入れ物の基底の種類（配列・マップ・object。名前付きの型は論理型に書く）
-  - id: base-of
-    when: [{ path: base, oneOf: [array, map] }]
-    build: { $copy: base }
-  - id: base-of
-    when: [{ path: base, equals: object }, { or: [{ path: entity, exists: true }, { not: { path: type, contains: "#" } }] }]
-    build: object
   # 入れ子のエンティティ（項目か要素が、ID を持つ object）
   - id: entity-of
     when: [{ path: entity, exists: true }]
     build: { $format: "ENT-{entity}" }
   # 要素が名前の無い配列・マップのとき（配列の配列など）、その基底の種類。テーブルにできない形の印（対応の検査が指摘する）
   - id: elem-base
-    when: [{ path: base, oneOf: [array, map] }]
     build: { $copy: base }
   # 入れ子の項目: 名前の無い object の項目と、名前の無い object を要素にする配列・マップの、要素の項目。ID は FLD-親の項目の ID の部分.キー
   - id: sub-items
@@ -232,11 +234,21 @@ rules:
       key: { $copy: key }
       label: { $copy: label }
       type: { $apply: type-of }
-      base: { $apply: base-of }
+      base: { $copy: base }
+      maxLength: { $copy: "overrides.maxLength" }
+      minLength: { $copy: "overrides.minLength" }
+      pattern: { $copy: "overrides.pattern" }
+      format: { $copy: "overrides.format" }
+      min: { $copy: "overrides.min" }
+      max: { $copy: "overrides.max" }
+      multiline: { $copy: "overrides.multiline" }
+      values: { $copy: "overrides.values" }
+      target: { $when: [{ path: "overrides.target", exists: true }], $then: { $format: "ENT-{t}", $with: { t: { $copy: "overrides.target" } } } }
       entity: { $apply: entity-of }
       itemType: { $first: [{ $apply: type-of, $at: item }, { $apply: type-of, $at: value }] }
       itemEntity: { $first: [{ $apply: entity-of, $at: item }, { $apply: entity-of, $at: value }] }
       itemBase: { $first: [{ $apply: elem-base, $at: item }, { $apply: elem-base, $at: value }] }
+      itemOverrides: { $first: [{ $copy: "item.overrides" }, { $copy: "value.overrides" }] }
       required: { $copy: required }
       default: { $copy: default }
       auto: { $copy: auto }

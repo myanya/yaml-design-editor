@@ -1,6 +1,7 @@
 package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.schema.FieldDef
+import dev.toros.yde.semantic.schema.FieldDeclaration
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.IdNumbering
 import dev.toros.yde.semantic.schema.SchemaKind
@@ -77,7 +78,7 @@ object BusinessModel {
         val titles = aspects.groupBy { it.entity }.mapValues { (_, list) -> titleKeyOf(list) }.filterValues { it != null }.mapValues { it.value!! }
         // エンティティ型 → 名前（参照先の型の名前 targetLabel・入れ子の型の名前 entityLabel）
         val labels = aspects.groupBy { it.entity }.mapValues { (e, list) -> list.sortedByDescending { it.defines }.firstNotNullOfOrNull { it.label } ?: e }
-        val ctx = Ctx(targets, stateEnums, titles, labels)
+        val ctx = Ctx(targets, stateEnums, titles, labels, schemas.associate { it.id to it.source.value })
         // データの決まりと、操作ごとに書くと破れうる決まり（BusinessModelRules）
         val rules = BusinessModelRules.rules(schemas, raw, catalog)
         val actions = (schemas.flatMap { s -> actionTerms(s, raw[s.id], catalog, aspects, ctx) } + schemas.flatMap { s -> methodTerms(s, raw[s.id], aspects) })
@@ -185,6 +186,7 @@ object BusinessModel {
     private class Ctx(
         val targets: Map<String, String>, val stateEnums: Map<String, String>, val titles: Map<String, String> = emptyMap(),
         val labels: Map<String, String> = emptyMap(),
+        val sources: Map<String, String> = emptyMap(),
     ) {
         companion object { val NONE = Ctx(emptyMap(), emptyMap()) }
     }
@@ -196,13 +198,15 @@ object BusinessModel {
             ?: listOf("title", "name", "label").firstOrNull { k -> fields.any { it.first.key == k } }
     }
 
-    private fun fieldTerm(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx = Ctx.NONE): Map<String, Any?> {
+    private fun fieldTerm(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx = Ctx.NONE, describeType: Boolean = true): Map<String, Any?> {
         val f = tree.resolve(f0) ?: f0
         val m = LinkedHashMap<String, Any?>()
         f0.key?.let { m["key"] = it }
         (f0.label ?: f.label)?.let { m["label"] = it }
         m["type"] = typeNameOf(f0, f)
         m["base"] = f.type.id
+        // 原文の場所を持つ項目だけに付ける。操作の入力など、場所を渡さない入口の型の宣言だけを出して完備と見せない。
+        if (describeType && f0.declarations.isNotEmpty()) m["declarations"] = declarationTerms(f, f0, ctx)
         // 説明（項目に書いたもの。無ければ型の説明）
         (f0.description ?: f.description)?.let { m["description"] = it }
         if (f.required || f0.required) m["required"] = true
@@ -232,12 +236,29 @@ object BusinessModel {
             f.scope.schemaIds.mapNotNull { ctx.targets[it] }.firstOrNull()?.let { t -> ctx.labels[t] }?.let { m["targetLabel"] = it }
         }
         if (f.unique.isNotEmpty()) m["unique"] = if (f.unique.size == 1) f.unique[0].ifEmpty { true } else f.unique
-        if (depth < 8) {
+        if (depth < 8 && describeType) {
             when (f.type) {
                 FieldType.ARRAY -> f.item?.let { m["item"] = nested(tree, it, depth, ctx) }
                 FieldType.MAP -> f.value?.let { m["value"] = nested(tree, it, depth, ctx) }
                 FieldType.OBJECT -> if (f.entity != null) m["entity"] = f.entity!!.type else m["fields"] = f.fields.map { fieldTerm(tree, it, depth + 1, ctx) }
                 else -> Unit
+            }
+            if (f.cases.isNotEmpty()) m["cases"] = f.cases.mapValues { (_, fields) ->
+                fields.map { fieldTerm(tree, it, depth + 1, ctx) }
+            }
+        }
+        // 型の共通部分と、使う場所で狭めた性質を区別する。設計用の ID や規則はここには持たない。
+        // 組込みの型も同じ解決経路で読み、text の multiline などを失わない。
+        if (describeType) {
+            val name = m.getValue("type").toString()
+            (tree.resolveTypeName(name) ?: if ('#' !in name) FieldDef(type = f.type) else null)?.let { type ->
+                val common = fieldTerm(tree, type, depth, ctx, describeType = false)
+                val properties = setOf("maxLength", "minLength", "pattern", "format", "min", "max", "multiline", "values", "target")
+                m.filterKeys { it in properties }.filter { (key, value) -> value != common[key] }
+                    .takeIf { it.isNotEmpty() }?.let { m["overrides"] = it }
+                if ('#' !in name && f.type !in setOf(FieldType.ARRAY, FieldType.MAP, FieldType.OBJECT)) {
+                    m["builtinType"] = linkedMapOf("name" to name, "base" to common["base"], "builtin" to true) + common.filterKeys { it in properties }
+                }
             }
         }
         return m
@@ -253,10 +274,19 @@ object BusinessModel {
     private fun nested(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx): Map<String, Any?> {
         val f = tree.resolve(f0) ?: f0
         return if (f.type == FieldType.OBJECT && f.entity != null) {
-            linkedMapOf<String, Any?>("type" to typeNameOf(f0, f), "base" to f.type.id, "entity" to f.entity!!.type, "entityLabel" to ctx.labels[f.entity!!.type])
+            linkedMapOf<String, Any?>("type" to typeNameOf(f0, f), "base" to f.type.id, "entity" to f.entity!!.type, "entityLabel" to ctx.labels[f.entity!!.type],
+                "declarations" to f0.declarations.takeIf { it.isNotEmpty() }?.let { declarationTerms(f, f0, ctx) })
                 .filterValues { it != null }
         } else fieldTerm(tree, f0, depth + 1, ctx)
     }
+
+    private fun declarationTerms(f: FieldDef, original: FieldDef, ctx: Ctx): List<Map<String, Any?>> =
+        f.declarations.map { d: FieldDeclaration ->
+            linkedMapOf<String, Any?>(
+                "schema" to d.schema, "document" to ctx.sources[d.schema], "path" to d.path,
+                "inherited" to (d !in original.declarations), "declared" to d.attributes,
+            ).filterValues { it != null }
+        }
 
     /** 名前付きの型（エンティティ型を持つ object は除く）。項目の項と同じ形に、名前（name）を添える。 */
     private fun typeTerms(schemas: List<WorkspaceSchema>, ctx: Ctx): List<Map<String, Any?>> =

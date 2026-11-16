@@ -13,6 +13,8 @@ inputs:
     minLength: 1
     maxLength: 100
     pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
 preconditions: []
 effects:
   - op: insert

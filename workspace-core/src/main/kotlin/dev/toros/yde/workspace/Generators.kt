@@ -2,6 +2,8 @@ package dev.toros.yde.workspace
 
 import dev.toros.yde.semantic.SemanticTransform
 import dev.toros.yde.semantic.TextTemplate
+import dev.toros.yde.semantic.ReportRows
+import dev.toros.yde.semantic.VirtualViews
 import dev.toros.yde.semantic.schema.TransformDef
 import dev.toros.yde.workspace.layout.WorkspaceLayout
 import dev.toros.yde.yaml.DefaultYamlCodec
@@ -29,6 +31,10 @@ data class GeneratorDef(
      * 規則と補正を当てたもの（[Stages]。形は同じで、足したものに出どころが付く）。
      */
     val stage: String? = null,
+    /** 入力を組み立てる前に同じ計画で生成する定義。 */
+    val dependsOn: List<String> = emptyList(),
+    /** 段の項とビューの行から、生成に使う入力を組み立てる変換。 */
+    val input: TransformDef? = null,
 )
 
 /** 生成した文書 1 つ（文字は保存する形＝見出しのコメントつき）。 */
@@ -63,7 +69,7 @@ object Generators {
     /** 生成の定義が `$of` で読む、いまの要素（each の要素。繰り返しの中から外側の要素を読む）の名前。 */
     const val ELEMENT = "element"
 
-    private val KEYS = setOf("id", "name", "description", "scope", "stage", "each", "output", "build", "rules")
+    private val KEYS = setOf("id", "name", "description", "scope", "stage", "each", "output", "build", "rules", "dependsOn", "input")
 
     /** 生成物の見出しの始まり（この定義の生成物かを見分ける）。 */
     fun marker(generator: String): String = "# 生成物（$generator）"
@@ -89,7 +95,15 @@ object Generators {
         )
         val scope = m["scope"]?.toString()?.takeIf { it.isNotBlank() }
         val stage = m["stage"]?.toString()?.takeIf { it.isNotBlank() }
-        return GeneratorDef(id, m["name"]?.toString() ?: id, m["description"]?.toString(), each, scope, output, transform, source, stage)
+        val dependencies = m["dependsOn"]?.let { value ->
+            (value as? List<*>)?.map { it as? String ?: error("$where.dependsOn は生成の定義 ID の並びです") }
+                ?: error("$where.dependsOn は生成の定義 ID の並びです")
+        }.orEmpty()
+        val input = m["input"]?.let { build -> TransformDef.parse(
+            mapOf("id" to "$id-input", "build" to build, "rules" to m["rules"]).filterValues { it != null },
+            "$where.input", places = setOf(MODEL, ELEMENT),
+        ) }
+        return GeneratorDef(id, m["name"]?.toString() ?: id, m["description"]?.toString(), each, scope, output, transform, source, stage, dependencies, input)
     }
 
     /** セッションの transforms ゾーンの生成の定義（下のフォルダも。ID の重なりは誤り）。 */
@@ -142,28 +156,76 @@ object Generators {
         val (defs, defErrors) = definitions(session)
         val errors = defErrors.toMutableList()
         only.filter { name -> defs.none { it.id == name } }.forEach { errors += "生成の定義「$it」がありません（ある定義: ${defs.joinToString(", ") { d -> d.id }.ifEmpty { "なし" }}）" }
-        val selected = if (only.isEmpty()) defs else defs.filter { it.id in only }
+        val selected = mutableListOf<GeneratorDef>()
+        val visiting = linkedSetOf<String>()
+        val visited = mutableSetOf<String>()
+        fun select(id: String) {
+            if (id in visited) return
+            val def = defs.firstOrNull { it.id == id } ?: run { errors += "依存先の生成の定義「$id」がありません"; return }
+            if (!visiting.add(id)) { errors += "生成の依存が循環しています: ${(visiting + id).joinToString(" → ")}"; return }
+            def.dependsOn.forEach(::select)
+            visiting.remove(id)
+            if (visited.add(id)) selected += def
+        }
+        (if (only.isEmpty()) defs.map { it.id } else only.toList().sorted()).forEach(::select)
         // 業務モデルは、生成の定義が読むスコープごとに 1 回だけ作る。段の項は、スコープと段の組ごとに 1 回（誤りも 1 回だけ出す）
         val business = HashMap<String?, YNode?>()
         val models = HashMap<Pair<String?, String?>, YNode?>()
         val outputs = mutableListOf<GeneratedDocument>()
+        val completed = mutableListOf<GeneratorDef>()
+        val snapshot = session.snapshot
+        val catalog by lazy {
+            ViewDefinitions.load(snapshot.documents.filterKeys { session.layout.zoneOf(it.value) == WorkspaceLayout.Zone.VIEWS }
+                .map { (id, doc) -> id to DefaultYamlCodec.dump(doc.document) }, session.schemas, session.viewKinds)
+        }
         for (def in selected) {
-            val model = models.getOrPut(def.scope to def.stage) {
+            val stageBefore = def.stage.takeIf { def.input == null }
+            val stagedModel = models.getOrPut(def.scope to stageBefore) {
                 val base = business.getOrPut(def.scope) {
                     runCatching { BusinessModel.of(session, def.scope) }.getOrElse { errors += "${def.id}: ${it.message}"; null }
                 } ?: return@getOrPut null
-                if (def.stage == null) base else Stages.term(session, base, def.stage).let { staged ->
+                if (stageBefore == null) base else Stages.term(session, base, stageBefore).let { staged ->
                     // 前の段の誤りは、後の段の項を作るときにも出るので、計画の最後に重なりを除く
                     errors += staged.errors
                     staged.term
                 }
             } ?: continue
+            // 先行する生成物を未保存の重ね合わせに載せ、同じ計画内の新しい値を読む。
+            val overlays by lazy {
+                val result = linkedMapOf<DocumentId, dev.toros.yde.yaml.model.YDocument?>()
+                outputs.forEach { result[it.document] = DefaultYamlCodec.parse(it.document, it.text) }
+                for (prior in completed) {
+                    val glob = dev.toros.yde.semantic.schema.globToRegex(HOLE.replace(prior.output, "*"))
+                    snapshot.documents.keys.filter { it !in result && glob.matches(it.value) && session.storedText(it)?.startsWith(marker(prior.id)) == true }
+                        .forEach { result[it] = null }
+                }
+                result
+            }
+            val derived by lazy { session.derivedWith(overlays) }
+            fun tree(id: DocumentId): YNode? = (if (id in overlays) overlays[id] else snapshot.documents[id]?.document)?.documents?.firstOrNull()
+            fun schema(id: DocumentId) = session.schemas.firstOrNull { it.id == (snapshot.documents[id]?.schemaId
+                ?: overlays[id]?.let { doc -> WorkspaceReader.assignSchemaId(id.value, doc, session.schemas, session.layout) }) }?.tree
+            val viewCache = mutableMapOf<String, YNode>()
+            fun viewRows(id: String): YNode = viewCache.getOrPut(id) {
+                require(catalog.errors.isEmpty()) { catalog.errors.joinToString("\n") }
+                val view = requireNotNull(catalog.view(id)) { "ビュー「$id」がありません" }
+                val semantic = derived.semantic
+                ReportRows.node(VirtualViews.resolveDetailed(view, semantic.ids, semantic.refs, semantic.graph,
+                    { it.value }, ::tree, fieldAt = { document, path -> tree(document)?.let { schema(document)?.fieldAt(it, path) } }, schemaFor = ::schema).rows)
+            }
+            val model = if (def.input == null) stagedModel else runCatching {
+                val place = SemanticTransform.TemplatePlace(stagedModel, null, emptyList())
+                SemanticTransform.runAt(def.input, place, views = ::viewRows, places = mapOf(MODEL to place, ELEMENT to place)).term?.let { input ->
+                    if (def.stage == null) input else Stages.term(session, input, def.stage).let { staged -> errors += staged.errors; staged.term }
+                }
+            }.getOrElse { errors += "${def.id}.input: ${it.message}"; null } ?: continue
             val modelPlace = SemanticTransform.TemplatePlace(model, null, emptyList())
             for ((index, element) in elementsOf(def, model, errors).withIndex()) {
                 val (node, path) = element
                 val term = runCatching {
                     SemanticTransform.runAt(
                         def.transform, SemanticTransform.TemplatePlace(node, null, path),
+                        views = ::viewRows,
                         loop = mapOf("index" to index, "position" to index + 1),
                         places = mapOf(MODEL to modelPlace, ELEMENT to SemanticTransform.TemplatePlace(node, null, path)),
                     ).term
@@ -176,6 +238,7 @@ object Generators {
                 val target = runCatching { documentOf(rendered.text, session.layout) }.getOrElse { errors += "${def.id}: ${it.message}"; null } ?: continue
                 outputs += GeneratedDocument(def.id, target, header(def) + "\n" + YamlIO.dumpPlain(term))
             }
+            completed += def
         }
         outputs.groupBy { it.document }.filterValues { it.size > 1 }.forEach { (doc, list) ->
             errors += "同じ場所「${doc.value}」に ${list.size} つの文書を作ります（${list.map { it.generator }.distinct().joinToString(", ")}）。output の穴で場所を分けます"

@@ -57,6 +57,11 @@
 
 ## 生成（業務モデルから文書へ）
 
+`BusinessModel` は項目の有効な値に加え、共通型との差分 `overrides` と組込み型の共通の性質 `builtinType` を項として返す。
+スキーマの項目と名前付きの型には、`FieldDeclaration` から明記した属性と原文の場所を `declarations` として写す。差分が空でも明記は失わない。子の宣言は `item`・`value`・`fields`・`cases` に保持し、エンティティの子はその側面を参照する。設計用の ID と写し方は変換定義が決める。
+`Generators.plan` は `dependsOn` の依存順に生成し、先行出力と削除をセッションの読み取り用の重ね合わせに載せる。`$view` は `VirtualViews` → `ReportRows` で、その新しい木から読む。
+`input` があれば段を当てる前に `SemanticTransform.runAt` で入力を組み立てる。`Stages` は入力の適用済みの段が宣言順の先頭と一致することを確かめ、残りだけを当てる。循環・存在しない依存先・段の順の不一致は計画の誤りになる。
+
 業務モデルを展開した項（`BusinessModel`）を入力に変換を当て、作った YAML を生成物の文書として書く（ADR-0031）。
 
 | 部品 | ファイル | 責務 |
@@ -98,6 +103,7 @@
 
 - **流れ**: `Reports.run` → `SemanticTransform.run(def.transform, 空のマップ, params, views)` → `TextTemplate.render(ひな形, 項)` → 文字と埋まらない穴。`output` も同じひな形で埋める。
 - **規律**: 出力は派生物で、YAML と `.yde/` の下には書かない（`Reports.write` が拒む）。ひな形にコードや計算を足さない（並べ替え・集計はビューか `build`）。`$view` の行に出どころは持たせない（解決した行は派生）。レポートの定義は REPORTS ゾーン（メタスキーマ `builtin-report`。エージェントの提出ゲートも同じパース）。
+- **文字列の出力形式**: `TextTemplate` の `sql-string` は SQL の文字列定数として引用符を二重にして囲むだけ。型を値の見た目から決めず、数値・真偽値・日付などの出し分けは定義の側で決める（型対応表 → ビュー → レポートの `build`）。空文字や false を持つ初期値は、値の有無と分けた object に組み立ててから `{#if}` に渡す。
 
 ## 計算列と決定論的射影
 

@@ -1,0 +1,17 @@
+id: UX-340
+title: エンティティ定義書の CRUD ビューが文字を max で集計し、原本の C/U がすべて空欄になる
+status: discussing
+origin_on: 2026-11-16
+origin: オーナーによるエンティティ定義書の再レビュー。原本とダッシュボードの CRUD が一致しない
+memo: |-
+  samples/todos-sysdev の 4 エンティティを CLI view entity-definition --param entity=ENT-... で出力して再現。
+  design/basic/entities.yaml の CRUD は計 52 個の C/U が operations.writes と一致するが、ダッシュボードは全セルが null。
+  entity-definition-crud.yaml の aggregate: max が原因。SemanticExpression.aggregateDetailed は文字 C/U を数として読めず null にする。
+  単独ビューの来歴には「最大: C」と入力元が残るが、ダッシュボードの出力には値もエラーも出ない。生成物の鮮度・文書の検証は通る。
+  行も書込データから作るため、カテゴリ・タグの ID は原本の表にはあるがビューから消える。現在の表は C/U のみで、採番の ID を書込として数えるか、R/D まで扱うかも議論が必要。
+  基本設計の変換は operations.writes と crud を別に計算している。設計書の値を同じ書込事実から作り、未操作の項目も表示する形を検討する。
+  修正時は原本の値とダッシュボードの値の照合を確認に含める。エンティティ定義書の現テストは raw CRUD を見ており、ビューを評価していない。
+  足場固めの指示を受けて実装。項目を行、所属する操作を columns.each.rows で列に選び、writes の C/U を配列のまま読む。数値集計は使わない。全4エンティティの23項目と52個のC/Uを原本と照合するテストを追加し、カテゴリ・タグのID行も残ることを確認。R/Dへの拡張は別途。オーナーレビュー待ち。
+features: [C-21, X-05, X-06]
+roadmap: [R53-05]
+related: [UX-336, UX-342]

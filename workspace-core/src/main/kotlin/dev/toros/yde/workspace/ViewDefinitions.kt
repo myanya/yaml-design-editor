@@ -784,7 +784,12 @@ object ViewDefinitions {
                     ?.let { error("columns[$i]: each と $it は併用できません（見出しは要素のタイトルになります）") }
                 if (m["editable"] == true) error("columns[$i]: each の列は editable にできません（読み取り専用の派生列）")
                 if (!m.containsKey("value")) error("columns[$i]: each には value（列ごとの値の式。列の要素は \$名前 で指す）が必要です")
-                val idPattern = e["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].each.idPattern（列にする ID の形）が必要です")
+                val selection = e["rows"]?.let { rows ->
+                    require(e["idPattern"] == null && e["schemaIds"] == null) { "columns[$i].each.rows と idPattern / schemaIds は併用できません" }
+                    parseGridView(mapOf("id" to "$id-columns-$i", "rows" to rows, "order" to e["order"], "params" to raw["params"],
+                        "columns" to listOf(mapOf("label" to "ID", "path" to "id"))), source, schemas)
+                }
+                val idPattern = e["idPattern"]?.toString()?.takeIf { it.isNotBlank() } ?: if (selection != null) "*" else error("columns[$i].each.idPattern か rows（列にする要素）が必要です")
                 val bind = e["bind"]?.toString()?.takeIf { it.isNotBlank() } ?: error("columns[$i].each.bind（式の中で列の要素を指す名前）が必要です")
                 val order = (e["order"] as? Map<*, *>)?.let { parseSource(it) }?.takeIf { !it.isEmpty }
                 val value = expressions[listOf("columns", i, "value")] ?: error("columns[$i].value を読めません")
@@ -792,7 +797,7 @@ object ViewDefinitions {
                     VirtualViewColumn(
                         label = "$idPattern（要素ごと）", from = parseSource(m), path = emptyList(), value = value,
                         display = parseDisplay(m, i), format = parseFormat(m, i),
-                        each = VirtualEachDef(idPattern = idPattern, schemaIds = stringList(e["schemaIds"]), order = order, bind = bind, rawValue = m["value"]),
+                        each = VirtualEachDef(idPattern = idPattern, schemaIds = stringList(e["schemaIds"]), order = order, bind = bind, rawValue = m["value"], selection = selection),
                     )
                 )
             }

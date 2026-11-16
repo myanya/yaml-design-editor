@@ -1,11 +1,11 @@
 id: ddl
 name: DDL（テーブル設計書から）
 description: >-
-  テーブル設計書のビュー（概要・カラム一覧・主キーの並び・索引・外部キー）の行から、CREATE TABLE と CREATE INDEX の文を作る。カラムの型・NOT NULL・初期値・入る値（CHECK）・
+  テーブル設計書のビュー（概要・カラム一覧・初期値の出力・主キーの並び・索引・外部キー）の行から、CREATE TABLE と CREATE INDEX の文を作る。カラムの型・NOT NULL・初期値・入る値（CHECK）・
   主キー（主キーの順と制約名）・外部キー（複合と、消したときの動き）・索引（複合と並び。人が書く詳細設計項目台帳の索引も）は、ビューが詳細設計項目一覧・
   詳細設計項目台帳・型対応表・基本設計項目一覧・基本設計項目台帳から読んだもの。
   テーブルは詳細設計項目一覧の順で、外部キーはすべてのテーブルを作った後に ALTER TABLE で足す（テーブルの順と、参照の輪に左右されない）。
-  初期値は文字の値として書く（'OPEN'・'false'。データベースが列の型に直す）
+  初期値は型対応表の literal に従って出す（文字列・数値・真偽値・日付）。初期値の有無は値と分け、空文字・false・0 も出す
 build:
   tables:
     $each: { $view: table-definition-summary }
@@ -16,11 +16,15 @@ build:
       label: { $format: "{values.テーブル日本語名}（{values.テーブル区分[0]}）" }
       columns:
         $each: { $view: table-definition-columns, $where: [{ path: values.テーブル, equals: { $copy: id, $of: t } }] }
+        $bind: c
         $build:
           name: { $copy: values.カラム名 }
           type: { $copy: values.SQL の型 }
           notNull: { $when: [{ path: values.NOT NULL, equals: true }], $then: true }
-          default: { $when: [{ path: values.初期値, notEquals: 設定なし }], $then: { $format: "'{values.初期値}'" } }
+          default:
+            $apply: default-literal
+            $with:
+              row: { $view: table-definition-defaults, $where: [{ path: id, equals: { $copy: id, $of: c } }], $one: true }
           check: { $when: [{ path: values.入る値（CHECK）, exists: true }], $then: { $each: values.入る値（CHECK）, $build: { v: { $copy: . } } } }
       # 主キーは主キーの順に並べる（主キーのカラムを主キーの順に並べたビューを読む）
       primaryKey:
@@ -49,5 +53,22 @@ build:
             $zip: { c: values.カラム名, o: values.並び }
             $build:
               v: { $first: [{ $when: [{ path: o, equals: desc }], $then: { $format: "{c} DESC" } }, { $copy: c }] }
+rules:
+  - id: default-literal
+    with: [row]
+    when: [{ of: row, path: values.初期値の出力方法, equals: string }]
+    build: { quoted: true, value: { $copy: values.初期値, $of: row } }
+  - id: default-literal
+    with: [row]
+    when: [{ of: row, path: values.初期値の出力方法, equals: date }]
+    build: { quoted: true, date: true, value: { $copy: values.初期値, $of: row } }
+  - id: default-literal
+    with: [row]
+    when: [{ of: row, path: values.初期値の出力方法, equals: number }]
+    build: { plain: true, value: { $value: { number: { of: row, path: values.初期値 } } } }
+  - id: default-literal
+    with: [row]
+    when: [{ of: row, path: values.初期値の出力方法, equals: boolean }]
+    build: { plain: true, value: { $value: { upper: { of: row, path: values.初期値 } } } }
 template: ddl.sql
 output: design/ddl/schema.sql

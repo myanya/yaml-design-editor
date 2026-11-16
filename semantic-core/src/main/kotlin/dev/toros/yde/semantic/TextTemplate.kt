@@ -77,8 +77,15 @@ object TextTemplate {
     /** Markdown の表のセルに入れる形の名前。値の `|` を `\|` に、改行を `<br>` にして、表の行が崩れないようにする。 */
     const val CELL = "cell"
 
-    /** 穴の文字。配列やマップは YAML の文字。形は表のセル（cell）・数（0 か # を含む DecimalFormat）・日付（y・M・d） */
+    /** SQL の文字列定数。値の引用符を二重にし、全体を引用符で囲む。型の選択や式の評価は行わない。 */
+    const val SQL_STRING = "sql-string"
+
+    /** 穴の文字。配列やマップは YAML の文字。形は表のセル・SQL の文字列定数・数・日付。 */
     private fun text(node: YNode, format: String?): String {
+        // 出力する文字列の空白は値そのもの。通常の読み取り用 scalarText（空白を値なしにする）は通さない
+        if (format == SQL_STRING && node is YNode.Scalar && node.value != null) {
+            return "'" + node.value.toString().replace("'", "''") + "'"
+        }
         val raw = scalarText(node) ?: return YamlIO.dumpPlain(node).trimEnd()
         if (format == null) return raw
         return when {

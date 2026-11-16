@@ -10,6 +10,27 @@ import kotlin.test.assertTrue
  * 変わったものだけを書き、業務モデルから消えた要素の生成物は消す。書き込みはセッションの 1 トランザクション。
  */
 class GenerationTest {
+    @Test
+    fun `依存先の新しい出力を入力のビューから読み 一度で最新になる`() {
+        val store = store(mapOf(
+            ".yde/schemas/design.yaml" to "id: spec\nmatch: 'design/*.yaml'\nroot:\n  type: object\n  fields:\n    - {key: id, type: id}\n    - {key: value, type: string}\n",
+            ".yde/transforms/specs.yaml" to "id: specs\noutput: design/source.yaml\nbuild: {id: SPEC-1, value: new}\n",
+            ".yde/transforms/copy.yaml" to "id: copy\ndependsOn: [specs]\noutput: design/copy.yaml\ninput: {rows: {${'$'}view: records}}\nbuild: {value: {${'$'}copy: 'rows[0].values.value'}}\n",
+            ".yde/views/records.yaml" to "id: records\nrows: {idPattern: SPEC-*}\ncolumns: [{label: value, path: value}]\n",
+            "design/source.yaml" to "${Generators.marker("specs")}\nid: SPEC-1\nvalue: old\n",
+        ))
+        val session = WorkspaceSession(store)
+        val plan = Generators.plan(session, setOf("copy"))
+        assertEquals(emptyList(), plan.errors)
+        assertEquals(listOf("specs", "copy"), plan.outputs.map { it.generator })
+        assertTrue("value: new" in plan.outputs.last().text, plan.outputs.last().text)
+        assertTrue(session.apply(plan.transaction).ok)
+        assertTrue(session.save().ok)
+        assertTrue(Generators.plan(WorkspaceSession(store), setOf("copy")).upToDate)
+        val cycle = store(mapOf(".yde/transforms/specs.yaml" to generator + "\ndependsOn: [specs]\n"))
+        assertTrue(Generators.plan(WorkspaceSession(cycle)).errors.any { "循環" in it })
+    }
+
     private val schema = """
         id: task
         match: "tasks/*.yaml"

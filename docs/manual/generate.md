@@ -36,6 +36,10 @@ entity: { type: yde-action, defines: false }
   見出しの項目（`title`。表示解決と同じ順＝`role: title`・title・name・label）が付きます。参照の項目には、参照先の見出しの項目（`targetTitle`）と参照先の型の名前（`targetLabel`）も付きます。
   型には、関係レジストリの宣言の説明（`description`）と、集約（`aggregate`。入れ子の持ち主をたどった、いちばん外側の型。持ち主がいなければ自分）が付きます。
   項目には、項目に書いた説明（無ければ型の説明。`description`）が付き、要素がエンティティの配列には要素の型の名前（`item.entityLabel`）が付きます。
+  原文の場所を持つ項目と名前付きの型には `declarations` が付きます。各記録の `declared` は、その場所に明記された属性です。共通型と同じ値・`false`・`0`・空文字・空配列も省略しません。
+  `schema` は宣言元のモジュール、`document` はワークスペース内の文書、`path` は原文の場所です。組込みの型には `document` がありません。
+  `inherited: true` はその項目の型を解決するときに継承元から加わった宣言です。object の子を合成した場合は、合成元の子の宣言も残します。入れ子は `item`・`value`・`fields`・`cases` に保持します。
+  `declarations` は現在の有効値を置き換えるものではありません。操作の入力など、原文の場所を保持しない入口には付きません。
 - `actions`: 操作と型の操作。受け取る値・前提（`id` を付けたもの）・主体のエンティティ型（`subject`）・作るエンティティ型（`creates`）・従う Lifecycle（入口・遷移・断りの文）と、効果（`effects`）です。効果は、do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめ、書き込む項目の種類（`field`）を添えます。
   文書を作る手と要素を足す手には、書く値の項目ごとの基底の種類（`written`）と採番（`numbering`）が付きます。
   受け取る値のうち、別の真偽値の受け取る値で消せるもの（効果の条件が `clear.category が true` で、その項目を消す）には `clearedBy` が付きます。
@@ -90,6 +94,11 @@ each: entities
 - `generate <ws> --model --scope business` で、スコープから展開した業務モデルを見られます。
 
 ## 生成の定義（`.yde/transforms/`）
+
+生成の入力を先行する設計書から作る場合は、`dependsOn: [生成の定義ID]` と `input: 変換のひな型` を書きます。
+依存先は同じ計画で先に生成され、`input` と `build` の `$view` はその新しい結果を読みます。指定した定義だけを生成するときも依存先を含み、循環・存在しない依存先は誤りになります。
+`input` は段を当てる前に業務モデルを受け取り、`rules` も使えます。結果が生成の入力になります。`stages` に適用済みの段を記録した入力では、その先の段だけを当てます。
+例はサンプルの `detail-tables`（補正後の基本設計からテーブルを生成）です。項目の `overrides` は共通型と異なる制限、`builtinType` は組込み型の共通の性質です。
 
 ```yaml
 # .yde/transforms/design/action-specs.yaml

@@ -273,6 +273,7 @@ object Views {
             view, index.entries, index.refs, index.graph, { it.value }, ::treeOf,
             fieldAt = { d, path -> schemaFor(d)?.let { s -> treeOf(d)?.let { root -> s.fieldAt(root, path) } } },
             params = params,
+            schemaFor = { schemaFor(it)?.kernel?.tree },
         )
     }
 

@@ -1,5 +1,5 @@
 id: C-21
-title: 生成（業務モデルから文書へ。業務モデルを展開した項 `BusinessModel`（採番・owner・title・target・targetTitle・stateOf・creates・written・clearedBy・views・dashboards・たどれる範囲 reach・条件の State を値の条件へ・データの決まり constraints・操作が書くと破れうる決まり checks・型の説明と集約 aggregate・関係 relations・参照先と操作の名前・名前付きの型 types）・生成の定義 `.yde/transforms` と `scope`・生成物の見出しと消す決まり・生成の系譜（変換が読む場所 TransformReads）・CLI `generate` の `--apply` `--check` `--model` `--scope` `--lineage`）
+title: 生成（業務モデルの項・明記と継承元の記録・共通型と項目固有の制限・変換定義・scope・stage・dependsOn と input・ビューからの入力・更新と削除・系譜・CLI generate）
 implementation:
 - path: workspace-core/workspace/BusinessModel.kt
   module: workspace-core
@@ -16,7 +16,12 @@ implementation:
 tests:
 - name: GenerationTest
 - name: BusinessModelTest
+- name: BusinessDeclarationsTest
+  note: 明記した属性・原文の場所・入れ子とエンティティ参照
+- name: TodosEntityFoundationTest
+  note: 導出記録と設計IDの分離、共通型と項目固有の制限、補正後の入力と詳細生成
 - name: TodosSysdevTest
+  note: 設計書の生成・検証・型対応表による初期値の出力と H2 での DDL の確認
 - name: TransformReadsTest
 design:
 - label: transform

@@ -73,9 +73,9 @@ data class VirtualBacklinksDef(
 }
 
 /**
- * 補正を重ねる（`corrections`）: 補正の文書（schemaIds のスキーマ）の要素のうち、当たり先（target の参照）が行の要素のものから、
- * 置き換える値（set の object。キーは列の path）を読み、path の列のセルに重ねて出す。元の値は原本のまま（重ねるのは見るときだけ）。
- * 同じ行に補正が 2 つ以上あれば、文書の中の後のものが勝つ。重ねたセルは読み取り専用で、来歴に補正の ID と元の値を持つ。
+ * 補正を重ねる（`corrections`）: target の参照と set（当たり先からの相対パスと新しい値）を項の変更へ下ろす。
+ * 原本は変えず、path・値の式・参照・照合が同じ補正後の木を読む。文書名順・文書内順で後の補正が勝つ。
+ * 影響するセルは読み取り専用で、来歴に補正と元の値を持つ。
  */
 data class VirtualCorrectionsDef(
     val schemaIds: List<String>,
@@ -113,6 +113,8 @@ data class VirtualEachDef(
     val order: VirtualViewSource? = null,
     val bind: String,
     val rawValue: Any?,
+    /** 列の要素をクエリ行で選ぶ。共有の入力・保有の関係も通常の行と同じ規則で解決する。 */
+    val selection: VirtualGridDef? = null,
 )
 
 /**
@@ -254,7 +256,7 @@ data class VirtualGridDef(
     val params: List<String> = emptyList(),
     /** クエリ行の原文（params を差し込んで読み直すため。params が無ければ null）。 */
     val rowsRaw: Map<String, Any?>? = null,
-    /** 補正を重ねる（path の列のセルに、補正の文書の置き換える値を出す）。 */
+    /** 補正を重ねた木で、列の値と照合を解決する。 */
     val corrections: VirtualCorrectionsDef? = null,
 ) : VirtualViewDefinition
 
@@ -504,8 +506,29 @@ object VirtualViews {
         tree: (DocumentId) -> YNode?,
         fieldAt: FieldResolver = NO_FIELDS,
         params: Map<String, Any?> = emptyMap(),
+        schemaFor: (DocumentId) -> dev.toros.yde.semantic.schema.SchemaTree? = { null },
     ): ResolvedRows {
-        val viewDef = bindParams(definition, params)
+        definition.corrections?.let { corrections ->
+            val projected = SemanticCorrections.project(corrections, ids, refs, graph, tree, schemaFor)
+            if (projected.replacements.isNotEmpty()) {
+                val resolved = resolveDetailed(
+                    definition.copy(corrections = null), projected.ids, projected.refs, projected.graph, rel,
+                    { projected.trees[it] ?: tree(it) }, fieldAt, params, schemaFor,
+                )
+                return resolved.copy(rows = resolved.rows.map { row -> row.copy(cells = row.cells.map(projected::cell)) })
+            }
+        }
+        val bound = bindParams(definition, params)
+        val viewDef = bound.copy(columns = bound.columns.flatMap { column ->
+            val each = column.each
+            val selection = each?.selection
+            if (selection == null) listOf(column) else {
+                resolveDetailed(selection, ids, refs, graph, rel, tree, fieldAt, params, schemaFor).rows.map { row ->
+                    val label = row.title ?: row.id
+                    column.copy(label = label, each = null, value = ExpressionValue.of(substituteColumnRef(each.rawValue, each.bind, row.id), "columns.value", label))
+                }
+            }
+        })
         val view = lower(viewDef, ids, rel)  // クロス集計は、列を広げたグリッドとして解決する
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun cachedTree(document: DocumentId): YNode? = trees.getOrPut(document) { tree(document) }
@@ -581,42 +604,9 @@ object VirtualViews {
             )
         }
 
-        /**
-         * 補正を重ねたセル（無ければ null）: 補正の要素のうち、当たり先が行の要素（id）のものの、置き換える値（set の中の列の path）。
-         * 文書の中の後の補正が勝つ。座標は補正の値の場所（クリックで補正へ）、来歴は補正の ID と元の値（とその場所）。
-         */
-        fun correctedCell(column: VirtualViewColumn, id: String, original: VirtualCell): VirtualCell? {
-            val def = view.corrections ?: return null
-            if (column.path.isEmpty()) return null
-            val hits = refs.filter { r ->
-                r.targetId == id && r.sourceSchemaId in def.schemaIds && r.path.lastOrNull() == def.target
-            }.mapNotNull { r ->
-                val element = r.path.dropLast(1)
-                val node = cachedTree(r.document)?.let { getAt(it, element + def.set + column.path) } ?: return@mapNotNull null
-                val correctionId = entriesByDoc[r.document].orEmpty().firstOrNull { it.path == element }?.id
-                Triple(r, element, node) to correctionId
-            }.sortedWith(compareBy({ rel(it.first.first.document) }, { pathSortKey(it.first.second) }))
-            val (hit, correctionId) = hits.lastOrNull() ?: return null
-            val (ref, element, node) = hit
-            val before = original.value?.let { v -> (v as? YNode.Scalar)?.value?.toString() ?: "（値の組）" } ?: "（無し）"
-            return VirtualCell(
-                column = column,
-                document = ref.document,
-                path = element + def.set + column.path,
-                value = node,
-                computed = true,
-                trace = VirtualComputedTrace(
-                    raw = "補正 ${correctionId ?: "（ID なし）"} で置き換え（元の値: $before）",
-                    inputs = listOf(VirtualComputedInput("元の値", before, original.document, original.path)),
-                ),
-            )
-        }
-
-        /** path の列のセル（補正を重ねるビューなら、重ねた値）。 */
-        fun pathCell(column: VirtualViewColumn, id: String, document: DocumentId?, absolute: YPath?): VirtualCell {
-            val original = VirtualCell(column, document, absolute, if (document == null || absolute == null) null else cachedTree(document)?.let { getAt(it, absolute) })
-            return correctedCell(column, id, original) ?: original
-        }
+        /** path の列のセル。補正は解決の前に木へ重ねている。 */
+        fun pathCell(column: VirtualViewColumn, id: String, document: DocumentId?, absolute: YPath?): VirtualCell =
+            VirtualCell(column, document, absolute, if (document == null || absolute == null) null else cachedTree(document)?.let { getAt(it, absolute) })
 
         /** 従来の行（1 論理 ID）を、値の式の「いまの要素」として表すノード。 */
         fun entityNode(id: String, occurrences: List<ScannedId>): SemanticQueryNodeRef = SemanticQueryNodeRef(
@@ -731,6 +721,7 @@ object VirtualViews {
         // 要素ごとに列を広げる（columns の each）: 列の要素を指す $名前 を、その要素の ID に置き換えた値の式の列にする
         val columns = view.columns.flatMap { column ->
             val each = column.each ?: return@flatMap listOf(column)
+            if (each.selection != null) return@flatMap listOf(column)
             entitiesOf(ids, each.idPattern, each.schemaIds, each.order, rel).map { (id, label) ->
                 column.copy(label = label, each = null, value = ExpressionValue.of(substituteColumnRef(each.rawValue, each.bind, id), "columns.value", label))
             }

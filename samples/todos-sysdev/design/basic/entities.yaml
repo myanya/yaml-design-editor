@@ -18,6 +18,7 @@ entities:
         key: id
         label: ID
         type: TYP-common.カテゴリ番号
+        base: id
         required: true
         description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
         source: category.id
@@ -28,6 +29,7 @@ entities:
         key: name
         label: カテゴリ名
         type: TYP-common.一行の文
+        base: string
         required: true
         source: category.name
         documents:
@@ -69,6 +71,7 @@ entities:
         key: id
         label: ID
         type: TYP-common.タグ番号
+        base: id
         required: true
         description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
         source: tag.id
@@ -79,6 +82,7 @@ entities:
         key: name
         label: タグ名
         type: TYP-common.一行の文
+        base: string
         required: true
         source: tag.name
         documents:
@@ -121,6 +125,7 @@ entities:
         key: id
         label: ID
         type: TYP-common.TODO番号
+        base: id
         required: true
         description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
         source: todo.id
@@ -132,6 +137,7 @@ entities:
         key: title
         label: タイトル
         type: TYP-common.一行の文
+        base: string
         required: true
         source: todo.title
         documents:
@@ -141,6 +147,7 @@ entities:
         key: summary
         label: 概要
         type: TYP-common.一行の文
+        base: string
         required: true
         source: todo.summary
         documents:
@@ -150,6 +157,7 @@ entities:
         key: category
         label: カテゴリ
         type: TYP-common.カテゴリ参照
+        base: ref
         description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
         source: todo.category
         documents:
@@ -160,6 +168,7 @@ entities:
         label: タグ
         base: array
         itemType: TYP-common.タグ参照
+        itemBase: ref
         unique: true
         description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
         source: todo.tags
@@ -170,6 +179,7 @@ entities:
         key: follows
         label: 元のTODO
         type: TYP-common.TODO参照
+        base: ref
         description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
         source: todo.follows
         documents:
@@ -179,6 +189,7 @@ entities:
         key: status
         label: ステータス
         type: TYP-common.ステータス
+        base: enum
         required: true
         default: OPEN
         source: todo.status
@@ -189,6 +200,7 @@ entities:
         key: created_on
         label: 作成日
         type: TYP-common.年月日
+        base: date
         required: true
         auto: created
         description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
@@ -200,6 +212,7 @@ entities:
         key: updated_on
         label: 更新日
         type: TYP-common.年月日
+        base: date
         required: true
         auto: updated
         description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
@@ -211,6 +224,7 @@ entities:
         key: due_on
         label: 期限
         type: TYP-common.年月日
+        base: date
         description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
         source: todo.due_on
         documents:
@@ -220,6 +234,7 @@ entities:
         key: completed_on
         label: 完了日
         type: TYP-common.年月日
+        base: date
         description: 完了時に入力します。未完了・中止の場合は省略します。
         source: todo.completed_on
         documents:
@@ -229,6 +244,7 @@ entities:
         key: details
         label: 詳細
         type: TYP-common.文章
+        base: string
         description: 作業内容や完了条件を記載します。
         source: todo.details
         documents:
@@ -238,6 +254,7 @@ entities:
         key: result
         label: 結果
         type: TYP-common.文章
+        base: string
         description: 対応結果や中止理由を記載します。
         source: todo.result
         documents:
@@ -248,6 +265,7 @@ entities:
         label: 作業項目
         base: array
         itemEntity: ENT-todo-task
+        itemBase: object
         default: []
         description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
         source: todo.tasks
@@ -259,6 +277,7 @@ entities:
         label: コメント一覧
         base: array
         itemType: TYP-common.コメント
+        itemBase: object
         default: []
         description: 並び順は任意です。
         source: todo.comments
@@ -270,6 +289,7 @@ entities:
         label: 状態の履歴
         base: array
         itemType: TYP-common.状態の記録
+        itemBase: object
         default: []
         description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
         source: todo.history
@@ -781,6 +801,7 @@ entities:
         key: id
         label: ID
         type: TYP-common.作業項目番号
+        base: id
         required: true
         description: 追加すると自動で振ります（例 TODO-002-S01）。
         source: todo-task.id
@@ -791,6 +812,7 @@ entities:
         key: title
         label: 作業
         type: TYP-common.一行の文
+        base: string
         required: true
         source: todo-task.title
         documents:
@@ -800,6 +822,7 @@ entities:
         key: done
         label: 済
         type: TYP-boolean
+        base: boolean
         required: true
         default: false
         source: todo-task.done

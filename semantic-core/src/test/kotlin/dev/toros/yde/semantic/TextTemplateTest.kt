@@ -73,6 +73,14 @@ class TextTemplateTest {
     }
 
     @Test
+    fun `SQL の文字列の形は引用符を二重にして囲み 値の見た目から型を変えない`() {
+        val input = YamlIO.fromAny(mapOf("quote" to "O'Brien", "empty" to "", "number" to "001", "flag" to false, "body" to "a\nb\\c{d}", "spaces" to " \n "))
+        val r = TextTemplate.render("{quote:sql-string}|{empty:sql-string}|{number:sql-string}|{flag:sql-string}|{body:sql-string}|{spaces:sql-string}", input)
+        assertEquals("'O''Brien'|''|'001'|'false'|'a\nb\\c{d}'|' \n '", r.text)
+        assertTrue(r.missing.isEmpty())
+    }
+
+    @Test
     fun `埋まらない穴は空になり名前が残る 閉じ忘れは点検で分かる`() {
         val r = TextTemplate.render("{month}/{nothing}/{sales.values.合計}", values)
         assertEquals("2026-10//", r.text)

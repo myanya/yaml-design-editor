@@ -1,0 +1,15 @@
+id: UX-341
+title: 基本設計の論理型への集約で、項目固有の制約と組込み型の性質が落ちる
+status: discussing
+origin_on: 2026-11-16
+origin: エンティティ定義書の再調査。作業コピーで文字数制約を狭め、生成入力と設計書を比較
+memo: |-
+  basic-entities は項目の type だけを写し、maxLength などは論理型で保持する。しかし項目で共通型を狭めた制約を保存する場所も、専用の論理型を作る処理も無い。
+  再現例: 作業コピーの common.yaml で TODO の title（一行の文）に maxLength: 40 を追加。generate --model --scope business --stage basic には 40 が入るが、basic-entities と basic-types の生成結果は変わらず、生成物は最新と判定。ビューは型の maxLength: 100 を出す。
+  basic-types の builtins は name・base・builtin だけを作る。現サンプルでもコメント本文の text は生成入力に multiline: true があるが、TYP-text に残らない。本文に maxLength: 55 を足した実験でも制約は消えた。
+  型の共通部分と項目固有の制約を保持し、実効値を機械的に求める形を議論する。表示上の補正だけでは、業務モデルからの情報欠落を直せない。
+  named array/map の type-of が名前にかかわらず参照を作らない点、複数側面の同名項目が先頭の値を使う点、複数の参照先なども、対応する構造を整理する際の確認候補。これらの追加実験は未実施。
+  足場固めの指示を受けて実装。業務モデルの overrides と builtinType から、項目固有の制限と組込み型の共通の性質を生成する。タイトル40、コメント本文55、TYP-text の multiline=true をテストで確認。名前付き array/map の型参照も保持する定義へ変更。複数側面の異なる制限、名前付き object の利用箇所での fields の狭め方、複数参照先の完全性は引き続き確認が必要。
+features: [C-21]
+roadmap: [R53-05, R53-03]
+related: [UX-339, UX-342]

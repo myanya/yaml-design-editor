@@ -41,6 +41,10 @@ class StagesTest {
         assertEquals(listOf("basic", "detail"), stages.map { it["id"] })
         assertEquals(listOf("naming", "fix"), (stages[0]["changes"] as List<*>).map { (it as Map<*, *>)["id"] })
         assertEquals(null, (YamlIO.toAny(model) as Map<*, *>)["stages"], "業務モデルの項は変えない")
+        val resumed = Stages.apply(basic.term, chain, defs)
+        assertEquals(emptyList(), resumed.errors)
+        assertEquals(YamlIO.toAny(detail.term), YamlIO.toAny(resumed.term), "基本の結果に詳細を当てても、基本の規則と来歴は重ならない")
+        assertTrue(Stages.apply(detail.term, chain.take(1), defs).errors.any { "適用済み" in it })
     }
 
     @Test

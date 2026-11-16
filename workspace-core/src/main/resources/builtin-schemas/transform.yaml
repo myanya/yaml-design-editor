@@ -27,6 +27,15 @@ root:
       label: 文書ごとの要素
       type: string
       description: "業務モデルのどの並びの要素ごとに 1 文書を作るか（entities・actions・states・lifecycles）。省くと業務モデル全体から 1 文書。build が何も作らなかった要素（$when で外したもの）は文書を作らない"
+    - key: dependsOn
+      label: 先に生成する定義
+      type: array
+      item: { type: string }
+      description: 同じ計画内で先に生成し、ビューから新しい値を読める。循環と存在しない ID は誤り
+    - key: input
+      label: 生成入力の組み立て
+      type: any
+      description: "段を当てる前に業務モデルと $view の行から入力を組み立てる変換。rules も使える。入力の stages に記録済みの段は再適用せず、残りの段だけを当てる"
     - key: output
       label: 作る文書の場所
       type: string

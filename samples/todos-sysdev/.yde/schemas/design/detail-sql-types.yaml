@@ -2,7 +2,7 @@ id: detail-sql-types
 name: 型対応表（論理型 → SQL）
 kind: document
 description: >-
-  人が書く。基本設計の論理型ごとに、SQL の型の書き方を決める。穴 {maxLength} などは論理型の値で埋まる。
+  人が書く。基本設計の論理型ごとに、SQL の型の書き方と初期値の出力方法（literal）を決める。穴 {maxLength} などは論理型の値で埋まる。
   詳細設計項目一覧（テーブル）のカラムは、SQL-論理型 の ID でここを指す（無ければ参照切れで分かる）。詳細設計にだけ出てくる型（並び順）もここに書く
 match: "design/detail/sql-types.yaml"
 root:
@@ -19,4 +19,14 @@ root:
           - { key: id, label: 設計項目ID, type: id, required: true, description: "SQL-論理型の ID の部分（common.一行の文）。詳細設計だけの型は SQL-名前" }
           - { key: type, label: 論理型, type: basic-type-list#論理型参照, description: 対応する基本設計の論理型。詳細設計だけの型には無い }
           - { key: sql, label: SQL の型, type: string, required: true, description: "SQL の型の書き方。穴 {maxLength} などは論理型の値で埋まる（例 VARCHAR({maxLength})）" }
+          - key: literal
+            label: 初期値の出力方法
+            type: enum
+            required: true
+            values:
+              - { value: string, label: 文字列（引用符で囲む） }
+              - { value: number, label: 数値（引用符なし） }
+              - { value: boolean, label: 真偽値（TRUE・FALSE） }
+              - { value: date, label: 日付（DATE と引用符） }
+            description: 初期値の値を SQL に写す方法。文字列内の引用符は二重にする。auto の値は Service が設定するので DEFAULT にはしない
           - { key: description, label: 説明, type: text }
