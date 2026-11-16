@@ -1,0 +1,10 @@
+id: UX-353
+title: "app-core の WorkspaceOwnershipTest（別プロセスを拒否し通常終了と強制終了後は引き継げる）が、Linux のクラウドの作業環境で失敗する"
+status: todo
+origin_on: 2026-11-16
+origin: "仕様のワークスペースを足す作業で、Linux のコンテナ上で ./gradlew test を回したとき"
+memo: |-
+  WorkspaceOwnershipTest.kt の 45 行目の検証で失敗（2 回とも）。app-core に触れていない変更で起きた。変更前の状態での再現と、GitHub Actions での結果は確かめていない。
+  別プロセスの起動か強制終了の扱いが環境に依存している可能性。
+features:
+  - LC-19

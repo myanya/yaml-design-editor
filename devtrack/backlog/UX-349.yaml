@@ -1,4 +1,4 @@
-id: UX-343
+id: UX-349
 title: "manual/schema.md の「フィールド定義のプロパティ」の表に target・entity・constraints・methods・extensions が無く、冒頭の例の kind が document と library だけ"
 status: todo
 origin_on: 2026-11-16

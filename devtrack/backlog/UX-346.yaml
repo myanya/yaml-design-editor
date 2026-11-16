@@ -1,8 +1,13 @@
 id: UX-346
-title: "定義の言語に版の印が無く、語を変える・廃止するときの決まりが無い"
-status: discussing
+title: "スキーマの種類（kind）ごとに書けるトップレベルのキーの決まりが、メタスキーマに無くコードにだけある"
+status: todo
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-
-  スキーマにも workspace.yaml にも言語の版を表すキーが無い。廃止した書き方は個別に、置き換え先を案内するエラーで扱っている（語彙の removed・ビューの computed・予約した操作の名前）。
-  仕様の語は状態（安定・別の書き方・廃止予定）を持てるようにした。版の印を入れるか、語ごとの状態と案内で足りるとするかは、オーナーの判断。
+  builtin-schemas/schema.yaml の kind（document・library・relations・behavior）に cases が無く、どの種類でも全部のキーが候補に出る。
+  決まりは workspace-core/workspace/SchemaDocuments.kt と SchemaTreeParser・SchemaDefinitionChecks にある（relations・entities・enforcement は relations だけ、states などは behavior だけ、scaffold と root は document だけ、derive と match は一緒に書けない）。
+  メタスキーマに書けるものは書き、書けない決まりは仕様（devtrack/spec）の規則として持つ。
+features:
+  - S-15
+spec:
+  - CTX-schema

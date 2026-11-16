@@ -1,16 +1,13 @@
 id: UX-348
-title: "値の式の中（first の要素など）に書いた {パス} を含む文字列は、短い書き方にならず文字のまま出る"
+title: "関係レジストリのメタスキーマ（builtin-relations）に functions と vocabulary が無い"
 status: todo
 origin_on: 2026-11-16
-origin: "仕様の例（devtrack/spec/examples）を書いて、実際の結果と突き合わせたとき"
+origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-
-  列の value に {first: ["{due} まで", 期限なし]} と書くと、セルに「{due} まで」がそのまま出る（誤りにも「得られない」にもならない）。
-  短い書き方（{パス} を含む文字列＝format）は、式の全体が文字列のときだけ効く（ValueExpr.parseValue）。式の中は parse が文字列を決まった値として読む。
-  メタスキーマの説明は「既定値は {first: [式, 値]}」とだけ書いていて、式の中では {format: 文字列} と書く必要があることは読み取れない。
-  式の中でも短い書き方を効かせるか、{パス} を含む文字列を式の中に書いたときに点検で知らせるか、説明に書くかを決める。
-  仕様の側は、今の動きを書いた（位置 CTX-expr の説明・例 EX-expr-format-missing）。
+  検査の定義の読み込み（CheckLibrary.parse）はスキーマの種類を問わず functions・vocabulary を読むが、builtin-schemas/relations.yaml のルートには無い（schema.yaml にだけある）。
+  書けるのが正しいならメタスキーマに足し、書けないのが正しいなら読み込みで止める。
 features:
-  - S-23
-  - X-09
+  - S-15
 spec:
-  - CTX-expr
+  - CTX-check-function
+  - CTX-check-vocabulary
