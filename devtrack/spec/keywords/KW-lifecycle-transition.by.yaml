@@ -1,0 +1,9 @@
+id: KW-lifecycle-transition.by
+key: "by"
+context: CTX-lifecycle-transition
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "{action} か {event}"
+    meaning: "遷移の原因。"

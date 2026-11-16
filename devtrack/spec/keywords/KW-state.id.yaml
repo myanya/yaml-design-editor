@@ -1,0 +1,8 @@
+id: KW-state.id
+key: "id"
+context: CTX-state
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "State の ID。source を書かない宣言では必須です。"

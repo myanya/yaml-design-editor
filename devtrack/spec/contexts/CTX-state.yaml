@@ -1,0 +1,10 @@
+id: CTX-state
+title: "State の宣言"
+language: schema
+description: "states の要素。名前付きの状態 1 つ（id と predicate）か、enum の全部の値からの展開（source と idPrefix）のどちらかで書きます。"
+meta:
+  schema: schema
+  path: [definitions, state]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.state"
+  reader: "semantic-core/schema/Behavior.kt の StateDeclaration"

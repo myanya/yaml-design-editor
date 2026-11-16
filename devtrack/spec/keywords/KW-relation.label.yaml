@@ -1,0 +1,8 @@
+id: KW-relation.label
+key: "label"
+context: CTX-relation
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "参照する向きの表示名（例 利用する）。"

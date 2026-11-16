@@ -1,0 +1,8 @@
+id: KW-relation.description
+key: "description"
+context: CTX-relation
+order: 9
+status: stable
+forms:
+  - value: "文章"
+    meaning: "関係の説明。"

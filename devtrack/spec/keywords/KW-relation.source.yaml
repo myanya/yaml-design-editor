@@ -1,0 +1,9 @@
+id: KW-relation.source
+key: "source"
+context: CTX-relation
+order: 4
+status: stable
+forms:
+  - value: "エンティティ型の名前の配列"
+    default: "限りません"
+    meaning: "参照を書く側のエンティティ型。書くと、参照元の型と、出ていく側の多重度の検査が効きます。"

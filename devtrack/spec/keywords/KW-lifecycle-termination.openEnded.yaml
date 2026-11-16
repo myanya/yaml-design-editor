@@ -1,0 +1,9 @@
+id: KW-lifecycle-termination.openEnded
+key: "openEnded"
+context: CTX-lifecycle-termination
+order: 2
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "終端せずに続くことがある Lifecycle であること。"

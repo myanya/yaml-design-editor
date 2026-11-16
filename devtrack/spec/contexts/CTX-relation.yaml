@@ -1,0 +1,10 @@
+id: CTX-relation
+title: "関係の宣言"
+language: schema
+description: "関係レジストリの relations の要素。関係 1 つの名前・表示・向き・多重度を宣言します。"
+meta:
+  schema: relations
+  path: [root, relations, item]
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root.relations.item"
+  reader: "semantic-core/schema/SemanticDeclParser.kt の parseRelations"

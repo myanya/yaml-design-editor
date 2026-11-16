@@ -1,0 +1,8 @@
+id: KW-action.do
+key: "do"
+context: CTX-action
+order: 9
+status: stable
+forms:
+  - value: "手の配列"
+    meaning: "処理の手の並び（set・insert・delete・create・call・each）。lifecycle を書いた操作では、状態の書き込みと記録は Lifecycle が行うので省けます。"

@@ -1,0 +1,9 @@
+id: KW-enforcement.undeclaredRelation
+key: "undeclaredRelation"
+context: CTX-enforcement
+order: 1
+status: stable
+forms:
+  - value: "warning か error"
+    default: "スキーマの読み込みの点検にだけ出ます"
+    meaning: "関係レジストリに無い名前の関係を使う参照を、文書の側でも指摘します。"

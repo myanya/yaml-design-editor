@@ -1,0 +1,8 @@
+id: KW-entity-decl.idType
+key: "idType"
+context: CTX-entity-decl
+order: 3
+status: stable
+forms:
+  - value: "型の名前の文字列"
+    meaning: "この型の ID の型（type: id の型の定義の名前）。idPattern と両方書くと、両方に合う ID がこの型です。"

@@ -1,0 +1,9 @@
+id: KW-lifecycle.entry
+key: "entry"
+context: CTX-lifecycle
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "{to, by} の配列"
+    meaning: "生成のときの入口。原因ごとに、最初の State を書きます。"

@@ -1,0 +1,9 @@
+id: KW-action-input.submit
+key: "submit"
+context: CTX-action-input
+order: 2
+status: stable
+forms:
+  - value: "all か changed"
+    default: "all"
+    meaning: "送る値。changed は変えた項目だけを送ります（必須の項目と、明示した項目はいつも送ります）。"

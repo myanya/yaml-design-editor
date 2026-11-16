@@ -1,0 +1,8 @@
+id: KW-aspect.label
+key: "label"
+context: CTX-aspect
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "側面の表示名。"

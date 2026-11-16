@@ -1,0 +1,9 @@
+id: KW-refinement.exits
+key: "exits"
+context: CTX-refinement
+order: 5
+status: stable
+forms:
+  - value: "{by, from} の配列"
+    default: "どの子からも出られます"
+    meaning: "出口。親から出る遷移を、出られる子に狭めます。"

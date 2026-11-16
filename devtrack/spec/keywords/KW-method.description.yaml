@@ -1,0 +1,8 @@
+id: KW-method.description
+key: "description"
+context: CTX-method
+order: 2
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

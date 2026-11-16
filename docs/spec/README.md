@@ -7,5 +7,8 @@
 |---|---|
 | [schema-document.md](schema-document.md) | スキーマ文書のトップレベルに書ける語と、`kind` に書ける種類 |
 | [schema-fields.md](schema-fields.md) | スキーマの項目定義に書ける語と、`type` に書ける基底の種類 |
+| [schema-relations.md](schema-relations.md) | 関係レジストリ（関係・多重度・エンティティ型・強制の切り替え）と、エンティティ型の宣言に書ける語 |
+| [schema-behavior.md](schema-behavior.md) | State・Event・Lifecycle・State の詳細化に書ける語 |
+| [schema-actions.md](schema-actions.md) | 操作（アクション・型の操作・配列への追加の決まり）に書ける語 |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

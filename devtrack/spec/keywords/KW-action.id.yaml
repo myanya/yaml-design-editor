@@ -1,0 +1,9 @@
+id: KW-action.id
+key: "id"
+context: CTX-action
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "操作の ID。画面・CLI・エージェントが同じ名前で呼びます。1 つのスキーマ文書の中で重ならないこと。"

@@ -1,0 +1,9 @@
+id: KW-refinement.entry
+key: "entry"
+context: CTX-refinement
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "{to, by} の配列"
+    meaning: "入口。親へ入る原因ごとに、入る子の State を書きます。"

@@ -1,0 +1,9 @@
+id: KW-refinement-exit.from
+key: "from"
+context: CTX-refinement-exit
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "State の ID の配列"
+    meaning: "その原因で出られる子の State。"

@@ -1,0 +1,8 @@
+id: KW-state.label
+key: "label"
+context: CTX-state
+order: 3
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "表示名。"

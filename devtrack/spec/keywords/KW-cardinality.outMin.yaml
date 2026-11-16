@@ -1,0 +1,8 @@
+id: KW-cardinality.outMin
+key: "outMin"
+context: CTX-cardinality
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    meaning: "参照元の要素 1 つから出ていく参照の本数の下限。"

@@ -1,0 +1,9 @@
+id: KW-entity-decl.aspect
+key: "aspect"
+context: CTX-entity-decl
+order: 5
+status: stable
+forms:
+  - value: "文字列"
+    default: "スキーマ ID"
+    meaning: "このスキーマの文書が持つ側面の名前。"

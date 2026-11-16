@@ -1,0 +1,19 @@
+id: schema-relations-md
+name: 関係レジストリとエンティティ型（docs/spec/schema-relations.md）
+description: 関係レジストリとエンティティ型の位置と語から docs/spec/schema-relations.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  sections:
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-relation } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-relation } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-cardinality } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-cardinality } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-entity-type } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-entity-type } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-aspect } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-aspect } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-enforcement } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-enforcement } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-entity-decl } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-entity-decl } ] }
+template: schema-relations-md.md

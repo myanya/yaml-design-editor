@@ -1,0 +1,8 @@
+id: KW-method.do
+key: "do"
+context: CTX-method
+order: 5
+status: stable
+forms:
+  - value: "手の配列"
+    meaning: "処理の手の並び。create 以外の操作に書きます。受け手の部分木の中だけを変えます。"

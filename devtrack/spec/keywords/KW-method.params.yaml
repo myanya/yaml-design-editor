@@ -1,0 +1,8 @@
+id: KW-method.params
+key: "params"
+context: CTX-method
+order: 3
+status: stable
+forms:
+  - value: "項目定義の配列"
+    meaning: "受け取る値。"

@@ -1,0 +1,8 @@
+id: KW-action-target.entity
+key: "entity"
+context: CTX-action-target
+order: 1
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    meaning: "受け手のエンティティ型。その型の要素 1 つを受け手にします。"

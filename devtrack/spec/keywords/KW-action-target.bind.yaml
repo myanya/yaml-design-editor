@@ -1,0 +1,9 @@
+id: KW-action-target.bind
+key: "bind"
+context: CTX-action-target
+order: 3
+status: stable
+forms:
+  - value: "文字列"
+    default: "self"
+    meaning: "手と条件の中で、受け手を指す名前。"

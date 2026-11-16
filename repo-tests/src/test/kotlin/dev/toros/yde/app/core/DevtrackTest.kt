@@ -69,6 +69,7 @@ class DevtrackTest {
             "backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md",
             "roadmap-md" to "docs/ROADMAP.md", "roadmap-history-md" to "docs/archive/roadmap-history.md",
             "schema-fields-md" to "docs/spec/schema-fields.md", "schema-document-md" to "docs/spec/schema-document.md",
+            "schema-relations-md" to "docs/spec/schema-relations.md", "schema-behavior-md" to "docs/spec/schema-behavior.md", "schema-actions-md" to "docs/spec/schema-actions.md",
         )
             .filter { (report, target) -> Path.of(target).readText() != render(ws, report) }
             .values

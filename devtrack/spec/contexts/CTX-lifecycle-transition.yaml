@@ -1,0 +1,10 @@
+id: CTX-lifecycle-transition
+title: "遷移"
+language: schema
+description: "Lifecycle の transitions と、詳細化の transitions の要素。"
+meta:
+  schema: schema
+  path: [definitions, lifecycle-transition]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle-transition"
+  reader: "semantic-core/schema/Behavior.kt の LifecycleTransition"

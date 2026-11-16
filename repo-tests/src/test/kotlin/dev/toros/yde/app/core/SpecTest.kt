@@ -25,6 +25,8 @@ import kotlin.test.assertTrue
  * - 基底の種類は、実装（FieldType）・メタスキーマの type の選択肢と一致する
  * - 位置「スキーマ文書」の語は、スキーマと関係レジストリのメタスキーマの root と一致し、関係レジストリに書ける語も一致する
  * - スキーマの種類は、実装（SchemaKind）・メタスキーマの kind の選択肢と一致する
+ * - メタスキーマの中の場所（meta）を書いた位置（関係・振る舞い・操作）は、語と必須がその場所の項目の並びと一致する
+ * - どの位置も、参照文書のレポートのどれかに載っている
  * - 語の ID の形の検査が働く。ダッシュボード「仕様」が解決できる
  */
 class SpecTest {
@@ -118,6 +120,43 @@ class SpecTest {
         val documented = root.resolve("spec/schema-kinds").listDirectoryEntries("*.yaml").map(::raw)
         assertEquals(implemented.sorted(), documented.map { it["name"].toString() }.sorted(), "devtrack/spec/schema-kinds の文書")
         documented.forEach { assertEquals("KIND-${it["name"]}", it["id"], "スキーマの種類の ID は KIND-＋名前") }
+    }
+
+    /**
+     * メタスキーマの中の場所（位置の meta.path）をたどり、そこの項目の並びを返す。項目の並び（fields）を持つ場所では項目のキーで、
+     * そうでない場所ではマップのキーでたどる（配列の要素は item）。
+     */
+    private fun metaFields(builtin: String, path: List<String>): List<Map<*, *>> {
+        val node = path.fold<String, Map<*, *>>(raw(builtin)) { at, step ->
+            val fields = at["fields"] as List<*>?
+            (if (fields != null) fields.map { it as Map<*, *> }.singleOrNull { it["key"] == step } else at[step] as Map<*, *>?)
+                ?: error("メタスキーマ $builtin に ${path.joinToString(".")} の $step がありません")
+        }
+        return (node["fields"] as List<*>).map { it as Map<*, *> }
+    }
+
+    @Test
+    fun `メタスキーマの中の場所を書いた位置は 語と必須がメタスキーマと同じ`() {
+        val keywords = root.resolve("spec/keywords").listDirectoryEntries("*.yaml").map(::raw).groupBy { it["context"].toString() }
+        val contexts = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map(::raw).filter { it["meta"] != null }
+        assertTrue(contexts.size >= 20, "メタスキーマの中の場所を書いた位置が読めていること: ${contexts.size}")
+        val differing = contexts.mapNotNull { ctx ->
+            val meta = ctx["meta"] as Map<*, *>
+            val fields = metaFields(meta["schema"].toString(), (meta["path"] as List<*>).map(Any?::toString))
+            val metaKeys = fields.associate { it["key"].toString() to (it["required"] == true) }
+            val specKeys = keywords[ctx["id"].toString()].orEmpty().associate { kw ->
+                kw["key"].toString() to (kw["forms"] as List<*>).any { (it as Map<*, *>)["required"] == true }
+            }
+            if (metaKeys == specKeys) null else "${ctx["id"]}: メタスキーマ（キー → 必須）$metaKeys・仕様 $specKeys"
+        }
+        assertTrue(differing.isEmpty(), "語か必須が、仕様とメタスキーマで違います:\n" + differing.joinToString("\n"))
+    }
+
+    @Test
+    fun `どの位置も 参照文書のレポートのどれかに載っている`() {
+        val reports = root.resolve(".yde/reports").listDirectoryEntries("schema-*-md.yaml").joinToString("\n") { it.readText() }
+        val missing = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map { raw(it)["id"].toString() }.filter { "equals: $it }" !in reports }
+        assertTrue(missing.isEmpty(), "参照文書に載っていない位置があります（.yde/reports の schema-*-md.yaml に足す）: $missing")
     }
 
     @Test

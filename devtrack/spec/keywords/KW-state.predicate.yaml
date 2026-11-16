@@ -1,0 +1,8 @@
+id: KW-state.predicate
+key: "predicate"
+context: CTX-state
+order: 4
+status: stable
+forms:
+  - value: "条件（クエリと expect・check）"
+    meaning: "状態の判定の条件。書かない State は詳細化（refinements）した親で、子のどれかが真のとき真です。"

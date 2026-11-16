@@ -1,0 +1,9 @@
+id: KW-method.build
+key: "build"
+context: CTX-method
+order: 4
+status: stable
+forms:
+  - value: "変換のひな型"
+    default: "必須の項目の初期値と、受け取った値"
+    meaning: "新しい要素の中身。create にだけ書きます。"

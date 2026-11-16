@@ -1,0 +1,9 @@
+id: KW-lifecycle-history.path
+key: "path"
+context: CTX-lifecycle-history
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "記録を書く配列の場所（エンティティの要素からの相対パス）。行の項目は date・action・from・to と、操作の lifecycle.history に書いた値です。"

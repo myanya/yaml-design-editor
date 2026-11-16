@@ -1,0 +1,10 @@
+id: CTX-action-target
+title: "受け手"
+language: schema
+description: "操作の target。entity と schema は、どちらか一方だけを書きます。"
+meta:
+  schema: schema
+  path: [definitions, action, target]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.action.target"
+  reader: "semantic-core/schema/Action.kt の ActionTarget"

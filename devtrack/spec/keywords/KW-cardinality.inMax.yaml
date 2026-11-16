@@ -1,0 +1,8 @@
+id: KW-cardinality.inMax
+key: "inMax"
+context: CTX-cardinality
+order: 2
+status: stable
+forms:
+  - value: "整数"
+    meaning: "参照先の要素 1 つへ入ってくる参照の本数の上限。"

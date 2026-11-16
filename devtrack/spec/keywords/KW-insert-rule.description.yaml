@@ -1,0 +1,8 @@
+id: KW-insert-rule.description
+key: "description"
+context: CTX-insert-rule
+order: 2
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

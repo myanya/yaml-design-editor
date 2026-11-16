@@ -1,0 +1,9 @@
+id: KW-event.id
+key: "id"
+context: CTX-event
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "Event の ID。"

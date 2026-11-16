@@ -1,0 +1,8 @@
+id: KW-action.lifecycle
+key: "lifecycle"
+context: CTX-action
+order: 7
+status: stable
+forms:
+  - value: "Lifecycle の ID か {id, history}"
+    meaning: "従う Lifecycle。書くと、状態の前提・状態の値の書き込み・遷移の記録の行を、その Lifecycle の遷移（by にこの操作を書いたもの）から作ります。"

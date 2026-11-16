@@ -1,0 +1,10 @@
+id: CTX-id-numbering
+title: "ID の採番"
+language: schema
+description: "追加の決まりの id。"
+meta:
+  schema: schema
+  path: [definitions, insert-rule, id]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.insert-rule.id"
+  reader: "semantic-core/schema/Action.kt の IdNumbering"

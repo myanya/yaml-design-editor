@@ -1,0 +1,9 @@
+id: KW-relation.target
+key: "target"
+context: CTX-relation
+order: 5
+status: stable
+forms:
+  - value: "エンティティ型の名前の配列"
+    default: "限りません"
+    meaning: "参照先のエンティティ型。書くと、参照先の型と、入ってくる側の多重度の検査が効きます。"

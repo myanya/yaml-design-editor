@@ -1,0 +1,10 @@
+id: CTX-refinement-exit
+title: "出口"
+language: schema
+description: "詳細化の exits の要素。"
+meta:
+  schema: schema
+  path: [definitions, refinement-exit]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.refinement-exit"
+  reader: "semantic-core/schema/Behavior.kt の RefinementExit"

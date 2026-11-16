@@ -1,0 +1,8 @@
+id: KW-entity-type.aspects
+key: "aspects"
+context: CTX-entity-type
+order: 4
+status: stable
+forms:
+  - value: "{name, label} の配列"
+    meaning: "エンティティページで側面を並べる順。"

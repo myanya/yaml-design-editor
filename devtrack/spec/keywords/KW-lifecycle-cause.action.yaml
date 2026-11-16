@@ -1,0 +1,8 @@
+id: KW-lifecycle-cause.action
+key: "action"
+context: CTX-lifecycle-cause
+order: 1
+status: stable
+forms:
+  - value: "操作の ID"
+    meaning: "原因になる操作。"

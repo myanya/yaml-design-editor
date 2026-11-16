@@ -1,0 +1,9 @@
+id: KW-relation.acyclic
+key: "acyclic"
+context: CTX-relation
+order: 7
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "この関係で循環を作らない宣言。違反はいつもエラーです。"

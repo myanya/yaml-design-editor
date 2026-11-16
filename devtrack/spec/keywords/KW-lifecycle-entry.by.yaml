@@ -1,0 +1,9 @@
+id: KW-lifecycle-entry.by
+key: "by"
+context: CTX-lifecycle-entry
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "{action} か {event}"
+    meaning: "入る原因。"

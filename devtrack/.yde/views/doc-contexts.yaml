@@ -9,3 +9,4 @@ columns:
   - { label: 説明, schemaId: spec-context, path: description }
   - { label: メタスキーマ, schemaId: spec-context, path: evidence.metaschema }
   - { label: 読む実装, schemaId: spec-context, path: evidence.reader }
+  - { label: 利用者向けの説明, schemaId: spec-context, path: evidence.manual }

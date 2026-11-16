@@ -1,0 +1,9 @@
+id: KW-entity-type.type
+key: "type"
+context: CTX-entity-type
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "エンティティ型の名前。スキーマの entity の type と同じ名前にします。"

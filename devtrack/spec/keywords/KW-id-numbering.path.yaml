@@ -1,0 +1,8 @@
+id: KW-id-numbering.path
+key: "path"
+context: CTX-id-numbering
+order: 1
+status: stable
+forms:
+  - value: "パスの文字列"
+    meaning: "ID を持つ項目（要素からの相対パス）。"

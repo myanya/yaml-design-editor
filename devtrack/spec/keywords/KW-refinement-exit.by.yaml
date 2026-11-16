@@ -1,0 +1,9 @@
+id: KW-refinement-exit.by
+key: "by"
+context: CTX-refinement-exit
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "{action} か {event}"
+    meaning: "親から出る遷移の原因。"

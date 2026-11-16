@@ -1,0 +1,8 @@
+id: KW-entity-type.description
+key: "description"
+context: CTX-entity-type
+order: 3
+status: stable
+forms:
+  - value: "文章"
+    meaning: "型の説明。"

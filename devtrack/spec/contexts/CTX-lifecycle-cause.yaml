@@ -1,0 +1,10 @@
+id: CTX-lifecycle-cause
+title: "原因"
+language: schema
+description: "入口・遷移・出口の by。action か event のどちらか 1 つだけを書きます。"
+meta:
+  schema: schema
+  path: [definitions, lifecycle-cause]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle-cause"
+  reader: "semantic-core/schema/Behavior.kt の TransitionCause"

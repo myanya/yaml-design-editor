@@ -1,0 +1,10 @@
+id: CTX-lifecycle-entry
+title: "入口"
+language: schema
+description: "Lifecycle の entry と、詳細化の entry の要素。"
+meta:
+  schema: schema
+  path: [definitions, lifecycle-entry]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle-entry"
+  reader: "semantic-core/schema/Behavior.kt の LifecycleEntry"

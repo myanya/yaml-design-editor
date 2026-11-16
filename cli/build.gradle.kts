@@ -27,7 +27,8 @@ tasks.register<JavaExec>("runCli") {
 val devtrackReports = mapOf(
     "backlog-md" to "docs/BACKLOG.md", "backlog-closed-md" to "docs/archive/backlog-closed.md", "features-md" to "docs/FEATURES.md",
     "roadmap-md" to "docs/ROADMAP.md", "roadmap-history-md" to "docs/archive/roadmap-history.md",
-    "schema-fields-md" to "docs/spec/schema-fields.md", "schema-document-md" to "docs/spec/schema-document.md",   // 仕様の参照文書（devtrack/spec/）
+    "schema-fields-md" to "docs/spec/schema-fields.md", "schema-document-md" to "docs/spec/schema-document.md",
+    "schema-relations-md" to "docs/spec/schema-relations.md", "schema-behavior-md" to "docs/spec/schema-behavior.md", "schema-actions-md" to "docs/spec/schema-actions.md",   // 仕様の参照文書（devtrack/spec/）
 )
 // 書き出す前に devtrack を検証する。読めない文書や検証のエラーがあれば止め、生成物を書かない
 // （読めない文書は索引から抜けるので、そのまま書くと生成物から黙って消える。BACKLOG UX-271）。workspace validate はエラーで終了コード 3

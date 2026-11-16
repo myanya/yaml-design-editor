@@ -1,0 +1,9 @@
+id: KW-relation.name
+key: "name"
+context: CTX-relation
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "関係の名前。参照の項目の relation（保有なら項目の relation かキーの名前）と同じ名前にします。"

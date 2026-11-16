@@ -1,0 +1,9 @@
+id: KW-id-numbering.digits
+key: "digits"
+context: CTX-id-numbering
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    default: "3"
+    meaning: "番号の桁数。"

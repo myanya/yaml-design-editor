@@ -1,0 +1,8 @@
+id: KW-relation.cardinality
+key: "cardinality"
+context: CTX-relation
+order: 6
+status: stable
+forms:
+  - value: "{inMin, inMax, outMin, outMax}"
+    meaning: "多重度。source・target を宣言した側にだけ効きます。組込みの語彙で、検証の前に基本の検査（参照の本数の比較）へ展開します。"

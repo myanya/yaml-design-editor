@@ -103,6 +103,24 @@ definitions:
         type: common#一行の文
         description: 使い方を説明する文書（例 manual/schema.md）。
 
+  # メタスキーマの中の場所: この位置の語が、メタスキーマのどの項目の並びに当たるか（SpecTest が語と必須を突き合わせる）
+  メタスキーマの場所:
+    type: object
+    fields:
+      - key: schema
+        label: メタスキーマ
+        type: enum
+        required: true
+        values:
+          - { value: schema, label: スキーマ（builtin-schemas/schema.yaml） }
+          - { value: relations, label: 関係レジストリ（builtin-schemas/relations.yaml） }
+      - key: path
+        label: たどる道
+        type: array
+        required: true
+        item: { type: word }
+        description: ルートからたどるキーの並び。項目の並び（fields）を持つ場所では項目のキー、そうでない場所ではマップのキー（例 [definitions, action]・[root, relations, item]）。
+
   # 位置: 語を書ける場所（項目定義・文書のトップレベル・操作 …）。この形の要素がエンティティ context の定義
   位置:
     type: object
@@ -113,6 +131,7 @@ definitions:
       - { key: title, label: 名前, type: common#一行の文, required: true, role: title }
       - { key: language, label: 定義の言語, type: 定義の言語, required: true }
       - { key: description, label: 説明, type: common#文章, required: true }
+      - { key: meta, label: メタスキーマの中の場所, type: メタスキーマの場所, description: 書くと、この位置の語と必須がメタスキーマと同じであることを SpecTest が見ます。 }
       - { key: evidence, label: 根拠, type: 根拠 }
 
   # 基底の種類: type に書ける基底の種類 1 つ。この形の要素がエンティティ base-type の定義
@@ -155,6 +174,7 @@ definitions:
         item: { type: スキーマの種類 }
         description: この形で書けるスキーマ文書の種類（文書のトップレベルの語）。省くと、どの種類の文書にも書けます。
       - { key: value, label: 値の形, type: common#一行の文, required: true, description: 語に書く YAML の値の形（例 真偽値・正規表現の文字列）。 }
+      - { key: required, label: 必須, type: boolean, description: 必ず書く語。 }
       - { key: default, label: 省いたとき, type: common#一行の文, description: 省いたときの扱い（既定の値）。 }
       - { key: meaning, label: 意味, type: common#文章, required: true }
 
@@ -167,7 +187,8 @@ definitions:
       - { key: id, label: ID, type: 語ID, required: true }
       - { key: key, label: キー, type: common#一行の文, required: true, role: title, description: YAML に書くキーの文字。 }
       - { key: context, label: 位置, type: 位置参照, required: true }
-      - { key: group, label: 分類, type: 語の分類, required: true }
+      - { key: group, label: 分類, type: 語の分類, description: 参照文書の節。スキーマ文書と項目定義の語に書きます。 }
+      - { key: order, label: 並び, type: int, description: 参照文書の表での並び（位置の中の順）。 }
       - { key: status, label: 状態, type: 語の状態, required: true, default: stable }
       - { key: alias_of, label: 元の語, type: 語参照, description: 状態が「別の書き方」のとき、元の語。 }
       - key: forms

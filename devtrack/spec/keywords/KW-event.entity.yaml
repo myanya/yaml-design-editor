@@ -1,0 +1,8 @@
+id: KW-event.entity
+key: "entity"
+context: CTX-event
+order: 2
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    meaning: "出来事が起きる対象のエンティティ型。Lifecycle の対象と同じでなくてかまいません。"

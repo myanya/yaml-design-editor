@@ -1,0 +1,10 @@
+id: CTX-enforcement
+title: "強制の切り替え"
+language: schema
+description: "関係レジストリの enforcement。ワークスペース単位で、検査を強める切り替えです。これ以外のキーは誤りになります。"
+meta:
+  schema: relations
+  path: [root, enforcement]
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root.enforcement"
+  reader: "semantic-core/schema/SemanticDeclParser.kt の parseEnforcement"

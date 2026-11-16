@@ -1,0 +1,8 @@
+id: KW-lifecycle-termination.terminal
+key: "terminal"
+context: CTX-lifecycle-termination
+order: 1
+status: stable
+forms:
+  - value: "State の ID の配列"
+    meaning: "終端の State。"

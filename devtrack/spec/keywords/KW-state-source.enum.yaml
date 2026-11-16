@@ -1,0 +1,8 @@
+id: KW-state-source.enum
+key: "enum"
+context: CTX-state-source
+order: 3
+status: stable
+forms:
+  - value: "型の名前の文字列"
+    meaning: "状態の選択肢を持つ型への参照（モジュールID#名前）。"

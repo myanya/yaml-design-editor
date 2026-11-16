@@ -1,0 +1,8 @@
+id: KW-lifecycle.transitions
+key: "transitions"
+context: CTX-lifecycle
+order: 5
+status: stable
+forms:
+  - value: "{from, to, by} の配列"
+    meaning: "許される遷移。"

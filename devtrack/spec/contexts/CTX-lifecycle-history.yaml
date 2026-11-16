@@ -1,0 +1,10 @@
+id: CTX-lifecycle-history
+title: "遷移の記録"
+language: schema
+description: "Lifecycle の history。"
+meta:
+  schema: schema
+  path: [definitions, lifecycle, history]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle.history"
+  reader: "semantic-core/schema/Behavior.kt の LifecycleHistory"

@@ -1,0 +1,9 @@
+id: KW-refinement.state
+key: "state"
+context: CTX-refinement
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "State の ID"
+    meaning: "詳細化する State（predicate を書かずに宣言した親）。"

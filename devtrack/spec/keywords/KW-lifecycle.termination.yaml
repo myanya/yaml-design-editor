@@ -1,0 +1,9 @@
+id: KW-lifecycle.termination
+key: "termination"
+context: CTX-lifecycle
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "{terminal, openEnded}"
+    meaning: "終端の方針。"

@@ -1,0 +1,10 @@
+id: CTX-entity-type
+title: "エンティティ型の一覧の要素"
+language: schema
+description: "関係レジストリの entities の要素。エンティティ型の表示名と、側面の並びを宣言します。"
+meta:
+  schema: relations
+  path: [root, entities, item]
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root.entities.item"
+  reader: "semantic-core/schema/SemanticDeclParser.kt の parseEntityTypes"

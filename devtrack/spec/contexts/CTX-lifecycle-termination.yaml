@@ -1,0 +1,10 @@
+id: CTX-lifecycle-termination
+title: "終端の方針"
+language: schema
+description: "Lifecycle の termination。"
+meta:
+  schema: schema
+  path: [definitions, lifecycle, termination]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle.termination"
+  reader: "semantic-core/schema/Behavior.kt の LifecycleDef"

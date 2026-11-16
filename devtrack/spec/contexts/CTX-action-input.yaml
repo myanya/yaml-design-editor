@@ -1,0 +1,10 @@
+id: CTX-action-input
+title: "入力のフォームの設定"
+language: schema
+description: "操作の input。"
+meta:
+  schema: schema
+  path: [definitions, action-input]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.action-input"
+  reader: "semantic-core/schema/ActionInput.kt"

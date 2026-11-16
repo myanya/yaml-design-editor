@@ -1,0 +1,10 @@
+id: CTX-state-source
+title: "enum からの展開"
+language: schema
+description: "State の宣言の source。状態を持つ項目と、その enum の型を指します。"
+meta:
+  schema: schema
+  path: [definitions, state, source]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.state.source"
+  reader: "semantic-core/schema/Behavior.kt の StateDeclaration"

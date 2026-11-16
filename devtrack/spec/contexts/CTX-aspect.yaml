@@ -1,0 +1,10 @@
+id: CTX-aspect
+title: "側面の並びの要素"
+language: schema
+description: "エンティティ型の aspects の要素。同じ ID を書いた文書ごとの側面 1 つです。"
+meta:
+  schema: relations
+  path: [root, entities, item, aspects, item]
+evidence:
+  metaschema: "builtin-schemas/relations.yaml の root.entities.item.aspects.item"
+  reader: "semantic-core/schema/SemanticDeclParser.kt の parseEntityTypes"

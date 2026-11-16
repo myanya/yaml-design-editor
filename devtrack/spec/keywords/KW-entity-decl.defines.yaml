@@ -1,0 +1,9 @@
+id: KW-entity-decl.defines
+key: "defines"
+context: CTX-entity-decl
+order: 4
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "このスキーマの文書に書いた出現が、そのエンティティの定義であること。"

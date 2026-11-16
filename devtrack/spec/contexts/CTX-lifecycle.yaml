@@ -1,0 +1,10 @@
+id: CTX-lifecycle
+title: "Lifecycle の宣言"
+language: schema
+description: "lifecycles の要素。1 つのエンティティ型の、State・生成・遷移・終端の宣言です。"
+meta:
+  schema: schema
+  path: [definitions, lifecycle]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.lifecycle"
+  reader: "semantic-core/schema/Behavior.kt の LifecycleDef"

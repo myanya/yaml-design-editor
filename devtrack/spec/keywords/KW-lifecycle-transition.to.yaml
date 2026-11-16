@@ -1,0 +1,9 @@
+id: KW-lifecycle-transition.to
+key: "to"
+context: CTX-lifecycle-transition
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "State の ID"
+    meaning: "遷移の先の State。"

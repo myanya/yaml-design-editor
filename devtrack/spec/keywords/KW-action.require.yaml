@@ -1,0 +1,8 @@
+id: KW-action.require
+key: "require"
+context: CTX-action
+order: 8
+status: stable
+forms:
+  - value: "条件（クエリと expect）の配列"
+    meaning: "前提の条件。満たさないと操作を実行できません。"

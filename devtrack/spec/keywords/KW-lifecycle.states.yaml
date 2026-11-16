@@ -1,0 +1,9 @@
+id: KW-lifecycle.states
+key: "states"
+context: CTX-lifecycle
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "State の ID の配列"
+    meaning: "この Lifecycle に含まれる State。"

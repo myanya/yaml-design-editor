@@ -1,0 +1,9 @@
+id: KW-entity-decl.type
+key: "type"
+context: CTX-entity-decl
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "エンティティ型の名前。"

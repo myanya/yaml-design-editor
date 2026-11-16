@@ -1,0 +1,8 @@
+id: KW-lifecycle-cause.event
+key: "event"
+context: CTX-lifecycle-cause
+order: 2
+status: stable
+forms:
+  - value: "Event の ID"
+    meaning: "原因になる出来事。"

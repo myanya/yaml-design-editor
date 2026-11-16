@@ -1,0 +1,8 @@
+id: KW-action.params
+key: "params"
+context: CTX-action
+order: 5
+status: stable
+forms:
+  - value: "項目定義の配列"
+    meaning: "受け取る値。1 つずつ、項目定義と同じ形で書きます。"

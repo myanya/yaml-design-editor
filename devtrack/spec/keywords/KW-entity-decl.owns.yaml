@@ -1,0 +1,9 @@
+id: KW-entity-decl.owns
+key: "owns"
+context: CTX-entity-decl
+order: 6
+status: stable
+forms:
+  - value: "項目のキーの配列"
+    default: "宣言した項目の全部"
+    meaning: "この側面が所有する項目。"

@@ -1,0 +1,9 @@
+id: KW-lifecycle-entry.to
+key: "to"
+context: CTX-lifecycle-entry
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "State の ID"
+    meaning: "入る State。"

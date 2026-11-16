@@ -1,0 +1,8 @@
+id: KW-entity-type.label
+key: "label"
+context: CTX-entity-type
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "型の表示名。"

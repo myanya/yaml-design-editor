@@ -1,0 +1,8 @@
+id: KW-event.description
+key: "description"
+context: CTX-event
+order: 4
+status: stable
+forms:
+  - value: "文章"
+    meaning: "出来事の意味と、起きる条件。"

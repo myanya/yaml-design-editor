@@ -1,0 +1,8 @@
+id: KW-insert-rule.id
+key: "id"
+context: CTX-insert-rule
+order: 3
+status: stable
+forms:
+  - value: "{path, prefix, digits}"
+    meaning: "ID の採番。要素の ID の項目が空のとき、接頭辞の中で使われている最大の番号の次を振ります。"

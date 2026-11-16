@@ -1,0 +1,8 @@
+id: KW-action.input
+key: "input"
+context: CTX-action
+order: 6
+status: stable
+forms:
+  - value: "{initial, submit}"
+    meaning: "入力のフォームの初期の設定。"

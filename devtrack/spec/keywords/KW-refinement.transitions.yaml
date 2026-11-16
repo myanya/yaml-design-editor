@@ -1,0 +1,8 @@
+id: KW-refinement.transitions
+key: "transitions"
+context: CTX-refinement
+order: 4
+status: stable
+forms:
+  - value: "{from, to, by} の配列"
+    meaning: "子の State の間の遷移。"

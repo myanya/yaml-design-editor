@@ -1,0 +1,9 @@
+id: KW-lifecycle.id
+key: "id"
+context: CTX-lifecycle
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "Lifecycle の ID。"

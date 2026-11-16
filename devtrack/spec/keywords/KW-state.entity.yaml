@@ -1,0 +1,8 @@
+id: KW-state.entity
+key: "entity"
+context: CTX-state
+order: 2
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    meaning: "この状態を持つエンティティ型。source を書かない宣言では必須です。"

@@ -1,0 +1,8 @@
+id: KW-id-numbering.prefix
+key: "prefix"
+context: CTX-id-numbering
+order: 2
+status: stable
+forms:
+  - value: "文字列か、変換のひな型"
+    meaning: "ID の接頭辞（例 SCR-）。要素や、配列を持つ要素の値から作れます。"

@@ -1,0 +1,9 @@
+id: KW-action.target
+key: "target"
+context: CTX-action
+order: 4
+status: stable
+forms:
+  - value: "{entity, schema, bind}"
+    default: "ワークスペースの操作になります"
+    meaning: "受け手（操作の対象）。"

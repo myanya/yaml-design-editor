@@ -1,0 +1,8 @@
+id: KW-state.source
+key: "source"
+context: CTX-state
+order: 5
+status: stable
+forms:
+  - value: "{entity, path, enum}"
+    meaning: "enum の全部の値から State を展開する宣言。書いたときは id・predicate を書きません。"

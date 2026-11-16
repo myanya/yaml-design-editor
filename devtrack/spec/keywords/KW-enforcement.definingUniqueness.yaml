@@ -1,0 +1,9 @@
+id: KW-enforcement.definingUniqueness
+key: "definingUniqueness"
+context: CTX-enforcement
+order: 2
+status: stable
+forms:
+  - value: "warning か error"
+    default: "warning"
+    meaning: "定義の出現がどこにも無い ID と、定義の出現が 2 つ以上ある ID の指摘の重さ。"

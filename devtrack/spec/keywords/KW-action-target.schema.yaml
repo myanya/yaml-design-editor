@@ -1,0 +1,8 @@
+id: KW-action-target.schema
+key: "schema"
+context: CTX-action-target
+order: 2
+status: stable
+forms:
+  - value: "スキーマ ID"
+    meaning: "受け手の文書のスキーマ。そのスキーマの文書 1 つを受け手にします。"

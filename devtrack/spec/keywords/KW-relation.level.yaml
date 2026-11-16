@@ -1,0 +1,9 @@
+id: KW-relation.level
+key: "level"
+context: CTX-relation
+order: 8
+status: stable
+forms:
+  - value: "warning か error"
+    default: "warning"
+    meaning: "型と多重度の違反の重さ。"

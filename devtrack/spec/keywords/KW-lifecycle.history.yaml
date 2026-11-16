@@ -1,0 +1,8 @@
+id: KW-lifecycle.history
+key: "history"
+context: CTX-lifecycle
+order: 7
+status: stable
+forms:
+  - value: "{path}"
+    meaning: "遷移の記録を書く配列の場所。Lifecycle に従う操作が、移るたびに 1 行足します。"
