@@ -1,0 +1,5 @@
+id: BT-string
+name: string
+category: scalar
+value: "文字列"
+description: "自由な文字列。複数行を保証するのは組込みの型 text、1 行は line、1 語は word です。"

@@ -1,0 +1,12 @@
+id: KW-field.cases
+key: "cases"
+context: CTX-field
+group: structure
+status: stable
+forms:
+  - applies_to: [enum]
+    value: "値 → 項目定義の配列 のマップ"
+    meaning: "選択肢の値ごとに、親の object へ足す兄弟の項目。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

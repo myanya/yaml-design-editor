@@ -1,0 +1,5 @@
+id: BT-map
+name: map
+category: structure
+value: "任意のキーのマップ"
+description: "任意のキーの連想配列。value（値の定義）が必須です。"

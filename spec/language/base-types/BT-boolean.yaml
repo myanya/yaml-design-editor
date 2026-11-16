@@ -1,0 +1,5 @@
+id: BT-boolean
+name: boolean
+category: scalar
+value: "true か false"
+description: "真偽値。"

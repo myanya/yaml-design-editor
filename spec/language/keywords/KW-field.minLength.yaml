@@ -1,0 +1,12 @@
+id: KW-field.minLength
+key: "minLength"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [string]
+    value: "整数"
+    meaning: "文字数の下限。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

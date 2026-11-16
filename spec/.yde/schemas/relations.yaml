@@ -1,0 +1,22 @@
+# 関係レジストリ: 仕様の関係の語彙。表示名と、参照の向き・多重度の決まりを 1 か所に書きます
+id: spec-relations
+kind: relations
+entities:
+  - { type: context, label: 位置 }
+  - { type: base-type, label: 基底の種類 }
+  - { type: keyword, label: 語 }
+relations:
+  - name: placed-in
+    label: 位置
+    inverseLabel: 書ける語
+    source: [keyword]
+    target: [context]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: 語は、書ける位置を 1 つ参照します
+  - name: alias-of
+    label: 元の語
+    inverseLabel: 別の書き方
+    source: [keyword]
+    target: [keyword]
+    cardinality: { outMax: 1 }
+    description: 別の書き方の語が、元の語を参照します

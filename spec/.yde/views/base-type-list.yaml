@@ -1,0 +1,14 @@
+id: base-type-list
+name: 基底の種類の一覧
+description: 項目の type に書ける基底の種類を並べます。
+rows:
+  idPattern: "BT-*"
+  schemaIds: [base-type]
+order:
+  schemaId: base-type
+  path: id
+  direction: asc
+columns:
+  - { label: 分類, schemaId: base-type, path: category }
+  - { label: 値の形, schemaId: base-type, path: value }
+  - { label: 意味, schemaId: base-type, path: description }

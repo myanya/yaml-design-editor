@@ -1,0 +1,5 @@
+id: BT-enum
+name: enum
+category: scalar
+value: "values に並べた値のどれか"
+description: "選択肢。values が必須です。保存する値は value で、label は表示だけに使います。"

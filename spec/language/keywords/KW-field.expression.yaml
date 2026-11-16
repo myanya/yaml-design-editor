@@ -1,0 +1,12 @@
+id: KW-field.expression
+key: "expression"
+context: CTX-field
+group: behavior
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "true にすると、この項目の値は値の式でもよくなります（{パス} を含む文字列か、式の object）。基底の種類が string の型にだけ書けます。どの項目が式かは、この印だけが決めます。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

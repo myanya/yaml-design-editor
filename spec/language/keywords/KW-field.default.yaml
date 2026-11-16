@@ -1,0 +1,11 @@
+id: KW-field.default
+key: "default"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - value: "任意の値"
+    meaning: "要素や文書を新しく作るときの初期値。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

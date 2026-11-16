@@ -1,0 +1,5 @@
+id: BT-ref
+name: ref
+category: identity
+value: "参照先の ID（空白を含まない文字列）"
+description: "ほかの要素の ID への参照。索引で解決し、解決できない参照は検証の指摘になります。"

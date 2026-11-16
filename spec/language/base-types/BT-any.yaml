@@ -1,0 +1,5 @@
+id: BT-any
+name: any
+category: open
+value: "任意の値"
+description: "任意の値。必須かどうか以外は検証しません。1 つの型で表せない場所を明示するために使います。"

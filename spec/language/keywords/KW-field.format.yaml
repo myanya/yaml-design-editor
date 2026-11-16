@@ -1,0 +1,15 @@
+id: KW-field.format
+key: "format"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - applies_to: [int, number]
+    value: "DecimalFormat のパターン"
+    meaning: "画面で見せる形（例 ¥#,##0）。ファイルと編集中は素の数のままです。display: grouped より優先します。"
+  - applies_to: [date, time, datetime]
+    value: "DateTimeFormatter のパターン"
+    meaning: "画面で見せる形（例 yyyy年M月d日）。ファイルと編集中は正準の形のままです。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

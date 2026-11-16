@@ -1,0 +1,12 @@
+id: KW-field.scope
+key: "scope"
+context: CTX-field
+group: identity
+status: stable
+forms:
+  - applies_to: [ref]
+    value: "{schemaIds, documentIds}"
+    meaning: "参照先を探す範囲。schemaIds はスキーマ ID、documentIds は文書 ID で限ります（それぞれ文字列か配列。配列の中はどれかに合えばよい）。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

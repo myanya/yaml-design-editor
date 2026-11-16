@@ -1,0 +1,5 @@
+id: BT-int
+name: int
+category: scalar
+value: "整数"
+description: "整数。"

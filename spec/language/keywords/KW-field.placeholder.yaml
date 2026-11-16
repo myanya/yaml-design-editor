@@ -1,0 +1,12 @@
+id: KW-field.placeholder
+key: "placeholder"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "値が空のときに、入力欄へ薄く出す案内。"
+inherit: "型に書けば、その型を使う項目に引き継がれます"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

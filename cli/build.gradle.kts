@@ -74,6 +74,54 @@ tasks.register("devtrackDocs") {
     dependsOn(devtrackDocTasks)
 }
 
+// ./gradlew specDocs: 仕様（spec/）の YAML から docs/spec/ の参照文書を作り直す（spec/README.md「運用」）。
+// 形は devtrackDocs と同じ（先に検証し、report --print の文字を受け、成功したときだけ置き換える）。最新かどうかは repo-tests の SpecTest が見る
+val specReports = mapOf("schema-fields-md" to "docs/spec/schema-fields.md")
+val specValidate = tasks.register<JavaExec>("specValidate") {
+    group = "verification"
+    description = "spec を検証する（エラーがあれば失敗。specDocs の前に回る）"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.toros.yde.cli.MainKt")
+    workingDir = rootDir
+    jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+    args("workspace", "validate", "spec")
+    outputs.upToDateWhen { false }
+}
+val specDocTasks = specReports.map { (report, target) ->
+    val staged = layout.buildDirectory.file("spec/$report.md")
+    val targetFile = rootDir.resolve(target)
+    tasks.register<JavaExec>("specDoc-$report") {
+        group = "documentation"
+        description = "spec のレポート $report を $target へ書く"
+        classpath = sourceSets["main"].runtimeClasspath
+        mainClass.set("dev.toros.yde.cli.MainKt")
+        workingDir = rootDir
+        jvmArgs("-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8")
+        args("report", "spec", report, "--print")
+        dependsOn(specValidate)
+        outputs.upToDateWhen { false }
+        var stream: java.io.OutputStream? = null
+        doFirst {
+            val file = staged.get().asFile
+            file.parentFile.mkdirs()
+            stream = file.outputStream().also { standardOutput = it }
+        }
+        doLast {
+            stream?.close()
+            val text = staged.get().asFile.readText(Charsets.UTF_8)
+            check("<!-- 埋まらなかった穴:" !in text) { "レポート $report に埋まらなかった穴があります（${staged.get().asFile}）" }
+            targetFile.parentFile.mkdirs()
+            targetFile.writeText(text, Charsets.UTF_8)
+            logger.lifecycle("$target を作り直しました")
+        }
+    }
+}
+tasks.register("specDocs") {
+    group = "documentation"
+    description = "spec の YAML から docs/spec/ の参照文書を作り直す（先に検証する）"
+    dependsOn(specDocTasks)
+}
+
 // :cli:run は runCli と同じ（application プラグインの run）。ルートで ./gradlew run（GUI）と打ったときに走らないよう、:cli:run と明示したときだけ有効
 tasks.named<JavaExec>("run") {
     enabled = gradle.startParameter.taskNames.any { it.endsWith("cli:run") }

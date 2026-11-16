@@ -1,0 +1,12 @@
+id: KW-field.label
+key: "label"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - value: "文字列"
+    default: "キーの名前を表示します"
+    meaning: "フォームと一覧での表示名。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

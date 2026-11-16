@@ -1,0 +1,12 @@
+id: KW-field.idPatterns
+key: "idPatterns"
+context: CTX-field
+group: identity
+status: stable
+forms:
+  - applies_to: [ref]
+    value: "glob の文字列の配列"
+    meaning: "参照先の ID を限る glob を複数書きます（どれかに合えばよい）。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

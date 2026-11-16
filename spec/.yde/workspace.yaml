@@ -1,0 +1,3 @@
+# 仕様のワークスペース（spec/README.md）。台帳（ID 索引・検証の集計）は language（定義の言語の仕様）。
+# 原本はここで、docs/spec/ の参照文書は生成物（./gradlew specDocs）
+ledger: [language]

@@ -1,0 +1,13 @@
+id: KW-field.unknownFields
+key: "unknownFields"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [object]
+    value: "allow・warning・error のどれか"
+    default: "warning"
+    meaning: "スキーマに無いキーの扱い。allow は通知せず、warning は警告、error はエラーにします。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

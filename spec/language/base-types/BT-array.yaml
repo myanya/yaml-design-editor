@@ -1,0 +1,5 @@
+id: BT-array
+name: array
+category: structure
+value: "配列"
+description: "配列。item（要素の定義）が必須です。"

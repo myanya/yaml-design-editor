@@ -1,0 +1,5 @@
+id: BT-number
+name: number
+category: scalar
+value: "数"
+description: "数（小数を書けます）。"

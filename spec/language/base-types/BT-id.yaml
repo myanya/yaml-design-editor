@@ -1,0 +1,5 @@
+id: BT-id
+name: id
+category: identity
+value: "空白を含まない文字列"
+description: "論理要素の ID。この項目を持つ要素が ID 索引に載ります。同じ ID を別の文書に書くと、同じ要素の別の側面として扱います。"

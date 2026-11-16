@@ -1,0 +1,12 @@
+id: KW-field.item
+key: "item"
+context: CTX-field
+group: structure
+status: stable
+forms:
+  - applies_to: [array]
+    value: "項目定義"
+    meaning: "配列の要素の定義。array では必須です。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

@@ -1,0 +1,5 @@
+id: BT-datetime
+name: datetime
+category: semantic
+value: "YYYY-MM-DD HH:MM（秒は任意。区切りは空白か T）"
+description: "日時。存在しない日時は誤りです。"

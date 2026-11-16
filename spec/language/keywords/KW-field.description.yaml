@@ -1,0 +1,11 @@
+id: KW-field.description
+key: "description"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - value: "文章"
+    meaning: "項目の説明。フォームに表示します。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

@@ -1,0 +1,12 @@
+id: KW-field.unique
+key: "unique"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [array]
+    value: "true か、比べる項目のキーの配列"
+    meaning: "要素が重ならないこと。要素がスカラーなら true、object なら比べる項目のキーの一覧を書きます（複数書けばその組で比べます）。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

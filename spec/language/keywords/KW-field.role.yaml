@@ -1,0 +1,11 @@
+id: KW-field.role
+key: "role"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - value: "title か subtitle"
+    meaning: "この項目の値を、要素の 1 行要約のタイトル（title）か副題（subtitle）に使います。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

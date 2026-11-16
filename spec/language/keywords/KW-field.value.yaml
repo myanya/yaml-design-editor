@@ -1,0 +1,12 @@
+id: KW-field.value
+key: "value"
+context: CTX-field
+group: structure
+status: stable
+forms:
+  - applies_to: [map]
+    value: "項目定義"
+    meaning: "マップの値の定義。map では必須です。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

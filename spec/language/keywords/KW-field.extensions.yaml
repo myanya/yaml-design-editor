@@ -1,0 +1,14 @@
+id: KW-field.extensions
+key: "extensions"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [file]
+    value: "拡張子の配列"
+    default: "制限しません"
+    meaning: "許す拡張子の一覧（ドットなし。大文字と小文字は区別しません）。"
+inherit: "型に書けば引き継がれ、使う側が書けば狭めます"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

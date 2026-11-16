@@ -1,0 +1,5 @@
+id: BT-file
+name: file
+category: semantic
+value: "ファイルの場所の文字列"
+description: "ファイルの場所。ワークスペースのルートからの相対、./ で始めて文書からの相対、または絶対で書きます。存在と許可は検査が確かめます。"

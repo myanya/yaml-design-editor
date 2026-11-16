@@ -1,0 +1,5 @@
+id: BT-date
+name: date
+category: semantic
+value: "YYYY-MM-DD"
+description: "年月日。形に合っていても、存在しない日付（2026-02-30）は誤りです。"

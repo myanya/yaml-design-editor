@@ -1,0 +1,12 @@
+id: KW-field.rows
+key: "rows"
+context: CTX-field
+group: presentation
+status: stable
+forms:
+  - applies_to: [string]
+    value: "整数"
+    meaning: "複数行の欄の高さの目安（行数）。display: multiline の型で使います。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

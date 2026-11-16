@@ -1,0 +1,5 @@
+id: BT-time
+name: time
+category: semantic
+value: "HH:MM か HH:MM:SS"
+description: "時刻。存在しない時刻は誤りです。"

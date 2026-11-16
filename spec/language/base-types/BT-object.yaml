@@ -1,0 +1,5 @@
+id: BT-object
+name: object
+category: structure
+value: "決まったキーのマップ"
+description: "オブジェクト。fields（子の項目）が必須です。"

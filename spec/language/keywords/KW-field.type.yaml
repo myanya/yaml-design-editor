@@ -1,0 +1,12 @@
+id: KW-field.type
+key: "type"
+context: CTX-field
+group: structure
+status: stable
+forms:
+  - value: "基底の種類の名前か、型の名前"
+    default: "string"
+    meaning: "項目の型。基底の種類か、型の名前（組込みの型 text・line・word、definitions に定義した型、別のモジュールの型は モジュールID#名前）を書きます。型の名前を書くと定義の決まりを引き継ぎ、ここに書く決まりは狭めるだけです。"
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

@@ -1,0 +1,20 @@
+id: keyword-list
+name: 語の一覧
+description: 語（定義に書けるキー）を ID の順に並べます。ダッシュボードの区画が絞ります。
+rows:
+  idPattern: "KW-*"
+  schemaIds: [keyword]
+order:
+  schemaId: keyword
+  path: id
+  direction: asc
+# キーは行の ID の下に出る（role: title）ので、列にしない
+columns:
+  - { label: 位置, schemaId: keyword, path: context }
+  - { label: 分類, schemaId: keyword, path: group }
+  - { label: 状態, schemaId: keyword, path: status }
+  - label: 値の形
+    schemaId: keyword
+    value:
+      each: { path: forms }
+      value: { path: value }
