@@ -1,0 +1,8 @@
+id: KW-chart.chart
+key: "chart"
+context: CTX-chart
+order: 1
+status: stable
+forms:
+  - value: "bar・stacked-bar・horizontal-bar・stacked-horizontal-bar・line・area・stacked-area・scatter・pie のどれか"
+    meaning: "図の種類。棒・積み上げ棒・横棒・積み上げ横棒・折れ線・面・積み上げ面・散布図・円です。円は最初の系列だけを描きます。"

@@ -58,7 +58,15 @@ class SpecTest {
         return cased + common
     }
 
-    private fun raw(builtin: String): Map<*, *> = YamlIO.parseToRaw(BuiltinSchemaResources.text(builtin)) as Map<*, *>
+    /** 組込みのメタスキーマ以外の定義の形（あとから足せる種類のビューの断片と、フローの図のモデル。app-core の資源）。 */
+    private val extraResources = mapOf("view-chart" to "/view/chart/schema.yaml", "view-flow" to "/view/flow/schema.yaml", "flow-model" to "/view/flow/flow-model.yaml")
+
+    private fun raw(builtin: String): Map<*, *> {
+        val text = extraResources[builtin]?.let { path ->
+            requireNotNull(Workspace::class.java.getResourceAsStream(path)) { "資源が見つかりません: $path" }.use { it.readBytes().decodeToString() }
+        } ?: BuiltinSchemaResources.text(builtin)
+        return YamlIO.parseToRaw(text) as Map<*, *>
+    }
 
     private fun metaTypeField(): Map<*, *> =
         ((((raw("schema")["definitions"] as Map<*, *>)["field"] as Map<*, *>)["fields"] as List<*>).single { (it as Map<*, *>)["key"] == "type" }) as Map<*, *>
@@ -129,8 +137,9 @@ class SpecTest {
      */
     private fun metaFields(builtin: String, path: List<String>): List<Map<*, *>> {
         val node = path.fold<String, Map<*, *>>(raw(builtin)) { at, step ->
+            // 項目の並びにそのキーの項目があればそれ、無ければマップのキー（断片の section のように、項目の並びの隣に置かれたもの）
             val fields = at["fields"] as List<*>?
-            (if (fields != null) fields.map { it as Map<*, *> }.singleOrNull { it["key"] == step } else at[step] as Map<*, *>?)
+            (fields?.map { it as Map<*, *> }?.singleOrNull { it["key"] == step } ?: at[step] as? Map<*, *>)
                 ?: error("メタスキーマ $builtin に ${path.joinToString(".")} の $step がありません")
         }
         return (node["fields"] as List<*>).map { it as Map<*, *> }

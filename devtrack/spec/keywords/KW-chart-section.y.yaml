@@ -1,0 +1,8 @@
+id: KW-chart-section.y
+key: "y"
+context: CTX-chart-section
+order: 8
+status: stable
+forms:
+  - value: "{label, format}"
+    meaning: "その場のチャートの縦軸。"

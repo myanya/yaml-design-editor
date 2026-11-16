@@ -1,0 +1,8 @@
+id: KW-flow-view.projection
+key: "projection"
+context: CTX-flow-view
+order: 3
+status: stable
+forms:
+  - value: "{id, name, description, build, rules}"
+    meaning: "フローへの変換。出力は、フローの図のモデル（nodes・edges・lanes）です。"

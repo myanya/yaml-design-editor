@@ -1,0 +1,8 @@
+id: KW-flow-model.lanes
+key: "lanes"
+context: CTX-flow-model
+order: 3
+status: stable
+forms:
+  - value: "レーンの配列"
+    meaning: "レーン。"

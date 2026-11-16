@@ -1,0 +1,10 @@
+id: CTX-chart
+title: "チャート（kind: chart）"
+language: view
+description: "元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描きます。データは元の表が持ち、チャートには集計を書きません。"
+meta:
+  schema: view-chart
+  path: []
+evidence:
+  metaschema: "app-core の資源 view/chart/schema.yaml のルートの項目"
+  reader: "app-core/view/chart/ChartViewKind.kt"

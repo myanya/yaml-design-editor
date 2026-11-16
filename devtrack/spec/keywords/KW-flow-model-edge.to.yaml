@@ -1,0 +1,9 @@
+id: KW-flow-model-edge.to
+key: "to"
+context: CTX-flow-model-edge
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "箱の鍵"
+    meaning: "線の先の箱。"

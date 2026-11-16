@@ -1,0 +1,8 @@
+id: KW-chart-section.chart
+key: "chart"
+context: CTX-chart-section
+order: 4
+status: stable
+forms:
+  - value: "bar・stacked-bar・horizontal-bar・stacked-horizontal-bar・line・area・stacked-area・scatter・pie のどれか"
+    meaning: "その場のチャートの、図の種類。"

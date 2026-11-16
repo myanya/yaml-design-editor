@@ -1,0 +1,8 @@
+id: KW-chart-section.scale
+key: "scale"
+context: CTX-chart-section
+order: 10
+status: stable
+forms:
+  - value: "{x, y}"
+    meaning: "その場のチャートの散布図の、軸の種類。"

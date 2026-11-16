@@ -1,0 +1,9 @@
+id: KW-chart-scale.x
+key: "x"
+context: CTX-chart-scale
+order: 1
+status: stable
+forms:
+  - value: "linear か log"
+    default: "linear"
+    meaning: "横軸。"

@@ -1,0 +1,9 @@
+id: KW-chart.series
+key: "series"
+context: CTX-chart
+order: 3
+status: stable
+forms:
+  - value: "列の見出しの配列"
+    default: "数として読める列すべて（クロス集計の合計と未分類の列は除く）"
+    meaning: "系列にする列。"

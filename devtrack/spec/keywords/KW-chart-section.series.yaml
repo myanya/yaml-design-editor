@@ -1,0 +1,9 @@
+id: KW-chart-section.series
+key: "series"
+context: CTX-chart-section
+order: 5
+status: stable
+forms:
+  - value: "キーの配列"
+    default: "数のキーすべて"
+    meaning: "その場のチャートの、系列にするキー。"

@@ -1,0 +1,8 @@
+id: KW-flow-model-edge.label
+key: "label"
+context: CTX-flow-model-edge
+order: 5
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "線に出す文字。"

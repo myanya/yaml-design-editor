@@ -1,0 +1,8 @@
+id: KW-chart-section.label
+key: "label"
+context: CTX-chart-section
+order: 7
+status: stable
+forms:
+  - value: "キー"
+    meaning: "その場のチャートの散布図で、点の名前にするキー。"

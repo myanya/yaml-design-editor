@@ -1,0 +1,10 @@
+id: CTX-flow-layout
+title: "配置（layout）"
+language: view
+description: "業務フロー図の layout。"
+meta:
+  schema: view-flow
+  path: [layout]
+evidence:
+  metaschema: "app-core の資源 view/flow/schema.yaml の layout"
+  reader: "app-core/view/flow/FlowViewKind.kt"

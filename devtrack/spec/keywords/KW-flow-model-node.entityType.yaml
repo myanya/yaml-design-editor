@@ -1,0 +1,8 @@
+id: KW-flow-model-node.entityType
+key: "entityType"
+context: CTX-flow-model-node
+order: 3
+status: stable
+forms:
+  - value: "エンティティ型の名前"
+    meaning: "箱のエンティティ型。記法を当てるのに使います。"

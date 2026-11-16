@@ -1,0 +1,8 @@
+id: KW-chart-axis.label
+key: "label"
+context: CTX-chart-axis
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "軸の見出し。"

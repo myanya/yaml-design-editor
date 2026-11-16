@@ -1,0 +1,8 @@
+id: KW-flow-model-node.shape
+key: "shape"
+context: CTX-flow-model-node
+order: 4
+status: stable
+forms:
+  - value: "box・diamond・rounded のどれか"
+    meaning: "箱の形。"

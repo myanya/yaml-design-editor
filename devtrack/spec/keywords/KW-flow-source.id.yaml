@@ -1,0 +1,9 @@
+id: KW-flow-source.id
+key: "id"
+context: CTX-flow-source
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "名前"
+    meaning: "入力の名前。projection の中で、この名前の配列として読みます。"

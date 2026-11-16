@@ -1,0 +1,8 @@
+id: KW-chart.view
+key: "view"
+context: CTX-chart
+order: 2
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "元の表。グリッドかクロス集計のビューで、行が横軸の項目、列が系列になります。"

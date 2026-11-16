@@ -1,0 +1,8 @@
+id: KW-flow-projection.name
+key: "name"
+context: CTX-flow-projection
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "表示名。"

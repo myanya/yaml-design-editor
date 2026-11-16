@@ -1,0 +1,8 @@
+id: KW-chart-section.rows
+key: "rows"
+context: CTX-chart-section
+order: 2
+status: stable
+forms:
+  - value: "パスの文字列"
+    meaning: "その場のチャート。開いた文書の中の配列の場所で、要素を行（横軸の項目）にします。series・x・label は要素のキーで書きます。"

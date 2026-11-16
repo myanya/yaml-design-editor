@@ -1,0 +1,8 @@
+id: KW-chart.y
+key: "y"
+context: CTX-chart
+order: 6
+status: stable
+forms:
+  - value: "{label, format}"
+    meaning: "縦軸。"

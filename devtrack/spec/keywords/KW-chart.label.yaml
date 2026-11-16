@@ -1,0 +1,9 @@
+id: KW-chart.label
+key: "label"
+context: CTX-chart
+order: 5
+status: stable
+forms:
+  - value: "列の見出し"
+    default: "行のタイトル（無ければ ID）"
+    meaning: "散布図で、点の名前にする列。"

@@ -1,0 +1,8 @@
+id: KW-chart-section.drill
+key: "drill"
+context: CTX-chart-section
+order: 9
+status: stable
+forms:
+  - value: "popup・below・right・none のどれか"
+    meaning: "その場のチャートの、押したときの一覧の出し方。"

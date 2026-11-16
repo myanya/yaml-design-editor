@@ -1,0 +1,10 @@
+id: CTX-flow-model
+title: "フローの図のモデル"
+language: view
+description: "projection の build が組み立てる出力の形。ここに無いキーは誤りになります。"
+meta:
+  schema: flow-model
+  path: [root]
+evidence:
+  metaschema: "app-core の資源 view/flow/flow-model.yaml の root"
+  reader: "app-core/view/flow/FlowViews.kt"

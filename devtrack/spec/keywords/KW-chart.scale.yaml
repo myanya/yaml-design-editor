@@ -1,0 +1,8 @@
+id: KW-chart.scale
+key: "scale"
+context: CTX-chart
+order: 8
+status: stable
+forms:
+  - value: "{x, y}"
+    meaning: "散布図の軸の種類。対数の軸では、0 以下の値は描きません。"

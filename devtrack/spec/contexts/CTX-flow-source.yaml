@@ -1,0 +1,10 @@
+id: CTX-flow-source
+title: "入力（sources の要素）"
+language: view
+description: "業務フロー図の sources の要素。"
+meta:
+  schema: view-flow
+  path: [sources, item]
+evidence:
+  metaschema: "app-core の資源 view/flow/schema.yaml の sources.item"
+  reader: "app-core/view/flow/FlowViewKind.kt"

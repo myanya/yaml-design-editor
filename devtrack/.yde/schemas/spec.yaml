@@ -122,6 +122,9 @@ definitions:
           - { value: transform, label: 生成の定義（builtin-schemas/transform.yaml） }
           - { value: report, label: レポート（builtin-schemas/report.yaml） }
           - { value: view, label: ビュー（builtin-schemas/view.yaml） }
+          - { value: view-chart, label: チャートの断片（app-core の view/chart/schema.yaml） }
+          - { value: view-flow, label: 業務フロー図の断片（app-core の view/flow/schema.yaml） }
+          - { value: flow-model, label: フローの図のモデル（app-core の view/flow/flow-model.yaml） }
           - { value: agent, label: エージェント（builtin-schemas/agent.yaml） }
           - { value: activity, label: アクティビティ（builtin-schemas/activity.yaml） }
           - { value: eval, label: 評価セット（builtin-schemas/eval.yaml） }
@@ -130,9 +133,8 @@ definitions:
       - key: path
         label: たどる道
         type: array
-        required: true
         item: { type: word }
-        description: ルートからたどるキーの並び。項目の並び（fields）を持つ場所では項目のキー、そうでない場所ではマップのキー（例 [definitions, action]・[root, relations, item]）。
+        description: ルートからたどるキーの並び（断片のルートの項目は、空で書きます）。項目の並び（fields）を持つ場所では項目のキー、そうでない場所ではマップのキー（例 [definitions, action]・[root, relations, item]）。
       - key: missing
         label: メタスキーマに無い語
         type: array

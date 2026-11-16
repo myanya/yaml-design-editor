@@ -1,0 +1,8 @@
+id: KW-chart-section.view
+key: "view"
+context: CTX-chart-section
+order: 1
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "埋め込むチャート。rows とは一緒に書きません。"

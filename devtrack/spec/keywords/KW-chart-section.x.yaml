@@ -1,0 +1,9 @@
+id: KW-chart-section.x
+key: "x"
+context: CTX-chart-section
+order: 6
+status: stable
+forms:
+  - value: "キー"
+    default: "要素の番号（1 から）"
+    meaning: "その場のチャートの、横軸の項目にするキー。散布図では横軸にする数のキーです。"

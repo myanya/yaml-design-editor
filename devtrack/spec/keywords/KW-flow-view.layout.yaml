@@ -1,0 +1,8 @@
+id: KW-flow-view.layout
+key: "layout"
+context: CTX-flow-view
+order: 2
+status: stable
+forms:
+  - value: "{direction}"
+    meaning: "フローの配置。"

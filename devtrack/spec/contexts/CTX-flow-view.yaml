@@ -1,0 +1,10 @@
+id: CTX-flow-view
+title: "業務フロー図（kind: flow）"
+language: view
+description: "文書を、変換のひな型（projection）で箱・線・レーンへ変えて描きます。"
+meta:
+  schema: view-flow
+  path: []
+evidence:
+  metaschema: "app-core の資源 view/flow/schema.yaml のルートの項目"
+  reader: "app-core/view/flow/FlowViewKind.kt"

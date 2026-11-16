@@ -1,0 +1,9 @@
+id: KW-flow-source.from
+key: "from"
+context: CTX-flow-source
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "{match, also, where, limit}"
+    meaning: "入力を選ぶクエリ。"

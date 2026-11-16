@@ -1,0 +1,10 @@
+id: CTX-flow-model-lane
+title: "レーン（lanes の要素）"
+language: view
+description: "フローの図のモデルの lanes の要素。"
+meta:
+  schema: flow-model
+  path: [root, lanes, item]
+evidence:
+  metaschema: "app-core の資源 view/flow/flow-model.yaml の root.lanes.item"
+  reader: "app-core/view/flow/FlowViews.kt"

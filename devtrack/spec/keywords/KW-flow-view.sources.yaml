@@ -1,0 +1,8 @@
+id: KW-flow-view.sources
+key: "sources"
+context: CTX-flow-view
+order: 1
+status: stable
+forms:
+  - value: "{id, description, from, build, rules} の配列"
+    meaning: "複数の文書からの入力。クエリで選んで組み立てた結果を、id の名前の配列として projection へ渡します。元の文書は document から読みます。"

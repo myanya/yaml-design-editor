@@ -1,0 +1,10 @@
+id: CTX-flow-projection
+title: "フローへの変換（projection）"
+language: view
+description: "業務フロー図の projection。変換定義と同じ形のうち、ここに並ぶ語を書きます。"
+meta:
+  schema: view-flow
+  path: [projection]
+evidence:
+  metaschema: "app-core の資源 view/flow/schema.yaml の projection"
+  reader: "app-core/view/flow/FlowViewKind.kt"

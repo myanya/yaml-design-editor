@@ -1,0 +1,8 @@
+id: KW-flow-model-edge.relation
+key: "relation"
+context: CTX-flow-model-edge
+order: 2
+status: stable
+forms:
+  - value: "関係の名前"
+    meaning: "線の関係。記法を当てるのに使います。"

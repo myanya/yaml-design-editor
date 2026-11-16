@@ -1,0 +1,9 @@
+id: KW-flow-source.build
+key: "build"
+context: CTX-flow-source
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "ひな型"
+    meaning: "選んだものから組み立てる中身。"

@@ -1,0 +1,8 @@
+id: KW-chart-axis.format
+key: "format"
+context: CTX-chart-axis
+order: 2
+status: stable
+forms:
+  - value: "DecimalFormat のパターン"
+    meaning: "値の形（例 #,##0）。軸と、マウスを載せたときの文字に使います。"

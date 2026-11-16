@@ -1,0 +1,10 @@
+id: CTX-flow-model-edge
+title: "線（edges の要素）"
+language: view
+description: "フローの図のモデルの edges の要素。"
+meta:
+  schema: flow-model
+  path: [root, edges, item]
+evidence:
+  metaschema: "app-core の資源 view/flow/flow-model.yaml の root.edges.item"
+  reader: "app-core/view/flow/FlowViews.kt"

@@ -1,0 +1,10 @@
+id: CTX-flow-model-node
+title: "箱（nodes の要素）"
+language: view
+description: "フローの図のモデルの nodes の要素。"
+meta:
+  schema: flow-model
+  path: [root, nodes, item]
+evidence:
+  metaschema: "app-core の資源 view/flow/flow-model.yaml の root.nodes.item"
+  reader: "app-core/view/flow/FlowViews.kt"

@@ -1,0 +1,10 @@
+id: CTX-chart-axis
+title: "縦軸（y）"
+language: view
+description: "チャートの y。"
+meta:
+  schema: view-chart
+  path: [y]
+evidence:
+  metaschema: "app-core の資源 view/chart/schema.yaml の y"
+  reader: "app-core/view/chart/ChartViewKind.kt"

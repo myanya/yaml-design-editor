@@ -1,0 +1,9 @@
+id: KW-chart.drill
+key: "drill"
+context: CTX-chart
+order: 7
+status: stable
+forms:
+  - value: "popup・below・right・none のどれか"
+    default: "popup"
+    meaning: "棒・点・扇形を押したときの、材料の一覧の出し方。そのセルに集めた要素と値が並び、各要素の業務詳細か原本へ進めます。"

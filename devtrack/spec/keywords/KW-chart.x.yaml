@@ -1,0 +1,9 @@
+id: KW-chart.x
+key: "x"
+context: CTX-chart
+order: 4
+status: stable
+forms:
+  - value: "列の見出し"
+    default: "行のタイトル（無ければ ID）"
+    meaning: "横軸の文字にする列。散布図では、横軸にする数の列で必須です。"

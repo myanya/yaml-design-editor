@@ -1,0 +1,9 @@
+id: KW-flow-layout.direction
+key: "direction"
+context: CTX-flow-layout
+order: 1
+status: stable
+forms:
+  - value: "down か right"
+    default: "down"
+    meaning: "流れの向き。"
