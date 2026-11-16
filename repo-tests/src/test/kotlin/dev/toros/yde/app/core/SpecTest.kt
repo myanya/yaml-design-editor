@@ -4,6 +4,8 @@ import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.workspace.BuiltinSchemaResources
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.yaml.model.pretty
 import dev.toros.yde.yaml.validate.Severity
 import java.nio.file.Files
@@ -215,6 +217,8 @@ class SpecTest {
         }
         val ws = Workspace.open(dir)
         if (ws.schemaErrors.isNotEmpty()) return "schema-error" to ws.schemaErrors
+        val views = Views.load(dir, ws.schemas)
+        if (views.errors.isNotEmpty()) return "view-error" to views.errors.map { it.toString() }
         val issues = ws.files.flatMap { file -> ws.validate(ws.relPath(file)).map { it.severity to "${ws.relPath(file)} ${it.path.pretty()}: ${it.message}" } }
         val errors = issues.filter { it.first == Severity.ERROR }.map { it.second }
         val warnings = issues.filter { it.first == Severity.WARNING }.map { it.second }
@@ -223,6 +227,28 @@ class SpecTest {
             warnings.isNotEmpty() -> "warning" to warnings
             else -> "ok" to emptyList()
         }
+    }
+
+    /** セルの値の文字（配列は「・」でつなぐ。値が無ければ空）。 */
+    private fun cellText(node: YNode?): String = when (node) {
+        null -> ""
+        is YNode.Seq -> node.items.joinToString("・") { cellText(it) }
+        else -> scalarText(node) ?: ""
+    }
+
+    /** 例のビューを解決して、書いてある行（並びの順）と値を突き合わせる。同じなら null、違えばその文。 */
+    private fun viewDiff(example: Map<*, *>, expected: Map<*, *>, base: Path): String? {
+        val ws = Workspace.open(base.resolve(example["id"].toString()))
+        val view = Views.load(ws.root, ws.schemas).view(expected["id"].toString()) ?: return "${example["id"]}: ビュー ${expected["id"]} がありません"
+        val rows = Views.resolve(view, ws.index, ws::treeOf, { ws.schemaFor(it) })
+        val actual = rows.map { row -> row.id to row.cells.associate { it.column.label to cellText(it.value) } }
+        val wanted = (expected["rows"] as List<*>).map { it as Map<*, *> }
+        if (actual.map { it.first } != wanted.map { it["id"].toString() }) return "${example["id"]}: 行は ${actual.map { it.first }}（書いてあるのは ${wanted.map { it["id"] }}）"
+        val differing = wanted.zip(actual).flatMap { (want, got) ->
+            (want["values"] as Map<*, *>?).orEmpty().filter { (label, value) -> got.second[label.toString()] != value.toString() }
+                .map { (label, value) -> "${got.first} の「$label」は「${got.second[label.toString()]}」（書いてあるのは「$value」）" }
+        }
+        return if (differing.isEmpty()) null else "${example["id"]}: $differing（実際の行: $actual）"
     }
 
     @Test
@@ -238,7 +264,7 @@ class SpecTest {
                 when {
                     result != expect["result"] -> "${example["id"]}: 結果は $result（書いてあるのは ${expect["result"]}）: $messages"
                     wanted != null && messages.none { wanted in it } -> "${example["id"]}: 文面に「$wanted」がありません: $messages"
-                    else -> null
+                    else -> (expect["view"] as Map<*, *>?)?.let { viewDiff(example, it, base) }
                 }
             }
             assertTrue(differing.isEmpty(), "仕様の例が、書いてあるとおりの結果になりません:\n" + differing.joinToString("\n"))

@@ -1,0 +1,60 @@
+id: EX-lens-filter-unknown-key
+title: "レンズの絞り込みに、決まった語でないキーは書けない"
+illustrates: [CTX-lens-filter]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: points, type: int }
+          - { key: due, type: date }
+          - { key: parent, type: ref, relation: child-of }
+          - key: comments
+            type: array
+            item:
+              type: object
+              fields:
+                - { key: date, type: date }
+                - { key: text, type: string }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: done
+      points: 3
+      due: 2026-10-05
+      comments:
+        - { date: 2026-10-01, text: 着手 }
+        - { date: 2026-10-04, text: 完了 }
+  - path: "tasks/b.yaml"
+    text: |-
+      id: TASK-2
+      title: 実装
+      status: doing
+      points: 5
+      due: 2026-11-20
+      parent: TASK-1
+  - path: "tasks/c.yaml"
+    text: |-
+      id: TASK-3
+      title: 試験
+      status: todo
+      points: 2
+      parent: TASK-1
+  - path: ".yde/views/example.yaml"
+    text: |-
+      id: example
+      name: 例
+      kind: lens
+      filters:
+        - { id: open, mode: hide, where: { path: data.status, equals: done }, color: red }
+expect:
+  result: view-error
+  message: "color"

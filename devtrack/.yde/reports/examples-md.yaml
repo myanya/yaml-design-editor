@@ -12,6 +12,7 @@ build:
       # 結果の文字（ひな形は比べられないので、ここで作る）
       result:
         $map: { $copy: values.結果 }
-        $using: { ok: 通る（誤りも警告も無い）, schema-error: スキーマの読み込みの誤りになる, error: 検証のエラーになる, warning: 検証の警告になる }
+        $using: { ok: 通る（誤りも警告も無い）, schema-error: スキーマの読み込みの誤りになる, error: 検証のエラーになる, warning: 検証の警告になる, view-error: ビューの定義の誤りになる }
       message: { $copy: values.文面 }
+      view: { $copy: values.ビュー }
 template: examples-md.md

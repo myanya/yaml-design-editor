@@ -1,0 +1,73 @@
+id: EX-expr-date-parts
+title: "日付の部分を取り出す"
+illustrates: [KW-expr.yearMonth, KW-expr.year, KW-expr.weekStart]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: points, type: int }
+          - { key: due, type: date }
+          - { key: parent, type: ref, relation: child-of }
+          - key: comments
+            type: array
+            item:
+              type: object
+              fields:
+                - { key: date, type: date }
+                - { key: text, type: string }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: done
+      points: 3
+      due: 2026-10-05
+      comments:
+        - { date: 2026-10-01, text: 着手 }
+        - { date: 2026-10-04, text: 完了 }
+  - path: "tasks/b.yaml"
+    text: |-
+      id: TASK-2
+      title: 実装
+      status: doing
+      points: 5
+      due: 2026-11-20
+      parent: TASK-1
+  - path: "tasks/c.yaml"
+    text: |-
+      id: TASK-3
+      title: 試験
+      status: todo
+      points: 2
+      parent: TASK-1
+  - path: ".yde/views/example.yaml"
+    text: |-
+      id: example
+      name: 例
+      rows: { idPattern: "TASK-*" }
+      columns:
+        - label: 年月
+          value: { yearMonth: { path: due } }
+        - label: 年
+          value: { year: { path: due } }
+        - label: 週の初め
+          value: { weekStart: { path: due } }
+expect:
+  result: ok
+  view:
+    id: example
+    rows:
+      - id: "TASK-1"
+        values: { "年月": "2026-10", "年": "2026", "週の初め": "2026-10-05" }
+      - id: "TASK-2"
+        values: { "年月": "2026-11", "年": "2026", "週の初め": "2026-11-16" }
+      - id: "TASK-3"
+        values: { "年月": "", "年": "" }

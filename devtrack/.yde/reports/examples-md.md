@@ -12,6 +12,12 @@
 - ID: {id}
 - 示す仕様: {#each illustrates}{.}{#if more}・{/if}{/each}
 - 結果: {result}{#if message}（文面に「{message}」を含む）{/if}
+{#if view}
+- ビュー `{view.id}` の行（並びの順）:
+{#each view.rows}
+  - `{id}`{#if values}: {#each values}{key}＝{value}{#if more}、{/if}{/each}{/if}
+{/each}
+{/if}
 
 {#each files}
 `{path}`

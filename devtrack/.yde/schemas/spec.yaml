@@ -42,6 +42,7 @@ definitions:
       - { value: schema-error, label: スキーマの読み込みの誤り }
       - { value: error, label: 検証のエラー }
       - { value: warning, label: 検証の警告（エラーは無い） }
+      - { value: view-error, label: ビューの定義の誤り }
   位置参照:
     type: ref
     idPattern: "CTX-*"
@@ -259,6 +260,22 @@ definitions:
         fields:
           - { key: result, label: 結果, type: 例の結果, required: true }
           - { key: message, label: 文面の一部, type: common#一行の文, description: 誤り・エラー・警告の文面に含まれる文字。通る例には書きません。 }
+          - key: view
+            label: ビューの行
+            type: object
+            description: 結果が「通る」の例で、ビューを解決したときの行と値。行は並びの順に、すべて書きます。値は、確かめたい列だけを書きます。
+            fields:
+              - { key: id, label: ビュー, type: common#一行の文, required: true, description: 例の中のビューの ID。 }
+              - key: rows
+                label: 行
+                type: array
+                required: true
+                display: list
+                item:
+                  type: object
+                  fields:
+                    - { key: id, label: 行の ID, type: common#一行の文, required: true, role: title }
+                    - { key: values, label: 値, type: map, value: { type: common#一行の文 }, description: 列の見出し → 値の文字（配列は「・」でつないだ文字。値が無ければ空）。 }
 
   # 語の形: 語を書ける基底の種類（項目定義の語）かスキーマの種類（文書のトップレベルの語）ごとの、値の形と意味。限らない語は省きます
   語の形:

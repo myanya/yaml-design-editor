@@ -1,0 +1,74 @@
+id: EX-view-matrix-count
+title: "クロス集計は、行の要素を起点に集めた要素を列の軸ごとに数え、既定では合計の行を出す"
+illustrates: [CTX-view-matrix, CTX-view-cells, CTX-view-cells-columns, KW-view-matrix.totals]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: points, type: int }
+          - { key: due, type: date }
+          - { key: parent, type: ref, relation: child-of }
+          - key: comments
+            type: array
+            item:
+              type: object
+              fields:
+                - { key: date, type: date }
+                - { key: text, type: string }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: done
+      points: 3
+      due: 2026-10-05
+      comments:
+        - { date: 2026-10-01, text: 着手 }
+        - { date: 2026-10-04, text: 完了 }
+  - path: "tasks/b.yaml"
+    text: |-
+      id: TASK-2
+      title: 実装
+      status: doing
+      points: 5
+      due: 2026-11-20
+      parent: TASK-1
+  - path: "tasks/c.yaml"
+    text: |-
+      id: TASK-3
+      title: 試験
+      status: todo
+      points: 2
+      parent: TASK-1
+  - path: ".yde/views/example.yaml"
+    text: |-
+      id: example
+      name: 例
+      kind: matrix
+      rows: { idPattern: "TASK-*" }
+      cells:
+        match:
+          - node: { entity: task, bind: p }
+          - edge: { relation: child-of, dir: in }
+          - node: { entity: task, bind: c }
+        of: c
+        columns: { path: status, values: [todo, doing, done] }
+expect:
+  result: ok
+  view:
+    id: example
+    rows:
+      - id: "TASK-1"
+        values: { "todo": "1", "doing": "1", "done": "0" }
+      - id: "TASK-2"
+      - id: "TASK-3"
+      - id: "合計"
+        values: { "todo": "1", "doing": "1", "done": "0" }
