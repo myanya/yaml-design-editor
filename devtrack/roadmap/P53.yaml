@@ -2,7 +2,7 @@ id: P53
 number: 53
 title: 業務モデルから作る設計書体系とアプリ生成
 status: in-progress
-status_note: 候補合成を変換へ接続。新形式の入力からの生成を代表例で確認。サンプル全体の確定生成は未実装
+status_note: 候補合成を変換へ接続。深い入れ子と再帰型の導出を修正。サンプル全体の確定生成は未実装
 body:
   - text: |-
       対象は [samples/todos-sysdev](../samples/todos-sysdev/README.md)。全体は samples/todos の業務モデル整備 → 設計書体系 → ログインなしの Spring Boot アプリ生成の順。
@@ -19,7 +19,7 @@ body:
         prereq: エンティティ定義書の必要な項目から議論するオーナー指示
         done_criteria: 明記・継承・補正・追加・未解決を保持し、個別・横断・後段の値を照合してオーナーがレビュー完了を判断する
         state: in-progress
-        state_note: 宣言保持・保存形式・変換からの候補合成を実装。代表例で新形式の入力を生成へ接続。全体の確定生成はこれから
+        state_note: 宣言保持・保存形式・変換からの候補合成を実装。深い入れ子と再帰型の導出を修正。全体の合成・確定生成への接続はこれから
       - id: R53-01
         title: テーブル設計書のレビューを続ける
         places: samples/todos-sysdev の詳細設計項目一覧・型対応表・台帳・補正一覧・ビュー・DDL、TodosSysdevTest

@@ -59,6 +59,8 @@
 
 `BusinessModel` は項目の有効な値に加え、共通型との差分 `overrides` と組込み型の共通の性質 `builtinType` を項として返す。
 スキーマの項目と名前付きの型には、`FieldDeclaration` から明記した属性と原文の場所を `declarations` として写す。差分が空でも明記は失わない。子の宣言は `item`・`value`・`fields`・`cases` に保持し、エンティティの子はその側面を参照する。設計用の ID と写し方は変換定義が決める。
+型の展開は `BusinessModelTraversal` にまとめ、型の解決・狭め方には既存の `SchemaTree` を使う。現在の経路に同じ名前付きの型が再び現れたら、`recursiveType` にモジュール名を含む参照を残し、利用箇所に書かれた子だけを進む。原文の子と解決済みの子を対で渡し、継承した子を新たな明記として展開し直さない。
+同じ型を使う別の項目や、共通の基底型を継承する別の型は、それぞれ展開する。有限の入れ子を固定の深さで省略しない。エンティティの側面も最初の再帰先を記録し、項目の導出とデータの決まりの収集で同じ経路の判定を使う。これは型のグラフを参照付きの有限の項（Term）に写す処理で、型の意味や値の評価規則は追加しない。
 `Generators.plan` は `dependsOn` の依存順に生成する。読み取り用の重ね合わせでは保存済みの生成物を隠し、明示した依存先とその先の依存先の今回の成功した出力だけを載せる。依存しない先行出力・自身の前回の出力・消えた生成物は入力に混ざらない。手書きの文書はそのまま読める。
 `$view` は `VirtualViews` → `ReportRows` で、その新しい木から読む。依存先が失敗すれば後続を実行せず、計画に誤りがあれば取引の操作を空にする。
 `input` があれば段を当てる前に `SemanticTransform.runAt` で入力を組み立てる。`Stages` は入力の適用済みの段が宣言順の先頭と一致することを確かめ、残りだけを当てる。循環・存在しない依存先・段の順の不一致は計画の誤りになる。
@@ -68,6 +70,7 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `BusinessModel` | workspace-core/workspace/BusinessModel.kt | スキーマに分けて書いた業務モデルを 1 つの項に展開する（`entities`・`actions`・`states`・`lifecycles`・名前付きの型 `types`）。操作の効果は do・Lifecycle・自動の値を 1 列に |
+| `BusinessModelTraversal` | workspace-core/workspace/BusinessModelTraversal.kt | 現在の経路の型参照と原文の子を保持し、再帰する型の共通部分を参照で閉じる |
 | `BusinessModelViews` | workspace-core/workspace/BusinessModelViews.kt | 業務モデルの項のビューの側（`views`・`dashboards`）と、ダッシュボードからたどれる範囲（`reach`。ADR-0033） |
 | `BusinessModelRules` | workspace-core/workspace/BusinessModelRules.kt | 業務モデルの項のデータの決まりの側（`constraints`。型の検査・スキーマの検査・関係レジストリ）と、操作が書くと破れうる決まり（操作の `checks`） |
 | `Generators` / `GeneratorDef` / `GenerationPlan` | workspace-core/workspace/Generators.kt | 生成の定義（transforms ゾーン）の読み込み・計画（作る・作り直す・消す・変わらない）・セッションの 1 トランザクション・生成の系譜（`lineage`） |

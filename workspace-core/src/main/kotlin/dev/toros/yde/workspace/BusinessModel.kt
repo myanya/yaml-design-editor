@@ -8,6 +8,7 @@ import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaTree
 import dev.toros.yde.semantic.schema.StateDeclaration
 import dev.toros.yde.semantic.schema.TransitionCause
+import dev.toros.yde.workspace.BusinessModelTraversal.Use
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
@@ -115,6 +116,7 @@ object BusinessModel {
     private class Aspect(
         val entity: String, val schema: WorkspaceSchema, val at: String, val defines: Boolean, val def: FieldDef, val label: String?,
         val owner: Aspect? = null, val ownerField: String? = null, val numbering: IdNumbering? = null,
+        val traversal: BusinessModelTraversal, val recursiveType: String? = null,
     )
 
     /** 文書のスキーマの木を歩き、エンティティ型を持つ object（オブジェクト型か、スキーマの entity の宣言で ID を持つ object）を集める。 */
@@ -123,9 +125,9 @@ object BusinessModel {
         for (s in schemas.filter { it.kind == SchemaKind.DOCUMENT && !it.isTemplate }) {
             val tree = s.tree
             val schemaLevel = s.entities.firstOrNull()
-            fun walk(f0: FieldDef, at: String, depth: Int, owner: Aspect?, numbering: IdNumbering?) {
-                if (depth > 12) return
-                val f = tree.resolve(f0) ?: f0
+            fun walk(expanded: BusinessModelTraversal.Field, at: String, owner: Aspect?, numbering: IdNumbering?) {
+                val f0 = expanded.use.written
+                val f = expanded.resolved
                 when (f.type) {
                     FieldType.OBJECT -> {
                         val decl = f.entity ?: schemaLevel?.takeIf { f.fields.any { c -> (tree.resolve(c) ?: c).type == FieldType.ID } }
@@ -133,16 +135,19 @@ object BusinessModel {
                         // 定義の種類（yde-*）を詳細化する文書（設計書など）は、業務のエンティティ型ではない
                         if (decl != null && !decl.type.startsWith(DefinitionIndex.PREFIX)) {
                             val ownerField = owner?.let { o -> (if (o.at.isEmpty()) at else at.removePrefix("${o.at}.")).removeSuffix("[*]") }
-                            here = Aspect(decl.type, s, at, decl.defines, f, f.label ?: f0.label, owner, ownerField, numbering).also { out += it }
+                            here = Aspect(decl.type, s, at, decl.defines, f, f.label ?: f0.label, owner, ownerField, numbering,
+                                expanded.next, expanded.recursiveType).also { out += it }
                         }
-                        f.fields.forEach { c -> c.key?.let { k -> walk(c, if (at.isEmpty()) k else "$at.$k", depth + 1, here, null) } }
+                        expanded.fields.forEach { c -> c.written.key?.let { k ->
+                            walk(expanded.next.resolve(c), if (at.isEmpty()) k else "$at.$k", here, null)
+                        } }
                     }
-                    FieldType.ARRAY -> f.item?.let { walk(it, "$at[*]", depth + 1, owner, f.insertRule?.id) }
-                    FieldType.MAP -> f.value?.let { walk(it, "$at.*", depth + 1, owner, null) }
+                    FieldType.ARRAY -> expanded.item?.let { walk(expanded.next.resolve(it), "$at[*]", owner, f.insertRule?.id) }
+                    FieldType.MAP -> expanded.value?.let { walk(expanded.next.resolve(it), "$at.*", owner, null) }
                     else -> Unit
                 }
             }
-            walk(tree.root, "", 0, null, null)
+            walk(BusinessModelTraversal(tree).resolve(Use(tree.root)), "", null, null)
         }
         return out
     }
@@ -167,8 +172,9 @@ object BusinessModel {
                 "schema" to a.schema.id,
                 "defines" to a.defines,
                 "at" to a.at,
+                "recursiveType" to a.recursiveType,
                 "owner" to a.owner?.let { o -> linkedMapOf("entity" to o.entity, "field" to a.ownerField) },
-                "fields" to a.def.fields.map { fieldTerm(a.schema.tree, it, 0, ctx) },
+                "fields" to a.def.fields.map { fieldTerm(a.schema.tree, a.traversal.resolve(Use(it)), ctx) },
             ).filterValues { it != null }
         }
         return m
@@ -198,13 +204,15 @@ object BusinessModel {
             ?: listOf("title", "name", "label").firstOrNull { k -> fields.any { it.first.key == k } }
     }
 
-    private fun fieldTerm(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx = Ctx.NONE, describeType: Boolean = true): Map<String, Any?> {
-        val f = tree.resolve(f0) ?: f0
+    private fun fieldTerm(tree: SchemaTree, expanded: BusinessModelTraversal.Field, ctx: Ctx = Ctx.NONE, describeType: Boolean = true): Map<String, Any?> {
+        val f0 = expanded.use.written
+        val f = expanded.resolved
         val m = LinkedHashMap<String, Any?>()
         f0.key?.let { m["key"] = it }
         (f0.label ?: f.label)?.let { m["label"] = it }
         m["type"] = typeNameOf(f0, f)
         m["base"] = f.type.id
+        if (describeType) expanded.recursiveType?.let { m["recursiveType"] = it }
         // 原文の場所を持つ項目だけに付ける。操作の入力など、場所を渡さない入口の型の宣言だけを出して完備と見せない。
         if (describeType && f0.declarations.isNotEmpty()) m["declarations"] = declarationTerms(f, f0, ctx)
         // 説明（項目に書いたもの。無ければ型の説明）
@@ -236,15 +244,18 @@ object BusinessModel {
             f.scope.schemaIds.mapNotNull { ctx.targets[it] }.firstOrNull()?.let { t -> ctx.labels[t] }?.let { m["targetLabel"] = it }
         }
         if (f.unique.isNotEmpty()) m["unique"] = if (f.unique.size == 1) f.unique[0].ifEmpty { true } else f.unique
-        if (depth < 8 && describeType) {
+        if (describeType) {
             when (f.type) {
-                FieldType.ARRAY -> f.item?.let { m["item"] = nested(tree, it, depth, ctx) }
-                FieldType.MAP -> f.value?.let { m["value"] = nested(tree, it, depth, ctx) }
-                FieldType.OBJECT -> if (f.entity != null) m["entity"] = f.entity!!.type else m["fields"] = f.fields.map { fieldTerm(tree, it, depth + 1, ctx) }
+                FieldType.ARRAY -> expanded.item?.let { m["item"] = nested(tree, expanded.next.resolve(it), ctx) }
+                FieldType.MAP -> expanded.value?.let { m["value"] = nested(tree, expanded.next.resolve(it), ctx) }
+                FieldType.OBJECT -> if (f.entity != null) m["entity"] = f.entity!!.type
+                    else if (expanded.recursiveType == null || expanded.fields.isNotEmpty()) {
+                        m["fields"] = expanded.fields.map { fieldTerm(tree, expanded.next.resolve(it), ctx) }
+                    }
                 else -> Unit
             }
-            if (f.cases.isNotEmpty()) m["cases"] = f.cases.mapValues { (_, fields) ->
-                fields.map { fieldTerm(tree, it, depth + 1, ctx) }
+            if (expanded.cases.isNotEmpty()) m["cases"] = expanded.cases.mapValues { (_, fields) ->
+                fields.map { fieldTerm(tree, expanded.next.resolve(it), ctx) }
             }
         }
         // 型の共通部分と、使う場所で狭めた性質を区別する。設計用の ID や規則はここには持たない。
@@ -252,7 +263,7 @@ object BusinessModel {
         if (describeType) {
             val name = m.getValue("type").toString()
             (tree.resolveTypeName(name) ?: if ('#' !in name) FieldDef(type = f.type) else null)?.let { type ->
-                val common = fieldTerm(tree, type, depth, ctx, describeType = false)
+                val common = fieldTerm(tree, BusinessModelTraversal(tree).resolve(Use(type)), ctx, describeType = false)
                 val properties = setOf("maxLength", "minLength", "pattern", "format", "min", "max", "multiline", "values", "target")
                 m.filterKeys { it in properties }.filter { (key, value) -> value != common[key] }
                     .takeIf { it.isNotEmpty() }?.let { m["overrides"] = it }
@@ -271,13 +282,15 @@ object BusinessModel {
     private fun typeNameOf(f0: FieldDef, f: FieldDef): String =
         f.lineage.firstOrNull()?.removePrefix("builtin-types#") ?: f0.typeName ?: f.typeName ?: f.type.id
 
-    private fun nested(tree: SchemaTree, f0: FieldDef, depth: Int, ctx: Ctx): Map<String, Any?> {
-        val f = tree.resolve(f0) ?: f0
+    private fun nested(tree: SchemaTree, expanded: BusinessModelTraversal.Field, ctx: Ctx): Map<String, Any?> {
+        val f0 = expanded.use.written
+        val f = expanded.resolved
         return if (f.type == FieldType.OBJECT && f.entity != null) {
             linkedMapOf<String, Any?>("type" to typeNameOf(f0, f), "base" to f.type.id, "entity" to f.entity!!.type, "entityLabel" to ctx.labels[f.entity!!.type],
-                "declarations" to f0.declarations.takeIf { it.isNotEmpty() }?.let { declarationTerms(f, f0, ctx) })
+                "declarations" to f0.declarations.takeIf { it.isNotEmpty() }?.let { declarationTerms(f, f0, ctx) },
+                "recursiveType" to expanded.recursiveType)
                 .filterValues { it != null }
-        } else fieldTerm(tree, f0, depth + 1, ctx)
+        } else fieldTerm(tree, expanded, ctx)
     }
 
     private fun declarationTerms(f: FieldDef, original: FieldDef, ctx: Ctx): List<Map<String, Any?>> =
@@ -292,7 +305,8 @@ object BusinessModel {
     private fun typeTerms(schemas: List<WorkspaceSchema>, ctx: Ctx): List<Map<String, Any?>> =
         schemas.flatMap { s ->
             s.tree.definitions.entries.filter { (_, d) -> d.entity == null }.map { (name, d) ->
-                linkedMapOf<String, Any?>("name" to "${s.id}#$name") + fieldTerm(s.tree, d, 0, ctx).filterKeys { it != "key" }
+                linkedMapOf<String, Any?>("name" to "${s.id}#$name") +
+                    fieldTerm(s.tree, BusinessModelTraversal(s.tree).resolve(Use(d), "${s.id}#$name"), ctx).filterKeys { it != "key" }
             }
         }
 
@@ -311,7 +325,7 @@ object BusinessModel {
             m["label"] = a.label ?: a.id
             a.description?.let { m["description"] = it }
             a.target?.let { t -> m["target"] = linkedMapOf<String, Any?>("entity" to t.entity, "schema" to t.schema).filterValues { it != null } }
-            m["params"] = a.params.map { fieldTerm(s.tree, it, 0, ctx) }
+            m["params"] = a.params.map { fieldTerm(s.tree, BusinessModelTraversal(s.tree).resolve(Use(it)), ctx) }
             r?.entries?.get("input")?.let { m["input"] = YamlIO.toAny(it) }
             m["require"] = a.require.map { q ->
                 linkedMapOf<String, Any?>("id" to q.id, "message" to q.raw["message"], "rule" to q.raw.filterKeys { it != "id" && it != "message" })

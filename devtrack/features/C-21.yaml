@@ -1,7 +1,9 @@
 id: C-21
-title: 生成（業務モデルの項・明記と継承元の記録・共通型と項目固有の制限・変換定義・scope・stage・dependsOn と input・ビューからの入力・更新と削除・系譜・CLI generate）
+title: 生成（業務モデルの項・明記と継承元・再帰型の参照・変換定義・scope・stage・dependsOn と input・ビューからの入力・更新と削除・系譜・CLI generate）
 implementation:
 - path: workspace-core/workspace/BusinessModel.kt
+  module: workspace-core
+- path: workspace-core/workspace/BusinessModelTraversal.kt
   module: workspace-core
 - path: workspace-core/workspace/BusinessModelViews.kt
   module: workspace-core
@@ -23,10 +25,12 @@ tests:
 - name: BusinessModelTest
 - name: BusinessDeclarationsTest
   note: 明記した属性・原文の場所・入れ子とエンティティ参照
+- name: BusinessModelRecursionTest
+  note: 深い入れ子・再帰型と利用箇所の子・別の項目やモジュールの型の展開
 - name: TodosEntityFoundationTest
   note: 導出記録と設計IDの分離、共通型と項目固有の制限、補正後の入力と詳細生成
 - name: TodosDesignContractTest
-  note: 導出と候補と確定項目の保存形式、参照先の分離、入れ子と未解決
+  note: 導出と候補と確定項目の保存形式、参照先の分離、入れ子と未解決、再帰型を含む導出
 - name: TodosDesignCompositionTest
   note: 導出した宣言への補正と既存の型解決、明記と継承の区別
 - name: TodosDesignGenerationTest

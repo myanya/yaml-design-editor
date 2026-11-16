@@ -20,6 +20,7 @@ definitions:
       - { key: type, label: YDE の型, type: string, required: true }
       - { key: base, type: basic-design-values#基底, required: true }
       - { key: declarations, label: 宣言, type: array, item: { type: basic-design-values#宣言 } }
+      - { key: recursiveType, label: 再帰先の型, type: string, description: 共通の子はこの型を参照し、ここにある子は利用箇所で明記したものを保持する }
       - { key: relation, label: 関係名, type: string }
       - { key: idPatterns, label: ID の条件, type: array, item: { type: string } }
       - { key: schemas, label: 参照先スキーマ, type: array, item: { type: string } }
@@ -77,6 +78,7 @@ definitions:
             - { key: schema, label: スキーマ, type: string, required: true }
             - { key: defines, label: 定義の出現, type: boolean, required: true }
             - { key: at, label: 場所, type: string, description: 空文字は文書のルートを表す }
+            - { key: recursiveType, label: 再帰先の型, type: string, description: 同じ型へ戻った最初の側面。それより下の繰り返しは型への参照で表す }
             - { key: owner, label: 保有元, type: 保有元 }
             - { key: fields, label: 項目, type: array, item: { type: 項目 }, required: true }
   モデル:

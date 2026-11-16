@@ -1,5 +1,6 @@
 package dev.toros.yde.app.core
 
+import dev.toros.yde.workspace.BusinessModel
 import dev.toros.yde.workspace.InMemoryDocumentStore
 import dev.toros.yde.workspace.LoadedWorkspace
 import dev.toros.yde.workspace.WorkspaceCheckRunner
@@ -35,6 +36,19 @@ class TodosDesignContractTest {
 
     private fun ids(ws: LoadedWorkspace) = ws.derived.semantic.ids.values.flatten().filter { it.document.value.startsWith("design/") }
     private fun contract(name: String, type: String, text: String) = Triple(name, "basic-design-contract#$type", text)
+
+    @Test
+    fun `設計入力の再帰型を含むモデル全体も有限に導出し 導出記録の保存形式で検証できる`() {
+        val derived = BusinessModel.of(load())
+        val text = YamlIO.dumpPlain(derived)
+        val types = (YamlIO.toAny(derived) as Map<*, *>)["types"] as List<*>
+        val candidate = types.map { it as Map<*, *> }.single { it["name"] == "basic-design-contract#候補の値" }
+        val item = (candidate["fields"] as List<*>).map { it as Map<*, *> }.single { it["key"] == "item" }
+        assertEquals("basic-design-contract#候補の値", item["recursiveType"])
+        assertFalse(item.containsKey("fields"), "共通の子は型の参照で保持する")
+        val checked = load(Triple("recursive-model", "basic-derived-model#モデル", text))
+        assertEquals(emptyList(), errors(checked))
+    }
 
     private val addition = """
         additions:
