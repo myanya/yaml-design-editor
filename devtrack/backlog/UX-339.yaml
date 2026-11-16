@@ -1,0 +1,10 @@
+id: UX-339
+title: "検査の語彙定義（vocabulary）の requires・keys・removed が、メタスキーマの項目に無く uses の説明文にだけある"
+status: todo
+origin_on: 2026-11-16
+origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
+memo: |-
+  パーサ（semantic-core/schema/CheckDefinitions.kt）は word・description・in・uses・requires・removed・keys を読むが、builtin-schemas/schema.yaml の vocabulary の項目は word・description・in・uses の 4 つ。
+  残りの 3 つを項目として足す（利用者が語彙に書くと、スキーマに無いキーの扱いになる）。
+features:
+  - S-15

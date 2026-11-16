@@ -1,0 +1,10 @@
+id: UX-343
+title: "manual/schema.md の「フィールド定義のプロパティ」の表に target・entity・constraints・methods・extensions が無く、冒頭の例の kind が document と library だけ"
+status: todo
+origin_on: 2026-11-16
+origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
+memo: |-
+  表は項目定義のキーの一覧として読まれるが、5 つのキーは後ろの節やほかの文書（actions.md・files.md・ids.md）にだけある。冒頭の例のコメントは relations と behavior を挙げていない。
+  語の一覧は生成した docs/spec/schema-fields.md を正にして、manual の表はそこへの案内に置き換える。
+features:
+  - S-15

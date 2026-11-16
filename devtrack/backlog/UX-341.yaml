@@ -1,0 +1,11 @@
+id: UX-341
+title: "メタスキーマに、型が any で形を説明文にだけ書いた項目が多い（スキーマのメタスキーマで 40 か所）"
+status: todo
+origin_on: 2026-11-16
+origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
+memo: |-
+  例: スキーマ文書の entity（{type, idPattern, idType, defines, aspect, owns}）・phases・scaffold、検査の match・where・check、操作の require・do、State の predicate。
+  形が機械で読めないので、設計画面は汎用の欄になり、仕様との突き合わせ（SpecTest）もできない。
+  形を項目として書けるものから順に any を外す。値の式・クエリ・変換のひな型のような小さな言語は、仕様の側に位置を足して持つ。
+features:
+  - S-15

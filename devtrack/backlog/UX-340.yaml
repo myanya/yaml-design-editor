@@ -1,0 +1,11 @@
+id: UX-340
+title: "スキーマの種類（kind）ごとに書けるトップレベルのキーの決まりが、メタスキーマに無くコードにだけある"
+status: todo
+origin_on: 2026-11-16
+origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
+memo: |-
+  builtin-schemas/schema.yaml の kind（document・library・relations・behavior）に cases が無く、どの種類でも全部のキーが候補に出る。
+  決まりは workspace-core/workspace/SchemaDocuments.kt と SchemaTreeParser・SchemaDefinitionChecks にある（relations・entities・enforcement は relations だけ、states などは behavior だけ、scaffold と root は document だけ、derive と match は一緒に書けない）。
+  メタスキーマに書けるものは書き、書けない決まりは仕様（devtrack/spec）の規則として持つ。
+features:
+  - S-15
