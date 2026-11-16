@@ -1,0 +1,8 @@
+id: KW-activity.trigger
+key: "trigger"
+context: CTX-activity
+order: 15
+status: stable
+forms:
+  - value: "{type, match, debounceSeconds, everyMinutes}"
+    meaning: "起動のきっかけ。"

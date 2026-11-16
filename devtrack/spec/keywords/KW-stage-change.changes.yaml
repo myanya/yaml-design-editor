@@ -1,0 +1,8 @@
+id: KW-stage-change.changes
+key: "changes"
+context: CTX-stage-change
+order: 7
+status: stable
+forms:
+  - value: "変更の配列"
+    meaning: "中の変更。選んだ要素を「いまの場所」にして当てます。"

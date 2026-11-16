@@ -1,0 +1,8 @@
+id: KW-activity.description
+key: "description"
+context: CTX-activity
+order: 3
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

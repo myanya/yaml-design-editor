@@ -1,0 +1,9 @@
+id: KW-activity-context-item.when
+key: "when"
+context: CTX-activity-context-item
+order: 2
+status: stable
+forms:
+  - value: "always・has-target・no-target のどれか"
+    default: "always"
+    meaning: "開示する条件。"

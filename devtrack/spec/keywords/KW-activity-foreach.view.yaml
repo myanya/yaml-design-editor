@@ -1,0 +1,8 @@
+id: KW-activity-foreach.view
+key: "view"
+context: CTX-activity-foreach
+order: 2
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "source が view のときの、行を並べるビュー。"

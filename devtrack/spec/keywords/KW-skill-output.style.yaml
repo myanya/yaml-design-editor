@@ -1,0 +1,9 @@
+id: KW-skill-output.style
+key: "style"
+context: CTX-skill-output
+order: 6
+status: stable
+forms:
+  - value: "pretty・compact・lines のどれか"
+    default: "pretty"
+    meaning: "build の書式。"

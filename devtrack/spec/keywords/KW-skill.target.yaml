@@ -1,0 +1,8 @@
+id: KW-skill.target
+key: "target"
+context: CTX-skill
+order: 6
+status: stable
+forms:
+  - value: "{file, path, id, key}"
+    meaning: "取り込みの先。"

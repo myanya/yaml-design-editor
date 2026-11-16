@@ -1,0 +1,8 @@
+id: KW-skill.rules
+key: "rules"
+context: CTX-skill
+order: 8
+status: stable
+forms:
+  - value: "{id, when, with, build} の配列"
+    meaning: "build から $apply で当てる、名前を付けた組み立て。"

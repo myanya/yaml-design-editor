@@ -1,0 +1,8 @@
+id: KW-skill-run.workdir
+key: "workdir"
+context: CTX-skill-run
+order: 2
+status: stable
+forms:
+  - value: "フォルダの場所"
+    meaning: "作業のフォルダ（ワークスペース相対）。"

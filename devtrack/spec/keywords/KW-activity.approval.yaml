@@ -1,0 +1,9 @@
+id: KW-activity.approval
+key: "approval"
+context: CTX-activity
+order: 14
+status: stable
+forms:
+  - value: "human か auto"
+    default: "human"
+    meaning: "承認のしかた。auto は、ゲートを通り・範囲の中で・人が編集していないときだけ自動で適用します（条件を欠くと承認待ちになります）。"

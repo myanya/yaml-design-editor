@@ -1,0 +1,9 @@
+id: KW-stage.changes
+key: "changes"
+context: CTX-stage
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "変更の配列"
+    meaning: "上から順に当てる変更。"

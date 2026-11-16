@@ -1,0 +1,9 @@
+id: KW-activity.actions
+key: "actions"
+context: CTX-activity
+order: 11
+status: stable
+forms:
+  - value: "操作の ID か「型名.操作名」の配列"
+    default: "なし"
+    meaning: "エージェントが道具として使える操作。書いたものだけが道具になります。許した操作の書き込みは、allowedFiles・allowedPaths の外でも通ります。"

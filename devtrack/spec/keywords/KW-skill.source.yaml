@@ -1,0 +1,8 @@
+id: KW-skill.source
+key: "source"
+context: CTX-skill
+order: 11
+status: stable
+forms:
+  - value: "{match, rows} か {view}"
+    meaning: "書き出しの対象。"

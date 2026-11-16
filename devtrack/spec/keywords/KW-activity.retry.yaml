@@ -1,0 +1,8 @@
+id: KW-activity.retry
+key: "retry"
+context: CTX-activity
+order: 17
+status: stable
+forms:
+  - value: "{maxAttempts}"
+    meaning: "無人の実行での再試行。"

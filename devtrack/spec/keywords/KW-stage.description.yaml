@@ -1,0 +1,8 @@
+id: KW-stage.description
+key: "description"
+context: CTX-stage
+order: 3
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

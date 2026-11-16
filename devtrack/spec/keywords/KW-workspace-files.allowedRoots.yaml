@@ -1,0 +1,8 @@
+id: KW-workspace-files.allowedRoots
+key: "allowedRoots"
+context: CTX-workspace-files
+order: 2
+status: stable
+forms:
+  - value: "絶対の場所の配列"
+    meaning: "外でも許す場所。ここに入る場所は、外として扱いません。"

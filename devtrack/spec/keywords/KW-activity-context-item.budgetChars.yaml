@@ -1,0 +1,9 @@
+id: KW-activity-context-item.budgetChars
+key: "budgetChars"
+context: CTX-activity-context-item
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    default: "doc・related・sample は 8000 字"
+    meaning: "文字数の予算。超えた分は決まった形で切ります。"

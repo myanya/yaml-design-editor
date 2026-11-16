@@ -1,0 +1,8 @@
+id: KW-skill.description
+key: "description"
+context: CTX-skill
+order: 3
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

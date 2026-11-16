@@ -1,0 +1,9 @@
+id: KW-eval-content.exists
+key: "exists"
+context: CTX-eval-content
+order: 3
+status: stable
+forms:
+  - value: "真偽値"
+    default: "true"
+    meaning: "あること。"

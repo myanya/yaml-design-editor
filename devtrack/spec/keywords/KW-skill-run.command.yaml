@@ -1,0 +1,8 @@
+id: KW-skill-run.command
+key: "command"
+context: CTX-skill-run
+order: 1
+status: stable
+forms:
+  - value: "文字列の配列"
+    meaning: "コマンドと引数。"

@@ -1,0 +1,8 @@
+id: KW-eval-content.path
+key: "path"
+context: CTX-eval-content
+order: 2
+status: stable
+forms:
+  - value: "パスの文字列"
+    meaning: "確かめる場所。"

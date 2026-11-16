@@ -1,0 +1,9 @@
+id: KW-activity-trigger.match
+key: "match"
+context: CTX-activity-trigger
+order: 2
+status: stable
+forms:
+  - value: "glob の文字列"
+    default: "target.match"
+    meaning: "見張るファイル。"

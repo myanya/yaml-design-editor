@@ -1,0 +1,9 @@
+id: KW-skill.kind
+key: "kind"
+context: CTX-skill
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "import・export・run のどれか"
+    meaning: "種別。"

@@ -1,0 +1,8 @@
+id: KW-skill-input.columns
+key: "columns"
+context: CTX-skill-input
+order: 8
+status: stable
+forms:
+  - value: "列の名前の配列"
+    meaning: "見出しの行が無い csv に、列の名前を与えます（1 行目からデータ）。"

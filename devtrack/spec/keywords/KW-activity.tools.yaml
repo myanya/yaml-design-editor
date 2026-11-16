@@ -1,0 +1,9 @@
+id: KW-activity.tools
+key: "tools"
+context: CTX-activity
+order: 10
+status: stable
+forms:
+  - value: "道具の分類の配列"
+    default: "すべて"
+    meaning: "使ってよい道具の分類。actions は、下の actions で許した操作の道具です。edit を外して actions だけにすると、書き込みを操作に限った仕事になります。"

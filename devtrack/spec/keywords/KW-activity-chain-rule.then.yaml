@@ -1,0 +1,9 @@
+id: KW-activity-chain-rule.then
+key: "then"
+context: CTX-activity-chain-rule
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "アクティビティの ID"
+    meaning: "分岐の先。"

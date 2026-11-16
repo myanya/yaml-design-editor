@@ -1,0 +1,8 @@
+id: KW-activity.limits
+key: "limits"
+context: CTX-activity
+order: 12
+status: stable
+forms:
+  - value: "{maxTurns, maxTokens, maxSeconds}"
+    meaning: "ループの上限。"

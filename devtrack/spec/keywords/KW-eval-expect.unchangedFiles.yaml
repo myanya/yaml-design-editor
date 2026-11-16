@@ -1,0 +1,8 @@
+id: KW-eval-expect.unchangedFiles
+key: "unchangedFiles"
+context: CTX-eval-expect
+order: 4
+status: stable
+forms:
+  - value: "glob の文字列の配列"
+    meaning: "変わってはならないファイル。"

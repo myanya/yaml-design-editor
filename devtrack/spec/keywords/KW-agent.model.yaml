@@ -1,0 +1,9 @@
+id: KW-agent.model
+key: "model"
+context: CTX-agent
+order: 5
+status: stable
+forms:
+  - value: "{provider, id}"
+    default: "画面で選んだモデル"
+    meaning: "使うモデル。"

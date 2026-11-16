@@ -1,0 +1,9 @@
+id: KW-activity.allowedPaths
+key: "allowedPaths"
+context: CTX-activity
+order: 9
+status: stable
+forms:
+  - value: "パスの glob の配列"
+    default: "すべての場所"
+    meaning: "書いてよい場所（文書の中のパス。例 review_comments*）。"

@@ -1,0 +1,9 @@
+id: KW-activity-foreach.where
+key: "where"
+context: CTX-activity-foreach
+order: 3
+status: stable
+forms:
+  - value: "detail-missing か all"
+    default: "detail-missing"
+    meaning: "source が view のときの行の条件。detail-missing は、詳細の文書がまだ無い行だけです。"

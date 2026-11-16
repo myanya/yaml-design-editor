@@ -1,0 +1,8 @@
+id: KW-skill-target.file
+key: "file"
+context: CTX-skill-target
+order: 1
+status: stable
+forms:
+  - value: "穴を含む文字列か、ひな型"
+    meaning: "取り込む先のファイル。穴は行の値（build では組み立てた明細の値）で埋めます。"

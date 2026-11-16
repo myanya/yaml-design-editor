@@ -1,0 +1,10 @@
+id: CTX-stage
+title: "段の規則と補正"
+language: workspace
+description: "段の規則・補正の定義（.yde/stages/ の YAML）。業務モデルの項を、段ごとに変えます。規則（rule）は条件で選んで横ぐしに当て、補正（patch）は個別の要素に当てます。"
+meta:
+  schema: stage
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/stage.yaml の root"
+  reader: "workspace-core/workspace/Stages.kt"

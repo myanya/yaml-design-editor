@@ -1,0 +1,9 @@
+id: KW-activity.instruction
+key: "instruction"
+context: CTX-activity
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "文章"
+    meaning: "指示。"

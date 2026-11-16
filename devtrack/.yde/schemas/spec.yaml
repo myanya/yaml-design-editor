@@ -71,6 +71,8 @@ definitions:
       - { value: expression, label: 値の式・条件・クエリ }
       - { value: transform, label: 変換・生成・レポート }
       - { value: view, label: ビュー・ダッシュボード }
+      - { value: agent, label: エージェント・アクティビティ・評価セット・skill }
+      - { value: workspace, label: ワークスペースの構成・段 }
   語の分類:
     type: enum
     values:
@@ -120,6 +122,11 @@ definitions:
           - { value: transform, label: 生成の定義（builtin-schemas/transform.yaml） }
           - { value: report, label: レポート（builtin-schemas/report.yaml） }
           - { value: view, label: ビュー（builtin-schemas/view.yaml） }
+          - { value: agent, label: エージェント（builtin-schemas/agent.yaml） }
+          - { value: activity, label: アクティビティ（builtin-schemas/activity.yaml） }
+          - { value: eval, label: 評価セット（builtin-schemas/eval.yaml） }
+          - { value: skill, label: skill（builtin-schemas/skill.yaml） }
+          - { value: stage, label: 段の規則と補正（builtin-schemas/stage.yaml） }
       - key: path
         label: たどる道
         type: array
@@ -141,7 +148,7 @@ definitions:
         label: キーの集まり
         type: array
         item: { type: word }
-        description: 読み取りが「使えるキー」として持つ集まり（クラス名.名前。例 QueryWhere.KEYS。パッケージは semantic.schema）。
+        description: 読み取りが「使えるキー」として持つ集まり（クラス名.名前。例 QueryWhere.KEYS）。パッケージは semantic.schema で、ほかのパッケージは頭に書きます（例 workspace.layout.DefinitionScopes.KEYS）。
       - key: enums
         label: 列挙
         type: array

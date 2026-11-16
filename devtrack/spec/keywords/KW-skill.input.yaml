@@ -1,0 +1,8 @@
+id: KW-skill.input
+key: "input"
+context: CTX-skill
+order: 5
+status: stable
+forms:
+  - value: "{format, sheet, headerRow, path, tree, table, encoding, columns}"
+    meaning: "取り込みの入力。"

@@ -163,8 +163,12 @@ class SpecTest {
 
     /** 読み取りの実装が「使えるキー」として持つ集まり（クラス名.名前。companion の private val＝外側のクラスの static の欄）。 */
     private fun codeSet(name: String): Set<String> {
-        val type = Class.forName("dev.toros.yde.semantic.schema." + name.substringBeforeLast('.').replace('.', '$'))
-        val field = type.getDeclaredField(name.substringAfterLast('.')).apply { isAccessible = true }
+        // 頭の小文字で始まる部分はパッケージ（省くと semantic.schema）。残りがクラス（入れ子は $ でつなぐ）と欄の名前
+        val parts = name.split('.')
+        val pkg = parts.takeWhile { it.first().isLowerCase() }.ifEmpty { listOf("semantic", "schema") }
+        val classes = parts.dropWhile { it.first().isLowerCase() }.dropLast(1)
+        val type = Class.forName("dev.toros.yde." + pkg.joinToString(".") + "." + classes.joinToString("$"))
+        val field = type.getDeclaredField(parts.last()).apply { isAccessible = true }
         return (field.get(null) as Collection<*>).map(Any?::toString).toSet()
     }
 

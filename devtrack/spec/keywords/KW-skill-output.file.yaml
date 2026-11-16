@@ -1,0 +1,8 @@
+id: KW-skill-output.file
+key: "file"
+context: CTX-skill-output
+order: 1
+status: stable
+forms:
+  - value: "ファイルの名前"
+    meaning: "出力のファイル。拡張子で形式が決まります（.xlsx・.csv・.md・.json・.html）。YAML には書けません。"

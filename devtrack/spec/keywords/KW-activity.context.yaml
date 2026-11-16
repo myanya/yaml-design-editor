@@ -1,0 +1,9 @@
+id: KW-activity.context
+key: "context"
+context: CTX-activity
+order: 7
+status: stable
+forms:
+  - value: "{items}"
+    default: "開示なし"
+    meaning: "文脈のレシピ。初めに開示するものを並べます。"

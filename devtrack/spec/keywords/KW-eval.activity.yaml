@@ -1,0 +1,9 @@
+id: KW-eval.activity
+key: "activity"
+context: CTX-eval
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "アクティビティの ID"
+    meaning: "評価するアクティビティ。"

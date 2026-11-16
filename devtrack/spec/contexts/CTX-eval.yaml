@@ -1,0 +1,10 @@
+id: CTX-eval
+title: "評価セットの定義"
+language: agent
+description: "評価セット 1 つ。アクティビティを、決まった入力で実行して結果を確かめます。"
+meta:
+  schema: eval
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/eval.yaml の root"
+  reader: "agent/Evals.kt の parseEval"

@@ -1,0 +1,8 @@
+id: KW-activity-foreach.unresolved
+key: "unresolved"
+context: CTX-activity-foreach
+order: 11
+status: stable
+forms:
+  - value: "真偽値"
+    meaning: "解決できない参照だけ（search）。"

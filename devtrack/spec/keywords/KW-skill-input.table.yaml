@@ -1,0 +1,8 @@
+id: KW-skill-input.table
+key: "table"
+context: CTX-skill-input
+order: 6
+status: stable
+forms:
+  - value: "整数（1 始まり）"
+    meaning: "表の番号（docx）。"

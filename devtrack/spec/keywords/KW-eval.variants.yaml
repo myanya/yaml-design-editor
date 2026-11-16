@@ -1,0 +1,9 @@
+id: KW-eval.variants
+key: "variants"
+context: CTX-eval
+order: 5
+status: stable
+forms:
+  - value: "変異の配列"
+    default: "今の定義のまま 1 系統（baseline）"
+    meaning: "比べる変異（A/B）。"

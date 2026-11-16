@@ -1,0 +1,8 @@
+id: KW-activity-chain-when.minChangedFiles
+key: "minChangedFiles"
+context: CTX-activity-chain-when
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    meaning: "変えたファイルの数の下限。"

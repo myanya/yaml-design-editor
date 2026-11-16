@@ -1,0 +1,8 @@
+id: KW-skill.output
+key: "output"
+context: CTX-skill
+order: 13
+status: stable
+forms:
+  - value: "{file, sheet, mode, index, fill, style, finalNewline}"
+    meaning: "書き出しの出力。"

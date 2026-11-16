@@ -1,0 +1,8 @@
+id: KW-eval-variant.model
+key: "model"
+context: CTX-eval-variant
+order: 2
+status: stable
+forms:
+  - value: "{provider, id}"
+    meaning: "モデルの差し替え。"

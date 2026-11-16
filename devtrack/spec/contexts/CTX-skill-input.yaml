@@ -1,0 +1,10 @@
+id: CTX-skill-input
+title: "取り込みの入力（input）"
+language: agent
+description: "skill の input。"
+meta:
+  schema: skill
+  path: [root, input]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root.input"
+  reader: "app-core/skill/Skills.kt"

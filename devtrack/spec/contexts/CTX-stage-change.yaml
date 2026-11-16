@@ -1,0 +1,10 @@
+id: CTX-stage-change
+title: "変更（changes の要素）"
+language: workspace
+description: "段の規則・補正の changes の要素。"
+meta:
+  schema: stage
+  path: [root, changes, item]
+evidence:
+  metaschema: "builtin-schemas/stage.yaml の root.changes.item"
+  reader: "semantic-core/TermChanges.kt"

@@ -1,0 +1,9 @@
+id: KW-workspace-files.outside
+key: "outside"
+context: CTX-workspace-files
+order: 1
+status: stable
+forms:
+  - value: "allow・warning・error のどれか"
+    default: "warning"
+    meaning: "ワークスペースの外を指す場所（絶対の場所と、.. で外へ出る場所）の扱い。"

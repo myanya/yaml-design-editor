@@ -1,0 +1,9 @@
+id: KW-activity-chain-when.outcome
+key: "outcome"
+context: CTX-activity-chain-when
+order: 1
+status: stable
+forms:
+  - value: "any・success・failure のどれか"
+    default: "any"
+    meaning: "終わり方。"

@@ -1,0 +1,9 @@
+id: KW-activity.meta
+key: "meta"
+context: CTX-activity
+order: 19
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "定義の文書（エージェント・アクティビティ・評価セット・skill・ビュー）への書き込みを許します。承認は human に固定で、スキーマと実行の記録には書けません。"

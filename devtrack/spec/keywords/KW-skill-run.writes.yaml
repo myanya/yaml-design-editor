@@ -1,0 +1,8 @@
+id: KW-skill-run.writes
+key: "writes"
+context: CTX-skill-run
+order: 4
+status: stable
+forms:
+  - value: "glob の文字列の配列"
+    meaning: "書き込みを宣言する場所。実行のあとに、宣言の外の変更を見つけて警告します。"

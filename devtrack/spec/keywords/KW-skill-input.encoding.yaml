@@ -1,0 +1,9 @@
+id: KW-skill-input.encoding
+key: "encoding"
+context: CTX-skill-input
+order: 7
+status: stable
+forms:
+  - value: "文字コードの名前"
+    default: "UTF-8"
+    meaning: "文字コード（csv・json・markdown）。"

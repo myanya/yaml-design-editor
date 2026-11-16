@@ -1,0 +1,8 @@
+id: KW-skill.mapping
+key: "mapping"
+context: CTX-skill
+order: 9
+status: stable
+forms:
+  - value: "{column, path, type, required, map, split} の配列"
+    meaning: "取り込みの、列の対応。"

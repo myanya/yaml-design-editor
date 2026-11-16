@@ -1,0 +1,9 @@
+id: KW-skill-input.path
+key: "path"
+context: CTX-skill-input
+order: 4
+status: stable
+forms:
+  - value: "キーを . で区切った文字列"
+    default: "ルート"
+    meaning: "行の配列の場所（json）。tree のときは取り込む場所です。"

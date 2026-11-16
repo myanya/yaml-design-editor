@@ -1,0 +1,8 @@
+id: KW-activity-target.match
+key: "match"
+context: CTX-activity-target
+order: 1
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "対象のファイル。"

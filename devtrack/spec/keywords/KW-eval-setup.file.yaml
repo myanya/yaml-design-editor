@@ -1,0 +1,9 @@
+id: KW-eval-setup.file
+key: "file"
+context: CTX-eval-setup
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ファイルの場所"
+    meaning: "上書きするファイル。"

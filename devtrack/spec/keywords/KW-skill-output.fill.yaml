@@ -1,0 +1,9 @@
+id: KW-skill-output.fill
+key: "fill"
+context: CTX-skill-output
+order: 5
+status: stable
+forms:
+  - value: "ひな型"
+    default: "null"
+    meaning: "番号の空きに置く値。"

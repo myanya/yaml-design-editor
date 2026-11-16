@@ -1,0 +1,10 @@
+id: CTX-skill-target
+title: "取り込みの先（target）"
+language: agent
+description: "skill の target。"
+meta:
+  schema: skill
+  path: [root, target]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root.target"
+  reader: "app-core/skill/Skills.kt"

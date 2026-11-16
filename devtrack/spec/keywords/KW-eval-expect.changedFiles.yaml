@@ -1,0 +1,8 @@
+id: KW-eval-expect.changedFiles
+key: "changedFiles"
+context: CTX-eval-expect
+order: 3
+status: stable
+forms:
+  - value: "glob の文字列の配列"
+    meaning: "変わるはずのファイル。"

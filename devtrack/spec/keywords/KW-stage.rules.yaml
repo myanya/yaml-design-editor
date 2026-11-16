@@ -1,0 +1,8 @@
+id: KW-stage.rules
+key: "rules"
+context: CTX-stage
+order: 7
+status: stable
+forms:
+  - value: "{id, when, with, build} の配列"
+    meaning: "値のひな型から $apply で使う、名前を付けた組み立て。"

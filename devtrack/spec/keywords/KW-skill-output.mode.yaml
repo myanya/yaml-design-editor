@@ -1,0 +1,9 @@
+id: KW-skill-output.mode
+key: "mode"
+context: CTX-skill-output
+order: 3
+status: stable
+forms:
+  - value: "array・value・merge のどれか"
+    default: "array"
+    meaning: "build の値の置き方。"

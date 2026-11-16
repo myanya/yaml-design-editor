@@ -1,0 +1,10 @@
+id: CTX-activity-chain-rule
+title: "連鎖の分岐（rules の要素）"
+language: agent
+description: "chain の rules の要素。"
+meta:
+  schema: activity
+  path: [root, chain, rules, item]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.chain.rules.item"
+  reader: "agent/Definitions.kt の parseActivity"

@@ -1,0 +1,8 @@
+id: KW-workspace-stage.id
+key: "id"
+context: CTX-workspace-stage
+order: 1
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "段の ID。必ず書きます。"

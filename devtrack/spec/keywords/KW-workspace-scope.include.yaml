@@ -1,0 +1,8 @@
+id: KW-workspace-scope.include
+key: "include"
+context: CTX-workspace-scope
+order: 4
+status: stable
+forms:
+  - value: "glob の文字列の配列"
+    meaning: "このスコープに入る定義のファイル（.yde からの相対。例 schemas/business/**）。"

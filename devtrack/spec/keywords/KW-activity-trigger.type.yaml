@@ -1,0 +1,9 @@
+id: KW-activity-trigger.type
+key: "type"
+context: CTX-activity-trigger
+order: 1
+status: stable
+forms:
+  - value: "manual・on-change・schedule・on-invalid のどれか"
+    default: "manual"
+    meaning: "きっかけの種別。"

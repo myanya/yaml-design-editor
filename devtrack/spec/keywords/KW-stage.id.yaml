@@ -1,0 +1,9 @@
+id: KW-stage.id
+key: "id"
+context: CTX-stage
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "規則・補正の ID。"

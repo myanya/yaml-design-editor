@@ -1,0 +1,8 @@
+id: CTX-workspace
+title: "ワークスペースの構成（workspace.yaml）"
+language: workspace
+description: ".yde/workspace.yaml のトップレベル。読めないときは、台帳の宣言が無い（全体が台帳）ものとして続けます。"
+code:
+  extra: [ledger, files, scopes, stages]
+evidence:
+  reader: "workspace-core/workspace/layout/WorkspaceLayout.kt の of"

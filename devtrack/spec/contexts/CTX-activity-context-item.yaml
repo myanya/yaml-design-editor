@@ -1,0 +1,10 @@
+id: CTX-activity-context-item
+title: "開示の項目（items の要素）"
+language: agent
+description: "context の items の要素。種別（kind）ごとに、書ける語が変わります。値には {target} などの穴を書けます。"
+meta:
+  schema: activity
+  path: [root, context, items, item]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.context.items.item"
+  reader: "agent/Definitions.kt の parseActivity"

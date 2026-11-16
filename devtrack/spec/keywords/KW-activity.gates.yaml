@@ -1,0 +1,8 @@
+id: KW-activity.gates
+key: "gates"
+context: CTX-activity
+order: 13
+status: stable
+forms:
+  - value: "{validation}"
+    meaning: "提出のゲート。"

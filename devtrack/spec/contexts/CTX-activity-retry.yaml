@@ -1,0 +1,10 @@
+id: CTX-activity-retry
+title: "再試行"
+language: agent
+description: "アクティビティの retry。"
+meta:
+  schema: activity
+  path: [root, retry]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.retry"
+  reader: "agent/Definitions.kt の parseActivity"

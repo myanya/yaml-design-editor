@@ -1,0 +1,8 @@
+id: KW-skill.build
+key: "build"
+context: CTX-skill
+order: 7
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "行のひな型。取り込みでは行（列の名前 → セル）を当てる変換のひな型で、mapping の代わりに書きます。書き出しでは文書ごとに JSON の値を組み立てるひな型で、columns の代わりに書きます。"

@@ -1,0 +1,9 @@
+id: KW-activity.allowedFiles
+key: "allowedFiles"
+context: CTX-activity
+order: 8
+status: stable
+forms:
+  - value: "glob の文字列の配列"
+    default: "すべてのファイル"
+    meaning: "書いてよいファイル。"

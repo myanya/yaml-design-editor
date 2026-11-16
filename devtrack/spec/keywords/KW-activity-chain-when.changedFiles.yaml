@@ -1,0 +1,8 @@
+id: KW-activity-chain-when.changedFiles
+key: "changedFiles"
+context: CTX-activity-chain-when
+order: 2
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "提出した変更に、この形に合うファイルがあること。"

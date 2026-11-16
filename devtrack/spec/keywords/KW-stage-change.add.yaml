@@ -1,0 +1,8 @@
+id: KW-stage-change.add
+key: "add"
+context: CTX-stage-change
+order: 5
+status: stable
+forms:
+  - value: "要素の中の並びの場所 → 足す値 のマップ"
+    meaning: "中へ足します。足した object には origin が付きます。"

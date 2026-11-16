@@ -1,0 +1,9 @@
+id: KW-agent.persona
+key: "persona"
+context: CTX-agent
+order: 3
+status: stable
+forms:
+  - required: true
+    value: "文章"
+    meaning: "性格と行動の指針。システムプロンプトに入ります。"

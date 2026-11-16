@@ -1,0 +1,8 @@
+id: KW-skill-input.format
+key: "format"
+context: CTX-skill-input
+order: 1
+status: stable
+forms:
+  - value: "xlsx・csv・json・markdown・docx のどれか"
+    meaning: "形式。"

@@ -1,0 +1,9 @@
+id: KW-eval.id
+key: "id"
+context: CTX-eval
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "評価セットの ID。"

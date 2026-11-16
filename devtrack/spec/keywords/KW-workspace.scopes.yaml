@@ -1,0 +1,8 @@
+id: KW-workspace.scopes
+key: "scopes"
+context: CTX-workspace
+order: 3
+status: stable
+forms:
+  - value: "{id, name, description, include, uses} の配列"
+    meaning: "定義のスコープ。生成が業務モデルとして読む範囲を分けます。"

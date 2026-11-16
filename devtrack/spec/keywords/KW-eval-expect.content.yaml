@@ -1,0 +1,8 @@
+id: KW-eval-expect.content
+key: "content"
+context: CTX-eval-expect
+order: 5
+status: stable
+forms:
+  - value: "{file, path, exists, contains, equals} の配列"
+    meaning: "中身の確かめ。"

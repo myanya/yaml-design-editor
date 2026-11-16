@@ -1,0 +1,9 @@
+id: KW-eval-content.file
+key: "file"
+context: CTX-eval-content
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ファイルの場所"
+    meaning: "確かめるファイル。"

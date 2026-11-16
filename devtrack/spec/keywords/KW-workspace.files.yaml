@@ -1,0 +1,8 @@
+id: KW-workspace.files
+key: "files"
+context: CTX-workspace
+order: 2
+status: stable
+forms:
+  - value: "{outside, allowedRoots, missing}"
+    meaning: "file 型の値（ファイルの場所）の扱い。"

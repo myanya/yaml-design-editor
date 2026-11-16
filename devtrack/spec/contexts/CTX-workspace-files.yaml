@@ -1,0 +1,8 @@
+id: CTX-workspace-files
+title: "ファイルの場所の扱い（files）"
+language: workspace
+description: "workspace.yaml の files。"
+code:
+  extra: [outside, allowedRoots, missing]
+evidence:
+  reader: "workspace-core/workspace/layout/FilePolicy.kt の parse"

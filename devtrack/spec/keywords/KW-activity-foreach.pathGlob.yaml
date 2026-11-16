@@ -1,0 +1,8 @@
+id: KW-activity-foreach.pathGlob
+key: "pathGlob"
+context: CTX-activity-foreach
+order: 9
+status: stable
+forms:
+  - value: "パスの glob"
+    meaning: "場所の絞り込み（search）。"

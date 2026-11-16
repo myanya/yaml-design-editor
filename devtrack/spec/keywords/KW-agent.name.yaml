@@ -1,0 +1,8 @@
+id: KW-agent.name
+key: "name"
+context: CTX-agent
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "表示名。"

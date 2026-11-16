@@ -1,0 +1,9 @@
+id: KW-activity-foreach.as
+key: "as"
+context: CTX-activity-foreach
+order: 13
+status: stable
+forms:
+  - value: "穴を含む文字列"
+    default: "並べる元ごとの既定の文"
+    meaning: "1 件ごとの追加の指示のひな型。{id}・{title}・{file}・{path}・{message} などが対象の値に置き換わります。"

@@ -1,0 +1,8 @@
+id: KW-activity-limits.maxTokens
+key: "maxTokens"
+context: CTX-activity-limits
+order: 2
+status: stable
+forms:
+  - value: "整数"
+    meaning: "トークンの数の上限。"

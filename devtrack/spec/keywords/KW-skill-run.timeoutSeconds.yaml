@@ -1,0 +1,8 @@
+id: KW-skill-run.timeoutSeconds
+key: "timeoutSeconds"
+context: CTX-skill-run
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    meaning: "打ち切る秒数。"

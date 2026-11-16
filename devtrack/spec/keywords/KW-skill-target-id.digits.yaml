@@ -1,0 +1,9 @@
+id: KW-skill-target-id.digits
+key: "digits"
+context: CTX-skill-target-id
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    default: "2"
+    meaning: "連番の桁数。"

@@ -1,0 +1,8 @@
+id: KW-skill-target.id
+key: "id"
+context: CTX-skill-target
+order: 3
+status: stable
+forms:
+  - value: "{path, prefix, digits}"
+    meaning: "採番。組み立てた明細に ID が無いとき、接頭辞と連番を付けます（配列への取り込みだけ）。"

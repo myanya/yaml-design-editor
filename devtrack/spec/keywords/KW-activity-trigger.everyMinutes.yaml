@@ -1,0 +1,8 @@
+id: KW-activity-trigger.everyMinutes
+key: "everyMinutes"
+context: CTX-activity-trigger
+order: 4
+status: stable
+forms:
+  - value: "整数"
+    meaning: "周期（分）。schedule のときは必須です。"

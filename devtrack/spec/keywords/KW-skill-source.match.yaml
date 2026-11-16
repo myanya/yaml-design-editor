@@ -1,0 +1,8 @@
+id: KW-skill-source.match
+key: "match"
+context: CTX-skill-source
+order: 1
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "対象の文書。"

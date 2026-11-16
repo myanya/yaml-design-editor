@@ -1,0 +1,8 @@
+id: KW-stage-change.bind
+key: "bind"
+context: CTX-stage-change
+order: 3
+status: stable
+forms:
+  - value: "名前"
+    meaning: "選んだ要素の名前。中の変更の値と条件から $of で読めます。"

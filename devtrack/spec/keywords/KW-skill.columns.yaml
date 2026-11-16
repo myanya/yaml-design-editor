@@ -1,0 +1,8 @@
+id: KW-skill.columns
+key: "columns"
+context: CTX-skill
+order: 12
+status: stable
+forms:
+  - value: "{header, path, join} の配列"
+    meaning: "書き出しの列。"

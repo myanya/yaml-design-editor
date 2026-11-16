@@ -1,0 +1,8 @@
+id: KW-skill-source.view
+key: "view"
+context: CTX-skill-source
+order: 3
+status: stable
+forms:
+  - value: "ビュー ID"
+    meaning: "ビューを行と列の元にします。match・rows・columns とは一緒に書けません。"

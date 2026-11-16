@@ -1,0 +1,9 @@
+id: KW-eval.cases
+key: "cases"
+context: CTX-eval
+order: 6
+status: stable
+forms:
+  - required: true
+    value: "ケースの配列"
+    meaning: "評価のケース。"

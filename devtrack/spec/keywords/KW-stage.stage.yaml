@@ -1,0 +1,9 @@
+id: KW-stage.stage
+key: "stage"
+context: CTX-stage
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "段の ID"
+    meaning: "当てる段（workspace.yaml の stages）。"

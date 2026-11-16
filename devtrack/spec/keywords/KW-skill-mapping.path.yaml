@@ -1,0 +1,9 @@
+id: KW-skill-mapping.path
+key: "path"
+context: CTX-skill-mapping
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "取り込む先の場所。"

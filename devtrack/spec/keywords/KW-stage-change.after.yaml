@@ -1,0 +1,8 @@
+id: KW-stage-change.after
+key: "after"
+context: CTX-stage-change
+order: 6
+status: stable
+forms:
+  - value: "足す値"
+    meaning: "選んだ要素の後ろへ足します。足した object には origin が付きます。"

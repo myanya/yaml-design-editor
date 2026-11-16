@@ -1,0 +1,10 @@
+id: CTX-eval-setup
+title: "決まった入力（setup の要素）"
+language: agent
+description: "ケースの setup の要素。"
+meta:
+  schema: eval
+  path: [root, cases, item, setup, item]
+evidence:
+  metaschema: "builtin-schemas/eval.yaml の root.cases.item.setup.item"
+  reader: "agent/Evals.kt の parseEval"

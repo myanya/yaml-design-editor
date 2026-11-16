@@ -1,0 +1,9 @@
+id: KW-skill-mapping.column
+key: "column"
+context: CTX-skill-mapping
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "列の名前。"

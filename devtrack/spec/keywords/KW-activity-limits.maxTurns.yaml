@@ -1,0 +1,8 @@
+id: KW-activity-limits.maxTurns
+key: "maxTurns"
+context: CTX-activity-limits
+order: 1
+status: stable
+forms:
+  - value: "整数"
+    meaning: "ターンの数の上限。"

@@ -1,0 +1,9 @@
+id: KW-skill-column.path
+key: "path"
+context: CTX-skill-column
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "パスの文字列"
+    meaning: "値の場所。"

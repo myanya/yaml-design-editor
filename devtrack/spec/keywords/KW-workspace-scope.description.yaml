@@ -1,0 +1,8 @@
+id: KW-workspace-scope.description
+key: "description"
+context: CTX-workspace-scope
+order: 3
+status: stable
+forms:
+  - value: "文章"
+    meaning: "説明。"

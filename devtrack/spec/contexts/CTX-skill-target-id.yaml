@@ -1,0 +1,10 @@
+id: CTX-skill-target-id
+title: "取り込みの採番"
+language: agent
+description: "target の id。"
+meta:
+  schema: skill
+  path: [root, target, id]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root.target.id"
+  reader: "app-core/skill/Skills.kt"

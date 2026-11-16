@@ -1,0 +1,10 @@
+id: CTX-eval-expect
+title: "期待する結果"
+language: agent
+description: "ケースの expect。"
+meta:
+  schema: eval
+  path: [root, cases, item, expect]
+evidence:
+  metaschema: "builtin-schemas/eval.yaml の root.cases.item.expect"
+  reader: "agent/Evals.kt の parseEval"

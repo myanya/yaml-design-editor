@@ -1,0 +1,9 @@
+id: KW-agent.tools
+key: "tools"
+context: CTX-agent
+order: 6
+status: stable
+forms:
+  - value: "道具の分類の配列"
+    default: "すべて"
+    meaning: "使ってよい道具の分類。管理の道具はいつも使えます。"

@@ -1,0 +1,9 @@
+id: KW-skill-target.path
+key: "path"
+context: CTX-skill-target
+order: 2
+status: stable
+forms:
+  - value: "パスの文字列"
+    default: "1 行が 1 文書"
+    meaning: "文書の中の配列へ足します（例 entries）。"

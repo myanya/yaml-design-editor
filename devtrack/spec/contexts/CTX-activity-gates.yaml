@@ -1,0 +1,10 @@
+id: CTX-activity-gates
+title: "提出のゲート"
+language: agent
+description: "アクティビティの gates。"
+meta:
+  schema: activity
+  path: [root, gates]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.gates"
+  reader: "agent/Definitions.kt の parseActivity"

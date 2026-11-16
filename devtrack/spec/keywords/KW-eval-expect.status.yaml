@@ -1,0 +1,9 @@
+id: KW-eval-expect.status
+key: "status"
+context: CTX-eval-expect
+order: 1
+status: stable
+forms:
+  - value: "submitted・aborted・limit・error・cancelled・any のどれか"
+    default: "submitted"
+    meaning: "終わり方。"

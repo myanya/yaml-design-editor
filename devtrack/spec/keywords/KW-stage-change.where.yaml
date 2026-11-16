@@ -1,0 +1,9 @@
+id: KW-stage-change.where
+key: "where"
+context: CTX-stage-change
+order: 2
+status: stable
+forms:
+  - value: "条件の配列"
+    default: "すべての要素"
+    meaning: "要素を選ぶ条件（変換の $when と同じ書き方）。"

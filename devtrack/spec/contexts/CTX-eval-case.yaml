@@ -1,0 +1,10 @@
+id: CTX-eval-case
+title: "ケース（cases の要素）"
+language: agent
+description: "評価セットの cases の要素。"
+meta:
+  schema: eval
+  path: [root, cases, item]
+evidence:
+  metaschema: "builtin-schemas/eval.yaml の root.cases.item"
+  reader: "agent/Evals.kt の parseEval"

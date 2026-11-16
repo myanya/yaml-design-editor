@@ -1,0 +1,8 @@
+id: KW-eval-case.expect
+key: "expect"
+context: CTX-eval-case
+order: 5
+status: stable
+forms:
+  - value: "{status, errorFree, changedFiles, unchangedFiles, content}"
+    meaning: "期待する結果。"

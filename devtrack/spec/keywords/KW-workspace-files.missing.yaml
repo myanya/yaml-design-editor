@@ -1,0 +1,9 @@
+id: KW-workspace-files.missing
+key: "missing"
+context: CTX-workspace-files
+order: 3
+status: stable
+forms:
+  - value: "allow・warning・error のどれか"
+    default: "error"
+    meaning: "無いファイルの扱い。"

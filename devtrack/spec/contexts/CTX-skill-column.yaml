@@ -1,0 +1,10 @@
+id: CTX-skill-column
+title: "書き出しの列（columns の要素）"
+language: agent
+description: "skill の columns の要素。"
+meta:
+  schema: skill
+  path: [root, columns, item]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root.columns.item"
+  reader: "app-core/skill/Skills.kt"

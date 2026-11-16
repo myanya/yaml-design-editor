@@ -1,0 +1,9 @@
+id: KW-workspace.ledger
+key: "ledger"
+context: CTX-workspace
+order: 1
+status: stable
+forms:
+  - value: "フォルダの名前か、その配列"
+    default: "ワークスペースの全体"
+    meaning: "台帳にするフォルダ。ID の索引と検証の集計の範囲です。"

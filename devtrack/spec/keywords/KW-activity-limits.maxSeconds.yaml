@@ -1,0 +1,8 @@
+id: KW-activity-limits.maxSeconds
+key: "maxSeconds"
+context: CTX-activity-limits
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    meaning: "実行の秒数の上限。"

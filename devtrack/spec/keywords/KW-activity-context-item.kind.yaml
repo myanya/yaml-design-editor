@@ -1,0 +1,9 @@
+id: KW-activity-context-item.kind
+key: "kind"
+context: CTX-activity-context-item
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "catalog・phase・view・doc・related・entity・sample・graph のどれか"
+    meaning: "開示の種別。catalog と phase は match、view は view・rows・columns、doc は file・path、related と entity は id、sample は schema・count、graph は start・steps を一緒に書きます。"

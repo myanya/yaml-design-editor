@@ -1,0 +1,9 @@
+id: KW-activity.agent
+key: "agent"
+context: CTX-activity
+order: 4
+status: stable
+forms:
+  - required: true
+    value: "エージェントの ID"
+    meaning: "実行するエージェント。"

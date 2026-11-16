@@ -1,0 +1,9 @@
+id: KW-activity-foreach.severity
+key: "severity"
+context: CTX-activity-foreach
+order: 4
+status: stable
+forms:
+  - value: "error か warning"
+    default: "error"
+    meaning: "source が issues のときの重さ。warning は警告以上です。"

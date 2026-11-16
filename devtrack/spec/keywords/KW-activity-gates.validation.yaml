@@ -1,0 +1,9 @@
+id: KW-activity-gates.validation
+key: "validation"
+context: CTX-activity-gates
+order: 1
+status: stable
+forms:
+  - value: "error-free・no-new-errors・none のどれか"
+    default: "error-free"
+    meaning: "検証の条件。error-free は検証のエラーが無いこと、no-new-errors はエラーを増やさないことです。"

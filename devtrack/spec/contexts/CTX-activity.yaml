@@ -1,0 +1,10 @@
+id: CTX-activity
+title: "アクティビティの定義"
+language: agent
+description: "仕事の単位 1 つ。対象・指示・文脈・書いてよい範囲・合格の条件を持ちます。"
+meta:
+  schema: activity
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root"
+  reader: "agent/Definitions.kt の parseActivity"

@@ -1,0 +1,10 @@
+id: CTX-activity-limits
+title: "ループの上限"
+language: agent
+description: "アクティビティの limits。"
+meta:
+  schema: activity
+  path: [root, limits]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.limits"
+  reader: "agent/Definitions.kt の parseActivity"

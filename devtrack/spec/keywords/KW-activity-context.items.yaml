@@ -1,0 +1,9 @@
+id: KW-activity-context.items
+key: "items"
+context: CTX-activity-context
+order: 1
+status: stable
+forms:
+  - value: "開示の項目の配列"
+    default: "開示なし"
+    meaning: "初めの文脈へ、書いた順に開示する項目。"

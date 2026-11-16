@@ -1,0 +1,10 @@
+id: CTX-activity-target
+title: "対象"
+language: agent
+description: "アクティビティの target。"
+meta:
+  schema: activity
+  path: [root, target]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.target"
+  reader: "agent/Definitions.kt の parseActivity"

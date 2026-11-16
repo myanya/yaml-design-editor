@@ -1,0 +1,9 @@
+id: KW-activity-foreach.limit
+key: "limit"
+context: CTX-activity-foreach
+order: 14
+status: stable
+forms:
+  - value: "整数"
+    default: "20"
+    meaning: "1 回で広げる件数の上限。"

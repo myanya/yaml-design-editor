@@ -1,0 +1,8 @@
+id: KW-activity-foreach.query
+key: "query"
+context: CTX-activity-foreach
+order: 12
+status: stable
+forms:
+  - value: "{match, where, limit}"
+    meaning: "クエリ（query）。解 1 件が 1 回の実行になり、束縛の名前を穴（{名前}）で読めます。"

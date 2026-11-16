@@ -1,0 +1,8 @@
+id: KW-skill-target-id.path
+key: "path"
+context: CTX-skill-target-id
+order: 1
+status: stable
+forms:
+  - value: "パスの文字列"
+    meaning: "ID の項目。"

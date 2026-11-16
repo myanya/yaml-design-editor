@@ -1,0 +1,8 @@
+id: KW-skill.run
+key: "run"
+context: CTX-skill
+order: 14
+status: stable
+forms:
+  - value: "{command, workdir, timeoutSeconds, writes}"
+    meaning: "コードの実行。実行の前に、人がコマンドと権限を承認します（自動の実行とエージェントからは起動できません）。"

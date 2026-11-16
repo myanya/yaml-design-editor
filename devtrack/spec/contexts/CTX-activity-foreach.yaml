@@ -1,0 +1,10 @@
+id: CTX-activity-foreach
+title: "一括の実行"
+language: agent
+description: "アクティビティの foreach。並べる元（source）ごとに、使う語が変わります。"
+meta:
+  schema: activity
+  path: [root, foreach]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.foreach"
+  reader: "agent/ForeachDef.kt"

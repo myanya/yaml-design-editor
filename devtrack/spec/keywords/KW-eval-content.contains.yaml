@@ -1,0 +1,8 @@
+id: KW-eval-content.contains
+key: "contains"
+context: CTX-eval-content
+order: 4
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "含まれるはずの文字。"

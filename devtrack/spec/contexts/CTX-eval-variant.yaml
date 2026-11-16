@@ -1,0 +1,10 @@
+id: CTX-eval-variant
+title: "変異（variants の要素）"
+language: agent
+description: "評価セットの variants の要素。"
+meta:
+  schema: eval
+  path: [root, variants, item]
+evidence:
+  metaschema: "builtin-schemas/eval.yaml の root.variants.item"
+  reader: "agent/Evals.kt の parseEval"

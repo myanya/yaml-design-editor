@@ -1,0 +1,9 @@
+id: KW-activity-retry.maxAttempts
+key: "maxAttempts"
+context: CTX-activity-retry
+order: 1
+status: stable
+forms:
+  - value: "整数"
+    default: "1（再試行なし）"
+    meaning: "試す回数の上限。失敗の理由を伝えて、もう一度実行します。"

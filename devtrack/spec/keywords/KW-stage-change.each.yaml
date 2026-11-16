@@ -1,0 +1,9 @@
+id: KW-stage-change.each
+key: "each"
+context: CTX-stage-change
+order: 1
+status: stable
+forms:
+  - value: "パスの形（[*] を書けます）"
+    default: "いまの場所そのもの"
+    meaning: "選ぶ並びの場所（例 entities・actions[*].effects）。並びの要素ごとに当てます。"

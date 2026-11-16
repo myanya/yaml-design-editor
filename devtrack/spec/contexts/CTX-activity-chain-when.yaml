@@ -1,0 +1,10 @@
+id: CTX-activity-chain-when
+title: "連鎖の条件"
+language: agent
+description: "連鎖の分岐の when。"
+meta:
+  schema: activity
+  path: [root, chain, rules, item, when]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.chain.rules.item.when"
+  reader: "agent/Definitions.kt の parseActivity"

@@ -1,0 +1,8 @@
+id: KW-workspace-scope.uses
+key: "uses"
+context: CTX-workspace-scope
+order: 5
+status: stable
+forms:
+  - value: "スコープの ID の配列"
+    meaning: "このスコープが使うスコープ。一方向で、循環は書けません。"

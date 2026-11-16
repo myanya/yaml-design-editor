@@ -1,0 +1,8 @@
+id: KW-activity-chain-rule.when
+key: "when"
+context: CTX-activity-chain-rule
+order: 1
+status: stable
+forms:
+  - value: "{outcome, changedFiles, minChangedFiles, noteContains}"
+    meaning: "条件。書いたものすべてに合うこと。"

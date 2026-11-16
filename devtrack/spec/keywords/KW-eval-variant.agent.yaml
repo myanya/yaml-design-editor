@@ -1,0 +1,8 @@
+id: KW-eval-variant.agent
+key: "agent"
+context: CTX-eval-variant
+order: 3
+status: stable
+forms:
+  - value: "エージェントの ID"
+    meaning: "エージェントの差し替え。"

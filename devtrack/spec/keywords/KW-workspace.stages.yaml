@@ -1,0 +1,8 @@
+id: KW-workspace.stages
+key: "stages"
+context: CTX-workspace
+order: 4
+status: stable
+forms:
+  - value: "{id, name, description} の配列"
+    meaning: "段の並び。前の段の項に、その段の規則と補正を当てたものが、その段の項です。"

@@ -1,0 +1,9 @@
+id: KW-stage.kind
+key: "kind"
+context: CTX-stage
+order: 5
+status: stable
+forms:
+  - required: true
+    value: "rule か patch"
+    meaning: "種類。段の中では規則を先に、補正を後に当てます。補正は、当たる要素が 1 つも無い変更を誤りにします。"

@@ -1,0 +1,10 @@
+id: CTX-skill-output
+title: "書き出しの出力（output）"
+language: agent
+description: "skill の output。"
+meta:
+  schema: skill
+  path: [root, output]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root.output"
+  reader: "app-core/skill/Skills.kt"

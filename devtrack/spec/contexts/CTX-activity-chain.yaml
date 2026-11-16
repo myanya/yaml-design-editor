@@ -1,0 +1,10 @@
+id: CTX-activity-chain
+title: "連鎖"
+language: agent
+description: "アクティビティの chain。"
+meta:
+  schema: activity
+  path: [root, chain]
+evidence:
+  metaschema: "builtin-schemas/activity.yaml の root.chain"
+  reader: "agent/Definitions.kt の parseActivity"

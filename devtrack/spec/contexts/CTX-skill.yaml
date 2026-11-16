@@ -1,0 +1,10 @@
+id: CTX-skill
+title: "skill の定義"
+language: agent
+description: "skill 1 つ。import は input・target と、mapping か build を書きます。export は source・output と、columns か build を書きます（include で束ねる書き出しは、それらを書きません）。run は run を書きます。"
+meta:
+  schema: skill
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root"
+  reader: "app-core/skill/Skills.kt"

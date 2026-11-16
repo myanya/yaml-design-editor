@@ -1,0 +1,8 @@
+id: KW-eval-content.equals
+key: "equals"
+context: CTX-eval-content
+order: 5
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "一致するはずの値。"

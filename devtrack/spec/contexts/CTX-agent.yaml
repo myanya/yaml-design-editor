@@ -1,0 +1,10 @@
+id: CTX-agent
+title: "エージェントの定義"
+language: agent
+description: "エージェント 1 つ。性格と、使ってよい道具の範囲を持つ実行者です。"
+meta:
+  schema: agent
+  path: [root]
+evidence:
+  metaschema: "builtin-schemas/agent.yaml の root"
+  reader: "agent/Definitions.kt の parseAgent"

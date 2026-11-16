@@ -1,0 +1,9 @@
+id: KW-eval-setup.content
+key: "content"
+context: CTX-eval-setup
+order: 2
+status: stable
+forms:
+  - required: true
+    value: "YAML の文字"
+    meaning: "中身。"

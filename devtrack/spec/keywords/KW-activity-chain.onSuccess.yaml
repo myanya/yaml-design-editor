@@ -1,0 +1,8 @@
+id: KW-activity-chain.onSuccess
+key: "onSuccess"
+context: CTX-activity-chain
+order: 1
+status: stable
+forms:
+  - value: "アクティビティの ID"
+    meaning: "成功のときに起動するもの。"

@@ -1,0 +1,9 @@
+id: KW-skill.id
+key: "id"
+context: CTX-skill
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "skill の ID。"

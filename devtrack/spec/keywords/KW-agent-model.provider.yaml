@@ -1,0 +1,8 @@
+id: KW-agent-model.provider
+key: "provider"
+context: CTX-agent-model
+order: 1
+status: stable
+forms:
+  - value: "openai か anthropic"
+    meaning: "プロバイダ。"

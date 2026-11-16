@@ -1,0 +1,9 @@
+id: KW-skill-mapping.type
+key: "type"
+context: CTX-skill-mapping
+order: 3
+status: stable
+forms:
+  - value: "string・int・number・boolean・auto のどれか"
+    default: "string"
+    meaning: "値の型。"

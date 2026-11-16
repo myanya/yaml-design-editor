@@ -1,0 +1,10 @@
+id: CTX-eval-content
+title: "中身の確かめ（content の要素）"
+language: agent
+description: "期待する結果の content の要素。"
+meta:
+  schema: eval
+  path: [root, cases, item, expect, content, item]
+evidence:
+  metaschema: "builtin-schemas/eval.yaml の root.cases.item.expect.content.item"
+  reader: "agent/Evals.kt の parseEval"

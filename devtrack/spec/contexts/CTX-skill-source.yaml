@@ -1,0 +1,10 @@
+id: CTX-skill-source
+title: "書き出しの対象（source）"
+language: agent
+description: "skill の source。"
+meta:
+  schema: skill
+  path: [root, source]
+evidence:
+  metaschema: "builtin-schemas/skill.yaml の root.source"
+  reader: "app-core/skill/Skills.kt"

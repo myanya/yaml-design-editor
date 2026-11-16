@@ -1,0 +1,8 @@
+id: KW-activity.target
+key: "target"
+context: CTX-activity
+order: 5
+status: stable
+forms:
+  - value: "{match}"
+    meaning: "対象の文書。"

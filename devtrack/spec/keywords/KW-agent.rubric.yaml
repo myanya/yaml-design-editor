@@ -1,0 +1,8 @@
+id: KW-agent.rubric
+key: "rubric"
+context: CTX-agent
+order: 4
+status: stable
+forms:
+  - value: "文字列の配列"
+    meaning: "レビューや作成で重く見る観点。"

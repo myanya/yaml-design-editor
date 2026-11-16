@@ -1,0 +1,9 @@
+id: KW-activity-foreach.source
+key: "source"
+context: CTX-activity-foreach
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "view・issues・search・files・ids・query のどれか"
+    meaning: "対象を並べる元。"

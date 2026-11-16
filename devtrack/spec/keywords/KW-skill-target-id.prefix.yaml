@@ -1,0 +1,8 @@
+id: KW-skill-target-id.prefix
+key: "prefix"
+context: CTX-skill-target-id
+order: 2
+status: stable
+forms:
+  - value: "穴を含む文字列か、ひな型"
+    meaning: "接頭辞。組み立てた明細の値で埋めます（例 TX-{date}-）。"

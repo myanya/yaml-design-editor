@@ -1,0 +1,19 @@
+id: workspace-config-md
+name: ワークスペースの構成と段（docs/spec/workspace-config.md）
+description: ワークスペースの構成と段の位置と語から docs/spec/workspace-config.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  sections:
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-workspace } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-workspace } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-workspace-files } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-workspace-files } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-workspace-scope } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-workspace-scope } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-workspace-stage } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-workspace-stage } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-stage } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-stage } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-stage-change } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-stage-change } ] }
+template: workspace-config-md.md

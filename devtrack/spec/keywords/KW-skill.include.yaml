@@ -1,0 +1,8 @@
+id: KW-skill.include
+key: "include"
+context: CTX-skill
+order: 10
+status: stable
+forms:
+  - value: "skill の ID の配列"
+    meaning: "まとめて書き出す定義。同じ書き出し先へ 1 回で書き、どれかが誤りなら何も書きません。"

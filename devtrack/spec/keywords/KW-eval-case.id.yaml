@@ -1,0 +1,9 @@
+id: KW-eval-case.id
+key: "id"
+context: CTX-eval-case
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "ケースの ID。"

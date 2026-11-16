@@ -1,0 +1,8 @@
+id: KW-skill-column.join
+key: "join"
+context: CTX-skill-column
+order: 3
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "配列の値をつなぐ区切り。"

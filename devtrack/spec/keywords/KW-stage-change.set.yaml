@@ -1,0 +1,8 @@
+id: KW-stage-change.set
+key: "set"
+context: CTX-stage-change
+order: 4
+status: stable
+forms:
+  - value: "要素の中の場所 → 値 のマップ"
+    meaning: "置き換えます。値は変換のひな型です。置き換えた場所は、要素の origins に記録します。"

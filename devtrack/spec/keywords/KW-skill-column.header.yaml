@@ -1,0 +1,9 @@
+id: KW-skill-column.header
+key: "header"
+context: CTX-skill-column
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "文字列"
+    meaning: "見出し。"

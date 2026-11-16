@@ -1,0 +1,9 @@
+id: KW-activity.id
+key: "id"
+context: CTX-activity
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "アクティビティの ID。"

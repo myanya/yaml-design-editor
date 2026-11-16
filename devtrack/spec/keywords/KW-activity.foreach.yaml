@@ -1,0 +1,8 @@
+id: KW-activity.foreach
+key: "foreach"
+context: CTX-activity
+order: 18
+status: stable
+forms:
+  - value: "{source, …}"
+    meaning: "一括の実行。手動で起動したときに対象を並べ、1 件を 1 回の実行としてキューへ広げます。trigger が manual のときだけ書けます。"

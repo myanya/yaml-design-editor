@@ -1,0 +1,9 @@
+id: KW-workspace-scope.name
+key: "name"
+context: CTX-workspace-scope
+order: 2
+status: stable
+forms:
+  - value: "文字列"
+    default: "ID"
+    meaning: "表示名。"

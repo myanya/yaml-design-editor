@@ -1,0 +1,8 @@
+id: KW-eval-case.setup
+key: "setup"
+context: CTX-eval-case
+order: 3
+status: stable
+forms:
+  - value: "{file, content} の配列"
+    meaning: "決まった入力。試す場所へ上書きします。"

@@ -1,0 +1,8 @@
+id: KW-skill-input.headerRow
+key: "headerRow"
+context: CTX-skill-input
+order: 3
+status: stable
+forms:
+  - value: "整数（1 始まり）"
+    meaning: "見出しの行（xlsx）。"

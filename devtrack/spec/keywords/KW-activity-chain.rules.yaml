@@ -1,0 +1,8 @@
+id: KW-activity-chain.rules
+key: "rules"
+context: CTX-activity-chain
+order: 3
+status: stable
+forms:
+  - value: "{when, then} の配列"
+    meaning: "出力の値による分岐。上から順に調べ、最初に合った規則の then へ連鎖します。合わなければ onSuccess・onFailure です。"

@@ -1,0 +1,8 @@
+id: KW-activity-foreach.refTo
+key: "refTo"
+context: CTX-activity-foreach
+order: 10
+status: stable
+forms:
+  - value: "ID"
+    meaning: "この ID を参照しているもの（search）。"

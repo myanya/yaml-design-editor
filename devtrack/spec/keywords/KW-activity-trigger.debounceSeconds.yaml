@@ -1,0 +1,8 @@
+id: KW-activity-trigger.debounceSeconds
+key: "debounceSeconds"
+context: CTX-activity-trigger
+order: 3
+status: stable
+forms:
+  - value: "整数"
+    meaning: "続けて起きた変更をまとめる秒数。"

@@ -1,0 +1,9 @@
+id: KW-agent.id
+key: "id"
+context: CTX-agent
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "ID の文字列"
+    meaning: "エージェントの ID。アクティビティから指します。"
