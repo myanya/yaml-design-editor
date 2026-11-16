@@ -1,0 +1,8 @@
+id: KW-expr.multiply
+key: "multiply"
+context: CTX-expr
+order: 24
+status: stable
+forms:
+  - value: "値の式の配列（2 つ以上）"
+    meaning: "掛け算。"

@@ -1,0 +1,8 @@
+id: KW-comparison.right
+key: "right"
+context: CTX-comparison
+order: 16
+status: stable
+forms:
+  - value: "値の式（oneOf と includesAny は配列）"
+    meaning: "op の形の右。"

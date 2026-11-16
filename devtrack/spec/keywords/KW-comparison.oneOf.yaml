@@ -1,0 +1,8 @@
+id: KW-comparison.oneOf
+key: "oneOf"
+context: CTX-comparison
+order: 7
+status: stable
+forms:
+  - value: "[左, 右]（選択肢の配列）"
+    meaning: "左が選択肢のどれかであること。"

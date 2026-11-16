@@ -1,0 +1,8 @@
+id: KW-condition.exists
+key: "exists"
+context: CTX-condition
+order: 5
+status: stable
+forms:
+  - value: "真偽値"
+    meaning: "true は項目が書かれていること、false はどの出現にも書かれていないこと。"

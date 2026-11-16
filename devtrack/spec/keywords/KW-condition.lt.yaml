@@ -1,0 +1,8 @@
+id: KW-condition.lt
+key: "lt"
+context: CTX-condition
+order: 14
+status: stable
+forms:
+  - value: "値"
+    meaning: "値がその値より小さいこと。"

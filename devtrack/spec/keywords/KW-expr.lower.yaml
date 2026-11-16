@@ -1,0 +1,8 @@
+id: KW-expr.lower
+key: "lower"
+context: CTX-expr
+order: 14
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "小文字にします。"

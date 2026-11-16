@@ -1,0 +1,9 @@
+id: KW-query-edge.contains
+key: "contains"
+context: CTX-query-edge
+order: 8
+status: stable
+forms:
+  - value: "真偽値"
+    default: "false"
+    meaning: "参照ではなく入れ子をたどります。その要素の直下に入れ子になった、ID を持つ要素へ進みます（dir: in は外側の要素へ）。relation・via・in・bind・row とは一緒に書けません。"

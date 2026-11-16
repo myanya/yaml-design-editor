@@ -1,0 +1,8 @@
+id: KW-condition.matches
+key: "matches"
+context: CTX-condition
+order: 8
+status: stable
+forms:
+  - value: "正規表現の文字列"
+    meaning: "値の全体が正規表現に合うこと。"

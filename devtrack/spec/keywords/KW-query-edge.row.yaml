@@ -1,0 +1,8 @@
+id: KW-query-edge.row
+key: "row"
+context: CTX-query-edge
+order: 7
+status: stable
+forms:
+  - value: "{from: {relation}, to: {relation}}"
+    meaning: "同じ行（object）の直下に書かれた 2 つの参照を、from の相手から to の相手への 1 本の線としてたどります。relation・via とは一緒に書けません。"

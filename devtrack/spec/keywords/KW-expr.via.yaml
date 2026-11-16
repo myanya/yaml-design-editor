@@ -1,0 +1,8 @@
+id: KW-expr.via
+key: "via"
+context: CTX-expr
+order: 4
+status: stable
+forms:
+  - value: "参照の項目か、その配列"
+    meaning: "読み出しの前に、その要素に書かれた参照を 1 段たどり、相手の要素から読みます。配列は段を重ねます。各段で参照がちょうど 1 本のとき相手が決まります。検査の外でだけ書けます。"

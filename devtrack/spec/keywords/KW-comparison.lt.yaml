@@ -1,0 +1,8 @@
+id: KW-comparison.lt
+key: "lt"
+context: CTX-comparison
+order: 3
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左が右より小さいこと。"

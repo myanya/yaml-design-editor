@@ -1,0 +1,8 @@
+id: KW-expr.count
+key: "count"
+context: CTX-expr
+order: 30
+status: stable
+forms:
+  - value: "配列を返す式"
+    meaning: "配列の件数。"

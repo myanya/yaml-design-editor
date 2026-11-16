@@ -1,0 +1,8 @@
+id: KW-query-edge.via
+key: "via"
+context: CTX-query-edge
+order: 3
+status: stable
+forms:
+  - value: "キーの名前か、キーの並び（a.b）"
+    meaning: "参照が書かれた場所で絞ります。1 語ならキーの名前、複数なら場所の末尾のキーの並びです（配列の番号は見ません）。"

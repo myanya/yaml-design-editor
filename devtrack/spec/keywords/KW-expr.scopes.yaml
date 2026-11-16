@@ -1,0 +1,9 @@
+id: KW-expr.scopes
+key: "scopes"
+context: CTX-expr
+order: 7
+status: stable
+forms:
+  - value: "{of, in, via} の配列"
+    default: "いまの要素（検査の外）"
+    meaning: "format の穴の値を探す入れ物。近い順に探します。"

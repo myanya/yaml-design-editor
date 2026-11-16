@@ -1,0 +1,8 @@
+id: KW-query-node.schema
+key: "schema"
+context: CTX-query-node
+order: 3
+status: stable
+forms:
+  - value: "スキーマ ID"
+    meaning: "その要素が書かれた文書のスキーマで絞ります。kind: entity のときだけ書けます。"

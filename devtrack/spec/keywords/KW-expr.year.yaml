@@ -1,0 +1,8 @@
+id: KW-expr.year
+key: "year"
+context: CTX-expr
+order: 16
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "日付か日時の年（数）。"

@@ -1,0 +1,8 @@
+id: KW-condition.not
+key: "not"
+context: CTX-condition
+order: 20
+status: stable
+forms:
+  - value: "条件"
+    meaning: "条件が成り立たないこと。値が無く判定できないときは成り立ちません。"

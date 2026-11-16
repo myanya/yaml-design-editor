@@ -1,0 +1,8 @@
+id: KW-condition.equals
+key: "equals"
+context: CTX-condition
+order: 3
+status: stable
+forms:
+  - value: "値"
+    meaning: "値が指定の値と等しいこと。"

@@ -1,0 +1,8 @@
+id: KW-comparison.eq
+key: "eq"
+context: CTX-comparison
+order: 1
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左と右が等しいこと。"

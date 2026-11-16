@@ -26,6 +26,7 @@ import kotlin.test.assertTrue
  * - 位置「スキーマ文書」の語は、スキーマと関係レジストリのメタスキーマの root と一致し、関係レジストリに書ける語も一致する
  * - スキーマの種類は、実装（SchemaKind）・メタスキーマの kind の選択肢と一致する
  * - メタスキーマの中の場所（meta）を書いた位置（関係・振る舞い・操作）は、語と必須がその場所の項目の並びと一致する
+ * - 実装の語の集まり（code）を書いた位置（クエリ・条件・値の比較・値の式）は、語が読み取りの実装のキーの集まりと列挙と同じ
  * - どの位置も、参照文書のレポートのどれかに載っている
  * - 語の ID の形の検査が働く。ダッシュボード「仕様」が解決できる
  */
@@ -156,9 +157,38 @@ class SpecTest {
         assertTrue(differing.isEmpty(), "語か必須が、仕様とメタスキーマで違います:\n" + differing.joinToString("\n"))
     }
 
+    /** 読み取りの実装が「使えるキー」として持つ集まり（クラス名.名前。companion の private val＝外側のクラスの static の欄）。 */
+    private fun codeSet(name: String): Set<String> {
+        val type = Class.forName("dev.toros.yde.semantic.schema." + name.substringBeforeLast('.').replace('.', '$'))
+        val field = type.getDeclaredField(name.substringAfterLast('.')).apply { isAccessible = true }
+        return (field.get(null) as Collection<*>).map(Any?::toString).toSet()
+    }
+
+    /** 値がそのまま語になる列挙の id の集まり（クラス名。入れ子は ValueExpr.UnaryFn の形）。 */
+    private fun codeEnum(name: String): Set<String> {
+        val type = Class.forName("dev.toros.yde.semantic.schema." + name.replace('.', '$'))
+        return type.enumConstants.map { type.getMethod("getId").invoke(it).toString() }.toSet()
+    }
+
+    @Test
+    fun `実装の語の集まりを書いた位置は 語が読み取りの実装と同じ`() {
+        val keywords = root.resolve("spec/keywords").listDirectoryEntries("*.yaml").map(::raw).groupBy { it["context"].toString() }
+        val contexts = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map(::raw).filter { it["code"] != null }
+        assertTrue(contexts.size >= 5, "実装の語の集まりを書いた位置が読めていること: ${contexts.size}")
+        val differing = contexts.mapNotNull { ctx ->
+            val code = ctx["code"] as Map<*, *>
+            fun names(key: String) = (code[key] as List<*>?).orEmpty().map(Any?::toString)
+            val implemented = names("sets").flatMap(::codeSet).toSet() + names("enums").flatMap(::codeEnum) + names("extra")
+            val spec = keywords[ctx["id"].toString()].orEmpty().map { it["key"].toString() }.toSet()
+            if (implemented == spec) null
+            else "${ctx["id"]}: 実装にあって仕様に無い ${(implemented - spec).sorted()}・仕様にあって実装に無い ${(spec - implemented).sorted()}"
+        }
+        assertTrue(differing.isEmpty(), "語が、仕様と読み取りの実装で違います:\n" + differing.joinToString("\n"))
+    }
+
     @Test
     fun `どの位置も 参照文書のレポートのどれかに載っている`() {
-        val reports = root.resolve(".yde/reports").listDirectoryEntries("schema-*-md.yaml").joinToString("\n") { it.readText() }
+        val reports = root.resolve(".yde/reports").listDirectoryEntries("*-md.yaml").joinToString("\n") { it.readText() }
         val missing = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map { raw(it)["id"].toString() }.filter { "equals: $it }" !in reports }
         assertTrue(missing.isEmpty(), "参照文書に載っていない位置があります（.yde/reports の schema-*-md.yaml に足す）: $missing")
     }

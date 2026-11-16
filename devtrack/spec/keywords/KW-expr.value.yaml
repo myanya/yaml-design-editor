@@ -1,0 +1,8 @@
+id: KW-expr.value
+key: "value"
+context: CTX-expr
+order: 5
+status: stable
+forms:
+  - value: "値"
+    meaning: "決まった値。値が無ければ「得られない」です。each と一緒のときは、各要素に当てる式です。"

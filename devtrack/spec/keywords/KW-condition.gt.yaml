@@ -1,0 +1,8 @@
+id: KW-condition.gt
+key: "gt"
+context: CTX-condition
+order: 16
+status: stable
+forms:
+  - value: "値"
+    meaning: "値がその値より大きいこと。"

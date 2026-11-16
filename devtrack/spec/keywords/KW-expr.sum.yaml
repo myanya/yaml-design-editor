@@ -1,0 +1,8 @@
+id: KW-expr.sum
+key: "sum"
+context: CTX-expr
+order: 27
+status: stable
+forms:
+  - value: "配列を返す式（{path} は短い書き方）"
+    meaning: "配列の合計。"

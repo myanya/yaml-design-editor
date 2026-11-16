@@ -1,0 +1,8 @@
+id: KW-query-branch.from
+key: "from"
+context: CTX-query-branch
+order: 1
+status: stable
+forms:
+  - value: "束縛の名前"
+    meaning: "分岐の起点にするノード。"

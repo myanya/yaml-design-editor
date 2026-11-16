@@ -1,0 +1,8 @@
+id: KW-condition.gte
+key: "gte"
+context: CTX-condition
+order: 17
+status: stable
+forms:
+  - value: "値"
+    meaning: "値がその値以上であること。"

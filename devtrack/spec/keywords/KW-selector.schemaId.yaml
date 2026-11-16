@@ -1,0 +1,8 @@
+id: KW-selector.schemaId
+key: "schemaId"
+context: CTX-selector
+order: 1
+status: stable
+forms:
+  - value: "スキーマ ID"
+    meaning: "文書のスキーマ。"

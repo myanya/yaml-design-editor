@@ -1,0 +1,8 @@
+id: KW-comparison.op
+key: "op"
+context: CTX-comparison
+order: 14
+status: stable
+forms:
+  - value: "演算子の名前"
+    meaning: "演算子を分けて書く形。left と right が必要です。"

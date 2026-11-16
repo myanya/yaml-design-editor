@@ -1,0 +1,8 @@
+id: KW-expr.each
+key: "each"
+context: CTX-expr
+order: 33
+status: stable
+forms:
+  - value: "配列を返す式"
+    meaning: "要素ごとの式。各要素を「いまの要素」として value を評価し、配列にします。"

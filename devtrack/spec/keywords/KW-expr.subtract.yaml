@@ -1,0 +1,8 @@
+id: KW-expr.subtract
+key: "subtract"
+context: CTX-expr
+order: 23
+status: stable
+forms:
+  - value: "[値の式, 値の式]"
+    meaning: "引き算。"

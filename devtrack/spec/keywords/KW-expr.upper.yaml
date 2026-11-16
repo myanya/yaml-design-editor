@@ -1,0 +1,8 @@
+id: KW-expr.upper
+key: "upper"
+context: CTX-expr
+order: 13
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "大文字にします。"

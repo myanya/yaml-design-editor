@@ -1,0 +1,8 @@
+id: KW-expr.daysBetween
+key: "daysBetween"
+context: CTX-expr
+order: 26
+status: stable
+forms:
+  - value: "[始まり, 終わり]"
+    meaning: "日付の差の日数（終わり − 始まり）。"

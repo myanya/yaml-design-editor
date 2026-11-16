@@ -1,0 +1,8 @@
+id: KW-query-edge.bind
+key: "bind"
+context: CTX-query-edge
+order: 5
+status: stable
+forms:
+  - value: "名前"
+    meaning: "たどった参照そのものを束縛します。同じ相手への参照が 2 本あれば 2 つの解になり、reportAt の {ref: 名前} で参照の場所を指せます。repeat と contains を書いた線には書けません。"

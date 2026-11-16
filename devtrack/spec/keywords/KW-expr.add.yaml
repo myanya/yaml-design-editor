@@ -1,0 +1,8 @@
+id: KW-expr.add
+key: "add"
+context: CTX-expr
+order: 22
+status: stable
+forms:
+  - value: "値の式の配列（2 つ以上）"
+    meaning: "足し算。"

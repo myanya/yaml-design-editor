@@ -1,0 +1,8 @@
+id: KW-expr.max
+key: "max"
+context: CTX-expr
+order: 29
+status: stable
+forms:
+  - value: "配列を返す式"
+    meaning: "配列の最大。比べ方は type で決めます。"

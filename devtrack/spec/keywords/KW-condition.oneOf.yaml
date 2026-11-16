@@ -1,0 +1,8 @@
+id: KW-condition.oneOf
+key: "oneOf"
+context: CTX-condition
+order: 7
+status: stable
+forms:
+  - value: "値の配列"
+    meaning: "値が選択肢のどれかであること。"

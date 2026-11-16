@@ -1,0 +1,8 @@
+id: KW-condition.endsWith
+key: "endsWith"
+context: CTX-condition
+order: 10
+status: stable
+forms:
+  - value: "文字列"
+    meaning: "値がその文字で終わること。"

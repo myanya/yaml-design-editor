@@ -1,0 +1,8 @@
+id: KW-expr.divide
+key: "divide"
+context: CTX-expr
+order: 25
+status: stable
+forms:
+  - value: "[値の式, 値の式]"
+    meaning: "割り算。0 で割ると「得られない」です。"

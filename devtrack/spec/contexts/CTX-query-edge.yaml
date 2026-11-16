@@ -1,0 +1,8 @@
+id: CTX-query-edge
+title: "クエリの edge"
+language: expression
+description: "match・steps の edge。いまの要素から線を 1 段たどります。ここに無いキーは誤りになります。"
+code:
+  sets: [QueryEdgeStep.KEYS]
+evidence:
+  reader: "semantic-core/schema/QuerySpec.kt の QueryEdgeStep"

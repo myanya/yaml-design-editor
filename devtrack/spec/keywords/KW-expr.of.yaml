@@ -1,0 +1,9 @@
+id: KW-expr.of
+key: "of"
+context: CTX-expr
+order: 1
+status: stable
+forms:
+  - value: "束縛の名前"
+    default: "いまの要素（検査の外）"
+    meaning: "読み出し {of, path} の、値を読む要素。"

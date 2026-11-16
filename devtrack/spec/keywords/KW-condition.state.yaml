@@ -1,0 +1,8 @@
+id: KW-condition.state
+key: "state"
+context: CTX-condition
+order: 19
+status: stable
+forms:
+  - value: "State の ID か、その配列"
+    meaning: "State の名前で書く条件。読み込みのときに、その State の条件へ置き換えます。"

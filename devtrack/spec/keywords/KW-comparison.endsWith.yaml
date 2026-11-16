@@ -1,0 +1,8 @@
+id: KW-comparison.endsWith
+key: "endsWith"
+context: CTX-comparison
+order: 10
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左が右で終わること。"

@@ -1,0 +1,8 @@
+id: KW-query-node.bind
+key: "bind"
+context: CTX-query-node
+order: 5
+status: stable
+forms:
+  - value: "名前（英字で始まる英数字・ハイフン・アンダースコア）"
+    meaning: "束縛の名前。条件・値の式・文面からこの名前で指し、解の同一性に加わります。"

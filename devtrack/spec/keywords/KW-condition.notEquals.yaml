@@ -1,0 +1,8 @@
+id: KW-condition.notEquals
+key: "notEquals"
+context: CTX-condition
+order: 4
+status: stable
+forms:
+  - value: "値"
+    meaning: "値があり、どの出現の値も指定の値でないこと。値が無ければ成り立ちません。"

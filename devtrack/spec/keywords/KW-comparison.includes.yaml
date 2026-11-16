@@ -1,0 +1,8 @@
+id: KW-comparison.includes
+key: "includes"
+context: CTX-comparison
+order: 12
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左の配列が、右を要素に持つこと。"

@@ -1,0 +1,8 @@
+id: KW-comparison.ne
+key: "ne"
+context: CTX-comparison
+order: 2
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左と右が等しくないこと。"

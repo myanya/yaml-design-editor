@@ -1,0 +1,8 @@
+id: KW-condition.lte
+key: "lte"
+context: CTX-condition
+order: 15
+status: stable
+forms:
+  - value: "値"
+    meaning: "値がその値以下であること。"

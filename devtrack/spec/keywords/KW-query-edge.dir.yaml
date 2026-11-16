@@ -1,0 +1,9 @@
+id: KW-query-edge.dir
+key: "dir"
+context: CTX-query-edge
+order: 1
+status: stable
+forms:
+  - value: "out か in"
+    default: "out"
+    meaning: "向き。out はその要素が直接書いた参照をたどり、in はその要素への参照を書いた要素へ進みます。"

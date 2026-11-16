@@ -1,0 +1,8 @@
+id: KW-comparison.matches
+key: "matches"
+context: CTX-comparison
+order: 8
+status: stable
+forms:
+  - value: "[左, 右]（正規表現）"
+    meaning: "左の全体が正規表現に合うこと。"

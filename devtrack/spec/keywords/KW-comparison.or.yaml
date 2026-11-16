@@ -1,0 +1,8 @@
+id: KW-comparison.or
+key: "or"
+context: CTX-comparison
+order: 19
+status: stable
+forms:
+  - value: "比較の配列"
+    meaning: "どれかが成り立つこと。"

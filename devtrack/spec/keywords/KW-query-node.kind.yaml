@@ -1,0 +1,9 @@
+id: KW-query-node.kind
+key: "kind"
+context: CTX-query-node
+order: 1
+status: stable
+forms:
+  - value: "entity か document"
+    default: "entity"
+    meaning: "ノードの種類。document は文書そのものです。"

@@ -1,0 +1,8 @@
+id: KW-expr.map
+key: "map"
+context: CTX-expr
+order: 9
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "辞書での置き換え。using と一緒に書きます。辞書に無い値はそのままです。"

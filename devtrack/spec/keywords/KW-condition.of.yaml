@@ -1,0 +1,9 @@
+id: KW-condition.of
+key: "of"
+context: CTX-condition
+order: 1
+status: stable
+forms:
+  - value: "束縛の名前"
+    default: "いまの要素（型の検査の中）"
+    meaning: "値を読むノード。"

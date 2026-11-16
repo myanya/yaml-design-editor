@@ -1,0 +1,8 @@
+id: KW-query-node.not
+key: "not"
+context: CTX-query-node
+order: 7
+status: stable
+forms:
+  - value: "{entity, schema, id}"
+    meaning: "この絞り込みに合わないノードだけを残します。型が宣言されていない要素は、型の否定では残しません。"

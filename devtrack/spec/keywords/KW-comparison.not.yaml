@@ -1,0 +1,8 @@
+id: KW-comparison.not
+key: "not"
+context: CTX-comparison
+order: 18
+status: stable
+forms:
+  - value: "比較"
+    meaning: "比較が成り立たないこと。"

@@ -1,0 +1,8 @@
+id: KW-expr.first
+key: "first"
+context: CTX-expr
+order: 11
+status: stable
+forms:
+  - value: "値の式の配列"
+    meaning: "最初に得られた値。"

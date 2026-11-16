@@ -1,0 +1,8 @@
+id: KW-condition.includesAny
+key: "includesAny"
+context: CTX-condition
+order: 13
+status: stable
+forms:
+  - value: "値か、値の配列"
+    meaning: "配列の値が、そのどれかを要素に持つこと。"

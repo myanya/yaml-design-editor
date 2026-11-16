@@ -1,0 +1,9 @@
+id: KW-query-edge.repeat
+key: "repeat"
+context: CTX-query-edge
+order: 6
+status: stable
+forms:
+  - value: "true か {min: 0 か 1}"
+    default: "1 段だけたどります"
+    meaning: "この線を何段でもくり返して、着けるすべての要素へ進みます。true は 1 回以上、{min: 0} は出発した要素そのものも含みます。"

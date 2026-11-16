@@ -1,0 +1,8 @@
+id: KW-query-edge.relation
+key: "relation"
+context: CTX-query-edge
+order: 2
+status: stable
+forms:
+  - value: "関係の名前"
+    meaning: "たどる参照の関係の名前。"

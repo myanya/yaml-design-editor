@@ -1,0 +1,8 @@
+id: KW-expr.yearMonth
+key: "yearMonth"
+context: CTX-expr
+order: 19
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "日付か日時の年月（2026-10 の形の文字）。月ごとの集計の鍵に使います。"

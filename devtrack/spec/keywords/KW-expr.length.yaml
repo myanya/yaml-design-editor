@@ -1,0 +1,8 @@
+id: KW-expr.length
+key: "length"
+context: CTX-expr
+order: 12
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "文字数。"

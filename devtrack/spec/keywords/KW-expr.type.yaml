@@ -1,0 +1,9 @@
+id: KW-expr.type
+key: "type"
+context: CTX-expr
+order: 31
+status: stable
+forms:
+  - value: "number・date・time・datetime のどれか"
+    default: "読んだ項目の型から決めます"
+    meaning: "集計の比べ方。sum に日付の種類は書けず、count には書けません。"

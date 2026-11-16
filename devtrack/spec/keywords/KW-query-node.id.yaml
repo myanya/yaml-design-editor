@@ -1,0 +1,8 @@
+id: KW-query-node.id
+key: "id"
+context: CTX-query-node
+order: 4
+status: stable
+forms:
+  - value: "glob の文字列"
+    meaning: "ID の形で絞ります（kind: document では文書 ID）。"

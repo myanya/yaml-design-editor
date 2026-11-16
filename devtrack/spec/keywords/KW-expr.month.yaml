@@ -1,0 +1,8 @@
+id: KW-expr.month
+key: "month"
+context: CTX-expr
+order: 17
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "日付か日時の月（1〜12）。"

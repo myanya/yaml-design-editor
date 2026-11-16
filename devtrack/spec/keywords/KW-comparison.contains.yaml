@@ -1,0 +1,8 @@
+id: KW-comparison.contains
+key: "contains"
+context: CTX-comparison
+order: 11
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左が右を含むこと。"

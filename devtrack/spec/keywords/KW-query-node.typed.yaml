@@ -1,0 +1,8 @@
+id: KW-query-node.typed
+key: "typed"
+context: CTX-query-node
+order: 8
+status: stable
+forms:
+  - value: "真偽値"
+    meaning: "true はエンティティ型が宣言された要素だけ、false は宣言されていない要素だけを残します。"

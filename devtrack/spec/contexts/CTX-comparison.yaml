@@ -1,0 +1,9 @@
+id: CTX-comparison
+title: "値の比較（check）"
+language: expression
+description: "check の要素。{演算子: [左, 右]} の 1 キーか、{op, left, right} で書きます。左と右は値の式です。値が得られない比較は、違反ではなく保留になります。"
+code:
+  enums: [CheckOp]
+  extra: [op, left, right, type, not, or]
+evidence:
+  reader: "semantic-core/schema/QuerySpec.kt の CheckOp"

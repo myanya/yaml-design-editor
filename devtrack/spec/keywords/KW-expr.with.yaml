@@ -1,0 +1,8 @@
+id: KW-expr.with
+key: "with"
+context: CTX-expr
+order: 8
+status: stable
+forms:
+  - value: "穴の名前 → 値の式 のマップ"
+    meaning: "format の穴に、式で計算した値を入れます。"

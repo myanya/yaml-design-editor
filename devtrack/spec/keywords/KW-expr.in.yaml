@@ -1,0 +1,9 @@
+id: KW-expr.in
+key: "in"
+context: CTX-expr
+order: 3
+status: stable
+forms:
+  - value: "{schemaId, fileGlob}"
+    default: "同じ ID が書かれたすべての文書"
+    meaning: "読み出しの、値を読む文書。"

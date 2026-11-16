@@ -1,0 +1,8 @@
+id: KW-comparison.gte
+key: "gte"
+context: CTX-comparison
+order: 6
+status: stable
+forms:
+  - value: "[左, 右]（値の式）"
+    meaning: "左が右以上であること。"

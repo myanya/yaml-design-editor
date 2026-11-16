@@ -8,3 +8,11 @@ memo: |-
   仕様（devtrack/spec）に値の式の位置を足して語として持ち、実装の列挙と一致することをテストで見る。
 features:
   - S-23
+resolutions:
+  - date: 2026-11-16
+    kind: 一部
+    note: |-
+      仕様（devtrack/spec）に、値の式・条件・値の比較・クエリの語を載せた（docs/spec/expressions.md）。
+      語が実装の列挙（UnaryFn・ArithOp・AggregateFn・CheckOp）とキーの集まり（QueryNodeStep・QueryEdgeStep・QueryWhere の KEYS）と同じことを SpecTest が見る。
+      残り: 列挙にもキーの集まりにも無い語（format・map・first・all・each・refCount・occurrenceCount など）は、仕様の側に並べただけで実装と突き合わせていない。
+    targets: SpecTest

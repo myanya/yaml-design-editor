@@ -1,0 +1,8 @@
+id: KW-condition.empty
+key: "empty"
+context: CTX-condition
+order: 6
+status: stable
+forms:
+  - value: "真偽値"
+    meaning: "false は中身のある値が書かれていること、true はどの出現にも中身のある値が無いこと（書かれていない・空文字・null・空の配列・空の object を空とみなします）。"

@@ -68,6 +68,7 @@ definitions:
     type: enum
     values:
       - { value: schema, label: スキーマ }
+      - { value: expression, label: 値の式・条件・クエリ }
   語の分類:
     type: enum
     values:
@@ -127,6 +128,27 @@ definitions:
         item: { type: word }
         description: 読み取りの実装は読むが、メタスキーマのこの場所に無いキー（分かっているずれ）。指摘を登録して、メタスキーマに足されたらここから外します。
 
+  # 読み取りの実装の中の語の集まり: メタスキーマが形を決めていない位置で、語が実装と同じであることを SpecTest が見る
+  実装の語の集まり:
+    type: object
+    fields:
+      - key: sets
+        label: キーの集まり
+        type: array
+        item: { type: word }
+        description: 読み取りが「使えるキー」として持つ集まり（クラス名.名前。例 QueryWhere.KEYS。パッケージは semantic.schema）。
+      - key: enums
+        label: 列挙
+        type: array
+        item: { type: word }
+        description: 値がそのまま語になる列挙（クラス名。入れ子は ValueExpr.UnaryFn の形）。
+      - key: extra
+        label: そのほかの語
+        type: array
+        unique: true
+        item: { type: word }
+        description: 上の集まりと列挙に無く、読み取りが個別に読む語。
+
   # 位置: 語を書ける場所（項目定義・文書のトップレベル・操作 …）。この形の要素がエンティティ context の定義
   位置:
     type: object
@@ -138,6 +160,7 @@ definitions:
       - { key: language, label: 定義の言語, type: 定義の言語, required: true }
       - { key: description, label: 説明, type: common#文章, required: true }
       - { key: meta, label: メタスキーマの中の場所, type: メタスキーマの場所, description: 書くと、この位置の語と必須がメタスキーマと同じであることを SpecTest が見ます。 }
+      - { key: code, label: 実装の語の集まり, type: 実装の語の集まり, description: 書くと、この位置の語が、実装の集まり・列挙・そのほかの語の和と同じであることを SpecTest が見ます。 }
       - { key: evidence, label: 根拠, type: 根拠 }
 
   # 基底の種類: type に書ける基底の種類 1 つ。この形の要素がエンティティ base-type の定義

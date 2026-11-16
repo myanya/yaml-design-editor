@@ -1,0 +1,8 @@
+id: KW-expr.refCount
+key: "refCount"
+context: CTX-expr
+order: 34
+status: stable
+forms:
+  - value: "{of, dir, relation, via}"
+    meaning: "その要素から出ていく・その要素へ入ってくる参照の本数。同じ相手への参照が 2 本あれば 2 と数えます。"

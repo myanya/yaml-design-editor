@@ -1,0 +1,8 @@
+id: KW-expr.extract
+key: "extract"
+context: CTX-expr
+order: 21
+status: stable
+forms:
+  - value: "[値の式, 正規表現]"
+    meaning: "文字の一部を取り出します。最初に合った部分で、正規表現に括弧があれば 1 つ目の括弧の中身です。合わなければ「得られない」です。"

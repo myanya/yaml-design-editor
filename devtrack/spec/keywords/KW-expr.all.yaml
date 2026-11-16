@@ -1,0 +1,8 @@
+id: KW-expr.all
+key: "all"
+context: CTX-expr
+order: 32
+status: stable
+forms:
+  - value: "{of, in, path} か {from, match, where, also, of, in, path}"
+    meaning: "集合から配列へ。同じ起点のすべての解にわたって、束縛した要素（重なりは 1 つ）の path の値を並べます。path を省くと ID の配列です。match を書くと、起点を固定したクエリの解から並べます。"

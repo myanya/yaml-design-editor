@@ -1,0 +1,8 @@
+id: KW-comparison.left
+key: "left"
+context: CTX-comparison
+order: 15
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "op の形の左。"

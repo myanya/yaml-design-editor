@@ -1,0 +1,8 @@
+id: KW-query-node.entity
+key: "entity"
+context: CTX-query-node
+order: 2
+status: stable
+forms:
+  - value: "エンティティ型の名前か、その配列"
+    meaning: "エンティティ型で絞ります。配列は、どれかに合えばよい扱いです。kind: entity のときだけ書けます。"

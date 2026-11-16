@@ -1,0 +1,6 @@
+id: CTX-selector
+title: "文書の指定"
+language: expression
+description: "値を読む文書・参照が書かれた文書を指す object（値の式と edge の in、format の scopes の in）。schemaId か fileGlob のどちらかは必要で、両方書くと両方に合う文書です。"
+evidence:
+  reader: "semantic-core/schema/ValueExpr.kt の parseSelector"

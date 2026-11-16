@@ -1,0 +1,8 @@
+id: KW-query-branch.steps
+key: "steps"
+context: CTX-query-branch
+order: 2
+status: stable
+forms:
+  - value: "edge と node を交互に並べた配列"
+    meaning: "起点からたどる連鎖。"

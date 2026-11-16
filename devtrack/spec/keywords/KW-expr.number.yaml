@@ -1,0 +1,8 @@
+id: KW-expr.number
+key: "number"
+context: CTX-expr
+order: 15
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "数として読み直し、表記をそろえます（12.0 → 12）。数として読めなければ「得られない」です。"

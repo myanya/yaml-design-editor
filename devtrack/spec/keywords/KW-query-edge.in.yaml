@@ -1,0 +1,8 @@
+id: KW-query-edge.in
+key: "in"
+context: CTX-query-edge
+order: 4
+status: stable
+forms:
+  - value: "{schemaId, fileGlob}"
+    meaning: "その参照が書かれた文書で絞ります。"

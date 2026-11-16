@@ -1,0 +1,8 @@
+id: KW-condition.or
+key: "or"
+context: CTX-condition
+order: 21
+status: stable
+forms:
+  - value: "条件の配列"
+    meaning: "どれかが成り立つこと。同じ束縛の条件どうしを並べます。"

@@ -1,0 +1,8 @@
+id: KW-expr.weekStart
+key: "weekStart"
+context: CTX-expr
+order: 20
+status: stable
+forms:
+  - value: "値の式"
+    meaning: "その日を含む週の月曜の日付。週ごとの集計の鍵に使います。"

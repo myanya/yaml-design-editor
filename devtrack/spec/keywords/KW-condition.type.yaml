@@ -1,0 +1,9 @@
+id: KW-condition.type
+key: "type"
+context: CTX-condition
+order: 18
+status: stable
+forms:
+  - value: "number・date・time・datetime のどれか"
+    default: "項目の型から決めます（決まらなければ数値）"
+    meaning: "順序の比較（lt・lte・gt・gte）の比べ方。"

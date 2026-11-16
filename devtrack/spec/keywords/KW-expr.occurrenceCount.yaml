@@ -1,0 +1,8 @@
+id: KW-expr.occurrenceCount
+key: "occurrenceCount"
+context: CTX-expr
+order: 35
+status: stable
+forms:
+  - value: "{of, schema, fileGlob, role, distinct}"
+    meaning: "その ID が書かれている場所のうち、指定に合うものの数。role は defining か detail です。distinct: type を書くと、場所の数ではなくエンティティ型の種類の数です。"

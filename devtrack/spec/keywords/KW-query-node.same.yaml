@@ -1,0 +1,8 @@
+id: KW-query-node.same
+key: "same"
+context: CTX-query-node
+order: 6
+status: stable
+forms:
+  - value: "束縛の名前"
+    meaning: "先に束縛したノードそのものへ着くことを求めます。ほかのキーと一緒には書けません。"
