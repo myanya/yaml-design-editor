@@ -45,6 +45,8 @@ tasks.named<Test>("test") {
     inputs.files(
         repoDir.files("CLAUDE.md", "AGENTS.md", "settings.gradle.kts"),
         repoDir.dir("docs").asFileTree.matching { include("**/*.md") },
+        // 開発管理と仕様（devtrack/）: DevtrackTest と SpecTest が、定義と文書と仕様の例をファイルとして読む
+        repoDir.dir("devtrack").asFileTree,
         fileTree(rootDir) {
             include("*/src/**/*.kt", "*/build.gradle.kts", "*/README.md", "*/AGENTS.md", "src/**")
             exclude(".*/**", "build/**", "scratchpad/**", "labs/**", "samples/**", "local/**")

@@ -1,0 +1,44 @@
+id: EX-action-require-fails
+title: "前提（require）を満たさないと、操作は断られる"
+illustrates: [KW-action.require]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      filePattern: "tasks/{id}.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: note, type: string }
+      actions:
+        - id: finish
+          label: 完了にする
+          target: { entity: task }
+          params:
+            - { key: note, type: string }
+          require:
+            - id: not-done
+              match: [ { node: { entity: task, bind: t } } ]
+              where: [ { of: t, path: status, notEquals: done } ]
+              expect: exists
+              message: "{id} は完了しています"
+          do:
+            - set: { path: status, value: done }
+            - when: { path: note, exists: true }
+              set: { path: note, value: { $format: "完了: {note}" } }
+  - path: "tasks/TASK-1.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: done
+expect:
+  result: ok
+  action:
+    name: "finish"
+    target: "TASK-1"
+    fails: "TASK-1 は完了しています"

@@ -1,0 +1,39 @@
+id: EX-action-create-numbering
+title: "create は文書を作り、id の決まりで採番する（同じ接頭辞の最大の番号の次）"
+illustrates: [KW-action.do, KW-schema.filePattern]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      filePattern: "tasks/{id}.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: note, type: string }
+      actions:
+        - id: add
+          params:
+            - { key: title, type: string, required: true }
+          do:
+            - create: { schema: task, id: { prefix: "TASK-", digits: 1 }, params: { title: $title, status: todo } }
+  - path: "tasks/TASK-1.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: doing
+expect:
+  result: ok
+  action:
+    name: "add"
+    params: { "title": "実装" }
+    files:
+      - path: "tasks/TASK-2.yaml"
+        text: |-
+          id: TASK-2
+          title: 実装
+          status: todo

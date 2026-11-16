@@ -2,6 +2,9 @@ package dev.toros.yde.app.core
 
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.SchemaKind
+import dev.toros.yde.workspace.ActionFailure
+import dev.toros.yde.workspace.ActionPlanner
+import dev.toros.yde.workspace.ActionRequest
 import dev.toros.yde.workspace.BuiltinSchemaResources
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.YNode
@@ -11,6 +14,7 @@ import dev.toros.yde.yaml.validate.Severity
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
@@ -267,6 +271,36 @@ class SpecTest {
         }
     }
 
+    /**
+     * 例の操作を計画して適用し、書いてある結果と突き合わせる。断られる例は断りの文面、通る例は適用のあとのファイルの中身
+     * （YAML として同じであること）。同じなら null、違えばその文。「今」は決まった日時。
+     */
+    private fun actionDiff(example: Map<*, *>, expected: Map<*, *>, base: Path): String? {
+        val dir = base.resolve(example["id"].toString())
+        val ws = Workspace.open(dir)
+        val params = (expected["params"] as Map<*, *>?).orEmpty().entries.associate { it.key.toString() to it.value }
+        val request = ActionRequest(expected["name"].toString(), expected["target"]?.toString(), params)
+        val fails = expected["fails"]?.toString()
+        val plan = try {
+            ActionPlanner.plan(ws.mirror, request, LocalDateTime.of(2026, 11, 16, 9, 0))
+        } catch (e: ActionFailure) {
+            return when {
+                fails == null -> "${example["id"]}: 操作が断られました: ${e.message}"
+                fails !in e.message.orEmpty() -> "${example["id"]}: 断りの文面に「$fails」がありません: ${e.message}"
+                else -> null
+            }
+        }
+        if (fails != null) return "${example["id"]}: 操作が断られませんでした（書いてあるのは「$fails」で断られること）"
+        val applied = ws.apply(plan.changeSet, requireValid = true)
+        if (!applied.ok) return "${example["id"]}: 適用できませんでした: ${applied.results}"
+        val differing = (expected["files"] as List<*>?).orEmpty().map { it as Map<*, *> }.mapNotNull { file ->
+            val at = dir.resolve(file["path"].toString())
+            val actual = if (Files.exists(at)) at.readText() else return@mapNotNull "${file["path"]} がありません"
+            if (YamlIO.parseToRaw(actual) == YamlIO.parseToRaw(file["text"].toString())) null else "${file["path"]} の中身は:\n$actual"
+        }
+        return if (differing.isEmpty()) null else "${example["id"]}: $differing"
+    }
+
     @Test
     fun `仕様の例は 開いて検証すると書いてあるとおりの結果になる`() {
         val examples = root.resolve("spec/examples").listDirectoryEntries("*.yaml").map(::raw)
@@ -282,6 +316,7 @@ class SpecTest {
                     wanted != null && messages.none { wanted in it } -> "${example["id"]}: 文面に「$wanted」がありません: $messages"
                     else -> (expect["view"] as Map<*, *>?)?.let { viewDiff(example, it, base) }
                         ?: (expect["report"] as Map<*, *>?)?.let { reportDiff(example, it, base) }
+                        ?: (expect["action"] as Map<*, *>?)?.let { actionDiff(example, it, base) }
                 }
             }
             assertTrue(differing.isEmpty(), "仕様の例が、書いてあるとおりの結果になりません:\n" + differing.joinToString("\n"))

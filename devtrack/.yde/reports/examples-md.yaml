@@ -16,4 +16,5 @@ build:
       message: { $copy: values.文面 }
       view: { $copy: values.ビュー }
       report: { $copy: values.レポート }
+      action: { $copy: values.操作 }
 template: examples-md.md

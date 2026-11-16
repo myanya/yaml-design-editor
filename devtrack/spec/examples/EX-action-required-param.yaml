@@ -1,0 +1,35 @@
+id: EX-action-required-param
+title: "必須の受け取る値を渡さないと、操作は断られる"
+illustrates: [KW-action.params, KW-field.required]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      filePattern: "tasks/{id}.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: note, type: string }
+      actions:
+        - id: rename
+          target: { entity: task }
+          params:
+            - { key: title, type: string, required: true }
+          do:
+            - set: { path: title, value: $title }
+  - path: "tasks/TASK-1.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: doing
+expect:
+  result: ok
+  action:
+    name: "rename"
+    target: "TASK-1"
+    fails: "title"

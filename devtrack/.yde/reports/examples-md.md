@@ -19,6 +19,24 @@
 {/each}
 {/if}
 
+{#if action}
+操作 `{action.name}`{#if action.target}（受け手 {action.target}）{/if}{#if action.params}、渡す値: {#each action.params}{key}＝{value}{#if more}、{/if}{/each}{/if}
+
+{#if action.fails}
+断られる（文面に「{action.fails}」を含む）。
+
+{/if}
+{#if action.files}
+{#each action.files}
+適用のあとの `{path}`
+
+```yaml
+{text}
+```
+
+{/each}
+{/if}
+{/if}
 {#if report}
 レポート `{report.id}` の出力{#if report.params}（渡す値: {#each report.params}{key}＝{value}{#if more}、{/if}{/each}）{/if}:
 

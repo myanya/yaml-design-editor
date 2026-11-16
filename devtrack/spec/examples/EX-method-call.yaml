@@ -1,0 +1,46 @@
+id: EX-method-call
+title: "型の操作（methods）は、その object の要素を受け手にする。アクションの call から呼べる"
+illustrates: [CTX-method, KW-field.methods, KW-action.do]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      filePattern: "tasks/{id}.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        methods:
+          reopen:
+            params:
+              - { key: reason, type: string, required: true }
+            do:
+              - set: { path: status, value: todo }
+              - set: { path: note, value: $reason }
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: note, type: string }
+      actions:
+        - id: reopen
+          target: { entity: task }
+          do:
+            - call: { method: reopen, params: { reason: やり直し } }
+  - path: "tasks/TASK-1.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: done
+expect:
+  result: ok
+  action:
+    name: "reopen"
+    target: "TASK-1"
+    files:
+      - path: "tasks/TASK-1.yaml"
+        text: |-
+          id: TASK-1
+          title: 設計
+          status: todo
+          note: やり直し

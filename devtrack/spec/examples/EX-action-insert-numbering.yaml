@@ -1,0 +1,57 @@
+id: EX-action-insert-numbering
+title: "insert は配列へ足し、配列の追加の決まり（methods.insert）で採番する。同じ鍵の要素があれば足さない"
+illustrates: [CTX-insert-rule, CTX-id-numbering, KW-field.methods]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      filePattern: "tasks/{id}.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: note, type: string }
+          - key: steps
+            type: array
+            methods:
+              insert:
+                id: { path: id, prefix: "S-", digits: 2 }
+                key: [name]
+            item:
+              type: object
+              fields:
+                - { key: id, type: id }
+                - { key: name, type: string }
+      actions:
+        - id: add-step
+          target: { entity: task }
+          params:
+            - { key: name, type: string, required: true }
+          do:
+            - insert: { path: steps, value: { name: $name } }
+  - path: "tasks/TASK-1.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: doing
+      steps:
+        - { id: S-01, name: 下調べ }
+expect:
+  result: ok
+  action:
+    name: "add-step"
+    target: "TASK-1"
+    params: { "name": "下書き" }
+    files:
+      - path: "tasks/TASK-1.yaml"
+        text: |-
+          id: TASK-1
+          title: 設計
+          status: doing
+          steps:
+            - { id: S-01, name: 下調べ }
+            - { id: S-02, name: 下書き }

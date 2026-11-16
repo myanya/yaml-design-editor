@@ -1,0 +1,51 @@
+id: EX-action-set
+title: "操作は受け手の要素に手を当てる。set は値を入れ、$format は受け取った値で埋める"
+illustrates: [CTX-action, KW-action.do, KW-action.target, KW-action.params]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      filePattern: "tasks/{id}.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: note, type: string }
+      actions:
+        - id: finish
+          label: 完了にする
+          target: { entity: task }
+          params:
+            - { key: note, type: string }
+          require:
+            - id: not-done
+              match: [ { node: { entity: task, bind: t } } ]
+              where: [ { of: t, path: status, notEquals: done } ]
+              expect: exists
+              message: "{id} は完了しています"
+          do:
+            - set: { path: status, value: done }
+            - when: { path: note, exists: true }
+              set: { path: note, value: { $format: "完了: {note}" } }
+  - path: "tasks/TASK-1.yaml"
+    text: |-
+      id: TASK-1
+      title: 設計
+      status: doing
+expect:
+  result: ok
+  action:
+    name: "finish"
+    target: "TASK-1"
+    params: { "note": "レビュー済み" }
+    files:
+      - path: "tasks/TASK-1.yaml"
+        text: |-
+          id: TASK-1
+          title: 設計
+          status: done
+          note: "完了: レビュー済み"
