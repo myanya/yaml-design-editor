@@ -3,7 +3,8 @@ name: スキーマ文書（docs/spec/schema-document.md）
 description: 位置「スキーマ文書」の語とスキーマの種類から docs/spec/schema-document.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
   context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-schema } ], $one: true }
-  kinds: { $view: doc-schema-kinds }
+  # 名前は schemaKinds（語の形の kinds と同じ名前にすると、ひな形が kinds の無い形でこちらを拾ってしまう）
+  schemaKinds: { $view: doc-schema-kinds }
   # 語: 節は分類ごと。見出しと並びはここが正（分類を足すときは、ここと spec の 語の分類 に足す）
   sections:
     - title: 文書と適用先

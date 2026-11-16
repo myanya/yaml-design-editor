@@ -17,7 +17,7 @@
 
 | kind | 適用先 | 意味 |
 |---|---|---|
-{#each kinds}
+{#each schemaKinds}
 | `{values.名前}` | {values.適用先:cell} | {values.意味:cell} |
 {/each}
 
