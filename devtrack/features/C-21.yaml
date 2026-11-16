@@ -9,17 +9,28 @@ implementation:
   module: workspace-core
 - path: workspace-core/workspace/Generators.kt
   module: workspace-core
+- path: semantic-core/semantic/TermComposition.kt
+  module: semantic-core
+  detail: 変換の $compose から呼ぶ変更候補の合成
 - path: semantic-core/semantic/TransformReads.kt
   module: semantic-core
 - path: cli/commands/GenerateCommands.kt
   module: cli
 tests:
 - name: GenerationTest
+- name: TermCompositionTest
+  note: 候補の競合・個別指定・重複・対象消失・根拠と値の保持
 - name: BusinessModelTest
 - name: BusinessDeclarationsTest
   note: 明記した属性・原文の場所・入れ子とエンティティ参照
 - name: TodosEntityFoundationTest
   note: 導出記録と設計IDの分離、共通型と項目固有の制限、補正後の入力と詳細生成
+- name: TodosDesignContractTest
+  note: 導出と候補と確定項目の保存形式、参照先の分離、入れ子と未解決
+- name: TodosDesignCompositionTest
+  note: 導出した宣言への補正と既存の型解決、明記と継承の区別
+- name: TodosDesignGenerationTest
+  note: 新形式の追加と補正を変換で合成、競合時の後続停止、再生成と対象消失
 - name: TodosSysdevTest
   note: 設計書の生成・検証・型対応表による初期値の出力と H2 での DDL の確認
 - name: TransformReadsTest

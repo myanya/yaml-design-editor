@@ -47,6 +47,8 @@ import java.text.DecimalFormat
  *   {$entries: ひな型}                    {key, value} の並び（になるひな型）からマップを作る。同じキーは後の値で置き換え、位置は初めの
  *                                         ところのまま。key がスカラーでない・value が「無い」項目は飛ばす（キーを計算で決めるマップ。
  *                                         JavaScript の Object.fromEntries と同じ考え方）
+ *   {$compose: ひな型}                    {derived, additions, changes} を組み立て、候補を競合検査して {records, decisions} を返す。
+ *                                         誤りは変換の失敗。型・参照・成立条件の検査は後段で行う（manual/generate.md）。
  *   {$when: 条件, $then: ひな型}          条件に合うときだけ、その値
  * 場所の指定には、`$of: 束縛名`（クエリで付けた名前。省略＝いまの場所）と `$in: {schemaId, fileGlob}`（どの文書の出現か）を添えられる。
  * 文字列 `$名前` は受け取った値（params）への参照。`$$` は文字 `$`（出力のキーや値を `$` で始めたいとき）。
@@ -136,6 +138,9 @@ sealed interface Template {
     /** {key, value} の並びからマップを作る（`$entries`。キーを計算で決めるマップ）。 */
     data class EntriesOf(val input: Template) : Template
 
+    /** 導出・追加・変更の候補を検査して合成する。型の解決や参照の検査は別の段階で行う。 */
+    data class Compose(val input: Template) : Template
+
     /** 条件に合うときだけ出す。 */
     data class Guarded(val conditions: List<TemplateCondition>, val inner: Template) : Template
 }
@@ -223,7 +228,8 @@ data class TransformDef(
         private const val GROUP = "\$group"
         private const val BY = "\$by"
         private const val ENTRIES = "\$entries"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES)
+        private const val COMPOSE = "\$compose"
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES, COMPOSE)
         private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN, BY)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
@@ -377,6 +383,7 @@ data class TransformDef(
                     }
                     TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
                     ENTRIES -> { allow(); Template.EntriesOf(parseTemplate(m[ENTRIES], "$where.$ENTRIES")) }
+                    COMPOSE -> { allow(); Template.Compose(parseTemplate(m[COMPOSE], "$where.$COMPOSE")) }
                     CASE -> {
                         allow(AS)
                         val style = m[AS]?.toString()?.takeIf { it in NameCase.STYLES }
@@ -598,6 +605,7 @@ data class TransformDef(
                 is Template.Concat -> t.parts.forEach(::walk)
                 is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
                 is Template.EntriesOf -> walk(t.input)
+                is Template.Compose -> walk(t.input)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }

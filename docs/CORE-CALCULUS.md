@@ -804,6 +804,7 @@ Core Calculus = 定義を実行する
 | 業務 Event の申告記録 | Event 宣言＝Term、対象 Entity の存在・型照合＝Query / Predicate、Lifecycle の前後照合＝既存の State 判定。記録は ChangeSet の既存 Transaction を介して runs へ格納する副次記録（業務データの変更は行わない） |
 | 業務仕様の静的診断 | State / Event / Lifecycle の Term と既存の宣言間参照検証・到達可能性から作る閲覧用 Construct。静的点検と意味論的な完全性の未証明は区別し、新しい評価器・書込経路はない |
 | `actions.input` | Construct（現在値・日時）＋ Term（差分） |
+| 変更候補の合成（`$compose`） | Construct が組んだ Term を対象と場所でまとめ、Rewrite の競合を検査して `YamlOperation` へ落とす。式・型解決を複製せず、原本の書込経路を持たない |
 
 この分類で実装の重複を点検する。
 

@@ -67,6 +67,7 @@ object TransformReads {
                 is Template.TrimOf -> walk(t.input, here, binds)
                 is Template.CaseOf -> walk(t.input, here, binds)
                 is Template.EntriesOf -> walk(t.input, here, binds)
+                is Template.Compose -> walk(t.input, here, binds)
                 is Template.ValueOf -> t.expr.reads().forEach { g ->
                     val base = g.of?.let { binds[it]?.path ?: places[it] } ?: here.path
                     base?.let { record(it + g.path) }

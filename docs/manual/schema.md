@@ -773,6 +773,7 @@ filePattern:                                          # ドメインごとのデ
 書き方は変換のひな型（CLI `transform` の変換定義の `build` と同じ。`$copy` / `$format`（`$with` で計算した値を穴へ）/ `$map` / `$first` / `$each` / `$zip`（並んだ配列を同じ番号で 1 行に）/ `$when`、
 値をそろえる `$date`（年月日を `yyyy-MM-dd` に。`$as` で形）/ `$number`（桁区切りや `¥` を許して数に。`$as: "00"` のような形を添えるとその形の文字に）/ `$trim`（前後の空白を落とす）/ `$case`（名前の書き方をそろえる。`$as` は camel・pascal・snake・kebab・constant。[generate.md](generate.md)）、
 配列をまとめる `$group`（`{$group: パスかひな型, $by: キーのひな型, $build: ひな型}`。キーが同じ要素ごとに、まとまり `{key, items}` をいまの場所にして組み立てる。まとまりの順はキーが初めて出た順で、キーが無い要素は入らない。`$bind` でまとまりに名前を付けられる）/ `$entries`（`{key, value}` の並びからマップを作る。同じキーは後の値で置き換える）、
+変更候補の競合を検査して合成する `$compose`（[generate.md「変更候補を合成する」](generate.md#変更候補を合成する)）、
 条件には配列を受け取る `includes` / `includesAny`（`{path: creates, includes: todo}`）も書けます、
 値の式で計算する `$value`（検査の `check` やビューの列と同じ値の式を、いまの場所で計算する。例 `{$value: {multiply: [{path: unitPrice}, {path: quantity}]}}`・`{$value: {sum: {each: {path: lines}, value: {multiply: [{path: unitPrice}, {path: quantity}]}}}}`。四則演算・集計・日付の部分など。線を辿る `all` などは使えません）。
 繰り返し（`$each`・`$zip`）の中では `$index`（0 始まり）と `$position`（1 始まり。`{$number: $position, $as: "00"}` で `01`）が使え、条件の `path` にも書けます（`{$when: {path: $index, gt: 0}, $then: …}`）。いまの場所＝元の要素。[cli.md](cli.md)・skill の取り込みの `build` は [ai.md](ai.md)）です。ルート直下の ID の項目には、今までどおり ID が入ります。

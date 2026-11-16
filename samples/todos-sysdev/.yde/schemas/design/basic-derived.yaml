@@ -10,4 +10,4 @@ root:
   type: object
   fields:
     - { key: id, label: 記録ID, type: id, required: true }
-    - { key: model, label: 導出した業務モデル, type: any, required: true }
+    - { key: model, label: 導出した業務モデル, type: basic-derived-model#モデル, required: true }

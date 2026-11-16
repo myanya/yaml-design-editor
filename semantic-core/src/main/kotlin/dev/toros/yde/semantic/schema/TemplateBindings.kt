@@ -33,6 +33,7 @@ internal fun Template.bindNames(): Set<String> {
             is Template.Concat -> t.parts.forEach { walk(it, local) }
             is Template.Group -> { walk(t.input, local); walk(t.by, local); walk(t.body, local + listOfNotNull(t.bind), local) }
             is Template.EntriesOf -> walk(t.input, local)
+            is Template.Compose -> walk(t.input, local)
             is Template.Guarded -> { conditions(t.conditions, local); walk(t.inner, local) }
         }
     }

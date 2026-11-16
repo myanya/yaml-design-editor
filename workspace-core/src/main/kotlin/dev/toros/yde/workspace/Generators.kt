@@ -159,26 +159,42 @@ object Generators {
         val selected = mutableListOf<GeneratorDef>()
         val visiting = linkedSetOf<String>()
         val visited = mutableSetOf<String>()
+        val dependencies = mutableMapOf<String, Set<String>>()
         fun select(id: String) {
             if (id in visited) return
             val def = defs.firstOrNull { it.id == id } ?: run { errors += "依存先の生成の定義「$id」がありません"; return }
             if (!visiting.add(id)) { errors += "生成の依存が循環しています: ${(visiting + id).joinToString(" → ")}"; return }
             def.dependsOn.forEach(::select)
             visiting.remove(id)
+            dependencies[id] = def.dependsOn.toSet() + def.dependsOn.flatMap { dependencies[it].orEmpty() }
             if (visited.add(id)) selected += def
         }
         (if (only.isEmpty()) defs.map { it.id } else only.toList().sorted()).forEach(::select)
+        if (errors.isNotEmpty()) return GenerationPlan(emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), errors.distinct(),
+            WorkspaceTransaction(session.version, ChangeIntent("生成の定義の誤り"), emptyList()))
         // 業務モデルは、生成の定義が読むスコープごとに 1 回だけ作る。段の項は、スコープと段の組ごとに 1 回（誤りも 1 回だけ出す）
         val business = HashMap<String?, YNode?>()
         val models = HashMap<Pair<String?, String?>, YNode?>()
         val outputs = mutableListOf<GeneratedDocument>()
-        val completed = mutableListOf<GeneratorDef>()
+        val completed = mutableSetOf<String>()
         val snapshot = session.snapshot
+        // 前回の生成物は入力にしない。依存先の今回の出力だけを、後で読み取り用に重ねる。
+        val generated = snapshot.documents.filterValues { document ->
+            // 適用済みで未保存の生成物も含む。ディスクだけを調べると、その前回の結果を読んでしまう。
+            val text = DefaultYamlCodec.dump(document.document)
+            text.startsWith("# 生成物（") && '）' in text.lineSequence().first()
+        }.keys
         val catalog by lazy {
             ViewDefinitions.load(snapshot.documents.filterKeys { session.layout.zoneOf(it.value) == WorkspaceLayout.Zone.VIEWS }
                 .map { (id, doc) -> id to DefaultYamlCodec.dump(doc.document) }, session.schemas, session.viewKinds)
         }
         for (def in selected) {
+            val failedDependencies = def.dependsOn.filter { it !in completed }
+            if (failedDependencies.isNotEmpty()) {
+                errors += "${def.id}: 依存先の生成が成功していません（${failedDependencies.joinToString("・")}）"
+                continue
+            }
+            val errorsBefore = errors.size
             val stageBefore = def.stage.takeIf { def.input == null }
             val stagedModel = models.getOrPut(def.scope to stageBefore) {
                 val base = business.getOrPut(def.scope) {
@@ -187,18 +203,15 @@ object Generators {
                 if (stageBefore == null) base else Stages.term(session, base, stageBefore).let { staged ->
                     // 前の段の誤りは、後の段の項を作るときにも出るので、計画の最後に重なりを除く
                     errors += staged.errors
-                    staged.term
+                    staged.term.takeIf { staged.errors.isEmpty() }
                 }
             } ?: continue
-            // 先行する生成物を未保存の重ね合わせに載せ、同じ計画内の新しい値を読む。
+            // ファイル名順の先行出力は見せず、明示した依存先（推移的な依存先を含む）だけを読む。
             val overlays by lazy {
                 val result = linkedMapOf<DocumentId, dev.toros.yde.yaml.model.YDocument?>()
-                outputs.forEach { result[it.document] = DefaultYamlCodec.parse(it.document, it.text) }
-                for (prior in completed) {
-                    val glob = dev.toros.yde.semantic.schema.globToRegex(HOLE.replace(prior.output, "*"))
-                    snapshot.documents.keys.filter { it !in result && glob.matches(it.value) && session.storedText(it)?.startsWith(marker(prior.id)) == true }
-                        .forEach { result[it] = null }
-                }
+                generated.forEach { result[it] = null }
+                outputs.filter { it.generator in dependencies.getValue(def.id) && it.generator in completed }
+                    .forEach { result[it.document] = DefaultYamlCodec.parse(it.document, it.text) }
                 result
             }
             val derived by lazy { session.derivedWith(overlays) }
@@ -216,7 +229,10 @@ object Generators {
             val model = if (def.input == null) stagedModel else runCatching {
                 val place = SemanticTransform.TemplatePlace(stagedModel, null, emptyList())
                 SemanticTransform.runAt(def.input, place, views = ::viewRows, places = mapOf(MODEL to place, ELEMENT to place)).term?.let { input ->
-                    if (def.stage == null) input else Stages.term(session, input, def.stage).let { staged -> errors += staged.errors; staged.term }
+                    if (def.stage == null) input else Stages.term(session, input, def.stage).let { staged ->
+                        errors += staged.errors
+                        staged.term.takeIf { staged.errors.isEmpty() }
+                    }
                 }
             }.getOrElse { errors += "${def.id}.input: ${it.message}"; null } ?: continue
             val modelPlace = SemanticTransform.TemplatePlace(model, null, emptyList())
@@ -238,7 +254,7 @@ object Generators {
                 val target = runCatching { documentOf(rendered.text, session.layout) }.getOrElse { errors += "${def.id}: ${it.message}"; null } ?: continue
                 outputs += GeneratedDocument(def.id, target, header(def) + "\n" + YamlIO.dumpPlain(term))
             }
-            completed += def
+            if (errors.size == errorsBefore) completed += def.id
         }
         outputs.groupBy { it.document }.filterValues { it.size > 1 }.forEach { (doc, list) ->
             errors += "同じ場所「${doc.value}」に ${list.size} つの文書を作ります（${list.map { it.generator }.distinct().joinToString(", ")}）。output の穴で場所を分けます"
@@ -268,7 +284,7 @@ object Generators {
         deleted.forEach { operations += WorkspaceOperation.DeleteDocument(it) }
         return GenerationPlan(
             unique, created, updated, deleted, unchanged, errors.distinct(),
-            WorkspaceTransaction(session.version, ChangeIntent("生成: ${selected.joinToString("・") { it.name }}"), operations),
+            WorkspaceTransaction(session.version, ChangeIntent("生成: ${selected.joinToString("・") { it.name }}"), if (errors.isEmpty()) operations else emptyList()),
         )
     }
 

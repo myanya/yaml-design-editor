@@ -1,12 +1,17 @@
 id: C-15
-title: YAML から YAML への変換（選ぶ × 組み立てる × 規則・`$date`・`$number`〔`$as`〕・`$trim`・`$value`・`$index` / `$position`・`$zip`・出どころつき・CLI `transform`）
+title: YAML から YAML への変換（選ぶ × 組み立てる × 規則・`$date`・`$number`・`$trim`・`$value`・`$zip`・`$compose` による候補合成・出どころつき・CLI `transform`）
 implementation:
 - path: semantic-core/schema/TransformDef.kt
   module: semantic-core
 - path: semantic-core/semantic/Transform.kt
   module: semantic-core
+- path: semantic-core/semantic/TermCompositionFormat.kt
+  module: semantic-core
+  detail: $compose の入力と採用記録
 tests:
 - name: SemanticTransformTest
+- name: TransformCompositionTest
+  note: 候補合成の変換、誤った命令の拒否、値と根拠の保持
 - name: TemplateValueTest
 - name: StructuralDerivationTransformTest
 design:
@@ -16,3 +21,5 @@ design:
 manual:
 - link: manual/cli.md
   heading: コマンド例
+- link: manual/generate.md
+  heading: 変更候補を合成する

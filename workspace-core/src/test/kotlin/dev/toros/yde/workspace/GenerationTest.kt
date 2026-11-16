@@ -10,6 +10,88 @@ import kotlin.test.assertTrue
  * 変わったものだけを書き、業務モデルから消えた要素の生成物は消す。書き込みはセッションの 1 トランザクション。
  */
 class GenerationTest {
+    private val recordSchema = "id: record\nmatch: 'design/*.yaml'\nroot: {type: object, fields: [{key: id, type: id}, {key: value, type: string}]}\n"
+    private val recordView = "id: records\nrows: {idPattern: SPEC-*, schemaIds: [record]}\ncolumns: [{label: value, path: value}]\n"
+
+    @Test
+    fun `依存していない先行出力と前回の生成物は入力に混ざらない`() {
+        for (fileName in listOf("a-producer", "z-producer")) {
+            val inputs = mapOf(
+                ".yde/schemas/design.yaml" to recordSchema,
+                ".yde/views/records.yaml" to recordView,
+                ".yde/transforms/$fileName.yaml" to "id: producer\noutput: design/new.yaml\nbuild: {id: SPEC-new, value: new}\n",
+                ".yde/transforms/consumer.yaml" to "id: consumer\noutput: design/result.yaml\nbuild: {rows: {${'$'}view: records}}\n",
+                "design/old.yaml" to "${Generators.marker("producer")}\nid: SPEC-old\nvalue: old\n",
+                "design/result.yaml" to "${Generators.marker("consumer")}\nid: SPEC-self\nvalue: previous\n",
+                "design/removed-generator.yaml" to "${Generators.marker("removed")}\nid: SPEC-removed\nvalue: previous\n",
+                "design/manual.yaml" to "id: SPEC-manual\nvalue: manual\n",
+            )
+            val session = WorkspaceSession(store(inputs))
+            for (only in listOf(emptySet(), setOf("consumer"))) {
+                assertTrue(session.derived.semantic.ids["SPEC-new"].orEmpty().none { it.document.value.startsWith("design/") }, "生成計画前: $fileName / $only")
+                val plan = Generators.plan(session, only)
+                assertEquals(emptyList(), plan.errors)
+                val result = plan.outputs.single { it.generator == "consumer" }.text
+                assertTrue("SPEC-manual" in result, result)
+                for (hidden in listOf("SPEC-new", "SPEC-old", "SPEC-self", "SPEC-removed")) assertTrue(hidden !in result, "$fileName / $only / $hidden\n$result")
+            }
+        }
+    }
+
+    @Test
+    fun `適用後にまだ保存していない生成物も 依存先でなければ入力にしない`() {
+        val session = WorkspaceSession(store(mapOf(
+            ".yde/schemas/design.yaml" to recordSchema,
+            ".yde/views/records.yaml" to recordView,
+            ".yde/transforms/specs.yaml" to "id: specs\noutput: design/source.yaml\nbuild: {id: SPEC-source, value: fresh}\n",
+            ".yde/transforms/final.yaml" to "id: final\noutput: design/final.yaml\nbuild: {rows: {${'$'}view: records}}\n",
+        )))
+        val first = Generators.plan(session, setOf("specs"))
+        assertEquals(emptyList(), first.errors)
+        assertTrue(session.apply(first.transaction).ok)
+        assertEquals(null, session.storedText(DocumentId("design/source.yaml")))
+        val second = Generators.plan(session, setOf("final"))
+        assertEquals(emptyList(), second.errors)
+        assertTrue("SPEC-source" !in second.outputs.single().text, second.outputs.single().text)
+    }
+
+    @Test
+    fun `推移的な依存先は今回の結果だけを読み 消えた要素を前回の結果で補わない`() {
+        val session = WorkspaceSession(store(mapOf(
+            ".yde/schemas/design.yaml" to recordSchema,
+            ".yde/views/records.yaml" to recordView,
+            ".yde/transforms/specs.yaml" to "id: specs\noutput: design/source.yaml\nbuild: {id: SPEC-source, value: fresh}\n",
+            ".yde/transforms/middle.yaml" to "id: middle\ndependsOn: [specs]\noutput: design/middle.yaml\nbuild: {value: middle}\n",
+            ".yde/transforms/final.yaml" to "id: final\ndependsOn: [middle]\noutput: design/final.yaml\nbuild: {rows: {${'$'}view: records}}\n",
+            "design/deleted.yaml" to "${Generators.marker("specs")}\nid: SPEC-deleted\nvalue: stale\n",
+        )))
+        val plan = Generators.plan(session, setOf("final"))
+        assertEquals(emptyList(), plan.errors)
+        val output = plan.outputs.single { it.generator == "final" }.text
+        assertTrue("fresh" in output, output)
+        assertTrue("SPEC-deleted" !in output, output)
+    }
+
+    @Test
+    fun `依存先の失敗を古い生成物で補わず 計画の誤りがあれば変更を適用できない`() {
+        val session = WorkspaceSession(store(mapOf(
+            ".yde/schemas/design.yaml" to recordSchema,
+            ".yde/views/records.yaml" to recordView,
+            ".yde/transforms/specs.yaml" to "id: specs\noutput: design/{missing}.yaml\nbuild: {id: SPEC-source, value: fresh}\n",
+            ".yde/transforms/final.yaml" to "id: final\ndependsOn: [specs]\noutput: design/final.yaml\nbuild: {rows: {${'$'}view: records}}\n",
+            ".yde/transforms/valid.yaml" to "id: valid\noutput: design/valid.yaml\nbuild: {value: valid}\n",
+            "design/source.yaml" to "${Generators.marker("specs")}\nid: SPEC-source\nvalue: old\n",
+        )))
+        val plan = Generators.plan(session)
+        assertTrue(plan.errors.any { "依存先の生成が成功していません" in it }, plan.errors.toString())
+        assertTrue(plan.outputs.none { it.generator == "final" })
+        assertTrue(plan.transaction.operations.isEmpty(), "別の生成が成功していても、誤りのある計画からは変更しない")
+        assertTrue(session.apply(plan.transaction).ok)
+        assertEquals(null, session.storedText(DocumentId("design/valid.yaml")))
+        val invalid = store(mapOf(".yde/transforms/specs.yaml" to generator + "\ndependsOn: [missing]\n"))
+        assertTrue(Generators.plan(WorkspaceSession(invalid)).transaction.operations.isEmpty())
+    }
+
     @Test
     fun `依存先の新しい出力を入力のビューから読み 一度で最新になる`() {
         val store = store(mapOf(

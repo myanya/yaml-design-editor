@@ -97,6 +97,8 @@ each: entities
 
 生成の入力を先行する設計書から作る場合は、`dependsOn: [生成の定義ID]` と `input: 変換のひな型` を書きます。
 依存先は同じ計画で先に生成され、`input` と `build` の `$view` はその新しい結果を読みます。指定した定義だけを生成するときも依存先を含み、循環・存在しない依存先は誤りになります。
+読める生成物は、明示した依存先とその先の依存先の今回の結果だけです。依存しない定義が先に実行されても、その出力は読めません。保存済みの生成物も入力から外すため、前回の出力で欠けた対象を補いません。手書きの文書は引き続き読めます。
+依存先が失敗したときは後続を実行しません。計画に誤りが一つでもあれば、成功した部分も含めて書き込みません。
 `input` は段を当てる前に業務モデルを受け取り、`rules` も使えます。結果が生成の入力になります。`stages` に適用済みの段を記録した入力では、その先の段だけを当てます。
 例はサンプルの `detail-tables`（補正後の基本設計からテーブルを生成）です。項目の `overrides` は共通型と異なる制限、`builtinType` は組込み型の共通の性質です。
 
@@ -188,6 +190,53 @@ changes:
 - 足した要素には出どころ `origin`（段・規則か補正の ID と名前・種類）が付き、置き換えた場所は要素の `origins` に残ります。設計書はこれを写して、業務モデルに無い項目がなぜあるかを示せます。段の項の頭の `stages` は、当てた段と規則・補正の一覧です。
 - 直すところは 3 つです。業務の事実は業務モデル、全体の方針は段の規則、個別の例外は段の補正に書きます。生成物は直しません。
 - `generate <ws> --model --scope business --stage basic` で、段の項を見られます。
+
+## 変更候補を合成する
+
+`$compose` は、導出・追加・変更の候補をまとめ、競合が無いときだけ `records` と採用記録 `decisions` を返す変換の指示です。
+例えば、`input` で合成し、`build` で保存する形へ整えます。入力は `$view`・`$each` などのひな型で組み立てられます。
+入力用ビューで同じ ID の複数の出現を扱うときは、列にも `schemaId: 読むスキーマ` を指定します。行の対象を選ぶ `schemaIds` と、値を読む出現の指定は別です。
+
+```yaml
+id: combine
+output: design/composed.yaml
+input:
+  $compose:
+    derived:
+      - id: title
+        value: {type: string, maxLength: 100}
+        source: {id: derived-title}
+    additions: []
+    changes:
+      - target: title
+        set: {maxLength: 200}
+        priority: individual
+        source: {id: correction-title, document: design/corrections.yaml, path: [corrections, 0]}
+build:
+  records: {$copy: records}
+  decisions: {$copy: decisions}
+```
+
+| 入力 | 書き方 |
+|---|---|
+| `derived`・`additions` | `{id, value, source}` の配列。`id` は生成中の対象名、`value` は object |
+| 同じ所属内のキーの重複検査 | 各候補に `keySpace: {scope: 所属名, path: [key]}` を付ける。同じ scope の同じ値は追加前・補正後とも誤り |
+| `changes` | `{target, set, priority, source}` の配列（`set` の各キーの値を置き換え、マップの値もその属性全体を置き換える） |
+| 子の属性を変更する | `set` の代わりに `path: [item, maxLength]` と `value: 100` を書く。中間の入れ物は既存であること |
+| `source` | `id` は根拠の記録名で必須。`document`・`path` で原文の場所を添えられる |
+
+三つの配列は必須で、候補が無ければ `[]` と書きます。`id`・`target` は通常の ID 索引や前回の生成物では解決しません。
+`priority: rule` は規則の既定値、`individual` は個別指定です。異なる規則の値は、個別指定で採用値を明示すれば解決できます。
+同じ優先度に異なる値があれば競合、同じ値ならすべての根拠を残します。異なる個別指定同士は競合です。
+対象消失・ID やキーの重複・親全体と子への変更の重なりも、適用順で解決せず誤りにします。
+
+`records` は合成後の `{id, value, source, keySpace?}`、`decisions` は `{target, path, candidates, selected}` の配列です。
+各候補には `value`・`priority`・`source` を残し、不採用の規則も追えます。`false`・`0`・空文字・空配列・`null` は値として保持し、キーの欠落と区別します。
+`null` は削除の指示にはなりません。原文への経路は、この明示した `source` を使います。
+
+合成の誤りは生成計画の失敗となり、後続と書き込みを止めます。`--allow-errors` でも回避できません。
+成功は型・参照・方式の成立条件まで検査した意味ではありません。それらを確認する後段を経てから、確定項目として扱います。
+既存の段の補正やビューの補正は、`$compose` を使う変換へ移すまでは従来の処理です。
 
 ## 作る・作り直す
 

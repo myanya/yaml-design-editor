@@ -1,0 +1,16 @@
+id: UX-344
+title: 再帰する型を含むスキーマを業務モデルへ展開すると、深さ制限内でもメモリを使い切ることがある
+status: todo
+origin_on: 2026-11-16
+origin: 新形式の設計入力と候補合成の生成試験
+memo: |-
+  basic-design-values と basic-design-contract を読み、scope を指定せず Generators.plan を実行した試験で Java heap space になった。
+  compose の入力評価より前に、BusinessModel が再帰する設計用の型も業務モデルとして展開していた。
+  試験は保存済みの導出記録を入力にするため、業務側だけを scope で選ぶ構成にして確認を続けた。
+  BusinessModel.fieldTerm は深さ 8、aspectsOf は深さ 12 で打ち切るが、分岐を持つ再帰型ではその範囲でも展開が大きくなる。
+  任意の業務モデルから確定項目を作るには、型の再帰を参照として保持し、深い有限の入れ子を黙って省かない導出が必要。
+  型への参照と利用箇所の明記した子の宣言を両方保持すること。単純に上限を増やす修正にはしない。
+features:
+  - C-21
+roadmap:
+  - R53-05

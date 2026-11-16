@@ -1,0 +1,15 @@
+id: UX-343
+title: エンティティ定義書の全体表示で、別のエンティティの同名操作が CRUD 表の同じ見出しになる
+status: todo
+origin_on: 2026-11-16
+origin: エンティティ定義の保存形式を整備した後の CLI 出力の照合
+memo: |-
+  entity-definition の entity を空にして全体を表示すると、CRUD の「作業項目を追加する」が二つ並ぶ。
+  OPS-todo.add-todo-task と OPS-todo-task.add-todo-task は別の設計操作だが、見出しがどちらも操作名だけなので区別しづらい。
+  CLI で出力し、操作一覧の ID と列の順序を対応させると、TODO の全 16 項目・全列で個別表示と全体表示の値は一致した。
+  値の生成の修正とは分けて、所属エンティティを含む見出しなどを検討する。GUI の見え方は未確認。
+  UX-336 の原本の日本語キーとは別の問題。
+features:
+  - C-21
+roadmap:
+  - R53-05
