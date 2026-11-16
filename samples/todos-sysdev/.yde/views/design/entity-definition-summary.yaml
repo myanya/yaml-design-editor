@@ -1,6 +1,6 @@
 id: entity-definition-summary
 name: エンティティ定義書（概要）
-description: 基本設計項目一覧のエンティティに、補正一覧を重ねた概要（エンティティ定義書の 1 区画）
+description: 基本設計項目一覧のエンティティに、補正一覧を重ねた概要（エンティティ定義書の 1 区画）。区分は基本設計項目台帳（人が書く）のエンティティ区分
 params: [entity]
 rows:
   match:
@@ -11,6 +11,7 @@ order: { schemaId: basic-entity-list }
 corrections: { schemaIds: [basic-corrections] }
 columns:
   - { label: 名称, path: label }
+  - { label: 区分, value: { all: { match: [{ node: { id: "ENT-*", bind: e } }, { edge: { via: entities, dir: in } }, { node: { id: "CLS-*", bind: c } }], of: c, path: label } } }
   - { label: 説明, path: description }
   - { label: 親エンティティ, path: parent }
   - { label: 親の項目, path: parentField }
@@ -20,4 +21,5 @@ columns:
   - { label: ID形式の説明, path: numbering.description }
   - { label: 導出元, path: source }
   - { label: 業務モデルの文書, path: documents }
+  - { label: 区分（台帳）, backlinks: { schemaIds: [basic-ledger] } }
   - { label: 補正, backlinks: { schemaIds: [basic-corrections] } }

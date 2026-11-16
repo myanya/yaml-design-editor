@@ -1,0 +1,184 @@
+# 生成物（basic-types）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/basic-types.yaml）を直して作り直します（CLI generate）。
+types:
+  - seq: '01'
+    id: TYP-common.TODO番号
+    name: common#TODO番号
+    base: id
+    pattern: ^TODO-[0-9]{3,}$
+    description: 「TODO-」と 3 桁以上の数字。一覧と個票で同じ番号を使い、個票のファイル名にもなります。
+    source: common#TODO番号
+  - seq: '02'
+    id: TYP-common.カテゴリ番号
+    name: common#カテゴリ番号
+    base: id
+    pattern: ^CAT-[0-9]{3,}$
+    description: 「CAT-」と 3 桁以上の数字。
+    source: common#カテゴリ番号
+  - seq: '03'
+    id: TYP-common.タグ番号
+    name: common#タグ番号
+    base: id
+    pattern: ^TAG-[0-9]{3,}$
+    description: 「TAG-」と 3 桁以上の数字。
+    source: common#タグ番号
+  - seq: '04'
+    id: TYP-common.作業項目番号
+    name: common#作業項目番号
+    base: id
+    pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+    description: TODO の番号・「-S」・2 桁以上の数字。追加すると、その TODO の中の続き番号を自動で振ります。
+    source: common#作業項目番号
+  - seq: '05'
+    id: TYP-common.カテゴリ参照
+    name: common#カテゴリ参照
+    base: ref
+    target: ENT-category
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    source: common#カテゴリ参照
+  - seq: '06'
+    id: TYP-common.タグ参照
+    name: common#タグ参照
+    base: ref
+    target: ENT-tag
+    description: タグ一覧の ID を 1 件。
+    source: common#タグ参照
+  - seq: '07'
+    id: TYP-common.TODO参照
+    name: common#TODO参照
+    base: ref
+    target: ENT-todo
+    description: 元のTODOの番号を 1 件。
+    source: common#TODO参照
+  - seq: '08'
+    id: TYP-common.年月日
+    name: common#年月日
+    base: date
+    format: yyyy年M月d日
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    source: common#年月日
+  - seq: '09'
+    id: TYP-common.一行の文
+    name: common#一行の文
+    base: string
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    source: common#一行の文
+  - seq: '10'
+    id: TYP-common.文章
+    name: common#文章
+    base: string
+    multiline: true
+    source: common#文章
+  - seq: '11'
+    id: TYP-common.ステータス
+    name: common#ステータス
+    base: enum
+    values:
+      - value: OPEN
+        label: 未着手
+      - value: IN_PROGRESS
+        label: 対応中
+      - value: SUSPENDED
+        label: 中断
+      - value: CLOSED
+        label: 完了
+      - value: CANCELED
+        label: 中止
+    source: common#ステータス
+  - seq: '12'
+    id: TYP-common.TODOの操作
+    name: common#TODOの操作
+    base: enum
+    values:
+      - value: register-todo
+        label: TODOを登録する
+      - value: start-todo
+        label: TODOに着手する
+      - value: complete-todo
+        label: TODOを完了する
+      - value: suspend-todo
+        label: TODOを中断する
+      - value: resume-todo
+        label: TODOを再開する
+      - value: cancel-todo
+        label: TODOを中止する
+    source: common#TODOの操作
+  - seq: '13'
+    id: TYP-common.コメント
+    name: common#コメント
+    base: object
+    fields:
+      - seq: '01'
+        id: FLD-common.コメント.date
+        key: date
+        label: 日付
+        type: TYP-common.年月日
+        required: true
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      - seq: '02'
+        id: FLD-common.コメント.body
+        key: body
+        label: コメント本文
+        type: TYP-text
+        required: true
+    source: common#コメント
+  - seq: '14'
+    id: TYP-common.状態の記録
+    name: common#状態の記録
+    base: object
+    fields:
+      - seq: '01'
+        id: FLD-common.状態の記録.date
+        key: date
+        label: 日付
+        type: TYP-common.年月日
+        required: true
+        auto: created
+        description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
+      - seq: '02'
+        id: FLD-common.状態の記録.action
+        key: action
+        label: 操作
+        type: TYP-common.TODOの操作
+        required: true
+      - seq: '03'
+        id: FLD-common.状態の記録.from
+        key: from
+        label: 前の状態
+        type: TYP-common.ステータス
+        description: 登録の行には書きません。
+      - seq: '04'
+        id: FLD-common.状態の記録.to
+        key: to
+        label: 後の状態
+        type: TYP-common.ステータス
+        required: true
+      - seq: '05'
+        id: FLD-common.状態の記録.note
+        key: note
+        label: 理由
+        type: TYP-common.文章
+        description: 中止と中断の理由、再開のメモです。
+      - seq: '06'
+        id: FLD-common.状態の記録.resume_on
+        key: resume_on
+        label: 再開予定日
+        type: TYP-common.年月日
+        description: 中断の行にだけ書きます。
+    source: common#状態の記録
+  - seq: '15'
+    id: TYP-todo-operations.操作の記録
+    name: todo-operations#操作の記録
+    base: string
+    minLength: 1
+    multiline: true
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    source: todo-operations#操作の記録
+  - seq: '16'
+    id: TYP-text
+    name: text
+    base: string
+  - seq: '17'
+    id: TYP-boolean
+    name: boolean
+    base: boolean

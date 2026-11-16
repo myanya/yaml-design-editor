@@ -44,50 +44,8 @@ root:
             label: 項目一覧
             type: array
             display: table
-            item:
-              type: object
-              fields:
-                - { key: seq, label: 項番, type: string }
-                - { key: id, label: 設計項目ID, type: id, required: true, description: "FLD-エンティティ型.キー" }
-                - { key: key, label: 項目, type: string, required: true }
-                - { key: label, label: 名称, type: string, role: title }
-                - { key: type, label: 論理型, type: string, description: "業務モデルの型の名前（YDE の標準。common#一行の文 など）" }
-                - { key: base, label: 基底の種類, type: string, description: "YDE の基底の種類（string・date・enum・ref・array など）" }
-                - { key: itemType, label: 要素の論理型, type: string, description: "配列の要素の論理型（基底の種類が array のとき。common#タグ参照 など）" }
-                - { key: required, label: 必須, type: boolean }
-                - { key: minLength, label: 最小文字数, type: int }
-                - { key: maxLength, label: 最大文字数, type: int }
-                - { key: pattern, label: 形, type: any, description: 値の正規表現（完全一致） }
-                - { key: default, label: 初期値, type: any }
-                - key: auto
-                  label: 自動で入る値
-                  type: enum
-                  values: [created, updated, revision]
-                  description: 業務モデルの auto のまま。created＝作成した日・updated＝書き換えて保存した日・revision＝版（1 つ進める）
-                - key: values
-                  label: 選択肢
-                  type: array
-                  item:
-                    type: object
-                    fields:
-                      - { key: value, label: 値, type: string }
-                      - { key: label, label: 表示名, type: string }
-                - { key: target, label: 参照先, type: エンティティ参照 }
-                - key: item
-                  label: 要素
-                  type: object
-                  description: 配列の要素（論理型・基底の種類・参照先・入れ子のエンティティ・行の項目）
-                  fields:
-                    - { key: type, label: 要素の論理型, type: string }
-                    - { key: base, label: 基底の種類, type: string }
-                    - { key: target, label: 参照先, type: エンティティ参照 }
-                    - { key: entity, label: 入れ子のエンティティ, type: エンティティ参照 }
-                    - { key: fields, label: 行の項目, type: any }
-                - { key: unique, label: 重ならない, type: any }
-                - { key: description, label: 説明, type: text }
-                - { key: source, label: 導出元, type: ref, description: 業務モデルの項目（エンティティ型.キー）。ルールで足した項目には無い }
-                - { key: rule, label: ルール, type: ref, description: この項目を足した基本設計のルール }
-                - { key: documents, label: 業務モデルの文書, type: array, item: { type: string } }
+            description: 項目ごとに ID（FLD-エンティティ型.キー）を持つ。名前の無い object などの中の項目は、入れ子の項目（FLD-エンティティ型.キー.キー）
+            item: { type: basic-type-list#項目 }
           - key: operations
             label: 操作一覧
             type: array

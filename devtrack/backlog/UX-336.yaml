@@ -1,0 +1,12 @@
+id: UX-336
+title: 基本設計項目一覧の CRUD 表の行のキーが日本語（項目・名称）。原則（値とキーは機械が読める形）に合わせるなら item・label にする
+status: todo
+origin_on: 2026-11-16
+origin: 'samples/todos-sysdev のエンティティ定義書のレビュー。オーナー: CRUD 表の列名はバックログに入れておいて'
+memo: |-
+  design/basic/entities.yaml の各エンティティの crud（行＝項目・列＝操作 ID・値＝C か U）は、もとの CRUD 表に合わせて、行のキーを 項目・名称 にしている。
+  ほかの値とキーは機械が読める形（YDE の標準）にそろえたので、ここだけ日本語のキーが残っている。
+  item・label にすると、フォームの表の見出しも item・label になる（スキーマの item が any のため、見出しはキーのまま）。
+  直すときは、生成の定義（basic-entities の crud）・スキーマ（basic-entity-list の crud の説明）・TodosSysdevTest の 項目 のキーを合わせて直す
+features:
+  - C-21

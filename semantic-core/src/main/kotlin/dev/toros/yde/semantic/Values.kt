@@ -84,6 +84,16 @@ object SemanticValues {
             holeValue = holeValue, fallback = fallback, fieldAt = fieldAt,
         )
 
+        /**
+         * each の 1 つの要素（参照でない、行の object など）を、それを持つ要素（holder）の中の場所として読む環境。
+         * 値は要素の場所から読み、via は holder が書いた参照のうち要素の場所の下のものを辿る。予約の名前（{id} など）は持たない。
+         */
+        fun inside(holder: SemanticQueryNodeRef, occurrence: SemanticExpression.Occurrence): Environment = Environment(
+            tree = tree, rel = rel, current = holder, currentOccurrence = occurrence, nodes = nodes,
+            assignment = emptyMap(), graph = graph, refsInto = refsInto, solutions = solutions, solveFrom = solveFrom,
+            holeValue = holeValue, fallback = fallback, fieldAt = fieldAt,
+        )
+
         /** その場所の値の順序の種類（項目の型から。場所が無い・型に順序が無ければ null）。 */
         fun kindAt(document: DocumentId?, path: YPath?): ValueExpr.OrderKind? =
             if (document == null || path == null) null else fieldAt(document, path)?.let { ValueExpr.OrderKind.ofType(it.type) }
@@ -492,8 +502,11 @@ object SemanticValues {
                 fail("each の対象が配列ではありません: ${input.text}")
                 return fallbackSide()
             }
+            // 配列を持つ要素（読んだ束縛か、いまの要素）。要素の中に書かれた参照を via で辿るときの基点
+            val holder = node(input.bind)?.takeIf { it.kind == QueryNodeKind.ENTITY && it.id == input.id }
             val out = elements.map { el ->
-                val ref = el.ref
+                // 要素そのものが参照（参照の配列の 1 つ）なら、参照先の要素（all の要素と同じ扱い）
+                val ref = el.ref ?: referenceAt(holder, el)
                 val occ = when {
                     // ノードの要素: いまの要素はその ID の出現（定義した側を優先）。場所を持つ要素: その場所
                     ref != null && el.document != null && el.path != null && el.value == ref.id ->
@@ -501,7 +514,8 @@ object SemanticValues {
                     el.document != null && el.path != null -> SemanticExpression.Occurrence(el.document, el.path)
                     else -> null
                 }
-                val child = Eval(env.forElement(ref, occ), missing)
+                // 参照でない要素（行の object など）は、配列を持つ要素の中の場所として読む（via はその場所の下に書かれた参照を辿る。予約の名前は持たない）
+                val child = Eval(if (ref == null && holder != null && occ != null) env.inside(holder, occ) else env.forElement(ref, occ), missing)
                 val side = child.eval(expr.value) ?: run {
                     fail("要素「${el.placeholder}」の値が得られません" + (child.reason?.let { ": $it" } ?: ""))
                     return fallbackSide()
@@ -509,6 +523,16 @@ object SemanticValues {
                 SemanticValueInput(el.placeholder, side.text, side.sourceDocument ?: el.document, side.sourcePath ?: el.path, ref)
             }
             return arraySide(out, bind = input.bind, id = input.id)
+        }
+
+        /** 配列の要素の場所にちょうど書かれた参照（holder が書いたもの）の参照先。参照でなければ null。 */
+        private fun referenceAt(holder: SemanticQueryNodeRef?, el: SemanticValueInput): SemanticQueryNodeRef? {
+            val graph = env.graph ?: return null
+            if (holder == null || el.document == null || el.path == null) return null
+            val r = graph.ownRefs(holder.id).firstOrNull { it.document == el.document && it.path == el.path && it.targetId == el.value } ?: return null
+            val node = graph.entities[r.targetId] ?: return null
+            val anchor = node.defining ?: node.occurrences.firstOrNull() ?: return null
+            return SemanticQueryNodeRef(QueryNodeKind.ENTITY, r.targetId, node.title, node.entityType, anchor.document, anchor.path)
         }
 
         /**

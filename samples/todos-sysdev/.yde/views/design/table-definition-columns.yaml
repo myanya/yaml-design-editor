@@ -1,0 +1,44 @@
+id: table-definition-columns
+name: テーブル設計書（カラム一覧）
+description: >-
+  詳細設計項目一覧のカラムに、補正一覧（詳細設計）を重ねた一覧（テーブル設計書の 1 区画）。カラム日本語名・必須・論理型・初期値・入る値は導出元（基本設計項目一覧）から、
+  SQL の型は型対応表から読む（穴は論理型の値で埋める）。NOT NULL は、詳細設計で足したカラム（親のキー・並び順・キー・配列とマップの要素）と、
+  埋め込みの object の中で親の項目が必須でないカラムは詳細設計項目一覧から、ほかは導出元の必須から決まり、根拠の列に出す。DDL のレポートもこの表を読む
+params: [table]
+rows:
+  match:
+    - node: { id: "TBL-*", bind: t }
+    - edge: { contains: true }
+    - node: { id: "COL-*", bind: c }
+  rowKey: c
+  where:
+    - { of: t, path: id, equals: $table }
+order: { schemaId: detail-table-list }
+corrections: { schemaIds: [detail-corrections] }
+columns:
+  - { label: 項番, path: seq }
+  - { label: テーブル, of: t, path: id }
+  - { label: カラム名, path: name }
+  - { label: カラム日本語名, value: { first: [{ path: label }, { via: source, path: label }] } }
+  # 論理型: 導出元の項目の型（配列・マップなら要素の型）。導出元の無いカラム（親のキー）は型対応表の行が指す論理型、並び順とキーは詳細設計だけの型
+  - { label: 論理型, value: { first: [{ via: source, path: type }, { via: source, path: itemType }, { via: sqlType, path: type }, なし（詳細設計だけの型）] } }
+  # 穴（{maxLength} など）は論理型の値で埋める。配列・マップの要素のカラムは、導出元の項目の要素の論理型
+  - { label: SQL の型, value: { first: [{ format: { via: sqlType, path: sql }, scopes: [{ via: [source, type] }] }, { format: { via: sqlType, path: sql }, scopes: [{ via: [source, itemType] }] }, { via: sqlType, path: sql }] } }
+  - { label: NOT NULL, value: { first: [{ path: notNull }, { via: source, path: required }, "false"] } }
+  - label: NOT NULL の根拠
+    value:
+      first:
+        - { map: { path: notNull }, using: { "true": 詳細設計（足したカラム）, "false": 詳細設計（埋め込みの親の項目が必須でない） } }
+        - { map: { via: source, path: required }, using: { "true": 基本設計の必須 } }
+        - 必須でない
+  - { label: 主キーの順, path: primaryKey }
+  - { label: 初期値, value: { first: [{ via: source, path: default }, 設定なし] } }
+  - { label: 自動で入る値, value: { first: [{ via: source, path: auto }, なし] } }
+  - { label: 入る値（CHECK）, value: { first: [{ via: [source, type], path: "values[*].value" }, { via: [source, itemType], path: "values[*].value" }] } }
+  - { label: 参照先テーブル, path: referencesTable }
+  - { label: 参照先カラム, path: referencesColumn }
+  - { label: 役割, path: role }
+  - { label: 説明（足したカラム）, path: description }
+  - { label: 型対応表の行, path: sqlType }
+  - { label: 導出元, path: source }
+  - { label: 補正, backlinks: { schemaIds: [detail-corrections] } }

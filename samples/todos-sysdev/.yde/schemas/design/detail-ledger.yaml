@@ -1,0 +1,25 @@
+id: detail-ledger
+name: 詳細設計項目台帳（人が書く）
+kind: document
+description: >-
+  人が書く文書。業務モデルから導けない詳細設計の項目（画面の絞り込みや並びのための索引など）を、詳細設計項目一覧と同じ形で足す。
+  生成物（詳細設計項目一覧）は直さず、生成した項目の値を置き換えるときは補正一覧（詳細設計）に書く。
+  テーブル設計書（ビュー）と DDL のレポートは、詳細設計項目一覧の索引と一緒に読む。項目ごとに、張る理由（どの画面・処理のためか）を書く
+match: "design/detail/ledger.yaml"
+root:
+  type: object
+  fields:
+    - key: indexes
+      label: 索引
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: seq, label: 項番, type: string }
+          - { key: id, label: 設計項目ID, type: id, required: true, pattern: "^IDX-[a-z][a-z0-9_]*$", description: "IDX-索引名" }
+          - { key: name, label: 索引名, type: string, required: true, description: "一意の索引は ux_、そのほかは ix_ で始める" }
+          - { key: table, label: テーブル, type: detail-table-list#テーブル参照, required: true }
+          - { key: unique, label: 一意, type: boolean }
+          - { key: columns, label: カラム, type: array, required: true, item: { type: detail-table-list#索引のカラム }, description: 索引のカラム（この順）と並び }
+          - { key: reason, label: 張る理由, type: text, required: true, description: どの画面・処理の、どの絞り込みや並びのためか }

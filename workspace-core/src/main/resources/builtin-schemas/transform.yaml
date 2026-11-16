@@ -46,4 +46,5 @@ root:
         fields:
           - { key: id, label: 規則名, type: string, required: true }
           - { key: when, label: 条件, type: any, description: "検査の where と同じ書き方の並び。省くといつでも合う" }
+          - { key: with, label: 受け取る値, type: array, item: { type: string }, description: "当てる側が $with で渡す値の名前（規則の中で $of: 名前 で読む）。入れ子をたどる規則が、外側の事実（親の名前など）を要るときに使う" }
           - { key: build, label: ひな型, type: any, required: true }

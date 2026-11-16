@@ -280,7 +280,7 @@ internal fun Template.paramNames(): Set<String> {
             is Template.ViewRows -> Unit
             is Template.Each -> walk(t.body)
             is Template.Zip -> walk(t.body)
-            is Template.Apply -> Unit
+            is Template.Apply -> t.with.forEach { walk(it.second) }
             is Template.Concat -> t.parts.forEach(::walk)
             is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
             is Template.EntriesOf -> walk(t.input)

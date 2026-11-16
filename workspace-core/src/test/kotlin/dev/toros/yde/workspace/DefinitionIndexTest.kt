@@ -143,6 +143,12 @@ class DefinitionIndexTest {
             assertEquals(listOf<Any>("root", "fields", 1), it.path)
         }
         assertEquals(listOf<Any>("definitions", "step", "fields", 1), definition("task-step.done").path)
+        // 型（スキーマID#型の名前）: 名前付きの型の定義の場所。エンティティ型を持つ object（step）は型として載せない
+        definition("common#progress").let {
+            assertEquals(DefinitionIndex.TYPE, it.entityType)
+            assertEquals(listOf<Any>("definitions", "progress"), it.path)
+        }
+        assertTrue(index.occurrences("common#step").isEmpty(), "エンティティ型を持つ object は型として載せない")
         assertTrue(index.ids.keys.none { it.startsWith("yde-") || it.startsWith("action-spec.") }, "定義の種類を詳細化する設計書の項目は載せない")
         // 設計書の出現は、同じ ID の詳細化
         assertEquals(listOf(EntityRole.DEFINING, EntityRole.DETAIL), index.occurrences("finish-task").map { it.role })

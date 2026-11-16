@@ -1,0 +1,102 @@
+id: detail-table-list
+name: 詳細設計項目一覧（テーブル）
+kind: document
+description: >-
+  詳細設計の原本のうち、テーブル・カラム・索引・外部キーの設計項目。持つのは詳細設計にだけ出てくるもの（テーブル名・カラム名・主キーの順と名前・型対応への参照・
+  親のキーと並び順・索引・外部キー）だけ。名称・必須・論理型・初期値・選択肢は、導出元（基本設計項目一覧）を参照でたどって読む。
+  そのため、ここだけを見ると日本語名・NOT NULL・初期値が空の行がある。全部を重ねた形は、ビュー（ダッシュボード「テーブル設計書」）で見る。
+  業務モデルに詳細設計のルールを当てて作る生成物で、手で直さない。個別に直すときは補正一覧（詳細設計）に、業務モデルから導けない索引は詳細設計項目台帳に書く
+match: "design/detail/tables.yaml"
+definitions:
+  テーブル参照:
+    type: ref
+    idPatterns: ["TBL-*"]
+  カラム参照:
+    type: ref
+    idPatterns: ["COL-*"]
+  索引のカラム:
+    type: object
+    description: 索引のカラム 1 つと、並び（書かなければ昇順）
+    fields:
+      - { key: column, label: カラム, type: カラム参照, required: true }
+      - { key: order, label: 並び, type: enum, values: [{ value: asc, label: 昇順 }, { value: desc, label: 降順 }], description: 書かなければ昇順 }
+  消したときの動き:
+    type: enum
+    description: 参照先の行を消したときの、参照する行の扱い（SQL の ON DELETE）。書かなければ指定しない（NO ACTION）
+    values:
+      - { value: cascade, label: 一緒に消す（CASCADE） }
+      - { value: set-null, label: 空にする（SET NULL） }
+      - { value: restrict, label: 消させない（RESTRICT） }
+      - { value: no-action, label: 指定しない（NO ACTION） }
+root:
+  type: object
+  fields:
+    - key: tables
+      label: テーブル
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: seq, label: 項番, type: string }
+          - { key: id, label: 設計項目ID, type: id, required: true, description: "TBL-テーブル名" }
+          - { key: name, label: テーブル名, type: string, required: true }
+          - { key: label, label: テーブル日本語名（明細だけ）, type: string, description: 明細テーブル（基本設計に同じものが無い）だけ。主のテーブルは導出元のエンティティの名称 }
+          - key: kind
+            label: 主／明細
+            type: enum
+            values: [main, detail]
+            description: main＝エンティティ型の主のテーブル・detail＝配列・マップの項目の明細テーブル。マスタ／トランザクションの区分は、導出元のエンティティの区分（基本設計項目台帳）
+          - { key: source, label: 導出元, type: ref, description: 基本設計のエンティティ（主のテーブル）か項目（明細テーブル） }
+          - { key: parent, label: 親テーブル, type: テーブル参照, description: 入れ子のエンティティ・明細のとき、親のキーが指すテーブル }
+          - { key: primaryKeyName, label: 主キーの制約名, type: string, description: "pk_テーブル名" }
+          - key: columns
+            label: カラム一覧
+            type: array
+            display: table
+            item:
+              type: object
+              fields:
+                - { key: seq, label: 項番, type: string }
+                - { key: id, label: 設計項目ID, type: id, required: true, description: "COL-テーブル名.カラム名" }
+                - { key: name, label: カラム名, type: string, required: true }
+                - key: role
+                  label: 役割（詳細設計で足したカラム）
+                  type: enum
+                  values: [parent, seq, key, element]
+                  description: 基本設計の項目をそのまま写したカラムには無い。parent＝親のキー（親のテーブルの主キーを指す）・seq＝並び順・key＝マップのキー・element＝配列・マップの要素（参照・スカラー）
+                - { key: label, label: カラム日本語名（足したカラム・埋め込みだけ）, type: string, description: 基本設計に同じ名前が無いカラムだけ（親のキー・並び順・キーと、埋め込みの object の中の項目＝期間の開始日）。ほかは導出元の名称 }
+                - { key: description, label: 説明（詳細設計で足したカラム）, type: text }
+                - { key: source, label: 導出元, type: ref, idPatterns: ["FLD-*"], description: 基本設計の項目（エンティティの項目・行の型の項目・入れ子の項目。配列・マップの要素のカラムは配列・マップの項目） }
+                - { key: sqlType, label: 型対応, type: ref, idPatterns: ["SQL-*"], description: 型対応表の行（SQL-論理型）。SQL の型そのものは型対応表に書き、テーブル設計書で埋めた形を見る }
+                - { key: notNull, label: NOT NULL（足したカラム・埋め込みの例外だけ）, type: boolean, description: 親のキー・並び順・キー・要素は true。埋め込みの object の中の必須の項目で、親の項目が必須でないものは false（親が無ければ空になる）。ほかは導出元の必須（必須なら NOT NULL）で、ここには書かない }
+                - { key: primaryKey, label: 主キーの順, type: int, description: 主キーのカラムなら、主キーの中の順（1 から） }
+                - { key: referencesTable, label: 参照先テーブル, type: テーブル参照, description: 外部キー（外部キーの一覧）が指すテーブル }
+                - { key: referencesColumn, label: 参照先カラム, type: カラム参照 }
+          - key: indexes
+            label: 索引
+            type: array
+            display: table
+            description: 業務モデルから導ける索引。人が足す索引は詳細設計項目台帳（design/detail/ledger.yaml）に、同じ形で書く
+            item:
+              type: object
+              fields:
+                - { key: seq, label: 項番, type: string }
+                - { key: id, label: 設計項目ID, type: id, required: true, description: "IDX-索引名" }
+                - { key: name, label: 索引名, type: string, required: true, description: "一意の索引は ux_、そのほかは ix_ で始める" }
+                - { key: table, label: テーブル, type: テーブル参照, required: true, description: 索引を張るテーブル（台帳の索引と同じ形にするため、入れ子でも書く） }
+                - { key: unique, label: 一意, type: boolean }
+                - { key: columns, label: カラム, type: array, item: { type: 索引のカラム }, description: 索引のカラム（この順）と並び }
+                - { key: source, label: 導出元, type: ref, description: 張る理由（一意の索引は基本設計の配列・入れ子のエンティティの項目・外部キーの索引は外部キー） }
+          - key: foreignKeys
+            label: 外部キー
+            type: array
+            display: table
+            item:
+              type: object
+              fields:
+                - { key: seq, label: 項番, type: string }
+                - { key: id, label: 設計項目ID, type: id, required: true, description: "FK-制約名" }
+                - { key: name, label: 制約名, type: string, required: true, description: "fk_テーブル名_親テーブル名（入れ子で持つ親へ）か fk_テーブル名_カラム名（参照）" }
+                - { key: columns, label: カラム, type: array, required: true, item: { type: カラム参照 }, description: 参照するカラム（この順。親へは親のキーの組）。参照先のテーブルとカラムは、カラムごとの参照先 }
+                - { key: referencesTable, label: 参照先テーブル, type: テーブル参照, required: true, description: 参照先のテーブル（カラムごとの参照先と同じテーブル） }
+                - { key: onDelete, label: 消したときの動き, type: 消したときの動き, description: 入れ子で持つ親へは cascade（親の行を消したら一緒に消す）。参照へは書かない }

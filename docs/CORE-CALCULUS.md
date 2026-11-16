@@ -775,7 +775,7 @@ Core Calculus = 定義を実行する
 | Validator | Constraint executor |
 | Transform（YAML → YAML） | Query + Construct（＋Predicate＝項目を出す条件） |
 | flowの複数文書入力（`sources`） | Query + Construct + Predicate。独立したクエリ変換の結果と原本座標を合成し、表示へ再射影する。新しい演算・書込経路はない |
-| 入れ子の配列の射影（`$each` の `$bind`・`$flatten`） | Construct（要素の局所的な場所の束縛・可変長の連結。原本座標を保持） |
+| 入れ子の配列の射影（`$each` の `$bind`・`$flatten`）・規則へ渡す値（`$apply` の `$with`） | Construct（要素の局所的な場所の束縛・可変長の連結。原本座標を保持。規則へは、書いた場所で計算した値を名前で渡す＝規則の引数） |
 | 構造のスキーマの導出・スキーマの図 | Construct（変換定義・宣言からの導出） |
 | 配列を受け取る条件（`includes` / `includesAny`） | Predicate（値は項＝ADR-0010 を条件の側へ。where と check が演算子を共有し、新しい評価器を持たない） |
 | ダッシュボードの入力の候補（型の名前・参照・`multiple`） | Term（型の連鎖の再利用）＋ Query（索引からの候補の列挙）。値は既存の差し込みで条件へ渡る |
@@ -785,7 +785,7 @@ Core Calculus = 定義を実行する
 | 業務モデルの項（`BusinessModel`） | Construct（分けて書いた定義を 1 つの項に展開する。操作の効果は do・Lifecycle・自動の値の 3 か所を 1 列に。データの決まりは検査の 3 か所を 1 列に、操作の checks は書く項目と読む項目の重なり） |
 | 変換が読む場所（`TransformReads`・生成の系譜） | 定義の読み取り（変換を当てずに、ひな型が読む入力のパスのパターンを集める。計算した値の中は数えない） |
 | 補正を重ねる（ビューの `corrections`） | Projection（解決のときに、参照で当たる補正の値をセルへ重ねる。原本・索引は変えず、来歴に元の値） |
-| 業務の項目を定義の索引に（`yde-field`） | Term（スキーマの木と原文を一緒に歩き、エンティティ型の項目を定義の出現に。新しい評価器を持たない） |
+| 業務の項目と型を定義の索引に（`yde-field`・`yde-type`）・業務モデルの項の `types` | Term（スキーマの木と原文を一緒に歩き、エンティティ型の項目を定義の出現に。新しい評価器を持たない） |
 | 段の項（`Stages`・段の規則と補正 `TermChanges`） | Query（`each` のパスのパターン）＋ Predicate（`where` は変換の条件）＋ Construct（値は変換のひな型）＋ 項の上の Rewrite（置き換え・足す。写しに当て、原本と業務モデルの項は変えない。出どころを付ける） |
 | 生成（`.yde/transforms`・CLI generate） | Construct（変換定義のひな型）＋ Rewrite（生成物の作成・置き換え・削除を 1 トランザクションで） |
 | 名前の書き方（`$case`）・渡す場所（`$of: model`）・条件の値の `$copy` | Construct（ひな型の指示の追加。値の項の上の決定的な変換と、場所の読み出し） |

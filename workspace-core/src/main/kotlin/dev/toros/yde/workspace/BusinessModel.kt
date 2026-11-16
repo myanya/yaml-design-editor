@@ -22,6 +22,8 @@ import dev.toros.yde.yaml.model.YNode
  *   **効果**（do の手・Lifecycle が書く状態の値と履歴の行・保存時に自動で入る値の 3 か所を 1 列にまとめたもの）
  * - **states / lifecycles**: State（列挙型の値・詳細化の親子）と、詳細化を展開した Lifecycle
  * - **constraints**: データの決まり（型の検査・スキーマの検査・関係レジストリ）と、操作ごとの書くと破れうる決まり（操作の `checks`。[BusinessModelRules]）
+ * - **types**: 名前付きの型（スキーマの definitions。エンティティ型を持つ object は除く）。名前 `スキーマID#型の名前` と、型を解いた形
+ *   （基底の種類・文字数・形・表示形式・選択肢・参照先・行の項目）
  * - **views / dashboards / reach**: ビューとダッシュボードと、ダッシュボードからたどれる範囲（[BusinessModelViews]。ADR-0033）
  *
  * 値の書き方は変換のひな型と同じ（受け取った値 `$date`・今日 `{$copy: today, $of: context}`・今の値 `{$copy: パス, $of: self}`）。
@@ -96,6 +98,7 @@ object BusinessModel {
         model["states"] = catalog?.let { stateTerms(schemas, it) }.orEmpty()
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
         model["constraints"] = rules.map { it.term }
+        model["types"] = typeTerms(schemas, ctx)
         @Suppress("UNCHECKED_CAST")
         model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions, model["states"] as List<Map<String, Any?>>))
         return YamlIO.fromAny(model)
@@ -254,6 +257,14 @@ object BusinessModel {
                 .filterValues { it != null }
         } else fieldTerm(tree, f0, depth + 1, ctx)
     }
+
+    /** 名前付きの型（エンティティ型を持つ object は除く）。項目の項と同じ形に、名前（name）を添える。 */
+    private fun typeTerms(schemas: List<WorkspaceSchema>, ctx: Ctx): List<Map<String, Any?>> =
+        schemas.flatMap { s ->
+            s.tree.definitions.entries.filter { (_, d) -> d.entity == null }.map { (name, d) ->
+                linkedMapOf<String, Any?>("name" to "${s.id}#$name") + fieldTerm(s.tree, d, 0, ctx).filterKeys { it != "key" }
+            }
+        }
 
     // ================================================================ 操作
 

@@ -45,9 +45,14 @@ object DefinitionIndex {
      * 設計の項目が「どの業務の項目から来たか」を参照で指し、リンクで辿るのに使う。
      */
     const val FIELD = "yde-field"
+    /**
+     * 型（スキーマの definitions に名前を付けて書いた型。エンティティ型を持つ object は除く）。ID は型の書き方そのもの
+     * `スキーマID#型の名前`（`common#一行の文`）。設計の論理型が「どの業務の型から来たか」を参照で指すのに使う。
+     */
+    const val TYPE = "yde-type"
 
     /** 定義の索引が使うエンティティ型。利用者のスキーマは、これを定義（defines: true）として宣言できない。 */
-    val types: Set<String> = setOf(ACTION, STATE, LIFECYCLE, ENTITY, REQUIRE, VIEW, FIELD)
+    val types: Set<String> = setOf(ACTION, STATE, LIFECYCLE, ENTITY, REQUIRE, VIEW, FIELD, TYPE)
 
     /** 予約した接頭辞（利用者の型の名前に使わない）。 */
     const val PREFIX = "yde-"
@@ -79,6 +84,7 @@ object DefinitionIndex {
             lifecycles(src, ::add)
             entities[src.id].orEmpty().forEach { e -> add(e.type, e.path, ENTITY, e.title, null) }
             fields(src, seenFields, ::add)
+            namedTypes(src, ::add)
             ids.takeIf { it.isNotEmpty() }?.let { DocumentScan(src.id, DocumentMeta.idOf(src.root, src.id.value), it, emptyList()) }
         }
     }
@@ -218,6 +224,15 @@ object DefinitionIndex {
             tree.definitions[name]?.let { walk(it, def as? YNode.Map, listOf("definitions", name), 0) }
         }
         walk(tree.root, src.root.entries["root"] as? YNode.Map, listOf("root"), 0)
+    }
+
+    /** 型: definitions の名前付きの定義（エンティティ型の宣言 `entity:` を持つものは除く。それはエンティティ型の側面）。 */
+    private fun namedTypes(src: Source, add: Add) {
+        (src.root.entries["definitions"] as? YNode.Map)?.entries?.forEach { (name, def) ->
+            val m = def as? YNode.Map ?: return@forEach
+            if (m.entries.containsKey("entity")) return@forEach
+            add("${src.schema.id}#$name", listOf("definitions", name), TYPE, scalarText(m.entries["label"]) ?: name, "definitions")
+        }
     }
 
     private fun entityTypeOf(owner: YNode.Map): String? =

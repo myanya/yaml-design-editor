@@ -1,0 +1,19 @@
+id: basic-types
+name: 論理型一覧
+description: 基本設計項目一覧（論理型）に、補正一覧（基本設計）を重ねた一覧。エンティティの項目と詳細設計の型対応表は、この論理型を参照する
+rows: { idPattern: "TYP-*" }
+order: { schemaId: basic-type-list }
+corrections: { schemaIds: [basic-corrections] }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 型の名前, path: name }
+  - { label: 基底の種類, path: base }
+  - { label: 最大文字数, path: maxLength }
+  - { label: 形, path: pattern }
+  - { label: 表示形式, path: format }
+  - { label: 選択肢, value: { path: "values[*].value" } }
+  - { label: 参照先, path: target }
+  - { label: 行の項目, value: { path: "fields[*].key" } }
+  - { label: 説明, path: description }
+  - { label: 導出元, path: source }
+  - { label: 補正, backlinks: { schemaIds: [basic-corrections] } }

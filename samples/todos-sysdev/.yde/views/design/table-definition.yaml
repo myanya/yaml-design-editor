@@ -1,0 +1,15 @@
+id: table-definition
+name: テーブル設計書
+kind: dashboard
+description: >-
+  詳細設計の設計書（ビュー）。詳細設計項目一覧（design/detail/tables.yaml）のテーブル 1 つ分に、補正一覧（design/detail/corrections.yaml）を重ね、
+  日本語名・必須・論理型・初期値・選択肢は導出元（基本設計項目一覧）から、区分は基本設計項目台帳（design/basic/ledger.yaml）から、
+  SQL の型は型対応表（design/detail/sql-types.yaml）から読んで見せる。詳細設計項目一覧そのものには、詳細設計にだけ出てくるものしか無い。
+  エンティティ定義書を詳細化したもので、テーブルに要らない項目（項目の説明・CRUD）は出さない。テーブルを選ぶと絞られる（最初は todo）
+inputs:
+  - { key: table, label: テーブル, type: detail-table-list#テーブル参照, default: TBL-todo }
+sections:
+  - { id: summary, label: 概要, group: テーブル設計書, view: table-definition-summary }
+  - { id: columns, label: カラム一覧, group: テーブル設計書, view: table-definition-columns }
+  - { id: indexes, label: 索引, group: テーブル設計書, view: table-definition-indexes }
+  - { id: foreign-keys, label: 外部キー, group: テーブル設計書, view: table-definition-foreign-keys }

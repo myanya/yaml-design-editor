@@ -6,6 +6,6 @@ rows:
 columns:
   - { label: 名前, value: "{title}" }
   - { label: 基本設計項目一覧, value: { refCount: { of: e, dir: in, via: source } } }
-  - { label: テーブル設計書, value: { occurrenceCount: { of: e, schema: table-design } } }
+  - { label: テーブル（詳細設計項目一覧）, value: { count: { all: { match: [{ node: { entity: yde-entity, bind: e } }, { edge: { via: source, dir: in } }, { node: { id: "ENT-*", bind: x } }, { edge: { via: source, dir: in } }, { node: { id: "TBL-*", bind: tb } }], of: tb } } } }
   - { label: テーブルアクセス設計書, value: { occurrenceCount: { of: e, schema: table-access } } }
   - { label: 画面遷移設計（Controller）, value: { occurrenceCount: { of: e, schema: screen-flow } } }

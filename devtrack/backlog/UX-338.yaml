@@ -1,0 +1,9 @@
+id: UX-338
+title: 画面の確認の片付け（ui-check の stop.ps1）が、起動行に MainKt を含む Java をすべて止めるので、オーナーが gradlew run で開いているアプリも止めうる
+status: todo
+origin_on: 2026-11-16
+origin: samples/todos-sysdev のテーブル設計書の見直しで画面を確かめた後の片付け
+memo: |-
+  stop.ps1 は dev.toros.yde.desktop.MainKt を起動行に含む java.exe を全部止める。hotRun で起動したアプリと、オーナーが ./gradlew run で開いているアプリを見分けない。
+  2026-11-16 の片付けでは 2 つ止まり、その後 samples/todos-sysdev の所有のロックが外れていた（オーナーのアプリが止まったのか、先に閉じていたのかは分からない）。
+  止める対象を、hotRun の呼び出し側の子孫（親のプロセスをたどる）か、起動行の --args に scratchpad/ui-check を含むものに絞る

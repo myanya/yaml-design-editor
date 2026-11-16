@@ -42,7 +42,8 @@ object TransformReads {
         private val rules = def.rules.groupBy { it.id }
         private val active = HashMap<String, Int>()
 
-        fun walk(t: Template, here: Here, binds: Map<String, Here>) {
+        /** outerHere / outerBinds は、繰り返しの略記（`$each … $apply … $with`）の渡す値を計算する外側の場所。 */
+        fun walk(t: Template, here: Here, binds: Map<String, Here>, outerHere: Here = here, outerBinds: Map<String, Here> = binds) {
             when (t) {
                 is Template.Literal, is Template.Param, is Template.ViewRows -> Unit
                 is Template.MapOf -> t.entries.forEach { walk(it.second, here, binds) }
@@ -78,21 +79,27 @@ object TransformReads {
                     val source = resolve(t.site, here, binds)
                     source?.let(::record)
                     val element = Here(source?.let { it + AnyIndex })
-                    walk(t.body, element, if (t.bind != null) binds + (t.bind!! to element) else binds)
+                    walk(t.body, element, if (t.bind != null) binds + (t.bind!! to element) else binds, here, binds)
                 }
                 is Template.Zip -> {
                     t.sites.forEach { (_, site) -> resolve(site, here, binds)?.let(::record) }
-                    walk(t.body, Here(null), binds)
+                    walk(t.body, Here(null), binds, here, binds)
                 }
                 is Template.Apply -> {
                     val at = siteHere(t.site, here, binds)
+                    // 渡す値: 場所の写し（$copy）なら、その場所。計算した値なら場所に結びつかない。略記は外側で計算する
+                    val (wHere, wBinds) = if (t.outer) outerHere to outerBinds else here to binds
+                    t.with.forEach { walk(it.second, wHere, wBinds) }
+                    val passed = t.with.associate { (name, child) ->
+                        name to Here((child as? Template.Copy)?.let { resolve(it.site, wHere, wBinds) })
+                    }
                     val depth = active[t.rule] ?: 0
                     if (depth >= 3) return
                     active[t.rule] = depth + 1
                     rules[t.rule].orEmpty().forEach { rule ->
-                        // 規則の中は、外側の繰り返しの名前（$bind）を読めない
-                        rule.conditions.forEach { condition(it, at, emptyMap()) }
-                        walk(rule.build, at, emptyMap())
+                        // 規則の中は、外側の繰り返しの名前（$bind）を読めない。読めるのは渡された値（with）だけ
+                        rule.conditions.forEach { condition(it, at, passed) }
+                        walk(rule.build, at, passed)
                     }
                     active[t.rule] = depth
                 }
@@ -103,7 +110,7 @@ object TransformReads {
                     val element = (t.input as? Template.Copy)?.let { resolve(it.site, here, binds) }?.let { it + AnyIndex }
                     walk(t.by, Here(element), binds)
                     val group = Here(null, element)
-                    walk(t.body, group, if (t.bind != null) binds + (t.bind!! to group) else binds)
+                    walk(t.body, group, if (t.bind != null) binds + (t.bind!! to group) else binds, here, binds)
                 }
                 is Template.Guarded -> {
                     t.conditions.forEach { condition(it, here, binds) }

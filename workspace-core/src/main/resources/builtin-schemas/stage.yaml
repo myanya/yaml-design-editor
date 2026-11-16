@@ -74,4 +74,5 @@ root:
         fields:
           - { key: id, label: 規則名, type: string, required: true }
           - { key: when, label: 条件, type: any }
+          - { key: with, label: 受け取る値, type: array, item: { type: string }, description: "当てる側が $with で渡す値の名前（規則の中で $of: 名前 で読む）" }
           - { key: build, label: ひな型, type: any, required: true }

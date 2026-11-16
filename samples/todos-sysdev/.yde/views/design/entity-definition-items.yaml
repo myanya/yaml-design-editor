@@ -17,16 +17,15 @@ columns:
   - { label: 項目, path: key }
   - { label: 名称, path: label }
   - { label: 論理型, path: type }
-  - { label: 基底の種類, path: base }
-  - { label: 要素の論理型, path: itemType }
+  - { label: 基底の種類, value: { first: [{ via: type, path: base }, { path: base }] } }
+  - { label: 要素の論理型, value: { first: [{ path: itemType }, { path: itemEntity }] } }
   - { label: 必須, path: required }
-  - { label: 最大文字数, path: maxLength }
-  - { label: 形, path: pattern }
+  - { label: 最大文字数, value: { via: type, path: maxLength } }
+  - { label: 形, value: { via: type, path: pattern } }
   - { label: 初期値, path: default }
   - { label: 自動で入る値, path: auto }
-  - { label: 選択肢, value: { path: "values[*].value" } }
-  - { label: 参照先, path: target }
-  - { label: 要素の参照先, path: item.target }
+  - { label: 選択肢, value: { via: type, path: "values[*].value" } }
+  - { label: 参照先, value: { via: type, path: target } }
   - { label: 説明, path: description }
   - { label: 導出元, path: source }
   - { label: ルール, path: rule }

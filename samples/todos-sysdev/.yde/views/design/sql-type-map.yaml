@@ -1,0 +1,15 @@
+id: sql-type-map
+name: 型対応表（論理型 → SQL）
+description: 型対応表（design/detail/sql-types.yaml）を、論理型の値（基本設計項目一覧（論理型））と並べて見せる。「埋めた形」は穴を論理型の値で埋めた SQL の型
+rows: { idPattern: "SQL-*" }
+order: { schemaId: detail-sql-types }
+corrections: { schemaIds: [detail-corrections] }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 論理型, path: type }
+  - { label: 型の名前, value: { via: type, path: name } }
+  - { label: 基底の種類, value: { via: type, path: base } }
+  - { label: SQL の型, path: sql }
+  - { label: 埋めた形, value: { first: [{ format: { path: sql }, scopes: [{ via: type }] }, { path: sql }] } }
+  - { label: 説明, path: description }
+  - { label: 補正, backlinks: { schemaIds: [detail-corrections] } }

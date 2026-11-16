@@ -1,5 +1,5 @@
 id: C-22
-title: 変換の名前の書き方 `$case`（camel・pascal・snake・kebab・constant）・まとめる `$group`・キーを計算するマップ `$entries`・呼び出し側が渡す場所（`places`）・条件の比べる値に場所の値（`{$copy, $of}`）と配列の `includes`
+title: 変換の名前の書き方 `$case`（camel・pascal・snake・kebab・constant）・まとめる `$group`・キーを計算するマップ `$entries`・呼び出し側が渡す場所（`places`）・条件の比べる値に場所の値（`{$copy, $of}`）と配列の `includes`・規則へ渡す値（`$apply` の `$with` と規則の `with`）
 implementation:
 - path: semantic-core/schema/NameCase.kt
   module: semantic-core
@@ -10,6 +10,7 @@ implementation:
 tests:
 - name: TransformPlacesTest
 - name: TransformGroupTest
+- name: TransformRuleWithTest
 design:
 - label: transform
   link: architecture/transform.md

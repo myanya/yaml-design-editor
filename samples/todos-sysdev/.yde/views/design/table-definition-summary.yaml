@@ -1,0 +1,25 @@
+id: table-definition-summary
+name: テーブル設計書（概要）
+description: >-
+  詳細設計項目一覧のテーブルに、補正一覧（詳細設計）を重ねた概要（テーブル設計書の 1 区画）。テーブル日本語名は、明細テーブルなら詳細設計項目一覧の名前、
+  主のテーブルなら導出元のエンティティの名称。テーブル区分は、導出元のエンティティ（明細テーブルは配列・マップの項目を持つエンティティ）の区分（基本設計項目台帳）。DDL のレポートもこの表を読む
+params: [table]
+rows:
+  match:
+    - node: { id: "TBL-*", bind: t }
+  where:
+    - { of: t, path: id, equals: $table }
+order: { schemaId: detail-table-list }
+corrections: { schemaIds: [detail-corrections] }
+columns:
+  - { label: 項番, path: seq }
+  - { label: テーブル名, path: name }
+  - { label: テーブル日本語名, value: { first: [{ path: label }, { via: source, path: label }] } }
+  # 導出元（主のテーブルはエンティティ・明細テーブルは配列・マップの項目）から入れ子を 0 段以上さかのぼったエンティティの区分
+  - label: テーブル区分
+    value: { all: { match: [{ node: { id: "TBL-*", bind: t } }, { edge: { via: source } }, { node: { bind: s } }, { edge: { contains: true, dir: in, repeat: { min: 0 } } }, { node: { id: "ENT-*", bind: e } }, { edge: { via: entities, dir: in } }, { node: { id: "CLS-*", bind: c } }], of: c, path: label } }
+  - { label: 主／明細, path: kind }
+  - { label: 主キーの制約名, path: primaryKeyName }
+  - { label: 親テーブル, path: parent }
+  - { label: 導出元, path: source }
+  - { label: 補正, backlinks: { schemaIds: [detail-corrections] } }

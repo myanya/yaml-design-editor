@@ -115,7 +115,16 @@ sealed interface Template {
 
     /** 並べて組む（`$zip`）。sites は行の名前 → 配列の場所。番号ごとの行（いまの場所）で body を組み立て、出力は配列。 */
     data class Zip(val sites: List<Pair<String, TemplateSite>>, val body: Template) : Template
-    data class Apply(val rule: String, val site: TemplateSite) : Template
+
+    /**
+     * 規則を当てる。with は規則へ渡す値（名前 → ひな型。規則の中では `$of: 名前` で読む）。値は書いた場所で計算する:
+     * `{$apply: 規則, $with: …}` ならいまの場所、繰り返しの略記（`{$each: パス, $apply: 規則, $with: …}`。outer＝true）なら
+     * 繰り返しを書いた場所（要素ではなく、その外側）。規則は外側の繰り返しの名前（`$bind`）を読めないので、
+     * 入れ子をたどる規則が外側の事実（親の名前など）を要るときに渡す。
+     */
+    data class Apply(
+        val rule: String, val site: TemplateSite, val with: List<Pair<String, Template>> = emptyList(), val outer: Boolean = false,
+    ) : Template
     data class Concat(val parts: List<Template>) : Template
 
     /**
@@ -150,8 +159,11 @@ data class TemplateTest(
 /** 条件の「または」（1つなら単独の条件）。 */
 data class TemplateCondition(val alternatives: List<TemplateTest>)
 
-/** 名前を付けた規則。同じ名前の規則を複数書くと、上から順に条件（when）を調べ、最初に合ったものを使う。 */
-data class TransformRule(val id: String, val conditions: List<TemplateCondition>, val build: Template)
+/**
+ * 名前を付けた規則。同じ名前の規則を複数書くと、上から順に条件（when）を調べ、最初に合ったものを使う。
+ * with は受け取る値の名前（当てる側が `$with` で渡す。規則の中と条件で `$of: 名前` で読む）。同じ名前の規則は同じ名前を受け取る。
+ */
+data class TransformRule(val id: String, val conditions: List<TemplateCondition>, val build: Template, val with: List<String> = emptyList())
 
 /** 変換の定義1件。 */
 data class TransformDef(
@@ -171,7 +183,7 @@ data class TransformDef(
 ) {
     companion object {
         private val TOP_KEYS = setOf("id", "name", "description", "params", "from", "build", "rules")
-        private val RULE_KEYS = setOf("id", "when", "build")
+        private val RULE_KEYS = setOf("id", "when", "with", "build")
         private val PARAM_NAME = Regex("""[A-Za-z][A-Za-z0-9_]*""")
 
         /**
@@ -243,10 +255,21 @@ data class TransformDef(
                 val rm = r as? Map<*, *> ?: error("$where.rules[$i] はobjectである必要があります")
                 rm.keys.map { it.toString() }.firstOrNull { it !in RULE_KEYS }
                     ?.let { error("$where.rules[$i]: 未知のキーです: $it（使えるキー: ${RULE_KEYS.joinToString(", ")}）") }
+                val with = when (val w = rm["with"]) {
+                    null -> emptyList()
+                    is List<*> -> w.map { it.toString() }
+                    else -> error("$where.rules[$i].with は受け取る値の名前の配列で書きます（例 [parent]）")
+                }
+                with.forEach { name ->
+                    require(PARAM_NAME.matches(name) && name !in LOOP_NAMES) { "$where.rules[$i].with: 名前は英字で始まる英数字で書きます（key・index・position は予約名です）: $name" }
+                    require(name !in places) { "$where.rules[$i].with: 「$name」は渡される場所の名前と重なります。別の名前にします" }
+                }
+                require(with.toSet().size == with.size) { "$where.rules[$i].with: 同じ名前が 2 回あります" }
                 TransformRule(
                     id = rm["id"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$where.rules[$i].id が必要です"),
                     conditions = parseConditions(rm["when"], "$where.rules[$i].when"),
                     build = parseTemplate(rm["build"] ?: error("$where.rules[$i].build が必要です"), "$where.rules[$i].build"),
+                    with = with,
                 )
             }
             val build = parseTemplate(m["build"] ?: error("$where.build が必要です"), "$where.build")
@@ -316,6 +339,13 @@ data class TransformDef(
                     path = path,
                 )
             }
+            // 規則へ渡す値（$apply と一緒にだけ書ける）
+            fun applyWith(): List<Pair<String, Template>> {
+                val raw = m[WITH] ?: return emptyList()
+                if (!m.containsKey(APPLY)) error("$where: $WITH は $APPLY（規則へ渡す値）か \$format（穴へ差し込む値）と一緒に書きます")
+                val wm = raw as? Map<*, *> ?: error("$where.$WITH は {規則が受け取る名前: ひな型} で書きます")
+                return wm.entries.map { (k, v) -> k.toString() to parseTemplate(v, "$where.$WITH.$k") }
+            }
             return guarded(
                 when (main) {
                     COPY -> { allow(OF, IN); Template.Copy(site(m[COPY], "$where.$COPY")) }
@@ -380,9 +410,9 @@ data class TransformDef(
                     }
                     EACH, EACH_ENTRY, ZIP -> {
                         when (main) {
-                            EACH -> allow(OF, IN, BUILD, APPLY, BIND, FLATTEN)
-                            EACH_ENTRY -> allow(OF, IN, BUILD, APPLY, BIND)
-                            else -> allow(OF, IN, BUILD, APPLY)
+                            EACH -> allow(OF, IN, BUILD, APPLY, WITH, BIND, FLATTEN)
+                            EACH_ENTRY -> allow(OF, IN, BUILD, APPLY, WITH, BIND)
+                            else -> allow(OF, IN, BUILD, APPLY, WITH)
                         }
                         val bind = if (m.containsKey(BIND)) {
                             (m[BIND] as? String)?.takeIf { PARAM_NAME.matches(it) && it !in LOOP_NAMES }
@@ -392,8 +422,8 @@ data class TransformDef(
                             ?: error("$where.$FLATTEN は true / false で書きます") else false
                         val body = when {
                             m.containsKey(BUILD) && m.containsKey(APPLY) -> error("$where: $BUILD と $APPLY は、どちらか一方を書きます")
-                            m.containsKey(BUILD) -> parseTemplate(m[BUILD], "$where.$BUILD")
-                            m.containsKey(APPLY) -> Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), TemplateSite())
+                            m.containsKey(BUILD) -> parseTemplate(m[BUILD], "$where.$BUILD").also { applyWith() }
+                            m.containsKey(APPLY) -> Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), TemplateSite(), applyWith(), outer = true)
                             else -> error("$where: $main には、$BUILD（ひな型）か $APPLY（規則名）が必要です")
                         }
                         if (main == ZIP) {
@@ -412,7 +442,7 @@ data class TransformDef(
                         }
                     }
                     GROUP -> {
-                        allow(OF, IN, BY, BUILD, APPLY, BIND)
+                        allow(OF, IN, BY, BUILD, APPLY, WITH, BIND)
                         // まとめる配列: パス（$of / $in を添えられる）か、配列になるひな型（$concat など）
                         val input = when (val raw = m[GROUP]) {
                             is String -> Template.Copy(site(raw, "$where.$GROUP"))
@@ -424,8 +454,8 @@ data class TransformDef(
                         val by = parseTemplate(m[BY] ?: error("$where: \$group には $BY（まとめるキーのひな型）が必要です"), "$where.$BY")
                         val body = when {
                             m.containsKey(BUILD) && m.containsKey(APPLY) -> error("$where: $BUILD と $APPLY は、どちらか一方を書きます")
-                            m.containsKey(BUILD) -> parseTemplate(m[BUILD], "$where.$BUILD")
-                            m.containsKey(APPLY) -> Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), TemplateSite())
+                            m.containsKey(BUILD) -> parseTemplate(m[BUILD], "$where.$BUILD").also { applyWith() }
+                            m.containsKey(APPLY) -> Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), TemplateSite(), applyWith(), outer = true)
                             else -> error("$where: \$group には、$BUILD（ひな型）か $APPLY（規則名）が必要です")
                         }
                         val bind = if (m.containsKey(BIND)) {
@@ -434,7 +464,7 @@ data class TransformDef(
                         } else null
                         Template.Group(input, by, body, bind)
                     }
-                    APPLY -> { allow(OF, IN, AT); Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), site(m[AT], "$where.$AT")) }
+                    APPLY -> { allow(OF, IN, AT, WITH); Template.Apply(ruleName(m[APPLY], "$where.$APPLY"), site(m[AT], "$where.$AT"), applyWith()) }
                     CONCAT -> {
                         allow()
                         val list = m[CONCAT] as? List<*> ?: error("$where.$CONCAT はひな型の配列である必要があります")
@@ -524,9 +554,15 @@ data class TransformDef(
     /** 使っている規則名と受け取る値の名前が、すべて宣言されていること（定義の段階で点検する）。 */
     private fun requireClosed(where: String) {
         val ruleIds = rules.map { it.id }.toSet()
+        // 同じ名前の規則は、同じ名前の値を受け取る（当てる側は、どれが選ばれても同じ値を渡す）
+        val ruleWith = rules.groupBy { it.id }.mapValues { (id, rs) ->
+            val first = rs.first().with.toSet()
+            rs.firstOrNull { it.with.toSet() != first }?.let { error("$where: 規則「$id」は、同じ名前の規則で受け取る値（with）が違います（${first.joinToString(", ").ifEmpty { "なし" }} と ${it.with.joinToString(", ").ifEmpty { "なし" }}）") }
+            first
+        }
         val binds = from?.binds.orEmpty().toSet() + places
-        fun checkBindings(t: Template) {
-            t.bindNames().forEach { name ->
+        fun checkBindings(t: Template, received: Set<String> = emptySet()) {
+            (t.bindNames() - received).forEach { name ->
                 require(name in binds) { "$where: \$of / of の「$name」は、from のクエリで付けた名前ではありません（渡される場所の名前: ${places.joinToString("・").ifEmpty { "なし" }}。繰り返しの \$bind はその中だけで使えます）" }
             }
         }
@@ -552,6 +588,12 @@ data class TransformDef(
                 is Template.Zip -> walk(t.body)
                 is Template.Apply -> {
                     require(t.rule in ruleIds) { "$where: 規則「${t.rule}」が rules にありません（ある規則: ${ruleIds.joinToString(", ").ifEmpty { "なし" }}）" }
+                    val expected = ruleWith.getValue(t.rule)
+                    val given = t.with.map { it.first }.toSet()
+                    require(given == expected) {
+                        "$where: 規則「${t.rule}」へ渡す値（\$with）が、規則の受け取る値（with）と合いません（渡す: ${given.joinToString(", ").ifEmpty { "なし" }}・受け取る: ${expected.joinToString(", ").ifEmpty { "なし" }}）"
+                    }
+                    t.with.forEach { walk(it.second) }
                 }
                 is Template.Concat -> t.parts.forEach(::walk)
                 is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
@@ -562,7 +604,7 @@ data class TransformDef(
         checkBindings(build)
         walk(build)
         rules.forEach { r ->
-            checkBindings(Template.Guarded(r.conditions, r.build))
+            checkBindings(Template.Guarded(r.conditions, r.build), r.with.toSet())
             r.conditions.forEach(::condition)
             walk(r.build)
         }

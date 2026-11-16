@@ -51,11 +51,31 @@ constraints:
     level: error
     message: "エンティティ型「{id}」が基本設計項目一覧にありません（generate で作り直します）"
   - id: entity-has-table
-    description: どのエンティティ型にもテーブル設計書がある
+    description: どのエンティティ型にもテーブルがある（詳細設計項目一覧のテーブルが、基本設計のエンティティを導出元にし、そのエンティティが業務のエンティティ型を導出元にする）
     match: [{ node: { entity: yde-entity, bind: e } }]
-    check: [{ gte: [{ occurrenceCount: { of: e, schema: table-design } }, 1] }]
+    check: [{ gte: [{ count: { all: { from: e, match: [{ node: { entity: yde-entity, bind: e } }, { edge: { via: source, dir: in } }, { node: { id: "ENT-*", bind: x } }, { edge: { via: source, dir: in } }, { node: { id: "TBL-*", bind: tb } }], of: tb } } }, 1] }]
     level: error
-    message: "エンティティ型「{id}」にテーブル設計書がありません（generate で作り直します）"
+    message: "エンティティ型「{id}」のテーブルが詳細設計項目一覧にありません（generate で作り直します）"
+  - id: entity-has-class
+    description: 基本設計のどのエンティティも、基本設計項目台帳のエンティティ区分のちょうど 1 つに入っている（区分は業務モデルから導けないので人が決める）
+    match: [{ node: { id: "ENT-*", bind: e } }]
+    check: [{ eq: [{ count: { all: { from: e, match: [{ node: { id: "ENT-*", bind: e } }, { edge: { via: entities, dir: in } }, { node: { id: "CLS-*", bind: c } }], of: c } } }, 1] }]
+    level: error
+    message: "エンティティ「{id}」の区分が決まっていないか、2 つ以上に入っています（基本設計項目台帳 design/basic/ledger.yaml のエンティティ区分のどれか 1 つに入れます）"
+  - id: item-element-is-tableable
+    description: 配列・マップの要素が名前の無い配列・マップの項目（配列の配列など）は、テーブルにできない（要素の行を表す名前が無い）
+    match: [{ node: { id: "FLD-*", bind: f } }]
+    where: [{ of: f, path: itemBase, exists: true }]
+    expect: absent
+    level: error
+    message: "項目「{id}」は、要素が名前の無い配列・マップなのでテーブルにできません（業務モデルで、要素を行の型＝object に包みます）"
+  - id: map-element-is-not-entity
+    description: マップの要素がエンティティの項目は、テーブルにできない（エンティティは配列か 1 件で持つ）
+    match: [{ node: { id: "FLD-*", bind: f } }]
+    where: [{ of: f, path: base, equals: map }, { of: f, path: itemEntity, exists: true }]
+    expect: absent
+    level: error
+    message: "項目「{id}」は、マップの要素がエンティティなのでテーブルにできません（業務モデルで、エンティティの配列にします）"
   - id: entity-has-mapper
     description: どのエンティティ型にもテーブルアクセス設計書（Mapper）がある
     match: [{ node: { entity: yde-entity, bind: e } }]
@@ -65,8 +85,8 @@ constraints:
   - id: dashboard-has-screens
     description: どのダッシュボードにも画面遷移定義書・一覧画面の画面定義書・一覧画面の Controller がある
     match: [{ node: { entity: yde-view, bind: v } }]
-    # 設計書のビュー（エンティティ定義書）はアプリの画面にしない。検査がスコープで絞れるようになったら、業務モデルのダッシュボードだけにする
-    where: [{ of: v, path: kind, equals: dashboard }, { of: v, path: id, notEquals: entity-definition }]
+    # 設計書のビュー（エンティティ定義書・テーブル設計書）はアプリの画面にしない。検査がスコープで絞れるようになったら、業務モデルのダッシュボードだけにする
+    where: [{ of: v, path: kind, equals: dashboard }, { of: v, path: id, notEquals: entity-definition }, { of: v, path: id, notEquals: table-definition }]
     check:
       - { gte: [{ occurrenceCount: { of: v, schema: screen-transitions } }, 1] }
       - { gte: [{ occurrenceCount: { of: v, schema: screen-list } }, 1] }

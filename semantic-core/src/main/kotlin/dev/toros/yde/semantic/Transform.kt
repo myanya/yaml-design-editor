@@ -200,6 +200,23 @@ object SemanticTransform {
             return base?.at(site.path)
         }
 
+        /** 繰り返しの略記（`$each … $apply … $with`）で規則へ渡す値（繰り返しの外側で計算したもの）。入れ子で同じ略記に入るときは、戻ったら元の値に戻す。 */
+        private val outerPassed = IdentityHashMap<Template.Apply, Map<String, TemplatePlace>>()
+
+        private fun passedValues(with: List<Pair<String, Template>>, here: TemplatePlace?, out: YPath, loop: Map<String, Any?>): Map<String, TemplatePlace> {
+            val passed = LinkedHashMap<String, TemplatePlace>()
+            for ((name, child) in with) build(child, here, out, loop)?.let { passed[name] = TemplatePlace(it, null, emptyList()) }
+            return passed
+        }
+
+        /** 中身が規則の略記で、渡す値があれば、繰り返しを書いた場所（here）で計算してから繰り返す。 */
+        private fun passingOuter(body: Template, here: TemplatePlace?, out: YPath, loop: Map<String, Any?>, run: () -> YNode?): YNode? {
+            val a = body as? Template.Apply
+            if (a == null || !a.outer || a.with.isEmpty()) return run()
+            val previous = outerPassed.put(a, passedValues(a.with, here, out, loop))
+            return try { run() } finally { if (previous == null) outerPassed.remove(a) else outerPassed[a] = previous }
+        }
+
         /** 局所的な名前は繰り返す中身だけで有効。同名の外側の場所は、評価後に戻す。 */
         private fun boundBody(t: Template.Each, child: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? {
             val name = t.bind ?: return build(t.body, child, out, loop)
@@ -266,12 +283,18 @@ object SemanticTransform {
                 if (text != null && text in t.using) YNode.Scalar(t.using.getValue(text)) else input
             }
             is Template.First -> t.options.firstNotNullOfOrNull { build(it, here, out, loop) }
-            is Template.Each -> if (t.rows != null) {
-                // ビューの行を 1 行ずつ、いまの場所にする（行は原本の座標を持たない）
-                build(t.rows, here, out, loop)?.let { rows -> each(t, TemplatePlace(rows, null, emptyList()), out, loop) }
-            } else place(t.site, here)?.let { found -> each(t, found, out, loop) }
-            is Template.Zip -> zip(t, here, out, loop)
-            is Template.Apply -> place(t.site, here)?.let { found -> apply(t.rule, found, out, loop) }
+            is Template.Each -> passingOuter(t.body, here, out, loop) {
+                if (t.rows != null) {
+                    // ビューの行を 1 行ずつ、いまの場所にする（行は原本の座標を持たない）
+                    build(t.rows, here, out, loop)?.let { rows -> each(t, TemplatePlace(rows, null, emptyList()), out, loop) }
+                } else place(t.site, here)?.let { found -> each(t, found, out, loop) }
+            }
+            is Template.Zip -> passingOuter(t.body, here, out, loop) { zip(t, here, out, loop) }
+            is Template.Apply -> place(t.site, here)?.let { found ->
+                // 渡す値は書いた場所で計算する（規則の中では、当てる側の名前を読めないため）。繰り返しの略記は、繰り返しの外側で計算済み
+                val passed = if (t.outer) outerPassed[t].orEmpty() else passedValues(t.with, here, out, loop)
+                apply(t.rule, found, out, loop, passed)
+            }
             is Template.Concat -> {
                 val items = mutableListOf<YNode>()
                 for (part in t.parts) {
@@ -289,7 +312,7 @@ object SemanticTransform {
                 }
                 YNode.Seq(items)
             }
-            is Template.Group -> group(t, here, out, loop)
+            is Template.Group -> passingOuter(t.body, here, out, loop) { group(t, here, out, loop) }
             // {key, value} の並びからマップ（同じキーは後の値で置き換え、位置は初めのところ）。並びの出どころは捨てる（組み替えた値）
             is Template.EntriesOf -> {
                 val recordedBefore = origins.size
@@ -409,18 +432,20 @@ object SemanticTransform {
         }
 
         /** 名前の規則を、その場所に当てる。同じ名前の規則は上から順に条件を調べ、最初に合ったものを使う（どれも合わなければ「無い」）。 */
-        private fun apply(ruleId: String, found: TemplatePlace, out: YPath, loop: Map<String, Any?>): YNode? {
+        private fun apply(ruleId: String, found: TemplatePlace, out: YPath, loop: Map<String, Any?>, passed: Map<String, TemplatePlace> = emptyMap()): YNode? {
             val entered = active.getOrPut(found.node) { mutableSetOf() }
             if (!entered.add(ruleId)) {
                 error("変換「${def.id}」: 規則「$ruleId」を、同じ場所（${found.path.pretty()}）へ当てている最中に、もう一度当てています。規則は、入力の木の子へ向かって当ててください（\$at・\$each・\$eachEntry）")
             }
-            // 名前付き規則は宣言された場所の束縛だけを使い、呼出し側の局所名を取り込まない。
+            // 名前付き規則は宣言された場所の束縛と、渡された値（with）だけを使い、呼出し側の局所名を取り込まない。
             val savedBindings = localBindings.toMap()
             localBindings.clear()
+            localBindings.putAll(passed)
             try {
                 val rule = def.rules.firstOrNull { r -> r.id == ruleId && r.conditions.all { holds(it, found, loop) } } ?: return null
                 return build(rule.build, found, out, loop)
             } finally {
+                localBindings.clear()
                 localBindings.putAll(savedBindings)
                 entered.remove(ruleId)
             }

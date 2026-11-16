@@ -1,0 +1,28 @@
+id: table-definition-indexes
+name: テーブル設計書（索引）
+description: >-
+  詳細設計項目一覧の索引と、人が書く詳細設計項目台帳の索引に、補正一覧（詳細設計）を重ねた一覧（テーブル設計書の 1 区画）。主キーの索引は出さない（カラム一覧の主キーの順で見る）。
+  一意の索引は基本設計の配列の「同じものは 1 度だけ」と入れ子のエンティティの親から、外部キーの索引は外部キーから張る（導出元の列）。台帳の索引は張る理由の列に理由がある。
+  DDL のレポートもこの表を読む
+params: [table]
+rows:
+  match:
+    - node: { id: "TBL-*", bind: t }
+    - edge: { via: table, dir: in }
+    - node: { id: "IDX-*", bind: x }
+  rowKey: x
+  where:
+    - { of: t, path: id, equals: $table }
+order: { schemaId: detail-table-list }
+corrections: { schemaIds: [detail-corrections] }
+columns:
+  - { label: 項番, path: seq }
+  - { label: テーブル, of: t, path: id }
+  - { label: 索引名, path: name }
+  - { label: 一意, value: { first: [{ path: unique }, "false"] } }
+  - { label: カラム, value: { path: "columns[*].column" } }
+  - { label: カラム名, value: { each: { path: columns }, value: { via: column, path: name } } }
+  - { label: 並び, value: { each: { path: columns }, value: { first: [{ path: order }, asc] } } }
+  - { label: 導出元, path: source }
+  - { label: 張る理由（台帳）, path: reason }
+  - { label: 補正, backlinks: { schemaIds: [detail-corrections] } }

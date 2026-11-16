@@ -37,6 +37,8 @@ class SemanticViaTest {
                   - { key: id, type: id }
                   - { key: vtype, type: ref }
                   - { key: tags, type: array, item: { type: ref } }
+                  - { key: marks, type: array, item: { type: ref } }
+                  - { key: links, type: array, item: { type: object, fields: [{ key: to, type: ref }, { key: note, type: string }] } }
         """,
     )
     private val vt = schema(
@@ -94,7 +96,7 @@ class SemanticViaTest {
     private val attrsDoc = DocumentId("attrs.yaml")
     private val trees = mapOf(
         "attrs.yaml" to YamlIO.parse(
-            "attrs:\n  - { id: FLD-TITLE, vtype: VT-TITLE, tags: [VT-TITLE, VT-NOTE] }\n  - { id: FLD-FREE }\n  - { id: FLD-NOTE, vtype: VT-NOTE }",
+            "attrs:\n  - { id: FLD-TITLE, vtype: VT-TITLE, tags: [VT-TITLE, VT-NOTE], marks: [VT-NOTE, GRP-TEXT], links: [{ to: GRP-TEXT, note: a }, { to: VT-NOTE, note: b }] }\n  - { id: FLD-FREE }\n  - { id: FLD-NOTE, vtype: VT-NOTE }",
         ),
         "types.yaml" to YamlIO.parse("types:\n  - { id: VT-TITLE, name: タイトル, maxLength: 100, group: GRP-TEXT }\n  - { id: VT-NOTE, name: メモ }"),
         "ddl-mapping.yaml" to YamlIO.parse("mappings:\n  - { id: VT-TITLE, to: \"varchar({maxLength})\" }"),
@@ -201,6 +203,22 @@ class SemanticViaTest {
         // 配列に空の項目は書けない。1 段の文字はこれまでどおり 1 つの並び
         assertFails { ValueExpr.parseValue(mapOf("via" to listOf("vtype", ""), "path" to "label"), "x") }
         assertEquals(listOf(parseYPath("vtype")), (ValueExpr.parseValue(mapOf("via" to "vtype", "path" to "name"), "x") as ValueExpr.Get).via)
+    }
+
+    /**
+     * 参照の並びを順に辿る（複合の外部キー・索引のカラムのように、並びの順に意味がある参照）: each の要素が参照そのものなら、
+     * いまの要素は参照先（all の要素と同じ）。参照を持つ行（object）なら、行の場所の下に書かれた参照を via で辿れる。
+     */
+    @Test
+    fun `each は参照の並びと 参照を持つ行の並びを 並びの順に辿る`() {
+        fun texts(expr: Map<String, Any?>): List<String?> {
+            val detailed = SemanticValues.evaluateDetailed(ValueExpr.parseValue(expr, "x"), env("FLD-TITLE", 0))
+            return assertNotNull(detailed.side, detailed.reason).elements.orEmpty().map { it.value }
+        }
+        val nameOrLabel = mapOf("first" to listOf(mapOf("path" to "name"), mapOf("path" to "label")))
+        assertEquals(listOf("メモ", "文字"), texts(mapOf("each" to mapOf("path" to "marks"), "value" to nameOrLabel)))
+        assertEquals(listOf("文字", "メモ"), texts(mapOf("each" to mapOf("path" to "links"), "value" to mapOf("via" to "to", "path" to "label").let { mapOf("first" to listOf(it, mapOf("via" to "to", "path" to "name"))) })))
+        assertEquals(listOf("a", "b"), texts(mapOf("each" to mapOf("path" to "links"), "value" to mapOf("path" to "note"))), "行の値は行の場所から読む")
     }
 
     @Test

@@ -1,0 +1,90 @@
+id: shape-list
+name: 形の見本
+kind: document
+description: 業務モデルに書ける形を一通り持つ見本（テーブル設計の確かめ用）
+match: shapes/shape-list.yaml
+entity:
+  type: shape
+  idType: 見本番号
+  defines: true
+definitions:
+  見本番号: { type: id, pattern: "^SHP-[0-9]{3,}$" }
+  仕様番号: { type: id, pattern: "^SHP-[0-9]{3,}-P$" }
+  大きさ:
+    type: object
+    label: 大きさ
+    fields:
+      - { key: width, label: 幅, type: int, required: true }
+      - { key: height, label: 高さ, type: int }
+  仕様:
+    type: object
+    label: 仕様
+    entity: { type: shape-spec, defines: true }
+    fields:
+      - { key: id, label: ID, type: 仕様番号, required: true }
+      - { key: note, label: メモ, type: common#文章 }
+root:
+  type: object
+  fields:
+    - key: shapes
+      label: 見本一覧
+      type: array
+      default: []
+      methods:
+        insert:
+          id: { path: id, prefix: "SHP-", digits: 3 }
+      item:
+        type: object
+        label: 見本
+        fields:
+          - { key: id, label: ID, type: 見本番号, required: true }
+          - { key: name, label: 名前, type: common#一行の文, role: title, required: true }
+          # 名前の無い object（埋め込み・必須でない）。中の必須は、親が無ければ空になる
+          - key: period
+            label: 期間
+            type: object
+            fields:
+              - { key: from, label: 開始日, type: common#年月日, required: true }
+              - { key: to, label: 終了日, type: common#年月日 }
+          # 名前付きの object の型（埋め込み・必須）
+          - { key: size, label: 大きさ, type: 大きさ, required: true }
+          # 入れ子のエンティティ 1 件
+          - { key: spec, label: 仕様, type: 仕様 }
+          # 参照でないスカラーの配列（同じものは 1 度だけ）
+          - key: labels
+            label: ラベル
+            type: array
+            unique: true
+            item: { type: common#一行の文 }
+          # 名前の無い object の配列（部品コードで重ならない）。行の中に、名前付きの object と行の配列
+          - key: parts
+            label: 部品
+            type: array
+            unique: [code]
+            item:
+              type: object
+              fields:
+                - { key: code, label: 部品コード, type: common#一行の文, required: true }
+                - { key: qty, label: 数量, type: int, required: true, default: 1 }
+                - { key: size, label: 大きさ, type: 大きさ }
+                - key: notes
+                  label: 備考
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - { key: body, label: 本文, type: text, required: true }
+                      # 行の中の行の中の、参照の配列（同じものは 1 度だけ）
+                      - { key: tags, label: タグ, type: array, unique: true, item: { type: common#タグ参照 } }
+          # マップ（値はスカラー）
+          - key: attrs
+            label: 属性
+            type: map
+            value: { type: common#一行の文 }
+          # マップ（値は名前付きの object）
+          - key: sizes
+            label: 大きさの別名
+            type: map
+            value: { type: 大きさ }
+          # 参照
+          - { key: owner_tag, label: 担当タグ, type: common#タグ参照 }

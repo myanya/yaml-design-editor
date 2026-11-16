@@ -9,6 +9,7 @@ dependencies {
     api(project(":workspace-core"))
     api(libs.kotlinx.coroutines.core) // service/ の実行順と通知（画面・通信には依存しない）
     implementation(libs.kotlinx.serialization.json)   // tools/ のツールの引数と JSON Schema（直列化プラグインは使わない）
+    testImplementation(libs.h2)   // TodosSysdevTest が、生成した DDL を H2 のメモリの DB に流して確かめる（配布物には入らない）
 }
 
 tasks.withType<Test>().configureEach {

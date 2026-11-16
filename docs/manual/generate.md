@@ -15,6 +15,7 @@
 | `yde-lifecycle` | Lifecycle の ID | `lifecycles` の要素 |
 | `yde-entity` | エンティティ型の名前（`todo`） | `entity: {type: …}` を書いた object（定義の宣言を優先） |
 | `yde-view` | ビューの ID（ダッシュボード `todo-dashboard`・表 `todo-management` など） | ビューの定義の文書（`.yde/views`）のルート |
+| `yde-type` | `スキーマID#型の名前`（`common#一行の文`。型の書き方そのもの） | スキーマの `definitions` の名前付きの型（エンティティ型を持つ object は除く） |
 | `yde-field` | `エンティティ型.キー`（`todo.title`。同じ型の同じキーは先に見つけた 1 か所） | エンティティ型を持つ object の `fields` の要素（名前付きの型の定義の中・文書のルート） |
 
 ```yaml
@@ -50,6 +51,8 @@ entity: { type: yde-action, defines: false }
   書かれた形（`rule`。State の名前は値の条件へ置き換えたもの）・書かれた場所（`source`）を持ちます。形は、要素ごとの決まり `element`・入れ子の線や参照を辿る決まり `pattern`・
   書かれた場所の数の決まり `occurrence`・関係レジストリの宣言 `relation`（`kind` は acyclic・outMax・outMin・inMax・inMin・types）です。
   どの決まりをどう確かめるか（設計書の上の確かめ方）は、生成の定義が決めます（`samples/todos-sysdev` のエラー定義書と処理設計書）。
+- `types`: 名前付きの型（スキーマの `definitions`。エンティティ型を持つ object は除く）です。名前（`name`。`スキーマID#型の名前`）と、項目と同じ形の型を解いた値（基底の種類・文字数・形・表示形式・選択肢・参照先・行の項目）を持ちます。
+  設計の論理型（`samples/todos-sysdev` の基本設計項目一覧（論理型））は、ここから作ります。
 - `views`・`dashboards`: ビュー（ID・名前・種類 grid / matrix / chart・行の型 `rows`・行の条件 `where`・並び `order`・列の見出しと読む項目と、項目の型を解いた `field`・
   計算の列の値の式 `value`。集計は数える要素の型 `counts` と、そこへの線 `match`）と、ダッシュボード（絞り込みの入力と、その型を解いた `field`・
   上部の操作・区画・区画の条件が基準日を使うか `usesToday`）です。条件の State の名前は、値の条件（`{path: status, oneOf: [OPEN, …]}`）へ置き換えて持ちます。
@@ -76,7 +79,7 @@ scopes:
 ```
 
 ```yaml
-# .yde/transforms/design/table-designs.yaml
+# .yde/transforms/design/table-access.yaml
 scope: business      # 業務モデルのスコープのスキーマだけから、業務モデルを展開する
 each: entities
 ```
@@ -144,7 +147,7 @@ stages:                      # 並びの順に当てる。最初の段の入力�
 ```
 
 ```yaml
-# .yde/transforms/design/table-designs.yaml
+# .yde/transforms/design/table-access.yaml
 scope: business
 stage: detail                # 詳細設計の段の項を読む（基本設計の規則・補正も当たっている）
 each: entities

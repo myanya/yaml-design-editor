@@ -8,6 +8,7 @@ import dev.toros.yde.workspace.WorkspaceSession
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -33,13 +34,13 @@ class TodosSysdevTest {
     fun `データ系の設計書は業務モデルから計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = m[key] as List<*>
-        val tables = list(doc("design/generated/tables/todo.yaml"), "tables").map { it as Map<*, *> }
-        assertEquals(listOf("todo", "todo_tags", "todo_comments", "todo_history"), tables.map { it["name"] })
-        val todoColumns = list(tables[0], "columns").map { (it as Map<*, *>)["name"] }
+        val tables = list(doc("design/detail/tables.yaml"), "tables").map { it as Map<*, *> }.associateBy { it["name"] }
+        assertEquals(listOf("category", "tag", "todo", "todo_task", "todo_tags", "todo_comments", "todo_history"), tables.keys.toList())
+        val todoColumns = list(tables.getValue("todo"), "columns").map { (it as Map<*, *>)["name"] }
         assertTrue("title" in todoColumns && "status" in todoColumns, "一覧の行（title）と個票（status）の項目が 1 テーブルに: $todoColumns")
-        val historyColumns = list(tables[3], "columns").map { (it as Map<*, *>)["name"] }
+        val historyColumns = list(tables.getValue("todo_history"), "columns").map { (it as Map<*, *>)["name"] }
         assertEquals(listOf("todo_id", "seq", "date", "action", "from_", "to_", "note", "resume_on"), historyColumns, "予約語は末尾に _")
-        val taskColumns = list(list(doc("design/generated/tables/todo-task.yaml"), "tables")[0] as Map<*, *>, "columns").map { (it as Map<*, *>)["name"] }
+        val taskColumns = list(tables.getValue("todo_task"), "columns").map { (it as Map<*, *>)["name"] }
         assertEquals(listOf("id", "todo_id", "seq", "title", "done"), taskColumns, "入れ子の型は親の ID と並び順を足す")
         val methods = list(doc("design/generated/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
@@ -208,13 +209,13 @@ class TodosSysdevTest {
         val items = list(todo, "items").associateBy { it["key"] }
         items["created_on"]!!.let {
             assertEquals(listOf("01", "FLD-todo.id"), list(todo, "items").first().let { f -> listOf(f["seq"], f["id"]) })
-            assertEquals("common#年月日", it["type"], "論理型は業務モデルの型の名前")
+            assertEquals("TYP-common.年月日", it["type"], "論理型は基本設計の論理型（設計項目）への参照")
             assertEquals("created", it["auto"], "auto は日本語に言い換えない")
             assertEquals("todo.created_on", it["source"], "導出元は業務の項目（定義の索引の yde-field）")
             assertEquals(null, it["format"], "表示形式は型の性質なので、エンティティ定義には書かない")
         }
-        assertEquals("common#タグ参照", items["tags"]?.get("itemType"), "配列は要素の論理型を持つ")
-        assertEquals(mapOf("value" to "OPEN", "label" to "未着手"), (items["status"]?.get("values") as List<*>).first())
+        assertEquals("TYP-common.タグ参照", items["tags"]?.get("itemType"), "配列は要素の論理型を持つ")
+        assertEquals(null, items["status"]?.get("values"), "選択肢は論理型の性質なので、項目には写さない")
         val task = entities.single { it["id"] == "ENT-todo-task" }
         assertEquals(listOf("ENT-todo", "FLD-todo.tasks"), listOf(task["parent"], task["parentField"]))
         val finish = list(todo, "operations").single { it["action"] == "todo-task.finish" }
@@ -225,6 +226,185 @@ class TodosSysdevTest {
         assertEquals(emptyList(), detail.errors)
         val stages = (dev.toros.yde.yaml.YamlIO.toAny(detail.term) as Map<*, *>)["stages"] as List<*>
         assertEquals(listOf("basic", "detail"), stages.map { (it as Map<*, *>)["id"] })
+    }
+
+    /**
+     * テーブル設計書（ADR-0036）: 論理型は基本設計の設計項目（値は業務モデルの型のまま）。詳細設計項目一覧は詳細設計にだけ出るもの
+     * （テーブル・カラム名・主キーの順・型対応への参照・明細の日本語名・索引・外部キー）だけを持ち、名称・必須・選択肢は導出元をたどる。
+     * 区分（マスタ・トランザクション）は人が書く基本設計項目台帳から読む。
+     * DDL のレポートは、ビューが型対応表と基本設計項目一覧と台帳から読んだ値で CREATE TABLE と CREATE INDEX を作る（サンプルの design/ddl/schema.sql と同じ）。
+     */
+    @Test
+    fun `テーブル設計書は論理型と型対応表から作り DDL まで落とせる`() {
+        fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
+        fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+        val types = list(doc("design/basic/types.yaml"), "types").associateBy { it["id"] }
+        types.getValue("TYP-common.一行の文").let {
+            assertEquals(listOf("common#一行の文", "string", 100, "common#一行の文"), listOf(it["name"], it["base"], it["maxLength"], it["source"]))
+        }
+        assertEquals("yyyy年M月d日", types.getValue("TYP-common.年月日")["format"], "表示形式は論理型に")
+        assertEquals("TYP-common.年月日", list(types.getValue("TYP-common.コメント"), "fields").first()["type"], "行の型の項目も論理型を参照する")
+        val tables = list(doc("design/detail/tables.yaml"), "tables").associateBy { it["name"] }
+        val title = list(tables.getValue("todo"), "columns").single { it["name"] == "title" }
+        assertEquals(setOf("seq", "id", "name", "source", "sqlType"), title.keys.map { it.toString() }.toSet(), "基本設計の値（名称・必須・文字数）は持たない")
+        assertEquals("SQL-common.一行の文", title["sqlType"])
+        val tags = tables.getValue("todo_tags")
+        assertEquals("TODOのタグ", tags["label"], "明細テーブルの日本語名は詳細設計だけのもの")
+        assertEquals(listOf("todo_id" to 1, "seq" to 2), list(tags, "columns").filter { it["primaryKey"] != null }.map { it["name"] to it["primaryKey"] }, "主キーの順")
+        assertEquals(listOf("TODOのID", "並び順"), list(tags, "columns").take(2).map { it["label"] })
+        assertEquals(listOf("ux_todo_tags_tag_id" to listOf("COL-todo_tags.todo_id", "COL-todo_tags.tag_id"), "ix_todo_tags_tag_id" to listOf("COL-todo_tags.tag_id")),
+            list(tags, "indexes").map { it["name"] to list(it, "columns").map { c -> c["column"] } }, "配列の unique は一意の索引・外部キーのカラムに索引（主キーの先頭のカラムは除く）")
+        assertEquals(listOf("TBL-todo_tags"), list(tags, "indexes").map { it["table"] }.distinct(), "索引は台帳の索引と同じ形でテーブルを指す")
+        assertEquals(
+            listOf(Triple("fk_todo_tags_todo", listOf("COL-todo_tags.todo_id"), "cascade"), Triple("fk_todo_tags_tag_id", listOf("COL-todo_tags.tag_id"), null)),
+            list(tags, "foreignKeys").map { Triple(it["name"], it["columns"], it["onDelete"]) }, "入れ子で持つ親へは一緒に消す・参照へは指定しない",
+        )
+        assertEquals("pk_todo_tags", tags["primaryKeyName"])
+        val classes = list(doc("design/basic/ledger.yaml"), "entityClasses").associate { it["name"] to it["entities"] }
+        assertEquals<Map<*, *>>(mapOf("master" to listOf("ENT-category", "ENT-tag"), "transaction" to listOf("ENT-todo", "ENT-todo-task")), classes, "区分は人が書く台帳に")
+        // DDL: テーブル設計書のビューの行から作る
+        val ws = Workspace.open(root)
+        val loaded = assertNotNull(Reports.load(root).report("ddl"))
+        val ddl = Reports.run(loaded, emptyMap(), Views.load(root, ws.schemas), ws.index, ws::treeOf, ws::schemaFor).text
+        assertTrue("  title VARCHAR(100) NOT NULL," in ddl, "型対応表の穴を論理型の最大文字数で埋める: $ddl")
+        assertTrue("status VARCHAR DEFAULT 'OPEN' NOT NULL CHECK (status IN ('OPEN', 'IN_PROGRESS', 'SUSPENDED', 'CLOSED', 'CANCELED'))" in ddl)
+        assertTrue("  done BOOLEAN DEFAULT 'false' NOT NULL," in ddl, "初期値 false も出す")
+        assertTrue("-- TODOのタグ（トランザクション）\nCREATE TABLE todo_tags (" in ddl, "明細テーブルの日本語名と、配列を持つエンティティの区分: $ddl")
+        assertTrue("  CONSTRAINT pk_todo_tags PRIMARY KEY (todo_id, seq)\n" in ddl, "主キーは主キーの順と制約名")
+        assertTrue("CREATE UNIQUE INDEX ux_todo_tags_tag_id ON todo_tags (todo_id, tag_id);" in ddl, "配列の unique は一意の索引")
+        assertTrue("CREATE INDEX ix_todo_category ON todo (category);" in ddl)
+        assertTrue("CREATE INDEX ix_todo_status_due_on ON todo (status, due_on);" in ddl, "人が書く詳細設計項目台帳の索引も")
+        assertTrue("ALTER TABLE todo ADD CONSTRAINT fk_todo_category FOREIGN KEY (category) REFERENCES category (id);" in ddl, "外部キーはテーブルを作った後に足す")
+        assertTrue("ALTER TABLE todo_tags ADD CONSTRAINT fk_todo_tags_todo FOREIGN KEY (todo_id) REFERENCES todo (id) ON DELETE CASCADE;" in ddl)
+        assertEquals(java.nio.file.Files.readString(root.resolve("design/ddl/schema.sql")), ddl, "サンプルの DDL は最新（report samples/todos-sysdev ddl で作り直す）")
+        // 実際に流す（③のアプリと同じ H2）。初期値が入り、TODO を消すと入れ子で持つ明細も消える
+        H2.run(ddl) { db ->
+            db.exec("INSERT INTO tag (id, name) VALUES ('TAG-001', 'a')")
+            db.exec("INSERT INTO todo (id, title, summary, created_on, updated_on) VALUES ('TODO-001', 't', 's', DATE '2026-11-16', DATE '2026-11-16')")
+            db.exec("INSERT INTO todo_tags (todo_id, seq, tag_id) VALUES ('TODO-001', 1, 'TAG-001')")
+            db.exec("INSERT INTO todo_task (id, todo_id, seq, title) VALUES ('TODO-001-S01', 'TODO-001', 1, 'x')")
+            assertEquals(1, db.count("SELECT COUNT(*) FROM todo WHERE status = 'OPEN'"), "初期値 OPEN")
+            assertEquals(1, db.count("SELECT COUNT(*) FROM todo_task WHERE done = FALSE"), "初期値 false")
+            db.exec("DELETE FROM todo WHERE id = 'TODO-001'")
+            assertEquals(0, db.count("SELECT COUNT(*) FROM todo_tags") + db.count("SELECT COUNT(*) FROM todo_task"), "入れ子で持つ明細も消える")
+        }
+    }
+
+    /**
+     * テーブル設計書の体系は、業務モデルの形をどの深さでも写せる（todos に無い形は、test-fixtures/workspaces/todos-sysdev-shapes の形の見本を
+     * 写しに足して確かめる）: 埋め込みの object（親の項目が必須でなければ NOT NULL にしない）・入れ子のエンティティ 1 件（親の ID の一意の索引）・
+     * スカラーの配列・キーの組で重ならない行の配列・行の配列の中の配列（複合の主キーと、親への複合の外部キー）・マップ（キーが主キー）。
+     * DDL は H2 で通り、親の行を消すと 3 段下の明細まで消える。テーブルにできない形（配列の配列）は対応の検査が指摘する。
+     */
+    @Test
+    fun `テーブル設計書は業務モデルのどの形からも作れて DDL が H2 で通る`() {
+        val dir = java.nio.file.Files.createTempDirectory("todos-sysdev-shapes")
+        try {
+            java.nio.file.Files.walk(root).use { paths ->
+                paths.forEach { p ->
+                    val to = dir.resolve(root.relativize(p).toString())
+                    if (java.nio.file.Files.isDirectory(p)) java.nio.file.Files.createDirectories(to) else java.nio.file.Files.copy(p, to)
+                }
+            }
+            java.nio.file.Files.copy(Path.of("test-fixtures/workspaces/todos-sysdev-shapes/shape-list.yaml"), dir.resolve(".yde/schemas/business/shape-list.yaml"))
+            fun edit(path: String, change: (String) -> String) = dir.resolve(path).let { java.nio.file.Files.writeString(it, change(java.nio.file.Files.readString(it))) }
+            // 人が書くもの: 区分（基本設計項目台帳）・型対応表・業務モデルから導けない索引（降順を含む。詳細設計項目台帳）
+            edit("design/basic/ledger.yaml") { it.replace("entities: [ENT-todo, ENT-todo-task]", "entities: [ENT-todo, ENT-todo-task, ENT-shape, ENT-shape-spec]") }
+            edit("design/detail/sql-types.yaml") {
+                it + "  - { seq: '91', id: SQL-int, type: TYP-int, sql: INTEGER }\n" +
+                    "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR }\n" +
+                    "  - { seq: '93', id: SQL-shape-list.仕様番号, type: TYP-shape-list.仕様番号, sql: VARCHAR }\n"
+            }
+            edit("design/detail/ledger.yaml") {
+                it + "  - { seq: '02', id: IDX-ix_shape_parts_qty, name: ix_shape_parts_qty, table: TBL-shape_parts, " +
+                    "columns: [{ column: COL-shape_parts.code }, { column: COL-shape_parts.qty, order: desc }], reason: 部品コードごとに数量の多い順に並べるため }\n"
+            }
+            generate(dir)
+            fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(dir.resolve(path)))!!) as Map<*, *>
+            fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+            val tables = list(doc("design/detail/tables.yaml"), "tables").associateBy { it["name"] }
+            fun columns(t: String) = list(tables.getValue(t), "columns").associateBy { it["name"] }
+            columns("shape").let {
+                assertEquals(listOf("id", "name", "period_from", "period_to", "size_width", "size_height", "owner_tag"), it.keys.toList(), "object は埋め込み（名前の有無によらない）")
+                assertEquals(false, it.getValue("period_from")["notNull"], "必須の開始日でも、期間が必須でなければ NOT NULL にしない")
+                assertEquals("期間の開始日", it.getValue("period_from")["label"])
+                assertEquals("FLD-shape.period.from", it.getValue("period_from")["source"], "名前の無い object の中の項目は、入れ子の項目")
+                assertEquals("FLD-shape-list.大きさ.width", it.getValue("size_width")["source"], "名前付きの型の中の項目は、型の項目")
+            }
+            assertEquals(listOf("ux_shape_spec_shape_id"), list(tables.getValue("shape_spec"), "indexes").map { it["name"] }, "入れ子のエンティティ 1 件は、親の ID が一意（親の ID の索引を兼ねる）")
+            assertEquals(listOf("shape_id", "seq", "labels"), columns("shape_labels").keys.toList(), "スカラーの配列は値のカラム")
+            assertEquals(listOf("COL-shape_parts.shape_id", "COL-shape_parts.code"), list(list(tables.getValue("shape_parts"), "indexes").single(), "columns").map { it["column"] }, "キーの組で重ならない")
+            val tags = tables.getValue("shape_parts_notes_tags")
+            assertEquals(listOf("shape_id" to 1, "parts_seq" to 2, "notes_seq" to 3, "seq" to 4), list(tags, "columns").filter { it["primaryKey"] != null }.map { it["name"] to it["primaryKey"] })
+            list(tags, "foreignKeys").first().let {
+                assertEquals(listOf("COL-shape_parts_notes_tags.shape_id", "COL-shape_parts_notes_tags.parts_seq", "COL-shape_parts_notes_tags.notes_seq"), it["columns"], "親への外部キーは複合")
+                assertEquals(listOf("TBL-shape_parts_notes", "cascade"), listOf(it["referencesTable"], it["onDelete"]))
+            }
+            assertEquals(listOf("COL-shape_parts_notes.shape_id", "COL-shape_parts_notes.parts_seq", "COL-shape_parts_notes.seq"),
+                list(tags, "columns").take(3).map { it["referencesColumn"] }, "どのカラムがどのカラムを指すかは、カラムの側に")
+            assertEquals(listOf("shape_id", "attrs_key", "attrs"), columns("shape_attrs").keys.toList(), "マップはキーが主キー")
+            assertEquals(2, columns("shape_attrs").getValue("attrs_key")["primaryKey"])
+            val ws = Workspace.open(dir)
+            val ddl = Reports.run(assertNotNull(Reports.load(dir).report("ddl")), emptyMap(), Views.load(dir, ws.schemas), ws.index, ws::treeOf, ws::schemaFor).text
+            assertTrue("ALTER TABLE shape_parts_notes_tags ADD CONSTRAINT fk_shape_parts_notes_tags_shape_parts_notes FOREIGN KEY (shape_id, parts_seq, notes_seq) REFERENCES shape_parts_notes (shape_id, parts_seq, seq) ON DELETE CASCADE;" in ddl, ddl)
+            assertTrue("CREATE INDEX ix_shape_parts_qty ON shape_parts (code, qty DESC);" in ddl, "台帳の索引の降順")
+            assertTrue("  labels VARCHAR(100) NOT NULL," in ddl, "配列の要素のカラムも、論理型の値で型の穴を埋める")
+            H2.run(ddl) { db ->
+                db.exec("INSERT INTO tag (id, name) VALUES ('TAG-001', 'a')")
+                db.exec("INSERT INTO shape (id, name, size_width) VALUES ('SHP-001', 'n', 1)")
+                db.exec("INSERT INTO shape_parts (shape_id, seq, code) VALUES ('SHP-001', 1, 'A')")
+                assertEquals(1, db.count("SELECT qty FROM shape_parts"), "初期値 1")
+                db.exec("INSERT INTO shape_parts_notes (shape_id, parts_seq, seq, body) VALUES ('SHP-001', 1, 1, 'b')")
+                db.exec("INSERT INTO shape_parts_notes_tags (shape_id, parts_seq, notes_seq, seq, tag_id) VALUES ('SHP-001', 1, 1, 1, 'TAG-001')")
+                assertTrue(runCatching { db.exec("INSERT INTO shape_parts_notes (shape_id, parts_seq, seq, body) VALUES ('SHP-001', 9, 1, 'b')") }.isFailure, "親の無い明細は入らない（複合の外部キー）")
+                assertTrue(runCatching { db.exec("INSERT INTO shape_parts (shape_id, seq, code) VALUES ('SHP-001', 2, 'A')") }.isFailure, "部品コードは重ならない")
+                db.exec("DELETE FROM shape WHERE id = 'SHP-001'")
+                assertEquals(0, db.count("SELECT COUNT(*) FROM shape_parts_notes_tags"), "親の行を消すと 3 段下まで消える")
+            }
+            // テーブルにできない形（要素が配列の配列）は、対応の検査が指摘する
+            edit(".yde/schemas/business/shape-list.yaml") {
+                it.replace("          # 参照\n", "          - { key: grid, label: 格子, type: array, item: { type: array, item: { type: int } } }\n          # 参照\n")
+            }
+            generate(dir, allowErrors = true)
+            assertTrue(errorsIn(dir).any { "FLD-shape.grid" in it && "テーブルにできません" in it }, errorsIn(dir).toString())
+        } finally {
+            dir.toFile().deleteRecursively()
+        }
+    }
+
+    private fun generate(dir: Path, allowErrors: Boolean = false) {
+        val session = WorkspaceSession(FileSystemDocumentStore(dir))
+        val plan = Generators.plan(session)
+        assertEquals(emptyList(), plan.errors)
+        assertTrue(session.apply(plan.transaction).ok)
+        assertTrue(session.save().ok)
+        if (!allowErrors) assertEquals(emptyList(), errorsIn(dir))
+    }
+
+    private fun errorsIn(dir: Path): List<String> {
+        val ws = WorkspaceReader.load(FileSystemDocumentStore(dir), builtins = dev.toros.yde.app.schema.BuiltinSchemas.kernelSchemas(dev.toros.yde.workspace.layout.WorkspaceLayout.of(dir)))
+        return ws.schemaErrors.map { it.toString() } +
+            WorkspaceCheckRunner.validateAll(ws).flatMap { (doc, v) -> v.issues.filter { it.severity.name == "ERROR" }.map { "${doc.value}: ${it.message}" } }
+    }
+
+    /** H2 のメモリの DB に DDL を流し（文の区切りは行末の ;。-- の行は注記）、続けて文を流す。 */
+    private class H2(private val st: java.sql.Statement) {
+        fun exec(sql: String) { st.execute(sql) }
+
+        /** 1 行 1 列の数を読む。 */
+        fun count(sql: String): Int = st.executeQuery(sql).use { rs -> rs.next(); rs.getInt(1) }
+
+        companion object {
+            fun run(ddl: String, then: (H2) -> Unit) {
+                java.sql.DriverManager.getConnection("jdbc:h2:mem:ddl-${System.nanoTime()}").use { c ->
+                    c.createStatement().use { st ->
+                        ddl.lines().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
+                            .split(Regex(""";\s*(\n|$)""")).map { it.trim() }.filter { it.isNotEmpty() }.forEach { st.execute(it) }
+                        then(H2(st))
+                    }
+                }
+            }
+        }
     }
 
     /** 生成の系譜: 生成の定義ごとに、業務モデルの項のどこを読むかを定義から取り出す（設計書がどの概念から作られるか）。 */

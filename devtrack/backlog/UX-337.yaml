@@ -1,0 +1,11 @@
+id: UX-337
+title: '作業項目の ID 形式の接頭辞が採番のひな型（$format・$of）のまま基本設計項目一覧に入り、エンティティ定義書の概要に「（オブジェクト）」と出る'
+status: todo
+origin_on: 2026-11-16
+origin: samples/todos-sysdev のテーブル設計書の見直しで、エンティティ定義書の概要を画面と CLI で見たとき
+memo: |-
+  design/basic/entities.yaml の ENT-todo-task の numbering.prefix が、業務モデルの採番の決まりのひな型（{$format: '{id}-S', $of: owner}）のまま写っている。
+  エンティティ定義書の概要の「接頭辞」の列は、文字でなくオブジェクトの要約になる（説明の列は「親の ID に「-S」と 2 桁の番号を続ける」と読める）。
+  機械が読める形のままにするなら、接頭辞を「親の ID ＋ -S」と分けて持つ（例 prefixFrom: parent・prefix: -S）か、ひな型を値として持つことを決める
+features:
+  - C-21
