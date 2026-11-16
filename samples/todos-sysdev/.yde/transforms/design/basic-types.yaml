@@ -48,6 +48,7 @@ build:
       itemType: { $first: [{ $apply: type-of, $at: "items[0].item" }, { $apply: type-of, $at: "items[0].value" }] }
       itemEntity: { $first: [{ $apply: entity-of, $at: "items[0].item" }, { $apply: entity-of, $at: "items[0].value" }] }
       itemBase: { $first: [{ $apply: elem-base, $at: "items[0].item" }, { $apply: elem-base, $at: "items[0].value" }] }
+      itemOverrides: { $first: [{ $copy: "items[0].item.overrides" }, { $copy: "items[0].value.overrides" }] }
       # 行の型（object）の項目と、配列・マップの型の要素が名前の無い object なら、その項目: 項目ごとに ID（FLD-モジュール.型の名前.キー）と、
       # 項目の論理型への参照（入れ子の項目は FLD-モジュール.型の名前.キー.キー）
       fields:
@@ -86,31 +87,23 @@ rules:
     build:
       $concat:
         - - $when: [{ not: { path: base, oneOf: [array, map, object] } }, { not: { path: type, contains: "#" } }]
-            $then: { name: { $copy: type }, base: { $copy: base }, builtin: true }
+            $then: { $copy: builtinType }
         - { $each: fields, $flatten: true, $apply: builtins }
         - { $apply: builtins, $at: item }
         - { $apply: builtins, $at: value }
   # 名前の無い入れ物（配列・マップ・名前の無い object・入れ子のエンティティ）でなければ、論理型への参照（いまの場所は項目か要素）
   - id: type-of
     when:
-      - { not: { path: base, oneOf: [array, map] } }
+      - { or: [{ not: { path: base, oneOf: [array, map] } }, { path: type, contains: "#" }] }
       - { path: entity, exists: false }
       - { or: [{ path: base, notEquals: object }, { path: type, contains: "#" }] }
     build: { $apply: typ-ref }
-  # 名前の無い入れ物の基底の種類（配列・マップ・object。名前付きの型は論理型に書く）
-  - id: base-of
-    when: [{ path: base, oneOf: [array, map] }]
-    build: { $copy: base }
-  - id: base-of
-    when: [{ path: base, equals: object }, { or: [{ path: entity, exists: true }, { not: { path: type, contains: "#" } }] }]
-    build: object
   # 入れ子のエンティティ（項目か要素が、ID を持つ object）
   - id: entity-of
     when: [{ path: entity, exists: true }]
     build: { $format: "ENT-{entity}" }
   # 要素が名前の無い配列・マップのとき（配列の配列など）、その基底の種類。テーブルにできない形の印（対応の検査が指摘する）
   - id: elem-base
-    when: [{ path: base, oneOf: [array, map] }]
     build: { $copy: base }
   # 入れ子の項目: 名前の無い object の項目と、名前の無い object を要素にする配列・マップの、要素の項目。ID は FLD-親の項目の ID の部分.キー
   - id: sub-items
@@ -141,11 +134,21 @@ rules:
       key: { $copy: key }
       label: { $copy: label }
       type: { $apply: type-of }
-      base: { $apply: base-of }
+      base: { $copy: base }
+      maxLength: { $copy: "overrides.maxLength" }
+      minLength: { $copy: "overrides.minLength" }
+      pattern: { $copy: "overrides.pattern" }
+      format: { $copy: "overrides.format" }
+      min: { $copy: "overrides.min" }
+      max: { $copy: "overrides.max" }
+      multiline: { $copy: "overrides.multiline" }
+      values: { $copy: "overrides.values" }
+      target: { $when: [{ path: "overrides.target", exists: true }], $then: { $format: "ENT-{t}", $with: { t: { $copy: "overrides.target" } } } }
       entity: { $apply: entity-of }
       itemType: { $first: [{ $apply: type-of, $at: item }, { $apply: type-of, $at: value }] }
       itemEntity: { $first: [{ $apply: entity-of, $at: item }, { $apply: entity-of, $at: value }] }
       itemBase: { $first: [{ $apply: elem-base, $at: item }, { $apply: elem-base, $at: value }] }
+      itemOverrides: { $first: [{ $copy: "item.overrides" }, { $copy: "value.overrides" }] }
       required: { $copy: required }
       default: { $copy: default }
       auto: { $copy: auto }

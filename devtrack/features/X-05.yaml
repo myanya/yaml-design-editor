@@ -1,13 +1,17 @@
 id: X-05
-title: 'ビュー定義 `_views`（`kind: grid` の行・列・並び〔出現順か `order.path` の値の順〕・詳細文書・新規行・バックリンク列・補正を重ねる `corrections`・`kind: document`）'
+title: 'ビュー定義 `_views`（行・列・並び・詳細文書・新規行・バックリンク・補正後の木を読む `corrections`・照合で列を選ぶ `columns.each.rows`・`kind: document`）'
 implementation:
 - path: core/Views.kt
   module: app-core
 - path: workspace-core/workspace/ViewDefinitions.kt
   module: workspace-core
+- path: semantic-core/semantic/Corrections.kt
+  module: semantic-core
 tests:
 - name: ViewsTest
 - name: VirtualViewsTest
+- name: TodosEntityFoundationTest
+  note: 項目・C/U の出力照合と、補正から詳細生成・DDL まで
 design:
 - label: views
   link: architecture/views.md

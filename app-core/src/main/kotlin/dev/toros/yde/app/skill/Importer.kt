@@ -344,6 +344,7 @@ object Importer {
                 is Template.Concat -> t.parts.forEach(::walk)
                 is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
                 is Template.EntriesOf -> walk(t.input)
+                is Template.Compose -> walk(t.input)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }

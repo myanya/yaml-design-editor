@@ -4,7 +4,7 @@
 -- {label}
 CREATE TABLE {name} (
 {#each columns}
-  {name} {type}{#if default} DEFAULT {default}{/if}{#if notNull} NOT NULL{/if}{#if check} CHECK ({name} IN ({#each check}'{v}'{#if more}, {/if}{/each})){/if},
+  {name} {type}{#if default} DEFAULT {#if default.date}DATE {/if}{#if default.quoted}{default.value:sql-string}{/if}{#if default.plain}{default.value}{/if}{/if}{#if notNull} NOT NULL{/if}{#if check} CHECK ({name} IN ({#each check}{v:sql-string}{#if more}, {/if}{/each})){/if},
 {/each}
   CONSTRAINT {primaryKeyName} PRIMARY KEY ({#each primaryKey}{v}{#if more}, {/if}{/each})
 );

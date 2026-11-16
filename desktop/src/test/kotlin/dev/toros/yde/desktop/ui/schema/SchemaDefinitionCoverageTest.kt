@@ -18,7 +18,8 @@ class SchemaDefinitionCoverageTest {
         val aliases = mapOf("refTarget" to "target", "checks" to "constraints", "insertRule" to "methods",
             "options" to "values", "numberDisplay" to "display", "textDisplay" to "display")
         // 読み取り・型解決でのみ作る内部情報。新しい項目をここへ逃がす場合は理由をレビューする。
-        val internal = setOf("definitionScope", "typeName", "inheritedPatterns", "outerIdPatterns", "lineage", "hints", "typeGiven")
+        // declarations は原文の属性と場所をパーサが保持した記録で、利用者がスキーマへ入力する語彙ではない。
+        val internal = setOf("definitionScope", "typeName", "inheritedPatterns", "outerIdPatterns", "lineage", "hints", "typeGiven", "declarations")
         val missing = (members(FieldDef::class.java) + members(FieldHints::class.java)).filter { it !in internal && (aliases[it] ?: it) !in keys }
         assertTrue(missing.isEmpty(), "メタスキーマと設計UIの対応を追加してください: $missing")
     }

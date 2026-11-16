@@ -166,6 +166,7 @@ data class SchemaTree(
             methods = MethodDef.merge(def.methods, use.methods),
             insertRule = use.insertRule ?: def.insertRule,
             typeGiven = true,
+            declarations = (def.declarations + use.declarations).distinct(),
         )
     }
 

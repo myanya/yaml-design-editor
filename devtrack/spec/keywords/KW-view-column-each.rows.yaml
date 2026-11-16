@@ -1,0 +1,8 @@
+id: KW-view-column-each.rows
+key: "rows"
+context: CTX-view-column-each
+order: 5
+status: stable
+forms:
+  - value: "{match, rowKey, where}"
+    meaning: "列にする要素をクエリで選びます（グリッドの rows と同じ書き方。共有の入力も使えます）。idPattern・schemaIds とは一緒に書きません。"

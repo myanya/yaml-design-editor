@@ -9,6 +9,10 @@ columns:
   - { label: 型の名前, path: name }
   - { label: 基底の種類, path: base }
   - { label: 最大文字数, path: maxLength }
+  - { label: 最小文字数, path: minLength }
+  - { label: 最小値, path: min }
+  - { label: 最大値, path: max }
+  - { label: 複数行, path: multiline }
   - { label: 形, path: pattern }
   - { label: 表示形式, path: format }
   - { label: 選択肢, value: { path: "values[*].value" } }

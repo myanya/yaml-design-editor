@@ -1,0 +1,8 @@
+id: KW-generator.input
+key: "input"
+context: CTX-generator
+order: 11
+status: stable
+forms:
+  - value: "ひな型"
+    meaning: "生成の入力の組み立て。段を当てる前に、業務モデルと $view の行から入力を組み立てます（rules も使えます）。入力の stages に記録済みの段は当て直さず、残りの段だけを当てます。"

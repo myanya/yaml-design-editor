@@ -3,7 +3,7 @@ name: 基本設計項目一覧（論理型）
 kind: document
 description: >-
   基本設計の原本のうち、論理型の設計項目。業務モデルで名前を付けた型と、項目が直接使う組込みの型。業務モデルに基本設計のルールを当てて作る生成物で、手で直さない。
-  値は業務モデルの書き方（YDE の標準）のまま。型の性質（文字数・形・表示形式・選択肢・参照先）はここにだけ書き、エンティティの項目と詳細設計はこの論理型を参照する。
+  値は業務モデルの書き方（YDE の標準）のまま。型に共通する性質（文字数・形・表示形式・選択肢・参照先）はここに書き、エンティティの項目と詳細設計はこの論理型を参照する。
   個別に直すときは補正一覧（基本設計）に書く
 match: "design/basic/types.yaml"
 definitions:
@@ -14,7 +14,7 @@ definitions:
   項目:
     type: object
     description: >-
-      設計項目の項目（エンティティの項目・行の型の項目と、その中の入れ子の項目）。型の性質は論理型に書き、ここは論理型への参照と項目そのものの決まりを持つ。
+      設計項目の項目（エンティティの項目・行の型の項目と、その中の入れ子の項目）。型に共通する性質は論理型に書き、ここは論理型への参照と基底の種類、項目固有の制限と決まりを持つ。
       名前の無い入れ物（配列・マップ・名前の無い object・入れ子のエンティティ）は論理型を持たず、基底の種類と、要素の論理型か要素のエンティティ、入れ子の項目を持つ
     fields:
       - { key: seq, label: 項番, type: string }
@@ -22,11 +22,28 @@ definitions:
       - { key: key, label: 項目, type: string, required: true }
       - { key: label, label: 名称, type: string, role: title }
       - { key: type, label: 論理型, type: 論理型参照, description: 項目の論理型（型の性質は論理型に書く）。名前の無い入れ物には無い }
-      - { key: base, label: 基底の種類, type: string, description: "名前の無い入れ物のときだけ（array・map・object）。ほかは論理型の基底の種類" }
+      - { key: base, label: 基底の種類, type: string, description: "業務モデルから解決した YDE の基底の種類（string・date・array など）" }
       - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, description: 項目が入れ子のエンティティ 1 件のとき }
       - { key: itemType, label: 要素の論理型, type: 論理型参照, description: 配列・マップの要素の論理型 }
       - { key: itemEntity, label: 要素のエンティティ, type: basic-entity-list#エンティティ参照, description: 配列・マップの要素がエンティティのとき（作業項目など） }
-      - { key: itemBase, label: 要素の基底の種類, type: string, description: 要素が名前の無い配列・マップのとき（配列の配列など）。テーブルにできない形で、対応の検査が指摘する }
+      - { key: itemBase, label: 要素の基底の種類, type: string, description: 配列・マップの要素の YDE の基底の種類 }
+      - { key: itemOverrides, label: 要素固有の制限, type: any, description: 要素の共通型と異なる制限。キーと値は業務モデルのまま }
+      - { key: maxLength, label: 最大文字数, type: int }
+      - { key: minLength, label: 最小文字数, type: int }
+      - { key: pattern, label: 形, type: any, description: 値の正規表現（完全一致） }
+      - { key: format, label: 表示形式, type: string, description: 日付などを見せる形（業務モデルの format のまま） }
+      - { key: min, label: 最小値, type: number }
+      - { key: max, label: 最大値, type: number }
+      - { key: multiline, label: 複数行, type: boolean }
+      - key: values
+        label: 選択肢
+        type: array
+        item:
+          type: object
+          fields:
+            - { key: value, label: 値, type: string }
+            - { key: label, label: 表示名, type: string }
+      - { key: target, label: 参照先, type: basic-entity-list#エンティティ参照, description: 参照の型が指すエンティティ }
       - { key: required, label: 必須, type: boolean }
       - { key: default, label: 初期値, type: any }
       - key: auto
@@ -77,7 +94,8 @@ root:
           - { key: target, label: 参照先, type: basic-entity-list#エンティティ参照, description: 参照の型が指すエンティティ }
           - { key: itemType, label: 要素の論理型, type: 論理型参照, description: 配列・マップの型の要素の論理型 }
           - { key: itemEntity, label: 要素のエンティティ, type: basic-entity-list#エンティティ参照 }
-          - { key: itemBase, label: 要素の基底の種類, type: string, description: 要素が名前の無い配列・マップのとき（テーブルにできない形） }
+          - { key: itemBase, label: 要素の基底の種類, type: string }
+          - { key: itemOverrides, label: 要素固有の制限, type: any }
           - key: fields
             label: 行の項目
             type: array

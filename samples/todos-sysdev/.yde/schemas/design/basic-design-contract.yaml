@@ -1,0 +1,264 @@
+id: basic-design-contract
+name: 基本設計の入力と確定項目の保存形式
+kind: library
+description: >-
+  合成処理へ渡す候補・補正と指定・追加と、合成後の確定項目の構造。
+  候補の designId や対象は文字であり、前回の確定結果へ参照解決しない。
+  確定項目の id と参照だけを通常の索引に載せる。現在の設計書の保存形式は、合成処理と接続するときに切り替える
+definitions:
+  生成対象:
+    type: string
+    pattern: '^(ENT|FLD|TYP|OPS|CRUD|CLS)-\S+$'
+  設計項目参照:
+    type: ref
+    idPatterns: [ENT-*, FLD-*, TYP-*, OPS-*, CRUD-*, CLS-*]
+  候補の参照条件:
+    type: basic-design-values#参照条件
+    fields:
+      - { key: entities, label: 参照先エンティティ, type: array, item: { type: 生成対象, pattern: '^ENT-\S+$' } }
+  確定した参照条件:
+    type: basic-design-values#参照条件
+    fields:
+      - { key: entities, label: 参照先エンティティ, type: array, item: { type: ref, idPatterns: [ENT-*] } }
+  候補の値:
+    type: basic-design-values#属性
+    fields:
+      - { key: type, label: 論理型, type: 生成対象, pattern: '^TYP-\S+$' }
+      - { key: entity, label: 入れ子のエンティティ, type: 生成対象, pattern: '^ENT-\S+$' }
+      - { key: reference, label: 参照の条件, type: 候補の参照条件 }
+      - { key: declarations, label: 導出した宣言, type: array, item: { type: basic-design-values#宣言 } }
+      - { key: item, label: 配列の要素, type: 候補の値 }
+      - { key: value, label: マップの値, type: 候補の値 }
+      - { key: fields, label: object の項目, type: array, item: { type: 候補の項目 } }
+      - { key: cases, label: 選択肢ごとの項目, type: map, value: { type: array, item: { type: 候補の項目 } } }
+  候補の項目:
+    type: 候補の値
+    fields:
+      - { key: designId, label: 生成対象の識別子, type: 生成対象, pattern: '^FLD-\S+$', required: true }
+      - { key: key, label: 項目, type: string, required: true }
+      - { key: owner, label: 所属先, type: 生成対象 }
+      - { key: path, label: 項目の場所, type: basic-design-values#場所 }
+      - { key: source, label: 業務モデルの項目, type: string }
+  候補の型:
+    type: 候補の値
+    fields:
+      - { key: designId, label: 生成対象の識別子, type: 生成対象, pattern: '^TYP-\S+$', required: true }
+      - { key: name, label: YDE の型名, type: string, required: true }
+      - { key: source, label: 業務モデルの型, type: string }
+  確定した値:
+    type: basic-design-values#属性
+    fields:
+      - { key: base, type: basic-design-values#基底, required: true }
+      - { key: required, type: boolean, required: true }
+      - { key: type, label: 論理型, type: ref, idPatterns: [TYP-*] }
+      - { key: entity, label: 入れ子のエンティティ, type: ref, idPatterns: [ENT-*] }
+      - { key: reference, label: 参照の条件, type: 確定した参照条件 }
+      - { key: item, label: 配列の要素, type: 確定した値 }
+      - { key: value, label: マップの値, type: 確定した値 }
+      - { key: fields, label: object の項目, type: array, item: { type: 確定した項目 } }
+      - { key: cases, label: 選択肢ごとの項目, type: map, value: { type: array, item: { type: 確定した項目 } } }
+      - { key: attributeStates, type: map, value: { type: basic-design-values#確定した値の状態 } }
+  確定した項目:
+    type: 確定した値
+    fields:
+      - { key: id, label: 設計項目ID, type: id, pattern: '^FLD-\S+$', required: true }
+      - { key: key, label: 項目, type: string, required: true }
+      - { key: owner, label: 所属先, type: ref, idPatterns: [ENT-*, TYP-*, FLD-*] }
+      - { key: path, label: 項目の場所, type: basic-design-values#場所 }
+      - { key: source, label: 業務モデルの項目, type: ref }
+  確定した型:
+    type: 確定した値
+    fields:
+      - { key: id, label: 設計項目ID, type: id, pattern: '^TYP-\S+$', required: true }
+      - { key: name, label: YDE の型名, type: string, required: true }
+      - { key: source, label: 業務モデルの型, type: ref }
+  採番の属性:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: path, label: ID を入れる項目, type: string }
+      - { key: prefix, label: 接頭辞, type: any }
+      - { key: digits, label: 桁, type: int, min: 1 }
+  候補の採番:
+    type: 採番の属性
+    fields:
+      - { key: item, label: ID項目, type: 生成対象, pattern: '^FLD-\S+$', required: true }
+  確定した採番:
+    type: 採番の属性
+    fields:
+      - { key: item, label: ID項目, type: ref, idPatterns: [FLD-*], required: true }
+  書込の属性:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: crud, label: 作成・更新, type: enum, values: [C, U], required: true }
+      - { key: origins, label: 根拠, type: array, item: { type: basic-design-values#根拠 } }
+  候補の書込:
+    type: 書込の属性
+    fields:
+      - { key: designId, label: 生成対象の識別子, type: 生成対象, pattern: '^CRUD-\S+$', required: true }
+      - { key: entity, type: 生成対象, pattern: '^ENT-\S+$', required: true }
+      - { key: operation, type: 生成対象, pattern: '^OPS-\S+$', required: true }
+      - { key: item, type: 生成対象, pattern: '^FLD-\S+$', required: true }
+  確定した書込:
+    type: 書込の属性
+    fields:
+      - { key: id, label: 設計項目ID, type: id, pattern: '^CRUD-\S+$', required: true }
+      - { key: entity, type: ref, idPatterns: [ENT-*], required: true }
+      - { key: operation, type: ref, idPatterns: [OPS-*], required: true }
+      - { key: item, type: ref, idPatterns: [FLD-*], required: true }
+  名称と根拠:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: seq, label: 項番, type: string }
+      - { key: label, label: 名称, type: string, role: title }
+      - { key: description, label: 説明, type: text }
+      - { key: origins, label: 根拠, type: array, item: { type: basic-design-values#根拠 } }
+  候補の操作:
+    type: 名称と根拠
+    fields:
+      - { key: designId, label: 生成対象の識別子, type: 生成対象, pattern: '^OPS-\S+$', required: true }
+      - { key: owner, label: エンティティ, type: 生成対象, pattern: '^ENT-\S+$' }
+      - { key: action, label: 業務の操作, type: string }
+      - { key: writes, label: 書く項目, type: array, item: { type: 候補の書込 } }
+  確定した操作:
+    type: 名称と根拠
+    fields:
+      - { key: id, label: 設計項目ID, type: id, pattern: '^OPS-\S+$', required: true }
+      - { key: owner, label: エンティティ, type: ref, idPatterns: [ENT-*] }
+      - { key: action, label: 業務の操作, type: ref }
+      - { key: writes, label: 書く項目, type: array, item: { type: 確定した書込 } }
+  候補のエンティティ:
+    type: 名称と根拠
+    fields:
+      - { key: designId, label: 生成対象の識別子, type: 生成対象, pattern: '^ENT-\S+$', required: true }
+      - { key: source, label: 業務のエンティティ, type: string }
+      - { key: entityClass, label: 区分, type: 生成対象, pattern: '^CLS-\S+$' }
+      - { key: identifiers, label: 識別項目, type: array, item: { type: 生成対象, pattern: '^FLD-\S+$' } }
+      - { key: numbering, label: 採番, type: 候補の採番 }
+      - { key: parent, label: 保有元のエンティティ, type: 生成対象, pattern: '^ENT-\S+$' }
+      - { key: parentField, label: 保有元の項目, type: 生成対象, pattern: '^FLD-\S+$' }
+      - { key: items, label: 項目, type: array, item: { type: 候補の項目 } }
+      - { key: operations, label: 操作と書込, type: array, item: { type: 候補の操作 } }
+  確定したエンティティ:
+    type: 名称と根拠
+    fields:
+      - { key: id, label: 設計項目ID, type: id, pattern: '^ENT-\S+$', required: true }
+      - { key: source, label: 業務のエンティティ, type: ref }
+      - { key: entityClass, label: 区分, type: ref, idPatterns: [CLS-*] }
+      - { key: identifiers, label: 識別項目, type: array, item: { type: ref, idPatterns: [FLD-*] } }
+      - { key: numbering, label: 採番, type: 確定した採番 }
+      - { key: parent, label: 保有元のエンティティ, type: ref, idPatterns: [ENT-*] }
+      - { key: parentField, label: 保有元の項目, type: ref, idPatterns: [FLD-*] }
+      - { key: items, label: 項目, type: array, item: { type: 確定した項目 } }
+      - { key: operations, label: 操作と書込, type: array, item: { type: 確定した操作 } }
+  区分の属性:
+    type: 名称と根拠
+    fields:
+      - { key: name, label: 区分の名前, type: string, required: true }
+  候補の区分:
+    type: 区分の属性
+    fields:
+      - { key: designId, label: 生成対象の識別子, type: 生成対象, pattern: '^CLS-\S+$', required: true }
+  確定した区分:
+    type: 区分の属性
+    fields:
+      - { key: id, label: 設計項目ID, type: id, pattern: '^CLS-\S+$', required: true }
+  補正:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: id, label: 補正ID, type: id, pattern: '^COR-\S+$', required: true }
+      - { key: target, label: 生成中の対象, type: 生成対象, required: true }
+      - { key: set, label: 置き換える属性, type: map, value: { type: any }, required: true }
+      - { key: reason, label: 理由, type: text, required: true }
+  指定:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: id, label: 指定ID, type: id, pattern: '^SPC-\S+$', required: true }
+      - { key: target, label: 生成中の対象, type: 生成対象, required: true }
+      - { key: rule, label: 方式を決める規則, type: string, required: true }
+      - { key: settings, label: 方式の設定, type: map, value: { type: any } }
+      - { key: uses, label: 使用する既存項目, type: map, value: { type: 生成対象 } }
+      - { key: reason, label: 理由, type: text, required: true }
+  補正と指定一覧:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: corrections, label: 補正, type: array, item: { type: 補正 } }
+      - { key: specifications, label: 方式と対象の指定, type: array, item: { type: 指定 } }
+  単独で追加する項目:
+    type: 候補の項目
+    fields:
+      - { key: owner, type: 生成対象, required: true }
+  単独で追加する操作:
+    type: 候補の操作
+    fields:
+      - { key: owner, type: 生成対象, pattern: '^ENT-\S+$', required: true }
+  追加:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: id, label: 追加の記録ID, type: id, pattern: '^ADD-\S+$', required: true }
+      - { key: reason, label: 理由, type: text, required: true }
+      - key: kind
+        label: 追加するもの
+        type: enum
+        values: [entity, type, field, operation, class]
+        required: true
+        cases:
+          entity: [{ key: entity, type: 候補のエンティティ, required: true }]
+          type: [{ key: type, type: 候補の型, required: true }]
+          field: [{ key: field, type: 単独で追加する項目, required: true }]
+          operation: [{ key: operation, type: 単独で追加する操作, required: true }]
+          class: [{ key: class, type: 候補の区分, required: true }]
+  追加一覧:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: additions, label: 追加, type: array, item: { type: 追加 }, required: true }
+  規則による変更:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: id, label: 変更の記録ID, type: id, pattern: '^CHG-\S+$', required: true }
+      - { key: rule, label: 生成した規則, type: string, required: true }
+      - { key: target, label: 生成中の対象, type: 生成対象, required: true }
+      - { key: set, label: 既定値の候補, type: map, value: { type: any }, required: true }
+      - { key: reason, label: 理由, type: text, required: true }
+  規則による追加:
+    type: 追加
+    fields:
+      - { key: rule, label: 生成した規則, type: string, required: true }
+  成立条件:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: rule, label: 規則, type: string, required: true }
+      - { key: target, label: 生成中の対象, type: 生成対象, required: true }
+      - { key: check, label: 満たす条件, type: array, item: { type: any }, required: true, description: YDE の check の書き方を保持し、個別補正で免除しない }
+      - { key: message, label: 満たせないときの説明, type: text, required: true }
+  展開した候補:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: additions, label: 規則が追加するもの, type: array, item: { type: 規則による追加 } }
+      - { key: changes, label: 既定値の候補, type: array, item: { type: 規則による変更 } }
+      - { key: conditions, label: 方式の成立条件, type: array, item: { type: 成立条件 } }
+  確定エンティティ一覧:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: entities, label: エンティティ, type: array, item: { type: 確定したエンティティ }, required: true }
+  確定型一覧:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: types, label: 論理型, type: array, item: { type: 確定した型 }, required: true }
+  確定区分一覧:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: classes, label: エンティティ区分, type: array, item: { type: 確定した区分 }, required: true }

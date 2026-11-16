@@ -12,6 +12,8 @@ inputs:
     minLength: 1
     maxLength: 100
     pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
   - key: summary
     label: 概要
     type: common#一行の文
@@ -19,6 +21,8 @@ inputs:
     minLength: 1
     maxLength: 100
     pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
   - key: category
     label: カテゴリ
     type: common#カテゴリ参照
@@ -90,6 +94,30 @@ inputs:
           label: 日付
           type: common#年月日
           base: date
+          declarations:
+            - schema: common
+              document: .yde/schemas/business/common.yaml
+              path:
+                - definitions
+                - 年月日
+              inherited: true
+              declared:
+                type: date
+                format: yyyy年M月d日
+                description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            - schema: common
+              document: .yde/schemas/business/common.yaml
+              path:
+                - definitions
+                - コメント
+                - fields
+                - 0
+              inherited: false
+              declared:
+                key: date
+                label: 日付
+                type: 年月日
+                required: true
           description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
           required: true
           format: yyyy年M月d日
@@ -97,8 +125,35 @@ inputs:
           label: コメント本文
           type: text
           base: string
+          declarations:
+            - schema: builtin-types
+              path:
+                - definitions
+                - text
+              inherited: true
+              declared:
+                type: string
+                display: multiline
+            - schema: common
+              document: .yde/schemas/business/common.yaml
+              path:
+                - definitions
+                - コメント
+                - fields
+                - 1
+              inherited: false
+              declared:
+                key: body
+                label: コメント本文
+                type: text
+                required: true
           required: true
           multiline: true
+          builtinType:
+            name: text
+            base: string
+            builtin: true
+            multiline: true
     clearedBy: clear.comments
   - key: clear
     label: 値を消す
@@ -111,26 +166,50 @@ inputs:
         label: カテゴリを消す
         type: boolean
         base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
       - key: tags
         label: タグを消す
         type: boolean
         base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
       - key: due_on
         label: 期限を消す
         type: boolean
         base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
       - key: details
         label: 詳細を消す
         type: boolean
         base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
       - key: result
         label: 結果・中止理由を消す
         type: boolean
         base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
       - key: comments
         label: コメント一覧を消す
         type: boolean
         base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
 initial:
   title:
     $copy: title

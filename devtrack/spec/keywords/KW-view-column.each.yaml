@@ -4,5 +4,5 @@ context: CTX-view-column
 order: 10
 status: stable
 forms:
-  - value: "{idPattern, schemaIds, order, bind}"
-    meaning: "idPattern に合う要素ごとに列を作ります（見出しは要素のタイトル）。value の式の中で、列の要素の ID を $bind の名前で指します。"
+  - value: "{idPattern, schemaIds, order, bind} か {rows, bind}"
+    meaning: "選んだ要素ごとに列を作ります（見出しは要素のタイトル）。value の式の中で、列の要素の ID を $bind の名前で指します。"

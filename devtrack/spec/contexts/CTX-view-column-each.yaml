@@ -1,7 +1,7 @@
 id: CTX-view-column-each
 title: "要素ごとの列（each）"
 language: view
-description: "列の each。"
+description: "列の each。列にする要素を、ID の形（idPattern）かクエリ（rows）のどちらかで選びます。"
 meta:
   schema: view
   path: [root, columns, item, each]

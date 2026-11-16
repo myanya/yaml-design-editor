@@ -1,0 +1,13 @@
+id: basic-derived
+name: 導出項目一覧（業務モデルの宣言）
+kind: document
+description: >-
+  業務モデルから生成する、補正と規則を当てる前の記録。人は編集しない。
+  model の中の識別子や参照は生成の材料であり、通常の設計項目の出現・参照として走査しない。
+  確定項目一覧への移行の最初の段階で、現在の設計書のビューはまだこの記録を入力にしていない
+match: design/basic/derived/model.yaml
+root:
+  type: object
+  fields:
+    - { key: id, label: 記録ID, type: id, required: true }
+    - { key: model, label: 導出した業務モデル, type: basic-derived-model#モデル, required: true }

@@ -264,11 +264,12 @@ class TodosSysdevTest {
         assertEquals<Map<*, *>>(mapOf("master" to listOf("ENT-category", "ENT-tag"), "transaction" to listOf("ENT-todo", "ENT-todo-task")), classes, "区分は人が書く台帳に")
         // DDL: テーブル設計書のビューの行から作る
         val ws = Workspace.open(root)
+        assertEquals(emptyList(), Reports.load(root).errors)
         val loaded = assertNotNull(Reports.load(root).report("ddl"))
         val ddl = Reports.run(loaded, emptyMap(), Views.load(root, ws.schemas), ws.index, ws::treeOf, ws::schemaFor).text
         assertTrue("  title VARCHAR(100) NOT NULL," in ddl, "型対応表の穴を論理型の最大文字数で埋める: $ddl")
         assertTrue("status VARCHAR DEFAULT 'OPEN' NOT NULL CHECK (status IN ('OPEN', 'IN_PROGRESS', 'SUSPENDED', 'CLOSED', 'CANCELED'))" in ddl)
-        assertTrue("  done BOOLEAN DEFAULT 'false' NOT NULL," in ddl, "初期値 false も出す")
+        assertTrue("  done BOOLEAN DEFAULT FALSE NOT NULL," in ddl, "真偽値は型対応表の方法で出す")
         assertTrue("-- TODOのタグ（トランザクション）\nCREATE TABLE todo_tags (" in ddl, "明細テーブルの日本語名と、配列を持つエンティティの区分: $ddl")
         assertTrue("  CONSTRAINT pk_todo_tags PRIMARY KEY (todo_id, seq)\n" in ddl, "主キーは主キーの順と制約名")
         assertTrue("CREATE UNIQUE INDEX ux_todo_tags_tag_id ON todo_tags (todo_id, tag_id);" in ddl, "配列の unique は一意の索引")
@@ -311,9 +312,26 @@ class TodosSysdevTest {
             // 人が書くもの: 区分（基本設計項目台帳）・型対応表・業務モデルから導けない索引（降順を含む。詳細設計項目台帳）
             edit("design/basic/ledger.yaml") { it.replace("entities: [ENT-todo, ENT-todo-task]", "entities: [ENT-todo, ENT-todo-task, ENT-shape, ENT-shape-spec]") }
             edit("design/detail/sql-types.yaml") {
-                it + "  - { seq: '91', id: SQL-int, type: TYP-int, sql: INTEGER }\n" +
-                    "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR }\n" +
-                    "  - { seq: '93', id: SQL-shape-list.仕様番号, type: TYP-shape-list.仕様番号, sql: VARCHAR }\n"
+                it + "  - { seq: '91', id: SQL-int, type: TYP-int, sql: INTEGER, literal: number }\n" +
+                    "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR, literal: string }\n" +
+                    "  - { seq: '93', id: SQL-shape-list.仕様番号, type: TYP-shape-list.仕様番号, sql: VARCHAR, literal: string }\n" +
+                    "  - { seq: '94', id: SQL-number, type: TYP-number, sql: 'DECIMAL(10, 2)', literal: number }\n"
+            }
+            // 型対応表が値の出力方法を決める。空文字・0・false・「設定なし」は未設定と取り違えない
+            edit(".yde/schemas/business/shape-list.yaml") {
+                it.replace("          # 参照\n", """
+                    - { key: empty_text, type: text, default: '' }
+                    - { key: spaces_text, type: text, default: '   ' }
+                    - { key: quoted_text, type: text, default: "O'Brien" }
+                    - { key: unset_text, type: text, default: 設定なし }
+                    - { key: numeric_text, type: text, default: '001' }
+                    - { key: zero_count, type: int, default: 0 }
+                    - { key: rate, type: number, default: -2.5 }
+                    - { key: enabled, type: boolean, default: true }
+                    - { key: fixed_date, type: common#年月日, default: '2026-11-16' }
+                    - { key: created_on, type: common#年月日, auto: created }
+                    # 参照
+                """.trimIndent().prependIndent("          ") + "\n")
             }
             edit("design/detail/ledger.yaml") {
                 it + "  - { seq: '02', id: IDX-ix_shape_parts_qty, name: ix_shape_parts_qty, table: TBL-shape_parts, " +
@@ -325,7 +343,9 @@ class TodosSysdevTest {
             val tables = list(doc("design/detail/tables.yaml"), "tables").associateBy { it["name"] }
             fun columns(t: String) = list(tables.getValue(t), "columns").associateBy { it["name"] }
             columns("shape").let {
-                assertEquals(listOf("id", "name", "period_from", "period_to", "size_width", "size_height", "owner_tag"), it.keys.toList(), "object は埋め込み（名前の有無によらない）")
+                assertEquals(listOf("id", "name", "period_from", "period_to", "size_width", "size_height",
+                    "empty_text", "spaces_text", "quoted_text", "unset_text", "numeric_text", "zero_count", "rate", "enabled", "fixed_date", "created_on", "owner_tag"),
+                    it.keys.toList(), "object は埋め込み（名前の有無によらない）・初期値のある項目も落とさない")
                 assertEquals(false, it.getValue("period_from")["notNull"], "必須の開始日でも、期間が必須でなければ NOT NULL にしない")
                 assertEquals("期間の開始日", it.getValue("period_from")["label"])
                 assertEquals("FLD-shape.period.from", it.getValue("period_from")["source"], "名前の無い object の中の項目は、入れ子の項目")
@@ -345,13 +365,26 @@ class TodosSysdevTest {
             assertEquals(listOf("shape_id", "attrs_key", "attrs"), columns("shape_attrs").keys.toList(), "マップはキーが主キー")
             assertEquals(2, columns("shape_attrs").getValue("attrs_key")["primaryKey"])
             val ws = Workspace.open(dir)
+            assertEquals(emptyList(), Reports.load(dir).errors)
             val ddl = Reports.run(assertNotNull(Reports.load(dir).report("ddl")), emptyMap(), Views.load(dir, ws.schemas), ws.index, ws::treeOf, ws::schemaFor).text
             assertTrue("ALTER TABLE shape_parts_notes_tags ADD CONSTRAINT fk_shape_parts_notes_tags_shape_parts_notes FOREIGN KEY (shape_id, parts_seq, notes_seq) REFERENCES shape_parts_notes (shape_id, parts_seq, seq) ON DELETE CASCADE;" in ddl, ddl)
             assertTrue("CREATE INDEX ix_shape_parts_qty ON shape_parts (code, qty DESC);" in ddl, "台帳の索引の降順")
             assertTrue("  labels VARCHAR(100) NOT NULL," in ddl, "配列の要素のカラムも、論理型の値で型の穴を埋める")
+            assertTrue("  qty INTEGER DEFAULT 1 NOT NULL," in ddl, "数値に引用符を付けない")
+            assertTrue("  empty_text VARCHAR DEFAULT ''," in ddl, "空文字の初期値: $ddl")
+            assertTrue("  spaces_text VARCHAR DEFAULT '   '," in ddl, "空白を保つ")
+            assertTrue("  quoted_text VARCHAR DEFAULT 'O''Brien'," in ddl, "文字列の引用符を二重にする")
+            assertTrue("  unset_text VARCHAR DEFAULT '設定なし'," in ddl, "表示の案内と同じ文字も値")
+            assertTrue("  numeric_text VARCHAR DEFAULT '001'," in ddl, "値の見た目から数値にしない")
+            assertTrue("  zero_count INTEGER DEFAULT 0," in ddl)
+            assertTrue("  rate DECIMAL(10, 2) DEFAULT -2.5," in ddl)
+            assertTrue("  enabled BOOLEAN DEFAULT TRUE," in ddl)
+            assertTrue("  fixed_date DATE DEFAULT DATE '2026-11-16'," in ddl)
+            assertTrue("  created_on DATE," in ddl, "auto は Service が入れるので DEFAULT を作らない")
             H2.run(ddl) { db ->
                 db.exec("INSERT INTO tag (id, name) VALUES ('TAG-001', 'a')")
                 db.exec("INSERT INTO shape (id, name, size_width) VALUES ('SHP-001', 'n', 1)")
+                assertEquals(1, db.count("SELECT COUNT(*) FROM shape WHERE empty_text = '' AND spaces_text = '   ' AND quoted_text = 'O''Brien' AND unset_text = '設定なし' AND numeric_text = '001' AND zero_count = 0 AND rate = -2.5 AND enabled = TRUE AND fixed_date = DATE '2026-11-16' AND created_on IS NULL"), "各型の初期値が実際に入る")
                 db.exec("INSERT INTO shape_parts (shape_id, seq, code) VALUES ('SHP-001', 1, 'A')")
                 assertEquals(1, db.count("SELECT qty FROM shape_parts"), "初期値 1")
                 db.exec("INSERT INTO shape_parts_notes (shape_id, parts_seq, seq, body) VALUES ('SHP-001', 1, 1, 'b')")

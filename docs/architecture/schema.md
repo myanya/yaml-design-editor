@@ -8,6 +8,7 @@
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `FieldType` / `FieldDef` / `FieldHints` / `SchemaTree` | semantic-core/schema/Fields.kt・SchemaTree.kt | 利用者が書く項目の木とその読み方（`SchemaTreeParser`）。`resolve()` が `$ref` と型の名前を狭める規則で合成しつつ解決し、型の連鎖（`lineage`・`isA`）・`relation`・`role`・`options`・`expression` と、表示と編集のヒント（`FieldHints`）を持つ |
+| `FieldDeclaration` | semantic-core/schema/FieldDeclaration.kt | 解決前に明記した属性・モジュール・原文内の場所。子の宣言は子に保持し、型解決で継承元から使う側の順に残す |
 | `ValueSemantics` | semantic-core/schema/ValueSemantics.kt | 意味の基底型 `date` / `time` / `datetime` の値の表現（正準の形・読み＝存在の判定・案内・サンプル・JSON Schema の format）。`FieldType.value` から引く |
 | `ValueFormat` | semantic-core/schema/ValueFormat.kt | 表示の形（`format`＝DecimalFormat / DateTimeFormatter のパターン）で値を画面の文字に組み立てる（値は変えない）。パターンの点検も |
 | `BuiltinTypes` | semantic-core/schema/BuiltinTypes.kt・資源 `builtin-types/` | 組込みの型（定義体 `text` / `line` / `word`）。モジュール `builtin-types` としてカタログ（`SchemaCatalog`）に常に含まれ、非修飾の名前は自分のモジュールの次に引く |
@@ -53,6 +54,7 @@
 - `ai.fieldToJsonSchema` だけはデータノードが無いため `effectiveFields` を使わず、判別 enum が 1 つなら値ごとの `anyOf`、複数なら全 case の和集合に変換する。
 - `resolve` は浅いコピーで、`fields` / `item` / `value` / `cases` のインスタンスを再生成しない。リファクタリングがフィールドをインスタンス同一性で同定する前提なので、deep copy にするならそこを見直す。
 - 型の名前（`type: 名前`）は `$ref` と同じ解決（パーサが `FieldDef.ref` に同じ名前を入れ、`typeName` に書かれた名前を残す）。合成の規則は次の「型の連鎖と狭める規則」。
+- `FieldDef.declarations` は、元のキーの有無と値を `SchemaTreeParser` が保持した記録。共通型と等しい値の明記も残し、解決済みの値との差から逆算しない。`fields`・`item`・`value`・`cases` の子はそれぞれに原文の場所を持つ。合成後の値の意味は既存の狭める規則が決め、この記録では変えない。
 
 ## 型の連鎖と狭める規則
 

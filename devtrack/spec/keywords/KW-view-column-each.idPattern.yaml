@@ -4,6 +4,5 @@ context: CTX-view-column-each
 order: 1
 status: stable
 forms:
-  - required: true
-    value: "glob の文字列"
-    meaning: "列にする要素の ID の形。"
+  - value: "glob の文字列"
+    meaning: "列にする要素の ID の形。rows を書かないときに書きます。"

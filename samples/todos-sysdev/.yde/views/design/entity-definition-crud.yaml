@@ -1,18 +1,36 @@
 id: entity-definition-crud
 name: エンティティ定義書（CRUD）
-description: >-
-  行＝項目、列＝操作で、操作が項目を作成（C）・更新（U）するかを見せる（エンティティ定義書の 1 区画）。
-  セルは操作一覧の書く項目（CRUD-*）から作り、押すとその書く項目へ移れる。行と列は項番の順
-kind: matrix
+description: 項目と操作をそれぞれ選び、書く項目の C・U をそのまま並べる。操作が書かない項目も行に残す
 params: [entity]
+corrections: { schemaIds: [basic-corrections] }
 rows:
-  value: { format: "{seq} {label}", with: { seq: { via: item, path: seq }, label: { via: item, path: label } } }
-cells:
-  match: [{ node: { id: "CRUD-*", bind: c } }]
-  where: [{ of: c, path: entity, equals: $entity }]
-  of: c
-  columns: { value: { format: "{seq} {label}", with: { seq: { via: operation, path: seq }, label: { via: operation, path: label } } } }
-  aggregate: max
-  path: crud
-totals: false
-unclassified: false
+  match:
+    - node: { id: "ENT-*", bind: e }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where: [{ of: e, path: id, equals: $entity }]
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 項目, path: key }
+  - { label: 名称, path: label }
+  - each:
+      rows:
+        match:
+          - node: { id: "ENT-*", bind: e }
+          - edge: { contains: true }
+          - node: { id: "OPS-*", bind: o }
+        rowKey: o
+        where: [{ of: e, path: id, equals: $entity }]
+      order: { schemaId: basic-entity-list }
+      bind: op
+    value:
+      all:
+        match:
+          - node: { id: "FLD-*" }
+          - edge: { via: item, dir: in }
+          - node: { id: "CRUD-*", bind: c }
+        where: [{ of: c, path: operation, equals: $op }]
+        of: c
+        path: crud

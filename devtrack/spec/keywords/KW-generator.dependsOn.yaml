@@ -1,0 +1,8 @@
+id: KW-generator.dependsOn
+key: "dependsOn"
+context: CTX-generator
+order: 10
+status: stable
+forms:
+  - value: "生成の定義の ID の配列"
+    meaning: "先に生成する定義。同じ計画の中で先に生成し、その結果をビューから読めます。循環と、存在しない ID は誤りです。"

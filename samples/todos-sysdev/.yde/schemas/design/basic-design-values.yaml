@@ -1,0 +1,85 @@
+id: basic-design-values
+name: 基本設計の値と根拠
+kind: library
+description: 導出・追加候補・確定項目で共有する属性。識別子と参照の走査方法は、それぞれの保存形式で決める
+definitions:
+  基底:
+    type: enum
+    values: [string, int, number, boolean, enum, date, time, datetime, file, id, ref, array, map, object, any]
+  場所:
+    type: array
+    item: { type: any }
+    description: YDE の場所の並び。キーは文字、配列の位置は整数で保持する
+  宣言:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: schema, label: 宣言元のモジュール, type: string, required: true }
+      - { key: document, label: 原文の文書, type: string }
+      - { key: path, label: 原文の場所, type: 場所, required: true }
+      - { key: inherited, label: 型から引き継いだ宣言, type: boolean, required: true }
+      - { key: declared, label: 明記した属性, type: map, value: { type: any }, required: true }
+  根拠:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: kind, label: 種類, type: enum, values: [derived, inherited, correction, addition, rule], required: true }
+      - { key: source, label: 元の識別子, type: string, required: true }
+      - { key: document, label: 元の文書, type: string }
+      - { key: path, label: 元の場所, type: 場所 }
+      - { key: attribute, label: 属性, type: string }
+      - { key: value, label: 元の値, type: any }
+      - { key: reason, label: 理由, type: text }
+  値の状態:
+    type: enum
+    values: [present, unconstrained, not-applicable, unresolved]
+    description: 値あり・制限なし・対象外・未解決。値そのものに表示用の文字を入れない
+  確定した値の状態:
+    type: 値の状態
+    values: [present, unconstrained, not-applicable]
+    description: 未解決を確定項目へ持ち込まない
+  属性:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: seq, label: 項番, type: string }
+      - { key: label, label: 名称, type: string, role: title }
+      - { key: description, label: 説明, type: text }
+      - { key: base, label: 基底の種類, type: 基底 }
+      - { key: required, label: 必須, type: boolean }
+      - { key: default, label: 初期値, type: any, description: キーが無い場合と false・0・空文字・空配列を区別する }
+      - { key: auto, label: 自動で入る値, type: enum, values: [created, updated, revision] }
+      - { key: minLength, label: 最小文字数, type: int, min: 0 }
+      - { key: maxLength, label: 最大文字数, type: int, min: 0 }
+      - { key: pattern, label: 形, type: any, description: 正規表現を一つの文字または配列で保持する }
+      - { key: min, label: 最小値, type: number }
+      - { key: max, label: 最大値, type: number }
+      - { key: format, label: 表示形式, type: string }
+      - { key: multiline, label: 複数行, type: boolean }
+      - key: values
+        label: 選択肢
+        type: array
+        item:
+          type: object
+          unknownFields: error
+          fields:
+            - { key: value, label: 値, type: string, required: true }
+            - { key: label, label: 表示名, type: string }
+            - { key: description, label: 説明, type: text }
+      - { key: unique, label: 重ならない, type: any }
+      - { key: origins, label: 根拠, type: array, item: { type: 根拠 } }
+      - { key: attributeStates, label: 属性の状態, type: map, value: { type: 値の状態 } }
+  参照条件:
+    type: object
+    unknownFields: error
+    fields:
+      - { key: target, label: 参照の種類, type: enum, values: [entity, document] }
+      - { key: relation, label: 関係名, type: string }
+      - { key: idPatternLayers, label: ID の条件の層, type: array, item: { type: array, item: { type: string } }, description: 各層の条件をすべて満たす。継承元の条件を一つに減らさない }
+      - key: scope
+        label: 参照範囲
+        type: object
+        unknownFields: error
+        fields:
+          - { key: schemaIds, label: スキーマ, type: array, item: { type: string } }
+          - { key: documentIds, label: 文書, type: array, item: { type: string } }

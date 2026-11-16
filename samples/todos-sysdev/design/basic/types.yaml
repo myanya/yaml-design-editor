@@ -113,6 +113,7 @@ types:
         key: date
         label: 日付
         type: TYP-common.年月日
+        base: date
         required: true
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
       - seq: '02'
@@ -120,6 +121,7 @@ types:
         key: body
         label: コメント本文
         type: TYP-text
+        base: string
         required: true
     source: common#コメント
   - seq: '14'
@@ -132,6 +134,7 @@ types:
         key: date
         label: 日付
         type: TYP-common.年月日
+        base: date
         required: true
         auto: created
         description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
@@ -140,30 +143,35 @@ types:
         key: action
         label: 操作
         type: TYP-common.TODOの操作
+        base: enum
         required: true
       - seq: '03'
         id: FLD-common.状態の記録.from
         key: from
         label: 前の状態
         type: TYP-common.ステータス
+        base: enum
         description: 登録の行には書きません。
       - seq: '04'
         id: FLD-common.状態の記録.to
         key: to
         label: 後の状態
         type: TYP-common.ステータス
+        base: enum
         required: true
       - seq: '05'
         id: FLD-common.状態の記録.note
         key: note
         label: 理由
         type: TYP-common.文章
+        base: string
         description: 中止と中断の理由、再開のメモです。
       - seq: '06'
         id: FLD-common.状態の記録.resume_on
         key: resume_on
         label: 再開予定日
         type: TYP-common.年月日
+        base: date
         description: 中断の行にだけ書きます。
     source: common#状態の記録
   - seq: '15'
@@ -178,6 +186,7 @@ types:
     id: TYP-text
     name: text
     base: string
+    multiline: true
   - seq: '17'
     id: TYP-boolean
     name: boolean

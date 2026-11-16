@@ -14,7 +14,7 @@ rows:
   where:
     - { of: t, path: id, equals: $table }
 order: { schemaId: detail-table-list }
-corrections: { schemaIds: [detail-corrections] }
+corrections: { schemaIds: [basic-corrections, detail-corrections] }
 columns:
   - { label: 項番, path: seq }
   - { label: テーブル, of: t, path: id }
@@ -23,7 +23,7 @@ columns:
   # 論理型: 導出元の項目の型（配列・マップなら要素の型）。導出元の無いカラム（親のキー）は型対応表の行が指す論理型、並び順とキーは詳細設計だけの型
   - { label: 論理型, value: { first: [{ via: source, path: type }, { via: source, path: itemType }, { via: sqlType, path: type }, なし（詳細設計だけの型）] } }
   # 穴（{maxLength} など）は論理型の値で埋める。配列・マップの要素のカラムは、導出元の項目の要素の論理型
-  - { label: SQL の型, value: { first: [{ format: { via: sqlType, path: sql }, scopes: [{ via: [source, type] }] }, { format: { via: sqlType, path: sql }, scopes: [{ via: [source, itemType] }] }, { via: sqlType, path: sql }] } }
+  - { label: SQL の型, value: { first: [{ format: { via: sqlType, path: sql }, scopes: [{ via: source }, { via: [source, type] }] }, { format: { via: sqlType, path: sql }, scopes: [{ via: [source, itemType] }] }, { via: sqlType, path: sql }] } }
   - { label: NOT NULL, value: { first: [{ path: notNull }, { via: source, path: required }, "false"] } }
   - label: NOT NULL の根拠
     value:
@@ -32,9 +32,21 @@ columns:
         - { map: { via: source, path: required }, using: { "true": 基本設計の必須 } }
         - 必須でない
   - { label: 主キーの順, path: primaryKey }
-  - { label: 初期値, value: { first: [{ via: source, path: default }, 設定なし] } }
+  # 値と有無を分ける。空文字・false・0・文字そのものの「設定なし」も初期値として出せる
+  - label: 初期値の設定
+    value:
+      map:
+        count:
+          all:
+            from: c
+            match: [{ node: { id: "COL-*", bind: c } }, { edge: { via: source } }, { node: { id: "FLD-*", bind: f } }]
+            where: [{ of: f, path: default, exists: true }]
+            of: f
+      using: { "0": 設定なし, "1": 設定あり }
+  - { label: 初期値, value: { via: source, path: default } }
+  - { label: 初期値の出力方法, value: { via: sqlType, path: literal } }
   - { label: 自動で入る値, value: { first: [{ via: source, path: auto }, なし] } }
-  - { label: 入る値（CHECK）, value: { first: [{ via: [source, type], path: "values[*].value" }, { via: [source, itemType], path: "values[*].value" }] } }
+  - { label: 入る値（CHECK）, value: { each: { first: [{ via: source, path: values }, { via: [source, type], path: values }, { via: [source, itemType], path: values }] }, value: { path: value } } }
   - { label: 参照先テーブル, path: referencesTable }
   - { label: 参照先カラム, path: referencesColumn }
   - { label: 役割, path: role }

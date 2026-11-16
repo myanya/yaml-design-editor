@@ -9,6 +9,7 @@ import dev.toros.yde.semantic.schema.QueryWhere
 import dev.toros.yde.semantic.schema.RelationDef
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.ValueExpr
+import dev.toros.yde.workspace.BusinessModelTraversal.Use
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.YNode
 
@@ -293,9 +294,8 @@ internal object BusinessModelRules {
         for (s in schemas.filter { it.kind == SchemaKind.DOCUMENT && !it.isTemplate }) {
             val tree = s.tree
             val schemaLevel = s.entities.firstOrNull()
-            fun walk(f0: FieldDef, at: String, depth: Int, entity: String?, base: String) {
-                if (depth > 12) return
-                val f = tree.resolve(f0) ?: f0
+            fun walk(expanded: BusinessModelTraversal.Field, at: String, entity: String?, base: String) {
+                val f = expanded.resolved
                 when (f.type) {
                     FieldType.OBJECT -> {
                         val decl = f.entity ?: schemaLevel?.takeIf { f.fields.any { c -> (tree.resolve(c) ?: c).type == FieldType.ID } }
@@ -313,14 +313,16 @@ internal object BusinessModelRules {
                             }
                         }
                         if (e != null) f.checks.forEach { rules += ElementFound(s.id, e, relative(at, b), it) }
-                        f.fields.forEach { c -> c.key?.let { k -> walk(c, if (at.isEmpty()) k else "$at.$k", depth + 1, e, b) } }
+                        expanded.fields.forEach { c -> c.written.key?.let { k ->
+                            walk(expanded.next.resolve(c), if (at.isEmpty()) k else "$at.$k", e, b)
+                        } }
                     }
-                    FieldType.ARRAY -> f.item?.let { walk(it, "$at[*]", depth + 1, entity, base) }
-                    FieldType.MAP -> f.value?.let { walk(it, "$at.*", depth + 1, entity, base) }
+                    FieldType.ARRAY -> expanded.item?.let { walk(expanded.next.resolve(it), "$at[*]", entity, base) }
+                    FieldType.MAP -> expanded.value?.let { walk(expanded.next.resolve(it), "$at.*", entity, base) }
                     else -> Unit
                 }
             }
-            walk(tree.root, "", 0, null, "")
+            walk(BusinessModelTraversal(tree).resolve(Use(tree.root)), "", null, "")
         }
         return Walk(rules, holdings, refs)
     }

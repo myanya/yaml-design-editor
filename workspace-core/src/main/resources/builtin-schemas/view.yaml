@@ -647,7 +647,10 @@ root:
               - key: idPattern
                 label: 列にする ID の形
                 type: string
-                required: true
+              - key: rows
+                label: 列にする要素の照合
+                type: any
+                description: 通常の rows と同じ match・rowKey・where。共有の入力も使える。idPattern / schemaIds とは併用しない
               - key: schemaIds
                 label: 列のスキーマの限定
                 type: array
@@ -700,7 +703,7 @@ root:
     - key: corrections
       label: 補正を重ねる
       type: object
-      description: "path の列のセルに、補正の文書の置き換える値を重ねて出す（元の文書は変えない）。当たり先（target の参照）が行の要素の補正の、set の中の列の path の値。同じ行の補正は文書の中の後のものが勝ち、重ねたセルは読み取り専用で、来歴に補正の ID と元の値が出る"
+      description: "原本を変えず、当たり先（target の参照）へ set の値を重ねる。path 列・値の式・参照先・照合も同じ補正後の値を読む。同じ場所への補正は文書名順・文書内順で後のものが勝つ。影響するセルは読み取り専用で、補正と元の値の座標を来歴に残す"
       fields:
         - key: schemaIds
           label: 補正の文書のスキーマ

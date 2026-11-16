@@ -1,0 +1,8 @@
+id: KW-template.$compose
+key: "$compose"
+context: CTX-template
+order: 32
+status: stable
+forms:
+  - value: "ひな型（{derived, additions, changes} になるもの）"
+    meaning: "導出した候補（derived）・足す候補（additions）・変える候補（changes）を合成し、{records, decisions} を返します。候補どうしが競合すれば、変換の失敗になります。型・参照・成立の条件の検査は、ここでは行いません。"

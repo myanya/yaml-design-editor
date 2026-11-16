@@ -1166,3 +1166,93 @@ template: example.md
 {{そのまま}}
 ```
 
+## ひな形の穴の sql-string は、値を SQL の文字列定数にする
+
+- ID: EX-text-template-sql-string
+- 示す仕様: KW-report.template
+- 結果: 通る（誤りも警告も無い）
+
+レポート `example` の出力:
+
+```text
+VALUES ('O''Brien', '');
+```
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: string }
+    - key: tags
+      type: array
+      item: { type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: "  設計  の  見直し "
+status: done
+points: 3
+due: 2026/10/5
+tags: [設計, 急ぎ]
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: 実装
+status: doing
+points: 12
+due: 2026年11月20日
+tags: [実装]
+```
+
+`tasks/c.yaml`
+
+```yaml
+id: TASK-3
+title: 試験
+status: todo
+```
+
+`.yde/views/tasks.yaml`
+
+```yaml
+id: tasks
+rows: { idPattern: "TASK-*" }
+columns:
+  - { label: 題, path: title }
+  - { label: 状態, path: status }
+  - { label: 点, path: points }
+  - { label: 期限, path: due }
+  - { label: 札, path: tags }
+```
+
+`.yde/reports/example.yaml`
+
+```yaml
+id: example
+build:
+  name: "O'Brien"
+  empty: ""
+template: example.md
+```
+
+`.yde/reports/example.md`
+
+```yaml
+VALUES ({name:sql-string}, {empty:sql-string});
+```
+

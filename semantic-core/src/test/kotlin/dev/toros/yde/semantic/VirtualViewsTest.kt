@@ -101,7 +101,7 @@ class VirtualViewsTest {
         assertEquals(listOf<Any>("corrections", 0, "set", "status"), status.path)
         assertTrue(status.computed, "重ねたセルは読み取り専用")
         assertTrue("COR-1" in status.trace!!.raw && "open" in status.trace!!.raw, status.trace!!.raw)
-        assertEquals(listOf<Any>("status"), status.trace!!.inputs.single().path, "元の値の場所")
+        assertEquals(listOf<Any>("status"), status.trace!!.inputs.single { it.placeholder == "元の値" }.path, "元の値の場所")
         assertEquals("A", scalarText(rows.single { it.id == "IT-001" }.cells[1].value), "補正に無い項目は元の値")
         assertEquals(null, rows.single { it.id == "IT-002" }.cells[0].value, "当たり先でない行は元のまま")
         assertEquals("open", scalarText(getAt(trees.getValue("items/a.yaml"), listOf("status"))), "原本は変えない")

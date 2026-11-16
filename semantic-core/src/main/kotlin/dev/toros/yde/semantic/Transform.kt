@@ -329,6 +329,13 @@ object SemanticTransform {
                     YNode.Map(entries)
                 }
             }
+            is Template.Compose -> {
+                val recordedBefore = origins.size
+                val input = build(t.input, here, out, loop)
+                // 合成すると入力の番号と出力の番号は一致しない。根拠は合成結果の source・decisions が持つ。
+                while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
+                TermCompositionFormat.compose(input, "変換「${def.id}」の \$compose（${out.pretty()}）")
+            }
             is Template.Guarded -> if (t.conditions.all { holds(it, here, loop) }) build(t.inner, here, out, loop) else null
         }
 

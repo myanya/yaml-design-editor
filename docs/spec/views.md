@@ -37,7 +37,7 @@
 | `params` |  | 名前の配列 |  | 受け取る値の名前。rows.where に $名前 で書きます。ダッシュボードの inputs から渡り、値が無ければその条件は外れます。 |
 | `detail` |  | {schemaId, fileGlob, filePattern} |  | 詳細の文書。行の ID の詳細と見なす出現と、「作成」の作り先です。 |
 | `newRow` |  | {file, path} か {filePattern} |  | 新しい行の入口。一覧の文書の配列へ要素を足すか、新しい文書を作ります。 |
-| `corrections` |  | {schemaIds, target, set} |  | 補正を重ねます。path の列のセルに、補正の文書の置き換える値を重ねて出します（元の文書は変えません）。重ねたセルは読み取り専用です。 |
+| `corrections` |  | {schemaIds, target, set} |  | 補正を重ねます。原本を変えずに、当たり先の要素へ補正の文書の値を重ねます。path の列だけでなく、値の式・参照先・クエリも補正のあとの値を読みます。同じ場所への補正は、文書の名前の順・文書の中の順で後のものが勝ちます。影響するセルは読み取り専用です。 |
 
 ## 行（rows）
 
@@ -95,13 +95,13 @@
 | `editable` |  | 真偽値 |  | 一覧の上で編集できる列にします。 |
 | `display` |  | grouped |  | 桁区切りで見せます。画面の見せ方だけです。 |
 | `format` |  | DecimalFormat か DateTimeFormatter のパターン |  | 画面で見せる形。値は変えません。 |
-| `each` |  | {idPattern, schemaIds, order, bind} |  | idPattern に合う要素ごとに列を作ります（見出しは要素のタイトル）。value の式の中で、列の要素の ID を $bind の名前で指します。 |
+| `each` |  | {idPattern, schemaIds, order, bind} か {rows, bind} |  | 選んだ要素ごとに列を作ります（見出しは要素のタイトル）。value の式の中で、列の要素の ID を $bind の名前で指します。 |
 | `backlinks` |  | {relation, schemaIds} |  | 行の ID への参照元を並べる列にします。path・editable とは一緒に書けません。 |
 | `value` |  | 値の式 |  | 列の値を式で決める、読み取り専用の列。path・backlinks・definition・editable とは一緒に書けません。 |
 
 ## 要素ごとの列（each）
 
-列の each。
+列の each。列にする要素を、ID の形（idPattern）かクエリ（rows）のどちらかで選びます。
 
 - メタスキーマ: builtin-schemas/view.yaml の root.columns.item.each
 - 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseGridView
@@ -109,10 +109,11 @@
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
-| `idPattern` | 必須 | glob の文字列 |  | 列にする要素の ID の形。 |
+| `idPattern` |  | glob の文字列 |  | 列にする要素の ID の形。rows を書かないときに書きます。 |
 | `schemaIds` |  | スキーマ ID の配列 |  | 列にする要素が現れるスキーマ。 |
 | `order` |  | {schemaId, fileGlob} |  | 列の並びの基準にする出現。 |
 | `bind` | 必須 | 名前 |  | value の式の中で、列の要素の ID を指す名前。 |
+| `rows` |  | {match, rowKey, where} |  | 列にする要素をクエリで選びます（グリッドの rows と同じ書き方。共有の入力も使えます）。idPattern・schemaIds とは一緒に書きません。 |
 
 ## 参照元の列（backlinks）
 

@@ -1,0 +1,11 @@
+id: basic-derived
+name: 導出項目一覧（業務モデルの宣言）
+description: >-
+  補正とアーキテクチャの規則を当てる前の、業務モデルの項を記録する。
+  型と項目の declarations は明記された属性・継承元・原文の場所を保持する。
+  中の識別子は生成の材料であり、確定した設計項目の ID として索引へ登録しない
+scope: business
+output: design/basic/derived/model.yaml
+build:
+  id: DRV-business
+  model: { $copy: . }

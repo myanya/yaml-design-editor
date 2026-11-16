@@ -1,6 +1,7 @@
 package dev.toros.yde.semantic.schema
 
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.YPath
 import dev.toros.yde.yaml.structure.StructureParser
 import dev.toros.yde.yaml.structure.UnknownFieldsPolicy
 
@@ -30,7 +31,7 @@ object SchemaTreeParser {
     fun parseDefinitions(raw: Any?, moduleId: String): Map<String, FieldDef> =
         (raw as? Map<*, *>)?.entries?.associate { (name, value) ->
             val definition = value as? Map<*, *> ?: error("definitions.${name}: objectである必要があります")
-            name.toString() to parseField(definition, key = null, definitionScope = moduleId, definitionName = name.toString())
+            name.toString() to parseField(definition, key = null, definitionScope = moduleId, definitionName = name.toString(), sourcePath = listOf("definitions", name.toString()))
         } ?: emptyMap()
 
     /** root ブロックのパース。allowMissingRoot は derive 宣言スキーマの root 省略（共通フィールドがなければ空の object）。 */
@@ -41,7 +42,7 @@ object SchemaTreeParser {
         }
         if (allowMissingRoot && raw == null) return FieldDef(type = FieldType.OBJECT, definitionScope = moduleId)
         val rootMap = raw as? Map<*, *> ?: error("root定義が必要です")
-        return parseField(rootMap, key = null, definitionScope = moduleId)
+        return parseField(rootMap, key = null, definitionScope = moduleId, sourcePath = listOf("root"))
     }
 
     /** phases 宣言（P7）のパース。 */
@@ -58,7 +59,7 @@ object SchemaTreeParser {
     /**
      * フィールド定義1件のパース（再帰）。definitionName は名前付きの定義の最上位だけに渡す（object の `entity.type` を省いたときの既定）。
      */
-    fun parseField(m: Map<*, *>?, key: String?, definitionScope: String, definitionName: String? = null): FieldDef {
+    fun parseField(m: Map<*, *>?, key: String?, definitionScope: String, definitionName: String? = null, sourcePath: YPath? = null): FieldDef {
         if (m == null) return FieldDef(key = key, definitionScope = definitionScope, typeGiven = false)
         val typeText = m["type"]?.toString()
         // 型の名前（P33）: 基底の種類でなければ定義の名前として扱う（解決は $ref と同じ。見つからなければ定義の点検が「未知の型」にする）
@@ -70,13 +71,13 @@ object SchemaTreeParser {
         val type = baseType ?: FieldType.STRING
         val fields = (m["fields"] as? List<*>)?.mapIndexed { index, f ->
             val child = f as? Map<*, *> ?: error("fields[$index]はobjectである必要があります")
-            parseField(child, child["key"]?.toString(), definitionScope)
+            parseField(child, child["key"]?.toString(), definitionScope, sourcePath = sourcePath?.plus(listOf("fields", index)))
         } ?: emptyList()
         val item = m["item"]?.let {
-            parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null, definitionScope)
+            parseField(it as? Map<*, *> ?: error("itemはobjectである必要があります"), null, definitionScope, sourcePath = sourcePath?.plus("item"))
         }
         val value = m["value"]?.let {
-            parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null, definitionScope)
+            parseField(it as? Map<*, *> ?: error("valueはobjectである必要があります"), null, definitionScope, sourcePath = sourcePath?.plus("value"))
         }
         // enum の選択肢: 文字列、または {value, label, description} の object（リッチ選択肢。R10-03）
         val options = (m["values"] as? List<*>)?.mapIndexed { index, entry ->
@@ -95,7 +96,7 @@ object SchemaTreeParser {
                 val list = defs as? List<*> ?: error("cases.${caseValue}はフィールド定義のリストである必要があります")
                 caseValue.toString() to list.mapIndexed { index, f ->
                     val child = f as? Map<*, *> ?: error("cases.${caseValue}[$index]はobjectである必要があります")
-                    parseField(child, child["key"]?.toString(), definitionScope)
+                    parseField(child, child["key"]?.toString(), definitionScope, sourcePath = sourcePath?.plus(listOf("cases", caseValue.toString(), index)))
                 }
             }
             else -> error("casesはobject（enum値 → フィールド定義リスト）である必要があります")
@@ -184,6 +185,7 @@ object SchemaTreeParser {
             methods = methods,
             insertRule = insertRule,
             typeGiven = typeText != null || explicitRef != null,
+            declarations = sourcePath?.let { listOf(FieldDeclaration.of(definitionScope, it, m)) }.orEmpty(),
         )
     }
 

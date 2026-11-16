@@ -3,6 +3,8 @@ title: 'ユーザ定義の型（`type: 名前`・型の連鎖・狭める規則�
 implementation:
 - path: semantic-core/schema/SchemaTree.kt
   module: semantic-core
+- path: semantic-core/schema/FieldDeclaration.kt
+  module: semantic-core
 - path: semantic/ElementChecks.kt
   module: semantic-core
 - path: workspace-core/workspace/MetaSchemaTypes.kt
@@ -10,6 +12,8 @@ implementation:
 tests:
 - name: TypeDefinitionsTest
 - name: ObjectTypesTest
+- name: FieldDeclarationTest
+  note: 型の連鎖と入れ子の合成で明記した属性と原文の場所を保持
 design:
 - label: schema
   link: architecture/schema.md
