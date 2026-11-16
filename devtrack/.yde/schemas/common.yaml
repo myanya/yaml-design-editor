@@ -49,6 +49,16 @@ definitions:
       - { value: when-needed, label: ⏳ 必要になったら }
       - { value: resolved, label: ✅ 解決 }
       - { value: declined, label: ❌ 見送り }
+  # 指摘の種類: 1 件に 1 つ。当てはまらないものは書かない（未分類）。あとで整理する
+  指摘の種類:
+    type: enum
+    values:
+      - { value: bug, label: 🐞 不具合, description: 意図と違う動き }
+      - { value: usability, label: 🧭 使い勝手, description: 動くが、分かりにくい・手間がかかる }
+      - { value: feature, label: ➕ 機能の不足, description: できないこと・欲しい機能 }
+      - { value: spec, label: 📐 仕様・定義のずれ, description: 実装・メタスキーマ・文書の食い違い }
+      - { value: doc, label: 📄 文書, description: 説明の不足・誤り }
+      - { value: dev, label: 🛠 開発の基盤, description: テスト・ビルド・環境・開発管理そのもの }
   # 操作の受け取る値: 未解決の状態だけ（解決と見送りは「解決にする」で入れる）
   未解決の状態:
     type: enum
@@ -145,6 +155,10 @@ definitions:
         type: 指摘の状態
         required: true
         default: todo
+      - key: kind
+        label: 種類
+        type: 指摘の種類
+        description: "指摘の種類（1 つ）。迷うとき: 意図と違う動きなら不具合、動くが使いにくいなら使い勝手、できないことなら機能の不足。実装と定義・文書の食い違いは仕様・定義のずれ、説明だけの問題は文書。どれにも当てはまらなければ書きません（未分類）。"
       # 未解決の指摘には必須（下の検査）。古い記録には日付の無いものがあるので、型では必須にしない
       - key: origin_on
         label: 起点の日

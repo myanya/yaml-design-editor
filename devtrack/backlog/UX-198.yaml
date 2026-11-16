@@ -1,6 +1,7 @@
 id: UX-198
 title: テンプレート basic-list の README が「ID は自動で付きます」と書くが、置き方が「1 件 1 ファイル」のときは登録の操作で ID を自分で入れる
 status: resolved
+kind: doc
 origin_on: 2026-10-25
 origin: samples/orders の確認
 body: '**テンプレート basic-list の README が「ID は自動で付きます」と書くが、置き方が「1 件 1 ファイル」のときは登録の操作で ID を自分で入れる**（アクションの description は正しく「未使用の番号を指定します」になっている。README

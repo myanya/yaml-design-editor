@@ -1,6 +1,7 @@
 id: UX-33
 title: スキーマの簡易作成ウィザード
 status: resolved
+kind: feature
 origin_on: 2026-08-08
 origin: S1第1回
 body: '**スキーマの簡易作成ウィザード**が欲しい。現行フォームは表示項目が多く詳細設計用で、最小スキーマに必要な項目は少ない（推測経由の方が楽だが初期YAMLが要る）'

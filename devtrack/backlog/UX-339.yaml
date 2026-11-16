@@ -1,6 +1,7 @@
 id: UX-339
 title: 論理型を導入した後の補正先と値の読み方がそろわず、最大文字数の補正例と参照先を読むビューに補正が反映されない
 status: discussing
+kind: bug
 origin_on: 2026-11-16
 origin: samples/todos-sysdev の引継ぎ調査。テーブル設計書のレビュー中に補正の範囲を確認
 memo: |-

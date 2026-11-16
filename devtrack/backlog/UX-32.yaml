@@ -1,6 +1,7 @@
 id: UX-32
 title: スキーマをUIで編集中、保存するまで検証パネル（右側のエラー）が更新されない
 status: discussing
+kind: usability
 origin_on: 2026-08-08
 origin: S1第1回
 body: '**スキーマをUIで編集中、保存するまで検証パネル（右側のエラー）が更新されない**'

@@ -1,6 +1,7 @@
 id: UX-256
 title: 外部変更の確認が、ファイルが数百あると画面のスレッドで約 3 秒かかる
 status: resolved
+kind: usability
 origin_on: 2026-11-05
 origin: 図の配置の保存の調査
 body: '**外部変更の確認が、ファイルが数百あると画面のスレッドで約 3 秒かかる**: labs/aws-webapp（YAML 276 個）で `pollExternalChanges(eventHint = true)` が約 2.9

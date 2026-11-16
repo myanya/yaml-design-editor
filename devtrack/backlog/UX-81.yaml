@@ -1,6 +1,7 @@
 id: UX-81
 title: ビューの新規行追加の設定内容が分かりづらい
 status: todo
+kind: usability
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**ビューの新規行追加の設定内容が分かりづらい**'

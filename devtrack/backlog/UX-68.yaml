@@ -1,6 +1,7 @@
 id: UX-68
 title: ID横ぐしに親ノードの情報も表示したい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**ID横ぐしに親ノードの情報も表示したい**'

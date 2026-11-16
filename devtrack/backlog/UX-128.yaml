@@ -1,6 +1,7 @@
 id: UX-128
 title: 値型の残り
 status: when-needed
+kind: feature
 origin_on: 2026-09-24
 origin: ROADMAP 整理（P16 の残り）
 body: '**値型の残り**: 文字列・enum 集合の包含判定と、複数文書一括の決定論的伝播'

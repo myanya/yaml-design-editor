@@ -1,6 +1,7 @@
 id: UX-317
 title: ダッシュボードの共有の入力（inputs）の選択肢を、マスタ（タグ一覧など）から取れない
 status: resolved
+kind: feature
 origin_on: 2026-11-14
 origin: samples/todos にタグを足し、ダッシュボードをタグで絞り込めるかを考えたとき
 memo: |-

@@ -9,6 +9,7 @@ order:
   direction: desc
 # 件名は行の ID の下に出る（件名の項目が role: title）ので、列にしない
 columns:
+  - { label: 種類, schemaId: item, path: kind }
   - label: 状態
     schemaId: item
     path: status

@@ -1,6 +1,7 @@
 id: UX-311
 title: samples を読むテスト（local-server の WebBusinessTest・cli の AppCliTest）が Gradle の入力に samples を持たず、samples だけを変えるとテストが最新とみなされて走らない
 status: todo
+kind: dev
 origin_on: 2026-11-14
 origin: samples/todos の追従で、ダッシュボードとデータを変えたあとに該当のテストを回したとき（--rerun を付けるまで実行されなかった）
 memo: |-

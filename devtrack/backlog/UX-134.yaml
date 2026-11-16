@@ -1,6 +1,7 @@
 id: UX-134
 title: samples/todos の個票スキーマの説明が古い
 status: resolved
+kind: doc
 origin_on: 2026-09-27
 origin: samples/todos の集計表の検討
 body: '**samples/todos の個票スキーマの説明が古い**: `todo-detail.yaml` の `comments` の説明が「日付の降順で記録・先頭の日付をビューの更新日として表示」のままで、README とビュー定義（`max`

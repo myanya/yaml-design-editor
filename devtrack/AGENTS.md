@@ -9,6 +9,7 @@
 - ロードマップは `roadmap/P<番号>.yaml`（1 テーマ 1 ファイル。`number` は ID の番号で、並びの順）。本文と節の本文は「本文のかたまり」の並びで、かたまり 1 つに文（`text`）・箇条（`points`）・R 項目の表（`columns` と `items`）のどれか 1 つ。
   R 項目の状態は `state`・`state_on`・`state_note`（・`moved_to`）で持ち、「✅ 日付（補足）」などの文字はレポートが作る。状態の変更は操作 `change-item-state`、テーマを終えるのは `complete-theme`（本文と節を記録の新しい項へ移す）、判断待ちを決めるのは `decide`。R 項目を足すときは表に書き、ID は R と番号（テーマの番号の中の次。画面の追加ボタンは採番する）。
 - 本文の決定は ID（`DEC-` と 3 桁）を持つ。オーナーの判断を待つものは `status: pending`（語 `decision` は書かない）で、ダッシュボードの「判断待ちの決定」に出る。決めたら操作 `decide` で決定済みにする。
+- 指摘には種類（`kind`: bug・usability・feature・spec・doc・dev。README「指摘の種類」）を付ける。迷えば省く（未分類）。番号の桁は決めていない（UX-1000 以降もそのまま）。
 - 手で番号を決めるなら `backlog/` の最大の番号の次（解決済みの指摘も同じ場所にある）。
 - 操作の受け取る値や項目のキーに `on`・`no`・`yes` を使わない（YAML が真偽値に読む）。日付は `date`。
 - 定義（`.yde/`）を変えたら `validate devtrack` を通し、`./gradlew devtrackDocs` で生成物の変化を確かめる。

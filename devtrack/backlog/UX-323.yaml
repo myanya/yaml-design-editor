@@ -1,6 +1,7 @@
 id: UX-323
 title: 生成し直したときの、前回の設計との違い・業務モデルの写しの違いを見る仕組みが無い（いまは git の差分）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'todos-sysdev の議論でオーナーが「後の作業でよい」とした（2026-11-15）'
 memo: |-

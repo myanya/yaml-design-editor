@@ -1,6 +1,7 @@
 id: UX-76
 title: enum ボタンの説明がボタンの下に出ると表示領域が広がってしまう
 status: resolved
+kind: usability
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**enum ボタンの説明がボタンの下に出ると表示領域が広がってしまう**'

@@ -1,6 +1,7 @@
 id: UX-344
 title: 再帰する型を含むスキーマを業務モデルへ展開すると、深さ制限内でもメモリを使い切ることがある
 status: resolved
+kind: bug
 origin_on: 2026-11-16
 origin: 新形式の設計入力と候補合成の生成試験
 memo: |-

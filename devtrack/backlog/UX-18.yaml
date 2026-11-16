@@ -2,6 +2,7 @@ id: UX-18
 title: 'R12-04期のUIが**オーバーレイ索引（UX-03「見たまま判定」）に未追随**: ①コマンドパレットのID検索候補が `state.index` を直読みし remember キーも `indexVersion` のみ＝未保存で追加したIDが候補に出ない（選択後の
   `navigateToId` はオーバーレイ対応済みでズレる）②一覧ビュー（X-01）の records が `editVersion` を購読せず、未保存編集（タイトル・状態変更）が保存まで一覧に反映されない'
 status: resolved
+kind: bug
 origin_on: 2026-08-06
 origin: R12-04棚卸し
 memo: '①`Main.kt` `CommandPalette` を `overlayIndex()` ＋ remember キーに `state.editVersion` へ ②`WorkspaceViews.kt` の `remember(state.indexVersion,

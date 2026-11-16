@@ -1,6 +1,7 @@
 id: UX-63
 title: グラフ整合検証（V-08）の循環検出がファイル単位の検証ごとに全体グラフを再計算する
 status: resolved
+kind: usability
 origin_on: 2026-08-10
 origin: P21実装
 body: '**グラフ整合検証（V-08）の循環検出がファイル単位の検証ごとに全体グラフを再計算する**: `GraphIntegrity.detectCycles` は per-file × per-acyclic-relation で SCC

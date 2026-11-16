@@ -1,6 +1,7 @@
 id: UX-231
 title: MCP の上限拒否試験が、UX-229 の修正（R49-70）の後も全テストの中で 1 度 404 になった
 status: resolved
+kind: dev
 origin_on: 2026-11-01
 origin: scratchpad の決まりのコミット前の全テスト
 body: '**MCP の上限拒否試験が、UX-229 の修正（R49-70）の後も全テストの中で 1 度 404 になった**（`McpHttpTest`「初期化の上限拒否を繰り返してもセッションと同時要求の枠が漏れない」。`McpHttpFixture.initialize`

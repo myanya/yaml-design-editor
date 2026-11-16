@@ -1,6 +1,7 @@
 id: UX-305
 title: Windows で開くと、ファイルの一覧と本文の読み取りに 0.46〜3.0 秒かかる（YAML 1 件ごとに実パスを 2 回確かめ、1 回ごとにパスの段の数だけ名前を調べる）
 status: in-progress
+kind: usability
 origin_on: 2026-11-12
 origin: オーナーの Windows の timings.log（labs/adventurers-guild を 3 度開いた記録）
 memo: |-

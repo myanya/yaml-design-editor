@@ -1,6 +1,7 @@
 id: UX-248
 title: レンズの応力配置で大きな記法の箱が重なり、ポートの経路を確保できない
 status: resolved
+kind: usability
 origin_on: 2026-11-04
 origin: ポートのUI検証
 memo: ERサンプルの幅300の箱が約180間隔で並ぶ。GraphLayouts.stressの箱寸法と間隔を再検討する。階層配置と手動移動で回避でき、ポートは重なった箱を貫通する線へ代替しない

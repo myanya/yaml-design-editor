@@ -1,6 +1,7 @@
 id: UX-104
 title: ファイルの改名・削除・ディレクトリ作成を行うと、それまでの Undo 履歴が全て失われる
 status: resolved
+kind: bug
 origin_on: 2026-09-19
 origin: R29-09 実装中
 body: '**ファイルの改名・削除・ディレクトリ作成を行うと、それまでの Undo 履歴が全て失われる**（`renamePath` / `deletePath` / `createDirectory` が適用後に `reload()` を呼び、セッションを開き直すため。改名は

@@ -1,6 +1,7 @@
 id: UX-246
 title: MCP の初期化試験が全体ビルド中に不安定になる
 status: resolved
+kind: dev
 origin_on: 2026-11-03
 origin: 図の記法の全体テスト
 body: '**MCP の初期化試験が全体ビルド中に不安定になる**'

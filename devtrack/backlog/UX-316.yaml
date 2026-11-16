@@ -1,6 +1,7 @@
 id: UX-316
 title: 配列の値の重複を禁じる書き方が無い（同じタグを 1 件の TODO に 2 回付けられる）
 status: resolved
+kind: feature
 origin_on: 2026-11-14
 origin: samples/todos の一覧の行にタグ（tags。タグ参照の配列＝多対多）を足したとき
 memo: |-

@@ -1,6 +1,7 @@
 id: UX-108
 title: クエリの edge は向きによって「参照を書いた要素」の捉え方が違う
 status: resolved
+kind: spec
 origin_on: 2026-09-19
 origin: R29-12 実装中
 body: '**クエリの edge は向きによって「参照を書いた要素」の捉え方が違う**（出ていく向き `dir: out` は、入れ子の要素が書いた参照も外側の要素のものとして辿る＝`graph.outgoingRefs` はサブツリー配下の全参照。入ってくる向き

@@ -1,6 +1,7 @@
 id: UX-22
 title: 新規フォルダー・ファイルの作成先ディレクトリが非直観的
 status: resolved
+kind: usability
 origin_on: 2026-08-08
 origin: S1第1回
 body: '**新規フォルダー・ファイルの作成先ディレクトリが非直観的**（「選択中の場所の配下」ルールが見えず誤操作を招く）'

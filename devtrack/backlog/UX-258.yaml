@@ -1,6 +1,7 @@
 id: UX-258
 title: 未保存の判定（`WorkspaceSession.dirtyDocuments`）が全文書を毎回書き出して比べ、外部変更の取り込みのたびに 2〜3 回走る
 status: resolved
+kind: usability
 origin_on: 2026-11-05
 origin: UX-256 の計測
 body: '**未保存の判定（`WorkspaceSession.dirtyDocuments`）が全文書を毎回書き出して比べ、外部変更の取り込みのたびに 2〜3 回走る**: labs/aws-webapp の写し（276 件・Linux）で

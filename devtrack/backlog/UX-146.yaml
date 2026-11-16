@@ -1,6 +1,7 @@
 id: UX-146
 title: '`TabRow` が非推奨'
 status: todo
+kind: dev
 origin_on: 2026-10-11
 origin: P36 段階 0
 body: '**`TabRow` が非推奨**（`PrimaryTabRow` / `SecondaryTabRow` へ。台帳・実行・スキーマ設計・右パネル・エディタの 5 箇所）と **`LocalClipboardManager` が非推奨**（`LocalClipboard`＝suspend

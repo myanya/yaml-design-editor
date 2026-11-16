@@ -1,6 +1,7 @@
 id: UX-214
 title: '`verifyWindowsDistribution`（と、それを使う `windowsRelease`）が今は必ず止まるはず'
 status: resolved
+kind: dev
 origin_on: 2026-10-28
 origin: desktop をモジュールにする議論の下調べ中
 body: '**`verifyWindowsDistribution`（と、それを使う `windowsRelease`）が今は必ず止まるはず**（`scripts/test-distribution.ps1` は `DistributionSmoke.class`

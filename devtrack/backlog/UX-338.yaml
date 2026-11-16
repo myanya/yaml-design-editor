@@ -1,6 +1,7 @@
 id: UX-338
 title: 画面の確認の片付け（ui-check の stop.ps1）が、起動行に MainKt を含む Java をすべて止めるので、オーナーが gradlew run で開いているアプリも止めうる
 status: todo
+kind: dev
 origin_on: 2026-11-16
 origin: samples/todos-sysdev のテーブル設計書の見直しで画面を確かめた後の片付け
 memo: |-

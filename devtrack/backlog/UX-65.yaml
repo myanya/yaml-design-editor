@@ -1,6 +1,7 @@
 id: UX-65
 title: 子文書が親を ref で指す構成では ID横ぐしが使えない
 status: discussing
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**子文書が親を ref で指す構成では ID横ぐしが使えない**。ref でも横ぐしに載せたい。ただし「純粋な参照」と「IDと参照の両義」の区別が要り、id の拡張か idref のような別型かの検討が必要'

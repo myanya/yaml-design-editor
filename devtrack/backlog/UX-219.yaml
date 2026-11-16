@@ -1,6 +1,7 @@
 id: UX-219
 title: CLI の `view` の `--param` はダッシュボードの共有の入力だけで、グリッド（`params` を持つビュー）には渡らない
 status: todo
+kind: feature
 origin_on: 2026-10-30
 origin: テーブル定義書の検討（todos-sysdev-tablemodel）
 body: '**CLI の `view` の `--param` はダッシュボードの共有の入力だけで、グリッド（`params` を持つビュー）には渡らない**（`view ws tm-table-columns --param table=TBL-TODO`

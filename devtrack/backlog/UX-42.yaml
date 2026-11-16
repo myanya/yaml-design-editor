@@ -1,6 +1,7 @@
 id: UX-42
 title: プレースホルダーの見た目がばらばら
 status: resolved
+kind: usability
 origin_on: 2026-08-08
 origin: 第1弾追試
 body: '**プレースホルダーの見た目がばらばら**（フェーズの例示が濃く大きい等。装飾済み 11〜13sp と無装飾＝本文色が混在）'

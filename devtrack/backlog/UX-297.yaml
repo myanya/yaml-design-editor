@@ -1,6 +1,7 @@
 id: UX-297
 title: スキーマ文書を開くたびに 5 回解析する（文書として・検査の定義集め・スキーマ文書の読み取り）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

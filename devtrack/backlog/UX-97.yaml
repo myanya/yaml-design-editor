@@ -1,6 +1,7 @@
 id: UX-97
 title: detailIn カバレッジの警告文に「どこに作ればよいか」がなく、詳細文書の場所探しに10分かかった
 status: resolved
+kind: usability
 origin_on: 2026-09-04
 origin: sysdev-template試用
 body: '**detailIn カバレッジの警告文に「どこに作ればよいか」がなく、詳細文書の場所探しに10分かかった**（SCR-RESERVE-DETAIL: 03_basic-design/screens に同ID文書があるため「あるじゃないか」と混乱。不足していたのは

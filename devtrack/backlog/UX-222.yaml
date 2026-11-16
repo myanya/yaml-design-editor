@@ -1,6 +1,7 @@
 id: UX-222
 title: Hot Reload の MCP サーバが、画面の確認をしないセッションでも 400〜550MB を使う
 status: todo
+kind: dev
 origin_on: 2026-10-31
 origin: MCP サーバの後片付け
 body: '**Hot Reload の MCP サーバが、画面の確認をしないセッションでも 400〜550MB を使う**（セッションの開始時に `.mcp.json` から起動し、Gradle の呼び出し側・使い捨てのデーモン・MCP の本体の

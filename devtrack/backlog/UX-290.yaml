@@ -1,6 +1,7 @@
 id: UX-290
 title: 値の式に日付の足し引き（日・月・年）が無く、「1 年後」を年の数と月日の文字の付け直しで作るしかない
 status: todo
+kind: feature
 origin_on: 2026-11-11
 origin: labs/adventurers-guild の登録の有効期限（年会費を納めると 1 年延びる）を操作で書いたとき
 memo: |-

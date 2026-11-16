@@ -1,6 +1,7 @@
 id: UX-47
 title: 提出ゲート error-free が強すぎる
 status: resolved
+kind: usability
 origin_on: 2026-08-09
 origin: S2第1回
 body: '**提出ゲート error-free が強すぎる**: 既存エラーがあると提出不能（幕2）。assignee を必須化すると恒久失敗（幕4）。**「新規エラーなし」の区分が欲しい**（修正系=error-free／点検系=no-new-errors）'

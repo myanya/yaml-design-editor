@@ -1,6 +1,7 @@
 id: UX-224
 title: ビューのメタスキーマ（`builtin-schemas/view.yaml`）の `rows.limit` の説明が「既定 100」のまま
 status: todo
+kind: spec
 origin_on: 2026-10-31
 origin: クエリ行の並び
 body: '**ビューのメタスキーマ（`builtin-schemas/view.yaml`）の `rows.limit` の説明が「既定 100」のまま**（ビューのクエリ行は `limit` を書かなければ上限なし。100 はパターン制約や

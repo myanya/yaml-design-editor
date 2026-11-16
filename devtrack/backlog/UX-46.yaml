@@ -1,6 +1,7 @@
 id: UX-46
 title: エージェントフローの不安定さ
 status: discussing
+kind: bug
 origin_on: 2026-08-09
 origin: S2第1回
 body: '**エージェントフローの不安定さ**: ①スコープ外パス（issues[*].assignee）への書込を試行し続けて失敗（maxTurns×リトライ2回分を消費）②変更なしで終了すべき場面で abort を選ぶ（幕5でも再現）。総評「動作に不安定さを感じる・抜本的な検討が必要」'

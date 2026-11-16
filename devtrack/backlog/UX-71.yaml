@@ -1,6 +1,7 @@
 id: UX-71
 title: 畳み込みヘッダの要約が、id 一覧のケースでは id しか出ず内容が分からない
 status: resolved
+kind: usability
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**畳み込みヘッダの要約が、id 一覧のケースでは id しか出ず内容が分からない**'

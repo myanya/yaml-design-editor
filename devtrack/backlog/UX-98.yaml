@@ -1,6 +1,7 @@
 id: UX-98
 title: パターン制約（V-09）のエラーは原因までは分かるが、どこで発生し・どこを直せばよいか・参照の連鎖（テーブル参照）がどうなっているかが追えない
 status: resolved
+kind: usability
 origin_on: 2026-09-04
 origin: sysdev-template試用
 body: '**パターン制約（V-09）のエラーは原因までは分かるが、どこで発生し・どこを直せばよいか・参照の連鎖（テーブル参照）がどうなっているかが追えない**（eapi-auth-for-pii のデモで体験）。count の「解が N

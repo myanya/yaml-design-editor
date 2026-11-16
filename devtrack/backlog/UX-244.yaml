@@ -1,6 +1,7 @@
 id: UX-244
 title: ファイル数が多いと読込と操作開始が遅い
 status: resolved
+kind: usability
 origin_on: 2026-11-03
 origin: ワークスペース読込の調査
 body: '**ファイル数が多いと読込と操作開始が遅い**: orders の190件にストア読出387回・一覧走査6回、各走査と読出で実パスを解決し直す'

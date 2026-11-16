@@ -1,6 +1,7 @@
 id: UX-05
 title: 検証指摘のクリック挙動が不透明
 status: resolved
+kind: usability
 origin_on: 2026-08-02
 origin: 値型一巡UX試験
 body: '**検証指摘のクリック挙動が不透明**（移動したりしなかったり）。クリックで「何ができるか」を提示して選ばせたい'

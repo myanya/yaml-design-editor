@@ -1,6 +1,7 @@
 id: UX-70
 title: スキーマの型を変えると既存文書の残留値を画面から直せない
 status: resolved
+kind: usability
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**スキーマの型を変えると既存文書の残留値を画面から直せない**（string→array で汎用表示に切り替わり、空欄にしても直らない）'

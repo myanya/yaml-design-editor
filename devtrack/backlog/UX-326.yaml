@@ -1,6 +1,7 @@
 id: UX-326
 title: 定義の索引（yde-*）と、検査・ビューのクエリを、スコープで絞れない（設計の側の操作・エンティティ型も業務の定義として検査の対象になる）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のスコープ（ADR-0032）を入れたとき'
 memo: |-

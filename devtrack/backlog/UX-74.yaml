@@ -1,6 +1,7 @@
 id: UX-74
 title: スキーマの pattern 定義を共通化したい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**スキーマの pattern 定義を共通化したい**'

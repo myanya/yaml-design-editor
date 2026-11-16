@@ -1,6 +1,7 @@
 id: UX-347
 title: "メタスキーマに、型が any で形を説明文にだけ書いた項目が多い（スキーマのメタスキーマで 40 か所）"
 status: todo
+kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-

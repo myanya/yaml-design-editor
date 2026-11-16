@@ -1,6 +1,7 @@
 id: UX-75
 title: IDクリック時に、当該IDのファイルへ飛ぶか横ぐしビューへ飛ぶかを選びたい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**IDクリック時に、当該IDのファイルへ飛ぶか横ぐしビューへ飛ぶかを選びたい**'

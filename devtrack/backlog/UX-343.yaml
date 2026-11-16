@@ -1,6 +1,7 @@
 id: UX-343
 title: エンティティ定義書の全体表示で、別のエンティティの同名操作が CRUD 表の同じ見出しになる
 status: todo
+kind: bug
 origin_on: 2026-11-16
 origin: エンティティ定義の保存形式を整備した後の CLI 出力の照合
 memo: |-

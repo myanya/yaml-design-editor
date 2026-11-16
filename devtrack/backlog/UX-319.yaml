@@ -1,6 +1,7 @@
 id: UX-319
 title: 生成で、同じ表への書き込みを 1 つの文にまとめる計算（グループ化）が変換に無い
 status: resolved
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のテーブルアクセス設計書を生成したとき（操作の筋）'
 memo: |-

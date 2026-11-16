@@ -1,6 +1,7 @@
 id: UX-124
 title: 「行を追加」が、3つのビュー（br-trace・screen-transition・test-matrix）のどれにも出ず、未実施
 status: todo
+kind: bug
 origin_on: 2026-09-22
 origin: S1 第3回（オーナー。Q9）
 body: '**「行を追加」が、3つのビュー（br-trace・screen-transition・test-matrix）のどれにも出ず、未実施**——台本の不備: 「行を追加」は、ビュー定義に `newRow:`（追加先の一覧文書と行のひな型）があるときだけ出る。sysdev-template

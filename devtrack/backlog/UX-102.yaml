@@ -1,6 +1,7 @@
 id: UX-102
 title: 準備完了レポート（readiness）の GUI 導線がない
 status: resolved
+kind: feature
 origin_on: 2026-09-17
 origin: R28-05b 実装中
 body: '**準備完了レポート（readiness）の GUI 導線がない**（CLI のみ。エンティティ単位の準備完了は台帳スペースの一覧・エンティティページと親和性が高いが、今回はヘッドレス先行で導入した）'

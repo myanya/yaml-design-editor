@@ -1,6 +1,7 @@
 id: UX-135
 title: 'クロス集計ビュー（`kind: matrix`）'
 status: resolved
+kind: feature
 origin_on: 2026-09-27
 origin: samples/todos の集計表
 body: '**クロス集計ビュー（`kind: matrix`）**: 行の軸・列の軸・セルの集計を宣言するビューの種類。いまは値の式の `count: {all: {match}}` を状態の数だけ列に書く（列を手で書く・合計行が無い・参照の無い要素＝未分類の行が出ない）'

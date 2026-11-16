@@ -1,6 +1,7 @@
 id: UX-29
 title: date 型の検証と保存形式が不一致の疑い
 status: resolved
+kind: bug
 origin_on: 2026-08-08
 origin: S1第1回
 body: '**date 型の検証と保存形式が不一致の疑い**: 検証は YYYY-MM-DD を期待するように見えるが、ファイルに保存される値がそうならないように見える。date / datetime / time の型分離も要検討'

@@ -1,6 +1,7 @@
 id: UX-66
 title: ID横ぐしからAI生成を使うとき、関連ドキュメントも一緒に文脈へ渡したい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**ID横ぐしからAI生成を使うとき、関連ドキュメントも一緒に文脈へ渡したい**（現状はプロンプトで手動補完している）'

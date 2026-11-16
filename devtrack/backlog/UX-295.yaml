@@ -1,6 +1,7 @@
 id: UX-295
 title: SchemaTree.resolve が同じ項目の型の合成を呼ばれるたびに作り直す（UX-293 の改修のあと、業務シナリオの時間の約 26%）
 status: todo
+kind: usability
 origin_on: 2026-11-12
 origin: UX-293 の改修のあと、labs/adventurers-guild の業務シナリオ 2 件を JFR で測ったとき
 memo: |-

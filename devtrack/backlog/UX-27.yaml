@@ -1,6 +1,7 @@
 id: UX-27
 title: スキーマ推測で **status / priority が enum 化されず string になった**
 status: resolved
+kind: bug
 origin_on: 2026-08-08
 origin: S1第1回
 memo: '実測で裏取り済み: `SchemaInference` の enum 候補条件が最低4サンプル（`ENUM_MIN_SAMPLES = 4`）で、S1データは3出現のため未達。異なり数が小さい場合の閾値緩和か、推測ダイアログでの条件の説明が当たり。**実装（2026-08-12）**:

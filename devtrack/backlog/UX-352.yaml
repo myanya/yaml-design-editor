@@ -1,6 +1,7 @@
 id: UX-352
 title: "定義の言語に版の印が無く、語を変える・廃止するときの決まりが無い"
 status: discussing
+kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-

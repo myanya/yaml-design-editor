@@ -1,6 +1,7 @@
 id: UX-04
 title: 警告から直接修正したい
 status: discussing
+kind: feature
 origin_on: 2026-08-02
 origin: 値型一巡UX試験
 body: '**警告から直接修正したい**（例:「DDL写像がない」→ワンクリックで写像行の雛形を追加）'

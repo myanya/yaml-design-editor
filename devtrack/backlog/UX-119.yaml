@@ -1,6 +1,7 @@
 id: UX-119
 title: パッケージを、モジュールごとにしっかり分けたい
 status: resolved
+kind: dev
 origin_on: 2026-09-22
 origin: オーナー（P27 段D の残りの相談で）
 body: '**パッケージを、モジュールごとにしっかり分けたい**（「実はずっと気になっていた」）。いまのパッケージ名は `schema`・`validate`・`core` などの裸の名前で、同じ名前が複数のモジュールにまたがっている（`schema`＝yaml-core

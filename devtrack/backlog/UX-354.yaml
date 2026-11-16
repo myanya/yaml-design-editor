@@ -1,6 +1,7 @@
 id: UX-354
 title: "値の式の中（first の要素など）に書いた {パス} を含む文字列は、短い書き方にならず文字のまま出る"
 status: todo
+kind: usability
 origin_on: 2026-11-16
 origin: "仕様の例（devtrack/spec/examples）を書いて、実際の結果と突き合わせたとき"
 memo: |-

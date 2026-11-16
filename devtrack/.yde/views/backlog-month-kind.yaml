@@ -1,0 +1,20 @@
+# 行＝起点の日の年月、列＝指摘の種類、セル＝指摘の件数。月ごとに、どの種類の指摘が増えたかが見えます。
+# 「（未分類）」の列は、種類を書いていない指摘
+id: backlog-month-kind
+name: 起点の月×種類
+kind: matrix
+rows:
+  value: { yearMonth: { path: origin_on } }
+cells:
+  match:
+    - node: { entity: backlog-item, bind: it }
+  of: it
+  columns:
+    path: kind
+    values:
+      - { value: bug, label: 🐞 不具合 }
+      - { value: usability, label: 🧭 使い勝手 }
+      - { value: feature, label: ➕ 機能の不足 }
+      - { value: spec, label: 📐 仕様・定義のずれ }
+      - { value: doc, label: 📄 文書 }
+      - { value: dev, label: 🛠 開発の基盤 }

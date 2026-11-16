@@ -1,6 +1,7 @@
 id: UX-221
 title: 外部キーの参照先を「categories.category_id」の 1 セルにできない
 status: discussing
+kind: feature
 origin_on: 2026-10-31
 origin: 表の横長対策（テーブルモデルのサンプル）
 body: '**外部キーの参照先を「categories.category_id」の 1 セルにできない**（参照先のカラム名とテーブル名がどちらも `all` の配列で、値の式に配列から文字を作る手段が無い。`format` の穴はスカラーだけ）'

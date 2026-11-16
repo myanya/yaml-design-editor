@@ -1,6 +1,7 @@
 id: UX-82
 title: 新規ファイル作成を取り消したい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 memo: 作成をセッションに記録し、Undo/Redo でファイルの有無まで確定

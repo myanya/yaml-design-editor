@@ -1,6 +1,7 @@
 id: UX-321
 title: 定義体のスコープ（業務モデルなど）を定義できない。生成の材料が、設計書独自のエンティティを業務モデルと取り違える
 status: resolved
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev で設計書のスキーマを足したとき（業務モデルの項に yde-action などがエンティティとして混ざった）'
 memo: |-

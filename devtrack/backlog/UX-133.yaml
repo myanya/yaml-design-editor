@@ -1,6 +1,7 @@
 id: UX-133
 title: '`DerivationSelector` の名前'
 status: todo
+kind: dev
 origin_on: 2026-09-27
 origin: R30-03（computed の廃止）
 body: '**`DerivationSelector` の名前**: 導出の語彙が無くなったので、値の式の `in`・ビューの出現の選択・クエリの `in` が共有する「文書の指定」に合う名前（例 `DocumentSelector`）に改名したい'

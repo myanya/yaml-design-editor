@@ -1,6 +1,7 @@
 id: UX-150
 title: Markdown の画像が描かれない
 status: when-needed
+kind: bug
 origin_on: 2026-10-11
 origin: P36 段階 1
 body: '**Markdown の画像が描かれない**（画像の読み込みは別モジュール Coil が要るため見送った）'

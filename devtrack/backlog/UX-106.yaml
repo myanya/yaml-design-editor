@@ -1,6 +1,7 @@
 id: UX-106
 title: '整合ルールの `lookup.via` に入れ子のパス（例: `target.ref`）を書くと、末尾のキー名だけが参照の線の名前として使われる'
 status: resolved
+kind: bug
 origin_on: 2026-09-19
 origin: R29-10 実装中
 body: '**整合ルールの `lookup.via` に入れ子のパス（例: `target.ref`）を書くと、末尾のキー名だけが参照の線の名前として使われる**（定義体へ移した結果、`via` は「参照フィールドのキー名」として辿るようになった＝意図的差分

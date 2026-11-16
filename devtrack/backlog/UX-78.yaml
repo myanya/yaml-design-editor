@@ -1,6 +1,7 @@
 id: UX-78
 title: スキーマ設計UIで object 定義のフィールドを上下に移動したい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**スキーマ設計UIで object 定義のフィールドを上下に移動したい**'

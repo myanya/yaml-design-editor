@@ -1,6 +1,7 @@
 id: UX-331
 title: todos-sysdev のエラー設計書で、要求の形の誤り（URL のパラメータが読めない・決まっていない HTTP メソッドなど）が想定外（500）に入る
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: samples/todos-sysdev のエラーとメッセージ系の生成（エラー設計書の @ControllerAdvice）
 memo: |-

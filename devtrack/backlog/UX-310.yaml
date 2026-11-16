@@ -1,6 +1,7 @@
 id: UX-310
 title: 保存時に自動で入る値（auto）が、名前の付いた型（`年月日` など）の項目と、型に書いた印では、保存と変更セットの適用のときに入らない
 status: resolved
+kind: bug
 origin_on: 2026-11-14
 origin: samples/todos の個票に更新日（auto updated）と状態の履歴（行の日付は auto created）を足し、写しで操作を適用したとき
 memo: |-

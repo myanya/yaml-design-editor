@@ -1,6 +1,7 @@
 id: UX-294
 title: labs のワークスペースを読むテストが Gradle の入力に無く、labs だけを変えるとテストが最新とみなされて走らない
 status: resolved
+kind: dev
 origin_on: 2026-11-12
 origin: UX-293 の改修で全テストを回したとき、workspace-core の BehaviorChecksTest（labs/adventurers-guild の依頼の Lifecycle の遷移の数を見る）が、何日も前の labs
   の変更から落ちていたと分かった

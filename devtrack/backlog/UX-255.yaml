@@ -1,6 +1,7 @@
 id: UX-255
 title: 起点なしのグラフレンズが、箱が数百あると最初の配置に 1 分以上かかる
 status: todo
+kind: usability
 origin_on: 2026-11-05
 origin: 図の配置の保存の調査
 body: '**起点なしのグラフレンズが、箱が数百あると最初の配置に 1 分以上かかる**: labs/aws-webapp の全体（箱 351 個。応力配置は 150 個までなので階層配置に代替）で `arrangeNested` が約 74

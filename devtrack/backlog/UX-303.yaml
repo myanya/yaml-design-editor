@@ -1,6 +1,7 @@
 id: UX-303
 title: 開いた直後に業務の流れの図の配置（ELK）を 2 回、並行に計算する（各 0.5〜0.6 秒）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

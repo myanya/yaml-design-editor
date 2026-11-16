@@ -1,6 +1,7 @@
 id: UX-112
 title: ワークスペース全体の検証が、P29 Phase 6 の前後で約2.3倍遅くなっていた
 status: resolved
+kind: usability
 origin_on: 2026-09-20
 origin: 今後のテーマの精査（実測）
 body: '**ワークスペース全体の検証が、P29 Phase 6 の前後で約2.3倍遅くなっていた**（`validate sysdev-template`＝82文書・約2,700行: Phase 6 着手前 1.1 秒 → 第5段の後 2.6

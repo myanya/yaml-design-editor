@@ -1,6 +1,7 @@
 id: UX-145
 title: Hot Reload の MCP 設定（`.mcp.json`）が Windows 向け
 status: todo
+kind: dev
 origin_on: 2026-10-11
 origin: P36 段階 0
 body: '**Hot Reload の MCP 設定（`.mcp.json`）が Windows 向け**（2026-10-31 から `powershell … scripts/hot-mcp-server.ps1`。セッションと一緒に止めるのに

@@ -1,6 +1,7 @@
 id: UX-201
 title: 'クエリ行（`rows: match`）のビューは行数の上限が既定 100 で、超えた分が黙って切れる'
 status: resolved
+kind: usability
 origin_on: 2026-10-26
 origin: samples/orders のデータを 1 年分（注文 109 件）にしたとき
 body: '**クエリ行（`rows: match`）のビューは行数の上限が既定 100 で、超えた分が黙って切れる**。注文一覧（明細 ID も `ORD-*` なのでクエリ行にしている）がダッシュボードで 100 行になり、ID 順で後ろの未処理の注文

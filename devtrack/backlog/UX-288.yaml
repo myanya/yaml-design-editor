@@ -1,6 +1,7 @@
 id: UX-288
 title: ダッシュボードの業務の流れ（flow）と Lifecycle が同じ移り方を別々に宣言し、食い違いを確かめない
 status: resolved
+kind: spec
 origin_on: 2026-11-11
 origin: labs/adventurers-guild に依頼の Lifecycle（quest-behavior.yaml）が入り、ダッシュボード「ギルドの受付」の flow（段と工程）と並んだとき
 memo: flow の工程（from・action・to）は Lifecycle の遷移（from・to・by.action）と同じ事実を、段＝区画の filter と State＝述語という別の名前で書いている。片方だけ直すと食い違うが、どちらの読み込みも相手を見ない。

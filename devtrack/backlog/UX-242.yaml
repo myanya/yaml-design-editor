@@ -1,6 +1,7 @@
 id: UX-242
 title: 値の式の `via` が、ID の無い配列の要素から参照を辿れず、パスの番号を黙って無視する
 status: discussing
+kind: bug
 origin_on: 2026-11-02
 origin: labs/rpmz 段階 4（ドロップ表）
 body: '**値の式の `via` が、ID の無い配列の要素から参照を辿れず、パスの番号を黙って無視する**: (1) `{each: {path: dropItems}, value: {via: dataId, path: name}}`

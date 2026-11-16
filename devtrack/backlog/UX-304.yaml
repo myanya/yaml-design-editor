@@ -1,6 +1,7 @@
 id: UX-304
 title: 読み込みが 1 本のスレッドで順に進む（文書ごとの解析・書き出し・検証は独立、組込みスキーマは本文に依存しない）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

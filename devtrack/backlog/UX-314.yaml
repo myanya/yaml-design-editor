@@ -1,6 +1,7 @@
 id: UX-314
 title: フロー表記（{…} / […]）の配列要素の前の行にコメントがあると、書き出した YAML の要素が行頭に出て読めなくなる（フォームで保存すると文書が壊れる）
 status: resolved
+kind: bug
 origin_on: 2026-11-14
 origin: 'samples/todos の todo-behavior.yaml（Lifecycle の transitions の要素の前にコメント）を、スキーマのフォーム編集で開いたとき'
 memo: |-

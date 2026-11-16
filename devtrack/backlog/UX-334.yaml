@@ -1,6 +1,7 @@
 id: UX-334
 title: 補正で置き換えた値（項の origins）が設計書に出ない。足したもの（origin）だけが出る
 status: todo
+kind: feature
 origin_on: 2026-11-16
 origin: 'samples/todos-sysdev で、補正「TODO の更新者は 100 文字まで」を書いて試したとき'
 memo: |-

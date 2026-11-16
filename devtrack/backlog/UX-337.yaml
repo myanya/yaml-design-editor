@@ -1,6 +1,7 @@
 id: UX-337
 title: '作業項目の ID 形式の接頭辞が採番のひな型（$format・$of）のまま基本設計項目一覧に入り、エンティティ定義書の概要に「（オブジェクト）」と出る'
 status: todo
+kind: bug
 origin_on: 2026-11-16
 origin: samples/todos-sysdev のテーブル設計書の見直しで、エンティティ定義書の概要を画面と CLI で見たとき
 memo: |-

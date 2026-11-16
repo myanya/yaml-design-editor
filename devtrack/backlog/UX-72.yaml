@@ -1,6 +1,7 @@
 id: UX-72
 title: 新規に行を追加したら、対応する詳細文書を自動生成したい
 status: discussing
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**新規に行を追加したら、対応する詳細文書を自動生成したい**'

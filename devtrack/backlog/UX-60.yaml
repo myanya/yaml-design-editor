@@ -1,6 +1,7 @@
 id: UX-60
 title: 【今後の開発・大規模】プラン／ワークフロー層（一括実行 Level 3）
 status: discussing
+kind: feature
 origin_on: 2026-08-09
 origin: 一括実行設計
 body: '**【今後の開発・大規模】プラン／ワークフロー層（一括実行 Level 3）**: `_plans` 等の新定義種別で foreach・順序・依存（例「アクター全件→ユースケース全件」）・分岐を合成する作業編成機構'

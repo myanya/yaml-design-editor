@@ -1,6 +1,7 @@
 id: UX-58
 title: software-template の 10-design 系4ビューの filePattern がIDプレフィクスを二重化
 status: todo
+kind: bug
 origin_on: 2026-08-09
 origin: ビュー作成作業
 body: '**software-template の 10-design 系4ビューの filePattern がIDプレフィクスを二重化**: 例 api-list は `021-API-{id}.yaml` に行ID `API-001`

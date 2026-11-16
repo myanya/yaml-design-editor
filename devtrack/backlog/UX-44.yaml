@@ -1,6 +1,7 @@
 id: UX-44
 title: ワークスペース全体の検証エラーを確認する手段がGUIにない
 status: resolved
+kind: feature
 origin_on: 2026-08-09
 origin: S2第1回
 body: '**ワークスペース全体の検証エラーを確認する手段がGUIにない**（検証タブは開いている文書のみ。台本の「全体エラー0を確認」が実施できない）'

@@ -1,6 +1,7 @@
 id: UX-129
 title: ビューの残り
 status: when-needed
+kind: feature
 origin_on: 2026-09-24
 origin: ROADMAP 整理（P14 の残り）
 body: '**ビューの残り**: クエリセクションと、文書ビューのエクスポート'

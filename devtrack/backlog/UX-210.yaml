@@ -1,6 +1,7 @@
 id: UX-210
 title: repo-tests のテストは拡張の登録をクラスごとに `Extensions.install(DesktopExtensions.registry)` で入れている
 status: todo
+kind: dev
 origin_on: 2026-10-28
 origin: ビューの種類の差し込み口（R47-61）中
 body: '**repo-tests のテストは拡張の登録をクラスごとに `Extensions.install(DesktopExtensions.registry)` で入れている**（登録簿は大域。入れ忘れたテストクラスは同じ JVM

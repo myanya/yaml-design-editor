@@ -1,6 +1,7 @@
 id: UX-329
 title: 画面設計書の物理パラメータ（欄の幅・段組み・ボタンの強さなど）を、画面ごとに手書きの文書で上書きする仕組みが無い（既定の表だけ）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev の画面設計書（部品の木と物理パラメータ）の議論。オーナー: 今回は入れなくてよい'
 memo: |-

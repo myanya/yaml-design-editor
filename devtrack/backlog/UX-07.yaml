@@ -1,6 +1,7 @@
 id: UX-07
 title: 検証タブが当該ファイルの指摘しか出さない
 status: discussing
+kind: feature
 origin_on: 2026-08-02
 origin: 値型一巡UX試験
 body: '**検証タブが当該ファイルの指摘しか出さない**。編集の影響が及ぶ関連ファイルの指摘も見たい。グローバル／ローカルなど見せる範囲の設計'

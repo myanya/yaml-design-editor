@@ -1,6 +1,7 @@
 id: UX-263
 title: '`skill/Runner.kt` に生の NUL 文字が入っている'
 status: resolved
+kind: dev
 origin_on: 2026-10-03
 origin: 改行コードの整理
 body: '**`skill/Runner.kt` に生の NUL 文字が入っている**: 56 行目の `joinToString(...)` の区切り文字が `"\u0000"` のエスケープでなく実際の NUL バイトで、git がこのファイルをバイナリとみなす（差分が「Binary

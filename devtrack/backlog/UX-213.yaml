@@ -1,6 +1,7 @@
 id: UX-213
 title: 文書だけを変えたコミットでは、コミット前のフックの `DocReferencesTest`・`SourceRulesTest` が実行されない
 status: resolved
+kind: dev
 origin_on: 2026-10-28
 origin: 用語集（R47-32）中
 body: '**文書だけを変えたコミットでは、コミット前のフックの `DocReferencesTest`・`SourceRulesTest` が実行されない**（root の test タスクが docs/ とソースを入力に宣言していないので

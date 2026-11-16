@@ -1,6 +1,7 @@
 id: UX-80
 title: ID横ぐしのアスペクト並びがスキーマIDのアルファベット順になり、detail が概念より先に来るケースがある
 status: resolved
+kind: usability
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**ID横ぐしのアスペクト並びがスキーマIDのアルファベット順になり、detail が概念より先に来るケースがある**'

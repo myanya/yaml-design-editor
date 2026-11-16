@@ -1,6 +1,7 @@
 id: UX-350
 title: "値の式に書ける関数と語の一覧が、機械で読める形に無い"
 status: todo
+kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-

@@ -1,6 +1,7 @@
 id: UX-125
 title: 利用者マニュアル（docs/manual/。旧 README.md）と関連文書が、消す予定の `sample-workspace/` を前提にしている
 status: in-progress
+kind: doc
 origin_on: 2026-09-22
 origin: 公開準備
 body: '**利用者マニュアル（docs/manual/。旧 README.md）と関連文書が、消す予定の `sample-workspace/` を前提にしている**: マニュアルの CLI 例（§16 の約 28 箇所）とスキーマ・ビューの実例ポインタ（§4・§5

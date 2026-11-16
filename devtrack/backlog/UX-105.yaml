@@ -1,6 +1,7 @@
 id: UX-105
 title: カーネル側の CLI（cli モジュールの `workspace validate`）では、利用者が定義した語彙のキーが「スキーマに定義されていない項目です」と警告される
 status: resolved
+kind: bug
 origin_on: 2026-09-19
 origin: R29-10 実装中
 body: '**カーネル側の CLI（cli モジュールの `workspace validate`）では、利用者が定義した語彙のキーが「スキーマに定義されていない項目です」と警告される**（アプリと root の CLI `validate`

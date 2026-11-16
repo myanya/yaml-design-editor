@@ -1,6 +1,7 @@
 id: UX-300
 title: ダッシュボードの集計を画面の組み立ての中で行う（冷えた JVM で 0.2〜0.3 秒、画面のスレッドを止める）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

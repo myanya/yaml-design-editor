@@ -1,6 +1,7 @@
 id: UX-340
 title: エンティティ定義書の CRUD ビューが文字を max で集計し、原本の C/U がすべて空欄になる
 status: discussing
+kind: bug
 origin_on: 2026-11-16
 origin: オーナーによるエンティティ定義書の再レビュー。原本とダッシュボードの CRUD が一致しない
 memo: |-

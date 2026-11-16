@@ -1,6 +1,7 @@
 id: UX-328
 title: 生成の定義（.yde/transforms）の YAML の書き方が誤っていると、generate はその定義を黙って飛ばす（validate では指摘が出る）
 status: todo
+kind: bug
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev の画面のクラスの対応表の生成の定義に、引用符の無い [ を書いたとき'
 memo: |-

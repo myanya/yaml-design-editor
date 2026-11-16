@@ -1,6 +1,7 @@
 id: UX-341
 title: 基本設計の論理型への集約で、項目固有の制約と組込み型の性質が落ちる
 status: discussing
+kind: bug
 origin_on: 2026-11-16
 origin: エンティティ定義書の再調査。作業コピーで文字数制約を狭め、生成入力と設計書を比較
 memo: |-

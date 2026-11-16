@@ -70,6 +70,24 @@ sections:
   - id: by-month
     label: 起点の月×状態
     view: backlog-month-status
+  # 種類ごとの件数（未解決も、解決・見送りも）と、月ごとに増えた種類
+  - id: by-kind
+    label: 種類×状態
+    view: backlog-kind-status
+  - id: by-month-kind
+    label: 起点の月×種類
+    view: backlog-month-kind
+  # 種類を書いていない未解決の指摘（登録のときに省いたもの・どれにも当てはまらなかったもの）。あとで整理する
+  - id: unclassified
+    label: 種類が未分類の未解決
+    view: backlog-list
+    filter:
+      match:
+        - node: { entity: backlog-item, bind: it }
+      where:
+        - { of: it, path: kind, exists: false }
+        - { of: it, path: status, oneOf: [todo, discussing, in-progress, when-needed] }
+      expect: exists
   - id: closed-by-month
     label: 解決の月×結果
     view: closed-by-month

@@ -1,6 +1,7 @@
 id: UX-31
 title: ref の選択後の入力欄に ID と表示名の両方
 status: resolved
+kind: usability
 origin_on: 2026-08-08
 origin: S1第1回
 body: '**ref の選択後の入力欄に ID と表示名の両方**を出したい（現状は入力欄に ID のみ・タイトルは右側併記）'

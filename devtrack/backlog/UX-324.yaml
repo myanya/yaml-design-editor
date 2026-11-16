@@ -1,6 +1,7 @@
 id: UX-324
 title: 生成するテーブル名・カラム名を、項目ごとに別の名前へ付け替える仕組みが無い（いまは SQL の予約語に「_」を付ける決まりだけ）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のデータ系の設計書（テーブル設計書）の命名規約を決めたとき'
 memo: |-

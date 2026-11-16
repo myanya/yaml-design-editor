@@ -1,6 +1,7 @@
 id: UX-73
 title: メタスキーマ（builtin-schema）が実装に追い付いておらず、スキーマ設計UIから入力できない項目がある
 status: resolved
+kind: spec
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**メタスキーマ（builtin-schema）が実装に追い付いておらず、スキーマ設計UIから入力できない項目がある**'

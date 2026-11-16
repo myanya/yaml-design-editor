@@ -14,6 +14,10 @@ columns:
   - label: 状態
     schemaId: item
     value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌" } }
+  # 種類の欄の絵文字と名前（書いていなければ空＝未分類）
+  - label: 種類
+    schemaId: item
+    value: { map: { path: kind }, using: { bug: 🐞 不具合, usability: 🧭 使い勝手, feature: ➕ 機能の不足, spec: 📐 仕様・定義のずれ, doc: 📄 文書, dev: 🛠 開発の基盤 } }
   - { label: 起点の日, schemaId: item, path: origin_on }
   - { label: 起点, schemaId: item, path: origin }
   # 「指摘」の欄: 本文があれば本文、無ければ件名

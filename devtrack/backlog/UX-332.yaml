@@ -1,6 +1,7 @@
 id: UX-332
 title: ドメイン（集約）の範囲を関係（relation）で制御できない。いまは入れ子（保有）だけで集約を決める
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のドメイン定義書の議論。オーナー: 現時点は案 A（集約ごと）でよいが、いずれ relation で集約の範囲をコントロールできるようにしたい'
 memo: |-

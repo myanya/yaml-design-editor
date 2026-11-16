@@ -1,6 +1,7 @@
 id: UX-212
 title: manual/README.md「画面構成」が「4つのスペース」と書いているが、レールと表は 5 つ
 status: todo
+kind: doc
 origin_on: 2026-10-28
 origin: 用語集（R47-32）中
 body: '**manual/README.md「画面構成」が「4つのスペース」と書いているが、レールと表は 5 つ**（ダッシュボード・編集・台帳・実行・設計）'

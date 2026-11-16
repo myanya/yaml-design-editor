@@ -1,6 +1,7 @@
 id: UX-298
 title: 組込みスキーマを開くたびに資源から作り直す（冷えた JVM で 0.3〜0.4 秒、暖まっても 0.04 秒）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

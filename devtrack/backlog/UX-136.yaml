@@ -1,6 +1,7 @@
 id: UX-136
 title: 値の式と変換のひな型で、値をそろえる語が片方にしかない
 status: todo
+kind: spec
 origin_on: 2026-09-28
 origin: labs/kakeibo の取り込み
 body: '**値の式と変換のひな型で、値をそろえる語が片方にしかない**: 変換のひな型に足した `$date`（年月日をそろえる・`$as` で形）と `$trim` は値の式に無く、値の式の `length` `upper` `lower`

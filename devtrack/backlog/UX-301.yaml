@@ -1,6 +1,7 @@
 id: UX-301
 title: 開くときに全文書の保存基準のテキストを書き出す（584 件。冷えた JVM で 0.15〜0.19 秒、使うのは未保存の判定だけ）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

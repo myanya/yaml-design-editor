@@ -1,6 +1,7 @@
 id: UX-307
 title: 構成ファイル（.yde/workspace.yaml）を、構成を求めるたびにディスクから読み直し、ファイルの許可と台帳を別々に解析する
 status: when-needed
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md の「重複と無駄」10）
 memo: |-

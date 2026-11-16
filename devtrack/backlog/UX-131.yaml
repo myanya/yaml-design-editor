@@ -1,6 +1,7 @@
 id: UX-131
 title: 順序の比較に日付を
 status: resolved
+kind: feature
 origin_on: 2026-09-27
 origin: R31-04（値の式の列）
 body: '**順序の比較に日付を**: 検査の `lt` / `lte` / `gt` / `gte` は数値だけで比べ、日付は比べられない（「開始日 ≦ 終了日」が書けない）。集計に足した順序の種類 `type: date` を、値の条件にも当てたい'

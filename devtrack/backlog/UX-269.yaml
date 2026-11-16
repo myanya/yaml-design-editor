@@ -1,6 +1,7 @@
 id: UX-269
 title: 機能索引（FEATURES.md）を系統ごとのファイルに分けるか
 status: discussing
+kind: dev
 origin_on: 2026-11-07
 origin: FEATURES を devtrack へ移す作業（2b-4）でのオーナーとの議論
 body: '**機能索引を系統ごとのファイルに分けるか**: エージェントは grep で引くので長くても影響は少ないが、系統ごと（W・E・S …）に分けてもよいのでは、とオーナーが感じている。FEATURES の管理の運用がこなれてから議論する（2026-11-07

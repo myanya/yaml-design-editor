@@ -1,0 +1,20 @@
+# 行＝指摘の種類、列＝状態、セル＝指摘の件数（未解決も、解決・見送りも）。
+# 「（未分類）」の行は、種類を書いていない指摘
+id: backlog-kind-status
+name: 種類×状態
+kind: matrix
+rows:
+  value: { first: [ { map: { path: kind }, using: { bug: 🐞 不具合, usability: 🧭 使い勝手, feature: ➕ 機能の不足, spec: 📐 仕様・定義のずれ, doc: 📄 文書, dev: 🛠 開発の基盤 } } ] }
+cells:
+  match:
+    - node: { entity: backlog-item, bind: it }
+  of: it
+  columns:
+    path: status
+    values:
+      - { value: todo, label: 📋 未着手 }
+      - { value: discussing, label: 💬 議論待ち }
+      - { value: in-progress, label: 🚧 対応中 }
+      - { value: when-needed, label: ⏳ 必要になったら }
+      - { value: resolved, label: ✅ 解決 }
+      - { value: declined, label: ❌ 見送り }

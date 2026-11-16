@@ -1,6 +1,7 @@
 id: UX-232
 title: 連携（skill）の実行の欄の案内が古い
 status: todo
+kind: doc
 origin_on: 2026-11-02
 origin: P50 の画面確認
 body: '**連携（skill）の実行の欄の案内が古い**: 「定義は _skills/*.yaml に置きます」「_skills/*.yaml に import / export を定義します（README §14）」と出るが、今の置き場は

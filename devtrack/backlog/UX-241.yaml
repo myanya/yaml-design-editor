@@ -1,6 +1,7 @@
 id: UX-241
 title: 値の式で、配列の要素を条件で選べない
 status: discussing
+kind: feature
 origin_on: 2026-11-02
 origin: labs/rpmz 段階 4（敵 × 属性の有効度）
 body: '**値の式で、配列の要素を条件で選べない**: 敵キャラの特徴（`traits`）のうち「種類 11（属性有効度）で属性が ELM-03」の要素の倍率を読みたいが、値の式に要素を選ぶ書き方が無い（`each` は全要素に当てるだけ、`all`

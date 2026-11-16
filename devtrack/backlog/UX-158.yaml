@@ -1,6 +1,7 @@
 id: UX-158
 title: レンズの状態（型・関係のチェック・配置の種類・深さ）がタブを離れると初期化される
 status: resolved
+kind: usability
 origin_on: 2026-10-12
 origin: P38 段階 1
 body: '**レンズの状態（型・関係のチェック・配置の種類・深さ）がタブを離れると初期化される**（以前から。`remember` で持っているため）'

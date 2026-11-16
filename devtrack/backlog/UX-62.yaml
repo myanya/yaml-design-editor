@@ -1,6 +1,7 @@
 id: UX-62
 title: 同梱テンプレートが .gitignore 対象で履歴・走査に載らない
 status: declined
+kind: dev
 origin_on: 2026-08-09
 origin: P19方針検討
 body: '**同梱テンプレートが .gitignore 対象で履歴・走査に載らない**: sample-workspace / system-development-template / software-template が gitignore

@@ -1,6 +1,7 @@
 id: UX-313
 title: 業務詳細のフォームで、表の形（display table）の配列の日付が見せ方（format）を使わず、素の値（2026-10-01）で出る
 status: todo
+kind: bug
 origin_on: 2026-11-14
 origin: samples/todos の TODO-004 の業務詳細で、個票の「状態の履歴」（表の形）を画面の部品の木で読んだとき
 memo: |-

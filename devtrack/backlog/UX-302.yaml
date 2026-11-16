@@ -1,6 +1,7 @@
 id: UX-302
 title: 開くときに全文書の構造を検証する（583 件。冷えた JVM で 0.28〜0.33 秒、結果を読むのは適用の requireValid と CLI の shell だけ）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

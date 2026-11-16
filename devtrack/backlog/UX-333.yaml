@@ -1,6 +1,7 @@
 id: UX-333
 title: 段の補正を書くのに、段の項の形（entities[*].aspects[*].fields など）を知る必要がある。設計書で見ている言葉（どの型のどの項目）で当たり先を書けない
 status: todo
+kind: usability
 origin_on: 2026-11-16
 origin: 'samples/todos-sysdev で、補正「TODO の更新者は 100 文字まで」を書いて試したとき（オーナーの問い「人は、どうやって直すの？」）'
 memo: |-

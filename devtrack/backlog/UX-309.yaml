@@ -1,6 +1,7 @@
 id: UX-309
 title: クロス集計の行を値の式で広げる（rows.value）と、enum の値の見出しが label にならず、並びも宣言の順にならない。複数の側面を持つ要素の値は in を書かないと読めない
 status: todo
+kind: bug
 origin_on: 2026-11-14
 origin: 'samples/todos の「カテゴリ×ステータス」を kind: matrix に書き直す検討（行と列を入れ替えた試作）'
 memo: |-

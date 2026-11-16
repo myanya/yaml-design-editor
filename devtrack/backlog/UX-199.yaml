@@ -1,6 +1,7 @@
 id: UX-199
 title: 配列の追加の採番（`methods.insert.id.prefix`）で、親の要素の値を使えない
 status: resolved
+kind: feature
 origin_on: 2026-10-25
 origin: samples/orders の作成
 body: '**配列の追加の採番（`methods.insert.id.prefix`）で、親の要素の値を使えない**。注文明細の番号を「注文番号-01」のように付けたいが、接頭辞のひな型が見るのは新しい要素だけ（`ActionPlanner.applyInsertRuleTo`

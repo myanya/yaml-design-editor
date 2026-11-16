@@ -1,6 +1,7 @@
 id: UX-335
 title: 設計のデータ型と初期値の書き方を定義でき、YDE の型・初期化の仕方から設計書体系での書き方へ、さらに SQL・Java などのロジックへ写せる対応のマスタを作れない
 status: todo
+kind: feature
 origin_on: 2026-11-16
 origin: 'samples/todos-sysdev のエンティティ定義書（基本設計項目一覧）のレビュー。オーナー: エンティティ定義書はいったん OK。その上で登録'
 memo: |-

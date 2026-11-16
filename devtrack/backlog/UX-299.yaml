@@ -1,6 +1,7 @@
 id: UX-299
 title: ビュー定義を画面の部品ごとにディスクから読み直す（開いた直後に 2 回・呼び手 11 か所・画面のスレッドで 1 回 0.03〜0.14 秒）
 status: discussing
+kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-

@@ -1,6 +1,7 @@
 id: UX-84
 title: enum 定義フォームのデフォルト値の入力欄が遠い
 status: resolved
+kind: usability
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**enum 定義フォームのデフォルト値の入力欄が遠い**'

@@ -1,6 +1,7 @@
 id: UX-336
 title: 基本設計項目一覧の CRUD 表の行のキーが日本語（項目・名称）。原則（値とキーは機械が読める形）に合わせるなら item・label にする
 status: todo
+kind: spec
 origin_on: 2026-11-16
 origin: 'samples/todos-sysdev のエンティティ定義書のレビュー。オーナー: CRUD 表の列名はバックログに入れておいて'
 memo: |-

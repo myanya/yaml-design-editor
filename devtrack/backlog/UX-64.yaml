@@ -1,6 +1,7 @@
 id: UX-64
 title: 連番・通番の自動採番機能が欲しい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**連番・通番の自動採番機能が欲しい**'

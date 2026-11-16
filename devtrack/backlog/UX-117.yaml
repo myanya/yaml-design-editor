@@ -1,6 +1,7 @@
 id: UX-117
 title: 中身が空の文書（0バイトのファイル）の扱いが、アプリとカーネル側の CLI で違う
 status: resolved
+kind: bug
 origin_on: 2026-09-21
 origin: P27 段D の D-a の確認中（実測）
 body: '**中身が空の文書（0バイトのファイル）の扱いが、アプリとカーネル側の CLI で違う**（`sample-workspace` の `todos/11-screen-taskdelete.yaml` など3件: アプリと root

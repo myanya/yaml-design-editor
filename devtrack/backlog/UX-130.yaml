@@ -1,6 +1,7 @@
 id: UX-130
 title: フォーム系 UI と AppState の自動テストの範囲
 status: todo
+kind: dev
 origin_on: 2026-09-24
 origin: FEATURES 整理（旧 L-09）
 body: '**フォーム系 UI と AppState の自動テストの範囲**: Compose UI 自体は手動確認（方針）。ロジックは純粋関数へ切り出して単体テストにする'

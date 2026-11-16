@@ -1,6 +1,7 @@
 id: UX-330
 title: 完了の知らせの文を、操作の名前の末尾の「する」を「しました」にする決まりで作っている（名前の付け方に頼っていて、汎用ではない）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のエラーとメッセージ系の議論。オーナー: 現時点ではそれで良いが、今後の検討対象に入れておきたい'
 memo: |-

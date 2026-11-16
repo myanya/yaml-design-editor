@@ -1,6 +1,7 @@
 id: UX-306
 title: 全読込（capture）を通らない読み込みの経路は、文書 1 件ごとに実パスを 3 回確かめる（G1・G2 が効かない）
 status: todo
+kind: usability
 origin_on: 2026-11-14
 origin: G2 の影響を調べたとき（全読込の呼び手と、それ以外の読み込みの経路を洗い出した）
 memo: |-

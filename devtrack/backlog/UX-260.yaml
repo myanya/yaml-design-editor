@@ -1,6 +1,7 @@
 id: UX-260
 title: 指摘の番号が二重に振られている
 status: resolved
+kind: dev
 origin_on: 2026-11-07
 origin: 開発管理の段階 0（devtrack の取り込み）
 body: '**指摘の番号が二重に振られている**: UX-140・UX-171 は台帳と記録（archive/backlog-closed.md）に別々の指摘として、UX-172 は記録の中に 2 つの別々の指摘としてある。起点の日が 1〜3

@@ -1,6 +1,7 @@
 id: UX-79
 title: 'type: id のフィールドにIDフォーマットを設定・強制する手段がスキーマ設計UIにない'
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**type: id のフィールドにIDフォーマットを設定・強制する手段がスキーマ設計UIにない**。現状は description に「フォーマット: FLD-nnn」と書いて誘導するしかない（ヒアリング済み: 単純なスキーマ設計での強制手段が欲しい）'

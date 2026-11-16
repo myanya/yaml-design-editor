@@ -1,6 +1,7 @@
 id: UX-243
 title: 操作で作った文書のキーの並びが、スキーマの項目の順にならない
 status: todo
+kind: usability
 origin_on: 2026-11-02
 origin: labs/rpmz 段階 4（操作）
 body: '**操作で作った文書のキーの並びが、スキーマの項目の順にならない**: 型の `create` は「必須の項目の初期値」の上に受け取った値を重ねるので、必須の項目が先に並ぶ（敵グループを作ると `id`・`members`・`name`

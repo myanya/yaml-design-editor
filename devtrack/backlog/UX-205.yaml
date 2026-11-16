@@ -1,6 +1,7 @@
 id: UX-205
 title: エージェントの `read_view` はダッシュボードの共有の入力を受け取れず、定義の default だけで解決する
 status: todo
+kind: feature
 origin_on: 2026-10-26
 origin: ダッシュボードの共有の入力（inputs）を入れたとき
 body: '**エージェントの `read_view` はダッシュボードの共有の入力を受け取れず、定義の default だけで解決する**（CLI の `view` は `--param` で渡せる。画面も欄がある）'

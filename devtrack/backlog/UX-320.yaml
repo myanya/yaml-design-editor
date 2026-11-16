@@ -1,6 +1,7 @@
 id: UX-320
 title: 前提（require）を SQL の条件に写す規則が無く、テーブルアクセス設計書では「手で書く」になる
 status: resolved
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のテーブルアクセス設計書を生成したとき（操作の筋）'
 memo: |-

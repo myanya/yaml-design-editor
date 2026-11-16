@@ -1,6 +1,7 @@
 id: UX-39
 title: 実行ログが読みづらい
 status: discussing
+kind: usability
 origin_on: 2026-08-08
 origin: S1第1回
 body: '**実行ログが読みづらい**。plan（作業計画）が実行にどう影響しているかもログから見えない'

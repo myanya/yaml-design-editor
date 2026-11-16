@@ -1,6 +1,7 @@
 id: UX-215
 title: CLAUDE.md の落とし穴の 2 行が、移す前の「root」を指したまま
 status: resolved
+kind: doc
 origin_on: 2026-10-28
 origin: desktop をモジュールにする議論の下調べ中
 body: '**CLAUDE.md の落とし穴の 2 行が、移す前の「root」を指したまま**（「root の `Validator` に検査を書き足さない」の `Validator` は今は app-core。「root に適用規則を書かない」も、今の

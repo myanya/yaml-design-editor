@@ -1,6 +1,7 @@
 id: UX-223
 title: 全テーブルのカラムを 1 つの表にすると、テーブルの間がファイル名の順になる
 status: todo
+kind: usability
 origin_on: 2026-10-31
 origin: クエリ行の並び（テーブルモデルのサンプル）
 body: '**全テーブルのカラムを 1 つの表にすると、テーブルの間がファイル名の順になる**（`tm-columns` と、受け取る値を空にした `tm-table-columns` は、`order: { schemaId: tm-physical

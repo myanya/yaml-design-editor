@@ -1,6 +1,7 @@
 id: UX-349
 title: "manual/schema.md の「フィールド定義のプロパティ」の表に target・entity・constraints・methods・extensions が無く、冒頭の例の kind が document と library だけ"
 status: resolved
+kind: doc
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
 memo: |-

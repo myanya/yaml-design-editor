@@ -1,6 +1,7 @@
 id: UX-259
 title: Markdown の取り込みが、文書の中の表をすべて 1 つの表として読む
 status: todo
+kind: bug
 origin_on: 2026-11-07
 origin: 開発管理の段階 0（devtrack の取り込み）
 body: '**Markdown の取り込みが、文書の中の表をすべて 1 つの表として読む**: 2 つ目以降の表の見出しの行と区切りの行もデータの行になる。docs/BACKLOG.md ではテーマ管理の節の表（8 行）が来るので、devtrack

@@ -1,6 +1,7 @@
 id: UX-83
 title: time 型も扱えるようにしたい
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**time 型も扱えるようにしたい**'

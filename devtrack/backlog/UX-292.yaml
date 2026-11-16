@@ -1,6 +1,7 @@
 id: UX-292
 title: 受け手の無いアクションで、ほかの文書の値（支部の率や会費）を読めない
 status: todo
+kind: feature
 origin_on: 2026-11-11
 origin: labs/adventurers-guild の「冒険者を登録する」で、支部の年会費を写そうとしたとき
 memo: |-

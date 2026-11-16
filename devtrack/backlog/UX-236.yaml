@@ -1,6 +1,7 @@
 id: UX-236
 title: 並んだ配列を同じ番号で読めない
 status: resolved
+kind: feature
 origin_on: 2026-11-02
 origin: labs/rpmz 段階 2（MZ の JSON の取り込み）
 body: '**並んだ配列を同じ番号で読めない**（行と列の入れ替え）: MZ の職業の成長表は「能力値ごとの 100 個の並び」が 8 つで、YDE では「レベルごとの行」にしたいが、`$each` の中から別の配列の同じ番号を読む書き方が無い。System.json

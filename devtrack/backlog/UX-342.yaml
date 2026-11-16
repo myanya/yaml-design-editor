@@ -1,6 +1,7 @@
 id: UX-342
 title: エンティティ定義書の項目と論理型のビューでは、配列の参照先・重複禁止・入れ子・制約を十分に確認できない
 status: discussing
+kind: usability
 origin_on: 2026-11-16
 origin: オーナーによるエンティティ定義書の再レビュー。必要な項目から整理する
 memo: |-

@@ -1,6 +1,7 @@
 id: UX-327
 title: ダッシュボードの定義の自由度を上げ、いろいろな画面の構成に応える（画面はダッシュボードを起点に決めるため）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev の画面系の議論（画面はダッシュボードを起点に、業務モデルから計算で決める。ADR-0033）'
 memo: |-

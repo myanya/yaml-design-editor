@@ -1,6 +1,7 @@
 id: UX-03
 title: カバレッジ警告も未保存編集で追随してほしい
 status: resolved
+kind: feature
 origin_on: 2026-08-02
 origin: 完全性検査UX試験
 body: '**カバレッジ警告も未保存編集で追随してほしい**（保存しないと警告が出ない／消えないのが怖い）'

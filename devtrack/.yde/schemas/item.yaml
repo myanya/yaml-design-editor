@@ -16,6 +16,7 @@ actions:
       - { key: title, label: 件名, type: common#一行の文, required: true, minLength: 1 }
       - { key: origin, label: 起点, type: common#一行の文, required: true, minLength: 1, description: 見つけた場面（作業・試験・レビュー） }
       - { key: status, label: 状態, type: common#未解決の状態, default: todo }
+      - { key: kind, label: 種類, type: common#指摘の種類, description: 省くと未分類（あとで付けられます） }
       - { key: body, label: 指摘, type: common#文章, description: "件名だけで足りないとき。先頭に太字の件名を書く慣わしです（**件名**: 詳しく）" }
       - { key: memo, label: 技術メモ, type: common#文章, description: 対応の当たり }
       - { key: theme, label: テーマ, type: common#テーマ参照 }
@@ -32,6 +33,7 @@ actions:
             id: { $copy: id }
             title: $title
             status: $status
+            kind: { $copy: kind }
             origin: $origin
             body: { $copy: body }
             memo: { $copy: memo }

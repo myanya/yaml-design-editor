@@ -1,6 +1,7 @@
 id: UX-268
 title: バージョン表示（スタート画面・CLI version）が manual に書かれていない
 status: todo
+kind: doc
 origin_on: 2026-11-07
 origin: FEATURES を devtrack へ移す作業（2b-1。操作の説明の列を埋めたとき）
 body: '**バージョン表示が manual に無い**: FEATURES の C-16（外部 appVersion・内部 yyyymmdd.ビルド番号・コミット・CLI version とスタート画面）を説明する manual の節が無い。操作の説明の列は、書かれるべき

@@ -1,6 +1,7 @@
 id: UX-308
 title: Lifecycle の生成入口に操作か Event しか書けず、フォームで作った途中の要素（個票の無い TODO）がどの State にも当たらないと、関係の無い操作の照合でも INCONSISTENT が出る
 status: todo
+kind: feature
 origin_on: 2026-11-14
 origin: samples/todos に振る舞いの宣言を足す検討（写しで behavior-scenarios を回したとき）
 memo: |-

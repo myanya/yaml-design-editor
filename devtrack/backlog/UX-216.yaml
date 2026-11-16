@@ -1,6 +1,7 @@
 id: UX-216
 title: repo-tests に、試す対象は 1 つのモジュールなのに CLI や画面の確認が数件混じるため移せないテストが残っている
 status: todo
+kind: dev
 origin_on: 2026-10-28
 origin: desktop と repo-tests のモジュール化（R47-27）中
 body: '**repo-tests に、試す対象は 1 つのモジュールなのに CLI や画面の確認が数件混じるため移せないテストが残っている**（ViewsTest・WorkspaceCliTest・QueryTest・SchemaInferenceTest・CheckDefinitionTest・WorkspaceLayoutTest・RelationRegistryTest

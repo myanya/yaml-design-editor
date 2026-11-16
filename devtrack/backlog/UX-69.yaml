@@ -1,6 +1,7 @@
 id: UX-69
 title: IDのパターンマッチでなく、object 定義そのものに id / name を宣言し、オブジェクト一覧の特定と検索キーをスキーマ側へ寄せてはどうか
 status: resolved
+kind: feature
 origin_on: 2026-08-12
 origin: 利用者メモ
 body: '**IDのパターンマッチでなく、object 定義そのものに id / name を宣言し、オブジェクト一覧の特定と検索キーをスキーマ側へ寄せてはどうか**という提案'

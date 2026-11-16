@@ -1,6 +1,7 @@
 id: UX-115
 title: カーネル側の CLI（cli モジュールの `workspace validate`）は、定義体で書かれた検査を1つも実行しない
 status: resolved
+kind: bug
 origin_on: 2026-09-20
 origin: 今後のテーマの精査
 body: '**カーネル側の CLI（cli モジュールの `workspace validate`）は、定義体で書かれた検査を1つも実行しない**（構造の検証・ID の重複・参照の解決・宣言のない関係名だけ。詳細文書の存在・整合・多重度・対象型・非循環・網羅・遷移・利用者の

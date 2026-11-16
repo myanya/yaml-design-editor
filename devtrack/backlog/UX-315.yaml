@@ -1,6 +1,7 @@
 id: UX-315
 title: 状態を変えない操作の前提に、Lifecycle の State（詳細化の親「未完了」など）を書けず、状態の値を require に並べ直すことになる
 status: resolved
+kind: feature
 origin_on: 2026-11-14
 origin: samples/todos に「作業項目を追加する」（未完了のときだけできる、状態を変えない操作）を足したとき
 memo: |-

@@ -1,6 +1,7 @@
 id: UX-318
 title: 閲覧専用モードで、操作の入力の配列（登録のタグなど）に「追加」が効かない
 status: resolved
+kind: bug
 origin_on: 2026-11-15
 origin: 'オーナーが samples/todos の「TODOを登録する」を閲覧専用モードで使い、タグの欄に要素を足そうとしたとき'
 memo: |-

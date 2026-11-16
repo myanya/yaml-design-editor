@@ -1,6 +1,7 @@
 id: UX-100
 title: 被参照不足（多重度 inMin）の警告から修正場所へ行けない
 status: resolved
+kind: usability
 origin_on: 2026-09-05
 origin: テンプレv3試用
 body: '**被参照不足（多重度 inMin）の警告から修正場所へ行けない**（「SI-RESERVE-DETAIL-CONTENT が物理化されていない」警告を押しても、項目を書くべき画面設計書への導線がない。オーナー: 対象設計書に項目を作れるとなお良い・汎用化できなければジャンプでも良い）'

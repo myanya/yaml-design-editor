@@ -1,6 +1,7 @@
 id: UX-155
 title: file 型で画像以外（PDF・テキストなど）の中身が見えない
 status: when-needed
+kind: feature
 origin_on: 2026-10-11
 origin: P37 第一弾
 body: '**file 型で画像以外（PDF・テキストなど）の中身が見えない**（「OS で開く」だけ）'
