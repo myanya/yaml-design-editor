@@ -45,7 +45,7 @@ root:
       label: 文書の中身（変換のひな型）
       type: any
       required: true
-      description: "変換のひな型（$copy / $format / $value / $each / $case / $compose など）。$compose は導出・追加・変更の候補を合成し、競合があれば止める。いまの場所は要素（each を省けば業務モデル全体）。全体は $of: model、いまの要素は $of: element で読める"
+      description: "変換のひな型（$copy / $format / $value / $each / $case / $compose / $schemaModel など）。$compose は候補を合成し競合で止める。$schemaModel はスキーマ文書の配列から型を解き、定義の誤りで止める。いまの場所は要素（each を省けば業務モデル全体）。全体は $of: model、いまの要素は $of: element で読める"
     - key: rules
       label: 名前を付けた組み立て
       type: array

@@ -40,6 +40,7 @@
   | `{$concat: [ひな型, …]}` | 配列をつなげる |
   | `{$group: パスかひな型, $by: ひな型, $build: ひな型}` | 配列の要素を、`$by`（要素をいまの場所にして計算したキー）が同じものごとにまとめ、まとまり `{key, items}` をいまの場所にして組み立てる（`$apply` とも書ける。`$bind` でまとまりに名前）。キーは構造で比べ、順はキーが初めて出た順。キーが「無い」要素は落とす（`$by` に `$when` を書けば絞り込みを兼ねる）。まとめた後の場所は入力の座標を持たないので、出どころは記録しない |
   | `{$entries: ひな型}` | `{key, value}` の並びからマップを作る（キーを計算で決めるマップ）。同じキーは後の値で置き換え、位置は初めのところ。キーがスカラーでない・値が無い項目は飛ばす |
+  | `{$schemaModel: ひな型}` | スキーマ文書の配列を組み立て、既存の定義検査と型解決で業務モデルの項にする。生成の `input`・`build` で使う |
   | `{$when: 条件, $then: ひな型}`・マップに `$when` を添える | 条件に合うときだけ出す |
 
 - 条件の `includes` / `includesAny` は、場所の配列の要素で比べる（クエリの `where`・検査の `check` と同じ `SemanticExpression.testArray`）。
@@ -65,12 +66,19 @@
 `$view` は `VirtualViews` → `ReportRows` で、その新しい木から読む。依存先が失敗すれば後続を実行せず、計画に誤りがあれば取引の操作を空にする。
 `input` があれば段を当てる前に `SemanticTransform.runAt` で入力を組み立てる。`Stages` は入力の適用済みの段が宣言順の先頭と一致することを確かめ、残りだけを当てる。循環・存在しない依存先・段の順の不一致は計画の誤りになる。
 
+`$schemaModel` は Construct で組み立てたスキーマ文書の配列を、`Generators` が供給する `SchemaModels.resolve` へ渡す。
+入力の文書だけをメモリ上のストアに置き、`WorkspaceReader`・組込みのメタスキーマ・`WorkspaceCheckRunner` で定義を検査してから、`BusinessModel` で型を解いた項を返す。
+外のワークスペースの型や前回の出力は参照しない。重複する ID、型の参照切れ、狭める規則に反する指定、定義の検査の保留は生成を失敗させる。利用者データに対する成立条件の評価はここでは行わない。
+入力の位置を仮の文書座標 `.yde/schemas/input/<番号>.yaml` に使い、宣言の来歴に残す。候補の原本の `source`・`decisions` は呼び出す変換が別に保持する。
+これはスキーマの項を既存の解釈へ渡し、参照付きの有限の項へ射影する接続であり、型解決規則を追加しない。semantic-core は供給元だけを受け取り、workspace-core へ依存しない。供給元の無い入口では使用を拒否する。
+
 業務モデルを展開した項（`BusinessModel`）を入力に変換を当て、作った YAML を生成物の文書として書く（ADR-0031）。
 
 | 部品 | ファイル | 責務 |
 |---|---|---|
 | `BusinessModel` | workspace-core/workspace/BusinessModel.kt | スキーマに分けて書いた業務モデルを 1 つの項に展開する（`entities`・`actions`・`states`・`lifecycles`・名前付きの型 `types`）。操作の効果は do・Lifecycle・自動の値を 1 列に |
 | `BusinessModelTraversal` | workspace-core/workspace/BusinessModelTraversal.kt | 現在の経路の型参照と原文の子を保持し、再帰する型の共通部分を参照で閉じる |
+| `SchemaModels` | workspace-core/workspace/SchemaModels.kt | 組み立てたスキーマ文書を既存の定義検査と型解決へ渡す |
 | `BusinessModelViews` | workspace-core/workspace/BusinessModelViews.kt | 業務モデルの項のビューの側（`views`・`dashboards`）と、ダッシュボードからたどれる範囲（`reach`。ADR-0033） |
 | `BusinessModelRules` | workspace-core/workspace/BusinessModelRules.kt | 業務モデルの項のデータの決まりの側（`constraints`。型の検査・スキーマの検査・関係レジストリ）と、操作が書くと破れうる決まり（操作の `checks`） |
 | `Generators` / `GeneratorDef` / `GenerationPlan` | workspace-core/workspace/Generators.kt | 生成の定義（transforms ゾーン）の読み込み・計画（作る・作り直す・消す・変わらない）・セッションの 1 トランザクション・生成の系譜（`lineage`） |

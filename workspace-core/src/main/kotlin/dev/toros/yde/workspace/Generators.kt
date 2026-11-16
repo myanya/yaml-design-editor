@@ -228,7 +228,7 @@ object Generators {
             }
             val model = if (def.input == null) stagedModel else runCatching {
                 val place = SemanticTransform.TemplatePlace(stagedModel, null, emptyList())
-                SemanticTransform.runAt(def.input, place, views = ::viewRows, places = mapOf(MODEL to place, ELEMENT to place)).term?.let { input ->
+                SemanticTransform.runAt(def.input, place, views = ::viewRows, places = mapOf(MODEL to place, ELEMENT to place), schemaModel = SchemaModels::resolve).term?.let { input ->
                     if (def.stage == null) input else Stages.term(session, input, def.stage).let { staged ->
                         errors += staged.errors
                         staged.term.takeIf { staged.errors.isEmpty() }
@@ -242,6 +242,7 @@ object Generators {
                     SemanticTransform.runAt(
                         def.transform, SemanticTransform.TemplatePlace(node, null, path),
                         views = ::viewRows,
+                        schemaModel = SchemaModels::resolve,
                         loop = mapOf("index" to index, "position" to index + 1),
                         places = mapOf(MODEL to modelPlace, ELEMENT to SemanticTransform.TemplatePlace(node, null, path)),
                     ).term

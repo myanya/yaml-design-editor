@@ -1,7 +1,9 @@
 package dev.toros.yde.app.core
 
 import dev.toros.yde.workspace.Generators
+import dev.toros.yde.workspace.BusinessModel
 import dev.toros.yde.workspace.InMemoryDocumentStore
+import dev.toros.yde.workspace.SchemaModels
 import dev.toros.yde.workspace.WorkspaceCheckRunner
 import dev.toros.yde.workspace.WorkspaceReader
 import dev.toros.yde.workspace.WorkspaceSession
@@ -12,8 +14,9 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.io.path.listDirectoryEntries
 
-/** 新しい保存形式から、実際の生成計画で候補を合成する。確定設計書への切り替えとは分けて確かめる。 */
+/** 新しい保存形式から、実際の生成計画で候補を合成し型を解く。確定設計書への切り替えとは分けて確かめる。 */
 class TodosDesignGenerationTest {
     private val sample = Path.of("samples/todos-sysdev")
     private fun yaml(raw: Any?) = YamlIO.dumpPlain(YamlIO.fromAny(raw))
@@ -37,6 +40,25 @@ class TodosDesignGenerationTest {
 
     private fun correction(id: String, target: String, set: Map<String, Any?>) =
         mapOf("id" to id, "target" to target, "set" to set, "reason" to "設計上の個別指定")
+
+    @Test
+    fun `業務モデル一式を渡すと エンティティと側面と操作も従来の読み取りと同じ値になる`() {
+        val files = sample.resolve(".yde/schemas/business").listDirectoryEntries("*.yaml").sorted()
+        val texts = files.map { Files.readString(it) }
+        val sources = files.map { ".yde/schemas/business/${it.fileName}" }
+        val original = WorkspaceReader.load(InMemoryDocumentStore(sources.zip(texts).toMap()))
+        assertEquals(emptyList(), original.schemaErrors)
+        val documentNames = sources.mapIndexed { index, source -> source to ".yde/schemas/input/$index.yaml" }.toMap()
+        fun replaceDocuments(value: Any?): Any? = when (value) {
+            is Map<*, *> -> value.mapValues { replaceDocuments(it.value) }
+            is List<*> -> value.map { replaceDocuments(it) }
+            is String -> documentNames[value] ?: value
+            else -> value
+        }
+        val expected = replaceDocuments(YamlIO.toAny(BusinessModel.of(original)))
+        val resolved = SchemaModels.resolve(YamlIO.fromAny(texts.map(YamlIO::parseToRaw)))
+        assertEquals(expected, YamlIO.toAny(resolved), "仮の文書座標以外の意味は変えない")
+    }
 
     private val addition = """
         additions:
@@ -93,14 +115,17 @@ class TodosDesignGenerationTest {
         output: design/type-schema.yaml
         input: {${'$'}view: composed, ${'$'}one: true}
         build:
-          id: common
-          kind: library
-          definitions:
-            ${'$'}entries:
-              ${'$'}each: values.records
-              ${'$'}build:
-                key: {${'$'}value: {extract: [{path: id}, '([^.]+)$']}}
-                value: {${'$'}copy: value}
+          id: RESOLVED
+          model:
+            ${'$'}schemaModel:
+              - id: common
+                kind: library
+                definitions:
+                  ${'$'}entries:
+                    ${'$'}each: values.records
+                    ${'$'}build:
+                      key: {${'$'}value: {extract: [{path: id}, '([^.]+)$']}}
+                      value: {${'$'}copy: value}
     """.trimIndent()
 
     private fun store(corrections: List<Map<String, Any?>>, rules: String = "changes: []", records: List<Map<String, Any?>> = derived()): InMemoryDocumentStore {
@@ -115,13 +140,16 @@ class TodosDesignGenerationTest {
             ".yde/schemas/additions.yaml" to "id: additions\nmatch: design/additions.yaml\nroot: {type: basic-design-contract#追加一覧}\n",
             ".yde/schemas/expanded.yaml" to "id: expanded\nmatch: design/expanded.yaml\nroot: {type: basic-design-contract#展開した候補}\n",
             ".yde/schemas/composed.yaml" to "id: composed\nmatch: design/composed.yaml\nroot: {type: object, fields: [{key: id, type: id}, {key: records, type: any}, {key: decisions, type: any}]}\n",
+            ".yde/schemas/resolved.yaml" to "id: resolved\nmatch: design/type-schema.yaml\nroot: {type: object, fields: [{key: id, type: id}, {key: model, type: any}]}\n",
             ".yde/views/derived.yaml" to "id: derived\nrows: {schemaIds: [derived], idPattern: DRV-*}\ncolumns: [{label: records, path: records}]\n",
             ".yde/views/additions.yaml" to "id: additions\nrows: {schemaIds: [additions], idPattern: ADD-*}\ncolumns: [{label: record, path: .}]\n",
             ".yde/views/corrections.yaml" to "id: corrections\nrows: {schemaIds: [corrections], idPattern: COR-*}\ncolumns: [{label: record, path: .}]\n",
             ".yde/views/rules.yaml" to "id: rule-changes\nrows: {schemaIds: [expanded], idPattern: CHG-*}\ncolumns: [{label: record, path: .}]\n",
             ".yde/views/composed.yaml" to "id: composed\nrows: {schemaIds: [composed], idPattern: COMPOSED}\ncolumns: [{label: records, schemaId: composed, path: records}]\n",
+            ".yde/views/resolved.yaml" to "id: resolved\nrows: {schemaIds: [resolved], idPattern: RESOLVED}\ncolumns: [{label: model, schemaId: resolved, path: model}]\n",
             ".yde/transforms/compose.yaml" to generator,
             ".yde/transforms/schema.yaml" to schemaGenerator,
+            ".yde/transforms/final.yaml" to "id: final\ndependsOn: [resolved-schema]\noutput: design/final.yaml\ninput: {\$view: resolved, \$one: true}\nbuild: {\$copy: values.model}\n",
             "design/derived.yaml" to yaml(mapOf("id" to "DRV-business", "records" to records)),
             "design/additions.yaml" to addition,
             "design/corrections.yaml" to yaml(mapOf("corrections" to corrections)),
@@ -141,16 +169,32 @@ class TodosDesignGenerationTest {
             correction("COR-version", "FLD-todo.version", mapOf("default" to 1))))
         val plan = Generators.plan(WorkspaceSession(store))
         assertEquals(emptyList(), plan.errors)
-        val schema = plan.outputs.single { it.generator == "resolved-schema" }
-        val loaded = WorkspaceReader.load(InMemoryDocumentStore(mapOf(
-            ".yde/workspace.yaml" to "ledger: [data]\n", ".yde/schemas/result.yaml" to schema.text)))
-        assertEquals(emptyList(), loaded.schemaErrors, plan.outputs.joinToString("\n") { it.text })
-        val tree = loaded.schemas.single { it.id == "common" }.tree
-        assertEquals(200, tree.resolveTypeName("title")!!.maxLength)
-        assertEquals(100, tree.resolveTypeName("explicit")!!.maxLength)
-        assertEquals(1, tree.resolveTypeName("version")!!.default)
+        val result = YamlIO.parseToRaw(plan.outputs.single { it.generator == "final" }.text) as Map<*, *>
+        val types = rows(result, "types").associateBy { it["name"] }
+        assertEquals(200, types.getValue("common#一行の文")["maxLength"])
+        assertEquals(200, types.getValue("common#title")["maxLength"])
+        assertEquals(100, types.getValue("common#explicit")["maxLength"])
+        assertEquals(1, types.getValue("common#version")["default"])
         plan.outputs.forEach { store.write(it.document, it.text) }
         assertTrue(Generators.plan(WorkspaceSession(store)).upToDate, "再生成しても補正を重ね掛けしない")
+    }
+
+    @Test
+    fun `合成が成功しても 型を緩める指定や型の参照切れは後続と書込みを止める`() {
+        for (set in listOf(mapOf("maxLength" to 200), mapOf("type" to "missing#absent"))) {
+            val store = store(emptyList())
+            val previous = Generators.plan(WorkspaceSession(store))
+            assertEquals(emptyList(), previous.errors)
+            previous.outputs.forEach { store.write(it.document, it.text) }
+            store.write(DocumentId("design/corrections.yaml"), yaml(mapOf("corrections" to listOf(correction("COR-invalid", "FLD-todo.title", set)))))
+            val failed = Generators.plan(WorkspaceSession(store))
+            assertTrue(failed.outputs.any { it.generator == "compose" }, "候補の合成自体は成功する")
+            assertTrue(failed.errors.any { "\$schemaModel" in it }, failed.errors.toString())
+            assertTrue(failed.outputs.none { it.generator == "resolved-schema" || it.generator == "final" })
+            assertTrue(failed.transaction.operations.isEmpty())
+            val old = previous.outputs.single { it.generator == "final" }
+            assertEquals(old.text, store.read(old.document)?.text, "失敗した計画は前回の確定結果を書き換えない")
+        }
     }
 
     @Test

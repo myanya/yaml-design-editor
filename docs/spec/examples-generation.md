@@ -150,6 +150,64 @@ build:
   x: 1
 ```
 
+## 組み立てた共通型を解き、継承する値と項目に明記した値を生成する
+
+- ID: EX-generate-schema-model
+- 示す仕様: KW-template.$schemaModel・KW-generator.input
+- 結果: 通る（誤りも警告も無い）
+
+生成する `design/values.yaml`
+
+```yaml
+types:
+  - {name: common#title, maxLength: 200}
+  - {name: common#inherited, maxLength: 200}
+  - {name: common#explicit, maxLength: 100}
+```
+
+`.yde/transforms/resolve.yaml`
+
+```yaml
+id: resolve
+output: design/values.yaml
+input:
+  $schemaModel:
+    - id: common
+      kind: library
+      definitions:
+        title: {type: string, maxLength: 200}
+        inherited: {type: title}
+        explicit: {type: title, maxLength: 100}
+build:
+  types:
+    $each: types
+    $build:
+      name: {$copy: name}
+      maxLength: {$copy: maxLength}
+```
+
+## 型の制約を緩める指定があれば、生成の途中で止める
+
+- ID: EX-generate-schema-model-invalid
+- 示す仕様: KW-template.$schemaModel
+- 結果: 通る（誤りも警告も無い）
+
+生成は誤りになる（文面に「$schemaModel」を含む）。
+
+`.yde/transforms/resolve.yaml`
+
+```yaml
+id: resolve
+output: design/values.yaml
+build:
+  $schemaModel:
+    - id: common
+      kind: library
+      definitions:
+        title: {type: string, maxLength: 100}
+        invalid: {type: title, maxLength: 200}
+```
+
 ## build が何も作らなかった要素は、文書を作らない
 
 - ID: EX-generate-skip-when

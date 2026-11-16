@@ -1,5 +1,5 @@
 id: C-21
-title: 生成（業務モデルの項・明記と継承元・再帰型の参照・変換定義・scope・stage・dependsOn と input・ビューからの入力・更新と削除・系譜・CLI generate）
+title: 生成（業務モデルの項・明記と継承元・再帰型の参照・変換定義・scope・stage・dependsOn と input・$schemaModel による型解決・更新と削除・系譜・CLI generate）
 implementation:
 - path: workspace-core/workspace/BusinessModel.kt
   module: workspace-core
@@ -11,6 +11,9 @@ implementation:
   module: workspace-core
 - path: workspace-core/workspace/Generators.kt
   module: workspace-core
+- path: workspace-core/workspace/SchemaModels.kt
+  module: workspace-core
+  detail: 組み立てたスキーマの定義検査と型解決を既存の読み取りへ接続
 - path: semantic-core/semantic/TermComposition.kt
   module: semantic-core
   detail: 変換の $compose から呼ぶ変更候補の合成
@@ -20,6 +23,8 @@ implementation:
   module: cli
 tests:
 - name: GenerationTest
+- name: SchemaModelsTest
+  note: モジュール間の型解決、初期値、再帰、重複と誤った指定の拒否
 - name: TermCompositionTest
   note: 候補の競合・個別指定・重複・対象消失・根拠と値の保持
 - name: BusinessModelTest
@@ -34,7 +39,7 @@ tests:
 - name: TodosDesignCompositionTest
   note: 導出した宣言への補正と既存の型解決、明記と継承の区別
 - name: TodosDesignGenerationTest
-  note: 新形式の追加と補正を変換で合成、競合時の後続停止、再生成と対象消失
+  note: 新形式の候補合成から型解決まで生成内で実行、競合と型の誤りによる後続停止、再生成と対象消失
 - name: TodosSysdevTest
   note: 設計書の生成・検証・型対応表による初期値の出力と H2 での DDL の確認
 - name: TransformReadsTest
@@ -45,3 +50,5 @@ design:
 manual:
 - link: manual/generate.md
   heading: 生成の定義（`.yde/transforms/`）
+- link: manual/generate.md
+  heading: 組み立てた型を解決する

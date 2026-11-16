@@ -1,0 +1,33 @@
+id: EX-generate-schema-model
+title: "組み立てた共通型を解き、継承する値と項目に明記した値を生成する"
+area: generation
+illustrates: [KW-template.$schemaModel, KW-generator.input]
+files:
+  - path: ".yde/transforms/resolve.yaml"
+    text: |-
+      id: resolve
+      output: design/values.yaml
+      input:
+        $schemaModel:
+          - id: common
+            kind: library
+            definitions:
+              title: {type: string, maxLength: 200}
+              inherited: {type: title}
+              explicit: {type: title, maxLength: 100}
+      build:
+        types:
+          $each: types
+          $build:
+            name: {$copy: name}
+            maxLength: {$copy: maxLength}
+expect:
+  result: ok
+  generate:
+    files:
+      - path: "design/values.yaml"
+        text: |-
+          types:
+            - {name: common#title, maxLength: 200}
+            - {name: common#inherited, maxLength: 200}
+            - {name: common#explicit, maxLength: 100}

@@ -1,0 +1,20 @@
+id: EX-generate-schema-model-invalid
+title: "型の制約を緩める指定があれば、生成の途中で止める"
+area: generation
+illustrates: [KW-template.$schemaModel]
+files:
+  - path: ".yde/transforms/resolve.yaml"
+    text: |-
+      id: resolve
+      output: design/values.yaml
+      build:
+        $schemaModel:
+          - id: common
+            kind: library
+            definitions:
+              title: {type: string, maxLength: 100}
+              invalid: {type: title, maxLength: 200}
+expect:
+  result: ok
+  generate:
+    fails: "$schemaModel"

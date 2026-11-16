@@ -53,10 +53,12 @@ object SemanticTransform {
          * 名前は繰り返しの中と同じ（LOOP_NAMES）で、params には宣言しない。
          */
         loop: Map<String, Any?> = emptyMap(),
+        /** 組み立てたスキーマからモデルを作る供給元（生成が渡す）。未提供の入口では使用を拒否する。 */
+        schemaModel: ((YNode) -> YNode)? = null,
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です（from.match）。索引を渡して実行してください" }
         loop.keys.firstOrNull { it !in TransformDef.LOOP_NAMES }?.let { error("変換「${def.id}」: 繰り返しの名前ではありません: $it") }
-        return runAt(def, TemplatePlace(input, document, emptyList()), params, views, loop)
+        return runAt(def, TemplatePlace(input, document, emptyList()), params, views, loop, schemaModel = schemaModel)
     }
 
     /** 合成した入力の来歴を保つ入口。図の入力なども同じ Construct と規則を使う。 */
@@ -65,11 +67,12 @@ object SemanticTransform {
         views: (String) -> YNode? = { null }, loop: Map<String, Any?> = emptyMap(),
         /** 名前の付いた場所（定義の places に宣言した名前。`$of: 名前` で読む）。 */
         places: Map<String, TemplatePlace> = emptyMap(),
+        schemaModel: ((YNode) -> YNode)? = null,
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です" }
         require(loop.keys.all { it in TransformDef.LOOP_NAMES }) { "繰り返しの名前ではない入力があります" }
         def.places.firstOrNull { it !in places }?.let { error("変換「${def.id}」: 場所「$it」が渡されていません") }
-        val run = Run(def, params, bindings = places.mapValues { (_, place) -> { _: DerivationSelector? -> place } }, views = views)
+        val run = Run(def, params, bindings = places.mapValues { (_, place) -> { _: DerivationSelector? -> place } }, views = views, schemaModel = schemaModel)
         return TransformResult(run.build(def.build, input, emptyList(), loop), run.origins)
     }
 
@@ -181,6 +184,7 @@ object SemanticTransform {
         val bindings: Map<String, (DerivationSelector?) -> TemplatePlace?>,
         /** ビューの行（`$view`）の供給元（レポート以外は無い）。 */
         val views: (String) -> YNode? = { null },
+        val schemaModel: ((YNode) -> YNode)? = null,
     ) {
         val origins = mutableListOf<TransformOrigin>()
 
@@ -335,6 +339,14 @@ object SemanticTransform {
                 // 合成すると入力の番号と出力の番号は一致しない。根拠は合成結果の source・decisions が持つ。
                 while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
                 TermCompositionFormat.compose(input, "変換「${def.id}」の \$compose（${out.pretty()}）")
+            }
+            is Template.SchemaModel -> {
+                val resolver = requireNotNull(schemaModel) { "変換「${def.id}」: この入口では \$schemaModel を使えません（生成の input・build で使います）" }
+                val recordedBefore = origins.size
+                val input = requireNotNull(build(t.input, here, out, loop)) { "変換「${def.id}」: \$schemaModel の入力がありません" }
+                // 型を解いた後の場所は、組み立て前の配列番号とは異なる。宣言の来歴はモデル側に保持する。
+                while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
+                resolver(input)
             }
             is Template.Guarded -> if (t.conditions.all { holds(it, here, loop) }) build(t.inner, here, out, loop) else null
         }

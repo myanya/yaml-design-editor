@@ -12,6 +12,8 @@ tests:
 - name: SemanticTransformTest
 - name: TransformCompositionTest
   note: 候補合成の変換、誤った命令の拒否、値と根拠の保持
+- name: TransformSchemaModelTest
+  note: スキーマの組み立てを型解決へ渡す指示、入口の制限、入力と来歴の分離
 - name: TemplateValueTest
 - name: StructuralDerivationTransformTest
 design:

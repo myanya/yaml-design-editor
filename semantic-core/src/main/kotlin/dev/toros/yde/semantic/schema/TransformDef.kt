@@ -141,6 +141,9 @@ sealed interface Template {
     /** 導出・追加・変更の候補を検査して合成する。型の解決や参照の検査は別の段階で行う。 */
     data class Compose(val input: Template) : Template
 
+    /** 組み立てたスキーマ文書の並びを、呼び出し側の共通の型解決へ渡す。 */
+    data class SchemaModel(val input: Template) : Template
+
     /** 条件に合うときだけ出す。 */
     data class Guarded(val conditions: List<TemplateCondition>, val inner: Template) : Template
 }
@@ -229,7 +232,8 @@ data class TransformDef(
         private const val BY = "\$by"
         private const val ENTRIES = "\$entries"
         private const val COMPOSE = "\$compose"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES, COMPOSE)
+        private const val SCHEMA_MODEL = "\$schemaModel"
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES, COMPOSE, SCHEMA_MODEL)
         private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN, BY)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
@@ -384,6 +388,7 @@ data class TransformDef(
                     TRIM -> { allow(); Template.TrimOf(parseTemplate(m[TRIM], "$where.$TRIM")) }
                     ENTRIES -> { allow(); Template.EntriesOf(parseTemplate(m[ENTRIES], "$where.$ENTRIES")) }
                     COMPOSE -> { allow(); Template.Compose(parseTemplate(m[COMPOSE], "$where.$COMPOSE")) }
+                    SCHEMA_MODEL -> { allow(); Template.SchemaModel(parseTemplate(m[SCHEMA_MODEL], "$where.$SCHEMA_MODEL")) }
                     CASE -> {
                         allow(AS)
                         val style = m[AS]?.toString()?.takeIf { it in NameCase.STYLES }
@@ -606,6 +611,7 @@ data class TransformDef(
                 is Template.Group -> { walk(t.input); walk(t.by); walk(t.body) }
                 is Template.EntriesOf -> walk(t.input)
                 is Template.Compose -> walk(t.input)
+                is Template.SchemaModel -> walk(t.input)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }

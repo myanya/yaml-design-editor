@@ -240,6 +240,37 @@ build:
 成功は型・参照・方式の成立条件まで検査した意味ではありません。それらを確認する後段を経てから、確定項目として扱います。
 既存の段の補正やビューの補正は、`$compose` を使う変換へ移すまでは従来の処理です。
 
+## 組み立てた型を解決する
+
+生成の `input`・`build` では、`$schemaModel` でスキーマ文書の配列を組み立て、型を解いた業務モデルの項を受け取れます。
+合成した候補をスキーマへ対応付ける処理も、変換のひな型で書きます。型の意味は通常のスキーマと共通です。
+
+```yaml
+id: resolved-types
+output: design/resolved-types.yaml
+input:
+  $schemaModel:
+    - id: common
+      kind: library
+      definitions:
+        title: {type: string, maxLength: 200}
+        inherited: {type: title}
+        explicit: {type: title, maxLength: 100}
+build:
+  types: {$copy: types}
+```
+
+この例では `common#inherited` の最大文字数は 200、`common#explicit` は 100 です。
+`entities`・`types` などの形は通常の業務モデルの項と同じです。初期値の `false`・`0`・空文字・空配列も保持します。
+
+型は渡した文書と組込みの型だけで解決します。外のワークスペースに同名の型があっても補いません。
+各文書には空でない文字の `id` が必要です。重複、定義の誤り、型の参照切れ、制約を緩める指定、定義の検査の保留があれば後続と書き込みを止めます。
+ここで検査するのはスキーマ定義で、利用者データに対する成立条件の評価ではありません。
+
+宣言の `document` は入力の位置に対応する仮の座標 `.yde/schemas/input/<番号>.yaml` です。
+導出・補正の原本へたどるための `source` と `decisions` は別に保持してください。
+単独の CLI `transform`、レポート、操作のひな型ではこの指示を使えません。
+
 ## 作る・作り直す
 
 ```bash

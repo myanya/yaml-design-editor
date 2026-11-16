@@ -1,0 +1,8 @@
+id: KW-template.$schemaModel
+key: "$schemaModel"
+context: CTX-template
+order: 33
+status: stable
+forms:
+  - value: "ひな型（スキーマ文書の配列になるもの）"
+    meaning: "生成の input・build で、組み立てたスキーマを検査し、型を解いた業務モデルの項を返します。id は空でない文字で重複不可。型は渡した文書と組込みの型だけで解決し、定義の誤り・型の参照切れ・制約を緩める指定・検査の保留は生成を止めます。ほかの入口では使えません。宣言の document は入力の位置に対応する仮の座標です。"
