@@ -1,0 +1,17 @@
+id: examples-md
+name: 仕様の例（docs/spec/examples.md）
+description: 仕様の例から docs/spec/examples.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
+build:
+  examples:
+    $each: { $view: doc-examples }
+    $build:
+      id: { $copy: id }
+      title: { $copy: values.題 }
+      illustrates: { $copy: values.示す仕様 }
+      files: { $copy: values.ファイル }
+      # 結果の文字（ひな形は比べられないので、ここで作る）
+      result:
+        $map: { $copy: values.結果 }
+        $using: { ok: 通る（誤りも警告も無い）, schema-error: スキーマの読み込みの誤りになる, error: 検証のエラーになる, warning: 検証の警告になる }
+      message: { $copy: values.文面 }
+template: examples-md.md

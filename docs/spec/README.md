@@ -21,5 +21,6 @@
 | [skills.md](skills.md) | skill（取り込み・書き出し・コードの実行）の定義に書ける語 |
 | [workspace-config.md](workspace-config.md) | ワークスペースの構成（workspace.yaml）と、段の規則・補正に書ける語 |
 | [charts-flows.md](charts-flows.md) | チャートと業務フロー図（あとから足せる種類のビュー）に書ける語 |
+| [examples.md](examples.md) | 仕様の例（小さなワークスペースと、検証したときの結果。テストが実際に確かめている） |
 
 使い方の説明は [manual/](../manual/README.md)、実装の設計は [architecture/](../architecture/README.md) にある。

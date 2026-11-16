@@ -1,0 +1,10 @@
+id: example-list
+name: 例の一覧
+description: 仕様の例（実際に検証する小さなワークスペース）を並べます。
+rows:
+  idPattern: "EX-*"
+  schemaIds: [spec-example]
+columns:
+  - { label: 示す仕様, schemaId: spec-example, path: illustrates }
+  - { label: 結果, schemaId: spec-example, path: expect.result }
+  - { label: 文面の一部, schemaId: spec-example, path: expect.message }

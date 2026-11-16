@@ -1,0 +1,18 @@
+id: EX-schema-states-only-in-behavior
+title: "states は、振る舞いの宣言（kind: behavior）にだけ書ける"
+illustrates: [KW-schema.states, KW-schema.kind]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, required: true }
+      states:
+        - { id: open, entity: task }
+expect:
+  result: schema-error
+  message: "behavior"

@@ -22,6 +22,26 @@ definitions:
     placeholder: KW-field.required
     sample: KW-field.required
     description: 「KW-」と位置の名前、「.」、キー。ファイル名（spec/keywords/KW-field.required.yaml の形）にもなります。
+  例ID:
+    type: id
+    pattern: "^EX-[a-z][a-zA-Z0-9-]*$"
+    placeholder: EX-field-required
+    sample: EX-field-required
+    description: 「EX-」と例の名前。ファイル名（spec/examples/EX-field-required.yaml の形）にもなります。
+  # 参照の型: 例が示す仕様（位置か語）。線の名前は illustrates。位置と語の側には「例」として出ます
+  示す仕様:
+    type: ref
+    idPattern: ["CTX-*", "KW-*"]
+    scope:
+      schemaIds: [spec-context, spec-keyword]
+    relation: illustrates
+  例の結果:
+    type: enum
+    values:
+      - { value: ok, label: 通る（誤りも警告も無い） }
+      - { value: schema-error, label: スキーマの読み込みの誤り }
+      - { value: error, label: 検証のエラー }
+      - { value: warning, label: 検証の警告（エラーは無い） }
   位置参照:
     type: ref
     idPattern: "CTX-*"
@@ -205,6 +225,40 @@ definitions:
       - { key: name, label: 名前, type: スキーマの種類, required: true, role: title, description: kind に書く文字。 }
       - { key: target, label: 適用先, type: common#一行の文, required: true, description: この種類のスキーマが、どの文書に当たるか。 }
       - { key: description, label: 意味, type: common#文章, required: true }
+
+  # 例: 小さなワークスペース（ファイルの並び）と、開いて検証したときの結果。SpecTest が実際に開いて確かめます。この形の要素がエンティティ example の定義
+  例:
+    type: object
+    label: 例
+    entity: { type: example, defines: true }
+    fields:
+      - { key: id, label: ID, type: 例ID, required: true }
+      - { key: title, label: 何を示すか, type: common#一行の文, required: true, role: title }
+      - key: illustrates
+        label: 示す仕様
+        type: array
+        required: true
+        unique: true
+        item: { type: 示す仕様 }
+        description: この例が示す位置か語。
+      - key: files
+        label: ファイル
+        type: array
+        required: true
+        display: list
+        description: 例のワークスペースに置くファイル。定義は .yde/ の下、文書はスキーマの match に合う場所に書きます。
+        item:
+          type: object
+          fields:
+            - { key: path, label: 場所, type: common#一行の文, required: true, role: title, description: ワークスペース相対の場所。 }
+            - { key: text, label: 中身, type: text, required: true, rows: 12 }
+      - key: expect
+        label: 結果
+        type: object
+        required: true
+        fields:
+          - { key: result, label: 結果, type: 例の結果, required: true }
+          - { key: message, label: 文面の一部, type: common#一行の文, description: 誤り・エラー・警告の文面に含まれる文字。通る例には書きません。 }
 
   # 語の形: 語を書ける基底の種類（項目定義の語）かスキーマの種類（文書のトップレベルの語）ごとの、値の形と意味。限らない語は省きます
   語の形:

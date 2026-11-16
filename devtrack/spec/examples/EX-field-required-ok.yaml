@@ -1,0 +1,19 @@
+id: EX-field-required-ok
+title: "必須の項目がそろっていれば通る"
+illustrates: [KW-field.required]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, required: true }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      title: 最初の作業
+expect:
+  result: ok

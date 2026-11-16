@@ -1,0 +1,16 @@
+id: EX-schema-derive-with-match
+title: "derive を書いたスキーマに、match は書けない"
+illustrates: [KW-schema.derive, KW-schema.match]
+files:
+  - path: ".yde/schemas/record.yaml"
+    text: |-
+      id: record-template
+      match: "records/*.yaml"
+      derive:
+        from: "tables/*.yaml"
+        id: "record-{id}"
+        match: "records/{id}/*.yaml"
+        fields: { source: columns, key: name }
+expect:
+  result: schema-error
+  message: "match"

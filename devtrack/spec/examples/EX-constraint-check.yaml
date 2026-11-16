@@ -1,0 +1,30 @@
+id: EX-constraint-check
+title: "型の検査（constraints）は、要素ごとに値の比較を確かめる"
+illustrates: [KW-field.constraints, CTX-comparison, CTX-expr]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: order
+      match: "orders/*.yaml"
+      root:
+        type: object
+        constraints:
+          - id: amount-matches
+            check:
+              - eq: [ { path: amount }, { multiply: [ { path: price }, { path: qty } ] } ]
+            level: error
+            message: "金額が単価×数量と違います"
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: price, type: int }
+          - { key: qty, type: int }
+          - { key: amount, type: int }
+  - path: "orders/a.yaml"
+    text: |-
+      id: ORD-1
+      price: 100
+      qty: 3
+      amount: 200
+expect:
+  result: error
+  message: "金額が単価×数量と違います"

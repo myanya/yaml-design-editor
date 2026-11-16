@@ -1,0 +1,20 @@
+id: EX-field-min-max
+title: "min・max の範囲の外の数はエラーになる"
+illustrates: [KW-field.min, KW-field.max]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: points, type: int, min: 1, max: 5 }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      points: 8
+expect:
+  result: error
+  message: "points"

@@ -1,0 +1,18 @@
+id: EX-schema-relations-only-in-registry
+title: "relations は、関係レジストリ（kind: relations）にだけ書ける"
+illustrates: [KW-schema.relations, KW-schema.kind]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, required: true }
+      relations:
+        - { name: depends }
+expect:
+  result: schema-error
+  message: "relations"

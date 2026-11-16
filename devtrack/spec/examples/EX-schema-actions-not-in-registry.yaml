@@ -1,0 +1,15 @@
+id: EX-schema-actions-not-in-registry
+title: "actions は、関係レジストリには書けない"
+illustrates: [KW-schema.actions, KW-schema.kind]
+files:
+  - path: ".yde/schemas/relations.yaml"
+    text: |-
+      id: relations
+      kind: relations
+      relations:
+        - { name: depends }
+      actions:
+        - { id: noop }
+expect:
+  result: schema-error
+  message: "actions"

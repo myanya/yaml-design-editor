@@ -28,6 +28,7 @@ import kotlin.test.assertTrue
  * - メタスキーマの中の場所（meta）を書いた位置（関係・振る舞い・操作）は、語と必須がその場所の項目の並びと一致する
  * - 実装の語の集まり（code）を書いた位置（クエリ・条件・値の比較・値の式）は、語が読み取りの実装のキーの集まりと列挙と同じ
  * - どの位置も、参照文書のレポートのどれかに載っている
+ * - 仕様の例（spec/examples）は、一時のワークスペースに書いて開くと、書いてあるとおりの結果（通る・読み込みの誤り・エラー・警告）になる
  * - 語の ID の形の検査が働く。ダッシュボード「仕様」が解決できる
  */
 class SpecTest {
@@ -203,11 +204,59 @@ class SpecTest {
         assertTrue(differing.isEmpty(), "語が、仕様と読み取りの実装で違います:\n" + differing.joinToString("\n"))
     }
 
+    /** 例を一時のワークスペースに書いて開き、結果（通る・スキーマの読み込みの誤り・検証のエラー・警告）と、その文面を返す。 */
+    private fun runExample(example: Map<*, *>, base: Path): Pair<String, List<String>> {
+        val dir = base.resolve(example["id"].toString())
+        Files.createDirectories(dir.resolve(".yde"))
+        (example["files"] as List<*>).map { it as Map<*, *> }.forEach { file ->
+            val to = dir.resolve(file["path"].toString())
+            Files.createDirectories(to.parent)
+            to.writeText(file["text"].toString() + "\n")
+        }
+        val ws = Workspace.open(dir)
+        if (ws.schemaErrors.isNotEmpty()) return "schema-error" to ws.schemaErrors
+        val issues = ws.files.flatMap { file -> ws.validate(ws.relPath(file)).map { it.severity to "${ws.relPath(file)} ${it.path.pretty()}: ${it.message}" } }
+        val errors = issues.filter { it.first == Severity.ERROR }.map { it.second }
+        val warnings = issues.filter { it.first == Severity.WARNING }.map { it.second }
+        return when {
+            errors.isNotEmpty() -> "error" to errors
+            warnings.isNotEmpty() -> "warning" to warnings
+            else -> "ok" to emptyList()
+        }
+    }
+
+    @Test
+    fun `仕様の例は 開いて検証すると書いてあるとおりの結果になる`() {
+        val examples = root.resolve("spec/examples").listDirectoryEntries("*.yaml").map(::raw)
+        assertTrue(examples.size >= 10, "例が読めていること: ${examples.size}")
+        val base = createTempDirectory("spec-examples")
+        try {
+            val differing = examples.mapNotNull { example ->
+                val expect = example["expect"] as Map<*, *>
+                val (result, messages) = runExample(example, base)
+                val wanted = expect["message"]?.toString()
+                when {
+                    result != expect["result"] -> "${example["id"]}: 結果は $result（書いてあるのは ${expect["result"]}）: $messages"
+                    wanted != null && messages.none { wanted in it } -> "${example["id"]}: 文面に「$wanted」がありません: $messages"
+                    else -> null
+                }
+            }
+            assertTrue(differing.isEmpty(), "仕様の例が、書いてあるとおりの結果になりません:\n" + differing.joinToString("\n"))
+        } finally {
+            base.toFile().deleteRecursively()
+        }
+    }
+
     @Test
     fun `参照文書に 字下げで始まる行が無い`() {
         // 4 文字の字下げは Markdown でコードの塊になり、見出しと表が崩れる（ひな形の字下げの写り込みを止める）
         val indented = Path.of("docs/spec").listDirectoryEntries("*.md").flatMap { file ->
-            file.readText().lines().withIndex().filter { it.value.startsWith("    ") }.map { "${file.fileName}:${it.index + 1}" }
+            // コードの塊（``` で囲んだ例の YAML）の中は見ない
+            var fenced = false
+            file.readText().lines().withIndex().filter { (_, line) ->
+                if (line.startsWith("```")) fenced = !fenced
+                !fenced && line.startsWith("    ")
+            }.map { "${file.fileName}:${it.index + 1}" }
         }
         assertTrue(indented.isEmpty(), "字下げで始まる行があります（ひな形 devtrack/.yde/reports/*-md.md を直す）: ${indented.take(5)}")
     }

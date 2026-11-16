@@ -1,0 +1,20 @@
+id: EX-field-enum-values
+title: "enum の項目に、values に無い値を書くとエラーになる"
+illustrates: [KW-field.values, CTX-field]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: status, type: enum, values: [todo, done] }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      status: doing
+expect:
+  result: error
+  message: "doing"

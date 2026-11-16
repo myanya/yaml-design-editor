@@ -1,0 +1,24 @@
+id: EX-field-type-narrowing
+title: "型の名前を書くと、型の定義の決まりを引き継ぐ"
+illustrates: [KW-field.type, KW-schema.definitions]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      definitions:
+        金額:
+          type: int
+          min: 0
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: price, type: 金額 }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      price: -100
+expect:
+  result: error
+  message: "price"

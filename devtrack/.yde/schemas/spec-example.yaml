@@ -1,0 +1,7 @@
+id: spec-example
+name: 例
+kind: document
+description: 仕様の例を 1 件 1 ファイルで持ちます。小さなワークスペースと、開いて検証したときの結果で、repo-tests の SpecTest が実際に確かめます。
+match: "spec/examples/*.yaml"
+filePattern: "spec/examples/{id}.yaml"
+root: { type: spec#例 }

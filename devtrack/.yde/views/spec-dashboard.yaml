@@ -30,6 +30,9 @@ sections:
       where:
         - { of: k, path: status, oneOf: [alias, deprecated] }
       expect: exists
+  - id: examples
+    label: 例
+    view: example-list
   - id: schema-kinds
     label: スキーマの種類
     view: schema-kind-list

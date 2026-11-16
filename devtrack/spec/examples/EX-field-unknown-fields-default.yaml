@@ -1,0 +1,21 @@
+id: EX-field-unknown-fields-default
+title: "スキーマに無いキーは、既定では警告になる"
+illustrates: [KW-field.unknownFields]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, required: true }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      title: 最初の作業
+      memo: スキーマに無い項目
+expect:
+  result: warning
+  message: "memo"

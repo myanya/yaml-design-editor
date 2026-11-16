@@ -1,0 +1,20 @@
+id: EX-field-ref-unresolved
+title: "参照先の ID が無い参照は、検証の指摘になる"
+illustrates: [CTX-field]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: parent, type: ref }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      parent: TASK-9
+expect:
+  result: error
+  message: "TASK-9"

@@ -1,0 +1,15 @@
+id: EX-schema-root-not-in-library
+title: "root は、文書のスキーマ（kind: document）にだけ書ける"
+illustrates: [KW-schema.root, KW-schema.kind]
+files:
+  - path: ".yde/schemas/common.yaml"
+    text: |-
+      id: common
+      kind: library
+      root:
+        type: object
+        fields:
+          - { key: id, type: id }
+expect:
+  result: schema-error
+  message: "root"

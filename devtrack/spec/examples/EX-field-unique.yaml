@@ -1,0 +1,20 @@
+id: EX-field-unique
+title: "unique: true の配列に同じ値を 2 回書くとエラーになる"
+illustrates: [KW-field.unique]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: tags, type: array, unique: true, item: { type: string } }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      tags: [急ぎ, 急ぎ]
+expect:
+  result: error
+  message: "急ぎ"

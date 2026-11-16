@@ -1,0 +1,20 @@
+id: EX-field-date-invalid
+title: "date の項目は、形に合っていても存在しない日付はエラーになる"
+illustrates: [CTX-field]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: due, type: date }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      due: 2026-02-30
+expect:
+  result: error
+  message: "2026-02-30"

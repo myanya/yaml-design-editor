@@ -1,0 +1,18 @@
+id: EX-field-pattern
+title: "pattern に合わない値は検証のエラーになる"
+illustrates: [KW-field.pattern]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true, pattern: "^TASK-[0-9]+$" }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: T-1
+expect:
+  result: error
+  message: "TASK"

@@ -1,0 +1,21 @@
+id: EX-field-requiredFrom-before
+title: "requiredFrom のフェーズに達する前は、値が無くても通る"
+illustrates: [KW-field.requiredFrom, KW-schema.phases]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      phases: [draft, review]
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: phase, type: enum, values: [draft, review] }
+          - { key: reviewer, type: string, requiredFrom: review }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      phase: draft
+expect:
+  result: ok
