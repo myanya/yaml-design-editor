@@ -124,7 +124,7 @@ docs/ROADMAP.md の原本は `roadmap/P<番号>.yaml`（1 テーマ 1 ファイ�
 
 ### 仕様
 
-定義に書ける語（スキーマの語彙）の仕様の原本です。**今の実装が読むものの記述**で、[docs/spec/](../docs/spec/README.md) の参照文書はここから生成します。
+定義に書ける語（スキーマの語彙）の仕様の原本です。**今の実装が読むものの記述**で、[docs/spec/](../docs/spec/README.md) の参照文書はここから生成します。決定の記録は [ADR-0037](../docs/decisions/0037-vocabulary-spec-in-devtrack.md) です。
 
 | 種類 | 場所 | ID の形 | 例 |
 |---|---|---|---|
