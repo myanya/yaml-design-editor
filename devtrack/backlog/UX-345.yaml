@@ -8,3 +8,6 @@ memo: |-
   メタスキーマを足すと、検証とフォームと仕様の突き合わせが効く。
 features:
   - W-11
+spec:
+  - CTX-workspace
+  - CTX-workspace-files

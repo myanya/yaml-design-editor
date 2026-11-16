@@ -9,3 +9,5 @@ memo: |-
   メタスキーマに書けるものは書き、書けない決まりは仕様（devtrack/spec）の規則として持つ。
 features:
   - S-15
+spec:
+  - CTX-schema

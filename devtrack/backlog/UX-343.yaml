@@ -8,3 +8,6 @@ memo: |-
   語の一覧は生成した docs/spec/schema-fields.md を正にして、manual の表はそこへの案内に置き換える。
 features:
   - S-15
+spec:
+  - CTX-field
+  - CTX-schema

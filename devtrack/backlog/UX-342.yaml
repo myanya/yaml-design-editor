@@ -8,3 +8,6 @@ memo: |-
   書けるのが正しいならメタスキーマに足し、書けないのが正しいなら読み込みで止める。
 features:
   - S-15
+spec:
+  - CTX-check-function
+  - CTX-check-vocabulary

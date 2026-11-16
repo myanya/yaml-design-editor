@@ -9,3 +9,7 @@ memo: |-
   形を項目として書けるものから順に any を外す。値の式・クエリ・変換のひな型のような小さな言語は、仕様の側に位置を足して持つ。
 features:
   - S-15
+spec:
+  - CTX-entity-decl
+  - CTX-constraint
+  - CTX-state

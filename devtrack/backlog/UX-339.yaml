@@ -8,3 +8,5 @@ memo: |-
   残りの 3 つを項目として足す（利用者が語彙に書くと、スキーマに無いキーの扱いになる）。
 features:
   - S-15
+spec:
+  - CTX-check-vocabulary

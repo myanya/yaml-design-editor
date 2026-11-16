@@ -83,6 +83,13 @@ definitions:
     scope:
       schemaIds: [feature]
     relation: concerns
+  # 参照の型: 指摘が関わる仕様（位置か語。devtrack/spec/）。線の名前は concerns-spec。位置と語の側には「関わる指摘」として出ます
+  仕様参照:
+    type: ref
+    idPattern: ["CTX-*", "KW-*"]
+    scope:
+      schemaIds: [spec-context, spec-keyword]
+    relation: concerns-spec
   テーマの状態:
     type: enum
     values:
@@ -173,6 +180,11 @@ definitions:
         type: array
         description: この指摘が関わる機能（FEATURES.md の行）。未解決の指摘は、機能の行の「未解決の指摘」に出ます。
         item: { type: 機能参照 }
+      - key: spec
+        label: 関わる仕様
+        type: array
+        description: この指摘が関わる仕様の位置か語（devtrack/spec/ の ID。例 CTX-check-vocabulary）。未解決の指摘は、仕様の位置の一覧の「未解決の指摘」に出ます。
+        item: { type: 仕様参照 }
       - key: roadmap
         label: ロードマップの項目
         type: array

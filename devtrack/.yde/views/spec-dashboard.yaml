@@ -6,6 +6,18 @@ sections:
   - id: contexts
     label: 位置
     view: context-list
+  # 未解決の指摘が関わる位置（指摘の側の「関わる仕様」を逆に辿る）
+  - id: contexts-with-issues
+    label: 未解決の指摘がある位置
+    view: context-list
+    filter:
+      match:
+        - node: { entity: context, bind: c }
+        - edge: { relation: concerns-spec, dir: in }
+        - node: { entity: backlog-item, bind: x }
+      where:
+        - { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] }
+      expect: exists
   - id: keywords
     label: 語
     view: keyword-list

@@ -16,3 +16,5 @@ resolutions:
       語が実装の列挙（UnaryFn・ArithOp・AggregateFn・CheckOp）とキーの集まり（QueryNodeStep・QueryEdgeStep・QueryWhere の KEYS）と同じことを SpecTest が見る。
       残り: 列挙にもキーの集まりにも無い語（format・map・first・all・each・refCount・occurrenceCount など）は、仕様の側に並べただけで実装と突き合わせていない。
     targets: SpecTest
+spec:
+  - CTX-expr

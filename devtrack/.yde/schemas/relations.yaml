@@ -87,3 +87,9 @@ relations:
     source: [keyword, context]
     target: [feature]
     description: 語と位置が、それを読んで働く機能（docs/FEATURES.md の行）を参照します
+  - name: concerns-spec
+    label: 関わる仕様
+    inverseLabel: 関わる指摘
+    source: [backlog-item]
+    target: [context, keyword]
+    description: 指摘が関わる仕様の位置か語を参照します。位置の一覧に未解決の指摘として出ます
