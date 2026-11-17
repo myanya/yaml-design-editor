@@ -833,7 +833,22 @@ root:
             label: 定義の使用への対応
             type: any
             required: true
-            description: "（語彙には requires: [必ず書くキーのパス]・keys: [書けるキーの一覧]・removed: {廃止したキー: 案内} も書ける——書き方の形の最小の点検で、外れていればスキーマの読み込みエラー）{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
+            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
+          - key: requires
+            label: 必ず書くキー
+            type: array
+            item: { type: string }
+            description: "この語彙の要素に必ず書くキーのパス（例 [detailIn.schemaIds]）。書き方の形の最小の点検で、外れていればスキーマの読み込みエラー"
+          - key: keys
+            label: 書けるキー
+            type: array
+            item: { type: string }
+            description: "この語彙の要素に書けるキーの一覧。書くと、一覧に無いキーはスキーマの読み込みエラー"
+          - key: removed
+            label: 廃止したキー
+            type: map
+            value: { type: string }
+            description: "廃止したキー → 書かれたときに出す案内（置き換え先）。書かれていればスキーマの読み込みエラー"
     - key: matrix
       label: 網羅マトリクス
       type: array

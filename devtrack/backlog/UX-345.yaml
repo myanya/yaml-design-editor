@@ -1,6 +1,6 @@
 id: UX-345
 title: "検査の語彙定義（vocabulary）の requires・keys・removed が、メタスキーマの項目に無く uses の説明文にだけある"
-status: todo
+status: resolved
 kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
@@ -11,3 +11,11 @@ features:
   - S-15
 spec:
   - CTX-check-vocabulary
+closed_on: 2026-11-17
+resolutions:
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      メタスキーマ（builtin-schemas/schema.yaml）の語彙の定義の項目に requires・keys・removed を足した（uses の説明文にだけ書いていたのをやめた）。
+      仕様の位置 CTX-check-vocabulary の「メタスキーマに無い語」の印を外した（SpecTest が、3 つの語がメタスキーマにあることを見る）。
+    targets: SpecTest・MetaSchemaTest
