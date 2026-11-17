@@ -1,6 +1,6 @@
 id: UX-355
 title: "matrix を証人の側のスキーマに書くと、誤りにも警告にもならず何も指摘されない"
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-11-16
 origin: "仕様の例（devtrack/spec/examples）を書いて、実際の結果と突き合わせたとき"
@@ -14,3 +14,13 @@ features:
   - V-11
 spec:
   - CTX-matrix
+closed_on: 2026-11-17
+resolutions:
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      原因は matrix に限らない配り方の決まりだった。文書のスキーマに書いた検査は、起点の要素がそのスキーマの文書に現れるときだけ報告し、現れなければ報告しなかった（library・関係レジストリに書いた検査は定義の出現へ報告する）。
+      配り方を変えた: 起点の要素が、検査を書いたスキーマの文書に現れないときは、定義の出現（なければ先頭の出現）へ報告する。値の場所・参照の場所へ出す検査（reportAt）は、今までどおり宣言したスキーマの文書の中だけ。
+      変える前後で、samples・試験用のワークスペース・devtrack・labs の 10 個の検証の結果が同じこと、全モジュールのテストが通ることを確かめた。
+      例 EX-check-reports-at-defining-occurrence（証人の側のスキーマに書いた matrix が報告される）を足した。
+    targets: WorkspaceChecks.reportAnchorOf・SpecTest

@@ -1,0 +1,62 @@
+id: EX-check-reports-at-defining-occurrence
+title: "起点の要素が、検査を書いたスキーマの文書に現れないときは、定義の出現へ報告する（証人の側のスキーマに書いた matrix）"
+area: checks
+illustrates: [CTX-constraint, CTX-matrix, KW-schema.matrix]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+  - path: ".yde/schemas/env.yaml"
+    text: |-
+      id: env
+      match: "envs/*.yaml"
+      entity: { type: env, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+  - path: ".yde/schemas/test.yaml"
+    text: |-
+      id: test
+      match: "tests/*.yaml"
+      entity: { type: test, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: covers, type: ref, relation: covers }
+          - { key: env, type: ref, relation: runs-on }
+      matrix:
+        - id: every-req-on-every-env
+          rows: { entity: req }
+          columns: { entity: env }
+          witness:
+            node: { entity: test }
+            row: { relation: covers }
+            column: { relation: runs-on }
+          level: error
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+      title: ログインできる
+  - path: "envs/a.yaml"
+    text: |-
+      id: ENV-1
+  - path: "envs/b.yaml"
+    text: |-
+      id: ENV-2
+  - path: "tests/a.yaml"
+    text: |-
+      id: TEST-1
+      covers: REQ-1
+      env: ENV-1
+expect:
+  result: error
+  message: "ENV-2"

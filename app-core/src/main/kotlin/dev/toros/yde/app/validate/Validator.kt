@@ -131,12 +131,14 @@ object Validator {
     /**
      * 検査の報告先（意図的差分 D-21 ④）。決め方の実体はカーネルの WorkspaceChecks.reportAnchorOf（同じ規則）。
      * スキーマの検査（owner = 検査を宣言したスキーマ）は、定義出現がそのスキーマの文書にあればそこ、なければそのスキーマの文書の
-     * 先頭の出現（無ければ null＝報告しない）。特定のスキーマに属さない検査（owner = null）は、定義出現（なければ先頭の出現）。
+     * 先頭の出現。そのスキーマの文書に出現が無い要素は、定義出現（なければ先頭の出現）。特定のスキーマに属さない検査
+     * （owner = null）は、定義出現（なければ先頭の出現）。
      */
     fun reportAnchorOf(indexObj: IdIndex, id: String, owner: SchemaDef?): IdEntry? {
         val node = indexObj.graph.entities[id] ?: return null
         if (owner == null) return node.defining ?: node.occurrences.firstOrNull()
         return node.defining?.takeIf { it.schemaId == owner.id } ?: node.occurrences.firstOrNull { it.schemaId == owner.id }
+            ?: node.defining ?: node.occurrences.firstOrNull()
     }
 
     /**

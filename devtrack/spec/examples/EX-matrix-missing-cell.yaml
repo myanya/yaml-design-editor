@@ -1,5 +1,5 @@
 id: EX-matrix-missing-cell
-title: "matrix は、行と列のすべての組み合わせに証人があることを求める（行の要素のスキーマに書く）"
+title: "matrix は、行と列のすべての組み合わせに証人があることを求める"
 area: checks
 illustrates: [CTX-matrix, CTX-matrix-witness, KW-schema.matrix]
 files:
