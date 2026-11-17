@@ -372,6 +372,39 @@ derive:
   fields: { source: columns, key: name }
 ```
 
+## entities と enforcement は、関係レジストリ（kind: relations）にだけ書ける
+
+- ID: EX-schema-entities-only-in-registry
+- 示す仕様: KW-schema.entities・KW-schema.enforcement・KW-schema.kind
+- 結果: スキーマの読み込みの誤りになる（文面に「entities」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+entities:
+  - { type: task, label: 作業 }
+```
+
+## entity は、文書のスキーマ（kind: document）にだけ書ける
+
+- ID: EX-schema-entity-only-in-document
+- 示す仕様: KW-schema.entity・KW-schema.kind
+- 結果: スキーマの読み込みの誤りになる（文面に「entity」を含む）
+
+`.yde/schemas/common.yaml`
+
+```yaml
+id: common
+kind: library
+entity: { type: task }
+```
+
 ## relations は、関係レジストリ（kind: relations）にだけ書ける
 
 - ID: EX-schema-relations-only-in-registry
@@ -407,6 +440,24 @@ root:
   type: object
   fields:
     - { key: id, type: id }
+```
+
+## scaffold は、derive を書いたスキーマには書けない
+
+- ID: EX-schema-scaffold-not-with-derive
+- 示す仕様: KW-schema.scaffold・KW-schema.derive
+- 結果: スキーマの読み込みの誤りになる（文面に「scaffold」を含む）
+
+`.yde/schemas/record.yaml`
+
+```yaml
+id: record-template
+derive:
+  from: "tables/*.yaml"
+  id: "record-{id}"
+  match: "records/{id}/*.yaml"
+  fields: { source: columns, key: name }
+scaffold: { name: 新しい記録 }
 ```
 
 ## states は、振る舞いの宣言（kind: behavior）にだけ書ける
