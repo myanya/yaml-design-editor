@@ -2,8 +2,10 @@ id: CTX-workspace-files
 title: "ファイルの場所の扱い（files）"
 language: workspace
 description: "workspace.yaml の files。"
-code:
-  extra: [outside, allowedRoots, missing]
+meta:
+  schema: workspace
+  path: [root, files]
 features: [S-25, V-22]
 evidence:
+  metaschema: "builtin-schemas/workspace.yaml の root.files"
   reader: "workspace-core/workspace/layout/FilePolicy.kt の parse"

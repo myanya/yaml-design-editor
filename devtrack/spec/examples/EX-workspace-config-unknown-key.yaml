@@ -1,0 +1,22 @@
+id: EX-workspace-config-unknown-key
+title: "構成のファイルに、決まった語でないキーを書くと警告になる（綴りの誤りに気づける）"
+area: schema
+illustrates: [CTX-workspace, KW-workspace.ledger]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "doc/tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+  - path: "doc/tasks/a.yaml"
+    text: |-
+      id: TASK-1
+  - path: ".yde/workspace.yaml"
+    text: |-
+      leger: [doc]
+expect:
+  result: warning
+  message: "leger"

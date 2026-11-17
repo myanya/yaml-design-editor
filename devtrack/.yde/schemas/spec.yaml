@@ -153,6 +153,7 @@ definitions:
           - { value: transform, label: 生成の定義（builtin-schemas/transform.yaml） }
           - { value: report, label: レポート（builtin-schemas/report.yaml） }
           - { value: view, label: ビュー（builtin-schemas/view.yaml） }
+          - { value: workspace, label: ワークスペースの構成（builtin-schemas/workspace.yaml） }
           - { value: view-chart, label: チャートの断片（app-core の view/chart/schema.yaml） }
           - { value: view-flow, label: 業務フロー図の断片（app-core の view/flow/schema.yaml） }
           - { value: flow-model, label: フローの図のモデル（app-core の view/flow/flow-model.yaml） }

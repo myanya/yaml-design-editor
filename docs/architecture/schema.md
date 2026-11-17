@@ -45,6 +45,7 @@
 - 検査の定義の読み込み（展開・パース・出どころ・メタスキーマへの語彙のキーの合成）は `CheckCatalog` の 1 実装（[checks.md「検査の定義の読み込み」](checks.md)）。
 - スキーマの定義そのものの点検と、宣言のない関係名の点検は `SchemaDefinitionChecks` にあり、`WorkspaceReader.buildSchemas` がスキーマ置き場のスキーマについて行い、読み込みエラーへ足す。`SchemaDef.validateDefinition()` は 1 件だけを読んだ場面（設計 UI のプレビュー）の窓口。
 - `_schemas/` 配下の文書にはメタスキーマ（`builtin-schema`）だけが適用される（`Workspace.schemaFor`。一般スキーマの `match` は及ばない）。`kind: relations` の文書には `builtin-relations`。利用者は同 ID のスキーマを置けば上書きできる。
+- 構成ファイル（`.yde/workspace.yaml`）には、構成のメタスキーマ（`builtin-workspace`）だけが適用される（[workspace.md](workspace.md)「ワークスペース構造と layout」）。
 
 ## `$ref` と実効フィールド
 

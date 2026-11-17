@@ -70,6 +70,9 @@ data class WorkspaceLayout(
     private fun under(rel: String, dir: String): Boolean = rel == dir || rel.startsWith("$dir/")
 
     /** 相対パスが属するゾーン（定義・記録ディレクトリの種別）。属さなければ null。 */
+    /** 構成ファイル（`.yde/workspace.yaml`）か。構成のメタスキーマ（builtin-workspace）を当てる文書。 */
+    fun isConfigFile(rel: String): Boolean = configDir != null && norm(rel) == "$configDir/$CONFIG_FILE"
+
     fun zoneOf(rel: String): Zone? {
         val n = norm(rel)
         return Zone.entries.firstOrNull { under(n, dir(it)) }

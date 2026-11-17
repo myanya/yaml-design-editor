@@ -14,7 +14,7 @@ import dev.toros.yde.yaml.model.DocumentId
 object BuiltinSchemaResources {
 
     /** 資源名（読み込み・パースの順序もこの並び＝従来の BuiltinSchemas.all と同一）。 */
-    val names: List<String> = listOf("agent", "activity", "eval", "skill", "view", "report", "transform", "stage", "schema", "relations")
+    val names: List<String> = listOf("agent", "activity", "eval", "skill", "view", "report", "transform", "stage", "schema", "relations", "workspace")
 
     /** 1件の原文を読む（読み込み失敗はあり得ない前提。失敗時は例外で気付かせる）。 */
     fun text(name: String): String =

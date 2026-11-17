@@ -288,7 +288,9 @@ class Workspace private constructor(val root: Path) {
             else BuiltinSchemas.META_SCHEMA_ID
             return schemas.firstOrNull { it.id == metaId && it.matches(rel) }
         }
-        // ゾーン外の構成ファイル（.yde/workspace.yaml 等）にはスキーマを当てない（architecture/workspace.md「ワークスペース構造と layout」）
+        // 構成ファイル（.yde/workspace.yaml）には、構成のメタスキーマだけを当てる
+        if (layout.isConfigFile(rel)) return schemas.firstOrNull { it.id == BuiltinSchemas.WORKSPACE_SCHEMA_ID }
+        // そのほかのゾーン外の予約の場所にはスキーマを当てない（architecture/workspace.md「ワークスペース構造と layout」）
         if (layout.isReserved(rel) && layout.zoneOf(rel) == null) return null
         return schemas.firstOrNull { it.matches(rel) }
     }

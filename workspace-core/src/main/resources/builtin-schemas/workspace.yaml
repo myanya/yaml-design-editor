@@ -1,0 +1,63 @@
+id: builtin-workspace
+name: ワークスペースの構成
+description: ワークスペースの構成ファイル（.yde/workspace.yaml）を検証・フォーム編集するためのメタスキーマ。台帳の範囲・ファイルの場所の扱い・定義体のスコープ・段の並び
+match: ".yde/workspace.yaml"
+root:
+  type: object
+  fields:
+    - key: ledger
+      label: 台帳にするフォルダ
+      type: any
+      description: "フォルダの名前（文字列）か、その並び（例 doc・[doc, spec]）。ID の索引と検証の集計の範囲。書かなければワークスペースの全体が台帳"
+    - key: files
+      label: ファイルの場所の扱い
+      type: object
+      description: file 型の値（ファイルの場所）の扱い
+      fields:
+        - key: outside
+          label: ワークスペースの外を指す場所
+          type: enum
+          values: [allow, warning, error]
+          description: "絶対の場所と、.. で外へ出る場所の扱い（既定 warning）"
+        - key: allowedRoots
+          label: 外でも許す場所
+          type: array
+          item: { type: string }
+          description: 絶対の場所の接頭辞。ここに入る場所は、外として扱わない
+        - key: missing
+          label: 無いファイル
+          type: enum
+          values: [allow, warning, error]
+          description: "場所は読めるが存在しないファイルの扱い（既定 error）"
+    - key: scopes
+      label: 定義体のスコープ
+      type: array
+      display: list
+      description: 生成が業務モデルとして読む範囲を分ける。定義体は、ちょうど 1 つのスコープに入る
+      item:
+        type: object
+        fields:
+          - { key: id, label: スコープID, type: string, required: true, role: title }
+          - { key: name, label: 表示名, type: string }
+          - { key: description, label: 説明, type: text }
+          - key: include
+            label: 入る定義体
+            type: array
+            item: { type: string }
+            description: "定義体の場所の glob（.yde から見た場所。例 schemas/business/**）"
+          - key: uses
+            label: 使ってよいスコープ
+            type: array
+            item: { type: string }
+            description: スコープの ID の並び。使う向きは一方向で、循環は誤り
+    - key: stages
+      label: 段の並び
+      type: array
+      display: list
+      description: 書いた順が段の順。前の段の項に、その段の規則と補正（.yde/stages）を当てたものが、その段の項
+      item:
+        type: object
+        fields:
+          - { key: id, label: 段ID, type: string, required: true, role: title }
+          - { key: name, label: 表示名, type: string }
+          - { key: description, label: 説明, type: text }

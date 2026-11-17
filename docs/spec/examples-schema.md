@@ -429,3 +429,98 @@ states:
   - { id: open, entity: task }
 ```
 
+## files の outside・missing は、allow・warning・error のどれか
+
+- ID: EX-workspace-config-files-value
+- 示す仕様: KW-workspace-files.outside・KW-workspace-files.missing
+- 結果: 検証のエラーになる（文面に「deny」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "doc/tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`doc/tasks/a.yaml`
+
+```yaml
+id: TASK-1
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+files:
+  outside: deny
+```
+
+## ワークスペースの構成（.yde/workspace.yaml）は、構成のメタスキーマで検証される
+
+- ID: EX-workspace-config-ok
+- 示す仕様: CTX-workspace・CTX-workspace-files・CTX-workspace-scope・CTX-workspace-stage
+- 結果: 通る（誤りも警告も無い）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "doc/tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`doc/tasks/a.yaml`
+
+```yaml
+id: TASK-1
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+ledger: [doc]
+files:
+  outside: error
+  missing: warning
+scopes:
+  - { id: business, name: 業務モデル, include: ["schemas/**"] }
+stages:
+  - { id: basic, name: 基本設計 }
+```
+
+## 構成のファイルに、決まった語でないキーを書くと警告になる（綴りの誤りに気づける）
+
+- ID: EX-workspace-config-unknown-key
+- 示す仕様: CTX-workspace・KW-workspace.ledger
+- 結果: 検証の警告になる（文面に「leger」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "doc/tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`doc/tasks/a.yaml`
+
+```yaml
+id: TASK-1
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+leger: [doc]
+```
+

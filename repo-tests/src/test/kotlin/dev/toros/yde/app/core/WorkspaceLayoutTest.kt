@@ -191,13 +191,14 @@ class WorkspaceLayoutTest {
     }
 
     @Test
-    fun `builtin meta schema applies inside schemas zone and config file has no schema`() {
+    fun `builtin meta schema applies inside schemas zone and config file gets the workspace meta schema`() {
         setupYdeWorkspace()
         write(".yde/agents/reviewer.yaml", "id: reviewer\npersona: 慎重")
         val cw = Workspace.open(ws)
         assertEquals(BuiltinSchemas.META_SCHEMA_ID, cw.schemaFor(cw.resolve(".yde/schemas/req.yaml"))?.id)
         assertEquals("builtin-agent", cw.schemaFor(cw.resolve(".yde/agents/reviewer.yaml"))?.id)
-        assertNull(cw.schemaFor(cw.resolve(".yde/workspace.yaml")))
+        // 構成ファイルには、構成のメタスキーマだけを当てる（一般スキーマの match は及ばない）
+        assertEquals(BuiltinSchemas.WORKSPACE_SCHEMA_ID, cw.schemaFor(cw.resolve(".yde/workspace.yaml"))?.id)
         // 定義ローダも .yde 配下から読める
         val defs = Definitions.load(ws)
         assertTrue(defs.agents.any { it.id == "reviewer" })
