@@ -4,8 +4,7 @@ context: CTX-schema
 group: check
 status: stable
 forms:
-  - kinds: [document, library, behavior]
-    value: "検査の定義の配列"
+  - value: "検査の定義の配列"
     meaning: "名前と受け取る値を持つ検査の定義。1 件は {id, description, params, checks} の形で、constraints の use から名前で使います。どのスキーマに書いてもワークスペース全体で使えます。"
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root"

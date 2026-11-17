@@ -130,6 +130,16 @@ class SpecTest {
     }
 
     @Test
+    fun `関係レジストリのメタスキーマの検査のキーは スキーマ文書のメタスキーマの写しと同じ`() {
+        fun fields(builtin: String) = ((raw(builtin)["root"] as Map<*, *>)["fields"] as List<*>).map { it as Map<*, *> }.associateBy { it["key"].toString() }
+        val schema = fields("schema")
+        val registry = fields("relations")
+        listOf("constraints", "functions", "vocabulary", "matrix", "flow").forEach { key ->
+            assertEquals(schema[key], registry[key], "builtin-schemas/relations.yaml の $key が、schema.yaml の $key と違います（両方を同じに直す）")
+        }
+    }
+
+    @Test
     fun `スキーマの種類は 実装とメタスキーマの選択肢と仕様の型と文書で同じ`() {
         val implemented = SchemaKind.entries.map { it.id }
         val metaKind = ((raw("schema")["root"] as Map<*, *>)["fields"] as List<*>).single { (it as Map<*, *>)["key"] == "kind" } as Map<*, *>

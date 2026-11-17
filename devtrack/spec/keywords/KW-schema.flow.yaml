@@ -4,8 +4,7 @@ context: CTX-schema
 group: check
 status: stable
 forms:
-  - kinds: [document, library, behavior]
-    value: "規則の配列"
+  - value: "規則の配列"
     meaning: "宣言した遷移の集まりで、到達できない・行き止まり・宣言の外の遷移を見つける検査。組込みの語彙で、検証の前に基本の検査へ展開します。"
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root"

@@ -1,6 +1,6 @@
 id: UX-348
 title: "関係レジストリのメタスキーマ（builtin-relations）に functions と vocabulary が無い"
-status: todo
+status: resolved
 kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
@@ -12,3 +12,13 @@ features:
 spec:
   - CTX-check-function
   - CTX-check-vocabulary
+closed_on: 2026-11-17
+resolutions:
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      関係レジストリのメタスキーマ（builtin-schemas/relations.yaml）に、横断の検査を書くキー constraints・functions・vocabulary・matrix・flow を足した。
+      読み取りはもともとどの種類のスキーマ文書でも読んでいて、関係レジストリに書くと検査は働くのに「スキーマに定義されていない項目です」と警告が出ていた。
+      coverage と consistency は、自分のスキーマの文書を対象にする語彙なので、関係レジストリには足していない。
+      5 つのキーの形はスキーマ文書のメタスキーマの写しで、同じであることを SpecTest が見る。仕様の語（KW-schema.constraints など）の「書ける種類」を、すべての種類に直した。
+    targets: SpecTest
