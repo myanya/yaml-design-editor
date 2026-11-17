@@ -6,4 +6,4 @@ status: stable
 forms:
   - value: "{of, in, via} の配列"
     default: "いまの要素（検査の外）"
-    meaning: "format の穴の値を探す入れ物。近い順に探します。"
+    meaning: "format の穴の値を探す入れ物。穴は、with の値、予約の穴（{id}・{title}＝いまの要素の ID と表示の題）、scopes に書いた順、いまの要素、の順に探します。"

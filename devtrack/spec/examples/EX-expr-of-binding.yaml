@@ -1,0 +1,81 @@
+id: EX-expr-of-binding
+title: "クエリの行では、of で束縛したほかの要素から読む"
+area: views
+illustrates: [KW-expr.of, KW-expr.path]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      entity: { type: task, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+          - { key: status, type: enum, values: [todo, doing, done] }
+          - { key: points, type: int }
+          - { key: due, type: date }
+          - { key: parent, type: ref, relation: child-of }
+          - key: scores
+            type: array
+            item: { type: int }
+          - key: comments
+            type: array
+            item:
+              type: object
+              fields:
+                - { key: date, type: date }
+                - { key: text, type: string }
+  - path: ".yde/schemas/task-detail.yaml"
+    text: |-
+      id: task-detail
+      match: "details/*.yaml"
+      entity: { type: task }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: owner, type: string }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      title: Design
+      status: done
+      points: 3
+      due: 2026-10-05
+      scores: [2, 5, 1]
+      comments:
+        - { date: 2026-10-01, text: 着手 }
+        - { date: 2026-10-04, text: 完了 }
+  - path: "tasks/b.yaml"
+    text: |-
+      id: TASK-2
+      title: Build
+      status: doing
+      points: 5
+      due: 2026-11-20
+      parent: TASK-1
+  - path: "details/a.yaml"
+    text: |-
+      id: TASK-1
+      owner: 田中
+  - path: ".yde/views/example.yaml"
+    text: |-
+      id: example
+      name: 例
+      rows:
+        match:
+          - node: { entity: task, bind: c }
+          - edge: { relation: child-of }
+          - node: { entity: task, bind: p }
+      columns:
+        - label: 親と子
+          value: { format: "{parent} > {child}", with: { parent: { of: p, path: title }, child: { of: c, path: title } } }
+expect:
+  result: ok
+  view:
+    id: example
+    rows:
+      - id: "TASK-2"
+        values: { "親と子": "Design > Build" }

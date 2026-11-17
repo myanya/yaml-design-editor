@@ -59,14 +59,16 @@ files:
           value: { multiply: [ { path: points }, 10 ] }
         - label: 半分
           value: { divide: [ { path: points }, 2 ] }
+        - label: 足す
+          value: { add: [ { path: points }, 1, 10 ] }
 expect:
   result: ok
   view:
     id: example
     rows:
       - id: "TASK-1"
-        values: { "倍": "30", "半分": "1.5" }
+        values: { "倍": "30", "半分": "1.5", "足す": "14" }
       - id: "TASK-2"
-        values: { "倍": "50", "半分": "2.5" }
+        values: { "倍": "50", "半分": "2.5", "足す": "16" }
       - id: "TASK-3"
-        values: { "倍": "20", "半分": "1" }
+        values: { "倍": "20", "半分": "1", "足す": "13" }

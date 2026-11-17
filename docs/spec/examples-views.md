@@ -334,9 +334,9 @@ columns:
 - 示す仕様: KW-expr.multiply・KW-expr.add・KW-expr.divide
 - 結果: 通る（誤りも警告も無い）
 - ビュー `example` の行（並びの順）:
-  - `TASK-1`: 倍＝30、半分＝1.5
-  - `TASK-2`: 倍＝50、半分＝2.5
-  - `TASK-3`: 倍＝20、半分＝1
+  - `TASK-1`: 倍＝30、半分＝1.5、足す＝14
+  - `TASK-2`: 倍＝50、半分＝2.5、足す＝16
+  - `TASK-3`: 倍＝20、半分＝1、足す＝13
 
 `.yde/schemas/task.yaml`
 
@@ -407,6 +407,106 @@ columns:
     value: { multiply: [ { path: points }, 10 ] }
   - label: 半分
     value: { divide: [ { path: points }, 2 ] }
+  - label: 足す
+    value: { add: [ { path: points }, 1, 10 ] }
+```
+
+## 日付の月と日、日付の差（終わり − 始まり）、引き算
+
+- ID: EX-expr-date-diff
+- 示す仕様: KW-expr.month・KW-expr.day・KW-expr.daysBetween・KW-expr.subtract
+- 結果: 通る（誤りも警告も無い）
+- ビュー `example` の行（並びの順）:
+  - `TASK-1`: 月＝10、日＝5、年末まで＝87、点から 1 を引く＝2
+  - `TASK-2`: 月＝11、日＝20、年末まで＝41、点から 1 を引く＝4
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: date }
+    - { key: parent, type: ref, relation: child-of }
+    - key: scores
+      type: array
+      item: { type: int }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: date, type: date }
+          - { key: text, type: string }
+```
+
+`.yde/schemas/task-detail.yaml`
+
+```yaml
+id: task-detail
+match: "details/*.yaml"
+entity: { type: task }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: owner, type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: Design
+status: done
+points: 3
+due: 2026-10-05
+scores: [2, 5, 1]
+comments:
+  - { date: 2026-10-01, text: 着手 }
+  - { date: 2026-10-04, text: 完了 }
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: Build
+status: doing
+points: 5
+due: 2026-11-20
+parent: TASK-1
+```
+
+`details/a.yaml`
+
+```yaml
+id: TASK-1
+owner: 田中
+```
+
+`.yde/views/example.yaml`
+
+```yaml
+id: example
+name: 例
+rows: { idPattern: "TASK-*", schemaIds: [task] }
+columns:
+  - label: 月
+    value: { month: { path: due } }
+  - label: 日
+    value: { day: { path: due } }
+  - label: 年末まで
+    value: { daysBetween: [ { path: due }, { value: "2026-12-31" } ] }
+  - label: 点から 1 を引く
+    value: { subtract: [ { path: points }, 1 ] }
 ```
 
 ## 日付の部分を取り出す
@@ -732,6 +832,293 @@ columns:
     value: { extract: [ { path: id }, "[0-9]+$" ] }
 ```
 
+## occurrenceCount は、その ID が書かれている場所のうち、指定に合うものを数える
+
+- ID: EX-expr-occurrence-count
+- 示す仕様: KW-expr.occurrenceCount
+- 結果: 通る（誤りも警告も無い）
+- ビュー `example` の行（並びの順）:
+  - `TASK-1`: 詳細の数＝1、書かれた場所＝2
+  - `TASK-2`: 詳細の数＝0、書かれた場所＝1
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: date }
+    - { key: parent, type: ref, relation: child-of }
+    - key: scores
+      type: array
+      item: { type: int }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: date, type: date }
+          - { key: text, type: string }
+```
+
+`.yde/schemas/task-detail.yaml`
+
+```yaml
+id: task-detail
+match: "details/*.yaml"
+entity: { type: task }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: owner, type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: Design
+status: done
+points: 3
+due: 2026-10-05
+scores: [2, 5, 1]
+comments:
+  - { date: 2026-10-01, text: 着手 }
+  - { date: 2026-10-04, text: 完了 }
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: Build
+status: doing
+points: 5
+due: 2026-11-20
+parent: TASK-1
+```
+
+`details/a.yaml`
+
+```yaml
+id: TASK-1
+owner: 田中
+```
+
+`.yde/views/example.yaml`
+
+```yaml
+id: example
+name: 例
+rows: { idPattern: "TASK-*", schemaIds: [task] }
+columns:
+  - label: 詳細の数
+    value: { occurrenceCount: { schema: task-detail } }
+  - label: 書かれた場所
+    value: { occurrenceCount: {} }
+```
+
+## クエリの行では、of で束縛したほかの要素から読む
+
+- ID: EX-expr-of-binding
+- 示す仕様: KW-expr.of・KW-expr.path
+- 結果: 通る（誤りも警告も無い）
+- ビュー `example` の行（並びの順）:
+  - `TASK-2`: 親と子＝Design > Build
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: date }
+    - { key: parent, type: ref, relation: child-of }
+    - key: scores
+      type: array
+      item: { type: int }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: date, type: date }
+          - { key: text, type: string }
+```
+
+`.yde/schemas/task-detail.yaml`
+
+```yaml
+id: task-detail
+match: "details/*.yaml"
+entity: { type: task }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: owner, type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: Design
+status: done
+points: 3
+due: 2026-10-05
+scores: [2, 5, 1]
+comments:
+  - { date: 2026-10-01, text: 着手 }
+  - { date: 2026-10-04, text: 完了 }
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: Build
+status: doing
+points: 5
+due: 2026-11-20
+parent: TASK-1
+```
+
+`details/a.yaml`
+
+```yaml
+id: TASK-1
+owner: 田中
+```
+
+`.yde/views/example.yaml`
+
+```yaml
+id: example
+name: 例
+rows:
+  match:
+    - node: { entity: task, bind: c }
+    - edge: { relation: child-of }
+    - node: { entity: task, bind: p }
+columns:
+  - label: 親と子
+    value: { format: "{parent} > {child}", with: { parent: { of: p, path: title }, child: { of: c, path: title } } }
+```
+
+## 読み出しは、参照をたどった相手（via）や、同じ ID の別の文書（in）からも読める。format は scopes で入れ物を、with で計算した値を指す（穴は with・予約の穴・scopes・いまの要素の順に探すので、親が無い TASK-1 は自分の点になる）
+
+- ID: EX-expr-read-elsewhere
+- 示す仕様: KW-expr.via・KW-expr.in・KW-expr.scopes・KW-expr.with
+- 結果: 通る（誤りも警告も無い）
+- ビュー `example` の行（並びの順）:
+  - `TASK-1`: 親の題＝''、担当＝田中、親から＝親の点は 3、倍の点＝6 点
+  - `TASK-2`: 親の題＝Design、担当＝''、親から＝親の点は 3、倍の点＝10 点
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: date }
+    - { key: parent, type: ref, relation: child-of }
+    - key: scores
+      type: array
+      item: { type: int }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: date, type: date }
+          - { key: text, type: string }
+```
+
+`.yde/schemas/task-detail.yaml`
+
+```yaml
+id: task-detail
+match: "details/*.yaml"
+entity: { type: task }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: owner, type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: Design
+status: done
+points: 3
+due: 2026-10-05
+scores: [2, 5, 1]
+comments:
+  - { date: 2026-10-01, text: 着手 }
+  - { date: 2026-10-04, text: 完了 }
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: Build
+status: doing
+points: 5
+due: 2026-11-20
+parent: TASK-1
+```
+
+`details/a.yaml`
+
+```yaml
+id: TASK-1
+owner: 田中
+```
+
+`.yde/views/example.yaml`
+
+```yaml
+id: example
+name: 例
+rows: { idPattern: "TASK-*", schemaIds: [task] }
+columns:
+  - label: 親の題
+    value: { via: parent, path: title }
+  - label: 担当
+    value: { in: { schemaId: task-detail }, path: owner }
+  - label: 親から
+    value: { format: "親の点は {points}", scopes: [ { via: parent } ] }
+  - label: 倍の点
+    value: { format: "{n} 点", with: { n: { multiply: [ { path: points }, 2 ] } } }
+```
+
 ## refCount は、出ていく・入ってくる参照の本数を数える
 
 - ID: EX-expr-ref-count
@@ -811,6 +1198,200 @@ columns:
     value: { refCount: { dir: in, relation: child-of } }
   - label: 出る参照
     value: { refCount: { dir: out } }
+```
+
+## 文字の計算（文字数・大文字・小文字）と、数として読み直す number、決まった値の value
+
+- ID: EX-expr-string-functions
+- 示す仕様: KW-expr.length・KW-expr.upper・KW-expr.lower・KW-expr.number・KW-expr.value
+- 結果: 通る（誤りも警告も無い）
+- ビュー `example` の行（並びの順）:
+  - `TASK-1`: 文字数＝6、大文字＝DESIGN、小文字＝design、数＝12
+  - `TASK-2`: 文字数＝5、大文字＝BUILD、小文字＝build、数＝12
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: date }
+    - { key: parent, type: ref, relation: child-of }
+    - key: scores
+      type: array
+      item: { type: int }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: date, type: date }
+          - { key: text, type: string }
+```
+
+`.yde/schemas/task-detail.yaml`
+
+```yaml
+id: task-detail
+match: "details/*.yaml"
+entity: { type: task }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: owner, type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: Design
+status: done
+points: 3
+due: 2026-10-05
+scores: [2, 5, 1]
+comments:
+  - { date: 2026-10-01, text: 着手 }
+  - { date: 2026-10-04, text: 完了 }
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: Build
+status: doing
+points: 5
+due: 2026-11-20
+parent: TASK-1
+```
+
+`details/a.yaml`
+
+```yaml
+id: TASK-1
+owner: 田中
+```
+
+`.yde/views/example.yaml`
+
+```yaml
+id: example
+name: 例
+rows: { idPattern: "TASK-*", schemaIds: [task] }
+columns:
+  - label: 文字数
+    value: { length: { path: title } }
+  - label: 大文字
+    value: { upper: { path: title } }
+  - label: 小文字
+    value: { lower: { path: title } }
+  - label: 数
+    value: { number: { value: "12.0" } }
+```
+
+## 配列の合計と最小、要素ごとの式（each）
+
+- ID: EX-expr-sum-min-each
+- 示す仕様: KW-expr.sum・KW-expr.min・KW-expr.each
+- 結果: 通る（誤りも警告も無い）
+- ビュー `example` の行（並びの順）:
+  - `TASK-1`: 合計＝8、最初のコメント＝2026-10-01、コメントの文＝着手・完了
+  - `TASK-2`
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+entity: { type: task, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+    - { key: status, type: enum, values: [todo, doing, done] }
+    - { key: points, type: int }
+    - { key: due, type: date }
+    - { key: parent, type: ref, relation: child-of }
+    - key: scores
+      type: array
+      item: { type: int }
+    - key: comments
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: date, type: date }
+          - { key: text, type: string }
+```
+
+`.yde/schemas/task-detail.yaml`
+
+```yaml
+id: task-detail
+match: "details/*.yaml"
+entity: { type: task }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: owner, type: string }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+title: Design
+status: done
+points: 3
+due: 2026-10-05
+scores: [2, 5, 1]
+comments:
+  - { date: 2026-10-01, text: 着手 }
+  - { date: 2026-10-04, text: 完了 }
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+title: Build
+status: doing
+points: 5
+due: 2026-11-20
+parent: TASK-1
+```
+
+`details/a.yaml`
+
+```yaml
+id: TASK-1
+owner: 田中
+```
+
+`.yde/views/example.yaml`
+
+```yaml
+id: example
+name: 例
+rows: { idPattern: "TASK-*", schemaIds: [task] }
+columns:
+  - label: 合計
+    value: { sum: { path: "scores[*]" } }
+  - label: 最初のコメント
+    value: { min: { path: "comments[*].date", type: date } }
+  - label: コメントの文
+    value: { each: { path: comments }, value: { path: text } }
 ```
 
 ## レンズの絞り込みに、決まった語でないキーは書けない
