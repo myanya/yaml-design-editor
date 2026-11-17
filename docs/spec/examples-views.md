@@ -492,15 +492,15 @@ columns:
     value: { weekStart: { path: due } }
 ```
 
-## format は、埋まらない穴があると「得られない」になり、first で次の式に進む。式の中の文字列は、{パス} を含んでいても決まった値
+## format は、埋まらない穴があると「得られない」になり、first で次の式に進む。first の要素でも {パス} を含む文字列は短い書き方で、そのまま出す文字は value で書く
 
 - ID: EX-expr-format-missing
 - 示す仕様: KW-expr.format・KW-expr.first
 - 結果: 通る（誤りも警告も無い）
 - ビュー `example` の行（並びの順）:
-  - `TASK-1`: 期限＝2026-10-05 まで、式の中の文字列＝{due} まで
+  - `TASK-1`: 期限＝2026-10-05 まで、そのままの文字＝{due} まで
   - `TASK-2`: 期限＝2026-11-20 まで
-  - `TASK-3`: 期限＝期限なし、式の中の文字列＝{due} まで
+  - `TASK-3`: 期限＝期限なし、そのままの文字＝{due} まで
 
 `.yde/schemas/task.yaml`
 
@@ -568,9 +568,9 @@ name: 例
 rows: { idPattern: "TASK-*" }
 columns:
   - label: 期限
-    value: { first: [ { format: "{due} まで" }, 期限なし ] }
-  - label: 式の中の文字列
     value: { first: [ "{due} まで", 期限なし ] }
+  - label: そのままの文字
+    value: { first: [ { value: "{due} まで" }, 期限なし ] }
 ```
 
 ## {パス} を含む文字列は、format の短い書き方

@@ -50,6 +50,7 @@ import dev.toros.yde.yaml.model.pretty
  *
  * 検査の外（ひな型・表示・組み立て。P31）では「いまの要素」を前提に書ける——`of` を省略するといまの要素（読み出し・
  * 参照の本数・書かれた場所の数）、`format` の scopes も省略できる。`{パス}` を含む文字列は `format` の省略形（parseValue）。
+ * 式の中でも、値を選ぶ・組み立てる場所（first の要素・each の value・format の with の値）では同じ省略形が効く（parseChoice）。
  */
 sealed interface ValueExpr {
 
@@ -350,6 +351,16 @@ sealed interface ValueExpr {
             else parse(raw, where, current = true)
 
         /**
+         * 式の中で値を選ぶ・組み立てる場所（first の要素・each の value・format の with の値）の読み取り。「いまの要素」がある文脈
+         * （current）では、`{パス}` を含む文字列を format の省略形として読む（式の全体に書いたときと同じ）。`{…}` を含む文字を
+         * そのまま出したいときは `{value: 文字}` と書く。比較の右辺や正規表現のような、決まった値を受け取る場所では使わない
+         * （`{3}` のような書き方を穴と取り違えないため）。検査の check（current = false）では、今までどおり決まった値。
+         */
+        private fun parseChoice(raw: Any?, where: String, current: Boolean): ValueExpr =
+            if (current && raw is String && Projection.placeholders(raw).isNotEmpty()) Format(Literal(raw), emptyList())
+            else parse(raw, where, current)
+
+        /**
          * 値の式の読み取り。current は「いまの要素がある」文脈（スキーマの値の式・ビューの列・each の value）で、of と scopes を省略できる。
          * 検査の check（current = false）では、束縛名の省略は定義エラー（クエリの解に「いまの要素」は無い）。
          */
@@ -377,7 +388,7 @@ sealed interface ValueExpr {
                         with = withRaw?.entries?.associate { (k, v) ->
                             val name = k.toString()
                             require(WITH_NAME.matches(name)) { "$where.with: 穴の名前は英字で始まる英数字で書きます: $name" }
-                            name to parse(v, "$where.with.$name", current)
+                            name to parseChoice(v, "$where.with.$name", current)
                         }.orEmpty(),
                     )
                 }
@@ -394,14 +405,14 @@ sealed interface ValueExpr {
                     onlyKeys(setOf("first"))
                     val list = m["first"] as? List<*> ?: error("$where.first は式の配列である必要があります")
                     require(list.isNotEmpty()) { "$where.first には1つ以上の式が必要です" }
-                    First(list.mapIndexed { i, e -> parse(e, "$where.first[$i]", current) })
+                    First(list.mapIndexed { i, e -> parseChoice(e, "$where.first[$i]", current) })
                 }
                 // each は {each, value} の形なので、決まった値の {value} より先に見る
                 m.containsKey("each") -> {
                     onlyKeys(setOf("each", "value"))
                     val valueRaw = m["value"] ?: error("$where.value（各要素に当てる式）が必要です")
                     // value の中では各要素が「いまの要素」になる（of を省略した読み出しが要素の項目を読む）
-                    Each(parse(m["each"], "$where.each", current), parse(valueRaw, "$where.value", current = true))
+                    Each(parse(m["each"], "$where.each", current), parseChoice(valueRaw, "$where.value", current = true))
                 }
                 m.containsKey("value") -> {
                     onlyKeys(setOf("value"))
