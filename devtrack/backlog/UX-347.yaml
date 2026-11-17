@@ -1,6 +1,6 @@
 id: UX-347
 title: "メタスキーマに、型が any で形を説明文にだけ書いた項目が多い（スキーマのメタスキーマで 40 か所）"
-status: todo
+status: resolved
 kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
@@ -14,3 +14,17 @@ spec:
   - CTX-entity-decl
   - CTX-constraint
   - CTX-state
+closed_on: 2026-11-17
+resolutions:
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      型が any の項目（組込みのメタスキーマの約 90 か所。関係レジストリへの写しを除く）を 3 つに仕分けた。
+      1. 形が 2 通りあるもの（約 20 か所）: スキーマの言語に「どちらかの形」を書く語が無い。UX-356 に切り出した（判断待ち）。
+      2. 小さな言語（約 65 か所）: クエリ・条件・値の式・変換のひな型・操作の手。仕様には載せてあり、読み取りが形を確かめる。UX-357 に切り出した（必要になったら）。
+      3. 単に any にしてあったもの: 型のある形に直した。object の entity.owns（文字列の配列）・検査の messages（文字のマップ）と with（マップ）・図の記法の rules の要素と skill の rules（規則 {id, when, with, build} の配列）・評価セットの変異の context（{items}）・段の変更の中の changes（配列）。
+      どんな値でもよい項目（項目定義の default・sample）は、any のままが正しい。
+    targets: builtin-schemas（schema・relations・view・skill・eval・stage）
+related:
+  - UX-356
+  - UX-357

@@ -52,7 +52,9 @@ root:
             type: text
           - key: context
             label: 文脈レシピ差し替え
-            type: any
+            type: object
+            fields:
+              - { key: items, label: 開示項目, type: array, item: { type: any } }
             description: アクティビティの context を丸ごと差し替える（書式はアクティビティ定義の context と同じ items 配列。レシピA/B比較用。R19-06）
     - key: cases
       label: 評価ケース

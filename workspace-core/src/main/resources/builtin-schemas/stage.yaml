@@ -63,7 +63,8 @@ root:
             description: "選んだ要素の後ろ（同じ並びの次）へ足す値。値が並びなら、その要素をすべて足す。足した object には origin が付く"
           - key: changes
             label: 中の変更
-            type: any
+            type: array
+            item: { type: any }
             description: 選んだ要素をいまの場所にして当てる変更の並び（書き方はこの並びと同じ）
     - key: rules
       label: 名前を付けた組み立て

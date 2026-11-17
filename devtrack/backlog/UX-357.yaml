@@ -1,0 +1,16 @@
+id: UX-357
+title: "小さな言語（クエリ・条件・値の式・変換のひな型・操作の手）の形がメタスキーマに無く、設計画面で構造を編集できない"
+status: when-needed
+kind: feature
+origin_on: 2026-11-17
+origin: "メタスキーマの型が any の項目を仕分けたとき（UX-347）"
+memo: |-
+  クエリ（match・also・forAll）・条件（where・when）・値の比較（check・require・predicate）・値の式・変換のひな型（build・scaffold・set / add / after）・操作の手（do）は、メタスキーマでは型が any で、形は説明文と仕様（docs/spec/expressions.md・templates.md）にある。該当は約 65 か所。
+  読み取りが形を確かめて誤りにするので、検証の抜けは無い。困るのは、設計画面で汎用の欄になることと、メタスキーマの検証（スキーマに無いキーの警告）が効かないこと。
+  対応の当たり: 仕様の位置（CTX-query-node・CTX-condition・CTX-expr・CTX-template など）をメタスキーマの名前付きの定義にして、各所から $ref で使う。値の式とひな型は再帰するので、再帰する定義と、UX-356 の「どちらかの形」が要る（決まった値か式の object か）。
+  仕様の語と実装の突き合わせ（SpecTest）は済んでいるので、需要（設計画面でこれらを構造として編集したい）が出てから着手する。
+features:
+  - S-15
+  - S-27
+related:
+  - UX-356

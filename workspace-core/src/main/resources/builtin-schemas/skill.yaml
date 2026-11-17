@@ -92,7 +92,14 @@ root:
       description: import では行（列名 → セル、tree なら JSON の要素）を項として当てる変換のひな型で、mapping の代わりに書く（$when で行を飛ばせる）。export では文書（rows なら配列の要素）ごとに JSON の値を組み立てるひな型で、columns の代わりに書く
     - key: rules
       label: ひな型の規則（import / export）
-      type: any
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: id, label: 規則名, type: string, required: true }
+          - { key: when, label: 条件, type: any, description: "検査の where と同じ書き方の並び。省くといつでも合う" }
+          - { key: with, label: 受け取る値, type: array, item: { type: string }, description: "当てる側が $with で渡す値の名前（規則の中で $of: 名前 で読む）" }
+          - { key: build, label: ひな型, type: any, required: true }
       description: build から $apply で当てる名前付きの規則（変換定義の rules と同じ）
     - key: mapping
       label: 列の対応（import）

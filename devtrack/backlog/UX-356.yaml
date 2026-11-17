@@ -1,0 +1,18 @@
+id: UX-356
+title: "スキーマの言語に「どちらかの形」を書く語が無く、形が 2 通りある項目はメタスキーマで型が any になる"
+status: discussing
+kind: feature
+origin_on: 2026-11-17
+origin: "メタスキーマの型が any の項目を仕分けたとき（UX-347）"
+memo: |-
+  文字列か配列、object か配列、のように形が 2 通りある項目は、スキーマの言語で書けないので any にしている。検証は形を確かめず、設計画面は汎用の欄になる。
+  該当（約 20 か所）:
+  - スキーマ: 文書の entity（object か配列）・phases（配列か {key, order}）・参照の idPattern / idPatterns・scope.schemaIds / documentIds（文字列か配列）・enum の values の要素（文字列か {value, label, description}）・配列の unique（true かキーの配列）・coverage の detailIn.schemaIds・操作の lifecycle（ID か {id, history}）・追加の決まりの key（パスか配列）と id.prefix（文字列かひな型）
+  - ビュー: 入力の values の要素・クロス集計の columns.order と columns.values の要素・unclassified と rows.unclassified（見出しの文字か false）
+  - ワークスペースの構成: ledger（文字列か配列）
+  - skill: target.file と target.id.prefix（文字列かひな型）
+  直すには、スキーマの言語に「どちらかの形」を書く語を足す判断が要る（語を足すと、検証・フォーム・AI 生成の JSON Schema・設計画面のすべてに関わる。Core Calculus の検討が先）。
+  足さない場合の代案: 読み取りを 1 つの形に寄せる（例 文字列を配列 1 件として読むのをやめる）のは、既存の定義を壊すので勧めない。
+features:
+  - S-15
+  - S-02

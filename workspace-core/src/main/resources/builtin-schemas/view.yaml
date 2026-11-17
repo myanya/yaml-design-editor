@@ -77,7 +77,13 @@ root:
     - key: rules
       label: 記法の変換規則
       type: array
-      item: {type: any}
+      item:
+        type: object
+        fields:
+          - { key: id, label: 規則名, type: string, required: true }
+          - { key: when, label: 条件, type: any, description: "検査の where と同じ書き方の並び。省くといつでも合う" }
+          - { key: with, label: 受け取る値, type: array, item: { type: string }, description: "当てる側が $with で渡す値の名前（規則の中で $of: 名前 で読む）" }
+          - { key: build, label: ひな型, type: any, required: true }
     - key: appearance
       label: 図の見え方
       type: object
