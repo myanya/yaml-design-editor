@@ -1,6 +1,6 @@
 id: UX-275
 title: WorkspaceOwnershipTest が JAVA_TOOL_OPTIONS のある環境で子プロセスの1行目を読み違えて落ちる
-status: todo
+status: resolved
 kind: dev
 origin_on: 2026-11-08
 origin: クラウドの Linux コンテナ（JAVA_TOOL_OPTIONS でプロキシと証明書を渡す）で ./gradlew test を回したとき
@@ -8,3 +8,13 @@ memo: 子の JVM が出す「Picked up JAVA_TOOL_OPTIONS」の行を、READY や
   JAVA_TOOL_OPTIONS を外すかで直せそう
 features:
   - LC-19
+closed_on: 2026-11-17
+resolutions:
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      テストの子プロセスの出力の読み方を、合図の行（READY・BUSY）だけを見るように直した。合図でない行（JVM が先に出す「Picked up JAVA_TOOL_OPTIONS」など）は読み飛ばす。
+      JAVA_TOOL_OPTIONS のあるクラウドの Linux コンテナで、テストが通ることを確かめた。同じ原因の UX-353 は、この指摘に統合した。
+    targets: WorkspaceOwnershipTest
+related:
+  - UX-353
