@@ -1,6 +1,6 @@
 id: UX-220
 title: レポートのひな形が空の文字（`""`）を `''` と書き出す
-status: todo
+status: resolved
 kind: bug
 origin_on: 2026-10-31
 origin: 表の横長対策（テーブルモデルのサンプル）
@@ -10,3 +10,9 @@ memo: '`TextTemplate.text` が `scalarText` の null（空の文字）で `YamlI
   （2026-11-18 現物確認）当たりは semantic-core の TextTemplate.kt。空の文字は scalarText が null を返して dumpPlain に落ちる（sql-string の形だけは先に分けてある）'
 features:
   - X-15
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 空の文字（と空白だけの文字）の穴は、その文字のまま書く（YAML の書き出しに回さない）。値の無い穴とは分けたまま
+    targets: TextTemplate.kt・TextTemplateTest

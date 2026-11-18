@@ -1,6 +1,6 @@
 id: UX-181
 title: actionsだけを持つlibraryが実行できても定義検査ではエラーになる
-status: todo
+status: resolved
 kind: bug
 origin_on: 2026-10-24
 origin: TODO操作サンプル
@@ -11,3 +11,9 @@ memo: '`SchemaDefinitionChecks`のlibrary必須内容にactionsが含まれな�
 features:
   - OP-02
   - S-04
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: library の必須の中身に actions を足した（操作だけを置いた library は誤りにならない。何も持たない library は今までどおり誤り）
+    targets: SchemaDefinitionChecks.kt・ActionPlannerTest・SchemaLoaderTest

@@ -13,3 +13,6 @@ resolutions:
     kind: 一部
     note: 検査の値の条件に contains・startsWith・endsWith・matches・includes・includesAny・oneOf が入った（schema/QuerySpec.kt）。残りは、consistency
       の assert が equals・lte・gte だけで集合の包含が無いことと、導出値の適用が指摘 1 件ずつであること。生成（generate）と操作が入ったので、一括の伝播が要るかは再判断。manual/checks.md の「判定は現在等値です」の行は古い
+  - date: 2026-11-18
+    kind: 一部
+    note: manual/checks.md の「判定は現在等値です」の行を、等値と大小（lte・gte）に直した。機能の残り（集合の包含・一括の伝播）はそのまま

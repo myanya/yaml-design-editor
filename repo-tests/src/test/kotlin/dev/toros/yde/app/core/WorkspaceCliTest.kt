@@ -467,6 +467,9 @@ class WorkspaceCliTest {
             Files.writeString(def, "id: titles\nbuild: { 見出し: { ${'$'}copy: title }, 明細: { ${'$'}each: items, ${'$'}build: { ${'$'}copy: id } } }")
             val single = runCli(arrayOf("transform", dir, def.toString(), "--input", "requirements/req-a.yaml"))
             assertTrue("見出し: ログイン機能" in single && "REQ-001-S1" in single, single)
+            // 入力の文書の来歴も、ワークスペース相対の場所で出る（以前は解決したパスがそのまま出た。UX-142）
+            val traced = runCli(arrayOf("transform", dir, def.toString(), "--input", "requirements/req-a.yaml", "--origins"))
+            assertTrue("file: requirements/req-a.yaml" in traced, traced)
             assertEquals(before, Files.walk(ws).use { s -> s.filter { Files.isRegularFile(it) }.count() }, "ワークスペースに何も書かない")
         } finally {
             Files.deleteIfExists(def)

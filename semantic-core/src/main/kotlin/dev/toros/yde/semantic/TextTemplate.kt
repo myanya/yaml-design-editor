@@ -86,7 +86,10 @@ object TextTemplate {
         if (format == SQL_STRING && node is YNode.Scalar && node.value != null) {
             return "'" + node.value.toString().replace("'", "''") + "'"
         }
-        val raw = scalarText(node) ?: return YamlIO.dumpPlain(node).trimEnd()
+        // 空の文字（と空白だけの文字）は、その文字のまま書く。YAML の書き出しに回すと '' になる。値の無い穴（null）とは分ける
+        val raw = scalarText(node)
+            ?: ((node as? YNode.Scalar)?.value as? String)
+            ?: return YamlIO.dumpPlain(node).trimEnd()
         if (format == null) return raw
         return when {
             format == CELL -> raw.replace("|", "\\|").replace("\r\n", "<br>").replace("\n", "<br>")

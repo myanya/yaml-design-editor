@@ -296,6 +296,7 @@ class ScreenMemory {
         schemaDefinition.clear()
         schemaSelection.clear()
         editorTab.clear()
+        sourceFolds.clear()
         docViewChoice.clear()
     }
 
@@ -310,6 +311,7 @@ class ScreenMemory {
         schemaDefinition.keys.filter { it.isUnder(document) }.forEach(schemaDefinition::remove)
         schemaSelection.keys.filter { it.first.isUnder(document) }.forEach(schemaSelection::remove)
         editorTab.keys.filter { it.isUnder(document) }.forEach(editorTab::remove)
+        sourceFolds.keys.filter { it.isUnder(document) }.forEach(sourceFolds::remove)
         docViewChoice.keys.filter { it.isUnder(document) }.forEach(docViewChoice::remove)
     }
 
@@ -345,6 +347,10 @@ class ScreenMemory {
         editorTab.keys.filter { it.isUnder(from) }.forEach { key ->
             val value = editorTab.remove(key) ?: return@forEach
             editorTab[key.moved(from, to)] = value
+        }
+        sourceFolds.keys.filter { it.isUnder(from) }.forEach { key ->
+            val value = sourceFolds.remove(key) ?: return@forEach
+            sourceFolds[key.moved(from, to)] = value
         }
         docViewChoice.keys.filter { it.isUnder(from) }.forEach { key ->
             val value = docViewChoice.remove(key) ?: return@forEach

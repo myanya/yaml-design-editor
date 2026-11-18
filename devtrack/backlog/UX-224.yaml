@@ -1,6 +1,6 @@
 id: UX-224
 title: ビューのメタスキーマ（`builtin-schemas/view.yaml`）の `rows.limit` の説明が「既定 100」のまま
-status: todo
+status: resolved
 kind: spec
 origin_on: 2026-10-31
 origin: クエリ行の並び
@@ -11,3 +11,9 @@ memo: |-
   （2026-11-18 現物確認）実装の既定は上限なし（VirtualViews.kt。100 は QuerySpec.DEFAULT_LIMIT＝パターン制約と CLI query の既定）。manual/views.md は正しい。誤りは view.yaml の説明と、仕様の原本 devtrack/spec/keywords/KW-view-rows.limit.yaml の default の 2 か所
 features:
   - X-10
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 実装の既定は上限なし。メタスキーマ（view.yaml）の説明と、仕様の語 KW-view-rows.limit の既定を「上限なし」に直した
+    targets: builtin-schemas/view.yaml・devtrack/spec

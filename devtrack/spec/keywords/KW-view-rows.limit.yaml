@@ -5,5 +5,5 @@ order: 7
 status: stable
 forms:
   - value: "整数"
-    default: "100"
+    default: "上限なし"
     meaning: "クエリの行の上限。"

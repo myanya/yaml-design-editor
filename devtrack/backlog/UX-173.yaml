@@ -1,6 +1,6 @@
 id: UX-173
 title: 編集タブとソースの畳みの覚えがワークスペース切替・文書改名・削除に追随していない
-status: todo
+status: resolved
 kind: bug
 origin_on: 2026-10-19
 origin: UI 改善時のコード確認
@@ -12,3 +12,8 @@ resolutions:
     kind: 一部
     note: 編集タブの覚え（editorTab）は、切替・削除・改名に追随する（ScreenMemory の clear・forgetDocument・renameDocument）。残りは、ソースの畳み（sourceFolds）がどれにも入っていないこと。markdownTab
       も削除・改名に追随しない
+  - date: 2026-11-18
+    kind: 解決
+    note: ソースの畳み（sourceFolds）を、ワークスペースの切替・文書の削除・改名に追随させた。編集タブ（editorTab）は入っていた。markdownTab は鍵が文字のため削除・改名には追随しないまま（切替では消える）
+    targets: ScreenMemory.kt・ScreenMemoryTest
+closed_on: 2026-11-18

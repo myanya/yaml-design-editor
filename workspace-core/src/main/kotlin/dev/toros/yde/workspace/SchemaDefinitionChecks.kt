@@ -170,9 +170,10 @@ object SchemaDefinitionChecks {
             if (phases != null) issues += SchemaIssue("behavior 文書に phases は定義できません", "phases")
         } else {
             if (match.isNotBlank()) issues += SchemaIssue("library スキーマに match は定義できません", "match")
-            // library は共有する定義の置き場——フィールドの定義（definitions）か、検査の定義・語彙の定義（functions / vocabulary）を持つ
-            if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty() && constraints.isEmpty() && checkers.isEmpty()) {
-                issues += SchemaIssue("library スキーマには definitions・functions・vocabulary・constraints のいずれかが必要です", "definitions")
+            // library は共有する定義の置き場——フィールドの定義（definitions）か、検査の定義・語彙の定義（functions / vocabulary）か、
+            // 横断の操作（actions。manual/actions.md の案内どおり、操作だけを置いた library も使える）を持つ
+            if (definitions.isEmpty() && checkLibrary.functions.isEmpty() && checkLibrary.words.isEmpty() && constraints.isEmpty() && checkers.isEmpty() && actions.isEmpty()) {
+                issues += SchemaIssue("library スキーマには definitions・functions・vocabulary・constraints・actions のいずれかが必要です", "definitions")
             }
             // library に直接書いた検査（constraints）は、特定のスキーマに属さない検査——ワークスペースのどの文書に
             // 定義された要素にも適用される（組込み定義体のエンティティの整合と同じ扱い。P29 Phase 6 第3段）

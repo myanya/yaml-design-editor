@@ -37,29 +37,29 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ## コマンド例
 
 ```bash
-./gradlew runCli -q --args="catalog sample-workspace"                     # 文書カタログ（_document要約・スキーマ・ID数）
-./gradlew runCli -q --args="outline sample-workspace path/to/doc.yaml"    # 骨子（キー構造・配列件数。長文は文字数表示）
-./gradlew runCli -q --args="read sample-workspace path/to/doc.yaml items[0]"  # 指定パス配下の全文
-./gradlew runCli -q --args="bundle sample-workspace path/to/doc.yaml --budget 4000"  # 対象＋参照・被参照の文脈バンドル
-./gradlew runCli -q --args="search sample-workspace --text ログイン --schema requirement"  # 本文検索
-./gradlew runCli -q --args="search sample-workspace --ref-to REQ-001"     # 参照検索（--unresolved で未解決のみ）
+./gradlew runCli -q --args="catalog my-ws"                     # 文書カタログ（_document要約・スキーマ・ID数）
+./gradlew runCli -q --args="outline my-ws path/to/doc.yaml"    # 骨子（キー構造・配列件数。長文は文字数表示）
+./gradlew runCli -q --args="read my-ws path/to/doc.yaml items[0]"  # 指定パス配下の全文
+./gradlew runCli -q --args="bundle my-ws path/to/doc.yaml --budget 4000"  # 対象＋参照・被参照の文脈バンドル
+./gradlew runCli -q --args="search my-ws --text ログイン --schema requirement"  # 本文検索
+./gradlew runCli -q --args="search my-ws --ref-to REQ-001"     # 参照検索（--unresolved で未解決のみ）
 ./gradlew runCli -q --args="traverse my-ws USC-011-108 --steps '[{emit: summary}, {follow: out, via: actor, emit: full}]'"  # グラフの経路トラバース（レシピ graph 項目の試作台）
 ./gradlew runCli -q --args="query my-ws --spec '{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}'"  # グラフパターン照合（束縛の表。ビューのクエリ行・foreach source: query・constraints の試作台。spec はファイル指定も可）
-./gradlew runCli -q --args="view sample-workspace screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
+./gradlew runCli -q --args="view my-ws screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
 ./gradlew runCli -q --args="view samples/orders order-dashboard --date 2026-10-26 --param from=2026-10-01"   # ダッシュボード（基準日と共有の入力。空文字で絞らない）
 ./gradlew runCli -q --args="view samples/todos todo-dashboard --param tags=TAG-002,TAG-003"   # 複数を選べる入力はカンマ区切り（候補に無い値は誤り）
 ./gradlew runCli -q --args="view samples/orders order-dashboard --entity ORD-105"   # 業務の流れの中の位置（いる段・次にできる工程と可否・履歴）
 ./gradlew runCli -q --args="view my-ws actor-document 00-requirements/01-actors.yaml"  # 文書ビューの解決（適用対象1件なら file 省略可）
-./gradlew runCli -q --args="validate sample-workspace"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か。構造の検証・参照の解決などの指摘にも付く）
+./gradlew runCli -q --args="validate my-ws"                    # 全文書の検証（カバレッジ含む。判定を保留した検査があれば withheld に内訳と件数。--sources で指摘の出どころ＝どの検査の・どの要素についての指摘か。構造の検証・参照の解決などの指摘にも付く）
 ./gradlew runCli -q --args="report samples/orders monthly-report --param month=2026-10 --print"   # レポート（.yde/reports の定義）: 変換で値の一式を作り、ひな形にはめ込む。--out で書く・引数なしで一覧（manual/reports.md）
 ./gradlew runCli -q --args="transform test-fixtures/workspaces/rename-target test-fixtures/transforms/req-list.yaml --origins"   # YAML から YAML への変換（試作台）: 定義（from＝クエリで選ぶ／build＝出力のひな型／rules＝入れ子に当てる規則）を評価して、組み立てた YAML と出どころを返す。出力は保存しない
 ./gradlew runCli -q --args="generate samples/todos-sysdev [--apply|--check|--model [--scope business] [--stage basic]|--lineage]"   # 業務モデルから文書を作る（生成の定義は .yde/transforms。計画・書く・最新かの検査・業務モデルを展開した形（--scope でスコープから・--stage で段の項）・生成の系譜。[generate.md](generate.md)）
-./gradlew runCli -q --args="readiness sample-workspace --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
+./gradlew runCli -q --args="readiness my-ws --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
 ./gradlew runCli -q --args="bench --modules 2,4,8,16"                    # 規模の計測（合成ワークスペースを作り、開く・全体の検証・準備完了レポートの時間と、規模に対する伸び方を出す。--keep <dir> で作ったものを残す）
-./gradlew runCli -q --args="validate sample-workspace --timings"         # 時間の内訳（どのコマンドにも付けられる。ワークスペースを開く段階＝ファイルの読み取り・YAML の解析・スキーマの組み立て・構造の検証・意味の導出など＝とコマンドの処理の時間を標準エラーに出す）
-./gradlew runCli -q --args="checks sample-workspace --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
-./gradlew runCli -q --args="hash sample-workspace path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
-./gradlew runCli -q --args="apply sample-workspace changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）
+./gradlew runCli -q --args="validate my-ws --timings"         # 時間の内訳（どのコマンドにも付けられる。ワークスペースを開く段階＝ファイルの読み取り・YAML の解析・スキーマの組み立て・構造の検証・意味の導出など＝とコマンドの処理の時間を標準エラーに出す）
+./gradlew runCli -q --args="checks my-ws --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
+./gradlew runCli -q --args="hash my-ws path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
+./gradlew runCli -q --args="apply my-ws changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）
 ./gradlew runCli -q --args="action labs/sysdev-template"                     # 操作の一覧（スキーマに定義したアクションと型の操作。manual/actions.md）
 ./gradlew runCli -q --args="action labs/sysdev-template add-screen --param id=SCR-X --param name=新画面 --param derived_from=[UA-003]"  # 操作の計画（変更セットと適用後の検証。--apply で書く。検証エラーが残れば書かず --allow-errors で書く。--on は受け手）
 ./gradlew runCli -q --args="event my-ws task-finished --on T-001 --source external-workflow --record"  # Event の申告記録（--record なしは確認のみ。manual/schema.md「Event の申告・記録（CLI）」）
@@ -76,15 +76,15 @@ catalog・read・view・query・validate などの参照は使えます。保存
                                                                           # 他に merge-entity / delete-entity / move-field / align-order / rename-enum-value /
                                                                           # delete-field / require-field / convert-type / rename-definition / extract-definition /
                                                                           # inline-definition / rename-relation / rename-schema-id
-./gradlew runCli -q --args="activities sample-workspace"                  # アクティビティ／エージェント定義の一覧
-./gradlew runCli -q --args="agent sample-workspace review-concepts"       # アクティビティ実行（--apply で即適用、--foreach で対象列挙の一括実行）
-./gradlew runCli -q --args="watch sample-workspace --once"                # 自動実行（トリガ判定→キュー消化を1回）
-./gradlew runCli -q --args="revert sample-workspace _runs/xxx.yaml"       # 自動適用の巻き戻し
-./gradlew runCli -q --args="metrics sample-workspace"                     # 実行記録の集計（提出率・採用率・コスト）
-./gradlew runCli -q --args="eval sample-workspace review-eval"            # 評価セットの実行（引数なしで一覧）
-./gradlew runCli -q --args="skills sample-workspace"                      # skill定義の一覧と検証
+./gradlew runCli -q --args="activities my-ws"                  # アクティビティ／エージェント定義の一覧
+./gradlew runCli -q --args="agent my-ws review-concepts"       # アクティビティ実行（--apply で即適用、--foreach で対象列挙の一括実行）
+./gradlew runCli -q --args="watch my-ws --once"                # 自動実行（トリガ判定→キュー消化を1回）
+./gradlew runCli -q --args="revert my-ws _runs/xxx.yaml"       # 自動適用の巻き戻し
+./gradlew runCli -q --args="metrics my-ws"                     # 実行記録の集計（提出率・採用率・コスト）
+./gradlew runCli -q --args="eval my-ws review-eval"            # 評価セットの実行（引数なしで一覧）
+./gradlew runCli -q --args="skills my-ws"                      # skill定義の一覧と検証
 ./gradlew runCli -q --args="import my-ws import-issues ledger.xlsx --apply"  # 表形式の取り込み（既定はプレビュー）
-./gradlew runCli -q --args="export sample-workspace export-actors"        # 派生成果物の再生成
+./gradlew runCli -q --args="export my-ws export-actors"        # 派生成果物の再生成
 ./gradlew runCli -q --args="export my-ws export-items --out ../game/data --dry-run"  # 書き出し先のフォルダを選び、書かずに今あるファイルとの違いを見る（--dry-run を外すと書く）
 ./gradlew runCli -q --args="export my-ws export-all --out ../game/data --yes"         # まとめて書き出す定義（include）。既存のファイルを上書きするときは --yes が要る（無ければ一覧だけ返して書かない）
 ./gradlew runCli -q --args="run-skill my-ws normalize --yes"              # コード実行skill（--yes なしは内容表示のみ）

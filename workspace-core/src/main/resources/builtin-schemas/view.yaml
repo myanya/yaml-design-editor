@@ -572,7 +572,7 @@ root:
         - key: limit
           label: 行数上限
           type: int
-          description: クエリ行の上限（既定 100。超過は決定的打切り）
+          description: クエリ行の上限（省略すると上限なし。書いたときは超過を決定的に打ち切る）
     - key: order
       label: 行の並び（chart では項目の並び）
       type: object

@@ -15,3 +15,7 @@ resolutions:
     note: README の分割、スタート画面のボタンの撤去（UX-194）、新しい機能の章（samples/todos・orders などを指す）は済み。残りは、いまは中身の無い sample-workspace（samples/sample-workspace
       は .gitkeep だけ）を指す場所＝manual/cli.md の 21 行、manual/ids.md、manual/checks.md の 3 か所、manual/views.md の 2 か所、UX-SCENARIOS.md
       の S4 と S6 §8。tutorial を新しいサンプルと対にすることと、英語版の要否も残り
+  - date: 2026-11-18
+    kind: 一部
+    note: manual/cli.md のコマンド例の sample-workspace を、ほかの例と同じ仮の名前 my-ws に付け替えた。残りは manual/ids.md・checks.md・views.md と UX-SCENARIOS.md
+      の実例の差し替え、tutorial、英語版の要否
