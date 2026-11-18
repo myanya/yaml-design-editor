@@ -76,4 +76,37 @@ class SchemaValueFormsTest {
             .map { it.simpleName }.filter { it !in supported }
         assertTrue(missing.isEmpty(), "手順の入力候補を追加してください: $missing")
     }
+
+    /**
+     * 設計画面が持つ語（表示名の表と入力例）は、仕様（devtrack/spec/keywords）の語に含まれる。
+     * 語の一覧は読み取りの実装・仕様・この画面の 3 か所にあるので、画面だけが知らない語・古い語を持たないことを確かめる。
+     * 入力例は、最上位のキーと、手順の中身（set / insert などの直下）のキーを語として見る（それより深い所は利用者のデータ）。
+     */
+    @Test
+    fun `表示名と入力例の語は仕様の語に含まれる`() {
+        var dir = java.nio.file.Path.of("").toAbsolutePath()
+        while (!java.nio.file.Files.isDirectory(dir.resolve("devtrack/spec/keywords"))) dir = dir.parent ?: error("devtrack/spec/keywords が見つかりません")
+        val specKeys = java.nio.file.Files.list(dir.resolve("devtrack/spec/keywords")).use { files ->
+            files.map { f -> ((YamlIO.parseToRaw(java.nio.file.Files.readString(f)) as Map<*, *>)["key"]).toString() }.toList().toSet()
+        }
+        val used = LinkedHashMap<String, String>()
+        SchemaValueForms.labelKeys.forEach { used[it] = "表示名の表" }
+        SchemaValueForms.presets.forEach { p ->
+            val m = p.value as? Map<*, *> ?: return@forEach
+            m.forEach { (k, v) ->
+                used.putIfAbsent(k.toString(), "入力例「${p.label}」")
+                if (p.group == "手順") (v as? Map<*, *>)?.keys?.forEach { used.putIfAbsent(it.toString(), "入力例「${p.label}」の $k") }
+            }
+        }
+        // 仕様にまだ位置が無い語（操作の手・照合の線・図の部品）。仕様に足したら、ここから外す（外し忘れは下で止める）
+        val notYetInSpec = setOf(
+            "insert", "delete", "create", "call", "method",          // 操作の手（do の要素）
+            "edge",                                                  // 照合の連鎖の線
+            "port", "portSide", "sourcePort", "targetPort", "children", "stroke", // 図のひな型の部品
+        )
+        val stale = notYetInSpec.filter { it in specKeys }
+        assertTrue(stale.isEmpty(), "仕様に足された語が、まだ仕様に無い語の一覧に残っています: $stale")
+        val unknown = used.filterKeys { it !in specKeys && it !in notYetInSpec }
+        assertTrue(unknown.isEmpty(), "仕様（devtrack/spec/keywords）に無い語を設計画面が持っています: " + unknown.entries.joinToString(" / ") { "${it.key}（${it.value}）" })
+    }
 }

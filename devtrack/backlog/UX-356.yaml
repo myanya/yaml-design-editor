@@ -1,6 +1,6 @@
 id: UX-356
 title: "スキーマの言語に「どちらかの形」を書く語が無く、形が 2 通りある項目はメタスキーマで型が any になる"
-status: discussing
+status: resolved
 kind: feature
 origin_on: 2026-11-17
 origin: "メタスキーマの型が any の項目を仕分けたとき（UX-347）"
@@ -16,3 +16,20 @@ memo: |-
 features:
   - S-15
   - S-02
+related:
+  - UX-359
+  - UX-360
+spec:
+  - KW-field.allowSingle
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: |-
+      検討した案は 3 つ。(1) 何もしない（any のまま）。(2) 中間の案: いちばん多い「1 つか、その並び」だけを書ける印を配列に足す。(3) 汎用の「どちらかの形」（形ごとに決まりを書く語）を足す。
+      オーナーの判断で (2) を採った。(3) は検証・フォーム・AI 生成・設計画面のすべてで形の分岐が要り、いま必要な所が少ない。
+      配列の項目定義に allowSingle: true を足した。並びでない値は要素 1 つとして読み、要素の決まりで確かめる（構造の検査は値の形ごとの決まり shapes に展開。走査・書き換え・要素の検査・ファイルの検査・フォームは同じ場所で要素として読む）。
+      メタスキーマで any だった 8 か所を型のある形にした: 参照の idPattern / idPatterns・scope.schemaIds / documentIds・coverage の detailIn.schemaIds・追加の決まりの key・文書の entity（要素の項目も決めた）・ワークスペースの構成の ledger。
+      既知の制限: そのまま書いた値の場所は項目そのもの（[0] を付けない）なので、パスの [*] は並びの書き方にだけ合う。パスで読む利用者の項目には勧めない（manual に明記）。書き方を 1 つに寄せる改修は UX-359。
+      残した any（形が「1 つか並び」でないもの: phases・values の要素・unique・lifecycle・id.prefix・ビューの unclassified など）の精査は UX-360。
+    targets: FieldDef.allowSingle・builtin-transforms/structural-schema.yaml・builtin-schemas/schema.yaml・workspace.yaml・FormFields

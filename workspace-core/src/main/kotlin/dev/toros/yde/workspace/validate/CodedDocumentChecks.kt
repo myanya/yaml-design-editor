@@ -104,8 +104,10 @@ internal class CodedDocumentChecks(
                     }
                 }
                 FieldType.ARRAY -> {
-                    val seq = node as? YNode.Seq ?: return
                     val item = eff.item ?: return
+                    // 1 つだけの書き方（allowSingle）: 並びでない値は要素 1 つとして、同じ場所で読む
+                    if (eff.allowSingle && node !is YNode.Seq) { walk(item, node, path, label); return }
+                    val seq = node as? YNode.Seq ?: return
                     seq.items.forEachIndexed { i, child -> walk(item, child, path + i, "$label[$i]") }
                 }
                 FieldType.MAP -> {
@@ -162,8 +164,10 @@ internal class CodedDocumentChecks(
                     }
                 }
                 FieldType.ARRAY -> {
-                    val seq = node as? YNode.Seq ?: return
                     val item = eff.item ?: return
+                    // 1 つだけの書き方（allowSingle）: 並びでない値は要素 1 つとして、同じ場所で読む
+                    if (eff.allowSingle && node !is YNode.Seq) { walk(item, node, path, label); return }
+                    val seq = node as? YNode.Seq ?: return
                     seq.items.forEachIndexed { i, child -> walk(item, child, path + i, "$label[$i]") }
                 }
                 FieldType.MAP -> {

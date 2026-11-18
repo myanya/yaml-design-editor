@@ -83,6 +83,8 @@ tasks.withType<Test>().configureEach {
     filter.isFailOnNoMatchingTests = false
     // テストは samples/ や test-fixtures/ をリポジトリの根からの相対パスで読む（ほかのモジュールと同じ作業ディレクトリ）
     workingDir = rootDir
+    // 設計画面の語を仕様の語と突き合わせるテストが読む（YAML だけの変更でも走り直す）
+    inputs.dir(rootDir.resolve("devtrack/spec/keywords")).withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // 画面の起動（run と Hot Reload の hotRun）も、作業ディレクトリをリポジトリの根にする（runCli と同じ）。

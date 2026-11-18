@@ -84,7 +84,7 @@
 
 ## エンティティ型の宣言（文書のスキーマ）
 
-文書のスキーマのトップレベルの entity。object 1 つか、その配列（ID の形で型を見分ける）で書きます。メタスキーマでは形を決めていないので、語は読み取りの実装から書いています。
+文書のスキーマのトップレベルの entity。object 1 つか、その配列（ID の形で型を見分ける）で書きます。
 
 - 読む実装: semantic-core/schema/SemanticDeclParser.kt の parseEntities
 - 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-19

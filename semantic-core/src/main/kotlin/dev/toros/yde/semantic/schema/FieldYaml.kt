@@ -70,6 +70,7 @@ object FieldYaml {
             f.unique.size > 1 -> m["unique"] = f.unique
             f.unique.size == 1 -> m["unique"] = f.unique[0].ifEmpty { true }
         }
+        if (f.allowSingle) m["allowSingle"] = true
         f.default?.let { m["default"] = it }
         f.description?.let { m["description"] = it }
         if (typeName == null) f.ref?.let { ref -> m["\$ref"] = qualify(ref, f.definitionScope, moduleId) }

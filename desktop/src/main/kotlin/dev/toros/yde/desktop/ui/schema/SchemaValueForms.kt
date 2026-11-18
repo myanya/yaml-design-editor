@@ -25,6 +25,8 @@ internal object SchemaValueForms {
         "\$in" to "コピー元の文書", "\$format" to "文字列のひな型", "\$when" to "使用条件",
         "\$bind" to "要素に付ける名前", "\$flatten" to "子配列を連結",
         "port" to "ポート名", "portSide" to "接続する面", "sourcePort" to "始点のポート", "targetPort" to "終点のポート")
+    /** 表示名を持つ語（仕様の語と突き合わせるテストが読む）。 */
+    val labelKeys: Set<String> get() = labels.keys
     fun label(key: String): String = labels[key]?.let { "$it（$key）" } ?: key
     private fun obj(vararg pairs: Pair<String, Any?>) = linkedMapOf(*pairs)
     private fun preset(group: String, label: String, vararg pairs: Pair<String, Any?>) = SchemaValuePreset(group, label, obj(*pairs))

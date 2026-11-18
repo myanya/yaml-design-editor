@@ -18,8 +18,6 @@ resolutions:
       語が実装の列挙（UnaryFn・ArithOp・AggregateFn・CheckOp）とキーの集まり（QueryNodeStep・QueryEdgeStep・QueryWhere の KEYS）と同じことを SpecTest が見る。
       残り: 列挙にもキーの集まりにも無い語（format・map・first・all・each・refCount・occurrenceCount など）は、仕様の側に並べただけで実装と突き合わせていない。
     targets: SpecTest
-spec:
-  - CTX-expr
   - date: 2026-11-17
     kind: 解決
     note: |-
@@ -27,3 +25,5 @@ spec:
       列挙やキーの集まりに無い語（format・map・first・all・each・refCount・occurrenceCount など）も、語の有無だけでなく動きで実装と結ばれた。実装は変えていない。
       例との突き合わせで、format の穴を探す順（with → 予約の穴 {id}・{title} → scopes → いまの要素）が分かり、語 scopes の意味に書いた。
     targets: SpecTest
+spec:
+  - CTX-expr

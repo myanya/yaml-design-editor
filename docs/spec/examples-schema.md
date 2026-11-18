@@ -6,6 +6,88 @@
 結果は repo-tests の `SpecTest` が実際に開いて確かめているので、ここに書いてあるとおりに動く。
 **原本は [devtrack/](../../devtrack/README.md) の `spec/examples/`**（1 例 1 ファイルの YAML）。足す・直すときは YAML を書き、`./gradlew devtrackDocs` で作り直す。
 
+## allowSingle: true の配列は、要素 1 つをそのまま書いても並びで書いても通る
+
+- ID: EX-field-allow-single
+- 示す仕様: KW-field.allowSingle
+- 結果: 通る（誤りも警告も無い）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: points, type: array, allowSingle: true, item: { type: int } }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+points: 3
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+points: [3, 5]
+```
+
+## allowSingle の配列にそのまま書いた値も、要素の型で確かめる
+
+- ID: EX-field-allow-single-item-type
+- 示す仕様: KW-field.allowSingle
+- 結果: 検証のエラーになる（文面に「points」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: points, type: array, allowSingle: true, item: { type: int } }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+points: 多い
+```
+
+## allowSingle の配列にそのまま書いた参照も、参照として解決する
+
+- ID: EX-field-allow-single-ref
+- 示す仕様: KW-field.allowSingle
+- 結果: 検証のエラーになる（文面に「TASK-9」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: after, type: array, allowSingle: true, item: { type: ref } }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+after: TASK-9
+```
+
 ## date の項目は、形に合っていても存在しない日付はエラーになる
 
 - ID: EX-field-date-invalid

@@ -7,7 +7,9 @@ root:
   fields:
     - key: ledger
       label: 台帳にするフォルダ
-      type: any
+      type: array
+      allowSingle: true
+      item: { type: string }
       description: "フォルダの名前（文字列）か、その並び（例 doc・[doc, spec]）。ID の索引と検証の集計の範囲。書かなければワークスペースの全体が台帳"
     - key: files
       label: ファイルの場所の扱い

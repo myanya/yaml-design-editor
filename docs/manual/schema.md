@@ -326,7 +326,7 @@ cases:
 - `minLength` / `maxLength` は、AI 生成の JSON Schema にも伝わります。
 - `pattern` を `id` に書くと ID の形の強制になり（例 `TASK-\d{3}`）、フォームの ID 入力メニューの採番の提案の元にもなります。
 - 使い方を別の節・別の文書で説明しているキー:
-  - `requiredFrom` は下の「フェーズ機構」、`expression` は「新しい文書の置き場所とひな型」、`auto` は「保存時に自動で入る値」、`unique` は「配列の要素を重ねない」、`cases` と `values` は enum の節。
+  - `requiredFrom` は下の「フェーズ機構」、`expression` は「新しい文書の置き場所とひな型」、`auto` は「保存時に自動で入る値」、`unique` は「配列の要素を重ねない」、`allowSingle` は「要素 1 つをそのまま書く」、`cases` と `values` は enum の節。
   - `entity`・`relation`・`target`・`idPattern`・`scope` は [ids.md](ids.md)、`constraints` は [checks.md](checks.md)、`methods` は [actions.md](actions.md)、`extensions` は [files.md](files.md)。
 
 ## 型一覧
@@ -377,6 +377,27 @@ cases:
 - フォームでは、参照と選択肢の候補のうち、同じ配列のほかの要素が使っている値を「この一覧で選択済み」として選べなくします（`unique: true` の配列）。操作の受け取る値の欄でも同じです。
 - スカラーの要素に `[キー]`、object の要素に `true`、要素に無いキーを書くと、スキーマの定義の点検が指摘します。
 - JSON Schema の `uniqueItems`、テーブル設計の UNIQUE 制約（多対多の参照なら中間テーブルの主キー）にあたります。
+
+### 要素 1 つをそのまま書く（`allowSingle`）
+
+`array` に `allowSingle: true` を書くと、要素が 1 つだけのとき、並びにせずそのまま書けます。
+
+```yaml
+- key: tags
+  type: array
+  allowSingle: true
+  item: { type: string }
+```
+
+```yaml
+tags: 急ぎ          # tags: [急ぎ] と同じ
+tags: [急ぎ, 外部]  # 並びでも書ける
+```
+
+- そのまま書いた値も、要素の決まり（型・形式・選択肢・参照）で確かめます。参照なら参照として索引に入ります。
+- 値の場所は項目そのものです（`tags[0]` ではなく `tags`）。式・クエリ・ビューのパス `tags[*]` は並びの書き方にだけ合うので、パスで読む項目には使わないでください（定義の語のように、読み取りが決まっている項目に向きます）。
+- フォームでは要素の欄で編集でき、「並びにする」で配列の書き方に直せます。AI 生成は並びの書き方で出します。
+- 型に書けば使う側に引き継がれます。
 
 ## 任意キーのMap
 

@@ -1,0 +1,14 @@
+id: KW-field.allowSingle
+key: "allowSingle"
+context: CTX-field
+group: constraint
+status: stable
+forms:
+  - applies_to: [array]
+    value: "true か false"
+    default: "false"
+    meaning: "true にすると、要素が 1 つだけのとき、並びにせずそのまま書けます（tags: a は tags: [a] と同じ）。並びでない値は要素 1 つとして読み、要素の決まり（型・形式・参照）で確かめます。場所は項目そのもので [0] を付けないので、パスの [*] は並びの書き方にだけ合います。型に書けば使う側に引き継がれます。"
+features: [S-18]
+evidence:
+  metaschema: "builtin-schemas/schema.yaml の definitions.field"
+  reader: "semantic-core/schema/SchemaTreeParser.kt の parseField"

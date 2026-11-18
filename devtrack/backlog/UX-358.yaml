@@ -1,5 +1,5 @@
 id: UX-358
-title: "仕様（devtrack/spec）の残り: 例の無い位置が 94 / 140、語から機能への参照が 18 / 840、突き合わせの無い位置が 3 つ"
+title: "仕様（devtrack/spec）の残り: 例の無い位置が 94 / 140、語から機能への参照が 18 / 840、突き合わせの無い位置が 2 つ、位置の無い語"
 status: when-needed
 kind: dev
 origin_on: 2026-11-17
@@ -11,8 +11,9 @@ memo: |-
      - エージェント・アクティビティ・評価セット・skill 29: 実際の実行を伴うので、例にできるのは定義の読み込みの誤りまで。skill の取り込みと書き出しは、結果の種類を足せば例にできる。
      - スキーマ 21: consistency・flow・派生スキーマ・Event・Lifecycle の終端と記録・関係レジストリの entities と aspects・操作の受け手と入力の設定。
   2. 語から機能への参照。位置には 140 件すべて付けたが、語ごとの参照は項目定義の 18 語だけ。語ごとに機能が違う位置（項目定義・スキーマ文書）から足す。
-  3. 突き合わせの無い位置: CTX-entity-decl（文書のスキーマの entity。メタスキーマの型が any＝UX-356）・CTX-query-branch・CTX-selector。読み取りに「使えるキー」の集まりを定数として持たせれば、SpecTest が突き合わせられる。
+  3. 突き合わせの無い位置: CTX-query-branch・CTX-selector（CTX-entity-decl は、メタスキーマに形を持たせて突き合わせた＝UX-356）。読み取りに「使えるキー」の集まりを定数として持たせれば、SpecTest が突き合わせられる。
   4. レポートのひな形（文字の側の {パス}・{#each}・{#if}・穴の形 cell / sql-string）は、キーと値の形でないので、仕様の持ち方（語）に載せていない。例は 3 件ある。
+  5. 位置そのものが無い語（設計画面の語との突き合わせで見つかった。UX-357）: 操作の手（do の要素の set / insert / delete / create / call / each とその中身）・照合の連鎖の線（edge の包み）・図のひな型の部品（port / portSide / sourcePort / targetPort / children / stroke など）。位置を足したら、SchemaValueFormsTest の「仕様にまだ無い語」の一覧から外す。
   足し方は devtrack/README.md「仕様」。例は devtrack/spec/examples に 1 件 1 ファイルで書き、SpecTest が実際に開いて確かめる。
 related:
   - UX-356

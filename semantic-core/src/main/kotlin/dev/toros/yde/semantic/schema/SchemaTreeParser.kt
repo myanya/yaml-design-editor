@@ -171,6 +171,10 @@ object SchemaTreeParser {
                 require(type == FieldType.ARRAY || namedType != null || explicitRef != null) { "unique（要素が重ならない）は type: array の項目でのみ書けます" }
                 StructureParser.parseUnique(raw, "unique")
             }.orEmpty(),
+            allowSingle = m["allowSingle"]?.let { raw ->
+                require(type == FieldType.ARRAY || namedType != null || explicitRef != null) { "allowSingle（1 つだけならそのまま書ける）は type: array の項目でのみ書けます" }
+                raw as? Boolean ?: error("allowSingle は true か false で書きます: $raw")
+            } ?: false,
             extensions = (m["extensions"] as? List<*>)?.map { it.toString().trim().removePrefix(".").lowercase() }
                 ?.filter { it.isNotEmpty() }.orEmpty(),
             ref = explicitRef ?: namedType,

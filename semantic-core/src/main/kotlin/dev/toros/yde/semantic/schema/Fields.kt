@@ -302,6 +302,11 @@ data class FieldDef(
      * 型と使う側の両方に書けば両方が効く（狭めるだけ）。検査は構造の検査（導出した構造のスキーマ）。
      */
     val unique: List<List<String>> = emptyList(),
+    /**
+     * ARRAY: 要素 1 つだけなら、並びにせずそのまま書いてもよい（`allowSingle`）。値が並びでなければ、要素 1 つとして読む
+     * （場所は項目そのもので、`[0]` を付けない）。型に書けば使う側に引き継がれる。
+     */
+    val allowSingle: Boolean = false,
     val extensions: List<String> = emptyList(), // FILE: 許す拡張子（小文字・ドットなし。空 = 制限なし。使う側が書けば狭める）
     val ref: String? = null,                 // definitions 内の名前付き定義への参照
     val unknownFields: UnknownFieldsPolicy? = null, // object の未定義キー。null は warning

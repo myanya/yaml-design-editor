@@ -154,6 +154,7 @@ data class SchemaTree(
             min = maxOfNullable(use.min, def.min),
             max = minOfNullable(use.max, def.max),
             unique = (def.unique + use.unique).distinct(),
+            allowSingle = use.allowSingle || def.allowSingle,
             lineage = lineage,
             // オブジェクト型（P33 第三弾）: 項目を足す・同じ項目を狭める（object の子・配列の要素・map の値に再帰的に）。同一性は使う側が足せる（型が持てば変えられない）
             fields = mergeFields(use.fields, def.fields),

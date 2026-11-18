@@ -1,0 +1,19 @@
+id: UX-360
+title: "メタスキーマに残る any を、本当に any である必要があるか精査して型を付ける"
+status: when-needed
+kind: spec
+origin_on: 2026-11-18
+origin: "「どちらかの形」の語の検討（UX-356）で、オーナーが挙げた今後の改修"
+memo: |-
+  「1 つか、その並び」の 8 か所は型を付けた（UX-356）。メタスキーマには、ほかにも any が残っている。1 つずつ、any である必要があるかを確かめて、要らないものは型を付けるか、書き方を 1 つに寄せる。
+  残っている any の仕分け:
+  - 形が 2 通りで「1 つか並び」ではないもの: 文書の phases（配列か {key, order}）・enum の values の要素（文字列か {value, label, description}）・配列の unique（true かキーの配列）・操作の lifecycle（ID か {id, history}）・追加の決まりの id.prefix と skill の target.file / target.id.prefix（文字列かひな型）・ビューの入力の values の要素・クロス集計の columns.order と columns.values の要素・unclassified と rows.unclassified（見出しの文字か false）。書き方を 1 つに寄せられるか（UX-359 と同じ考え方）、寄せられないなら汎用の「どちらかの形」が要るかを決める。
+  - 小さな言語（クエリ・条件・値の比較・値の式・変換のひな型・操作の手）: 約 65 か所。UX-357 で扱う。
+  - 本当に何でも書ける値: 項目の default・sample、語彙定義の args・with の値、初期値 initial の値、eval の context.items の要素、ビューの入力のひな型 inputs など。any のままでよいかを確かめ、よいものは説明に理由を書く。
+  進め方: メタスキーマ（builtin-schemas/*.yaml と view/chart・flow の断片）の any を一覧にし、読み取りの実装と突き合わせて 1 つずつ決める。型を付けたら仕様の位置に meta を足す。
+features:
+  - S-15
+related:
+  - UX-356
+  - UX-357
+  - UX-359

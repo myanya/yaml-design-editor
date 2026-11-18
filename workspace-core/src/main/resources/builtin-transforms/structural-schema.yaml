@@ -48,9 +48,25 @@ rules:
                   required: true
               - { $each: fields, $apply: field }
 
+  # 1 つだけならそのまま書ける配列（allowSingle）→ 値の形ごとの決まり: 並びでなければ要素 1 つの決まり、並びなら配列の決まり
+  - id: field
+    when:
+      - { path: allowSingle, equals: true }
+    build:
+      key: { $copy: key }
+      label: { $copy: label }
+      required: { $apply: required }
+      shapes:
+        scalar: { $apply: field, $at: item }
+        object: { $apply: field, $at: item }
+        array: { $apply: plain-field }
+
+  - id: field
+    build: { $apply: plain-field }
+
   # 項目1つ → 構造のスキーマの項目1つ。ここに書かないキー（role・display・description・default・relation・scope・
   # idPatterns・target・requiredFrom・選択肢のラベル）は、出力に出ない
-  - id: field
+  - id: plain-field
     build:
       key: { $copy: key }
       label: { $copy: label }          # 指摘の文面のために、表示名だけは持たせる（SC-04）
