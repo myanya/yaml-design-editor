@@ -36,7 +36,7 @@
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) | manual/README.md「ビルドと起動」 |  |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `UiPreferences.kt`・`ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/common/Common.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」・manual/README.md「テーマ」 |  |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 |  |
-| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/shell/Shell.kt` | `NavigationHistoryTest`・手動（画面） | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 | UX-193・UX-212 |
+| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/shell/Shell.kt` | `NavigationHistoryTest`・手動（画面） | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 |  |
 | W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/run/RunsSpace.kt`（`InboxTab`）・`ui/shell/AppRoot.kt`（`StatusBar`） | 手動 | architecture/ui.md「UI シェル」 | manual/ai.md「外部からの提出を受信箱で確認する」 | UX-52・UX-55 |
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・定義ゾーンの下のフォルダ `definitionFiles`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`・`core/Workspace.kt` | `WorkspaceLayoutTest`・`DocumentStoreTest`・`DefinitionSubfoldersTest`・`AgentDefinitionSubfoldersTest` | architecture/workspace.md「ワークスペース構造と layout」 | manual/README.md「.yde 構成」 | UX-307 |
 | W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`・`desktop/AppState.kt`（`editorOnlyFiles`） | `WorkspaceLayoutTest`・`DocumentStoreTest` | architecture/workspace.md「エディタ層と台帳層」 | manual/README.md「.yde 構成」 | UX-118 |
