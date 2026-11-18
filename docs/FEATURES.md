@@ -36,8 +36,8 @@
 | W-05 | 最近開いたファイル履歴（12 件・ワークスペース単位で永続化） | `AppState.recentFiles` | 手動 | [ui](architecture/ui.md) | manual/README.md「ビルドと起動」 |  |
 | W-06 | UI レイアウトとテーマ（左右の領域アイコン・ペイン内の閉じる操作・幅と開閉とテーマの永続化） | `UiPreferences.kt`・`ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/common/Common.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」・manual/README.md「テーマ」 |  |
 | W-07 | 未保存確認（終了時・ワークスペース切替時） | `Main.kt` | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 |  |
-| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/shell/Shell.kt` | `NavigationHistoryTest`・手動（画面） | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 |  |
-| W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/run/RunsSpace.kt`（`InboxTab`）・`ui/shell/AppRoot.kt`（`StatusBar`） | 手動 | architecture/ui.md「UI シェル」 | manual/ai.md「外部からの提出を受信箱で確認する」 | UX-52・UX-55 |
+| W-09 | UI シェル（標準メニュー・移動と検索・タイトルのワークスペース絶対パス・レールで5スペースを切替） | `ui/shell/AppRoot.kt`・`ui/shell/AppToolbar.kt`・`ui/shell/Shell.kt` | `NavigationHistoryTest`・手動（画面） | architecture/ui.md「UI シェル」 | manual/README.md「画面構成」 | UX-361 |
+| W-10 | 受信箱（承認待ち変更セット・エージェントの質問・外部変更競合を実行スペースの先頭タブに集約・バッジと集計） | `ui/run/RunsSpace.kt`（`InboxTab`）・`ui/shell/AppRoot.kt`（`StatusBar`） | 手動 | architecture/ui.md「UI シェル」 | manual/ai.md「外部からの提出を受信箱で確認する」 | UX-55 |
 | W-11 | ワークスペース構造（`.yde/` 構成と `ledger` 宣言・レガシー構成は互換・配置判定は `WorkspaceLayout`・定義ゾーンの下のフォルダ `definitionFiles`・CLI `migrate`） | `workspace-core/layout/WorkspaceLayout.kt`・`core/Workspace.kt` | `WorkspaceLayoutTest`・`DocumentStoreTest`・`DefinitionSubfoldersTest`・`AgentDefinitionSubfoldersTest` | architecture/workspace.md「ワークスペース構造と layout」 | manual/README.md「.yde 構成」 | UX-307 |
 | W-12 | エディタ層と台帳層の分離（台帳外の YAML はフォームと単文書検証だけ・索引・集計・エージェントは台帳のみ） | `validate/Validator.kt`・`desktop/AppState.kt`（`editorOnlyFiles`） | `WorkspaceLayoutTest`・`DocumentStoreTest` | architecture/workspace.md「エディタ層と台帳層」 | manual/README.md「.yde 構成」 | UX-118 |
 | W-13 | 同梱フォント（等幅 Cica をビルド時に取得して資源へ・`AppFonts.Mono`・資源が無ければ OS の等幅へ戻す） | `build.gradle.kts`（`downloadFonts`）・`ui/common/Common.kt`（`AppFonts`） | 手動 | [ui](architecture/ui.md) | manual/README.md「ビルドと起動」 | UX-148 |
@@ -135,7 +135,7 @@
 | V-01 | 構造の検証（必須・型・enum・date・case キー・利用者のスキーマから導出した最小の構造スキーマで行う） | `yaml-core/structure/StructureValidator.kt`・`workspace-core/workspace/DerivedStructures.kt` | `StructureValidatorTest`・`ValidatorTest` | architecture/schema.md「構造スキーマの導出」 | manual/checks.md「検証パネル」 |  |
 | V-02 | 参照解決の検証（未解決・パターンやスコープの対象外・未保存 ID の考慮） | `validate/Validator.kt` | 手動 | architecture/checks.md「文書 1 つの検証」 | manual/ids.md「参照（リンク）の認識」 |  |
 | V-03 | ID 重複検出（同一文書内のみエラー・文書間は段階的詳細化） | `validate/Validator.kt` | 手動 | architecture/checks.md「文書 1 つの検証」 | manual/ids.md「段階的詳細化の規約」 |  |
-| V-04 | 検証パネル（この文書／全体のスコープ切替・指摘のクリックは行き先の選択メニュー・スキーマ定義エラーとフェーズ進捗も表示） | `ui/shell/SidePanel.kt`・`session/DocumentSession.kt`（`validateWorkspace`） | 手動 | [ui](architecture/ui.md) | manual/checks.md「検証パネル」 | UX-07・UX-101・UX-32・UX-99 |
+| V-04 | 検証パネル（この文書／全体のスコープ切替・指摘のクリックは行き先の選択メニュー・スキーマ定義エラーとフェーズ進捗も表示） | `ui/shell/SidePanel.kt`・`session/DocumentSession.kt`（`validateWorkspace`） | 手動 | [ui](architecture/ui.md) | manual/checks.md「検証パネル」 | UX-07・UX-101・UX-32 |
 | V-05 | カバレッジ検証（詳細文書の存在・組込み定義体・作成場所の併記と「詳細文書を作成」） | `builtin-definitions/coverage.yaml`・`workspace-core/workspace/DocumentScaffold.kt` | `CoverageTest`・`CoverageMessageTest` | architecture/checks.md「定義層の 3 段」 | manual/schema.md「カバレッジルール」 | UX-17・UX-72 |
 | V-06 | フェーズ考慮の検証（`requiredFrom` は到達フェーズから・`activeFrom` は到達まで保留・フェーズ別進捗） | `validate/Validator.kt`（`phaseProgress`） | `PhaseTest` | architecture/schema.md「フェーズ」 | manual/schema.md「フェーズ機構」 |  |
 | V-07 | 整合検証（`consistency`・導出した期待値と `assert` の関係・組込み定義体・来歴つきの指摘と「導出値を適用」） | `builtin-definitions/consistency.yaml`・`workspace-core/validate/WorkspaceChecks.kt` | `ConsistencyTest` | architecture/checks.md「定義層の 3 段」 | manual/checks.md「整合ルール」 |  |
@@ -182,7 +182,7 @@
 | X-03 | グラフレンズ（近傍・線の多い箱で止める・型と関係の絞り込み・配置と配置の調整・線のラベルの表示切替・保有・側面・PNG・ミニマップ） | `ui/graph/GraphLensView.kt`・`ui/graph/LensGraph.kt`・`ui/common/GraphLayouts.kt`・`ui/common/DiagramLayoutOptionsMenu.kt` | `LensGraphTest`・`GraphLayoutsTest`・UI `DiagramLayoutOptionsUiTest`・`DiagramLabelVisibilityTest` | architecture/graph-query.md「エンティティページ」 | manual/views.md「ビュー」 | UX-156・UX-157・UX-253・UX-255 |
 | X-04 | コマンドパレット（Ctrl+K・ID・ファイル・本文検索・ビュー切替・スペース切替・保存） | `ui/shell/CommandPalette.kt`・`session/DocumentSession.kt`（`searchContent`） | 手動 | architecture/ui.md「UI シェル」 | manual/README.md「ショートカット」 |  |
 | X-05 | ビュー定義 `_views`（行・列・並び・詳細文書・新規行・バックリンク・補正後の木を読む `corrections`・照合で列を選ぶ `columns.each.rows`・`kind: document`） | `core/Views.kt`・`workspace-core/workspace/ViewDefinitions.kt`・`semantic-core/semantic/Corrections.kt` | `ViewsTest`・`VirtualViewsTest`・`TodosEntityFoundationTest`（項目・C/U の出力照合と、補正から詳細生成・DDL まで） | architecture/views.md「ビュー定義の読み取り」 | manual/views.md「ビューグリッドとビュー定義」 | UX-124・UX-223・UX-299・UX-339・UX-340・UX-342・UX-81 |
-| X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列・列幅は見出しと値から・見出しの印） | `ui/view/ViewGridPane.kt`・`ui/view/GridWidths.kt`・`ui/common/VirtualTable.kt`・`session/DocumentSession.kt`（`createViewDetail` / `viewRowTarget`）・`AppState.addViewRow` | `ViewsTest`・`VirtualTableTest`・`GridWidthsTest` | architecture/views.md「ビュー機構」 | manual/views.md「ビューグリッドとビュー定義」 | UX-122・UX-124・UX-339・UX-340・UX-342・UX-35・UX-37・UX-72・UX-81 |
+| X-06 | ビューグリッド（セル編集・原本へ移動・詳細文書と新規行の作成・バックリンク・要約と整形・固定列・列幅は見出しと値から・見出しの印） | `ui/view/ViewGridPane.kt`・`ui/view/GridWidths.kt`・`ui/common/VirtualTable.kt`・`session/DocumentSession.kt`（`createViewDetail` / `viewRowTarget`）・`AppState.addViewRow` | `ViewsTest`・`VirtualTableTest`・`GridWidthsTest` | architecture/views.md「ビュー機構」 | manual/views.md「ビューグリッドとビュー定義」 | UX-124・UX-339・UX-340・UX-342・UX-35・UX-37・UX-72・UX-81 |
 | X-07 | 文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・複合文書ビュー〔別の側面の区画 `fields.in`・表の埋め込み `grid`〕・区画は変換のひな型で評価） | `core/Views.kt`（`resolveDocument`）・`semantic/VirtualViews.kt`（`DocResolver`）・`ui/form/FormDocView.kt`（`DocViewSections`・`OccurrenceSection`・`GridSection`） | `ViewsTest`・`CompositeDocViewTest`・`CompositeDocViewDefinitionsTest` | architecture/views.md「文書ビュー」 | manual/views.md「文書ビュー」・manual/views.md「複合文書ビュー」 | UX-129・UX-254 |
 | X-08 | ビュー定義のスキーマ参照とリント（`definition:` 列の展開・スキーマとの整合を検査し定義エラーとして表示） | `workspace-core/workspace/ViewDefinitions.kt`（`lint`） | `ViewsTest`・`ViewDefinitionsTest` | architecture/views.md「definition 参照とリント」 | manual/views.md「文書ビュー」 |  |
 | X-09 | 値の式の列（`value:`・`via`〔段を重ねる〕・配列の集計・`all`・`each`・`extract`・`daysBetween`・`weekStart`・来歴つき・未保存編集に追随） | `semantic/VirtualViews.kt`（`valueCell`）・`semantic/Values.kt` | `ViewsTest`・`ValueOperationsTest`・`SemanticViaTest`・`SemanticAggregateTest`・`SemanticAllTest`・`AllFromCheckTest`・`SemanticTransformTest` | architecture/transform.md「計算列と決定論的射影」 | manual/views.md「ビューグリッドとビュー定義」 | UX-128・UX-136・UX-221・UX-241・UX-242・UX-277 |
@@ -209,7 +209,7 @@
 
 | ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 | 未解決の指摘 |
 |---|---|---|---|---|---|---|
-| A-01 | フィールド単位の生成（✨） | `ui/run/AiGenerationDialog.kt`・`ui/form/FormFields.kt` | 手動 | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 | UX-218 |
+| A-01 | フィールド単位の生成（✨） | `ui/run/AiGenerationDialog.kt`・`ui/form/FormFields.kt` | 手動 | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 |  |
 | A-02 | 配列への候補追加と全体置き換え | `ui/run/AiGenerationDialog.kt`（`combineProposal`） | `AiProposalTest` | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 |  |
 | A-03 | 文書全体の生成（`_document` は保持） | `ui/run/AiGenerationDialog.kt`（`replaceInClone`） | `AiProposalTest` | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 | UX-30 |
 | A-04 | JSON Schema による Structured Outputs（`map` / `any` を含むとプロンプト指示へ後退） | `tools/JsonSchemas.kt`（`fieldToJsonSchema`） | `OpenAiGeneratorTest`・`MetaSchemaTest` | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 |  |
@@ -225,7 +225,7 @@
 | A-14 | Anthropic prompt caching（system・ツール定義・最新メッセージの 3 点） | `agent/llm/ToolChat.kt`（`AnthropicToolSession`） | `ToolChatParseTest` | architecture/agents.md「AI 接続」 | —（内部） |  |
 | A-15 | 入口のスペース非依存化（`AiRequest` が対象文書を持ち・ホストはシェル直下） | `desktop/AppState.kt`（`AiRequest` / `requestAi`）・`ui/run/AiGenerationDialog.kt` | 手動 | architecture/agents.md「AI 生成」 | —（内部） |  |
 | A-16 | エンティティ文脈と出現単位の生成（関連文書の注入・所有キー限定の生成・キー単位マージ） | `agent/llm/AiGenerator.kt`（`contextDocs`）・`AiRequests.kt`（`mergeGenField`） | `AiGeneratorTest`・`AiProposalTest` | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 |  |
-| A-17 | 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ） | `AiRequests.kt`（`requestDocumentDraft`）・`ui/run/AiGenerationDialog.kt` | `GenerationRunTest` | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 | UX-218 |
+| A-17 | 新規作成のたたき台生成（作成 → 開く → 生成の連結・ルート object のキー単位マージ） | `AiRequests.kt`（`requestDocumentDraft`）・`ui/run/AiGenerationDialog.kt` | `GenerationRunTest` | architecture/agents.md「AI 生成」 | manual/ai.md「AIによる作成支援」 |  |
 
 ## 8. エージェント実行（アクティビティ）
 
@@ -237,7 +237,7 @@
 | AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/run/Kernel.kt` | `KernelTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「実行の流れ」 | UX-46・UX-48 |
 | AG-05 | ツールの一式（中核＝読む 8・書く 2・検証 1・許可した操作は app-core の `Toolset`。対話 2・管理 4 は agent。許可ツール名と書込権限を実行時に強制） | `tools/Toolset.kt`・`agent/run/Tools.kt` | `ToolsetTest`・`KernelTest`・`ToolsTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「安全性」 | UX-92 |
 | AG-06 | ステージング（複数文書のオーバーレイ・横断検証・未提出ドラフトの保全） | `tools/WorkingCopy.kt`・`agent/run/Staging.kt` | `StagingTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「安全性」 |  |
-| AG-07 | 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`） | `ui/run/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「実行の流れ」 | UX-140・UX-50・UX-54・UX-55・UX-91 |
+| AG-07 | 変更セットレビュー UI（ファイル単位の部分採用・再検証・差分・適用・状態は `RunController`） | `ui/run/RunsSpace.kt`（`ReviewContent`, `RunController`） | 手動 | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「実行の流れ」 | UX-140・UX-50・UX-54・UX-55 |
 | AG-08 | 実行中の対話（`ask_human` の質問カード・計画とメモの進捗・キャンセル） | `agent/run/Kernel.kt`・`ui/run/RunsSpace.kt`（`QuestionCard`） | `KernelTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「実行の流れ」 |  |
 | AG-09 | 実行記録 `_runs`（ターン・ツール呼び出し・採否・トークン・会話記録） | `agent/run/RunLog.kt`・`agent/run/Kernel.kt` | `KernelTest`・`AutoApplySafetyTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「定義の置き場所」 | UX-39・UX-53 |
 | AG-10 | CLI からの実行（`agent` / `activities`） | `cli/AgentCommands.kt` | 手動 | architecture/agents.md「エージェント実行と Staging」 | manual/cli.md「コマンド例」 |  |
@@ -274,7 +274,7 @@
 | C-04 | 段階的開示 API（カタログ → 骨子 → ノード全文・文字数予算つきバンドル） | `core/Disclosure.kt` | `WorkspaceCliTest` | architecture/agents.md「コンテキスト」 | manual/cli.md「コマンド例」 |  |
 | C-05 | 構造検索 API（本文とキーの部分一致とスキーマ・glob 条件・参照検索・未解決参照） | `core/Search.kt` | `WorkspaceCliTest` | [index-references](architecture/index-references.md) | manual/cli.md「コマンド例」 |  |
 | C-06 | CLI（カーネルの命令 `yaml …` / `workspace …` と応用の命令〔探索・検索・クエリ・ビュー・検証・適用・エンティティ・エージェント・skill・初期化ほか〕・全命令の `--format yaml\|json\|text`） | `cli/Main.kt`・`cli/AppCli.kt`・`cli/ExploreCommands.kt` | `AppCliTest`・`CliTest`・`WorkspaceCliTest` | [workspace](architecture/workspace.md) | manual/cli.md「ヘッドレス CLI」 | UX-09 |
-| C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`） | `core/Views.kt` | `ViewsTest`・`VirtualViewsTest` | architecture/views.md「ビュー機構」 | manual/cli.md「コマンド例」 | UX-219・UX-247・UX-299 |
+| C-07 | ビュー解決 API（定義のロード・行 × セルの原本座標化・バックリンク列・文書ビュー・行の並びと集計の種類は項目の型から・CLI `view`） | `core/Views.kt` | `ViewsTest`・`VirtualViewsTest` | architecture/views.md「ビュー機構」 | manual/cli.md「コマンド例」 | UX-247・UX-299 |
 | C-08 | 性能ベンチマーク（カーネルの全再構築・増分更新の計測・CLI `workspace bench`） | `cli/Commands.kt` | `CliTest`・`IdIndexIncrementalTest` | [workspace](architecture/workspace.md) | manual/cli.md「コマンド例」 |  |
 | C-09 | 文書キャッシュの中核（`EditBuffer`・`WorkspaceRecords`・`noteDiskChanges` の振り分け） | `core/Documents.kt`・`core/Workspace.kt` | `DocumentsTest` | architecture/workspace.md「文書キャッシュと Workspace」 | —（内部） |  |
 | C-10 | エンティティ操作（rename / merge / delete を 1 つの計画に・1 トランザクションで Undo 1 回・CLI とパレットとエンティティページ） | `semantic-core/semantic/Refactor.kt`・`workspace-core/workspace/WorkspaceSession.kt`（`planRefactoring`） | `RefactoringTest`・`AppStateRefactorTest` | architecture/graph-query.md「エンティティ操作」 | manual/checks.md「エンティティ操作」 | UX-165 |

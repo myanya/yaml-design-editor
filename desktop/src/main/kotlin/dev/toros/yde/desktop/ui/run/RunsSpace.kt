@@ -164,8 +164,8 @@ private fun InboxTab(
                     Column(Modifier.weight(1f)) {
                         Text("${review.activityName}（${review.activityId}）", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "${review.result.changeSet.changes.size} ファイル ／ ${review.reason}",
-                            fontSize = 11.sp, color = Palette.SubText, maxLines = 2,
+                            "${inboxTime(review.submittedAtMillis)} 提出 ／ ${review.result.changeSet.changes.size} ファイル ／ ${review.summary}",
+                            fontSize = 11.sp, color = Palette.SubText, maxLines = 3,
                         )
                     }
                     Button(onClick = { onReview(review) },
@@ -715,6 +715,8 @@ internal fun ReviewContent(
         Row(Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 460.dp)) {
             // 左: ファイル一覧（チェックで採否）
             Column(Modifier.width(300.dp).fillMaxHeight().background(Palette.PanelBg, PanelShape).padding(6.dp)) {
+                Text("採否はファイル単位です（チェックを外したファイルは適用しません）", fontSize = 10.sp, color = Palette.SubText,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
                 changes.forEach { change ->
                     Row(
                         Modifier.fillMaxWidth()
@@ -808,3 +810,9 @@ internal fun ReviewContent(
         }
     }
 }
+
+private val inboxTimeFormat = java.time.format.DateTimeFormatter.ofPattern("M/d HH:mm")
+
+/** 受信箱のカードの提出時刻（月/日 時:分。この端末の時刻帯）。 */
+internal fun inboxTime(millis: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): String =
+    java.time.Instant.ofEpochMilli(millis).atZone(zone).format(inboxTimeFormat)

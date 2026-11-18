@@ -1,6 +1,6 @@
 id: UX-52
 title: 受信箱に日時・起動元の情報がない
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-08-09
 origin: S2第1回
@@ -10,3 +10,9 @@ memo: '`PendingReview` に実行開始／提出日時・起動理由（トリガ
   （2026-11-18 現物確認）受信箱のカードは「活動名／n ファイル／reason」。reason に契機の文は入るが（降格すると降格の理由で上書き）、日時は PendingReview に無い'
 features:
   - W-10
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 受信箱のカードに提出時刻（月/日 時:分）と起動のきっかけを出す。自動適用から降格したときは、きっかけと降格の理由の両方を出す（以前は降格の理由で上書きされた）
+    targets: Automation.kt（PendingReview の trigger・submittedAtMillis）・RunsSpace.kt・AutomationTest・InboxTimeTest

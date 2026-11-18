@@ -555,6 +555,8 @@ private fun GridCell(state: AppState, cell: ViewCell, width: androidx.compose.ui
             } else emptyList()
             FormCtx(state, doc, localIds)
         }
+        // 編集できるセルは、マウスを載せると原本の場所（文書 :: パス）を出す。計算セルはメニューに場所が出る
+        UiTooltip(cellOriginText(file, path)) {
         if (fieldDef != null) {
             // 列に display: grouped / format があれば、編集のエディタにも見せ方を渡す（項目の側の宣言が無いとき）
             val effective = fieldDef.copy(
@@ -585,6 +587,7 @@ private fun GridCell(state: AppState, cell: ViewCell, width: androidx.compose.ui
                 textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
         }
     }
 }
@@ -730,7 +733,7 @@ private fun DetailCell(state: AppState, view: ViewDef, row: ViewRow) {
                     Text("作成", fontSize = 11.sp)
                 }
                 // 作成→たたき台生成の連結（R24-03）: スキャフォールド作成後にそのままAI生成ダイアログを開く
-                if (!state.readOnlyMode) {
+                if (!state.readOnlyMode) UiTooltip("作成してAIでたたき台を生成") {
                     IconButton(
                         onClick = {
                             state.createViewDetail(view, row.id)

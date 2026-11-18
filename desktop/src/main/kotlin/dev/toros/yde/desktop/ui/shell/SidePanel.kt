@@ -613,10 +613,16 @@ private fun IssueRow(state: AppState, file: Path, issue: Issue) {
                     }
                 }
                 // 関連ID（UX-15 の不足案内など）: 各IDの定義へジャンプできる
+                // 定義の場所のほかにも出現がある ID は、直す先が定義とは限らないので、全出現を見る入口も出す
+                val index = state.overlayIndex()
                 issue.relatedIds.take(10).forEach { id ->
                     DropdownMenuItem(
                         text = { Text("定義へ: $id", fontSize = 12.sp) },
                         onClick = { menuOpen = false; state.navigateToId(id) },
+                    )
+                    if (index.occurrences(id).size > 1) DropdownMenuItem(
+                        text = { Text("全出現を見る: $id", fontSize = 12.sp) },
+                        onClick = { menuOpen = false; state.openCrossView(id) },
                     )
                 }
                 if (issue.relatedIds.size > 10) {

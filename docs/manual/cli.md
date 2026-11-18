@@ -46,6 +46,7 @@ catalog・read・view・query・validate などの参照は使えます。保存
 ./gradlew runCli -q --args="traverse my-ws USC-011-108 --steps '[{emit: summary}, {follow: out, via: actor, emit: full}]'"  # グラフの経路トラバース（レシピ graph 項目の試作台）
 ./gradlew runCli -q --args="query my-ws --spec '{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}'"  # グラフパターン照合（束縛の表。ビューのクエリ行・foreach source: query・constraints の試作台。spec はファイル指定も可）
 ./gradlew runCli -q --args="view my-ws screen-catalog"         # ビューの解決（引数なしで一覧。セルに原本座標つき）
+./gradlew runCli -q --args="view samples/orders order-grid --param from=2026-10-01"   # 受け取る値（params）を持つ表（画面のビュータブの上の欄と同じ。渡さない・空文字はその値で絞らない。ビューに無い名前は誤り）
 ./gradlew runCli -q --args="view samples/orders order-dashboard --date 2026-10-26 --param from=2026-10-01"   # ダッシュボード（基準日と共有の入力。空文字で絞らない）
 ./gradlew runCli -q --args="view samples/todos todo-dashboard --param tags=TAG-002,TAG-003"   # 複数を選べる入力はカンマ区切り（候補に無い値は誤り）
 ./gradlew runCli -q --args="view samples/orders order-dashboard --entity ORD-105"   # 業務の流れの中の位置（いる段・次にできる工程と可否・履歴）

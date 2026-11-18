@@ -1,0 +1,22 @@
+id: UX-361
+title: アイコンだけのボタンの多くに、マウスを載せたときの説明（ツールチップ）が無い
+status: todo
+kind: usability
+origin_on: 2026-11-18
+origin: UX-218（AI で作る ✨ のボタン）を直したときの、ほかのアイコンだけのボタンの調査（オーナーの依頼）
+memo: |-
+  desktop の IconButton は 62 か所。UiTooltip（か HistoryTooltip）で包んであるのは 14 か所（ツールバーの戻る・進む・最近開いたファイル、編集の元に戻す・やり直す・文書操作・ビューを選ぶ・表示する画面、フォームの表示指定、構成を閉じる、設計画面、ペインを閉じる、初期化の行を消す）で、UX-218 で 4 か所を足した。残りの約 44 か所は読み上げ用の説明（contentDescription）だけで、マウスを載せても何も出ない（直前の 3 行に Tooltip があるかで機械的に数えた。数行上で包んでいるものは数え漏れがありうる）。
+  - ファイルツリー 5: 新規 YAML・新規フォルダー・スキーマ推測・名前を変更・削除（ui/file/FileTreePane.kt）
+  - フォームの参照欄 6: 横ぐしビューで表示・候補を表示・参照先へ移動・文書を開く（ui/form/RefEditors.kt）
+  - 汎用ツリー 6: 定義へ移動・キー名を確定・取消・変更・削除（ui/form/GenericEditor.kt）
+  - フォームの表と配列 8: 行の操作・操作・キーを削除・配列要素を削除・並べ替えなど（ui/form/FormTables.kt・CollectionEditors.kt・ArrayDeleteButton.kt）
+  - フォームのそのほか 5: 候補を表示（ScalarEditors.kt）・日付を選ぶ（TemporalEditor.kt）・開く（FormDocView.kt）・子項目を開閉（StructuredForm.kt）
+  - エンティティページ 4: 操作・開く（2 か所）・参照箇所へ（ui/graph/IdCrossView.kt）
+  - ビューのグリッド 2: 詳細を開く／横ぐしビューで表示・操作（ui/view/ViewGridPane.kt）
+  - file 型の欄 2: ファイルを選ぶ・OS で開く（ui/file/FileEditor.kt）
+  - そのほか 6: 候補を表示（ui/action/ActionPane.kt）・候補一覧へ戻る・全文を表示（ui/common/ChoiceMenu.kt）・説明の開閉（ui/common/FieldHelp.kt）・受信箱へ戻る（ui/run/RunsSpace.kt）・チャートの選択を閉じる（ui/view/ChartViewPane.kt）
+  当たり: contentDescription と同じ文を tooltip に出す共通の部品（アイコンのボタン＋説明）を ui/common に 1 つ作り、IconButton を直に書く場所を置き換える。TooltipArea は中身を Box で包むので、Row の weight や align を IconButton に付けている場所は置き換えのときに見え方を確かめる。入れた後は「IconButton を直に書かない」を SourceRules の規則にできる。
+related:
+  - UX-218
+features:
+  - W-09

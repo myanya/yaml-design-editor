@@ -183,7 +183,14 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
     }
     val view = loaded.view(viewId)
         ?: error("ビュー「$viewId」が見つかりません（view コマンドで一覧を確認できます）")
-    val resolved = Views.resolveDetailed(view, ws.index, ws::treeOf, ws::schemaFor)
+    // 受け取る値（表の params）: --param 名前=値（画面のビュータブの上の欄と同じ。渡さない・空文字＝その値では絞らない）
+    val params = stringFlags(rest, "--param").associate { raw ->
+        val at = raw.indexOf('=').takeIf { it > 0 } ?: error("--param は 名前=値 で書きます: $raw")
+        raw.substring(0, at) to raw.substring(at + 1)
+    }
+    params.keys.firstOrNull { it !in view.params }
+        ?.let { error("ビュー「${view.id}」に受け取る値「$it」はありません（params: ${view.params.joinToString(", ").ifEmpty { "なし" }}）") }
+    val resolved = Views.resolveDetailed(view, ws.index, ws::treeOf, ws::schemaFor, view.params.associateWith { params[it].orEmpty() })
     val rows = resolved.rows
     asData(
         linkedMapOf<String, Any?>(

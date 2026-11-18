@@ -4,6 +4,7 @@ import dev.toros.yde.app.core.Views
 import dev.toros.yde.desktop.ui.common.ColumnWidths
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.yaml.model.YNode
+import dev.toros.yde.yaml.model.pretty
 
 /**
  * 計算セル（値の式の列）の表示の文字。スカラーの配列は要素を「, 」でつないで見せ（0 件は「—」）、それ以外は Views.cellText。
@@ -12,6 +13,10 @@ import dev.toros.yde.yaml.model.YNode
 internal fun computedCellText(value: YNode?): String =
     if (value is YNode.Seq && value.items.all { it is YNode.Scalar }) value.items.joinToString(", ") { Views.cellText(it) }.ifEmpty { "—" }
     else Views.cellText(value)
+
+/** 編集できるセルの原本の場所の文字（文書 :: パス）。計算セルのメニューの副題と同じ形。 */
+internal fun cellOriginText(document: dev.toros.yde.yaml.model.DocumentId, path: dev.toros.yde.yaml.model.YPath): String =
+    "原本: ${document.value} :: ${path.pretty()}"
 
 /**
  * ビューの表（グリッド・クロス集計・ダッシュボードと文書ビューに埋め込んだ表）の列幅を、見出しと値から決める純粋な計算。

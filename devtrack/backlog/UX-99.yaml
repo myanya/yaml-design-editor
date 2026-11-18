@@ -1,6 +1,6 @@
 id: UX-99
 title: 指摘メニューのIDジャンプ（「定義へ」）が定義出現固定で、修正対象の出現に飛べない
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-09-04
 origin: R28-05a試用
@@ -17,3 +17,9 @@ features:
 roadmap:
   - P28
   - R28-05
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 指摘メニューの関連 ID に、定義のほかにも出現がある ID では「全出現を見る」（エンティティページ）を並べる。該当の欄へ直接進む案②は、検査の responses の Jump で書く
+    targets: SidePanel.kt

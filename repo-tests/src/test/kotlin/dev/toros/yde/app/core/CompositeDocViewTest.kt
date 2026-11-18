@@ -10,6 +10,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -185,5 +186,19 @@ class CompositeDocViewTest {
         assertTrue("view: columns" in out, out)
         assertTrue("table: ENT-1" in out, out)
         assertTrue("COL-1-A" in out && "COL-2-A" !in out, out)
+    }
+
+    @Test
+    fun `CLI の view は 表の受け取る値を --param で受ける`() {
+        // 以前は --param がダッシュボードにしか渡らず、表は全行を返した（UX-219）
+        val all = runCli(arrayOf("view", ws.toString(), "columns"))
+        assertTrue("COL-1-A" in all && "COL-2-A" in all, all)
+        val one = runCli(arrayOf("view", ws.toString(), "columns", "--param", "table=ENT-2"))
+        assertTrue("COL-2-A" in one && "COL-1-A" !in one, one)
+        // 空の値は絞らない（画面の欄を空にしたときと同じ）。ビューに無い名前は誤り
+        val blank = runCli(arrayOf("view", ws.toString(), "columns", "--param", "table="))
+        assertTrue("COL-1-A" in blank && "COL-2-A" in blank, blank)
+        val unknown = assertFailsWith<IllegalStateException> { runCli(arrayOf("view", ws.toString(), "columns", "--param", "tabel=ENT-2")) }
+        assertTrue("受け取る値「tabel」はありません" in unknown.message.orEmpty(), unknown.message)
     }
 }

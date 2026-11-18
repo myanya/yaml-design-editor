@@ -1,6 +1,6 @@
 id: UX-218
 title: AI で作る ✨ のアイコンボタンに説明（ツールチップ）が無く、何のボタンか分からない
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-10-30
 origin: R47-28 の画面確認（オーナー）
@@ -11,3 +11,9 @@ memo: '`UiTooltip` で包んで同じ文を出す。ほかのアイコンだけ�
 features:
   - A-01
   - A-17
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: AI で作るボタン 4 か所（台帳の詳細列・フォームの欄名の横・エンティティページの 2 か所）を UiTooltip で包み、読み上げ用の説明と同じ文を出す。ほかのアイコンだけのボタンは UX-361
+    targets: ViewGridPane.kt・FormFields.kt・IdCrossView.kt

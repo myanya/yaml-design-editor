@@ -20,6 +20,7 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.app.schema.effectiveFields
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.common.FieldHelp
 import dev.toros.yde.desktop.ui.common.FormSpacing
 import dev.toros.yde.desktop.ui.common.MapSlot
@@ -165,7 +166,7 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                                     slot.remove(); ctx.markEdited()
                                 }
                             }
-                            if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
+                            if (effective.type != FieldType.ARRAY && !ctx.readOnly) UiTooltip("${effective.displayLabel}をAIで作成") {
                                 IconButton(
                                     onClick = { ctx.state.requestAi(ctx.doc, effective, path, relatedFiles = ctx.aiRelatedFiles) },
                                     modifier = Modifier.size(22.dp),
