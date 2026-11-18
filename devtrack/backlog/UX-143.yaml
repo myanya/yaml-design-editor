@@ -4,6 +4,9 @@ status: todo
 kind: bug
 origin_on: 2026-10-11
 origin: フロー改名検証
-memo: '`lookupChild`の兄弟走査から`derefChain`へ入りbuiltin-typesが見つからないため、BZFLのactivities改名でも再現'
+memo: '`lookupChild`の兄弟走査から`derefChain`へ入りbuiltin-typesが見つからないため、BZFLのactivities改名でも再現
+
+  （2026-11-18 現物確認）当たりは SchemaRefactor.kt の derefChain。型の名前は ref として連鎖に入り、組込みの型のモジュール（builtin-types）を schemas から引けずに止まる（コードの読みから。再現は未実行）。type:
+  line などを含む fixture のテストは無い'
 features:
   - C-14

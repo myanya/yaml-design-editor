@@ -4,7 +4,9 @@ status: discussing
 kind: feature
 origin_on: 2026-10-15
 origin: 公開準備
-memo: CSV の式対策、リンク起動の許可、子プロセスの停止、外部 HTTP の制限。0.1 の前提は manual/limits.md
+memo: |-
+  CSV の式対策、リンク起動の許可、子プロセスの停止、外部 HTTP の制限。0.1 の前提は manual/limits.md
+  （2026-11-18 現物確認）4 点とも manual/limits.md の既知の制約のまま。その後にローカル接続・MCP・Web（LC-*）が入り、外から操作と出力に届く経路が増えたので、前提（自分で確かめたワークスペース）を見直す材料になる
 features:
   - SK-03
   - SK-07

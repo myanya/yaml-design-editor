@@ -10,3 +10,8 @@ memo: 語彙の予算（CONVENTIONS §9）の中で、必要になったもの�
 features:
   - C-15
   - X-09
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 変換のひな型に $value があり、値の式をそのまま書ける。残りは、値の式に日付・trim に当たる語が無いことと、compare の数の読み方が numberOf（桁区切り・¥）を通さず「12,000」が判定保留になること（semantic-core
+      の Expression.kt）

@@ -15,3 +15,7 @@ features:
   - V-04
 roadmap:
   - R17-03
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: スキーマ設計画面は保存前に定義の問題を「確認 n 件」で出す（ui/schema/SchemaDesignWorkspace.kt）。右の検証パネルと、未保存のスキーマでの文書の検証は保存後のまま（セッションのスキーマはディスクの写し）

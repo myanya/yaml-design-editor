@@ -8,3 +8,8 @@ body: '**file 型で画像以外（PDF・テキストなど）の中身が見え
 memo: PDF は描画ライブラリが要る。テキストは Markdown と同じ流儀で読み取り専用の表示にできる。需要が出てから
 features:
   - E-17
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 一般のファイルの読み取り専用の表示（ui/file/FilePreviewPane.kt。UTF-8 のテキスト 2 MiB まで）が入った。残りは、file 型の欄からその表示へ進む導線（画像以外は「OS で開く」だけ）と、PDF
+      の中身の表示

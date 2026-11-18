@@ -11,3 +11,7 @@ related:
 features:
   - X-05
   - X-06
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: ファイルモードの新規行のダイアログは、作成先・idPattern・次の連番を出す（ui/view/ViewGridPane.kt）。配列モードは押す前に追加先（どの文書のどの配列か）が分からない。何が分かりづらかったかはオーナーに確かめる

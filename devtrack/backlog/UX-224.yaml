@@ -6,6 +6,8 @@ origin_on: 2026-10-31
 origin: クエリ行の並び
 body: '**ビューのメタスキーマ（`builtin-schemas/view.yaml`）の `rows.limit` の説明が「既定 100」のまま**（ビューのクエリ行は `limit` を書かなければ上限なし。100 はパターン制約や
   CLI `query` の既定）'
-memo: 説明を「省略すると上限なし。書くと打ち切り、全行数を示す」に直す
+memo: |-
+  説明を「省略すると上限なし。書くと打ち切り、全行数を示す」に直す
+  （2026-11-18 現物確認）実装の既定は上限なし（VirtualViews.kt。100 は QuerySpec.DEFAULT_LIMIT＝パターン制約と CLI query の既定）。manual/views.md は正しい。誤りは view.yaml の説明と、仕様の原本 devtrack/spec/keywords/KW-view-rows.limit.yaml の default の 2 か所
 features:
   - X-10

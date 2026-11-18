@@ -7,3 +7,8 @@ origin: UI 改善時のコード確認
 memo: '`ScreenMemory.editorTab` と `sourceFolds` が `clear` / `forgetDocument` / `renameDocument` の対象外；同じ相対パスの別ワークスペースへの持越しを確認する'
 features:
   - W-16
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 編集タブの覚え（editorTab）は、切替・削除・改名に追随する（ScreenMemory の clear・forgetDocument・renameDocument）。残りは、ソースの畳み（sourceFolds）がどれにも入っていないこと。markdownTab
+      も削除・改名に追随しない

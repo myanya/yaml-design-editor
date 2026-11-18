@@ -4,6 +4,8 @@ status: todo
 kind: bug
 origin_on: 2026-08-02
 origin: CLI確認
-memo: コンソールのコードページ問題。`chcp 65001` で回避可。恒久策はファイル出力オプション（`--out`）か起動スクリプトでのコードページ設定
+memo: |-
+  コンソールのコードページ問題。`chcp 65001` で回避可。恒久策はファイル出力オプション（`--out`）か起動スクリプトでのコードページ設定
+  （2026-11-18 現物確認）CLI は UTF-8 固定で出力する（cli/Main.kt・cli/build.gradle.kts）。全命令に共通のファイル出力は無く、manual に回避策の説明も無い（書いてあるのは AGENTS.md だけ）
 features:
   - C-06

@@ -5,6 +5,8 @@ kind: bug
 origin_on: 2026-10-11
 origin: P36 段階 1
 body: '**Markdown の画像が描かれない**（画像の読み込みは別モジュール Coil が要るため見送った）'
-memo: 需要が出たら `multiplatform-markdown-renderer-coil3` を足し、`MarkdownView` の中だけで画像の読み込みを有効にする
+memo: |-
+  需要が出たら `multiplatform-markdown-renderer-coil3` を足し、`MarkdownView` の中だけで画像の読み込みを有効にする
+  （2026-11-18 現物確認）README.md に画像が 9 枚あり、アプリの中で開くと描かれない（manual と samples の README には画像が無い）。file 型の画像の読み込み（ui/common/ImageAssets.kt）を流用できるかもしれない（未確認）
 features:
   - W-14

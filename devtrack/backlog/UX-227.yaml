@@ -4,6 +4,8 @@ status: todo
 kind: bug
 origin_on: 2026-10-31
 origin: 作業コピーの確認
-memo: '`WorkingCopy.applyOps` の索引破棄は正常終了時だけ。内部の部分成功方針とあわせて検討する。外部作業は要求全体を独立コピーで採否するため持ち越さない'
+memo: '`WorkingCopy.applyOps` の索引破棄は正常終了時だけ。内部の部分成功方針とあわせて検討する。外部作業は要求全体を独立コピーで採否するため持ち越さない
+
+  （2026-11-18 現物確認）場所は app-core の tools/WorkingCopy.kt（applyOps のループ）。索引のずれだけなら try/finally で捨てれば消える。部分の成功を残すか戻すかは別の判断'
 features:
   - AG-06

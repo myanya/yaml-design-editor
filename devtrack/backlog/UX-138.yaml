@@ -9,3 +9,8 @@ memo: '見出し: パースで `of` の束縛のエンティティ型からス�
   行の集合を索引の ID からでなく決まった値から作る別の行の種類が要る（`VirtualRow` の id が値になる）。着手はオーナー判断'
 features:
   - X-16
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 行の軸に値の式を書ける（rows.value。manual/views.md・samples/orders の month-by-status）。残りは、enum の label を見出しに自動で使うこと（VirtualViews.kt。label
+      を書かなければ値の文字のまま。UX-309 と関連）

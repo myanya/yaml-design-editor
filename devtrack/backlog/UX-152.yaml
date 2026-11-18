@@ -9,3 +9,7 @@ memo: '`WorkspaceScan` の一覧（YAML 以外も）から前方一致。`IdEdit
 features:
   - E-17
   - S-25
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: ソースの補完（Ctrl+Space）は file 型でワークスペースのファイルを出す（ui/source/SourceCompletion.kt）。残りは、フォームの欄（ui/file/FileEditor.kt）とグリッドのセルの候補
