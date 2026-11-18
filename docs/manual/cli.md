@@ -34,6 +34,27 @@ API への自動転送や待受の自動有効化はしません。起動中の�
 catalog・read・view・query・validate などの参照は使えます。保存済みのディスクを読み、デスクトップの未保存内容や複数文書の同時点での読取は保証しません。
 所有権の保存先と範囲は [接続と常駐](local-connections.md#ワークスペースの二重利用) を参照してください。
 
+## 起動のしかたと文字化け
+
+CLI の出力は UTF-8 です。起動のしかたは 2 つあります。
+
+| 起動 | 書き方 | 向く場面 |
+|---|---|---|
+| 起動スクリプト | `./yde validate my-ws`（Git Bash・macOS・Linux）、`yde validate my-ws`（コマンドプロンプト・PowerShell。`yde.cmd`） | 端末で結果を読む。日本語が文字化けしない |
+| Gradle | `./gradlew runCli -q --args="validate my-ws"` | 下のコマンド例の書き方。ビルドの一部として呼ぶ |
+
+- 起動スクリプトはリポジトリの根にあります。最初に CLI の一式を最新にしてから（`cli/build/yde-cli`。変更が無ければすぐ終わります）、Java で CLI を直接起動します。
+- 相対パスの引数は、起動スクリプトではいまの作業フォルダから、Gradle ではリポジトリの根から解決します。
+- **Windows の文字化け**: Gradle 経由では、Gradle が CLI の出力を端末の文字コード（MS932）に書き直します。Git Bash のように端末が UTF-8 のときや、出力をファイルやパイプで受けるときに、日本語が文字化けします。起動スクリプトは Gradle を出力の経路に入れないので、この書き直しが起きません（`yde.cmd` は実行の間だけコンソールのコードページを UTF-8 に切り替えます）。
+- **`--output-file <ファイル>`**: どの命令にも付けられます。結果を標準出力に出さず、UTF-8（BOM なし）のファイルへ書きます。端末の文字コードを通らないので、起動のしかたに関わらず文字化けしません。エラーは標準エラーに出ます。命令ごとの `--out`（`report`・`agent`・`export`）とは別のオプションです。
+
+```bash
+./yde validate my-ws --output-file out/validate.yaml          # 結果をファイルで受ける
+./gradlew runCli -q --args="view my-ws --output-file out/views.yaml"   # Gradle 経由でも同じ
+```
+
+下のコマンド例は Gradle の書き方です。起動スクリプトでは `--args="…"` の中身をそのまま引数に書きます。
+
 ## コマンド例
 
 ```bash

@@ -82,6 +82,26 @@ tasks.register("devtrackDocs") {
     dependsOn(devtrackDocTasks)
 }
 
+// ./gradlew :cli:cliDist: 起動スクリプト（リポジトリの根の yde・yde.cmd）が使う CLI の一式を cli/build/yde-cli に置く。
+// lib に CLI と依存の jar、java-home.txt に toolchain（JDK 21）の場所。スクリプトはこの Java で CLI を直接起動する
+// （Gradle を出力の経路に入れない。Gradle は子プロセスの出力を端末の文字コードに書き直すので、日本語が文字化けする。BACKLOG UX-09）
+val cliDistDir = layout.buildDirectory.dir("yde-cli")
+val cliDistLib = tasks.register<Sync>("cliDistLib") {
+    from(tasks.named("jar"))
+    from(configurations.runtimeClasspath)
+    into(cliDistDir.map { it.dir("lib") })
+}
+tasks.register("cliDist") {
+    group = "application"
+    description = "起動スクリプト（yde・yde.cmd）が使う CLI の一式を cli/build/yde-cli に置く"
+    dependsOn(cliDistLib)
+    val javaHome = javaToolchains.launcherFor(java.toolchain).map { it.metadata.installationPath.asFile.absolutePath }
+    val marker = cliDistDir.map { it.file("java-home.txt") }
+    inputs.property("javaHome", javaHome)
+    outputs.file(marker)
+    doLast { marker.get().asFile.writeText(javaHome.get()) }
+}
+
 // :cli:run は runCli と同じ（application プラグインの run）。ルートで ./gradlew run（GUI）と打ったときに走らないよう、:cli:run と明示したときだけ有効
 tasks.named<JavaExec>("run") {
     enabled = gradle.startParameter.taskNames.any { it.endsWith("cli:run") }

@@ -232,7 +232,7 @@
 | ID | 機能 | 主な実装 | テスト | 設計 | 操作の説明 | 未解決の指摘 |
 |---|---|---|---|---|---|---|
 | AG-01 | エージェント定義 `_agents`（persona・観点・モデル設定・ツール許可） | `agent/Definitions.kt` | `DefinitionsTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「定義の置き場所」 |  |
-| AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`・`tools/WorkingCopy.kt`（`newErrors`） | `DefinitionsTest`・`KernelTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「定義の置き場所」 | UX-38・UX-90 |
+| AG-02 | アクティビティ定義 `_activities`（対象・指示・文脈・書込許可・上限・提出ゲート `error-free` / `no-new-errors` / `none`） | `agent/Definitions.kt`・`tools/WorkingCopy.kt`（`newErrors`） | `DefinitionsTest`・`KernelTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「定義の置き場所」 | UX-362 |
 | AG-03 | ツール使用対応 LLM クライアント（OpenAI・Anthropic の function calling） | `agent/llm/ToolChat.kt` | `ToolChatParseTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「プロバイダ・モデルの決まり方」 |  |
 | AG-04 | 実行カーネル（マルチターン・上限・終了手続き・キャンセル・疑似セッション注入） | `agent/run/Kernel.kt` | `KernelTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「実行の流れ」 | UX-46・UX-48 |
 | AG-05 | ツールの一式（中核＝読む 8・書く 2・検証 1・許可した操作は app-core の `Toolset`。対話 2・管理 4 は agent。許可ツール名と書込権限を実行時に強制） | `tools/Toolset.kt`・`agent/run/Tools.kt` | `ToolsetTest`・`KernelTest`・`ToolsTest` | architecture/agents.md「エージェント実行と Staging」 | manual/ai.md「安全性」 | UX-92 |

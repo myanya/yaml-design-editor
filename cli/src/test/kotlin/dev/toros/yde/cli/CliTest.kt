@@ -24,6 +24,29 @@ class CliTest {
     }
 
     @Test
+    fun `output-file は引数から外れ 結果を UTF-8 のファイルへ書く`() {
+        // どの命令にも付けられる共通の出力先（UX-09。端末や Gradle の文字コードを通さない）
+        val (rest, file) = takeOutputFile(arrayOf("validate", "my-ws", "--output-file", "out/result.yaml", "--sources"))
+        assertEquals(listOf("validate", "my-ws", "--sources"), rest.toList())
+        assertEquals(Path.of("out/result.yaml"), file)
+        val (same, none) = takeOutputFile(arrayOf("validate", "my-ws"))
+        assertEquals(listOf("validate", "my-ws"), same.toList())
+        assertEquals(null, none)
+        // 値が無い・次がオプションなら誤り
+        assertTrue(runCatching { takeOutputFile(arrayOf("validate", "my-ws", "--output-file")) }.isFailure)
+        assertTrue(runCatching { takeOutputFile(arrayOf("validate", "--output-file", "--sources")) }.isFailure)
+        // 置き場のフォルダを作り、BOM なしの UTF-8 で書く
+        val dir = java.nio.file.Files.createTempDirectory("yde-output-file")
+        try {
+            val target = dir.resolve("sub/結果.yaml")
+            writeOutputFile(target, "件名: 日本語\n")
+            assertEquals("件名: 日本語\n".toByteArray(Charsets.UTF_8).toList(), java.nio.file.Files.readAllBytes(target).toList())
+        } finally {
+            dir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `意味検証エラーのあるワークスペースはexit 3になる`() {
         val (code, output) = capture("workspace", "validate", fixture("workspaces", "legacy-basic"))
         assertEquals(3, code, output)

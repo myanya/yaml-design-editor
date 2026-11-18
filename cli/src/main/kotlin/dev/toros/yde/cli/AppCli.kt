@@ -143,6 +143,7 @@ internal const val CLI_USAGE = """コマンド:
   --- 共通 ---
   connect ...                                   同じ PC の API に明示接続する（connect help）。ローカル書込へ迂回しない
   --format text|yaml|json                       出力の形式。応用の命令の既定は yaml（text は yaml と同じ）。骨子・全文・ドラフトのような文字の結果は形式に依らずそのまま
+  --output-file <ファイル>                      結果を標準出力でなく UTF-8 のファイルへ書く（どの命令でも。端末の文字コードで文字化けするときに。エラーは標準エラーのまま）
   version                                       バージョン（appVersion＝外部・buildVersion＝内部 yyyymmdd.ビルド番号・commit）
   help                                          このヘルプ
 """

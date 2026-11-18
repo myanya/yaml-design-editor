@@ -1,6 +1,6 @@
 id: UX-38
 title: アクティビティ定義のサンプル外の項目は何がどう影響するか分かりづらく
-status: discussing
+status: resolved
 kind: doc
 origin_on: 2026-08-08
 origin: S1第1回
@@ -10,3 +10,10 @@ related:
   - UX-33
 features:
   - AG-02
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: アクティビティのメタスキーマの説明を 18 項目から 42 項目に増やした（上限の既定値・起動契機の種別・提出ゲートの違い・連鎖が起動する条件・一括実行の列挙元など。フォームの欄に出る）。manual/ai.md に説明の見方と書込範囲の
+      2 段を足した。「よくある形」のテンプレートは UX-362
+    targets: builtin-schemas/activity.yaml・manual/ai.md
