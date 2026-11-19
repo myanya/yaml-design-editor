@@ -1,0 +1,19 @@
+additions:
+  - id: ADD-001
+    reason: 業務モデルからは導けないエンティティ区分を定義する
+    kind: class
+    class:
+      designId: CLS-master
+      seq: '01'
+      name: master
+      label: マスタ
+      description: 業務の中で参照される、変わりにくいデータ。利用者が登録・変更するが、業務の出来事では増えない（TODO から参照される分類）
+  - id: ADD-002
+    reason: 業務モデルからは導けないエンティティ区分を定義する
+    kind: class
+    class:
+      designId: CLS-transaction
+      seq: '02'
+      name: transaction
+      label: トランザクション
+      description: 業務の出来事（登録・着手・完了など）ごとに増え、状態が変わるデータ。中に入れ子で持つデータも同じ区分

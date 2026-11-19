@@ -1,0 +1,166 @@
+id: basic-targets
+name: 導出項目と宣言の対応
+description: >-
+  設計項目の識別子に、各側面の出現と元の宣言を対応付ける。型の明記と継承を分けて保持し、
+  異なる説明を先頭の値で隠さない。designId は生成中の対象名で、通常の設計項目 ID として登録しない。
+  この一覧は確定前の材料であり、既存の設計書とビューの入力を置き換えない
+scope: business
+dependsOn: [basic-derived]
+output: design/basic/derived/targets.yaml
+build:
+  id: DRV-targets
+  targets:
+    $group:
+      $each: {$view: basic-derived-input}
+      $flatten: true
+      $build: {$apply: targets, $at: values.model}
+    # 同じ ID でも、種類・所属・構造上の場所が異なるものは別の記録として残す。
+    # 合成側の重複検査が止める。文字をつなげた ID だけでまとめて衝突を隠さない。
+    $by: {designId: {$copy: designId}, identity: {$copy: identity}, kind: {$copy: kind}, owner: {$copy: owner}, path: {$copy: path}}
+    $bind: target
+    $build:
+      id: {$format: 'DRV-{d}', $with: {d: {$copy: key.designId}}}
+      designId: {$copy: key.designId}
+      kind: {$copy: key.kind}
+      owner: {$copy: key.owner}
+      path: {$copy: key.path}
+      occurrences: {$each: items, $build: {$copy: occurrence}}
+      descriptions:
+        $group: items
+        $by: {$when: [{path: occurrence.description, exists: true}], $then: {$copy: occurrence.description}}
+        $build:
+          id: {$format: 'DRV-DESC-{d}.{n}', $with: {d: {$copy: key.designId, $of: target}, n: $position}}
+          designId: {$copy: key.designId, $of: target}
+          value: {$copy: key}
+          occurrences: {$each: items, $build: {$copy: occurrence}}
+rules:
+  - id: type-id
+    build:
+      $format: 'TYP-{m}.{n}'
+      $with:
+        m: {$value: {extract: [{path: name}, '^([^#]+)#']}}
+        n: {$value: {extract: [{path: name}, '#(.+)$']}}
+  - id: targets
+    build:
+      $concat:
+        - $each: types
+          $flatten: true
+          $build:
+            $concat:
+              - - designId: {$apply: type-id}
+                  identity: {type: {$copy: name}}
+                  kind: type
+                  path: []
+                  occurrence:
+                    name: {$copy: name}
+                    type: {$copy: type}
+                    base: {$copy: base}
+                    description: {$copy: description}
+                    declarations: {$copy: declarations}
+              - $apply: children
+                $with:
+                  context:
+                    owner: {$apply: type-id}
+                    ownerKey: {type: {$copy: name}}
+                    prefix: {$format: 'FLD-{m}.{n}', $with: {m: {$value: {extract: [{path: name}, '^([^#]+)#']}}, n: {$value: {extract: [{path: name}, '#(.+)$']}}}}
+                    path: []
+                    occurrence: {name: {$copy: name}}
+        - $each: entities
+          $bind: entity
+          $flatten: true
+          $build:
+            $concat:
+              - - designId: {$format: 'ENT-{id}'}
+                  identity: {entity: {$copy: id}}
+                  kind: entity
+                  path: []
+                  occurrence:
+                    entity: {$copy: id}
+                    description: {$copy: description}
+                    aspects:
+                      $each: aspects
+                      $build: {schema: {$copy: schema}, at: {$copy: at}, defines: {$copy: defines}, owner: {$copy: owner}}
+              - $each: aspects
+                $flatten: true
+                $build:
+                  $each: fields
+                  $flatten: true
+                  $apply: field
+                  $with:
+                    context:
+                      owner: {$format: 'ENT-{e}', $with: {e: {$copy: id, $of: entity}}}
+                      ownerKey: {entity: {$copy: id, $of: entity}}
+                      prefix: {$format: 'FLD-{e}', $with: {e: {$copy: id, $of: entity}}}
+                      path: []
+                      occurrence: {schema: {$copy: schema}, at: {$copy: at}, defines: {$copy: defines}}
+  - id: field
+    with: [context]
+    build:
+      $concat:
+        - - designId: {$format: '{p}.{key}', $with: {p: {$copy: prefix, $of: context}}}
+            identity: {owner: {$copy: ownerKey, $of: context}, path: {$concat: [{$copy: path, $of: context}, [fields, {$copy: key}]]}}
+            kind: field
+            owner: {$copy: owner, $of: context}
+            path: {$concat: [{$copy: path, $of: context}, [fields, {$copy: key}]]}
+            occurrence:
+              context: {$copy: occurrence, $of: context}
+              key: {$copy: key}
+              type: {$copy: type}
+              base: {$copy: base}
+              recursiveType: {$copy: recursiveType}
+              description: {$copy: description}
+              declarations: {$copy: declarations}
+        - $apply: children
+          $with:
+            context:
+              owner: {$copy: owner, $of: context}
+              ownerKey: {$copy: ownerKey, $of: context}
+              prefix: {$format: '{p}.{key}', $with: {p: {$copy: prefix, $of: context}}}
+              path: {$concat: [{$copy: path, $of: context}, [fields, {$copy: key}]]}
+              occurrence: {$copy: occurrence, $of: context}
+  - id: children
+    with: [context]
+    build:
+      $concat:
+        - $when: [{path: builtinType, exists: true}, {not: {path: base, oneOf: [array, map, object]}}]
+          $then:
+            - designId: {$format: 'TYP-{n}', $with: {n: {$copy: builtinType.name}}}
+              identity: {type: {$copy: builtinType.name}}
+              kind: type
+              path: []
+              occurrence:
+                name: {$copy: builtinType.name}
+                base: {$copy: builtinType.base}
+                context: {$copy: occurrence, $of: context}
+        - {$each: fields, $flatten: true, $apply: field, $with: {context: {$copy: ., $of: context}}}
+        - $apply: children
+          $at: item
+          $with:
+            context:
+              owner: {$copy: owner, $of: context}
+              ownerKey: {$copy: ownerKey, $of: context}
+              prefix: {$format: '{p}.item', $with: {p: {$copy: prefix, $of: context}}}
+              path: {$concat: [{$copy: path, $of: context}, [item]]}
+              occurrence: {$copy: occurrence, $of: context}
+        - $apply: children
+          $at: value
+          $with:
+            context:
+              owner: {$copy: owner, $of: context}
+              ownerKey: {$copy: ownerKey, $of: context}
+              prefix: {$format: '{p}.value', $with: {p: {$copy: prefix, $of: context}}}
+              path: {$concat: [{$copy: path, $of: context}, [value]]}
+              occurrence: {$copy: occurrence, $of: context}
+        - $eachEntry: cases
+          $flatten: true
+          $build:
+            $each: .
+            $flatten: true
+            $apply: field
+            $with:
+              context:
+                owner: {$copy: owner, $of: context}
+                ownerKey: {$copy: ownerKey, $of: context}
+                prefix: {$format: '{p}.cases.{c}', $with: {p: {$copy: prefix, $of: context}, c: $key}}
+                path: {$concat: [{$copy: path, $of: context}, [cases, $key]]}
+                occurrence: {$copy: occurrence, $of: context}

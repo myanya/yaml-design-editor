@@ -202,7 +202,6 @@ build:
           referencesTable: { $copy: "items[0].referencesTable" }
           onDelete: { $copy: "items[0].onDelete" }
 rules:
-  # 補正後の基本設計を、既存の写し方が読む項へ戻す。共通型より項目固有の指定を優先する。
   - id: restored-entity
     build:
       id: { $value: { extract: [{ path: id }, "^ENT-(.*)$"] } }
@@ -231,72 +230,6 @@ rules:
   - id: restored-first
     with: [found]
     build: { $copy: "[0]", $of: found }
-  - id: restored-field
-    build:
-      $apply: restored-field-body
-      $with: { common: { $apply: restored-type, $with: { ref: { $copy: type } } } }
-  - id: restored-field-body
-    with: [common]
-    build:
-      key: { $copy: key }
-      label: { $copy: label }
-      type: { $first: [{ $copy: name, $of: common }, { $copy: base }] }
-      base: { $first: [{ $copy: base, $of: common }, { $copy: base }] }
-      entity: { $value: { extract: [{ path: entity }, "^ENT-(.*)$"] } }
-      maxLength: { $first: [{ $copy: maxLength }, { $copy: maxLength, $of: common }] }
-      minLength: { $first: [{ $copy: minLength }, { $copy: minLength, $of: common }] }
-      pattern: { $first: [{ $copy: pattern }, { $copy: pattern, $of: common }] }
-      format: { $first: [{ $copy: format }, { $copy: format, $of: common }] }
-      min: { $first: [{ $copy: min }, { $copy: min, $of: common }] }
-      max: { $first: [{ $copy: max }, { $copy: max, $of: common }] }
-      multiline: { $first: [{ $copy: multiline }, { $copy: multiline, $of: common }] }
-      values: { $first: [{ $copy: values }, { $copy: values, $of: common }] }
-      required: { $first: [{ $copy: required }, { $copy: required, $of: common }] }
-      default: { $first: [{ $copy: default }, { $copy: default, $of: common }] }
-      auto: { $first: [{ $copy: auto }, { $copy: auto, $of: common }] }
-      unique: { $first: [{ $copy: unique }, { $copy: unique, $of: common }] }
-      description: { $first: [{ $copy: description }, { $copy: description, $of: common }] }
-      target: { $value: { extract: [{ first: [{ path: target }, { of: common, path: target }] }, "^ENT-(.*)$"] } }
-      fields:
-        $first:
-          - $when: [{ path: fields, exists: true }, { path: base, equals: object }]
-            $then: { $each: fields, $apply: restored-field }
-          - $when: [{ of: common, path: fields, exists: true }, { of: common, path: base, equals: object }]
-            $then: { $each: fields, $of: common, $apply: restored-field }
-      item:
-        $when: [{ or: [{ path: base, equals: array }, { of: common, path: base, equals: array }] }]
-        $then: { $apply: restored-element, $with: { common: { $copy: ., $of: common } } }
-      value:
-        $when: [{ or: [{ path: base, equals: map }, { of: common, path: base, equals: map }] }]
-        $then: { $apply: restored-element, $with: { common: { $copy: ., $of: common } } }
-  - id: restored-element
-    with: [common]
-    build:
-      $apply: restored-element-at
-      $with:
-        spec:
-          type: { $first: [{ $copy: itemType }, { $copy: itemType, $of: common }] }
-          base: { $first: [{ $copy: itemBase }, { $copy: itemBase, $of: common }] }
-          entity: { $first: [{ $copy: itemEntity }, { $copy: itemEntity, $of: common }] }
-          fields: { $first: [{ $copy: fields }, { $copy: fields, $of: common }] }
-          maxLength: { $copy: itemOverrides.maxLength }
-          minLength: { $copy: itemOverrides.minLength }
-          pattern: { $copy: itemOverrides.pattern }
-          format: { $copy: itemOverrides.format }
-          min: { $copy: itemOverrides.min }
-          max: { $copy: itemOverrides.max }
-          multiline: { $copy: itemOverrides.multiline }
-          values: { $copy: itemOverrides.values }
-          required: { $copy: itemOverrides.required }
-          default: { $copy: itemOverrides.default }
-          auto: { $copy: itemOverrides.auto }
-          unique: { $copy: itemOverrides.unique }
-          description: { $copy: itemOverrides.description }
-          target: { $copy: itemOverrides.target }
-  - id: restored-element-at
-    with: [spec]
-    build: { $apply: restored-field, $at: ., $of: spec }
-  # いまの場所＝カラムのまとまり（{key, items}）。出力するキーだけを、決まった順に。主キーの順は、主キーのカラムを先頭に並べた位置
   - id: column
     build:
       seq: { $number: $position, $as: "00" }
@@ -327,17 +260,85 @@ rules:
       $with: { ctx: { $apply: embed-ctx, $with: { ctx: { $copy: ., $of: ctx } } } }
   # スカラー・参照: カラム 1 つ。埋め込みのカラムは日本語名を持つ（親の項目の名称＋の＋名称）。親の項目が必須でなければ、必須でも NOT NULL にしない
   - id: cols
-    with: [ctx]
+    with:
+      - ctx
     build:
-      - id: { $format: "COL-{t}.{c}", $with: { t: { $copy: table, $of: ctx }, c: { $apply: col-name, $with: { ctx: { $copy: ., $of: ctx } } } } }
-        name: { $apply: col-name, $with: { ctx: { $copy: ., $of: ctx } } }
-        label: { $when: [{ of: ctx, path: labelPrefix, exists: true }], $then: { $format: "{p}{l}", $with: { p: { $copy: labelPrefix, $of: ctx }, l: { $first: [{ $copy: label }, { $copy: key }] } } } }
-        source: { $format: "FLD-{s}.{key}", $with: { s: { $copy: src, $of: ctx } } }
-        sqlType: { $apply: sql-ref }
-        notNull: { $when: [{ of: ctx, path: optional, equals: true }, { path: required, equals: true }], $then: false }
-        referencesTable: { $when: [{ path: base, equals: ref }, { path: target, exists: true }], $then: { $format: "TBL-{r}", $with: { r: { $case: { $copy: target }, $as: snake } } } }
-        referencesColumn: { $when: [{ path: base, equals: ref }, { path: target, exists: true }], $then: { $format: "COL-{r}.{c}", $with: { r: { $case: { $copy: target }, $as: snake }, c: { $apply: target-id-col, $with: { e: { $copy: target } } } } } }
-  # 埋め込みの object の中の ctx: カラム名と日本語名の接頭辞を足し、導出元を中の項目の ID の部分に（名前付きの型なら型の ID）、親が必須でなければ optional
+      - id:
+          $format: COL-{t}.{c}
+          $with:
+            t:
+              $copy: table
+              $of: ctx
+            c:
+              $apply: col-name
+              $with:
+                ctx:
+                  $copy: .
+                  $of: ctx
+        name:
+          $apply: col-name
+          $with:
+            ctx:
+              $copy: .
+              $of: ctx
+        label:
+          $when:
+            - of: ctx
+              path: labelPrefix
+              exists: true
+          $then:
+            $format: '{p}{l}'
+            $with:
+              p:
+                $copy: labelPrefix
+                $of: ctx
+              l:
+                $first:
+                  - $copy: label
+                  - $copy: key
+        source:
+          $copy: id
+        sqlType:
+          $apply: sql-ref
+        notNull:
+          $when:
+            - of: ctx
+              path: optional
+              equals: true
+            - path: required
+              equals: true
+          $then: false
+        referencesTable:
+          $when:
+            - path: base
+              equals: ref
+            - path: target
+              exists: true
+          $then:
+            $format: TBL-{r}
+            $with:
+              r:
+                $case:
+                  $copy: target
+                $as: snake
+        referencesColumn:
+          $when:
+            - path: base
+              equals: ref
+            - path: target
+              exists: true
+          $then:
+            $format: COL-{r}.{c}
+            $with:
+              r:
+                $case:
+                  $copy: target
+                $as: snake
+              c:
+                $apply: target-id-col
+                $with:
+                  e:
+                    $copy: target
   - id: embed-ctx
     with: [ctx]
     build:
@@ -377,19 +378,44 @@ rules:
     build: []
   # いまの場所＝配列・マップの項目。明細テーブルを作るのに要る、項目の事実（名前は接頭辞つき）
   - id: field-info
-    with: [ctx]
+    with:
+      - ctx
     build:
-      key: { $copy: key }
-      name: { $first: [{ $format: "{p}{key}", $with: { p: { $copy: prefix, $of: ctx } } }, { $copy: key }] }
+      key:
+        $copy: key
+      name:
+        $first:
+          - $format: '{p}{key}'
+            $with:
+              p:
+                $copy: prefix
+                $of: ctx
+          - $copy: key
       labelName:
         $first:
-          - { $format: "{p}{l}", $with: { p: { $copy: labelPrefix, $of: ctx }, l: { $first: [{ $copy: label }, { $copy: key }] } } }
-          - { $first: [{ $copy: label }, { $copy: key }] }
-      collection: { $copy: base }
-      unique: { $copy: unique }
-      source: { $format: "FLD-{s}.{key}", $with: { s: { $copy: src, $of: ctx } } }
-      element: { $apply: sql-name, $with: { name: { $copy: key } } }
-  # いまの場所＝配列・マップの要素。要素がエンティティならそのエンティティのテーブル、名前の無い配列・マップならテーブルにできない形（対応の検査が指摘する）
+          - $format: '{p}{l}'
+            $with:
+              p:
+                $copy: labelPrefix
+                $of: ctx
+              l:
+                $first:
+                  - $copy: label
+                  - $copy: key
+          - $first:
+              - $copy: label
+              - $copy: key
+      collection:
+        $copy: base
+      unique:
+        $copy: unique
+      source:
+        $copy: id
+      element:
+        $apply: sql-name
+        $with:
+          name:
+            $copy: key
   - id: detail-table
     with: [ctx, field]
     when: [{ or: [{ path: entity, exists: true }, { path: base, oneOf: [array, map] }] }]
@@ -766,3 +792,69 @@ rules:
         window: window_
         with: with_
         year: year_
+  - id: restored-field
+    build:
+      $apply: restored-field-body
+      $with: { common: { $apply: restored-type, $with: { ref: { $copy: type } } } }
+  - id: restored-field-body
+    with:
+      - common
+    build:
+      key:
+        $copy: key
+      label:
+        $copy: label
+      base:
+        $copy: base
+      maxLength:
+        $copy: maxLength
+      minLength:
+        $copy: minLength
+      pattern:
+        $copy: pattern
+      format:
+        $copy: format
+      min:
+        $copy: min
+      max:
+        $copy: max
+      multiline:
+        $copy: multiline
+      values:
+        $copy: values
+      required:
+        $copy: required
+      default:
+        $copy: default
+      auto:
+        $copy: auto
+      unique:
+        $copy: unique
+      description:
+        $copy: description
+      type:
+        $first:
+          - $copy: name
+            $of: common
+          - $copy: base
+      entity:
+        $value:
+          extract:
+            - path: entity
+            - ^ENT-(.*)$
+      target:
+        $value:
+          extract:
+            - path: reference.entities[0]
+            - ^ENT-(.*)$
+      fields:
+        $each: fields
+        $apply: restored-field
+      item:
+        $apply: restored-field
+        $at: item
+      value:
+        $apply: restored-field
+        $at: value
+      id:
+        $copy: id

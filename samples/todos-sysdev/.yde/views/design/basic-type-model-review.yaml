@@ -1,0 +1,14 @@
+id: basic-type-model-review
+name: 共通型の補正後の確認（移行中）
+kind: document
+schemaId: basic-type-model
+description: 共通型の制約を再解決した途中結果。個別項目など、この再解決にまだ反映していない補正も確認する
+sections:
+  - label: 再解決した共通型
+    fields: {path: model, include: [types]}
+  - label: 各エンティティと側面の項目
+    fields: {path: model, include: [entities]}
+  - label: この再解決に未反映の補正
+    fields: {include: [pending, builtinPending]}
+  - label: 宣言へ適用した変更
+    fields: {include: [decisions]}

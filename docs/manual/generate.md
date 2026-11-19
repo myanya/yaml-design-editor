@@ -30,6 +30,8 @@ entity: { type: yde-action, defines: false }
 
 生成の入力は、業務モデルを展開した 1 つの項です。`generate <ws> --model` で見られます。
 
+- `schemas`: 読み込んだスキーマの原文です。各記録はモジュール名 `id`・元の文書 `document`・定義全体 `declared` を持ちます。`scope` を指定すると、そのスコープの原文だけを含みます。
+  型の展開結果から原文を逆算せず、補正して `$schemaModel` へ渡す材料に使えます。`fields`・`item`・`value`・`cases` や操作も保持し、コメントと表記は写しません。原文のない組込み定義は含みません。
 - `entities`: エンティティ型と、その側面（どのスキーマの文書の、どこに書かれ、どの項目を持つか）。項目は型を解いた形（型の名前 `type`・基底の種類 `base`・必須・文字数・選択肢など）です。
   参照の項目には参照先のエンティティ型（`target`）、State の値を持つ列挙型の項目には、その State のエンティティ型（`stateOf`）が付きます。
   型には ID の振り方（`numbering`。配列の追加の決まり `methods.insert` か、文書を作る手の `id`）と、入れ子で書かれる型なら外側の型と項目（`owner`。作業項目なら `{entity: todo, field: tasks}`）、
@@ -193,6 +195,20 @@ changes:
 - 直すところは 3 つです。業務の事実は業務モデル、全体の方針は段の規則、個別の例外は段の補正に書きます。生成物は直しません。
 - `generate <ws> --model --scope business --stage basic` で、段の項を見られます。
 
+## 子の配列を集める
+
+マップの各項目にある子の配列を集める場合は、`$eachEntry` に `$flatten: true` を添えられます。
+元のキーは `$key` で読み、作った配列を一つの配列へ連結します。省略時の `$eachEntry` はキーを保ったマップを返します。
+例えば、`cases` の選択肢ごとの項目を、選択肢名付きの一覧にできます。
+
+```yaml
+$eachEntry: cases
+$flatten: true
+$build:
+  $each: .
+  $build: {case: $key, field: {$copy: .}}
+```
+
 ## 変更候補を合成する
 
 `$compose` は、導出・追加・変更の候補をまとめ、競合が無いときだけ `records` と採用記録 `decisions` を返す変換の指示です。
@@ -270,6 +286,71 @@ build:
 宣言の `document` は入力の位置に対応する仮の座標 `.yde/schemas/input/<番号>.yaml` です。
 導出・補正の原本へたどるための `source` と `decisions` は別に保持してください。
 単独の CLI `transform`、レポート、操作のひな型ではこの指示を使えません。
+
+## 組み立てた文書を検査する
+
+生成の `input`・`build` では、`$validate` に `schemas` と `documents` を渡すと、組み立てた文書の構造・参照・成立条件を検査できます。
+`schemas` はスキーマ文書の配列、`documents` は相対 YAML パスから内容へのマップです。
+成功時は `documents` を変更せず返します。渡していない参照先や前回の生成物は補いません。
+
+```yaml
+input:
+  $validate:
+    schemas:
+      - id: record
+        match: '*.yaml'
+        root:
+          type: object
+          fields:
+            - {key: id, type: id, required: true}
+            - {key: version, type: int, required: true}
+          constraints:
+            - {id: valid-version, check: [{gte: [{path: version}, 0]}], level: error, message: 版は零以上です}
+    documents:
+      row.yaml: {id: REC-1, version: 0}
+build:
+  verified: {$copy: .}
+```
+
+検査エラーや判定保留があれば、後続と書き込みを止めます。警告だけでは止めないため、確定に必須の条件は `level: error` と書きます。
+各文書には対応するスキーマが必要です。文書の場所に絶対パス・親への移動・予約領域は使えません。
+これは候補を合成する `$compose` や型を解く `$schemaModel` の後で使う検査で、値の採用規則は持ちません。
+
+## 利用箇所に個別の指定を書く
+
+共通の object 型を二か所で使い、片方の子項目だけに制約を指定する場合、型の定義そのものを変えると両方へ伝わります。
+`$schemaUses` は、型への参照と原文の明記を残して、利用箇所に子の指定を書く場所を用意します。生成の `input`・`build` で使います。
+
+```yaml
+input:
+  $schemaUses:
+    - id: common
+      kind: library
+      definitions:
+        part:
+          type: object
+          fields: [{key: note, type: string, maxLength: 100}]
+        box:
+          type: object
+          fields: [{key: left, type: part}, {key: right, type: part}]
+```
+
+戻り値の `schemas` は入力と同じ順の文書です。`box` の `left`・`right` に、それぞれ `fields: [{key: note}]` が加わります。
+継承した `maxLength: 100` は写しません。`left` の子だけに `maxLength: 60` を書き、`schemas` を `$schemaModel` に渡すと、左は 60、右は 100 になります。
+もともと明記された値は残り、`fields`・`item`・`value` の入れ子も型の構造に沿って用意します。再帰する型は有限の範囲で参照に閉じます。
+
+`uses` は次の座標を持つ配列です。対応付けや変更候補の組み立ては、変換の定義で行います。
+
+| キー | 内容 |
+|---|---|
+| `owner` | `{entity: 業務エンティティ名}` または `{type: モジュール#型名}` |
+| `path` | 所属内の構造上の経路。例 `[fields, left, fields, note]` |
+| `schema` | `schemas` 内の文書のモジュール ID |
+| `at` | その文書の中の書き込み先。例 `[definitions, box, fields, 0, fields, 0]` |
+| `writable` | 指定を解決できる場所かどうか |
+
+継承した `cases` の子は、現在の型解決で利用箇所の指定を採用しないため `writable: false` です。この場所を補正済みとして扱わないでください。
+入力の検査と解決範囲は `$schemaModel` と同じです。入力の木は変更せず、設計 ID や補正の優先順位も決めません。
 
 ## 作る・作り直す
 

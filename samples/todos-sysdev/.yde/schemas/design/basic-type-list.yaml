@@ -1,10 +1,7 @@
 id: basic-type-list
 name: 基本設計項目一覧（論理型）
 kind: document
-description: >-
-  基本設計の原本のうち、論理型の設計項目。業務モデルで名前を付けた型と、項目が直接使う組込みの型。業務モデルに基本設計のルールを当てて作る生成物で、手で直さない。
-  値は業務モデルの書き方（YDE の標準）のまま。型に共通する性質（文字数・形・表示形式・選択肢・参照先）はここに書き、エンティティの項目と詳細設計はこの論理型を参照する。
-  個別に直すときは補正一覧（基本設計）に書く
+description: 型を解決した確定型一覧。各項目にも適用する値を保持し、ビューは継承値を再計算しない
 match: "design/basic/types.yaml"
 definitions:
   論理型参照:
@@ -12,95 +9,6 @@ definitions:
     idPatterns: ["TYP-*"]
     description: 基本設計の論理型（TYP-モジュール.型の名前・組込みは TYP-型の名前）
   項目:
-    type: object
-    description: >-
-      設計項目の項目（エンティティの項目・行の型の項目と、その中の入れ子の項目）。型に共通する性質は論理型に書き、ここは論理型への参照と基底の種類、項目固有の制限と決まりを持つ。
-      名前の無い入れ物（配列・マップ・名前の無い object・入れ子のエンティティ）は論理型を持たず、基底の種類と、要素の論理型か要素のエンティティ、入れ子の項目を持つ
-    fields:
-      - { key: seq, label: 項番, type: string }
-      - { key: id, label: 設計項目ID, type: id, required: true, description: "FLD-エンティティ型.キー・FLD-モジュール.型の名前.キー（入れ子は .キー を続ける）" }
-      - { key: key, label: 項目, type: string, required: true }
-      - { key: label, label: 名称, type: string, role: title }
-      - { key: type, label: 論理型, type: 論理型参照, description: 項目の論理型（型の性質は論理型に書く）。名前の無い入れ物には無い }
-      - { key: base, label: 基底の種類, type: string, description: "業務モデルから解決した YDE の基底の種類（string・date・array など）" }
-      - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, description: 項目が入れ子のエンティティ 1 件のとき }
-      - { key: itemType, label: 要素の論理型, type: 論理型参照, description: 配列・マップの要素の論理型 }
-      - { key: itemEntity, label: 要素のエンティティ, type: basic-entity-list#エンティティ参照, description: 配列・マップの要素がエンティティのとき（作業項目など） }
-      - { key: itemBase, label: 要素の基底の種類, type: string, description: 配列・マップの要素の YDE の基底の種類 }
-      - { key: itemOverrides, label: 要素固有の制限, type: any, description: 要素の共通型と異なる制限。キーと値は業務モデルのまま }
-      - { key: maxLength, label: 最大文字数, type: int }
-      - { key: minLength, label: 最小文字数, type: int }
-      - { key: pattern, label: 形, type: any, description: 値の正規表現（完全一致） }
-      - { key: format, label: 表示形式, type: string, description: 日付などを見せる形（業務モデルの format のまま） }
-      - { key: min, label: 最小値, type: number }
-      - { key: max, label: 最大値, type: number }
-      - { key: multiline, label: 複数行, type: boolean }
-      - key: values
-        label: 選択肢
-        type: array
-        item:
-          type: object
-          fields:
-            - { key: value, label: 値, type: string }
-            - { key: label, label: 表示名, type: string }
-      - { key: target, label: 参照先, type: basic-entity-list#エンティティ参照, description: 参照の型が指すエンティティ }
-      - { key: required, label: 必須, type: boolean }
-      - { key: default, label: 初期値, type: any }
-      - key: auto
-        label: 自動で入る値
-        type: enum
-        values: [created, updated, revision]
-        description: 業務モデルの auto のまま。created＝作成した日・updated＝書き換えて保存した日・revision＝版（1 つ進める）
-      - { key: unique, label: 重ならない, type: any, description: "配列の要素が重ならないこと（業務モデルの unique のまま。true か、object の要素なら比べる項目のキー）" }
-      - { key: description, label: 説明, type: text }
-      - key: fields
-        label: 入れ子の項目
-        type: array
-        display: table
-        description: 名前の無い object の項目と、名前の無い object を要素にする配列・マップの、要素の項目
-        item: { type: 項目 }
-      - { key: source, label: 導出元, type: ref, description: 業務モデルの項目（エンティティ型.キー）。ルールで足した項目と、入れ子の項目には無い }
-      - { key: rule, label: ルール, type: ref, description: この項目を足した基本設計のルール }
-      - { key: documents, label: 業務モデルの文書, type: array, item: { type: string } }
+    type: basic-design-contract#確定した項目
 root:
-  type: object
-  fields:
-    - key: types
-      label: 論理型
-      type: array
-      display: table
-      item:
-        type: object
-        fields:
-          - { key: seq, label: 項番, type: string }
-          - { key: id, label: 設計項目ID, type: id, required: true, description: "TYP-モジュール.型の名前（組込みは TYP-型の名前）" }
-          - { key: name, label: 型の名前, type: string, required: true, description: "YDE の型の書き方（common#一行の文・組込みは text など）" }
-          - { key: base, label: 基底の種類, type: string, description: "YDE の基底の種類（string・date・enum・ref・id・object など）" }
-          - { key: maxLength, label: 最大文字数, type: int }
-          - { key: minLength, label: 最小文字数, type: int }
-          - { key: pattern, label: 形, type: any, description: 値の正規表現（完全一致） }
-          - { key: format, label: 表示形式, type: string, description: 日付などを見せる形（業務モデルの format のまま） }
-          - { key: min, label: 最小値, type: number }
-          - { key: max, label: 最大値, type: number }
-          - { key: multiline, label: 複数行, type: boolean }
-          - key: values
-            label: 選択肢
-            type: array
-            item:
-              type: object
-              fields:
-                - { key: value, label: 値, type: string }
-                - { key: label, label: 表示名, type: string }
-          - { key: target, label: 参照先, type: basic-entity-list#エンティティ参照, description: 参照の型が指すエンティティ }
-          - { key: itemType, label: 要素の論理型, type: 論理型参照, description: 配列・マップの型の要素の論理型 }
-          - { key: itemEntity, label: 要素のエンティティ, type: basic-entity-list#エンティティ参照 }
-          - { key: itemBase, label: 要素の基底の種類, type: string }
-          - { key: itemOverrides, label: 要素固有の制限, type: any }
-          - key: fields
-            label: 行の項目
-            type: array
-            display: table
-            description: 行の型（object）の項目と、配列・マップの型の要素が名前の無い object のときの、要素の項目。項目ごとに ID（FLD-モジュール.型の名前.キー）を持つ
-            item: { type: 項目 }
-          - { key: description, label: 説明, type: text }
-          - { key: source, label: 導出元, type: ref, description: 業務モデルの型の定義（スキーマID#型の名前）。組込みの型には無い }
+  type: basic-design-contract#確定型一覧

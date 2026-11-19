@@ -208,6 +208,100 @@ build:
         invalid: {type: title, maxLength: 200}
 ```
 
+## 生成の入力はスコープ内のスキーマの原文と文書の場所を保持する
+
+- ID: EX-generate-schema-sources
+- 示す仕様: KW-generator.build・KW-generator.scope
+- 結果: 通る（誤りも警告も無い）
+
+生成する `design/sources.yaml`
+
+```yaml
+- id: common
+  document: .yde/schemas/business/shared.yaml
+  declared:
+    id: common
+    kind: library
+    definitions:
+      line: {type: string, maxLength: 100}
+      explicit: {type: line, maxLength: 100}
+      inherited: {type: line}
+      flag: {type: boolean, default: false}
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+scopes:
+  - {id: business, include: ['schemas/business/**']}
+  - {id: design, include: ['schemas/design/**']}
+```
+
+`.yde/schemas/business/shared.yaml`
+
+```yaml
+id: common
+kind: library
+definitions:
+  line: {type: string, maxLength: 100}
+  explicit: {type: line, maxLength: 100}
+  inherited: {type: line}
+  flag: {type: boolean, default: false}
+```
+
+`.yde/schemas/design/other.yaml`
+
+```yaml
+id: other
+kind: library
+definitions: {other: {type: string}}
+```
+
+`.yde/transforms/sources.yaml`
+
+```yaml
+id: sources
+scope: business
+output: design/sources.yaml
+build: {$copy: schemas}
+```
+
+## 共有する型の参照と明記を保ち、利用箇所に個別指定を書く場所を用意する
+
+- ID: EX-generate-schema-uses
+- 示す仕様: KW-template.$schemaUses・KW-generator.input
+- 結果: 通る（誤りも警告も無い）
+
+生成する `design/uses.yaml`
+
+```yaml
+fields:
+  - {key: left, type: part, fields: [{key: note}]}
+  - {key: right, type: part, fields: [{key: note, maxLength: 60}]}
+```
+
+`.yde/transforms/prepare.yaml`
+
+```yaml
+id: prepare
+output: design/uses.yaml
+input:
+  $schemaUses:
+    - id: common
+      kind: library
+      definitions:
+        part:
+          type: object
+          fields: [{key: note, type: string, maxLength: 100}]
+        box:
+          type: object
+          fields:
+            - {key: left, type: part}
+            - {key: right, type: part, fields: [{key: note, maxLength: 60}]}
+build:
+  fields: {$copy: 'schemas[0].definitions.box.fields'}
+```
+
 ## build が何も作らなかった要素は、文書を作らない
 
 - ID: EX-generate-skip-when
@@ -255,6 +349,45 @@ build:
   $when: [ { path: id, equals: finish-task } ]
   $then:
     id: { $copy: id }
+```
+
+## 組み立てた文書の構造・参照・成立条件を検査する
+
+- ID: EX-generate-validate
+- 示す仕様: KW-template.$validate・KW-generator.input
+- 結果: 通る（誤りも警告も無い）
+
+生成する `design/final.yaml`
+
+```yaml
+verified:
+  parent.yaml: {id: P, version: 0}
+  child.yaml: {id: C, parent: P, version: 1}
+```
+
+`.yde/transforms/final.yaml`
+
+```yaml
+id: final
+output: design/final.yaml
+input:
+  $validate:
+    schemas:
+      - id: records
+        match: '*.yaml'
+        root:
+          type: object
+          fields:
+            - {key: id, type: id, required: true}
+            - {key: parent, type: ref}
+            - {key: version, type: int, required: true}
+          constraints:
+            - {id: valid-version, check: [{gte: [{path: version}, 0]}], level: error, message: 版は零以上です}
+    documents:
+      parent.yaml: {id: P, version: 0}
+      child.yaml: {id: C, parent: P, version: 1}
+build:
+  verified: {$copy: .}
 ```
 
 ## each を省くと、業務モデル全体から 1 文書を作る

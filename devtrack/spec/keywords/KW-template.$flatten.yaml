@@ -6,4 +6,4 @@ status: stable
 forms:
   - value: "真偽値"
     default: "false"
-    meaning: "$each の結果の配列を 1 段ならします。"
+    meaning: "$each・$eachEntry の各要素から作った配列を、元の要素の順に一つの配列へ連結します。空配列と値なしは飛ばし、配列以外の結果は誤りです。$eachEntry は省略時にはマップを返し、true のときだけ配列を返します。"

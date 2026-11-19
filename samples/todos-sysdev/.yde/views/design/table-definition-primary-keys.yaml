@@ -13,7 +13,9 @@ rows:
     - { of: t, path: id, equals: $table }
     - { of: c, path: primaryKey, exists: true }
 order: { path: primaryKey }
-corrections: { schemaIds: [basic-corrections, detail-corrections] }
+corrections:
+  schemaIds:
+    - detail-corrections
 columns:
   - { label: テーブル, of: t, path: id }
   - { label: 主キーの順, path: primaryKey }

@@ -1,54 +1,75 @@
 id: C-21
-title: 生成（業務モデルの項・明記と継承元・再帰型の参照・変換定義・scope・stage・dependsOn と input・$schemaModel による型解決・更新と削除・系譜・CLI generate）
+title: 生成（業務モデルの項・原文と宣言・dependsOn と input・候補合成・型解決・利用箇所の指定・$validate による文書の検査・系譜・CLI generate）
 implementation:
-- path: workspace-core/workspace/BusinessModel.kt
-  module: workspace-core
-- path: workspace-core/workspace/BusinessModelTraversal.kt
-  module: workspace-core
-- path: workspace-core/workspace/BusinessModelViews.kt
-  module: workspace-core
-- path: workspace-core/workspace/BusinessModelRules.kt
-  module: workspace-core
-- path: workspace-core/workspace/Generators.kt
-  module: workspace-core
-- path: workspace-core/workspace/SchemaModels.kt
-  module: workspace-core
-  detail: 組み立てたスキーマの定義検査と型解決を既存の読み取りへ接続
-- path: semantic-core/semantic/TermComposition.kt
-  module: semantic-core
-  detail: 変換の $compose から呼ぶ変更候補の合成
-- path: semantic-core/semantic/TransformReads.kt
-  module: semantic-core
-- path: cli/commands/GenerateCommands.kt
-  module: cli
+  - path: workspace-core/workspace/BusinessModel.kt
+    module: workspace-core
+  - path: workspace-core/workspace/BusinessModelTraversal.kt
+    module: workspace-core
+  - path: workspace-core/workspace/BusinessModelViews.kt
+    module: workspace-core
+  - path: workspace-core/workspace/BusinessModelRules.kt
+    module: workspace-core
+  - path: workspace-core/workspace/Generators.kt
+    module: workspace-core
+  - path: workspace-core/workspace/SchemaModels.kt
+    module: workspace-core
+    detail: 組み立てたスキーマの定義検査と型解決を既存の読み取りへ接続
+  - path: workspace-core/workspace/SchemaUses.kt
+    module: workspace-core
+    detail: 型への参照と明記を保った利用箇所の指定場所
+  - path: semantic-core/semantic/TermComposition.kt
+    module: semantic-core
+    detail: 変換の $compose から呼ぶ変更候補の合成
+  - path: semantic-core/semantic/TransformReads.kt
+    module: semantic-core
+  - path: cli/commands/GenerateCommands.kt
+    module: cli
 tests:
-- name: GenerationTest
-- name: SchemaModelsTest
-  note: モジュール間の型解決、初期値、再帰、重複と誤った指定の拒否
-- name: TermCompositionTest
-  note: 候補の競合・個別指定・重複・対象消失・根拠と値の保持
-- name: BusinessModelTest
-- name: BusinessDeclarationsTest
-  note: 明記した属性・原文の場所・入れ子とエンティティ参照
-- name: BusinessModelRecursionTest
-  note: 深い入れ子・再帰型と利用箇所の子・別の項目やモジュールの型の展開
-- name: TodosEntityFoundationTest
-  note: 導出記録と設計IDの分離、共通型と項目固有の制限、補正後の入力と詳細生成
-- name: TodosDesignContractTest
-  note: 導出と候補と確定項目の保存形式、参照先の分離、入れ子と未解決、再帰型を含む導出
-- name: TodosDesignCompositionTest
-  note: 導出した宣言への補正と既存の型解決、明記と継承の区別
-- name: TodosDesignGenerationTest
-  note: 新形式の候補合成から型解決まで生成内で実行、競合と型の誤りによる後続停止、再生成と対象消失
-- name: TodosSysdevTest
-  note: 設計書の生成・検証・型対応表による初期値の出力と H2 での DDL の確認
-- name: TransformReadsTest
+  - name: GenerationTest
+  - name: SchemaModelsTest
+    note: モジュール間の型解決、初期値、再帰、重複と誤った指定の拒否
+  - name: SchemaUsesTest
+    note: 共通型の利用箇所の分離、継承と明記、再帰と変更前の値の保持
+  - name: TermCompositionTest
+    note: 候補の競合・個別指定・重複・対象消失・根拠と値の保持
+  - name: BusinessModelTest
+  - name: BusinessModelSourcesTest
+    note: スコープ内のスキーマ原文、明記と未指定、出力の写しと元の定義の分離
+  - name: BusinessDeclarationsTest
+    note: 明記した属性・原文の場所・入れ子とエンティティ参照
+  - name: BusinessModelRecursionTest
+    note: 深い入れ子・再帰型と利用箇所の子・別の項目やモジュールの型の展開
+  - name: TodosEntityFoundationTest
+    note: 個別・横断・CRUD・DDL の確定値の一致、区分の追加と指定、補正と未対応入力による停止
+  - name: TodosDesignContractTest
+    note: 導出と候補と確定項目の保存形式、参照先の分離、入れ子と未解決、再帰型を含む導出
+  - name: TodosDesignCompositionTest
+    note: 導出した宣言への補正と既存の型解決、明記と継承の区別
+  - name: TodosDesignGenerationTest
+    note: 新形式の候補合成から型解決まで生成内で実行、競合と型の誤りによる後続停止、再生成と対象消失
+  - name: TodosSchemaInputsTest
+    note: 実際の導出定義が保持する全スキーマの合成と再解決、側面・入れ子・操作の一致、共通型の補正と個別の明記
+  - name: TodosDesignTargetsTest
+    note: 設計IDと宣言の対応、説明の競合と補正・根拠の保持、入れ子と選択肢、対象消失
+  - name: TodosTypeCorrectionsTest
+    note: サンプルの共通型の補正と再解決、明記と継承、型の連鎖、競合と対象消失、未接続の補正の明示
+  - name: TodosFieldCorrectionsTest
+    note: 利用箇所ごとの個別補正、全側面の説明、入れ子と初期値、競合と型の誤り、未反映の補正
+  - name: TodosSysdevTest
+    note: 設計書の生成・検証・型対応表による初期値の出力と H2 での DDL の確認
+  - name: TransformReadsTest
+  - name: GeneratedValidationTest
+    note: 組み立てた文書の構造・参照・成立条件、予約領域と未割当文書の拒否
 design:
 - label: transform
   link: architecture/transform.md
   heading: 生成（業務モデルから文書へ）
 manual:
-- link: manual/generate.md
-  heading: 生成の定義（`.yde/transforms/`）
-- link: manual/generate.md
-  heading: 組み立てた型を解決する
+  - link: manual/generate.md
+    heading: 生成の定義（`.yde/transforms/`）
+  - link: manual/generate.md
+    heading: 組み立てた型を解決する
+  - link: manual/generate.md
+    heading: 利用箇所に個別の指定を書く
+  - link: manual/generate.md
+    heading: 組み立てた文書を検査する

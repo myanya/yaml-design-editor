@@ -1,26 +1,6 @@
 id: basic-corrections
-name: 補正一覧（基本設計）
+name: basic-corrections
 kind: document
-description: >-
-  人が書く文書。基本設計項目一覧の設計項目を ID で指し、値を置き換える（基本設計項目一覧そのものは変えない）。
-  重ねた結果はビュー（エンティティ定義書など）で見る。業務の事実は業務モデル、全体の方針は基本設計のルールに書き、ここには個別の例外を書く
 match: "design/basic/corrections*.yaml"
 root:
-  type: object
-  fields:
-    - key: corrections
-      label: 補正
-      type: array
-      display: table
-      item:
-        type: object
-        fields:
-          - { key: id, label: 補正ID, type: id, required: true, pattern: "^COR-[0-9]{3,}$" }
-          - key: target
-            label: 当たり先
-            type: ref
-            required: true
-            idPatterns: ["ENT-*", "FLD-*", "OPS-*", "TYP-*", "CRUD-*"]
-            description: 置き換える設計項目（基本設計項目一覧の ID）
-          - { key: set, label: 置き換える値, type: any, required: true, description: "設計項目の項目のキーと新しい値（例 maxLength: 100）" }
-          - { key: reason, label: 理由, type: text, required: true }
+  type: basic-design-contract#補正と指定一覧

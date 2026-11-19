@@ -1,0 +1,13 @@
+id: basic-field-model-input
+rows:
+  idPattern: CMP-field-model
+columns:
+  - label: model
+    path: model
+    schemaId: basic-field-model
+  - label: pending
+    path: pending
+    schemaId: basic-field-model
+  - label: builtinPending
+    path: builtinPending
+    schemaId: basic-field-model

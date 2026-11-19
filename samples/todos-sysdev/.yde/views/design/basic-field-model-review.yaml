@@ -1,0 +1,13 @@
+id: basic-field-model-review
+name: 個別補正後の確認（移行中）
+kind: document
+schemaId: basic-field-model
+sections:
+  - label: 各エンティティと側面の項目
+    fields: {path: model, include: [entities]}
+  - label: 共通型
+    fields: {path: model, include: [types]}
+  - label: この再解決に未反映の補正
+    fields: {include: [pending, builtinPending]}
+  - label: 利用箇所へ適用した変更
+    fields: {include: [decisions]}

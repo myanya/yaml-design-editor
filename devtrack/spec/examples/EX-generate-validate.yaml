@@ -1,0 +1,36 @@
+id: EX-generate-validate
+title: "組み立てた文書の構造・参照・成立条件を検査する"
+area: generation
+illustrates: [KW-template.$validate, KW-generator.input]
+files:
+  - path: ".yde/transforms/final.yaml"
+    text: |-
+      id: final
+      output: design/final.yaml
+      input:
+        $validate:
+          schemas:
+            - id: records
+              match: '*.yaml'
+              root:
+                type: object
+                fields:
+                  - {key: id, type: id, required: true}
+                  - {key: parent, type: ref}
+                  - {key: version, type: int, required: true}
+                constraints:
+                  - {id: valid-version, check: [{gte: [{path: version}, 0]}], level: error, message: 版は零以上です}
+          documents:
+            parent.yaml: {id: P, version: 0}
+            child.yaml: {id: C, parent: P, version: 1}
+      build:
+        verified: {$copy: .}
+expect:
+  result: ok
+  generate:
+    files:
+      - path: "design/final.yaml"
+        text: |-
+          verified:
+            parent.yaml: {id: P, version: 0}
+            child.yaml: {id: C, parent: P, version: 1}

@@ -1,0 +1,13 @@
+id: basic-field-model
+name: 個別補正の再解決結果（移行中）
+kind: document
+match: design/basic/composed/field-model.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - {key: id, type: id, required: true}
+    - {key: model, type: basic-derived-model#モデル, required: true}
+    - {key: decisions, type: array, item: {type: any}, required: true}
+    - {key: pending, label: この再解決に未反映の補正, type: array, item: {type: any}, required: true}
+    - {key: builtinPending, label: 未接続の組込み型の補正, type: array, item: {type: any}, required: true}

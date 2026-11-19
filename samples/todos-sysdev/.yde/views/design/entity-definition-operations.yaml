@@ -1,6 +1,6 @@
 id: entity-definition-operations
 name: エンティティ定義書（操作一覧）
-description: 基本設計項目一覧の操作（このエンティティの項目を作成・更新する業務の操作）に、補正一覧を重ねた一覧（エンティティ定義書の 1 区画）
+description: 確定項目一覧を読む。補正や型継承は生成時に解決し、ビューでは再計算しない
 params: [entity]
 rows:
   match:
@@ -11,11 +11,15 @@ rows:
   where:
     - { of: e, path: id, equals: $entity }
 order: { schemaId: basic-entity-list }
-corrections: { schemaIds: [basic-corrections] }
 columns:
-  - { label: 項番, path: seq }
-  - { label: 操作, path: action }
-  - { label: 名称, path: label }
-  - { label: 作成・更新, path: crud }
-  - { label: 書く項目, value: { path: "writes[*].item" } }
-  - { label: 補正, backlinks: { schemaIds: [basic-corrections] } }
+  - label: 項番
+    path: seq
+  - label: 操作
+    path: action
+  - label: 名称
+    path: label
+  - label: 作成・更新
+    path: crud
+  - label: 書く項目
+    value:
+      path: writes[*].item

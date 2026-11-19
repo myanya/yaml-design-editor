@@ -1,7 +1,31 @@
-# 補正一覧（基本設計）: 人が書く。基本設計項目一覧の設計項目を ID で指して値を置き換える（一覧そのものは変えない）。
-# 重ねた結果は、ビュー「エンティティ定義書」で見る。書き方の例:
-#   - id: COR-001
-#     target: FLD-todo.title          # 置き換える設計項目
-#     set: { maxLength: 200 }         # 項目のキーと新しい値
-#     reason: 置き換える理由
-corrections: []
+corrections:
+  - id: COR-001
+    target: FLD-todo.id
+    set:
+      description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+    reason: 一覧と個票で異なる ID の説明を、共通の番号とファイル名の関係を示す代表文にそろえる
+specifications:
+  - id: SPC-class-ENT-category
+    target: ENT-category
+    rule: entity-class
+    settings:
+      entityClass: CLS-master
+    reason: データの役割に基づきエンティティ区分を指定する
+  - id: SPC-class-ENT-tag
+    target: ENT-tag
+    rule: entity-class
+    settings:
+      entityClass: CLS-master
+    reason: データの役割に基づきエンティティ区分を指定する
+  - id: SPC-class-ENT-todo
+    target: ENT-todo
+    rule: entity-class
+    settings:
+      entityClass: CLS-transaction
+    reason: データの役割に基づきエンティティ区分を指定する
+  - id: SPC-class-ENT-todo-task
+    target: ENT-todo-task
+    rule: entity-class
+    settings:
+      entityClass: CLS-transaction
+    reason: データの役割に基づきエンティティ区分を指定する

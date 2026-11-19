@@ -1,0 +1,1374 @@
+# 生成物（basic-field-changes）: 手で直さず、業務モデルか生成の定義（design/basic-field-changes.yaml）を直して作り直します（CLI generate）。
+id: CMP-field-changes
+items:
+  - id: CMP-FIELD-FLD-common.コメント.date
+    designId: FLD-common.コメント.date
+    owner: TYP-common.コメント
+    path:
+      - fields
+      - date
+    locations:
+      - owner:
+          type: common#コメント
+        path:
+          - fields
+          - date
+        schema: common
+        at:
+          - definitions
+          - コメント
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.コメント.body
+    designId: FLD-common.コメント.body
+    owner: TYP-common.コメント
+    path:
+      - fields
+      - body
+    locations:
+      - owner:
+          type: common#コメント
+        path:
+          - fields
+          - body
+        schema: common
+        at:
+          - definitions
+          - コメント
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.状態の記録.date
+    designId: FLD-common.状態の記録.date
+    owner: TYP-common.状態の記録
+    path:
+      - fields
+      - date
+    locations:
+      - owner:
+          type: common#状態の記録
+        path:
+          - fields
+          - date
+        schema: common
+        at:
+          - definitions
+          - 状態の記録
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.状態の記録.action
+    designId: FLD-common.状態の記録.action
+    owner: TYP-common.状態の記録
+    path:
+      - fields
+      - action
+    locations:
+      - owner:
+          type: common#状態の記録
+        path:
+          - fields
+          - action
+        schema: common
+        at:
+          - definitions
+          - 状態の記録
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.状態の記録.from
+    designId: FLD-common.状態の記録.from
+    owner: TYP-common.状態の記録
+    path:
+      - fields
+      - from
+    locations:
+      - owner:
+          type: common#状態の記録
+        path:
+          - fields
+          - from
+        schema: common
+        at:
+          - definitions
+          - 状態の記録
+          - fields
+          - 2
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.状態の記録.to
+    designId: FLD-common.状態の記録.to
+    owner: TYP-common.状態の記録
+    path:
+      - fields
+      - to
+    locations:
+      - owner:
+          type: common#状態の記録
+        path:
+          - fields
+          - to
+        schema: common
+        at:
+          - definitions
+          - 状態の記録
+          - fields
+          - 3
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.状態の記録.note
+    designId: FLD-common.状態の記録.note
+    owner: TYP-common.状態の記録
+    path:
+      - fields
+      - note
+    locations:
+      - owner:
+          type: common#状態の記録
+        path:
+          - fields
+          - note
+        schema: common
+        at:
+          - definitions
+          - 状態の記録
+          - fields
+          - 4
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-common.状態の記録.resume_on
+    designId: FLD-common.状態の記録.resume_on
+    owner: TYP-common.状態の記録
+    path:
+      - fields
+      - resume_on
+    locations:
+      - owner:
+          type: common#状態の記録
+        path:
+          - fields
+          - resume_on
+        schema: common
+        at:
+          - definitions
+          - 状態の記録
+          - fields
+          - 5
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-category.id
+    designId: FLD-category.id
+    owner: ENT-category
+    path:
+      - fields
+      - id
+    locations:
+      - owner:
+          entity: category
+        path:
+          - fields
+          - id
+        schema: category-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-category.name
+    designId: FLD-category.name
+    owner: ENT-category
+    path:
+      - fields
+      - name
+    locations:
+      - owner:
+          entity: category
+        path:
+          - fields
+          - name
+        schema: category-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-tag.id
+    designId: FLD-tag.id
+    owner: ENT-tag
+    path:
+      - fields
+      - id
+    locations:
+      - owner:
+          entity: tag
+        path:
+          - fields
+          - id
+        schema: tag-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-tag.name
+    designId: FLD-tag.name
+    owner: ENT-tag
+    path:
+      - fields
+      - name
+    locations:
+      - owner:
+          entity: tag
+        path:
+          - fields
+          - name
+        schema: tag-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.id
+    designId: FLD-todo.id
+    owner: ENT-todo
+    path:
+      - fields
+      - id
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - id
+        schema: common
+        at:
+          - definitions
+          - TODO一覧の行
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - id
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - id
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - id
+        schema: todo-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set:
+      description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+  - id: CMP-FIELD-FLD-todo.title
+    designId: FLD-todo.title
+    owner: ENT-todo
+    path:
+      - fields
+      - title
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - title
+        schema: common
+        at:
+          - definitions
+          - TODO一覧の行
+          - fields
+          - 1
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - title
+        schema: todo-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.summary
+    designId: FLD-todo.summary
+    owner: ENT-todo
+    path:
+      - fields
+      - summary
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - summary
+        schema: common
+        at:
+          - definitions
+          - TODO一覧の行
+          - fields
+          - 2
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - summary
+        schema: todo-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 2
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.category
+    designId: FLD-todo.category
+    owner: ENT-todo
+    path:
+      - fields
+      - category
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - category
+        schema: common
+        at:
+          - definitions
+          - TODO一覧の行
+          - fields
+          - 3
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - category
+        schema: todo-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 3
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.tags
+    designId: FLD-todo.tags
+    owner: ENT-todo
+    path:
+      - fields
+      - tags
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - tags
+        schema: common
+        at:
+          - definitions
+          - TODO一覧の行
+          - fields
+          - 4
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - tags
+        schema: todo-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 4
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.follows
+    designId: FLD-todo.follows
+    owner: ENT-todo
+    path:
+      - fields
+      - follows
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - follows
+        schema: common
+        at:
+          - definitions
+          - TODO一覧の行
+          - fields
+          - 5
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - follows
+        schema: todo-list
+        at:
+          - root
+          - fields
+          - 0
+          - item
+          - fields
+          - 5
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.status
+    designId: FLD-todo.status
+    owner: ENT-todo
+    path:
+      - fields
+      - status
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - status
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 1
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - status
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.created_on
+    designId: FLD-todo.created_on
+    owner: ENT-todo
+    path:
+      - fields
+      - created_on
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - created_on
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 2
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - created_on
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 2
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.updated_on
+    designId: FLD-todo.updated_on
+    owner: ENT-todo
+    path:
+      - fields
+      - updated_on
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - updated_on
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 3
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - updated_on
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 3
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.due_on
+    designId: FLD-todo.due_on
+    owner: ENT-todo
+    path:
+      - fields
+      - due_on
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - due_on
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 4
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - due_on
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 4
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.completed_on
+    designId: FLD-todo.completed_on
+    owner: ENT-todo
+    path:
+      - fields
+      - completed_on
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - completed_on
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 5
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - completed_on
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 5
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.details
+    designId: FLD-todo.details
+    owner: ENT-todo
+    path:
+      - fields
+      - details
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - details
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 6
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - details
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 6
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.result
+    designId: FLD-todo.result
+    owner: ENT-todo
+    path:
+      - fields
+      - result
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - result
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 7
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - result
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 7
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.tasks
+    designId: FLD-todo.tasks
+    owner: ENT-todo
+    path:
+      - fields
+      - tasks
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - tasks
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 8
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - tasks
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 8
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.comments
+    designId: FLD-todo.comments
+    owner: ENT-todo
+    path:
+      - fields
+      - comments
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - comments
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 9
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - comments
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 9
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.comments.item.date
+    designId: FLD-todo.comments.item.date
+    owner: ENT-todo
+    path:
+      - fields
+      - comments
+      - item
+      - fields
+      - date
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - comments
+          - item
+          - fields
+          - date
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 9
+          - item
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - comments
+          - item
+          - fields
+          - date
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 9
+          - item
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.comments.item.body
+    designId: FLD-todo.comments.item.body
+    owner: ENT-todo
+    path:
+      - fields
+      - comments
+      - item
+      - fields
+      - body
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - comments
+          - item
+          - fields
+          - body
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 9
+          - item
+          - fields
+          - 1
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - comments
+          - item
+          - fields
+          - body
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 9
+          - item
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history
+    designId: FLD-todo.history
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history.item.date
+    designId: FLD-todo.history.item.date
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+      - item
+      - fields
+      - date
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - date
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+          - item
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - date
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+          - item
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history.item.action
+    designId: FLD-todo.history.item.action
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+      - item
+      - fields
+      - action
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - action
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+          - item
+          - fields
+          - 1
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - action
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+          - item
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history.item.from
+    designId: FLD-todo.history.item.from
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+      - item
+      - fields
+      - from
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - from
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+          - item
+          - fields
+          - 2
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - from
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+          - item
+          - fields
+          - 2
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history.item.to
+    designId: FLD-todo.history.item.to
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+      - item
+      - fields
+      - to
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - to
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+          - item
+          - fields
+          - 3
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - to
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+          - item
+          - fields
+          - 3
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history.item.note
+    designId: FLD-todo.history.item.note
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+      - item
+      - fields
+      - note
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - note
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+          - item
+          - fields
+          - 4
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - note
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+          - item
+          - fields
+          - 4
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo.history.item.resume_on
+    designId: FLD-todo.history.item.resume_on
+    owner: ENT-todo
+    path:
+      - fields
+      - history
+      - item
+      - fields
+      - resume_on
+    locations:
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - resume_on
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 10
+          - item
+          - fields
+          - 5
+        writable: true
+      - owner:
+          entity: todo
+        path:
+          - fields
+          - history
+          - item
+          - fields
+          - resume_on
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 10
+          - item
+          - fields
+          - 5
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo-task.id
+    designId: FLD-todo-task.id
+    owner: ENT-todo-task
+    path:
+      - fields
+      - id
+    locations:
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - id
+        schema: common
+        at:
+          - definitions
+          - 作業項目
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - id
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 8
+          - item
+          - fields
+          - 0
+        writable: true
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - id
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 8
+          - item
+          - fields
+          - 0
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo-task.title
+    designId: FLD-todo-task.title
+    owner: ENT-todo-task
+    path:
+      - fields
+      - title
+    locations:
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - title
+        schema: common
+        at:
+          - definitions
+          - 作業項目
+          - fields
+          - 1
+        writable: true
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - title
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 8
+          - item
+          - fields
+          - 1
+        writable: true
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - title
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 8
+          - item
+          - fields
+          - 1
+        writable: true
+    blocked: []
+    set: {}
+  - id: CMP-FIELD-FLD-todo-task.done
+    designId: FLD-todo-task.done
+    owner: ENT-todo-task
+    path:
+      - fields
+      - done
+    locations:
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - done
+        schema: common
+        at:
+          - definitions
+          - 作業項目
+          - fields
+          - 2
+        writable: true
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - done
+        schema: common
+        at:
+          - definitions
+          - TODO個票
+          - fields
+          - 8
+          - item
+          - fields
+          - 2
+        writable: true
+      - owner:
+          entity: todo-task
+        path:
+          - fields
+          - done
+        schema: todo-detail
+        at:
+          - root
+          - fields
+          - 8
+          - item
+          - fields
+          - 2
+        writable: true
+    blocked: []
+    set: {}
+decisions:
+  - target: FLD-todo.id
+    path:
+      - set
+      - description
+    candidates:
+      - target: FLD-todo.id
+        path:
+          - set
+          - description
+        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+        priority: individual
+        source:
+          id: COR-001
+          path: []
+    selected:
+      - target: FLD-todo.id
+        path:
+          - set
+          - description
+        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+        priority: individual
+        source:
+          id: COR-001
+          path: []
+corrections:
+  - id: COR-001
+    target: FLD-todo.id
+    set:
+      description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+    reason: 一覧と個票で異なる ID の説明を、共通の番号とファイル名の関係を示す代表文にそろえる

@@ -1,0 +1,168 @@
+# 生成物（basic-type-changes）: 手で直さず、業務モデルか生成の定義（design/basic-type-changes.yaml）を直して作り直します（CLI generate）。
+id: CMP-type-changes
+items:
+  - id: CMP-TYPE-TYP-common.TODO番号
+    designId: TYP-common.TODO番号
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - TODO番号
+    set: {}
+  - id: CMP-TYPE-TYP-id
+    designId: TYP-id
+    locations: []
+    set: {}
+  - id: CMP-TYPE-TYP-common.カテゴリ番号
+    designId: TYP-common.カテゴリ番号
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - カテゴリ番号
+    set: {}
+  - id: CMP-TYPE-TYP-common.タグ番号
+    designId: TYP-common.タグ番号
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - タグ番号
+    set: {}
+  - id: CMP-TYPE-TYP-common.作業項目番号
+    designId: TYP-common.作業項目番号
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 作業項目番号
+    set: {}
+  - id: CMP-TYPE-TYP-common.カテゴリ参照
+    designId: TYP-common.カテゴリ参照
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - カテゴリ参照
+    set: {}
+  - id: CMP-TYPE-TYP-ref
+    designId: TYP-ref
+    locations: []
+    set: {}
+  - id: CMP-TYPE-TYP-common.タグ参照
+    designId: TYP-common.タグ参照
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - タグ参照
+    set: {}
+  - id: CMP-TYPE-TYP-common.TODO参照
+    designId: TYP-common.TODO参照
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - TODO参照
+    set: {}
+  - id: CMP-TYPE-TYP-common.年月日
+    designId: TYP-common.年月日
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 年月日
+    set: {}
+  - id: CMP-TYPE-TYP-date
+    designId: TYP-date
+    locations: []
+    set: {}
+  - id: CMP-TYPE-TYP-common.一行の文
+    designId: TYP-common.一行の文
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 一行の文
+    set: {}
+  - id: CMP-TYPE-TYP-line
+    designId: TYP-line
+    locations: []
+    set: {}
+  - id: CMP-TYPE-TYP-common.文章
+    designId: TYP-common.文章
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 文章
+    set: {}
+  - id: CMP-TYPE-TYP-text
+    designId: TYP-text
+    locations: []
+    set: {}
+  - id: CMP-TYPE-TYP-common.ステータス
+    designId: TYP-common.ステータス
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - ステータス
+    set: {}
+  - id: CMP-TYPE-TYP-enum
+    designId: TYP-enum
+    locations: []
+    set: {}
+  - id: CMP-TYPE-TYP-common.TODOの操作
+    designId: TYP-common.TODOの操作
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - TODOの操作
+    set: {}
+  - id: CMP-TYPE-TYP-common.コメント
+    designId: TYP-common.コメント
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - コメント
+    set: {}
+  - id: CMP-TYPE-TYP-common.状態の記録
+    designId: TYP-common.状態の記録
+    locations:
+      - schema: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 状態の記録
+    set: {}
+  - id: CMP-TYPE-TYP-todo-operations.操作の記録
+    designId: TYP-todo-operations.操作の記録
+    locations:
+      - schema: todo-operations
+        document: .yde/schemas/business/operations.yaml
+        path:
+          - definitions
+          - 操作の記録
+    set: {}
+  - id: CMP-TYPE-TYP-boolean
+    designId: TYP-boolean
+    locations: []
+    set: {}
+decisions: []
+corrections: []

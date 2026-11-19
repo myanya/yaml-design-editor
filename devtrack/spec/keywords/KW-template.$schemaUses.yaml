@@ -1,0 +1,8 @@
+id: KW-template.$schemaUses
+key: "$schemaUses"
+context: CTX-template
+order: 34
+status: stable
+forms:
+  - value: "ひな型（スキーマ文書の配列になるもの）"
+    meaning: "生成の input・build で、スキーマを検査し、利用箇所に指定を書くための schemas と、その場所の uses を返します。型への参照と明記した値を保ち、継承値を明記しません。uses は owner・path・schema・at・writable を持ち、継承した cases の子は writable: false です。型の解決範囲と失敗条件は $schemaModel と同じで、ほかの入口では使えません。"

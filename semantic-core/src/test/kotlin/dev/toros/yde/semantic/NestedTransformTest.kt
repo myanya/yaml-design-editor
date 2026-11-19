@@ -104,7 +104,7 @@ class NestedTransformTest {
             "${'$'}each: items\n${'$'}bind: ''\n${'$'}build: 1",
             "${'$'}each: items\n${'$'}bind: index\n${'$'}build: 1",
             "${'$'}each: items\n${'$'}flatten: yes-please\n${'$'}build: []",
-            "${'$'}eachEntry: items\n${'$'}flatten: true\n${'$'}build: []",
+            "${'$'}eachEntry: items\n${'$'}flatten: invalid\n${'$'}build: []",
             "${'$'}each: items\n${'$'}bind: item\n${'$'}build: {${'$'}copy: id, ${'$'}of: item, ${'$'}in: {schemaId: another}}",
         ).forEach { build -> assertFailsWith<RuntimeException>(build) { def(build) } }
         assertFailsWith<IllegalArgumentException> {
@@ -116,5 +116,26 @@ class NestedTransformTest {
                     build: {${'$'}copy: name, ${'$'}of: item}
             """.trimIndent()))
         }
+    }
+
+    @Test fun `マップの各項目から作る配列を連結して キーと元の場所を保つ`() {
+        val transform = def("""
+            ${'$'}eachEntry: cases
+            ${'$'}flatten: true
+            ${'$'}build:
+              ${'$'}each: .
+              ${'$'}build: {case: ${'$'}key, field: {${'$'}copy: .}}
+        """)
+        val input = YamlIO.parse("cases: {empty: [], first: [{key: a}, {key: b}], second: [{key: c}]}")
+        val before = YamlIO.dumpPlain(input)
+        val result = SemanticTransform.run(transform, input, document)
+        assertEquals(YamlIO.parseToRaw("[{case: first, field: {key: a}}, {case: first, field: {key: b}}, {case: second, field: {key: c}}]"), YamlIO.toAny(result.term!!))
+        assertTrue(TransformOrigin(listOf(2, "field"), document, listOf("cases", "second", 0)) in result.origins)
+        assertEquals(before, YamlIO.dumpPlain(input))
+        val copy = def("${'$'}eachEntry: cases\n${'$'}flatten: true\n${'$'}build: {${'$'}copy: .}")
+        val copied = SemanticTransform.run(copy, input, document)
+        assertTrue(TransformOrigin(listOf(2), document, listOf("cases", "second", 0)) in copied.origins)
+        assertEquals(emptyList<Any>(), YamlIO.toAny(SemanticTransform.run(copy, YamlIO.parse("cases: {}")).term!!))
+        assertFailsWith<IllegalStateException> { SemanticTransform.run(copy, YamlIO.parse("cases: {bad: 1}")) }
     }
 }

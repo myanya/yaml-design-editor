@@ -1,0 +1,32 @@
+# 生成物（basic-classes）: 手で直さず、業務モデルか生成の定義（design/basic-classes.yaml）を直して作り直します（CLI generate）。
+classes:
+  - id: CLS-master
+    seq: '01'
+    name: master
+    label: マスタ
+    description: 業務の中で参照される、変わりにくいデータ。利用者が登録・変更するが、業務の出来事では増えない（TODO から参照される分類）
+    origins:
+      - kind: addition
+        source: ADD-001
+        value:
+          designId: CLS-master
+          seq: '01'
+          name: master
+          label: マスタ
+          description: 業務の中で参照される、変わりにくいデータ。利用者が登録・変更するが、業務の出来事では増えない（TODO から参照される分類）
+        reason: 業務モデルからは導けないエンティティ区分を定義する
+  - id: CLS-transaction
+    seq: '02'
+    name: transaction
+    label: トランザクション
+    description: 業務の出来事（登録・着手・完了など）ごとに増え、状態が変わるデータ。中に入れ子で持つデータも同じ区分
+    origins:
+      - kind: addition
+        source: ADD-002
+        value:
+          designId: CLS-transaction
+          seq: '02'
+          name: transaction
+          label: トランザクション
+          description: 業務の出来事（登録・着手・完了など）ごとに増え、状態が変わるデータ。中に入れ子で持つデータも同じ区分
+        reason: 業務モデルからは導けないエンティティ区分を定義する

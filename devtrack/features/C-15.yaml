@@ -9,19 +9,23 @@ implementation:
   module: semantic-core
   detail: $compose の入力と採用記録
 tests:
-- name: SemanticTransformTest
-- name: TransformCompositionTest
-  note: 候補合成の変換、誤った命令の拒否、値と根拠の保持
-- name: TransformSchemaModelTest
-  note: スキーマの組み立てを型解決へ渡す指示、入口の制限、入力と来歴の分離
-- name: TemplateValueTest
-- name: StructuralDerivationTransformTest
+  - name: SemanticTransformTest
+  - name: NestedTransformTest
+    note: 配列とマップの子配列の連結、局所名、キーと原文の場所の保持
+  - name: TransformCompositionTest
+    note: 候補合成の変換、誤った命令の拒否、値と根拠の保持
+  - name: TransformSchemaModelTest
+    note: 型解決・利用箇所の準備・文書の検査を供給元へ渡す指示、入口の制限、入力と来歴の分離
+  - name: TemplateValueTest
+  - name: StructuralDerivationTransformTest
 design:
 - label: transform
   link: architecture/transform.md
   heading: 変換
 manual:
-- link: manual/cli.md
-  heading: コマンド例
-- link: manual/generate.md
-  heading: 変更候補を合成する
+  - link: manual/cli.md
+    heading: コマンド例
+  - link: manual/generate.md
+    heading: 変更候補を合成する
+  - link: manual/generate.md
+    heading: 子の配列を集める

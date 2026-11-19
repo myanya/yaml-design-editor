@@ -1,0 +1,26 @@
+id: EX-template-entry-flatten
+title: マップの項目ごとに作った配列を連結し、キーを残せる
+area: templates
+illustrates: [KW-template.$eachEntry, KW-template.$flatten]
+files:
+  - path: .yde/transforms/entries.yaml
+    text: |-
+      id: entries
+      output: design/entries.yaml
+      input:
+        cases: {empty: [], first: [{key: a}], second: [{key: b}, {key: c}]}
+      build:
+        $eachEntry: cases
+        $flatten: true
+        $build:
+          $each: .
+          $build: {case: $key, field: {$copy: key}}
+expect:
+  result: ok
+  generate:
+    files:
+      - path: design/entries.yaml
+        text: |-
+          - {case: first, field: a}
+          - {case: second, field: b}
+          - {case: second, field: c}

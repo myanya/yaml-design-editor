@@ -35,6 +35,7 @@ internal fun Template.bindNames(): Set<String> {
             is Template.EntriesOf -> walk(t.input, local)
             is Template.Compose -> walk(t.input, local)
             is Template.SchemaModel -> walk(t.input, local)
+            is Template.Validate -> walk(t.input, local)
             is Template.Guarded -> { conditions(t.conditions, local); walk(t.inner, local) }
         }
     }

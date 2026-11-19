@@ -1,0 +1,24 @@
+id: basic-field-changes
+name: 個別項目の補正候補
+kind: document
+match: design/basic/composed/field-changes.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - {key: id, type: id, required: true}
+    - key: items
+      type: array
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - {key: id, type: id, required: true}
+          - {key: designId, type: string, required: true}
+          - {key: owner, type: string, required: true}
+          - {key: path, type: array, item: {type: string}, required: true}
+          - {key: locations, type: array, item: {type: any}, required: true}
+          - {key: blocked, type: array, item: {type: any}, required: true}
+          - {key: set, type: map, value: {type: any}, required: true}
+    - {key: decisions, type: array, item: {type: any}, required: true}
+    - {key: corrections, type: array, item: {type: any}, required: true}

@@ -187,6 +187,35 @@ template: example.md
 {#each more}{.}{#if more}・{/if}{/each}
 ```
 
+## マップの項目ごとに作った配列を連結し、キーを残せる
+
+- ID: EX-template-entry-flatten
+- 示す仕様: KW-template.$eachEntry・KW-template.$flatten
+- 結果: 通る（誤りも警告も無い）
+
+生成する `design/entries.yaml`
+
+```yaml
+- {case: first, field: a}
+- {case: second, field: b}
+- {case: second, field: c}
+```
+
+`.yde/transforms/entries.yaml`
+
+```yaml
+id: entries
+output: design/entries.yaml
+input:
+  cases: {empty: [], first: [{key: a}], second: [{key: b}, {key: c}]}
+build:
+  $eachEntry: cases
+  $flatten: true
+  $build:
+    $each: .
+    $build: {case: $key, field: {$copy: key}}
+```
+
 ## $format は、埋まらない穴があると「無い」になり、マップのキーごと落ちる
 
 - ID: EX-template-format-missing

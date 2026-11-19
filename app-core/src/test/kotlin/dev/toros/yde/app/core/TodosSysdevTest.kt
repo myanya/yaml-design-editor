@@ -49,11 +49,12 @@ class TodosSysdevTest {
         assertEquals("complete-todo.no-open-task", count["precondition"])
         assertEquals(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), count["where"])
         val todo = list(doc("design/basic/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
-        val crud = list(todo, "crud").map { it as Map<*, *> }
-        val status = crud.single { it["項目"] == "status" }
-        assertEquals("C", status["register-todo"])
-        assertEquals("U", status["complete-todo"])
-        assertEquals("", status["edit-todo"], "編集は状態を変えない")
+        val operations = list(todo, "operations").map { it as Map<*, *> }
+        fun status(action: String) = list(operations.single { it["action"] == action }, "writes")
+            .map { it as Map<*, *> }.singleOrNull { it["item"] == "FLD-todo.status" }?.get("crud")
+        assertEquals("C", status("register-todo"))
+        assertEquals("U", status("complete-todo"))
+        assertEquals(null, status("edit-todo"), "編集は状態を変えない")
     }
 
     /**
@@ -212,10 +213,10 @@ class TodosSysdevTest {
             assertEquals("TYP-common.年月日", it["type"], "論理型は基本設計の論理型（設計項目）への参照")
             assertEquals("created", it["auto"], "auto は日本語に言い換えない")
             assertEquals("todo.created_on", it["source"], "導出元は業務の項目（定義の索引の yde-field）")
-            assertEquals(null, it["format"], "表示形式は型の性質なので、エンティティ定義には書かない")
+            assertEquals("yyyy年M月d日", it["format"], "継承した表示形式も項目の確定値に保持する")
         }
-        assertEquals("TYP-common.タグ参照", items["tags"]?.get("itemType"), "配列は要素の論理型を持つ")
-        assertEquals(null, items["status"]?.get("values"), "選択肢は論理型の性質なので、項目には写さない")
+        assertEquals("TYP-common.タグ参照", (items["tags"]?.get("item") as Map<*, *>)["type"], "配列は item に要素の論理型を持つ")
+        assertEquals(5, (items["status"]?.get("values") as List<*>).size, "選択肢も項目の確定値に保持する")
         val task = entities.single { it["id"] == "ENT-todo-task" }
         assertEquals(listOf("ENT-todo", "FLD-todo.tasks"), listOf(task["parent"], task["parentField"]))
         val finish = list(todo, "operations").single { it["action"] == "todo-task.finish" }
@@ -260,8 +261,9 @@ class TodosSysdevTest {
             list(tags, "foreignKeys").map { Triple(it["name"], it["columns"], it["onDelete"]) }, "入れ子で持つ親へは一緒に消す・参照へは指定しない",
         )
         assertEquals("pk_todo_tags", tags["primaryKeyName"])
-        val classes = list(doc("design/basic/ledger.yaml"), "entityClasses").associate { it["name"] to it["entities"] }
-        assertEquals<Map<*, *>>(mapOf("master" to listOf("ENT-category", "ENT-tag"), "transaction" to listOf("ENT-todo", "ENT-todo-task")), classes, "区分は人が書く台帳に")
+        val classes = list(doc("design/basic/classes.yaml"), "classes").associate { it["id"] to it["name"] }
+        val classified = list(doc("design/basic/entities.yaml"), "entities").groupBy { classes[it["entityClass"]] }.mapValues { (_, es) -> es.map { it["id"] } }
+        assertEquals<Map<*, *>>(mapOf("master" to listOf("ENT-category", "ENT-tag"), "transaction" to listOf("ENT-todo", "ENT-todo-task")), classified, "追加した区分と指定を確定項目で共有する")
         // DDL: テーブル設計書のビューの行から作る
         val ws = Workspace.open(root)
         assertEquals(emptyList(), Reports.load(root).errors)
@@ -310,7 +312,11 @@ class TodosSysdevTest {
             java.nio.file.Files.copy(Path.of("test-fixtures/workspaces/todos-sysdev-shapes/shape-list.yaml"), dir.resolve(".yde/schemas/business/shape-list.yaml"))
             fun edit(path: String, change: (String) -> String) = dir.resolve(path).let { java.nio.file.Files.writeString(it, change(java.nio.file.Files.readString(it))) }
             // 人が書くもの: 区分（基本設計項目台帳）・型対応表・業務モデルから導けない索引（降順を含む。詳細設計項目台帳）
-            edit("design/basic/ledger.yaml") { it.replace("entities: [ENT-todo, ENT-todo-task]", "entities: [ENT-todo, ENT-todo-task, ENT-shape, ENT-shape-spec]") }
+            java.nio.file.Files.writeString(dir.resolve("design/basic/corrections-shape.yaml"), """
+                specifications:
+                  - {id: SPC-shape, target: ENT-shape, rule: entity-class, settings: {entityClass: CLS-transaction}, reason: 見本の区分}
+                  - {id: SPC-shape-spec, target: ENT-shape-spec, rule: entity-class, settings: {entityClass: CLS-transaction}, reason: 見本の区分}
+            """.trimIndent() + "\n")
             edit("design/detail/sql-types.yaml") {
                 it + "  - { seq: '91', id: SQL-int, type: TYP-int, sql: INTEGER, literal: number }\n" +
                     "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR, literal: string }\n" +
@@ -349,7 +355,7 @@ class TodosSysdevTest {
                 assertEquals(false, it.getValue("period_from")["notNull"], "必須の開始日でも、期間が必須でなければ NOT NULL にしない")
                 assertEquals("期間の開始日", it.getValue("period_from")["label"])
                 assertEquals("FLD-shape.period.from", it.getValue("period_from")["source"], "名前の無い object の中の項目は、入れ子の項目")
-                assertEquals("FLD-shape-list.大きさ.width", it.getValue("size_width")["source"], "名前付きの型の中の項目は、型の項目")
+                assertEquals("FLD-shape.size.width", it.getValue("size_width")["source"], "名前付きの型も利用箇所の確定項目を参照する")
             }
             assertEquals(listOf("ux_shape_spec_shape_id"), list(tables.getValue("shape_spec"), "indexes").map { it["name"] }, "入れ子のエンティティ 1 件は、親の ID が一意（親の ID の索引を兼ねる）")
             assertEquals(listOf("shape_id", "seq", "labels"), columns("shape_labels").keys.toList(), "スカラーの配列は値のカラム")
@@ -449,7 +455,8 @@ class TodosSysdevTest {
         assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "constraints.rule").all { it in concepts("processes") }, "処理設計書: ${concepts("processes")}")
         assertTrue("relations.cardinality" in concepts("domains") && "lifecycles.transitions" in concepts("domains"), "ドメイン定義書: ${concepts("domains")}")
         assertEquals(emptyList<Any>(), concepts("screen-styles"), "クラスの対応表は業務モデルを読まない（決まった表）")
-        assertEquals("basic", lineage["basic-entities"]?.get("stage"), "基本設計項目一覧は基本設計の段を読む")
+        assertEquals(null, lineage["basic-entities"]?.get("stage"), "確定項目への移行後は段を再適用しない")
+        assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "basic-entities" }.dependsOn.contains("basic-final"))
         assertEquals("detail", lineage["processes"]?.get("stage"))
         assertTrue((lineage["processes"]?.get("reads") as List<*>).contains("actions[*].effects[*].field.key"))
     }

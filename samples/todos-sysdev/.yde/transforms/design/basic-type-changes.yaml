@@ -1,0 +1,62 @@
+id: basic-type-changes
+name: 共通型の補正候補の合成
+description: >-
+  型の設計 ID で補正を合成し、名前付きの型の宣言へ渡せる属性を分ける。
+  利用箇所の補正や未対応の属性を適用済みとは扱わない。元の補正と理由も保存する
+scope: business
+dependsOn: [basic-targets]
+output: design/basic/composed/type-changes.yaml
+input:
+  $compose:
+    derived:
+      $each: {$view: basic-targets-input}
+      $flatten: true
+      $build:
+        $each: values.targets
+        $build:
+          $when: [{path: kind, equals: type}]
+          id: {$copy: designId}
+          value:
+            locations:
+              $each: occurrences
+              $flatten: true
+              $build:
+                $each: declarations
+                $build:
+                  $when: [{path: inherited, equals: false}]
+                  schema: {$copy: schema}
+                  document: {$copy: document}
+                  path: {$copy: path}
+            set: {}
+          source: {id: {$copy: id}}
+    additions: []
+    changes:
+      $each: {$view: basic-description-corrections-input}
+      $bind: correction
+      $flatten: true
+      $build:
+        $when: [{path: values.correction.target, startsWith: TYP-}]
+        $then:
+          $eachEntry: values.correction.set
+          $flatten: true
+          $build:
+            - target: {$copy: values.correction.target, $of: correction}
+              path: [set, $key]
+              value: {$copy: .}
+              priority: individual
+              source: {id: {$copy: id, $of: correction}}
+build:
+  id: CMP-type-changes
+  items:
+    $each: records
+    $build:
+      id: {$format: 'CMP-TYPE-{id}'}
+      designId: {$copy: id}
+      locations: {$copy: value.locations}
+      set: {$copy: value.set}
+  decisions: {$copy: decisions}
+  corrections:
+    $each: {$view: basic-description-corrections-input}
+    $build:
+      $when: [{path: values.correction.target, startsWith: TYP-}]
+      $then: {$copy: values.correction}

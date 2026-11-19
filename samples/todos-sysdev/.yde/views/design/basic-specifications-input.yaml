@@ -1,0 +1,9 @@
+id: basic-specifications-input
+rows:
+  schemaIds:
+    - basic-corrections
+  idPattern: SPC-*
+columns:
+  - label: record
+    path: .
+    schemaId: basic-corrections

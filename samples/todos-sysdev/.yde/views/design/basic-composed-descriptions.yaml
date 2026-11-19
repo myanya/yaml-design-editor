@@ -1,0 +1,8 @@
+id: basic-composed-descriptions
+name: 説明の合成結果
+description: 導出した説明と個別補正の採用結果。型などを含む確定項目一覧への移行はまだ行っていない
+rows: {schemaIds: [basic-descriptions], idPattern: 'CMP-FLD-*'}
+columns:
+  - {label: 設計項目, schemaId: basic-descriptions, path: designId}
+  - {label: 説明, schemaId: basic-descriptions, path: description}
+  - {label: 元の候補数, schemaId: basic-descriptions, value: {count: {path: descriptions}}}

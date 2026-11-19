@@ -346,6 +346,7 @@ object Importer {
                 is Template.EntriesOf -> walk(t.input)
                 is Template.Compose -> walk(t.input)
                 is Template.SchemaModel -> walk(t.input)
+                is Template.Validate -> walk(t.input)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }

@@ -1,0 +1,55 @@
+id: basic-field-changes
+name: 個別項目の補正候補の合成
+scope: business
+dependsOn: [basic-field-uses, basic-descriptions]
+output: design/basic/composed/field-changes.yaml
+input:
+  $compose:
+    derived:
+      $each: {$view: basic-field-uses-input}
+      $flatten: true
+      $build:
+        $each: values.items
+        $build:
+          id: {$copy: designId}
+          value:
+            owner: {$copy: owner}
+            path: {$copy: path}
+            locations: {$copy: locations}
+            blocked: {$copy: blocked}
+            set: {}
+          source: {id: {$copy: id}}
+    additions: []
+    changes:
+      $each: {$view: basic-description-corrections-input}
+      $bind: correction
+      $flatten: true
+      $build:
+        $when: [{path: values.correction.target, startsWith: FLD-}]
+        $then:
+          $eachEntry: values.correction.set
+          $flatten: true
+          $build:
+            - target: {$copy: values.correction.target, $of: correction}
+              path: [set, $key]
+              value: {$copy: .}
+              priority: individual
+              source: {id: {$copy: id, $of: correction}}
+build:
+  id: CMP-field-changes
+  items:
+    $each: records
+    $build:
+      id: {$format: 'CMP-FIELD-{id}'}
+      designId: {$copy: id}
+      owner: {$copy: value.owner}
+      path: {$copy: value.path}
+      locations: {$copy: value.locations}
+      blocked: {$copy: value.blocked}
+      set: {$copy: value.set}
+  decisions: {$copy: decisions}
+  corrections:
+    $each: {$view: basic-description-corrections-input}
+    $build:
+      $when: [{path: values.correction.target, startsWith: FLD-}]
+      $then: {$copy: values.correction}

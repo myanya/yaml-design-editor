@@ -1,0 +1,57 @@
+id: basic-field-uses
+name: 個別補正を書く利用箇所
+scope: business
+dependsOn: [basic-type-model]
+output: design/basic/composed/field-uses.yaml
+input:
+  $schemaUses:
+    $each: {$view: basic-type-model-input}
+    $flatten: true
+    $build:
+      $each: values.model.schemas
+      $build: {$copy: declared}
+build:
+  id: CMP-field-uses
+  schemas: {$copy: schemas}
+  items:
+    $group:
+      $concat:
+        - $each: {$view: basic-targets-input}
+          $flatten: true
+          $build:
+            $each: values.targets
+            $build:
+              $when: [{path: kind, equals: field}]
+              key: {owner: {$copy: owner}, path: {$copy: path}}
+              target: {$copy: .}
+        - $each: uses
+          $build:
+            key:
+              owner:
+                $first:
+                  - $when: [{path: owner.entity, exists: true}]
+                    $then: {$format: 'ENT-{e}', $with: {e: {$copy: owner.entity}}}
+                  - $format: 'TYP-{m}.{n}'
+                    $with:
+                      m: {$value: {extract: [{path: owner.type}, '^([^#]+)#']}}
+                      n: {$value: {extract: [{path: owner.type}, '#(.+)$']}}
+              path: {$copy: path}
+            use: {$copy: .}
+    $by: {$copy: key}
+    $build:
+      # 左側は導出対象、右側は利用箇所。対象が存在する組だけを取り、文字列に連結したパスで照合しない。
+      $when: [{path: 'items[0].target', exists: true}]
+      id: {$format: 'CMP-USES-{d}', $with: {d: {$copy: 'items[0].target.designId'}}}
+      designId: {$copy: 'items[0].target.designId'}
+      owner: {$copy: key.owner}
+      path: {$copy: key.path}
+      locations:
+        $each: items
+        $build:
+          $when: [{path: use, exists: true}, {path: use.writable, equals: true}]
+          $then: {$copy: use}
+      blocked:
+        $each: items
+        $build:
+          $when: [{path: use, exists: true}, {path: use.writable, equals: false}]
+          $then: {$copy: use}

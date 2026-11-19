@@ -1,8 +1,7 @@
 id: basic-model-entities
 name: 基本設計の生成入力（エンティティ）
-description: 基本補正を重ねたエンティティ全体。後段の生成も同じ補正後の値を読む
+description: 確定項目一覧を読む。補正や型継承は生成時に解決し、ビューでは再計算しない
 rows: { idPattern: "ENT-*", schemaIds: [basic-entity-list] }
 order: { schemaId: basic-entity-list }
-corrections: { schemaIds: [basic-corrections] }
 columns:
   - { label: record, path: . }

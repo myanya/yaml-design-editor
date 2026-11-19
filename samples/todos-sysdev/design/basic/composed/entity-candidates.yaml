@@ -1,0 +1,3122 @@
+# 生成物（basic-entity-candidates）: 手で直さず、業務モデルか生成の定義（design/basic-entity-candidates.yaml）を直して作り直します（CLI generate）。
+id: CMP-basic-entity-candidates
+entities:
+  - id: ENT-category
+    label: カテゴリ
+    description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
+    source: category
+    numbering:
+      item: FLD-category.id
+      path: id
+      prefix: CAT-
+      digits: 3
+      description: 「CAT-」に 3 桁の番号を続ける（使われている番号の次）
+    documents:
+      - category-list
+    items:
+      - id: FLD-category.id
+        key: id
+        seq: '01'
+        owner: ENT-category
+        path:
+          - fields
+          - id
+        source: category.id
+        label: ID
+        description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
+        base: id
+        required: true
+        pattern: ^CAT-[0-9]{3,}$
+        type: TYP-common.カテゴリ番号
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-category.name
+        key: name
+        seq: '02'
+        owner: ENT-category
+        path:
+          - fields
+          - name
+        source: category.name
+        label: カテゴリ名
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        type: TYP-common.一行の文
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: present
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: unconstrained
+          format: not-applicable
+    operations:
+      - seq: '01'
+        id: OPS-category.add-category
+        action: add-category
+        label: カテゴリを追加する
+        crud: C
+        writes:
+          - id: CRUD-category.add-category.name
+            entity: ENT-category
+            operation: OPS-category.add-category
+            item: FLD-category.name
+            crud: C
+    identifiers:
+      - FLD-category.id
+  - id: ENT-tag
+    label: タグ
+    description: TODO に付ける目印です。1 件の TODO に、いくつでも付けられます。
+    source: tag
+    numbering:
+      item: FLD-tag.id
+      path: id
+      prefix: TAG-
+      digits: 3
+      description: 「TAG-」に 3 桁の番号を続ける（使われている番号の次）
+    documents:
+      - tag-list
+    items:
+      - id: FLD-tag.id
+        key: id
+        seq: '01'
+        owner: ENT-tag
+        path:
+          - fields
+          - id
+        source: tag.id
+        label: ID
+        description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
+        base: id
+        required: true
+        pattern: ^TAG-[0-9]{3,}$
+        type: TYP-common.タグ番号
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-tag.name
+        key: name
+        seq: '02'
+        owner: ENT-tag
+        path:
+          - fields
+          - name
+        source: tag.name
+        label: タグ名
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        type: TYP-common.一行の文
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: present
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: unconstrained
+          format: not-applicable
+    operations:
+      - seq: '01'
+        id: OPS-tag.add-tag
+        action: add-tag
+        label: タグを追加する
+        crud: C
+        writes:
+          - id: CRUD-tag.add-tag.name
+            entity: ENT-tag
+            operation: OPS-tag.add-tag
+            item: FLD-tag.name
+            crud: C
+    identifiers:
+      - FLD-tag.id
+  - id: ENT-todo
+    label: TODO
+    description: やることを 1 件ずつ管理する単位です。タイトル・概要・分類（カテゴリとタグ）を一覧に、進み具合（状態・日付・結果・作業項目・コメント・状態の履歴）を個票に書きます。
+    source: todo
+    numbering:
+      item: FLD-todo.id
+      path: id
+      prefix: TODO-
+      digits: 3
+      description: 「TODO-」に 3 桁の番号を続ける（使われている番号の次）
+    documents:
+      - todo-list
+      - todo-detail
+    items:
+      - id: FLD-todo.id
+        key: id
+        seq: '01'
+        owner: ENT-todo
+        path:
+          - fields
+          - id
+        source: todo.id
+        label: ID
+        description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+        base: id
+        required: true
+        pattern: ^TODO-[0-9]{3,}$
+        type: TYP-common.TODO番号
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.title
+        key: title
+        seq: '02'
+        owner: ENT-todo
+        path:
+          - fields
+          - title
+        source: todo.title
+        label: タイトル
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        type: TYP-common.一行の文
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: present
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: unconstrained
+          format: not-applicable
+      - id: FLD-todo.summary
+        key: summary
+        seq: '03'
+        owner: ENT-todo
+        path:
+          - fields
+          - summary
+        source: todo.summary
+        label: 概要
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        type: TYP-common.一行の文
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: present
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: unconstrained
+          format: not-applicable
+      - id: FLD-todo.category
+        key: category
+        seq: '04'
+        owner: ENT-todo
+        path:
+          - fields
+          - category
+        source: todo.category
+        label: カテゴリ
+        description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        base: ref
+        required: false
+        type: TYP-common.カテゴリ参照
+        reference:
+          target: entity
+          relation: in-category
+          idPatternLayers:
+            -   - CAT-*
+          scope:
+            schemaIds:
+              - category-list
+            documentIds: []
+          entities:
+            - ENT-category
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.tags
+        key: tags
+        seq: '05'
+        owner: ENT-todo
+        path:
+          - fields
+          - tags
+        source: todo.tags
+        label: タグ
+        description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
+        base: array
+        required: false
+        unique: true
+        item:
+          description: タグ一覧の ID を 1 件。
+          base: ref
+          required: false
+          type: TYP-common.タグ参照
+          reference:
+            target: entity
+            relation: tagged
+            idPatternLayers:
+              -   - TAG-*
+            scope:
+              schemaIds:
+                - tag-list
+              documentIds: []
+            entities:
+              - ENT-tag
+          attributeStates:
+            type: present
+            base: present
+            required: present
+            default: unconstrained
+            auto: not-applicable
+            minLength: not-applicable
+            maxLength: not-applicable
+            pattern: unconstrained
+            min: not-applicable
+            max: not-applicable
+            values: not-applicable
+            unique: not-applicable
+            multiline: not-applicable
+            format: not-applicable
+        attributeStates:
+          type: not-applicable
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: present
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.follows
+        key: follows
+        seq: '06'
+        owner: ENT-todo
+        path:
+          - fields
+          - follows
+        source: todo.follows
+        label: 元のTODO
+        description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
+        base: ref
+        required: false
+        type: TYP-common.TODO参照
+        reference:
+          target: entity
+          relation: follow-up-of
+          idPatternLayers:
+            -   - TODO-*
+          scope:
+            schemaIds:
+              - todo-list
+            documentIds: []
+          entities:
+            - ENT-todo
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.status
+        key: status
+        seq: '07'
+        owner: ENT-todo
+        path:
+          - fields
+          - status
+        source: todo.status
+        label: ステータス
+        base: enum
+        required: true
+        default: OPEN
+        values:
+          - value: OPEN
+            label: 未着手
+          - value: IN_PROGRESS
+            label: 対応中
+          - value: SUSPENDED
+            label: 中断
+          - value: CLOSED
+            label: 完了
+          - value: CANCELED
+            label: 中止
+        type: TYP-common.ステータス
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: present
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: present
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.created_on
+        key: created_on
+        seq: '08'
+        owner: ENT-todo
+        path:
+          - fields
+          - created_on
+        source: todo.created_on
+        label: 作成日
+        description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
+        base: date
+        required: true
+        auto: created
+        format: yyyy年M月d日
+        type: TYP-common.年月日
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: present
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+      - id: FLD-todo.updated_on
+        key: updated_on
+        seq: '09'
+        owner: ENT-todo
+        path:
+          - fields
+          - updated_on
+        source: todo.updated_on
+        label: 更新日
+        description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
+        base: date
+        required: true
+        auto: updated
+        format: yyyy年M月d日
+        type: TYP-common.年月日
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: present
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+      - id: FLD-todo.due_on
+        key: due_on
+        seq: '10'
+        owner: ENT-todo
+        path:
+          - fields
+          - due_on
+        source: todo.due_on
+        label: 期限
+        description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
+        base: date
+        required: false
+        format: yyyy年M月d日
+        type: TYP-common.年月日
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: unconstrained
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+      - id: FLD-todo.completed_on
+        key: completed_on
+        seq: '11'
+        owner: ENT-todo
+        path:
+          - fields
+          - completed_on
+        source: todo.completed_on
+        label: 完了日
+        description: 完了時に入力します。未完了・中止の場合は省略します。
+        base: date
+        required: false
+        format: yyyy年M月d日
+        type: TYP-common.年月日
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: unconstrained
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+      - id: FLD-todo.details
+        key: details
+        seq: '12'
+        owner: ENT-todo
+        path:
+          - fields
+          - details
+        source: todo.details
+        label: 詳細
+        description: 作業内容や完了条件を記載します。
+        base: string
+        required: false
+        multiline: true
+        type: TYP-common.文章
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: unconstrained
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: present
+          format: not-applicable
+      - id: FLD-todo.result
+        key: result
+        seq: '13'
+        owner: ENT-todo
+        path:
+          - fields
+          - result
+        source: todo.result
+        label: 結果
+        description: 対応結果や中止理由を記載します。
+        base: string
+        required: false
+        multiline: true
+        type: TYP-common.文章
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: unconstrained
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: present
+          format: not-applicable
+      - id: FLD-todo.tasks
+        key: tasks
+        seq: '14'
+        owner: ENT-todo
+        path:
+          - fields
+          - tasks
+        source: todo.tasks
+        label: 作業項目
+        description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
+        base: array
+        required: false
+        default: []
+        item:
+          base: object
+          required: false
+          entity: ENT-todo-task
+          attributeStates:
+            type: not-applicable
+            base: present
+            required: present
+            default: unconstrained
+            auto: not-applicable
+            minLength: not-applicable
+            maxLength: not-applicable
+            pattern: not-applicable
+            min: not-applicable
+            max: not-applicable
+            values: not-applicable
+            unique: not-applicable
+            multiline: not-applicable
+            format: not-applicable
+        attributeStates:
+          type: not-applicable
+          base: present
+          required: present
+          default: present
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: unconstrained
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.comments
+        key: comments
+        seq: '15'
+        owner: ENT-todo
+        path:
+          - fields
+          - comments
+        source: todo.comments
+        label: コメント一覧
+        description: 並び順は任意です。
+        base: array
+        required: false
+        default: []
+        item:
+          base: object
+          required: false
+          type: TYP-common.コメント
+          fields:
+            - id: FLD-todo.comments.item.date
+              key: date
+              seq: '01'
+              owner: FLD-todo.comments
+              path:
+                - fields
+                - comments
+                - item
+                - fields
+                - date
+              label: 日付
+              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+              base: date
+              required: true
+              format: yyyy年M月d日
+              type: TYP-common.年月日
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: unconstrained
+                minLength: not-applicable
+                maxLength: not-applicable
+                pattern: unconstrained
+                min: not-applicable
+                max: not-applicable
+                values: not-applicable
+                unique: not-applicable
+                multiline: not-applicable
+                format: present
+            - id: FLD-todo.comments.item.body
+              key: body
+              seq: '02'
+              owner: FLD-todo.comments
+              path:
+                - fields
+                - comments
+                - item
+                - fields
+                - body
+              label: コメント本文
+              base: string
+              required: true
+              multiline: true
+              type: TYP-text
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: not-applicable
+                minLength: unconstrained
+                maxLength: unconstrained
+                pattern: unconstrained
+                min: not-applicable
+                max: not-applicable
+                values: not-applicable
+                unique: not-applicable
+                multiline: present
+                format: not-applicable
+          attributeStates:
+            type: present
+            base: present
+            required: present
+            default: unconstrained
+            auto: not-applicable
+            minLength: not-applicable
+            maxLength: not-applicable
+            pattern: not-applicable
+            min: not-applicable
+            max: not-applicable
+            values: not-applicable
+            unique: not-applicable
+            multiline: not-applicable
+            format: not-applicable
+        attributeStates:
+          type: not-applicable
+          base: present
+          required: present
+          default: present
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: unconstrained
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo.history
+        key: history
+        seq: '16'
+        owner: ENT-todo
+        path:
+          - fields
+          - history
+        source: todo.history
+        label: 状態の履歴
+        description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
+        base: array
+        required: false
+        default: []
+        item:
+          label: 状態の記録
+          base: object
+          required: false
+          type: TYP-common.状態の記録
+          fields:
+            - id: FLD-todo.history.item.date
+              key: date
+              seq: '01'
+              owner: FLD-todo.history
+              path:
+                - fields
+                - history
+                - item
+                - fields
+                - date
+              label: 日付
+              description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
+              base: date
+              required: true
+              auto: created
+              format: yyyy年M月d日
+              type: TYP-common.年月日
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: present
+                minLength: not-applicable
+                maxLength: not-applicable
+                pattern: unconstrained
+                min: not-applicable
+                max: not-applicable
+                values: not-applicable
+                unique: not-applicable
+                multiline: not-applicable
+                format: present
+            - id: FLD-todo.history.item.action
+              key: action
+              seq: '02'
+              owner: FLD-todo.history
+              path:
+                - fields
+                - history
+                - item
+                - fields
+                - action
+              label: 操作
+              base: enum
+              required: true
+              values:
+                - value: register-todo
+                  label: TODOを登録する
+                - value: start-todo
+                  label: TODOに着手する
+                - value: complete-todo
+                  label: TODOを完了する
+                - value: suspend-todo
+                  label: TODOを中断する
+                - value: resume-todo
+                  label: TODOを再開する
+                - value: cancel-todo
+                  label: TODOを中止する
+              type: TYP-common.TODOの操作
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: not-applicable
+                minLength: not-applicable
+                maxLength: not-applicable
+                pattern: not-applicable
+                min: not-applicable
+                max: not-applicable
+                values: present
+                unique: not-applicable
+                multiline: not-applicable
+                format: not-applicable
+            - id: FLD-todo.history.item.from
+              key: from
+              seq: '03'
+              owner: FLD-todo.history
+              path:
+                - fields
+                - history
+                - item
+                - fields
+                - from
+              label: 前の状態
+              description: 登録の行には書きません。
+              base: enum
+              required: false
+              values:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+                - value: CLOSED
+                  label: 完了
+                - value: CANCELED
+                  label: 中止
+              type: TYP-common.ステータス
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: not-applicable
+                minLength: not-applicable
+                maxLength: not-applicable
+                pattern: not-applicable
+                min: not-applicable
+                max: not-applicable
+                values: present
+                unique: not-applicable
+                multiline: not-applicable
+                format: not-applicable
+            - id: FLD-todo.history.item.to
+              key: to
+              seq: '04'
+              owner: FLD-todo.history
+              path:
+                - fields
+                - history
+                - item
+                - fields
+                - to
+              label: 後の状態
+              base: enum
+              required: true
+              values:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+                - value: CLOSED
+                  label: 完了
+                - value: CANCELED
+                  label: 中止
+              type: TYP-common.ステータス
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: not-applicable
+                minLength: not-applicable
+                maxLength: not-applicable
+                pattern: not-applicable
+                min: not-applicable
+                max: not-applicable
+                values: present
+                unique: not-applicable
+                multiline: not-applicable
+                format: not-applicable
+            - id: FLD-todo.history.item.note
+              key: note
+              seq: '05'
+              owner: FLD-todo.history
+              path:
+                - fields
+                - history
+                - item
+                - fields
+                - note
+              label: 理由
+              description: 中止と中断の理由、再開のメモです。
+              base: string
+              required: false
+              multiline: true
+              type: TYP-common.文章
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: not-applicable
+                minLength: unconstrained
+                maxLength: unconstrained
+                pattern: unconstrained
+                min: not-applicable
+                max: not-applicable
+                values: not-applicable
+                unique: not-applicable
+                multiline: present
+                format: not-applicable
+            - id: FLD-todo.history.item.resume_on
+              key: resume_on
+              seq: '06'
+              owner: FLD-todo.history
+              path:
+                - fields
+                - history
+                - item
+                - fields
+                - resume_on
+              label: 再開予定日
+              description: 中断の行にだけ書きます。
+              base: date
+              required: false
+              format: yyyy年M月d日
+              type: TYP-common.年月日
+              attributeStates:
+                type: present
+                base: present
+                required: present
+                default: unconstrained
+                auto: unconstrained
+                minLength: not-applicable
+                maxLength: not-applicable
+                pattern: unconstrained
+                min: not-applicable
+                max: not-applicable
+                values: not-applicable
+                unique: not-applicable
+                multiline: not-applicable
+                format: present
+          attributeStates:
+            type: present
+            base: present
+            required: present
+            default: unconstrained
+            auto: not-applicable
+            minLength: not-applicable
+            maxLength: not-applicable
+            pattern: not-applicable
+            min: not-applicable
+            max: not-applicable
+            values: not-applicable
+            unique: not-applicable
+            multiline: not-applicable
+            format: not-applicable
+        attributeStates:
+          type: not-applicable
+          base: present
+          required: present
+          default: present
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: unconstrained
+          multiline: not-applicable
+          format: not-applicable
+    operations:
+      - seq: '01'
+        id: OPS-todo.register-todo
+        action: register-todo
+        label: TODOを登録する
+        crud: C
+        writes:
+          - id: CRUD-todo.register-todo.due_on
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.due_on
+            crud: C
+          - id: CRUD-todo.register-todo.details
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.details
+            crud: C
+          - id: CRUD-todo.register-todo.comments
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.comments
+            crud: C
+          - id: CRUD-todo.register-todo.id
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.id
+            crud: C
+          - id: CRUD-todo.register-todo.title
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.title
+            crud: C
+          - id: CRUD-todo.register-todo.summary
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.summary
+            crud: C
+          - id: CRUD-todo.register-todo.category
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.category
+            crud: C
+          - id: CRUD-todo.register-todo.tags
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.tags
+            crud: C
+          - id: CRUD-todo.register-todo.follows
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.follows
+            crud: C
+          - id: CRUD-todo.register-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.status
+            crud: C
+          - id: CRUD-todo.register-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.history
+            crud: C
+          - id: CRUD-todo.register-todo.created_on
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.created_on
+            crud: C
+          - id: CRUD-todo.register-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.register-todo
+            item: FLD-todo.updated_on
+            crud: C
+      - seq: '02'
+        id: OPS-todo.add-todo-comment
+        action: add-todo-comment
+        label: TODOにコメントを追加する
+        crud: U
+        writes:
+          - id: CRUD-todo.add-todo-comment.comments
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-comment
+            item: FLD-todo.comments
+            crud: U
+          - id: CRUD-todo.add-todo-comment.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-comment
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '03'
+        id: OPS-todo.add-todo-task
+        action: add-todo-task
+        label: 作業項目を追加する
+        crud: U
+        writes:
+          - id: CRUD-todo.add-todo-task.tasks
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-task
+            item: FLD-todo.tasks
+            crud: U
+          - id: CRUD-todo.add-todo-task.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.add-todo-task
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '04'
+        id: OPS-todo.edit-todo
+        action: edit-todo
+        label: TODOを編集する
+        crud: U
+        writes:
+          - id: CRUD-todo.edit-todo.title
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.title
+            crud: U
+          - id: CRUD-todo.edit-todo.summary
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.summary
+            crud: U
+          - id: CRUD-todo.edit-todo.category
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.category
+            crud: U
+          - id: CRUD-todo.edit-todo.tags
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.tags
+            crud: U
+          - id: CRUD-todo.edit-todo.created_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.created_on
+            crud: U
+          - id: CRUD-todo.edit-todo.due_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.due_on
+            crud: U
+          - id: CRUD-todo.edit-todo.details
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.details
+            crud: U
+          - id: CRUD-todo.edit-todo.result
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.result
+            crud: U
+          - id: CRUD-todo.edit-todo.comments
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.comments
+            crud: U
+          - id: CRUD-todo.edit-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '05'
+        id: OPS-todo.start-todo
+        action: start-todo
+        label: TODOに着手する
+        crud: U
+        writes:
+          - id: CRUD-todo.start-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.start-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.start-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.start-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.start-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.start-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '06'
+        id: OPS-todo.suspend-todo
+        action: suspend-todo
+        label: TODOを中断する
+        crud: U
+        writes:
+          - id: CRUD-todo.suspend-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.suspend-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.suspend-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.suspend-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.suspend-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.suspend-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '07'
+        id: OPS-todo.resume-todo
+        action: resume-todo
+        label: TODOを再開する
+        crud: U
+        writes:
+          - id: CRUD-todo.resume-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.resume-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.resume-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.resume-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.resume-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.resume-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '08'
+        id: OPS-todo.complete-todo
+        action: complete-todo
+        label: TODOを完了する
+        crud: U
+        writes:
+          - id: CRUD-todo.complete-todo.completed_on
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.completed_on
+            crud: U
+          - id: CRUD-todo.complete-todo.result
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.result
+            crud: U
+          - id: CRUD-todo.complete-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.complete-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.complete-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.complete-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '09'
+        id: OPS-todo.cancel-todo
+        action: cancel-todo
+        label: TODOを中止する
+        crud: U
+        writes:
+          - id: CRUD-todo.cancel-todo.result
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.result
+            crud: U
+          - id: CRUD-todo.cancel-todo.status
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.status
+            crud: U
+          - id: CRUD-todo.cancel-todo.history
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.history
+            crud: U
+          - id: CRUD-todo.cancel-todo.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.cancel-todo
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '10'
+        id: OPS-todo.todo-task.finish
+        action: todo-task.finish
+        label: 作業項目を済にする
+        crud: U
+        writes:
+          - id: CRUD-todo.todo-task.finish.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.todo-task.finish
+            item: FLD-todo.updated_on
+            crud: U
+    identifiers:
+      - FLD-todo.id
+  - id: ENT-todo-task
+    label: 作業項目
+    description: TODO を小分けにした作業です。TODO の中にだけあり、済んでいない作業項目があるうちは TODO を完了できません。
+    source: todo-task
+    parent: ENT-todo
+    parentField: FLD-todo.tasks
+    numbering:
+      item: FLD-todo-task.id
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+      description: 親の ID に「-S」と 2 桁の番号を続ける（使われている番号の次）
+    documents:
+      - todo-detail
+    items:
+      - id: FLD-todo-task.id
+        key: id
+        seq: '01'
+        owner: ENT-todo-task
+        path:
+          - fields
+          - id
+        source: todo-task.id
+        label: ID
+        description: 追加すると自動で振ります（例 TODO-002-S01）。
+        base: id
+        required: true
+        pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+        type: TYP-common.作業項目番号
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+      - id: FLD-todo-task.title
+        key: title
+        seq: '02'
+        owner: ENT-todo-task
+        path:
+          - fields
+          - title
+        source: todo-task.title
+        label: 作業
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        type: TYP-common.一行の文
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: present
+          pattern: present
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: unconstrained
+          format: not-applicable
+      - id: FLD-todo-task.done
+        key: done
+        seq: '03'
+        owner: ENT-todo-task
+        path:
+          - fields
+          - done
+        source: todo-task.done
+        label: 済
+        base: boolean
+        required: true
+        default: false
+        type: TYP-boolean
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: present
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+    operations:
+      - seq: '01'
+        id: OPS-todo-task.add-todo-task
+        action: add-todo-task
+        label: 作業項目を追加する
+        crud: C
+        writes:
+          - id: CRUD-todo-task.add-todo-task.id
+            entity: ENT-todo-task
+            operation: OPS-todo-task.add-todo-task
+            item: FLD-todo-task.id
+            crud: C
+          - id: CRUD-todo-task.add-todo-task.title
+            entity: ENT-todo-task
+            operation: OPS-todo-task.add-todo-task
+            item: FLD-todo-task.title
+            crud: C
+          - id: CRUD-todo-task.add-todo-task.done
+            entity: ENT-todo-task
+            operation: OPS-todo-task.add-todo-task
+            item: FLD-todo-task.done
+            crud: C
+      - seq: '02'
+        id: OPS-todo-task.todo-task.finish
+        action: todo-task.finish
+        label: 作業項目を済にする
+        crud: U
+        writes:
+          - id: CRUD-todo-task.todo-task.finish.done
+            entity: ENT-todo-task
+            operation: OPS-todo-task.todo-task.finish
+            item: FLD-todo-task.done
+            crud: U
+    identifiers:
+      - FLD-todo-task.id
+agreements:
+  - records:
+      - id: field
+        value:
+          shape:
+            key: id
+            label: ID
+            type: common#カテゴリ番号
+            base: id
+            description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
+            required: true
+            pattern: ^CAT-[0-9]{3,}$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#カテゴリ番号
+              base: id
+              description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
+              required: true
+              pattern: ^CAT-[0-9]{3,}$
+            priority: rule
+            source:
+              id: category-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#カテゴリ番号
+              base: id
+              description: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
+              required: true
+              pattern: ^CAT-[0-9]{3,}$
+            priority: rule
+            source:
+              id: category-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: name
+            label: カテゴリ名
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: name
+              label: カテゴリ名
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: category-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: name
+              label: カテゴリ名
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: category-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: id
+            label: ID
+            type: common#タグ番号
+            base: id
+            description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
+            required: true
+            pattern: ^TAG-[0-9]{3,}$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#タグ番号
+              base: id
+              description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
+              required: true
+              pattern: ^TAG-[0-9]{3,}$
+            priority: rule
+            source:
+              id: tag-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#タグ番号
+              base: id
+              description: 追加時にTAG-001形式で自動採番します。TODOからこのIDを参照します。
+              required: true
+              pattern: ^TAG-[0-9]{3,}$
+            priority: rule
+            source:
+              id: tag-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: name
+            label: タグ名
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: name
+              label: タグ名
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: tag-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: name
+              label: タグ名
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: tag-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: id
+            label: ID
+            type: common#TODO番号
+            base: id
+            description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+            required: true
+            pattern: ^TODO-[0-9]{3,}$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#TODO番号
+              base: id
+              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+              required: true
+              pattern: ^TODO-[0-9]{3,}$
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#TODO番号
+              base: id
+              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+              required: true
+              pattern: ^TODO-[0-9]{3,}$
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#TODO番号
+              base: id
+              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+              required: true
+              pattern: ^TODO-[0-9]{3,}$
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#TODO番号
+              base: id
+              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
+              required: true
+              pattern: ^TODO-[0-9]{3,}$
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: title
+            label: タイトル
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: title
+              label: タイトル
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: title
+              label: タイトル
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: summary
+            label: 概要
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: summary
+              label: 概要
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: summary
+              label: 概要
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: category
+            label: カテゴリ
+            type: common#カテゴリ参照
+            base: ref
+            description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+            refTarget: entity
+            idPatternLayers:
+              -   - CAT-*
+            scope:
+              schemaIds:
+                - category-list
+              documentIds: []
+            relation: in-category
+            idPatterns:
+              - CAT-*
+            schemas:
+              - category-list
+            targets:
+              - category
+            target: category
+            targetTitle: name
+            targetLabel: カテゴリ
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: category
+              label: カテゴリ
+              type: common#カテゴリ参照
+              base: ref
+              description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+              refTarget: entity
+              idPatternLayers:
+                -   - CAT-*
+              scope:
+                schemaIds:
+                  - category-list
+                documentIds: []
+              relation: in-category
+              idPatterns:
+                - CAT-*
+              schemas:
+                - category-list
+              targets:
+                - category
+              target: category
+              targetTitle: name
+              targetLabel: カテゴリ
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: category
+              label: カテゴリ
+              type: common#カテゴリ参照
+              base: ref
+              description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+              refTarget: entity
+              idPatternLayers:
+                -   - CAT-*
+              scope:
+                schemaIds:
+                  - category-list
+                documentIds: []
+              relation: in-category
+              idPatterns:
+                - CAT-*
+              schemas:
+                - category-list
+              targets:
+                - category
+              target: category
+              targetTitle: name
+              targetLabel: カテゴリ
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: tags
+            label: タグ
+            type: array
+            base: array
+            description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
+            unique: true
+            item:
+              type: common#タグ参照
+              base: ref
+              description: タグ一覧の ID を 1 件。
+              refTarget: entity
+              idPatternLayers:
+                -   - TAG-*
+              scope:
+                schemaIds:
+                  - tag-list
+                documentIds: []
+              relation: tagged
+              idPatterns:
+                - TAG-*
+              schemas:
+                - tag-list
+              targets:
+                - tag
+              target: tag
+              targetTitle: name
+              targetLabel: タグ
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: tags
+              label: タグ
+              type: array
+              base: array
+              description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
+              unique: true
+              item:
+                type: common#タグ参照
+                base: ref
+                description: タグ一覧の ID を 1 件。
+                refTarget: entity
+                idPatternLayers:
+                  -   - TAG-*
+                scope:
+                  schemaIds:
+                    - tag-list
+                  documentIds: []
+                relation: tagged
+                idPatterns:
+                  - TAG-*
+                schemas:
+                  - tag-list
+                targets:
+                  - tag
+                target: tag
+                targetTitle: name
+                targetLabel: タグ
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: tags
+              label: タグ
+              type: array
+              base: array
+              description: いくつでも付けられます（カテゴリは 1 つまで）。同じタグは 1 度だけです。付けなければ省略します。
+              unique: true
+              item:
+                type: common#タグ参照
+                base: ref
+                description: タグ一覧の ID を 1 件。
+                refTarget: entity
+                idPatternLayers:
+                  -   - TAG-*
+                scope:
+                  schemaIds:
+                    - tag-list
+                  documentIds: []
+                relation: tagged
+                idPatterns:
+                  - TAG-*
+                schemas:
+                  - tag-list
+                targets:
+                  - tag
+                target: tag
+                targetTitle: name
+                targetLabel: タグ
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: follows
+            label: 元のTODO
+            type: common#TODO参照
+            base: ref
+            description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
+            refTarget: entity
+            idPatternLayers:
+              -   - TODO-*
+            scope:
+              schemaIds:
+                - todo-list
+              documentIds: []
+            relation: follow-up-of
+            idPatterns:
+              - TODO-*
+            schemas:
+              - todo-list
+            targets:
+              - todo
+            target: todo
+            targetTitle: title
+            targetLabel: TODO
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: follows
+              label: 元のTODO
+              type: common#TODO参照
+              base: ref
+              description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
+              refTarget: entity
+              idPatternLayers:
+                -   - TODO-*
+              scope:
+                schemaIds:
+                  - todo-list
+                documentIds: []
+              relation: follow-up-of
+              idPatterns:
+                - TODO-*
+              schemas:
+                - todo-list
+              targets:
+                - todo
+              target: todo
+              targetTitle: title
+              targetLabel: TODO
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: follows
+              label: 元のTODO
+              type: common#TODO参照
+              base: ref
+              description: 完了したTODOに追加の作業が要るとき、このTODOがその続きであることを示します。
+              refTarget: entity
+              idPatternLayers:
+                -   - TODO-*
+              scope:
+                schemaIds:
+                  - todo-list
+                documentIds: []
+              relation: follow-up-of
+              idPatterns:
+                - TODO-*
+              schemas:
+                - todo-list
+              targets:
+                - todo
+              target: todo
+              targetTitle: title
+              targetLabel: TODO
+            priority: rule
+            source:
+              id: todo-list
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: status
+            label: ステータス
+            type: common#ステータス
+            base: enum
+            required: true
+            default: OPEN
+            values:
+              - value: OPEN
+                label: 未着手
+              - value: IN_PROGRESS
+                label: 対応中
+              - value: SUSPENDED
+                label: 中断
+              - value: CLOSED
+                label: 完了
+              - value: CANCELED
+                label: 中止
+            stateOf: todo
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: status
+              label: ステータス
+              type: common#ステータス
+              base: enum
+              required: true
+              default: OPEN
+              values:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+                - value: CLOSED
+                  label: 完了
+                - value: CANCELED
+                  label: 中止
+              stateOf: todo
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: status
+              label: ステータス
+              type: common#ステータス
+              base: enum
+              required: true
+              default: OPEN
+              values:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+                - value: CLOSED
+                  label: 完了
+                - value: CANCELED
+                  label: 中止
+              stateOf: todo
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: created_on
+            label: 作成日
+            type: common#年月日
+            base: date
+            description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
+            required: true
+            auto: created
+            format: yyyy年M月d日
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: created_on
+              label: 作成日
+              type: common#年月日
+              base: date
+              description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
+              required: true
+              auto: created
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: created_on
+              label: 作成日
+              type: common#年月日
+              base: date
+              description: 個票を作成した日を自動で記録します。登録操作ではTODOの登録日になります。過去分は「TODOを編集する」でも修正できます。
+              required: true
+              auto: created
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: updated_on
+            label: 更新日
+            type: common#年月日
+            base: date
+            description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
+            required: true
+            auto: updated
+            format: yyyy年M月d日
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: updated_on
+              label: 更新日
+              type: common#年月日
+              base: date
+              description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
+              required: true
+              auto: updated
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: updated_on
+              label: 更新日
+              type: common#年月日
+              base: date
+              description: 個票の中身を変えて保存した日を自動で記録します（操作の適用でも入ります）。一覧の側（タイトル・概要・カテゴリ）だけの変更では変わりません。
+              required: true
+              auto: updated
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: due_on
+            label: 期限
+            type: common#年月日
+            base: date
+            description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
+            format: yyyy年M月d日
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: due_on
+              label: 期限
+              type: common#年月日
+              base: date
+              description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: due_on
+              label: 期限
+              type: common#年月日
+              base: date
+              description: 未定の場合は省略します。作成日より前の日付は検査が指摘します。
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: completed_on
+            label: 完了日
+            type: common#年月日
+            base: date
+            description: 完了時に入力します。未完了・中止の場合は省略します。
+            format: yyyy年M月d日
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: completed_on
+              label: 完了日
+              type: common#年月日
+              base: date
+              description: 完了時に入力します。未完了・中止の場合は省略します。
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: completed_on
+              label: 完了日
+              type: common#年月日
+              base: date
+              description: 完了時に入力します。未完了・中止の場合は省略します。
+              format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: details
+            label: 詳細
+            type: common#文章
+            base: string
+            description: 作業内容や完了条件を記載します。
+            multiline: true
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: details
+              label: 詳細
+              type: common#文章
+              base: string
+              description: 作業内容や完了条件を記載します。
+              multiline: true
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: details
+              label: 詳細
+              type: common#文章
+              base: string
+              description: 作業内容や完了条件を記載します。
+              multiline: true
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: result
+            label: 結果
+            type: common#文章
+            base: string
+            description: 対応結果や中止理由を記載します。
+            multiline: true
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: result
+              label: 結果
+              type: common#文章
+              base: string
+              description: 対応結果や中止理由を記載します。
+              multiline: true
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: result
+              label: 結果
+              type: common#文章
+              base: string
+              description: 対応結果や中止理由を記載します。
+              multiline: true
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: tasks
+            label: 作業項目
+            type: array
+            base: array
+            description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
+            default: []
+            item:
+              type: common#作業項目
+              base: object
+              entity: todo-task
+              entityLabel: 作業項目
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: tasks
+              label: 作業項目
+              type: array
+              base: array
+              description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
+              default: []
+              item:
+                type: common#作業項目
+                base: object
+                entity: todo-task
+                entityLabel: 作業項目
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: tasks
+              label: 作業項目
+              type: array
+              base: array
+              description: 作業を小分けにした明細です。済んでいない作業項目があるうちは完了できません。
+              default: []
+              item:
+                type: common#作業項目
+                base: object
+                entity: todo-task
+                entityLabel: 作業項目
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: comments
+            label: コメント一覧
+            type: array
+            base: array
+            description: 並び順は任意です。
+            default: []
+            item:
+              type: common#コメント
+              base: object
+              fields:
+                - key: date
+                  label: 日付
+                  type: common#年月日
+                  base: date
+                  description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                  required: true
+                  format: yyyy年M月d日
+                - key: body
+                  label: コメント本文
+                  type: text
+                  base: string
+                  required: true
+                  multiline: true
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: comments
+              label: コメント一覧
+              type: array
+              base: array
+              description: 並び順は任意です。
+              default: []
+              item:
+                type: common#コメント
+                base: object
+                fields:
+                  - key: date
+                    label: 日付
+                    type: common#年月日
+                    base: date
+                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                    required: true
+                    format: yyyy年M月d日
+                  - key: body
+                    label: コメント本文
+                    type: text
+                    base: string
+                    required: true
+                    multiline: true
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: comments
+              label: コメント一覧
+              type: array
+              base: array
+              description: 並び順は任意です。
+              default: []
+              item:
+                type: common#コメント
+                base: object
+                fields:
+                  - key: date
+                    label: 日付
+                    type: common#年月日
+                    base: date
+                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                    required: true
+                    format: yyyy年M月d日
+                  - key: body
+                    label: コメント本文
+                    type: text
+                    base: string
+                    required: true
+                    multiline: true
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: history
+            label: 状態の履歴
+            type: array
+            base: array
+            description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
+            default: []
+            item:
+              label: 状態の記録
+              type: common#状態の記録
+              base: object
+              fields:
+                - key: date
+                  label: 日付
+                  type: common#年月日
+                  base: date
+                  description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
+                  required: true
+                  auto: created
+                  format: yyyy年M月d日
+                - key: action
+                  label: 操作
+                  type: common#TODOの操作
+                  base: enum
+                  required: true
+                  values:
+                    - value: register-todo
+                      label: TODOを登録する
+                    - value: start-todo
+                      label: TODOに着手する
+                    - value: complete-todo
+                      label: TODOを完了する
+                    - value: suspend-todo
+                      label: TODOを中断する
+                    - value: resume-todo
+                      label: TODOを再開する
+                    - value: cancel-todo
+                      label: TODOを中止する
+                - key: from
+                  label: 前の状態
+                  type: common#ステータス
+                  base: enum
+                  description: 登録の行には書きません。
+                  values:
+                    - value: OPEN
+                      label: 未着手
+                    - value: IN_PROGRESS
+                      label: 対応中
+                    - value: SUSPENDED
+                      label: 中断
+                    - value: CLOSED
+                      label: 完了
+                    - value: CANCELED
+                      label: 中止
+                  stateOf: todo
+                - key: to
+                  label: 後の状態
+                  type: common#ステータス
+                  base: enum
+                  required: true
+                  values:
+                    - value: OPEN
+                      label: 未着手
+                    - value: IN_PROGRESS
+                      label: 対応中
+                    - value: SUSPENDED
+                      label: 中断
+                    - value: CLOSED
+                      label: 完了
+                    - value: CANCELED
+                      label: 中止
+                  stateOf: todo
+                - key: note
+                  label: 理由
+                  type: common#文章
+                  base: string
+                  description: 中止と中断の理由、再開のメモです。
+                  multiline: true
+                - key: resume_on
+                  label: 再開予定日
+                  type: common#年月日
+                  base: date
+                  description: 中断の行にだけ書きます。
+                  format: yyyy年M月d日
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: history
+              label: 状態の履歴
+              type: array
+              base: array
+              description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
+              default: []
+              item:
+                label: 状態の記録
+                type: common#状態の記録
+                base: object
+                fields:
+                  - key: date
+                    label: 日付
+                    type: common#年月日
+                    base: date
+                    description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
+                    required: true
+                    auto: created
+                    format: yyyy年M月d日
+                  - key: action
+                    label: 操作
+                    type: common#TODOの操作
+                    base: enum
+                    required: true
+                    values:
+                      - value: register-todo
+                        label: TODOを登録する
+                      - value: start-todo
+                        label: TODOに着手する
+                      - value: complete-todo
+                        label: TODOを完了する
+                      - value: suspend-todo
+                        label: TODOを中断する
+                      - value: resume-todo
+                        label: TODOを再開する
+                      - value: cancel-todo
+                        label: TODOを中止する
+                  - key: from
+                    label: 前の状態
+                    type: common#ステータス
+                    base: enum
+                    description: 登録の行には書きません。
+                    values:
+                      - value: OPEN
+                        label: 未着手
+                      - value: IN_PROGRESS
+                        label: 対応中
+                      - value: SUSPENDED
+                        label: 中断
+                      - value: CLOSED
+                        label: 完了
+                      - value: CANCELED
+                        label: 中止
+                    stateOf: todo
+                  - key: to
+                    label: 後の状態
+                    type: common#ステータス
+                    base: enum
+                    required: true
+                    values:
+                      - value: OPEN
+                        label: 未着手
+                      - value: IN_PROGRESS
+                        label: 対応中
+                      - value: SUSPENDED
+                        label: 中断
+                      - value: CLOSED
+                        label: 完了
+                      - value: CANCELED
+                        label: 中止
+                    stateOf: todo
+                  - key: note
+                    label: 理由
+                    type: common#文章
+                    base: string
+                    description: 中止と中断の理由、再開のメモです。
+                    multiline: true
+                  - key: resume_on
+                    label: 再開予定日
+                    type: common#年月日
+                    base: date
+                    description: 中断の行にだけ書きます。
+                    format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: history
+              label: 状態の履歴
+              type: array
+              base: array
+              description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
+              default: []
+              item:
+                label: 状態の記録
+                type: common#状態の記録
+                base: object
+                fields:
+                  - key: date
+                    label: 日付
+                    type: common#年月日
+                    base: date
+                    description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
+                    required: true
+                    auto: created
+                    format: yyyy年M月d日
+                  - key: action
+                    label: 操作
+                    type: common#TODOの操作
+                    base: enum
+                    required: true
+                    values:
+                      - value: register-todo
+                        label: TODOを登録する
+                      - value: start-todo
+                        label: TODOに着手する
+                      - value: complete-todo
+                        label: TODOを完了する
+                      - value: suspend-todo
+                        label: TODOを中断する
+                      - value: resume-todo
+                        label: TODOを再開する
+                      - value: cancel-todo
+                        label: TODOを中止する
+                  - key: from
+                    label: 前の状態
+                    type: common#ステータス
+                    base: enum
+                    description: 登録の行には書きません。
+                    values:
+                      - value: OPEN
+                        label: 未着手
+                      - value: IN_PROGRESS
+                        label: 対応中
+                      - value: SUSPENDED
+                        label: 中断
+                      - value: CLOSED
+                        label: 完了
+                      - value: CANCELED
+                        label: 中止
+                    stateOf: todo
+                  - key: to
+                    label: 後の状態
+                    type: common#ステータス
+                    base: enum
+                    required: true
+                    values:
+                      - value: OPEN
+                        label: 未着手
+                      - value: IN_PROGRESS
+                        label: 対応中
+                      - value: SUSPENDED
+                        label: 中断
+                      - value: CLOSED
+                        label: 完了
+                      - value: CANCELED
+                        label: 中止
+                    stateOf: todo
+                  - key: note
+                    label: 理由
+                    type: common#文章
+                    base: string
+                    description: 中止と中断の理由、再開のメモです。
+                    multiline: true
+                  - key: resume_on
+                    label: 再開予定日
+                    type: common#年月日
+                    base: date
+                    description: 中断の行にだけ書きます。
+                    format: yyyy年M月d日
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: id
+            label: ID
+            type: common#作業項目番号
+            base: id
+            description: 追加すると自動で振ります（例 TODO-002-S01）。
+            required: true
+            pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#作業項目番号
+              base: id
+              description: 追加すると自動で振ります（例 TODO-002-S01）。
+              required: true
+              pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: id
+              label: ID
+              type: common#作業項目番号
+              base: id
+              description: 追加すると自動で振ります（例 TODO-002-S01）。
+              required: true
+              pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: title
+            label: 作業
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: title
+              label: 作業
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: title
+              label: 作業
+              type: common#一行の文
+              base: string
+              required: true
+              maxLength: 100
+              pattern: ^[^\r\n]*$
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+  - records:
+      - id: field
+        value:
+          shape:
+            key: done
+            label: 済
+            type: boolean
+            base: boolean
+            required: true
+            default: false
+        source:
+          id: derived
+          path: []
+    decisions:
+      - target: field
+        path:
+          - shape
+        candidates:
+          - target: field
+            path:
+              - shape
+            value:
+              key: done
+              label: 済
+              type: boolean
+              base: boolean
+              required: true
+              default: false
+            priority: rule
+            source:
+              id: todo-detail
+              path: []
+        selected:
+          - target: field
+            path:
+              - shape
+            value:
+              key: done
+              label: 済
+              type: boolean
+              base: boolean
+              required: true
+              default: false
+            priority: rule
+            source:
+              id: todo-detail
+              path: []

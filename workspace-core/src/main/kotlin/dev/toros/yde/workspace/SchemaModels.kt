@@ -10,30 +10,49 @@ import dev.toros.yde.yaml.validate.Severity
  * 設計項目とスキーマの対応付けは変換定義の責務で、ここには持ち込まない。
  */
 object SchemaModels {
-    fun resolve(input: YNode): YNode {
+    fun resolve(input: YNode): YNode = BusinessModel.of(load(input), "input")
+
+    /** 文書の内容を変えず、渡された定義と文書だけで構造・参照・成立条件を検査する。 */
+    fun validate(input: YNode): YNode {
+        val root = input as? YNode.Map ?: error("\$validate: 入力は schemas と documents のマップです")
+        require(root.entries.keys.all { it in setOf("schemas", "documents") }) { "\$validate: schemas と documents 以外のキーがあります" }
+        val schemas = root.entries["schemas"] ?: error("\$validate: schemas が必要です")
+        val documents = root.entries["documents"] as? YNode.Map ?: error("\$validate: documents は文書の場所と内容のマップです")
+        val texts = documents.entries.mapValues { (path, value) ->
+            require(path.endsWith(".yaml") && path.split('/').all { it.isNotEmpty() && !it.startsWith('.') } && ':' !in path && '\\' !in path) {
+                "\$validate: 文書の場所は予約領域の外の相対 YAML パスです: $path"
+            }
+            YamlIO.dumpPlain(value)
+        }
+        load(schemas, "\$validate", texts)
+        return YamlIO.fromAny(YamlIO.toAny(documents))
+    }
+
+    internal fun load(input: YNode, operation: String = "\$schemaModel", values: Map<String, String> = emptyMap()): LoadedWorkspace {
         val documents = (input as? YNode.Seq)?.items
-            ?: error("\$schemaModel: 入力はスキーマ文書の配列です")
+            ?: error("$operation: 入力はスキーマ文書の配列です")
         val ids = mutableSetOf<String>()
         val texts = linkedMapOf(".yde/workspace.yaml" to "scopes: [{id: input, include: ['schemas/input/**']}]\n")
         documents.forEachIndexed { index, node ->
             val raw = YamlIO.toAny(node) as? Map<*, *>
-                ?: error("\$schemaModel[$index]: スキーマ文書はマップです")
+                ?: error("$operation[$index]: スキーマ文書はマップです")
             val id = (raw["id"] as? String)?.takeIf { it.isNotBlank() }
-                ?: error("\$schemaModel[$index]: 空でない文字の id が必要です")
-            require(ids.add(id)) { "\$schemaModel[$index]: スキーマ ID「$id」が重複しています" }
+                ?: error("$operation[$index]: 空でない文字の id が必要です")
+            require(ids.add(id)) { "$operation[$index]: スキーマ ID「$id」が重複しています" }
             // ID をファイル名にせず、入力の位置を使う。解決後の宣言の document もこの仮の座標になる。
             texts[".yde/schemas/input/$index.yaml"] = YamlIO.dumpPlain(node)
         }
-        val store = InMemoryDocumentStore(texts)
+        val store = InMemoryDocumentStore(texts + values)
         val loaded = WorkspaceReader.load(store, builtins = BuiltinSchemaResources.kernelSchemas(WorkspaceReader.detectLayout(store)))
         val errors = loaded.schemaErrors + loaded.parseErrors.map { (document, message) -> "${document.value}: $message" }
-        require(errors.isEmpty()) { "\$schemaModel: スキーマを解決できません\n${errors.joinToString("\n")}" }
+        require(errors.isEmpty()) { "$operation: スキーマを解決できません\n${errors.joinToString("\n")}" }
+        require(values.keys.all { path -> loaded.snapshot.documents.entries.any { it.key.value == path && it.value.schemaId != null } }) { "$operation: 文書に対応するスキーマが必要です" }
         val checks = WorkspaceCheckRunner.validateAll(loaded)
         val invalid = checks.flatMap { (document, result) ->
             result.issues.filter { it.severity == Severity.ERROR }.map { "${document.value}:${it.path}: ${it.message}" } +
                 result.withheld.map { "${document.value}: ${it.text}" }
         }
-        require(invalid.isEmpty()) { "\$schemaModel: 定義の検査に失敗しました\n${invalid.joinToString("\n")}" }
-        return BusinessModel.of(loaded, "input")
+        require(invalid.isEmpty()) { "$operation: 検査に失敗しました\n${invalid.joinToString("\n")}" }
+        return loaded
     }
 }

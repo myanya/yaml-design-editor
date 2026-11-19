@@ -299,12 +299,12 @@ tables:
       - seq: '03'
         id: COL-todo_comments.date
         name: date
-        source: FLD-common.コメント.date
+        source: FLD-todo.comments.item.date
         sqlType: SQL-common.年月日
       - seq: '04'
         id: COL-todo_comments.body
         name: body
-        source: FLD-common.コメント.body
+        source: FLD-todo.comments.item.body
         sqlType: SQL-text
     indexes: []
     foreignKeys:
@@ -347,32 +347,32 @@ tables:
       - seq: '03'
         id: COL-todo_history.date
         name: date
-        source: FLD-common.状態の記録.date
+        source: FLD-todo.history.item.date
         sqlType: SQL-common.年月日
       - seq: '04'
         id: COL-todo_history.action
         name: action
-        source: FLD-common.状態の記録.action
+        source: FLD-todo.history.item.action
         sqlType: SQL-common.TODOの操作
       - seq: '05'
         id: COL-todo_history.from_
         name: from_
-        source: FLD-common.状態の記録.from
+        source: FLD-todo.history.item.from
         sqlType: SQL-common.ステータス
       - seq: '06'
         id: COL-todo_history.to_
         name: to_
-        source: FLD-common.状態の記録.to
+        source: FLD-todo.history.item.to
         sqlType: SQL-common.ステータス
       - seq: '07'
         id: COL-todo_history.note
         name: note
-        source: FLD-common.状態の記録.note
+        source: FLD-todo.history.item.note
         sqlType: SQL-common.文章
       - seq: '08'
         id: COL-todo_history.resume_on
         name: resume_on
-        source: FLD-common.状態の記録.resume_on
+        source: FLD-todo.history.item.resume_on
         sqlType: SQL-common.年月日
     indexes: []
     foreignKeys:

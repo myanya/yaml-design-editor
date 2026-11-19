@@ -1,0 +1,47 @@
+id: basic-targets
+name: 導出項目と宣言の対応
+kind: document
+match: design/basic/derived/targets.yaml
+definitions:
+  出現:
+    type: object
+    unknownFields: error
+    fields:
+      - {key: context, type: map, value: {type: any}}
+      - {key: name, type: string}
+      - {key: entity, type: string}
+      - {key: key, type: string}
+      - {key: type, type: string}
+      - {key: base, type: basic-design-values#基底}
+      - {key: recursiveType, type: string}
+      - {key: description, type: text}
+      - {key: declarations, type: array, item: {type: basic-design-values#宣言}}
+      - {key: aspects, type: array, item: {type: any}}
+  対応:
+    type: object
+    unknownFields: error
+    fields:
+      - {key: id, label: 導出記録ID, type: id, required: true, pattern: '^DRV-\S+$'}
+      - {key: designId, label: 設計項目, type: string, required: true}
+      - {key: kind, label: 種類, type: enum, values: [entity, type, field], required: true}
+      - {key: owner, label: 所属, type: string}
+      - {key: path, label: 構造上の場所, type: array, item: {type: string}, required: true}
+      - {key: occurrences, label: 導出元の出現, type: array, item: {type: 出現}, required: true}
+      - key: descriptions
+        label: 説明の候補
+        type: array
+        required: true
+        item:
+          type: object
+          unknownFields: error
+          fields:
+            - {key: id, label: 説明の候補ID, type: id, required: true, pattern: '^DRV-DESC-\S+$'}
+            - {key: designId, label: 設計項目, type: string, required: true}
+            - {key: value, label: 説明, type: text, required: true}
+            - {key: occurrences, label: この説明の出どころ, type: array, item: {type: 出現}, required: true}
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - {key: id, type: id, required: true}
+    - {key: targets, type: array, item: {type: 対応}, required: true}

@@ -12,6 +12,7 @@ implementation:
 tests:
 - name: TypeDefinitionsTest
 - name: ObjectTypesTest
+  note: 入れ子の子の型を省いた指定を複数段で重ねても、元の型・制約・初期値を保持
 - name: FieldDeclarationTest
   note: 型の連鎖と入れ子の合成で明記した属性と原文の場所を保持
 design:

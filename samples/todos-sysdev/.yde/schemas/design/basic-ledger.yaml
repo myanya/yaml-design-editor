@@ -1,34 +1,7 @@
 id: basic-ledger
-name: 基本設計項目台帳（人が書く）
-kind: document
-description: >-
-  人が書く基本設計の原本。業務モデルから導けない基本設計の項目を、設計項目として人が決めて書く（生成物の値を置き換える補正一覧とは別）。
-  いまはエンティティ区分（マスタ・トランザクション）。区分ごとに 1 行で、意味（説明）と、その区分に入るエンティティを並べる。
-  どのエンティティもちょうど 1 つの区分に入る（入っていない・2 つに入っていれば、検査がエンティティの場所で指摘する）。
-  エンティティ定義書とテーブル設計書は、ここをたどって区分を見せる
-match: "design/basic/ledger.yaml"
+name: 区分参照
+kind: library
 definitions:
   区分参照:
     type: ref
     idPatterns: ["CLS-*"]
-root:
-  type: object
-  fields:
-    - key: entityClasses
-      label: エンティティ区分
-      type: array
-      display: table
-      item:
-        type: object
-        fields:
-          - { key: seq, label: 項番, type: string }
-          - { key: id, label: 設計項目ID, type: id, required: true, pattern: "^CLS-[a-z][a-z0-9-]*$", description: "CLS-区分の名前" }
-          - { key: name, label: 名前, type: string, required: true, description: プログラムで使う区分の名前（master・transaction） }
-          - { key: label, label: 名称, type: string, required: true }
-          - { key: description, label: 説明, type: text, description: この区分に入れるデータの見分け方 }
-          - key: entities
-            label: エンティティ
-            type: array
-            unique: true
-            item: { type: basic-entity-list#エンティティ参照 }
-            description: この区分に入るエンティティ（基本設計項目一覧の ENT-）

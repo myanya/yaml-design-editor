@@ -1,0 +1,46 @@
+id: EX-generate-schema-sources
+title: 生成の入力はスコープ内のスキーマの原文と文書の場所を保持する
+area: generation
+illustrates: [KW-generator.build, KW-generator.scope]
+files:
+  - path: .yde/workspace.yaml
+    text: |-
+      scopes:
+        - {id: business, include: ['schemas/business/**']}
+        - {id: design, include: ['schemas/design/**']}
+  - path: .yde/schemas/business/shared.yaml
+    text: |-
+      id: common
+      kind: library
+      definitions:
+        line: {type: string, maxLength: 100}
+        explicit: {type: line, maxLength: 100}
+        inherited: {type: line}
+        flag: {type: boolean, default: false}
+  - path: .yde/schemas/design/other.yaml
+    text: |-
+      id: other
+      kind: library
+      definitions: {other: {type: string}}
+  - path: .yde/transforms/sources.yaml
+    text: |-
+      id: sources
+      scope: business
+      output: design/sources.yaml
+      build: {$copy: schemas}
+expect:
+  result: ok
+  generate:
+    files:
+      - path: design/sources.yaml
+        text: |-
+          - id: common
+            document: .yde/schemas/business/shared.yaml
+            declared:
+              id: common
+              kind: library
+              definitions:
+                line: {type: string, maxLength: 100}
+                explicit: {type: line, maxLength: 100}
+                inherited: {type: line}
+                flag: {type: boolean, default: false}

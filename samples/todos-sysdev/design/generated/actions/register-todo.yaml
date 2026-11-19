@@ -24,11 +24,20 @@ inputs:
     type: common#カテゴリ参照
     base: ref
     description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    refTarget: entity
+    idPatternLayers:
+      -   - CAT-*
+    scope:
+      schemaIds:
+        - category-list
+      documentIds: []
     relation: in-category
     idPatterns:
       - CAT-*
     schemas:
       - category-list
+    targets:
+      - category
     target: category
     targetTitle: name
     targetLabel: カテゴリ
@@ -41,11 +50,20 @@ inputs:
       type: common#タグ参照
       base: ref
       description: タグ一覧の ID を 1 件。
+      refTarget: entity
+      idPatternLayers:
+        -   - TAG-*
+      scope:
+        schemaIds:
+          - tag-list
+        documentIds: []
       relation: tagged
       idPatterns:
         - TAG-*
       schemas:
         - tag-list
+      targets:
+        - tag
       target: tag
       targetTitle: name
       targetLabel: タグ
@@ -54,11 +72,20 @@ inputs:
     type: common#TODO参照
     base: ref
     description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+    refTarget: entity
+    idPatternLayers:
+      -   - TODO-*
+    scope:
+      schemaIds:
+        - todo-list
+      documentIds: []
     relation: follow-up-of
     idPatterns:
       - TODO-*
     schemas:
       - todo-list
+    targets:
+      - todo
     target: todo
     targetTitle: title
     targetLabel: TODO

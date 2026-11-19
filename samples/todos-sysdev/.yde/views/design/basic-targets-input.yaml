@@ -1,0 +1,5 @@
+id: basic-targets-input
+name: 導出項目の対応（生成の入力）
+rows: {schemaIds: [basic-targets], idPattern: DRV-targets}
+columns:
+  - {label: targets, schemaId: basic-targets, path: targets}

@@ -5,5 +5,8 @@ order: 8
 status: stable
 forms:
   - required: true
-    value: "ひな型"
-    meaning: "文書の中身。$compose で、導出・追加・変更の候補を合成できます。いまの場所は要素（each を省けば業務モデル全体）で、業務モデル全体は $of: model、いまの要素は $of: element で読めます。"
+    value: ひな型
+    meaning: >-
+      文書の中身。$compose で導出・追加・変更の候補を合成し、$schemaUses で利用箇所の指定場所を用意し、$schemaModel で型を解き、$validate
+      で組み立てた文書の構造・参照・条件を検査できます。いまの場所は要素（each を省けば業務モデル全体）で、業務モデル全体は $of: model、いまの要素は $of: element で読めます。業務モデルの schemas
+      は、読む範囲のスキーマ原文を {id, document, declared} の配列で保持します。

@@ -1,0 +1,15 @@
+id: basic-final-input
+rows:
+  schemaIds:
+    - basic-final
+  idPattern: CMP-basic-final
+columns:
+  - label: entities
+    path: entities
+    schemaId: basic-final
+  - label: types
+    path: types
+    schemaId: basic-final
+  - label: classes
+    path: classes
+    schemaId: basic-final

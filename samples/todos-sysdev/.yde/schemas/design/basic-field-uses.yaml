@@ -1,0 +1,22 @@
+id: basic-field-uses
+name: 個別補正の利用箇所
+kind: document
+match: design/basic/composed/field-uses.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - {key: id, type: id, required: true}
+    - {key: schemas, type: array, item: {type: any}, required: true}
+    - key: items
+      type: array
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - {key: id, type: id, required: true}
+          - {key: designId, type: string, required: true}
+          - {key: owner, type: string, required: true}
+          - {key: path, type: array, item: {type: string}, required: true}
+          - {key: locations, type: array, item: {type: any}, required: true}
+          - {key: blocked, type: array, item: {type: any}, required: true}

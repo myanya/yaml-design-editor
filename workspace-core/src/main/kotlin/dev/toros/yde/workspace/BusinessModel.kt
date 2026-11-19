@@ -26,6 +26,7 @@ import dev.toros.yde.yaml.model.YNode
  * - **constraints**: データの決まり（型の検査・スキーマの検査・関係レジストリ）と、操作ごとの書くと破れうる決まり（操作の `checks`。[BusinessModelRules]）
  * - **types**: 名前付きの型（スキーマの definitions。エンティティ型を持つ object は除く）。名前 `スキーマID#型の名前` と、型を解いた形
  *   （基底の種類・文字数・形・表示形式・選択肢・参照先・行の項目）
+ * - **schemas**: 読んだスキーマの原文と文書の場所。型の展開結果から宣言を逆算せず、補正後に再解決する材料として使う
  * - **views / dashboards / reach**: ビューとダッシュボードと、ダッシュボードからたどれる範囲（[BusinessModelViews]。ADR-0033）
  *
  * 値の書き方は変換のひな型と同じ（受け取った値 `$date`・今日 `{$copy: today, $of: context}`・今の値 `{$copy: パス, $of: self}`）。
@@ -101,6 +102,13 @@ object BusinessModel {
         model["lifecycles"] = catalog?.let { lifecycleTerms(schemas, it) }.orEmpty()
         model["constraints"] = rules.map { it.term }
         model["types"] = typeTerms(schemas, ctx)
+        // 型解決済みの値から原文を復元しない。スコープで選んだ、原文がある定義だけを保持する。
+        // fields / item / value / cases、操作・関係なども部分木ごと写す。組込みの型を原文として捏造しない。
+        model["schemas"] = schemas.mapNotNull { schema ->
+            raw[schema.id]?.let { declaration ->
+                linkedMapOf("id" to schema.id, "document" to schema.source.value, "declared" to YamlIO.toAny(declaration))
+            }
+        }
         @Suppress("UNCHECKED_CAST")
         model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions, model["states"] as List<Map<String, Any?>>))
         return YamlIO.fromAny(model)
@@ -233,11 +241,16 @@ object BusinessModel {
             (f.lineage + listOfNotNull(f0.typeName, f.typeName)).firstNotNullOfOrNull { ctx.stateEnums[it] }?.let { m["stateOf"] = it }
         }
         if (f.type == FieldType.REF) {
+            m["refTarget"] = f.refTarget.id
+            m["idPatternLayers"] = f.idPatternLayers
+            m["scope"] = linkedMapOf("schemaIds" to f.scope.schemaIds, "documentIds" to f.scope.documentIds)
             f.relation?.let { m["relation"] = it }
             if (f.idPatterns.isNotEmpty()) m["idPatterns"] = f.idPatterns
             if (f.scope.schemaIds.isNotEmpty()) m["schemas"] = f.scope.schemaIds
             // 参照先のエンティティ型（参照先のスキーマが定義する型）
-            f.scope.schemaIds.mapNotNull { ctx.targets[it] }.distinct().takeIf { it.isNotEmpty() }?.let { m["target"] = if (it.size == 1) it[0] else it }
+            val targets = f.scope.schemaIds.mapNotNull { ctx.targets[it] }.distinct()
+            m["targets"] = targets
+            targets.takeIf { it.isNotEmpty() }?.let { m["target"] = if (it.size == 1) it[0] else it }
             // 参照先の見出しの項目（参照の値の名前）
             f.scope.schemaIds.mapNotNull { ctx.targets[it] }.firstOrNull()?.let { t -> ctx.titles[t] }?.let { m["targetTitle"] = it }
             // 参照先の型の名前

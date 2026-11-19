@@ -1,0 +1,79 @@
+id: basic-final-gate
+name: 確定前の対応範囲の検査
+kind: document
+match: finalization-gate.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: pending
+      type: array
+      required: true
+      item:
+        type: any
+    - key: builtinPending
+      type: array
+      required: true
+      item:
+        type: any
+    - key: additions
+      type: array
+      required: true
+      item:
+        type: any
+    - key: specifications
+      type: array
+      required: true
+      item:
+        type: any
+    - key: requests
+      type: array
+      required: true
+      item:
+        type: basic-design-contract#設計項目参照
+    - key: corrections
+      type: array
+      required: true
+      item:
+        type: any
+  constraints:
+    - id: handled-pending
+      check:
+        - eq:
+            - count:
+                path: pending
+            - 0
+      level: error
+      message: 未処理の入力 pending があります。対応する生成規則へ接続してから確定してください
+    - id: handled-builtinPending
+      check:
+        - eq:
+            - count:
+                path: builtinPending
+            - 0
+      level: error
+      message: 未処理の入力 builtinPending があります。対応する生成規則へ接続してから確定してください
+    - id: handled-additions
+      check:
+        - eq:
+            - count:
+                path: additions
+            - 0
+      level: error
+      message: 未処理の入力 additions があります。対応する生成規則へ接続してから確定してください
+    - id: handled-specifications
+      check:
+        - eq:
+            - count:
+                path: specifications
+            - 0
+      level: error
+      message: 未処理の入力 specifications があります。対応する生成規則へ接続してから確定してください
+    - id: handled-corrections
+      check:
+        - eq:
+            - count:
+                path: corrections
+            - 0
+      level: error
+      message: 未処理の補正属性があります。対応する生成規則へ接続してから確定してください

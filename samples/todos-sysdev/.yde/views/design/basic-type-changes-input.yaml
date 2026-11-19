@@ -1,0 +1,5 @@
+id: basic-type-changes-input
+name: 共通型の補正候補（生成の入力）
+rows: {schemaIds: [basic-type-changes], idPattern: CMP-type-changes}
+columns:
+  - {label: items, schemaId: basic-type-changes, path: items}

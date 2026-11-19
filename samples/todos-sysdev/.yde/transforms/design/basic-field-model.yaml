@@ -1,0 +1,188 @@
+id: basic-field-model
+name: 個別補正を反映した業務モデル
+description: 共通型を補正してから、エンティティや型の項目を利用箇所で補正し、既存の型解決へ渡す。 同じ共通型を使う別の項目の制約は変えない。未接続の属性と利用箇所は pending に残す
+scope: business
+dependsOn:
+  - basic-field-changes
+output: design/basic/composed/field-model.yaml
+input:
+  $compose:
+    derived:
+      $each:
+        $view: basic-field-uses-input
+      $flatten: true
+      $build:
+        $each: values.schemas
+        $build:
+          id:
+            $copy: id
+          value:
+            $copy: .
+          source:
+            id: CMP-field-uses
+    additions: []
+    changes:
+      $each:
+        $view: basic-field-changes-input
+      $flatten: true
+      $build:
+        $each: values.items
+        $bind: item
+        $flatten: true
+        $build:
+          $when:
+            - path: blocked
+              empty: true
+          $then:
+            $each: locations
+            $bind: location
+            $flatten: true
+            $build:
+              $eachEntry: set
+              $of: item
+              $flatten: true
+              $build:
+                - $when:
+                    - path: $key
+                      oneOf:
+                        - label
+                        - description
+                        - maxLength
+                        - minLength
+                        - min
+                        - max
+                        - pattern
+                        - format
+                        - default
+                        - values
+                        - required
+                        - unique
+                        - type
+                  target:
+                    $copy: schema
+                    $of: location
+                  path:
+                    $concat:
+                      - $copy: at
+                        $of: location
+                      - - $key
+                  value:
+                    $first:
+                      - $when:
+                          - path: $key
+                            equals: type
+                        $then:
+                          $apply: type-name
+                          $with:
+                            target:
+                              $copy: .
+                      - $when:
+                          - path: $key
+                            notEquals: type
+                        $then:
+                          $copy: .
+                  priority: individual
+                  source:
+                    id:
+                      $copy: id
+                      $of: item
+build:
+  id: CMP-field-model
+  model:
+    $schemaModel:
+      $each: records
+      $build:
+        $copy: value
+  decisions:
+    $copy: decisions
+  pending:
+    $concat:
+      - $each:
+          $view: basic-field-changes-input
+        $flatten: true
+        $build:
+          $each: values.items
+          $bind: item
+          $flatten: true
+          $build:
+            $eachEntry: set
+            $flatten: true
+            $build:
+              - $when:
+                  - or:
+                      - path: locations
+                        of: item
+                        empty: true
+                      - path: blocked
+                        of: item
+                        empty: false
+                      - not:
+                          path: $key
+                          oneOf:
+                            - label
+                            - description
+                            - maxLength
+                            - minLength
+                            - min
+                            - max
+                            - pattern
+                            - format
+                            - default
+                            - values
+                            - required
+                            - unique
+                            - type
+                target:
+                  $copy: designId
+                  $of: item
+                attribute: $key
+                value:
+                  $copy: .
+                source:
+                  $copy: id
+                  $of: item
+                reason: 属性または利用箇所が未接続（継承した cases の子を含む）
+      - $each:
+          $view: basic-type-model-input
+        $flatten: true
+        $build:
+          $each: values.pending
+          $build:
+            $when:
+              - path: target
+                startsWith: TYP-
+            $then:
+              $copy: .
+  builtinPending:
+    $each:
+      $view: basic-type-model-input
+    $flatten: true
+    $build:
+      $copy: values.builtinPending
+rules:
+  - id: type-name
+    with:
+      - target
+    build:
+      $apply: type-name-result
+      $with:
+        matches:
+          $each:
+            $view: basic-targets-input
+          $flatten: true
+          $build:
+            $each: values.targets
+            $build:
+              $when:
+                - path: designId
+                  equals:
+                    $copy: .
+                    $of: target
+              $then:
+                $copy: occurrences[0].name
+  - id: type-name-result
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

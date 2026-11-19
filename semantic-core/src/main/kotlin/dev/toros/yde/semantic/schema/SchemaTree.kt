@@ -106,7 +106,8 @@ data class SchemaTree(
     private fun mergeChild(u: FieldDef, d: FieldDef): FieldDef {
         if (!u.typeGiven) {
             val use = u.copy(type = d.type, ref = d.ref, typeName = d.typeName, definitionScope = d.definitionScope)
-            return narrowOnto(use, d, typeName = d.typeName, lineage = d.lineage)
+            // 両方が型未指定なら、まだ先の継承元から型を得る。途中の合成で既定の string を明記扱いにしない。
+            return narrowOnto(use, d, typeName = d.typeName, lineage = d.lineage).copy(typeGiven = d.typeGiven)
         }
         val base = d.copy(type = u.type, ref = u.ref, typeName = u.typeName, definitionScope = u.definitionScope, lineage = emptyList())
         return narrowOnto(u, base, typeName = u.typeName, lineage = u.lineage)

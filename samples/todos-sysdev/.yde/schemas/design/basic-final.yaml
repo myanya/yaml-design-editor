@@ -1,0 +1,15 @@
+id: basic-final
+kind: document
+match: design/basic/composed/final.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: entities
+      type: any
+    - key: types
+      type: any
+    - key: classes
+      type: any

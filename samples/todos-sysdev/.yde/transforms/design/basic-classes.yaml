@@ -1,0 +1,12 @@
+id: basic-classes
+name: 確定した区分一覧
+scope: business
+dependsOn:
+  - basic-final
+output: design/basic/classes.yaml
+input:
+  $view: basic-final-input
+  $one: true
+build:
+  classes:
+    $copy: values.classes

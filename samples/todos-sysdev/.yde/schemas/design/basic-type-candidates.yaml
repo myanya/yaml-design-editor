@@ -1,0 +1,11 @@
+id: basic-type-candidates
+kind: document
+match: design/basic/composed/type-candidates.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: types
+      type: any

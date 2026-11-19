@@ -1,78 +1,435 @@
-# 生成物（basic-types）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/basic-types.yaml）を直して作り直します（CLI generate）。
+# 生成物（basic-types）: 手で直さず、業務モデルか生成の定義（design/basic-types.yaml）を直して作り直します（CLI generate）。
 types:
-  - seq: '01'
-    id: TYP-common.TODO番号
+  - id: TYP-common.TODO番号
     name: common#TODO番号
-    base: id
-    pattern: ^TODO-[0-9]{3,}$
-    description: 「TODO-」と 3 桁以上の数字。一覧と個票で同じ番号を使い、個票のファイル名にもなります。
+    seq: '01'
     source: common#TODO番号
-  - seq: '02'
-    id: TYP-common.カテゴリ番号
+    description: 「TODO-」と 3 桁以上の数字。一覧と個票で同じ番号を使い、個票のファイル名にもなります。
+    base: id
+    required: false
+    pattern: ^TODO-[0-9]{3,}$
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: present
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#TODO番号
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - TODO番号
+        value:
+          type: id
+          pattern: ^TODO-[0-9]{3,}$
+          placeholder: TODO-001
+          sample: TODO-001
+          description: 「TODO-」と 3 桁以上の数字。一覧と個票で同じ番号を使い、個票のファイル名にもなります。
+  - id: TYP-common.カテゴリ番号
     name: common#カテゴリ番号
-    base: id
-    pattern: ^CAT-[0-9]{3,}$
-    description: 「CAT-」と 3 桁以上の数字。
+    seq: '02'
     source: common#カテゴリ番号
-  - seq: '03'
-    id: TYP-common.タグ番号
+    description: 「CAT-」と 3 桁以上の数字。
+    base: id
+    required: false
+    pattern: ^CAT-[0-9]{3,}$
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: present
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#カテゴリ番号
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - カテゴリ番号
+        value:
+          type: id
+          pattern: ^CAT-[0-9]{3,}$
+          placeholder: CAT-001
+          sample: CAT-001
+          description: 「CAT-」と 3 桁以上の数字。
+  - id: TYP-common.タグ番号
     name: common#タグ番号
-    base: id
-    pattern: ^TAG-[0-9]{3,}$
-    description: 「TAG-」と 3 桁以上の数字。
+    seq: '03'
     source: common#タグ番号
-  - seq: '04'
-    id: TYP-common.作業項目番号
-    name: common#作業項目番号
+    description: 「TAG-」と 3 桁以上の数字。
     base: id
-    pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
-    description: TODO の番号・「-S」・2 桁以上の数字。追加すると、その TODO の中の続き番号を自動で振ります。
+    required: false
+    pattern: ^TAG-[0-9]{3,}$
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: present
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#タグ番号
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - タグ番号
+        value:
+          type: id
+          pattern: ^TAG-[0-9]{3,}$
+          placeholder: TAG-001
+          sample: TAG-001
+          description: 「TAG-」と 3 桁以上の数字。
+  - id: TYP-common.作業項目番号
+    name: common#作業項目番号
+    seq: '04'
     source: common#作業項目番号
-  - seq: '05'
-    id: TYP-common.カテゴリ参照
+    description: TODO の番号・「-S」・2 桁以上の数字。追加すると、その TODO の中の続き番号を自動で振ります。
+    base: id
+    required: false
+    pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: present
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#作業項目番号
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 作業項目番号
+        value:
+          type: id
+          pattern: ^TODO-[0-9]{3,}-S[0-9]{2,}$
+          placeholder: TODO-001-S01
+          sample: TODO-001-S01
+          description: TODO の番号・「-S」・2 桁以上の数字。追加すると、その TODO の中の続き番号を自動で振ります。
+  - id: TYP-common.カテゴリ参照
     name: common#カテゴリ参照
-    base: ref
-    target: ENT-category
-    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    seq: '05'
     source: common#カテゴリ参照
-  - seq: '06'
-    id: TYP-common.タグ参照
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    base: ref
+    required: false
+    reference:
+      target: entity
+      relation: in-category
+      idPatternLayers:
+        -   - CAT-*
+      scope:
+        schemaIds:
+          - category-list
+        documentIds: []
+      entities:
+        - ENT-category
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#カテゴリ参照
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - カテゴリ参照
+        value:
+          type: ref
+          idPattern: CAT-*
+          relation: in-category
+          scope:
+            schemaIds:
+              - category-list
+          description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+  - id: TYP-common.タグ参照
     name: common#タグ参照
-    base: ref
-    target: ENT-tag
-    description: タグ一覧の ID を 1 件。
+    seq: '06'
     source: common#タグ参照
-  - seq: '07'
-    id: TYP-common.TODO参照
-    name: common#TODO参照
+    description: タグ一覧の ID を 1 件。
     base: ref
-    target: ENT-todo
-    description: 元のTODOの番号を 1 件。
+    required: false
+    reference:
+      target: entity
+      relation: tagged
+      idPatternLayers:
+        -   - TAG-*
+      scope:
+        schemaIds:
+          - tag-list
+        documentIds: []
+      entities:
+        - ENT-tag
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#タグ参照
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - タグ参照
+        value:
+          type: ref
+          idPattern: TAG-*
+          relation: tagged
+          scope:
+            schemaIds:
+              - tag-list
+          description: タグ一覧の ID を 1 件。
+  - id: TYP-common.TODO参照
+    name: common#TODO参照
+    seq: '07'
     source: common#TODO参照
-  - seq: '08'
-    id: TYP-common.年月日
+    description: 元のTODOの番号を 1 件。
+    base: ref
+    required: false
+    reference:
+      target: entity
+      relation: follow-up-of
+      idPatternLayers:
+        -   - TODO-*
+      scope:
+        schemaIds:
+          - todo-list
+        documentIds: []
+      entities:
+        - ENT-todo
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#TODO参照
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - TODO参照
+        value:
+          type: ref
+          idPattern: TODO-*
+          relation: follow-up-of
+          scope:
+            schemaIds:
+              - todo-list
+          description: 元のTODOの番号を 1 件。
+  - id: TYP-common.年月日
     name: common#年月日
-    base: date
-    format: yyyy年M月d日
-    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    seq: '08'
     source: common#年月日
-  - seq: '09'
-    id: TYP-common.一行の文
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    base: date
+    required: false
+    format: yyyy年M月d日
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: unconstrained
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: present
+    origins:
+      - kind: derived
+        source: common#年月日
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 年月日
+        value:
+          type: date
+          format: yyyy年M月d日
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+  - id: TYP-common.一行の文
     name: common#一行の文
+    seq: '09'
+    source: common#一行の文
     base: string
+    required: false
     maxLength: 100
     pattern: ^[^\r\n]*$
-    source: common#一行の文
-  - seq: '10'
-    id: TYP-common.文章
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: unconstrained
+      maxLength: present
+      pattern: present
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: unconstrained
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#一行の文
+      - kind: inherited
+        source: builtin-types
+        path:
+          - definitions
+          - line
+        value:
+          type: string
+          pattern: ^[^\r\n]*$
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 一行の文
+        value:
+          type: line
+          maxLength: 100
+          placeholder: 1 行で簡潔に
+  - id: TYP-common.文章
     name: common#文章
-    base: string
-    multiline: true
+    seq: '10'
     source: common#文章
-  - seq: '11'
-    id: TYP-common.ステータス
+    base: string
+    required: false
+    multiline: true
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: unconstrained
+      maxLength: unconstrained
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: present
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#文章
+      - kind: inherited
+        source: builtin-types
+        path:
+          - definitions
+          - text
+        value:
+          type: string
+          display: multiline
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 文章
+        value:
+          type: text
+          rows: 4
+  - id: TYP-common.ステータス
     name: common#ステータス
+    seq: '11'
+    source: common#ステータス
     base: enum
+    required: false
     values:
       - value: OPEN
         label: 未着手
@@ -84,11 +441,49 @@ types:
         label: 完了
       - value: CANCELED
         label: 中止
-    source: common#ステータス
-  - seq: '12'
-    id: TYP-common.TODOの操作
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: not-applicable
+      min: not-applicable
+      max: not-applicable
+      values: present
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#ステータス
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - ステータス
+        value:
+          type: enum
+          values:
+            - value: OPEN
+              label: 未着手
+            - value: IN_PROGRESS
+              label: 対応中
+            - value: SUSPENDED
+              label: 中断
+            - value: CLOSED
+              label: 完了
+            - value: CANCELED
+              label: 中止
+  - id: TYP-common.TODOの操作
     name: common#TODOの操作
+    seq: '12'
+    source: common#TODOの操作
     base: enum
+    required: false
     values:
       - value: register-todo
         label: TODOを登録する
@@ -102,92 +497,689 @@ types:
         label: TODOを再開する
       - value: cancel-todo
         label: TODOを中止する
-    source: common#TODOの操作
-  - seq: '13'
-    id: TYP-common.コメント
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: not-applicable
+      min: not-applicable
+      max: not-applicable
+      values: present
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#TODOの操作
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - TODOの操作
+        value:
+          type: enum
+          values:
+            - value: register-todo
+              label: TODOを登録する
+            - value: start-todo
+              label: TODOに着手する
+            - value: complete-todo
+              label: TODOを完了する
+            - value: suspend-todo
+              label: TODOを中断する
+            - value: resume-todo
+              label: TODOを再開する
+            - value: cancel-todo
+              label: TODOを中止する
+  - id: TYP-common.コメント
     name: common#コメント
+    seq: '13'
+    source: common#コメント
     base: object
+    required: false
     fields:
-      - seq: '01'
-        id: FLD-common.コメント.date
+      - id: FLD-common.コメント.date
         key: date
+        seq: '01'
+        owner: TYP-common.コメント
+        path:
+          - fields
+          - date
         label: 日付
-        type: TYP-common.年月日
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         base: date
         required: true
-        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      - seq: '02'
-        id: FLD-common.コメント.body
+        format: yyyy年M月d日
+        type: TYP-common.年月日
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: unconstrained
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+        origins:
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 年月日
+            value:
+              type: date
+              format: yyyy年M月d日
+              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - コメント
+              - fields
+              - 0
+            value:
+              key: date
+              label: 日付
+              type: 年月日
+              required: true
+      - id: FLD-common.コメント.body
         key: body
+        seq: '02'
+        owner: TYP-common.コメント
+        path:
+          - fields
+          - body
         label: コメント本文
-        type: TYP-text
         base: string
         required: true
-    source: common#コメント
-  - seq: '14'
-    id: TYP-common.状態の記録
+        multiline: true
+        type: TYP-text
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: unconstrained
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: present
+          format: not-applicable
+        origins:
+          - kind: inherited
+            source: builtin-types
+            path:
+              - definitions
+              - text
+            value:
+              type: string
+              display: multiline
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - コメント
+              - fields
+              - 1
+            value:
+              key: body
+              label: コメント本文
+              type: text
+              required: true
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: not-applicable
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#コメント
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - コメント
+        value:
+          type: object
+  - id: TYP-common.状態の記録
     name: common#状態の記録
+    seq: '14'
+    source: common#状態の記録
+    label: 状態の記録
     base: object
+    required: false
     fields:
-      - seq: '01'
-        id: FLD-common.状態の記録.date
+      - id: FLD-common.状態の記録.date
         key: date
+        seq: '01'
+        owner: TYP-common.状態の記録
+        path:
+          - fields
+          - date
         label: 日付
-        type: TYP-common.年月日
+        description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
         base: date
         required: true
         auto: created
-        description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
-      - seq: '02'
-        id: FLD-common.状態の記録.action
-        key: action
-        label: 操作
-        type: TYP-common.TODOの操作
-        base: enum
-        required: true
-      - seq: '03'
-        id: FLD-common.状態の記録.from
-        key: from
-        label: 前の状態
-        type: TYP-common.ステータス
-        base: enum
-        description: 登録の行には書きません。
-      - seq: '04'
-        id: FLD-common.状態の記録.to
-        key: to
-        label: 後の状態
-        type: TYP-common.ステータス
-        base: enum
-        required: true
-      - seq: '05'
-        id: FLD-common.状態の記録.note
-        key: note
-        label: 理由
-        type: TYP-common.文章
-        base: string
-        description: 中止と中断の理由、再開のメモです。
-      - seq: '06'
-        id: FLD-common.状態の記録.resume_on
-        key: resume_on
-        label: 再開予定日
+        format: yyyy年M月d日
         type: TYP-common.年月日
-        base: date
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: present
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+        origins:
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 年月日
+            value:
+              type: date
+              format: yyyy年M月d日
+              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 状態の記録
+              - fields
+              - 0
+            value:
+              key: date
+              label: 日付
+              type: 年月日
+              required: true
+              auto: created
+              description: 完了・中断・再開は入力した日付、登録・着手・中止は適用した日です。
+      - id: FLD-common.状態の記録.action
+        key: action
+        seq: '02'
+        owner: TYP-common.状態の記録
+        path:
+          - fields
+          - action
+        label: 操作
+        base: enum
+        required: true
+        values:
+          - value: register-todo
+            label: TODOを登録する
+          - value: start-todo
+            label: TODOに着手する
+          - value: complete-todo
+            label: TODOを完了する
+          - value: suspend-todo
+            label: TODOを中断する
+          - value: resume-todo
+            label: TODOを再開する
+          - value: cancel-todo
+            label: TODOを中止する
+        type: TYP-common.TODOの操作
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: present
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+        origins:
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - TODOの操作
+            value:
+              type: enum
+              values:
+                - value: register-todo
+                  label: TODOを登録する
+                - value: start-todo
+                  label: TODOに着手する
+                - value: complete-todo
+                  label: TODOを完了する
+                - value: suspend-todo
+                  label: TODOを中断する
+                - value: resume-todo
+                  label: TODOを再開する
+                - value: cancel-todo
+                  label: TODOを中止する
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 状態の記録
+              - fields
+              - 1
+            value:
+              key: action
+              label: 操作
+              type: TODOの操作
+              required: true
+      - id: FLD-common.状態の記録.from
+        key: from
+        seq: '03'
+        owner: TYP-common.状態の記録
+        path:
+          - fields
+          - from
+        label: 前の状態
+        description: 登録の行には書きません。
+        base: enum
+        required: false
+        values:
+          - value: OPEN
+            label: 未着手
+          - value: IN_PROGRESS
+            label: 対応中
+          - value: SUSPENDED
+            label: 中断
+          - value: CLOSED
+            label: 完了
+          - value: CANCELED
+            label: 中止
+        type: TYP-common.ステータス
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: present
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+        origins:
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - ステータス
+            value:
+              type: enum
+              values:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+                - value: CLOSED
+                  label: 完了
+                - value: CANCELED
+                  label: 中止
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 状態の記録
+              - fields
+              - 2
+            value:
+              key: from
+              label: 前の状態
+              type: ステータス
+              description: 登録の行には書きません。
+      - id: FLD-common.状態の記録.to
+        key: to
+        seq: '04'
+        owner: TYP-common.状態の記録
+        path:
+          - fields
+          - to
+        label: 後の状態
+        base: enum
+        required: true
+        values:
+          - value: OPEN
+            label: 未着手
+          - value: IN_PROGRESS
+            label: 対応中
+          - value: SUSPENDED
+            label: 中断
+          - value: CLOSED
+            label: 完了
+          - value: CANCELED
+            label: 中止
+        type: TYP-common.ステータス
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: not-applicable
+          max: not-applicable
+          values: present
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+        origins:
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - ステータス
+            value:
+              type: enum
+              values:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+                - value: CLOSED
+                  label: 完了
+                - value: CANCELED
+                  label: 中止
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 状態の記録
+              - fields
+              - 3
+            value:
+              key: to
+              label: 後の状態
+              type: ステータス
+              required: true
+      - id: FLD-common.状態の記録.note
+        key: note
+        seq: '05'
+        owner: TYP-common.状態の記録
+        path:
+          - fields
+          - note
+        label: 理由
+        description: 中止と中断の理由、再開のメモです。
+        base: string
+        required: false
+        multiline: true
+        type: TYP-common.文章
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: not-applicable
+          minLength: unconstrained
+          maxLength: unconstrained
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: present
+          format: not-applicable
+        origins:
+          - kind: inherited
+            source: builtin-types
+            path:
+              - definitions
+              - text
+            value:
+              type: string
+              display: multiline
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 文章
+            value:
+              type: text
+              rows: 4
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 状態の記録
+              - fields
+              - 4
+            value:
+              key: note
+              label: 理由
+              type: 文章
+              description: 中止と中断の理由、再開のメモです。
+      - id: FLD-common.状態の記録.resume_on
+        key: resume_on
+        seq: '06'
+        owner: TYP-common.状態の記録
+        path:
+          - fields
+          - resume_on
+        label: 再開予定日
         description: 中断の行にだけ書きます。
-    source: common#状態の記録
-  - seq: '15'
-    id: TYP-todo-operations.操作の記録
+        base: date
+        required: false
+        format: yyyy年M月d日
+        type: TYP-common.年月日
+        attributeStates:
+          type: present
+          base: present
+          required: present
+          default: unconstrained
+          auto: unconstrained
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: unconstrained
+          min: not-applicable
+          max: not-applicable
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: present
+        origins:
+          - kind: inherited
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 年月日
+            value:
+              type: date
+              format: yyyy年M月d日
+              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          - kind: derived
+            source: common
+            document: .yde/schemas/business/common.yaml
+            path:
+              - definitions
+              - 状態の記録
+              - fields
+              - 5
+            value:
+              key: resume_on
+              label: 再開予定日
+              type: 年月日
+              description: 中断の行にだけ書きます。
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: not-applicable
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: common#状態の記録
+      - kind: derived
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 状態の記録
+        value:
+          type: object
+          label: 状態の記録
+  - id: TYP-todo-operations.操作の記録
     name: todo-operations#操作の記録
+    seq: '15'
+    source: todo-operations#操作の記録
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
     base: string
+    required: false
     minLength: 1
     multiline: true
-    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-    source: todo-operations#操作の記録
-  - seq: '16'
-    id: TYP-text
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: present
+      maxLength: unconstrained
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: present
+      format: not-applicable
+    origins:
+      - kind: derived
+        source: todo-operations#操作の記録
+      - kind: inherited
+        source: builtin-types
+        path:
+          - definitions
+          - text
+        value:
+          type: string
+          display: multiline
+      - kind: inherited
+        source: common
+        document: .yde/schemas/business/common.yaml
+        path:
+          - definitions
+          - 文章
+        value:
+          type: text
+          rows: 4
+      - kind: derived
+        source: todo-operations
+        document: .yde/schemas/business/operations.yaml
+        path:
+          - definitions
+          - 操作の記録
+        value:
+          type: common#文章
+          minLength: 1
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+  - id: TYP-text
     name: text
+    seq: '16'
     base: string
+    required: false
     multiline: true
-  - seq: '17'
-    id: TYP-boolean
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: unconstrained
+      maxLength: unconstrained
+      pattern: unconstrained
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: present
+      format: not-applicable
+    origins: []
+  - id: TYP-boolean
     name: boolean
+    seq: '17'
     base: boolean
+    required: false
+    attributeStates:
+      type: not-applicable
+      base: present
+      required: present
+      default: unconstrained
+      auto: not-applicable
+      minLength: not-applicable
+      maxLength: not-applicable
+      pattern: not-applicable
+      min: not-applicable
+      max: not-applicable
+      values: not-applicable
+      unique: not-applicable
+      multiline: not-applicable
+      format: not-applicable
+    origins: []

@@ -55,10 +55,12 @@ object SemanticTransform {
         loop: Map<String, Any?> = emptyMap(),
         /** 組み立てたスキーマからモデルを作る供給元（生成が渡す）。未提供の入口では使用を拒否する。 */
         schemaModel: ((YNode) -> YNode)? = null,
+        schemaUses: ((YNode) -> YNode)? = null,
+        validate: ((YNode) -> YNode)? = null,
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です（from.match）。索引を渡して実行してください" }
         loop.keys.firstOrNull { it !in TransformDef.LOOP_NAMES }?.let { error("変換「${def.id}」: 繰り返しの名前ではありません: $it") }
-        return runAt(def, TemplatePlace(input, document, emptyList()), params, views, loop, schemaModel = schemaModel)
+        return runAt(def, TemplatePlace(input, document, emptyList()), params, views, loop, schemaModel = schemaModel, schemaUses = schemaUses, validate = validate)
     }
 
     /** 合成した入力の来歴を保つ入口。図の入力なども同じ Construct と規則を使う。 */
@@ -68,11 +70,13 @@ object SemanticTransform {
         /** 名前の付いた場所（定義の places に宣言した名前。`$of: 名前` で読む）。 */
         places: Map<String, TemplatePlace> = emptyMap(),
         schemaModel: ((YNode) -> YNode)? = null,
+        schemaUses: ((YNode) -> YNode)? = null,
+        validate: ((YNode) -> YNode)? = null,
     ): TransformResult {
         require(def.from == null) { "変換「${def.id}」はクエリで入力を選ぶ定義です" }
         require(loop.keys.all { it in TransformDef.LOOP_NAMES }) { "繰り返しの名前ではない入力があります" }
         def.places.firstOrNull { it !in places }?.let { error("変換「${def.id}」: 場所「$it」が渡されていません") }
-        val run = Run(def, params, bindings = places.mapValues { (_, place) -> { _: DerivationSelector? -> place } }, views = views, schemaModel = schemaModel)
+        val run = Run(def, params, bindings = places.mapValues { (_, place) -> { _: DerivationSelector? -> place } }, views = views, schemaModel = schemaModel, schemaUses = schemaUses, validate = validate)
         return TransformResult(run.build(def.build, input, emptyList(), loop), run.origins)
     }
 
@@ -185,6 +189,8 @@ object SemanticTransform {
         /** ビューの行（`$view`）の供給元（レポート以外は無い）。 */
         val views: (String) -> YNode? = { null },
         val schemaModel: ((YNode) -> YNode)? = null,
+        val schemaUses: ((YNode) -> YNode)? = null,
+        val validate: ((YNode) -> YNode)? = null,
     ) {
         val origins = mutableListOf<TransformOrigin>()
 
@@ -341,12 +347,20 @@ object SemanticTransform {
                 TermCompositionFormat.compose(input, "変換「${def.id}」の \$compose（${out.pretty()}）")
             }
             is Template.SchemaModel -> {
-                val resolver = requireNotNull(schemaModel) { "変換「${def.id}」: この入口では \$schemaModel を使えません（生成の input・build で使います）" }
+                val name = if (t.uses) "\$schemaUses" else "\$schemaModel"
+                val resolver = requireNotNull(if (t.uses) schemaUses else schemaModel) { "変換「${def.id}」: この入口では $name を使えません（生成の input・build で使います）" }
                 val recordedBefore = origins.size
-                val input = requireNotNull(build(t.input, here, out, loop)) { "変換「${def.id}」: \$schemaModel の入力がありません" }
+                val input = requireNotNull(build(t.input, here, out, loop)) { "変換「${def.id}」: $name の入力がありません" }
                 // 型を解いた後の場所は、組み立て前の配列番号とは異なる。宣言の来歴はモデル側に保持する。
                 while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
                 resolver(input)
+            }
+            is Template.Validate -> {
+                val checker = requireNotNull(validate) { "変換「${def.id}」: この入口では \$validate を使えません（生成の input・build で使います）" }
+                val recordedBefore = origins.size
+                val input = requireNotNull(build(t.input, here, out, loop)) { "変換「${def.id}」: \$validate の入力がありません" }
+                while (origins.size > recordedBefore) origins.removeAt(origins.size - 1)
+                checker(input)
             }
             is Template.Guarded -> if (t.conditions.all { holds(it, here, loop) }) build(t.inner, here, out, loop) else null
         }
@@ -407,22 +421,15 @@ object SemanticTransform {
                 val items = mutableListOf<YNode>()
                 node.items.indices.forEach { i ->
                     // `$index` は 0 始まり・`$position` は 1 始まり（明細番号のような「何番目か」に）
-                    val base = items.size
-                    val recordedBefore = origins.size
-                    val built = boundBody(t, found.at(listOf(i))!!, out + base, loop + ("index" to i) + ("position" to i + 1))
-                    when {
-                        built == null -> Unit
-                        !t.flatten -> items += built
-                        built is YNode.Seq -> {
-                            relocateOrigins(recordedBefore, out + base, out, base, built.items.size)
-                            items += built.items
-                        }
-                        else -> error("変換「${def.id}」: \$flatten: true の中身は配列になるひな型で書きます（${out.pretty()}）")
-                    }
+                    appendEach(t, found.at(listOf(i))!!, out, loop + ("index" to i) + ("position" to i + 1), items)
                 }
                 YNode.Seq(items)
             }
-            is YNode.Map -> if (!t.entries) null else {
+            is YNode.Map -> if (!t.entries) null else if (t.flatten) {
+                val items = mutableListOf<YNode>()
+                for (key in node.entries.keys) appendEach(t, found.at(listOf(key))!!, out, loop + ("key" to key), items)
+                YNode.Seq(items)
+            } else {
                 val entries = LinkedHashMap<String, YNode>()
                 for (key in node.entries.keys) {
                     boundBody(t, found.at(listOf(key))!!, out + key, loop + ("key" to key))?.let { entries[key] = it }
@@ -431,6 +438,22 @@ object SemanticTransform {
             }
             // 配列でもマップでもない値の上では、繰り返せない（無いものとして扱う）
             is YNode.Scalar -> null
+        }
+
+        /** 各要素から作った値を並べる。配列とマップの平坦化で、空の結果と来歴の移動を共用する。 */
+        private fun appendEach(t: Template.Each, found: TemplatePlace, out: YPath, loop: Map<String, Any?>, items: MutableList<YNode>) {
+            val base = items.size
+            val recordedBefore = origins.size
+            val built = boundBody(t, found, out + base, loop)
+            when {
+                built == null -> Unit
+                !t.flatten -> items += built
+                built is YNode.Seq -> {
+                    relocateOrigins(recordedBefore, out + base, out, base, built.items.size)
+                    items += built.items
+                }
+                else -> error("変換「${def.id}」: \$flatten: true の中身は配列になるひな型で書きます（${out.pretty()}）")
+            }
         }
 
         /**

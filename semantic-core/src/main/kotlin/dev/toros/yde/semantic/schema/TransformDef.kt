@@ -106,7 +106,8 @@ sealed interface Template {
     data class ViewRows(val view: String, val conditions: List<TemplateCondition> = emptyList(), val one: Boolean = false) : Template
 
     /**
-     * 繰り返し。entries = true はマップの項目ごと（出力もマップ）・false は配列の要素ごと（出力も配列）。
+     * 繰り返し。entries = true はマップの項目ごと（既定の出力もマップ）・false は配列の要素ごと。
+     * flatten = true はどちらも、各項目から作った配列を連結して一つの配列にする。
      * rows があれば、場所の代わりにビューの行（`{$each: {$view: …}}`。レポート）を 1 行ずつ「いまの場所」にする。
      */
     data class Each(
@@ -142,7 +143,10 @@ sealed interface Template {
     data class Compose(val input: Template) : Template
 
     /** 組み立てたスキーマ文書の並びを、呼び出し側の共通の型解決へ渡す。 */
-    data class SchemaModel(val input: Template) : Template
+    data class SchemaModel(val input: Template, val uses: Boolean = false) : Template
+
+    /** 組み立てた文書一式を既存の構造・参照・成立条件の検査へ渡す。 */
+    data class Validate(val input: Template) : Template
 
     /** 条件に合うときだけ出す。 */
     data class Guarded(val conditions: List<TemplateCondition>, val inner: Template) : Template
@@ -233,7 +237,9 @@ data class TransformDef(
         private const val ENTRIES = "\$entries"
         private const val COMPOSE = "\$compose"
         private const val SCHEMA_MODEL = "\$schemaModel"
-        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES, COMPOSE, SCHEMA_MODEL)
+        private const val SCHEMA_USES = "\$schemaUses"
+        private const val VALIDATE = "\$validate"
+        private val PRIMARY = listOf(COPY, FORMAT, MAP, FIRST, EACH, EACH_ENTRY, ZIP, GROUP, APPLY, CONCAT, THEN, DATE, NUMBER, TRIM, CASE, VALUE, VIEW, ENTRIES, COMPOSE, SCHEMA_MODEL, SCHEMA_USES, VALIDATE)
         private val DIRECTIVE_KEYS = PRIMARY + listOf(OF, IN, USING, BUILD, AT, WHEN, AS, WITH, WHERE, ONE, BIND, FLATTEN, BY)
 
         /** `$as`（日付の出力の形）に書ける文字: 年 y・月 M・日 d と区切り。 */
@@ -389,6 +395,8 @@ data class TransformDef(
                     ENTRIES -> { allow(); Template.EntriesOf(parseTemplate(m[ENTRIES], "$where.$ENTRIES")) }
                     COMPOSE -> { allow(); Template.Compose(parseTemplate(m[COMPOSE], "$where.$COMPOSE")) }
                     SCHEMA_MODEL -> { allow(); Template.SchemaModel(parseTemplate(m[SCHEMA_MODEL], "$where.$SCHEMA_MODEL")) }
+                    SCHEMA_USES -> { allow(); Template.SchemaModel(parseTemplate(m[SCHEMA_USES], "$where.$SCHEMA_USES"), uses = true) }
+                    VALIDATE -> { allow(); Template.Validate(parseTemplate(m[VALIDATE], "$where.$VALIDATE")) }
                     CASE -> {
                         allow(AS)
                         val style = m[AS]?.toString()?.takeIf { it in NameCase.STYLES }
@@ -423,7 +431,7 @@ data class TransformDef(
                     EACH, EACH_ENTRY, ZIP -> {
                         when (main) {
                             EACH -> allow(OF, IN, BUILD, APPLY, WITH, BIND, FLATTEN)
-                            EACH_ENTRY -> allow(OF, IN, BUILD, APPLY, WITH, BIND)
+                            EACH_ENTRY -> allow(OF, IN, BUILD, APPLY, WITH, BIND, FLATTEN)
                             else -> allow(OF, IN, BUILD, APPLY, WITH)
                         }
                         val bind = if (m.containsKey(BIND)) {
@@ -612,6 +620,7 @@ data class TransformDef(
                 is Template.EntriesOf -> walk(t.input)
                 is Template.Compose -> walk(t.input)
                 is Template.SchemaModel -> walk(t.input)
+                is Template.Validate -> walk(t.input)
                 is Template.Guarded -> { t.conditions.forEach(::condition); walk(t.inner) }
             }
         }

@@ -64,6 +64,7 @@
 - `$ref` は同じ意味の別記法。入れ物（object / array / map）の定義も `type: 名前` で使える（オブジェクト型）。
 - **オブジェクト型**（第三弾）: object（名前付きでも、その場でも）の同一性は `FieldDef.entity`（`{type, defines, aspect, owns}`。名前付きの型で `type` を省くと定義名）。走査・エンティティの整合・全体像の合成は、要素の解決した object の `entity` を文書スキーマの `entity:`（ID の形）より優先する。
 - 入れ物の型を使う側の `fields` / `item` / `value` は `SchemaTree.mergeFields` / `mergeChild` が合成する: 定義に無いキーは末尾に足し、定義にあるキーは同じ項目を狭める（型を省いた書き直しは定義の型のまま。`FieldDef.typeGiven` で見分ける）。点検は `SchemaDefinitionChecks.checkContainerNarrowing`。
+- 型を省いた子同士を先に合成しても、型は未指定のまま保持する。複数段の入れ子を解く途中で既定の `string` を明記した型に変えると、先の継承元の型・制約・初期値が失われる。
 - 型の検査は `FieldDef.checks`（`ElementRule`。使う側の検査を足す）。評価は [checks.md「文書 1 つの検証」](checks.md)。
 - **連鎖**: 解決した項目は `lineage`（通った定義の修飾名。使う側に書いた名前が先頭）を持ち、`type` は末端の基底の種類。使う側は `isA(BuiltinTypes.TEXT)` のように連鎖で判定し、`FieldType` に分岐を増やさない。
 - **循環**: 定義自身の `ref` を辿って戻る循環は定義の点検（`SchemaTree.typeChainCycle`）が誤りにする。object の再帰は `fields` / `item` / `value` を通るので循環にならない。

@@ -1,0 +1,5 @@
+id: basic-description-corrections-input
+name: 説明の補正（生成の入力）
+rows: {schemaIds: [basic-corrections], idPattern: 'COR-*'}
+columns:
+  - {label: correction, schemaId: basic-corrections, path: .}

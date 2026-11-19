@@ -1,0 +1,832 @@
+id: basic-entity-candidates
+name: basic-entity-candidates
+scope: business
+dependsOn:
+  - basic-field-model
+output: design/basic/composed/entity-candidates.yaml
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: basic-field-model-input
+      $one: true
+build:
+  id: CMP-basic-entity-candidates
+  entities:
+    $each: entities
+    $bind: ent
+    $build:
+      id:
+        $format: ENT-{id}
+      label:
+        $copy: label
+      description:
+        $copy: description
+      source:
+        $copy: id
+      parent:
+        $when:
+          - path: owner.entity
+            exists: true
+        $then:
+          $format: ENT-{owner.entity}
+      parentField:
+        $when:
+          - path: owner.entity
+            exists: true
+        $then:
+          $format: FLD-{owner.entity}.{owner.field}
+      numbering:
+        $when:
+          - path: numbering
+            exists: true
+        $then:
+          item:
+            $format: FLD-{id}.{numbering.path}
+          path:
+            $copy: numbering.path
+          prefix:
+            $copy: numbering.prefix
+          digits:
+            $copy: numbering.digits
+          description:
+            $first:
+              - $when:
+                  - path: numbering.prefix.$of
+                    equals: owner
+                $then:
+                  $format: 親の ID に「{s}」と {numbering.digits} 桁の番号を続ける（使われている番号の次）
+                  $with:
+                    s:
+                      $value:
+                        extract:
+                          - path: numbering.prefix.$format
+                          - \}(.*)$
+              - $format: 「{numbering.prefix}」に {numbering.digits} 桁の番号を続ける（使われている番号の次）
+      documents:
+        $each: aspects
+        $build:
+          $copy: schema
+      items:
+        $group:
+          $apply: fields
+        $by:
+          $copy: field.key
+        $build:
+          $apply: field
+          $at: items[0].field
+          $with:
+            owner:
+              $format: ENT-{e}
+              $with:
+                e:
+                  $copy: id
+                  $of: ent
+            prefix:
+              $format: FLD-{e}
+              $with:
+                e:
+                  $copy: id
+                  $of: ent
+            path: []
+      operations:
+        $group:
+          $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: effects
+            $flatten: true
+            $build:
+              $concat:
+                - $when:
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: ent
+                    - or:
+                        - path: op
+                          equals: set
+                        - path: op
+                          equals: delete
+                        - path: op
+                          equals: insert
+                    - or:
+                        - path: field.item.entity
+                          exists: false
+                        - path: field.item.entity
+                          notEquals:
+                            $copy: id
+                            $of: ent
+                  $then:
+                    - item:
+                        $copy: field.key
+                      action:
+                        $copy: id
+                        $of: a
+                      label:
+                        $copy: label
+                        $of: a
+                      creates:
+                        $when:
+                          - of: a
+                            path: creates
+                            includes:
+                              $copy: id
+                              $of: ent
+                        $then: true
+                - $when:
+                    - path: op
+                      equals: create
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: ent
+                  $then:
+                    $each: written
+                    $build:
+                      item:
+                        $copy: key
+                      action:
+                        $copy: id
+                        $of: a
+                      label:
+                        $copy: label
+                        $of: a
+                      creates:
+                        $when:
+                          - of: a
+                            path: creates
+                            includes:
+                              $copy: id
+                              $of: ent
+                        $then: true
+                - $when:
+                    - path: op
+                      equals: insert
+                    - path: field.item.entity
+                      equals:
+                        $copy: id
+                        $of: ent
+                  $then:
+                    $each: written
+                    $build:
+                      item:
+                        $copy: key
+                      action:
+                        $copy: id
+                        $of: a
+                      label:
+                        $copy: label
+                        $of: a
+                      creates:
+                        $when:
+                          - of: a
+                            path: creates
+                            includes:
+                              $copy: id
+                              $of: ent
+                        $then: true
+        $by:
+          $copy: action
+        $bind: op
+        $build:
+          seq:
+            $number: $position
+            $as: '00'
+          id:
+            $format: OPS-{e}.{a}
+            $with:
+              e:
+                $copy: id
+                $of: ent
+              a:
+                $copy: key
+          action:
+            $copy: key
+          label:
+            $copy: items[0].label
+          crud:
+            $first:
+              - $when:
+                  - path: items[0].creates
+                    equals: true
+                $then: C
+              - U
+          writes:
+            $group: items
+            $by:
+              $copy: item
+            $build:
+              id:
+                $format: CRUD-{e}.{a}.{k}
+                $with:
+                  e:
+                    $copy: id
+                    $of: ent
+                  a:
+                    $copy: key
+                    $of: op
+                  k:
+                    $copy: key
+              entity:
+                $format: ENT-{e}
+                $with:
+                  e:
+                    $copy: id
+                    $of: ent
+              operation:
+                $format: OPS-{e}.{a}
+                $with:
+                  e:
+                    $copy: id
+                    $of: ent
+                  a:
+                    $copy: key
+                    $of: op
+              item:
+                $format: FLD-{e}.{k}
+                $with:
+                  e:
+                    $copy: id
+                    $of: ent
+                  k:
+                    $copy: key
+              crud:
+                $first:
+                  - $when:
+                      - of: op
+                        path: items[0].creates
+                        equals: true
+                    $then: C
+                  - U
+      identifiers:
+        $group:
+          $each: aspects
+          $build:
+            $each: fields
+            $build:
+              $when:
+                - path: base
+                  equals: id
+              $then:
+                $format: FLD-{e}.{key}
+                $with:
+                  e:
+                    $copy: id
+                    $of: ent
+          $flatten: true
+        $by:
+          $copy: .
+        $build:
+          $copy: key
+  agreements:
+    $each: entities
+    $build:
+      $group:
+        $apply: fields
+      $by:
+        $copy: field.key
+      $apply: agreement
+    $flatten: true
+rules:
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build:
+          field:
+            $copy: .
+          schema:
+            $copy: schema
+            $of: asp
+  - id: type-ref
+    build:
+      $first:
+        - $format: TYP-{m}.{n}
+          $with:
+            m:
+              $value:
+                extract:
+                  - path: type
+                  - ^([^#]+)#
+            'n':
+              $value:
+                extract:
+                  - path: type
+                  - '#(.+)$'
+        - $format: TYP-{type}
+  - id: value
+    with:
+      - owner
+      - prefix
+      - path
+    build:
+      label:
+        $copy: label
+      description:
+        $copy: description
+      base:
+        $copy: base
+      required:
+        $first:
+          - $copy: required
+          - false
+      default:
+        $copy: default
+      auto:
+        $copy: auto
+      minLength:
+        $copy: minLength
+      maxLength:
+        $copy: maxLength
+      pattern:
+        $copy: pattern
+      format:
+        $copy: format
+      min:
+        $copy: min
+      max:
+        $copy: max
+      multiline:
+        $copy: multiline
+      values:
+        $copy: values
+      unique:
+        $copy: unique
+      type:
+        $when:
+          - path: entity
+            exists: false
+          - or:
+              - not:
+                  path: base
+                  oneOf:
+                    - array
+                    - map
+                    - object
+              - path: type
+                contains: '#'
+        $then:
+          $apply: type-ref
+      entity:
+        $when:
+          - path: entity
+            exists: true
+        $then:
+          $format: ENT-{entity}
+      reference:
+        $when:
+          - path: base
+            equals: ref
+        $then:
+          target:
+            $first:
+              - $copy: refTarget
+              - entity
+          relation:
+            $copy: relation
+          idPatternLayers:
+            $first:
+              - $copy: idPatternLayers
+              - $when:
+                  - path: idPatterns
+                    exists: true
+                $then:
+                  - $copy: idPatterns
+              - []
+          scope:
+            $copy: scope
+          entities:
+            $each: targets
+            $build:
+              $format: ENT-{id}
+              $with:
+                id:
+                  $copy: .
+      item:
+        $apply: value
+        $at: item
+        $with:
+          owner:
+            $copy: .
+            $of: owner
+          prefix:
+            $format: '{p}.item'
+            $with:
+              p:
+                $copy: .
+                $of: prefix
+          path:
+            $concat:
+              - $copy: .
+                $of: path
+              - - item
+      value:
+        $apply: value
+        $at: value
+        $with:
+          owner:
+            $copy: .
+            $of: owner
+          prefix:
+            $format: '{p}.value'
+            $with:
+              p:
+                $copy: .
+                $of: prefix
+          path:
+            $concat:
+              - $copy: .
+                $of: path
+              - - value
+      fields:
+        $when:
+          - path: entity
+            exists: false
+        $then:
+          $each: fields
+          $build:
+            $apply: field
+            $with:
+              owner:
+                $copy: .
+                $of: owner
+              prefix:
+                $copy: .
+                $of: prefix
+              path:
+                $copy: .
+                $of: path
+      cases:
+        $entries:
+          $eachEntry: cases
+          $build:
+            - key: $key
+              value:
+                $each: .
+                $build:
+                  $apply: field
+                  $with:
+                    owner:
+                      $copy: .
+                      $of: owner
+                    prefix:
+                      $format: '{p}.cases.{v}'
+                      $with:
+                        p:
+                          $copy: .
+                          $of: prefix
+                        v: $key
+                    path:
+                      $concat:
+                        - $copy: .
+                          $of: path
+                        - - cases
+                          - $key
+          $flatten: true
+      attributeStates:
+        type:
+          $first:
+            - $when:
+                - path: entity
+                  exists: true
+              $then: not-applicable
+            - $when:
+                - path: base
+                  oneOf:
+                    - array
+                    - map
+                    - object
+                - not:
+                    path: type
+                    contains: '#'
+              $then: not-applicable
+            - present
+        base:
+          $first:
+            - $when:
+                - path: base
+                  exists: true
+              $then: present
+            - unconstrained
+        required: present
+        default:
+          $first:
+            - $when:
+                - path: default
+                  exists: true
+              $then: present
+            - unconstrained
+        auto:
+          $first:
+            - $when:
+                - path: auto
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - int
+                      - date
+                      - time
+                      - datetime
+              $then: not-applicable
+            - unconstrained
+        minLength:
+          $first:
+            - $when:
+                - path: minLength
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - string
+              $then: not-applicable
+            - unconstrained
+        maxLength:
+          $first:
+            - $when:
+                - path: maxLength
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - string
+              $then: not-applicable
+            - unconstrained
+        pattern:
+          $first:
+            - $when:
+                - path: pattern
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - string
+                      - id
+                      - ref
+                      - file
+                      - date
+                      - time
+                      - datetime
+              $then: not-applicable
+            - unconstrained
+        min:
+          $first:
+            - $when:
+                - path: min
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - int
+                      - number
+              $then: not-applicable
+            - unconstrained
+        max:
+          $first:
+            - $when:
+                - path: max
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - int
+                      - number
+              $then: not-applicable
+            - unconstrained
+        values:
+          $first:
+            - $when:
+                - path: values
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - enum
+              $then: not-applicable
+            - unconstrained
+        unique:
+          $first:
+            - $when:
+                - path: unique
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - array
+              $then: not-applicable
+            - unconstrained
+        multiline:
+          $first:
+            - $when:
+                - path: multiline
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - string
+              $then: not-applicable
+            - unconstrained
+        format:
+          $first:
+            - $when:
+                - path: format
+                  exists: true
+              $then: present
+            - $when:
+                - not:
+                    path: base
+                    oneOf:
+                      - int
+                      - number
+                      - date
+                      - time
+                      - datetime
+              $then: not-applicable
+            - unconstrained
+  - id: field
+    with:
+      - owner
+      - prefix
+      - path
+    build:
+      $apply: field-with-value
+      $with:
+        owner:
+          $copy: .
+          $of: owner
+        prefix:
+          $copy: .
+          $of: prefix
+        path:
+          $copy: .
+          $of: path
+        value:
+          $apply: value
+          $with:
+            owner:
+              $format: '{p}.{key}'
+              $with:
+                p:
+                  $copy: .
+                  $of: prefix
+            prefix:
+              $format: '{p}.{key}'
+              $with:
+                p:
+                  $copy: .
+                  $of: prefix
+            path:
+              $concat:
+                - $copy: .
+                  $of: path
+                - - fields
+                  - $copy: key
+  - id: field-with-value
+    with:
+      - owner
+      - prefix
+      - path
+      - value
+    build:
+      $entries:
+        $concat:
+          - - key: id
+              value:
+                $format: '{p}.{key}'
+                $with:
+                  p:
+                    $copy: .
+                    $of: prefix
+            - key: key
+              value:
+                $copy: key
+            - key: seq
+              value:
+                $number: $position
+                $as: '00'
+            - key: owner
+              value:
+                $copy: .
+                $of: owner
+            - key: path
+              value:
+                $concat:
+                  - $copy: .
+                    $of: path
+                  - - fields
+                    - $copy: key
+            - key: source
+              value:
+                $when:
+                  - of: owner
+                    path: .
+                    startsWith: ENT-
+                $then:
+                  $value:
+                    extract:
+                      - format: '{p}.{key}'
+                        with:
+                          p:
+                            of: prefix
+                            path: .
+                      - ^FLD-(.*)$
+          - $eachEntry: .
+            $of: value
+            $build:
+              - key: $key
+                value:
+                  $copy: .
+            $flatten: true
+  - id: agreement
+    build:
+      $compose:
+        additions: []
+        derived:
+          - id: field
+            value: {}
+            source:
+              id: derived
+        changes:
+          $each: items
+          $build:
+            target: field
+            path:
+              - shape
+            value:
+              $apply: agreement-value
+              $at: field
+            priority: rule
+            source:
+              id:
+                $copy: schema
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
+  - id: agreement-value
+    build:
+      $entries:
+        $eachEntry: .
+        $flatten: true
+        $build:
+          - $when:
+              - not:
+                  path: $key
+                  oneOf:
+                    - declarations
+                    - overrides
+                    - builtinType
+            $then:
+              key: $key
+              value:
+                $first:
+                  - $when:
+                      - path: $key
+                        equals: fields
+                    $then:
+                      $each: .
+                      $build:
+                        $apply: agreement-value
+                  - $when:
+                      - path: $key
+                        oneOf:
+                          - item
+                          - value
+                    $then:
+                      $apply: agreement-value
+                  - $when:
+                      - path: $key
+                        equals: cases
+                    $then:
+                      $eachEntry: .
+                      $build:
+                        $each: .
+                        $build:
+                          $apply: agreement-value
+                  - $copy: .

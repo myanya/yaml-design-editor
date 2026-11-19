@@ -34,13 +34,14 @@
   | `{$value: 値の式}` | 値の式（`ValueExpr`。検査の `check`・ビューの列と同じ書き方）をいまの場所で計算する。いまの場所と、式が `of` で指す束縛の要素だけを読める合成の環境（仮の文書名）で `SemanticValues` を呼ぶ。グラフ・項目の型は無いので `all` / `refCount` / `occurrenceCount` は「無い」、順序の種類は `type` で宣言する。数の結果は数の項・配列は配列の項・それ以外は文字 |
   | `{$each: パス, $build: ひな型}` / `{$eachEntry: パス, $build: ひな型}` | 配列の要素ごと／マップの項目ごとに組み立てる（`$apply: 規則名` とも書ける。`$index`＝0 始まり / `$position`＝1 始まり / `$key`。`no` は YAML が真偽値に読むので名前にしない）。`$each` の源には `{$view: ID, $where}` も書け、ビューの行を 1 行ずつ場所にする（レポート。`Template.Each.rows`） |
   | `$bind: 名前`（繰り返しに添える） | 現在の要素を名前付きの場所として、その `$build` の中で `$of` / `of` から読む |
-  | `$flatten: true`（`$each` に添える） | 各要素から作った配列を順に連結する。配列の入れ子を一段だけ外し、来歴の出力番号も移す |
+  | `$flatten: true`（`$each`・`$eachEntry` に添える） | 各要素から作った配列を順に連結する。配列の入れ子を一段だけ外し、来歴の出力番号も移す。`$eachEntry` は既定でマップ、この指定では配列を返す |
   | `{$zip: {名前: パス, …}, $build: ひな型}` | 並んだ配列を同じ番号で 1 行（`{名前: その番号の要素}`）にまとめて組み立てる（`$apply` とも書ける。長さが違えば長い方に合わせ、足りない名前は行に無い）。行は `ZipRow` で、名前から先のパスは元の配列の場所へ進むので、出どころも元の要素を指す |
   | `{$apply: 規則名, $at: パス, $with: {名前: ひな型}}` | 名前を付けた規則をその場所に当てる。`$with` は規則へ渡す値（規則の `with` に名前を並べ、規則の中で `$of: 名前` で読む）。値は書いた場所で計算する: この形ならいまの場所、繰り返しの略記（`{$each: パス, $apply: 規則名, $with: …}`）なら繰り返しの外側（`Template.Apply.outer`） |
   | `{$concat: [ひな型, …]}` | 配列をつなげる |
   | `{$group: パスかひな型, $by: ひな型, $build: ひな型}` | 配列の要素を、`$by`（要素をいまの場所にして計算したキー）が同じものごとにまとめ、まとまり `{key, items}` をいまの場所にして組み立てる（`$apply` とも書ける。`$bind` でまとまりに名前）。キーは構造で比べ、順はキーが初めて出た順。キーが「無い」要素は落とす（`$by` に `$when` を書けば絞り込みを兼ねる）。まとめた後の場所は入力の座標を持たないので、出どころは記録しない |
   | `{$entries: ひな型}` | `{key, value}` の並びからマップを作る（キーを計算で決めるマップ）。同じキーは後の値で置き換え、位置は初めのところ。キーがスカラーでない・値が無い項目は飛ばす |
   | `{$schemaModel: ひな型}` | スキーマ文書の配列を組み立て、既存の定義検査と型解決で業務モデルの項にする。生成の `input`・`build` で使う |
+  | `{$schemaUses: ひな型}` | 型への参照と明記を保ち、利用箇所の子へ指定を書く場所と座標を用意する。生成の `input`・`build` で使う |
   | `{$when: 条件, $then: ひな型}`・マップに `$when` を添える | 条件に合うときだけ出す |
 
 - 条件の `includes` / `includesAny` は、場所の配列の要素で比べる（クエリの `where`・検査の `check` と同じ `SemanticExpression.testArray`）。
@@ -59,6 +60,8 @@
 ## 生成（業務モデルから文書へ）
 
 `BusinessModel` は項目の有効な値に加え、共通型との差分 `overrides` と組込み型の共通の性質 `builtinType` を項として返す。
+参照は対象種別 `refTarget`・ID 条件の層 `idPatternLayers`・探索範囲 `scope`・対象エンティティの配列 `targets` を保つ。従来の `target` も互換のため残す。
+再解決の材料には `schemas`（`id`・`document`・`declared`）として、スコープ内のスキーマの原文を部分木ごと写す。展開結果を原文として扱わず、子の構造・明記と未指定・操作・関係も保つ。原文がない組込み定義を合成せず、出力の変更を読み込み元へ伝えない。
 スキーマの項目と名前付きの型には、`FieldDeclaration` から明記した属性と原文の場所を `declarations` として写す。差分が空でも明記は失わない。子の宣言は `item`・`value`・`fields`・`cases` に保持し、エンティティの子はその側面を参照する。設計用の ID と写し方は変換定義が決める。
 型の展開は `BusinessModelTraversal` にまとめ、型の解決・狭め方には既存の `SchemaTree` を使う。現在の経路に同じ名前付きの型が再び現れたら、`recursiveType` にモジュール名を含む参照を残し、利用箇所に書かれた子だけを進む。原文の子と解決済みの子を対で渡し、継承した子を新たな明記として展開し直さない。
 同じ型を使う別の項目や、共通の基底型を継承する別の型は、それぞれ展開する。有限の入れ子を固定の深さで省略しない。エンティティの側面も最初の再帰先を記録し、項目の導出とデータの決まりの収集で同じ経路の判定を使う。これは型のグラフを参照付きの有限の項（Term）に写す処理で、型の意味や値の評価規則は追加しない。
@@ -72,6 +75,12 @@
 入力の位置を仮の文書座標 `.yde/schemas/input/<番号>.yaml` に使い、宣言の来歴に残す。候補の原本の `source`・`decisions` は呼び出す変換が別に保持する。
 これはスキーマの項を既存の解釈へ渡し、参照付きの有限の項へ射影する接続であり、型解決規則を追加しない。semantic-core は供給元だけを受け取り、workspace-core へ依存しない。供給元の無い入口では使用を拒否する。
 
+`$validate` は組み立てた `{schemas, documents}` を `SchemaModels.validate` へ渡す。
+schemas の定義と documents の値をメモリ上の同じストアに置き、既存の構造・参照・条件検査を実行する。
+検査エラーや保留、スキーマ未割当の文書、予約領域への文書配置は失敗とし、成功時は文書のマップを変更せず返す。
+警告だけでは停止しない。確定に必須の条件の重さは定義側で決める。外部の参照先は補わず、設計固有の規則もここへ書かない。
+これは Construct で作った項を既存の Validate へ渡す接続であり、検査の評価規則は増やさない。供給元は生成の入口だけに渡す。
+
 業務モデルを展開した項（`BusinessModel`）を入力に変換を当て、作った YAML を生成物の文書として書く（ADR-0031）。
 
 | 部品 | ファイル | 責務 |
@@ -79,6 +88,7 @@
 | `BusinessModel` | workspace-core/workspace/BusinessModel.kt | スキーマに分けて書いた業務モデルを 1 つの項に展開する（`entities`・`actions`・`states`・`lifecycles`・名前付きの型 `types`）。操作の効果は do・Lifecycle・自動の値を 1 列に |
 | `BusinessModelTraversal` | workspace-core/workspace/BusinessModelTraversal.kt | 現在の経路の型参照と原文の子を保持し、再帰する型の共通部分を参照で閉じる |
 | `SchemaModels` | workspace-core/workspace/SchemaModels.kt | 組み立てたスキーマ文書を既存の定義検査と型解決へ渡す |
+| `SchemaUses` | workspace-core/workspace/SchemaUses.kt | 型解決と有限の走査を共有し、継承値を書き込まずに利用箇所の子の指定場所を用意する |
 | `BusinessModelViews` | workspace-core/workspace/BusinessModelViews.kt | 業務モデルの項のビューの側（`views`・`dashboards`）と、ダッシュボードからたどれる範囲（`reach`。ADR-0033） |
 | `BusinessModelRules` | workspace-core/workspace/BusinessModelRules.kt | 業務モデルの項のデータの決まりの側（`constraints`。型の検査・スキーマの検査・関係レジストリ）と、操作が書くと破れうる決まり（操作の `checks`） |
 | `Generators` / `GeneratorDef` / `GenerationPlan` | workspace-core/workspace/Generators.kt | 生成の定義（transforms ゾーン）の読み込み・計画（作る・作り直す・消す・変わらない）・セッションの 1 トランザクション・生成の系譜（`lineage`） |
@@ -89,6 +99,11 @@
 
 - **流れ**: `Generators.plan` → 定義の `scope` ごとに業務モデルの項を 1 回作る（スコープのスキーマだけから。ADR-0032）→ 定義に `stage` があれば、スコープと段の組ごとに段の項を 1 回作る（[段の項（段階的詳細化）](#段の項段階的詳細化)）→ 定義ごとに `each` の要素へ `SemanticTransform.runAt`（場所 `model` と `element` を渡す）→ `output` を `TextTemplate.render` で埋める → 見出しのコメントを付けて文字にし、保存済みの内容と比べる → `WorkspaceTransaction`（作成・置き換え・削除）。
 - **規律**: 生成物は原本ではない（原本は業務モデルと生成の定義）。見出し（`Generators.marker`）で見分け、見出しの無い文書は消さない。書き込みはセッションの取引だけで、検証・保存は今までの経路。業務モデルの項に設計の規則（表や URL の決め方）を入れない（規則は段の規則か生成の定義に書く。項が持つのは、参照先の型・State の値の列挙型・採番・入れ子の外側・作る型・書く値の項目ごとの基底の種類・操作が書くと破れうるデータの決まりのような業務の事実だけ。決まりをどう確かめるか（Java か SQL か対象外か）は生成の定義が決める）。定義の種類（`yde-*`）を詳細化する文書のスキーマは、業務のエンティティ型として数えない。
+
+`$schemaUses` も `SchemaModels.load` で入力を検査する。`SchemaUses.prepare` は `BusinessModelTraversal` と `SchemaTree` の解決した子に沿って、原文の参照と指定を保ち、未指定の子はキーと入れ物だけで用意する。
+結果は `schemas` と `uses`（所属・構造上の経路・文書内の座標・書き込み可否）。設計 ID との対応付けや補正の採用は変換の責務で、原本の宣言とこの作業用座標は混ぜない。
+継承した `cases` の子は現行の解決が利用箇所の指定を採用しないため、原文を保ったまま書き込み不可として返す。再帰の境界も既存の走査を共有する。
+Core Calculus では型を解釈した Term の射影と Construct の接続であり、補正や型の規則を追加せず、保存経路も持たない。
 
 ## 段の項（段階的詳細化）
 

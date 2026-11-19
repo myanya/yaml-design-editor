@@ -57,25 +57,52 @@ constraints:
     level: error
     message: "エンティティ型「{id}」のテーブルが詳細設計項目一覧にありません（generate で作り直します）"
   - id: entity-has-class
-    description: 基本設計のどのエンティティも、基本設計項目台帳のエンティティ区分のちょうど 1 つに入っている（区分は業務モデルから導けないので人が決める）
-    match: [{ node: { id: "ENT-*", bind: e } }]
-    check: [{ eq: [{ count: { all: { from: e, match: [{ node: { id: "ENT-*", bind: e } }, { edge: { via: entities, dir: in } }, { node: { id: "CLS-*", bind: c } }], of: c } } }, 1] }]
+    description: 区分の追加とエンティティへの指定を合成し、確定項目が区分を参照する
+    match:
+      - node:
+          id: ENT-*
+          bind: e
+    check:
+      - eq: [{refCount: {of: e, dir: out, via: entityClass}}, 1]
     level: error
-    message: "エンティティ「{id}」の区分が決まっていないか、2 つ以上に入っています（基本設計項目台帳 design/basic/ledger.yaml のエンティティ区分のどれか 1 つに入れます）"
+    message: エンティティ「{id}」の区分を補正・指定一覧に指定してください
   - id: item-element-is-tableable
     description: 配列・マップの要素が名前の無い配列・マップの項目（配列の配列など）は、テーブルにできない（要素の行を表す名前が無い）
-    match: [{ node: { id: "FLD-*", bind: f } }]
-    where: [{ of: f, path: itemBase, oneOf: [array, map] }]
+    match:
+      - node:
+          id: FLD-*
+          bind: f
+    where:
+      - or:
+          - of: f
+            path: item.base
+            oneOf:
+              - array
+              - map
+          - of: f
+            path: value.base
+            oneOf:
+              - array
+              - map
     expect: absent
     level: error
-    message: "項目「{id}」は、要素が名前の無い配列・マップなのでテーブルにできません（業務モデルで、要素を行の型＝object に包みます）"
+    message: 項目「{id}」は、要素が名前の無い配列・マップなのでテーブルにできません（業務モデルで、要素を行の型＝object に包みます）
   - id: map-element-is-not-entity
     description: マップの要素がエンティティの項目は、テーブルにできない（エンティティは配列か 1 件で持つ）
-    match: [{ node: { id: "FLD-*", bind: f } }]
-    where: [{ of: f, path: base, equals: map }, { of: f, path: itemEntity, exists: true }]
+    match:
+      - node:
+          id: FLD-*
+          bind: f
+    where:
+      - of: f
+        path: base
+        equals: map
+      - of: f
+        path: value.entity
+        exists: true
     expect: absent
     level: error
-    message: "項目「{id}」は、マップの要素がエンティティなのでテーブルにできません（業務モデルで、エンティティの配列にします）"
+    message: 項目「{id}」は、マップの要素がエンティティなのでテーブルにできません（業務モデルで、エンティティの配列にします）
   - id: entity-has-mapper
     description: どのエンティティ型にもテーブルアクセス設計書（Mapper）がある
     match: [{ node: { entity: yde-entity, bind: e } }]

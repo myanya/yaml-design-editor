@@ -1,0 +1,183 @@
+id: basic-type-model
+name: 共通型の制約を補正した業務モデル
+description: 共通型の宣言に制約の補正を当て、全スキーマを既存の型解決へ渡す。 項目に明記した制約を保持する。まだ確定項目ではなく、未接続の補正は pending に残す
+scope: business
+dependsOn:
+  - basic-type-changes
+output: design/basic/composed/type-model.yaml
+input:
+  $compose:
+    derived:
+      $each:
+        $view: basic-derived-input
+      $flatten: true
+      $build:
+        $each: values.model.schemas
+        $build:
+          id:
+            $copy: id
+          value:
+            $copy: declared
+          source:
+            id:
+              $copy: id
+            document:
+              $copy: document
+    additions: []
+    changes:
+      $each:
+        $view: basic-type-changes-input
+      $flatten: true
+      $build:
+        $each: values.items
+        $bind: item
+        $flatten: true
+        $build:
+          $each: locations
+          $bind: location
+          $flatten: true
+          $build:
+            $eachEntry: set
+            $of: item
+            $flatten: true
+            $build:
+              - $when:
+                  - path: $key
+                    oneOf:
+                      - maxLength
+                      - minLength
+                      - min
+                      - max
+                      - pattern
+                      - format
+                      - default
+                      - description
+                      - values
+                      - required
+                      - type
+                target:
+                  $copy: schema
+                  $of: location
+                path:
+                  $concat:
+                    - $copy: path
+                      $of: location
+                    - - $key
+                value:
+                  $first:
+                    - $when:
+                        - path: $key
+                          equals: type
+                      $then:
+                        $apply: type-name
+                        $with:
+                          target:
+                            $copy: .
+                    - $when:
+                        - path: $key
+                          notEquals: type
+                      $then:
+                        $copy: .
+                priority: individual
+                source:
+                  id:
+                    $copy: id
+                    $of: item
+build:
+  id: CMP-type-model
+  model:
+    $schemaModel:
+      $each: records
+      $build:
+        $copy: value
+  decisions:
+    $copy: decisions
+  pending:
+    $each:
+      $view: basic-description-corrections-input
+    $bind: correction
+    $flatten: true
+    $build:
+      $eachEntry: values.correction.set
+      $flatten: true
+      $build:
+        - $when:
+            - or:
+                - not:
+                    path: values.correction.target
+                    of: correction
+                    startsWith: TYP-
+                - not:
+                    path: $key
+                    oneOf:
+                      - maxLength
+                      - minLength
+                      - min
+                      - max
+                      - pattern
+                      - format
+                      - default
+                      - description
+                      - values
+                      - required
+                      - type
+          correction:
+            $copy: id
+            $of: correction
+          target:
+            $copy: values.correction.target
+            $of: correction
+          attribute: $key
+          value:
+            $copy: .
+          reason: 利用箇所または属性の変換が未接続
+  builtinPending:
+    $each:
+      $view: basic-type-changes-input
+    $flatten: true
+    $build:
+      $each: values.items
+      $bind: item
+      $flatten: true
+      $build:
+        $when:
+          - path: locations
+            empty: true
+        $then:
+          $eachEntry: set
+          $flatten: true
+          $build:
+            - target:
+                $copy: designId
+                $of: item
+              attribute: $key
+              value:
+                $copy: .
+              reason: 組込み型の補正は未接続
+rules:
+  - id: type-name
+    with:
+      - target
+    build:
+      $apply: type-name-result
+      $with:
+        matches:
+          $each:
+            $view: basic-targets-input
+          $flatten: true
+          $build:
+            $each: values.targets
+            $build:
+              $when:
+                - path: designId
+                  equals:
+                    $copy: .
+                    $of: target
+              $then:
+                $copy: occurrences[0].name
+  - id: type-name-result
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

@@ -1,0 +1,9 @@
+id: basic-additions-input
+rows:
+  schemaIds:
+    - basic-additions
+  idPattern: ADD-*
+columns:
+  - label: record
+    path: .
+    schemaId: basic-additions

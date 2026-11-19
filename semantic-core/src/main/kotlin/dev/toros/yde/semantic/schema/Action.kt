@@ -286,6 +286,7 @@ internal fun Template.paramNames(): Set<String> {
             is Template.EntriesOf -> walk(t.input)
             is Template.Compose -> walk(t.input)
             is Template.SchemaModel -> walk(t.input)
+            is Template.Validate -> walk(t.input)
             is Template.Guarded -> {
                 t.conditions.forEach { c ->
                     c.alternatives.forEach { a ->

@@ -1,0 +1,33 @@
+id: EX-generate-schema-uses
+title: "共有する型の参照と明記を保ち、利用箇所に個別指定を書く場所を用意する"
+area: generation
+illustrates: [KW-template.$schemaUses, KW-generator.input]
+files:
+  - path: ".yde/transforms/prepare.yaml"
+    text: |-
+      id: prepare
+      output: design/uses.yaml
+      input:
+        $schemaUses:
+          - id: common
+            kind: library
+            definitions:
+              part:
+                type: object
+                fields: [{key: note, type: string, maxLength: 100}]
+              box:
+                type: object
+                fields:
+                  - {key: left, type: part}
+                  - {key: right, type: part, fields: [{key: note, maxLength: 60}]}
+      build:
+        fields: {$copy: 'schemas[0].definitions.box.fields'}
+expect:
+  result: ok
+  generate:
+    files:
+      - path: "design/uses.yaml"
+        text: |-
+          fields:
+            - {key: left, type: part, fields: [{key: note}]}
+            - {key: right, type: part, fields: [{key: note, maxLength: 60}]}

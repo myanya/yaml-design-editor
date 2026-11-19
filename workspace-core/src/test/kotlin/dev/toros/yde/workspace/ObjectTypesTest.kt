@@ -19,6 +19,23 @@ import kotlin.test.assertTrue
  * - 追加のある使い方は構造の検証へ展開して写る（足した必須・狭めた長さ・狭めた形式が効く）
  */
 class ObjectTypesTest {
+    @Test fun `継承した配列の子は型を省いて unique を指定できる`() {
+        val ws = load(mapOf("_schemas/list.yaml" to """
+            id: list
+            kind: document
+            match: 'lists/*.yaml'
+            definitions:
+              record:
+                type: object
+                fields: [{key: codes, type: array, item: {type: string}}]
+            root:
+              type: record
+              fields: [{key: codes, unique: true}]
+        """.trimIndent(), "lists/a.yaml" to "codes: [a, a]\n"))
+        assertEquals(emptyList(), ws.schemaErrors)
+        val issues = WorkspaceCheckRunner.validateAll(ws).getValue(DocumentId("lists/a.yaml")).issues
+        assertTrue(issues.any { it.path == listOf("codes", 1) }, issues.toString())
+    }
 
     private val types = """
         id: types
@@ -89,6 +106,46 @@ class ObjectTypesTest {
     )
 
     private fun structural(ws: LoadedWorkspace, rel: String) = ws.derived.structuralIssues[DocumentId(rel)].orEmpty().map { it.message }
+
+    @Test
+    fun `入れ子の型未指定の子を複数段で重ねても型と制約を継承する`() {
+        val ws = load(mapOf("_schemas/nested.yaml" to """
+            id: nested
+            kind: document
+            match: nested/*.yaml
+            definitions:
+              text: {type: string, maxLength: 100}
+              part:
+                type: object
+                fields:
+                  - {key: note, type: text}
+                  - {key: done, type: boolean, default: false}
+              box:
+                type: object
+                fields:
+                  - {key: rows, type: array, item: {type: part, fields: [{key: note}, {key: done}]}}
+                  - {key: values, type: map, value: {type: part, fields: [{key: note}]}}
+            root:
+              type: box
+              fields:
+                - {key: rows, item: {fields: [{key: note, maxLength: 60}, {key: done}]}}
+                - {key: values, value: {fields: [{key: note, maxLength: 70}]}}
+        """.trimIndent()))
+        assertEquals(emptyList(), ws.schemaErrors)
+        val tree = ws.schemas.single { it.id == "nested" }.tree
+        val root = tree.resolve(tree.root)!!
+        val row = tree.resolve(root.fields.first { it.key == "rows" }.item)!!
+        val note = tree.resolve(row.fields.first { it.key == "note" })!!
+        assertEquals(listOf("nested#text"), note.lineage)
+        assertEquals(60, note.maxLength)
+        val done = tree.resolve(row.fields.first { it.key == "done" })!!
+        assertEquals(FieldType.BOOLEAN, done.type)
+        assertEquals(false, done.default)
+        val entry = tree.resolve(root.fields.first { it.key == "values" }.value)!!
+        val entryNote = tree.resolve(entry.fields.first { it.key == "note" })!!
+        assertEquals(70, entryNote.maxLength)
+        assertEquals(listOf("nested#text"), entryNote.lineage)
+    }
 
     @Test
     fun `要素の型の同一性で型が決まり 使う側は項目を足し同じ項目を狭める`() {

@@ -4,7 +4,7 @@ kind: library
 description: >-
   合成処理へ渡す候補・補正と指定・追加と、合成後の確定項目の構造。
   候補の designId や対象は文字であり、前回の確定結果へ参照解決しない。
-  確定項目の id と参照だけを通常の索引に載せる。現在の設計書の保存形式は、合成処理と接続するときに切り替える
+  確定項目の id と参照だけを通常の索引に載せる。対応する補正・追加・指定は生成処理の文書にまとめる
 definitions:
   生成対象:
     type: string
@@ -76,9 +76,18 @@ definitions:
     type: object
     unknownFields: error
     fields:
-      - { key: path, label: ID を入れる項目, type: string }
-      - { key: prefix, label: 接頭辞, type: any }
-      - { key: digits, label: 桁, type: int, min: 1 }
+      - key: path
+        label: ID を入れる項目
+        type: string
+      - key: prefix
+        label: 接頭辞
+        type: any
+      - key: digits
+        label: 桁
+        type: int
+        min: 1
+      - key: description
+        type: text
   候補の採番:
     type: 採番の属性
     fields:
@@ -125,10 +134,29 @@ definitions:
   確定した操作:
     type: 名称と根拠
     fields:
-      - { key: id, label: 設計項目ID, type: id, pattern: '^OPS-\S+$', required: true }
-      - { key: owner, label: エンティティ, type: ref, idPatterns: [ENT-*] }
-      - { key: action, label: 業務の操作, type: ref }
-      - { key: writes, label: 書く項目, type: array, item: { type: 確定した書込 } }
+      - key: id
+        label: 設計項目ID
+        type: id
+        pattern: ^OPS-\S+$
+        required: true
+      - key: owner
+        label: エンティティ
+        type: ref
+        idPatterns:
+          - ENT-*
+      - key: action
+        label: 業務の操作
+        type: ref
+      - key: writes
+        label: 書く項目
+        type: array
+        item:
+          type: 確定した書込
+      - key: crud
+        type: enum
+        values:
+          - C
+          - U
   候補のエンティティ:
     type: 名称と根拠
     fields:
@@ -144,15 +172,53 @@ definitions:
   確定したエンティティ:
     type: 名称と根拠
     fields:
-      - { key: id, label: 設計項目ID, type: id, pattern: '^ENT-\S+$', required: true }
-      - { key: source, label: 業務のエンティティ, type: ref }
-      - { key: entityClass, label: 区分, type: ref, idPatterns: [CLS-*] }
-      - { key: identifiers, label: 識別項目, type: array, item: { type: ref, idPatterns: [FLD-*] } }
-      - { key: numbering, label: 採番, type: 確定した採番 }
-      - { key: parent, label: 保有元のエンティティ, type: ref, idPatterns: [ENT-*] }
-      - { key: parentField, label: 保有元の項目, type: ref, idPatterns: [FLD-*] }
-      - { key: items, label: 項目, type: array, item: { type: 確定した項目 } }
-      - { key: operations, label: 操作と書込, type: array, item: { type: 確定した操作 } }
+      - key: id
+        label: 設計項目ID
+        type: id
+        pattern: ^ENT-\S+$
+        required: true
+      - key: source
+        label: 業務のエンティティ
+        type: ref
+      - key: entityClass
+        label: 区分
+        type: ref
+        idPatterns:
+          - CLS-*
+      - key: identifiers
+        label: 識別項目
+        type: array
+        item:
+          type: ref
+          idPatterns:
+            - FLD-*
+      - key: numbering
+        label: 採番
+        type: 確定した採番
+      - key: parent
+        label: 保有元のエンティティ
+        type: ref
+        idPatterns:
+          - ENT-*
+      - key: parentField
+        label: 保有元の項目
+        type: ref
+        idPatterns:
+          - FLD-*
+      - key: items
+        label: 項目
+        type: array
+        item:
+          type: 確定した項目
+      - key: operations
+        label: 操作と書込
+        type: array
+        item:
+          type: 確定した操作
+      - key: documents
+        type: array
+        item:
+          type: string
   区分の属性:
     type: 名称と根拠
     fields:

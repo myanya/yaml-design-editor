@@ -16,25 +16,105 @@ definitions:
   値:
     type: 制限
     fields:
-      - { key: key, label: 項目, type: string }
-      - { key: type, label: YDE の型, type: string, required: true }
-      - { key: base, type: basic-design-values#基底, required: true }
-      - { key: declarations, label: 宣言, type: array, item: { type: basic-design-values#宣言 } }
-      - { key: recursiveType, label: 再帰先の型, type: string, description: 共通の子はこの型を参照し、ここにある子は利用箇所で明記したものを保持する }
-      - { key: relation, label: 関係名, type: string }
-      - { key: idPatterns, label: ID の条件, type: array, item: { type: string } }
-      - { key: schemas, label: 参照先スキーマ, type: array, item: { type: string } }
-      - { key: targetTitle, label: 参照先の見出し項目, type: string }
-      - { key: targetLabel, label: 参照先の名称, type: string }
-      - { key: stateOf, label: 状態のエンティティ, type: string }
-      - { key: entity, label: 入れ子のエンティティ, type: string }
-      - { key: entityLabel, label: 入れ子の名称, type: string }
-      - { key: item, label: 配列の要素, type: 値 }
-      - { key: value, label: マップの値, type: 値 }
-      - { key: fields, label: object の項目, type: array, item: { type: 項目 } }
-      - { key: cases, label: 選択肢ごとの項目, type: map, value: { type: array, item: { type: 項目 } } }
-      - { key: overrides, label: 共通型との差, type: 制限 }
-      - { key: builtinType, label: 組込み型の性質, type: 組込み型 }
+      - key: key
+        label: 項目
+        type: string
+      - key: type
+        label: YDE の型
+        type: string
+        required: true
+      - key: base
+        type: basic-design-values#基底
+        required: true
+      - key: declarations
+        label: 宣言
+        type: array
+        item:
+          type: basic-design-values#宣言
+      - key: recursiveType
+        label: 再帰先の型
+        type: string
+        description: 共通の子はこの型を参照し、ここにある子は利用箇所で明記したものを保持する
+      - key: relation
+        label: 関係名
+        type: string
+      - key: refTarget
+        label: 参照の種類
+        type: string
+      - key: idPatternLayers
+        label: ID 条件の層
+        type: array
+        item:
+          type: array
+          item:
+            type: string
+      - key: scope
+        label: 参照範囲
+        type: object
+        description: 解決済みの schemaIds と documentIds を保持する
+        fields:
+          - key: schemaIds
+            type: array
+            item:
+              type: string
+          - key: documentIds
+            type: array
+            item:
+              type: string
+      - key: targets
+        label: 参照先のエンティティ
+        type: array
+        item:
+          type: string
+      - key: idPatterns
+        label: ID の条件
+        type: array
+        item:
+          type: string
+      - key: schemas
+        label: 参照先スキーマ
+        type: array
+        item:
+          type: string
+      - key: targetTitle
+        label: 参照先の見出し項目
+        type: string
+      - key: targetLabel
+        label: 参照先の名称
+        type: string
+      - key: stateOf
+        label: 状態のエンティティ
+        type: string
+      - key: entity
+        label: 入れ子のエンティティ
+        type: string
+      - key: entityLabel
+        label: 入れ子の名称
+        type: string
+      - key: item
+        label: 配列の要素
+        type: 値
+      - key: value
+        label: マップの値
+        type: 値
+      - key: fields
+        label: object の項目
+        type: array
+        item:
+          type: 項目
+      - key: cases
+        label: 選択肢ごとの項目
+        type: map
+        value:
+          type: array
+          item:
+            type: 項目
+      - key: overrides
+        label: 共通型との差
+        type: 制限
+      - key: builtinType
+        label: 組込み型の性質
+        type: 組込み型
   項目:
     type: 値
     fields:
@@ -85,13 +165,60 @@ definitions:
     type: object
     unknownFields: error
     fields:
-      - { key: entities, label: エンティティ, type: array, item: { type: エンティティ }, required: true }
-      - { key: types, label: 型, type: array, item: { type: 型 }, required: true }
-      - { key: relations, label: 関係, type: any }
-      - { key: actions, label: 操作, type: any }
-      - { key: states, label: 状態, type: any }
-      - { key: lifecycles, label: 状態の流れ, type: any }
-      - { key: constraints, label: データの規則, type: any }
-      - { key: views, label: ビュー, type: any }
-      - { key: dashboards, label: ダッシュボード, type: any }
-      - { key: reach, label: 閲覧する範囲, type: any }
+      - key: entities
+        label: エンティティ
+        type: array
+        item:
+          type: エンティティ
+        required: true
+      - key: types
+        label: 型
+        type: array
+        item:
+          type: 型
+        required: true
+      - key: schemas
+        label: スキーマの原文
+        type: array
+        item:
+          type: object
+          unknownFields: error
+          fields:
+            - key: id
+              label: モジュール名
+              type: string
+              required: true
+            - key: document
+              label: 元の文書
+              type: string
+              required: true
+            - key: declared
+              label: 定義の原文
+              type: map
+              value:
+                type: any
+              required: true
+      - key: relations
+        label: 関係
+        type: any
+      - key: actions
+        label: 操作
+        type: any
+      - key: states
+        label: 状態
+        type: any
+      - key: lifecycles
+        label: 状態の流れ
+        type: any
+      - key: constraints
+        label: データの規則
+        type: any
+      - key: views
+        label: ビュー
+        type: any
+      - key: dashboards
+        label: ダッシュボード
+        type: any
+      - key: reach
+        label: 閲覧する範囲
+        type: any

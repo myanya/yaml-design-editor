@@ -1,0 +1,8 @@
+id: KW-template.$validate
+key: "$validate"
+context: CTX-template
+order: 35
+status: stable
+forms:
+  - value: "ひな型（schemas と documents のマップになるもの）"
+    meaning: "生成の input・build で、schemas のスキーマ文書の配列と、documents の相対 YAML パスから内容へのマップを検査します。構造・参照・条件の誤りや保留があれば失敗し、成功時は documents を変更せず返します。各文書には対応するスキーマが必要です。予約領域へは置けず、外のワークスペースや前回の生成物は補いません。警告だけでは失敗しないため、確定に必須の条件は level: error と書きます。ほかの入口では使えません。"

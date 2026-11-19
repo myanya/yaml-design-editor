@@ -1,0 +1,71 @@
+id: basic-descriptions
+name: 導出した説明と補正の合成
+description: >-
+  設計項目の ID で説明を補正し、異なる説明が残る場合は生成を止める。
+  同じ説明のすべての出現と、採用しなかった説明を保持する。
+  これは説明の合成結果で、型・参照・方式の成立条件を含む確定項目一覧への移行は別に行う
+scope: business
+dependsOn: [basic-targets]
+output: design/basic/composed/descriptions.yaml
+input:
+  $compose:
+    derived:
+      $each: {$view: basic-targets-input}
+      $flatten: true
+      $build:
+        $each: values.targets
+        $build:
+          id: {$copy: designId}
+          value:
+            kind: {$copy: kind}
+            owner: {$copy: owner}
+            path: {$copy: path}
+            descriptions: {$copy: descriptions}
+          source: {id: {$copy: id}}
+    additions: []
+    changes:
+      $concat:
+        - $each: {$view: basic-targets-input}
+          $flatten: true
+          $build:
+            $each: values.targets
+            $bind: target
+            $flatten: true
+            $build:
+              # 導出規則が各側面から作った説明を既定値の候補とし、補正だけがそれらに優先する。
+              $each: descriptions
+              $build:
+                target: {$copy: designId, $of: target}
+                set: {description: {$copy: value}}
+                priority: rule
+                source: {id: {$copy: id}}
+        - $each: {$view: basic-description-corrections-input}
+          $build:
+            $when:
+              - {path: values.correction.set.description, exists: true}
+              - or:
+                  - {path: values.correction.target, startsWith: ENT-}
+                  - {path: values.correction.target, startsWith: TYP-}
+                  - {path: values.correction.target, startsWith: FLD-}
+            target: {$copy: values.correction.target}
+            set: {description: {$copy: values.correction.set.description}}
+            priority: individual
+            source: {id: {$copy: id}}
+build:
+  id: CMP-descriptions
+  items:
+    $each: records
+    $build:
+      id: {$format: 'CMP-{id}'}
+      designId: {$copy: id}
+      kind: {$copy: value.kind}
+      owner: {$copy: value.owner}
+      path: {$copy: value.path}
+      description: {$copy: value.description}
+      descriptions: {$copy: value.descriptions}
+  decisions: {$copy: decisions}
+  corrections:
+    $each: {$view: basic-description-corrections-input}
+    $build:
+      $when: [{path: values.correction.set.description, exists: true}]
+      $then: {$copy: values.correction}

@@ -1,0 +1,14 @@
+id: UX-356
+title: 継承した選択肢の子に利用箇所で書いた制約が反映されない
+status: todo
+kind: spec
+origin_on: 2026-11-18
+origin: todos-sysdev の個別項目補正を利用箇所へ反映する処理の検証
+memo: |-
+  名前付き enum 型が cases を持つ場合、SchemaTree は継承元の cases を優先し、利用箇所で同じ選択肢の子へ書いた制約を採用しない。親の object 型から enum の項目と cases を継承する場合も同じ。
+  例: choice 型の a の note が maxLength: 100 のとき、left: {type: choice, cases: {a: [{key: note, maxLength: 60}]}} と指定しても 100 のままになる。
+  fields の子の狭め方との違いがある。選択肢・子キーの対応と競合、型を狭める規則を整理してから解決方式を変更する必要がある。
+  今回の $schemaUses はこの場所を writable: false とし、todos-sysdev は補正を pending に残す。反映できないものを適用済みにしない。直書きの cases の子と、名前付き型自身の cases の子の補正は可能。
+  SchemaUsesTest と TodosFieldCorrectionsTest で、この未対応境界と原文の保持を確認する。
+features: [C-21]
+roadmap: [R53-05]

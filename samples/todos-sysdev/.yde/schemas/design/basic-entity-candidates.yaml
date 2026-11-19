@@ -1,0 +1,13 @@
+id: basic-entity-candidates
+kind: document
+match: design/basic/composed/entity-candidates.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: entities
+      type: any
+    - key: agreements
+      type: any

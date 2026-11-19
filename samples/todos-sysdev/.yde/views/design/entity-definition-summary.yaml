@@ -1,6 +1,6 @@
 id: entity-definition-summary
 name: エンティティ定義書（概要）
-description: 基本設計項目一覧のエンティティに、補正一覧を重ねた概要（エンティティ定義書の 1 区画）。区分は基本設計項目台帳（人が書く）のエンティティ区分
+description: 確定項目一覧を読む。補正や型継承は生成時に解決し、ビューでは再計算しない
 params: [entity]
 rows:
   match:
@@ -8,18 +8,28 @@ rows:
   where:
     - { of: e, path: id, equals: $entity }
 order: { schemaId: basic-entity-list }
-corrections: { schemaIds: [basic-corrections] }
 columns:
-  - { label: 名称, path: label }
-  - { label: 区分, value: { all: { match: [{ node: { id: "ENT-*", bind: e } }, { edge: { via: entities, dir: in } }, { node: { id: "CLS-*", bind: c } }], of: c, path: label } } }
-  - { label: 説明, path: description }
-  - { label: 親エンティティ, path: parent }
-  - { label: 親の項目, path: parentField }
-  - { label: ID項目, path: numbering.item }
-  - { label: 接頭辞, path: numbering.prefix }
-  - { label: 桁, path: numbering.digits }
-  - { label: ID形式の説明, path: numbering.description }
-  - { label: 導出元, path: source }
-  - { label: 業務モデルの文書, path: documents }
-  - { label: 区分（台帳）, backlinks: { schemaIds: [basic-ledger] } }
-  - { label: 補正, backlinks: { schemaIds: [basic-corrections] } }
+  - label: 名称
+    path: label
+  - label: 区分
+    value:
+      via: entityClass
+      path: label
+  - label: 説明
+    path: description
+  - label: 親エンティティ
+    path: parent
+  - label: 親の項目
+    path: parentField
+  - label: ID項目
+    path: identifiers
+  - label: 接頭辞
+    path: numbering.prefix
+  - label: 桁
+    path: numbering.digits
+  - label: ID形式の説明
+    path: numbering.description
+  - label: 導出元
+    path: source
+  - label: 業務モデルの文書
+    path: documents

@@ -1,0 +1,24 @@
+id: basic-descriptions
+name: 説明の合成結果
+kind: document
+match: design/basic/composed/descriptions.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - {key: id, type: id, required: true}
+    - key: items
+      type: array
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - {key: id, label: 合成記録ID, type: id, required: true, pattern: '^CMP-\S+$'}
+          - {key: designId, label: 設計項目, type: string, required: true}
+          - {key: kind, label: 種類, type: enum, values: [entity, type, field], required: true}
+          - {key: owner, label: 所属, type: string}
+          - {key: path, label: 場所, type: array, item: {type: string}, required: true}
+          - {key: description, label: 採用した説明, type: text}
+          - {key: descriptions, label: 元の説明と出どころ, type: array, item: {type: any}, required: true}
+    - {key: decisions, label: 採用の記録, type: array, item: {type: any}, required: true}
+    - {key: corrections, label: 適用した補正と理由, type: array, item: {type: any}, required: true}

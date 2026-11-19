@@ -1,8 +1,7 @@
 id: entity-definition-crud
 name: エンティティ定義書（CRUD）
-description: 項目と操作をそれぞれ選び、書く項目の C・U をそのまま並べる。操作が書かない項目も行に残す
+description: 確定項目一覧を読む。補正や型継承は生成時に解決し、ビューでは再計算しない
 params: [entity]
-corrections: { schemaIds: [basic-corrections] }
 rows:
   match:
     - node: { id: "ENT-*", bind: e }

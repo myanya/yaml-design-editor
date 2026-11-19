@@ -1,6 +1,6 @@
 id: entity-definition-items
 name: エンティティ定義書（項目一覧）
-description: 基本設計項目一覧の項目に、補正一覧を重ねた一覧（エンティティ定義書の 1 区画）。行はエンティティの中の項目（FLD-*）
+description: 確定項目一覧を読む。補正や型継承は生成時に解決し、ビューでは再計算しない
 params: [entity]
 rows:
   match:
@@ -11,34 +11,85 @@ rows:
   where:
     - { of: e, path: id, equals: $entity }
 order: { schemaId: basic-entity-list }
-corrections: { schemaIds: [basic-corrections] }
 columns:
-  - { label: 項番, path: seq }
-  - { label: 項目, path: key }
-  - { label: 名称, path: label }
-  - { label: 論理型, path: type }
-  - { label: 基底の種類, value: { first: [{ via: type, path: base }, { path: base }] } }
-  - { label: 要素の論理型, path: itemType }
-  - { label: 要素のエンティティ, path: itemEntity }
-  - { label: 要素の基底の種類, path: itemBase }
-  - { label: 重ならない, path: unique }
-  - { label: 必須, path: required }
-  - { label: 最大文字数, value: { first: [{ path: maxLength }, { via: type, path: maxLength }] } }
-  - { label: 形, value: { first: [{ path: pattern }, { via: type, path: pattern }] } }
-  - { label: 最小文字数, value: { first: [{ path: minLength }, { via: type, path: minLength }] } }
-  - { label: 最小値, value: { first: [{ path: min }, { via: type, path: min }] } }
-  - { label: 最大値, value: { first: [{ path: max }, { via: type, path: max }] } }
-  - { label: 複数行, value: { first: [{ path: multiline }, { via: type, path: multiline }] } }
-  - { label: 表示形式, value: { first: [{ path: format }, { via: type, path: format }] } }
-  - { label: 要素の参照先, value: { via: itemType, path: target } }
-  - { label: 初期値, path: default }
-  - { label: 自動で入る値, path: auto }
-  - { label: 選択肢, value: { each: { first: [{ path: values }, { via: type, path: values }] }, value: { path: value } } }
-  - { label: エンティティ, path: entity }
-  - { label: 入れ子の項目, path: fields }
-  - { label: 論理型の項目, value: { first: [{ via: type, path: "fields[*].key" }, { via: itemType, path: "fields[*].key" }] } }
-  - { label: 参照先, value: { first: [{ path: target }, { via: type, path: target }] } }
-  - { label: 説明, path: description }
-  - { label: 導出元, path: source }
-  - { label: ルール, path: rule }
-  - { label: 補正, backlinks: { schemaIds: [basic-corrections] } }
+  - label: 所属先
+    path: owner
+  - label: 経路
+    path: path
+  - label: 項番
+    path: seq
+  - label: 項目
+    path: key
+  - label: 名称
+    path: label
+  - label: 論理型
+    path: type
+  - label: 基底の種類
+    path: base
+    schemaId: basic-entity-list
+  - label: 要素の論理型
+    path: item.type
+    schemaId: basic-entity-list
+  - label: 要素のエンティティ
+    path: item.entity
+    schemaId: basic-entity-list
+  - label: 要素の基底の種類
+    path: item.base
+    schemaId: basic-entity-list
+  - label: 重ならない
+    path: unique
+  - label: 必須
+    path: required
+  - label: 最大文字数
+    path: maxLength
+    schemaId: basic-entity-list
+  - label: 形
+    path: pattern
+    schemaId: basic-entity-list
+  - label: 最小文字数
+    path: minLength
+    schemaId: basic-entity-list
+  - label: 最小値
+    path: min
+    schemaId: basic-entity-list
+  - label: 最大値
+    path: max
+    schemaId: basic-entity-list
+  - label: 複数行
+    path: multiline
+    schemaId: basic-entity-list
+  - label: 表示形式
+    path: format
+    schemaId: basic-entity-list
+  - label: 要素の参照先
+    path: item.reference.entities
+    schemaId: basic-entity-list
+  - label: 初期値
+    path: default
+  - label: 自動で入る値
+    path: auto
+  - label: 選択肢
+    schemaId: basic-entity-list
+    value:
+      path: values[*].value
+  - label: エンティティ
+    path: entity
+  - label: 入れ子の項目
+    path: fields
+  - label: 配列の要素
+    path: item
+  - label: 選択肢の項目
+    path: cases
+  - label: 参照先
+    path: reference.entities
+    schemaId: basic-entity-list
+  - label: 説明
+    path: description
+  - label: 導出元
+    path: source
+  - label: マップの値
+    path: value
+  - label: 属性の状態
+    path: attributeStates
+  - label: 根拠
+    path: origins
