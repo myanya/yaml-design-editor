@@ -1,9 +1,18 @@
 id: UX-09
 title: Windows コンソールで CLI 出力（UTF-8）が**文字化け**する
-status: todo
+status: in-progress
 kind: bug
 origin_on: 2026-08-02
 origin: CLI確認
-memo: コンソールのコードページ問題。`chcp 65001` で回避可。恒久策はファイル出力オプション（`--out`）か起動スクリプトでのコードページ設定
+memo: |-
+  コンソールのコードページ問題。`chcp 65001` で回避可。恒久策はファイル出力オプション（`--out`）か起動スクリプトでのコードページ設定
+  （2026-11-18 現物確認）CLI は UTF-8 固定で出力する（cli/Main.kt・cli/build.gradle.kts）。全命令に共通のファイル出力は無く、manual に回避策の説明も無い（書いてあるのは AGENTS.md だけ）
 features:
   - C-06
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 全命令に共通の --output-file <ファイル>（結果を UTF-8 のファイルへ）と、起動スクリプト yde・yde.cmd（Gradle を出力の経路に入れず、toolchain の Java で CLI を直接起動する。yde.cmd
+      は実行の間だけコードページを UTF-8 にする）を入れた。原因は、Gradle が CLI の出力を端末の文字コードに書き直すことと、Git Bash で Java が標準出力の文字コードを誤ること（JDK-8337077。22.0.1
+      より前）。bash 版は Linux で動作を確かめた。Windows（Git Bash・コマンドプロンプト・PowerShell）での確認はオーナーの手元で行う
+    targets: cli/Main.kt・cli/build.gradle.kts（cliDist）・yde・yde.cmd・manual/cli.md・CliTest

@@ -1,6 +1,6 @@
 id: UX-212
 title: manual/README.md「画面構成」が「4つのスペース」と書いているが、レールと表は 5 つ
-status: todo
+status: resolved
 kind: doc
 origin_on: 2026-10-28
 origin: 用語集（R47-32）中
@@ -8,3 +8,8 @@ body: '**manual/README.md「画面構成」が「4つのスペース」と書い
 memo: 数を書かない（「スペースからなります」）か 5 に直す。内蔵ヘルプにも同じ文が入る
 features:
   - W-09
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: UX-193 と同じ指摘（重複）。UX-193 の修正（manual/README.md を 5 つのスペースに直す）で解決

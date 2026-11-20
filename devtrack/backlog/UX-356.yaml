@@ -1,14 +1,35 @@
 id: UX-356
-title: 継承した選択肢の子に利用箇所で書いた制約が反映されない
-status: todo
-kind: spec
-origin_on: 2026-11-18
-origin: todos-sysdev の個別項目補正を利用箇所へ反映する処理の検証
+title: "スキーマの言語に「どちらかの形」を書く語が無く、形が 2 通りある項目はメタスキーマで型が any になる"
+status: resolved
+kind: feature
+origin_on: 2026-11-17
+origin: "メタスキーマの型が any の項目を仕分けたとき（UX-347）"
 memo: |-
-  名前付き enum 型が cases を持つ場合、SchemaTree は継承元の cases を優先し、利用箇所で同じ選択肢の子へ書いた制約を採用しない。親の object 型から enum の項目と cases を継承する場合も同じ。
-  例: choice 型の a の note が maxLength: 100 のとき、left: {type: choice, cases: {a: [{key: note, maxLength: 60}]}} と指定しても 100 のままになる。
-  fields の子の狭め方との違いがある。選択肢・子キーの対応と競合、型を狭める規則を整理してから解決方式を変更する必要がある。
-  今回の $schemaUses はこの場所を writable: false とし、todos-sysdev は補正を pending に残す。反映できないものを適用済みにしない。直書きの cases の子と、名前付き型自身の cases の子の補正は可能。
-  SchemaUsesTest と TodosFieldCorrectionsTest で、この未対応境界と原文の保持を確認する。
-features: [C-21]
-roadmap: [R53-05]
+  文字列か配列、object か配列、のように形が 2 通りある項目は、スキーマの言語で書けないので any にしている。検証は形を確かめず、設計画面は汎用の欄になる。
+  該当（約 20 か所）:
+  - スキーマ: 文書の entity（object か配列）・phases（配列か {key, order}）・参照の idPattern / idPatterns・scope.schemaIds / documentIds（文字列か配列）・enum の values の要素（文字列か {value, label, description}）・配列の unique（true かキーの配列）・coverage の detailIn.schemaIds・操作の lifecycle（ID か {id, history}）・追加の決まりの key（パスか配列）と id.prefix（文字列かひな型）
+  - ビュー: 入力の values の要素・クロス集計の columns.order と columns.values の要素・unclassified と rows.unclassified（見出しの文字か false）
+  - ワークスペースの構成: ledger（文字列か配列）
+  - skill: target.file と target.id.prefix（文字列かひな型）
+  直すには、スキーマの言語に「どちらかの形」を書く語を足す判断が要る（語を足すと、検証・フォーム・AI 生成の JSON Schema・設計画面のすべてに関わる。Core Calculus の検討が先）。
+  足さない場合の代案: 読み取りを 1 つの形に寄せる（例 文字列を配列 1 件として読むのをやめる）のは、既存の定義を壊すので勧めない。
+features:
+  - S-15
+  - S-02
+related:
+  - UX-359
+  - UX-360
+spec:
+  - KW-field.allowSingle
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: |-
+      検討した案は 3 つ。(1) 何もしない（any のまま）。(2) 中間の案: いちばん多い「1 つか、その並び」だけを書ける印を配列に足す。(3) 汎用の「どちらかの形」（形ごとに決まりを書く語）を足す。
+      オーナーの判断で (2) を採った。(3) は検証・フォーム・AI 生成・設計画面のすべてで形の分岐が要り、いま必要な所が少ない。
+      配列の項目定義に allowSingle: true を足した。並びでない値は要素 1 つとして読み、要素の決まりで確かめる（構造の検査は値の形ごとの決まり shapes に展開。走査・書き換え・要素の検査・ファイルの検査・フォームは同じ場所で要素として読む）。
+      メタスキーマで any だった 8 か所を型のある形にした: 参照の idPattern / idPatterns・scope.schemaIds / documentIds・coverage の detailIn.schemaIds・追加の決まりの key・文書の entity（要素の項目も決めた）・ワークスペースの構成の ledger。
+      既知の制限: そのまま書いた値の場所は項目そのもの（[0] を付けない）なので、パスの [*] は並びの書き方にだけ合う。パスで読む利用者の項目には勧めない（manual に明記）。書き方を 1 つに寄せる改修は UX-359。
+      残した any（形が「1 つか並び」でないもの: phases・values の要素・unique・lifecycle・id.prefix・ビューの unclassified など）の精査は UX-360。
+    targets: FieldDef.allowSingle・builtin-transforms/structural-schema.yaml・builtin-schemas/schema.yaml・workspace.yaml・FormFields

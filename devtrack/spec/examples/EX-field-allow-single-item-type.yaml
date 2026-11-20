@@ -1,0 +1,21 @@
+id: EX-field-allow-single-item-type
+title: "allowSingle の配列にそのまま書いた値も、要素の型で確かめる"
+area: schema
+illustrates: [KW-field.allowSingle]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: points, type: array, allowSingle: true, item: { type: int } }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      points: 多い
+expect:
+  result: error
+  message: "points"

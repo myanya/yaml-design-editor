@@ -95,6 +95,25 @@ class StagingTest {
     }
 
     @Test
+    fun `途中で失敗したパッチでも 成功済みの操作は索引に映る`() {
+        // 以前は索引の覚えを正常終了のときだけ捨てたので、木は変わったのに索引は古いままになった（UX-227）
+        val ws = Workspace.open(dir)
+        val staging = Staging(ws)
+        assertTrue(staging.index().occurrences("TERM-001").isNotEmpty())
+        assertFailsWith<Exception> {
+            staging.applyOps(
+                "glossary/main.yaml",
+                listOf(
+                    PatchOp.Set(parseYPath("terms[0].id"), YNode.Scalar("TERM-100")),
+                    PatchOp.Delete(parseYPath("terms[9].title")),
+                ),
+            )
+        }
+        assertTrue(staging.index().occurrences("TERM-100").isNotEmpty())
+        assertTrue(staging.index().occurrences("TERM-001").isEmpty())
+    }
+
+    @Test
     fun `staged index resolves coordinated cross-file rename before saving`() {
         val ws = Workspace.open(dir)
         val staging = Staging(ws)

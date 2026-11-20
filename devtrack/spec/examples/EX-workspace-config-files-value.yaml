@@ -1,0 +1,23 @@
+id: EX-workspace-config-files-value
+title: "files の outside・missing は、allow・warning・error のどれか"
+area: schema
+illustrates: [KW-workspace-files.outside, KW-workspace-files.missing]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "doc/tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+  - path: "doc/tasks/a.yaml"
+    text: |-
+      id: TASK-1
+  - path: ".yde/workspace.yaml"
+    text: |-
+      files:
+        outside: deny
+expect:
+  result: error
+  message: "deny"

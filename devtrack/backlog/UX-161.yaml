@@ -6,7 +6,10 @@ origin_on: 2026-10-12
 origin: テーブルの参照セル
 body: '**ID も名前も持たない要素の配列を畳むと、要約が「n 件: （3項目）, （3項目）, …」になり中身が分からない**（例 sysdev-template の画面遷移の遷移一覧＝遷移元・遷移先・契機だけの行）'
 memo: '`DisplayCore.inline` の object の要約は id ＞ title ＞ subtitle ＞ キー数で、それ以外の項目は見ない。候補: ①要素の最初のセル型の項目（参照なら名前つき）を並べる ②参照の項目にも
-  `role: title` を許す。要約の規則そのものの変更なので、どの場面で困るかを集めてから決める'
+  `role: title` を許す。要約の規則そのものの変更なので、どの場面で困るかを集めてから決める
+
+  （2026-11-18 現物確認）要約の決まり（schema/DisplayCore.kt の inline）は変わっていない。summarize の roleValue は型を見ずに role を読むので、参照の項目に role: title
+  を付ける回避が今も書けるかもしれない（メタスキーマと実例では未確認）'
 features:
   - E-11
   - S-13

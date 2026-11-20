@@ -8,7 +8,7 @@
 
 ## 検査 1 件
 
-constraints の要素（object の項目定義の constraints も同じ形）。書き方は 3 通りで、クエリと判定（match と、expect・count・check・forAll のどれか 1 つ）を直接書くか、定義を名前で使うか（use と with だけ）、専用チェッカーを使います（checker。一緒に書けるのは id・description・args・messages・level・levelFrom・activeFrom）。
+constraints の要素（object の項目定義の constraints も同じ形）。文書のスキーマに書いた検査の指摘は、起点の要素がそのスキーマの文書に現れればそこへ、現れなければ定義の出現へ出ます（そのスキーマの文書の要素だけを起点にするなら、起点の node に schema を書きます）。書き方は 3 通りで、クエリと判定（match と、expect・count・check・forAll のどれか 1 つ）を直接書くか、定義を名前で使うか（use と with だけ）、専用チェッカーを使います（checker。一緒に書けるのは id・description・args・messages・level・levelFrom・activeFrom）。
 
 - メタスキーマ: builtin-schemas/schema.yaml の root.constraints.item
 - 読む実装: semantic-core/schema/QuerySpec.kt の ConstraintRule

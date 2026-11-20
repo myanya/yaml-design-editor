@@ -1,0 +1,13 @@
+id: EX-schema-entity-only-in-document
+title: "entity は、文書のスキーマ（kind: document）にだけ書ける"
+area: schema
+illustrates: [KW-schema.entity, KW-schema.kind]
+files:
+  - path: ".yde/schemas/common.yaml"
+    text: |-
+      id: common
+      kind: library
+      entity: { type: task }
+expect:
+  result: schema-error
+  message: "entity"

@@ -17,3 +17,8 @@ roadmap:
   - R41-05
   - R41-06
   - R24-03
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 不足の指摘から「詳細文書を作成」でその場に作れる（CheckResponse.CreateDetail）。検査の responses から操作も起動できる（R41-05）。残りは、配列モードの新規行（AppState.addViewRow）と同時に詳細文書を作ること（R41-06
+      は一部）

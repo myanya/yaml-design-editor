@@ -1,6 +1,6 @@
 id: UX-351
 title: ".yde/workspace.yaml（ledger・files・scopes・stages）にメタスキーマが無い"
-status: todo
+status: resolved
 kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
@@ -12,3 +12,13 @@ features:
 spec:
   - CTX-workspace
   - CTX-workspace-files
+closed_on: 2026-11-17
+resolutions:
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      構成のメタスキーマ（builtin-workspace。builtin-schemas/workspace.yaml）を足し、構成ファイル（.yde/workspace.yaml）にだけ当てる（一般スキーマの match は及ばない）。
+      これまで構成ファイルにはスキーマを当てていなかったので、トップレベルのキーの綴りを誤っても（leger など）何も言われず、台帳の宣言が無いものとして動いていた。警告になる。
+      ledger は文字列か並びの 2 通りがあるので、型は any のまま（UX-347 の「形が 2 通りあるもの」）。
+      仕様の位置（CTX-workspace・files・scope・stage）はメタスキーマと突き合わせる形にし、例を 3 件足した。
+    targets: WorkspaceLayoutTest・SpecTest

@@ -2,8 +2,12 @@ id: CTX-workspace-scope
 title: "スコープ（scopes の要素）"
 language: workspace
 description: "workspace.yaml の scopes の要素。定義のファイルは、ちょうど 1 つのスコープに入ります。ここに無いキーは誤りになります。"
+meta:
+  schema: workspace
+  path: [root, scopes, item]
 code:
   sets: [workspace.layout.DefinitionScopes.KEYS]
 features: [C-21]
 evidence:
+  metaschema: "builtin-schemas/workspace.yaml の root.scopes.item"
   reader: "workspace-core/workspace/layout/DefinitionScopes.kt の parse"

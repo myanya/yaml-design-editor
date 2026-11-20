@@ -458,7 +458,7 @@ internal fun FieldDefinitionEditor(
         val base = types.baseKindOf(type)
         return listOfNotNull(
             "fields".takeIf { base != "object" }, "unknownFields".takeIf { base != "object" },
-            "item".takeIf { base != "array" }, "unique".takeIf { base != "array" }, "display".takeIf { base != "array" && base != "map" },
+            "item".takeIf { base != "array" }, "unique".takeIf { base != "array" }, "allowSingle".takeIf { base != "array" }, "display".takeIf { base != "array" && base != "map" },
             "value".takeIf { base != "map" }, "cases".takeIf { base != "enum" },
         ).filter { it in map.entries }
     }

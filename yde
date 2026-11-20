@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# ヘッドレス CLI の入口（Git Bash・macOS・Linux）。使い方: ./yde <命令> [引数…]（例: ./yde validate samples/todos）
+# ./gradlew runCli -q --args="…" と同じ命令を、Gradle を出力の経路に入れずに実行する。
+# Gradle 経由では、Gradle が CLI の出力を端末の文字コードに書き直すので、Windows で日本語が文字化けする（docs/manual/cli.md「文字化けを避ける」）。
+# ここでは Gradle は CLI の一式を最新にするだけで（cli/build/yde-cli）、CLI は toolchain の Java で直接起動する。出力は UTF-8。
+# 相対パスの引数は、いまの作業ディレクトリから解決する（runCli はリポジトリの根から）。
+set -eu
+root="$(cd "$(dirname "$0")" && pwd)"
+dist="$root/cli/build/yde-cli"
+# 一式を最新にする（変更が無ければすぐ終わる）。Gradle の出力は標準エラーへ回し、CLI の標準出力を汚さない
+"$root/gradlew" -p "$root" :cli:cliDist -q --console=plain >&2
+java_home="$(cat "$dist/java-home.txt")"
+lib="$dist/lib"
+# Git Bash では、Windows の Java に渡すクラスパスを Windows の形にする
+if command -v cygpath >/dev/null 2>&1; then lib="$(cygpath -w "$lib")"; fi
+exec "$java_home/bin/java" -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 \
+  -cp "$lib/*" dev.toros.yde.cli.MainKt "$@"

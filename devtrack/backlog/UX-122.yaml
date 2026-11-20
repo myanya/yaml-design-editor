@@ -1,6 +1,6 @@
 id: UX-122
 title: ビューのグリッドで、セルの場所（相対パス）の表示が無く、確認できなかった
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-09-22
 origin: S1 第3回（オーナー。Q5）
@@ -11,3 +11,9 @@ memo: '`ViewGridPane` のセル: 編集可能なセルは `Slot` の直接編集
 targets: V-10
 features:
   - X-06
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 'ビューのグリッドの編集できるセルは、マウスを載せると原本の場所（文書 :: パス）を tooltip で出す'
+    targets: ViewGridPane.kt・GridWidths.kt（cellOriginText）・GridWidthsTest

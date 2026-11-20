@@ -1,0 +1,73 @@
+id: EX-matrix-in-registry
+title: "横断の検査は、関係レジストリにも書ける（matrix を関係レジストリに書いた、満たしている例）"
+area: checks
+illustrates: [KW-schema.matrix, CTX-matrix, KW-schema.kind]
+files:
+  - path: ".yde/schemas/req.yaml"
+    text: |-
+      id: req
+      match: "reqs/*.yaml"
+      entity: { type: req, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: title, type: string, role: title }
+  - path: ".yde/schemas/env.yaml"
+    text: |-
+      id: env
+      match: "envs/*.yaml"
+      entity: { type: env, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+  - path: ".yde/schemas/test.yaml"
+    text: |-
+      id: test
+      match: "tests/*.yaml"
+      entity: { type: test, defines: true }
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: covers, type: ref, relation: covers }
+          - { key: env, type: ref, relation: runs-on }
+  - path: "reqs/a.yaml"
+    text: |-
+      id: REQ-1
+      title: ログインできる
+  - path: "envs/a.yaml"
+    text: |-
+      id: ENV-1
+  - path: "envs/b.yaml"
+    text: |-
+      id: ENV-2
+  - path: "tests/a.yaml"
+    text: |-
+      id: TEST-1
+      covers: REQ-1
+      env: ENV-1
+  - path: ".yde/schemas/relations.yaml"
+    text: |-
+      id: relations
+      kind: relations
+      relations:
+        - { name: covers }
+        - { name: runs-on }
+      matrix:
+        - id: every-req-on-every-env
+          rows: { entity: req }
+          columns: { entity: env }
+          witness:
+            node: { entity: test }
+            row: { relation: covers }
+            column: { relation: runs-on }
+          level: error
+  - path: "tests/b.yaml"
+    text: |-
+      id: TEST-2
+      covers: REQ-1
+      env: ENV-2
+expect:
+  result: ok

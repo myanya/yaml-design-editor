@@ -7,3 +7,4 @@ body: '**エンティティの削除で、外からその要素自身への参�
 memo: '`SemanticRefactor.delete` の `inbound` を error でなく warnings に落とす。拒否のままにする理由があれば文書に書く'
 features:
   - C-10
+kind: spec

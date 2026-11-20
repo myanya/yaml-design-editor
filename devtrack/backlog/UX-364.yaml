@@ -1,0 +1,13 @@
+id: UX-364
+title: PowerShell で CLI 起動スクリプトの出力をログへ送ると終了待ちが続くことがある
+status: todo
+kind: dev
+origin_on: 2026-11-20
+origin: master の更新を todos-sysdev の作業ブランチへ取り込む際の Windows CLI 検証
+memo: |-
+  Windows の Codex 実行環境で、PowerShell スクリプトから yde.cmd view <作業用コピー> design-review-processes --format json --output-file <結果> を実行し、スクリプト全体の出力を *> <ログ> へ送った。
+  結果ファイルは正常に作られたが、呼び出しが戻らず、後続の validate は開始されなかった。view の Java と cmd は終了済みで、今回起動した Gradle 9.3.0 の常駐プロセスだけが残っていた。そのログではビルド完了と待機状態を確認した。
+  今回起動した待機中の常駐プロセスだけを終了すると、直ちに後続の validate と generate が進んだ。出力パイプを常駐プロセスが保持していた可能性がある。通常の対話端末での再現と、常駐を無効にした場合の差は未確認。
+  以後の検証は準備済み cli/build/yde-cli/lib と java-home.txt を使い、CLI の Java を直接起動して進めた。オーナーのアプリや他の Gradle は停止していない。
+  最小の再現条件を確認し、起動スクリプトの出力のつなぎ方か、検証時の常駐の扱いを見直す。
+features: [C-06]

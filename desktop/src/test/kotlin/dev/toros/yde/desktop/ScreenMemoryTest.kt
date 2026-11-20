@@ -1,6 +1,7 @@
 package dev.toros.yde.desktop
 
 import dev.toros.yde.yaml.model.DocumentId
+import dev.toros.yde.yaml.model.parseYPath
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.AfterTest
@@ -64,6 +65,24 @@ class ScreenMemoryTest {
         memory.navigation(old, FormSurface.FORM)
         memory.clear()
         assertTrue(memory.formNavigation.isEmpty())
+    }
+
+    @Test
+    fun `ソースの畳みは文書の改名と削除と切替に追随する`() {
+        // 以前はどれにも入っておらず、切り替えた先の同じ相対パスの文書に畳みが持ち越された（UX-173）
+        val memory = ScreenMemory()
+        val old = DocumentId("sub/a.yaml")
+        val moved = DocumentId("moved/a.yaml")
+        val folded = setOf(parseYPath("items"))
+        memory.sourceFolds[old] = folded
+        memory.renameDocument(DocumentId("sub"), DocumentId("moved"))
+        assertNull(memory.sourceFolds[old])
+        assertEquals(folded, memory.sourceFolds[moved])
+        memory.forgetDocument(DocumentId("moved"))
+        assertTrue(memory.sourceFolds.isEmpty())
+        memory.sourceFolds[old] = folded
+        memory.clear()
+        assertTrue(memory.sourceFolds.isEmpty())
     }
 
     @Test

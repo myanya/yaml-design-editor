@@ -178,7 +178,7 @@ definitions:
           - { key: path, label: ID項目のパス, type: string, placeholder: id }
           - { key: prefix, label: 接頭辞, type: any }
           - { key: digits, label: 桁数, type: int, min: 1, max: 9, default: 3 }
-      - { key: key, label: 重複を見分ける項目, type: any, description: "項目のパス、またはパスの配列。同じ値があれば追加しません。" }
+      - { key: key, label: 重複を見分ける項目, type: array, allowSingle: true, item: { type: string }, description: "項目のパス、またはパスの配列。同じ値があれば追加しません。" }
   field:
     type: object
     fields:
@@ -312,6 +312,10 @@ definitions:
               label: 重複を許さない
               type: any
               description: "要素が重ならないこと（UX-316）。要素がスカラー（文字・数・選択肢・参照など）なら true（同じ値を 2 回書けない）、object なら比べる項目のキーの一覧（例 [name]。複数書けばその組で比べる）。重なった要素（後から出た方）を構造の検査が指摘する。数は数として比べ、項目が書かれていない要素は比べない。型に書けば使う側に引き継がれ、使う側は足せるが外せない"
+            - key: allowSingle
+              label: 1 つだけならそのまま書ける
+              type: boolean
+              description: "true にすると、要素が 1 つだけのとき、並びにせずそのまま書ける（例 tags: a は tags: [a] と同じ）。並びでない値は要素 1 つとして読み、場所は項目そのもの（[0] を付けない）。パスの [*] は並びの書き方にだけ合う。型に書けば使う側に引き継がれる"
             - key: relation
               label: 保有の関係名
               type: string
@@ -378,7 +382,8 @@ definitions:
                   type: string
                 - key: owns
                   label: 所有する項目（省略時は宣言した項目全部）
-                  type: any
+                  type: array
+                  item: { type: string }
           id:
             - key: pattern
               label: 形式（正規表現）
@@ -387,22 +392,30 @@ definitions:
           ref:
             - key: idPattern
               label: 参照先IDパターン
-              type: any
+              type: array
+              allowSingle: true
+              item: { type: string }
               description: glob 文字列または配列
             - key: idPatterns
               label: 参照先IDパターン（複数）
-              type: any
+              type: array
+              allowSingle: true
+              item: { type: string }
             - key: scope
               label: 探索範囲
               type: object
               fields:
                 - key: schemaIds
                   label: スキーマIDの限定
-                  type: any
+                  type: array
+                  allowSingle: true
+                  item: { type: string }
                   description: 文字列または配列
                 - key: documentIds
                   label: ドキュメントIDの限定
-                  type: any
+                  type: array
+                  allowSingle: true
+                  item: { type: string }
                   description: 文字列または配列
             - key: relation
               label: 関係種別
@@ -540,8 +553,18 @@ root:
       description: フェーズ名の配列、または {key, order} の object
     - key: entity
       label: エンティティ型の宣言
-      type: any
+      type: array
+      allowSingle: true
       description: "この文書群の出現のエンティティ型（R20-01）。{type, idPattern, idType, defines, aspect, owns} の object、または複数型のリスト（idPattern＝ID の glob か idType＝ID の型の名前で判別。両方書けば両方に合う ID）。aspect / owns はこの出現が所有する側面の宣言（R23-01。省略時はスキーマID／宣言フィールド全部）"
+      item:
+        type: object
+        fields:
+          - { key: type, label: エンティティ型名, type: string, required: true }
+          - { key: idPattern, label: ID の形（glob）, type: string }
+          - { key: idType, label: ID の型の名前, type: string }
+          - { key: defines, label: 定義の出現, type: boolean }
+          - { key: aspect, label: 側面の名前, type: string }
+          - { key: owns, label: 所有する項目のキー, type: array, item: { type: string } }
     - key: coverage
       label: カバレッジルール
       type: array
@@ -565,7 +588,9 @@ root:
             fields:
               - key: schemaIds
                 label: 出現先スキーマ
-                type: any
+                type: array
+                allowSingle: true
+                item: { type: string }
               - key: minCount
                 label: 必要な出現数
                 type: int
@@ -690,7 +715,8 @@ root:
             description: "flow は {nodes, edges: {from: {relation}, to: {relation}}, start: {relation}, terminal: {relation}, usage}"
           - key: messages
             label: 指摘の種類ごとの文面
-            type: any
+            type: map
+            value: { type: string }
             description: "{指摘の種類: 文面のひな型}。書かなかった種類は指摘しない。ひな型には {id}（対象の ID）・{related}（関連するノードの並び）・{count}（その件数）を書ける"
           - key: use
             label: 使う定義の名前
@@ -698,7 +724,8 @@ root:
             description: "functions に定義した検査（組込み定義体・利用者の定義）を名前で使う。use を書いた検査に書けるのは use と with だけ"
           - key: with
             label: 定義へ渡す値
-            type: any
+            type: map
+            value: { type: any }
             description: "定義の params に対応する値（例 {relation: groups, min: 1}）"
           - key: id
             label: ルールID
@@ -833,7 +860,22 @@ root:
             label: 定義の使用への対応
             type: any
             required: true
-            description: "（語彙には requires: [必ず書くキーのパス]・keys: [書けるキーの一覧]・removed: {廃止したキー: 案内} も書ける——書き方の形の最小の点検で、外れていればスキーマの読み込みエラー）{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
+            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
+          - key: requires
+            label: 必ず書くキー
+            type: array
+            item: { type: string }
+            description: "この語彙の要素に必ず書くキーのパス（例 [detailIn.schemaIds]）。書き方の形の最小の点検で、外れていればスキーマの読み込みエラー"
+          - key: keys
+            label: 書けるキー
+            type: array
+            item: { type: string }
+            description: "この語彙の要素に書けるキーの一覧。書くと、一覧に無いキーはスキーマの読み込みエラー"
+          - key: removed
+            label: 廃止したキー
+            type: map
+            value: { type: string }
+            description: "廃止したキー → 書かれたときに出す案内（置き換え先）。書かれていればスキーマの読み込みエラー"
     - key: matrix
       label: 網羅マトリクス
       type: array

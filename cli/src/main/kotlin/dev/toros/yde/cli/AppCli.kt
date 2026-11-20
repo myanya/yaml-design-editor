@@ -50,6 +50,7 @@ internal const val CLI_USAGE = """コマンド:
   view     <workspace> [view-id] [file]         ビュー（_views）を解決する。横断グリッドは行×列、
            文書ビュー（kind: document）は file で対象文書を指定（適用対象1件なら省略可）。
            ダッシュボード（kind: dashboard）は --date YYYY-MM-DD で基準日を指定（省略時は本日）。共有の入力（inputs）は --param 名前=値（省略時は定義の default。空文字で絞らない）。
+           受け取る値（params）を持つ表も --param 名前=値 で受ける（渡さない・空文字はその値で絞らない）。
            view-id 省略時は定義の一覧を表示する。各セルに原本上の座標（file / path）が付く
   validate <workspace> [file] [--sources]       検証（スキーマ・参照・重複・カバレッジ・グラフ整合）。判定を保留した検査があれば
            withheld に内訳と件数を出す。--sources は指摘の出どころ（どの検査の・どの要素についての指摘か）も出す
@@ -142,6 +143,7 @@ internal const val CLI_USAGE = """コマンド:
   --- 共通 ---
   connect ...                                   同じ PC の API に明示接続する（connect help）。ローカル書込へ迂回しない
   --format text|yaml|json                       出力の形式。応用の命令の既定は yaml（text は yaml と同じ）。骨子・全文・ドラフトのような文字の結果は形式に依らずそのまま
+  --output-file <ファイル>                      結果を標準出力でなく UTF-8 のファイルへ書く（どの命令でも。端末の文字コードで文字化けするときに。エラーは標準エラーのまま）
   version                                       バージョン（appVersion＝外部・buildVersion＝内部 yyyymmdd.ビルド番号・commit）
   help                                          このヘルプ
 """

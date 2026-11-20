@@ -4,8 +4,7 @@ context: CTX-schema
 group: check
 status: stable
 forms:
-  - kinds: [document, library, behavior]
-    value: "規則の配列"
+  - value: "規則の配列"
     meaning: "行と列のすべての組み合わせに、証人の要素があることの検査（網羅マトリクス）。組込みの語彙で、検証の前に基本の検査へ展開します。"
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root"

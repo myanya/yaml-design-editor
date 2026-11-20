@@ -85,13 +85,21 @@ class AutomationEngine(
         val id: String,
         val activityId: String,
         val activityName: String,
+        /** 承認待ちになった理由。自動適用から降格したときは降格の理由で、そうでなければ起動のきっかけと同じ。 */
         val reason: String,
         val result: AgentRunResult,
         val runFile: Path?,
         val ws: Workspace,
         val chainDepth: Int,
         val visited: Set<String>,
-    )
+        /** 起動のきっかけ（「ファイル更新 n 件」「連鎖: X の成功」など。キューの reason）。降格しても残す。 */
+        val trigger: String = reason,
+        /** 承認待ちに入った時刻。 */
+        val submittedAtMillis: Long = System.currentTimeMillis(),
+    ) {
+        /** 受信箱に出す文。きっかけと、降格したときはその理由。 */
+        val summary: String get() = if (trigger == reason) trigger else "$trigger ／ $reason"
+    }
 
     data class HistoryEntry(val atMillis: Long, val activityId: String, val status: String, val detail: String?)
 
@@ -452,6 +460,7 @@ class AutomationEngine(
             ws = ws,
             chainDepth = item.chainDepth,
             visited = item.visited,
+            trigger = item.reason,
         )
         synchronized(lock) { pendingReviews += review }
         // 耐久性: アプリを閉じても変更セットを失わないよう、実行記録の隣に保存する

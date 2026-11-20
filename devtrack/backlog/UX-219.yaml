@@ -1,11 +1,19 @@
 id: UX-219
 title: CLI の `view` の `--param` はダッシュボードの共有の入力だけで、グリッド（`params` を持つビュー）には渡らない
-status: todo
+status: resolved
 kind: feature
 origin_on: 2026-10-30
 origin: テーブル定義書の検討（todos-sysdev-tablemodel）
 body: '**CLI の `view` の `--param` はダッシュボードの共有の入力だけで、グリッド（`params` を持つビュー）には渡らない**（`view ws tm-table-columns --param table=TBL-TODO`
   としても全行が返る。画面のビュータブは上の欄で渡せる）'
-memo: '`ViewCommand.kt` のグリッドの経路でも `--param` を読み、`Views.resolve` の `params` に渡す（ダッシュボードと同じ `stringFlags`）。レポートの `$view` にも値を渡す案は別の検討（テーブル定義書の提案）'
+memo: '`ViewCommand.kt` のグリッドの経路でも `--param` を読み、`Views.resolve` の `params` に渡す（ダッシュボードと同じ `stringFlags`）。レポートの `$view` にも値を渡す案は別の検討（テーブル定義書の提案）
+
+  （2026-11-18 現物確認）場所は cli の commands/ViewCommand.kt。グリッドの経路は Views.resolveDetailed に params を渡していない（受け口は Views.kt にある）'
 features:
   - C-07
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: CLI の view は、受け取る値（params）を持つ表にも --param 名前=値 を渡す（渡さない・空文字はその値で絞らない。ビューに無い名前は誤り）。エージェントと MCP の read_view は UX-205
+    targets: cli/commands/ViewCommand.kt・CompositeDocViewTest・manual/cli.md

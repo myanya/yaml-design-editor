@@ -1,9 +1,11 @@
 id: CTX-workspace
 title: "ワークスペースの構成（workspace.yaml）"
 language: workspace
-description: ".yde/workspace.yaml のトップレベル。読めないときは、台帳の宣言が無い（全体が台帳）ものとして続けます。"
-code:
-  extra: [ledger, files, scopes, stages]
+description: ".yde/workspace.yaml のトップレベル。ここに無いキーは、検証の警告になります。読めないときは、台帳の宣言が無い（全体が台帳）ものとして続けます。"
+meta:
+  schema: workspace
+  path: [root]
 features: [W-11]
 evidence:
+  metaschema: "builtin-schemas/workspace.yaml の root"
   reader: "workspace-core/workspace/layout/WorkspaceLayout.kt の of"

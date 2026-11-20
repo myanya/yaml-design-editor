@@ -1,0 +1,17 @@
+id: EX-schema-scaffold-not-with-derive
+title: "scaffold は、derive を書いたスキーマには書けない"
+area: schema
+illustrates: [KW-schema.scaffold, KW-schema.derive]
+files:
+  - path: ".yde/schemas/record.yaml"
+    text: |-
+      id: record-template
+      derive:
+        from: "tables/*.yaml"
+        id: "record-{id}"
+        match: "records/{id}/*.yaml"
+        fields: { source: columns, key: name }
+      scaffold: { name: 新しい記録 }
+expect:
+  result: schema-error
+  message: "scaffold"

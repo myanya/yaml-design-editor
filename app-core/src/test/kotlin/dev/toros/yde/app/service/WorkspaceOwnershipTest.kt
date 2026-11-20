@@ -77,7 +77,22 @@ class WorkspaceOwnershipTest {
         return ProcessBuilder(executable, "-cp", classpath, OwnershipProcessProbe::class.java.name, locks.toString(), root.toString(), mode)
             .redirectErrorStream(true).start()
     }
-    private fun line(process: Process): String? = CompletableFuture.supplyAsync { process.inputReader().readLine() }.get(10, TimeUnit.SECONDS)
+    /**
+     * 子の合図の行（READY か BUSY）を読む。合図でない行は読み飛ばす——標準エラーも同じ流れに入るので、JVM が先に出す行
+     * （JAVA_TOOL_OPTIONS のある環境の「Picked up JAVA_TOOL_OPTIONS: …」など）が合図より前に来ることがある。
+     * 合図が来ないまま流れが終われば、最後に読んだ行（無ければ null）を返す（失敗の文面に子の出力が出る）。
+     */
+    private fun line(process: Process): String? = CompletableFuture.supplyAsync {
+        val reader = process.inputReader()
+        var last: String? = null
+        while (true) {
+            val read = reader.readLine() ?: break
+            last = read
+            if (read in SIGNALS) break
+        }
+        last
+    }.get(10, TimeUnit.SECONDS)
+    private val SIGNALS = setOf("READY", "BUSY")
     private fun stop(process: Process) { if (process.isAlive) { process.destroyForcibly(); process.waitFor(10, TimeUnit.SECONDS) } }
 }
 

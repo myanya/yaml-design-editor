@@ -4,5 +4,6 @@ context: CTX-workspace-stage
 order: 1
 status: stable
 forms:
-  - value: "文字列"
-    meaning: "段の ID。必ず書きます。"
+  - required: true
+    value: "文字列"
+    meaning: "段の ID。"

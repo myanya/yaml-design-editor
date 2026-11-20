@@ -8,3 +8,7 @@ body: '**レンズの型の色に生の色（`Color(0x…)`）が 4 つ残って
 memo: '`Palette` に図の系列色を足し（色覚の差も確かめる。準備完了レポートと同じ流儀）、レンズと凡例をそれに置き換える'
 features:
   - X-03
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 生の 4 色は Palette.Accents へ移り、レンズは Palette の色だけを使う（ui/common/Common.kt・ui/graph/GraphLensView.kt）。残りは、Accents が明暗で共通の固定色であること（暗い背景で沈む色がある）

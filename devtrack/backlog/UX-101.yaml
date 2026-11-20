@@ -17,3 +17,8 @@ features:
   - V-08
 roadmap:
   - R28-05
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: 「直せる場所への案内」の配り方（検査の宣言 fixSite＝IssueDelivery.FIX_SITE）と対処の語彙（CheckResponse）は入った。残りは、発端の被参照不足（多重度 inMin。builtin-definitions/relations.yaml）が
+      fixSite を宣言しておらず、「参照の追加先」で開いた文書に何も出ないこと。fixSite はスキーマ指定なので、計算で決まる追加先はそのままは載らない

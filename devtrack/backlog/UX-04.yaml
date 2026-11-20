@@ -1,6 +1,6 @@
 id: UX-04
 title: 警告から直接修正したい
-status: discussing
+status: resolved
 kind: feature
 origin_on: 2026-08-02
 origin: 値型一巡UX試験
@@ -14,3 +14,9 @@ roadmap:
   - R41-05
   - R17-03
   - R18-02
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 検査の指摘メニューから対処を起動できる（検査の responses＝Jump・ApplyValue・RunAction・CreateDetail。ui/shell/SidePanel.kt・manual/actions.md「検査の指摘から起動する」・R41-05）。残る「指摘が消えるまでの一括」は
+      UX-59（R18-02）で扱う。2026-11-18 の棚卸しでコードを確かめて閉じた

@@ -1,6 +1,6 @@
 id: UX-144
 title: 値の式で導出した配列のグリッドセルは件数だけが表示される
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-10-11
 origin: 関係一覧の作成
@@ -8,3 +8,9 @@ memo: '`ComputedCellLink`が`cellText`を使うため、通常の参照配列の
 features:
   - X-06
   - X-09
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: スカラーの配列の計算セルは要素を「, 」でつないで出す（ui/view/GridWidths.kt の computedCellText・GridWidthsTest）。オブジェクトの配列は「（配列 n 件）」のまま。2026-11-18
+      の棚卸しでコードを確かめて閉じた

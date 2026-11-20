@@ -8,32 +8,40 @@ root:
       label: アクティビティID
       type: id
       required: true
+      description: "このアクティビティを指す名前。連鎖（chain）の起動先・評価セット・CLI の agent で使う"
     - key: name
       label: 表示名
       type: string
+      description: 実行スペースの一覧・受信箱・履歴に出る名前
     - key: description
       label: 説明
       type: text
+      description: 何のための仕事か。人が読む説明で、エージェントにも指示の前置きとして渡す
     - key: agent
       label: 実行エージェント
       type: ref
       required: true
+      description: "実行するエージェント（_agents の定義）。性格・観点・モデル・使えるツール分類はエージェントの側で決める"
       scope:
         schemaIds: [builtin-agent]
     - key: target
       label: 対象
       type: object
+      description: "この仕事が扱う文書の範囲"
       fields:
         - key: match
           label: 対象ファイル（glob）
           type: string
+          description: "扱う文書の glob（例 requirements/**/*.yaml）。起動契機の監視対象（trigger.match を省いたとき）と、文脈レシピの phase の範囲の既定にもなる。書き込める範囲は allowedFiles で別に決める"
     - key: instruction
       label: 指示
       type: text
       required: true
+      description: "エージェントに渡す仕事の指示（何を・どこまで・どう終えるか）。一括実行（foreach）では、1 件ごとの追加指示がこの後ろに付く"
     - key: context
       label: 文脈レシピ
       type: object
+      description: "実行の最初にエージェントへ見せる情報の組み立て。書かなければ何も開示せず、エージェントが探索のツールで自分で読む"
       fields:
         - key: items
           label: 開示項目
@@ -152,17 +160,17 @@ root:
                 type: int
                 description: 超過分は決定的に打切り（doc / related / sample の既定は8000字）
     - key: allowedFiles
-      label: 書込許可ファイル（glob）
+      label: 書き込めるファイル（glob）
       type: array
       item:
         type: string
-      description: 省略時は全ファイルに書込可
+      description: "どの文書に書いてよいか（例 reviews/**/*.yaml）。ここに合わない文書への書込は断る。省略時はどの文書にも書ける。文書の中の場所は allowedPaths で絞る"
     - key: allowedPaths
-      label: 書込許可パス（glob）
+      label: 文書の中で書き込める項目（パス）
       type: array
       item:
         type: string
-      description: YPath（例 review_comments*）。省略時は全パスに書込可
+      description: "書き込めるファイルの中で、どの項目に書いてよいか（文書の中のパス。例 review_comments*）。allowedFiles と両方に合う場所だけに書ける。省略時は文書のどこにでも書ける"
     - key: tools
       label: 許可ツール分類
       type: array
@@ -179,19 +187,24 @@ root:
     - key: limits
       label: ループ上限
       type: object
+      description: "1 回の実行の上限。どれかに達すると実行を止め、そこまでの編集は未提出のドラフトとして残る"
       fields:
         - key: maxTurns
           label: 最大ターン数
           type: int
+          description: "モデルとのやり取りの回数の上限（既定 24）"
         - key: maxTokens
           label: 最大トークン数
           type: int
+          description: "1 回の実行で使うトークンの上限（既定 400000）"
         - key: maxSeconds
           label: 最大実行秒数
           type: int
+          description: "1 回の実行の時間の上限（既定 900 秒＝15 分）"
     - key: gates
       label: 提出ゲート
       type: object
+      description: "エージェントの提出を受け付ける条件。満たさない提出は受け付けず、理由をエージェントへ返す"
       fields:
         - key: validation
           label: 検証条件
@@ -201,6 +214,7 @@ root:
             - { value: no-new-errors, label: 新規エラーなし（点検系。既存エラーは許容） }
             - { value: none, label: なし }
           default: error-free
+          description: "error-free は、編集した文書と影響を受ける文書に検証エラーが無いこと。no-new-errors は、実行の前より検証エラーが増えていないこと（前からあるエラーでは塞がない）。none は検証で止めない"
     - key: approval
       label: 承認方式
       type: enum
@@ -210,19 +224,22 @@ root:
     - key: trigger
       label: 起動契機
       type: object
+      description: "いつ起動するか。手動以外の起動は、実行スペースの「自動化」で監視を有効にしている間だけ働く"
       fields:
         - key: type
           label: 種別
           type: enum
           values: [manual, on-change, schedule, on-invalid]
           default: manual
+          description: "manual は手動だけ。on-change は監視対象のファイルが更新されたとき。on-invalid は更新された後に検証エラーがあるときだけ。schedule は一定の周期（everyMinutes）"
         - key: match
           label: 監視対象（glob）
           type: string
-          description: 省略時は target.match
+          description: "on-change / on-invalid で更新を見張るファイル。省略時は target.match（それも無ければすべての YAML）"
         - key: debounceSeconds
           label: デバウンス秒
           type: int
+          description: "on-change / on-invalid で、更新を検出してから起動するまでの待ち（既定 30 秒）。続けて保存しても 1 回の起動にまとめる"
         - key: everyMinutes
           label: 周期（分）
           type: int
@@ -230,15 +247,18 @@ root:
     - key: chain
       label: 連鎖
       type: object
+      description: "実行が終わった後に、続けて起動するアクティビティ。連鎖の深さには上限があり、同じアクティビティへ戻る循環は起動しない"
       fields:
         - key: onSuccess
           label: 成功時に起動
           type: ref
+          description: "変更が適用されたときに起動する（承認が human なら、人が採用したとき）"
           scope:
             schemaIds: [builtin-activity]
         - key: onFailure
           label: 失敗時に起動
           type: ref
+          description: "失敗で終わったときに起動する（承認が human なら、人が却下したときも）"
           scope:
             schemaIds: [builtin-activity]
         - key: rules
@@ -277,6 +297,7 @@ root:
     - key: retry
       label: 再試行（無人実行）
       type: object
+      description: "自動の起動で失敗したときのやり直し。同じ失敗が続くときは、回数が残っていても打ち切る"
       fields:
         - key: maxAttempts
           label: 最大試行回数
@@ -292,6 +313,7 @@ root:
           type: enum
           required: true
           values: [view, issues, search, files, ids, query]
+          description: "何を 1 件として数えるか。view はビューの行、issues は検証の指摘、search は検索の結果、files はファイル、ids は ID、query はパターン照合の束縛行。下の項目は、ラベルの括弧に書いた列挙元のときだけ効く"
         - key: view
           label: ビューID（view）
           type: ref

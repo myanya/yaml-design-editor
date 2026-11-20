@@ -9,3 +9,13 @@ body: '**利用者マニュアル（docs/manual/。旧 README.md）と関連文�
   と §3.5 のエンティティページの手順が todos ワールド前提）、tutorial.md（todos の題材）。マニュアルは 188KB・約 1,600 行'
 memo: 'samples/ にテーマ別のサンプルを一から作る方針（オーナー 2026-09-22。チュートリアルへの案内も兼ねる）に合わせ、内容を精査しながら書き直す: ①CLI 例と実例ポインタを新しいサンプルへ付け替える ②台本と tutorial.md
   は新しいサンプルと対にする ③英語版の要否はオーナー判断。**2026-09-23: README.md を短い入口（概要・クイックスタート・文書一覧・ライセンス）に分け、本文は docs/MANUAL.md へ移した（内容の精査はこれから）**'
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: README の分割、スタート画面のボタンの撤去（UX-194）、新しい機能の章（samples/todos・orders などを指す）は済み。残りは、いまは中身の無い sample-workspace（samples/sample-workspace
+      は .gitkeep だけ）を指す場所＝manual/cli.md の 21 行、manual/ids.md、manual/checks.md の 3 か所、manual/views.md の 2 か所、UX-SCENARIOS.md
+      の S4 と S6 §8。tutorial を新しいサンプルと対にすることと、英語版の要否も残り
+  - date: 2026-11-18
+    kind: 一部
+    note: manual/cli.md のコマンド例の sample-workspace を、ほかの例と同じ仮の名前 my-ws に付け替えた。残りは manual/ids.md・checks.md・views.md と UX-SCENARIOS.md
+      の実例の差し替え、tutorial、英語版の要否

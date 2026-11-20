@@ -6,6 +6,88 @@
 結果は repo-tests の `SpecTest` が実際に開いて確かめているので、ここに書いてあるとおりに動く。
 **原本は [devtrack/](../../devtrack/README.md) の `spec/examples/`**（1 例 1 ファイルの YAML）。足す・直すときは YAML を書き、`./gradlew devtrackDocs` で作り直す。
 
+## allowSingle: true の配列は、要素 1 つをそのまま書いても並びで書いても通る
+
+- ID: EX-field-allow-single
+- 示す仕様: KW-field.allowSingle
+- 結果: 通る（誤りも警告も無い）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: points, type: array, allowSingle: true, item: { type: int } }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+points: 3
+```
+
+`tasks/b.yaml`
+
+```yaml
+id: TASK-2
+points: [3, 5]
+```
+
+## allowSingle の配列にそのまま書いた値も、要素の型で確かめる
+
+- ID: EX-field-allow-single-item-type
+- 示す仕様: KW-field.allowSingle
+- 結果: 検証のエラーになる（文面に「points」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: points, type: array, allowSingle: true, item: { type: int } }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+points: 多い
+```
+
+## allowSingle の配列にそのまま書いた参照も、参照として解決する
+
+- ID: EX-field-allow-single-ref
+- 示す仕様: KW-field.allowSingle
+- 結果: 検証のエラーになる（文面に「TASK-9」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: after, type: array, allowSingle: true, item: { type: ref } }
+```
+
+`tasks/a.yaml`
+
+```yaml
+id: TASK-1
+after: TASK-9
+```
+
 ## date の項目は、形に合っていても存在しない日付はエラーになる
 
 - ID: EX-field-date-invalid
@@ -372,6 +454,39 @@ derive:
   fields: { source: columns, key: name }
 ```
 
+## entities と enforcement は、関係レジストリ（kind: relations）にだけ書ける
+
+- ID: EX-schema-entities-only-in-registry
+- 示す仕様: KW-schema.entities・KW-schema.enforcement・KW-schema.kind
+- 結果: スキーマの読み込みの誤りになる（文面に「entities」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+entities:
+  - { type: task, label: 作業 }
+```
+
+## entity は、文書のスキーマ（kind: document）にだけ書ける
+
+- ID: EX-schema-entity-only-in-document
+- 示す仕様: KW-schema.entity・KW-schema.kind
+- 結果: スキーマの読み込みの誤りになる（文面に「entity」を含む）
+
+`.yde/schemas/common.yaml`
+
+```yaml
+id: common
+kind: library
+entity: { type: task }
+```
+
 ## relations は、関係レジストリ（kind: relations）にだけ書ける
 
 - ID: EX-schema-relations-only-in-registry
@@ -409,6 +524,24 @@ root:
     - { key: id, type: id }
 ```
 
+## scaffold は、derive を書いたスキーマには書けない
+
+- ID: EX-schema-scaffold-not-with-derive
+- 示す仕様: KW-schema.scaffold・KW-schema.derive
+- 結果: スキーマの読み込みの誤りになる（文面に「scaffold」を含む）
+
+`.yde/schemas/record.yaml`
+
+```yaml
+id: record-template
+derive:
+  from: "tables/*.yaml"
+  id: "record-{id}"
+  match: "records/{id}/*.yaml"
+  fields: { source: columns, key: name }
+scaffold: { name: 新しい記録 }
+```
+
 ## states は、振る舞いの宣言（kind: behavior）にだけ書ける
 
 - ID: EX-schema-states-only-in-behavior
@@ -427,5 +560,100 @@ root:
     - { key: title, type: string, required: true }
 states:
   - { id: open, entity: task }
+```
+
+## files の outside・missing は、allow・warning・error のどれか
+
+- ID: EX-workspace-config-files-value
+- 示す仕様: KW-workspace-files.outside・KW-workspace-files.missing
+- 結果: 検証のエラーになる（文面に「deny」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "doc/tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`doc/tasks/a.yaml`
+
+```yaml
+id: TASK-1
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+files:
+  outside: deny
+```
+
+## ワークスペースの構成（.yde/workspace.yaml）は、構成のメタスキーマで検証される
+
+- ID: EX-workspace-config-ok
+- 示す仕様: CTX-workspace・CTX-workspace-files・CTX-workspace-scope・CTX-workspace-stage
+- 結果: 通る（誤りも警告も無い）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "doc/tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`doc/tasks/a.yaml`
+
+```yaml
+id: TASK-1
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+ledger: [doc]
+files:
+  outside: error
+  missing: warning
+scopes:
+  - { id: business, name: 業務モデル, include: ["schemas/**"] }
+stages:
+  - { id: basic, name: 基本設計 }
+```
+
+## 構成のファイルに、決まった語でないキーを書くと警告になる（綴りの誤りに気づける）
+
+- ID: EX-workspace-config-unknown-key
+- 示す仕様: CTX-workspace・KW-workspace.ledger
+- 結果: 検証の警告になる（文面に「leger」を含む）
+
+`.yde/schemas/task.yaml`
+
+```yaml
+id: task
+match: "doc/tasks/*.yaml"
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`doc/tasks/a.yaml`
+
+```yaml
+id: TASK-1
+```
+
+`.yde/workspace.yaml`
+
+```yaml
+leger: [doc]
 ```
 

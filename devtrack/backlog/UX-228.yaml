@@ -4,4 +4,6 @@ status: todo
 kind: dev
 origin_on: 2026-10-31
 origin: 履歴からの読込失敗の画面テスト
-memo: テスト用 Preferences の注入・隔離を検討する。今回追加した通知テストは履歴を退避・復元する
+memo: |-
+  テスト用 Preferences の注入・隔離を検討する。今回追加した通知テストは履歴を退避・復元する
+  （2026-11-18 現物確認）AppState が Preferences.userRoot() を直に持つ。退避と復元をするのは WorkspaceOpenNoticeTest だけ。uiPreferences・FilePickers・FileTreePreferences も同じ形

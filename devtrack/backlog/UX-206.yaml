@@ -5,7 +5,9 @@ kind: dev
 origin_on: 2026-10-26
 origin: ソース規則テストの実装中
 body: '**app.validate の `Readiness.kt` が `core.Workspace` を使い、validate と core が循環している**（設計は index・schema・validate を core より下に置く）'
-memo: '`Readiness` が要るものを core より下の型（索引・スキーマ・文書の読み出し）に絞って受け取るか、`Readiness` を core へ移す。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す'
+memo: '`Readiness` が要るものを core より下の型（索引・スキーマ・文書の読み出し）に絞って受け取るか、`Readiness` を core へ移す。規則テスト（`rules/SourceRules`）の known に登録済みで、直したら消す
+
+  （2026-11-18 現物確認）規則テストの場所は repo-tests の app/rules/SourceRules.kt。モジュールを切り出した後も Readiness は app-core の validate にあり、循環は同じ'
 targets: P47
 features:
   - V-13

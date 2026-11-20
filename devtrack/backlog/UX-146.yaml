@@ -6,4 +6,6 @@ origin_on: 2026-10-11
 origin: P36 段階 0
 body: '**`TabRow` が非推奨**（`PrimaryTabRow` / `SecondaryTabRow` へ。台帳・実行・スキーマ設計・右パネル・エディタの 5 箇所）と **`LocalClipboardManager` が非推奨**（`LocalClipboard`＝suspend
   版へ。スキーマ設計のコピー）'
-memo: 置き換えるとタブの下線の描き方が変わるため見た目を確かめて進める。クリップボードは `rememberCoroutineScope` 経由に
+memo: |-
+  置き換えるとタブの下線の描き方が変わるため見た目を確かめて進める。クリップボードは `rememberCoroutineScope` 経由に
+  （2026-11-18 現物確認）TabRow は 5 か所（MarkdownPane・GraphLensView・Shell・SidePanel・RunsSpace）。LocalClipboardManager は 5 か所に増えた（FileTreePane・SchemaEditor・SourceSyntaxBar・EditorChrome・LocalConnectionSettingsPage）

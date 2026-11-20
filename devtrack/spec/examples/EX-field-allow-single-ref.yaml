@@ -1,0 +1,21 @@
+id: EX-field-allow-single-ref
+title: "allowSingle の配列にそのまま書いた参照も、参照として解決する"
+area: schema
+illustrates: [KW-field.allowSingle]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+          - { key: after, type: array, allowSingle: true, item: { type: ref } }
+  - path: "tasks/a.yaml"
+    text: |-
+      id: TASK-1
+      after: TASK-9
+expect:
+  result: error
+  message: "TASK-9"

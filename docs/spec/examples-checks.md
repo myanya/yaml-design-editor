@@ -190,6 +190,87 @@ lifecycles:
     termination: { terminal: [task-closed] }
 ```
 
+## 起点の要素が、検査を書いたスキーマの文書に現れないときは、定義の出現へ報告する（証人の側のスキーマに書いた matrix）
+
+- ID: EX-check-reports-at-defining-occurrence
+- 示す仕様: CTX-constraint・CTX-matrix・KW-schema.matrix
+- 結果: 検証のエラーになる（文面に「ENV-2」を含む）
+
+`.yde/schemas/req.yaml`
+
+```yaml
+id: req
+match: "reqs/*.yaml"
+entity: { type: req, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+```
+
+`.yde/schemas/env.yaml`
+
+```yaml
+id: env
+match: "envs/*.yaml"
+entity: { type: env, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`.yde/schemas/test.yaml`
+
+```yaml
+id: test
+match: "tests/*.yaml"
+entity: { type: test, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: covers, type: ref, relation: covers }
+    - { key: env, type: ref, relation: runs-on }
+matrix:
+  - id: every-req-on-every-env
+    rows: { entity: req }
+    columns: { entity: env }
+    witness:
+      node: { entity: test }
+      row: { relation: covers }
+      column: { relation: runs-on }
+    level: error
+```
+
+`reqs/a.yaml`
+
+```yaml
+id: REQ-1
+title: ログインできる
+```
+
+`envs/a.yaml`
+
+```yaml
+id: ENV-1
+```
+
+`envs/b.yaml`
+
+```yaml
+id: ENV-2
+```
+
+`tests/a.yaml`
+
+```yaml
+id: TEST-1
+covers: REQ-1
+env: ENV-1
+```
+
 ## 型の検査（constraints）は、要素ごとに値の比較を確かめる
 
 - ID: EX-constraint-check
@@ -526,7 +607,106 @@ id: TEST-1
 covers: REQ-1
 ```
 
-## matrix は、行と列のすべての組み合わせに証人があることを求める（行の要素のスキーマに書く）
+## 横断の検査は、関係レジストリにも書ける（matrix を関係レジストリに書いた、満たしている例）
+
+- ID: EX-matrix-in-registry
+- 示す仕様: KW-schema.matrix・CTX-matrix・KW-schema.kind
+- 結果: 通る（誤りも警告も無い）
+
+`.yde/schemas/req.yaml`
+
+```yaml
+id: req
+match: "reqs/*.yaml"
+entity: { type: req, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: title, type: string, role: title }
+```
+
+`.yde/schemas/env.yaml`
+
+```yaml
+id: env
+match: "envs/*.yaml"
+entity: { type: env, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+```
+
+`.yde/schemas/test.yaml`
+
+```yaml
+id: test
+match: "tests/*.yaml"
+entity: { type: test, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, type: id, required: true }
+    - { key: covers, type: ref, relation: covers }
+    - { key: env, type: ref, relation: runs-on }
+```
+
+`reqs/a.yaml`
+
+```yaml
+id: REQ-1
+title: ログインできる
+```
+
+`envs/a.yaml`
+
+```yaml
+id: ENV-1
+```
+
+`envs/b.yaml`
+
+```yaml
+id: ENV-2
+```
+
+`tests/a.yaml`
+
+```yaml
+id: TEST-1
+covers: REQ-1
+env: ENV-1
+```
+
+`.yde/schemas/relations.yaml`
+
+```yaml
+id: relations
+kind: relations
+relations:
+  - { name: covers }
+  - { name: runs-on }
+matrix:
+  - id: every-req-on-every-env
+    rows: { entity: req }
+    columns: { entity: env }
+    witness:
+      node: { entity: test }
+      row: { relation: covers }
+      column: { relation: runs-on }
+    level: error
+```
+
+`tests/b.yaml`
+
+```yaml
+id: TEST-2
+covers: REQ-1
+env: ENV-2
+```
+
+## matrix は、行と列のすべての組み合わせに証人があることを求める
 
 - ID: EX-matrix-missing-cell
 - 示す仕様: CTX-matrix・CTX-matrix-witness・KW-schema.matrix

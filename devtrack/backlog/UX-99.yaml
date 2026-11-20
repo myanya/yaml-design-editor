@@ -1,12 +1,14 @@
 id: UX-99
 title: 指摘メニューのIDジャンプ（「定義へ」）が定義出現固定で、修正対象の出現に飛べない
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-09-04
 origin: R28-05a試用
 body: '**指摘メニューのIDジャンプ（「定義へ」）が定義出現固定で、修正対象の出現に飛べない**（auth を直すのは外部API定義書だが、エラーから API を選ぶと一覧側に着地して戸惑う）'
 memo: 'エラー級の出現側報告（UX-98 追補）で実用上は緩和済み（修正対象の文書自体にERRORが出る）。本修正の案: ①メニューに「エンティティページで全出現を見る」（openCrossView）を追加 ②束縛座標つきメニュー（UX-98
-  残）と統合して「この出現の該当欄へ」を出す'
+  残）と統合して「この出現の該当欄へ」を出す
+
+  （2026-11-18 現物確認）関連 ID のメニューは「定義へ」だけのまま（ui/shell/SidePanel.kt）。検査の responses の Jump が入ったので、該当の欄への移動は検査の定義の側で書ける場面が増えた'
 targets: P28 候補
 related:
   - UX-98
@@ -15,3 +17,9 @@ features:
 roadmap:
   - P28
   - R28-05
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: 指摘メニューの関連 ID に、定義のほかにも出現がある ID では「全出現を見る」（エンティティページ）を並べる。該当の欄へ直接進む案②は、検査の responses の Jump で書く
+    targets: SidePanel.kt

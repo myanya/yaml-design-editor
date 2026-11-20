@@ -130,6 +130,11 @@ object SemanticScanner {
                 }
                 return
             }
+            // 1 つだけの書き方（allowSingle）: 並びでない値は要素 1 つとして、同じ場所で読む
+            if (effective?.type == FieldType.ARRAY && effective.allowSingle && node !is YNode.Seq && effective.item != null) {
+                walk(node, path, effective.item, keyLabel, keyLabel, relationOf(def))
+                return
+            }
             when (node) {
                 is YNode.Scalar -> Unit
                 is YNode.Seq -> {

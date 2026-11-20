@@ -1,9 +1,17 @@
 id: UX-142
 title: '`transform --input`の来歴が相対DocumentIdでない'
-status: todo
+status: resolved
 kind: bug
 origin_on: 2026-10-11
 origin: フロー設計レビュー
-memo: '`Cli.kt`で解決したPathをそのまま渡すため、WS内は絶対パスになる。WS内の相対化とWS外入力の扱いを分けて検討する'
+memo: '`Cli.kt`で解決したPathをそのまま渡すため、WS内は絶対パスになる。WS内の相対化とWS外入力の扱いを分けて検討する
+
+  （2026-11-18 現物確認）場所は cli の commands/QueryCommands.kt の transformCommand（Cli.kt ではない）'
 features:
   - C-15
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: ワークスペースの中の入力は、来歴の場所をワークスペース相対の文書 ID で出す。ワークスペースの外のファイルは渡されたパスのまま
+    targets: cli/commands/QueryCommands.kt・WorkspaceCliTest

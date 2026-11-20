@@ -56,6 +56,7 @@ import dev.toros.yde.desktop.OpenDocument
 import dev.toros.yde.desktop.UiSpace
 import dev.toros.yde.desktop.main
 import dev.toros.yde.desktop.mergeGenField
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.common.ActionMenuItem
 import dev.toros.yde.desktop.ui.common.CompactTextField
 import dev.toros.yde.desktop.ui.common.Palette
@@ -378,7 +379,7 @@ private fun AspectCard(state: AppState, section: AspectSection, business: Boolea
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
-            if (!business && !state.readOnlyMode && genField != null && map != null) {
+            if (!business && !state.readOnlyMode && genField != null && map != null) UiTooltip("この出現をAIで作成") {
                 IconButton(
                     onClick = {
                         state.requestAi(doc, genField, section.entry.path, relatedFiles = relatedFiles, mergeObjectKeys = true)
@@ -703,7 +704,7 @@ private fun OccurrenceCard(state: AppState, entry: IdEntry, business: Boolean = 
                     fontSize = 10.sp, color = Palette.SubText,
                 )
             }
-            if (!business && !state.readOnlyMode && genField != null && occurrenceMap != null) {
+            if (!business && !state.readOnlyMode && genField != null && occurrenceMap != null) UiTooltip("この出現をAIで作成") {
                 IconButton(
                     onClick = { state.requestAi(doc, genField, entry.path, relatedFiles = relatedFiles, mergeObjectKeys = true) },
                     modifier = Modifier.size(30.dp),

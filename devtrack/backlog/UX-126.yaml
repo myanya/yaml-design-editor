@@ -13,3 +13,9 @@ memo: 各項目は独立。①は履歴に無いディレクトリなので削�
 related:
   - UX-34
   - UX-64
+kind: dev
+resolutions:
+  - date: 2026-11-18
+    kind: 一部
+    note: ①旧ディレクトリの削除（R47-04）②CI（.github/workflows/test.yml）④移行台帳・計画書の archive への移動は済み。残りは③公開物としての AGENTS.md（「この Windows 環境」「Codex
+      からのビルド」などの内部向けの節）を良しとするかの判断と、空の samples/sample-workspace/.gitkeep

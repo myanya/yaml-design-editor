@@ -28,6 +28,9 @@ object BuiltinSchemas {
     /** 関係レジストリ文書（kind: relations。R20-02）に適用されるメタスキーマのID。 */
     const val RELATIONS_SCHEMA_ID = WorkspaceReader.RELATIONS_SCHEMA_ID
 
+    /** 構成ファイル（.yde/workspace.yaml）に適用されるメタスキーマのID。 */
+    const val WORKSPACE_SCHEMA_ID = WorkspaceReader.WORKSPACE_SCHEMA_ID
+
     private fun yaml(name: String): String = dev.toros.yde.workspace.BuiltinSchemaResources.text(name)
 
     /**
@@ -43,7 +46,7 @@ object BuiltinSchemas {
 
     /** 組込みスキーマの原文（テスト用: すべてがメタスキーマ検証を通ることのドッグフーディングに使う）。 */
     val allYamlTexts: List<String>
-        get() = listOf("schema", "relations", "agent", "activity", "eval", "skill", "view", "report", "transform", "stage").map(::yaml)
+        get() = listOf("schema", "relations", "agent", "activity", "eval", "skill", "view", "report", "transform", "stage", "workspace").map(::yaml)
 
     /**
      * 組込みスキーマを、カーネルの reader / session へ注入する形で返す（実体は workspace-core の資源供給）。

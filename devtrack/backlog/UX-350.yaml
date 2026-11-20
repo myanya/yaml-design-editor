@@ -1,6 +1,6 @@
 id: UX-350
 title: "値の式に書ける関数と語の一覧が、機械で読める形に無い"
-status: todo
+status: resolved
 kind: spec
 origin_on: 2026-11-16
 origin: "仕様（devtrack/spec）を作る前の調査で、パーサ・メタスキーマ・manual を突き合わせたとき"
@@ -9,6 +9,7 @@ memo: |-
   仕様（devtrack/spec）に値の式の位置を足して語として持ち、実装の列挙と一致することをテストで見る。
 features:
   - S-23
+closed_on: 2026-11-17
 resolutions:
   - date: 2026-11-16
     kind: 一部
@@ -16,6 +17,13 @@ resolutions:
       仕様（devtrack/spec）に、値の式・条件・値の比較・クエリの語を載せた（docs/spec/expressions.md）。
       語が実装の列挙（UnaryFn・ArithOp・AggregateFn・CheckOp）とキーの集まり（QueryNodeStep・QueryEdgeStep・QueryWhere の KEYS）と同じことを SpecTest が見る。
       残り: 列挙にもキーの集まりにも無い語（format・map・first・all・each・refCount・occurrenceCount など）は、仕様の側に並べただけで実装と突き合わせていない。
+    targets: SpecTest
+  - date: 2026-11-17
+    kind: 解決
+    note: |-
+      値の式の語 35 個のすべてに、実際に評価して結果を確かめる例を付けた（例を 6 件足し、既存の例を 1 件広げた）。SpecTest が「値の式の語は、どれも例で示されている」ことを見る。
+      列挙やキーの集まりに無い語（format・map・first・all・each・refCount・occurrenceCount など）も、語の有無だけでなく動きで実装と結ばれた。実装は変えていない。
+      例との突き合わせで、format の穴を探す順（with → 予約の穴 {id}・{title} → scopes → いまの要素）が分かり、語 scopes の意味に書いた。
     targets: SpecTest
 spec:
   - CTX-expr

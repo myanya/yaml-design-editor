@@ -118,3 +118,308 @@ root:
           type: enum
           values: [warning, error]
           description: "error で浮遊詳細化・定義競合をエラー化（「最初の出現＝定義」ヒューリスティクスの廃止）"
+    # 横断の検査（スキーマ文書の同じ名前のキーと同じ書き方。写しであることを repo-tests の SpecTest が見る。直すときは schema.yaml と両方を直す）
+    - key: constraints
+      label: 検査（基本の書き方）
+      type: array
+      description: "検査を1件ずつ書く（P29 Phase 6。CORE-CALCULUS §25）。書き方は2通り——①プリミティブを直接書く: match（クエリ）＋ expect / count / check のどれか ②定義を名前で使う: use（定義の名前）＋ with（渡す値）。consistency などの語彙は、検証の前にこの形へ展開される"
+      item:
+        type: object
+        fields:
+          - key: checker
+            label: 専用チェッカーの名前
+            type: enum
+            values: [flow]
+            description: "コードで実装された専用チェッカーを使う検査（P29 Phase 6）。flow＝遷移検証（指摘の種類 unreachable / deadEnd / undeclared）。checker を書いた検査に書けるのは id / description / checker / args / messages / level / levelFrom / activeFrom。循環の検出は専用チェッカーではなく、edge の repeat と node の same で書く"
+          - key: args
+            label: チェッカーへ渡す値
+            type: any
+            description: "flow は {nodes, edges: {from: {relation}, to: {relation}}, start: {relation}, terminal: {relation}, usage}"
+          - key: messages
+            label: 指摘の種類ごとの文面
+            type: map
+            value: { type: string }
+            description: "{指摘の種類: 文面のひな型}。書かなかった種類は指摘しない。ひな型には {id}（対象の ID）・{related}（関連するノードの並び）・{count}（その件数）を書ける"
+          - key: use
+            label: 使う定義の名前
+            type: string
+            description: "functions に定義した検査（組込み定義体・利用者の定義）を名前で使う。use を書いた検査に書けるのは use と with だけ"
+          - key: with
+            label: 定義へ渡す値
+            type: map
+            value: { type: any }
+            description: "定義の params に対応する値（例 {relation: groups, min: 1}）"
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: match
+            label: パターン（node / edge の連鎖）
+            type: any
+            description: "先頭 node が起点束縛（kind: entity 限定）。例 [{node: {entity: usecase, bind: uc}}, {edge: {relation: uses, dir: in}}, {node: {entity: screen}}]。node の entity には型の並び（どれか）も書け、not: {entity, schema, id} はその絞り込みに合わないノードだけを残す（型が宣言されていない要素は残さない）。typed: true は型が宣言された要素だけ（false は宣言されていない要素だけ）。node: {same: 束縛名} は先行して束縛済みのノードそのものへの到達を要求（ノード一致＝2経路の合流。他のキーと同居不可）。edge の bind は辿った参照そのものを束縛する（同じ相手への参照が2本あれば2つの解。reportAt: {ref: 束縛名} で指摘を参照の場所へ出せる）。edge の in: {schemaId, fileGlob} は参照が書かれた文書の指定。edge の repeat: true は、その線を1回以上くり返して辿り着けるすべての要素へ進む（何段でも辿る。repeat: {min: 0} は0回以上＝出発した要素そのものも含む。辿る計算は専用アルゴリズムで必ず止まる。見つけた道すじは message の {path} に出せる。bind とは併用不可）。edge の row: {from: {relation}, to: {relation}} は、同じ行（object）の直下に書かれた2つの参照——from の相手から to の相手へ——を1本の線として辿る（遷移の表など。dir: in は逆向き。relation / via とは併用不可）。参照の線は、向きによらず「その参照を含む最も内側の ID を持つ要素」が書いたものとして辿る（dir: out はその要素が直接書いた参照だけ）。edge の contains: true は入れ子の線——その要素の直下に入れ子になった ID を持つ要素へ進む（dir: in は外側の要素へ。文書ノードとの間は、いちばん外側で書かれた要素。repeat と組み合わせて何段でも。relation / via / in / bind / row とは併用不可）。edge の via は、1語ならキー名・複数語なら参照が書かれた場所の末尾のキーの並び（target.ref など）"
+          - key: also
+            label: 分岐（1段）
+            type: any
+            description: "束縛済みノードからのもう1本の連鎖（内部結合）。例 {from: col, steps: [{edge: {relation: dtype}}, {node: {same: t}}]}"
+          - key: where
+            label: プロパティ述語
+            type: any
+            description: "ノードを値で絞る条件。{not: 条件}（条件が成り立たない。値が無く判定できないときは選ばれない）と {or: [条件, ...]}（どれか。同じ束縛の条件どうし）も書ける（入れ子は1段まで。「かつ」は並べて書く）。1件につき条件を一つ（例 {of: br, path: status, notEquals: approved}）。equals / notEquals（値があり指定値でないとき成立。値がなければ黙る）・exists（項目が書かれているか）・empty（false = 中身のある値がある／true = 書かれていないか空）・oneOf: [値, ...]（選択肢のどれか）・matches（正規表現の全体一致）・startsWith / endsWith / contains・lt / lte / gt / gte（数値として読めない値は成立しない）・includes: 値（項目の配列がその値を要素に持つ）・includesAny: [値, ...]（項目の配列が並びのどれかを持つ）・state: State の ID（State の条件に置き換える）"
+          - key: limit
+            label: 照合上限
+            type: int
+          - key: expect
+            label: 期待
+            type: enum
+            description: count / check と排他（いずれか一つを宣言する）
+            values:
+              - value: exists
+                label: 存在すること
+                description: 起点ごとにパターンの解が1つ以上あること
+              - value: absent
+                label: 存在しないこと
+                description: 起点ごとにパターンの解がないこと
+          - key: count
+            label: 解の件数
+            type: object
+            description: 起点ごとの解（束縛の組）の distinct 件数が範囲内であること（expect / check と排他。数えたい対象に bind を書く）
+            fields:
+              - key: min
+                label: 下限
+                type: int
+              - key: max
+                label: 上限
+                type: int
+          - key: check
+            label: 判定述語
+            type: any
+            description: "値の比較（R28-08）。{演算子: [左, 右]} または {op: 演算子, left: 左, right: 右} の配列（すべて成立が期待。expect / count と排他）。{not: 条件} と {or: [条件, ...]}（どれかが成り立てばよい）も書ける（入れ子は1段まで）。演算子は eq / ne（文字列の等値）・lte / gte / lt / gt（数値）・oneOf（右は選択肢の配列）・matches（正規表現の全体一致）・startsWith / endsWith / contains・includes / includesAny（左は配列で、その要素に右がある。includesAny の右は値の並び）。左右は値の式——読み出し {of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}（in は値を読む文書の指定。省略可）・決まった値（そのまま書く。値が無いかもしれないときは {value}）・テンプレートの展開 {format: 式, scopes: [{of, in}]}・辞書での置き換え {map: 式, using: {元: 先}}・最初に得られた値 {first: [式]}・文字数 {length: 式}・大文字と小文字 {upper: 式} {lower: 式}・数値の表記を揃える {number: 式}・日付の部分 {year: 式} {month: 式} {day: 式}（年・月・日の数）と {yearMonth: 式}（年月の文字 2026-10。日付か日時として読めなければ得られない）・四則演算 {add / multiply: [式, ...]} {subtract / divide: [式, 式]}・日付の差 {daysBetween: [始まり, 終わり]}（日数）・参照の本数 {refCount: {of: 束縛, dir: out | in, relation, via}}（同じ相手への参照が2本あれば2。出ていく参照は相手が見つからないものも数える）・集計 {sum | min | max: 配列を返す式, type: number | date} {count: 配列を返す式}（配列を受け取る関数。count は件数・length は文字数）・集合から配列へ {all: {of: 束縛, in, path}}（同じ起点の全ての解にわたり、その束縛の要素の値を並べる）と {all: {from: 起点の束縛, match: [...], where: [...], of, path}}（起点を固定した照合の解から並べる）・要素ごとの式 {each: 配列を返す式, value: 式}・書かれた場所の数 {occurrenceCount: {of: 束縛, schema: スキーマID または 並び, fileGlob, role: defining | detail, distinct: type}}（その ID が書かれている場所のうち指定に合うものの数。distinct: type は宣言されたエンティティ型の種類の数）。同じ ID が書かれた文書の組をすべて調べ、条件を満たさない組を1つでも見つけたら指摘・評価できる組（値が得られない・数値として読めない）がなければ黙る"
+          - key: message
+            label: 指摘の文面のひな型
+            type: string
+            description: "指摘の文面（省略時は判定の種類ごとの既定の文面）。どの判定にも書ける。{id}（起点の ID）・{束縛名.id} {束縛名.type} {束縛名.title}（見つかった解のノード）・{count}（解の件数）・{path}（見つけた道すじ。何段でも辿る線が通った要素を含む）・{left} {right}（比べた値）・{left.raw} {right.raw}（計算前の元の値）を書ける"
+          - key: reportAt
+            label: 指摘を出す場所（値の場所）
+            type: any
+            description: "省略時は起点を定義した場所。{of: 束縛, in: {schemaId, fileGlob}, path: 相対パス}＝値が書かれた場所（その値が書かれた文書の検証で、要素ごとに報告する。check と組み合わせる）・{ref: 参照の束縛名}＝edge の bind で束縛した参照が書かれた場所（見つかった解ごとに報告する。expect: absent か check と組み合わせる）"
+          - key: forAll
+            label: すべての要素について
+            type: any
+            description: "{node: {絞り込み, bind: 束縛名}, from: 起点側の束縛名, steps: [edge, node, ...]}。起点とは参照でつながらない、もう1つの集まり（node）を持ち込み、そのすべての要素について、from の要素（省略時は起点）から steps を辿った流れに解があることを求める（expect / count / check と排他。match は起点の node 1つだけ）。steps の中では、集まりの要素を node: {same: 束縛名} で指す。解のなかった要素が不足で、message に {count}（不足の件数）と {missing}（不足の並び）を書ける。集まりが空なら判定しない。相手の見つからない参照に出会った要素は不足に数えない"
+          - key: status
+            label: 充足の状況の表示
+            type: string
+            description: "書いた検査は、要素ごとの「検査の状況」の一覧（右パネルのカバレッジ・ID 横ぐし・ビューの状態列・エージェントの related）に出る。値は状況を1行で示すひな型（message と同じものを埋め込める。例 出現 {left} 件（必要 {right} 件））。reportAt とは組み合わせられない"
+          - key: fixSite
+            label: 直せる場所への案内
+            type: any
+            description: "{schema: スキーマID または 並び, message: 文面} 。この検査の指摘が「別の文書へ書き足す」ことで直るとき、書き足し先のスキーマの文書の検証に、指摘が出ている ID の一覧を案内（情報）として出す。message には {count}（件数）と {ids}（ID の並び）を書ける。その文書に既に書かれている ID は載せない"
+          - key: levelFrom
+            label: 重大度の切り替え
+            type: enum
+            values: [undeclaredRelation, definingUniqueness]
+            description: 関係レジストリの強制スイッチ（enforcement）のキー名。そのキーが宣言されていれば、その重大度で指摘する（宣言されていなければ level）
+          - key: responses
+            label: エラー時の対応
+            type: any
+            description: "対応の宣言の配列。{jump: left.source|right.source|left.inputs|right.inputs, label}（値の出どころへ移動。check と組み合わせる）・{jump: referenceSources, relation: 関係名, label}（起点の要素への参照を書き足せそうな文書を開く。候補ごとに1件。label に {file}）・{apply: left|right, label}（値を指摘の場所へ書き込む。値の場所の reportAt が必要）・{create: detailDocument, schemas: [スキーマID], label}（起点の ID の詳細文書を、そのスキーマの置き場所に作って開く。スキーマごとに1件。label に {schema}）・{action: 操作の id か 型名.操作名, label, with: {受け取る値: 文面}}（起点の要素を受け手に操作を起動する。with の文面には {id} {束縛名.id} {left} などを書け、足りない値はカードで入力する）。label には {left} {right} {left.raw} {right.raw}、inputs では {input.placeholder} {input.value} を書ける。note はメニューでラベルの下に添える補足"
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: functions
+      label: 検査の定義（関数のような定義）
+      type: array
+      description: "名前と受け取る値を持つ検査の定義（P29 Phase 6）。constraints の use で名前を指定して使う。どのスキーマ文書に書いてもワークスペース全体で使える（置き場は kind: library が向く）"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 定義の名前
+            type: string
+            required: true
+            role: title
+          - key: description
+            label: 説明
+            type: text
+            role: subtitle
+          - key: params
+            label: 受け取る値の名前
+            type: array
+            item: { type: string }
+          - key: checks
+            label: 中身（検査のひな型）
+            type: any
+            required: true
+            description: "constraints と同じ書き方の検査の配列。文字列の $名前 に、渡された値が差し込まれる（文字列がちょうど $名前 なら値そのもの＝配列やマップも渡せる。文中の $名前 は文字列として埋まる。$ そのものは $$）"
+    - key: vocabulary
+      label: 語彙の定義（短く書くための書き方）
+      type: array
+      description: "スキーマに短く書ける書き方を作る（P29 Phase 6）。どこに書けるか（in）と、書かれた内容からどの定義をどの値で使うか（uses）を宣言する。スキーマの consistency と、関係の宣言の cardinality・source / target は、組込み定義体が作る語彙"
+      item:
+        type: object
+        fields:
+          - key: word
+            label: 語彙の名前
+            type: string
+            required: true
+            role: title
+          - key: description
+            label: 説明
+            type: text
+            role: subtitle
+          - key: in
+            label: 書ける場所
+            type: string
+            required: true
+            description: "スキーマ文書の直下の配列の各要素（例 consistency[]）。関係レジストリの関係の宣言（relations[]）にも書ける"
+          - key: uses
+            label: 定義の使用への対応
+            type: any
+            required: true
+            description: "{when: キー, unless: キー, use: 定義の名前, with: {受け取る値: 指定}} の配列。when / unless はそのキーが書かれている／いないときだけ有効（キーの並びも書ける＝すべて。空の配列・空の object・空文字は書かれていない扱い）。with の指定は、そのままの値・{from: パス, default, map, join, format}（書かれた内容から読む。join は配列の値を区切り文字でつなぐ・format は値があるときだけ {value} を埋めた文字列にする）・{schema: id}（書かれたスキーマのID）"
+          - key: requires
+            label: 必ず書くキー
+            type: array
+            item: { type: string }
+            description: "この語彙の要素に必ず書くキーのパス（例 [detailIn.schemaIds]）。書き方の形の最小の点検で、外れていればスキーマの読み込みエラー"
+          - key: keys
+            label: 書けるキー
+            type: array
+            item: { type: string }
+            description: "この語彙の要素に書けるキーの一覧。書くと、一覧に無いキーはスキーマの読み込みエラー"
+          - key: removed
+            label: 廃止したキー
+            type: map
+            value: { type: string }
+            description: "廃止したキー → 書かれたときに出す案内（置き換え先）。書かれていればスキーマの読み込みエラー"
+    - key: matrix
+      label: 網羅マトリクス
+      type: array
+      description: "（組込み定義体が作る語彙——検証の前に「すべての要素について」の検査 forAll へ展開される。P29 Phase 6。CLI checks で確認できる）行×列の全組合せに証人（witness）が存在することを検証する（R28-03。例: 処理×試験観点→テスト項目）。あえて対象外のセルは証人側に excluded: true の行として残す（存在＝充足）"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: rows
+            label: 行の母集団
+            type: any
+            required: true
+            description: "エンティティ選択（entity / schema / id。例 {entity: process}）"
+          - key: columns
+            label: 列の母集団
+            type: any
+            required: true
+            description: "エンティティ選択（例 {entity: test-viewpoint}）"
+          - key: witness
+            label: 証人
+            type: object
+            required: true
+            description: 行と列の両方を参照していればセルを充足するエンティティ
+            fields:
+              - key: node
+                label: 証人の選択
+                type: any
+                required: true
+                description: "例 {entity: test-item, schema: unit-test-item}"
+              - key: row
+                label: 行への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+              - key: column
+                label: 列への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string
+    - key: flow
+      label: 遷移検証
+      type: array
+      description: "宣言エッジ集合（遷移の原本）の到達閉包で、到達不能・行き止まり・宣言外遷移を検出する（R28-04。例: 画面遷移・状態遷移）。指摘はノードの定義出現に報告する。組込み定義体が作る語彙で、検証の前に「専用チェッカー flow を使う検査」へ展開される（P29 Phase 6。CLI checks で確認できる）"
+      item:
+        type: object
+        fields:
+          - key: id
+            label: ルールID
+            type: string
+          - key: description
+            label: 説明
+            type: string
+          - key: nodes
+            label: ノード母集団
+            type: any
+            required: true
+            description: "エンティティ選択（entity / schema / id。例 {entity: screen}）"
+          - key: edges
+            label: 宣言エッジ
+            type: object
+            required: true
+            description: 同じ行オブジェクト直下の from 参照と to 参照の組を1エッジとして抽出する
+            fields:
+              - key: from
+                label: 遷移元への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+              - key: to
+                label: 遷移先への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+          - key: start
+            label: 開始ノードへの参照
+            type: object
+            description: 開始ノードを指す relation。省略時は到達不能を判定しない（開始データが空のときも判定保留）
+            fields:
+              - { key: relation, label: relation, type: string, required: true }
+          - key: terminal
+            label: 終端ノードへの参照
+            type: object
+            description: 終端として許容するノードを指す relation（行き止まり判定から除外する）
+            fields:
+              - { key: relation, label: relation, type: string, required: true }
+          - key: usage
+            label: 使用エッジ
+            type: object
+            description: 宣言外遷移の検出対象（このエッジ集合が宣言エッジに含まれることを要求。省略時は判定しない）
+            fields:
+              - key: from
+                label: 遷移元への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+              - key: to
+                label: 遷移先への参照
+                type: object
+                required: true
+                fields:
+                  - { key: relation, label: relation, type: string, required: true }
+          - key: level
+            label: 重大度
+            type: enum
+            values: [warning, error]
+          - key: activeFrom
+            label: 判定を始めるフェーズ
+            type: string

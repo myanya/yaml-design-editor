@@ -1,6 +1,6 @@
 id: UX-90
 title: アクティビティ定義の**「書込許可ファイル」（allowedFiles）と「書込許可パス」（allowedPaths）が混同しやすい**。他の項目にも迷いがあり、**推奨パターンで初期値を埋めておく**のも良いのでは
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-09-02
 origin: S1第2回
@@ -8,3 +8,9 @@ memo: ①ラベル・description の見直し（例「書込を許すファイ�
   の default か作成ダイアログ側
 features:
   - AG-02
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: ラベルを「書き込めるファイル（glob）」「文書の中で書き込める項目（パス）」に変え、説明に、両方に合う場所だけに書けることと例を足した。推奨の形の初期値は UX-362
+    targets: builtin-schemas/activity.yaml・manual/ai.md

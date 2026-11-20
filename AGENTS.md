@@ -18,6 +18,7 @@ git config core.hooksPath scripts/git-hooks   # コミット前フック（ク�
 ./gradlew run --args="/path/to/workspace"   # ワークスペース指定で起動
 ./gradlew hotRun                            # 開発時: Compose Hot Reload 付きで起動（保存で画面に反映。JBR 21 は自動取得）
 ./gradlew runCli -q --args="help"           # ヘッドレス CLI（docs/manual/cli.md）
+./yde help                                  # 同じ CLI を起動スクリプトで（Windows は yde.cmd。出力が Gradle を通らないので日本語が文字化けしない。--output-file <ファイル> で結果を UTF-8 のファイルへ）
 ./gradlew runCli -q --args="init my-ws --template issues"  # 新しいワークスペースを作る（テンプレートは templates/。引数なしで一覧）
 ./gradlew runCli -q --args="version"        # バージョン表示（外部＝appVersion・内部＝yyyymmdd.ビルド番号）
 ./gradlew packageDistributionForCurrentOS   # 配布物作成

@@ -73,6 +73,14 @@ class TextTemplateTest {
     }
 
     @Test
+    fun `空の文字の穴は空のまま書き YAML の引用符を出さない`() {
+        // 以前は空の文字が YAML の書き出しに回り、Markdown の表に '' が出た（UX-220）
+        val input = YamlIO.fromAny(mapOf("empty" to "", "spaces" to " \n "))
+        val r = TextTemplate.render("[{empty}]|{empty:cell}|[{spaces}]|{spaces:cell}|{empty:#,##0}", input)
+        assertEquals("[]||[ \n ]| <br> |", r.text)
+    }
+
+    @Test
     fun `SQL の文字列の形は引用符を二重にして囲み 値の見た目から型を変えない`() {
         val input = YamlIO.fromAny(mapOf("quote" to "O'Brien", "empty" to "", "number" to "001", "flag" to false, "body" to "a\nb\\c{d}", "spaces" to " \n "))
         val r = TextTemplate.render("{quote:sql-string}|{empty:sql-string}|{number:sql-string}|{flag:sql-string}|{body:sql-string}|{spaces:sql-string}", input)

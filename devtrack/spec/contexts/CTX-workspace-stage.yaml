@@ -2,8 +2,12 @@ id: CTX-workspace-stage
 title: "段（stages の要素）"
 language: workspace
 description: "workspace.yaml の stages の要素。書いた順が段の順です。ここに無いキーは誤りになります。"
+meta:
+  schema: workspace
+  path: [root, stages, item]
 code:
   sets: [workspace.layout.DefinitionStages.KEYS]
 features: [C-23]
 evidence:
+  metaschema: "builtin-schemas/workspace.yaml の root.stages.item"
   reader: "workspace-core/workspace/layout/DefinitionStages.kt の parse"

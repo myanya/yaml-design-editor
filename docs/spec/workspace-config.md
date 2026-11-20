@@ -8,8 +8,9 @@
 
 ## ワークスペースの構成（workspace.yaml）
 
-.yde/workspace.yaml のトップレベル。読めないときは、台帳の宣言が無い（全体が台帳）ものとして続けます。
+.yde/workspace.yaml のトップレベル。ここに無いキーは、検証の警告になります。読めないときは、台帳の宣言が無い（全体が台帳）ものとして続けます。
 
+- メタスキーマ: builtin-schemas/workspace.yaml の root
 - 読む実装: workspace-core/workspace/layout/WorkspaceLayout.kt の of
 - 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: W-11
 
@@ -24,6 +25,7 @@
 
 workspace.yaml の files。
 
+- メタスキーマ: builtin-schemas/workspace.yaml の root.files
 - 読む実装: workspace-core/workspace/layout/FilePolicy.kt の parse
 - 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: S-25・V-22
 
@@ -37,12 +39,13 @@ workspace.yaml の files。
 
 workspace.yaml の scopes の要素。定義のファイルは、ちょうど 1 つのスコープに入ります。ここに無いキーは誤りになります。
 
+- メタスキーマ: builtin-schemas/workspace.yaml の root.scopes.item
 - 読む実装: workspace-core/workspace/layout/DefinitionScopes.kt の parse
 - 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-21
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
-| `id` |  | 文字列 |  | スコープの ID。必ず書きます。 |
+| `id` | 必須 | 文字列 |  | スコープの ID。 |
 | `name` |  | 文字列 | ID | 表示名。 |
 | `description` |  | 文章 |  | 説明。 |
 | `include` |  | glob の文字列の配列 |  | このスコープに入る定義のファイル（.yde からの相対。例 schemas/business/**）。 |
@@ -52,12 +55,13 @@ workspace.yaml の scopes の要素。定義のファイルは、ちょうど 1 
 
 workspace.yaml の stages の要素。書いた順が段の順です。ここに無いキーは誤りになります。
 
+- メタスキーマ: builtin-schemas/workspace.yaml の root.stages.item
 - 読む実装: workspace-core/workspace/layout/DefinitionStages.kt の parse
 - 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: C-23
 
 | 語 | 必須 | 値の形 | 省いたとき | 意味 |
 |---|---|---|---|---|
-| `id` |  | 文字列 |  | 段の ID。必ず書きます。 |
+| `id` | 必須 | 文字列 |  | 段の ID。 |
 | `name` |  | 文字列 | ID | 表示名。 |
 | `description` |  | 文章 |  | 説明。 |
 

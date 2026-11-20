@@ -20,6 +20,7 @@ import dev.toros.yde.yaml.validate.Severity
 import dev.toros.yde.semantic.schema.FieldDef
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.app.schema.effectiveFields
+import dev.toros.yde.desktop.ui.common.UiTooltip
 import dev.toros.yde.desktop.ui.common.FieldHelp
 import dev.toros.yde.desktop.ui.common.FormSpacing
 import dev.toros.yde.desktop.ui.common.MapSlot
@@ -165,7 +166,7 @@ internal fun FieldRow(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                                     slot.remove(); ctx.markEdited()
                                 }
                             }
-                            if (effective.type != FieldType.ARRAY && !ctx.readOnly) {
+                            if (effective.type != FieldType.ARRAY && !ctx.readOnly) UiTooltip("${effective.displayLabel}をAIで作成") {
                                 IconButton(
                                     onClick = { ctx.state.requestAi(ctx.doc, effective, path, relatedFiles = ctx.aiRelatedFiles) },
                                     modifier = Modifier.size(22.dp),
@@ -215,6 +216,19 @@ fun ValueEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
     // 型変更後の残留値（UX-70）: スキーマの型と現在値の構造が合わないと各エディタが編集不能になる
     // （例 string→array 変更後の文字列値）。ここで検知して「消す／変換」つきの修復表示へ切り替える
     val node = slot.get()
+    // 1 つだけの書き方（allowSingle）: 並びでない値は要素 1 つとして、要素のエディタで編集する。足すときは並びに直す
+    val singleItem = effective.item.takeIf { effective.type == FieldType.ARRAY && effective.allowSingle && node != null && node !is YNode.Seq }
+    if (singleItem != null && node != null) {
+        Column {
+            ValueEditor(ctx, singleItem, slot, path)
+            if (!ctx.readOnly) {
+                TextButton(onClick = { slot.set(YNode.Seq(mutableListOf<YNode>(node))); ctx.markEdited() }) {
+                    Text("並びにする（要素を足せるようにする）", fontSize = 11.sp)
+                }
+            }
+        }
+        return
+    }
     if (node != null && structureMismatch(effective, node)) {
         TypeMismatchRepair(ctx, effective, slot, path, node)
         return

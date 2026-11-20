@@ -203,7 +203,8 @@ data class RuleStatus(
  *
  * 配り方の規則（検査 × 対象の要素の「違反」を、どの文書のどこへ出すか）:
  * - 報告先（REPORT）: 対象の要素の報告先の文書の検証でだけ報告する（多重に報告しない）。スキーマの検査は、その検査を宣言した
- *   スキーマの文書の中で決める（定義出現がそのスキーマの文書にあればそこ、なければ先頭の出現。無ければ報告しない）。
+ *   スキーマの文書の中で決める（定義出現がそのスキーマの文書にあればそこ、なければ先頭の出現）。そのスキーマの文書に
+ *   出現が無い要素は、定義出現（なければ先頭の出現）へ報告する。
  *   特定のスキーマに属さない検査（関係レジストリ・kind: library・組込み定義体に直接書いた検査）は、定義出現（なければ先頭の出現）
  * - 他の出現への案内（NOTICE）: 報告先が他の文書にある要素の出現に、報告先で出ている指摘を案内する（警告級は INFO・エラー級は同格の ERROR）
  * - 値の場所（VALUE）・参照の場所（REF）: 検査の宣言 reportAt に従い、この文書に書かれた値・参照の場所へ指摘する
@@ -267,13 +268,16 @@ class WorkspaceChecks(
 
     /**
      * 検査の報告先（意図的差分 D-21 ④）。スキーマの検査（owner = 検査を宣言したスキーマ）は、定義出現がそのスキーマの文書に
-     * あればそこ、なければそのスキーマの文書の先頭の出現（そのスキーマの文書に出現がなければ null＝報告しない）。
+     * あればそこ、なければそのスキーマの文書の先頭の出現。そのスキーマの文書に出現が無い要素は、定義出現（なければ先頭の出現）
+     * ——検査を書いたスキーマの文書に現れない要素を起点にする検査（証人の側に書いた網羅マトリクスなど）が、黙って何も
+     * 確かめないことを防ぐ。そのスキーマの文書の要素だけを起点にしたい検査は、起点の node に schema を書く。
      * 特定のスキーマに属さない検査（owner = null）は、定義出現（なければ先頭の出現）。
      */
     fun reportAnchorOf(id: String, ownerSchemaId: String?): ScannedId? {
         val node = graph.entities[id] ?: return null
         if (ownerSchemaId == null) return node.defining ?: node.occurrences.firstOrNull()
         return node.defining?.takeIf { it.schemaId == ownerSchemaId } ?: node.occurrences.firstOrNull { it.schemaId == ownerSchemaId }
+            ?: node.defining ?: node.occurrences.firstOrNull()
     }
 
     /**
@@ -348,6 +352,25 @@ class WorkspaceChecks(
                     }
                 }
             }
+            // ほかの文書のスキーマの検査: 起点の要素がそのスキーマの文書に現れず、報告先がこの文書（定義出現）になったもの。
+            // activeFrom は検査を宣言したスキーマのフェーズの並びで、この文書のフェーズを見る（他の出現への案内と同じ）。
+            // 値の場所・参照の場所へ出す検査（reportAt）は、宣言したスキーマの文書の中だけで配る
+            for (group in ruleGroups) {
+                val owner = group.owner ?: continue
+                if (owner.id == schema.id || group.rules.isEmpty()) continue
+                val entries = anchoredFor(owner.id).takeIf { it.isNotEmpty() } ?: continue
+                val ownerPhaseOrder = owner.tree.phases?.order.orEmpty()
+                val ownerPhaseIndex = owner.tree.currentPhaseIndex(root)
+                for (rule in group.rules) {
+                    if (rule.reportAt != null || !phaseActive(rule.activeFrom, ownerPhaseOrder, ownerPhaseIndex)) continue
+                    for (entry in entries) {
+                        constraint(rule, entry.id)?.let { issues += it.reportIssue(entry.path) }
+                        result(rule, entry.id).takeIf { it.outcome == CheckOutcome.WITHHELD }?.reason?.let { reason ->
+                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, null, entry.id, entry.path, reason)
+                        }
+                    }
+                }
+            }
             // 専用チェッカーを使う検査（遷移検証など）: 報告先の決め方はクエリの検査と同じ（意図的差分 D-23 ①）
             val ownCheckers = schema.checkers.map { it to anchoredInSchema }
             val sharedCheckers = checkerGroups.filter { it.owner == null }.flatMap { it.rules }.map { it to anchored }
@@ -357,6 +380,23 @@ class WorkspaceChecks(
                     checker(rule, entry.id).forEach { (_, d) -> issues += d.reportIssue(entry.path) }
                     checkerWithheld(rule, entry.id).forEach { (kind, reason) ->
                         withheld += WithheldCheck(rule.origin, rule.id, rule.description, kind, entry.id, entry.path, reason)
+                    }
+                }
+            }
+            // ほかの文書のスキーマの専用チェッカー: 上のクエリの検査と同じ決め方
+            for (group in checkerGroups) {
+                val owner = group.owner ?: continue
+                if (owner.id == schema.id || group.rules.isEmpty()) continue
+                val entries = anchoredFor(owner.id).takeIf { it.isNotEmpty() } ?: continue
+                val ownerPhaseOrder = owner.tree.phases?.order.orEmpty()
+                val ownerPhaseIndex = owner.tree.currentPhaseIndex(root)
+                for (rule in group.rules) {
+                    if (!phaseActive(rule.activeFrom, ownerPhaseOrder, ownerPhaseIndex)) continue
+                    for (entry in entries) {
+                        checker(rule, entry.id).forEach { (_, d) -> issues += d.reportIssue(entry.path) }
+                        checkerWithheld(rule, entry.id).forEach { (kind, reason) ->
+                            withheld += WithheldCheck(rule.origin, rule.id, rule.description, kind, entry.id, entry.path, reason)
+                        }
                     }
                 }
             }

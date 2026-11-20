@@ -223,6 +223,8 @@ object WorkspaceReader {
 
     /** 関係レジストリ用メタスキーマのID（kind: relations のスキーマ文書に適用）。 */
     const val RELATIONS_SCHEMA_ID = "builtin-relations"
+    /** 構成ファイル（.yde/workspace.yaml）に適用されるメタスキーマのID。 */
+    const val WORKSPACE_SCHEMA_ID = "builtin-workspace"
 
     /**
      * スキーマ文書のテキスト集合からスキーマ束を組み立てる（構造＋意味宣言・`$ref` の横断リンク）。
@@ -394,6 +396,8 @@ object WorkspaceReader {
      * （root Workspace.schemaFor と同じ規則）。load・セッション再構築・増分取り込みが共有する。
      */
     fun assignSchemaId(rel: String, document: YDocument, schemas: List<WorkspaceSchema>, layout: WorkspaceLayout): String? {
+        // 構成ファイル（.yde/workspace.yaml）には、構成のメタスキーマだけを当てる（一般スキーマの match は及ばない）
+        if (layout.isConfigFile(rel)) return schemas.firstOrNull { it.id == WORKSPACE_SCHEMA_ID }?.id
         if (layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS) {
             val metaId = if (isRelationsDoc(document)) RELATIONS_SCHEMA_ID else META_SCHEMA_ID
             return schemas.firstOrNull { it.id == metaId && it.matches(rel) }?.id

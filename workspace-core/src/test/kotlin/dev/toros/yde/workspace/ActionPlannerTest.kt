@@ -173,6 +173,18 @@ class ActionPlannerTest {
     }
 
     @Test
+    fun `操作だけを置いた library は定義の誤りにならない`() {
+        // manual/actions.md は library の actions に書くと案内している。以前は「definitions などのいずれかが必要」で誤りになった（UX-181）
+        val errors = WorkspaceSession(InMemoryDocumentStore(memberFiles().also {
+            it["_schemas/x.yaml"] = "id: x\nkind: library\nactions:\n  - id: a\n    target: { entity: member, bind: who }\n    do:\n      - set: { path: name, value: y }\n"
+        })).schemaErrors
+        assertTrue(errors.none { "のいずれかが必要" in it }, errors.toString())
+        // 何も持たない library は今までどおり誤り
+        val empty = WorkspaceSession(InMemoryDocumentStore(memberFiles().also { it["_schemas/x.yaml"] = "id: x\nkind: library\n" })).schemaErrors
+        assertTrue(empty.any { "definitions・functions・vocabulary・constraints・actions のいずれかが必要" in it }, empty.toString())
+    }
+
+    @Test
     fun `create の bind は後の手でだけ使え 既に使っている名前は付けられない`() {
         fun errorsOf(steps: String): List<String> = WorkspaceSession(InMemoryDocumentStore(memberFiles().also {
             it["_schemas/x.yaml"] = "id: x\nkind: library\ndefinitions:\n  名前: { type: string }\nactions:\n  - id: a\n    target: { entity: member, bind: who }\n    do:\n$steps"

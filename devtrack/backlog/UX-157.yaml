@@ -5,6 +5,8 @@ kind: usability
 origin_on: 2026-10-12
 origin: P38 段階 1
 body: '**レンズの配置の計算は途中で止められない**（入力が変わると、前の計算が終わるまで次の結果を待つ。応力配置の上限 150 節点で 0.5 秒程度なので実害は小さい）'
-memo: ELK の進捗モニタ（`IElkProgressMonitor.isCanceled`）に取り消しをつなぐか、計算の世代番号で古い結果を捨てる
+memo: |-
+  ELK の進捗モニタ（`IElkProgressMonitor.isCanceled`）に取り消しをつなぐか、計算の世代番号で古い結果を捨てる
+  （2026-11-18 現物確認）計算は LaunchedEffect の中の別スレッドで、入力が変わると古い結果は捨てられる（GraphLensView.kt）。残るのは、古い ELK の計算が止まらず最後まで CPU を使うこと（GraphLayouts.kt の進捗モニタに取り消しを渡していない）。「次の計算を待たせる」は当たらない見込み（画面では未確認）
 features:
   - X-03

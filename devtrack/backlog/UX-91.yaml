@@ -1,6 +1,6 @@
 id: UX-91
 title: 変更セットレビューの**部分採用がファイル単位であることが分からず、パス単位の差分採用ができるのか迷った**
-status: todo
+status: resolved
 kind: usability
 origin_on: 2026-09-02
 origin: S1第2回
@@ -9,3 +9,9 @@ related:
   - UX-52
 features:
   - AG-07
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: レビュー画面のファイル一覧に「採否はファイル単位です」のひとことを足した。操作（パス）単位の採否は UX-54 で扱う
+    targets: RunsSpace.kt

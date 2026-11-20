@@ -54,4 +54,12 @@ class GridWidthsTest {
         assertEquals("—", computedCellText(YNode.Seq(mutableListOf())))
         assertEquals("PK", computedCellText(YNode.Scalar("PK")))
     }
+
+    @Test
+    fun `編集できるセルの原本の場所は 文書とパスで出す`() {
+        assertEquals(
+            "原本: tables/todo.yaml :: columns[1].name",
+            cellOriginText(dev.toros.yde.yaml.model.DocumentId("tables/todo.yaml"), dev.toros.yde.yaml.model.parseYPath("columns[1].name")),
+        )
+    }
 }

@@ -80,15 +80,21 @@ open class WorkingCopy(val ws: Workspace) {
         Entry(rel = rel, file = file, baseText = text, root = YamlIO.parse(text))
     }
 
-    /** パッチ列を適用し、操作を記録する。途中で失敗した場合、成功済みの操作は反映されたまま例外を投げる。 */
+    /**
+     * パッチ列を適用し、操作を記録する。途中で失敗した場合、成功済みの操作は反映されたまま例外を投げる。
+     * 索引の覚えは失敗しても捨てる（成功済みの操作で木は変わっているので、残すと木と索引がずれる）。
+     */
     fun applyOps(rel: String, ops: List<PatchOp>) {
         val entry = entryForEdit(rel)
-        for (op in ops) {
-            val recorded = ChangeSets.copyOp(op)
-            Patcher.apply(entry.root, ChangeSets.copyOp(recorded))
-            entry.ops += recorded
+        try {
+            for (op in ops) {
+                val recorded = ChangeSets.copyOp(op)
+                Patcher.apply(entry.root, ChangeSets.copyOp(recorded))
+                entry.ops += recorded
+            }
+        } finally {
+            stagedIndex = null
         }
-        stagedIndex = null
     }
 
     /** 新規文書をステージする（ディスク・ステージングの双方に存在しないこと）。 */

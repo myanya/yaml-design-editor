@@ -1,6 +1,6 @@
 id: UX-151
 title: ビューグリッドのセルに日付ピッカーが出ない
-status: todo
+status: resolved
 kind: feature
 origin_on: 2026-10-11
 origin: P36 段階 1
@@ -9,3 +9,9 @@ memo: '`TemporalPickerButton` をセルの入力欄の右にも置く。列幅�
 features:
   - E-15
   - X-06
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: グリッドの編集セルはフォームと同じ ValueEditor を使い、日付・時刻の項目には TemporalPickerButton が付く（ui/view/ViewGridPane.kt・ui/form/FormFields.kt）。2026-11-18
+      の棚卸しでコードを確かめて閉じた（画面では未確認）

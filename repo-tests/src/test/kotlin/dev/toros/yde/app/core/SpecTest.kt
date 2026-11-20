@@ -37,6 +37,7 @@ import kotlin.test.assertTrue
  * - メタスキーマの中の場所（meta）を書いた位置（関係・振る舞い・操作）は、語と必須がその場所の項目の並びと一致する
  * - 実装の語の集まり（code）を書いた位置（クエリ・条件・値の比較・値の式）は、語が読み取りの実装のキーの集まりと列挙と同じ
  * - どの位置も、参照文書のレポートのどれかに載っている
+ * - 値の式の語は、どれも例で示されている（列挙やキーの集まりに無い語も、動きで実装と結ぶ）
  * - 仕様の例（spec/examples）は、一時のワークスペースに書いて開くと、書いてあるとおりの結果（通る・読み込みの誤り・エラー・警告）になる
  * - 語の ID の形の検査が働く。ダッシュボード「仕様」が解決できる
  */
@@ -127,6 +128,16 @@ class SpecTest {
         assertEquals(registry.sorted(), inRegistry.sorted(), "関係レジストリ（kind: relations）に書ける語が、仕様と builtin-schemas/relations.yaml で違います")
         val elsewhere = spec.filterValues { it == null || it.any { k -> k != "relations" } }.keys
         assertEquals(schema.sorted(), elsewhere.sorted(), "関係レジストリ以外に書ける語が、仕様と builtin-schemas/schema.yaml で違います")
+    }
+
+    @Test
+    fun `関係レジストリのメタスキーマの検査のキーは スキーマ文書のメタスキーマの写しと同じ`() {
+        fun fields(builtin: String) = ((raw(builtin)["root"] as Map<*, *>)["fields"] as List<*>).map { it as Map<*, *> }.associateBy { it["key"].toString() }
+        val schema = fields("schema")
+        val registry = fields("relations")
+        listOf("constraints", "functions", "vocabulary", "matrix", "flow").forEach { key ->
+            assertEquals(schema[key], registry[key], "builtin-schemas/relations.yaml の $key が、schema.yaml の $key と違います（両方を同じに直す）")
+        }
     }
 
     @Test
@@ -348,6 +359,15 @@ class SpecTest {
         } finally {
             base.toFile().deleteRecursively()
         }
+    }
+
+    @Test
+    fun `値の式の語は どれも例で示されている`() {
+        // 値の式の語のうち、列挙にもキーの集まりにも無いもの（format・first・all など）は、実装と直接は突き合わせられない。
+        // 語ごとに、実際に評価して結果を確かめる例を 1 つ以上求める（語の有無だけでなく、動きも実装と結ぶ）
+        val illustrated = root.resolve("spec/examples").listDirectoryEntries("*.yaml").flatMap { (raw(it)["illustrates"] as List<*>).map(Any?::toString) }.toSet()
+        val missing = root.resolve("spec/keywords").listDirectoryEntries("KW-expr.*.yaml").map { raw(it)["id"].toString() }.filter { it !in illustrated }.sorted()
+        assertTrue(missing.isEmpty(), "例の無い値の式の語があります（devtrack/spec/examples に、その語を illustrates に書いた例を足す）: $missing")
     }
 
     @Test

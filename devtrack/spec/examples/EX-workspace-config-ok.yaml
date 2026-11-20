@@ -1,0 +1,28 @@
+id: EX-workspace-config-ok
+title: "ワークスペースの構成（.yde/workspace.yaml）は、構成のメタスキーマで検証される"
+area: schema
+illustrates: [CTX-workspace, CTX-workspace-files, CTX-workspace-scope, CTX-workspace-stage]
+files:
+  - path: ".yde/schemas/task.yaml"
+    text: |-
+      id: task
+      match: "doc/tasks/*.yaml"
+      root:
+        type: object
+        fields:
+          - { key: id, type: id, required: true }
+  - path: "doc/tasks/a.yaml"
+    text: |-
+      id: TASK-1
+  - path: ".yde/workspace.yaml"
+    text: |-
+      ledger: [doc]
+      files:
+        outside: error
+        missing: warning
+      scopes:
+        - { id: business, name: 業務モデル, include: ["schemas/**"] }
+      stages:
+        - { id: basic, name: 基本設計 }
+expect:
+  result: ok

@@ -71,7 +71,11 @@ internal fun transformCommand(rest: List<String>): CliResult = run {
         // ワークスペースの文書ならその相対パス、そうでなければファイルのパスとして読む
         val file = ws.root.resolve(input).takeIf { Files.exists(it) } ?: Path.of(input)
         val root = dev.toros.yde.yaml.YamlIO.parseFirst(Files.readString(file)) ?: error("入力を YAML として読めません: $input")
-        SemanticTransform.run(def, root, DocumentId(file.toString()), params)
+        // 来歴の場所は、ワークスペースの中の文書ならワークスペース相対の文書 ID（from で選んだときと同じ形）。外のファイルは渡されたパスのまま
+        val base = ws.root.toAbsolutePath().normalize()
+        val absolute = file.toAbsolutePath().normalize()
+        val document = if (absolute.startsWith(base)) DocumentId(base.relativize(absolute).toString().replace('\\', '/')) else DocumentId(file.toString())
+        SemanticTransform.run(def, root, document, params)
     } else {
         val view = ws.index
         SemanticTransform.run(

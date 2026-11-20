@@ -152,8 +152,13 @@ class AutomationTest {
         e.enqueue("review-a", "テスト起動")
         drain(e)
 
+        val before = System.currentTimeMillis()
         val review = e.pendingSnapshot().single()
         assertEquals("review-a", review.activityId)
+        // 受信箱に出す起動のきっかけと提出の時刻を持つ（UX-52）
+        assertEquals("テスト起動", review.trigger)
+        assertEquals("テスト起動", review.summary)
+        assertTrue(review.submittedAtMillis in (before - 60_000)..before, review.submittedAtMillis.toString())
         assertTrue("提案タイトル" !in Files.readString(dir.resolve("docs/a.yaml")))  // 未適用
         // 耐久性: 変更セットがファイルにも保存される
         assertTrue(Files.list(dir.resolve("_runs")).use { s -> s.anyMatch { it.fileName.toString().endsWith("-changeset.yaml") } })
@@ -287,6 +292,9 @@ class AutomationTest {
         assertTrue("自動修正" !in Files.readString(dir.resolve("docs/a.yaml")))  // 適用されていない
         val review = e.pendingSnapshot().single()
         assertTrue("編集中" in review.reason)
+        // 降格しても起動のきっかけは残り、受信箱の文には両方が出る（以前は降格の理由で上書きされた。UX-52）
+        assertEquals("テスト起動", review.trigger)
+        assertTrue(review.summary.startsWith("テスト起動 ／ ") && "編集中" in review.summary, review.summary)
     }
 
     // ---------------------------------------------------------------- 導出元文書への自動適用の降格（R11-03）

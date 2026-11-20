@@ -24,17 +24,54 @@ fun main(args: Array<String>) {
     // プラットフォームの既定文字コードに依存せず、常に UTF-8 で出力する（機械可読性のため）
     System.setOut(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.out), true, Charsets.UTF_8))
     System.setErr(java.io.PrintStream(java.io.FileOutputStream(java.io.FileDescriptor.err), true, Charsets.UTF_8))
-    if (isKernelCommand(args)) exitProcess(run(args) { println(it) })
+    // --output-file <ファイル>: 結果を標準出力でなく UTF-8 のファイルへ書く（どの命令でも。端末や Gradle の文字コードを通らない）
+    val (rest, outputFile) = try {
+        takeOutputFile(args)
+    } catch (e: Exception) {
+        System.err.println("エラー: ${e.message}")
+        exitProcess(1)
+    }
+    fun emit(text: String) {
+        if (outputFile == null) print(text) else {
+            writeOutputFile(outputFile, text)
+            System.err.println("出力を書きました: $outputFile")
+        }
+    }
+    if (isKernelCommand(rest)) {
+        if (outputFile == null) exitProcess(run(rest) { println(it) })
+        val lines = StringBuilder()
+        val code = run(rest) { lines.appendLine(it) }
+        emit(lines.toString())
+        exitProcess(code)
+    }
     try {
-        print(runCli(args))
+        emit(runCli(rest))
     } catch (e: ConnectedResultFailure) {
-        print(e.output)
+        emit(e.output)
         System.err.println("エラー: ${e.message}")
         exitProcess(e.exitCode)
     } catch (e: Exception) {
         System.err.println("エラー: ${e.message ?: e.toString()}")
         exitProcess(1)
     }
+}
+
+/** 結果の出力先のオプション。命令ごとの `--out`（report・agent・export。それぞれ意味が違う）とは別の、全命令に共通のもの。 */
+internal const val OUTPUT_FILE_FLAG = "--output-file"
+
+/** `--output-file <ファイル>` を引数から外し、残りの引数と出力先を返す（無ければ出力先は null＝標準出力）。 */
+internal fun takeOutputFile(args: Array<String>): Pair<Array<String>, Path?> {
+    val at = args.indexOf(OUTPUT_FILE_FLAG)
+    if (at < 0) return args to null
+    val value = args.getOrNull(at + 1)?.takeIf { !it.startsWith("--") }
+        ?: error("$OUTPUT_FILE_FLAG にファイルを指定してください")
+    return (args.take(at) + args.drop(at + 2)).toTypedArray() to Path.of(value)
+}
+
+/** 結果を UTF-8（BOM なし）で書く。置き場のフォルダが無ければ作り、既にあるファイルは置き換える。 */
+internal fun writeOutputFile(file: Path, text: String) {
+    file.toAbsolutePath().parent?.let(Files::createDirectories)
+    Files.writeString(file, text, Charsets.UTF_8)
 }
 
 /** カーネルの命令（`yaml …` / `workspace …`）か。それ以外は応用の命令（runCli）。 */

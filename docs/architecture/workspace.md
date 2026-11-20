@@ -33,7 +33,7 @@
 - **2 つの構成モード**: `.yde/` が無ければレガシー構成（ルート直下の `_schemas` 等 7 予約ディレクトリ・台帳＝ワークスペース全体）。あれば `.yde` 構成（定義・記録は `.yde/schemas` 等のサブディレクトリ・`.yde/workspace.yaml` の `ledger:` で台帳ディレクトリを宣言。未宣言なら全体）。判定は `WorkspaceLayout.of(root)` で、`Workspace` が保持し `refresh()` で再評価する。
 - `.yde/workspace.yaml` の変更は走査規則が変わるためスキーマ変更と同じ扱い（全再構築）。レガシー → `.yde` の移行は CLI `migrate`（ディレクトリ移動と構成ファイル作成だけ）。
 - `.yde/workspace.yaml` の `files:`（`FilePolicy`＝`WorkspaceLayout.files`）は file 型の値の許可: `outside`（ワークスペースの外）・`allowedRoots`（外でも許す場所）・`missing`（無いファイル）。読めない値は既定（外は警告・無いファイルは違反）。ファイルの存在は `DocumentStore.exists`（YAML 以外も）が答え、`LoadedWorkspace.fileExists` と `WorkspaceSession.fileExists` が検証へ渡す。
-- 構成ファイル（`workspace.yaml`）にはスキーマを当てない（`schemaFor` は null）。`_runs/`（runs ゾーン）は索引対象外。
+- 構成ファイル（`workspace.yaml`）には、構成のメタスキーマ（`builtin-workspace`）だけを当てる（`WorkspaceLayout.isConfigFile`。一般スキーマの `match` は及ばない）。決まった語でないキーは検証の警告になる。`_runs/`（runs ゾーン）は索引対象外。
 - 生成の定義の置き場は transforms ゾーン（`.yde/transforms`・レガシーは `_transforms`。メタスキーマ `builtin-transform`）。生成は [transform.md「生成（業務モデルから文書へ）」](transform.md)。
 - 段の規則と補正の置き場は stages ゾーン（`.yde/stages`・レガシーは `_stages`。メタスキーマ `builtin-stage`）。段の並びは `.yde/workspace.yaml` の `stages:`（`DefinitionStages`＝`WorkspaceLayout.stages`。ADR-0034）。段の項は [transform.md「段の項（段階的詳細化）」](transform.md)。
 - **定義ゾーンの下のフォルダ**: ゾーンの判定（`zoneOf`）とメタスキーマの match は深さを問わない。ファイルから定義を読む入口（ビュー・レポート・skill・エージェント・アクティビティ・評価）は `WorkspaceLayout.definitionFiles` で一覧を取り、下のフォルダも読む（点で始まるフォルダと、外を指すリンクは除く。並びはゾーンの中の場所の順）。フォルダは置き場所の整理だけで名前空間にしない。ID はゾーン全体で 1 つで、重なりは各読み込みが両方の場所を示して誤りにする。誤りの文の名前は `WorkspaceLayout.nameInZone`（`business/todo.yaml`）。`Files.list` でゾーンのすぐ下だけを読む書き方は、ソース規則テストが拒む。

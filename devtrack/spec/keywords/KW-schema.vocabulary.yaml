@@ -4,8 +4,7 @@ context: CTX-schema
 group: check
 status: stable
 forms:
-  - kinds: [document, library, behavior]
-    value: "語彙の定義の配列"
+  - value: "語彙の定義の配列"
     meaning: "検査を短く書くための書き方（語彙）の定義。どこに書けるか（in）と、書かれた内容からどの定義をどの値で使うか（uses）を宣言します。"
 evidence:
   metaschema: "builtin-schemas/schema.yaml の root"

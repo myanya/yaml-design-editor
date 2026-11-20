@@ -1,9 +1,16 @@
 id: UX-193
 title: 利用者マニュアル「画面構成」が「4つのスペース」と書くが、表はダッシュボードを含む 5 つ
-status: todo
+status: resolved
 kind: doc
 origin_on: 2026-10-25
 origin: README 改訂
 memo: ダッシュボード追加時の直し漏れ；manual/README.md の文を 5 スペースにそろえる（FEATURES W-09 は 5 スペースと書いている）
 features:
   - W-09
+closed_on: 2026-11-18
+resolutions:
+  - date: 2026-11-18
+    kind: 解決
+    note: manual/README.md「画面構成」の文を 5 つのスペースに直した（レール・表・FEATURES W-09 と一致。内蔵ヘルプにも同じ文が入る）。UX-212 は同じ指摘
+related:
+  - UX-212
