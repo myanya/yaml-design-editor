@@ -6,6 +6,8 @@ description: >-
   逸走情報検索（マイクロチップ番号）と所有者別検索（氏名・名称）で保護した犬猫の所有者を探します。
   「基準超過の疑い」は仮の基準（出産時に母親が 6 歳を超える）です。判定条件は要件定義書に無いので、置き換えて使います。
 inputs:
+  # 所管の都道府県（母親の所有者の住所の都道府県）。飼養管理の検索を、自管轄の事業者に絞る
+  - { key: prefecture, label: 所管の都道府県, type: enum, values: [みなと県, やまなみ県] }
   - { key: from, label: 登録日（から）, type: date }
   - { key: to, label: 登録日（まで）, type: date }
   - { key: mc, label: マイクロチップ番号, type: string }

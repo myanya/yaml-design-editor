@@ -144,7 +144,7 @@ apis:
     summary: 日付の範囲を指定して、その期間の飼養管理基準超過の情報（出産回数や推定交配時年齢など）を一覧で取得する。閲覧範囲は自管轄内のみ。
     businesses: [BIZ-14]
     permissions: { guest: false, registrar: false, prefecture: true, municipality: false, police: false }
-    realization: { status: partial, views: [breeding-grid, mother-grid], gap: 判定条件が要件定義書に無いので、仮の基準です。自管轄内だけに絞る入力はまだありません。 }
+    realization: { status: partial, views: [breeding-grid, mother-grid], gap: 判定条件が要件定義書に無いので、仮の基準です。自管轄内だけに絞るのは、ダッシュボードの入力（所管の都道府県）です。強制はしません。 }
   - id: API-A511
     name: 所有者変更履歴一覧取得 API
     group: 所有者変更履歴
