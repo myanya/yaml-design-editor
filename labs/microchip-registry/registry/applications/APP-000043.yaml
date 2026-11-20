@@ -1,0 +1,26 @@
+applicationId: APP-000043
+kind: registration
+channel: paper
+receivedOn: 2026-11-19
+status: accepted
+applicantId: OWN-0009
+registration:
+  mcNumber: MC-999000000000045
+  animal:
+    species: cat
+    name: ひなた
+    breed: 雑種
+    color: 茶トラ
+    sex: male
+    birthDate: 2025-05-05
+  implantedOn: 2026-11-18
+  veterinarian: あおば動物病院 青葉
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市桜丘X-X-X
+feeId: FEE-REG-PAPER
+handledBy: ACC-0001
+history:
+  - date: 2026-11-19
+    action: apply-registration
+    to: accepted

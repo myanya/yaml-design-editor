@@ -1,0 +1,38 @@
+id: BF-07
+name: "マイクロチップ情報登録（紙運用）"
+business: BIZ-09
+source: "別紙 3 業務フロー 20〜22／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-PAYMENT, label: "決済関連" }
+steps:
+  - { id: BF-07-S01, title: "登録手数料を支払う（コンビニ・窓口・銀行振込）", actor: ACT-OWNER, kind: outside }
+  - { id: BF-07-S02, title: "決済を処理し、支払い証明書を出す", actor: ACT-PAYMENT, kind: outside }
+  - { id: BF-07-S03, title: "登録申請書を作成する", actor: ACT-OWNER, kind: document }
+  - { id: BF-07-S04, title: "窓口か郵送で登録を申請する", actor: ACT-OWNER, kind: outside }
+  - { id: BF-07-S05, title: "申請を受領し、支払いを確認する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-07-S06, title: "マイクロチップ登録情報を入力する（単体）", actor: ACT-REGISTRAR, kind: system, action: apply-registration, note: "経路を「紙」にし、担当者を入れます。" }
+  - { id: BF-07-S07, title: "マイクロチップ登録情報を受け付け、装着証明書を確認・保管する", actor: ACT-SYSTEM, kind: data, action: apply-registration }
+  - { id: BF-07-S08, title: "支払い証明書の支払を記録する", actor: ACT-REGISTRAR, kind: system, action: record-payment, note: "紙の申請は先に支払うので、支払日が受付日より前でもかまいません。" }
+  - { id: BF-07-S09, title: "マイクロチップ情報を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: complete-application }
+  - { id: BF-07-S10, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+  - { id: BF-07-S11, title: "飼養管理基準の超過を判定し、通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: breeding-grid, note: "判定条件は要件定義書に無いので、仮の基準です。" }
+  - { id: BF-07-S12, title: "マイクロチップ登録証明書をダウンロードする", actor: ACT-REGISTRAR, kind: system, note: "レポート certificate で HTML を作り、印刷します。" }
+  - { id: BF-07-S13, title: "マイクロチップ登録証明書を送付する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-07-S14, title: "マイクロチップ登録証明書を受領する", actor: ACT-OWNER, kind: document }
+transitions:
+  - { from: BF-07-S01, to: BF-07-S02 }
+  - { from: BF-07-S02, to: BF-07-S03, label: "支払い証明書" }
+  - { from: BF-07-S03, to: BF-07-S04 }
+  - { from: BF-07-S04, to: BF-07-S05, label: "登録申請書＋装着証明書（写）＋支払い証明書（写）" }
+  - { from: BF-07-S05, to: BF-07-S06 }
+  - { from: BF-07-S06, to: BF-07-S07 }
+  - { from: BF-07-S07, to: BF-07-S08 }
+  - { from: BF-07-S08, to: BF-07-S09 }
+  - { from: BF-07-S09, to: BF-07-S10 }
+  - { from: BF-07-S10, to: BF-07-S11 }
+  - { from: BF-07-S11, to: BF-07-S12 }
+  - { from: BF-07-S12, to: BF-07-S13 }
+  - { from: BF-07-S13, to: BF-07-S14, label: "郵送 or 手渡し（窓口）" }

@@ -1,0 +1,21 @@
+id: admin-dashboard
+name: 管理・保守（アカウントとマスタ）
+kind: dashboard
+description: >-
+  アカウントの登録・更新・削除（指定登録機関が行政のアカウントを、保守者が指定登録機関のアカウントを扱う）と、マスタ（自治体・料金）の確認の入口です。
+  マスタ設定は CSV の取り込み（skill import-municipalities・import-fees）で行います。ログインとパスワードは扱いません。
+actions: [register-account]
+flow:
+  lifecycle: account-lifecycle
+  view: account-grid
+  group: アカウント
+  direction: right
+sections:
+  - id: municipalities
+    label: 自治体
+    group: マスタ
+    view: municipality-grid
+  - id: fees
+    label: 料金
+    group: マスタ
+    view: fee-grid

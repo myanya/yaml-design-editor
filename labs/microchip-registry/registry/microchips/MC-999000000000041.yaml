@@ -1,0 +1,21 @@
+mcNumber: MC-999000000000041
+status: registered
+animal:
+  species: dog
+  name: つくし
+  sex: male
+  birthDate: 2026-08-20
+  breed: 柴
+  color: 赤
+implantedOn: 2026-10-16
+ownerId: OWN-0001
+locationMunicipalityId: LG-991011
+changeKey: CK-000037
+registeredOn: 2026-10-20
+veterinarian: あおば動物病院 青葉
+motherId: MC-999000000000001
+locationAddress: みなと県あおば市緑町X-X-X
+history:
+  - date: 2026-10-20
+    action: complete-application
+    to: registered

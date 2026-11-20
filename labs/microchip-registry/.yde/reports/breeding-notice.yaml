@@ -1,0 +1,20 @@
+id: breeding-notice
+name: 飼養管理通知（日次）
+description: >-
+  指定した日に登録が完了した子のうち、仮の基準（出産時に母親が 6 歳＝2,192 日を超える）に当たるものを並べ、都道府県等への通知の件数にします
+  （業務フロー「飼養管理通知」の日次の集計）。判定条件は要件定義書に無いので、基準は仮です。メールの送信はシステムの外で行います。
+params: [date]                            # 例 2026-04-14
+build:
+  date: $date
+  rows:
+    $each:
+      $view: breeding-grid
+      $where:
+        - { path: values.子の登録日, equals: $date }
+        - { path: values.出産時の母親の日齢, gt: 2192 }
+    $build:
+      id: { $copy: id }
+      values: { $copy: values }
+  count: { $value: { count: { path: rows } } }
+template: breeding-notice.md
+output: "output/notices/breeding-{date}.md"

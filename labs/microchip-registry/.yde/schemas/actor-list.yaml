@@ -1,0 +1,18 @@
+id: actor-list
+name: 利用者区分と登場者
+kind: document
+description: 要件定義書の利用者一覧（表 3・表 4）と、業務フローのレーンにだけ現れる登場者です。利用者区分には、入口のダッシュボードを対応付けます。
+match: spec/actors.yaml
+entity: { type: actor, idType: spec-types#利用者番号, defines: true }
+root:
+  type: object
+  fields:
+    - { key: actors, label: 利用者・登場者, type: array, default: [], display: table, item: { type: spec-types#利用者 } }
+constraints:
+  - id: user-has-entry
+    description: 利用者区分には、入口のダッシュボードがあること
+    match: [ { node: { entity: actor, bind: u } } ]
+    where: [ { of: u, path: kind, equals: user }, { of: u, path: entry, exists: false } ]
+    expect: absent
+    level: warning
+    message: "利用者区分 {u.id} に入口のダッシュボードがありません"

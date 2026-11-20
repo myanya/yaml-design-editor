@@ -1,0 +1,17 @@
+applicationId: APP-000032
+kind: death
+channel: paper
+receivedOn: 2026-09-10
+status: completed
+applicantId: OWN-0005
+completedOn: 2026-09-10
+microchipId: MC-999000000000020
+location:
+  municipalityId: LG-981023
+  address: やまなみ県つきかげ村大字月影X-X
+deathOn: 2026-09-08
+handledBy: ACC-0001
+history:
+  - date: 2026-09-10
+    action: report-death
+    to: completed

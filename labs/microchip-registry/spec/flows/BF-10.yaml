@@ -1,0 +1,29 @@
+id: BF-10
+name: "ヘルプデスク業務"
+business: BIZ-25
+source: "別紙 3 業務フロー 55〜56／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-10-S01, title: "利用規約に同意する", actor: ACT-OWNER, kind: system, note: "利用規約の確認は再現していません。" }
+  - { id: BF-10-S02, title: "お問い合わせ内容を入力する", actor: ACT-OWNER, kind: system, action: receive-inquiry, note: "都道府県等・基礎自治体・警察も同じ流れです。" }
+  - { id: BF-10-S03, title: "お問い合わせを受け付け、内容を登録する", actor: ACT-SYSTEM, kind: data, action: receive-inquiry }
+  - { id: BF-10-S04, title: "受付完了メールを送る", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-10-S05, title: "未回答の問い合わせを一覧で確認する", actor: ACT-REGISTRAR, kind: system, view: helpdesk-dashboard }
+  - { id: BF-10-S06, title: "お問い合わせの回答を入力する", actor: ACT-REGISTRAR, kind: system, action: answer-inquiry }
+  - { id: BF-10-S07, title: "回答を登録し、回答メールを送る", actor: ACT-SYSTEM, kind: data, action: answer-inquiry, note: "メールの送信は再現していません。" }
+  - { id: BF-10-S08, title: "回答を受領する", actor: ACT-OWNER, kind: document }
+  - { id: BF-10-S09, title: "お問い合わせを完了登録する", actor: ACT-REGISTRAR, kind: system, action: close-inquiry }
+transitions:
+  - { from: BF-10-S01, to: BF-10-S02 }
+  - { from: BF-10-S02, to: BF-10-S03 }
+  - { from: BF-10-S03, to: BF-10-S04 }
+  - { from: BF-10-S03, to: BF-10-S05 }
+  - { from: BF-10-S04, to: BF-10-S05 }
+  - { from: BF-10-S05, to: BF-10-S06 }
+  - { from: BF-10-S06, to: BF-10-S07 }
+  - { from: BF-10-S07, to: BF-10-S08 }
+  - { from: BF-10-S07, to: BF-10-S09 }
+  - { from: BF-10-S08, to: BF-10-S09 }

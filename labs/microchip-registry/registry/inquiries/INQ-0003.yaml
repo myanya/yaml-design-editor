@@ -1,0 +1,14 @@
+inquiryId: INQ-0003
+channel: helpdesk
+status: open
+receivedOn: 2026-11-18
+inquirerKind: owner
+inquirerName: 風早 蓮
+subject: 引っ越したときの手続
+body: 来月、同じ町内で引っ越します。届出は必要ですか。
+inquirerContact: 090-0000-0110
+microchipId: MC-999000000000007
+history:
+  - date: 2026-11-18
+    action: receive-inquiry
+    to: open

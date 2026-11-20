@@ -1,0 +1,29 @@
+id: owner-dashboard
+name: 所有者（登録・変更・届出）
+kind: dashboard
+description: >-
+  所有者の入口です。上部の「所有者」で自分を選ぶと、自分の犬猫と自分の申請・届出だけが並びます（要件の「自身が所有する犬又は猫の情報のみ閲覧可能」に当たる絞り込みです。
+  YDE には利用者ごとの閲覧制限が無いので、絞り込みは見せ方で、権限ではありません）。
+  新規登録は上部の「操作」から、所有者変更・情報変更・死亡届・再交付は「自分の犬猫」の対象を開いて「この対象の操作」から始めます。
+actions: [apply-registration, register-owner, receive-inquiry]
+inputs:
+  - { key: owner, label: 所有者, type: ref, idPattern: "OWN-*", scope: { schemaIds: [owner] } }
+sections:
+  - id: my-animals
+    label: 自分の犬猫
+    group: 登録
+    view: microchip-grid
+  - id: my-pending
+    label: 手続の途中の申請
+    group: 申請・届出
+    view: application-grid
+    filter:
+      match:
+        - node: { entity: application, bind: a }
+      where:
+        - { of: a, state: [app-accepted, app-paid] }
+      expect: exists
+  - id: my-applications
+    label: 自分の申請・届出
+    group: 申請・届出
+    view: application-grid

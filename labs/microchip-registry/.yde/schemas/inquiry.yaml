@@ -1,0 +1,7 @@
+id: inquiry
+name: 問い合わせ
+kind: document
+description: ヘルプデスクとコールセンターの問い合わせ 1 件を 1 ファイルで管理します。
+match: "registry/inquiries/*.yaml"
+filePattern: "registry/inquiries/{id}.yaml"
+root: { type: common#問い合わせ }

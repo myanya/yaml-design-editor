@@ -1,0 +1,7 @@
+id: account
+name: アカウント
+kind: document
+description: 行政と指定登録機関のアカウント 1 件を 1 ファイルで管理します。
+match: "registry/accounts/*.yaml"
+filePattern: "registry/accounts/{id}.yaml"
+root: { type: common#アカウント }

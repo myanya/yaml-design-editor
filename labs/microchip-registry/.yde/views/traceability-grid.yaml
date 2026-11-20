@@ -1,0 +1,24 @@
+id: traceability-grid
+name: トレーサビリティ照会（登録の履歴）
+description: 犬猫 1 頭の登録の履歴です。完了した手続（新規登録・所有者変更・情報変更・死亡届・再交付）を完了日の順に並べ、所有者がどう変わったかを辿れます。マイクロチップ番号で絞ります。
+params: [mc]
+rows:
+  match:
+    - node: { entity: application, bind: a }
+    - edge: { via: microchipId }
+    - node: { entity: microchip, bind: m }
+  rowKey: a
+  where:
+    - { of: a, path: status, equals: completed }
+    - { of: m, path: mcNumber, equals: $mc }
+columns:
+  - { label: マイクロチップ番号, of: m, path: mcNumber }
+  - { label: 名前, of: m, path: animal.name }
+  - { label: 完了日, path: completedOn }
+  - { label: 手続種別, path: kind }
+  - { label: 申請者（手続のあとの所有者）, path: applicantId }
+  - { label: 申請者の氏名・名称, value: { via: applicantId, path: name } }
+  - { label: 旧所有者, path: previousOwnerId }
+  - { label: 旧所有者の氏名・名称, value: { via: previousOwnerId, path: name } }
+  - { label: 経路, path: channel }
+order: { path: completedOn, type: date }

@@ -1,0 +1,20 @@
+mcNumber: MC-999000000000022
+status: registered
+animal:
+  species: cat
+  name: トラ
+  sex: male
+  birthDate: 2024-10-10
+  breed: 雑種
+  color: キジトラ
+implantedOn: 2026-05-15
+ownerId: OWN-0005
+locationMunicipalityId: LG-981023
+changeKey: CK-000035
+registeredOn: 2026-05-19
+veterinarian: つきかげ診療所 月見
+locationAddress: やまなみ県つきかげ村大字月影X-X
+history:
+  - date: 2026-05-19
+    action: complete-application
+    to: registered

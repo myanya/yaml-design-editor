@@ -1,0 +1,33 @@
+id: microchip-grid
+name: マイクロチップ登録の検索
+description: マイクロチップ登録と、いまの所有者の連絡先です。マイクロチップ番号で絞ると逸走情報検索、所有者の氏名・名称で絞ると所有者別検索になります（死亡の届出がある犬猫も含みます）。
+# 受け取る値（ダッシュボードの入力から。ビュータブでは上の欄。空なら絞らない）
+params: [mc, ownerName, owner, species, municipality]
+rows:
+  # クエリ行: 行＝マイクロチップ登録。所有者へ参照を 1 段辿って、氏名と連絡先を列にする
+  match:
+    - node: { entity: microchip, bind: m }
+    - edge: { via: ownerId }
+    - node: { entity: owner, bind: o }
+  rowKey: m
+  where:
+    - { of: m, path: mcNumber, equals: $mc }
+    - { of: o, path: name, contains: $ownerName }
+    - { of: m, path: ownerId, equals: $owner }
+    - { of: m, path: animal.species, equals: $species }
+    - { of: m, path: locationMunicipalityId, equals: $municipality }
+columns:
+  - { label: 種別, path: animal.species }
+  - { label: 名前, path: animal.name }
+  - { label: 品種, path: animal.breed }
+  - { label: 毛色, path: animal.color }
+  - { label: 性別, path: animal.sex }
+  - { label: 生年月日, path: animal.birthDate }
+  - { label: 登録状態, path: status }
+  - { label: 所有者, path: ownerId }
+  - { label: 所有者の氏名・名称, of: o, path: name }
+  - { label: 所有者の住所, of: o, path: address }
+  - { label: 所有者の電話番号, of: o, path: phone }
+  - { label: 所在地の自治体, path: locationMunicipalityId }
+  - { label: 所在地, path: locationAddress }
+  - { label: 登録日, path: registeredOn }

@@ -1,0 +1,12 @@
+accountId: ACC-0007
+kind: police
+status: active
+name: 岬 大地
+organization: みなと県警察 あおば警察署
+email: misaki@police.minato.example.jp
+registeredOn: 2026-03-16
+municipalityId: LG-990001
+history:
+  - date: 2026-03-16
+    action: register-account
+    to: active

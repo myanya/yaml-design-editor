@@ -1,0 +1,31 @@
+applicationId: APP-000040
+kind: transfer
+channel: online
+receivedOn: 2026-11-09
+status: completed
+applicantId: OWN-0007
+microchipId: MC-999000000000006
+previousOwnerId: OWN-0004
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市若葉台X-X-X
+feeId: FEE-TRF-ONLINE
+history:
+  - date: 2026-11-09
+    action: apply-transfer
+    to: accepted
+  - date: 2026-11-09
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000040
+  - date: 2026-11-09
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-11-09
+  amount: 300
+  receiptNo: PAY-000040
+completedOn: 2026-11-09

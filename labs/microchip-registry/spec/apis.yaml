@@ -1,0 +1,154 @@
+apis:
+  # ---- 利用者管理に関する API 群 ----
+  - id: API-A101
+    name: アカウント情報登録 API
+    group: 利用者管理
+    summary: 行政アカウントを作成する。利用者情報の登録と、ID と初期パスワードの払い出しを行う。
+    businesses: [BIZ-22]
+    permissions: { guest: false, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: partial, actions: [register-account], gap: ID は採番します。初期パスワードの払い出しはありません。 }
+  - id: API-A111
+    name: アカウント情報取得 API
+    group: 利用者管理
+    summary: 指定登録機関アカウント・行政アカウントの登録情報（氏名・所属・メールアドレス・全国地方公共団体コードなど）を取得する。
+    businesses: [BIZ-17, BIZ-24]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: implemented, views: [account-grid, admin-dashboard] }
+  - id: API-A121
+    name: アカウント情報更新 API
+    group: 利用者管理
+    summary: 指定登録機関アカウント・行政アカウントの登録情報（氏名・メールアドレス・全国地方公共団体コード・パスワードなど）を更新する。
+    businesses: [BIZ-17, BIZ-24]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: partial, actions: [update-account], gap: 氏名・所属・メールアドレスを更新します。パスワードと所管の自治体は更新しません。 }
+  - id: API-A131
+    name: アカウント情報削除 API
+    group: 利用者管理
+    summary: 行政アカウントを削除する。
+    businesses: [BIZ-22]
+    permissions: { guest: false, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, actions: [delete-account], gap: "" }
+  - id: API-A151
+    name: ログイン認証 API
+    group: 利用者管理
+    summary: 指定登録機関・行政アカウントのログインを ID とパスワードで認証し、認証基盤のトークンを返す。
+    businesses: [BIZ-29]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: out-of-scope, gap: YDE にはログインがありません。 }
+  - id: API-A152
+    name: ログアウト API
+    group: 利用者管理
+    summary: 認証基盤からサインアウトする。
+    businesses: [BIZ-29]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: out-of-scope, gap: YDE にはログインがありません。 }
+  - id: API-A153
+    name: パスワード初期化 API
+    group: 利用者管理
+    summary: パスワードを忘れたときに、仮ログイン用の仮パスワードを払い出す。
+    businesses: [BIZ-29]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: out-of-scope, gap: YDE にはログインがありません。 }
+  - id: API-A154
+    name: パスワード再設定 API
+    group: 利用者管理
+    summary: 任意のパスワードを指定して、ログインパスワードを再設定する。
+    businesses: [BIZ-29]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: out-of-scope, gap: YDE にはログインがありません。 }
+  # ---- マイクロチップ情報に関する API 群 ----
+  - id: API-A2R1
+    name: マイクロチップ情報登録確認 API
+    group: マイクロチップ情報
+    summary: マイクロチップ情報登録を行えるかを事前に確かめる。入力値を検査し、登録できれば OK、パラメータの誤りや二重登録なら NG を返す。
+    businesses: [BIZ-01, BIZ-02]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, requires: [apply-registration.not-registered, apply-registration.no-pending-application] }
+  - id: API-A2R2
+    name: マイクロチップ情報登録 API
+    group: マイクロチップ情報
+    summary: マイクロチップ情報登録を行う。
+    businesses: [BIZ-01, BIZ-02, BIZ-09]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    bulk: true
+    realization: { status: implemented, actions: [complete-application] }
+  - id: API-A2R3
+    name: 所有者変更登録確認 API
+    group: マイクロチップ情報
+    summary: 所有者変更登録を行えるかを事前に確かめる。入力値を検査し、変更登録できれば OK、パラメータの誤りなら NG を返す。
+    businesses: [BIZ-03, BIZ-04]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, requires: [apply-transfer.registered, apply-transfer.new-owner, apply-transfer.no-pending-application] }
+  - id: API-A2R4
+    name: 所有者変更登録 API
+    group: マイクロチップ情報
+    summary: 所有者変更登録を行う。
+    businesses: [BIZ-03, BIZ-04, BIZ-10]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    bulk: true
+    realization: { status: implemented, actions: [complete-application] }
+  - id: API-A2R5
+    name: 所有者認証 API
+    group: マイクロチップ情報
+    summary: 所有者認証の要る業務で、マイクロチップ番号と変更キー、またはマイクロチップ番号と本人確認情報で認証する。
+    businesses: [BIZ-03, BIZ-05, BIZ-07, BIZ-08, BIZ-10, BIZ-11, BIZ-12]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, requires: [apply-transfer.change-key, report-change.change-key, report-death.change-key, apply-reissue.owner-auth], gap: "" }
+  - id: API-A2R6
+    name: 情報変更 API
+    group: マイクロチップ情報
+    summary: マイクロチップ情報の情報変更を行う。
+    businesses: [BIZ-05, BIZ-06, BIZ-11]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    bulk: true
+    realization: { status: implemented, actions: [report-change] }
+  - id: API-A2R7
+    name: 死亡届出 API
+    group: マイクロチップ情報
+    summary: 死亡届出を行う。
+    businesses: [BIZ-07, BIZ-12]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, actions: [report-death] }
+  - id: API-A2R9
+    name: 登録証明書再交付 API
+    group: マイクロチップ情報
+    summary: 登録証明書の再交付を行う。
+    businesses: [BIZ-08, BIZ-13]
+    permissions: { guest: true, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, actions: [apply-reissue, complete-application] }
+  - id: API-A2RB
+    name: マイクロチップ情報照会 API
+    group: マイクロチップ情報
+    summary: マイクロチップ番号をキーに、マイクロチップ情報を検索する。死亡届出のある犬猫も検索対象とする。
+    businesses: [BIZ-13, BIZ-16, BIZ-20, BIZ-21, BIZ-26]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: implemented, views: [microchip-grid] }
+  - id: API-A2RC
+    name: 所有者別検索 API
+    group: マイクロチップ情報
+    summary: 氏名（個人名・法人名称）をキーに、その所有者が登録されているマイクロチップ情報の一覧を検索する。死亡届出のある犬猫も検索対象とする。
+    businesses: [BIZ-28]
+    permissions: { guest: false, registrar: true, prefecture: true, municipality: true, police: true }
+    realization: { status: implemented, views: [microchip-grid] }
+  # ---- ワンストップ通知・飼養管理・所有者変更履歴 ----
+  - id: API-A311
+    name: ワンストップ情報一覧取得 API
+    group: ワンストップ通知
+    summary: 日付の範囲を指定して、その期間に登録されたワンストップ情報（犬の情報・所有者の情報・情報種別）を一覧で取得する。閲覧範囲は自管轄内のみ。
+    businesses: [BIZ-15]
+    permissions: { guest: false, registrar: false, prefecture: false, municipality: true, police: false }
+    realization: { status: partial, views: [onestop-grid], gap: 自管轄内だけに絞るのは、ダッシュボードの入力（自治体）です。強制はしません。 }
+  - id: API-A411
+    name: 飼養管理情報一覧取得 API
+    group: 飼養管理
+    summary: 日付の範囲を指定して、その期間の飼養管理基準超過の情報（出産回数や推定交配時年齢など）を一覧で取得する。閲覧範囲は自管轄内のみ。
+    businesses: [BIZ-14]
+    permissions: { guest: false, registrar: false, prefecture: true, municipality: false, police: false }
+    realization: { status: partial, views: [breeding-grid, mother-grid], gap: 判定条件が要件定義書に無いので、仮の基準です。自管轄内だけに絞る入力はまだありません。 }
+  - id: API-A511
+    name: 所有者変更履歴一覧取得 API
+    group: 所有者変更履歴
+    summary: マイクロチップ情報の所有者変更履歴（更新日・氏名・住所・電話番号など）を一覧で返す。
+    businesses: [BIZ-21]
+    permissions: { guest: false, registrar: true, prefecture: false, municipality: false, police: false }
+    realization: { status: implemented, views: [traceability-grid] }

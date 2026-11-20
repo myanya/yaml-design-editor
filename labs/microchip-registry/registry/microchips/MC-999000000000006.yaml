@@ -1,0 +1,21 @@
+mcNumber: MC-999000000000006
+status: registered
+animal:
+  species: dog
+  name: くるみ
+  sex: female
+  birthDate: 2026-02-14
+  breed: 柴
+  color: 黒
+implantedOn: 2026-04-10
+ownerId: OWN-0007
+locationMunicipalityId: LG-991011
+changeKey: CK-000040
+registeredOn: 2026-04-14
+veterinarian: あおば動物病院 青葉
+motherId: MC-999000000000001
+locationAddress: みなと県あおば市若葉台X-X-X
+history:
+  - date: 2026-04-14
+    action: complete-application
+    to: registered

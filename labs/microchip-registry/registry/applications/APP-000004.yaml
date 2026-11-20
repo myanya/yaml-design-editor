@@ -1,0 +1,42 @@
+applicationId: APP-000004
+kind: registration
+channel: online
+receivedOn: 2026-04-13
+status: completed
+applicantId: OWN-0001
+registration:
+  mcNumber: MC-999000000000004
+  animal:
+    species: dog
+    name: あずき
+    breed: 柴
+    color: 赤
+    sex: female
+    birthDate: 2026-02-14
+  implantedOn: 2026-04-10
+  veterinarian: あおば動物病院 青葉
+  motherId: MC-999000000000001
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市緑町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-04-13
+    action: apply-registration
+    to: accepted
+  - date: 2026-04-13
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000004
+  - date: 2026-04-14
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-04-13
+  amount: 300
+  receiptNo: PAY-000004
+completedOn: 2026-04-14
+microchipId: MC-999000000000004

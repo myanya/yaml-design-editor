@@ -1,0 +1,17 @@
+id: BF-04
+name: "死亡届"
+business: BIZ-07
+source: "別紙 3 業務フロー 16／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-04-S01, title: "利用規約を確認する", actor: ACT-OWNER, kind: system, note: "利用規約の確認は再現していません。" }
+  - { id: BF-04-S02, title: "死亡届を入力する", actor: ACT-OWNER, kind: system, action: report-death }
+  - { id: BF-04-S03, title: "死亡届を受け付け、死亡を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: report-death }
+  - { id: BF-04-S04, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+transitions:
+  - { from: BF-04-S01, to: BF-04-S02 }
+  - { from: BF-04-S02, to: BF-04-S03, label: "MC 番号＋変更キー" }
+  - { from: BF-04-S03, to: BF-04-S04 }
+notes: "届出なので、所有者に登録完了の連絡はしません。"

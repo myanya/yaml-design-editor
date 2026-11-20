@@ -1,0 +1,21 @@
+mcNumber: MC-999000000000007
+status: registered
+animal:
+  species: dog
+  name: もなか
+  sex: male
+  birthDate: 2026-01-20
+  breed: 柴
+  color: 黒
+implantedOn: 2026-04-10
+ownerId: OWN-0010
+locationMunicipalityId: LG-991037
+changeKey: CK-000022
+registeredOn: 2026-04-14
+veterinarian: あおば動物病院 青葉
+motherId: MC-999000000000002
+locationAddress: みなと県こもれび町小川X-X-X
+history:
+  - date: 2026-04-14
+    action: complete-application
+    to: registered

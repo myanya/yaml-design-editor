@@ -1,0 +1,11 @@
+id: fee-grid
+name: 料金の一覧（マスタ）
+description: 手続と経路ごとの手数料です（金額は仮の値）。
+rows:
+  idPattern: "FEE-*"
+  schemaIds: [fee-list]
+columns:
+  - { label: 名前, schemaId: fee-list, path: name }
+  - { label: 手続種別, schemaId: fee-list, path: kind }
+  - { label: 経路, schemaId: fee-list, path: channel }
+  - { label: 手数料（円）, schemaId: fee-list, path: amount, display: grouped }

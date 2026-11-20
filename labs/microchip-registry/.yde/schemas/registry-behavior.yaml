@@ -1,0 +1,75 @@
+id: registry-behavior
+name: 登録業務の振る舞い
+kind: behavior
+description: >-
+  状態の流れの原本です。申請・届出（受付 → 支払済み → 完了）、マイクロチップ登録（登録済み → 死亡）、
+  アカウント（有効 → 削除済み）、問い合わせ（未回答 → 回答済み → 完了）の 4 つを書きます。
+  状態を変える操作（operations.yaml の lifecycle）は、ここの流れから、できる状態・移り先・状態の履歴の行が決まり、
+  ダッシュボードの業務の流れも、ここから段と線が決まります。遷移は業務シナリオ scenarios/lifecycles.yaml で確かめます。
+# State: 状態の項目の値ごとに 1 つ。State を別に保存するのではなく、「status がその値と等しい」という述語です
+states:
+  - source: { entity: application, path: status, enum: common#申請状態 }
+    idPrefix: app-
+  - source: { entity: microchip, path: status, enum: common#登録状態 }
+    idPrefix: mc-
+  - source: { entity: account, path: status, enum: common#アカウント状態 }
+    idPrefix: account-
+  - source: { entity: inquiry, path: status, enum: common#問い合わせ状態 }
+    idPrefix: inquiry-
+# Event: 外から起きる事実。決済の入金は個別 Web の外（決済代行）で起きるので、事実の種類として宣言だけ置きます。
+# 状態を進めるのは、入金を確かめて記録する操作（record-payment）です
+events:
+  - id: payment-settled
+    entity: application
+    label: 手数料が入金された
+    description: クレジットカードの決済か、コンビニ・窓口・銀行振込の入金が決済の側で確かめられた事実。
+lifecycles:
+  # 申請・届出: 手数料の要る手続（新規登録・所有者変更・再交付）は受付から、届出（情報変更・死亡届）は受け付けた時点で完了
+  - id: application-lifecycle
+    entity: application
+    states: [app-accepted, app-paid, app-completed]
+    entry:
+      - { to: app-accepted, by: { action: apply-registration } }
+      - { to: app-accepted, by: { action: apply-transfer } }
+      - { to: app-accepted, by: { action: apply-reissue } }
+      - { to: app-completed, by: { action: report-change } }
+      - { to: app-completed, by: { action: report-death } }
+    transitions:
+      - { from: app-accepted, to: app-paid, by: { action: record-payment } }
+      - { from: app-paid, to: app-completed, by: { action: complete-application } }
+    termination:
+      terminal: [app-completed]
+    history: { path: history }
+  # マイクロチップ登録: 新規登録の手続が完了したときにでき、死亡届で終わる
+  - id: microchip-lifecycle
+    entity: microchip
+    states: [mc-registered, mc-deceased]
+    entry:
+      - { to: mc-registered, by: { action: complete-application } }
+    transitions:
+      - { from: mc-registered, to: mc-deceased, by: { action: report-death } }
+    termination:
+      terminal: [mc-deceased]
+    history: { path: history }
+  - id: account-lifecycle
+    entity: account
+    states: [account-active, account-deleted]
+    entry:
+      - { to: account-active, by: { action: register-account } }
+    transitions:
+      - { from: account-active, to: account-deleted, by: { action: delete-account } }
+    termination:
+      terminal: [account-deleted]
+    history: { path: history }
+  - id: inquiry-lifecycle
+    entity: inquiry
+    states: [inquiry-open, inquiry-answered, inquiry-closed]
+    entry:
+      - { to: inquiry-open, by: { action: receive-inquiry } }
+      - { to: inquiry-answered, by: { action: record-call } }
+    transitions:
+      - { from: inquiry-open, to: inquiry-answered, by: { action: answer-inquiry } }
+      - { from: inquiry-answered, to: inquiry-closed, by: { action: close-inquiry } }
+    termination:
+      terminal: [inquiry-closed]
+    history: { path: history }

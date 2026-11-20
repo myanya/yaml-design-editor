@@ -1,0 +1,70 @@
+id: registrar-dashboard
+name: 指定登録機関（登録業務）
+kind: dashboard
+default: true
+description: >-
+  指定登録機関の入口です。申請と届出の状況を業務の流れで示し、支払待ちの申請に支払を記録し、支払済みの申請の手続を完了します。
+  紙の申請は、上部の「操作」から担当者が入力します（経路を「紙」にします）。登録済みの犬猫への手続（所有者変更・情報変更・死亡届・再交付）は、
+  「すべての登録」から対象を開いて「この対象の操作」で始めます。
+actions: [apply-registration, register-owner]
+placement: auto
+# 全区画に共有する入力。空なら絞らない（受付日の範囲・手続種別・経路は、申請・届出の一覧の params へ渡る）
+inputs:
+  - { key: from, label: 受付日（から）, type: date }
+  - { key: to, label: 受付日（まで）, type: date }
+  - { key: kind, label: 手続種別, type: common#手続種別 }
+  - { key: channel, label: 経路, type: common#経路 }
+# 業務の流れ: 申請・届出の状態の流れ（registry-behavior.yaml の application-lifecycle）から作る。
+# 段は状態（受付・支払済み・完了）、線は状態を変える操作（支払を記録する・手続を完了する）、入口は新規登録の申請
+flow:
+  lifecycle: application-lifecycle
+  view: application-grid
+  group: 申請の状況
+  direction: right
+sections:
+  # 滞留: 支払待ちのまま、受付から基準日まで 14 日以上たった申請（未払いの申請の扱いは要件定義書に無いので、気づけるようにする）
+  - id: stale
+    label: 支払待ちが 14 日以上
+    group: 注意
+    view: application-grid
+    filter:
+      match:
+        - node: { entity: application, bind: a }
+      where:
+        - { of: a, state: app-accepted }
+      check:
+        - { gte: [ { daysBetween: [ { of: a, path: receivedOn }, $today ] }, 14 ] }
+  - id: paper
+    label: 紙の申請
+    group: 注意
+    view: application-grid
+    filter:
+      match:
+        - node: { entity: application, bind: a }
+      where:
+        - { of: a, path: channel, equals: paper }
+      expect: exists
+  - id: all-applications
+    label: すべての申請・届出
+    group: 全体
+    view: application-grid
+  - id: microchips
+    label: すべての登録
+    group: 全体
+    view: microchip-grid
+  - id: owners
+    label: 所有者
+    group: 全体
+    view: owner-grid
+  - id: by-kind
+    label: 月×手続種別
+    group: 件数
+    view: month-by-kind
+  - id: by-channel
+    label: 月×経路（オンライン利用率）
+    group: 件数
+    view: month-by-channel
+  - id: monthly
+    label: 月別の手続件数
+    group: 件数
+    view: monthly-kind-chart

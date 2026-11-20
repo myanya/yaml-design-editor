@@ -1,0 +1,20 @@
+inquiryId: INQ-0002
+channel: helpdesk
+status: answered
+receivedOn: 2026-10-13
+inquirerKind: municipality
+inquirerName: 浜野 拓
+subject: ワンストップ情報の対象期間
+body: ワンストップ情報の照会は、何日前まで遡れますか。
+inquirerContact: hamano@city.shiokaze.example.jp
+history:
+  - date: 2026-10-13
+    action: receive-inquiry
+    to: open
+  - date: 2026-10-14
+    action: answer-inquiry
+    from: open
+    to: answered
+answer: 期間の指定に上限はありません。受付日ではなく、手続の完了日で絞ります。
+answeredOn: 2026-10-14
+answeredBy: ACC-0002

@@ -1,0 +1,89 @@
+# 関係レジストリ: 業務の関係の語彙。表示名と、参照の向き・多重度の決まりを 1 か所に書きます
+id: registry-relations
+kind: relations
+entities:
+  - { type: microchip, label: マイクロチップ登録 }
+  - { type: owner, label: 所有者 }
+  - { type: application, label: 申請・届出 }
+  - { type: municipality, label: 自治体 }
+  - { type: fee, label: 料金 }
+  - { type: account, label: アカウント }
+  - { type: inquiry, label: 問い合わせ }
+relations:
+  - name: owned-by
+    label: 所有者
+    inverseLabel: 所有する犬猫
+    source: [microchip]
+    target: [owner]
+    cardinality: { outMin: 1, outMax: 1 }
+    description: マイクロチップ登録は現在の所有者を 1 件だけ参照します
+  - name: born-to
+    label: 母親
+    inverseLabel: 産んだ子
+    source: [microchip]
+    target: [microchip]
+    cardinality: { outMax: 1 }
+    acyclic: true
+    description: 母親のマイクロチップ登録を 1 件まで参照します（循環しません）
+  - name: located-in
+    label: 所在地の自治体
+    inverseLabel: 所在する犬猫
+    source: [microchip]
+    target: [municipality]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: resides-in
+    label: 住所の自治体
+    inverseLabel: 住所のある所有者
+    source: [owner]
+    target: [municipality]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: concerns
+    label: 対象のマイクロチップ登録
+    inverseLabel: この犬猫の申請・届出
+    source: [application]
+    target: [microchip]
+    cardinality: { outMax: 1 }
+    description: 申請・届出は対象を 1 件まで参照します（新規登録は完了するまで対象がありません）
+  - name: applied-by
+    label: 申請者
+    inverseLabel: この所有者の申請・届出
+    source: [application]
+    target: [owner]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: transferred-from
+    label: 旧所有者
+    inverseLabel: 手放した犬猫の所有者変更
+    source: [application]
+    target: [owner]
+    cardinality: { outMax: 1 }
+  - name: charged-by
+    label: 手数料の料金
+    inverseLabel: この料金の申請
+    source: [application]
+    target: [fee]
+    cardinality: { outMax: 1 }
+  - name: handled-by
+    label: 担当者
+    inverseLabel: 担当した申請と問い合わせ
+    source: [application, inquiry]
+    target: [account]
+    cardinality: { outMax: 1 }
+  - name: serves
+    label: 所管の自治体
+    inverseLabel: 所管するアカウント
+    source: [account]
+    target: [municipality]
+    cardinality: { outMax: 1 }
+  - name: asks-about
+    label: 関係するマイクロチップ登録
+    inverseLabel: この犬猫の問い合わせ
+    source: [inquiry]
+    target: [microchip]
+    cardinality: { outMax: 1 }
+  - name: notifies
+    label: 手続の時点の所在地の自治体
+    inverseLabel: 所在地として書いた申請・届出
+    source: [application]
+    target: [municipality]
+    cardinality: { outMax: 1 }
+    description: 申請・届出は、手続の時点の所在地の自治体を 1 件まで参照します（犬のワンストップ情報の通知先）

@@ -1,0 +1,29 @@
+id: helpdesk-dashboard
+name: ヘルプデスク・コールセンター
+kind: dashboard
+description: >-
+  問い合わせの入口です。ヘルプデスク（Web）の問い合わせは受付 → 回答 → 完了、コールセンター（電話）の問い合わせは応対のあとで内容と回答を記録 → 完了 と進みます。
+  電話の応対中に犬猫と所有者を確かめるときは「登録の検索」を使います。トレーサビリティ照会は、マイクロチップ番号を入れて登録の履歴を見ます。
+actions: [receive-inquiry, record-call]
+inputs:
+  - { key: mc, label: マイクロチップ番号, type: string }
+  - { key: ownerName, label: 所有者の氏名・名称, type: string }
+# 業務の流れ: 問い合わせの状態の流れ（inquiry-lifecycle）から作る
+flow:
+  lifecycle: inquiry-lifecycle
+  view: inquiry-grid
+  group: 問い合わせの状況
+  direction: right
+sections:
+  - id: all-inquiries
+    label: すべての問い合わせ
+    group: 全体
+    view: inquiry-grid
+  - id: search
+    label: 登録の検索
+    group: 照会
+    view: microchip-grid
+  - id: traceability
+    label: トレーサビリティ照会
+    group: 照会
+    view: traceability-grid

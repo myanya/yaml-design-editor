@@ -1,0 +1,17 @@
+id: import-fees
+name: 料金マスタの取り込み（CSV）
+description: >-
+  保守の「マスタ設定」です。料金の CSV（見出し行あり: 料金番号,名前,手続種別,経路,手数料）を、料金一覧（registry/masters/fees.yaml）へ追記します。
+  同じ料金番号の行が既にあれば取り込みません（金額の変更は、一覧を画面で直します）。
+kind: import
+input: { format: csv, encoding: UTF-8 }
+target:
+  file: registry/masters/fees.yaml
+  path: fees
+  key: [id]
+build:
+  id: { $trim: { $copy: 料金番号 } }
+  name: { $trim: { $copy: 名前 } }
+  kind: { $map: { $trim: { $copy: 手続種別 } }, $using: { 新規登録: registration, 所有者変更: transfer, 再交付: reissue } }
+  channel: { $map: { $trim: { $copy: 経路 } }, $using: { オンライン: online, 紙: paper } }
+  amount: { $number: { $copy: 手数料 } }

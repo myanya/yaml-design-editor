@@ -1,0 +1,18 @@
+id: municipality-list
+name: 自治体一覧
+kind: document
+description: 自治体のマスタです（全国地方公共団体コードに当たる）。マイクロチップ登録の所在地・所有者の住所・行政のアカウントの所管から参照されます。保守の「マスタ設定」は CSV の取り込み（skill import-municipalities）で行います。
+match: registry/masters/municipalities.yaml
+entity:
+  type: municipality
+  idType: common#自治体番号
+  defines: true
+root:
+  type: object
+  fields:
+    - key: municipalities
+      label: 自治体一覧
+      type: array
+      default: []
+      display: table
+      item: { type: common#自治体 }

@@ -1,0 +1,18 @@
+id: inquiry-grid
+name: 問い合わせの一覧
+description: ヘルプデスク（Web）とコールセンター（電話）の問い合わせです。
+rows:
+  match:
+    - node: { entity: inquiry, bind: q }
+columns:
+  - { label: 経路, path: channel }
+  - { label: 状態, path: status }
+  - { label: 受付日, path: receivedOn }
+  - { label: 問い合わせ者の区分, path: inquirerKind }
+  - { label: 問い合わせ者, path: inquirerName }
+  - { label: 件名, path: subject }
+  - { label: 関係するマイクロチップ登録, path: microchipId }
+  - { label: 回答日, path: answeredOn }
+  - { label: 回答した担当者, path: answeredBy }
+  - { label: 完了日, path: closedOn }
+order: { path: receivedOn, type: date, direction: desc }

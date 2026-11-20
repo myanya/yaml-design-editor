@@ -1,0 +1,41 @@
+applicationId: APP-000009
+kind: registration
+channel: online
+receivedOn: 2026-04-20
+status: completed
+applicantId: OWN-0002
+registration:
+  mcNumber: MC-999000000000010
+  animal:
+    species: cat
+    name: ミケ
+    breed: 日本猫
+    color: 三毛
+    sex: female
+    birthDate: 2022-06-01
+  implantedOn: 2026-04-17
+  veterinarian: ゆきしろ犬猫クリニック 白雪
+location:
+  municipalityId: LG-981015
+  address: やまなみ県ゆきしろ市本町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-04-20
+    action: apply-registration
+    to: accepted
+  - date: 2026-04-20
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000009
+  - date: 2026-04-21
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-04-20
+  amount: 300
+  receiptNo: PAY-000009
+completedOn: 2026-04-21
+microchipId: MC-999000000000010

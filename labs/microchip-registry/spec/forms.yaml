@@ -1,0 +1,33 @@
+forms:
+  - { id: FORM-01, name: マイクロチップ登録証明書, fileKind: document, madeBySystem: true, downloadable: false,
+      realization: { status: partial, reports: [certificate], gap: HTML で 1 件ずつ作ります。PDF・Word は出せないので、ブラウザの印刷で PDF にします。 } }
+  - { id: FORM-02, name: マイクロチップ装着証明書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 獣医師が発行する書類の様式です。様式は指定登録機関の指定のあとで担当部署が示すので、作っていません。 } }
+  - { id: FORM-03, name: 登録申請書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 紙運用の申請書の様式です。様式が示されていないので、作っていません（入力する項目は操作「マイクロチップ情報登録を申請する」と同じです）。 } }
+  - { id: FORM-05, name: 変更登録申請書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 紙運用の申請書の様式です。様式が示されていないので、作っていません。 } }
+  - { id: FORM-06, name: 情報変更届出書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 紙運用の届出書の様式です。様式が示されていないので、作っていません。 } }
+  - { id: FORM-07, name: 死亡届出書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 紙運用の届出書の様式です。様式が示されていないので、作っていません。 } }
+  - { id: FORM-08, name: 再交付申請書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 紙運用の申請書の様式です。様式が示されていないので、作っていません。 } }
+  - { id: FORM-09, name: 行政アカウント発行申請書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 申請書の様式です。様式が示されていないので、作っていません。 } }
+  - { id: FORM-10, name: 行政アカウント削除申請書, fileKind: document, madeBySystem: false, downloadable: true,
+      realization: { status: out-of-scope, gap: 申請書の様式です。様式が示されていないので、作っていません。 } }
+  - { id: FORM-11, name: マイクロチップ一括登録 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: external, scripts: ["scripts/samples/bulk-register.csv"], gap: 入力の CSV の見本を置いています。一括の実行は scripts/bulk.py です。 } }
+  - { id: FORM-12, name: マイクロチップ一括登録結果 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: external, scripts: ["scripts/bulk.py register"], gap: 外のスクリプトが、行ごとの成否・申請番号・新しい変更キー・理由を書きます。 } }
+  - { id: FORM-13, name: 所有者一括変更登録 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: external, scripts: ["scripts/samples/bulk-transfer.csv"], gap: 入力の CSV の見本を置いています。 } }
+  - { id: FORM-14, name: 所有者一括変更登録結果 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: external, scripts: ["scripts/bulk.py transfer"], gap: 外のスクリプトが書きます。 } }
+  - { id: FORM-15, name: 一括情報変更 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: external, scripts: ["scripts/samples/bulk-change.csv"], gap: 入力の CSV の見本を置いています。 } }
+  - { id: FORM-16, name: 一括情報変更結果 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: external, scripts: ["scripts/bulk.py change"], gap: 外のスクリプトが書きます。 } }
+  - { id: FORM-17, name: ワンストップ情報 CSV, fileKind: csv, madeBySystem: true, downloadable: false,
+      realization: { status: partial, views: [onestop-grid], reports: [onestop-csv], gap: 月ごとの CSV です。値にカンマ・引用符・改行があると列がずれます。 } }

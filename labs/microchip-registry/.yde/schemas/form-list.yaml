@@ -1,0 +1,10 @@
+id: form-list
+name: 帳票一覧
+kind: document
+description: 要件定義書の帳票一覧（表 8）です。帳票ごとに、再現の状態と、対応するレポート・スクリプトを書きます（表 8 に No.4 はありません）。
+match: spec/forms.yaml
+entity: { type: form, idType: spec-types#帳票番号, defines: true }
+root:
+  type: object
+  fields:
+    - { key: forms, label: 帳票一覧, type: array, default: [], display: table, item: { type: spec-types#帳票 } }

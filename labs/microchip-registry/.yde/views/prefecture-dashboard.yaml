@@ -1,0 +1,37 @@
+id: prefecture-dashboard
+name: 都道府県等（飼養管理・検索）
+kind: dashboard
+description: >-
+  都道府県等（保健所・動物愛護管理センター）の入口です。飼養管理の検索（母親と子の登録）で事業者の指導の材料を確かめ、
+  逸走情報検索（マイクロチップ番号）と所有者別検索（氏名・名称）で保護した犬猫の所有者を探します。
+  「基準超過の疑い」は仮の基準（出産時に母親が 6 歳を超える）です。判定条件は要件定義書に無いので、置き換えて使います。
+inputs:
+  - { key: from, label: 登録日（から）, type: date }
+  - { key: to, label: 登録日（まで）, type: date }
+  - { key: mc, label: マイクロチップ番号, type: string }
+  - { key: ownerName, label: 所有者の氏名・名称, type: string }
+sections:
+  - id: breeding
+    label: 母親と子の登録
+    group: 飼養管理
+    view: breeding-grid
+  # 仮の基準: 出産時の母親の日齢が 6 年（2,192 日）を超える
+  - id: over-age
+    label: 基準超過の疑い（仮の基準）
+    group: 飼養管理
+    view: breeding-grid
+    filter:
+      match:
+        - node: { entity: microchip, bind: c }
+        - edge: { via: motherId }
+        - node: { entity: microchip, bind: mo }
+      check:
+        - { gt: [ { daysBetween: [ { of: mo, path: animal.birthDate }, { of: c, path: animal.birthDate } ] }, 2192 ] }
+  - id: mothers
+    label: 母親ごとの子の登録数
+    group: 飼養管理
+    view: mother-grid
+  - id: search
+    label: 逸走情報検索・所有者別検索
+    group: 検索
+    view: microchip-grid

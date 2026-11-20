@@ -1,0 +1,287 @@
+businesses:
+  # ---- 登録業務（表 6 の No.1〜8） ----
+  - id: BIZ-01
+    category: registration
+    name: マイクロチップ情報登録（単体）
+    actors: [ACT-OWNER, ACT-SYSTEM, ACT-VET, ACT-PAYMENT]
+    scale: 570,000 件／年（個別登録又は一括登録）
+    realization:
+      status: implemented
+      actions: [register-owner, apply-registration, record-payment, complete-application]
+      requires: [apply-registration.not-registered, apply-registration.no-pending-application]
+      views: [owner-dashboard, registrar-dashboard]
+      reports: [certificate]
+      gap: 決済・登録証明書のメール送付・マイクロチップ番号の読み取りはシステムの外です。入力の一時保存（2 回目以降の入力の省略）はありません。
+  - id: BIZ-02
+    category: registration
+    name: マイクロチップ情報登録（一括）
+    actors: [ACT-OWNER, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: partial
+      actions: [apply-registration, record-payment, complete-application]
+      scripts: ["scripts/bulk.py register"]
+      gap: CSV の一括登録と結果 CSV は、YDE の外のスクリプトが操作を 1 行ずつ呼んで行います（取り込みは全件か無しかで、操作の前提を通らないため）。登録証明書の一括発行は 1 件ずつです。
+  - id: BIZ-03
+    category: registration
+    name: 所有者変更登録（単体）
+    actors: [ACT-OWNER, ACT-OLD-OWNER, ACT-SYSTEM, ACT-PAYMENT]
+    scale: 840,000 件／年（個別登録又は一括登録）
+    realization:
+      status: implemented
+      actions: [apply-transfer, record-payment, complete-application]
+      requires: [apply-transfer.change-key, apply-transfer.new-owner, apply-transfer.no-pending-application]
+      views: [owner-dashboard, registrar-dashboard]
+      reports: [certificate]
+      gap: 決済と、旧所有者への完了メールはシステムの外です。
+  - id: BIZ-04
+    category: registration
+    name: 所有者変更登録（一括）
+    actors: [ACT-OWNER, ACT-OLD-OWNER, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: partial
+      actions: [apply-transfer, record-payment, complete-application]
+      scripts: ["scripts/bulk.py transfer"]
+      gap: CSV の一括変更と結果 CSV は、YDE の外のスクリプトが操作を 1 行ずつ呼んで行います。登録証明書の一括発行は 1 件ずつです。
+  - id: BIZ-05
+    category: registration
+    name: 情報変更（単体）
+    actors: [ACT-OWNER, ACT-SYSTEM]
+    scale: 225,000 件／年
+    realization:
+      status: implemented
+      actions: [report-change]
+      requires: [report-change.change-key]
+      views: [owner-dashboard]
+      gap: 本人確認用の認証番号（メールで送る 6 桁）は再現せず、変更キーだけで確かめます。
+  - id: BIZ-06
+    category: registration
+    name: 情報変更（一括）
+    actors: [ACT-OWNER, ACT-SYSTEM]
+    realization:
+      status: partial
+      actions: [report-change]
+      scripts: ["scripts/bulk.py change"]
+      gap: CSV の一括変更と結果 CSV は、YDE の外のスクリプトが操作を 1 行ずつ呼んで行います。メールアドレスの変更を断る決まり（なりすましの防止）はスクリプトが持ちます。
+  - id: BIZ-07
+    category: registration
+    name: 死亡届
+    actors: [ACT-OWNER, ACT-SYSTEM]
+    scale: 167,000 件／年
+    realization:
+      status: implemented
+      actions: [report-death]
+      requires: [report-death.change-key]
+      views: [owner-dashboard]
+  - id: BIZ-08
+    category: registration
+    name: 再交付
+    actors: [ACT-OWNER, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: implemented
+      actions: [apply-reissue, record-payment, complete-application]
+      requires: [apply-reissue.owner-auth]
+      views: [owner-dashboard, registrar-dashboard]
+      reports: [certificate]
+      gap: 本人しか知らない情報は、登録した電話番号だけにしています。決済と登録証明書のメール送付はシステムの外です。
+  # ---- 登録業務（紙運用）（No.9〜13）: 同じ操作を、担当者が経路「紙」で入力する ----
+  - id: BIZ-09
+    category: registration-paper
+    name: マイクロチップ情報登録（紙運用）
+    actors: [ACT-OWNER, ACT-REGISTRAR, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: implemented
+      actions: [apply-registration, record-payment, complete-application]
+      views: [registrar-dashboard]
+      reports: [certificate]
+      gap: 申請書と支払い証明書の受領、登録証明書の郵送・手渡しはシステムの外です。申請書の写しは保管しません。
+  - id: BIZ-10
+    category: registration-paper
+    name: 所有者変更登録（紙運用）
+    actors: [ACT-OWNER, ACT-OLD-OWNER, ACT-REGISTRAR, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: implemented
+      actions: [apply-transfer, record-payment, complete-application]
+      views: [registrar-dashboard]
+      reports: [certificate]
+      gap: 申請書と支払い証明書の受領、登録証明書の郵送・手渡し、完了メールはシステムの外です。
+  - id: BIZ-11
+    category: registration-paper
+    name: 情報変更（紙運用）
+    actors: [ACT-OWNER, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [report-change]
+      views: [registrar-dashboard]
+      gap: 届出書の受領はシステムの外です。
+  - id: BIZ-12
+    category: registration-paper
+    name: 死亡届（紙運用）
+    actors: [ACT-OWNER, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [report-death]
+      views: [registrar-dashboard]
+      gap: 届出書の受領はシステムの外です。
+  - id: BIZ-13
+    category: registration-paper
+    name: 再交付（紙運用）
+    actors: [ACT-OWNER, ACT-REGISTRAR, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: implemented
+      actions: [apply-reissue, record-payment, complete-application]
+      views: [registrar-dashboard]
+      reports: [certificate]
+      gap: 申請書・支払い証明書・身分証明書の受領と本人確認、登録証明書の郵送・手渡しはシステムの外です。
+  # ---- 行政業務（No.14〜19） ----
+  - id: BIZ-14
+    category: government
+    name: 飼養管理検索
+    actors: [ACT-PREFECTURE, ACT-SYSTEM]
+    scale: 5,700 件／年
+    realization:
+      status: implemented
+      views: [prefecture-dashboard, breeding-grid, mother-grid]
+      gap: 飼養管理基準の超過の判定条件は要件定義書に無いので、仮の基準（出産時に母親が 6 歳を超える）を置いています。
+  - id: BIZ-15
+    category: government
+    name: ワンストップ情報照会
+    actors: [ACT-MUNICIPALITY, ACT-SYSTEM]
+    realization:
+      status: implemented
+      views: [municipality-dashboard, onestop-grid]
+      reports: [onestop-csv]
+      gap: CSV は月ごとです（日付の範囲は画面で見ます）。値にカンマがあると列がずれます。
+  - id: BIZ-16
+    category: government
+    name: 逸走情報検索
+    actors: [ACT-PREFECTURE, ACT-MUNICIPALITY, ACT-POLICE, ACT-SYSTEM]
+    scale: 30,000 件／年
+    realization:
+      status: implemented
+      views: [police-dashboard, prefecture-dashboard, municipality-dashboard, microchip-grid]
+      gap: 所有者への連絡（電話・メール・はがき）と犬猫の返還はシステムの外です。
+  - id: BIZ-17
+    category: government
+    name: 行政 ID 情報更新
+    actors: [ACT-PREFECTURE, ACT-MUNICIPALITY, ACT-POLICE, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [update-account]
+      views: [admin-dashboard]
+      gap: パスワードの更新と完了メールはありません（ログインを扱わないため）。
+  - id: BIZ-18
+    category: government
+    name: 飼養管理通知
+    actors: [ACT-PREFECTURE, ACT-SYSTEM]
+    realization:
+      status: partial
+      reports: [breeding-notice]
+      scripts: ["scripts/daily-batch.py"]
+      gap: 日次の集計は、YDE の外のスクリプトが前日の分のレポートを作ります（決まった時刻の自動実行が無いため）。メールの送信はシステムの外です。
+  - id: BIZ-19
+    category: government
+    name: ワンストップ通知
+    actors: [ACT-MUNICIPALITY, ACT-SYSTEM]
+    scale: 1,720 件／日（メールの発信）
+    realization:
+      status: partial
+      reports: [onestop-notice]
+      scripts: ["scripts/daily-batch.py"]
+      gap: 日次の集計は、YDE の外のスクリプトが前日の分のレポートを作ります。メールの送信はシステムの外です。
+  # ---- 行政業務（紙運用）（No.20） ----
+  - id: BIZ-20
+    category: government-paper
+    name: 逸走情報検索（紙運用）
+    actors: [ACT-POLICE, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      views: [helpdesk-dashboard, microchip-grid]
+      gap: 捜査照会書の受領と、検索結果の回答（郵送・FAX・電話）はシステムの外です。
+  # ---- 管理業務（No.21〜25） ----
+  - id: BIZ-21
+    category: management
+    name: トレーサビリティ照会
+    actors: [ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      views: [traceability-grid, helpdesk-dashboard]
+  - id: BIZ-22
+    category: management
+    name: 行政 ID 登録・削除
+    actors: [ACT-REGISTRAR, ACT-PREFECTURE, ACT-MUNICIPALITY, ACT-POLICE, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [register-account, delete-account]
+      views: [admin-dashboard]
+      gap: 発行・削除の申請書の受領、申請者の認証、パスワードの払い出し、完了メールはシステムの外です。
+  - id: BIZ-23
+    category: management
+    name: 指定登録機関 ID 登録・削除
+    actors: [ACT-DB-MAINT, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [register-account, delete-account]
+      views: [admin-dashboard]
+      gap: 申請書の受領、パスワードの払い出し、完了通知はシステムの外です。
+  - id: BIZ-24
+    category: management
+    name: 指定登録機関 ID 情報更新
+    actors: [ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [update-account]
+      views: [admin-dashboard]
+      gap: パスワードの更新と完了メールはありません。
+  - id: BIZ-25
+    category: management
+    name: ヘルプデスク業務
+    actors: [ACT-OWNER, ACT-PREFECTURE, ACT-MUNICIPALITY, ACT-POLICE, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [receive-inquiry, answer-inquiry, close-inquiry]
+      views: [helpdesk-dashboard]
+      gap: 受付完了メールと回答メールの送信はシステムの外です。
+  # ---- その他業務（No.26）・保守業務（No.27） ----
+  - id: BIZ-26
+    category: other
+    name: コールセンター業務
+    actors: [ACT-OWNER, ACT-PREFECTURE, ACT-MUNICIPALITY, ACT-POLICE, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      actions: [record-call, close-inquiry]
+      views: [helpdesk-dashboard, microchip-grid]
+      gap: 電話の応対はシステムの外です。
+  - id: BIZ-27
+    category: maintenance
+    name: マスタ設定
+    actors: [ACT-DB-MAINT, ACT-SYSTEM]
+    realization:
+      status: implemented
+      views: [admin-dashboard, municipality-grid, fee-grid]
+      reports: [import-municipalities, import-fees]
+      gap: CSV の取り込みは追加だけです。変更と削除は、マスタの一覧を画面で直します。
+  # ---- 業務一覧（表 6）に無く、ユースケース図と業務フローにあるもの ----
+  - id: BIZ-28
+    category: government
+    name: 所有者別検索
+    actors: [ACT-PREFECTURE, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: implemented
+      views: [prefecture-dashboard, helpdesk-dashboard, microchip-grid]
+  - id: BIZ-29
+    category: shared
+    name: ログイン
+    actors: [ACT-PREFECTURE, ACT-MUNICIPALITY, ACT-POLICE, ACT-REGISTRAR, ACT-SYSTEM]
+    realization:
+      status: out-of-scope
+      gap: YDE にはログイン・パスワード・利用者ごとの閲覧制限がありません。利用者区分は、ダッシュボードの入口と入力で分けるだけです（権限ではありません）。
+  - id: BIZ-30
+    category: shared
+    name: 手数料支払
+    actors: [ACT-OWNER, ACT-SYSTEM, ACT-PAYMENT]
+    realization:
+      status: partial
+      actions: [record-payment]
+      requires: [record-payment.amount-matches-fee]
+      views: [fee-grid]
+      gap: 決済（クレジットカード・コンビニ払い）と支払案内メールはシステムの外です。確かめた入金を、支払の記録として残します。

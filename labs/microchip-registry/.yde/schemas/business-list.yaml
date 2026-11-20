@@ -1,0 +1,25 @@
+id: business-list
+name: 業務一覧
+kind: document
+description: >-
+  要件定義書の業務一覧（表 6 の 27 業務）と、業務フロー・ユースケース図にだけある業務（所有者別検索・ログイン・手数料支払）です。
+  業務ごとに、再現の状態と、対応する操作・ビュー・レポート・スクリプト、足りないことを書きます。
+match: spec/businesses.yaml
+entity: { type: business, idType: spec-types#業務番号, defines: true }
+root:
+  type: object
+  fields:
+    - { key: businesses, label: 業務一覧, type: array, default: [], display: table, item: { type: spec-types#業務 } }
+# 網羅の検査: ダッシュボードは、どれかの利用者区分の入口か業務に対応付いていること。
+# 操作の側の網羅（どの業務にも対応付いていない操作）は、ビュー「操作と業務の対応」とダッシュボード「要件定義書との対応」の区画で見る
+# （操作の定義を起点にした検査は、検証では指摘にならないため。devtrack の指摘）
+constraints:
+  - id: dashboard-has-user
+    description: ダッシュボードは、どれかの利用者区分の入口か、業務に対応付いていること
+    match:
+      - node: { entity: yde-view, id: "*-dashboard", bind: v }
+      - edge: { dir: in, relation: realized-by-view }
+      - node: {}
+    expect: exists
+    level: warning
+    message: "ダッシュボード {v.id} は、どの利用者区分にも業務にも対応付いていません"

@@ -1,0 +1,11 @@
+id: operation-coverage-grid
+name: 操作と業務の対応
+description: 業務の操作（operations.yaml の actions）ごとに、対応付けた業務・帳票・API・工程を並べます。対応の無い操作は、要件定義書に根拠があるかを確かめます。
+rows:
+  match:
+    - node: { entity: yde-action, bind: act }
+columns:
+  - label: 対応する業務・帳票・API・工程
+    backlinks: { relation: realized-by-action }
+  - label: 対応の数
+    value: { refCount: { of: act, dir: in, relation: realized-by-action } }

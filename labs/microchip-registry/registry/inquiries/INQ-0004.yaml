@@ -1,0 +1,22 @@
+inquiryId: INQ-0004
+channel: call
+status: closed
+receivedOn: 2026-08-11
+inquirerKind: police
+inquirerName: 岬 大地
+subject: 保護した犬の所有者
+body: 保護した柴犬のマイクロチップ番号から、所有者の連絡先を確認したい。
+inquirerContact: 045-0000-0190
+microchipId: MC-999000000000004
+answer: 逸走情報検索で番号を入れると、所有者の氏名と電話番号を確認できます。
+answeredOn: 2026-08-11
+answeredBy: ACC-0002
+history:
+  - date: 2026-08-11
+    action: record-call
+    to: answered
+  - date: 2026-08-11
+    action: close-inquiry
+    from: answered
+    to: closed
+closedOn: 2026-08-11

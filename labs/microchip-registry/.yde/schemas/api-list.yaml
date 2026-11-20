@@ -1,0 +1,12 @@
+id: api-list
+name: API 一覧
+kind: document
+description: >-
+  要件定義書の API 一覧（別紙 4。共通 DB システムが備える 21 本）です。このワークスペースは個別 Web と共通 DB を 1 つにまとめているので、
+  API の呼び出しは無く、同じ働きをする操作・操作の前提・ビューを対応付けます。利用権限は要件の記録で、YDE では強制しません。
+match: spec/apis.yaml
+entity: { type: api, idType: spec-types#API番号, defines: true }
+root:
+  type: object
+  fields:
+    - { key: apis, label: API 一覧, type: array, default: [], display: table, item: { type: spec-types#API } }

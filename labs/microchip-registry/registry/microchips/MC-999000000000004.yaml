@@ -1,0 +1,21 @@
+mcNumber: MC-999000000000004
+status: registered
+animal:
+  species: dog
+  name: あずき
+  sex: female
+  birthDate: 2026-02-14
+  breed: 柴
+  color: 赤
+implantedOn: 2026-04-10
+ownerId: OWN-0008
+locationMunicipalityId: LG-991011
+changeKey: CK-000025
+registeredOn: 2026-04-14
+veterinarian: あおば動物病院 青葉
+motherId: MC-999000000000001
+locationAddress: みなと県あおば市汐入X-X-X
+history:
+  - date: 2026-04-14
+    action: complete-application
+    to: registered

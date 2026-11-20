@@ -1,0 +1,22 @@
+id: mother-grid
+name: 飼養管理（母親ごとの子の登録数）
+description: メスの登録ごとに、母親として参照している子の登録の数を数えます（出産回数の目安。同じ日に生まれた子は 1 回の出産です）。
+rows:
+  match:
+    - node: { entity: microchip, bind: mo }
+  where:
+    - { of: mo, path: animal.sex, equals: female }
+columns:
+  - { label: 名前, path: animal.name }
+  - { label: 種別, path: animal.species }
+  - { label: 生年月日, path: animal.birthDate }
+  - { label: 所有者, path: ownerId }
+  - label: 子の登録数
+    value:
+      count:
+        all:
+          of: c
+          match:
+            - node: { entity: microchip, bind: mo }
+            - edge: { via: motherId, dir: in }
+            - node: { entity: microchip, bind: c }

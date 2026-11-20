@@ -1,0 +1,42 @@
+applicationId: APP-000016
+kind: registration
+channel: paper
+receivedOn: 2026-05-18
+status: completed
+applicantId: OWN-0005
+registration:
+  mcNumber: MC-999000000000022
+  animal:
+    species: cat
+    name: トラ
+    breed: 雑種
+    color: キジトラ
+    sex: male
+    birthDate: 2024-10-10
+  implantedOn: 2026-05-15
+  veterinarian: つきかげ診療所 月見
+location:
+  municipalityId: LG-981023
+  address: やまなみ県つきかげ村大字月影X-X
+feeId: FEE-REG-PAPER
+handledBy: ACC-0001
+history:
+  - date: 2026-05-18
+    action: apply-registration
+    to: accepted
+  - date: 2026-05-15
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000016
+  - date: 2026-05-19
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: counter
+  paidOn: 2026-05-15
+  amount: 1000
+  receiptNo: PAY-000016
+completedOn: 2026-05-19
+microchipId: MC-999000000000022

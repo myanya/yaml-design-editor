@@ -1,0 +1,26 @@
+inquiryId: INQ-0001
+channel: helpdesk
+status: closed
+receivedOn: 2026-09-14
+inquirerKind: owner
+inquirerName: 日向 つむぎ
+subject: 登録証明書をなくした
+body: 登録証明書を紛失しました。再交付の方法を教えてください。
+inquirerContact: hinata@mail.example.com
+microchipId: MC-999000000000005
+history:
+  - date: 2026-09-14
+    action: receive-inquiry
+    to: open
+  - date: 2026-09-14
+    action: answer-inquiry
+    from: open
+    to: answered
+  - date: 2026-09-17
+    action: close-inquiry
+    from: answered
+    to: closed
+answer: 再交付の申請で、登録した電話番号による本人確認ができます。手数料の支払のあと、新しい変更キーの登録証明書を交付します。
+answeredOn: 2026-09-14
+answeredBy: ACC-0002
+closedOn: 2026-09-17

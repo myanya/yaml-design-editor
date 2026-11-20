@@ -1,0 +1,649 @@
+id: registry-operations
+name: 登録業務の操作
+kind: library
+description: >-
+  業務の操作です。要件定義書の業務フロー（別紙 3）のうち、システムを使う手順を、確認して適用できる変更セットとして実行します。
+  オンラインの申請（所有者が入力する）と紙の申請（指定登録機関の担当者が入力する）は同じ操作で、経路の値で区別します。
+  状態を変える操作は、状態の流れ（registry-behavior.yaml）から、できる状態・移り先・状態の履歴の行が決まります。
+definitions:
+  記録の文:
+    type: common#文章
+    minLength: 1
+    description: 空でない文章。
+actions:
+  # ==== 登録業務 ====
+  - id: register-owner
+    label: 所有者情報を登録する
+    description: 所有者（個人・法人）を 1 件作ります。所有者番号は、使われている番号の次を自動で振ります。申請と届出は、登録した所有者を申請者として参照します。
+    params:
+      - { key: kind, label: 区分, type: common#所有者区分, required: true, default: individual }
+      - { key: category, label: 事業者区分, type: common#事業者区分, required: true, default: keeper }
+      - { key: name, label: 氏名・名称, type: common#一行の文, required: true, minLength: 1 }
+      - { key: address, label: 住所, type: common#一行の文, required: true, minLength: 1 }
+      - { key: municipalityId, label: 住所の自治体, type: common#住所地参照, required: true }
+      - { key: phone, label: 電話番号, type: common#電話番号, required: true }
+      - { key: email, label: メールアドレス, type: common#メールアドレス }
+    do:
+      - create:
+          schema: owner
+          id: { prefix: "OWN-", digits: 4 }
+          params:
+            kind: $kind
+            category: $category
+            name: $name
+            address: $address
+            municipalityId: $municipalityId
+            phone: $phone
+            email: { $copy: email }
+
+  - id: apply-registration
+    label: マイクロチップ情報登録を申請する
+    description: >-
+      新規登録の申請を受け付けます（業務フロー「マイクロチップ情報登録」の入力と受付）。申請は支払待ちになり、手数料の支払を記録して手続を完了すると、
+      マイクロチップ登録ができて登録証明書を交付できます。同じ番号の登録や、手続の途中の申請があれば受け付けません（二重登録の確認）。
+    # 状態の流れの入口（受付）。作った申請に、初めの状態と履歴の行を書く
+    lifecycle: { id: application-lifecycle, history: { date: $receivedOn } }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - key: mcNumber
+        label: マイクロチップ番号
+        type: word
+        pattern: "^MC-[0-9]{15}$"
+        placeholder: MC-999000000000001
+        required: true
+        description: マイクロチップ装着証明書に書かれた 15 桁の番号に「MC-」を付けて入れます。
+      - { key: applicantId, label: 申請者（所有者）, type: common#申請者参照, required: true }
+      - { key: channel, label: 経路, type: common#経路, required: true, default: online }
+      - { key: receivedOn, label: 受付日, type: common#年月日, required: true }
+      - { key: species, label: 種別, type: common#動物種別, required: true }
+      - { key: name, label: 名前, type: common#一行の文, required: true, minLength: 1 }
+      - { key: breed, label: 品種, type: common#一行の文 }
+      - { key: color, label: 毛色, type: common#一行の文 }
+      - { key: sex, label: 性別, type: common#性別, required: true }
+      - { key: birthDate, label: 生年月日, type: common#年月日, required: true }
+      - { key: implantedOn, label: 装着日, type: common#年月日, required: true }
+      - { key: veterinarian, label: 装着した獣医師, type: common#一行の文 }
+      - key: motherId
+        label: 母親
+        type: ref
+        idPattern: "MC-*"
+        scope: { schemaIds: [microchip] }
+        description: 母親のマイクロチップ登録（分かるとき）。
+      - { key: locationMunicipalityId, label: 所在地の自治体, type: common#自治体参照, required: true }
+      - { key: locationAddress, label: 所在地, type: common#一行の文 }
+      - { key: handledBy, label: 担当者, type: common#担当者参照, description: 紙の申請を入力する指定登録機関の担当者。 }
+    require:
+      - id: not-registered
+        match: [ { node: { id: $mcNumber } } ]
+        expect: absent
+        message: $mcNumber は既に登録されています
+      - id: no-pending-application
+        match: [ { node: { entity: application, bind: a } } ]
+        where:
+          - { of: a, path: registration.mcNumber, equals: $mcNumber }
+          - { of: a, state: [app-accepted, app-paid] }
+        expect: absent
+        message: "$mcNumber には手続の途中の申請 {a.id} があります"
+    do:
+      - create:
+          schema: application
+          id: { prefix: "APP-", digits: 6 }
+          params:
+            kind: registration
+            channel: $channel
+            receivedOn: $receivedOn
+            applicantId: $applicantId
+            registration:
+              mcNumber: $mcNumber
+              animal:
+                species: $species
+                name: $name
+                breed: { $copy: breed }
+                color: { $copy: color }
+                sex: $sex
+                birthDate: $birthDate
+              implantedOn: $implantedOn
+              veterinarian: { $copy: veterinarian }
+              motherId: { $copy: motherId }
+            location:
+              municipalityId: $locationMunicipalityId
+              address: { $copy: locationAddress }
+            # 手数料は経路で決まる（料金一覧の番号）
+            feeId: { $map: { $copy: channel }, $using: { online: FEE-REG-ONLINE, paper: FEE-REG-PAPER } }
+            handledBy: { $copy: handledBy }
+
+  - id: apply-transfer
+    label: 所有者変更登録を申請する
+    description: >-
+      登録済みの犬猫を譲り受けた新しい所有者の、変更登録の申請を受け付けます（業務フロー「所有者変更登録」）。
+      旧所有者から登録証明書とともに受け取った変更キーで本人確認をします。申請は支払待ちになり、手続を完了すると所有者が変わります。
+    target: { entity: microchip, bind: m }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - { key: applicantId, label: 新しい所有者, type: common#申請者参照, required: true }
+      - { key: changeKey, label: 変更キー, type: common#変更キー, required: true, description: 旧所有者から受け取った登録証明書に書かれています。 }
+      - { key: channel, label: 経路, type: common#経路, required: true, default: online }
+      - { key: receivedOn, label: 受付日, type: common#年月日, required: true }
+      - { key: locationMunicipalityId, label: 新しい所在地の自治体, type: common#自治体参照, required: true }
+      - { key: locationAddress, label: 新しい所在地, type: common#一行の文 }
+      - { key: handledBy, label: 担当者, type: common#担当者参照, description: 紙の申請を入力する指定登録機関の担当者。 }
+    require:
+      - id: registered
+        match: [ { node: { entity: microchip, bind: m } } ]
+        where: [ { of: m, state: mc-registered } ]
+        expect: exists
+        message: "{id} は死亡の届出があるので、所有者を変更できません"
+      - id: change-key
+        match: [ { node: { entity: microchip, bind: m } } ]
+        check: [ { eq: [ $changeKey, { of: m, path: changeKey } ] } ]
+        message: 変更キーが違います
+      # 受け手の値と受け取った値の比較は check に書く（受け手への where は「受け手がこの条件に合うこと」の意味になる）
+      - id: new-owner
+        match: [ { node: { entity: microchip, bind: m } } ]
+        check: [ { ne: [ { of: m, path: ownerId }, $applicantId ] } ]
+        message: "$applicantId は {id} のいまの所有者です"
+      - id: no-pending-application
+        match:
+          - node: { entity: microchip, bind: m }
+          - edge: { via: microchipId, dir: in }
+          - node: { entity: application, bind: a }
+        where: [ { of: a, state: [app-accepted, app-paid] } ]
+        expect: absent
+        message: "{id} には手続の途中の申請 {a.id} があります"
+    do:
+      - create:
+          schema: application
+          id: { prefix: "APP-", digits: 6 }
+          params:
+            kind: transfer
+            channel: $channel
+            receivedOn: $receivedOn
+            status: accepted
+            microchipId: { $copy: mcNumber, $of: m }
+            applicantId: $applicantId
+            previousOwnerId: { $copy: ownerId, $of: m }
+            location:
+              municipalityId: $locationMunicipalityId
+              address: { $copy: locationAddress }
+            feeId: { $map: { $copy: channel }, $using: { online: FEE-TRF-ONLINE, paper: FEE-TRF-PAPER } }
+            handledBy: { $copy: handledBy }
+            history: [ { date: $receivedOn, action: apply-transfer, to: accepted } ]
+
+  - id: apply-reissue
+    label: 登録証明書の再交付を申請する
+    description: >-
+      登録証明書の再交付の申請を受け付けます（業務フロー「再交付」）。登録証明書があれば変更キーで、無ければ所有者本人しか知らない情報
+      （ここでは登録した電話番号）で本人確認をします。申請は支払待ちになり、手続を完了すると新しい変更キーの登録証明書を交付できます。
+    target: { entity: microchip, bind: m }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - key: auth
+        label: 本人確認の値
+        type: common#一行の文
+        required: true
+        description: 変更キー（登録証明書があるとき）か、所有者の登録した電話番号（無いとき）。
+      - { key: channel, label: 経路, type: common#経路, required: true, default: online }
+      - { key: receivedOn, label: 受付日, type: common#年月日, required: true }
+      - { key: handledBy, label: 担当者, type: common#担当者参照, description: 紙の申請を入力する指定登録機関の担当者。 }
+    require:
+      - id: registered
+        match: [ { node: { entity: microchip, bind: m } } ]
+        where: [ { of: m, state: mc-registered } ]
+        expect: exists
+        message: "{id} は死亡の届出があるので、再交付できません"
+      - id: owner-auth
+        match:
+          - node: { entity: microchip, bind: m }
+          - edge: { via: ownerId }
+          - node: { entity: owner, bind: o }
+        check:
+          - or:
+              - { eq: [ $auth, { of: m, path: changeKey } ] }
+              - { eq: [ $auth, { of: o, path: phone } ] }
+        message: 本人確認の値が、変更キーとも所有者の電話番号とも違います
+      - id: no-pending-application
+        match:
+          - node: { entity: microchip, bind: m }
+          - edge: { via: microchipId, dir: in }
+          - node: { entity: application, bind: a }
+        where: [ { of: a, state: [app-accepted, app-paid] } ]
+        expect: absent
+        message: "{id} には手続の途中の申請 {a.id} があります"
+    do:
+      - create:
+          schema: application
+          id: { prefix: "APP-", digits: 6 }
+          params:
+            kind: reissue
+            channel: $channel
+            receivedOn: $receivedOn
+            status: accepted
+            microchipId: { $copy: mcNumber, $of: m }
+            applicantId: { $copy: ownerId, $of: m }
+            feeId: { $map: { $copy: channel }, $using: { online: FEE-RIS-ONLINE, paper: FEE-RIS-PAPER } }
+            handledBy: { $copy: handledBy }
+            history: [ { date: $receivedOn, action: apply-reissue, to: accepted } ]
+
+  - id: record-payment
+    label: 手数料の支払を記録する
+    description: >-
+      支払待ちの申請に、手数料の支払の結果を記録します（業務フロー「手数料支払」の支払結果の登録）。決済そのもの（クレジットカード・コンビニ・窓口・銀行振込）は
+      システムの外で行われ、ここでは確かめた入金を記録します。支払額は、申請の料金（料金一覧）と同じでなければなりません。
+    target: { entity: application }
+    lifecycle: { id: application-lifecycle, history: { date: $date, note: { $copy: receiptNo } } }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 支払日, type: common#年月日, required: true }
+      - { key: method, label: 支払方法, type: common#支払方法, required: true, default: credit }
+      - { key: amount, label: 支払額（円）, type: common#金額, required: true }
+      - { key: receiptNo, label: 支払番号, type: common#一行の文 }
+    require:
+      - id: amount-matches-fee
+        match:
+          - node: { entity: application, bind: a }
+          - edge: { via: feeId }
+          - node: { entity: fee, bind: f }
+        check: [ { eq: [ $amount, { of: f, path: amount } ] } ]
+        message: "{id} の支払額が、申請の手数料（料金一覧）と違います"
+      # オンラインの申請は、受付のあとで支払う。紙の申請は、先に支払って支払い証明書を添えて出すので、支払日が受付日より前でよい
+      - id: not-before-received
+        match: [ { node: { entity: application, bind: a } } ]
+        check:
+          - or:
+              - { eq: [ { of: a, path: channel }, paper ] }
+              - { gte: [ $date, { of: a, path: receivedOn } ] }
+        message: オンラインの申請の支払日は、受付日以降にしてください
+    do:
+      - set:
+          of: self
+          path: payment
+          value: { method: $method, paidOn: $date, amount: $amount, receiptNo: { $copy: receiptNo } }
+
+  - id: complete-application
+    label: 手続を完了する
+    description: >-
+      支払済みの申請を完了にし、内容を登録へ反映します。新規登録ならマイクロチップ登録を作り、所有者変更なら所有者と所在地を変え、
+      どの手続でも新しい変更キーを発行します。完了した申請の対象は、登録証明書（レポート certificate）を交付できます。
+    target: { entity: application }
+    lifecycle: { id: application-lifecycle, history: { date: $date } }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 完了日, type: common#年月日, required: true }
+    require:
+      - id: microchip-alive
+        match:
+          - node: { entity: application, bind: a }
+          - edge: { via: microchipId }
+          - node: { entity: microchip, bind: m }
+        where: [ { of: m, state: mc-deceased } ]
+        expect: absent
+        message: "{id} の対象 {m.id} は死亡の届出があるので、手続を完了できません"
+      - id: not-before-paid
+        match: [ { node: { entity: application, bind: a } } ]
+        check: [ { gte: [ $date, { of: a, path: payment.paidOn } ] } ]
+        message: 完了日は支払日以降にしてください
+    do:
+      - set: { of: self, path: completedOn, value: $date }
+      # 新規登録: マイクロチップ登録の文書を作り、申請の対象にする（マイクロチップ登録の状態の流れの入口）
+      - when: [ { of: self, path: kind, equals: registration } ]
+        create:
+          schema: microchip
+          params:
+            mcNumber: { $copy: registration.mcNumber, $of: self }
+            status: registered
+            animal: { $copy: registration.animal, $of: self }
+            implantedOn: { $copy: registration.implantedOn, $of: self }
+            veterinarian: { $copy: registration.veterinarian, $of: self }
+            motherId: { $copy: registration.motherId, $of: self }
+            ownerId: { $copy: applicantId, $of: self }
+            locationMunicipalityId: { $copy: location.municipalityId, $of: self }
+            locationAddress: { $copy: location.address, $of: self }
+            changeKey: { $format: "CK-{n}", $with: { n: { $value: { extract: [ { of: self, path: applicationId }, "([0-9]+)$" ] } } } }
+            registeredOn: $date
+            history: [ { date: $date, action: complete-application, to: registered } ]
+      - when: [ { of: self, path: kind, equals: registration } ]
+        set: { of: self, path: microchipId, value: { $copy: registration.mcNumber, $of: self } }
+      # 所有者変更: 対象の登録の所有者と所在地を、申請の内容に変える
+      - when: [ { of: self, path: kind, equals: transfer } ]
+        each:
+          from: self
+          match:
+            - node: { entity: application }
+            - edge: { via: microchipId }
+            - node: { entity: microchip, bind: m }
+          do:
+            - set: { of: m, path: ownerId, value: { $copy: applicantId, $of: self } }
+            - set: { of: m, path: locationMunicipalityId, value: { $copy: location.municipalityId, $of: self } }
+            - when: [ { of: self, path: location.address, exists: true } ]
+              set: { of: m, path: locationAddress, value: { $copy: location.address, $of: self } }
+      # 所有者変更・再交付: 新しい変更キーを発行する（前の変更キーは使えなくなる）
+      - when: [ { of: self, path: kind, oneOf: [transfer, reissue] } ]
+        each:
+          from: self
+          match:
+            - node: { entity: application }
+            - edge: { via: microchipId }
+            - node: { entity: microchip, bind: m }
+          do:
+            - set:
+                of: m
+                path: changeKey
+                value: { $format: "CK-{n}", $with: { n: { $value: { extract: [ { of: self, path: applicationId }, "([0-9]+)$" ] } } } }
+
+  - id: report-change
+    label: 情報変更を届け出る
+    description: >-
+      登録済みの犬猫の情報（名前・毛色・所在地）と、所有者の連絡先（住所・電話番号・メールアドレス）の変更を届け出ます（業務フロー「情報変更」）。
+      変えたい項目だけを入れます。届出なので手数料は無く、受け付けた時点で登録へ反映します。所有者そのものの変更は「所有者変更登録を申請する」で行います。
+    target: { entity: microchip, bind: m }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - { key: changeKey, label: 変更キー, type: common#変更キー, required: true }
+      - { key: channel, label: 経路, type: common#経路, required: true, default: online }
+      - { key: receivedOn, label: 届出日, type: common#年月日, required: true }
+      - { key: animalName, label: 犬猫の名前, type: common#一行の文, minLength: 1 }
+      - { key: animalColor, label: 犬猫の毛色, type: common#一行の文, minLength: 1 }
+      - { key: locationMunicipalityId, label: 所在地の自治体, type: common#自治体参照 }
+      - { key: locationAddress, label: 所在地, type: common#一行の文, minLength: 1 }
+      - { key: ownerAddress, label: 所有者の住所, type: common#一行の文, minLength: 1 }
+      - { key: ownerMunicipalityId, label: 所有者の住所の自治体, type: common#自治体参照 }
+      - { key: ownerPhone, label: 所有者の電話番号, type: common#電話番号 }
+      - { key: ownerEmail, label: 所有者のメールアドレス, type: common#メールアドレス }
+      - { key: handledBy, label: 担当者, type: common#担当者参照, description: 紙の届出を入力する指定登録機関の担当者。 }
+    require:
+      - id: registered
+        match: [ { node: { entity: microchip, bind: m } } ]
+        where: [ { of: m, state: mc-registered } ]
+        expect: exists
+        message: "{id} は死亡の届出があるので、情報を変更できません"
+      - id: change-key
+        match: [ { node: { entity: microchip, bind: m } } ]
+        check: [ { eq: [ $changeKey, { of: m, path: changeKey } ] } ]
+        message: 変更キーが違います
+    do:
+      # 届出の記録（受け付けた時点で完了）。変えた項目だけが changes に入る
+      - create:
+          schema: application
+          id: { prefix: "APP-", digits: 6 }
+          params:
+            kind: change
+            channel: $channel
+            receivedOn: $receivedOn
+            status: completed
+            completedOn: $receivedOn
+            microchipId: { $copy: mcNumber, $of: m }
+            applicantId: { $copy: ownerId, $of: m }
+            # 手続の時点の所在地（変えたなら新しい値、変えなければいまの値）。ワンストップ情報の通知先になる
+            location:
+              municipalityId: { $first: [ { $copy: locationMunicipalityId }, { $copy: locationMunicipalityId, $of: m } ] }
+              address: { $first: [ { $copy: locationAddress }, { $copy: locationAddress, $of: m } ] }
+            changes:
+              animalName: { $copy: animalName }
+              animalColor: { $copy: animalColor }
+              locationMunicipalityId: { $copy: locationMunicipalityId }
+              locationAddress: { $copy: locationAddress }
+              ownerAddress: { $copy: ownerAddress }
+              ownerMunicipalityId: { $copy: ownerMunicipalityId }
+              ownerPhone: { $copy: ownerPhone }
+              ownerEmail: { $copy: ownerEmail }
+            handledBy: { $copy: handledBy }
+            history: [ { date: $receivedOn, action: report-change, to: completed } ]
+      # 犬猫の情報
+      - when: [ { path: animalName, exists: true } ]
+        set: { of: m, path: animal.name, value: $animalName }
+      - when: [ { path: animalColor, exists: true } ]
+        set: { of: m, path: animal.color, value: $animalColor }
+      - when: [ { path: locationMunicipalityId, exists: true } ]
+        set: { of: m, path: locationMunicipalityId, value: $locationMunicipalityId }
+      - when: [ { path: locationAddress, exists: true } ]
+        set: { of: m, path: locationAddress, value: $locationAddress }
+      # 所有者の連絡先（登録から所有者へ参照を辿る）
+      - each:
+          from: m
+          match:
+            - node: { entity: microchip }
+            - edge: { via: ownerId }
+            - node: { entity: owner, bind: o }
+          do:
+            - when: [ { path: ownerAddress, exists: true } ]
+              set: { of: o, path: address, value: $ownerAddress }
+            - when: [ { path: ownerMunicipalityId, exists: true } ]
+              set: { of: o, path: municipalityId, value: $ownerMunicipalityId }
+            - when: [ { path: ownerPhone, exists: true } ]
+              set: { of: o, path: phone, value: $ownerPhone }
+            - when: [ { path: ownerEmail, exists: true } ]
+              set: { of: o, path: email, value: $ownerEmail }
+
+  - id: report-death
+    label: 死亡を届け出る
+    description: >-
+      登録済みの犬猫の死亡を届け出ます（業務フロー「死亡届」）。届出なので手数料は無く、受け付けた時点で登録を死亡にします。
+      死亡にした登録は、所有者変更・情報変更・再交付ができなくなります（検索には残ります）。
+    target: { entity: microchip, bind: m }
+    # 状態の流れ: 登録済み → 死亡（マイクロチップ登録）。届出の記録（申請・届出）は手で作る
+    lifecycle: { id: microchip-lifecycle, history: { date: $receivedOn } }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - { key: changeKey, label: 変更キー, type: common#変更キー, required: true }
+      - { key: deathOn, label: 死亡日, type: common#年月日, required: true }
+      - { key: channel, label: 経路, type: common#経路, required: true, default: online }
+      - { key: receivedOn, label: 届出日, type: common#年月日, required: true }
+      - { key: handledBy, label: 担当者, type: common#担当者参照, description: 紙の届出を入力する指定登録機関の担当者。 }
+    require:
+      - id: change-key
+        match: [ { node: { entity: microchip, bind: m } } ]
+        check: [ { eq: [ $changeKey, { of: m, path: changeKey } ] } ]
+        message: 変更キーが違います
+      - id: death-not-after-report
+        match: [ { node: { entity: microchip, bind: m } } ]
+        check: [ { lte: [ $deathOn, $receivedOn ], type: date } ]
+        message: 死亡日は届出日以前にしてください
+      - id: no-pending-application
+        match:
+          - node: { entity: microchip, bind: m }
+          - edge: { via: microchipId, dir: in }
+          - node: { entity: application, bind: a }
+        where: [ { of: a, state: [app-accepted, app-paid] } ]
+        expect: absent
+        message: "{id} には手続の途中の申請 {a.id} があります"
+    do:
+      - set: { of: m, path: deceasedOn, value: $deathOn }
+      - create:
+          schema: application
+          id: { prefix: "APP-", digits: 6 }
+          params:
+            kind: death
+            channel: $channel
+            receivedOn: $receivedOn
+            status: completed
+            completedOn: $receivedOn
+            microchipId: { $copy: mcNumber, $of: m }
+            applicantId: { $copy: ownerId, $of: m }
+            # 手続の時点の所在地。ワンストップ情報の通知先になる
+            location:
+              municipalityId: { $copy: locationMunicipalityId, $of: m }
+              address: { $copy: locationAddress, $of: m }
+            deathOn: $deathOn
+            handledBy: { $copy: handledBy }
+            history: [ { date: $receivedOn, action: report-death, to: completed } ]
+
+  # ==== 管理業務: アカウント ====
+  - id: register-account
+    label: アカウントを登録する
+    description: >-
+      行政（基礎自治体・都道府県等・警察）と指定登録機関のアカウントを 1 件作ります（業務フロー「行政アカウント登録・削除」「指定登録機関アカウント登録・削除」の登録）。
+      発行申請書の受領と申請者の確認はシステムの外で行います。ログインとパスワードは扱いません。
+    lifecycle: { id: account-lifecycle, history: { date: $date } }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: kind, label: 区分, type: common#アカウント区分, required: true }
+      - { key: name, label: 氏名, type: common#一行の文, required: true, minLength: 1 }
+      - { key: organization, label: 所属, type: common#一行の文, required: true, minLength: 1 }
+      - { key: municipalityId, label: 所管の自治体, type: common#所管参照, description: 行政のアカウントに入れます。 }
+      - { key: email, label: メールアドレス, type: common#メールアドレス, required: true }
+      - { key: date, label: 登録日, type: common#年月日, required: true }
+    do:
+      - create:
+          schema: account
+          id: { prefix: "ACC-", digits: 4 }
+          params:
+            kind: $kind
+            name: $name
+            organization: $organization
+            municipalityId: { $copy: municipalityId }
+            email: $email
+            registeredOn: $date
+  - id: update-account
+    label: アカウント情報を更新する
+    description: 有効なアカウントの氏名・所属・メールアドレスを更新します（業務フロー「行政アカウント情報更新」「指定登録機関アカウント情報更新」）。変えたい項目だけを入れます。
+    target: { entity: account, bind: acc }
+    params:
+      - { key: name, label: 氏名, type: common#一行の文, minLength: 1 }
+      - { key: organization, label: 所属, type: common#一行の文, minLength: 1 }
+      - { key: email, label: メールアドレス, type: common#メールアドレス }
+    require:
+      - id: active
+        match: [ { node: { entity: account, bind: acc } } ]
+        where: [ { of: acc, state: account-active } ]
+        expect: exists
+        message: "{id} は削除済みなので、更新できません"
+    do:
+      - when: [ { path: name, exists: true } ]
+        set: { of: acc, path: name, value: $name }
+      - when: [ { path: organization, exists: true } ]
+        set: { of: acc, path: organization, value: $organization }
+      - when: [ { path: email, exists: true } ]
+        set: { of: acc, path: email, value: $email }
+  - id: delete-account
+    label: アカウントを削除する
+    description: アカウントを削除済みにします（業務フローの削除）。文書は消さず、状態と削除日で残します（担当した申請と問い合わせの記録が切れないようにするため）。
+    target: { entity: account, bind: acc }
+    lifecycle: { id: account-lifecycle, history: { date: $date, note: { $copy: reason } } }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 削除日, type: common#年月日, required: true }
+      - { key: reason, label: 理由, type: common#一行の文 }
+    do:
+      - set: { of: acc, path: deletedOn, value: $date }
+
+  # ==== 管理業務・その他業務: 問い合わせ ====
+  - id: receive-inquiry
+    label: 問い合わせを受け付ける
+    description: ヘルプデスク（Web）の問い合わせを 1 件受け付けます（業務フロー「ヘルプデスク業務」のお問い合わせ登録）。未回答になり、指定登録機関の担当者が回答します。
+    lifecycle: { id: inquiry-lifecycle, history: { date: $receivedOn } }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - { key: inquirerKind, label: 問い合わせ者の区分, type: common#問い合わせ者区分, required: true, default: owner }
+      - { key: inquirerName, label: 問い合わせ者, type: common#一行の文, required: true, minLength: 1 }
+      - { key: inquirerContact, label: 連絡先, type: common#一行の文 }
+      - { key: subject, label: 件名, type: common#一行の文, required: true, minLength: 1 }
+      - { key: body, label: 内容, type: 記録の文, required: true }
+      - key: microchipId
+        label: 関係するマイクロチップ登録
+        type: ref
+        idPattern: "MC-*"
+        scope: { schemaIds: [microchip] }
+      - { key: receivedOn, label: 受付日, type: common#年月日, required: true }
+    do:
+      - create:
+          schema: inquiry
+          id: { prefix: "INQ-", digits: 4 }
+          params:
+            channel: helpdesk
+            receivedOn: $receivedOn
+            inquirerKind: $inquirerKind
+            inquirerName: $inquirerName
+            inquirerContact: { $copy: inquirerContact }
+            subject: $subject
+            body: $body
+            microchipId: { $copy: microchipId }
+  - id: record-call
+    label: 電話の問い合わせを記録する
+    description: コールセンターの電話の問い合わせを、応対のあとで内容と回答ごと記録します（業務フロー「コールセンター業務」）。回答済みになり、完了の登録で閉じます。
+    lifecycle: { id: inquiry-lifecycle, history: { date: $receivedOn } }
+    input:
+      initial:
+        receivedOn: { $copy: today, $of: context }
+    params:
+      - { key: inquirerKind, label: 問い合わせ者の区分, type: common#問い合わせ者区分, required: true, default: owner }
+      - { key: inquirerName, label: 問い合わせ者, type: common#一行の文, required: true, minLength: 1 }
+      - { key: inquirerContact, label: 連絡先, type: common#一行の文 }
+      - { key: subject, label: 件名, type: common#一行の文, required: true, minLength: 1 }
+      - { key: body, label: 内容, type: 記録の文, required: true }
+      - { key: answer, label: 回答, type: 記録の文, required: true }
+      - key: microchipId
+        label: 関係するマイクロチップ登録
+        type: ref
+        idPattern: "MC-*"
+        scope: { schemaIds: [microchip] }
+      - { key: answeredBy, label: 応対した担当者, type: common#担当者参照, required: true }
+      - { key: receivedOn, label: 受付日, type: common#年月日, required: true }
+    do:
+      - create:
+          schema: inquiry
+          id: { prefix: "INQ-", digits: 4 }
+          params:
+            channel: call
+            receivedOn: $receivedOn
+            inquirerKind: $inquirerKind
+            inquirerName: $inquirerName
+            inquirerContact: { $copy: inquirerContact }
+            subject: $subject
+            body: $body
+            microchipId: { $copy: microchipId }
+            answer: $answer
+            answeredOn: $receivedOn
+            answeredBy: $answeredBy
+  - id: answer-inquiry
+    label: 問い合わせに回答する
+    description: 未回答の問い合わせに回答を記録します（業務フロー「ヘルプデスク業務」のお問い合わせ回答登録）。回答のメールの送信はシステムの外で行います。
+    target: { entity: inquiry, bind: q }
+    lifecycle: { id: inquiry-lifecycle, history: { date: $date } }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: answer, label: 回答, type: 記録の文, required: true }
+      - { key: answeredBy, label: 回答する担当者, type: common#担当者参照, required: true }
+      - { key: date, label: 回答日, type: common#年月日, required: true }
+    require:
+      - id: not-before-received
+        match: [ { node: { entity: inquiry, bind: q } } ]
+        check: [ { gte: [ $date, { of: q, path: receivedOn } ] } ]
+        message: 回答日は受付日以降にしてください
+    do:
+      - set: { of: q, path: answer, value: $answer }
+      - set: { of: q, path: answeredOn, value: $date }
+      - set: { of: q, path: answeredBy, value: $answeredBy }
+  - id: close-inquiry
+    label: 問い合わせを完了にする
+    description: 回答済みの問い合わせを完了にします（業務フローのお問い合わせ完了登録）。
+    target: { entity: inquiry, bind: q }
+    lifecycle: { id: inquiry-lifecycle, history: { date: $date } }
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    params:
+      - { key: date, label: 完了日, type: common#年月日, required: true }
+    do:
+      - set: { of: q, path: closedOn, value: $date }

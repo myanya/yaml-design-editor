@@ -1,0 +1,16 @@
+id: month-by-channel
+name: 月×経路の件数（オンライン利用率）
+kind: matrix
+description: 行＝受付日の年月、列＝経路（オンライン・紙）、セル＝申請・届出の件数。オンライン利用率（目標 90% 以上）は、オンラインの件数 ÷ 合計です。
+rows:
+  value: { yearMonth: { path: receivedOn } }
+cells:
+  match:
+    - node: { entity: application, bind: a }
+  of: a
+  columns:
+    path: channel
+    values:
+      - { value: online, label: オンライン }
+      - { value: paper, label: 紙 }
+  aggregate: count

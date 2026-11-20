@@ -1,0 +1,30 @@
+id: application-grid
+name: 申請・届出の一覧
+description: 申請と届出ごとの手続種別・経路・状態・対象・申請者と、手数料の支払です。受付日の範囲・手続種別・経路・申請者で絞れます。
+params: [from, to, kind, channel, owner]
+rows:
+  match:
+    - node: { entity: application, bind: a }
+  where:
+    - { of: a, path: receivedOn, gte: $from, type: date }
+    - { of: a, path: receivedOn, lte: $to, type: date }
+    - { of: a, path: kind, equals: $kind }
+    - { of: a, path: channel, equals: $channel }
+    - { of: a, path: applicantId, equals: $owner }
+columns:
+  - { label: 手続種別, path: kind }
+  - { label: 経路, path: channel }
+  - { label: 受付日, path: receivedOn }
+  - { label: 申請状態, path: status }
+  - { label: 対象, path: microchipId }
+  # 新規登録は、完了するまで対象が無いので、申請が預かっている番号を添える
+  - { label: 申請の番号, path: registration.mcNumber }
+  - { label: 申請者, path: applicantId }
+  - { label: 旧所有者, path: previousOwnerId }
+  # 手数料は料金一覧から（参照を 1 段辿る。届出は料金が無いので空）
+  - { label: 手数料（円）, display: grouped, value: { via: feeId, path: amount } }
+  - { label: 支払日, path: payment.paidOn }
+  - { label: 支払方法, path: payment.method }
+  - { label: 完了日, path: completedOn }
+  - { label: 担当者, path: handledBy }
+order: { path: receivedOn, type: date, direction: desc }

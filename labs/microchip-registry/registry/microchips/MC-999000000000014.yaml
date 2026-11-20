@@ -1,0 +1,21 @@
+mcNumber: MC-999000000000014
+status: registered
+animal:
+  species: cat
+  name: りん
+  sex: female
+  birthDate: 2026-03-01
+  breed: 日本猫
+  color: 白黒
+implantedOn: 2026-05-08
+ownerId: OWN-0002
+locationMunicipalityId: LG-981015
+changeKey: CK-000013
+registeredOn: 2026-05-12
+veterinarian: ゆきしろ犬猫クリニック 白雪
+motherId: MC-999000000000010
+locationAddress: やまなみ県ゆきしろ市本町X-X-X
+history:
+  - date: 2026-05-12
+    action: complete-application
+    to: registered

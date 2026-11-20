@@ -1,0 +1,15 @@
+id: account-grid
+name: アカウントの一覧
+description: 行政（基礎自治体・都道府県等・警察）と指定登録機関のアカウントです。
+rows:
+  match:
+    - node: { entity: account, bind: acc }
+columns:
+  - { label: 区分, path: kind }
+  - { label: 状態, path: status }
+  - { label: 氏名, path: name }
+  - { label: 所属, path: organization }
+  - { label: 所管の自治体, path: municipalityId }
+  - { label: メールアドレス, path: email }
+  - { label: 登録日, path: registeredOn }
+  - { label: 削除日, path: deletedOn }

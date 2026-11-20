@@ -1,0 +1,773 @@
+id: common
+name: 共通の型
+kind: library
+description: 犬猫マイクロチップ登録の業務で使う型を 1 か所にまとめます。値の型（番号の形式・参照・選択肢・日付・連絡先）と、オブジェクト型（マイクロチップ登録・所有者・申請と届出・自治体・料金・アカウント・問い合わせの形と、その検査）です。
+definitions:
+  # ---- 番号の型 ----
+  マイクロチップ番号:
+    type: id
+    pattern: "^MC-[0-9]{15}$"
+    placeholder: MC-999000000000001
+    sample: MC-999000000000001
+    description: 「MC-」と 15 桁の数字。マイクロチップに記録された 15 桁の識別番号に「MC-」を付けて ID にします（数字だけの値は YAML が数として読むため）。データは架空で、先頭 3 桁は試験用の 999 にしています。
+  所有者番号:
+    type: id
+    pattern: "^OWN-[0-9]{4,}$"
+    placeholder: OWN-0001
+    sample: OWN-0001
+    description: 「OWN-」と 4 桁以上の数字。登録の操作が採番します。
+  申請番号:
+    type: id
+    pattern: "^APP-[0-9]{6,}$"
+    placeholder: APP-000001
+    sample: APP-000001
+    description: 「APP-」と 6 桁以上の数字。申請と届出の操作が採番します。
+  自治体番号:
+    type: id
+    pattern: "^LG-[0-9]{6}$"
+    placeholder: LG-990001
+    sample: LG-990001
+    description: 「LG-」と全国地方公共団体コードに当たる 6 桁の数字。データは架空で、都道府県の 2 桁は実在しない 99 にしています。
+  料金番号:
+    type: id
+    pattern: "^FEE-[A-Z]+(-[A-Z]+)*$"
+    placeholder: FEE-REG-ONLINE
+    sample: FEE-REG-ONLINE
+    description: 「FEE-」と、手続と経路を表す英大文字の名前。
+  アカウント番号:
+    type: id
+    pattern: "^ACC-[0-9]{4,}$"
+    placeholder: ACC-0001
+    sample: ACC-0001
+    description: 「ACC-」と 4 桁以上の数字。行政 ID と指定登録機関 ID に当たります。登録の操作が採番します。
+  問い合わせ番号:
+    type: id
+    pattern: "^INQ-[0-9]{4,}$"
+    placeholder: INQ-0001
+    sample: INQ-0001
+    description: 「INQ-」と 4 桁以上の数字。受付の操作が採番します。
+
+  # ---- 参照の型（候補と検証の対象を絞り、関係に名前を付けます） ----
+  所有者参照:
+    type: ref
+    idPattern: "OWN-*"
+    scope: { schemaIds: [owner] }
+    relation: owned-by
+    description: 現在の所有者を 1 件。
+  申請者参照:
+    type: ref
+    idPattern: "OWN-*"
+    scope: { schemaIds: [owner] }
+    relation: applied-by
+    description: 申請・届出をした所有者を 1 件。所有者変更では新しい所有者です。
+  旧所有者参照:
+    type: ref
+    idPattern: "OWN-*"
+    scope: { schemaIds: [owner] }
+    relation: transferred-from
+    description: 所有者変更の前の所有者を 1 件。
+  対象マイクロチップ参照:
+    type: ref
+    idPattern: "MC-*"
+    scope: { schemaIds: [microchip] }
+    relation: concerns
+    description: 申請・届出の対象のマイクロチップ登録を 1 件。
+  母親参照:
+    type: ref
+    idPattern: "MC-*"
+    scope: { schemaIds: [microchip] }
+    relation: born-to
+    description: 母親のマイクロチップ登録を 1 件。分かるときだけ書きます。
+  所在地参照:
+    type: ref
+    idPattern: "LG-*"
+    scope: { schemaIds: [municipality-list] }
+    relation: located-in
+    description: 犬又は猫の所在地の自治体を 1 件。
+  住所地参照:
+    type: ref
+    idPattern: "LG-*"
+    scope: { schemaIds: [municipality-list] }
+    relation: resides-in
+    description: 所有者の住所の自治体を 1 件。
+  所管参照:
+    type: ref
+    idPattern: "LG-*"
+    scope: { schemaIds: [municipality-list] }
+    relation: serves
+    description: 行政のアカウントが所管する自治体を 1 件。
+  自治体参照:
+    type: ref
+    idPattern: "LG-*"
+    scope: { schemaIds: [municipality-list] }
+    description: 自治体を 1 件。操作の受け取る値と、情報変更の届出の内容に使います（関係の名前を付けない参照）。
+  料金参照:
+    type: ref
+    idPattern: "FEE-*"
+    scope: { schemaIds: [fee-list] }
+    relation: charged-by
+    description: 手数料の料金を 1 件。
+  担当者参照:
+    type: ref
+    idPattern: "ACC-*"
+    scope: { schemaIds: [account] }
+    relation: handled-by
+    description: 対応した指定登録機関の担当者のアカウントを 1 件。
+
+  # ---- 値の型 ----
+  年月日:
+    type: date
+    format: "yyyy年M月d日"
+    description: YYYY-MM-DD 形式で入力します（例 2026-10-01）。
+  一行の文:
+    type: line
+    maxLength: 100
+    placeholder: 1 行で簡潔に
+  文章:
+    type: text
+    rows: 4
+  金額:
+    type: int
+    min: 0
+    display: grouped
+    description: 円単位の整数です。
+  メールアドレス:
+    type: word
+    maxLength: 100
+    pattern: "^[^@]+@[^@]+\\.[^@]+$"
+    placeholder: taro@example.com
+  電話番号:
+    type: word
+    pattern: "^[0-9]{2,4}-[0-9]{2,4}-[0-9]{3,4}$"
+    placeholder: 03-0000-0101
+    description: ハイフン区切りの数字です。
+  変更キー:
+    type: word
+    pattern: "^CK-[0-9]{6,}$"
+    placeholder: CK-000001
+    description: 所有者だけが知る合言葉です。登録証明書に書かれ、所有者変更・情報変更・死亡届・再交付で本人確認に使います。登録・所有者変更・再交付が完了するたびに新しい値になります。実システムでは推測できない値を発行しますが、ここでは申請番号から決まる値で代用します。
+  動物種別:
+    type: enum
+    values:
+      - { value: dog, label: 犬 }
+      - { value: cat, label: 猫 }
+  性別:
+    type: enum
+    values:
+      - { value: male, label: オス }
+      - { value: female, label: メス }
+  所有者区分:
+    type: enum
+    values:
+      - { value: individual, label: 個人 }
+      - { value: corporate, label: 法人 }
+  事業者区分:
+    type: enum
+    values:
+      - { value: breeder, label: 犬猫繁殖業者, description: マイクロチップの装着と情報登録の義務があります。 }
+      - { value: petshop, label: ペットショップ等, description: 取得した犬猫の所有者変更登録の義務があります。 }
+      - { value: welfare, label: 動物愛護団体, description: 装着は努力義務です。装着したら登録します。 }
+      - { value: keeper, label: 飼い主, description: 装着は努力義務です。登録済みの犬猫を譲り受けたら所有者変更登録の義務があります。 }
+  登録状態:
+    type: enum
+    values:
+      - { value: registered, label: 登録済み }
+      - { value: deceased, label: 死亡 }
+  手続種別:
+    type: enum
+    values:
+      - { value: registration, label: 新規登録 }
+      - { value: transfer, label: 所有者変更 }
+      - { value: change, label: 情報変更 }
+      - { value: death, label: 死亡届 }
+      - { value: reissue, label: 再交付 }
+  経路:
+    type: enum
+    values:
+      - { value: online, label: オンライン, description: 所有者が自分で入力します。 }
+      - { value: paper, label: 紙, description: 所有者が申請書を窓口か郵送で出し、指定登録機関の担当者が入力します。 }
+  申請状態:
+    type: enum
+    values:
+      - { value: accepted, label: 受付（支払待ち） }
+      - { value: paid, label: 支払済み }
+      - { value: completed, label: 完了 }
+  支払方法:
+    type: enum
+    values:
+      - { value: credit, label: クレジットカード }
+      - { value: convenience, label: コンビニ払い }
+      - { value: counter, label: 指定登録機関の窓口 }
+      - { value: bank, label: 銀行振込 }
+  自治体の種類:
+    type: enum
+    values:
+      - { value: prefecture, label: 都道府県等 }
+      - { value: city, label: 市区町村 }
+  アカウント区分:
+    type: enum
+    values:
+      - { value: registrar, label: 指定登録機関 }
+      - { value: municipality, label: 基礎自治体 }
+      - { value: prefecture, label: 都道府県等 }
+      - { value: police, label: 警察 }
+  アカウント状態:
+    type: enum
+    values:
+      - { value: active, label: 有効 }
+      - { value: deleted, label: 削除済み }
+  問い合わせ経路:
+    type: enum
+    values:
+      - { value: helpdesk, label: ヘルプデスク（Web） }
+      - { value: call, label: コールセンター（電話） }
+  問い合わせ者区分:
+    type: enum
+    values:
+      - { value: owner, label: 所有者 }
+      - { value: municipality, label: 基礎自治体 }
+      - { value: prefecture, label: 都道府県等 }
+      - { value: police, label: 警察 }
+  問い合わせ状態:
+    type: enum
+    values:
+      - { value: open, label: 未回答 }
+      - { value: answered, label: 回答済み }
+      - { value: closed, label: 完了 }
+  # 操作の名前（履歴に残す。各スキーマの actions の id）
+  登録の操作:
+    type: enum
+    values:
+      - { value: complete-application, label: 手続を完了する }
+      - { value: report-death, label: 死亡を届け出る }
+  申請の操作:
+    type: enum
+    values:
+      - { value: apply-registration, label: マイクロチップ情報登録を申請する }
+      - { value: apply-transfer, label: 所有者変更登録を申請する }
+      - { value: apply-reissue, label: 登録証明書の再交付を申請する }
+      - { value: report-change, label: 情報変更を届け出る }
+      - { value: report-death, label: 死亡を届け出る }
+      - { value: record-payment, label: 手数料の支払を記録する }
+      - { value: complete-application, label: 手続を完了する }
+  アカウントの操作:
+    type: enum
+    values:
+      - { value: register-account, label: アカウントを登録する }
+      - { value: delete-account, label: アカウントを削除する }
+  問い合わせの操作:
+    type: enum
+    values:
+      - { value: receive-inquiry, label: 問い合わせを受け付ける }
+      - { value: record-call, label: 電話の問い合わせを記録する }
+      - { value: answer-inquiry, label: 問い合わせに回答する }
+      - { value: close-inquiry, label: 問い合わせを完了にする }
+
+  # ---- オブジェクト型 ----
+  # 犬猫情報: マイクロチップ登録と、新規登録の申請（登録が完了するまでの預かり）の両方で使う
+  犬猫情報:
+    type: object
+    label: 犬猫情報
+    fields:
+      - { key: species, label: 種別, type: 動物種別, required: true }
+      - { key: name, label: 名前, type: 一行の文, required: true }
+      - { key: breed, label: 品種, type: 一行の文 }
+      - { key: color, label: 毛色, type: 一行の文 }
+      - { key: sex, label: 性別, type: 性別, required: true }
+      - { key: birthDate, label: 生年月日, type: 年月日, required: true }
+  # 状態の履歴の行（Lifecycle を正にした操作が 1 行ずつ足す。番号を持たない行）
+  登録の履歴:
+    type: object
+    label: 登録の履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 登録の操作, required: true }
+      - { key: from, label: 前の状態, type: 登録状態 }
+      - { key: to, label: 後の状態, type: 登録状態, required: true }
+      - { key: note, label: メモ, type: 一行の文 }
+  申請の履歴:
+    type: object
+    label: 申請の履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 申請の操作, required: true }
+      - { key: from, label: 前の状態, type: 申請状態 }
+      - { key: to, label: 後の状態, type: 申請状態, required: true }
+      - { key: note, label: メモ, type: 一行の文 }
+  アカウントの履歴:
+    type: object
+    label: アカウントの履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: アカウントの操作, required: true }
+      - { key: from, label: 前の状態, type: アカウント状態 }
+      - { key: to, label: 後の状態, type: アカウント状態, required: true }
+      - { key: note, label: メモ, type: 一行の文 }
+  問い合わせの履歴:
+    type: object
+    label: 問い合わせの履歴
+    fields:
+      - { key: date, label: 日付, type: 年月日, required: true }
+      - { key: action, label: 操作, type: 問い合わせの操作, required: true }
+      - { key: from, label: 前の状態, type: 問い合わせ状態 }
+      - { key: to, label: 後の状態, type: 問い合わせ状態, required: true }
+      - { key: note, label: メモ, type: 一行の文 }
+
+  # マイクロチップ登録: 1 件 1 ファイル。共通 DB が持つ「マイクロチップ情報」に当たる
+  マイクロチップ登録:
+    type: object
+    label: マイクロチップ登録
+    entity: { type: microchip, defines: true }
+    fields:
+      - key: mcNumber
+        label: マイクロチップ番号
+        type: マイクロチップ番号
+        required: true
+      - key: status
+        label: 登録状態
+        type: 登録状態
+        required: true
+        default: registered
+        description: 状態は操作（手続を完了する・死亡を届け出る）で変わります。
+      - key: animal
+        label: 犬猫情報
+        type: 犬猫情報
+        required: true
+      - key: implantedOn
+        label: 装着日
+        type: 年月日
+        required: true
+      - key: veterinarian
+        label: 装着した獣医師
+        type: 一行の文
+        description: マイクロチップ装着証明書を発行した獣医師（施設名と氏名）。
+      - key: motherId
+        label: 母親
+        type: 母親参照
+        description: 母親のマイクロチップ登録。繁殖業者の登録で分かるときに書きます（飼養管理の確認に使います）。
+      - key: ownerId
+        label: 所有者
+        type: 所有者参照
+        required: true
+        description: 現在の所有者。所有者変更登録が完了すると新しい所有者に変わります。
+      - key: locationMunicipalityId
+        label: 所在地の自治体
+        type: 所在地参照
+        required: true
+        description: 犬又は猫の所在地。犬のワンストップ情報は、この自治体へ通知します。
+      - key: locationAddress
+        label: 所在地
+        type: 一行の文
+      - key: changeKey
+        label: 変更キー
+        type: 変更キー
+        required: true
+      - key: registeredOn
+        label: 登録日
+        type: 年月日
+        required: true
+      - key: deceasedOn
+        label: 死亡日
+        type: 年月日
+        description: 死亡届を受けた犬猫だけにあります。
+      - key: history
+        label: 状態の履歴
+        type: array
+        default: []
+        display: table
+        description: 状態を変える操作が 1 行ずつ足します。手で書き足す必要はありません。
+        item: { type: 登録の履歴 }
+    constraints:
+      - id: deceased-has-date
+        description: 死亡の登録には死亡日があること
+        where: [ { path: status, equals: deceased }, { path: deceasedOn, exists: false } ]
+        expect: absent
+        level: error
+        message: "死亡の登録「{id}」に死亡日がありません"
+      - id: only-deceased-has-date
+        description: 登録済みの登録には死亡日を書かないこと
+        where: [ { path: status, equals: registered }, { path: deceasedOn, exists: true } ]
+        expect: absent
+        level: error
+        message: "登録済みの登録「{id}」に死亡日があります"
+      - id: implanted-not-before-birth
+        description: 装着日は生年月日以降であること
+        check: [ { gte: [ { path: implantedOn }, { path: animal.birthDate } ] } ]
+        level: error
+      - id: registered-not-before-implanted
+        description: 登録日は装着日以降であること
+        check: [ { gte: [ { path: registeredOn }, { path: implantedOn } ] } ]
+        level: error
+      - id: deceased-not-before-registered
+        description: 死亡日は生年月日以降であること
+        where: [ { path: deceasedOn, exists: true } ]
+        check: [ { gte: [ { path: deceasedOn }, { path: animal.birthDate } ] } ]
+        level: error
+      - id: has-history
+        description: 登録には状態の履歴が 1 行以上あること（操作で登録すると残ります）
+        where: [ { path: history, empty: true } ]
+        expect: absent
+        level: warning
+        message: "登録「{id}」に状態の履歴がありません"
+
+  # 所有者: 1 件 1 ファイル。共通 DB が持つ「所有者情報」に当たる
+  所有者:
+    type: object
+    label: 所有者
+    entity: { type: owner, defines: true }
+    fields:
+      - { key: ownerId, label: 所有者番号, type: 所有者番号, required: true }
+      - { key: kind, label: 区分, type: 所有者区分, required: true, default: individual }
+      - key: category
+        label: 事業者区分
+        type: 事業者区分
+        required: true
+        default: keeper
+      - { key: name, label: 氏名・名称, type: 一行の文, role: title, required: true }
+      - { key: address, label: 住所, type: 一行の文, required: true }
+      - { key: municipalityId, label: 住所の自治体, type: 住所地参照, required: true }
+      - { key: phone, label: 電話番号, type: 電話番号, required: true }
+      - { key: email, label: メールアドレス, type: メールアドレス }
+    constraints:
+      - id: business-is-corporate
+        description: 犬猫繁殖業者とペットショップ等は法人として登録すること
+        where: [ { path: category, oneOf: [breeder, petshop] }, { path: kind, equals: individual } ]
+        expect: absent
+        level: warning
+        message: "所有者「{id}」は事業者ですが、区分が個人です"
+
+  # 新規登録の申請が預かる内容（登録が完了するまで、マイクロチップ登録の文書は作らない）
+  登録の申請内容:
+    type: object
+    label: 登録の申請内容
+    fields:
+      - key: mcNumber
+        label: マイクロチップ番号
+        type: word
+        pattern: "^MC-[0-9]{15}$"
+        required: true
+        description: 登録するマイクロチップ番号。登録が完了するまでは番号の文字として預かり、完了するとこの番号のマイクロチップ登録ができます。
+      - { key: animal, label: 犬猫情報, type: 犬猫情報, required: true }
+      - { key: implantedOn, label: 装着日, type: 年月日, required: true }
+      - { key: veterinarian, label: 装着した獣医師, type: 一行の文 }
+      - key: motherId
+        label: 母親
+        type: ref
+        idPattern: "MC-*"
+        scope: { schemaIds: [microchip] }
+        description: 母親のマイクロチップ登録（分かるとき）。
+  手続の所在地:
+    type: object
+    label: 手続の時点の所在地
+    fields:
+      - key: municipalityId
+        label: 所在地の自治体
+        type: ref
+        idPattern: "LG-*"
+        scope: { schemaIds: [municipality-list] }
+        relation: notifies
+        required: true
+        description: 手続の時点の、犬又は猫の所在地の自治体。犬のワンストップ情報の通知先になります。
+      - { key: address, label: 所在地, type: 一行の文 }
+  # 情報変更の届出の内容（変えた項目だけが入る）
+  情報変更の内容:
+    type: object
+    label: 情報変更の内容
+    fields:
+      - { key: animalName, label: 犬猫の名前, type: 一行の文 }
+      - { key: animalColor, label: 犬猫の毛色, type: 一行の文 }
+      - { key: locationMunicipalityId, label: 所在地の自治体, type: 自治体参照 }
+      - { key: locationAddress, label: 所在地, type: 一行の文 }
+      - { key: ownerAddress, label: 所有者の住所, type: 一行の文 }
+      - { key: ownerMunicipalityId, label: 所有者の住所の自治体, type: 自治体参照 }
+      - { key: ownerPhone, label: 所有者の電話番号, type: 電話番号 }
+      - { key: ownerEmail, label: 所有者のメールアドレス, type: メールアドレス }
+  支払:
+    type: object
+    label: 支払
+    fields:
+      - { key: method, label: 支払方法, type: 支払方法, required: true }
+      - { key: paidOn, label: 支払日, type: 年月日, required: true }
+      - { key: amount, label: 支払額（円）, type: 金額, required: true }
+      - { key: receiptNo, label: 支払番号, type: 一行の文, description: 決済の支払番号か、支払い証明書の番号。 }
+
+  # 申請・届出: 1 件 1 ファイル。個別 Web が持つ受付と支払の情報に当たり、ワンストップ情報の単位にもなる
+  申請:
+    type: object
+    label: 申請・届出
+    entity: { type: application, defines: true }
+    fields:
+      - { key: applicationId, label: 申請番号, type: 申請番号, required: true }
+      - { key: kind, label: 手続種別, type: 手続種別, required: true }
+      - { key: channel, label: 経路, type: 経路, required: true, default: online }
+      - { key: receivedOn, label: 受付日, type: 年月日, required: true }
+      - key: status
+        label: 申請状態
+        type: 申請状態
+        required: true
+        default: accepted
+        description: 手数料の要る手続（新規登録・所有者変更・再交付）は 受付 → 支払済み → 完了 と進みます。届出（情報変更・死亡届）は受け付けた時点で完了です。
+      - key: microchipId
+        label: 対象のマイクロチップ登録
+        type: 対象マイクロチップ参照
+        description: 新規登録では、手続が完了してマイクロチップ登録ができたときに入ります。
+      - { key: applicantId, label: 申請者, type: 申請者参照, required: true }
+      - key: previousOwnerId
+        label: 旧所有者
+        type: 旧所有者参照
+        description: 所有者変更だけにあります。
+      - { key: registration, label: 登録の申請内容, type: 登録の申請内容, description: 新規登録だけにあります。 }
+      - { key: location, label: 手続の時点の所在地, type: 手続の所在地, description: 手続の時点の犬又は猫の所在地です（新規登録と所有者変更は申請した所在地）。再交付には書きません。 }
+      - { key: changes, label: 情報変更の内容, type: 情報変更の内容, description: 情報変更だけにあります。 }
+      - { key: deathOn, label: 死亡日, type: 年月日, description: 死亡届だけにあります。 }
+      - key: feeId
+        label: 手数料の料金
+        type: 料金参照
+        description: 手数料の要る手続（新規登録・所有者変更・再交付）にあります。
+      - { key: payment, label: 支払, type: 支払, description: 支払を記録すると入ります。 }
+      - { key: completedOn, label: 完了日, type: 年月日 }
+      - key: handledBy
+        label: 担当者
+        type: 担当者参照
+        description: 紙の申請を入力した指定登録機関の担当者。
+      - { key: note, label: メモ, type: 一行の文 }
+      - key: history
+        label: 状態の履歴
+        type: array
+        default: []
+        display: table
+        item: { type: 申請の履歴 }
+    constraints:
+      - id: registration-has-content
+        description: 新規登録の申請には登録の申請内容と所在地があること
+        where:
+          - { path: kind, equals: registration }
+          - { or: [ { path: registration, exists: false }, { path: location, exists: false } ] }
+        expect: absent
+        level: error
+        message: "新規登録の申請「{id}」に登録の申請内容か所在地がありません"
+      - id: non-registration-has-microchip
+        description: 新規登録のほかの手続には対象のマイクロチップ登録があること
+        where: [ { path: kind, notEquals: registration }, { path: microchipId, exists: false } ]
+        expect: absent
+        level: error
+        message: "申請「{id}」に対象のマイクロチップ登録がありません"
+      - id: completed-registration-has-microchip
+        description: 完了した新規登録には対象のマイクロチップ登録があること
+        where: [ { path: kind, equals: registration }, { path: status, equals: completed }, { path: microchipId, exists: false } ]
+        expect: absent
+        level: error
+        message: "完了した新規登録「{id}」に対象のマイクロチップ登録がありません"
+      - id: transfer-has-previous-owner
+        description: 所有者変更の申請には旧所有者と所在地があること
+        where:
+          - { path: kind, equals: transfer }
+          - { or: [ { path: previousOwnerId, exists: false }, { path: location, exists: false } ] }
+        expect: absent
+        level: error
+        message: "所有者変更の申請「{id}」に旧所有者か所在地がありません"
+      - id: notified-kind-has-location
+        description: 通知の対象になる手続（新規登録・所有者変更・情報変更・死亡届）には、手続の時点の所在地があること
+        where: [ { path: kind, oneOf: [registration, transfer, change, death] }, { path: location, exists: false } ]
+        expect: absent
+        level: error
+        message: "申請「{id}」に手続の時点の所在地がありません"
+      - id: death-has-date
+        description: 死亡届には死亡日があること
+        where: [ { path: kind, equals: death }, { path: deathOn, exists: false } ]
+        expect: absent
+        level: error
+        message: "死亡届「{id}」に死亡日がありません"
+      - id: charged-kind-has-fee
+        description: 手数料の要る手続には料金があること
+        where: [ { path: kind, oneOf: [registration, transfer, reissue] }, { path: feeId, exists: false } ]
+        expect: absent
+        level: error
+        message: "申請「{id}」に手数料の料金がありません"
+      - id: notification-has-no-fee
+        description: 届出（情報変更・死亡届）には料金と支払を書かないこと
+        where:
+          - { path: kind, oneOf: [change, death] }
+          - { or: [ { path: feeId, exists: true }, { path: payment, exists: true } ] }
+        expect: absent
+        level: error
+        message: "届出「{id}」に料金か支払が書かれています"
+      - id: paid-has-payment
+        description: 支払済み・完了した手数料の要る手続には支払があること
+        where:
+          - { path: kind, oneOf: [registration, transfer, reissue] }
+          - { path: status, oneOf: [paid, completed] }
+          - { path: payment, exists: false }
+        expect: absent
+        level: error
+        message: "申請「{id}」に支払の記録がありません"
+      - id: accepted-has-no-payment
+        description: 受付（支払待ち）の申請には支払を書かないこと
+        where: [ { path: status, equals: accepted }, { path: payment, exists: true } ]
+        expect: absent
+        level: error
+        message: "支払待ちの申請「{id}」に支払が書かれています"
+      - id: completed-has-date
+        description: 完了した申請には完了日があること
+        where: [ { path: status, equals: completed }, { path: completedOn, exists: false } ]
+        expect: absent
+        level: error
+        message: "完了した申請「{id}」に完了日がありません"
+      - id: only-completed-has-date
+        description: 完了していない申請には完了日を書かないこと
+        where: [ { path: status, notEquals: completed }, { path: completedOn, exists: true } ]
+        expect: absent
+        level: error
+        message: "完了していない申請「{id}」に完了日があります"
+      - id: paid-not-before-received
+        description: オンラインの申請の支払日は受付日以降であること（紙の申請は、先に支払って支払い証明書を添えて出す）
+        where: [ { path: payment, exists: true }, { path: channel, equals: online } ]
+        check: [ { gte: [ { path: payment.paidOn }, { path: receivedOn } ] } ]
+        level: error
+      - id: completed-not-before-received
+        description: 完了日は受付日以降であること
+        where: [ { path: completedOn, exists: true } ]
+        check: [ { gte: [ { path: completedOn }, { path: receivedOn } ] } ]
+        level: error
+      - id: paper-has-handler
+        description: 紙の申請には入力した担当者があること
+        where: [ { path: channel, equals: paper }, { path: handledBy, exists: false } ]
+        expect: absent
+        level: warning
+        message: "紙の申請「{id}」に担当者がありません"
+
+  # 自治体: 一覧の行。共通 DB のマスタ（全国地方公共団体コード）に当たる
+  自治体:
+    type: object
+    label: 自治体
+    fields:
+      - { key: id, label: 自治体番号, type: 自治体番号, required: true }
+      - { key: name, label: 自治体名, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 種類, type: 自治体の種類, required: true, default: city }
+      - { key: prefecture, label: 都道府県, type: 一行の文, required: true }
+      - key: oneStop
+        label: ワンストップ参加
+        type: boolean
+        required: true
+        default: false
+        description: 狂犬病予防法の特例（ワンストップサービス）に参加している市区町村なら true。犬の登録情報の通知先になります。
+      - { key: email, label: 通知先メールアドレス, type: メールアドレス }
+  # 料金: 一覧の行。共通 DB のマスタ（料金マスタ）に当たる
+  料金:
+    type: object
+    label: 料金
+    fields:
+      - { key: id, label: 料金番号, type: 料金番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 手続種別, type: 手続種別, required: true }
+      - { key: channel, label: 経路, type: 経路, required: true }
+      - { key: amount, label: 手数料（円）, type: 金額, required: true }
+
+  # アカウント: 1 件 1 ファイル。行政 ID と指定登録機関 ID に当たる（ログインとパスワードは扱わない）
+  アカウント:
+    type: object
+    label: アカウント
+    entity: { type: account, defines: true }
+    fields:
+      - { key: accountId, label: アカウント番号, type: アカウント番号, required: true }
+      - { key: kind, label: 区分, type: アカウント区分, required: true }
+      - { key: status, label: 状態, type: アカウント状態, required: true, default: active }
+      - { key: name, label: 氏名, type: 一行の文, role: title, required: true }
+      - { key: organization, label: 所属, type: 一行の文, required: true }
+      - key: municipalityId
+        label: 所管の自治体
+        type: 所管参照
+        description: 行政のアカウント（基礎自治体・都道府県等・警察）にあります。閲覧の範囲の目安です。
+      - { key: email, label: メールアドレス, type: メールアドレス, required: true }
+      - { key: registeredOn, label: 登録日, type: 年月日, required: true }
+      - { key: deletedOn, label: 削除日, type: 年月日 }
+      - key: history
+        label: 状態の履歴
+        type: array
+        default: []
+        display: table
+        item: { type: アカウントの履歴 }
+    constraints:
+      - id: government-has-municipality
+        description: 行政のアカウントには所管の自治体があること
+        where: [ { path: kind, oneOf: [municipality, prefecture, police] }, { path: municipalityId, exists: false } ]
+        expect: absent
+        level: error
+        message: "行政のアカウント「{id}」に所管の自治体がありません"
+      - id: registrar-has-no-municipality
+        description: 指定登録機関のアカウントには所管の自治体を書かないこと
+        where: [ { path: kind, equals: registrar }, { path: municipalityId, exists: true } ]
+        expect: absent
+        level: error
+        message: "指定登録機関のアカウント「{id}」に所管の自治体が書かれています"
+      - id: deleted-has-date
+        description: 削除済みのアカウントには削除日があること
+        where: [ { path: status, equals: deleted }, { path: deletedOn, exists: false } ]
+        expect: absent
+        level: error
+        message: "削除済みのアカウント「{id}」に削除日がありません"
+      - id: active-has-no-delete-date
+        description: 有効なアカウントには削除日を書かないこと
+        where: [ { path: status, equals: active }, { path: deletedOn, exists: true } ]
+        expect: absent
+        level: error
+        message: "有効なアカウント「{id}」に削除日があります"
+
+  # 問い合わせ: 1 件 1 ファイル。個別 Web が持つ「お問い合わせ情報」に当たる
+  問い合わせ:
+    type: object
+    label: 問い合わせ
+    entity: { type: inquiry, defines: true }
+    fields:
+      - { key: inquiryId, label: 問い合わせ番号, type: 問い合わせ番号, required: true }
+      - { key: channel, label: 経路, type: 問い合わせ経路, required: true }
+      - { key: status, label: 状態, type: 問い合わせ状態, required: true, default: open }
+      - { key: receivedOn, label: 受付日, type: 年月日, required: true }
+      - { key: inquirerKind, label: 問い合わせ者の区分, type: 問い合わせ者区分, required: true }
+      - { key: inquirerName, label: 問い合わせ者, type: 一行の文, required: true }
+      - { key: inquirerContact, label: 連絡先, type: 一行の文, description: 回答の送り先（メールアドレスか電話番号）。 }
+      - { key: subject, label: 件名, type: 一行の文, role: title, required: true }
+      - { key: body, label: 内容, type: 文章, required: true }
+      - key: microchipId
+        label: 関係するマイクロチップ登録
+        type: ref
+        idPattern: "MC-*"
+        scope: { schemaIds: [microchip] }
+        relation: asks-about
+        description: 特定の犬猫についての問い合わせのときに書きます。
+      - { key: answer, label: 回答, type: 文章 }
+      - { key: answeredOn, label: 回答日, type: 年月日 }
+      - { key: answeredBy, label: 回答した担当者, type: 担当者参照 }
+      - { key: closedOn, label: 完了日, type: 年月日 }
+      - key: history
+        label: 状態の履歴
+        type: array
+        default: []
+        display: table
+        item: { type: 問い合わせの履歴 }
+    constraints:
+      - id: answered-has-answer
+        description: 回答済み・完了の問い合わせには回答と回答日があること
+        where:
+          - { path: status, oneOf: [answered, closed] }
+          - { or: [ { path: answer, empty: true }, { path: answeredOn, exists: false } ] }
+        expect: absent
+        level: error
+        message: "問い合わせ「{id}」に回答か回答日がありません"
+      - id: open-has-no-answer
+        description: 未回答の問い合わせには回答を書かないこと
+        where: [ { path: status, equals: open }, { path: answer, exists: true } ]
+        expect: absent
+        level: error
+        message: "未回答の問い合わせ「{id}」に回答が書かれています"
+      - id: closed-has-date
+        description: 完了の問い合わせには完了日があること
+        where: [ { path: status, equals: closed }, { path: closedOn, exists: false } ]
+        expect: absent
+        level: error
+        message: "完了の問い合わせ「{id}」に完了日がありません"
+      - id: answered-not-before-received
+        description: 回答日は受付日以降であること
+        where: [ { path: answeredOn, exists: true } ]
+        check: [ { gte: [ { path: answeredOn }, { path: receivedOn } ] } ]
+        level: error

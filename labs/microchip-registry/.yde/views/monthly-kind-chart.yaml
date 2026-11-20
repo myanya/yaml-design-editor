@@ -1,0 +1,8 @@
+id: monthly-kind-chart
+name: 月別の手続件数
+kind: chart
+chart: stacked-bar
+description: 月×手続種別の件数（クロス集計）を積み上げ棒にします。横軸＝受付日の年月、系列＝手続種別。
+view: month-by-kind
+y: { label: 件数 }
+drill: below

@@ -1,0 +1,26 @@
+id: doc-certificate
+name: 登録証明書の材料（レポート用）
+description: 登録証明書（レポート certificate）が読む行です。登録済みのマイクロチップ登録ごとに、犬猫情報・所有者・変更キーを 1 行にします。画面で見るための表ではありません。
+rows:
+  match:
+    - node: { entity: microchip, bind: m }
+    - edge: { via: ownerId }
+    - node: { entity: owner, bind: o }
+  rowKey: m
+  where:
+    - { of: m, path: status, equals: registered }
+columns:
+  - { label: 種別, path: animal.species }
+  - { label: 名前, path: animal.name }
+  - { label: 品種, path: animal.breed }
+  - { label: 毛色, path: animal.color }
+  - { label: 性別, path: animal.sex }
+  - { label: 生年月日, path: animal.birthDate }
+  - { label: 装着日, path: implantedOn }
+  - { label: 装着した獣医師, path: veterinarian }
+  - { label: 登録日, path: registeredOn }
+  - { label: 変更キー, path: changeKey }
+  - { label: 所在地, path: locationAddress }
+  - { label: 所有者の氏名・名称, of: o, path: name }
+  - { label: 所有者の住所, of: o, path: address }
+  - { label: 所有者の電話番号, of: o, path: phone }

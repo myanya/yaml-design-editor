@@ -1,0 +1,35 @@
+id: BF-02
+name: "所有者変更登録（単体）"
+business: BIZ-03
+source: "別紙 3 業務フロー 9〜10／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-OLD-OWNER, label: "旧所有者（個人・法人）" }
+steps:
+  - { id: BF-02-S01, title: "犬猫と登録証明書を譲り渡す", actor: ACT-OLD-OWNER, kind: outside }
+  - { id: BF-02-S02, title: "犬猫を譲り受ける", actor: ACT-OWNER, kind: outside }
+  - { id: BF-02-S03, title: "利用規約を確認する", actor: ACT-OWNER, kind: system, note: "利用規約の確認は再現していません。" }
+  - { id: BF-02-S04, title: "新所有者の情報を入力する（単件）", actor: ACT-OWNER, kind: system, action: apply-transfer }
+  - { id: BF-02-S05, title: "新所有者情報を受け付ける", actor: ACT-SYSTEM, kind: data, action: apply-transfer, note: "変更キーの確認と、いまの所有者と違うことの確認は、操作の前提です。" }
+  - { id: BF-02-S06, title: "変更登録手数料を支払う", actor: ACT-OWNER, kind: system, note: "決済はシステムの外です（業務フロー「手数料支払」）。" }
+  - { id: BF-02-S07, title: "支払を確認する", actor: ACT-SYSTEM, kind: data, action: record-payment }
+  - { id: BF-02-S08, title: "所有者の変更を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: complete-application }
+  - { id: BF-02-S09, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+  - { id: BF-02-S10, title: "マイクロチップ登録証明書を発行する", actor: ACT-SYSTEM, kind: document, note: "レポート certificate で HTML を作ります。メールでの送付はシステムの外です。" }
+  - { id: BF-02-S11, title: "マイクロチップ登録証明書を受領する", actor: ACT-OWNER, kind: document }
+  - { id: BF-02-S12, title: "所有者変更登録の完了メールを送信する", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-02-S13, title: "完了メールを受領する", actor: ACT-OLD-OWNER, kind: document }
+transitions:
+  - { from: BF-02-S01, to: BF-02-S02, label: "犬猫＋登録証明書（変更キーを含む）" }
+  - { from: BF-02-S02, to: BF-02-S03 }
+  - { from: BF-02-S03, to: BF-02-S04 }
+  - { from: BF-02-S04, to: BF-02-S05, label: "MC 番号＋変更キー＋犬猫情報＋所有者情報" }
+  - { from: BF-02-S05, to: BF-02-S06 }
+  - { from: BF-02-S06, to: BF-02-S07 }
+  - { from: BF-02-S07, to: BF-02-S08 }
+  - { from: BF-02-S08, to: BF-02-S09 }
+  - { from: BF-02-S09, to: BF-02-S10 }
+  - { from: BF-02-S10, to: BF-02-S11, label: "MC 番号＋変更キー（新）" }
+  - { from: BF-02-S10, to: BF-02-S12 }
+  - { from: BF-02-S12, to: BF-02-S13 }

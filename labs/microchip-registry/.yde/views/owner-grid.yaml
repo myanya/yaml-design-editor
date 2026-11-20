@@ -1,0 +1,25 @@
+id: owner-grid
+name: 所有者の一覧
+description: 所有者ごとの区分・連絡先と、いま所有している犬猫の数です。
+rows:
+  idPattern: "OWN-*"
+columns:
+  - { label: 区分, schemaId: owner, path: kind }
+  - { label: 事業者区分, schemaId: owner, path: category }
+  - { label: 氏名・名称, schemaId: owner, path: name }
+  - { label: 住所, schemaId: owner, path: address }
+  - { label: 住所の自治体, schemaId: owner, path: municipalityId }
+  - { label: 電話番号, schemaId: owner, path: phone }
+  - { label: メールアドレス, schemaId: owner, path: email }
+  - label: 所有する犬猫（死亡を除く）
+    schemaId: owner
+    value:
+      count:
+        all:
+          of: m
+          match:
+            - node: { entity: owner, bind: o }
+            - edge: { via: ownerId, dir: in }
+            - node: { entity: microchip, bind: m }
+          where:
+            - { of: m, path: status, equals: registered }

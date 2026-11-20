@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>マイクロチップ登録証明書 {mc}</title>
+<style>
+  body {{ font-family: sans-serif; margin: 3em; }}
+  h1 {{ text-align: center; letter-spacing: 0.3em; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 1.5em 0; }}
+  th, td {{ border: 1px solid #333; padding: 0.5em 0.8em; text-align: left; }}
+  th {{ width: 30%; background: #eee; }}
+  .note {{ font-size: 0.9em; }}
+</style>
+</head>
+<body>
+<h1>マイクロチップ登録証明書</h1>
+{#each certificates}
+<p>次の犬又は猫について、マイクロチップ情報を登録したことを証明します。</p>
+<table>
+  <tr><th>マイクロチップ番号</th><td>{id}</td></tr>
+  <tr><th>登録日</th><td>{values.登録日:yyyy年M月d日}</td></tr>
+  <tr><th>種別</th><td>{species}</td></tr>
+  <tr><th>名前</th><td>{values.名前}</td></tr>
+  <tr><th>品種</th><td>{values.品種}</td></tr>
+  <tr><th>毛色</th><td>{values.毛色}</td></tr>
+  <tr><th>性別</th><td>{sex}</td></tr>
+  <tr><th>生年月日</th><td>{values.生年月日:yyyy年M月d日}</td></tr>
+  <tr><th>装着日</th><td>{values.装着日:yyyy年M月d日}</td></tr>
+  <tr><th>犬又は猫の所在地</th><td>{values.所在地}</td></tr>
+  <tr><th>所有者の氏名・名称</th><td>{values.所有者の氏名・名称}</td></tr>
+  <tr><th>所有者の住所</th><td>{values.所有者の住所}</td></tr>
+  <tr><th>所有者の電話番号</th><td>{values.所有者の電話番号}</td></tr>
+  <tr><th>変更キー</th><td>{values.変更キー}</td></tr>
+</table>
+<p class="note">変更キーは、所有者の変更・情報の変更・死亡の届出・再交付の手続で本人確認に使います。犬又は猫を譲り渡すときは、この証明書を新しい所有者へ渡してください。</p>
+<p class="note">この証明書は試作のワークスペースが作った見本です。データは架空で、実在の犬猫・人物・団体とは関係ありません。</p>
+{/each}
+</body>
+</html>

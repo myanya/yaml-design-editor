@@ -1,0 +1,26 @@
+applicationId: APP-000045
+kind: transfer
+channel: online
+receivedOn: 2026-11-17
+status: paid
+applicantId: OWN-0009
+microchipId: MC-999000000000008
+previousOwnerId: OWN-0001
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市桜丘X-X-X
+feeId: FEE-TRF-ONLINE
+history:
+  - date: 2026-11-17
+    action: apply-transfer
+    to: accepted
+  - date: 2026-11-18
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000045
+payment:
+  method: credit
+  paidOn: 2026-11-18
+  amount: 300
+  receiptNo: PAY-000045

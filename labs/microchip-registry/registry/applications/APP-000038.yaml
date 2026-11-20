@@ -1,0 +1,42 @@
+applicationId: APP-000038
+kind: registration
+channel: online
+receivedOn: 2026-10-26
+status: completed
+applicantId: OWN-0002
+registration:
+  mcNumber: MC-999000000000042
+  animal:
+    species: cat
+    name: こゆき
+    breed: 日本猫
+    color: 白
+    sex: female
+    birthDate: 2026-08-25
+  implantedOn: 2026-10-23
+  veterinarian: ゆきしろ犬猫クリニック 白雪
+  motherId: MC-999000000000010
+location:
+  municipalityId: LG-981015
+  address: やまなみ県ゆきしろ市本町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-10-26
+    action: apply-registration
+    to: accepted
+  - date: 2026-10-26
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000038
+  - date: 2026-10-27
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-10-26
+  amount: 300
+  receiptNo: PAY-000038
+completedOn: 2026-10-27
+microchipId: MC-999000000000042

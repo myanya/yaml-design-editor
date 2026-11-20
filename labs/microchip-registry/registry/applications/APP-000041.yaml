@@ -1,0 +1,36 @@
+applicationId: APP-000041
+kind: registration
+channel: online
+receivedOn: 2026-11-16
+status: paid
+applicantId: OWN-0002
+registration:
+  mcNumber: MC-999000000000043
+  animal:
+    species: cat
+    name: あられ
+    breed: 日本猫
+    color: 三毛
+    sex: female
+    birthDate: 2026-08-25
+  implantedOn: 2026-11-13
+  veterinarian: ゆきしろ犬猫クリニック 白雪
+  motherId: MC-999000000000010
+location:
+  municipalityId: LG-981015
+  address: やまなみ県ゆきしろ市本町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-11-16
+    action: apply-registration
+    to: accepted
+  - date: 2026-11-17
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000041
+payment:
+  method: credit
+  paidOn: 2026-11-17
+  amount: 300
+  receiptNo: PAY-000041

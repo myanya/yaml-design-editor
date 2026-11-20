@@ -1,0 +1,11 @@
+accountId: ACC-0001
+kind: registrar
+status: active
+name: 白石 みのり
+organization: 指定登録機関 登録課
+email: shiraishi@registrar.example.or.jp
+registeredOn: 2026-03-02
+history:
+  - date: 2026-03-02
+    action: register-account
+    to: active

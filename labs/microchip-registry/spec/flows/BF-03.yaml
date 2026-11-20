@@ -1,0 +1,25 @@
+id: BF-03
+name: "情報変更（単体）"
+business: BIZ-05
+source: "別紙 3 業務フロー 13〜14／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-03-S01, title: "利用規約を確認する", actor: ACT-OWNER, kind: system, note: "利用規約の確認は再現していません。" }
+  - { id: BF-03-S02, title: "情報変更を選ぶ", actor: ACT-OWNER, kind: system, action: report-change }
+  - { id: BF-03-S03, title: "本人確認用の認証番号を採番し、メールで送る", actor: ACT-SYSTEM, kind: document, note: "認証番号（6 桁）のメールは再現していません。変更キーで確かめます。" }
+  - { id: BF-03-S04, title: "本人確認用の認証番号を入力する", actor: ACT-OWNER, kind: system, note: "再現していません（変更キーで確かめます）。" }
+  - { id: BF-03-S05, title: "マイクロチップ登録情報を取得して表示する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: microchip-grid }
+  - { id: BF-03-S06, title: "変更する情報を入力する（単体）", actor: ACT-OWNER, kind: system, action: report-change }
+  - { id: BF-03-S07, title: "犬猫／所有者情報の変更を受け付け、登録を変更する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: report-change }
+  - { id: BF-03-S08, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+transitions:
+  - { from: BF-03-S01, to: BF-03-S02 }
+  - { from: BF-03-S02, to: BF-03-S03, label: "MC 番号＋変更キー" }
+  - { from: BF-03-S03, to: BF-03-S04, label: "認証番号（6 桁）" }
+  - { from: BF-03-S04, to: BF-03-S05 }
+  - { from: BF-03-S05, to: BF-03-S06 }
+  - { from: BF-03-S06, to: BF-03-S07 }
+  - { from: BF-03-S07, to: BF-03-S08 }
+notes: "犬猫の所有者の変更（譲渡）は「所有者変更」の業務フローで行います。届出なので、所有者に登録完了の連絡はしません。"
