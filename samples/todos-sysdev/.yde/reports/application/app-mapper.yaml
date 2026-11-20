@@ -1,0 +1,39 @@
+id: app-mapper
+name: app-mapper
+params:
+  - mapper
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+  mapper:
+    $apply: record
+    $with:
+      row:
+        $view: application-access-input
+        $where:
+          - path: id
+            equals: $mapper
+        $one: true
+  models:
+    $each:
+      $view: application-row-model-input
+    $build:
+      $copy: values.record
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: '[0].values.record.settings'
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: Mapper.java
+output: app/src/main/java/{#each config.package}{.}/{/each}data/mapper/{mapper.name}.java

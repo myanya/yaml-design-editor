@@ -1,0 +1,7 @@
+# 生成物（screen-designs-details-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-details-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-details.todo-task
+record:
+  id: DOC-screen-designs-details.todo-task
+  source:
+    id: rule-screen-designs-details
+    document: .yde/transforms/design/detail/screen-designs-details-derived.yaml

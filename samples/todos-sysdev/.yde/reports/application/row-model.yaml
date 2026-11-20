@@ -1,0 +1,30 @@
+id: app-row-model
+name: 物理テーブルの行モデル
+params:
+  - model
+build:
+  $apply: model
+  $with:
+    settings:
+      $view: application-configuration-input
+      $one: true
+    row:
+      $view: application-row-model-input
+      $where:
+        - path: id
+          equals: $model
+      $one: true
+rules:
+  - id: model
+    with:
+      - settings
+      - row
+    build:
+      config:
+        $copy: values.record.settings
+        $of: settings
+      model:
+        $copy: values.record
+        $of: row
+template: Row.java
+output: app/src/main/java/{#each config.package}{.}/{/each}data/model/{model.className}.java

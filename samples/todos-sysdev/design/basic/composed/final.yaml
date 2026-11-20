@@ -1,4 +1,4 @@
-# 生成物（basic-final）: 手で直さず、業務モデルか生成の定義（design/basic-final.yaml）を直して作り直します（CLI generate）。
+# 生成物（basic-final）: 手で直さず、業務モデルか生成の定義（design/basic/basic-final.yaml）を直して作り直します（CLI generate）。
 id: CMP-basic-final
 entities:
   - id: ENT-category

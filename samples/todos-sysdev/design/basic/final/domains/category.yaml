@@ -1,0 +1,48 @@
+# 生成物（domains）: 手で直さず、業務モデルか生成の定義（design/basic/domains.yaml）を直して作り直します（CLI generate）。
+id: category
+name: カテゴリ
+description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
+members:
+  - entity: category
+    label: カテゴリ
+    role: 集約の中心
+    description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
+    numbering: 「CAT-」と 3 桁の番号（使われている番号の次）
+information:
+  - of: カテゴリ
+    items:
+      - key: id
+        label: ID
+        kind: 番号
+        required: 必ずある
+        note: 追加時にCAT-001形式で自動採番します。TODOからこのIDを参照します。
+      - key: name
+        label: カテゴリ名
+        kind: 一行の文（100 文字まで）
+        required: 必ずある
+states: []
+operations:
+  - label: カテゴリを追加する
+    of: カテゴリ
+    description: TODOを分類するカテゴリを作ります。IDは一覧の追加規則で自動採番します。
+    requires: []
+    inputs:
+      - カテゴリ名
+rules: []
+relations:
+  - direction: 入る
+    label: このカテゴリのTODO
+    to: todo
+    toLabel: TODO
+    many: いくつでも
+    note: TODO はカテゴリを 1 つまで参照します（未分類なら参照しません）。参照は一覧の行に書きます
+designId: DOC-domains.category
+designKind: domains
+designPath: design/basic/final/domains/category.yaml
+origins:
+  source:
+    id: rule-domains
+    document: .yde/transforms/design/basic/domains-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

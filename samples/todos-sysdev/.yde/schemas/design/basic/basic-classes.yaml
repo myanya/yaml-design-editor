@@ -1,0 +1,6 @@
+id: basic-classes
+name: basic-classes
+kind: document
+match: design/basic/final/classes.yaml
+root:
+  type: basic-design-contract#確定区分一覧

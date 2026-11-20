@@ -1,0 +1,281 @@
+# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/detail/table-access.yaml）を直して作り直します（CLI generate）。
+id: todo-task
+name: 作業項目の読み書き
+mapper: TodoTaskMapper
+tables:
+  - todo_task
+methods:
+  - name: findById
+    kind: select
+    table: todo_task
+    where:
+      - item: id
+        param: id
+        columnId: COL-todo_task.id
+        column: id
+    operations:
+      - todo-task.finish
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: findById
+    tableId: TBL-todo_task
+  - name: insert
+    kind: insert
+    table: todo_task
+    columns:
+      mode: all
+    operations:
+      - add-todo-task
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: insert
+    tableId: TBL-todo_task
+  - name: maxId
+    kind: max
+    table: todo_task
+    item: id
+    where:
+      - item: todo_id
+        param: id
+        columnId: COL-todo_task.todo_id
+        column: todo_id
+    numbering:
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+    operations:
+      - add-todo-task
+    screens: []
+    columnId: COL-todo_task.id
+    column: id
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: maxId
+    tableId: TBL-todo_task
+  - name: maxSeq
+    kind: max
+    table: todo_task
+    item: seq
+    where:
+      - item: todo_id
+        param: id
+        columnId: COL-todo_task.todo_id
+        column: todo_id
+    operations:
+      - add-todo-task
+    screens: []
+    columnId: COL-todo_task.seq
+    column: seq
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: maxSeq
+    tableId: TBL-todo_task
+  - name: todoTaskFinish
+    kind: update
+    table: todo_task
+    set:
+      - item: done
+        value: true
+        mode: value
+        columnId: COL-todo_task.done
+        column: done
+    where:
+      - item: id
+        param: id
+        columnId: COL-todo_task.id
+        column: id
+    operations:
+      - todo-task.finish
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: todoTaskFinish
+    tableId: TBL-todo_task
+  - name: countCompleteTodoNoOpenTask
+    kind: count
+    table: todo_task
+    where:
+      - item: todo_id
+        param: id
+        columnId: COL-todo_task.todo_id
+        column: todo_id
+      - item: done
+        equals: false
+        columnId: COL-todo_task.done
+        column: done
+    precondition: complete-todo.no-open-task
+    expect: absent
+    operations:
+      - complete-todo
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: countCompleteTodoNoOpenTask
+    tableId: TBL-todo_task
+  - name: countClosedHasNoOpenTask
+    kind: count
+    table: todo_task
+    join:
+      - table: todo
+        item: id
+        equalsItem: todo_id
+        columnId: COL-todo.id
+        column: id
+    where:
+      - item: todo_id
+        param: todoId
+        columnId: COL-todo_task.todo_id
+        column: todo_id
+      - table: todo
+        item: status
+        equals: CLOSED
+        columnId: COL-todo.status
+        column: status
+      - item: done
+        equals: false
+        columnId: COL-todo_task.done
+        column: done
+    constraint: closed-has-no-open-task
+    expect: absent
+    operations:
+      - add-todo-task
+      - complete-todo
+      - todo-task.finish
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_task.id
+        item: id
+        name: id
+        source: FLD-todo-task.id
+      - columnId: COL-todo_task.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_task.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_task.title
+        item: title
+        name: title
+        source: FLD-todo-task.title
+      - columnId: COL-todo_task.done
+        item: done
+        name: done
+        source: FLD-todo-task.done
+    methodId: countClosedHasNoOpenTask
+    tableId: TBL-todo_task
+designId: DOC-table-access.todo-task
+designKind: table-access
+designPath: design/detail/final/table-access/todo-task.yaml
+origins:
+  source:
+    id: rule-table-access
+    document: .yde/transforms/design/detail/table-access-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

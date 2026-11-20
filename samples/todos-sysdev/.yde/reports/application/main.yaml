@@ -1,0 +1,22 @@
+id: app-main
+name: "独立アプリ: src/main/java/{#each config.package}{.}/{/each}{config.applicationClass}.java"
+description: 詳細設計の確定設定から生成する。生成後のアプリは YDE を使わずビルドできる
+build:
+  $apply: configuration
+  $with:
+    row:
+      $view: application-configuration-input
+      $one: true
+rules:
+  - id: configuration
+    with:
+      - row
+    build:
+      config:
+        $copy: values.record.settings
+        $of: row
+      models:
+        $each: { $view: application-row-model-input }
+        $build: { $copy: values.record }
+template: Application.java
+output: app/src/main/java/{#each config.package}{.}/{/each}{config.applicationClass}.java

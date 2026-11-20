@@ -1,0 +1,37 @@
+id: system-session-bindings
+name: 設計書間で共有する system-session-bindings
+scope: business
+dependsOn:
+  - session-design
+output: design/detail/composed/documents/system-session-bindings.yaml
+build:
+  id: SYS-system-session-bindings
+  bindings:
+    $each:
+      $view: session-design-input
+    $flatten: true
+    $build:
+      $each: values.record.attributes
+      $build:
+        before:
+          $copy: role
+        after:
+          $copy: key
+        roles:
+          - reads
+          - puts
+          - removes
+          - sessionKey
+rules:
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

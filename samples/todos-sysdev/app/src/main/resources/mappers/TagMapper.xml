@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="example.todos.data.mapper.TagMapper">
+  <resultMap id="row_CategoryRow" type="example.todos.data.model.CategoryRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="name" column="name" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TagRow" type="example.todos.data.model.TagRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="name" column="name" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoRow" type="example.todos.data.model.TodoRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="title" column="title" javaType="java.lang.String"/>
+    <result property="summary" column="summary" javaType="java.lang.String"/>
+    <result property="category" column="category" javaType="java.lang.String"/>
+    <result property="follows" column="follows" javaType="java.lang.String"/>
+    <result property="status" column="status" javaType="java.lang.String"/>
+    <result property="createdOn" column="created_on" javaType="java.time.LocalDate"/>
+    <result property="updatedOn" column="updated_on" javaType="java.time.LocalDate"/>
+    <result property="dueOn" column="due_on" javaType="java.time.LocalDate"/>
+    <result property="completedOn" column="completed_on" javaType="java.time.LocalDate"/>
+    <result property="details" column="details" javaType="java.lang.String"/>
+    <result property="result" column="result" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoTaskRow" type="example.todos.data.model.TodoTaskRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="title" column="title" javaType="java.lang.String"/>
+    <result property="done" column="done" javaType="java.lang.Boolean"/>
+  </resultMap>
+  <resultMap id="row_TodoTagsRow" type="example.todos.data.model.TodoTagsRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="tagId" column="tag_id" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoCommentsRow" type="example.todos.data.model.TodoCommentsRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="date" column="date" javaType="java.time.LocalDate"/>
+    <result property="body" column="body" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoHistoryRow" type="example.todos.data.model.TodoHistoryRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="date" column="date" javaType="java.time.LocalDate"/>
+    <result property="action" column="action" javaType="java.lang.String"/>
+    <result property="from" column="from_" javaType="java.lang.String"/>
+    <result property="to" column="to_" javaType="java.lang.String"/>
+    <result property="note" column="note" javaType="java.lang.String"/>
+    <result property="resumeOn" column="resume_on" javaType="java.time.LocalDate"/>
+  </resultMap>
+  <resultMap id="result_findDetail" type="example.todos.data.mapper.TagMapper$FindDetailResult" extends="row_TagRow">
+
+  </resultMap>
+  <resultMap id="result_selectAll" type="example.todos.data.mapper.TagMapper$SelectAllResult" extends="row_TagRow">
+    <result property="column0" column="column0"/>
+    <result property="column1" column="column1"/>
+
+
+
+  </resultMap>
+  <resultMap id="result_selectTodoDashboardTags" type="example.todos.data.mapper.TagMapper$SelectTodoDashboardTagsResult" extends="row_TagRow">
+    <result property="count0" column="count0"/>
+    <result property="count1" column="count1"/>
+    <result property="count2" column="count2"/>
+    <result property="count3" column="count3"/>
+    <result property="count4" column="count4"/>
+
+
+
+
+
+
+  </resultMap>
+  <resultMap id="result_selectTodoDashboardTagsMaster" type="example.todos.data.mapper.TagMapper$SelectTodoDashboardTagsMasterResult" extends="row_TagRow">
+    <result property="column0" column="column0"/>
+    <result property="column1" column="column1"/>
+    <result property="column2" column="column2"/>
+
+
+
+
+  </resultMap>
+  <select id="findDetail" resultMap="result_findDetail">
+    SELECT <trim suffixOverrides=",">
+      tag.id,
+      tag.name,
+    </trim>
+    FROM tag
+    <where>
+
+AND tag.id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+  <select id="selectAll" resultMap="result_selectAll">
+    SELECT <trim suffixOverrides=",">
+      tag.id,
+      tag.name,
+      tag.id AS column0,
+
+
+      tag.name AS column1,
+
+
+    </trim>
+    FROM tag
+    <where></where>
+    ORDER BY tag.id asc
+  </select>
+
+  <select id="selectTodoDashboardTags" resultMap="result_selectTodoDashboardTags">
+    SELECT <trim suffixOverrides=",">
+      tag.id,
+      tag.name,
+
+
+      
+(SELECT COUNT(DISTINCT c.id) FROM todo c
+JOIN todo_tags r ON r.todo_id = c.id
+WHERE r.tag_id = tag.id AND c.status = &apos;OPEN&apos;)
+
+ AS count0,
+
+
+      
+(SELECT COUNT(DISTINCT c.id) FROM todo c
+JOIN todo_tags r ON r.todo_id = c.id
+WHERE r.tag_id = tag.id AND c.status = &apos;IN_PROGRESS&apos;)
+
+ AS count1,
+
+
+      
+(SELECT COUNT(DISTINCT c.id) FROM todo c
+JOIN todo_tags r ON r.todo_id = c.id
+WHERE r.tag_id = tag.id AND c.status = &apos;SUSPENDED&apos;)
+
+ AS count2,
+
+
+      
+(SELECT COUNT(DISTINCT c.id) FROM todo c
+JOIN todo_tags r ON r.todo_id = c.id
+WHERE r.tag_id = tag.id AND c.status = &apos;CLOSED&apos;)
+
+ AS count3,
+
+
+      
+(SELECT COUNT(DISTINCT c.id) FROM todo c
+JOIN todo_tags r ON r.todo_id = c.id
+WHERE r.tag_id = tag.id AND c.status = &apos;CANCELED&apos;)
+
+ AS count4,
+    </trim>
+    FROM tag
+    <where></where>
+    ORDER BY tag.id asc
+  </select>
+
+
+  <select id="countTodoDashboardTags" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM tag
+    <where></where>
+  </select>
+  <select id="selectTodoDashboardTagsMaster" resultMap="result_selectTodoDashboardTagsMaster">
+    SELECT <trim suffixOverrides=",">
+      tag.id,
+      tag.name,
+      tag.id AS column0,
+
+
+      tag.name AS column1,
+
+
+
+
+      
+(SELECT COUNT(DISTINCT c.id) FROM todo c
+JOIN todo_tags r ON r.todo_id = c.id
+WHERE r.tag_id = tag.id)
+
+ AS column2,
+    </trim>
+    FROM tag
+    <where></where>
+    ORDER BY tag.id asc
+  </select>
+
+
+  <select id="countTodoDashboardTagsMaster" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM tag
+    <where></where>
+  </select>
+
+  <insert id="insert">
+    INSERT INTO tag (id, name)
+    VALUES (#{input.id}, #{input.name})
+  </insert>
+
+  <select id="maxId" resultType="java.lang.String">
+    SELECT id FROM tag
+    <where>
+
+
+
+
+AND LEFT(tag.id, CHAR_LENGTH(&apos;TAG-&apos;)) = &apos;TAG-&apos;
+
+
+</where>
+    ORDER BY CHAR_LENGTH(id) DESC, id DESC FETCH FIRST 1 ROW ONLY
+  </select>
+</mapper>

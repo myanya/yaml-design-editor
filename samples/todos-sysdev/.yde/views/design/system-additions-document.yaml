@@ -1,8 +1,0 @@
-id: system-additions-document
-name: system-additions-document
-rows:
-  idPattern: INPUT-system-additions
-columns:
-  - label: record
-    path: .
-    fileGlob: design/**

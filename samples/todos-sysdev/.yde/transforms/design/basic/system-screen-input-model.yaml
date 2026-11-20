@@ -1,0 +1,214 @@
+id: system-screen-input-model
+name: 確定した画面入力を共有する
+scope: business
+dependsOn:
+  - system-actions-model
+  - screen-operation-candidates
+output: design/basic/composed/documents/system-screen-input-model.yaml
+input:
+  $apply: screen-model
+  $with:
+    original:
+      $apply: model-input
+      $with:
+        row:
+          $view: system-actions-model-input
+          $one: true
+    documents:
+      $each:
+        $view: screen-operation-candidates-input
+      $build:
+        $copy: values.record
+build:
+  id: SYS-system-screen-input-model
+  model:
+    $copy: .
+rules:
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: screen-model
+    with:
+      - original
+      - documents
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: original
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  actions:
+                    $each: actions
+                    $of: original
+                    $bind: item
+                    $build:
+                      $apply: screen-source
+                      $with:
+                        original:
+                          $copy: .
+                        document:
+                          $apply: contract-first
+                          $with:
+                            matches:
+                              $each: .
+                              $of: documents
+                              $build:
+                                $when:
+                                  - path: id
+                                    equals:
+                                      $copy: id
+                                      $of: item
+                                $then:
+                                  $copy: .
+                priority: individual
+                source:
+                  id: contract
+  - id: screen-source
+    with:
+      - original
+      - document
+    when:
+      - path: .
+        of: document
+        exists: true
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: original
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  label:
+                    $copy: name
+                    $of: document
+                  params:
+                    $each: params
+                    $of: original
+                    $bind: parameter
+                    $build:
+                      $apply: screen-parameter
+                      $with:
+                        parameter:
+                          $copy: .
+                        value:
+                          $apply: contract-first
+                          $with:
+                            matches:
+                              $each: input.items
+                              $of: document
+                              $build:
+                                $when:
+                                  - path: key
+                                    equals:
+                                      $copy: key
+                                      $of: parameter
+                                $then:
+                                  $copy: .
+                  input:
+                    $apply: screen-update
+                    $with:
+                      record:
+                        $first:
+                          - $copy: input
+                            $of: original
+                          - {}
+                      set:
+                        initial:
+                          $copy: input.initial
+                          $of: document
+                        submit:
+                          $copy: input.submit
+                          $of: document
+                priority: individual
+                source:
+                  id: contract
+  - id: screen-source
+    with:
+      - original
+      - document
+    build:
+      $copy: .
+      $of: original
+  - id: screen-parameter
+    with:
+      - parameter
+      - value
+    build:
+      $apply: screen-update
+      $with:
+        record:
+          $copy: .
+          $of: parameter
+        set:
+          $copy: .
+          $of: value
+  - id: screen-update
+    with:
+      - record
+      - set
+    when:
+      - of: set
+        path: .
+        empty: false
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: record
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  $copy: .
+                  $of: set
+                priority: individual
+                source:
+                  id: contract
+  - id: screen-update
+    with:
+      - record
+      - set
+    build:
+      $copy: .
+      $of: record

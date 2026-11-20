@@ -28,20 +28,20 @@ class TodosTypeCorrectionsTest {
                 ".yde/schemas/business/${file.fileName}" to text
             }.toMutableMap()
         for (name in listOf("basic-design-values", "basic-derived-model", "basic-derived", "basic-design-contract", "basic-targets", "basic-type-changes", "basic-type-model")) {
-            val path = ".yde/schemas/design/$name.yaml"
+            val path = TodosSysdevFiles.definition(sample, "schemas", name)
             files[path] = Files.readString(sample.resolve(path))
         }
         for (name in listOf("basic-derived", "basic-targets", "basic-type-changes", "basic-type-model")) {
-            val path = ".yde/transforms/design/$name.yaml"
+            val path = TodosSysdevFiles.definition(sample, "transforms", name)
             files[path] = Files.readString(sample.resolve(path))
         }
         for (name in listOf("basic-derived-input", "basic-targets-input", "basic-description-corrections-input", "basic-type-changes-input")) {
-            val path = ".yde/views/design/$name.yaml"
+            val path = TodosSysdevFiles.definition(sample, "views", name)
             files[path] = Files.readString(sample.resolve(path))
         }
-        files[".yde/schemas/design/basic-corrections.yaml"] = "id: basic-corrections\nmatch: design/basic/corrections.yaml\nroot: {type: basic-design-contract#補正と指定一覧}\n"
+        files[".yde/schemas/design/basic/basic-corrections.yaml"] = "id: basic-corrections\nmatch: design/basic/inputs/entities/corrections.yaml\nroot: {type: basic-design-contract#補正と指定一覧}\n"
         files[".yde/workspace.yaml"] = "ledger: [design]\nscopes: [{id: business, include: ['schemas/business/**']}]\n"
-        files["design/basic/corrections.yaml"] = "corrections: $corrections\n"
+        files["design/basic/inputs/entities/corrections.yaml"] = "corrections: $corrections\n"
         if (extra != null) files[".yde/schemas/business/extra.yaml"] = extra
         return InMemoryDocumentStore(files).also { assertEquals(emptyList(), WorkspaceReader.load(it).schemaErrors) }
     }

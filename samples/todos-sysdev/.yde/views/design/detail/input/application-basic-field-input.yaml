@@ -1,0 +1,12 @@
+id: application-basic-field-input
+name: application-basic-field-input
+rows:
+  idPattern: FLD-*
+  schemaIds:
+    - basic-entity-list
+order:
+  schemaId: basic-entity-list
+columns:
+  - label: record
+    path: .
+    schemaId: basic-entity-list

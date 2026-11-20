@@ -14,15 +14,17 @@
 ほかの設計書も導出・補正と指定・追加から確定する経路へ移し、ダッシュボードの切替欄から「アクション定義書」「処理設計書」などの設計書を選んで確認できます。
 「対象の設計書」で文書を選ぶと、概要と根拠・設計内容が切り替わります。「この設計書の一覧」には同じ種類の文書だけが並びます。全体の対応は「設計書の全体レビュー」で確認できます。
 [設計書の確定と全体レビュー](docs/design-document-migration-plan.md)に、対象・受け渡し・入力例・試し方をまとめています。
-計画と未決事項は [ロードマップ](../../docs/ROADMAP.md#p53-業務モデルから作る設計書体系とアプリ生成) にあります。Spring Boot のアプリ生成は未着手です。
+計画と未決事項は [ロードマップ](../../docs/ROADMAP.md#p53-業務モデルから作る設計書体系とアプリ生成) にあります。
+設計の配置を段階・役割ごとに整理し、独立した `app/` の行モデル・Mapper・XML・共通 DDL を生成します。Form と行モデルと Mapper は共通の型対応を読みます。業務処理・画面のコード生成は後続です。
+全体の順序は [作業計画](docs/application-generation-plan.md)、現在の出力範囲と操作は [アプリの生成と独立ビルド](docs/application-generation.md) を参照してください。
 
 導出・補正と指定・追加から確定項目一覧を作り、ビューと後段で共有する方針は [ADR-0039](../../docs/decisions/0039-finalized-design-items.md) に従います。
 現在のエンティティ定義書はこの経路へ切り替えました。項目自身に解決した型・文字数・初期値を保存し、個別表示と横断表示はその値を読みます。テーブル生成も同じ確定項目を使います。
 
-エンティティと型について人が書くのは `design/basic/corrections.yaml` の補正と指定、`design/basic/additions.yaml` の追加です。
-ほかの設計書の入力は `design/system/corrections.yaml`・`design/system/additions.yaml` です。物理設計は `design/detail/` の入力を使います。
+エンティティと型について人が書くのは `design/basic/inputs/entities/corrections.yaml` の補正と指定、`design/basic/inputs/entities/additions.yaml` の追加です。
+ほかの設計書の入力は、基本・詳細それぞれの `inputs/documents/corrections.yaml`・`additions.yaml` です。物理設計は `design/detail/inputs/tables/` の入力を使います。
 旧台帳の区分定義は追加へ、各エンティティの区分は `entity-class` の指定へ移しました。
-生成物は `entities.yaml`・`types.yaml`・`classes.yaml` です。導出記録と合成の記録は `derived/`・`composed/` に残ります。
+エンティティと型の確定項目は `design/basic/final/` の `entities.yaml`・`types.yaml`・`classes.yaml` です。導出記録と合成の記録は各段階の `derived/`・`composed/` に残ります。
 説明の食い違い、補正の競合、型・参照の誤り、未処理の指定があれば生成を止めます。TODO の ID は承認済みの `COR-001` を使います。
 
 今回の到達点と残る作業は [生成処理と対応範囲](docs/entity-generation-contract.md) にまとめました。
@@ -47,16 +49,21 @@
 | `.yde/schemas/design/` | 設計書の形（操作系・データ系・画面系・エラーとメッセージ系の設計書）と、設計の対応の検査（`coverage.yaml`） |
 | `.yde/transforms/design/` | 業務モデルと上流の確定項目から、導出・合成・検査・保存を行う YAML の計算。依存は `dependsOn` で宣言 |
 | `.yde/stages/design/` | 段のルール（業務モデルに無いが、システムとして要るものを段の項に足す。いまは無い） |
-| `.yde/views/design/` | 統合のビュー（操作ごと・エンティティ型ごとに基本から詳細までを 1 つの画面に・設計の対応表） |
-| `design/generated/` | 生成物の設計書（手で直さない。業務モデルか生成の定義を直して作り直す） |
-| `design/system/` | ほかの設計書の補正・指定・追加の入力と、導出・合成・検査の生成記録 |
-| `design/basic/` | 確定項目（`entities.yaml`・`types.yaml`・`classes.yaml`）と導出・合成の記録は生成物。`additions.yaml`・`corrections.yaml` は人が書く入力 |
-| `design/detail/` | 詳細設計の原本: 詳細設計項目一覧（テーブル・カラム・索引・外部キー `tables.yaml`。生成物）と、型対応表 `sql-types.yaml`・詳細設計項目台帳 `ledger.yaml`・補正一覧 `corrections.yaml`（人が書く） |
-| `.yde/reports/design/` と `design/ddl/` | DDL のレポート（テーブル設計書のビューからひな形で作る）と、作った DDL `schema.sql`（派生物） |
+| `.yde/views/design/` | 基本・詳細・共用のビュー（`input/` は生成用、`review/` は個別・横断のレビュー用） |
+| `design/basic/inputs/`・`design/detail/inputs/` | 人が書く入力（エンティティと型は `entities/`、物理設計は `tables/`、ほかの設計書は `documents/`） |
+| `design/basic/final/`・`design/detail/final/` | 確定項目と設計書（ビューと後段の生成が同じ値を読む） |
+| `design/basic/derived/`・`design/detail/derived/` | 業務モデルと上流の確定項目から導出した記録 |
+| `design/basic/composed/`・`design/detail/composed/` | 合成途中の候補と検査記録（確定項目としては使わない） |
+| `design/detail/reports/ddl/` | 確定したテーブル設計から出力する DDL |
+| `.yde/reports/design/` と `design/detail/reports/ddl/` | DDL のレポート（テーブル設計書のビューからひな形で作る）と、作った DDL `schema.sql`（派生物） |
+| `design/detail/inputs/application/` と `design/detail/final/application.yaml` | 業務モデルから導けないアプリ方式の設定と、検査後の確定値 |
+| `.yde/reports/application/` | 確定設定からアプリを作る文字のひな形 |
+| `assets/gradle-wrapper/`・`scripts/` | 固定版の Wrapper 資源と、YDE の出力を計画して適用する手順 |
+| `app/` | YDE 本体から独立してテスト・ビルド・起動する生成アプリ |
 
 ## 設計書と Spring Boot の対応
 
-以下の ID は導出元を示します。`design/generated/` の文書自身には `DOC-種類.導出元` の `designId` があり、個別・横断ビューはその確定値を読みます。
+以下の ID は導出元を示します。各段階の `final/` の設計文書には `DOC-種類.導出元` の `designId` があり、個別・横断ビューはその確定値を読みます。
 
 | 設計書 | 1 本の単位 | ID | 作り方 | Spring Boot |
 |---|---|---|---|---|
@@ -78,21 +85,21 @@
 | メッセージ定義書（基本設計） | 1 本 | メッセージのキー | 生成 | messages.properties |
 | エラー設計書（詳細設計） | 1 本 | ― | 生成 | 例外のクラス・@ControllerAdvice・エラー画面・application.properties |
 
-`design/generated/` の設計書は業務の ID を使い、基本設計・テーブル設計の確定項目は独自の設計 ID を持ちます。業務モデルから消えた操作やエンティティ型の設計書が残っていれば、「浮いた詳細化」として分かります。
+設計書は導出元として業務の ID を使い、確定項目は独自の設計 ID を持ちます。業務モデルから消えた操作やエンティティ型の設計書が残っていれば、「浮いた詳細化」として分かります。
 前提（断りの種類）は `操作ID.前提ID`（`complete-todo.no-open-task`）、状態が合わない断りは `操作ID.state`、データの決まりの違反は `check.決まりID`（`check.closed-has-result`）です。
 
 名前は業務の ID から機械的に作ります（`complete-todo` → `completeTodo`・`CompleteTodoForm`・`TodoController`）。英語の文法の規則（複数形など）は入れません。URL も業務の ID をそのまま使います（`POST /todo/{id}/complete-todo`）。
 
 ## 段（基本設計・詳細設計）
 
-エンティティ定義書とテーブル生成は、上記の確定項目の経路を使います（ADR-0039）。ほかの設計書は、段の項から作ります（ADR-0034）。その基本設計書は基本設計の段の項、詳細設計書は詳細設計の段の項を読みます。
-段の項は、前の段の項に、その段の規則と補正（`.yde/stages/design/`）を当てたもので、形は業務モデルの項と同じです。
+設計書は導出・合成・確定の経路を使います（ADR-0039）。基本設計と詳細設計を上位のディレクトリで分け、それぞれに入力・導出・合成・確定を置きます（ADR-0041）。
+後段は `dependsOn` で宣言した今回の確定結果を読みます。従来の段の宣言（ADR-0034）は残っていますが、この経路へ段の補正を重ねません。
 
 いまは、従来の段にルールはありません。確定項目の経路では、区分の追加とエンティティへの割当を反映し、「根拠」に追加・指定の記録を残します。
 
 ### 基本設計の確定項目と入力（エンティティ定義書）
 
-- `design/basic/entities.yaml`・`types.yaml`・`classes.yaml` は、導出・補正・区分の追加と指定を合成し、検査した生成物です。通常の設計 ID と参照はここにあります。
+- `design/basic/final/entities.yaml`・`types.yaml`・`classes.yaml` は、導出・補正・区分の追加と指定を合成し、検査した生成物です。通常の設計 ID と参照はここにあります。
 - `corrections.yaml` の対象と `additions.yaml` の生成先 ID は文字として保存します。生成中の集合で対応を確かめ、前回の生成物へ頼りません。
 - 個別のエンティティ定義書と横断の項目一覧は、同じ保存値を読みます。ビューで補正や型継承を重ねません。補正元と原文は「根拠」で確認します。
 - 共通型への参照を保ちながら、各項目にも適用する制約を保存します。元から最大 100 と明記した項目は、共通型を 200 に補正しても 100 を保ちます。
@@ -101,7 +108,7 @@
 
 ### 詳細設計項目一覧と型対応表（テーブル設計書から。ADR-0036）
 
-- 詳細設計項目一覧（`design/detail/tables.yaml`）は、詳細設計にだけ出てくるもの（テーブル名・カラム名・主キーの順と制約名・型対応への参照・親のキーと並び順・索引・外部キー）だけを持ちます。名称・必須・論理型・初期値・選択肢は、導出元（基本設計項目一覧）をたどって読みます。
+- 詳細設計項目一覧（`design/detail/final/tables.yaml`）は、詳細設計にだけ出てくるもの（テーブル名・カラム名・主キーの順と制約名・型対応への参照・親のキーと並び順・索引・外部キー）だけを持ちます。名称・必須・論理型・初期値・選択肢は、導出元（基本設計項目一覧）をたどって読みます。
   日本語名も、基本設計に同じものが無いもの（明細テーブル「TODOのタグ」・親の ID「TODOのID」・並び順・埋め込みのカラム「期間の開始日」）にだけ書き、ほかは導出元の名称です。NOT NULL も、詳細設計で足したカラム（親のキー・並び順・要素）と例外（埋め込みの object の中の必須の項目で、親の項目が必須でないもの＝false）にだけ書き、ほかは導出元の必須から決まります。そのため、一覧そのものでは日本語名・NOT NULL が空の行があります。
 - 業務モデルの形は、深さによらずテーブルにします。todos に無い形も、テスト（`TodosSysdevTest`）が形の見本を足した写しで確かめています。
   - 配列とマップの項目は明細テーブルで、主キーは親のキーに並び順（配列）かキー（マップ）を足したものです。行の中の配列は、さらに下の明細テーブルで、親への外部キーは親の主キーの組（複合）です。
@@ -110,14 +117,15 @@
   - 配列・マップの要素が配列・マップである形と、エンティティのマップは、現変換では未対応として検査が指摘します。現在の案内は前者が行の型で包む、後者がエンティティの配列にする、です。SQL で表現できない意味ではなく、業務モデルの書き直しを求めるか設計側で対応するかはレビューで判断します。
 - 索引は、配列の「同じものは 1 度だけ」から一意の索引（`ux_todo_tags_tag_id`＝親の ID と要素。object の配列なら比べる項目）を、外部キーのカラムから索引（`ix_todo_category`。主キーの先頭のカラムは除く）を作ります。索引のカラムは並び（昇順・降順）を持ちます。
   外部キーは、入れ子で持つ親へ 1 つ（親のキーの組。親の行を消したら一緒に消す）と、参照のカラムごとに 1 つ（消したときの動きは指定しない）です。どのカラムがどのカラムを指すかはカラムの参照先に書き、カラム一覧にも参照先が残ります。
-- 業務モデルから導けない索引（画面の絞り込みや並びのため）は、詳細設計項目台帳（`design/detail/ledger.yaml`）に人が書きます。いまは、ダッシュボードの「期限超過」で状態と期限で絞るための `ix_todo_status_due_on` です。生成した索引・外部キーの値を変えるとき（消したときの動きなど）は、補正一覧（詳細設計）に書きます。
-- 型対応表（`design/detail/sql-types.yaml`）は人が書きます。論理型ごとに SQL の型の書き方を決め、`VARCHAR({maxLength})` の穴は利用箇所の確定値で埋まります。論理型が増えて対応が無ければ、カラムの型対応への参照が切れて分かります。ビュー「型対応表（論理型 → SQL）」で、埋めた形と並べて見られます。
-- テーブル設計書は、ダッシュボード「テーブル設計書」です（概要・カラム一覧・索引・外部キー）。補正一覧（詳細設計。`design/detail/corrections.yaml`）を生成時に合成した確定値を表示します。テーブル名・カラム名の付け替え（UX-324）は、ここに書けます。
+- 業務モデルから導けない索引（画面の絞り込みや並びのため）は、詳細設計項目台帳（`design/detail/inputs/tables/ledger.yaml`）に人が書きます。いまは、ダッシュボードの「期限超過」で状態と期限で絞るための `ix_todo_status_due_on` です。生成した索引・外部キーの値を変えるとき（消したときの動きなど）は、補正一覧（詳細設計）に書きます。
+- 型対応表（`design/detail/inputs/tables/sql-types.yaml`）は人が書きます。論理型ごとに SQL の型の書き方を決め、`VARCHAR({maxLength})` の穴は利用箇所の確定値で埋まります。論理型が増えて対応が無ければ、カラムの型対応への参照が切れて分かります。ビュー「型対応表（論理型 → SQL）」で、埋めた形と並べて見られます。
+- テーブル設計書は、ダッシュボード「テーブル設計書」です（概要・カラム一覧・索引・外部キー）。補正一覧（詳細設計。`design/detail/inputs/tables/corrections.yaml`）を生成時に合成した確定値を表示します。テーブル名・カラム名の付け替え（UX-324）は、ここに書けます。
   概要はテーブル日本語名とテーブル区分（確定したエンティティの区分。明細テーブルは配列・マップを持つエンティティの区分）と主キーの制約名、カラム一覧はカラム日本語名・主キーの順・NOT NULL とその根拠（基本設計の必須か、詳細設計で足したカラムか）・初期値の設定（設定あり／設定なし）と値と出力方法・自動で入る値を出します。
   索引は台帳の索引も並べ（張る理由の列）、外部キーは複合のカラムと参照先のカラムを同じ順に並べます。
-- DDL は、レポート `ddl`（`.yde/reports/design/`）がテーブル設計書のビューの行から作ります（`report samples/todos-sysdev ddl` で `design/ddl/schema.sql` に書く）。主キーは主キーの順と制約名で、索引は CREATE INDEX（降順は DESC）です。外部キーは、すべてのテーブルを作った後に ALTER TABLE で足します（テーブルの順に左右されない）。テストで H2 に流して確かめています。
+- DDL は、レポート `ddl`（`.yde/reports/design/`）がテーブル設計書のビューの行から作ります（`report samples/todos-sysdev ddl` で `design/detail/reports/ddl/schema.sql` に書く）。主キーは主キーの順と制約名で、索引は CREATE INDEX（降順は DESC）です。外部キーは、すべてのテーブルを作った後に ALTER TABLE で足します（テーブルの順に左右されない）。テストで H2 に流して確かめています。
 - 初期値の出力方法は型対応表の `literal` で指定します。`string` は `'OPEN'`、`number` は `1`、`boolean` は `FALSE`、`date` は `DATE '2026-11-16'` の形です。文字列の引用符は二重にし、空文字は `''` にします。値の見た目では型を決めません。未設定と `false`・`0`・空文字・文字そのものの「設定なし」を区別します。
-  `auto: created` などの自動値は Service が設定するもので、SQL の DEFAULT にはしません。初期値の式と Java の型・初期化方法の対応は今後です。
+  `auto: created` などの自動値は Service が設定するもので、SQL の DEFAULT にはしません。
+  Form と行モデルの Java 型は共通の対応表を使います。初期値の式と Java の初期化方法の接続は今後です。
 テーブルは補正後の基本設計を入力にして、詳細設計の段の規則を当てます。`detail-tables` の `dependsOn` により、基本設計も同じ生成計画で先に作り直します。
 
 ## ドメインの決まり
@@ -210,27 +218,27 @@
 3. 作業用コピーで、業務モデルを変えて作り直します。たとえばコピーの `.yde/schemas/business/operations.yaml` で完了の操作の `label` を変え、`generate <コピー> --apply` を実行します。該当箇所だけが作り直され、git の差分で変わった所を読めます。
 4. 作業用コピーで、生成物を 1 つ消して検証します（`validate <コピー>`）。設計の対応の検査が「操作「complete-todo」に処理設計書がありません」「エンティティ型「todo」にテーブル設計書がありません」のように指摘します。
 5. YDE で開き、次のビューを見ます。
-   - `design/generated/actions/complete-todo.yaml` の「ビュー」タブの「操作の設計書（基本から詳細まで）」: アクション定義書と処理設計書が 1 つの画面に並び、この操作を扱う Controller と Mapper へ移れます。
+   - `design/basic/final/actions/complete-todo.yaml` の「ビュー」タブの「操作の設計書（基本から詳細まで）」: アクション定義書と処理設計書が 1 つの画面に並び、この操作を扱う Controller と Mapper へ移れます。
    - 台帳のビュー「操作の設計の対応」「エンティティの設計の対応」: 操作・エンティティ型ごとに、どの設計書へ降りているかを一覧できます。
 6. 画面系の生成物を読みます。
-   - `design/generated/screens/transitions/todo-dashboard.yaml`: 26 の画面と、移り方（区画の行の ID → 詳細・ボタン → 入力 → 確認 → 起点の画面）。
-   - `design/generated/screens/operations/complete-todo.yaml`: 起点の画面（期限超過とすべてのTODO の行のボタン・TODO詳細のボタン）・ボタンを出す状態（対応中）・入力の項目・確認・断りの種類。
-   - `design/generated/controllers/todo.yaml` と `design/generated/session.yaml`: ハンドラごとの URL と、セッションに置く・読むキー。
+   - `design/basic/final/screens/transitions/todo-dashboard.yaml`: 26 の画面と、移り方（区画の行の ID → 詳細・ボタン → 入力 → 確認 → 起点の画面）。
+   - `design/basic/final/screens/operations/complete-todo.yaml`: 起点の画面（期限超過とすべてのTODO の行のボタン・TODO詳細のボタン）・ボタンを出す状態（対応中）・入力の項目・確認・断りの種類。
+   - `design/detail/final/controllers/todo.yaml` と `design/detail/final/session.yaml`: ハンドラごとの URL と、セッションに置く・読むキー。
 7. 画面設計書と読み出しを読みます。
-   - `design/generated/screen-designs/operations/complete-todo.yaml`: 入力画面と確認画面の部品の木と、`CompleteTodoForm` の検査（完了結果は `@NotNull` と `@Size(min = 1)`）。
-   - `design/generated/screen-designs/operations/edit-todo.yaml`: カテゴリの欄の横の「値を消す」（`clear.category`）と、コメント一覧の行の表。
-   - `design/generated/table-access/todo.yaml` の `selectTodoDashboardOverdue`: 期限超過の区画の条件（status が OPEN か IN_PROGRESS・期限がある・期限が基準日より前）。
-   - YDE で `design/generated/screens/operations/complete-todo.yaml` のビュータブ「操作の画面の設計書（基本から詳細まで）」で、画面定義書と画面設計書が 1 つの画面に並ぶこと。
-8. ドメインの生成物を読みます。`design/generated/domains/todo.yaml`（構成・情報・状態の流れ・提供する操作・データの決まり・関係）と `design/generated/domain-relations.yaml`（ドメインの一覧・関係・入れ子）。
+   - `design/detail/final/screen-designs/operations/complete-todo.yaml`: 入力画面と確認画面の部品の木と、`CompleteTodoForm` の検査（完了結果は `@NotNull` と `@Size(min = 1)`）。
+   - `design/detail/final/screen-designs/operations/edit-todo.yaml`: カテゴリの欄の横の「値を消す」（`clear.category`）と、コメント一覧の行の表。
+   - `design/detail/final/table-access/todo.yaml` の `selectTodoDashboardOverdue`: 期限超過の区画の条件（status が OPEN か IN_PROGRESS・期限がある・期限が基準日より前）。
+   - YDE で `design/basic/final/screens/operations/complete-todo.yaml` のビュータブ「操作の画面の設計書（基本から詳細まで）」で、画面定義書と画面設計書が 1 つの画面に並ぶこと。
+8. ドメインの生成物を読みます。`design/basic/final/domains/todo.yaml`（構成・情報・状態の流れ・提供する操作・データの決まり・関係）と `design/basic/final/domain-relations.yaml`（ドメインの一覧・関係・入れ子）。
    ドメイン定義書の「ほかのドメインとの関係」の相手（`to`）は、ほかのドメインの ID への参照です。
 9. エラーとメッセージ系の生成物を読みます。
-   - `design/generated/errors.yaml`: 断りの種類と出す場所・データの決まりの扱い（確かめ方と、確かめない理由）・操作ごとの断り（入力の誤り・見つからない・状態・前提・データの決まり・二重の確定）。
-   - `design/generated/processes/complete-todo.yaml`: 確認へで呼ぶ `checkCompleteTodo` と、データの決まりの手順（書く前に Java・書いた後に件数）。
-   - `design/generated/messages.yaml` と `design/generated/error-handling.yaml`: キーと文・入力の誤りの文（フォームの項目ごと）・例外のクラスと受ける所・エラー画面・設定。
+   - `design/basic/final/errors.yaml`: 断りの種類と出す場所・データの決まりの扱い（確かめ方と、確かめない理由）・操作ごとの断り（入力の誤り・見つからない・状態・前提・データの決まり・二重の確定）。
+   - `design/detail/final/processes/complete-todo.yaml`: 確認へで呼ぶ `checkCompleteTodo` と、データの決まりの手順（書く前に Java・書いた後に件数）。
+   - `design/basic/final/messages.yaml` と `design/detail/final/error-handling.yaml`: キーと文・入力の誤りの文（フォームの項目ごと）・例外のクラスと受ける所・エラー画面・設定。
 10. 作業用コピーで、業務モデルのダッシュボード（`.yde/views/business/todo-dashboard.yaml`）から区画「カテゴリ一覧」を消して作り直すと、カテゴリの詳細画面は TODO の参照からたどれるので残ります。上部のボタン「カテゴリを追加する」を消すと、その操作の画面とハンドラが消え、検証が「ダッシュボードからたどれず、画面がありません」「Controller のハンドラがありません」と警告します（設計書の側に案内として出ます）。
 11. エンティティ定義書を見ます。YDE でダッシュボード「エンティティ定義書」を開き、エンティティに TODO を選びます。
     概要（ID形式・親エンティティ）・項目一覧（論理型・要素の論理型・導出元）・操作一覧（作成 C・更新 U）・CRUD の区画が出ます。論理型は `TYP-common.年月日` のような設計項目への参照、自動で入る値は `created` のような業務モデルの値です。導出元を押すと、業務モデルのスキーマのその項目へ飛べます。C/U 表は操作の書く項目を読み、書込の無い項目も行に残します。R/D の表示は未対応です。
-    作業用コピーの `design/basic/corrections.yaml` に補正（例 `target: FLD-todo.title`・`set: { maxLength: 60 }`）を加え、`generate <コピー> --apply` で再生成します。項目一覧の最大文字数が 60 になり、「根拠」に補正の記録が出ます。エンティティの指定を外した横断の項目一覧でも同じ値を確認できます。
+    作業用コピーの `design/basic/inputs/entities/corrections.yaml` に補正（例 `target: FLD-todo.title`・`set: { maxLength: 60 }`）を加え、`generate <コピー> --apply` で再生成します。項目一覧の最大文字数が 60 になり、「根拠」に補正の記録が出ます。エンティティの指定を外した横断の項目一覧でも同じ値を確認できます。
 12. テーブル設計書を見ます。YDE でダッシュボード「テーブル設計書」を開き、テーブルを選びます（最初は todo）。
     概要でテーブル日本語名と区分（TODO・トランザクション）を、カラム一覧でカラム日本語名・論理型・NOT NULL とその根拠は導出元から、SQL の型は型対応表から読んでいること（`title` は `VARCHAR(100)`）を確かめます。
     テーブルを todo_tags にすると、主キーの順（todo_id が 1・seq が 2）と、索引（一意の索引と外部キーの索引）・外部キーの区画（親への外部キーは一緒に消す）が見られます。todo の索引には、台帳の `ix_todo_status_due_on` と張る理由が出ます。詳細設計項目一覧そのものには、名称や必須が無いことも確かめます。

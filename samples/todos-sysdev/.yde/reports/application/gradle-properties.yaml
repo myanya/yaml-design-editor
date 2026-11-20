@@ -1,0 +1,19 @@
+id: app-gradle-properties
+name: "独立アプリ: gradle.properties"
+description: 詳細設計の確定設定から生成する。生成後のアプリは YDE を使わずビルドできる
+build:
+  $apply: configuration
+  $with:
+    row:
+      $view: application-configuration-input
+      $one: true
+rules:
+  - id: configuration
+    with:
+      - row
+    build:
+      config:
+        $copy: values.record.settings
+        $of: row
+template: gradle.properties
+output: app/gradle.properties

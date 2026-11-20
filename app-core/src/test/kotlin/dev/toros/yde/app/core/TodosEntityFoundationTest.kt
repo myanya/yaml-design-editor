@@ -37,13 +37,7 @@ class TodosEntityFoundationTest {
     private fun copy(block: (Path) -> Unit) {
         val dir = Files.createTempDirectory("entity-foundation")
         try {
-            Files.walk(root).use { paths -> paths.forEach { p ->
-                val relative = root.relativize(p)
-                if (!relative.toString().replace('\\', '/').startsWith(".yde/state")) {
-                    val target = dir.resolve(relative)
-                    if (Files.isDirectory(p)) Files.createDirectories(target) else Files.copy(p, target)
-                }
-            } }
+            TodosSysdevFiles.copy(root, dir)
             block(dir)
         } finally { dir.toFile().deleteRecursively() }
     }
@@ -80,7 +74,7 @@ class TodosEntityFoundationTest {
     @Test
     fun `全項目の基底と C U 表は生成原本と一致し 書込の無い項目も残る`() {
         val ws = Workspace.open(root)
-        val entities = list(doc(root, "design/basic/entities.yaml"), "entities")
+        val entities = list(doc(root, "design/basic/final/entities.yaml"), "entities")
         var writes = 0
         for (entity in entities) {
             val id = entity["id"].toString()
@@ -113,13 +107,13 @@ class TodosEntityFoundationTest {
         Files.writeString(common, original.replace(title, title + "        maxLength: 40\n")
             .replace("- { key: body, label: コメント本文, type: text, required: true }", "- { key: body, label: コメント本文, type: text, maxLength: 55, required: true }"))
         generate(dir)
-        val types = list(doc(dir, "design/basic/types.yaml"), "types").associateBy { it["id"] }
+        val types = list(doc(dir, "design/basic/final/types.yaml"), "types").associateBy { it["id"] }
         assertEquals(100, types.getValue("TYP-common.一行の文")["maxLength"])
         assertEquals(true, types.getValue("TYP-text")["multiline"])
         assertEquals(55, list(types.getValue("TYP-common.コメント"), "fields").single { it["key"] == "body" }["maxLength"])
         assertEquals("40", value(rows(Workspace.open(dir), "entity-definition-items", "ENT-todo").single { it.id == "FLD-todo.title" }, "最大文字数").toString())
         // サンプルで了承済みの代表の説明は残し、この試験の補正を別文書で追加する。
-        Files.writeString(dir.resolve("design/basic/corrections-test.yaml"), """
+        Files.writeString(dir.resolve("design/basic/inputs/entities/corrections-test.yaml"), """
             corrections:
               - { id: COR-101, target: TYP-common.一行の文, set: { maxLength: 200 }, reason: 共通の文字数 }
               - { id: COR-102, target: FLD-todo.title, set: { maxLength: 60, label: 修正した名称 }, reason: この項目の例外 }
@@ -139,7 +133,7 @@ class TodosEntityFoundationTest {
         assertEquals("200", value(rows(ws, "entity-definition-items", "ENT-category").single { it.id == "FLD-category.name" }, "最大文字数").toString())
         assertEquals(listOf("ENT-tag"), value(shown.single { it.id == "FLD-todo.category" }, "参照先"))
         assertEquals("date", value(shown.single { it.id == "FLD-todo.details" }, "基底の種類"))
-        val tables = list(doc(dir, "design/detail/tables.yaml"), "tables").associateBy { it["name"] }
+        val tables = list(doc(dir, "design/detail/final/tables.yaml"), "tables").associateBy { it["name"] }
         val category = list(tables.getValue("todo"), "columns").single { it["name"] == "category" }
         assertEquals("SQL-common.タグ参照", category["sqlType"])
         assertEquals("TBL-tag", category["referencesTable"])
@@ -150,7 +144,7 @@ class TodosEntityFoundationTest {
         assertTrue("summary VARCHAR(200) DEFAULT '' NOT NULL" in ddl, ddl)
         assertTrue("details DATE" in ddl, ddl)
         assertTrue("-- 改訂TODO（トランザクション）" in ddl, ddl)
-        val rawTitle = list(list(doc(dir, "design/basic/entities.yaml"), "entities").single { it["id"] == "ENT-todo" }, "items").single { it["key"] == "title" }
+        val rawTitle = list(list(doc(dir, "design/basic/final/entities.yaml"), "entities").single { it["id"] == "ENT-todo" }, "items").single { it["key"] == "title" }
         assertEquals(60, rawTitle["maxLength"], "保存する確定項目とビューは同じ補正後の値")
         assertTrue("maxLength: 40" in Files.readString(common), "業務モデルの原文は変更しない")
         val cross = rows(ws, "entity-definition-items").single { it.id == titleRow.id }
@@ -160,23 +154,23 @@ class TodosEntityFoundationTest {
 
     @Test
     fun `区分の追加と指定と補正を確定して 既存ビューと詳細生成で共有する`() = copy { dir ->
-        Files.writeString(dir.resolve("design/basic/additions-test.yaml"), """
+        Files.writeString(dir.resolve("design/basic/inputs/entities/additions-test.yaml"), """
             additions:
               - id: ADD-900
                 kind: class
                 reason: レビュー用の区分
                 class: {designId: CLS-review, name: review, label: 確認中}
         """.trimIndent() + "\n")
-        val input = dir.resolve("design/basic/corrections.yaml")
+        val input = dir.resolve("design/basic/inputs/entities/corrections.yaml")
         Files.writeString(input, Files.readString(input).replace("entityClass: CLS-transaction", "entityClass: CLS-review"))
-        Files.writeString(dir.resolve("design/basic/corrections-test.yaml"), """
+        Files.writeString(dir.resolve("design/basic/inputs/entities/corrections-test.yaml"), """
             corrections:
               - {id: COR-900, target: CLS-review, set: {label: レビュー対象, description: 確認するデータ}, reason: 区分の名称と説明}
         """.trimIndent() + "\n")
         generate(dir)
         val ws = Workspace.open(dir)
         assertEquals("レビュー対象", value(rows(ws, "entity-definition-summary", "ENT-todo").single(), "区分"))
-        val finalClass = list(doc(dir, "design/basic/classes.yaml"), "classes").single { it["id"] == "CLS-review" }
+        val finalClass = list(doc(dir, "design/basic/final/classes.yaml"), "classes").single { it["id"] == "CLS-review" }
         assertEquals("レビュー対象", finalClass["label"])
         assertEquals("確認するデータ", finalClass["description"])
         assertEquals(setOf("ADD-900", "COR-900"), list(finalClass, "origins").map { it["source"] }.toSet())
@@ -191,16 +185,16 @@ class TodosEntityFoundationTest {
             "corrections: [{id: COR-900, target: ENT-todo, set: {unknown: true}, reason: 検査}]",
             "specifications: [{id: SPC-900, target: ENT-todo, rule: unknown, reason: 検査}]",
         )
-        val before = Files.readString(dir.resolve("design/basic/entities.yaml"))
+        val before = Files.readString(dir.resolve("design/basic/final/entities.yaml"))
         for (input in cases) {
-            Files.writeString(dir.resolve("design/basic/corrections-test.yaml"), "$input\n")
+            Files.writeString(dir.resolve("design/basic/inputs/entities/corrections-test.yaml"), "$input\n")
             val plan = Generators.plan(WorkspaceSession(FileSystemDocumentStore(dir)), setOf("detail-tables"))
             assertTrue(plan.errors.any { "basic-final" in it }, plan.errors.toString())
             assertTrue(plan.transaction.operations.isEmpty())
-            assertEquals(before, Files.readString(dir.resolve("design/basic/entities.yaml")))
+            assertEquals(before, Files.readString(dir.resolve("design/basic/final/entities.yaml")))
         }
-        Files.delete(dir.resolve("design/basic/corrections-test.yaml"))
-        Files.writeString(dir.resolve("design/basic/additions-test.yaml"), """
+        Files.delete(dir.resolve("design/basic/inputs/entities/corrections-test.yaml"))
+        Files.writeString(dir.resolve("design/basic/inputs/entities/additions-test.yaml"), """
             additions:
               - {id: ADD-900, kind: class, class: {designId: CLS-duplicate, name: master, label: 重複}, reason: 同じ名前の追加}
         """.trimIndent() + "\n")

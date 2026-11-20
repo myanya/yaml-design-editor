@@ -1,0 +1,52 @@
+# 生成物（dashboard-flows-derived）: 手で直さず、業務モデルか生成の定義（design/detail/dashboard-flows-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-dashboard-flows.todo-dashboard
+record:
+  id: DOC-dashboard-flows.todo-dashboard
+  value:
+    id: todo-dashboard
+    name: TODOダッシュボードの画面の動き
+    controller: TodoDashboardController
+    screens:
+      - screen: todo-dashboard
+        handler: show
+        request: GET /
+        params:
+          - key: tags
+            label: タグ
+            multiple: true
+          - key: category
+            label: カテゴリ
+          - key: categories.cell
+            label: 区画「カテゴリ別の状況」のセル（行と列）
+          - key: tags.cell
+            label: 区画「タグ別の状況」のセル（行と列）
+        does: 絞り込みで区画の一覧と集計を読んで、一覧画面を出す
+        service: TodoDashboardService.show
+        reads:
+          - section: overdue
+            select: TodoMapper.selectTodoDashboardOverdue
+            count: TodoMapper.countTodoDashboardOverdue
+          - section: all
+            select: TodoMapper.selectTodoDashboardAll
+            count: TodoMapper.countTodoDashboardAll
+          - section: categories
+            select: CategoryMapper.selectTodoDashboardCategories
+            count: CategoryMapper.countTodoDashboardCategories
+          - section: tags
+            select: TagMapper.selectTodoDashboardTags
+            count: TagMapper.countTodoDashboardTags
+          - section: categories-master
+            select: CategoryMapper.selectTodoDashboardCategoriesMaster
+            count: CategoryMapper.countTodoDashboardCategoriesMaster
+          - section: tags-master
+            select: TagMapper.selectTodoDashboardTagsMaster
+            count: TagMapper.countTodoDashboardTagsMaster
+        candidates:
+          - TagMapper.selectAll
+          - CategoryMapper.selectAll
+        session:
+          reads:
+            - notice
+  source:
+    id: rule-dashboard-flows
+    document: .yde/transforms/design/detail/dashboard-flows-derived.yaml

@@ -1,3 +1,0 @@
-# 生成物（system-input-gate）: 手で直さず、業務モデルか生成の定義（design/system-input-gate.yaml）を直して作り直します（CLI generate）。
-id: SYS-input-check
-status: validated

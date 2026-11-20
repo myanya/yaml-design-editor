@@ -1,0 +1,17 @@
+id: application-configuration
+name: 検査したアプリの方式設定を確定する
+scope: design
+dependsOn:
+  - application-input-gate
+output: design/detail/final/application.yaml
+input:
+  $view: application-architecture-input
+  $one: true
+build:
+  id: APP-settings
+  settings:
+    $copy: values.record.settings
+  source:
+    $copy: values.record.inputId
+  reason:
+    $copy: values.record.reason

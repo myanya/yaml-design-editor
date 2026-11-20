@@ -1,0 +1,69 @@
+id: application-output-plan
+name: 固定出力と行モデルの出力単位を確定する
+scope: design
+dependsOn:
+  - application-configuration
+  - application-data-model
+  - application-access
+output: design/detail/final/application-output-plan.yaml
+build:
+  id: APP-output-plan
+  outputs:
+    $concat:
+      - - id: OUTPUT-settings
+          report: app-settings
+          params: {}
+        - id: OUTPUT-build
+          report: app-build
+          params: {}
+        - id: OUTPUT-gradle-properties
+          report: app-gradle-properties
+          params: {}
+        - id: OUTPUT-main
+          report: app-main
+          params: {}
+        - id: OUTPUT-properties
+          report: app-properties
+          params: {}
+        - id: OUTPUT-test
+          report: app-test
+          params: {}
+        - id: OUTPUT-gitignore
+          report: app-gitignore
+          params: {}
+        - id: OUTPUT-readme
+          report: app-readme
+          params: {}
+        - id: OUTPUT-wrapper-properties
+          report: app-wrapper-properties
+          params: {}
+      - $each:
+          $view: application-row-model-input
+        $build:
+          id:
+            $format: OUTPUT-{id}
+          report: app-row-model
+          params:
+            model:
+              $copy: id
+      - $each:
+          $view: application-access-input
+        $flatten: true
+        $build:
+          $concat:
+            - - id:
+                  $format: OUTPUT-JAVA-{id}
+                report: app-mapper
+                params:
+                  mapper:
+                    $copy: id
+            - - id:
+                  $format: OUTPUT-XML-{id}
+                report: app-mapper-xml
+                params:
+                  mapper:
+                    $copy: id
+      - - id: OUTPUT-app-schema
+          report: ddl
+          params: {}
+          destination: app/src/main/resources/schema.sql

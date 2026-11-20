@@ -1,0 +1,8 @@
+id: detail-document-additions
+name: 詳細設計の設計書の追加の入力
+rows:
+  idPattern: INPUT-detail-document-additions
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/inputs/documents/additions.yaml

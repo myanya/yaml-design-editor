@@ -1,0 +1,38 @@
+# 生成物（screen-operation-candidates）: 手で直さず、業務モデルか生成の定義（design/basic/screen-operation-candidates.yaml）を直して作り直します（CLI generate）。
+id: CAN-screen-operation.todo-task.finish
+document:
+  id: todo-task.finish
+  name: 作業項目を済にする
+  kind: operation
+  target: todo-task
+  starts:
+    - screen: todo
+      place: 表「作業項目」の行のボタン
+  shownWhen: いつも
+  confirm:
+    screen: todo-task.finish/confirm
+    request: GET /todo-task/{id}/todo-task.finish/confirm
+    shows: []
+  execute:
+    request: POST /todo-task/{id}/todo-task.finish
+    returns: 起点の画面（starts の画面。画面の ID で受け取る）
+    notice: todo-task.finish.done
+    refusals:
+      - key: check.updated-not-before-created
+        message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+      - key: check.closed-has-no-open-task
+        message: 完了したTODO「{id}」に、済んでいない作業項目があります
+    onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+  originalRoutes:
+    confirm: GET /todo-task/{id}/todo-task.finish/confirm
+    execute: POST /todo-task/{id}/todo-task.finish
+  designId: DOC-screen-operations.todo-task.finish
+  designKind: screen-operations
+  designPath: design/basic/final/screens/operations/todo-task.finish.yaml
+  origins:
+    source:
+      id: rule-screen-operations
+      document: .yde/transforms/design/basic/screen-operations-derived.yaml
+      path: []
+    decisions: []
+    inputs: []

@@ -1,0 +1,18 @@
+id: application-row-models
+name: Java の行モデルと物理列
+rows:
+  match:
+    - node: {id: 'JROW-*', bind: model}
+    - edge: {contains: true}
+    - node: {id: 'JCOL-*', bind: column}
+  rowKey: column
+order: {schemaId: application-data-model}
+columns:
+  - {label: テーブル, of: model, path: table}
+  - {label: Java クラス, of: model, path: className}
+  - {label: 物理列, path: column}
+  - {label: Java の項目, path: name}
+  - {label: Java の型, path: java.qualifiedName}
+  - {label: SQL の型, path: sql}
+  - {label: 初期値, path: default.value}
+  - {label: 初期値の出力方法, path: default.literal}

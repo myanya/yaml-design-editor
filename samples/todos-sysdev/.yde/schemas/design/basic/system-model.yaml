@@ -1,0 +1,12 @@
+id: system-model
+name: system-model
+kind: document
+match: design/basic/composed/documents/model.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: model
+      type: any

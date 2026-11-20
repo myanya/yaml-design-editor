@@ -1,0 +1,18 @@
+# 生成物（application-configuration）: 手で直さず、業務モデルか生成の定義（design/detail/application-configuration.yaml）を直して作り直します（CLI generate）。
+id: APP-settings
+settings:
+  name: todos-generated
+  package:
+    - example
+    - todos
+  applicationClass: TodoApplication
+  version: 0.1.0
+  javaVersion: 21
+  springBootVersion: 4.0.9
+  mybatisVersion: 4.0.1
+  gradleVersion: 9.3.0
+  port: 8085
+  databaseName: todos
+  databaseInitialization: empty-schema
+source: INPUT-application-settings
+reason: 業務モデルから導けない実装方式。Java 21・Spring Boot 4・MyBatis・Thymeleaf・H2 を使い、YDE 本体と独立してビルド・起動する

@@ -1,0 +1,117 @@
+{
+  "format": 1,
+  "files": [
+    {
+      "path": "app/.gitignore",
+      "sha256": "3e562e11faa7e6f8342bdfb30946654edd4a91d3e3255bd6ca9392cb28c534e6"
+    },
+    {
+      "path": "app/build.gradle.kts",
+      "sha256": "f9ae83b548b9560e58ae61d88f59e50d90f2eb8fd1e4c2bc73398210d7f59c9a"
+    },
+    {
+      "path": "app/gradle.properties",
+      "sha256": "f6639a34f7d6c0430337b062e29361819dfdedfc27f9c5179de0ab0eca396143"
+    },
+    {
+      "path": "app/gradle/wrapper/gradle-wrapper.jar",
+      "sha256": "b3a875ddc1f044746e1b1a55f645584505f4a10438c1afea9f15e92a7c42ec13"
+    },
+    {
+      "path": "app/gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "9319699775c0a0366681bfc4432dd60aac45d370f4e85d21995ff42c6aede302"
+    },
+    {
+      "path": "app/gradlew",
+      "sha256": "fb68debc1b1acf8ec55dc0d5e5495e1dedd0bd6b61f304bee61613eeb2bd9b92"
+    },
+    {
+      "path": "app/gradlew.bat",
+      "sha256": "fedad02c18e266ec094995a5751b7fe1eb6e74f66bf75db64fae2e50eb22c234"
+    },
+    {
+      "path": "app/README.md",
+      "sha256": "aec8dd5ba48f8ad9fb7fc3e5c1fc2ea3cf6aca98f22f10d89474e06ee5daad44"
+    },
+    {
+      "path": "app/settings.gradle.kts",
+      "sha256": "2c9b6d4bffe9f6f30ed27c0a4aaf78a412239526f27d8fbb65f0e583e2b83a23"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/mapper/CategoryMapper.java",
+      "sha256": "464dbfa195590f56a66cd04b15d16c38ac61a55f0285e88928a29ab1d940d72b"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/mapper/TagMapper.java",
+      "sha256": "f0bd19b49d1e791401d910f27c41c6c95e8e6ccae43fffdcef04d2484bfcdfb2"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/mapper/TodoMapper.java",
+      "sha256": "ba9d5e59013b9773cd3503b24c3469ae5abc4fcf95d5101531793de487eb4b3f"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/mapper/TodoTaskMapper.java",
+      "sha256": "ce442a777246e7c03f8b9137fe04a6d34846ce6f86ff1b8cef7de1e1a2322bfe"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/CategoryRow.java",
+      "sha256": "93775162f129ea904097a02274f5fa0fb8e20aa0b4693bdcc9e881b1bfd73f40"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/TagRow.java",
+      "sha256": "a6d7c200f269ef2c7bdb0c25a631b949fbdc6c70cad11dab434cd14e458f5948"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/TodoCommentsRow.java",
+      "sha256": "b82589ec7265c747904c51d086540b0cf08c85ce7b16cde5080bf26bb371cd04"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/TodoHistoryRow.java",
+      "sha256": "29a85d48d4eaa5d568aea9274eacd4746c9aa2876301afc0f178eb43c4a3bb96"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/TodoRow.java",
+      "sha256": "21ec7b9f9c0419db382278031868fe0525001ad47a4849d581031550a9e841b5"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/TodoTagsRow.java",
+      "sha256": "02596597fdc050ecd655bd957c88bdb11bf9ff652e35e4cf4fb3f0b49d1e7f01"
+    },
+    {
+      "path": "app/src/main/java/example/todos/data/model/TodoTaskRow.java",
+      "sha256": "741abdea2cef1124b47ea93de76ad8a1101bb650a240c8196e5856fae60e6527"
+    },
+    {
+      "path": "app/src/main/java/example/todos/TodoApplication.java",
+      "sha256": "25df4d1bc905486d3201783b3e82f7e93dce96535774219d2409367d8b77d6de"
+    },
+    {
+      "path": "app/src/main/resources/application.properties",
+      "sha256": "eafa80b9529d0cfaa51f19d01eef4f28eb6cca18da2bc1e793258021eece8e82"
+    },
+    {
+      "path": "app/src/main/resources/mappers/CategoryMapper.xml",
+      "sha256": "f632081f8f8510ea01d72a5398868fb5303702caee6eafca97811e0f25f657d8"
+    },
+    {
+      "path": "app/src/main/resources/mappers/TagMapper.xml",
+      "sha256": "737c7a7884e6c31b1e324f93a8c2dc17a233cd195657698ba62e3e070caad543"
+    },
+    {
+      "path": "app/src/main/resources/mappers/TodoMapper.xml",
+      "sha256": "1204bc26bfff49989dafa822b6a75e2e49d2f1981aa2ca384b3c546ff0e308a8"
+    },
+    {
+      "path": "app/src/main/resources/mappers/TodoTaskMapper.xml",
+      "sha256": "d5b93de22770f3129ed64b2358eaad4bea6fa4b1b8ac0406f32e334c12c68764"
+    },
+    {
+      "path": "app/src/main/resources/schema.sql",
+      "sha256": "3ff59eee5183ebd49f3930750e25e601effabdad96f0789d75d84a588068dbfe"
+    },
+    {
+      "path": "app/src/test/java/example/todos/TodoApplicationTest.java",
+      "sha256": "33e2e66dd621c7c9335d9a08dcf2664232ea5f1a74a09e7070f1d616a3b133a2"
+    }
+  ]
+}

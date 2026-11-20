@@ -1,0 +1,15 @@
+id: basic-document-additions
+name: 基本設計の設計書の追加
+kind: document
+match: design/basic/inputs/documents/additions.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: additions
+      type: array
+      item:
+        type: system-inputs#基本設計の追加
+  unknownFields: error

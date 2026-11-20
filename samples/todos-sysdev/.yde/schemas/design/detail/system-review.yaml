@@ -1,0 +1,28 @@
+id: system-review
+name: system-review
+kind: document
+match: design/detail/composed/review.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+    - key: status
+      type: string
+    - key: documents
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            type: ref
+            idPatterns:
+              - DOC-*
+          - key: kind
+            type: string
+          - key: source
+            type: string
+          - key: path
+            type: string
+    - key: inputs
+      type: any

@@ -1,0 +1,8 @@
+id: application-architecture-input
+name: アプリ方式の入力
+rows:
+  idPattern: INPUT-application-settings
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/inputs/application/settings.yaml

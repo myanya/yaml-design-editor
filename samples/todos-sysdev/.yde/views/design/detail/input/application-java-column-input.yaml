@@ -1,0 +1,12 @@
+id: application-java-column-input
+name: application-java-column-input
+rows:
+  idPattern: JCOL-*
+  schemaIds:
+    - application-data-model
+order:
+  schemaId: application-data-model
+columns:
+  - label: record
+    path: .
+    schemaId: application-data-model

@@ -1,0 +1,61 @@
+id: application-java-types
+name: Java の型対応を検査して確定する
+scope: design
+dependsOn: []
+output: design/detail/final/java-types.yaml
+input:
+  $apply: validated-result
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $each: schemas
+          $of: model
+          $build:
+            $when:
+              - path: id
+                oneOf:
+                  - application-java-type-values
+                  - application-java-types-input
+            $then:
+              $copy: declared
+        documents:
+          design/detail/inputs/application/java-types.yaml:
+            $apply: input
+            $with:
+              row:
+                $view: application-java-types-source
+                $one: true
+build:
+  id: APP-java-types
+  mappings:
+    $copy: mappings
+  source:
+    $copy: inputId
+  reason:
+    $copy: reason
+rules:
+  - id: input
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: validated-result
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        matches:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

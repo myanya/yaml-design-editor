@@ -1,0 +1,15 @@
+id: detail-document-additions
+name: 詳細設計の設計書の追加
+kind: document
+match: design/detail/inputs/documents/additions.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: additions
+      type: array
+      item:
+        type: system-inputs#詳細設計の追加
+  unknownFields: error

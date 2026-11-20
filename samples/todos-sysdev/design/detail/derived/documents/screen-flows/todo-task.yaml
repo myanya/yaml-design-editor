@@ -1,0 +1,40 @@
+# 生成物（screen-flows-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-flows-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-flows.todo-task
+record:
+  id: DOC-screen-flows.todo-task
+  value:
+    id: todo-task
+    name: 作業項目の画面の動き
+    controller: TodoTaskController
+    handlers:
+      - action: todo-task.finish
+        name: 作業項目を済にする
+        service: TodoTaskService.todoTaskFinish
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: todoTaskFinishConfirm
+            request: GET /todo-task/{id}/todo-task.finish/confirm
+            screen: todo-task.finish/confirm
+            does: 受け手を読んで確認画面を出す
+            reads:
+              - TodoTaskMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: todoTaskFinish
+            request: POST /todo-task/{id}/todo-task.finish
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - check.updated-not-before-created
+              - check.closed-has-no-open-task
+  source:
+    id: rule-screen-flows
+    document: .yde/transforms/design/detail/screen-flows-derived.yaml

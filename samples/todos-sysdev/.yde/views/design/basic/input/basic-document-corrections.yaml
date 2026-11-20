@@ -1,0 +1,8 @@
+id: basic-document-corrections
+name: 基本設計の設計書の補正と指定の入力
+rows:
+  idPattern: INPUT-basic-document-corrections
+columns:
+  - label: record
+    path: .
+    fileGlob: design/basic/inputs/documents/corrections.yaml

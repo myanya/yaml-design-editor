@@ -1,0 +1,235 @@
+# 生成物（screen-designs-details）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-details.yaml）を直して作り直します（CLI generate）。
+id: todo
+name: TODO詳細（画面設計書）
+screens:
+  - id: todo
+    template: todo/detail
+    read: TodoMapper.findDetail
+    page:
+      title: TODO詳細
+      width: l
+      body:
+        - notice:
+            kind: done
+        - facts:
+            of: todo
+            columns: 2
+            items:
+              - item: id
+                label: ID
+              - item: title
+                label: タイトル
+              - item: summary
+                label: 概要
+              - item: category
+                label: カテゴリ
+                link:
+                  to: category
+                  name: name
+              - item: tags
+                label: タグ
+                link:
+                  to: tag
+                  name: name
+                  many: true
+              - item: follows
+                label: 元のTODO
+                link:
+                  to: todo
+                  name: title
+              - item: status
+                label: ステータス
+                labels:
+                  - value: OPEN
+                    label: 未着手
+                  - value: IN_PROGRESS
+                    label: 対応中
+                  - value: SUSPENDED
+                    label: 中断
+                  - value: CLOSED
+                    label: 完了
+                  - value: CANCELED
+                    label: 中止
+              - item: created_on
+                label: 作成日
+                format: yyyy年M月d日
+              - item: updated_on
+                label: 更新日
+                format: yyyy年M月d日
+              - item: due_on
+                label: 期限
+                format: yyyy年M月d日
+              - item: completed_on
+                label: 完了日
+                format: yyyy年M月d日
+              - item: details
+                label: 詳細
+                keepBreaks: true
+              - item: result
+                label: 結果
+                keepBreaks: true
+        - section:
+            title: コメント一覧
+            body:
+              - table:
+                  of: comments
+                  columns:
+                    - item: date
+                      label: 日付
+                      format: yyyy年M月d日
+                    - item: body
+                      label: コメント本文
+                      keepBreaks: true
+        - section:
+            title: 状態の履歴
+            body:
+              - table:
+                  of: history
+                  columns:
+                    - item: date
+                      label: 日付
+                      format: yyyy年M月d日
+                    - item: action
+                      label: 操作
+                      labels:
+                        - value: register-todo
+                          label: TODOを登録する
+                        - value: start-todo
+                          label: TODOに着手する
+                        - value: complete-todo
+                          label: TODOを完了する
+                        - value: suspend-todo
+                          label: TODOを中断する
+                        - value: resume-todo
+                          label: TODOを再開する
+                        - value: cancel-todo
+                          label: TODOを中止する
+                    - item: from
+                      label: 前の状態
+                      labels:
+                        - value: OPEN
+                          label: 未着手
+                        - value: IN_PROGRESS
+                          label: 対応中
+                        - value: SUSPENDED
+                          label: 中断
+                        - value: CLOSED
+                          label: 完了
+                        - value: CANCELED
+                          label: 中止
+                    - item: to
+                      label: 後の状態
+                      labels:
+                        - value: OPEN
+                          label: 未着手
+                        - value: IN_PROGRESS
+                          label: 対応中
+                        - value: SUSPENDED
+                          label: 中断
+                        - value: CLOSED
+                          label: 完了
+                        - value: CANCELED
+                          label: 中止
+                    - item: note
+                      label: 理由
+                      keepBreaks: true
+                    - item: resume_on
+                      label: 再開予定日
+                      format: yyyy年M月d日
+        - section:
+            title: 作業項目
+            body:
+              - table:
+                  of: tasks
+                  columns:
+                    - item: id
+                      label: ID
+                    - item: title
+                      label: タイトル
+                    - item: done
+                      label: 済
+                      mark:
+                        'true': 済
+                        'false': 未
+                  rowActions:
+                    - operation: todo-task.finish
+                      label: 作業項目を済にする
+                      kind: link
+                      to: GET /todo-task/{id}/todo-task.finish/confirm
+                      from: todo
+                      emphasis: secondary
+                      shownWhen: いつも
+        - actions:
+            - operation: add-todo-comment
+              label: TODOにコメントを追加する
+              kind: link
+              to: GET /todo/{id}/add-todo-comment
+              from: todo
+              emphasis: secondary
+              shownWhen: いつも
+            - operation: add-todo-task
+              label: 作業項目を追加する
+              kind: link
+              to: GET /todo/{id}/add-todo-task
+              from: todo
+              emphasis: secondary
+              shownWhen: いつも
+            - operation: edit-todo
+              label: TODOを編集する
+              kind: link
+              to: GET /todo/{id}/edit-todo
+              from: todo
+              emphasis: secondary
+              shownWhen: いつも
+            - operation: start-todo
+              label: TODOに着手する
+              kind: link
+              to: GET /todo/{id}/start-todo/confirm
+              from: todo
+              emphasis: secondary
+              shownWhen:
+                - OPEN
+            - operation: suspend-todo
+              label: TODOを中断する
+              kind: link
+              to: GET /todo/{id}/suspend-todo
+              from: todo
+              emphasis: secondary
+              shownWhen:
+                - IN_PROGRESS
+            - operation: resume-todo
+              label: TODOを再開する
+              kind: link
+              to: GET /todo/{id}/resume-todo
+              from: todo
+              emphasis: secondary
+              shownWhen:
+                - SUSPENDED
+            - operation: complete-todo
+              label: TODOを完了する
+              kind: link
+              to: GET /todo/{id}/complete-todo
+              from: todo
+              emphasis: secondary
+              shownWhen:
+                - IN_PROGRESS
+            - operation: cancel-todo
+              label: TODOを中止する
+              kind: link
+              to: GET /todo/{id}/cancel-todo
+              from: todo
+              emphasis: secondary
+              shownWhen:
+                - OPEN
+                - IN_PROGRESS
+                - SUSPENDED
+designId: DOC-screen-designs-details.todo
+designKind: screen-designs-details
+designPath: design/detail/final/screen-designs/details/todo.yaml
+origins:
+  source:
+    id: rule-screen-designs-details
+    document: .yde/transforms/design/detail/screen-designs-details-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

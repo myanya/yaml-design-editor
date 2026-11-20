@@ -1,0 +1,357 @@
+# 生成物（action-specs-derived）: 手で直さず、業務モデルか生成の定義（design/basic/action-specs-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-action-specs.register-todo
+record:
+  id: DOC-action-specs.register-todo
+  value:
+    id: register-todo
+    name: TODOを登録する
+    description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
+    kind: action
+    subject: todo
+    inputs:
+      - key: title
+        label: タイトル
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+      - key: summary
+        label: 概要
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+      - key: category
+        label: カテゴリ
+        type: common#カテゴリ参照
+        base: ref
+        description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
+        target: category
+        targetTitle: name
+        targetLabel: カテゴリ
+      - key: tags
+        label: タグ
+        type: array
+        base: array
+        unique: true
+        item:
+          type: common#タグ参照
+          base: ref
+          description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
+          target: tag
+          targetTitle: name
+          targetLabel: タグ
+      - key: follows
+        label: 元のTODO
+        type: common#TODO参照
+        base: ref
+        description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+        refTarget: entity
+        idPatternLayers:
+          -   - TODO-*
+        scope:
+          schemaIds:
+            - todo-list
+          documentIds: []
+        relation: follow-up-of
+        idPatterns:
+          - TODO-*
+        schemas:
+          - todo-list
+        targets:
+          - todo
+        target: todo
+        targetTitle: title
+        targetLabel: TODO
+      - key: due
+        label: 期限
+        type: common#年月日
+        base: date
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+        format: yyyy年M月d日
+      - key: details
+        label: 詳細
+        type: common#文章
+        base: string
+        multiline: true
+    state:
+      id: todo-lifecycle
+      entry:
+        - id: todo-OPEN
+          label: 未着手
+          value: OPEN
+    preconditions: []
+    effects:
+      - op: create
+        schema: todo-detail
+        id:
+          prefix: TODO-
+          digits: 3
+        numbering:
+          path: id
+          prefix: TODO-
+          digits: 3
+        bind: todo
+        values:
+          due_on:
+            $copy: due
+          details:
+            $copy: details
+          comments: []
+        source: do
+        entity: todo
+        written:
+          - key: due_on
+            value:
+              $copy: due
+            base: date
+          - key: details
+            value:
+              $copy: details
+            base: string
+          - key: comments
+            value: []
+            base: array
+            item:
+              base: object
+      - op: insert
+        schema: todo-list
+        path: todos
+        value:
+          id:
+            $copy: id
+            $of: todo
+          title: $title
+          summary: $summary
+          category:
+            $copy: category
+          tags:
+            $copy: tags
+          follows:
+            $copy: follows
+        source: do
+        entity: todo
+        field:
+          key: todos
+          base: array
+          item:
+            base: object
+            entity: todo
+        written:
+          - key: id
+            value:
+              $copy: id
+              $of: todo
+            base: id
+          - key: title
+            value: $title
+            base: string
+          - key: summary
+            value: $summary
+            base: string
+          - key: category
+            value:
+              $copy: category
+            base: ref
+          - key: tags
+            value:
+              $copy: tags
+            base: array
+            item:
+              base: ref
+          - key: follows
+            value:
+              $copy: follows
+            base: ref
+      - op: set
+        schema: todo-detail
+        path: status
+        value: OPEN
+        source: lifecycle
+        'on': create
+        entity: todo
+        field:
+          key: status
+          base: enum
+      - op: insert
+        schema: todo-detail
+        path: history
+        value:
+          date:
+            $copy: today
+            $of: context
+          action: register-todo
+          to: OPEN
+        source: lifecycle
+        'on': create
+        entity: todo
+        field:
+          key: history
+          base: array
+          item:
+            base: object
+        written:
+          - key: date
+            value:
+              $copy: today
+              $of: context
+            base: date
+          - key: action
+            value: register-todo
+            base: enum
+          - key: to
+            value: OPEN
+            base: enum
+      - op: set
+        schema: todo-detail
+        path: created_on
+        value:
+          $copy: today
+          $of: context
+        source: auto
+        auto: created
+        entity: todo
+        field:
+          key: created_on
+          base: date
+      - op: set
+        schema: todo-detail
+        path: updated_on
+        value:
+          $copy: today
+          $of: context
+        source: auto
+        auto: updated
+        entity: todo
+        field:
+          key: updated_on
+          base: date
+    checks:
+      - constraint: due-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.due_on
+          - todo.created_on
+        params:
+          - due
+      - constraint: updated-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.updated_on
+          - todo.created_on
+      - constraint: follows-not-self
+        form: element
+        level: error
+        items:
+          - todo.follows
+          - todo.id
+        params:
+          - follows
+      - constraint: has-detail
+        form: occurrence
+        level: error
+        items:
+          - todo.id
+      - constraint: in-category.outMax
+        form: relation
+        level: warning
+        kind: outMax
+        multiple: false
+        items:
+          - todo.category
+        params:
+          - category
+      - constraint: in-category.types
+        form: relation
+        level: warning
+        kind: types
+        multiple: false
+        items:
+          - todo.category
+        params:
+          - category
+      - constraint: tagged.types
+        form: relation
+        level: warning
+        kind: types
+        multiple: true
+        items:
+          - todo.tags
+        params:
+          - tags
+      - constraint: follow-up-of.acyclic
+        form: relation
+        level: error
+        kind: acyclic
+        multiple: false
+        items:
+          - todo.follows
+        params:
+          - follows
+      - constraint: follow-up-of.outMax
+        form: relation
+        level: warning
+        kind: outMax
+        multiple: false
+        items:
+          - todo.follows
+        params:
+          - follows
+      - constraint: follow-up-of.types
+        form: relation
+        level: warning
+        kind: types
+        multiple: false
+        items:
+          - todo.follows
+        params:
+          - follows
+    writes:
+      - CRUD-todo.register-todo.due_on
+      - CRUD-todo.register-todo.details
+      - CRUD-todo.register-todo.comments
+      - CRUD-todo.register-todo.id
+      - CRUD-todo.register-todo.title
+      - CRUD-todo.register-todo.summary
+      - CRUD-todo.register-todo.category
+      - CRUD-todo.register-todo.tags
+      - CRUD-todo.register-todo.follows
+      - CRUD-todo.register-todo.status
+      - CRUD-todo.register-todo.history
+      - CRUD-todo.register-todo.created_on
+      - CRUD-todo.register-todo.updated_on
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/basic/action-specs-derived.yaml

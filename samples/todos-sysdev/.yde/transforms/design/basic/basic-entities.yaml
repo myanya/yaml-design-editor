@@ -1,0 +1,13 @@
+id: basic-entities
+name: basic-entities
+scope: business
+dependsOn:
+  - basic-final
+  - basic-classes
+output: design/basic/final/entities.yaml
+input:
+  $view: basic-final-input
+  $one: true
+build:
+  entities:
+    $copy: values.entities

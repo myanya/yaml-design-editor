@@ -1,0 +1,196 @@
+# 生成物（error-handling）: 手で直さず、業務モデルか生成の定義（design/detail/error-handling.yaml）を直して作り直します（CLI generate）。
+id: error-handling
+name: エラー設計書
+exceptions:
+  - class: RefusedException
+    extends: RuntimeException
+    holds: メッセージのキー・穴の値（id・state・left・right）・欄の名前（受け取る値が原因のとき）
+    means: 業務の断り（状態・前提・データの決まり）
+    thrownBy: Service（処理設計書の check の手順で断るとき）
+    caughtBy: 各 Controller の確定のハンドラ（確認画面に断りの文を出す。HTTP 200）
+    transaction: 取り消す（RuntimeException なので、@Transactional が書いたものを取り消す）
+    log: 出さない（業務の断りは正常な応答）
+  - class: NotFoundException
+    extends: RuntimeException
+    holds: エンティティ型・ID
+    means: ID を指定して読んで、無い（URL の ID・hidden 項目の ID）
+    thrownBy: Service（findById・findDetail の結果が無いとき）
+    caughtBy: GlobalExceptionHandler（見つからない画面。HTTP 404）
+    transaction: 取り消す
+    log: INFO（エンティティ型と ID）
+  - class: InvalidTokenException
+    extends: RuntimeException
+    holds: 起点の画面の ID
+    means: 確定のトークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+    thrownBy: Controller（確定のハンドラがトークンを照合するとき）
+    caughtBy: GlobalExceptionHandler（起点の画面へリダイレクトし、知らせ error.token を置く）
+    transaction: 始めない（照合は Service を呼ぶ前）
+    log: INFO（起点の画面の ID）
+  - class: そのほかの例外（Exception）
+    means: 想定外（DB の誤り・外部キーで書けない参照の値・プログラムの誤り）
+    caughtBy: GlobalExceptionHandler（エラー画面。HTTP 500）
+    transaction: 取り消す
+    log: ERROR（受付番号・例外・スタックトレース）
+advice:
+  class: GlobalExceptionHandler
+  annotation: '@ControllerAdvice'
+  handlers:
+    - exception: NotFoundException
+      status: 404
+      view: error/not-found
+      message: error.notFound.型
+      model:
+        - message
+    - exception: InvalidTokenException
+      status: 302
+      redirect: 起点の画面（画面の ID から URL を引く。無い・知らない ID なら最初の画面）
+      notice: error.token
+    - exception: Exception
+      status: 500
+      view: error/unexpected
+      message: error.unexpected
+      model:
+        - message
+      number: 受付番号（UUID の先頭 8 文字）を作り、画面とログに出す
+refusals:
+  - operation: add-category
+    service: CategoryService.addCategory
+    handler: CategoryController.addCategory
+    throws: []
+    confirm: []
+  - operation: register-todo
+    service: TodoService.registerTodo
+    handler: TodoController.registerTodo
+    throws:
+      - RefusedException
+    confirm:
+      - TodoService.checkRegisterTodo（違反を返す。例外にしない）
+  - operation: add-todo-comment
+    service: TodoService.addTodoComment
+    handler: TodoController.addTodoComment
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
+  - operation: add-todo-task
+    service: TodoService.addTodoTask
+    handler: TodoController.addTodoTask
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
+  - operation: edit-todo
+    service: TodoService.editTodo
+    handler: TodoController.editTodo
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm:
+      - TodoService.checkEditTodo（違反を返す。例外にしない）
+  - operation: start-todo
+    service: TodoService.startTodo
+    handler: TodoController.startTodo
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
+  - operation: suspend-todo
+    service: TodoService.suspendTodo
+    handler: TodoController.suspendTodo
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm:
+      - TodoService.checkSuspendTodo（違反を返す。例外にしない）
+  - operation: resume-todo
+    service: TodoService.resumeTodo
+    handler: TodoController.resumeTodo
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
+  - operation: complete-todo
+    service: TodoService.completeTodo
+    handler: TodoController.completeTodo
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm:
+      - TodoService.checkCompleteTodo（違反を返す。例外にしない）
+  - operation: cancel-todo
+    service: TodoService.cancelTodo
+    handler: TodoController.cancelTodo
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
+  - operation: add-tag
+    service: TagService.addTag
+    handler: TagController.addTag
+    throws: []
+    confirm: []
+  - operation: todo-task.finish
+    service: TodoTaskService.todoTaskFinish
+    handler: TodoTaskController.todoTaskFinish
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
+screens:
+  - id: error/not-found
+    template: error/not-found
+    page:
+      title: 見つかりません
+      width: s
+      body:
+        - notice:
+            kind: errors
+            text: message
+        - actions:
+            - label: 最初の画面へ
+              kind: link
+              to: 最初の画面
+              emphasis: primary
+  - id: error/unexpected
+    template: error/unexpected
+    page:
+      title: 処理できませんでした
+      width: s
+      body:
+        - notice:
+            kind: errors
+            text: message
+        - actions:
+            - label: 最初の画面へ
+              kind: link
+              to: 最初の画面
+              emphasis: primary
+settings:
+  - key: server.error.include-stacktrace
+    value: never
+    why: スタックトレースを画面に出さない
+  - key: server.error.include-message
+    value: never
+    why: 例外の文を画面に出さない
+  - key: server.error.include-exception
+    value: 'false'
+    why: 例外のクラス名を画面に出さない
+  - key: server.error.include-binding-errors
+    value: never
+    why: 入力の誤りの中身をエラー画面に出さない（入力画面で出す）
+  - key: server.error.whitelabel.enabled
+    value: 'false'
+    why: 既定の誤りの画面を出さない（GlobalExceptionHandler の画面を出す）
+  - key: spring.messages.basename
+    value: messages
+    why: メッセージ定義書の文（messages.properties）を読む
+designId: DOC-error-handling.error-handling
+designKind: error-handling
+designPath: design/detail/final/error-handling.yaml
+origins:
+  source:
+    id: rule-error-handling
+    document: .yde/transforms/design/detail/error-handling-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

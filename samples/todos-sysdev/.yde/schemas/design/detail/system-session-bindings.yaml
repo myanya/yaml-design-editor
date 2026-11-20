@@ -1,0 +1,11 @@
+id: system-session-bindings
+name: system-session-bindings
+kind: document
+match: design/detail/composed/documents/system-session-bindings.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+    - key: bindings
+      type: any

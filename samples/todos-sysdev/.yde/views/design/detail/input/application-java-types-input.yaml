@@ -1,0 +1,8 @@
+id: application-java-types-input
+name: application-java-types-input
+rows:
+  idPattern: APP-java-types
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/final/java-types.yaml

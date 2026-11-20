@@ -1,0 +1,16 @@
+id: application-input-check
+name: アプリ方式の入力検査記録
+kind: document
+match: design/detail/composed/application/*-check.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: status
+      type: enum
+      values:
+        - value: validated
+      required: true
+  unknownFields: error

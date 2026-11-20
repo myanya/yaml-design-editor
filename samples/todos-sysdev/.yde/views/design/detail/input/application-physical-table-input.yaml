@@ -1,0 +1,12 @@
+id: application-physical-table-input
+name: application-physical-table-input
+rows:
+  idPattern: TBL-*
+  schemaIds:
+    - detail-table-list
+order:
+  schemaId: detail-table-list
+columns:
+  - label: record
+    path: .
+    schemaId: detail-table-list

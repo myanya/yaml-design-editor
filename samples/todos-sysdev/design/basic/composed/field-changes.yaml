@@ -1,4 +1,4 @@
-# 生成物（basic-field-changes）: 手で直さず、業務モデルか生成の定義（design/basic-field-changes.yaml）を直して作り直します（CLI generate）。
+# 生成物（basic-field-changes）: 手で直さず、業務モデルか生成の定義（design/basic/basic-field-changes.yaml）を直して作り直します（CLI generate）。
 id: CMP-field-changes
 items:
   - id: CMP-FIELD-FLD-common.コメント.date

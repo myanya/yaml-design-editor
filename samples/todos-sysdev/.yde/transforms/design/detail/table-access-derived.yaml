@@ -1,0 +1,1485 @@
+id: table-access-derived
+name: テーブルアクセス設計書（Repository）
+description: >-
+  詳細設計。エンティティ型ごとに Mapper を 1 つ作り、その型のテーブル（主のテーブルと明細テーブル）を読み書きするメソッドを書く。 メソッドは操作をまたいで 1 つにまとめ、使う操作を operations に並べる。同じテーブルへの値の書き込みは、操作ごとに 1 つの update にまとめる。
+  列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書の columns の item から引く（SQL の文字は③で MyBatis の XML に作る）。 決め打ちの規則: 受け手は findById で読む・作る操作は insert（すべての列）・採番は maxId（使われている番号の最大）・
+  明細の並び順は maxSeq・値を書く操作は操作ごとの update（書く列だけ）・配列を置き換える操作は明細を消して入れ直す・ 前提のうち「受け手の中の要素の条件」は件数を数える count（ほかの前提は Service が読んだ行で確かめる）・ データの決まりのうち「入れ子の要素の条件」も件数を数える
+  count（書いた後に、同じトランザクションで数える）
+scope: business
+each: entities
+output: design/detail/derived/documents/table-access/{id}.yaml
+dependsOn:
+  - system-actions-model
+  - detail-tables
+  - detail-document-input-gate
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: system-actions-model-input
+      $one: true
+build:
+  id:
+    $format: DRV-document-table-access.{id}
+  record:
+    id:
+      $format: DOC-table-access.{id}
+    value:
+      $apply: physical-access
+      $with:
+        document:
+          id:
+            $copy: id
+          name:
+            $format: '{label}の読み書き'
+          mapper:
+            $format: '{n}Mapper'
+            $with:
+              'n':
+                $case:
+                  $copy: id
+                $as: pascal
+          tables:
+            $concat:
+              - - $case:
+                    $copy: id
+                  $as: snake
+              - $group:
+                  $apply: fields
+                $by:
+                  $when:
+                    - path: field.base
+                      equals: array
+                    - path: field.item.entity
+                      exists: false
+                  $then:
+                    $copy: field.key
+                $build:
+                  $apply: detail-name
+          methods:
+            $group:
+              $apply: methods
+            $by:
+              $copy: name
+            $build:
+              name:
+                $copy: key
+              kind:
+                $copy: items[0].kind
+              table:
+                $copy: items[0].table
+              columns:
+                $copy: items[0].columns
+              item:
+                $copy: items[0].item
+              set:
+                $when:
+                  - path: items[0].kind
+                    equals: update
+                $then:
+                  $each: items
+                  $build:
+                    $copy: set
+              join:
+                $copy: items[0].join
+              where:
+                $copy: items[0].where
+              numbering:
+                $copy: items[0].numbering
+              precondition:
+                $copy: items[0].precondition
+              constraint:
+                $copy: items[0].constraint
+              expect:
+                $copy: items[0].expect
+              includes:
+                $copy: items[0].includes
+              names:
+                $copy: items[0].names
+              order:
+                $copy: items[0].order
+              groupBy:
+                $copy: items[0].groupBy
+              counts:
+                $copy: items[0].counts
+              via:
+                $copy: items[0].via
+              params:
+                $copy: items[0].params
+              operations:
+                $group: items
+                $by:
+                  $copy: operation
+                $build:
+                  $copy: key
+              screens:
+                $group: items
+                $by:
+                  $copy: screen
+                $build:
+                  $copy: key
+              whereFrom:
+                $copy: items[0].whereFrom
+    source:
+      id: rule-table-access
+      document: .yde/transforms/design/detail/table-access-derived.yaml
+rules:
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build:
+          field:
+            $copy: .
+          schema:
+            $copy: schema
+            $of: asp
+  - id: detail-name
+    build:
+      $format: '{t}_{k}'
+      $with:
+        t:
+          $case:
+            $copy: id
+            $of: element
+          $as: snake
+        k:
+          $copy: key
+  - id: methods
+    build:
+      $concat:
+        - $when:
+            - of: model
+              path: reach.entities
+              includes:
+                $copy: id
+          $then:
+            - name: findDetail
+              kind: select
+              table:
+                $case:
+                  $copy: id
+                $as: snake
+              where:
+                - item: id
+                  param: id
+              includes:
+                $concat:
+                  - $group:
+                      $apply: fields
+                    $by:
+                      $when:
+                        - path: field.base
+                          equals: array
+                        - path: field.item.entity
+                          exists: false
+                      $then:
+                        $copy: field.key
+                    $build:
+                      item:
+                        $copy: key
+                      table:
+                        $apply: detail-name
+                      order:
+                        - item: seq
+                  - $each: entities
+                    $of: model
+                    $build:
+                      $when:
+                        - path: owner.entity
+                          equals:
+                            $copy: id
+                            $of: element
+                      item:
+                        $copy: owner.field
+                      table:
+                        $case:
+                          $copy: id
+                        $as: snake
+                      order:
+                        - item: seq
+              names:
+                $group:
+                  $apply: fields
+                $by:
+                  $when:
+                    - or:
+                        - path: field.target
+                          exists: true
+                        - path: field.item.target
+                          exists: true
+                  $then:
+                    $copy: field.key
+                $build:
+                  item:
+                    $copy: key
+                  table:
+                    $case:
+                      $first:
+                        - $copy: items[0].field.target
+                        - $copy: items[0].field.item.target
+                    $as: snake
+                  name:
+                    $first:
+                      - $copy: items[0].field.targetTitle
+                      - $copy: items[0].field.item.targetTitle
+              screen:
+                $copy: id
+            - name: selectAll
+              kind: select
+              table:
+                $case:
+                  $copy: id
+                $as: snake
+              columns:
+                $concat:
+                  - - id
+                  - $when:
+                      - path: title
+                        exists: true
+                    $then:
+                      - $copy: title
+              order:
+                - item: id
+              screen: 参照の候補
+        - $each: dashboards
+          $of: model
+          $bind: d
+          $flatten: true
+          $build:
+            $each: sections
+            $bind: sec
+            $flatten: true
+            $build:
+              $each: views
+              $of: model
+              $bind: v
+              $flatten: true
+              $build:
+                $when:
+                  - path: id
+                    equals:
+                      $copy: view
+                      $of: sec
+                  - path: rows
+                    equals:
+                      $copy: id
+                      $of: element
+                $then:
+                  $first:
+                    - $when:
+                        - path: kind
+                          equals: matrix
+                      $then:
+                        - name:
+                            $format: select{d}{s}
+                            $with:
+                              d:
+                                $case:
+                                  $copy: id
+                                  $of: d
+                                $as: pascal
+                              s:
+                                $case:
+                                  $copy: id
+                                  $of: sec
+                                $as: pascal
+                          kind: aggregate
+                          table:
+                            $case:
+                              $copy: rows
+                            $as: snake
+                          counts:
+                            $case:
+                              $copy: counts
+                            $as: snake
+                          via:
+                            $copy: match[1].edge
+                          groupBy:
+                            - item: id
+                            - item:
+                                $copy: columns.path
+                              of:
+                                $copy: counts
+                              values:
+                                $each: columns.values
+                                $build:
+                                  $copy: value
+                          order:
+                            $first:
+                              - $apply: order
+                                $at: order
+                              - - item: id
+                          screen:
+                            $copy: id
+                            $of: d
+                        - name:
+                            $format: count{d}{s}
+                            $with:
+                              d:
+                                $case:
+                                  $copy: id
+                                  $of: d
+                                $as: pascal
+                              s:
+                                $case:
+                                  $copy: id
+                                  $of: sec
+                                $as: pascal
+                          kind: count
+                          table:
+                            $case:
+                              $copy: rows
+                            $as: snake
+                          screen:
+                            $copy: id
+                            $of: d
+                    - - name:
+                          $format: select{d}{s}
+                          $with:
+                            d:
+                              $case:
+                                $copy: id
+                                $of: d
+                              $as: pascal
+                            s:
+                              $case:
+                                $copy: id
+                                $of: sec
+                              $as: pascal
+                        kind: select
+                        table:
+                          $case:
+                            $copy: rows
+                          $as: snake
+                        params:
+                          $concat:
+                            - $first:
+                                - $copy: params
+                                - []
+                            - $when:
+                                - of: sec
+                                  path: filter.check
+                                  exists: true
+                              $then:
+                                - today
+                        where:
+                          $concat:
+                            - $first:
+                                - $each: where
+                                  $apply: cond
+                                - []
+                            - $first:
+                                - $each: filter.where
+                                  $of: sec
+                                  $apply: cond
+                                - []
+                            - $first:
+                                - $each: filter.check
+                                  $of: sec
+                                  $apply: cond
+                                - []
+                        columns:
+                          $concat:
+                            - - item: id
+                            - $each: columns
+                              $build:
+                                label:
+                                  $copy: label
+                                item:
+                                  $copy: path
+                                computed:
+                                  $when:
+                                    - path: computed
+                                      equals: true
+                                  $then:
+                                    $apply: expr
+                                    $at: value
+                                names:
+                                  $first:
+                                    - $when:
+                                        - path: field.target
+                                          exists: true
+                                      $then:
+                                        table:
+                                          $case:
+                                            $copy: field.target
+                                          $as: snake
+                                        name:
+                                          $copy: field.targetTitle
+                                    - $when:
+                                        - path: field.item.target
+                                          exists: true
+                                      $then:
+                                        table:
+                                          $case:
+                                            $copy: field.item.target
+                                          $as: snake
+                                        name:
+                                          $copy: field.item.targetTitle
+                                        many: true
+                        order:
+                          $first:
+                            - $apply: order
+                              $at: order
+                            - - item: id
+                        screen:
+                          $copy: id
+                          $of: d
+                      - name:
+                          $format: count{d}{s}
+                          $with:
+                            d:
+                              $case:
+                                $copy: id
+                                $of: d
+                              $as: pascal
+                            s:
+                              $case:
+                                $copy: id
+                                $of: sec
+                              $as: pascal
+                        kind: count
+                        table:
+                          $case:
+                            $copy: rows
+                          $as: snake
+                        screen:
+                          $copy: id
+                          $of: d
+                        whereFrom:
+                          $format: select{d}{s}
+                          $with:
+                            d:
+                              $case:
+                                $copy: id
+                                $of: d
+                              $as: pascal
+                            s:
+                              $case:
+                                $copy: id
+                                $of: sec
+                              $as: pascal
+        - $each: actions
+          $of: model
+          $build:
+            $when:
+              - path: target.entity
+                equals:
+                  $copy: id
+                  $of: element
+            name: findById
+            kind: select
+            table:
+              $case:
+                $copy: id
+                $of: element
+              $as: snake
+            where:
+              - item: id
+                param: id
+            operation:
+              $copy: id
+        - $each: actions
+          $of: model
+          $flatten: true
+          $build:
+            $when:
+              - path: creates
+                includes:
+                  $copy: id
+                  $of: element
+            $then:
+              $concat:
+                - - name: insert
+                    kind: insert
+                    table:
+                      $case:
+                        $copy: id
+                        $of: element
+                      $as: snake
+                    columns:
+                      mode: all
+                    operation:
+                      $copy: id
+                - $when:
+                    - of: element
+                      path: numbering
+                      exists: true
+                    - of: element
+                      path: owner.entity
+                      exists: false
+                  $then:
+                    - name: maxId
+                      kind: max
+                      table:
+                        $case:
+                          $copy: id
+                          $of: element
+                        $as: snake
+                      item: id
+                      where:
+                        - item: id
+                          startsWith:
+                            $copy: numbering.prefix
+                            $of: element
+                      numbering:
+                        $copy: numbering
+                        $of: element
+                      operation:
+                        $copy: id
+                - $when:
+                    - of: element
+                      path: owner.entity
+                      exists: true
+                  $then:
+                    - name: maxId
+                      kind: max
+                      table:
+                        $case:
+                          $copy: id
+                          $of: element
+                        $as: snake
+                      item: id
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: owner.entity
+                                  $of: element
+                                $as: snake
+                          param: id
+                      numbering:
+                        $copy: numbering
+                        $of: element
+                      operation:
+                        $copy: id
+                    - name: maxSeq
+                      kind: max
+                      table:
+                        $case:
+                          $copy: id
+                          $of: element
+                        $as: snake
+                      item: seq
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: owner.entity
+                                  $of: element
+                                $as: snake
+                          param: id
+                      operation:
+                        $copy: id
+        - $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: effects
+            $bind: e
+            $flatten: true
+            $build:
+              $concat:
+                - $when:
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: element
+                    - or:
+                        - path: op
+                          equals: set
+                        - path: op
+                          equals: delete
+                    - not:
+                        path: field.base
+                        oneOf:
+                          - array
+                          - object
+                          - map
+                    - not:
+                        of: a
+                        path: creates
+                        includes:
+                          $copy: id
+                          $of: element
+                  $then:
+                    - name:
+                        $case:
+                          $copy: id
+                          $of: a
+                        $as: camel
+                      kind: update
+                      table:
+                        $case:
+                          $copy: id
+                          $of: element
+                        $as: snake
+                      set:
+                        item:
+                          $copy: field.key
+                        value:
+                          $first:
+                            - $copy: value
+                            - null
+                        when:
+                          $copy: when
+                        mode:
+                          $first:
+                            - $when:
+                                - path: op
+                                  equals: delete
+                              $then: clear
+                            - value
+                      where:
+                        - item: id
+                          param:
+                            $first:
+                              - $when:
+                                  - path: entity
+                                    equals:
+                                      $copy: target.entity
+                                      $of: a
+                                $then: id
+                              - $format: '{e}Id'
+                                $with:
+                                  e:
+                                    $case:
+                                      $copy: entity
+                                    $as: camel
+                      operation:
+                        $copy: id
+                        $of: a
+                - $when:
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: element
+                    - path: op
+                      equals: insert
+                    - path: field.base
+                      equals: array
+                    - path: field.item.entity
+                      exists: false
+                  $then:
+                    - name:
+                        $format: insert{n}
+                        $with:
+                          'n':
+                            $case:
+                              $apply: effect-detail-name
+                            $as: pascal
+                      kind: insert
+                      table:
+                        $apply: effect-detail-name
+                      columns:
+                        mode: all
+                      operation:
+                        $copy: id
+                        $of: a
+                    - name:
+                        $format: maxSeq{n}
+                        $with:
+                          'n':
+                            $case:
+                              $apply: effect-detail-name
+                            $as: pascal
+                      kind: max
+                      table:
+                        $apply: effect-detail-name
+                      item: seq
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: id
+                                  $of: element
+                                $as: snake
+                          param: id
+                      operation:
+                        $copy: id
+                        $of: a
+                - $when:
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: element
+                    - path: op
+                      equals: set
+                    - path: field.base
+                      equals: array
+                    - path: field.item.entity
+                      exists: false
+                  $then:
+                    - name:
+                        $format: delete{n}
+                        $with:
+                          'n':
+                            $case:
+                              $apply: effect-detail-name
+                            $as: pascal
+                      kind: delete
+                      table:
+                        $apply: effect-detail-name
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: id
+                                  $of: element
+                                $as: snake
+                          param: id
+                      operation:
+                        $copy: id
+                        $of: a
+                    - name:
+                        $format: insert{n}
+                        $with:
+                          'n':
+                            $case:
+                              $apply: effect-detail-name
+                            $as: pascal
+                      kind: insert
+                      table:
+                        $apply: effect-detail-name
+                      columns:
+                        mode: all
+                      operation:
+                        $copy: id
+                        $of: a
+                - $when:
+                    - or:
+                        - path: op
+                          equals: create
+                        - path: op
+                          equals: insert
+                    - or:
+                        - path: entity
+                          equals:
+                            $copy: id
+                            $of: element
+                        - path: field.item.entity
+                          equals:
+                            $copy: id
+                            $of: element
+                    - or:
+                        - path: op
+                          equals: create
+                        - path: field.item.entity
+                          exists: true
+                  $then:
+                    $each: written
+                    $build:
+                      $when:
+                        - path: base
+                          equals: array
+                        - path: item.entity
+                          exists: false
+                        - path: value
+                          empty: false
+                      name:
+                        $format: insert{n}
+                        $with:
+                          'n':
+                            $case:
+                              $format: '{t}_{k}'
+                              $with:
+                                t:
+                                  $case:
+                                    $copy: id
+                                    $of: element
+                                  $as: snake
+                                k:
+                                  $copy: key
+                            $as: pascal
+                      kind: insert
+                      table:
+                        $format: '{t}_{k}'
+                        $with:
+                          t:
+                            $case:
+                              $copy: id
+                              $of: element
+                            $as: snake
+                          k:
+                            $copy: key
+                      columns:
+                        mode: all
+                      operation:
+                        $copy: id
+                        $of: a
+        - $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: require
+            $bind: r
+            $build:
+              $when:
+                - path: rule.match[1].edge.contains
+                  equals: true
+                - path: rule.match[2].node.entity
+                  equals:
+                    $copy: id
+                    $of: element
+              name:
+                $format: count{n}
+                $with:
+                  'n':
+                    $case:
+                      $format: '{a}.{r}'
+                      $with:
+                        a:
+                          $copy: id
+                          $of: a
+                        r:
+                          $copy: id
+                    $as: pascal
+              kind: count
+              table:
+                $case:
+                  $copy: id
+                  $of: element
+                $as: snake
+              where:
+                $concat:
+                  - - item:
+                        $format: '{p}_id'
+                        $with:
+                          p:
+                            $case:
+                              $copy: owner.entity
+                              $of: element
+                            $as: snake
+                      param: id
+                  - $each: rule.where
+                    $build:
+                      $when:
+                        - path: of
+                          equals:
+                            $copy: rule.match[2].node.bind
+                            $of: r
+                      item:
+                        $copy: path
+                      equals:
+                        $copy: equals
+                      notEquals:
+                        $copy: notEquals
+                      oneOf:
+                        $copy: oneOf
+              expect:
+                $copy: rule.expect
+              precondition:
+                $format: '{a}.{r}'
+                $with:
+                  a:
+                    $copy: id
+                    $of: a
+                  r:
+                    $copy: id
+              operation:
+                $copy: id
+                $of: a
+        - $each: actions
+          $of: model
+          $bind: a
+          $flatten: true
+          $build:
+            $each: checks
+            $bind: c
+            $flatten: true
+            $build:
+              $each: constraints
+              $of: model
+              $bind: k
+              $build:
+                $when:
+                  - path: id
+                    equals:
+                      $copy: constraint
+                      $of: c
+                  - path: level
+                    equals: error
+                  - path: form
+                    equals: pattern
+                  - path: rule.match[1].edge.contains
+                    equals: true
+                  - path: rule.match[2].node.entity
+                    equals:
+                      $copy: id
+                      $of: element
+                name:
+                  $format: count{n}
+                  $with:
+                    'n':
+                      $case:
+                        $copy: id
+                      $as: pascal
+                kind: count
+                table:
+                  $case:
+                    $copy: id
+                    $of: element
+                  $as: snake
+                join:
+                  - table:
+                      $case:
+                        $copy: rule.match[0].node.entity
+                      $as: snake
+                    item: id
+                    equalsItem:
+                      $format: '{p}_id'
+                      $with:
+                        p:
+                          $case:
+                            $copy: owner.entity
+                            $of: element
+                          $as: snake
+                where:
+                  $concat:
+                    - - item:
+                          $format: '{p}_id'
+                          $with:
+                            p:
+                              $case:
+                                $copy: owner.entity
+                                $of: element
+                              $as: snake
+                        param:
+                          $format: '{p}Id'
+                          $with:
+                            p:
+                              $case:
+                                $copy: owner.entity
+                                $of: element
+                              $as: camel
+                    - $each: rule.where
+                      $build:
+                        $when:
+                          - path: of
+                            equals:
+                              $copy: rule.match[0].node.bind
+                              $of: k
+                        table:
+                          $case:
+                            $copy: rule.match[0].node.entity
+                            $of: k
+                          $as: snake
+                        item:
+                          $copy: path
+                        equals:
+                          $copy: equals
+                        notEquals:
+                          $copy: notEquals
+                        oneOf:
+                          $copy: oneOf
+                    - $each: rule.where
+                      $build:
+                        $when:
+                          - path: of
+                            equals:
+                              $copy: rule.match[2].node.bind
+                              $of: k
+                        item:
+                          $copy: path
+                        equals:
+                          $copy: equals
+                        notEquals:
+                          $copy: notEquals
+                        oneOf:
+                          $copy: oneOf
+                expect:
+                  $copy: rule.expect
+                constraint:
+                  $copy: id
+                operation:
+                  $copy: id
+                  $of: a
+  - id: cond
+    when:
+      - path: includesAny
+        exists: true
+    build:
+      item:
+        $copy: path
+      op: includesAny
+      value:
+        $copy: includesAny
+      via:
+        $format: '{t}_{k}'
+        $with:
+          t:
+            $case:
+              $copy: id
+              $of: element
+            $as: snake
+          k:
+            $copy: path
+      skipIfEmpty:
+        $when:
+          - path: includesAny
+            startsWith: $$
+        $then: true
+  - id: cond
+    when:
+      - path: equals
+        exists: true
+    build:
+      item:
+        $copy: path
+      op: equals
+      value:
+        $copy: equals
+      skipIfEmpty:
+        $when:
+          - path: equals
+            startsWith: $$
+        $then: true
+  - id: cond
+    when:
+      - path: oneOf
+        exists: true
+    build:
+      item:
+        $copy: path
+      op: in
+      values:
+        $copy: oneOf
+  - id: cond
+    when:
+      - path: exists
+        equals: true
+    build:
+      item:
+        $copy: path
+      op: notNull
+  - id: cond
+    when:
+      - path: exists
+        equals: false
+    build:
+      item:
+        $copy: path
+      op: isNull
+  - id: cond
+    when:
+      - path: lt
+        exists: true
+    build:
+      item:
+        $copy: lt[0].path
+      op: lt
+      value:
+        $copy: lt[1]
+  - id: cond
+    when:
+      - path: lte
+        exists: true
+    build:
+      item:
+        $copy: lte[0].path
+      op: lte
+      value:
+        $copy: lte[1]
+  - id: cond
+    when:
+      - path: gt
+        exists: true
+    build:
+      item:
+        $copy: gt[0].path
+      op: gt
+      value:
+        $copy: gt[1]
+  - id: cond
+    when:
+      - path: gte
+        exists: true
+    build:
+      item:
+        $copy: gte[0].path
+      op: gte
+      value:
+        $copy: gte[1]
+  - id: cond
+    build:
+      op: 手で書く
+      raw:
+        $copy: .
+  - id: order
+    when:
+      - path: path
+        exists: true
+    build:
+      - item:
+          $copy: path
+        nulls: last
+  - id: order
+    build:
+      - item: id
+  - id: expr
+    when:
+      - path: map
+        exists: true
+    build:
+      of:
+        $apply: expr
+        $at: map
+      replace:
+        $copy: using
+  - id: expr
+    when:
+      - path: format
+        exists: true
+    build:
+      format:
+        $copy: format
+      parts:
+        $eachEntry: with
+        $apply: expr
+  - id: expr
+    when:
+      - path: count.all.match[1].edge.contains
+        equals: true
+    build:
+      count:
+        $case:
+          $copy: count.all.match[2].node.entity
+        $as: snake
+      parent: 行の ID
+      where:
+        $each: count.all.where
+        $apply: cond
+  - id: expr
+    when:
+      - path: count.path
+        exists: true
+    build:
+      count: 入れ子の要素
+      item:
+        $value:
+          extract:
+            - path: count.path
+            - ^[^\[]+
+      parent: 行の ID
+  - id: expr
+    when:
+      - path: refCount
+        exists: true
+    build:
+      count: 参照してくる要素
+      relation:
+        $copy: refCount.relation
+      dir:
+        $copy: refCount.dir
+  - id: expr
+    build:
+      op: 手で書く
+      raw:
+        $copy: .
+  - id: effect-detail-name
+    build:
+      $format: '{t}_{k}'
+      $with:
+        t:
+          $case:
+            $copy: entity
+          $as: snake
+        k:
+          $copy: field.key
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
+  - id: physical-access
+    with:
+      - document
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: document
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  tables:
+                    $each: tables
+                    $of: document
+                    $build:
+                      $apply: physical-table-name
+                      $with:
+                        name:
+                          $copy: .
+                  methods:
+                    $each: methods
+                    $of: document
+                    $build:
+                      $apply: physical-method
+                      $with:
+                        method:
+                          $copy: .
+                priority: individual
+                source:
+                  id: contract
+  - id: physical-table-name
+    with:
+      - name
+    build:
+      $apply: physical-read-name
+      $with:
+        table:
+          $apply: physical-find-table
+          $with:
+            name:
+              $copy: .
+              $of: name
+        fallback:
+          $copy: .
+          $of: name
+  - id: physical-method
+    with:
+      - method
+    build:
+      $apply: physical-method-result
+      $with:
+        method:
+          $copy: .
+          $of: method
+        table:
+          $apply: physical-find-table
+          $with:
+            name:
+              $copy: table
+              $of: method
+  - id: physical-method-result
+    with:
+      - method
+      - table
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $apply: physical-walk
+                  $with:
+                    table:
+                      $copy: .
+                      $of: table
+                    node:
+                      $copy: .
+                      $of: method
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  methodId:
+                    $copy: name
+                    $of: method
+                  tableId:
+                    $copy: id
+                    $of: table
+                  table:
+                    $copy: name
+                    $of: table
+                  columnBindings:
+                    $each: columns
+                    $of: table
+                    $build:
+                      columnId:
+                        $copy: id
+                      item:
+                        $copy: item
+                      name:
+                        $copy: name
+                      source:
+                        $copy: source
+                priority: individual
+                source:
+                  id: contract
+  - id: physical-walk
+    with:
+      - table
+      - node
+    build:
+      $apply: physical-walk-node
+      $with:
+        table:
+          $first:
+            - $apply: physical-find-table
+              $with:
+                name:
+                  $copy: table
+                  $of: node
+            - $copy: .
+              $of: table
+        node:
+          $copy: .
+          $of: node
+  - id: physical-walk-node
+    with:
+      - table
+      - node
+    build:
+      $first:
+        - $apply: physical-map
+          $with:
+            table:
+              $copy: .
+              $of: table
+            node:
+              $copy: .
+              $of: node
+            entries:
+              $eachEntry: .
+              $of: node
+              $flatten: true
+              $build:
+                - key: $key
+                  value:
+                    $first:
+                      - $when:
+                          - path: $key
+                            equals: table
+                        $then:
+                          $copy: name
+                          $of: table
+                      - $apply: physical-walk
+                        $with:
+                          table:
+                            $copy: .
+                            $of: table
+                          node:
+                            $copy: .
+        - $each: .
+          $of: node
+          $build:
+            $apply: physical-walk
+            $with:
+              table:
+                $copy: .
+                $of: table
+              node:
+                $copy: .
+        - $copy: .
+          $of: node
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: physical-find-table
+    with:
+      - name
+    build:
+      $apply: contract-first
+      $with:
+        matches:
+          $each:
+            $view: physical-tables-input
+          $build:
+            $when:
+              - or:
+                  - path: values.record.originalName
+                    equals:
+                      $copy: .
+                      $of: name
+                  - path: values.record.name
+                    equals:
+                      $copy: .
+                      $of: name
+            $then:
+              $copy: values.record
+  - id: physical-read-name
+    with:
+      - table
+      - fallback
+    build:
+      $first:
+        - $copy: name
+          $of: table
+        - $copy: .
+          $of: fallback
+  - id: physical-map
+    with:
+      - table
+      - node
+      - entries
+    when:
+      - of: entries
+        path: .
+        exists: true
+    build:
+      $entries:
+        $concat:
+          - $copy: .
+            $of: entries
+          - $when:
+              - of: node
+                path: item
+                exists: true
+            $then:
+              - key: columnId
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: columns
+                      $of: table
+                      $build:
+                        $when:
+                          - path: item
+                            equals:
+                              $copy: item
+                              $of: node
+                        $then:
+                          $copy: id
+              - key: column
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: columns
+                      $of: table
+                      $build:
+                        $when:
+                          - path: item
+                            equals:
+                              $copy: item
+                              $of: node
+                        $then:
+                          $copy: name

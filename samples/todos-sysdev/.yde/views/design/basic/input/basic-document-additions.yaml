@@ -1,0 +1,8 @@
+id: basic-document-additions
+name: 基本設計の設計書の追加の入力
+rows:
+  idPattern: INPUT-basic-document-additions
+columns:
+  - label: record
+    path: .
+    fileGlob: design/basic/inputs/documents/additions.yaml

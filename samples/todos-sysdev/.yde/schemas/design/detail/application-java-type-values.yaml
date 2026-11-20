@@ -1,0 +1,163 @@
+id: application-java-type-values
+name: Java のスカラー型の対応形式
+kind: library
+definitions:
+  対応:
+    type: object
+    unknownFields: error
+    fields:
+      - key: base
+        type: enum
+        required: true
+        values:
+          - string
+          - id
+          - ref
+          - enum
+          - boolean
+          - int
+          - number
+          - date
+      - key: name
+        type: string
+        required: true
+      - key: qualifiedName
+        type: string
+        required: true
+      - key: literal
+        type: enum
+        required: true
+        values:
+          - string
+          - number
+          - boolean
+          - date
+    constraints:
+      - id: type-string
+        check:
+          - eq:
+              - path: name
+              - String
+          - eq:
+              - path: qualifiedName
+              - java.lang.String
+          - eq:
+              - path: literal
+              - string
+        level: error
+        message: string の対応は java.lang.String / string です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: string
+      - id: type-id
+        check:
+          - eq:
+              - path: name
+              - String
+          - eq:
+              - path: qualifiedName
+              - java.lang.String
+          - eq:
+              - path: literal
+              - string
+        level: error
+        message: id の対応は java.lang.String / string です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: id
+      - id: type-ref
+        check:
+          - eq:
+              - path: name
+              - String
+          - eq:
+              - path: qualifiedName
+              - java.lang.String
+          - eq:
+              - path: literal
+              - string
+        level: error
+        message: ref の対応は java.lang.String / string です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: ref
+      - id: type-enum
+        check:
+          - eq:
+              - path: name
+              - String
+          - eq:
+              - path: qualifiedName
+              - java.lang.String
+          - eq:
+              - path: literal
+              - string
+        level: error
+        message: enum の対応は java.lang.String / string です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: enum
+      - id: type-boolean
+        check:
+          - eq:
+              - path: name
+              - Boolean
+          - eq:
+              - path: qualifiedName
+              - java.lang.Boolean
+          - eq:
+              - path: literal
+              - boolean
+        level: error
+        message: boolean の対応は java.lang.Boolean / boolean です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: boolean
+      - id: type-int
+        check:
+          - eq:
+              - path: name
+              - Long
+          - eq:
+              - path: qualifiedName
+              - java.lang.Long
+          - eq:
+              - path: literal
+              - number
+        level: error
+        message: int の対応は java.lang.Long / number です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: int
+      - id: type-number
+        check:
+          - eq:
+              - path: name
+              - BigDecimal
+          - eq:
+              - path: qualifiedName
+              - java.math.BigDecimal
+          - eq:
+              - path: literal
+              - number
+        level: error
+        message: number の対応は java.math.BigDecimal / number です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: number
+      - id: type-date
+        check:
+          - eq:
+              - path: name
+              - LocalDate
+          - eq:
+              - path: qualifiedName
+              - java.time.LocalDate
+          - eq:
+              - path: literal
+              - date
+        level: error
+        message: date の対応は java.time.LocalDate / date です。別の方式は生成規則と検証をそろえて追加してください
+        where:
+          - path: base
+            equals: date

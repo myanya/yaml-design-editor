@@ -1,0 +1,11 @@
+id: application-row-model-input
+name: application-row-model-input
+rows:
+  idPattern: JROW-*
+  schemaIds: [application-data-model]
+order:
+  schemaId: application-data-model
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/final/application-data-model.yaml

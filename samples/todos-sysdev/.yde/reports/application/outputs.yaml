@@ -1,0 +1,16 @@
+id: application-outputs
+name: アプリの出力単位を実行スクリプトへ渡す
+description: 文字の値は application-output-plan の識別子形式で検査済み。ファイル数と引数は確定項目で決める
+build:
+  outputs:
+    $each:
+      $view: application-output-plan-input
+    $build:
+      report:
+        $copy: values.report
+      params:
+        $copy: values.params
+      destination:
+        $copy: values.destination
+template: outputs.json
+output: design/detail/reports/application-outputs.json

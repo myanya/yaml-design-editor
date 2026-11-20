@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 class TodosDesignContractTest {
     private val root = Path.of("samples/todos-sysdev")
     private val libraries = listOf("basic-design-values", "basic-derived-model", "basic-design-contract")
-        .associate { name -> ".yde/schemas/$name.yaml" to Files.readString(root.resolve(".yde/schemas/design/$name.yaml")) }
+        .associate { name -> ".yde/schemas/$name.yaml" to Files.readString(root.resolve(TodosSysdevFiles.definition(root, "schemas", name))) }
 
     private fun load(vararg docs: Triple<String, String, String>): LoadedWorkspace {
         val files = linkedMapOf(".yde/workspace.yaml" to "ledger: [design]\n") + libraries + docs.flatMapIndexed { index, (name, type, text) ->

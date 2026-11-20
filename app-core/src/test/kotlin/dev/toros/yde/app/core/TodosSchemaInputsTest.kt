@@ -34,7 +34,7 @@ class TodosSchemaInputsTest {
             ".yde/schemas/composed.yaml" to "id: composed\nmatch: design/composed.yaml\nroot: {type: object, fields: [{key: id, type: id}, {key: records, type: any}, {key: decisions, type: any}]}\n",
             ".yde/views/derived.yaml" to "id: derived\nrows: {schemaIds: [derived], idPattern: DRV-business}\ncolumns: [{label: model, schemaId: derived, path: model}]\n",
             ".yde/views/composed.yaml" to "id: composed\nrows: {schemaIds: [composed], idPattern: COMPOSED}\ncolumns: [{label: records, schemaId: composed, path: records}]\n",
-            ".yde/transforms/derived.yaml" to Files.readString(sample.resolve(".yde/transforms/design/basic-derived.yaml")),
+            ".yde/transforms/derived.yaml" to Files.readString(sample.resolve(".yde/transforms/design/basic/basic-derived.yaml")),
         ).toMutableMap()
         // スキーマの原文を $compose の記録へ写し、宣言の座標へ補正する。YAML で組み立て、型を Kotlin で組み直さない。
         inputs[".yde/transforms/compose.yaml"] = """

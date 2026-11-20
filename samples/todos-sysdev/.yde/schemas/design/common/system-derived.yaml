@@ -1,0 +1,12 @@
+id: system-derived
+name: system-derived
+kind: document
+match: design/*/derived/documents/**
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: record
+      type: any

@@ -1,0 +1,152 @@
+id: application-data-model
+name: アプリの行モデルの確定項目
+kind: document
+match: design/detail/final/application-data-model.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: models
+      type: array
+      required: true
+      unique:
+        - className
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: tableId
+            type: string
+            required: true
+          - key: table
+            type: string
+            required: true
+            pattern: ^[a-z][a-z0-9_]*$
+          - key: className
+            type: string
+            required: true
+            pattern: ^[A-Z][A-Za-z0-9]*Row$
+          - key: columns
+            type: array
+            required: true
+            unique:
+              - name
+            item:
+              type: object
+              unknownFields: error
+              fields:
+                - key: id
+                  type: id
+                  required: true
+                - key: source
+                  type: string
+                  required: true
+                - key: column
+                  type: string
+                  required: true
+                  pattern: ^[a-z][a-z0-9_]*$
+                - key: name
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|_|record|sealed|permits|yield|var)$)[A-Za-z][A-Za-z0-9]*$
+                - key: accessor
+                  type: string
+                  required: true
+                  pattern: ^(?!Class$)[A-Z][A-Za-z0-9]*$
+                - key: java
+                  type: application-java-type-values#対応
+                  required: true
+                - key: sql
+                  type: string
+                  required: true
+                - key: default
+                  type: object
+                  unknownFields: error
+                  fields:
+                    - key: value
+                      type: any
+                      required: true
+                    - key: literal
+                      type: enum
+                      required: true
+                      values:
+                        - string
+                        - number
+                        - boolean
+                        - date
+              constraints:
+                - id: sql-string
+                  check:
+                    - matches:
+                        - path: sql
+                        - ^VARCHAR(?:\([1-9][0-9]*\))?$
+                  level: error
+                  message: Java の string と SQL の型が対応していません。対応方式を追加してください
+                  where:
+                    - path: java.base
+                      oneOf:
+                        - string
+                        - id
+                        - ref
+                        - enum
+                - id: sql-boolean
+                  check:
+                    - matches:
+                        - path: sql
+                        - ^BOOLEAN$
+                  level: error
+                  message: Java の boolean と SQL の型が対応していません。対応方式を追加してください
+                  where:
+                    - path: java.base
+                      oneOf:
+                        - boolean
+                - id: sql-int
+                  check:
+                    - matches:
+                        - path: sql
+                        - ^(?:INTEGER|BIGINT)$
+                  level: error
+                  message: Java の int と SQL の型が対応していません。対応方式を追加してください
+                  where:
+                    - path: java.base
+                      oneOf:
+                        - int
+                - id: sql-number
+                  check:
+                    - matches:
+                        - path: sql
+                        - ^(?:DECIMAL|NUMERIC)(?:\([1-9][0-9]*(?:,\s*[0-9]+)?\))?$
+                  level: error
+                  message: Java の number と SQL の型が対応していません。対応方式を追加してください
+                  where:
+                    - path: java.base
+                      oneOf:
+                        - number
+                - id: sql-date
+                  check:
+                    - matches:
+                        - path: sql
+                        - ^DATE$
+                  level: error
+                  message: Java の date と SQL の型が対応していません。対応方式を追加してください
+                  where:
+                    - path: java.base
+                      oneOf:
+                        - date
+                - id: default-kind
+                  check:
+                    - eq:
+                        - path: default.literal
+                        - path: java.literal
+                  level: error
+                  message: SQL と Java の初期値の出力方法が一致しません
+                  where:
+                    - path: default
+                      exists: true
+  unknownFields: error

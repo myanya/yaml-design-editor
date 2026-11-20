@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="example.todos.data.mapper.TodoTaskMapper">
+  <resultMap id="row_CategoryRow" type="example.todos.data.model.CategoryRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="name" column="name" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TagRow" type="example.todos.data.model.TagRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="name" column="name" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoRow" type="example.todos.data.model.TodoRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="title" column="title" javaType="java.lang.String"/>
+    <result property="summary" column="summary" javaType="java.lang.String"/>
+    <result property="category" column="category" javaType="java.lang.String"/>
+    <result property="follows" column="follows" javaType="java.lang.String"/>
+    <result property="status" column="status" javaType="java.lang.String"/>
+    <result property="createdOn" column="created_on" javaType="java.time.LocalDate"/>
+    <result property="updatedOn" column="updated_on" javaType="java.time.LocalDate"/>
+    <result property="dueOn" column="due_on" javaType="java.time.LocalDate"/>
+    <result property="completedOn" column="completed_on" javaType="java.time.LocalDate"/>
+    <result property="details" column="details" javaType="java.lang.String"/>
+    <result property="result" column="result" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoTaskRow" type="example.todos.data.model.TodoTaskRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="title" column="title" javaType="java.lang.String"/>
+    <result property="done" column="done" javaType="java.lang.Boolean"/>
+  </resultMap>
+  <resultMap id="row_TodoTagsRow" type="example.todos.data.model.TodoTagsRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="tagId" column="tag_id" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoCommentsRow" type="example.todos.data.model.TodoCommentsRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="date" column="date" javaType="java.time.LocalDate"/>
+    <result property="body" column="body" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoHistoryRow" type="example.todos.data.model.TodoHistoryRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="date" column="date" javaType="java.time.LocalDate"/>
+    <result property="action" column="action" javaType="java.lang.String"/>
+    <result property="from" column="from_" javaType="java.lang.String"/>
+    <result property="to" column="to_" javaType="java.lang.String"/>
+    <result property="note" column="note" javaType="java.lang.String"/>
+    <result property="resumeOn" column="resume_on" javaType="java.time.LocalDate"/>
+  </resultMap>
+  <resultMap id="result_findById" type="example.todos.data.mapper.TodoTaskMapper$FindByIdResult" extends="row_TodoTaskRow">
+
+  </resultMap>
+  <select id="findById" resultMap="result_findById">
+    SELECT <trim suffixOverrides=",">
+      todo_task.id,
+      todo_task.todo_id,
+      todo_task.seq,
+      todo_task.title,
+      todo_task.done,
+    </trim>
+    FROM todo_task
+    <where>
+
+AND todo_task.id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+
+  <insert id="insert">
+    INSERT INTO todo_task (id, todo_id, seq, title, done)
+    VALUES (#{input.id}, #{input.todoId}, #{input.seq}, #{input.title}, <choose><when test="input.done != null">#{input.done}</when><otherwise>DEFAULT</otherwise></choose>)
+  </insert>
+
+  <select id="maxId" resultType="java.lang.String">
+    SELECT id FROM todo_task
+    <where>
+
+AND todo_task.todo_id = #{input.id}
+
+
+
+
+
+</where>
+    ORDER BY CHAR_LENGTH(id) DESC, id DESC FETCH FIRST 1 ROW ONLY
+  </select>
+
+  <select id="maxSeq" resultType="java.lang.Long">
+    SELECT MAX(seq) FROM todo_task
+    <where>
+
+AND todo_task.todo_id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+  <update id="todoTaskFinish">
+    UPDATE todo_task SET
+    done = <choose>
+      <when test="true">true</when>
+      <otherwise>done</otherwise>
+    </choose>
+    <where>
+
+AND todo_task.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <select id="countCompleteTodoNoOpenTask" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM todo_task
+    <where>
+
+AND todo_task.todo_id = #{input.id}
+
+
+
+
+
+
+
+AND todo_task.done = false
+
+
+
+
+
+</where>
+  </select>
+
+  <select id="countClosedHasNoOpenTask" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM todo_task
+    JOIN todo ON todo.id = todo_task.todo_id
+    <where>
+
+AND todo_task.todo_id = #{input.todoId}
+
+
+
+
+
+
+
+AND todo.status = &apos;CLOSED&apos;
+
+
+
+
+
+
+
+AND todo_task.done = false
+
+
+
+
+
+</where>
+  </select>
+</mapper>

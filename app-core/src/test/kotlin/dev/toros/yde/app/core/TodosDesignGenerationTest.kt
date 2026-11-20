@@ -130,7 +130,7 @@ class TodosDesignGenerationTest {
 
     private fun store(corrections: List<Map<String, Any?>>, rules: String = "changes: []", records: List<Map<String, Any?>> = derived()): InMemoryDocumentStore {
         val libraries = listOf("basic-design-values", "basic-design-contract").associate { name ->
-            ".yde/schemas/$name.yaml" to Files.readString(sample.resolve(".yde/schemas/design/$name.yaml"))
+            ".yde/schemas/$name.yaml" to Files.readString(sample.resolve(TodosSysdevFiles.definition(sample, "schemas", name)))
         }
         val inputs = mapOf(
             ".yde/workspace.yaml" to "ledger: [design]\nscopes: [{id: business, include: ['schemas/business/**']}]\n",

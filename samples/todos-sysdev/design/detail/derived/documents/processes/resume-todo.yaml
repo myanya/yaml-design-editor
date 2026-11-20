@@ -1,0 +1,87 @@
+# 生成物（processes-derived）: 手で直さず、業務モデルか生成の定義（design/detail/processes-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-processes.resume-todo
+record:
+  id: DOC-processes.resume-todo
+  value:
+    id: resume-todo
+    name: TODOを再開する
+    service:
+      class: TodoService
+      method: resumeTodo
+      arguments:
+        - id
+        - date
+        - note
+    confirm: []
+    transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+    steps:
+      - step: read
+        call: TodoMapper.findById
+        key: id
+        missing: 見つからなければ NotFoundException（error.notFound.todo）
+      - step: check
+        precondition: resume-todo.state
+        by: Java（読んだ行の状態）
+        allowed:
+          - SUSPENDED
+        message: resume-todo.state
+        text: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+      - step: check
+        constraint: updated-not-before-created
+        by: Java（書いた後の値）
+        rule:
+          check:
+            - gte:
+                - path: updated_on
+                - path: created_on
+        message: check.updated-not-before-created
+      - step: check
+        constraint: unfinished-has-no-completed-on
+        by: Java（書いた後の値）
+        rule:
+          where:
+            - not:
+                path: status
+                equals: CLOSED
+            - path: completed_on
+              exists: true
+          expect: absent
+        message: check.unfinished-has-no-completed-on
+      - step: write
+        call: TodoMapper.resumeTodo
+        kind: update
+        set:
+          - item: status
+            value: IN_PROGRESS
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - item: id
+            param: id
+      - step: write
+        call: TodoMapper.insertTodoHistory
+        kind: insert
+        values:
+          todo_id: $id
+          date: $date
+          action: resume-todo
+          from:
+            $copy: status
+            $of: self
+          to: IN_PROGRESS
+          note:
+            $copy: note
+        seq: TodoMapper.maxSeqTodoHistory の次
+    subject: todo
+    originalService:
+      class: TodoService
+      method: resumeTodo
+      arguments:
+        - id
+        - date
+        - note
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/detail/processes-derived.yaml

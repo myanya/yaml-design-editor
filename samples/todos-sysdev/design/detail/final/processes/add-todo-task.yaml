@@ -1,0 +1,91 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
+id: add-todo-task
+name: 作業項目を追加する
+service:
+  class: TodoService
+  method: addTodoTask
+  arguments:
+    - id
+    - title
+confirm: []
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    call: TodoMapper.findById
+    key: id
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
+  - step: check
+    precondition: add-todo-task.active
+    by: Java（読んだ行）
+    rule:
+      - of: t
+        path: status
+        oneOf:
+          - OPEN
+          - IN_PROGRESS
+          - SUSPENDED
+    message: add-todo-task.active
+    text: '{id} は完了か中止をしているので、作業項目を足せません'
+  - step: number
+    entity: todo-task
+    call: TodoTaskMapper.maxId
+    rule:
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
+  - step: write
+    call: TodoTaskMapper.insert
+    kind: insert
+    values:
+      id: 採番した番号
+      title: $title
+      done: false
+      todo_id: $id
+      seq: 次の並び順（TodoTaskMapper.maxSeq の次）
+  - step: write
+    call: TodoMapper.addTodoTask
+    kind: update
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+    where:
+      - item: id
+        param: id
+  - step: check
+    constraint: closed-has-no-open-task
+    by: SQL（件数。書いた後）
+    call: TodoTaskMapper.countClosedHasNoOpenTask
+    key: id
+    expect: 0 件なら通す
+    violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
+    message: check.closed-has-no-open-task
+subject: todo
+originalService:
+  class: TodoService
+  method: addTodoTask
+  arguments:
+    - id
+    - title
+designId: DOC-processes.add-todo-task
+designKind: processes
+designPath: design/detail/final/processes/add-todo-task.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/detail/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

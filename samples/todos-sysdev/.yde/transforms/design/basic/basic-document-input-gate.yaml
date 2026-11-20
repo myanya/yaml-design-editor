@@ -1,0 +1,42 @@
+id: basic-document-input-gate
+name: 基本設計の設計書の手書き入力を検査する
+scope: design
+dependsOn: []
+output: design/basic/composed/documents/input-check.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            oneOf:
+              - system-inputs
+              - basic-document-corrections
+              - basic-document-additions
+        $then:
+          $copy: declared
+    documents:
+      design/basic/inputs/documents/corrections.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: basic-document-corrections
+            $one: true
+      design/basic/inputs/documents/additions.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: basic-document-additions
+            $one: true
+build:
+  id: SYS-basic-input-check
+  status: validated
+rules:
+  - id: input-document
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row

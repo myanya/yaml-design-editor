@@ -1,0 +1,21 @@
+id: application-java-types-input
+name: Java の型対応の方式入力
+kind: document
+match: design/detail/inputs/application/java-types.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: mappings
+      type: array
+      required: true
+      unique:
+        - base
+      item:
+        type: application-java-type-values#対応
+    - key: reason
+      type: text
+      required: true
+  unknownFields: error

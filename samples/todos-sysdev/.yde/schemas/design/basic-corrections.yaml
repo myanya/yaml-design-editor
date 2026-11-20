@@ -1,6 +1,0 @@
-id: basic-corrections
-name: basic-corrections
-kind: document
-match: "design/basic/corrections*.yaml"
-root:
-  type: basic-design-contract#補正と指定一覧

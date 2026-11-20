@@ -1,0 +1,105 @@
+# 生成物（screen-designs-operations-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-operations.cancel-todo
+record:
+  id: DOC-screen-designs-operations.cancel-todo
+  value:
+    id: cancel-todo
+    name: TODOを中止する（画面設計書）
+    form:
+      class: CancelTodoForm
+      emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+      fields:
+        - name: reason
+          item: reason
+          type: String
+          validations:
+            - name: NotNull
+            - name: Size
+              min: 1
+      classes: []
+    screens:
+      - id: cancel-todo/input
+        template: todo/cancel-todo/input
+        page:
+          title: TODOを中止する
+          width: m
+          body:
+            - notice:
+                kind: errors
+                for: form
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - form:
+                action: POST /todo/{id}/cancel-todo/confirm
+                object: CancelTodoForm
+                hidden:
+                  - from
+                body:
+                  - field:
+                      item: reason
+                      label: 中止理由
+                      control: textarea
+                      required: true
+                      rows: 5
+                  - actions:
+                      - label: 確認へ
+                        kind: submit
+                        emphasis: primary
+                      - label: やめる
+                        kind: link
+                        to: 起点の画面
+                        emphasis: secondary
+      - id: cancel-todo/confirm
+        template: todo/cancel-todo/confirm
+        page:
+          title: TODOを中止する（確認）
+          width: m
+          body:
+            - notice:
+                kind: refusal
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - facts:
+                title: 入力した値
+                of: form
+                items:
+                  - item: reason
+                    label: 中止理由
+                    keepBreaks: true
+            - facts:
+                title: 状態の移り方
+                items:
+                  - label: 状態
+                    from:
+                      - 未着手
+                      - 対応中
+                      - 中断
+                    to: 中止
+            - form:
+                action: POST /todo/{id}/cancel-todo
+                hidden:
+                  - reason
+                  - flow
+                  - from
+                body:
+                  - actions:
+                      - label: 確定
+                        kind: submit
+                        emphasis: primary
+                      - label: 入力へ戻る
+                        kind: submit
+                        action: POST /todo/{id}/cancel-todo/back
+                        emphasis: secondary
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml

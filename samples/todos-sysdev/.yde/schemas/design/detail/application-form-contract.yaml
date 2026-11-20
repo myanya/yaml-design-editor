@@ -1,0 +1,39 @@
+id: application-form-contract
+name: Form の型の生成前検査
+kind: document
+match: forms/*.yaml
+root:
+  type: object
+  fields:
+    - key: form
+      type: object
+      fields:
+        - key: fields
+          type: array
+          item:
+            type: object
+            fields:
+              - key: name
+                type: string
+                required: true
+              - key: type
+                type: string
+                required: true
+                pattern: ^(?!.*[{}]).+$
+        - key: classes
+          type: array
+          item:
+            type: object
+            fields:
+              - key: fields
+                type: array
+                item:
+                  type: object
+                  fields:
+                    - key: name
+                      type: string
+                      required: true
+                    - key: type
+                      type: string
+                      required: true
+                      pattern: ^(?!.*[{}]).+$

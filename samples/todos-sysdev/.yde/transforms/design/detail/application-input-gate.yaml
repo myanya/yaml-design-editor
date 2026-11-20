@@ -1,0 +1,35 @@
+id: application-input-gate
+name: アプリの方式設定を検査する
+scope: design
+dependsOn: []
+output: design/detail/composed/application/input-check.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            oneOf:
+              - application-settings
+              - application-architecture
+        $then:
+          $copy: declared
+    documents:
+      design/detail/inputs/application/settings.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: application-architecture-input
+            $one: true
+build:
+  id: SYS-application-input-check
+  status: validated
+rules:
+  - id: input-document
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row

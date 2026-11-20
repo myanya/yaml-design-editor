@@ -1,0 +1,12 @@
+id: basic-types
+name: basic-types
+scope: business
+dependsOn:
+  - basic-final
+output: design/basic/final/types.yaml
+input:
+  $view: basic-final-input
+  $one: true
+build:
+  types:
+    $copy: values.types

@@ -1,0 +1,40 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
+id: add-tag
+name: タグを追加する
+service:
+  class: TagService
+  method: addTag
+  arguments:
+    - name
+confirm: []
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: number
+    entity: tag
+    call: TagMapper.maxId
+    rule:
+      path: id
+      prefix: TAG-
+      digits: 3
+  - step: write
+    call: TagMapper.insert
+    kind: insert
+    values:
+      id: 採番した番号
+      name: $name
+subject: tag
+originalService:
+  class: TagService
+  method: addTag
+  arguments:
+    - name
+designId: DOC-processes.add-tag
+designKind: processes
+designPath: design/detail/final/processes/add-tag.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/detail/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

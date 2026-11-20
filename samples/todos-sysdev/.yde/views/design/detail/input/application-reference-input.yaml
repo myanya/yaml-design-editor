@@ -1,0 +1,21 @@
+id: application-reference-input
+name: 確定した参照項目と物理列
+rows:
+  idPattern: COL-*
+  schemaIds:
+    - detail-table-list
+columns:
+  - label: record
+    path: .
+    schemaId: detail-table-list
+  - label: relation
+    value:
+      first:
+        - via: source
+          path: reference.relation
+        - via: source
+          path: item.reference.relation
+  - label: owner
+    value:
+      via: source
+      path: owner

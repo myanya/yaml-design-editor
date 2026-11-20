@@ -1,0 +1,10 @@
+id: application-sql-base-input
+name: SQL の対応が指す確定した論理型
+rows:
+  match:
+    - node: {id: 'SQL-*', bind: mapping}
+    - edge: {via: type}
+    - node: {id: 'TYP-*', bind: logical}
+  rowKey: mapping
+columns:
+  - {label: base, of: logical, path: base}

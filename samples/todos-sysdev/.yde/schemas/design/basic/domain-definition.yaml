@@ -1,0 +1,136 @@
+id: domain-definition
+name: ドメイン定義書
+kind: document
+description: >-
+  基本設計。ドメイン（集約）1 つの業務の概念を、業務の言葉で書く（説明・構成・情報・状態の流れ・提供する操作・データの決まり・ほかのドメインとの関係）。
+  人が読む文書で、ほかの設計書の入力にはしない。生成物（.yde/transforms/design/basic/domains.yaml）で、手で直さない
+match: design/basic/final/domains/*.yaml
+entity:
+  type: sysdev-domain-definition
+  defines: true
+root:
+  type: object
+  fields:
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: ドメイン
+      type: ref
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
+      required: true
+    - key: description
+      label: 説明
+      type: text
+    - key: members
+      label: 構成
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: entity
+            label: 型
+            type: string
+            required: true
+          - key: label
+            label: 名前
+            type: string
+          - key: role
+            label: 役割
+            type: string
+          - key: description
+            label: 説明
+            type: text
+          - key: numbering
+            label: 番号の振り方
+            type: string
+    - key: information
+      label: 情報
+      type: array
+      display: list
+      item:
+        type: object
+        fields:
+          - key: of
+            label: 型
+            type: string
+            role: title
+          - key: items
+            label: 項目
+            type: array
+            display: table
+            item:
+              type: any
+    - key: states
+      label: 状態の流れ
+      type: array
+      display: list
+      item:
+        type: any
+    - key: operations
+      label: 提供する操作
+      type: array
+      display: table
+      item:
+        type: any
+    - key: rules
+      label: データの決まり
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: label
+            label: 決まり
+            type: string
+            required: true
+          - key: level
+            label: 重さ
+            type: string
+    - key: relations
+      label: ほかのドメインとの関係
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: direction
+            label: 向き
+            type: string
+          - key: label
+            label: 関係
+            type: string
+          - key: to
+            label: 相手
+            type: ref
+          - key: toLabel
+            label: 相手の名前
+            type: string
+          - key: many
+            label: いくつ
+            type: string
+          - key: acyclic
+            label: 循環
+            type: string
+          - key: note
+            label: 説明
+            type: text
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error

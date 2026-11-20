@@ -21,14 +21,55 @@ class TodosSystemDocumentsTest {
     private fun map(value: Map<*, *>, key: String) = value[key] as Map<*, *>
 
     @Test
+    fun `設計用のコピーはアプリと表示状態を入力へ混ぜない`() {
+        val original = Files.createTempDirectory("sysdev-inputs")
+        val copied = Files.createTempDirectory("sysdev-copy")
+        try {
+            val included = listOf(".yde/workspace.yaml", ".yde/schemas/design/basic/sample.yaml", ".yde/reports/design/detail/ddl.sql", "design/basic/inputs/sample.yaml")
+            val excluded = listOf(".yde/state/view.yaml", "app/src/main/resources/application.yaml", "app/build/classes/Sample.class", "app/.gradle/state.bin")
+            for (name in included + excluded) {
+                val target = original.resolve(name)
+                Files.createDirectories(target.parent)
+                Files.writeString(target, name)
+            }
+            TodosSysdevFiles.copy(original, copied)
+            assertEquals(included.toSet(), TodosSysdevFiles.inputs(copied).map { copied.relativize(it).toString().replace('\\', '/') }.toSet())
+            assertTrue(excluded.all { Files.notExists(copied.resolve(it)) })
+        } finally {
+            original.toFile().deleteRecursively()
+            copied.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `別の設計段階への補正と指定と追加は確定前に止める`() {
+        for ((phase, kind, target) in listOf(Triple("basic", "session-design", "session-design"), Triple("detail", "action-specs", "complete-todo"))) {
+            val input = store()
+            val corrections = "design/$phase/inputs/documents/corrections.yaml"
+            val additions = "design/$phase/inputs/documents/additions.yaml"
+            input.write(DocumentId(corrections), """
+                inputId: INPUT-$phase-document-corrections
+                corrections: [{id: SCOR-wrong, kind: $kind, target: DOC-$kind.$target, set: {name: 別の段階}, reason: 検証}]
+                specifications: [{id: SSPC-wrong, kind: $kind, target: DOC-$kind.$target, rule: defaults, settings: {name: 別の段階}, reason: 検証}]
+            """.trimIndent())
+            input.write(DocumentId(additions), """
+                inputId: INPUT-$phase-document-additions
+                additions: [{id: SADD-wrong, kind: $kind, document: {id: extra}, reason: 検証}]
+            """.trimIndent())
+            val plan = Generators.plan(WorkspaceSession(input))
+            val errors = plan.errors.joinToString("\n")
+            assertTrue(corrections in errors && additions in errors, errors)
+            assertTrue("corrections" in errors && "specifications" in errors && "additions" in errors && "kind" in errors, errors)
+            assertTrue(plan.transaction.operations.isEmpty())
+        }
+    }
+
+    @Test
     fun `設計書別ダッシュボードは候補と表示を同じ種類に限定し確定内容を表示する`() {
         val ws = Workspace.open(sample)
         val views = Views.load(ws.root, ws.schemas)
         assertEquals(emptyList(), views.errors)
-        val documents = Files.walk(sample.resolve("design/generated")).use { files ->
-            files.filter { Files.isRegularFile(it) && it.toString().endsWith(".yaml") }.toList()
-                .map { raw(Files.readString(it)) }.associateBy { it["designId"].toString() }
-        }
+        val documents = TodosSysdevFiles.documents(sample).map { raw(Files.readString(it)) }.associateBy { it["designId"].toString() }
         val dashboards = views.dashboards.filter { it.id.startsWith("design-review-") }
         assertEquals(documents.values.map { it["designKind"] }.toSet(), dashboards.map { it.id.removePrefix("design-review-") }.toSet())
         for (dashboard in dashboards) {
@@ -66,23 +107,29 @@ class TodosSystemDocumentsTest {
         assertEquals(76, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(12, shown("action-trace").size)
-        val process = raw(Files.readString(sample.resolve("design/generated/processes/complete-todo.yaml")))
+        val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
         val individual = shown("action-design-related", mapOf("source" to "complete-todo")).single()
         assertEquals(process["steps"], cell(individual, "steps"))
         val cross = shown("system-document-content", mapOf("document" to "DOC-processes.complete-todo")).single()
         assertEquals(process, cell(cross, "内容"))
-        val detailed = raw(Files.readString(sample.resolve("design/generated/screen-designs/operations/complete-todo.yaml")))
+        val detailed = raw(Files.readString(sample.resolve("design/detail/final/screen-designs/operations/complete-todo.yaml")))
         val screen = shown("screen-design-related", mapOf("source" to "complete-todo")).single()
         assertEquals(detailed["form"], cell(screen, "form"))
         assertEquals(detailed["screens"], cell(screen, "screens"))
     }
     private fun store(corrections: String = "[]", additions: String = "[]", specifications: String = "[]"): InMemoryDocumentStore {
-        val files = Files.walk(sample).use { paths ->
-            paths.filter { Files.isRegularFile(it) && it.toString().endsWith(".yaml") }
-                .sorted().toList().associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }.toMutableMap()
+        val files = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
+            .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }.toMutableMap()
+        val basicKinds = setOf("action-specs", "domains", "domain-relations", "errors", "messages", "screen-lists", "screen-details", "screen-operations", "screen-transitions")
+        fun selected(text: String, phase: String) = (YamlIO.parseToRaw(text) as List<*>).filter {
+            ((it as Map<*, *>)["kind"] in basicKinds) == (phase == "basic")
         }
-        files["design/system/corrections.yaml"] = "inputId: INPUT-system-corrections\ncorrections: $corrections\nspecifications: $specifications\n"
-        files["design/system/additions.yaml"] = "inputId: INPUT-system-additions\nadditions: $additions\n"
+        for (phase in listOf("basic", "detail")) {
+            files["design/$phase/inputs/documents/corrections.yaml"] = YamlIO.dumpPlain(YamlIO.fromAny(mapOf(
+                "inputId" to "INPUT-$phase-document-corrections", "corrections" to selected(corrections, phase), "specifications" to selected(specifications, phase))))
+            files["design/$phase/inputs/documents/additions.yaml"] = YamlIO.dumpPlain(YamlIO.fromAny(mapOf(
+                "inputId" to "INPUT-$phase-document-additions", "additions" to selected(additions, phase))))
+        }
         return InMemoryDocumentStore(files)
     }
 
@@ -112,7 +159,7 @@ class TodosSystemDocumentsTest {
               items: [{key: reviewPreference, role: reviewPreference, contents: 表示設定, purpose: 追加の検証}]
               reason: 方式による追加
         """.trimIndent().prependIndent("\n  "))
-        input.write(DocumentId("design/detail/corrections.yaml"), """
+        input.write(DocumentId("design/detail/inputs/tables/corrections.yaml"), """
             corrections:
               - {id: DCOR-901, target: TBL-todo, set: {name: todo_records}, reason: 物理名}
               - {id: DCOR-902, target: COL-todo.result, set: {name: completion_result}, reason: 物理名}
@@ -120,28 +167,28 @@ class TodosSystemDocumentsTest {
         val plan = Generators.plan(WorkspaceSession(input))
         assertEquals(emptyList(), plan.errors)
         fun doc(path: String) = raw(plan.outputs.single { it.document.value == path }.text)
-        val access = doc("design/generated/table-access/todo.yaml")
+        val access = doc("design/detail/final/table-access/todo.yaml")
         val method = rows(access, "methods").single { it["methodId"] == "completeTodo" }
         assertEquals("todo_records", method["table"])
         assertEquals("completion_result", rows(method, "set").single { it["item"] == "result" }["column"])
-        val process = doc("design/generated/processes/complete-todo.yaml")
+        val process = doc("design/detail/final/processes/complete-todo.yaml")
         assertEquals("TodoStore.saveCompletion", rows(process, "steps").first { it["step"] == "write" }["call"])
         assertEquals("未完了の作業があります（確認用）。", rows(process, "steps").single { it["precondition"] == "complete-todo.no-open-task" }["text"])
-        val handler = rows(doc("design/generated/controllers/todo.yaml"), "handlers").single { it["action"] == "complete-todo" }
+        val handler = rows(doc("design/detail/final/controllers/todo.yaml"), "handlers").single { it["action"] == "complete-todo" }
         assertEquals("CompletionService.finish", handler["service"])
         val execute = rows(handler, "steps").last()
         assertEquals("POST /todo/{id}/finish", execute["request"])
         assertEquals(listOf("confirmationToken"), map(execute, "session")["reads"])
-        val form = map(doc("design/generated/screen-designs/operations/complete-todo.yaml"), "form")
+        val form = map(doc("design/detail/final/screen-designs/operations/complete-todo.yaml"), "form")
         val result = rows(form, "fields").single { it["name"] == "result" }
         assertEquals(123, rows(result, "validations").single { it["name"] == "Size" }["max"])
-        val validation = rows(doc("design/generated/messages.yaml"), "validation").single { it["form"] == "completeTodoForm" && it["field"] == "result" }
+        val validation = rows(doc("design/basic/final/messages.yaml"), "validation").single { it["form"] == "completeTodoForm" && it["field"] == "result" }
         assertTrue(rows(validation, "messages").any { "123" in it["text"].toString() }, validation.toString())
-        val screen = doc("design/generated/screens/operations/complete-todo.yaml")
+        val screen = doc("design/basic/final/screens/operations/complete-todo.yaml")
         assertEquals("未完了の作業があります（確認用）。", rows(map(screen, "execute"), "refusals").single { it["key"] == "complete-todo.no-open-task" }["message"])
-        assertEquals("TODO 全体の確認", rows(doc("design/generated/screens/transitions/todo-dashboard.yaml"), "screens").single { it["id"] == "todo-dashboard" }["label"])
-        assertEquals("reviewPreference", rows(doc("design/generated/session.yaml"), "attributes").last()["key"])
-        assertEquals("validated", doc("design/system/review.yaml")["status"])
+        assertEquals("TODO 全体の確認", rows(doc("design/basic/final/screens/transitions/todo-dashboard.yaml"), "screens").single { it["id"] == "todo-dashboard" }["label"])
+        assertEquals("reviewPreference", rows(doc("design/detail/final/session.yaml"), "attributes").last()["key"])
+        assertEquals("validated", doc("design/detail/composed/review.yaml")["status"])
         plan.outputs.forEach { input.write(it.document, it.text) }
         assertTrue(Generators.plan(WorkspaceSession(input)).upToDate, "補正後の二度目の生成は同じ結果になる")
     }
@@ -158,7 +205,7 @@ class TodosSystemDocumentsTest {
         )
         for (corrections in cases) {
             val input = store(corrections)
-            val id = DocumentId("design/generated/processes/complete-todo.yaml")
+            val id = DocumentId("design/detail/final/processes/complete-todo.yaml")
             val before = input.read(id)?.text
             val plan = Generators.plan(WorkspaceSession(input))
             assertTrue(plan.errors.isNotEmpty(), corrections)
@@ -179,7 +226,7 @@ class TodosSystemDocumentsTest {
         """.trimIndent())
         val plan = Generators.plan(WorkspaceSession(input), setOf("screen-transitions"))
         assertEquals(emptyList(), plan.errors)
-        val definition = raw(plan.outputs.single { it.document.value == "design/generated/screens/transitions/category-only.yaml" }.text)
+        val definition = raw(plan.outputs.single { it.document.value == "design/basic/final/screens/transitions/category-only.yaml" }.text)
         assertEquals(setOf("category-only", "category", "add-category/input", "add-category/confirm"), rows(definition, "screens").map { it["id"] }.toSet())
     }
 
@@ -200,7 +247,7 @@ class TodosSystemDocumentsTest {
         assertTrue(failed.errors.any { "異なる規則の既定値" in it }, failed.errors.toString())
         val plan = Generators.plan(WorkspaceSession(store("[{id: SCOR-choice, kind: session-design, target: DOC-session-design.session-design, set: {name: 採用した名前}, reason: 代表値を採用}]", specifications = specifications)))
         assertEquals(emptyList(), plan.errors)
-        val output = plan.outputs.single { it.document.value == "design/generated/session.yaml" }.text
+        val output = plan.outputs.single { it.document.value == "design/detail/final/session.yaml" }.text
         assertTrue(listOf("採用した名前", "SSPC-a", "SSPC-b", "方式 A", "方式 B", "代表値を採用").all { it in output }, output)
     }
 }

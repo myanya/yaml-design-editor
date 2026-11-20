@@ -1,0 +1,11 @@
+id: system-screen-bindings
+name: system-screen-bindings
+kind: document
+match: design/basic/composed/documents/system-screen-bindings.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+    - key: bindings
+      type: any

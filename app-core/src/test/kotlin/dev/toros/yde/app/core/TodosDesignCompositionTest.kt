@@ -39,7 +39,7 @@ class TodosDesignCompositionTest {
         return declaration("FLD-todo.title", field)
     }
     private fun change(target: String, value: Any?, id: String, priority: Priority = Priority.INDIVIDUAL, attribute: String = "maxLength") =
-        Change(target, listOf(attribute), YamlIO.fromAny(value), priority, Source(id, DocumentId("design/basic/corrections.yaml")))
+        Change(target, listOf(attribute), YamlIO.fromAny(value), priority, Source(id, DocumentId("design/basic/inputs/entities/corrections.yaml")))
 
     // 合成後の宣言を、既存の読み込み・定義の検査・型の連鎖へ渡す。これはテスト用の接続で、現在の生成にはまだ組み込まない。
     private fun resolve(records: List<Record>): LoadedWorkspace {

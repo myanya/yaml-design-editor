@@ -1,0 +1,18 @@
+id: application-output-plan-input
+name: application-output-plan-input
+rows:
+  idPattern: OUTPUT-*
+  schemaIds:
+    - application-output-plan
+order:
+  schemaId: application-output-plan
+columns:
+  - label: report
+    path: report
+    fileGlob: design/detail/final/application-output-plan.yaml
+  - label: params
+    path: params
+    fileGlob: design/detail/final/application-output-plan.yaml
+  - label: destination
+    path: destination
+    fileGlob: design/detail/final/application-output-plan.yaml

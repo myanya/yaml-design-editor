@@ -1,0 +1,305 @@
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+id: edit-todo
+name: TODOを編集する（画面設計書）
+form:
+  class: EditTodoForm
+  emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+  fields:
+    - name: title
+      item: title
+      type: String
+      validations:
+        - name: Size
+          min: 1
+          max: 100
+        - name: Pattern
+          regexp: ^[^\r\n]*$
+    - name: summary
+      item: summary
+      type: String
+      validations:
+        - name: Size
+          min: 1
+          max: 100
+        - name: Pattern
+          regexp: ^[^\r\n]*$
+    - name: category
+      item: category
+      type: String
+      validations: []
+    - name: tags
+      item: tags
+      type: List<String>
+      validations:
+        - name: UniqueElements
+    - name: createdOn
+      item: created_on
+      type: LocalDate
+      validations:
+        - name: DateTimeFormat
+          iso: DATE
+    - name: dueOn
+      item: due_on
+      type: LocalDate
+      validations:
+        - name: DateTimeFormat
+          iso: DATE
+    - name: details
+      item: details
+      type: String
+      validations: []
+    - name: result
+      item: result
+      type: String
+      validations: []
+    - name: comments
+      item: comments
+      type: List<EditTodoCommentsRow>
+      validations:
+        - name: Valid
+    - name: clear
+      item: clear
+      type: EditTodoClear
+      validations: []
+  classes:
+    - name: EditTodoCommentsRow
+      fields:
+        - name: date
+          item: date
+          type: LocalDate
+          validations:
+            - name: NotNull
+            - name: DateTimeFormat
+              iso: DATE
+        - name: body
+          item: body
+          type: String
+          validations:
+            - name: NotNull
+    - name: EditTodoClear
+      fields:
+        - name: category
+          item: category
+          type: Boolean
+          validations: []
+        - name: tags
+          item: tags
+          type: Boolean
+          validations: []
+        - name: dueOn
+          item: due_on
+          type: Boolean
+          validations: []
+        - name: details
+          item: details
+          type: Boolean
+          validations: []
+        - name: result
+          item: result
+          type: Boolean
+          validations: []
+        - name: comments
+          item: comments
+          type: Boolean
+          validations: []
+screens:
+  - id: edit-todo/input
+    template: todo/edit-todo/input
+    page:
+      title: TODOを編集する
+      width: m
+      body:
+        - notice:
+            kind: errors
+            for: form
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - form:
+            action: POST /todo/{id}/edit-todo/confirm
+            object: EditTodoForm
+            hidden:
+              - from
+            body:
+              - field:
+                  item: title
+                  label: タイトル
+                  control: text
+                  width: 40ch
+              - field:
+                  item: summary
+                  label: 概要
+                  control: text
+                  width: 40ch
+              - field:
+                  item: category
+                  label: カテゴリ
+                  control: select
+                  candidates:
+                    entity: category
+                    name: name
+                    read: CategoryMapper.selectAll
+                    empty: 未選択を選べる
+                  clearable:
+                    flag: clear.category
+                    label: 値を消す
+              - choices:
+                  item: tags
+                  label: タグ
+                  control: checkboxes
+                  candidates:
+                    entity: tag
+                    name: name
+                    read: TagMapper.selectAll
+                    empty: 未選択を選べる
+                  clearable:
+                    flag: clear.tags
+                    label: 値を消す
+              - field:
+                  item: created_on
+                  label: 作成日
+                  control: date
+                  width: 10ch
+              - field:
+                  item: due_on
+                  label: 期限
+                  control: date
+                  width: 10ch
+                  clearable:
+                    flag: clear.due_on
+                    label: 値を消す
+              - field:
+                  item: details
+                  label: 詳細
+                  control: textarea
+                  rows: 5
+                  clearable:
+                    flag: clear.details
+                    label: 値を消す
+              - field:
+                  item: result
+                  label: 結果・中止理由
+                  control: textarea
+                  rows: 5
+                  clearable:
+                    flag: clear.result
+                    label: 値を消す
+              - rows:
+                  item: comments
+                  label: コメント一覧
+                  columns:
+                    - field:
+                        item: date
+                        label: 日付
+                        control: date
+                        required: true
+                        width: 10ch
+                    - field:
+                        item: body
+                        label: コメント本文
+                        control: textarea
+                        required: true
+                        rows: 5
+                  actions:
+                    - label: 行を足す
+                      kind: submit
+                      emphasis: secondary
+                    - label: この行を消す
+                      kind: submit
+                      emphasis: secondary
+                      per: row
+                  redraw: 入力画面へ POST して描き直す
+              - actions:
+                  - label: 確認へ
+                    kind: submit
+                    emphasis: primary
+                  - label: やめる
+                    kind: link
+                    to: 起点の画面
+                    emphasis: secondary
+  - id: edit-todo/confirm
+    template: todo/edit-todo/confirm
+    page:
+      title: TODOを編集する（確認）
+      width: m
+      body:
+        - notice:
+            kind: refusal
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - facts:
+            title: 変わる項目
+            kind: changes
+            compareWith: 今の値（DB から読む）
+            items:
+              - item: title
+                label: タイトル
+              - item: summary
+                label: 概要
+              - item: category
+                label: カテゴリ
+                name:
+                  entity: category
+                  item: name
+              - item: tags
+                label: タグ
+                name:
+                  entity: tag
+                  item: name
+              - item: created_on
+                label: 作成日
+                format: yyyy年M月d日
+              - item: due_on
+                label: 期限
+                format: yyyy年M月d日
+              - item: details
+                label: 詳細
+                keepBreaks: true
+              - item: result
+                label: 結果・中止理由
+                keepBreaks: true
+              - item: comments
+                label: コメント一覧
+        - form:
+            action: POST /todo/{id}/edit-todo
+            hidden:
+              - title
+              - summary
+              - category
+              - tags
+              - created_on
+              - due_on
+              - details
+              - result
+              - comments
+              - clear
+              - flow
+              - from
+            body:
+              - actions:
+                  - label: 確定
+                    kind: submit
+                    emphasis: primary
+                  - label: 入力へ戻る
+                    kind: submit
+                    action: POST /todo/{id}/edit-todo/back
+                    emphasis: secondary
+designId: DOC-screen-designs-operations.edit-todo
+designKind: screen-designs-operations
+designPath: design/detail/final/screen-designs/operations/edit-todo.yaml
+origins:
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

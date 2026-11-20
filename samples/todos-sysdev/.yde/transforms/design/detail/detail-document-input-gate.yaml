@@ -1,0 +1,42 @@
+id: detail-document-input-gate
+name: 詳細設計の設計書の手書き入力を検査する
+scope: design
+dependsOn: []
+output: design/detail/composed/documents/input-check.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            oneOf:
+              - system-inputs
+              - detail-document-corrections
+              - detail-document-additions
+        $then:
+          $copy: declared
+    documents:
+      design/detail/inputs/documents/corrections.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: detail-document-corrections
+            $one: true
+      design/detail/inputs/documents/additions.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: detail-document-additions
+            $one: true
+build:
+  id: SYS-detail-input-check
+  status: validated
+rules:
+  - id: input-document
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row

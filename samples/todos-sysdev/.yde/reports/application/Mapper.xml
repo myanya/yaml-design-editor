@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="{#each config.package}{.}{#if more}.{/if}{/each}.data.mapper.{mapper.name}">
+{#each models}
+  <resultMap id="row_{className}" type="{#each config.package}{.}{#if more}.{/if}{/each}.data.model.{className}">
+{#each columns}    <result property="{name}" column="{column}" javaType="{java.qualifiedName}"/>
+{/each}  </resultMap>
+{/each}
+{#each mapper.methods}
+{#if select}
+  <resultMap id="result_{name}" type="{#each config.package}{.}{#if more}.{/if}{/each}.data.mapper.{mapper.name}${resultClass}" extends="row_{row.className}">
+{#each properties}{#if column}    <result property="{name}" column="{name}"/>{/if}{#if lookup}    <result property="{name}" column="{name}"/>{/if}{#if count}    <result property="{name}" column="{name}"/>{/if}
+{#if parts}{#each parts}    <result property="{name}" column="{name}"/>
+{/each}{/if}{/each}
+{#each properties}{#if collection}    <collection property="{name}" column="{{{#each collection.query.keys}k{index}={parentColumn}{#if more},{/if}{/each}}}" select="_children_{methodName}_{name}" fetchType="eager"/>{/if}
+{/each}  </resultMap>
+{/if}
+{/each}
+{#each mapper.methods}
+{#if select}
+  <select id="{name}" resultMap="result_{name}">
+    SELECT <trim suffixOverrides=",">
+{#each baseBindings}      {table}.{column},
+{/each}
+{#each properties}{#if column}      {table}.{column} AS {name},{/if}
+{#if lookup}      (SELECT n.{lookup.column} FROM {lookup.table} n WHERE n.{lookup.key} = {table}.{lookup.parentColumn}) AS {name},{/if}
+{#if count}      {#if count}
+{#if count.incoming}(SELECT COUNT(DISTINCT c.{count.incoming.key}) FROM {count.incoming.table} c
+{#if count.incoming.join}JOIN {count.incoming.join.table} r ON {#each count.incoming.join.keys}r.{column} = c.{parentColumn}{#if more} AND {/if}{/each}{/if}
+WHERE {count.incoming.alias}.{count.incoming.reference} = {table}.{count.incoming.parentColumn}{#if count.axis} AND c.{count.axis.column} = {count.axis.value:sql-string-xml}{/if}){/if}
+{#if count.child}(SELECT COUNT(*) FROM {count.child.table} c WHERE {#each count.child.keys}c.{column} = {table}.{parentColumn}{#if more} AND {/if}{/each}
+{#if count.conditions}{#each count.conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND c.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND c.{column} IS NOT NULL{/if}
+{#if inValues}AND c.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT(c.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}{/if}){/if}
+{/if} AS {name},{/if}
+{#if parts}{#each parts}      {#if count}
+{#if count.incoming}(SELECT COUNT(DISTINCT c.{count.incoming.key}) FROM {count.incoming.table} c
+{#if count.incoming.join}JOIN {count.incoming.join.table} r ON {#each count.incoming.join.keys}r.{column} = c.{parentColumn}{#if more} AND {/if}{/each}{/if}
+WHERE {count.incoming.alias}.{count.incoming.reference} = {table}.{count.incoming.parentColumn}{#if count.axis} AND c.{count.axis.column} = {count.axis.value:sql-string-xml}{/if}){/if}
+{#if count.child}(SELECT COUNT(*) FROM {count.child.table} c WHERE {#each count.child.keys}c.{column} = {table}.{parentColumn}{#if more} AND {/if}{/each}
+{#if count.conditions}{#each count.conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND c.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND c.{column} IS NOT NULL{/if}
+{#if inValues}AND c.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT(c.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}{/if}){/if}
+{/if} AS {name},
+{/each}{/if}{/each}    </trim>
+    FROM {table}
+    <where>{#each conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND {table}.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND {table}.{column} IS NOT NULL{/if}
+{#if inValues}AND {table}.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT({table}.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}</where>
+{#if order}    ORDER BY {#each order}{table}.{column} {direction}{#if nulls} NULLS {nulls}{/if}{#if more}, {/if}{/each}{/if}
+  </select>
+{#each properties}{#if collection}
+  <select id="_children_{methodName}_{name}" {#if collection.scalar}resultType="{collection.elementType}"{/if}{#if collection.rowMap}resultMap="row_{collection.row.className}"{/if}>
+    SELECT {#if collection.target}n.{collection.target.column}{/if}{#if collection.directScalar}c.{collection.column}{/if}{#if collection.rowMap}c.*{/if}
+    FROM {collection.query.table} c
+{#if collection.target}    JOIN {collection.target.table} n ON {#each collection.target.keys}c.{column} = n.{parentColumn}{#if more} AND {/if}{/each}{/if}
+    WHERE {#each collection.query.keys}c.{column} = #{{k{index}}}{#if more} AND {/if}{/each}
+{#if collection.order}    ORDER BY {#each collection.order}c.{column}{#if more}, {/if}{/each}{/if}
+  </select>
+{/if}{/each}{/if}
+{#if count}
+  <select id="{name}" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM {table}
+{#if joins}{#each joins}    JOIN {table} ON {table}.{column} = {outerTable}.{other}
+{/each}{/if}    <where>{#each conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND {table}.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND {table}.{column} IS NOT NULL{/if}
+{#if inValues}AND {table}.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT({table}.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}</where>
+  </select>
+{/if}
+{#if max}
+  <select id="{name}" resultType="{maxColumn.model.java.qualifiedName}">
+    SELECT {#if numericMax}MAX({maxColumn.column}){/if}{#if idMax}{maxColumn.column}{/if} FROM {table}
+    <where>{#each conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND {table}.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND {table}.{column} IS NOT NULL{/if}
+{#if inValues}AND {table}.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT({table}.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}</where>
+{#if idMax}    ORDER BY CHAR_LENGTH({maxColumn.column}) DESC, {maxColumn.column} DESC FETCH FIRST 1 ROW ONLY{/if}
+  </select>
+{/if}
+{#if insert}
+  <insert id="{name}">
+    INSERT INTO {table} ({#each bindings}{column}{#if more}, {/if}{/each})
+    VALUES ({#each bindings}{#if default}<choose><when test="input.{name} != null">#{{input.{name}}}</when><otherwise>DEFAULT</otherwise></choose>{/if}{#if noDefault}#{{input.{name}}}{/if}{#if more}, {/if}{/each})
+  </insert>
+{/if}
+{#if update}
+  <update id="{name}">
+    UPDATE {table} SET
+{#each writeGroups}    {column} = <choose>
+{#each branches}      <when test="{#if unconditional}true{/if}{#if condition}{#each condition}input.{param}{#if boolean} == {value}{/if}{#if exists} != null{/if}{#if more} and {/if}{/each}{/if}">{#if value.nil}NULL{/if}{#if value.param}#{{input.{value.param}}}{/if}{#if literal}{#if quoted}{value.constant:sql-string-xml}{/if}{#if plain}{value.constant:xml}{/if}{/if}</when>
+{/each}      <otherwise>{column}</otherwise>
+    </choose>{#if more},{/if}
+{/each}    <where>{#each conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND {table}.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND {table}.{column} IS NOT NULL{/if}
+{#if inValues}AND {table}.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT({table}.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}</where>
+  </update>
+{/if}
+{#if delete}
+  <delete id="{name}">DELETE FROM {table} <where>{#each conditions}
+{#if optional}<if test="{optionalTest:xml}">{/if}
+{#if compare}AND {table}.{column} {symbol:xml} {#if param}#{{input.{param}}}{/if}{#if literal}{#if quoted}{constant:sql-string-xml}{/if}{#if plain}{constant:xml}{/if}{/if}{/if}
+{#if notNull}AND {table}.{column} IS NOT NULL{/if}
+{#if inValues}AND {table}.{column} IN ({#each values}{#if quoted}{value:sql-string-xml}{/if}{#if plain}{value:xml}{/if}{#if more}, {/if}{/each}){/if}
+{#if startsWith}AND LEFT({table}.{column}, CHAR_LENGTH({prefix:sql-string-xml})) = {prefix:sql-string-xml}{/if}
+{#if collection}AND <choose><when test="input.{param} != null and !input.{param}.isEmpty()">EXISTS (SELECT 1 FROM {link.table} l WHERE {#each link.keys}l.{column} = {table}.{parentColumn} AND {/each}l.{link.element.column} IN <foreach collection="input.{param}" item="item" open="(" separator="," close=")">#{{item}}</foreach>)</when><otherwise>1 = 0</otherwise></choose>{/if}
+{#if optional}</if>{/if}
+{/each}</where></delete>
+{/if}
+{/each}</mapper>

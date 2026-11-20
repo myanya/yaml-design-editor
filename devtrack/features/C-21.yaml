@@ -61,7 +61,22 @@ tests:
   - name: GeneratedValidationTest
     note: 組み立てた文書の構造・参照・成立条件、予約領域と未割当文書の拒否
   - name: TodosSystemDocumentsTest
-    note: 全設計書の確定、設計書間の補正の伝達、追加・競合・不正入力の拒否と再生成
+    note: 全設計書の確定、設計間の補正の伝達、段階を間違えた入力の拒否、アプリを混ぜない設計用コピーと再生成
+  - name: TodosApplicationTest
+    note: アプリの確定設定と出力の一致、未確定値を読まないこと、方式の変更と不正入力の拒否
+  - name: TodosJavaModelsTest
+    note: Form と行モデルの共通型、可変個数の出力、物理列の補正と型・名前の不一致の拒否
+  - name: TodosMappersTest
+    note: 全メソッドの網羅、一覧と件数の条件の一致、物理名とメソッド名の補正、未解決の条件と列の拒否
+  - name: verify-app.ps1
+    kind: check
+    note: 生成アプリのコピーで全 48 メソッドを H2 に実行し、初期値・入れ子・絞り込み・集計・更新・削除を検証
+  - name: test-application-files.ps1
+    kind: check
+    note: todos-sysdev の再生成で手修正・計画後の競合・途中失敗・名前変更と削除の範囲を確認
+  - name: todos-application.yml
+    kind: check
+    note: 生成したアプリだけをコピーし、YDE の通常テストとは別の CI でビルドを確認
 design:
   - label: transform
     link: architecture/transform.md

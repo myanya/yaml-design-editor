@@ -34,7 +34,7 @@ class TodosSysdevTest {
     fun `データ系の設計書は業務モデルから計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = m[key] as List<*>
-        val tables = list(doc("design/detail/tables.yaml"), "tables").map { it as Map<*, *> }.associateBy { it["name"] }
+        val tables = list(doc("design/detail/final/tables.yaml"), "tables").map { it as Map<*, *> }.associateBy { it["name"] }
         assertEquals(listOf("category", "tag", "todo", "todo_task", "todo_tags", "todo_comments", "todo_history"), tables.keys.toList())
         val todoColumns = list(tables.getValue("todo"), "columns").map { (it as Map<*, *>)["name"] }
         assertTrue("title" in todoColumns && "status" in todoColumns, "一覧の行（title）と個票（status）の項目が 1 テーブルに: $todoColumns")
@@ -42,14 +42,14 @@ class TodosSysdevTest {
         assertEquals(listOf("todo_id", "seq", "date", "action", "from_", "to_", "note", "resume_on"), historyColumns, "予約語は末尾に _")
         val taskColumns = list(tables.getValue("todo_task"), "columns").map { (it as Map<*, *>)["name"] }
         assertEquals(listOf("id", "todo_id", "seq", "title", "done"), taskColumns, "入れ子の型は親の ID と並び順を足す")
-        val methods = list(doc("design/generated/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
+        val methods = list(doc("design/detail/final/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
         assertEquals(listOf("completed_on", "result", "status", "updated_on"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update")
-        val count = list(doc("design/generated/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
+        val count = list(doc("design/detail/final/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
         assertEquals("complete-todo.no-open-task", count["precondition"])
         val conditions = list(count, "where").map { (it as Map<*, *>).filterKeys { key -> key != "column" && key != "columnId" } }
         assertEquals<List<*>>(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), conditions)
-        val todo = list(doc("design/basic/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
+        val todo = list(doc("design/basic/final/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
         val operations = list(todo, "operations").map { it as Map<*, *> }
         fun status(action: String) = list(operations.single { it["action"] == action }, "writes")
             .map { it as Map<*, *> }.singleOrNull { it["item"] == "FLD-todo.status" }?.get("crud")
@@ -66,17 +66,17 @@ class TodosSysdevTest {
     fun `画面系の設計書はダッシュボードを起点に計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val transitions = doc("design/generated/screens/transitions/todo-dashboard.yaml")
+        val transitions = doc("design/basic/final/screens/transitions/todo-dashboard.yaml")
         val kinds = list(transitions, "screens").groupingBy { it["kind"].toString() }.eachCount()
         assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 10, "confirm" to 12), kinds)
-        assertTrue(java.nio.file.Files.notExists(root.resolve("design/generated/screens/details/todo-task.yaml")), "入れ子の型は詳細画面にしない")
-        val start = doc("design/generated/screens/operations/start-todo.yaml")
+        assertTrue(java.nio.file.Files.notExists(root.resolve("design/basic/final/screens/details/todo-task.yaml")), "入れ子の型は詳細画面にしない")
+        val start = doc("design/basic/final/screens/operations/start-todo.yaml")
         kotlin.test.assertNull(start["input"], "受け取る値が無い操作は、入力画面を作らない")
         assertEquals("GET /todo/{id}/start-todo/confirm", (start["confirm"] as Map<*, *>)["request"])
         assertEquals(listOf(mapOf("value" to "OPEN", "label" to "未着手")), start["shownWhen"], "ボタンは Lifecycle の状態で出す")
-        val list = doc("design/generated/screens/lists/todo-dashboard.yaml")
+        val list = doc("design/basic/final/screens/lists/todo-dashboard.yaml")
         assertEquals(listOf("register-todo", "add-category", "add-tag"), list(list, "buttons").map { it["operation"] }, "上部のボタンはダッシュボードに書いた順")
-        val session = doc("design/generated/session.yaml")
+        val session = doc("design/detail/final/session.yaml")
         assertEquals(listOf("csrf", "token", "notice"), list(session, "attributes").map { it["key"] })
         val index = dev.toros.yde.app.core.Workspace.open(root).index
         assertEquals("yde-view", index.entries["todo-dashboard"]?.firstOrNull { it.role == dev.toros.yde.semantic.schema.EntityRole.DEFINING }?.entityType, "ビューの定義は定義の索引の yde-view")
@@ -90,21 +90,21 @@ class TodosSysdevTest {
     fun `画面設計書と一覧の読み出しは計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val complete = doc("design/generated/screen-designs/operations/complete-todo.yaml")
+        val complete = doc("design/detail/final/screen-designs/operations/complete-todo.yaml")
         val form = complete["form"] as Map<*, *>
         assertEquals("CompleteTodoForm", form["class"])
         val result = list(form, "fields").single { it["name"] == "result" }
         assertEquals(listOf(mapOf("name" to "NotNull"), mapOf("name" to "Size", "min" to 1)), result["validations"])
         assertEquals(listOf("complete-todo/input", "complete-todo/confirm"), list(complete, "screens").map { it["id"] })
-        val edit = doc("design/generated/screen-designs/operations/edit-todo.yaml").toString()
+        val edit = doc("design/detail/final/screen-designs/operations/edit-todo.yaml").toString()
         assertTrue("flag=clear.category" in edit && "rows={item=comments" in edit, "値を消すのチェックと、コメント一覧の行の表")
-        val access = list(doc("design/generated/table-access/todo.yaml"), "methods")
+        val access = list(doc("design/detail/final/table-access/todo.yaml"), "methods")
         val overdue = access.single { it["name"] == "selectTodoDashboardOverdue" }
         assertTrue((overdue["where"] as List<*>).any { (it as Map<*, *>).let { row -> row["item"] == "status" && row["op"] == "in" && row["values"] == listOf("OPEN", "IN_PROGRESS") } }, "区画の条件の State は値の条件")
         assertTrue(access.any { it["name"] == "findDetail" } && access.any { it["name"] == "selectAll" })
-        val matrix = list(doc("design/generated/table-access/category.yaml"), "methods").single { it["name"] == "selectTodoDashboardCategories" }
+        val matrix = list(doc("design/detail/final/table-access/category.yaml"), "methods").single { it["name"] == "selectTodoDashboardCategories" }
         assertEquals("aggregate", matrix["kind"])
-        val all = java.nio.file.Files.walk(root.resolve("design/generated")).use { s -> s.filter { it.toString().endsWith(".yaml") }.toList() }
+        val all = TodosSysdevFiles.documents(root)
         assertTrue(all.none { "手で書く" in java.nio.file.Files.readString(it) }, "todos の業務モデルは、どれも写す規則で作れる")
     }
 
@@ -117,14 +117,14 @@ class TodosSysdevTest {
     fun `エラーとメッセージ系の設計書は業務モデルから計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val errors = doc("design/generated/errors.yaml")
+        val errors = doc("design/basic/final/errors.yaml")
         val rules = list(errors, "constraints").associateBy { it["constraint"] }
         assertEquals("SQL", rules["closed-has-no-open-task"]?.get("by"))
         assertEquals("対象外", rules["has-detail"]?.get("by"), "一覧の行と個票は 1 テーブルなので、書かれた場所の決まりは起きない")
         assertEquals("対象外", rules["in-category.outMax"]?.get("by"), "警告は断らない")
         assertEquals(listOf("suspend-todo"), rules["resume-not-before-suspend"]?.get("operations"), "中断の行の決まりは、再開予定日を書く操作だけが確かめる")
         assertEquals(listOf("complete-todo"), rules["closed-has-completed-on"]?.get("operations"), "状態を完了以外に書く操作は、完了の決まりを確かめない")
-        val complete = doc("design/generated/processes/complete-todo.yaml")
+        val complete = doc("design/detail/final/processes/complete-todo.yaml")
         val confirm = list(complete, "confirm").single()
         assertEquals("checkCompleteTodo", confirm["method"])
         assertEquals(
@@ -134,7 +134,7 @@ class TodosSysdevTest {
         val steps = list(complete, "steps")
         assertTrue(steps.indexOfLast { it["step"] == "write" } < steps.indexOfFirst { it["constraint"] == "closed-has-no-open-task" }, "入れ子の要素の決まりは書いた後に数える")
         // 使うメッセージのキー（処理設計書・エラー定義書・一覧の 0 件・フォームの検査）は、どれもメッセージ定義書にある
-        val messages = doc("design/generated/messages.yaml")
+        val messages = doc("design/basic/final/messages.yaml")
         val keys = (list(messages, "messages").map { it["key"].toString() } + list(messages, "validation").flatMap { list(it, "messages").map { m -> m["key"].toString() } }).toSet()
         fun collect(x: Any?, out: MutableList<String>, names: Set<String>) {
             when (x) {
@@ -143,11 +143,11 @@ class TodosSysdevTest {
             }
         }
         val used = mutableListOf<String>()
-        java.nio.file.Files.list(root.resolve("design/generated/processes")).use { s -> s.toList() }.forEach { collect(doc("design/generated/processes/${it.fileName}"), used, setOf("message")) }
+        java.nio.file.Files.list(root.resolve("design/detail/final/processes")).use { s -> s.toList() }.forEach { collect(doc("design/detail/final/processes/${it.fileName}"), used, setOf("message")) }
         collect(list(errors, "operations"), used, setOf("message"))
-        collect(doc("design/generated/screen-designs/lists/todo-dashboard.yaml"), used, setOf("empty"))
-        java.nio.file.Files.list(root.resolve("design/generated/screen-designs/operations")).use { s -> s.toList() }.forEach { f ->
-            val form = doc("design/generated/screen-designs/operations/${f.fileName}")["form"] as? Map<*, *> ?: return@forEach
+        collect(doc("design/detail/final/screen-designs/lists/todo-dashboard.yaml"), used, setOf("empty"))
+        java.nio.file.Files.list(root.resolve("design/detail/final/screen-designs/operations")).use { s -> s.toList() }.forEach { f ->
+            val form = doc("design/detail/final/screen-designs/operations/${f.fileName}")["form"] as? Map<*, *> ?: return@forEach
             val name = form["class"].toString().replaceFirstChar { it.lowercase() }
             fun fields(fs: Any?, prefix: String) = (fs as List<*>).map { it as Map<*, *> }.forEach { field ->
                 list(field, "validations").map { it["name"].toString() }.filter { it != "Valid" }.forEach { v ->
@@ -163,7 +163,7 @@ class TodosSysdevTest {
         }
         assertTrue(used.size > 50, "キーを集められている: ${used.size}")
         assertEquals(emptyList(), used.distinct().filter { it !in keys }, "メッセージ定義書に無いキー")
-        val handling = doc("design/generated/error-handling.yaml")
+        val handling = doc("design/detail/final/error-handling.yaml")
         assertEquals(listOf("RefusedException", "NotFoundException", "InvalidTokenException"), list(handling, "exceptions").take(3).map { it["class"] })
     }
 
@@ -175,21 +175,21 @@ class TodosSysdevTest {
     fun `ドメインの設計書は集約ごとに計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val names = java.nio.file.Files.list(root.resolve("design/generated/domains")).use { s -> s.map { it.fileName.toString() }.sorted().toList() }
+        val names = java.nio.file.Files.list(root.resolve("design/basic/final/domains")).use { s -> s.map { it.fileName.toString() }.sorted().toList() }
         assertEquals(listOf("category.yaml", "tag.yaml", "todo.yaml"), names, "入れ子の型（作業項目）は集約の中なので、ドメインにしない")
-        val todo = doc("design/generated/domains/todo.yaml")
+        val todo = doc("design/basic/final/domains/todo.yaml")
         assertEquals(listOf("集約の中心", "「TODO」の中にだけある"), list(todo, "members").map { it["role"] })
         val items = list(list(todo, "information")[0], "items").associateBy { it["key"] }
         assertEquals("一行の文（100 文字まで）", items["title"]?.get("kind"))
         assertEquals("カテゴリを 1 つ指す", items["category"]?.get("kind"))
         assertEquals("作業項目の並び", items["tasks"]?.get("kind"))
         assertEquals(listOf("未着手", "対応中", "中断", "完了", "中止"), items["status"]?.get("choices"))
-        val text = java.nio.file.Files.readString(root.resolve("design/generated/domains/todo.yaml"))
+        val text = java.nio.file.Files.readString(root.resolve("design/basic/final/domains/todo.yaml"))
         assertTrue(listOf("VARCHAR", "Mapper", "テーブル", "Controller").none { it in text }, "ドメイン定義書はシステムの言葉を書かない")
         assertEquals(listOf("出る" to "category", "出る" to "tag", "出る" to "todo", "入る" to "todo"), list(todo, "relations").map { it["direction"] to it["to"] })
-        val category = doc("design/generated/domains/category.yaml")
+        val category = doc("design/basic/final/domains/category.yaml")
         assertEquals(listOf("このカテゴリのTODO"), list(category, "relations").map { it["label"] }, "関係は入る向きにも出る（逆向きの名前で）")
-        val relations = doc("design/generated/domain-relations.yaml")
+        val relations = doc("design/basic/final/domain-relations.yaml")
         assertEquals(listOf("in-category", "tagged", "follow-up-of"), list(relations, "relations").map { it["relation"] })
         assertEquals(listOf("todo" to "todo-task"), list(relations, "holdings").map { it["from"] to it["to"] })
     }
@@ -202,7 +202,7 @@ class TodosSysdevTest {
     fun `基本設計項目一覧は業務モデルの値のまま設計項目に ID と導出元を持つ`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val entities = list(doc("design/basic/entities.yaml"), "entities")
+        val entities = list(doc("design/basic/final/entities.yaml"), "entities")
         assertEquals(listOf("ENT-category", "ENT-tag", "ENT-todo", "ENT-todo-task"), entities.map { it["id"] })
         val todo = entities.single { it["id"] == "ENT-todo" }
         assertEquals("todo", todo["source"], "導出元は業務のエンティティ型")
@@ -234,19 +234,19 @@ class TodosSysdevTest {
      * テーブル設計書（ADR-0036）: 論理型は基本設計の設計項目（値は業務モデルの型のまま）。詳細設計項目一覧は詳細設計にだけ出るもの
      * （テーブル・カラム名・主キーの順・型対応への参照・明細の日本語名・索引・外部キー）だけを持ち、名称・必須・選択肢は導出元をたどる。
      * 区分（マスタ・トランザクション）は人が書く基本設計項目台帳から読む。
-     * DDL のレポートは、ビューが型対応表と基本設計項目一覧と台帳から読んだ値で CREATE TABLE と CREATE INDEX を作る（サンプルの design/ddl/schema.sql と同じ）。
+     * DDL のレポートは、ビューが型対応表と基本設計項目一覧と台帳から読んだ値で CREATE TABLE と CREATE INDEX を作る（サンプルの design/detail/reports/ddl/schema.sql と同じ）。
      */
     @Test
     fun `テーブル設計書は論理型と型対応表から作り DDL まで落とせる`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val types = list(doc("design/basic/types.yaml"), "types").associateBy { it["id"] }
+        val types = list(doc("design/basic/final/types.yaml"), "types").associateBy { it["id"] }
         types.getValue("TYP-common.一行の文").let {
             assertEquals(listOf("common#一行の文", "string", 100, "common#一行の文"), listOf(it["name"], it["base"], it["maxLength"], it["source"]))
         }
         assertEquals("yyyy年M月d日", types.getValue("TYP-common.年月日")["format"], "表示形式は論理型に")
         assertEquals("TYP-common.年月日", list(types.getValue("TYP-common.コメント"), "fields").first()["type"], "行の型の項目も論理型を参照する")
-        val tables = list(doc("design/detail/tables.yaml"), "tables").associateBy { it["name"] }
+        val tables = list(doc("design/detail/final/tables.yaml"), "tables").associateBy { it["name"] }
         val title = list(tables.getValue("todo"), "columns").single { it["name"] == "title" }
         assertEquals(setOf("seq", "id", "name", "source", "sqlType", "item", "table"), title.keys.map { it.toString() }.toSet(), "基本設計の値（名称・必須・文字数）は持たず、後続が参照する物理項目の対応を持つ")
         assertEquals("SQL-common.一行の文", title["sqlType"])
@@ -262,8 +262,8 @@ class TodosSysdevTest {
             list(tags, "foreignKeys").map { Triple(it["name"], it["columns"], it["onDelete"]) }, "入れ子で持つ親へは一緒に消す・参照へは指定しない",
         )
         assertEquals("pk_todo_tags", tags["primaryKeyName"])
-        val classes = list(doc("design/basic/classes.yaml"), "classes").associate { it["id"] to it["name"] }
-        val classified = list(doc("design/basic/entities.yaml"), "entities").groupBy { classes[it["entityClass"]] }.mapValues { (_, es) -> es.map { it["id"] } }
+        val classes = list(doc("design/basic/final/classes.yaml"), "classes").associate { it["id"] to it["name"] }
+        val classified = list(doc("design/basic/final/entities.yaml"), "entities").groupBy { classes[it["entityClass"]] }.mapValues { (_, es) -> es.map { it["id"] } }
         assertEquals<Map<*, *>>(mapOf("master" to listOf("ENT-category", "ENT-tag"), "transaction" to listOf("ENT-todo", "ENT-todo-task")), classified, "追加した区分と指定を確定項目で共有する")
         // DDL: テーブル設計書のビューの行から作る
         val ws = Workspace.open(root)
@@ -280,7 +280,7 @@ class TodosSysdevTest {
         assertTrue("CREATE INDEX ix_todo_status_due_on ON todo (status, due_on);" in ddl, "人が書く詳細設計項目台帳の索引も")
         assertTrue("ALTER TABLE todo ADD CONSTRAINT fk_todo_category FOREIGN KEY (category) REFERENCES category (id);" in ddl, "外部キーはテーブルを作った後に足す")
         assertTrue("ALTER TABLE todo_tags ADD CONSTRAINT fk_todo_tags_todo FOREIGN KEY (todo_id) REFERENCES todo (id) ON DELETE CASCADE;" in ddl)
-        assertEquals(java.nio.file.Files.readString(root.resolve("design/ddl/schema.sql")), ddl, "サンプルの DDL は最新（report samples/todos-sysdev ddl で作り直す）")
+        assertEquals(java.nio.file.Files.readString(root.resolve("design/detail/reports/ddl/schema.sql")), ddl, "サンプルの DDL は最新（report samples/todos-sysdev ddl で作り直す）")
         // 実際に流す（③のアプリと同じ H2）。初期値が入り、TODO を消すと入れ子で持つ明細も消える
         H2.run(ddl) { db ->
             db.exec("INSERT INTO tag (id, name) VALUES ('TAG-001', 'a')")
@@ -304,21 +304,16 @@ class TodosSysdevTest {
     fun `テーブル設計書は業務モデルのどの形からも作れて DDL が H2 で通る`() {
         val dir = java.nio.file.Files.createTempDirectory("todos-sysdev-shapes")
         try {
-            java.nio.file.Files.walk(root).use { paths ->
-                paths.forEach { p ->
-                    val to = dir.resolve(root.relativize(p).toString())
-                    if (java.nio.file.Files.isDirectory(p)) java.nio.file.Files.createDirectories(to) else java.nio.file.Files.copy(p, to)
-                }
-            }
+            TodosSysdevFiles.copy(root, dir)
             java.nio.file.Files.copy(Path.of("test-fixtures/workspaces/todos-sysdev-shapes/shape-list.yaml"), dir.resolve(".yde/schemas/business/shape-list.yaml"))
             fun edit(path: String, change: (String) -> String) = dir.resolve(path).let { java.nio.file.Files.writeString(it, change(java.nio.file.Files.readString(it))) }
             // 人が書くもの: 区分（基本設計項目台帳）・型対応表・業務モデルから導けない索引（降順を含む。詳細設計項目台帳）
-            java.nio.file.Files.writeString(dir.resolve("design/basic/corrections-shape.yaml"), """
+            java.nio.file.Files.writeString(dir.resolve("design/basic/inputs/entities/corrections-shape.yaml"), """
                 specifications:
                   - {id: SPC-shape, target: ENT-shape, rule: entity-class, settings: {entityClass: CLS-transaction}, reason: 見本の区分}
                   - {id: SPC-shape-spec, target: ENT-shape-spec, rule: entity-class, settings: {entityClass: CLS-transaction}, reason: 見本の区分}
             """.trimIndent() + "\n")
-            edit("design/detail/sql-types.yaml") {
+            edit("design/detail/inputs/tables/sql-types.yaml") {
                 it + "  - { seq: '91', id: SQL-int, type: TYP-int, sql: INTEGER, literal: number }\n" +
                     "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR, literal: string }\n" +
                     "  - { seq: '93', id: SQL-shape-list.仕様番号, type: TYP-shape-list.仕様番号, sql: VARCHAR, literal: string }\n" +
@@ -340,14 +335,14 @@ class TodosSysdevTest {
                     # 参照
                 """.trimIndent().prependIndent("          ") + "\n")
             }
-            edit("design/detail/ledger.yaml") {
+            edit("design/detail/inputs/tables/ledger.yaml") {
                 it + "  - { seq: '02', id: IDX-ix_shape_parts_qty, name: ix_shape_parts_qty, table: TBL-shape_parts, " +
                     "columns: [{ column: COL-shape_parts.code }, { column: COL-shape_parts.qty, order: desc }], reason: 部品コードごとに数量の多い順に並べるため }\n"
             }
             generate(dir)
             fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(dir.resolve(path)))!!) as Map<*, *>
             fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-            val tables = list(doc("design/detail/tables.yaml"), "tables").associateBy { it["name"] }
+            val tables = list(doc("design/detail/final/tables.yaml"), "tables").associateBy { it["name"] }
             fun columns(t: String) = list(tables.getValue(t), "columns").associateBy { it["name"] }
             columns("shape").let {
                 assertEquals(listOf("id", "name", "period_from", "period_to", "size_width", "size_height",
@@ -373,6 +368,15 @@ class TodosSysdevTest {
                 list(tags, "columns").take(3).map { it["referencesColumn"] }, "どのカラムがどのカラムを指すかは、カラムの側に")
             assertEquals(listOf("shape_id", "attrs_key", "attrs"), columns("shape_attrs").keys.toList(), "マップはキーが主キー")
             assertEquals(2, columns("shape_attrs").getValue("attrs_key")["primaryKey"])
+            val rowModels = list(doc("design/detail/final/application-data-model.yaml"), "models").associateBy { it["table"] }
+            val tagRow = list(rowModels.getValue("shape_parts_notes_tags"), "columns").associateBy { it["column"] }
+            assertEquals("java.lang.Long", (tagRow.getValue("parts_seq")["java"] as Map<*, *>)["qualifiedName"], "複合の親キーは元の並び順の整数型を継承する")
+            assertEquals("java.lang.Long", (tagRow.getValue("notes_seq")["java"] as Map<*, *>)["qualifiedName"])
+            val shapeRow = list(rowModels.getValue("shape"), "columns").associateBy { it["column"] }
+            assertEquals("java.math.BigDecimal", (shapeRow.getValue("rate")["java"] as Map<*, *>)["qualifiedName"], "桁の区切りに空白がある DECIMAL も扱う")
+            assertEquals("", (shapeRow.getValue("empty_text")["default"] as Map<*, *>)["value"])
+            assertEquals("   ", (shapeRow.getValue("spaces_text")["default"] as Map<*, *>)["value"])
+            assertEquals(0, (shapeRow.getValue("zero_count")["default"] as Map<*, *>)["value"])
             val ws = Workspace.open(dir)
             assertEquals(emptyList(), Reports.load(dir).errors)
             val ddl = Reports.run(assertNotNull(Reports.load(dir).report("ddl")), emptyMap(), Views.load(dir, ws.schemas), ws.index, ws::treeOf, ws::schemaFor).text

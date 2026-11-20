@@ -1,0 +1,41 @@
+id: application-output-plan
+name: アプリの出力単位
+kind: document
+match: design/detail/final/application-output-plan.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: outputs
+      type: array
+      required: true
+      unique:
+        - id
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: report
+            type: string
+            required: true
+            pattern: ^[a-z][a-z0-9-]*$
+          - key: params
+            type: object
+            required: true
+            fields:
+              - key: model
+                type: string
+                pattern: ^JROW-[a-z][a-z0-9_-]*$
+              - key: mapper
+                type: string
+                pattern: ^MAP-[a-z][a-z0-9_-]*$
+            unknownFields: error
+          - key: destination
+            type: string
+            pattern: ^app/[A-Za-z0-9_./-]+$
+  unknownFields: error

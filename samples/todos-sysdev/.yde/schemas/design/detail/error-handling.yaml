@@ -1,0 +1,123 @@
+id: error-handling
+name: エラー設計書
+kind: document
+description: >-
+  詳細設計。例外のクラス（投げる所・受ける所・HTTP の状態・ログ）と @ControllerAdvice、操作ごとの断り方、エラー画面の部品の木、 画面に中身を出さないための Spring Boot
+  の設定。生成物（.yde/transforms/design/detail/error-handling.yaml）で、手で直さない
+match: design/detail/final/error-handling.yaml
+root:
+  type: object
+  fields:
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: 設計書
+      type: string
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
+    - key: exceptions
+      label: 例外のクラス
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: class
+            label: クラス
+            type: string
+            required: true
+          - key: extends
+            label: 親のクラス
+            type: string
+          - key: holds
+            label: 持つ値
+            type: string
+          - key: means
+            label: 意味
+            type: string
+          - key: thrownBy
+            label: 投げる所
+            type: string
+          - key: caughtBy
+            label: 受ける所
+            type: string
+          - key: transaction
+            label: トランザクション
+            type: string
+          - key: log
+            label: ログ
+            type: string
+    - key: advice
+      label: まとめて受けるクラス
+      type: any
+    - key: refusals
+      label: 操作ごとの断り方
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: operation
+            label: 操作
+            type: string
+            required: true
+          - key: service
+            label: Service
+            type: string
+          - key: handler
+            label: 確定のハンドラ
+            type: string
+          - key: throws
+            label: 投げる例外
+            type: array
+            item:
+              type: string
+          - key: confirm
+            label: 確認へでの確かめ
+            type: array
+            item:
+              type: string
+    - key: screens
+      label: エラー画面（部品の木）
+      type: array
+      display: list
+      item:
+        type: any
+    - key: settings
+      label: Spring Boot の設定
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: key
+            label: キー
+            type: string
+            required: true
+          - key: value
+            label: 値
+            type: string
+          - key: why
+            label: 理由
+            type: string
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error
+entity:
+  type: sysdev-error-handling
+  defines: true

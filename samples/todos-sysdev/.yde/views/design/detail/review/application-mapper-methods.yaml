@@ -1,0 +1,19 @@
+id: application-mapper-methods
+name: Java の Mapper と SQL の対応
+rows:
+  match:
+    - node: {id: 'MAP-*', bind: mapper}
+    - edge: {contains: true}
+    - node: {id: 'JMTH-*', bind: method}
+  rowKey: method
+order: {schemaId: application-access}
+columns:
+  - {label: Mapper, of: mapper, path: name}
+  - {label: メソッド, path: name}
+  - {label: 種類, path: kind}
+  - {label: テーブル, path: table}
+  - {label: 入力と型, path: parameters}
+  - {label: 取得項目, path: properties}
+  - {label: 条件, path: conditions}
+  - {label: 条件の参照先, path: conditionSource}
+  - {label: 更新内容, path: writeGroups}

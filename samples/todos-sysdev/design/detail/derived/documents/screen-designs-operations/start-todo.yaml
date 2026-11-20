@@ -1,0 +1,47 @@
+# 生成物（screen-designs-operations-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-operations.start-todo
+record:
+  id: DOC-screen-designs-operations.start-todo
+  value:
+    id: start-todo
+    name: TODOに着手する（画面設計書）
+    screens:
+      - id: start-todo/confirm
+        template: todo/start-todo/confirm
+        page:
+          title: TODOに着手する（確認）
+          width: m
+          body:
+            - notice:
+                kind: refusal
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - facts:
+                title: 状態の移り方
+                items:
+                  - label: 状態
+                    from:
+                      - 未着手
+                    to: 対応中
+            - form:
+                action: POST /todo/{id}/start-todo
+                hidden:
+                  - flow
+                  - from
+                body:
+                  - actions:
+                      - label: 確定
+                        kind: submit
+                        emphasis: primary
+                      - label: やめる
+                        kind: link
+                        to: 起点の画面
+                        emphasis: secondary
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml

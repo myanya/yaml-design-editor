@@ -1,0 +1,94 @@
+# 生成物（application-output-plan）: 手で直さず、業務モデルか生成の定義（design/detail/application-output-plan.yaml）を直して作り直します（CLI generate）。
+id: APP-output-plan
+outputs:
+  - id: OUTPUT-settings
+    report: app-settings
+    params: {}
+  - id: OUTPUT-build
+    report: app-build
+    params: {}
+  - id: OUTPUT-gradle-properties
+    report: app-gradle-properties
+    params: {}
+  - id: OUTPUT-main
+    report: app-main
+    params: {}
+  - id: OUTPUT-properties
+    report: app-properties
+    params: {}
+  - id: OUTPUT-test
+    report: app-test
+    params: {}
+  - id: OUTPUT-gitignore
+    report: app-gitignore
+    params: {}
+  - id: OUTPUT-readme
+    report: app-readme
+    params: {}
+  - id: OUTPUT-wrapper-properties
+    report: app-wrapper-properties
+    params: {}
+  - id: OUTPUT-JROW-category
+    report: app-row-model
+    params:
+      model: JROW-category
+  - id: OUTPUT-JROW-tag
+    report: app-row-model
+    params:
+      model: JROW-tag
+  - id: OUTPUT-JROW-todo
+    report: app-row-model
+    params:
+      model: JROW-todo
+  - id: OUTPUT-JROW-todo_task
+    report: app-row-model
+    params:
+      model: JROW-todo_task
+  - id: OUTPUT-JROW-todo_tags
+    report: app-row-model
+    params:
+      model: JROW-todo_tags
+  - id: OUTPUT-JROW-todo_comments
+    report: app-row-model
+    params:
+      model: JROW-todo_comments
+  - id: OUTPUT-JROW-todo_history
+    report: app-row-model
+    params:
+      model: JROW-todo_history
+  - id: OUTPUT-JAVA-MAP-category
+    report: app-mapper
+    params:
+      mapper: MAP-category
+  - id: OUTPUT-XML-MAP-category
+    report: app-mapper-xml
+    params:
+      mapper: MAP-category
+  - id: OUTPUT-JAVA-MAP-tag
+    report: app-mapper
+    params:
+      mapper: MAP-tag
+  - id: OUTPUT-XML-MAP-tag
+    report: app-mapper-xml
+    params:
+      mapper: MAP-tag
+  - id: OUTPUT-JAVA-MAP-todo
+    report: app-mapper
+    params:
+      mapper: MAP-todo
+  - id: OUTPUT-XML-MAP-todo
+    report: app-mapper-xml
+    params:
+      mapper: MAP-todo
+  - id: OUTPUT-JAVA-MAP-todo-task
+    report: app-mapper
+    params:
+      mapper: MAP-todo-task
+  - id: OUTPUT-XML-MAP-todo-task
+    report: app-mapper-xml
+    params:
+      mapper: MAP-todo-task
+  - id: OUTPUT-app-schema
+    report: ddl
+    params: {}
+    destination: app/src/main/resources/schema.sql

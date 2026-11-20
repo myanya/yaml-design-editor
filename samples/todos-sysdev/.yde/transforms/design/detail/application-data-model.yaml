@@ -1,0 +1,193 @@
+id: application-data-model
+name: 確定した物理列から Java の行モデルを確定する
+scope: design
+dependsOn:
+  - detail-tables
+  - application-java-types
+output: design/detail/final/application-data-model.yaml
+input:
+  models:
+    $apply: models
+    $with:
+      tables:
+        $view: application-tables-input
+        $one: true
+      types:
+        $view: application-java-types-input
+        $one: true
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          oneOf:
+            - application-java-type-values
+            - application-data-model
+      $then:
+        $copy: declared
+build:
+  $apply: validated-result
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $copy: contracts
+        documents:
+          design/detail/final/application-data-model.yaml:
+            id: APP-data-model
+            models:
+              $copy: models
+rules:
+  - id: models
+    with:
+      - tables
+      - types
+    build:
+      $each: values.record.tables
+      $of: tables
+      $bind: table
+      $build:
+        id:
+          $format: JROW-{originalName}
+        tableId:
+          $copy: id
+        table:
+          $copy: name
+        className:
+          $format: '{n}Row'
+          $with:
+            'n':
+              $case:
+                $copy: originalName
+              $as: pascal
+        columns:
+          $each: columns
+          $build:
+            $apply: column
+            $with:
+              column:
+                $copy: .
+              row:
+                $view: application-columns-input
+                $where:
+                  - path: id
+                    equals:
+                      $copy: id
+                      $of: columnSource
+                $one: true
+              base:
+                $apply: column-base
+                $with:
+                  column: {$copy: .}
+                  row:
+                    $view: application-columns-input
+                    $where: [{path: id, equals: {$copy: id, $of: columnSource}}]
+                    $one: true
+                  sql:
+                    $view: application-sql-base-input
+                    $where: [{path: id, equals: {$copy: sqlType, $of: columnSource}}]
+                    $one: true
+              types:
+                $copy: values.record.mappings
+                $of: types
+          $bind: columnSource
+  - id: column
+    with:
+      - column
+      - row
+      - types
+      - base
+    build:
+      id:
+        $format: JCOL-{id}
+        $with:
+          id:
+            $copy: id
+            $of: column
+      source:
+        $copy: id
+        $of: column
+      column:
+        $copy: name
+        $of: column
+      name:
+        $case:
+          $copy: name
+          $of: column
+        $as: camel
+      accessor:
+        $case:
+          $copy: name
+          $of: column
+        $as: pascal
+      java:
+        $apply: first
+        $with:
+          matches:
+            $each: .
+            $of: types
+            $build:
+              $when:
+                - path: base
+                  equals:
+                      $copy: .
+                      $of: base
+              $then:
+                $copy: .
+      sql:
+        $copy: values.sql
+        $of: row
+      default:
+        $apply: default
+        $with:
+          row:
+            $view: table-definition-defaults
+            $where:
+              - path: id
+                equals:
+                  $copy: id
+                  $of: column
+            $one: true
+  - id: column-base
+    with: [column, row, sql]
+    build:
+      $first:
+        - {$copy: values.base, $of: row}
+        - $when: [{of: column, path: sqlType, equals: SQL-seq}]
+          $then: int
+        - $when: [{of: column, path: sqlType, equals: SQL-key}]
+          $then: string
+        - {$copy: values.base, $of: sql}
+  - id: first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: default
+    with:
+      - row
+    when:
+      - path: values.初期値
+        of: row
+        exists: true
+    build:
+      value:
+        $copy: values.初期値
+        $of: row
+      literal:
+        $copy: values.初期値の出力方法
+        $of: row
+  - id: validated-result
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        matches:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .

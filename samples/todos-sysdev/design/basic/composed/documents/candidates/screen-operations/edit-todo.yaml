@@ -1,0 +1,335 @@
+# 生成物（screen-operation-candidates）: 手で直さず、業務モデルか生成の定義（design/basic/screen-operation-candidates.yaml）を直して作り直します（CLI generate）。
+id: CAN-screen-operation.edit-todo
+document:
+  id: edit-todo
+  name: TODOを編集する
+  kind: operation
+  target: todo
+  starts:
+    - screen: todo-dashboard
+      place: 区画「期限超過」の行のボタン
+    - screen: todo-dashboard
+      place: 区画「すべてのTODO」の行のボタン
+    - screen: todo
+      place: 画面のボタン
+  shownWhen: いつも
+  input:
+    screen: edit-todo/input
+    request: GET /todo/{id}/edit-todo
+    items:
+      - key: title
+        label: タイトル
+        type: common#一行の文
+        base: string
+        minLength: 1
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
+      - key: summary
+        label: 概要
+        type: common#一行の文
+        base: string
+        minLength: 1
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
+      - key: category
+        label: カテゴリ
+        type: common#カテゴリ参照
+        base: ref
+        description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
+        target: category
+        targetTitle: name
+        targetLabel: カテゴリ
+        clearedBy: clear.category
+      - key: tags
+        label: タグ
+        type: array
+        base: array
+        description: 入力した並びで全体を置き換えます。
+        unique: true
+        item:
+          type: common#タグ参照
+          base: ref
+          description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
+          target: tag
+          targetTitle: name
+          targetLabel: タグ
+        clearedBy: clear.tags
+      - key: created_on
+        label: 作成日
+        type: common#年月日
+        base: date
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+        format: yyyy年M月d日
+      - key: due_on
+        label: 期限
+        type: common#年月日
+        base: date
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+        format: yyyy年M月d日
+        clearedBy: clear.due_on
+      - key: details
+        label: 詳細
+        type: common#文章
+        base: string
+        multiline: true
+        clearedBy: clear.details
+      - key: result
+        label: 結果・中止理由
+        type: common#文章
+        base: string
+        multiline: true
+        clearedBy: clear.result
+      - key: comments
+        label: コメント一覧
+        type: array
+        base: array
+        description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
+        item:
+          type: common#コメント
+          base: object
+          fields:
+            - key: date
+              label: 日付
+              type: common#年月日
+              base: date
+              declarations:
+                - schema: common
+                  document: .yde/schemas/input/1.yaml
+                  path:
+                    - definitions
+                    - 年月日
+                  inherited: true
+                  declared:
+                    type: date
+                    format: yyyy年M月d日
+                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                - schema: common
+                  document: .yde/schemas/input/1.yaml
+                  path:
+                    - definitions
+                    - コメント
+                    - fields
+                    - 0
+                  inherited: false
+                  declared:
+                    key: date
+                    label: 日付
+                    type: 年月日
+                    required: true
+              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+              required: true
+              format: yyyy年M月d日
+            - key: body
+              label: コメント本文
+              type: text
+              base: string
+              declarations:
+                - schema: builtin-types
+                  path:
+                    - definitions
+                    - text
+                  inherited: true
+                  declared:
+                    type: string
+                    display: multiline
+                - schema: common
+                  document: .yde/schemas/input/1.yaml
+                  path:
+                    - definitions
+                    - コメント
+                    - fields
+                    - 1
+                  inherited: false
+                  declared:
+                    key: body
+                    label: コメント本文
+                    type: text
+                    required: true
+              required: true
+              multiline: true
+              builtinType:
+                name: text
+                base: string
+                builtin: true
+                multiline: true
+        clearedBy: clear.comments
+      - key: clear
+        label: 値を消す
+        type: object
+        base: object
+        description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+        default: {}
+        fields:
+          - key: category
+            label: カテゴリを消す
+            type: boolean
+            base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
+          - key: tags
+            label: タグを消す
+            type: boolean
+            base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
+          - key: due_on
+            label: 期限を消す
+            type: boolean
+            base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
+          - key: details
+            label: 詳細を消す
+            type: boolean
+            base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
+          - key: result
+            label: 結果・中止理由を消す
+            type: boolean
+            base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
+          - key: comments
+            label: コメント一覧を消す
+            type: boolean
+            base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
+    initial:
+      title:
+        $copy: title
+        $of: self
+        $in:
+          schemaId: todo-list
+      summary:
+        $copy: summary
+        $of: self
+        $in:
+          schemaId: todo-list
+      category:
+        $copy: category
+        $of: self
+        $in:
+          schemaId: todo-list
+      tags:
+        $copy: tags
+        $of: self
+        $in:
+          schemaId: todo-list
+      created_on:
+        $copy: created_on
+        $of: self
+        $in:
+          schemaId: todo-detail
+      due_on:
+        $copy: due_on
+        $of: self
+        $in:
+          schemaId: todo-detail
+      details:
+        $copy: details
+        $of: self
+        $in:
+          schemaId: todo-detail
+      result:
+        $copy: result
+        $of: self
+        $in:
+          schemaId: todo-detail
+      comments:
+        $copy: comments
+        $of: self
+        $in:
+          schemaId: todo-detail
+    submit: changed
+  confirm:
+    screen: edit-todo/confirm
+    request: POST /todo/{id}/edit-todo/confirm
+    shows:
+      - タイトル
+      - 概要
+      - カテゴリ
+      - タグ
+      - 作成日
+      - 期限
+      - 詳細
+      - 結果・中止理由
+      - コメント一覧
+      - 値を消す
+    back:
+      request: POST /todo/{id}/edit-todo/back
+      to: edit-todo/input
+  execute:
+    request: POST /todo/{id}/edit-todo
+    returns: 起点の画面（starts の画面。画面の ID で受け取る）
+    notice: edit-todo.done
+    refusals:
+      - key: check.due-not-before-created
+        message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+      - key: check.updated-not-before-created
+        message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+      - key: check.completed-not-before-created
+        message: TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です
+      - key: check.closed-has-result
+        message: 完了した TODO「{id}」に結果がありません
+    onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+  originalRoutes:
+    input: GET /todo/{id}/edit-todo
+    confirm: POST /todo/{id}/edit-todo/confirm
+    back: POST /todo/{id}/edit-todo/back
+    execute: POST /todo/{id}/edit-todo
+  designId: DOC-screen-operations.edit-todo
+  designKind: screen-operations
+  designPath: design/basic/final/screens/operations/edit-todo.yaml
+  origins:
+    source:
+      id: rule-screen-operations
+      document: .yde/transforms/design/basic/screen-operations-derived.yaml
+      path: []
+    decisions: []
+    inputs: []

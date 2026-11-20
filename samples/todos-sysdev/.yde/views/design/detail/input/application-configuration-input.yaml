@@ -1,0 +1,8 @@
+id: application-configuration-input
+name: アプリの確定設定を生成へ渡す
+rows:
+  idPattern: APP-settings
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/final/application.yaml

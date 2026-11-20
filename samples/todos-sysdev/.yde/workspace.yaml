@@ -1,5 +1,5 @@
 ledger: [design]
-# 定義体のスコープ。生成は業務モデルのスコープだけを読む（.yde/transforms の scope: business）。
+# 定義体のスコープ。業務の導出は business、設計入力の検査と確定は design を読む。
 # 中身は置き場所で書いているが、スコープそのものは名前のある定義。設計は業務モデルを使ってよく、業務モデルから設計は使えない
 scopes:
   - id: business
@@ -11,8 +11,8 @@ scopes:
     description: 業務モデルから生成した設計書と、その検査・ビュー・生成の定義
     include: [schemas/design/**, views/design/**, transforms/design/**, stages/design/**]
     uses: [business]
-# 段（段階的詳細化。ADR-0034）。段の項＝前の段の項に、その段の規則と補正（.yde/stages の stage）を当てたもの。
-# 最初の段の入力は業務モデルの項。生成の定義は stage で読む段を選ぶ（基本設計書は basic、詳細設計書は detail）
+# 段の宣言は維持するが、設計書の生成は ADR-0039 の確定項目と dependsOn の経路を使う。
+# 保存済みの確定値へ stage の規則と補正をもう一度当てない。
 stages:
   - id: basic
     name: 基本設計

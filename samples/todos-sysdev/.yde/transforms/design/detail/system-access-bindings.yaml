@@ -1,0 +1,75 @@
+id: system-access-bindings
+name: 設計書間で共有する system-access-bindings
+scope: business
+dependsOn:
+  - table-access
+output: design/detail/composed/documents/system-access-bindings.yaml
+build:
+  id: SYS-system-access-bindings
+  bindings:
+    $each:
+      $view: table-access-input
+    $bind: mapper
+    $flatten: true
+    $build:
+      $each: values.record.methods
+      $flatten: true
+      $build:
+        $concat:
+          - - before:
+                $format: '{c}Mapper.{m}'
+                $with:
+                  c:
+                    $case:
+                      $copy: values.record.id
+                      $of: mapper
+                    $as: pascal
+                  m:
+                    $copy: methodId
+              after:
+                $format: '{c}.{m}'
+                $with:
+                  c:
+                    $copy: values.record.mapper
+                    $of: mapper
+                  m:
+                    $copy: name
+              roles:
+                - call
+                - calls
+                - reads
+                - read
+                - service
+          - - before:
+                $format: '{c}Mapper.{m} の次'
+                $with:
+                  c:
+                    $case:
+                      $copy: values.record.id
+                      $of: mapper
+                    $as: pascal
+                  m:
+                    $copy: methodId
+              after:
+                $format: '{c}.{m} の次'
+                $with:
+                  c:
+                    $copy: values.record.mapper
+                    $of: mapper
+                  m:
+                    $copy: name
+              roles:
+                - seq
+rules:
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

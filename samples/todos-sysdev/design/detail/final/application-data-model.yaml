@@ -1,0 +1,440 @@
+# 生成物（application-data-model）: 手で直さず、業務モデルか生成の定義（design/detail/application-data-model.yaml）を直して作り直します（CLI generate）。
+id: APP-data-model
+models:
+  - id: JROW-category
+    tableId: TBL-category
+    table: category
+    className: CategoryRow
+    columns:
+      - id: JCOL-COL-category.id
+        source: COL-category.id
+        column: id
+        name: id
+        accessor: Id
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-category.name
+        source: COL-category.name
+        column: name
+        name: name
+        accessor: Name
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR(100)
+  - id: JROW-tag
+    tableId: TBL-tag
+    table: tag
+    className: TagRow
+    columns:
+      - id: JCOL-COL-tag.id
+        source: COL-tag.id
+        column: id
+        name: id
+        accessor: Id
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-tag.name
+        source: COL-tag.name
+        column: name
+        name: name
+        accessor: Name
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR(100)
+  - id: JROW-todo
+    tableId: TBL-todo
+    table: todo
+    className: TodoRow
+    columns:
+      - id: JCOL-COL-todo.id
+        source: COL-todo.id
+        column: id
+        name: id
+        accessor: Id
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo.title
+        source: COL-todo.title
+        column: title
+        name: title
+        accessor: Title
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR(100)
+      - id: JCOL-COL-todo.summary
+        source: COL-todo.summary
+        column: summary
+        name: summary
+        accessor: Summary
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR(100)
+      - id: JCOL-COL-todo.category
+        source: COL-todo.category
+        column: category
+        name: category
+        accessor: Category
+        java:
+          base: ref
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo.follows
+        source: COL-todo.follows
+        column: follows
+        name: follows
+        accessor: Follows
+        java:
+          base: ref
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo.status
+        source: COL-todo.status
+        column: status
+        name: status
+        accessor: Status
+        java:
+          base: enum
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+        default:
+          value: OPEN
+          literal: string
+      - id: JCOL-COL-todo.created_on
+        source: COL-todo.created_on
+        column: created_on
+        name: createdOn
+        accessor: CreatedOn
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE
+      - id: JCOL-COL-todo.updated_on
+        source: COL-todo.updated_on
+        column: updated_on
+        name: updatedOn
+        accessor: UpdatedOn
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE
+      - id: JCOL-COL-todo.due_on
+        source: COL-todo.due_on
+        column: due_on
+        name: dueOn
+        accessor: DueOn
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE
+      - id: JCOL-COL-todo.completed_on
+        source: COL-todo.completed_on
+        column: completed_on
+        name: completedOn
+        accessor: CompletedOn
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE
+      - id: JCOL-COL-todo.details
+        source: COL-todo.details
+        column: details
+        name: details
+        accessor: Details
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo.result
+        source: COL-todo.result
+        column: result
+        name: result
+        accessor: Result
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+  - id: JROW-todo_task
+    tableId: TBL-todo_task
+    table: todo_task
+    className: TodoTaskRow
+    columns:
+      - id: JCOL-COL-todo_task.id
+        source: COL-todo_task.id
+        column: id
+        name: id
+        accessor: Id
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_task.todo_id
+        source: COL-todo_task.todo_id
+        column: todo_id
+        name: todoId
+        accessor: TodoId
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_task.seq
+        source: COL-todo_task.seq
+        column: seq
+        name: seq
+        accessor: Seq
+        java:
+          base: int
+          name: Long
+          qualifiedName: java.lang.Long
+          literal: number
+        sql: INTEGER
+      - id: JCOL-COL-todo_task.title
+        source: COL-todo_task.title
+        column: title
+        name: title
+        accessor: Title
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR(100)
+      - id: JCOL-COL-todo_task.done
+        source: COL-todo_task.done
+        column: done
+        name: done
+        accessor: Done
+        java:
+          base: boolean
+          name: Boolean
+          qualifiedName: java.lang.Boolean
+          literal: boolean
+        sql: BOOLEAN
+        default:
+          value: false
+          literal: boolean
+  - id: JROW-todo_tags
+    tableId: TBL-todo_tags
+    table: todo_tags
+    className: TodoTagsRow
+    columns:
+      - id: JCOL-COL-todo_tags.todo_id
+        source: COL-todo_tags.todo_id
+        column: todo_id
+        name: todoId
+        accessor: TodoId
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_tags.seq
+        source: COL-todo_tags.seq
+        column: seq
+        name: seq
+        accessor: Seq
+        java:
+          base: int
+          name: Long
+          qualifiedName: java.lang.Long
+          literal: number
+        sql: INTEGER
+      - id: JCOL-COL-todo_tags.tag_id
+        source: COL-todo_tags.tag_id
+        column: tag_id
+        name: tagId
+        accessor: TagId
+        java:
+          base: ref
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+  - id: JROW-todo_comments
+    tableId: TBL-todo_comments
+    table: todo_comments
+    className: TodoCommentsRow
+    columns:
+      - id: JCOL-COL-todo_comments.todo_id
+        source: COL-todo_comments.todo_id
+        column: todo_id
+        name: todoId
+        accessor: TodoId
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_comments.seq
+        source: COL-todo_comments.seq
+        column: seq
+        name: seq
+        accessor: Seq
+        java:
+          base: int
+          name: Long
+          qualifiedName: java.lang.Long
+          literal: number
+        sql: INTEGER
+      - id: JCOL-COL-todo_comments.date
+        source: COL-todo_comments.date
+        column: date
+        name: date
+        accessor: Date
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE
+      - id: JCOL-COL-todo_comments.body
+        source: COL-todo_comments.body
+        column: body
+        name: body
+        accessor: Body
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+  - id: JROW-todo_history
+    tableId: TBL-todo_history
+    table: todo_history
+    className: TodoHistoryRow
+    columns:
+      - id: JCOL-COL-todo_history.todo_id
+        source: COL-todo_history.todo_id
+        column: todo_id
+        name: todoId
+        accessor: TodoId
+        java:
+          base: id
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_history.seq
+        source: COL-todo_history.seq
+        column: seq
+        name: seq
+        accessor: Seq
+        java:
+          base: int
+          name: Long
+          qualifiedName: java.lang.Long
+          literal: number
+        sql: INTEGER
+      - id: JCOL-COL-todo_history.date
+        source: COL-todo_history.date
+        column: date
+        name: date
+        accessor: Date
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE
+      - id: JCOL-COL-todo_history.action
+        source: COL-todo_history.action
+        column: action
+        name: action
+        accessor: Action
+        java:
+          base: enum
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_history.from_
+        source: COL-todo_history.from_
+        column: from_
+        name: from
+        accessor: From
+        java:
+          base: enum
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_history.to_
+        source: COL-todo_history.to_
+        column: to_
+        name: to
+        accessor: To
+        java:
+          base: enum
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_history.note
+        source: COL-todo_history.note
+        column: note
+        name: note
+        accessor: Note
+        java:
+          base: string
+          name: String
+          qualifiedName: java.lang.String
+          literal: string
+        sql: VARCHAR
+      - id: JCOL-COL-todo_history.resume_on
+        source: COL-todo_history.resume_on
+        column: resume_on
+        name: resumeOn
+        accessor: ResumeOn
+        java:
+          base: date
+          name: LocalDate
+          qualifiedName: java.time.LocalDate
+          literal: date
+        sql: DATE

@@ -1,0 +1,17 @@
+id: application-architecture
+name: アプリの方式による追加設定
+kind: document
+match: design/detail/inputs/application/settings.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: settings
+      type: application-settings#設定
+      required: true
+    - key: reason
+      type: text
+      required: true
+  unknownFields: error

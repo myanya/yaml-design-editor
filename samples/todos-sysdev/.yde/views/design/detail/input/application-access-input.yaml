@@ -1,0 +1,12 @@
+id: application-access-input
+name: 確定した Mapper の生成入力
+rows:
+  idPattern: MAP-*
+  schemaIds:
+    - application-access
+order:
+  schemaId: application-access
+columns:
+  - label: record
+    path: .
+    schemaId: application-access

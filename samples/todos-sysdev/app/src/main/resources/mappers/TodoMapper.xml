@@ -1,0 +1,767 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="example.todos.data.mapper.TodoMapper">
+  <resultMap id="row_CategoryRow" type="example.todos.data.model.CategoryRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="name" column="name" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TagRow" type="example.todos.data.model.TagRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="name" column="name" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoRow" type="example.todos.data.model.TodoRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="title" column="title" javaType="java.lang.String"/>
+    <result property="summary" column="summary" javaType="java.lang.String"/>
+    <result property="category" column="category" javaType="java.lang.String"/>
+    <result property="follows" column="follows" javaType="java.lang.String"/>
+    <result property="status" column="status" javaType="java.lang.String"/>
+    <result property="createdOn" column="created_on" javaType="java.time.LocalDate"/>
+    <result property="updatedOn" column="updated_on" javaType="java.time.LocalDate"/>
+    <result property="dueOn" column="due_on" javaType="java.time.LocalDate"/>
+    <result property="completedOn" column="completed_on" javaType="java.time.LocalDate"/>
+    <result property="details" column="details" javaType="java.lang.String"/>
+    <result property="result" column="result" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoTaskRow" type="example.todos.data.model.TodoTaskRow">
+    <result property="id" column="id" javaType="java.lang.String"/>
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="title" column="title" javaType="java.lang.String"/>
+    <result property="done" column="done" javaType="java.lang.Boolean"/>
+  </resultMap>
+  <resultMap id="row_TodoTagsRow" type="example.todos.data.model.TodoTagsRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="tagId" column="tag_id" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoCommentsRow" type="example.todos.data.model.TodoCommentsRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="date" column="date" javaType="java.time.LocalDate"/>
+    <result property="body" column="body" javaType="java.lang.String"/>
+  </resultMap>
+  <resultMap id="row_TodoHistoryRow" type="example.todos.data.model.TodoHistoryRow">
+    <result property="todoId" column="todo_id" javaType="java.lang.String"/>
+    <result property="seq" column="seq" javaType="java.lang.Long"/>
+    <result property="date" column="date" javaType="java.time.LocalDate"/>
+    <result property="action" column="action" javaType="java.lang.String"/>
+    <result property="from" column="from_" javaType="java.lang.String"/>
+    <result property="to" column="to_" javaType="java.lang.String"/>
+    <result property="note" column="note" javaType="java.lang.String"/>
+    <result property="resumeOn" column="resume_on" javaType="java.time.LocalDate"/>
+  </resultMap>
+  <resultMap id="result_findDetail" type="example.todos.data.mapper.TodoMapper$FindDetailResult" extends="row_TodoRow">
+
+
+
+
+    <result property="categoryDisplay" column="categoryDisplay"/>
+
+    <result property="followsDisplay" column="followsDisplay"/>
+
+    <collection property="tags" column="{k0=id}" select="_children_findDetail_tags" fetchType="eager"/>
+    <collection property="comments" column="{k0=id}" select="_children_findDetail_comments" fetchType="eager"/>
+    <collection property="history" column="{k0=id}" select="_children_findDetail_history" fetchType="eager"/>
+    <collection property="tasks" column="{k0=id}" select="_children_findDetail_tasks" fetchType="eager"/>
+
+    <collection property="tagsDisplay" column="{k0=id}" select="_children_findDetail_tagsDisplay" fetchType="eager"/>
+
+  </resultMap>
+  <resultMap id="result_selectAll" type="example.todos.data.mapper.TodoMapper$SelectAllResult" extends="row_TodoRow">
+    <result property="column0" column="column0"/>
+    <result property="column1" column="column1"/>
+
+
+
+  </resultMap>
+  <resultMap id="result_selectTodoDashboardOverdue" type="example.todos.data.mapper.TodoMapper$SelectTodoDashboardOverdueResult" extends="row_TodoRow">
+    <result property="column0" column="column0"/>
+    <result property="column1" column="column1"/>
+    <result property="column2" column="column2"/>
+    <result property="column3" column="column3"/>
+    <result property="column4" column="column4"/>
+
+
+
+
+
+
+  </resultMap>
+  <resultMap id="result_selectTodoDashboardAll" type="example.todos.data.mapper.TodoMapper$SelectTodoDashboardAllResult" extends="row_TodoRow">
+    <result property="column0" column="column0"/>
+    <result property="column1" column="column1"/>
+    <result property="column2" column="column2"/>
+
+    <result property="column3Done" column="column3Done"/>
+    <result property="column3All" column="column3All"/>
+
+    <result property="column5" column="column5"/>
+    <result property="column6" column="column6"/>
+    <result property="column7" column="column7"/>
+    <result property="column8" column="column8"/>
+
+
+
+
+
+    <collection property="column4" column="{k0=id}" select="_children_selectTodoDashboardAll_column4" fetchType="eager"/>
+
+
+
+
+  </resultMap>
+  <resultMap id="result_findById" type="example.todos.data.mapper.TodoMapper$FindByIdResult" extends="row_TodoRow">
+
+  </resultMap>
+  <select id="findDetail" resultMap="result_findDetail">
+    SELECT <trim suffixOverrides=",">
+      todo.id,
+      todo.title,
+      todo.summary,
+      todo.category,
+      todo.follows,
+      todo.status,
+      todo.created_on,
+      todo.updated_on,
+      todo.due_on,
+      todo.completed_on,
+      todo.details,
+      todo.result,
+
+
+
+
+
+
+
+
+
+
+
+
+
+      (SELECT n.name FROM category n WHERE n.id = todo.category) AS categoryDisplay,
+
+
+
+
+
+      (SELECT n.title FROM todo n WHERE n.id = todo.follows) AS followsDisplay,
+
+    </trim>
+    FROM todo
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+  <select id="_children_findDetail_tags" resultType="java.lang.String">
+    SELECT c.tag_id
+    FROM todo_tags c
+
+    WHERE c.todo_id = #{k0}
+    ORDER BY c.seq
+  </select>
+
+  <select id="_children_findDetail_comments" resultMap="row_TodoCommentsRow">
+    SELECT c.*
+    FROM todo_comments c
+
+    WHERE c.todo_id = #{k0}
+    ORDER BY c.seq
+  </select>
+
+  <select id="_children_findDetail_history" resultMap="row_TodoHistoryRow">
+    SELECT c.*
+    FROM todo_history c
+
+    WHERE c.todo_id = #{k0}
+    ORDER BY c.seq
+  </select>
+
+  <select id="_children_findDetail_tasks" resultMap="row_TodoTaskRow">
+    SELECT c.*
+    FROM todo_task c
+
+    WHERE c.todo_id = #{k0}
+    ORDER BY c.seq
+  </select>
+
+  <select id="_children_findDetail_tagsDisplay" resultType="java.lang.String">
+    SELECT n.name
+    FROM todo_tags c
+    JOIN tag n ON c.tag_id = n.id
+    WHERE c.todo_id = #{k0}
+    ORDER BY c.seq
+  </select>
+
+  <select id="selectAll" resultMap="result_selectAll">
+    SELECT <trim suffixOverrides=",">
+      todo.id,
+      todo.title,
+      todo.id AS column0,
+
+
+      todo.title AS column1,
+
+
+    </trim>
+    FROM todo
+    <where></where>
+    ORDER BY todo.id asc
+  </select>
+
+  <select id="selectTodoDashboardOverdue" resultMap="result_selectTodoDashboardOverdue">
+    SELECT <trim suffixOverrides=",">
+      todo.id,
+      todo.title,
+      todo.status,
+      todo.due_on,
+      todo.completed_on,
+      todo.id AS column0,
+
+
+      todo.title AS column1,
+
+
+      todo.status AS column2,
+
+
+      todo.due_on AS column3,
+
+
+      todo.completed_on AS column4,
+
+
+    </trim>
+    FROM todo
+    <where>
+<if test="input.tags != null and !input.tags.isEmpty()">
+
+
+
+
+AND <choose><when test="input.tags != null and !input.tags.isEmpty()">EXISTS (SELECT 1 FROM todo_tags l WHERE l.todo_id = todo.id AND l.tag_id IN <foreach collection="input.tags" item="item" open="(" separator="," close=")">#{item}</foreach>)</when><otherwise>1 = 0</otherwise></choose>
+</if>
+
+<if test="input.category != null and input.category != &apos;&apos;">
+AND todo.category = #{input.category}
+
+
+
+
+</if>
+
+
+
+
+AND todo.status IN (&apos;OPEN&apos;, &apos;IN_PROGRESS&apos;)
+
+
+
+
+
+
+AND todo.due_on IS NOT NULL
+
+
+
+
+
+
+AND todo.due_on &lt; #{input.today}
+
+
+
+
+
+</where>
+    ORDER BY todo.due_on asc NULLS last
+  </select>
+
+
+  <select id="countTodoDashboardOverdue" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM todo
+    <where>
+<if test="input.tags != null and !input.tags.isEmpty()">
+
+
+
+
+AND <choose><when test="input.tags != null and !input.tags.isEmpty()">EXISTS (SELECT 1 FROM todo_tags l WHERE l.todo_id = todo.id AND l.tag_id IN <foreach collection="input.tags" item="item" open="(" separator="," close=")">#{item}</foreach>)</when><otherwise>1 = 0</otherwise></choose>
+</if>
+
+<if test="input.category != null and input.category != &apos;&apos;">
+AND todo.category = #{input.category}
+
+
+
+
+</if>
+
+
+
+
+AND todo.status IN (&apos;OPEN&apos;, &apos;IN_PROGRESS&apos;)
+
+
+
+
+
+
+AND todo.due_on IS NOT NULL
+
+
+
+
+
+
+AND todo.due_on &lt; #{input.today}
+
+
+
+
+
+</where>
+  </select>
+  <select id="selectTodoDashboardAll" resultMap="result_selectTodoDashboardAll">
+    SELECT <trim suffixOverrides=",">
+      todo.id,
+      todo.summary,
+      todo.category,
+      todo.status,
+      todo.created_on,
+      todo.updated_on,
+      todo.due_on,
+      todo.id AS column0,
+
+
+
+      (SELECT n.name FROM category n WHERE n.id = todo.category) AS column1,
+
+      todo.status AS column2,
+
+
+
+
+
+      
+
+(SELECT COUNT(*) FROM todo_task c WHERE c.todo_id = todo.id
+
+
+AND c.done = true
+
+
+
+
+
+)
+ AS column3Done,
+      
+
+(SELECT COUNT(*) FROM todo_task c WHERE c.todo_id = todo.id
+)
+ AS column3All,
+
+
+
+      todo.due_on AS column5,
+
+
+      todo.summary AS column6,
+
+
+      todo.created_on AS column7,
+
+
+      todo.updated_on AS column8,
+
+
+    </trim>
+    FROM todo
+    <where>
+<if test="input.tags != null and !input.tags.isEmpty()">
+
+
+
+
+AND <choose><when test="input.tags != null and !input.tags.isEmpty()">EXISTS (SELECT 1 FROM todo_tags l WHERE l.todo_id = todo.id AND l.tag_id IN <foreach collection="input.tags" item="item" open="(" separator="," close=")">#{item}</foreach>)</when><otherwise>1 = 0</otherwise></choose>
+</if>
+
+<if test="input.category != null and input.category != &apos;&apos;">
+AND todo.category = #{input.category}
+
+
+
+
+</if>
+</where>
+    ORDER BY todo.id asc
+  </select>
+
+  <select id="_children_selectTodoDashboardAll_column4" resultType="java.lang.String">
+    SELECT n.name
+    FROM todo_tags c
+    JOIN tag n ON c.tag_id = n.id
+    WHERE c.todo_id = #{k0}
+    ORDER BY c.seq
+  </select>
+
+
+  <select id="countTodoDashboardAll" resultType="java.lang.Long">
+    SELECT COUNT(*) FROM todo
+    <where>
+<if test="input.tags != null and !input.tags.isEmpty()">
+
+
+
+
+AND <choose><when test="input.tags != null and !input.tags.isEmpty()">EXISTS (SELECT 1 FROM todo_tags l WHERE l.todo_id = todo.id AND l.tag_id IN <foreach collection="input.tags" item="item" open="(" separator="," close=")">#{item}</foreach>)</when><otherwise>1 = 0</otherwise></choose>
+</if>
+
+<if test="input.category != null and input.category != &apos;&apos;">
+AND todo.category = #{input.category}
+
+
+
+
+</if>
+</where>
+  </select>
+  <select id="findById" resultMap="result_findById">
+    SELECT <trim suffixOverrides=",">
+      todo.id,
+      todo.title,
+      todo.summary,
+      todo.category,
+      todo.follows,
+      todo.status,
+      todo.created_on,
+      todo.updated_on,
+      todo.due_on,
+      todo.completed_on,
+      todo.details,
+      todo.result,
+    </trim>
+    FROM todo
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+
+  <insert id="insert">
+    INSERT INTO todo (id, title, summary, category, follows, status, created_on, updated_on, due_on, completed_on, details, result)
+    VALUES (#{input.id}, #{input.title}, #{input.summary}, #{input.category}, #{input.follows}, <choose><when test="input.status != null">#{input.status}</when><otherwise>DEFAULT</otherwise></choose>, #{input.createdOn}, #{input.updatedOn}, #{input.dueOn}, #{input.completedOn}, #{input.details}, #{input.result})
+  </insert>
+
+  <select id="maxId" resultType="java.lang.String">
+    SELECT id FROM todo
+    <where>
+
+
+
+
+AND LEFT(todo.id, CHAR_LENGTH(&apos;TODO-&apos;)) = &apos;TODO-&apos;
+
+
+</where>
+    ORDER BY CHAR_LENGTH(id) DESC, id DESC FETCH FIRST 1 ROW ONLY
+  </select>
+
+  <insert id="insertTodoTags">
+    INSERT INTO todo_tags (todo_id, seq, tag_id)
+    VALUES (#{input.todoId}, #{input.seq}, #{input.tagId})
+  </insert>
+
+  <insert id="insertTodoHistory">
+    INSERT INTO todo_history (todo_id, seq, date, action, from_, to_, note, resume_on)
+    VALUES (#{input.todoId}, #{input.seq}, #{input.date}, #{input.action}, #{input.from}, #{input.to}, #{input.note}, #{input.resumeOn})
+  </insert>
+
+  <select id="maxSeqTodoHistory" resultType="java.lang.Long">
+    SELECT MAX(seq) FROM todo_history
+    <where>
+
+AND todo_history.todo_id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+  <insert id="insertTodoComments">
+    INSERT INTO todo_comments (todo_id, seq, date, body)
+    VALUES (#{input.todoId}, #{input.seq}, #{input.date}, #{input.body})
+  </insert>
+
+  <select id="maxSeqTodoComments" resultType="java.lang.Long">
+    SELECT MAX(seq) FROM todo_comments
+    <where>
+
+AND todo_comments.todo_id = #{input.id}
+
+
+
+
+
+</where>
+
+  </select>
+
+  <update id="addTodoComment">
+    UPDATE todo SET
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="addTodoTask">
+    UPDATE todo SET
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="editTodo">
+    UPDATE todo SET
+    title = <choose>
+      <when test="input.title != null">#{input.title}</when>
+      <otherwise>title</otherwise>
+    </choose>,
+    summary = <choose>
+      <when test="input.summary != null">#{input.summary}</when>
+      <otherwise>summary</otherwise>
+    </choose>,
+    category = <choose>
+      <when test="input.clearCategory == true">NULL</when>
+      <when test="input.category != null">#{input.category}</when>
+      <otherwise>category</otherwise>
+    </choose>,
+    created_on = <choose>
+      <when test="input.createdOn != null">#{input.createdOn}</when>
+      <otherwise>created_on</otherwise>
+    </choose>,
+    due_on = <choose>
+      <when test="input.clearDueOn == true">NULL</when>
+      <when test="input.dueOn != null">#{input.dueOn}</when>
+      <otherwise>due_on</otherwise>
+    </choose>,
+    details = <choose>
+      <when test="input.clearDetails == true">NULL</when>
+      <when test="input.details != null">#{input.details}</when>
+      <otherwise>details</otherwise>
+    </choose>,
+    result = <choose>
+      <when test="input.clearResult == true">NULL</when>
+      <when test="input.result != null">#{input.result}</when>
+      <otherwise>result</otherwise>
+    </choose>,
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <delete id="deleteTodoTags">DELETE FROM todo_tags <where>
+
+AND todo_tags.todo_id = #{input.id}
+
+
+
+
+
+</where></delete>
+
+  <delete id="deleteTodoComments">DELETE FROM todo_comments <where>
+
+AND todo_comments.todo_id = #{input.id}
+
+
+
+
+
+</where></delete>
+
+  <update id="startTodo">
+    UPDATE todo SET
+    status = <choose>
+      <when test="true">&apos;IN_PROGRESS&apos;</when>
+      <otherwise>status</otherwise>
+    </choose>,
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="suspendTodo">
+    UPDATE todo SET
+    status = <choose>
+      <when test="true">&apos;SUSPENDED&apos;</when>
+      <otherwise>status</otherwise>
+    </choose>,
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="resumeTodo">
+    UPDATE todo SET
+    status = <choose>
+      <when test="true">&apos;IN_PROGRESS&apos;</when>
+      <otherwise>status</otherwise>
+    </choose>,
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="completeTodo">
+    UPDATE todo SET
+    completed_on = <choose>
+      <when test="true">#{input.date}</when>
+      <otherwise>completed_on</otherwise>
+    </choose>,
+    result = <choose>
+      <when test="true">#{input.result}</when>
+      <otherwise>result</otherwise>
+    </choose>,
+    status = <choose>
+      <when test="true">&apos;CLOSED&apos;</when>
+      <otherwise>status</otherwise>
+    </choose>,
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="cancelTodo">
+    UPDATE todo SET
+    result = <choose>
+      <when test="true">#{input.reason}</when>
+      <otherwise>result</otherwise>
+    </choose>,
+    status = <choose>
+      <when test="true">&apos;CANCELED&apos;</when>
+      <otherwise>status</otherwise>
+    </choose>,
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="todoTaskFinish">
+    UPDATE todo SET
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.todoId}
+
+
+
+
+
+</where>
+  </update>
+</mapper>

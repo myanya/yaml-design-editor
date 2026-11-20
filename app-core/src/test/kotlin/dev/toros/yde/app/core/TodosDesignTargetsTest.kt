@@ -19,27 +19,27 @@ class TodosDesignTargetsTest {
     private fun raw(text: String) = YamlIO.parseToRaw(text) as Map<*, *>
     private fun rows(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
     private val accepted = "TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。"
-    private val corrections = Files.readString(sample.resolve("design/basic/corrections.yaml"))
+    private val corrections = Files.readString(sample.resolve("design/basic/inputs/entities/corrections.yaml"))
 
     private fun store(correctionText: String = corrections, extra: String? = null): InMemoryDocumentStore {
         val files = sample.resolve(".yde/schemas/business").listDirectoryEntries("*.yaml")
             .associate { ".yde/schemas/business/${it.fileName}" to Files.readString(it) }.toMutableMap()
         for (name in listOf("basic-design-values", "basic-derived-model", "basic-derived", "basic-design-contract", "basic-targets", "basic-descriptions")) {
-            val path = ".yde/schemas/design/$name.yaml"
+            val path = TodosSysdevFiles.definition(sample, "schemas", name)
             files[path] = Files.readString(sample.resolve(path))
         }
         for (name in listOf("basic-derived", "basic-targets", "basic-descriptions")) {
-            val path = ".yde/transforms/design/$name.yaml"
+            val path = TodosSysdevFiles.definition(sample, "transforms", name)
             files[path] = Files.readString(sample.resolve(path))
         }
         for (name in listOf("basic-derived-input", "basic-targets-input", "basic-description-corrections-input")) {
-            val path = ".yde/views/design/$name.yaml"
+            val path = TodosSysdevFiles.definition(sample, "views", name)
             files[path] = Files.readString(sample.resolve(path))
         }
         // 生成中の対象は通常の索引に頼らない。旧設計書を置かない環境でも新形式の入力を読める。
-        files[".yde/schemas/design/basic-corrections.yaml"] = "id: basic-corrections\nmatch: design/basic/corrections.yaml\nroot: {type: basic-design-contract#補正と指定一覧}\n"
+        files[".yde/schemas/design/basic/basic-corrections.yaml"] = "id: basic-corrections\nmatch: design/basic/inputs/entities/corrections.yaml\nroot: {type: basic-design-contract#補正と指定一覧}\n"
         files[".yde/workspace.yaml"] = "ledger: [design]\nscopes: [{id: business, include: ['schemas/business/**']}]\n"
-        files["design/basic/corrections.yaml"] = correctionText
+        files["design/basic/inputs/entities/corrections.yaml"] = correctionText
         if (extra != null) files[".yde/schemas/business/extra.yaml"] = extra
         return InMemoryDocumentStore(files).also { assertEquals(emptyList(), WorkspaceReader.load(it).schemaErrors) }
     }
@@ -57,10 +57,10 @@ class TodosDesignTargetsTest {
         val paths = rows(id, "occurrences").flatMap { rows(it, "declarations") }
             .filter { it["inherited"] == false }.map { it["path"] }
         assertTrue(paths.any { "TODO一覧の行" in it.toString() } && paths.any { "TODO個票" in it.toString() }, paths.toString())
-        val legacyFields = rows(raw(Files.readString(sample.resolve("design/basic/entities.yaml"))), "entities")
+        val legacyFields = rows(raw(Files.readString(sample.resolve("design/basic/final/entities.yaml"))), "entities")
             .flatMap { rows(it, "items") }.map { it["id"] }.toSet()
         assertTrue(targets.map { it["designId"] }.containsAll(legacyFields), "既存の全項目 ID を維持する")
-        val legacyTypes = rows(raw(Files.readString(sample.resolve("design/basic/types.yaml"))), "types").map { it["id"] }
+        val legacyTypes = rows(raw(Files.readString(sample.resolve("design/basic/final/types.yaml"))), "types").map { it["id"] }
         assertTrue(targets.map { it["designId"] }.containsAll(legacyTypes), "組込みの型を含め、既存の論理型 ID を維持する")
         val type = targets.single { it["designId"] == "TYP-common.一行の文" }
         assertTrue(rows(rows(type, "occurrences").single(), "declarations").any {

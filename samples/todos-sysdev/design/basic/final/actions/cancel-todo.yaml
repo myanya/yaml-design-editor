@@ -1,0 +1,136 @@
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/basic/action-specs.yaml）を直して作り直します（CLI generate）。
+id: cancel-todo
+name: TODOを中止する
+description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
+kind: action
+subject: todo
+inputs:
+  - key: reason
+    label: 中止理由
+    type: todo-operations#操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    required: true
+    minLength: 1
+    multiline: true
+state:
+  id: todo-lifecycle
+  transitions:
+    - from:
+        - id: todo-OPEN
+          label: 未着手
+          value: OPEN
+        - id: todo-IN_PROGRESS
+          label: 対応中
+          value: IN_PROGRESS
+        - id: todo-SUSPENDED
+          label: 中断
+          value: SUSPENDED
+      to:
+        id: todo-CANCELED
+        label: 中止
+        value: CANCELED
+  refusal: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+  history:
+    note: $reason
+preconditions: []
+effects:
+  - op: set
+    schema: todo-detail
+    path: result
+    value: $reason
+    of: self
+    source: do
+    entity: todo
+    field:
+      key: result
+      base: string
+  - op: set
+    schema: todo-detail
+    path: status
+    value: CANCELED
+    source: lifecycle
+    entity: todo
+    field:
+      key: status
+      base: enum
+  - op: insert
+    schema: todo-detail
+    path: history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: cancel-todo
+      from:
+        $copy: status
+        $of: self
+      to: CANCELED
+      note: $reason
+    source: lifecycle
+    entity: todo
+    field:
+      key: history
+      base: array
+      item:
+        base: object
+    written:
+      - key: date
+        value:
+          $copy: today
+          $of: context
+        base: date
+      - key: action
+        value: cancel-todo
+        base: enum
+      - key: from
+        value:
+          $copy: status
+          $of: self
+        base: enum
+      - key: to
+        value: CANCELED
+        base: enum
+      - key: note
+        value: $reason
+        base: string
+  - op: set
+    schema: todo-detail
+    path: updated_on
+    value:
+      $copy: today
+      $of: context
+    source: auto
+    auto: updated
+    entity: todo
+    field:
+      key: updated_on
+      base: date
+receiver:
+  entity: todo
+checks:
+  - constraint: updated-not-before-created
+    form: element
+    level: error
+    items:
+      - todo.updated_on
+  - constraint: unfinished-has-no-completed-on
+    form: element
+    level: error
+    items:
+      - todo.status
+writes:
+  - CRUD-todo.cancel-todo.result
+  - CRUD-todo.cancel-todo.status
+  - CRUD-todo.cancel-todo.history
+  - CRUD-todo.cancel-todo.updated_on
+designId: DOC-action-specs.cancel-todo
+designKind: action-specs
+designPath: design/basic/final/actions/cancel-todo.yaml
+origins:
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/basic/action-specs-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

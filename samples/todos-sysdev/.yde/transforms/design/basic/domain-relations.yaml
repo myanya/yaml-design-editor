@@ -1,0 +1,634 @@
+id: domain-relations
+name: ドメイン関連定義書
+description: 導出・方式の既定値・追加・個別補正を合成する。確定値を既存ビューと後段の生成で共有し、全体の検査を通して保存する
+scope: business
+dependsOn:
+  - domain-relations-derived
+each: documents
+output: '{file}.yaml'
+input:
+  $apply: documents
+  $with:
+    composed:
+      $compose:
+        derived:
+          $apply: added-records
+          $with:
+            combined:
+              $compose:
+                derived:
+                  $each:
+                    $view: domain-relations-derived-input
+                  $build:
+                    $when:
+                      - path: values.record.value
+                        exists: true
+                    $then:
+                      $copy: values.record
+                additions:
+                  $each:
+                    $view: system-additions-input
+                  $build:
+                    $when:
+                      - path: values.addition.kind
+                        equals: domain-relations
+                      - path: values.addition.document
+                        exists: true
+                    $then:
+                      id:
+                        $format: DOC-domain-relations.{id}
+                        $with:
+                          id:
+                            $copy: values.addition.document.id
+                      value:
+                        $copy: values.addition.document
+                      source:
+                        id:
+                          $copy: id
+                changes:
+                  $apply: collection-changes
+                  $with:
+                    records:
+                      $concat:
+                        - $each:
+                            $view: domain-relations-derived-input
+                          $build:
+                            $when:
+                              - path: values.record.value
+                                exists: true
+                            $then:
+                              $copy: values.record
+                        - $each:
+                            $view: system-additions-input
+                          $build:
+                            $when:
+                              - path: values.addition.kind
+                                equals: domain-relations
+                              - path: values.addition.document
+                                exists: true
+                            $then:
+                              id:
+                                $format: DOC-domain-relations.{id}
+                                $with:
+                                  id:
+                                    $copy: values.addition.document.id
+                              value:
+                                $copy: values.addition.document
+                              source:
+                                id:
+                                  $copy: id
+                    additions:
+                      $each:
+                        $view: system-additions-input
+                      $build:
+                        $when:
+                          - path: values.addition.kind
+                            equals: domain-relations
+                          - path: values.addition.collection
+                            exists: true
+                        $then:
+                          $copy: values.addition
+        additions: []
+        changes:
+          $concat:
+            - $each:
+                $view: system-specifications-input
+              $build:
+                $when:
+                  - path: values.specification.kind
+                    equals: domain-relations
+                $then:
+                  target:
+                    $copy: values.specification.target
+                  set:
+                    $copy: values.specification.settings
+                  priority: rule
+                  source:
+                    id:
+                      $copy: id
+            - $each:
+                $view: system-corrections-input
+              $bind: correction
+              $flatten: true
+              $build:
+                $when:
+                  - path: values.correction.kind
+                    equals: domain-relations
+                $then:
+                  $concat:
+                    - $when:
+                        - path: values.correction.set
+                          exists: true
+                        - path: values.correction.select
+                          exists: false
+                      $then:
+                        - target:
+                            $copy: values.correction.target
+                          set:
+                            $copy: values.correction.set
+                          priority: individual
+                          source:
+                            id:
+                              $copy: id
+                    - $each: values.correction.changes
+                      $build:
+                        target:
+                          $copy: values.correction.target
+                          $of: correction
+                        path:
+                          $copy: path
+                        value:
+                          $copy: value
+                        priority: individual
+                        source:
+                          id:
+                            $copy: id
+                            $of: correction
+            - $each:
+                $view: system-corrections-input
+              $flatten: true
+              $build:
+                $when:
+                  - path: values.correction.kind
+                    equals: domain-relations
+                  - path: values.correction.select
+                    exists: true
+                $then:
+                  $apply: selected-changes
+                  $with:
+                    correction:
+                      $copy: values.correction
+                    records:
+                      $apply: added-records
+                      $with:
+                        combined:
+                          $compose:
+                            derived:
+                              $each:
+                                $view: domain-relations-derived-input
+                              $build:
+                                $when:
+                                  - path: values.record.value
+                                    exists: true
+                                $then:
+                                  $copy: values.record
+                            additions:
+                              $each:
+                                $view: system-additions-input
+                              $build:
+                                $when:
+                                  - path: values.addition.kind
+                                    equals: domain-relations
+                                  - path: values.addition.document
+                                    exists: true
+                                $then:
+                                  id:
+                                    $format: DOC-domain-relations.{id}
+                                    $with:
+                                      id:
+                                        $copy: values.addition.document.id
+                                  value:
+                                    $copy: values.addition.document
+                                  source:
+                                    id:
+                                      $copy: id
+                            changes:
+                              $apply: collection-changes
+                              $with:
+                                records:
+                                  $concat:
+                                    - $each:
+                                        $view: domain-relations-derived-input
+                                      $build:
+                                        $when:
+                                          - path: values.record.value
+                                            exists: true
+                                        $then:
+                                          $copy: values.record
+                                    - $each:
+                                        $view: system-additions-input
+                                      $build:
+                                        $when:
+                                          - path: values.addition.kind
+                                            equals: domain-relations
+                                          - path: values.addition.document
+                                            exists: true
+                                        $then:
+                                          id:
+                                            $format: DOC-domain-relations.{id}
+                                            $with:
+                                              id:
+                                                $copy: values.addition.document.id
+                                          value:
+                                            $copy: values.addition.document
+                                          source:
+                                            id:
+                                              $copy: id
+                                additions:
+                                  $each:
+                                    $view: system-additions-input
+                                  $build:
+                                    $when:
+                                      - path: values.addition.kind
+                                        equals: domain-relations
+                                      - path: values.addition.collection
+                                        exists: true
+                                    $then:
+                                      $copy: values.addition
+build:
+  $copy: document
+rules:
+  - id: documents
+    with:
+      - composed
+    build:
+      documents:
+        $each: records
+        $of: composed
+        $bind: record
+        $build:
+          $apply: annotate
+          $with:
+            record:
+              $copy: .
+            decisions:
+              $each: decisions
+              $of: composed
+              $build:
+                $when:
+                  - path: target
+                    equals:
+                      $copy: id
+                      $of: record
+                $then:
+                  $copy: .
+  - id: annotate
+    with:
+      - record
+      - decisions
+    build:
+      $apply: annotated
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: value
+                  $of: record
+                source:
+                  id: derived
+            additions: []
+            changes:
+              - target: record
+                set:
+                  designId:
+                    $copy: id
+                    $of: record
+                  designKind: domain-relations
+                  designPath: design/basic/final/domain-relations.yaml
+                  origins:
+                    source:
+                      $copy: source
+                      $of: record
+                    decisions:
+                      $copy: .
+                      $of: decisions
+                    inputs:
+                      $concat:
+                        - $each:
+                            $view: system-corrections-input
+                          $build:
+                            $when:
+                              - path: values.correction.target
+                                equals:
+                                  $copy: id
+                                  $of: record
+                            $then:
+                              $copy: values.correction
+                        - $each:
+                            $view: system-specifications-input
+                          $build:
+                            $when:
+                              - path: values.specification.target
+                                equals:
+                                  $copy: id
+                                  $of: record
+                            $then:
+                              $copy: values.specification
+                        - $each:
+                            $view: system-additions-input
+                          $build:
+                            $when:
+                              - path: values.addition.target
+                                equals:
+                                  $copy: id
+                                  $of: record
+                            $then:
+                              $copy: values.addition
+                priority: individual
+                source:
+                  id: final-metadata
+        file: design/basic/final/domain-relations
+  - id: annotated
+    with:
+      - combined
+      - file
+    build:
+      file:
+        $copy: .
+        $of: file
+      document:
+        $copy: records[0].value
+        $of: combined
+  - id: collection-changes
+    with:
+      - records
+      - additions
+    build:
+      $group:
+        $copy: .
+        $of: additions
+      $by:
+        target:
+          $copy: target
+        collection:
+          $copy: collection
+      $build:
+        $apply: collection-change
+        $with:
+          request:
+            $copy: key
+          additions:
+            $copy: items
+          records:
+            $copy: .
+            $of: records
+  - id: collection-change
+    with:
+      - request
+      - additions
+      - records
+    build:
+      $apply: collection-members
+      $with:
+        request:
+          $copy: .
+          $of: request
+        existing:
+          $each: .
+          $of: records
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: target
+                  $of: request
+            $then:
+              $eachEntry: value
+              $flatten: true
+              $build:
+                $when:
+                  - path: $key
+                    equals:
+                      $copy: collection
+                      $of: request
+                $then:
+                  $each: .
+                  $build:
+                    $copy: .
+        extra:
+          $each: .
+          $of: additions
+          $flatten: true
+          $build:
+            $copy: items
+        sources:
+          $each: .
+          $of: additions
+          $build:
+            $copy: id
+  - id: collection-members
+    with:
+      - request
+      - existing
+      - extra
+      - sources
+    build:
+      $apply: collection-change-result
+      $with:
+        request:
+          $copy: .
+          $of: request
+        sources:
+          $copy: .
+          $of: sources
+        merged:
+          $compose:
+            derived:
+              $each: .
+              $of: existing
+              $build:
+                id:
+                  $apply: member-key
+                  $with: {}
+                value:
+                  $copy: .
+                source:
+                  id: derived-collection
+            additions:
+              $each: .
+              $of: extra
+              $build:
+                id:
+                  $apply: member-key
+                  $with: {}
+                value:
+                  $copy: .
+                source:
+                  id: addition
+            changes: []
+  - id: member-key
+    with: []
+    build:
+      $first:
+        - $copy: key
+        - $copy: id
+        - $copy: name
+        - $copy: class
+        - $copy: action
+        - $copy: constant
+        - $copy: method
+        - $copy: kind
+  - id: collection-change-result
+    with:
+      - request
+      - merged
+      - sources
+    build:
+      target:
+        $copy: target
+        $of: request
+      path:
+        - $copy: collection
+          $of: request
+      value:
+        $each: records
+        $of: merged
+        $build:
+          $copy: value
+      priority: individual
+      source:
+        id:
+          $copy: '[0]'
+          $of: sources
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: added-records
+    with:
+      - combined
+    build:
+      $copy: records
+      $of: combined
+  - id: selected-changes
+    with:
+      - correction
+      - records
+    build:
+      $apply: selected-change-result
+      $with:
+        correction:
+          $copy: .
+          $of: correction
+        selection:
+          $compose:
+            derived:
+              $each: .
+              $of: records
+              $flatten: true
+              $build:
+                $when:
+                  - path: id
+                    equals:
+                      $copy: target
+                      $of: correction
+                $then:
+                  $eachEntry: value
+                  $flatten: true
+                  $build:
+                    $when:
+                      - path: $key
+                        equals:
+                          $copy: select.collection
+                          $of: correction
+                    $then:
+                      $each: .
+                      $flatten: true
+                      $build:
+                        $apply: selected-member
+                        $with:
+                          node:
+                            $copy: .
+                          correction:
+                            $copy: .
+                            $of: correction
+                          selectedIndex: $index
+            additions: []
+            changes: []
+  - id: selected-member
+    with:
+      - node
+      - selectedIndex
+      - correction
+    build:
+      $eachEntry: .
+      $of: node
+      $flatten: true
+      $build:
+        $when:
+          - path: $key
+            equals:
+              $copy: select.key
+              $of: correction
+          - path: .
+            equals:
+              $copy: select.equals
+              $of: correction
+        $then:
+          - id: selected
+            value:
+              index:
+                $copy: .
+                $of: selectedIndex
+            source:
+              id:
+                $copy: id
+                $of: correction
+  - id: selected-change-result
+    with:
+      - correction
+      - selection
+    build:
+      $apply: selected-required
+      $with:
+        correction:
+          $copy: .
+          $of: correction
+        selectedIndex:
+          $copy: records[0].value.index
+          $of: selection
+  - id: selected-required
+    with:
+      - correction
+      - selectedIndex
+    when:
+      - path: .
+        of: selectedIndex
+        exists: true
+    build:
+      $eachEntry: set
+      $of: correction
+      $flatten: true
+      $build:
+        - target:
+            $copy: target
+            $of: correction
+          path:
+            - $copy: select.collection
+              $of: correction
+            - $copy: .
+              $of: selectedIndex
+            - $key
+          value:
+            $copy: .
+          priority: individual
+          source:
+            id:
+              $copy: id
+              $of: correction
+  - id: selected-required
+    with:
+      - correction
+      - selectedIndex
+    build:
+      - target: 存在しない選択対象
+        set:
+          error:
+            $copy: id
+            $of: correction
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: correction

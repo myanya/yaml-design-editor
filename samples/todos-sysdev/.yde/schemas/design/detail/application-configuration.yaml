@@ -1,0 +1,22 @@
+id: application-configuration
+name: アプリの確定設定
+kind: document
+match: design/detail/final/application.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: settings
+      type: application-settings#設定
+      required: true
+    - key: source
+      type: ref
+      idPatterns:
+        - INPUT-application-*
+      required: true
+    - key: reason
+      type: text
+      required: true
+  unknownFields: error

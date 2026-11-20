@@ -1,0 +1,656 @@
+# 生成物（errors）: 手で直さず、業務モデルか生成の定義（design/basic/errors.yaml）を直して作り直します（CLI generate）。
+id: errors
+name: エラー定義書
+kinds:
+  - kind: input
+    label: 入力の誤り
+    when: 確認へを押したとき（Bean Validation）
+    shownAt: 入力画面（欄の横と、上のまとめ）
+    status: 200
+    message: validation.検査.フォーム.項目
+  - kind: input-rule
+    label: 受け取る値が原因のデータの決まりの違反
+    when: 確認へを押したとき（Service の確かめ。書かない）
+    shownAt: 入力画面（欄の横と、上のまとめ）
+    status: 200
+    message: check.決まり
+  - kind: state
+    label: 状態の断り
+    when: 確定のとき
+    shownAt: 確認画面の断りの文
+    status: 200
+    message: 操作.state
+  - kind: precondition
+    label: 前提の断り
+    when: 確定のとき
+    shownAt: 確認画面の断りの文
+    status: 200
+    message: 操作.前提
+  - kind: rule
+    label: データの決まりの違反
+    when: 確定のとき（書いた後の値で）
+    shownAt: 確認画面の断りの文
+    status: 200
+    message: check.決まり
+  - kind: empty
+    label: 絞り込みの結果が 0 件（正常）
+    when: 一覧画面を出すとき
+    shownAt: 一覧画面の表の代わりの文
+    status: 200
+    message: list.empty.型
+  - kind: not-found
+    label: ID を指定して見つからない
+    when: 詳細画面・操作の画面で受け手を読んだとき
+    shownAt: 見つからない画面
+    status: 404
+    message: error.notFound.型
+  - kind: token
+    label: 二重の確定・時間切れ
+    when: 確定のとき（トークンが無い・違う）
+    shownAt: 起点の画面へ戻し、知らせで出す
+    status: 302
+    message: error.token
+  - kind: unexpected
+    label: 想定外
+    when: いつでも（DB の誤り・画面を改ざんした参照の値が外部キーで書けない、など）
+    shownAt: エラー画面（受付番号だけ。中身は出さない）
+    status: 500
+    message: error.unexpected
+constraints:
+  - constraint: due-not-before-created
+    label: 期限は作成日以降であること
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.due-not-before-created
+    operations:
+      - register-todo
+      - edit-todo
+  - constraint: updated-not-before-created
+    label: 更新日は作成日以降であること
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.updated-not-before-created
+    operations:
+      - register-todo
+      - add-todo-comment
+      - add-todo-task
+      - edit-todo
+      - start-todo
+      - suspend-todo
+      - resume-todo
+      - complete-todo
+      - cancel-todo
+      - todo-task.finish
+  - constraint: completed-not-before-created
+    label: 完了日は作成日以降であること
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.completed-not-before-created
+    operations:
+      - edit-todo
+      - complete-todo
+  - constraint: closed-has-completed-on
+    label: 完了した TODO には完了日があること
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.closed-has-completed-on
+    operations:
+      - complete-todo
+  - constraint: closed-has-result
+    label: 完了したTODOには結果を記録すること
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.closed-has-result
+    operations:
+      - edit-todo
+      - complete-todo
+  - constraint: unfinished-has-no-completed-on
+    label: 完了以外のTODOには完了日を残さないこと
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.unfinished-has-no-completed-on
+    operations:
+      - start-todo
+      - suspend-todo
+      - resume-todo
+      - cancel-todo
+  - constraint: resume-not-before-suspend
+    label: 再開予定日は中断した日以降であること
+    level: error
+    form: element
+    by: Java
+    how: 足す明細の行について、書いた後の値を計算し、書く前に確かめる
+    message: check.resume-not-before-suspend
+    operations:
+      - suspend-todo
+  - constraint: follows-not-self
+    label: 元のTODOは自分以外であること
+    level: error
+    form: element
+    by: Java
+    how: 書いた後の値を計算し、書く前に確かめる
+    message: check.follows-not-self
+    operations:
+      - register-todo
+  - constraint: closed-has-no-open-task
+    label: 完了したTODOには、済んでいない作業項目が無いこと
+    level: error
+    form: pattern
+    by: SQL
+    how: 書いた後に、同じトランザクションで入れ子の要素の件数を数える（違反なら例外で書いたものを取り消す）
+    message: check.closed-has-no-open-task
+    operations:
+      - add-todo-task
+      - complete-todo
+      - todo-task.finish
+  - constraint: has-detail
+    label: 一覧のTODOには個票があること
+    level: error
+    form: occurrence
+    by: 対象外
+    how: エンティティ型は 1 つのテーブル（一覧の行と個票は同じ行）なので、どの文書に書かれるかの決まりは起きない
+    operations:
+      - register-todo
+  - constraint: in-category.outMax
+    label: 「カテゴリ」は 1 つまで
+    level: warning
+    form: relation
+    by: 対象外
+    how: 警告は断らない（YDE の操作と同じく、断るのはエラーの決まりだけ）
+    operations:
+      - register-todo
+      - edit-todo
+  - constraint: in-category.types
+    label: 「カテゴリ」は、宣言した型（todo → category）の間に引くこと
+    level: warning
+    form: relation
+    by: 対象外
+    how: 警告は断らない（YDE の操作と同じく、断るのはエラーの決まりだけ）
+    operations:
+      - register-todo
+      - edit-todo
+  - constraint: tagged.types
+    label: 「タグ」は、宣言した型（todo → tag）の間に引くこと
+    level: warning
+    form: relation
+    by: 対象外
+    how: 警告は断らない（YDE の操作と同じく、断るのはエラーの決まりだけ）
+    operations:
+      - register-todo
+      - edit-todo
+  - constraint: follow-up-of.acyclic
+    label: 「元のTODO」をたどって、元の要素に戻らないこと（循環しない）
+    level: error
+    form: relation
+    by: Java
+    how: 書く参照の先から、同じ項目の参照を findById でたどり、受け手（作る操作は作る要素）に戻れば断る（書く前）
+    message: check.follow-up-of.acyclic
+    operations:
+      - register-todo
+  - constraint: follow-up-of.outMax
+    label: 「元のTODO」は 1 つまで
+    level: warning
+    form: relation
+    by: 対象外
+    how: 警告は断らない（YDE の操作と同じく、断るのはエラーの決まりだけ）
+    operations:
+      - register-todo
+  - constraint: follow-up-of.types
+    label: 「元のTODO」は、宣言した型（todo → todo）の間に引くこと
+    level: warning
+    form: relation
+    by: 対象外
+    how: 警告は断らない（YDE の操作と同じく、断るのはエラーの決まりだけ）
+    operations:
+      - register-todo
+operations:
+  - id: add-category
+    name: カテゴリを追加する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: name
+        label: カテゴリ名
+        checks:
+          - 必須
+          - 最長 100 文字
+          - 形式
+    refusals:
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: register-todo
+    name: TODOを登録する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: title
+        label: タイトル
+        checks:
+          - 必須
+          - 最長 100 文字
+          - 形式
+      - field: summary
+        label: 概要
+        checks:
+          - 必須
+          - 最長 100 文字
+          - 形式
+      - field: tags
+        label: タグ
+        checks:
+          - 同じものを 2 回選ばない
+      - field: due
+        label: 期限
+        checks:
+          - 年月日として読める
+    refusals:
+      - kind: rule
+        message: check.due-not-before-created
+        when: 期限は作成日以降であること
+        by: Java
+        shownAt: 入力画面の「期限」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.follows-not-self
+        when: 元のTODOは自分以外であること
+        by: Java
+        shownAt: 入力画面の「元のTODO」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.follow-up-of.acyclic
+        when: 「元のTODO」をたどって、元の要素に戻らないこと（循環しない）
+        by: Java
+        shownAt: 入力画面の「元のTODO」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: add-todo-comment
+    name: TODOにコメントを追加する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: date
+        label: 記録日
+        checks:
+          - 必須
+          - 年月日として読める
+      - field: body
+        label: コメント本文
+        checks:
+          - 必須
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: add-todo-task
+    name: 作業項目を追加する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: title
+        label: 作業
+        checks:
+          - 必須
+          - 最長 100 文字
+          - 形式
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: add-todo-task.active
+        when: '{id} は完了か中止をしているので、作業項目を足せません'
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-no-open-task
+        when: 完了したTODOには、済んでいない作業項目が無いこと
+        by: SQL
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: edit-todo
+    name: TODOを編集する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: title
+        label: タイトル
+        checks:
+          - 最長 100 文字
+          - 形式
+      - field: summary
+        label: 概要
+        checks:
+          - 最長 100 文字
+          - 形式
+      - field: tags
+        label: タグ
+        checks:
+          - 同じものを 2 回選ばない
+      - field: createdOn
+        label: 作成日
+        checks:
+          - 年月日として読める
+      - field: dueOn
+        label: 期限
+        checks:
+          - 年月日として読める
+      - field: comments.date
+        label: 日付
+        checks:
+          - 必須
+          - 年月日として読める
+      - field: comments.body
+        label: コメント本文
+        checks:
+          - 必須
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: rule
+        message: check.due-not-before-created
+        when: 期限は作成日以降であること
+        by: Java
+        shownAt: 入力画面の「期限」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 入力画面の「作成日」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.completed-not-before-created
+        when: 完了日は作成日以降であること
+        by: Java
+        shownAt: 入力画面の「作成日」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-result
+        when: 完了したTODOには結果を記録すること
+        by: Java
+        shownAt: 入力画面の「結果・中止理由」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: start-todo
+    name: TODOに着手する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs: []
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: state
+        message: start-todo.state
+        when: 受け手の状態が、この操作のできる状態でないとき
+        allowed:
+          - 未着手
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.unfinished-has-no-completed-on
+        when: 完了以外のTODOには完了日を残さないこと
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: suspend-todo
+    name: TODOを中断する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: date
+        label: 中断日
+        checks:
+          - 必須
+          - 年月日として読める
+      - field: reason
+        label: 中断理由
+        checks:
+          - 必須
+      - field: resumeOn
+        label: 再開予定日
+        checks:
+          - 年月日として読める
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: state
+        message: suspend-todo.state
+        when: 受け手の状態が、この操作のできる状態でないとき
+        allowed:
+          - 対応中
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.unfinished-has-no-completed-on
+        when: 完了以外のTODOには完了日を残さないこと
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.resume-not-before-suspend
+        when: 再開予定日は中断した日以降であること
+        by: Java
+        shownAt: 入力画面の「再開予定日」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: resume-todo
+    name: TODOを再開する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: date
+        label: 再開日
+        checks:
+          - 必須
+          - 年月日として読める
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: state
+        message: resume-todo.state
+        when: 受け手の状態が、この操作のできる状態でないとき
+        allowed:
+          - 中断
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.unfinished-has-no-completed-on
+        when: 完了以外のTODOには完了日を残さないこと
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: complete-todo
+    name: TODOを完了する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: date
+        label: 完了日
+        checks:
+          - 必須
+          - 年月日として読める
+      - field: result
+        label: 完了結果
+        checks:
+          - 必須
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: state
+        message: complete-todo.state
+        when: 受け手の状態が、この操作のできる状態でないとき
+        allowed:
+          - 対応中
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: complete-todo.no-open-task
+        when: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.completed-not-before-created
+        when: 完了日は作成日以降であること
+        by: Java
+        shownAt: 入力画面の「完了日」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-completed-on
+        when: 完了した TODO には完了日があること
+        by: Java
+        shownAt: 入力画面の「完了日」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-result
+        when: 完了したTODOには結果を記録すること
+        by: Java
+        shownAt: 入力画面の「完了結果」の欄の横（確認へ）と、確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-no-open-task
+        when: 完了したTODOには、済んでいない作業項目が無いこと
+        by: SQL
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: cancel-todo
+    name: TODOを中止する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: reason
+        label: 中止理由
+        checks:
+          - 必須
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: state
+        message: cancel-todo.state
+        when: 受け手の状態が、この操作のできる状態でないとき
+        allowed:
+          - 未着手
+          - 対応中
+          - 中断
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.unfinished-has-no-completed-on
+        when: 完了以外のTODOには完了日を残さないこと
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: add-tag
+    name: タグを追加する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: name
+        label: タグ名
+        checks:
+          - 必須
+          - 最長 100 文字
+          - 形式
+    refusals:
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: todo-task.finish
+    name: 作業項目を済にする
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs: []
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo-task
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-no-open-task
+        when: 完了したTODOには、済んでいない作業項目が無いこと
+        by: SQL
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+designId: DOC-errors.errors
+designKind: errors
+designPath: design/basic/final/errors.yaml
+origins:
+  source:
+    id: rule-errors
+    document: .yde/transforms/design/basic/errors-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

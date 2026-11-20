@@ -1,0 +1,186 @@
+# 生成物（action-specs-derived）: 手で直さず、業務モデルか生成の定義（design/basic/action-specs-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-action-specs.complete-todo
+record:
+  id: DOC-action-specs.complete-todo
+  value:
+    id: complete-todo
+    name: TODOを完了する
+    description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
+    kind: action
+    subject: todo
+    inputs:
+      - key: date
+        label: 完了日
+        type: common#年月日
+        base: date
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+        required: true
+        format: yyyy年M月d日
+      - key: result
+        label: 完了結果
+        type: todo-operations#操作の記録
+        base: string
+        description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+        required: true
+        minLength: 1
+        multiline: true
+    initial:
+      date:
+        $copy: today
+        $of: context
+    state:
+      id: todo-lifecycle
+      transitions:
+        - from:
+            - id: todo-IN_PROGRESS
+              label: 対応中
+              value: IN_PROGRESS
+          to:
+            id: todo-CLOSED
+            label: 完了
+            value: CLOSED
+      refusal: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
+      history:
+        date: $date
+    preconditions:
+      - id: no-open-task
+        message: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+            - edge:
+                contains: true
+            - node:
+                entity: todo-task
+                bind: s
+          where:
+            - of: s
+              path: done
+              equals: false
+          expect: absent
+    effects:
+      - op: set
+        schema: todo-detail
+        path: completed_on
+        value: $date
+        of: self
+        source: do
+        entity: todo
+        field:
+          key: completed_on
+          base: date
+      - op: set
+        schema: todo-detail
+        path: result
+        value: $result
+        of: self
+        source: do
+        entity: todo
+        field:
+          key: result
+          base: string
+      - op: set
+        schema: todo-detail
+        path: status
+        value: CLOSED
+        source: lifecycle
+        entity: todo
+        field:
+          key: status
+          base: enum
+      - op: insert
+        schema: todo-detail
+        path: history
+        value:
+          date: $date
+          action: complete-todo
+          from:
+            $copy: status
+            $of: self
+          to: CLOSED
+        source: lifecycle
+        entity: todo
+        field:
+          key: history
+          base: array
+          item:
+            base: object
+        written:
+          - key: date
+            value: $date
+            base: date
+          - key: action
+            value: complete-todo
+            base: enum
+          - key: from
+            value:
+              $copy: status
+              $of: self
+            base: enum
+          - key: to
+            value: CLOSED
+            base: enum
+      - op: set
+        schema: todo-detail
+        path: updated_on
+        value:
+          $copy: today
+          $of: context
+        source: auto
+        auto: updated
+        entity: todo
+        field:
+          key: updated_on
+          base: date
+    receiver:
+      entity: todo
+    inputPolicy:
+      initial:
+        date:
+          $copy: today
+          $of: context
+    checks:
+      - constraint: updated-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.updated_on
+      - constraint: completed-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.completed_on
+        params:
+          - date
+      - constraint: closed-has-completed-on
+        form: element
+        level: error
+        items:
+          - todo.status
+          - todo.completed_on
+        params:
+          - date
+      - constraint: closed-has-result
+        form: element
+        level: error
+        items:
+          - todo.status
+          - todo.result
+        params:
+          - result
+      - constraint: closed-has-no-open-task
+        form: pattern
+        level: error
+        items:
+          - todo.status
+    writes:
+      - CRUD-todo.complete-todo.completed_on
+      - CRUD-todo.complete-todo.result
+      - CRUD-todo.complete-todo.status
+      - CRUD-todo.complete-todo.history
+      - CRUD-todo.complete-todo.updated_on
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/basic/action-specs-derived.yaml

@@ -1,0 +1,80 @@
+id: application-settings
+name: 独立アプリのビルドと起動設定の形式
+kind: library
+definitions:
+  設定:
+    type: object
+    fields:
+      - key: name
+        label: アプリ名
+        type: string
+        required: true
+        pattern: ^[a-z][a-z0-9-]*$
+      - key: package
+        label: Java のパッケージ
+        type: array
+        required: true
+        item:
+          type: string
+          pattern: >-
+            ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|_)$)[a-z][a-z0-9_]*$
+      - key: applicationClass
+        label: 起動クラス
+        type: string
+        required: true
+        pattern: ^[A-Z][A-Za-z0-9]*Application$
+      - key: version
+        label: アプリの版
+        type: string
+        required: true
+        pattern: ^[0-9]+\.[0-9]+\.[0-9]+(?:-SNAPSHOT)?$
+      - key: javaVersion
+        type: enum
+        required: true
+        values:
+          - value: 21
+        description: この生成方式で検証する版。変更時は対応範囲と独立ビルドを再確認する
+      - key: springBootVersion
+        type: enum
+        required: true
+        values:
+          - value: 4.0.9
+        description: この生成方式で検証する版。変更時は対応範囲と独立ビルドを再確認する
+      - key: mybatisVersion
+        type: enum
+        required: true
+        values:
+          - value: 4.0.1
+        description: この生成方式で検証する版。変更時は対応範囲と独立ビルドを再確認する
+      - key: gradleVersion
+        type: enum
+        required: true
+        values:
+          - value: 9.3.0
+        description: この生成方式で検証する版。変更時は対応範囲と独立ビルドを再確認する
+      - key: port
+        label: 待受ポート
+        type: int
+        required: true
+        min: 1024
+        max: 65535
+      - key: databaseName
+        label: H2 の保存名
+        type: string
+        required: true
+        pattern: ^[a-z][a-z0-9_]*$
+      - key: databaseInitialization
+        type: enum
+        required: true
+        values:
+          - empty-schema
+    unknownFields: error
+    constraints:
+      - id: package-required
+        check:
+          - gte:
+              - count:
+                  path: package
+              - 1
+        level: error
+        message: Java のパッケージには一つ以上の要素を書いてください

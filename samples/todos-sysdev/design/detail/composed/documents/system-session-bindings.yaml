@@ -1,0 +1,24 @@
+# 生成物（system-session-bindings）: 手で直さず、業務モデルか生成の定義（design/detail/system-session-bindings.yaml）を直して作り直します（CLI generate）。
+id: SYS-system-session-bindings
+bindings:
+  - before: csrf
+    after: csrf
+    roles:
+      - reads
+      - puts
+      - removes
+      - sessionKey
+  - before: token
+    after: token
+    roles:
+      - reads
+      - puts
+      - removes
+      - sessionKey
+  - before: notice
+    after: notice
+    roles:
+      - reads
+      - puts
+      - removes
+      - sessionKey

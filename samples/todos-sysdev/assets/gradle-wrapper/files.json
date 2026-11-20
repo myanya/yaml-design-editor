@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "gradleVersion": "9.3.0",
+  "source": "https://docs.gradle.org/9.3.0/userguide/gradle_wrapper.html",
+  "files": [
+    {
+      "path": "gradlew",
+      "sha256": "fb68debc1b1acf8ec55dc0d5e5495e1dedd0bd6b61f304bee61613eeb2bd9b92"
+    },
+    {
+      "path": "gradlew.bat",
+      "sha256": "fedad02c18e266ec094995a5751b7fe1eb6e74f66bf75db64fae2e50eb22c234"
+    },
+    {
+      "path": "gradle/wrapper/gradle-wrapper.jar",
+      "sha256": "b3a875ddc1f044746e1b1a55f645584505f4a10438c1afea9f15e92a7c42ec13"
+    },
+    {
+      "path": "gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "9319699775c0a0366681bfc4432dd60aac45d370f4e85d21995ff42c6aede302"
+    }
+  ]
+}

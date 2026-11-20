@@ -1,0 +1,32 @@
+id: application-form-gate
+name: Form の未対応の型を確定前に検出する
+scope: design
+dependsOn:
+  - screen-designs-operations-derived
+output: design/detail/composed/application/form-check.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            equals: application-form-contract
+        $then:
+          $copy: declared
+    documents:
+      $entries:
+        $each:
+          $view: screen-designs-operations-derived-input
+        $build:
+          $when:
+            - path: values.record.value
+              exists: true
+          key:
+            $format: forms/{id}.yaml
+          value:
+            $copy: values.record.value
+build:
+  id: SYS-application-form-check
+  status: validated

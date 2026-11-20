@@ -1,0 +1,84 @@
+# 生成物（screen-designs-operations-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-operations.add-category
+record:
+  id: DOC-screen-designs-operations.add-category
+  value:
+    id: add-category
+    name: カテゴリを追加する（画面設計書）
+    form:
+      class: AddCategoryForm
+      emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+      fields:
+        - name: name
+          item: name
+          type: String
+          validations:
+            - name: NotNull
+            - name: Size
+              min: 1
+              max: 100
+            - name: Pattern
+              regexp: ^[^\r\n]*$
+      classes: []
+    screens:
+      - id: add-category/input
+        template: category/add-category/input
+        page:
+          title: カテゴリを追加する
+          width: m
+          body:
+            - notice:
+                kind: errors
+                for: form
+            - form:
+                action: POST /category/add-category/confirm
+                object: AddCategoryForm
+                hidden:
+                  - from
+                body:
+                  - field:
+                      item: name
+                      label: カテゴリ名
+                      control: text
+                      required: true
+                      width: 40ch
+                  - actions:
+                      - label: 確認へ
+                        kind: submit
+                        emphasis: primary
+                      - label: やめる
+                        kind: link
+                        to: 起点の画面
+                        emphasis: secondary
+      - id: add-category/confirm
+        template: category/add-category/confirm
+        page:
+          title: カテゴリを追加する（確認）
+          width: m
+          body:
+            - notice:
+                kind: refusal
+            - facts:
+                title: 入力した値
+                of: form
+                items:
+                  - item: name
+                    label: カテゴリ名
+            - form:
+                action: POST /category/add-category
+                hidden:
+                  - name
+                  - flow
+                  - from
+                body:
+                  - actions:
+                      - label: 確定
+                        kind: submit
+                        emphasis: primary
+                      - label: 入力へ戻る
+                        kind: submit
+                        action: POST /category/add-category/back
+                        emphasis: secondary
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml

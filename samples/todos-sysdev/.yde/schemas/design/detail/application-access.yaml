@@ -1,0 +1,1587 @@
+id: application-access
+name: アプリの Mapper の確定項目
+kind: document
+match: design/detail/final/application-access.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: mappers
+      type: array
+      required: true
+      item:
+        type: object
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: name
+            type: string
+            required: true
+            pattern: >-
+              ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+          - key: source
+            type: string
+            required: true
+          - key: methods
+            type: array
+            required: true
+            item:
+              type: object
+              fields:
+                - key: id
+                  type: id
+                  required: true
+                - key: name
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                - key: source
+                  type: string
+                  required: true
+                - key: kind
+                  type: string
+                  required: true
+                  pattern: ^(?:select|aggregate|count|max|insert|update|delete)$
+                - key: table
+                  type: string
+                  required: true
+                  pattern: ^[a-z][a-z0-9_]*$
+                - key: tableId
+                  type: string
+                  required: true
+                - key: inputClass
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                - key: resultClass
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                - key: raw
+                  type: any
+                  required: true
+                - key: row
+                  type: object
+                  required: true
+                  fields:
+                    - key: className
+                      type: string
+                      required: true
+                      pattern: >-
+                        ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                  unknownFields: allow
+                - key: conditionSource
+                  type: string
+                - key: conditions
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    fields:
+                      - key: operator
+                        type: string
+                        required: true
+                        pattern: ^(?:equals|notEquals|lt|lte|gt|gte|in|notNull|startsWith|includesAny)$
+                      - key: column
+                        type: string
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: table
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: type
+                        type: string
+                        pattern: >-
+                          ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                      - key: param
+                        type: string
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                      - key: constant
+                        type: any
+                      - key: values
+                        type: array
+                        item:
+                          type: object
+                          fields:
+                            - key: value
+                              type: any
+                            - key: type
+                              type: string
+                              required: true
+                              pattern: >-
+                                ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                          unknownFields: allow
+                          constraints:
+                            - id: literal-0
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: type
+                                  equals: java.lang.Long
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value
+                                        - '#{'
+                                    - ^-?[0-9]+$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-1
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: type
+                                  equals: java.math.BigDecimal
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value
+                                        - '#{'
+                                    - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-2
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: type
+                                  equals: java.lang.Boolean
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value
+                                        - '#{'
+                                    - ^(?:true|false)$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-3
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: type
+                                  equals: java.time.LocalDate
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value
+                                        - '#{'
+                                    - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-4
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: type
+                                  equals: java.lang.String
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value
+                                        - '#{'
+                                    - ^(?:(?![$#]\{)[\s\S])*$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                        minItems: 1
+                      - key: prefix
+                        type: string
+                        pattern: ^(?:(?![$#]\{)[\s\S])*$
+                      - key: optional
+                        type: boolean
+                      - key: link
+                        type: object
+                        fields:
+                          - key: table
+                            type: string
+                            required: true
+                            pattern: ^[a-z][a-z0-9_]*$
+                          - key: keys
+                            type: array
+                            required: true
+                            item:
+                              type: object
+                              fields:
+                                - key: column
+                                  type: string
+                                  required: true
+                                  pattern: ^[a-z][a-z0-9_]*$
+                                - key: parentColumn
+                                  type: string
+                                  required: true
+                                  pattern: ^[a-z][a-z0-9_]*$
+                              unknownFields: allow
+                            minItems: 1
+                          - key: element
+                            type: object
+                            required: true
+                            fields:
+                              - key: column
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                            unknownFields: allow
+                        unknownFields: allow
+                    unknownFields: allow
+                    constraints:
+                      - id: scalar-column
+                        where:
+                          - path: operator
+                            notEquals: includesAny
+                        check:
+                          - matches:
+                              - first:
+                                  - path: column
+                                  - ''
+                              - ^[a-z][a-z0-9_]*$
+                        message: SQL の条件の列を確定できません
+                        level: error
+                      - id: list-link
+                        where:
+                          - path: operator
+                            equals: includesAny
+                        check:
+                          - matches:
+                              - first:
+                                  - path: link.table
+                                  - ''
+                              - ^[a-z][a-z0-9_]*$
+                          - matches:
+                              - first:
+                                  - path: param
+                                  - ''
+                              - >-
+                                ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                        message: 配列の検索先テーブルと入力を確定できません
+                        level: error
+                      - id: literal-0
+                        where:
+                          - path: literal
+                            equals: true
+                          - path: type
+                            equals: java.lang.Long
+                          - path: compare
+                            equals: true
+                        check:
+                          - matches:
+                              - first:
+                                  - path: constant
+                                  - '#{'
+                              - ^-?[0-9]+$
+                        message: 定数を対象の型の SQL 値にできません
+                        level: error
+                      - id: literal-1
+                        where:
+                          - path: literal
+                            equals: true
+                          - path: type
+                            equals: java.math.BigDecimal
+                          - path: compare
+                            equals: true
+                        check:
+                          - matches:
+                              - first:
+                                  - path: constant
+                                  - '#{'
+                              - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                        message: 定数を対象の型の SQL 値にできません
+                        level: error
+                      - id: literal-2
+                        where:
+                          - path: literal
+                            equals: true
+                          - path: type
+                            equals: java.lang.Boolean
+                          - path: compare
+                            equals: true
+                        check:
+                          - matches:
+                              - first:
+                                  - path: constant
+                                  - '#{'
+                              - ^(?:true|false)$
+                        message: 定数を対象の型の SQL 値にできません
+                        level: error
+                      - id: literal-3
+                        where:
+                          - path: literal
+                            equals: true
+                          - path: type
+                            equals: java.time.LocalDate
+                          - path: compare
+                            equals: true
+                        check:
+                          - matches:
+                              - first:
+                                  - path: constant
+                                  - '#{'
+                              - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                        message: 定数を対象の型の SQL 値にできません
+                        level: error
+                      - id: literal-4
+                        where:
+                          - path: literal
+                            equals: true
+                          - path: type
+                            equals: java.lang.String
+                          - path: compare
+                            equals: true
+                        check:
+                          - matches:
+                              - first:
+                                  - path: constant
+                                  - '#{'
+                              - ^(?:(?![$#]\{)[\s\S])*$
+                        message: 定数を対象の型の SQL 値にできません
+                        level: error
+                - key: parameters
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    fields:
+                      - key: name
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                      - key: accessor
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                      - key: type
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                      - key: types
+                        type: array
+                        required: true
+                        item:
+                          type: string
+                        minItems: 1
+                        maxItems: 1
+                    unknownFields: allow
+                  unique:
+                    - name
+                - key: properties
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    fields:
+                      - key: name
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                      - key: accessor
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                      - key: type
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                      - key: column
+                        type: string
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: count
+                        type: object
+                        fields:
+                          - key: incoming
+                            type: object
+                            fields:
+                              - key: table
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: key
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: reference
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: parentColumn
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: alias
+                                type: string
+                                required: true
+                                pattern: ^[cr]$
+                              - key: join
+                                type: object
+                                fields:
+                                  - key: table
+                                    type: string
+                                    required: true
+                                    pattern: ^[a-z][a-z0-9_]*$
+                                  - key: keys
+                                    type: array
+                                    required: true
+                                    item:
+                                      type: object
+                                      fields:
+                                        - key: column
+                                          type: string
+                                          required: true
+                                          pattern: ^[a-z][a-z0-9_]*$
+                                        - key: parentColumn
+                                          type: string
+                                          required: true
+                                          pattern: ^[a-z][a-z0-9_]*$
+                                      unknownFields: allow
+                                    minItems: 1
+                                unknownFields: allow
+                            unknownFields: allow
+                          - key: child
+                            type: object
+                            fields:
+                              - key: table
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: keys
+                                type: array
+                                required: true
+                                item:
+                                  type: object
+                                  fields:
+                                    - key: column
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: parentColumn
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                  unknownFields: allow
+                                minItems: 1
+                            unknownFields: allow
+                          - key: conditions
+                            type: array
+                            item:
+                              type: object
+                              fields:
+                                - key: operator
+                                  type: string
+                                  required: true
+                                  pattern: ^(?:equals|notEquals|lt|lte|gt|gte|in|notNull|startsWith|includesAny)$
+                                - key: column
+                                  type: string
+                                  pattern: ^[a-z][a-z0-9_]*$
+                                - key: table
+                                  type: string
+                                  required: true
+                                  pattern: ^[a-z][a-z0-9_]*$
+                                - key: type
+                                  type: string
+                                  pattern: >-
+                                    ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                                - key: param
+                                  type: string
+                                  pattern: >-
+                                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                                - key: constant
+                                  type: any
+                                - key: values
+                                  type: array
+                                  item:
+                                    type: object
+                                    fields:
+                                      - key: value
+                                        type: any
+                                      - key: type
+                                        type: string
+                                        required: true
+                                        pattern: >-
+                                          ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                                    unknownFields: allow
+                                    constraints:
+                                      - id: literal-0
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.lang.Long
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: value
+                                                  - '#{'
+                                              - ^-?[0-9]+$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-1
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.math.BigDecimal
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: value
+                                                  - '#{'
+                                              - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-2
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.lang.Boolean
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: value
+                                                  - '#{'
+                                              - ^(?:true|false)$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-3
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.time.LocalDate
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: value
+                                                  - '#{'
+                                              - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-4
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.lang.String
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: value
+                                                  - '#{'
+                                              - ^(?:(?![$#]\{)[\s\S])*$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                  minItems: 1
+                                - key: prefix
+                                  type: string
+                                  pattern: ^(?:(?![$#]\{)[\s\S])*$
+                                - key: optional
+                                  type: boolean
+                                - key: link
+                                  type: object
+                                  fields:
+                                    - key: table
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: keys
+                                      type: array
+                                      required: true
+                                      item:
+                                        type: object
+                                        fields:
+                                          - key: column
+                                            type: string
+                                            required: true
+                                            pattern: ^[a-z][a-z0-9_]*$
+                                          - key: parentColumn
+                                            type: string
+                                            required: true
+                                            pattern: ^[a-z][a-z0-9_]*$
+                                        unknownFields: allow
+                                      minItems: 1
+                                    - key: element
+                                      type: object
+                                      required: true
+                                      fields:
+                                        - key: column
+                                          type: string
+                                          required: true
+                                          pattern: ^[a-z][a-z0-9_]*$
+                                      unknownFields: allow
+                                  unknownFields: allow
+                              unknownFields: allow
+                              constraints:
+                                - id: scalar-column
+                                  where:
+                                    - path: operator
+                                      notEquals: includesAny
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: column
+                                            - ''
+                                        - ^[a-z][a-z0-9_]*$
+                                  message: SQL の条件の列を確定できません
+                                  level: error
+                                - id: list-link
+                                  where:
+                                    - path: operator
+                                      equals: includesAny
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: link.table
+                                            - ''
+                                        - ^[a-z][a-z0-9_]*$
+                                    - matches:
+                                        - first:
+                                            - path: param
+                                            - ''
+                                        - >-
+                                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                                  message: 配列の検索先テーブルと入力を確定できません
+                                  level: error
+                                - id: literal-0
+                                  where:
+                                    - path: literal
+                                      equals: true
+                                    - path: type
+                                      equals: java.lang.Long
+                                    - path: compare
+                                      equals: true
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: constant
+                                            - '#{'
+                                        - ^-?[0-9]+$
+                                  message: 定数を対象の型の SQL 値にできません
+                                  level: error
+                                - id: literal-1
+                                  where:
+                                    - path: literal
+                                      equals: true
+                                    - path: type
+                                      equals: java.math.BigDecimal
+                                    - path: compare
+                                      equals: true
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: constant
+                                            - '#{'
+                                        - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                                  message: 定数を対象の型の SQL 値にできません
+                                  level: error
+                                - id: literal-2
+                                  where:
+                                    - path: literal
+                                      equals: true
+                                    - path: type
+                                      equals: java.lang.Boolean
+                                    - path: compare
+                                      equals: true
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: constant
+                                            - '#{'
+                                        - ^(?:true|false)$
+                                  message: 定数を対象の型の SQL 値にできません
+                                  level: error
+                                - id: literal-3
+                                  where:
+                                    - path: literal
+                                      equals: true
+                                    - path: type
+                                      equals: java.time.LocalDate
+                                    - path: compare
+                                      equals: true
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: constant
+                                            - '#{'
+                                        - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                                  message: 定数を対象の型の SQL 値にできません
+                                  level: error
+                                - id: literal-4
+                                  where:
+                                    - path: literal
+                                      equals: true
+                                    - path: type
+                                      equals: java.lang.String
+                                    - path: compare
+                                      equals: true
+                                  check:
+                                    - matches:
+                                        - first:
+                                            - path: constant
+                                            - '#{'
+                                        - ^(?:(?![$#]\{)[\s\S])*$
+                                  message: 定数を対象の型の SQL 値にできません
+                                  level: error
+                          - key: axis
+                            type: object
+                            fields:
+                              - key: column
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: value
+                                type: string
+                                required: true
+                                pattern: ^(?:(?![$#]\{)[\s\S])*$
+                            unknownFields: allow
+                        unknownFields: allow
+                        constraints:
+                          - id: count-source
+                            check:
+                              - or:
+                                  - matches:
+                                      - first:
+                                          - path: incoming.table
+                                          - ''
+                                      - ^[a-z][a-z0-9_]*$
+                                  - matches:
+                                      - first:
+                                          - path: child.table
+                                          - ''
+                                      - ^[a-z][a-z0-9_]*$
+                            message: 件数の取得先と親の対応を確定できません
+                            level: error
+                      - key: lookup
+                        type: object
+                        fields:
+                          - key: table
+                            type: string
+                            required: true
+                            pattern: ^[a-z][a-z0-9_]*$
+                          - key: column
+                            type: string
+                            required: true
+                            pattern: ^[a-z][a-z0-9_]*$
+                          - key: key
+                            type: string
+                            required: true
+                            pattern: ^[a-z][a-z0-9_]*$
+                          - key: parentColumn
+                            type: string
+                            required: true
+                            pattern: ^[a-z][a-z0-9_]*$
+                        unknownFields: allow
+                      - key: collection
+                        type: object
+                        fields:
+                          - key: query
+                            type: object
+                            required: true
+                            fields:
+                              - key: table
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: keys
+                                type: array
+                                required: true
+                                item:
+                                  type: object
+                                  fields:
+                                    - key: column
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: parentColumn
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                  unknownFields: allow
+                                minItems: 1
+                            unknownFields: allow
+                          - key: scalar
+                            type: boolean
+                          - key: elementType
+                            type: string
+                            pattern: >-
+                              ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                          - key: column
+                            type: string
+                            pattern: ^[a-z][a-z0-9_]*$
+                          - key: row
+                            type: any
+                          - key: order
+                            type: array
+                            item:
+                              type: object
+                              fields:
+                                - key: column
+                                  type: string
+                                  required: true
+                                  pattern: ^[a-z][a-z0-9_]*$
+                              unknownFields: allow
+                          - key: target
+                            type: object
+                            fields:
+                              - key: table
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: column
+                                type: string
+                                required: true
+                                pattern: ^[a-z][a-z0-9_]*$
+                              - key: keys
+                                type: array
+                                required: true
+                                item:
+                                  type: object
+                                  fields:
+                                    - key: column
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: parentColumn
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                  unknownFields: allow
+                                minItems: 1
+                            unknownFields: allow
+                        unknownFields: allow
+                      - key: format
+                        type: string
+                      - key: parts
+                        type: array
+                        item:
+                          type: object
+                          fields:
+                            - key: name
+                              type: string
+                              required: true
+                              pattern: >-
+                                ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                            - key: accessor
+                              type: string
+                              required: true
+                              pattern: >-
+                                ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                            - key: key
+                              type: string
+                              required: true
+                            - key: hole
+                              type: string
+                              required: true
+                            - key: type
+                              type: string
+                              required: true
+                              pattern: >-
+                                ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                            - key: count
+                              type: object
+                              fields:
+                                - key: incoming
+                                  type: object
+                                  fields:
+                                    - key: table
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: key
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: reference
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: parentColumn
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: alias
+                                      type: string
+                                      required: true
+                                      pattern: ^[cr]$
+                                    - key: join
+                                      type: object
+                                      fields:
+                                        - key: table
+                                          type: string
+                                          required: true
+                                          pattern: ^[a-z][a-z0-9_]*$
+                                        - key: keys
+                                          type: array
+                                          required: true
+                                          item:
+                                            type: object
+                                            fields:
+                                              - key: column
+                                                type: string
+                                                required: true
+                                                pattern: ^[a-z][a-z0-9_]*$
+                                              - key: parentColumn
+                                                type: string
+                                                required: true
+                                                pattern: ^[a-z][a-z0-9_]*$
+                                            unknownFields: allow
+                                          minItems: 1
+                                      unknownFields: allow
+                                  unknownFields: allow
+                                - key: child
+                                  type: object
+                                  fields:
+                                    - key: table
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: keys
+                                      type: array
+                                      required: true
+                                      item:
+                                        type: object
+                                        fields:
+                                          - key: column
+                                            type: string
+                                            required: true
+                                            pattern: ^[a-z][a-z0-9_]*$
+                                          - key: parentColumn
+                                            type: string
+                                            required: true
+                                            pattern: ^[a-z][a-z0-9_]*$
+                                        unknownFields: allow
+                                      minItems: 1
+                                  unknownFields: allow
+                                - key: conditions
+                                  type: array
+                                  item:
+                                    type: object
+                                    fields:
+                                      - key: operator
+                                        type: string
+                                        required: true
+                                        pattern: ^(?:equals|notEquals|lt|lte|gt|gte|in|notNull|startsWith|includesAny)$
+                                      - key: column
+                                        type: string
+                                        pattern: ^[a-z][a-z0-9_]*$
+                                      - key: table
+                                        type: string
+                                        required: true
+                                        pattern: ^[a-z][a-z0-9_]*$
+                                      - key: type
+                                        type: string
+                                        pattern: >-
+                                          ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                                      - key: param
+                                        type: string
+                                        pattern: >-
+                                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                                      - key: constant
+                                        type: any
+                                      - key: values
+                                        type: array
+                                        item:
+                                          type: object
+                                          fields:
+                                            - key: value
+                                              type: any
+                                            - key: type
+                                              type: string
+                                              required: true
+                                              pattern: >-
+                                                ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                                          unknownFields: allow
+                                          constraints:
+                                            - id: literal-0
+                                              where:
+                                                - path: literal
+                                                  equals: true
+                                                - path: type
+                                                  equals: java.lang.Long
+                                              check:
+                                                - matches:
+                                                    - first:
+                                                        - path: value
+                                                        - '#{'
+                                                    - ^-?[0-9]+$
+                                              message: 定数を対象の型の SQL 値にできません
+                                              level: error
+                                            - id: literal-1
+                                              where:
+                                                - path: literal
+                                                  equals: true
+                                                - path: type
+                                                  equals: java.math.BigDecimal
+                                              check:
+                                                - matches:
+                                                    - first:
+                                                        - path: value
+                                                        - '#{'
+                                                    - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                                              message: 定数を対象の型の SQL 値にできません
+                                              level: error
+                                            - id: literal-2
+                                              where:
+                                                - path: literal
+                                                  equals: true
+                                                - path: type
+                                                  equals: java.lang.Boolean
+                                              check:
+                                                - matches:
+                                                    - first:
+                                                        - path: value
+                                                        - '#{'
+                                                    - ^(?:true|false)$
+                                              message: 定数を対象の型の SQL 値にできません
+                                              level: error
+                                            - id: literal-3
+                                              where:
+                                                - path: literal
+                                                  equals: true
+                                                - path: type
+                                                  equals: java.time.LocalDate
+                                              check:
+                                                - matches:
+                                                    - first:
+                                                        - path: value
+                                                        - '#{'
+                                                    - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                                              message: 定数を対象の型の SQL 値にできません
+                                              level: error
+                                            - id: literal-4
+                                              where:
+                                                - path: literal
+                                                  equals: true
+                                                - path: type
+                                                  equals: java.lang.String
+                                              check:
+                                                - matches:
+                                                    - first:
+                                                        - path: value
+                                                        - '#{'
+                                                    - ^(?:(?![$#]\{)[\s\S])*$
+                                              message: 定数を対象の型の SQL 値にできません
+                                              level: error
+                                        minItems: 1
+                                      - key: prefix
+                                        type: string
+                                        pattern: ^(?:(?![$#]\{)[\s\S])*$
+                                      - key: optional
+                                        type: boolean
+                                      - key: link
+                                        type: object
+                                        fields:
+                                          - key: table
+                                            type: string
+                                            required: true
+                                            pattern: ^[a-z][a-z0-9_]*$
+                                          - key: keys
+                                            type: array
+                                            required: true
+                                            item:
+                                              type: object
+                                              fields:
+                                                - key: column
+                                                  type: string
+                                                  required: true
+                                                  pattern: ^[a-z][a-z0-9_]*$
+                                                - key: parentColumn
+                                                  type: string
+                                                  required: true
+                                                  pattern: ^[a-z][a-z0-9_]*$
+                                              unknownFields: allow
+                                            minItems: 1
+                                          - key: element
+                                            type: object
+                                            required: true
+                                            fields:
+                                              - key: column
+                                                type: string
+                                                required: true
+                                                pattern: ^[a-z][a-z0-9_]*$
+                                            unknownFields: allow
+                                        unknownFields: allow
+                                    unknownFields: allow
+                                    constraints:
+                                      - id: scalar-column
+                                        where:
+                                          - path: operator
+                                            notEquals: includesAny
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: column
+                                                  - ''
+                                              - ^[a-z][a-z0-9_]*$
+                                        message: SQL の条件の列を確定できません
+                                        level: error
+                                      - id: list-link
+                                        where:
+                                          - path: operator
+                                            equals: includesAny
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: link.table
+                                                  - ''
+                                              - ^[a-z][a-z0-9_]*$
+                                          - matches:
+                                              - first:
+                                                  - path: param
+                                                  - ''
+                                              - >-
+                                                ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                                        message: 配列の検索先テーブルと入力を確定できません
+                                        level: error
+                                      - id: literal-0
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.lang.Long
+                                          - path: compare
+                                            equals: true
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: constant
+                                                  - '#{'
+                                              - ^-?[0-9]+$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-1
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.math.BigDecimal
+                                          - path: compare
+                                            equals: true
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: constant
+                                                  - '#{'
+                                              - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-2
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.lang.Boolean
+                                          - path: compare
+                                            equals: true
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: constant
+                                                  - '#{'
+                                              - ^(?:true|false)$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-3
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.time.LocalDate
+                                          - path: compare
+                                            equals: true
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: constant
+                                                  - '#{'
+                                              - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                      - id: literal-4
+                                        where:
+                                          - path: literal
+                                            equals: true
+                                          - path: type
+                                            equals: java.lang.String
+                                          - path: compare
+                                            equals: true
+                                        check:
+                                          - matches:
+                                              - first:
+                                                  - path: constant
+                                                  - '#{'
+                                              - ^(?:(?![$#]\{)[\s\S])*$
+                                        message: 定数を対象の型の SQL 値にできません
+                                        level: error
+                                - key: axis
+                                  type: object
+                                  fields:
+                                    - key: column
+                                      type: string
+                                      required: true
+                                      pattern: ^[a-z][a-z0-9_]*$
+                                    - key: value
+                                      type: string
+                                      required: true
+                                      pattern: ^(?:(?![$#]\{)[\s\S])*$
+                                  unknownFields: allow
+                              unknownFields: allow
+                              constraints:
+                                - id: count-source
+                                  check:
+                                    - or:
+                                        - matches:
+                                            - first:
+                                                - path: incoming.table
+                                                - ''
+                                            - ^[a-z][a-z0-9_]*$
+                                        - matches:
+                                            - first:
+                                                - path: child.table
+                                                - ''
+                                            - ^[a-z][a-z0-9_]*$
+                                  message: 件数の取得先と親の対応を確定できません
+                                  level: error
+                          unknownFields: allow
+                      - key: replacements
+                        type: array
+                        item:
+                          type: object
+                          fields:
+                            - key: from
+                              type: string
+                              required: true
+                            - key: to
+                              type: string
+                          unknownFields: allow
+                    unknownFields: allow
+                  unique:
+                    - name
+                - key: bindings
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    fields:
+                      - key: column
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: name
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                    unknownFields: allow
+                  minItems: 1
+                - key: baseBindings
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    fields:
+                      - key: column
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: name
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                    unknownFields: allow
+                - key: order
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - key: column
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: direction
+                        type: string
+                        required: true
+                        pattern: ^(?:asc|desc)$
+                      - key: nulls
+                        type: string
+                        pattern: ^(?:first|last)$
+                    unknownFields: allow
+                - key: joins
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - key: table
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: column
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: other
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: outerTable
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                    unknownFields: allow
+                - key: writeGroups
+                  type: array
+                  item:
+                    type: object
+                    fields:
+                      - key: column
+                        type: string
+                        required: true
+                        pattern: ^[a-z][a-z0-9_]*$
+                      - key: type
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                      - key: branches
+                        type: array
+                        required: true
+                        item:
+                          type: object
+                          fields:
+                            - key: column
+                              type: object
+                              required: true
+                              fields:
+                                - key: column
+                                  type: string
+                                  required: true
+                                  pattern: ^[a-z][a-z0-9_]*$
+                              unknownFields: allow
+                            - key: value
+                              type: object
+                              required: true
+                              fields:
+                                - key: param
+                                  type: string
+                                  pattern: >-
+                                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                                - key: nil
+                                  type: boolean
+                                - key: constant
+                                  type: any
+                              unknownFields: allow
+                            - key: condition
+                              type: array
+                              item:
+                                type: object
+                                fields:
+                                  - key: param
+                                    type: string
+                                    required: true
+                                    pattern: >-
+                                      ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|record|sealed|permits|yield|var|getClass)$)[A-Za-z][A-Za-z0-9]*$
+                                  - key: boolean
+                                    type: boolean
+                                  - key: exists
+                                    type: boolean
+                                  - key: value
+                                    type: any
+                                unknownFields: allow
+                          unknownFields: allow
+                          constraints:
+                            - id: literal-0
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: column.model.java.qualifiedName
+                                  equals: java.lang.Long
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value.constant
+                                        - '#{'
+                                    - ^-?[0-9]+$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-1
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: column.model.java.qualifiedName
+                                  equals: java.math.BigDecimal
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value.constant
+                                        - '#{'
+                                    - ^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-2
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: column.model.java.qualifiedName
+                                  equals: java.lang.Boolean
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value.constant
+                                        - '#{'
+                                    - ^(?:true|false)$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-3
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: column.model.java.qualifiedName
+                                  equals: java.time.LocalDate
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value.constant
+                                        - '#{'
+                                    - ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                            - id: literal-4
+                              where:
+                                - path: literal
+                                  equals: true
+                                - path: column.model.java.qualifiedName
+                                  equals: java.lang.String
+                              check:
+                                - matches:
+                                    - first:
+                                        - path: value.constant
+                                        - '#{'
+                                    - ^(?:(?![$#]\{)[\s\S])*$
+                              message: 定数を対象の型の SQL 値にできません
+                              level: error
+                        minItems: 1
+                        maxItems: 2
+                    unknownFields: allow
+                - key: maxColumn
+                  type: object
+                  fields:
+                    - key: column
+                      type: string
+                      required: true
+                      pattern: ^[a-z][a-z0-9_]*$
+                    - key: model
+                      type: object
+                      required: true
+                      fields:
+                        - key: java
+                          type: object
+                          required: true
+                          fields:
+                            - key: qualifiedName
+                              type: string
+                              required: true
+                              pattern: >-
+                                ^(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|java\.util\.List<(?:java\.(?:lang\.(?:String|Boolean|Long)|time\.LocalDate|math\.BigDecimal)|[A-Z][A-Za-z0-9]*Row)>)$
+                          unknownFields: allow
+                      unknownFields: allow
+                  unknownFields: allow
+              unknownFields: allow
+              constraints:
+                - id: guarded-write
+                  where:
+                    - path: kind
+                      oneOf:
+                        - update
+                        - delete
+                  check:
+                    - gt:
+                        - count:
+                            path: conditions
+                        - 0
+                  message: 更新・削除には確定した対象条件が必要です
+                  level: error
+                - id: required-write-condition
+                  where:
+                    - path: kind
+                      oneOf:
+                        - update
+                        - delete
+                  check:
+                    - gt:
+                        - count:
+                            path: requiredConditions
+                        - 0
+                  message: 更新・削除には省略されない条件が必要です
+                  level: error
+                - id: write-values
+                  where:
+                    - path: kind
+                      equals: update
+                  check:
+                    - gt:
+                        - count:
+                            path: writeGroups
+                        - 0
+                  message: 更新内容を確定できません
+                  level: error
+                - id: insert-columns
+                  where:
+                    - path: kind
+                      equals: insert
+                  check:
+                    - eq:
+                        - path: raw.columns.mode
+                        - all
+                  message: '挿入の列指定は mode: all に対応しています'
+                  level: error
+                - id: max-column
+                  where:
+                    - path: kind
+                      equals: max
+                  check:
+                    - matches:
+                        - first:
+                            - path: maxColumn.column
+                            - ''
+                        - ^[a-z][a-z0-9_]*$
+                  message: 最大値の対象列を確定できません
+                  level: error
+                - id: source-condition
+                  where:
+                    - path: conditionSource
+                      exists: true
+                  check:
+                    - eq:
+                        - path: conditionReferenceResolved
+                        - true
+                  message: 同じ条件を読むメソッドIDが見つかりません
+                  level: error
+                - id: selected-base
+                  where:
+                    - path: kind
+                      oneOf:
+                        - select
+                        - aggregate
+                  check:
+                    - gt:
+                        - count:
+                            path: baseBindings
+                        - 0
+                  message: 取得する主キーと基底列を確定できません
+                  level: error
+            unique:
+              - name
+        unknownFields: allow
+      unique:
+        - name

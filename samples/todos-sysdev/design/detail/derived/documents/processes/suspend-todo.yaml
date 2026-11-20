@@ -1,0 +1,115 @@
+# 生成物（processes-derived）: 手で直さず、業務モデルか生成の定義（design/detail/processes-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-processes.suspend-todo
+record:
+  id: DOC-processes.suspend-todo
+  value:
+    id: suspend-todo
+    name: TODOを中断する
+    service:
+      class: TodoService
+      method: suspendTodo
+      arguments:
+        - id
+        - date
+        - reason
+        - resumeOn
+    confirm:
+      - method: checkSuspendTodo
+        arguments:
+          - id
+          - date
+          - reason
+          - resumeOn
+        does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
+        constraints:
+          - constraint: resume-not-before-suspend
+            field: resumeOn
+            message: check.resume-not-before-suspend
+    transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+    steps:
+      - step: read
+        call: TodoMapper.findById
+        key: id
+        missing: 見つからなければ NotFoundException（error.notFound.todo）
+      - step: check
+        precondition: suspend-todo.state
+        by: Java（読んだ行の状態）
+        allowed:
+          - IN_PROGRESS
+        message: suspend-todo.state
+        text: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+      - step: check
+        constraint: updated-not-before-created
+        by: Java（書いた後の値）
+        rule:
+          check:
+            - gte:
+                - path: updated_on
+                - path: created_on
+        message: check.updated-not-before-created
+      - step: check
+        constraint: unfinished-has-no-completed-on
+        by: Java（書いた後の値）
+        rule:
+          where:
+            - not:
+                path: status
+                equals: CLOSED
+            - path: completed_on
+              exists: true
+          expect: absent
+        message: check.unfinished-has-no-completed-on
+      - step: check
+        constraint: resume-not-before-suspend
+        by: Java（書いた後の値）
+        at: 足す history[*] の行
+        rule:
+          where:
+            - path: resume_on
+              exists: true
+          check:
+            - gte:
+                - path: resume_on
+                - path: date
+        field: resumeOn
+        message: check.resume-not-before-suspend
+      - step: write
+        call: TodoMapper.suspendTodo
+        kind: update
+        set:
+          - item: status
+            value: SUSPENDED
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - item: id
+            param: id
+      - step: write
+        call: TodoMapper.insertTodoHistory
+        kind: insert
+        values:
+          todo_id: $id
+          date: $date
+          action: suspend-todo
+          from:
+            $copy: status
+            $of: self
+          to: SUSPENDED
+          note: $reason
+          resume_on:
+            $copy: resume_on
+        seq: TodoMapper.maxSeqTodoHistory の次
+    subject: todo
+    originalService:
+      class: TodoService
+      method: suspendTodo
+      arguments:
+        - id
+        - date
+        - reason
+        - resumeOn
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/detail/processes-derived.yaml

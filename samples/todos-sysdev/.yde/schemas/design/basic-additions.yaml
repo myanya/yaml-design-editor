@@ -1,6 +1,0 @@
-id: basic-additions
-name: basic-additions
-kind: document
-match: design/basic/additions*.yaml
-root:
-  type: basic-design-contract#追加一覧

@@ -8,15 +8,16 @@
 
 | 分類 | 場所 | 扱い |
 |---|---|---|
-| 導出 | `design/system/derived/` | 業務モデルと上流の確定値から生成。中の識別子を確定項目の ID として登録しない |
-| 補正・指定 | `design/system/corrections.yaml` | 人が書く。個別補正と方式の既定値を区別する |
-| 追加 | `design/system/additions.yaml` | 人が書く。文書、または既存文書のコレクションへ項目を追加する |
-| 確定 | `design/generated/` | 従来の配置を維持。`designId` は `DOC-種類.導出元`、従来の `id` は導出元を示す |
+| 導出 | 各段階の `derived/documents/` | 業務モデルと上流の確定値から生成。中の識別子を確定項目の ID として登録しない |
+| 補正・指定 | 各段階の `inputs/documents/corrections.yaml` | 人が書く。個別補正と方式の既定値を区別する |
+| 追加 | 各段階の `inputs/documents/additions.yaml` | 人が書く。文書、または既存文書のコレクションへ項目を追加する |
+| 確定 | 各段階の `final/` | `designId` は `DOC-種類.導出元`、従来の `id` は導出元を示す |
 | 根拠 | 確定文書の `origins` | 導出の規則、候補と採用結果、補正・指定・追加の理由 |
-| 全体の検査記録 | `design/system/review.yaml` | 今回確定した文書と入力の一覧。オーナーの承認を意味しない |
+| 全体の検査記録 | `design/detail/composed/review.yaml` | 今回確定した文書と入力の一覧。オーナーの承認を意味しない |
 
-`design/basic` の補正・追加は、引き続きエンティティと型の入力である。
-`design/detail` の型対応表・索引の台帳・補正は物理設計の入力で、補正後の結果を `tables.yaml` に保存する。
+各段階は `design/basic/` と `design/detail/`。基本設計の種類を詳細設計の入力へ書くなど、段階を間違えた補正・指定・追加は保存前に拒否する。
+エンティティと型の補正・追加は `design/basic/inputs/entities/` に置く。
+物理設計の型対応表・索引の台帳・補正は `design/detail/inputs/tables/` に置き、補正後の結果を `design/detail/final/tables.yaml` に保存する。
 テーブルのビューと DDL はその保存値を読む。型対応と台帳の候補を、確定項目と同じ ID の出現として二重登録しない。
 
 ## 対象と受け渡し
@@ -49,8 +50,8 @@
 生成物を直接編集しない。対象の `designId` は「全設計書の一覧」で確認する。
 
 ```yaml
-# design/system/corrections.yaml
-inputId: INPUT-system-corrections
+# design/detail/inputs/documents/corrections.yaml
+inputId: INPUT-detail-document-corrections
 corrections:
   - id: SCOR-mapper-name
     kind: table-access
@@ -66,8 +67,8 @@ specifications: []
 数で配列の位置を指定する場合は、導出内容が変わったときに対象を再確認する。
 
 ```yaml
-# design/system/additions.yaml
-inputId: INPUT-system-additions
+# design/detail/inputs/documents/additions.yaml
+inputId: INPUT-detail-document-additions
 additions:
   - id: SADD-review-preference
     kind: session-design
@@ -89,7 +90,7 @@ additions:
 
 ## 検査と試し方
 
-`system-input-gate` が入力文書を、各合成が対象消失・重複・競合を検査する。
+`basic-document-input-gate`・`detail-document-input-gate` が各段階の入力文書を、各合成が対象消失・重複・競合を検査する。
 `system-final` は今回の文書を集め、型・参照・識別子・未処理の入力を `$validate` で確かめる。
 業務の効果・状態・書込などをアクション定義書だけで変える補正も止める。基本設計の C/U や状態の判定と共通の原本なので、業務モデルで変更して導出し直す。
 Form のクラス名が画面設計書と Controller で異なる場合も止める。片方だけを補正して確定することはできない。
@@ -107,11 +108,12 @@ Form のクラス名が画面設計書と Controller で異なる場合も止め
 
 補正の試験は作業用コピーで `generate <コピー> --apply` と `report <コピー> ddl` を実行する。
 CLI の個別選択は `view <コピー> system-review --param document=DOC-action-specs.complete-todo`、文書ビューは
-`view <コピー> action-design design/generated/actions/complete-todo.yaml` を使う。単独グリッドの `--param` では絞られない。
+`view <コピー> action-design design/basic/final/actions/complete-todo.yaml` を使う。単独グリッドの `--param` では絞られない。
 設計書別のダッシュボードは `design-review-<kind>`。たとえば `view <コピー> design-review-processes --param document=DOC-processes.complete-todo` で処理設計書を確認できる。
 
 `TodosSystemDocumentsTest` は物理名 → Mapper → Service → Controller、画面入力 → Form・メッセージ、
-セッション、追加と補正、競合と対象消失、未対応入力、再生成を確認する。
+セッション、追加と補正、競合と対象消失、未対応入力、段階を間違えた入力の拒否、再生成を確認する。
+設計用のコピーには `.yde/` の定義と `design/` だけを含め、`app/` と表示状態を含めないことも確かめる。
 個別ビューと横断ビューの内容の一致、対応表に設計の型を混ぜないこと、複数のダッシュボードの到達範囲も確認する。
 `TodosSysdevTest` と `TodosEntityFoundationTest` は従来の生成、ビュー、DDL と H2 への適用を維持する。
 
@@ -121,3 +123,4 @@ CLI の個別選択は `view <コピー> system-review --param document=DOC-acti
 `any` で保持する式や部品は各生成規則の対応範囲に従う。任意の補正を Java や HTML として実行できると検証したものではない。
 「手で書く」などの既存の未対応表現、楽観ロック、ログイン、将来扱いの CSRF、H2 以外の実 DB、Spring Boot のアプリ生成は別の作業である。
 次は設計書全体の内容をレビューし、コード生成に必要な不足や不整合を具体的な項目として整理する。
+配置の整理と独立したアプリの生成は [作業計画](application-generation-plan.md) に従う。

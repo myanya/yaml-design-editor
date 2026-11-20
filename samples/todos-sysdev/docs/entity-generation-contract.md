@@ -23,12 +23,12 @@
 |---|---|---|
 | `design/basic/derived/model.yaml` | スキーマ原文と導出記録 | 生成 |
 | `design/basic/derived/targets.yaml` | 設計 ID と各側面の宣言・原文の場所 | 生成 |
-| `design/basic/corrections.yaml` | 補正と方式・対象の指定 | 人 |
-| `design/basic/additions.yaml` | 新しい設計項目の追加。現在は区分 | 人 |
+| `design/basic/inputs/entities/corrections.yaml` | 補正と方式・対象の指定 | 人 |
+| `design/basic/inputs/entities/additions.yaml` | 新しい設計項目の追加。現在は区分 | 人 |
 | `design/basic/composed/` | 候補・採用記録・再解決結果・確定前の検査結果 | 生成 |
-| `design/basic/entities.yaml` | 確定したエンティティ・項目・操作・C/U | 生成 |
-| `design/basic/types.yaml` | 確定した論理型 | 生成 |
-| `design/basic/classes.yaml` | 確定した区分 | 生成 |
+| `design/basic/final/entities.yaml` | 確定したエンティティ・項目・操作・C/U | 生成 |
+| `design/basic/final/types.yaml` | 確定した論理型 | 生成 |
+| `design/basic/final/classes.yaml` | 確定した区分 | 生成 |
 
 旧 `ledger.yaml` の区分定義は追加へ、割当は補正一覧の `specifications` へ移した。
 追加の `designId`・補正と指定の `target` は文字であり、生成中の集合で対象を確認する。
@@ -68,7 +68,7 @@
 ## 区分を追加して指定する例
 
 ```yaml
-# design/basic/additions.yaml
+# design/basic/inputs/entities/additions.yaml
 additions:
   - id: ADD-001
     kind: class
@@ -77,7 +77,7 @@ additions:
 ```
 
 ```yaml
-# design/basic/corrections.yaml
+# design/basic/inputs/entities/corrections.yaml
 specifications:
   - id: SPC-category-class
     target: ENT-category

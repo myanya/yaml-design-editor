@@ -1,0 +1,95 @@
+id: status-rules-derived
+name: 状態の判定（処理設計書）
+description: 'Lifecycle ごとに、状態の enum（保存する値）と、詳細化の親の判定と、操作ごとにできる状態と移り先を書く。 決め打ちの規則: enum の名前は「型の名前＋Status」・定数は保存する値・親の判定は「is＋親の ID」のメソッド'
+scope: business
+each: lifecycles
+output: design/detail/derived/documents/status-rules/{id}.yaml
+dependsOn:
+  - system-actions-model
+  - detail-document-input-gate
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: system-actions-model-input
+      $one: true
+build:
+  id:
+    $format: DRV-document-status-rules.{id}
+  record:
+    id:
+      $format: DOC-status-rules.{id}
+    value:
+      id:
+        $copy: id
+      entity:
+        $copy: entity
+      enum:
+        name:
+          $format: '{name}Status'
+          $with:
+            name:
+              $case:
+                $copy: entity
+              $as: pascal
+        values:
+          $each: states
+          $build:
+            constant:
+              $case:
+                $copy: value
+              $as: constant
+            label:
+              $copy: label
+            state:
+              $copy: id
+      groups:
+        $each: groups
+        $build:
+          method:
+            $format: is{name}
+            $with:
+              name:
+                $case:
+                  $copy: id
+                $as: pascal
+          label:
+            $copy: label
+          state:
+            $copy: id
+          values:
+            $each: states
+            $build:
+              $copy: value
+      entry:
+        $each: entry
+        $build:
+          action:
+            $copy: action
+          to:
+            $copy: to.value
+      transitions:
+        $each: transitions
+        $build:
+          action:
+            $copy: action
+          from:
+            $each: from
+            $build:
+              $copy: value
+          to:
+            $copy: to.value
+      terminal:
+        $each: terminal
+        $build:
+          $copy: value
+    source:
+      id: rule-status-rules
+      document: .yde/transforms/design/detail/status-rules-derived.yaml
+rules:
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row

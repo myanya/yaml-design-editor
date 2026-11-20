@@ -1,0 +1,138 @@
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+id: suspend-todo
+name: TODOを中断する（画面設計書）
+form:
+  class: SuspendTodoForm
+  emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+  fields:
+    - name: date
+      item: date
+      type: LocalDate
+      validations:
+        - name: NotNull
+        - name: DateTimeFormat
+          iso: DATE
+    - name: reason
+      item: reason
+      type: String
+      validations:
+        - name: NotNull
+        - name: Size
+          min: 1
+    - name: resumeOn
+      item: resume_on
+      type: LocalDate
+      validations:
+        - name: DateTimeFormat
+          iso: DATE
+  classes: []
+screens:
+  - id: suspend-todo/input
+    template: todo/suspend-todo/input
+    page:
+      title: TODOを中断する
+      width: m
+      body:
+        - notice:
+            kind: errors
+            for: form
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - form:
+            action: POST /todo/{id}/suspend-todo/confirm
+            object: SuspendTodoForm
+            hidden:
+              - from
+            body:
+              - field:
+                  item: date
+                  label: 中断日
+                  control: date
+                  required: true
+                  width: 10ch
+              - field:
+                  item: reason
+                  label: 中断理由
+                  control: textarea
+                  required: true
+                  rows: 5
+              - field:
+                  item: resume_on
+                  label: 再開予定日
+                  control: date
+                  width: 10ch
+              - actions:
+                  - label: 確認へ
+                    kind: submit
+                    emphasis: primary
+                  - label: やめる
+                    kind: link
+                    to: 起点の画面
+                    emphasis: secondary
+  - id: suspend-todo/confirm
+    template: todo/suspend-todo/confirm
+    page:
+      title: TODOを中断する（確認）
+      width: m
+      body:
+        - notice:
+            kind: refusal
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - facts:
+            title: 入力した値
+            of: form
+            items:
+              - item: date
+                label: 中断日
+                format: yyyy年M月d日
+              - item: reason
+                label: 中断理由
+                keepBreaks: true
+              - item: resume_on
+                label: 再開予定日
+                format: yyyy年M月d日
+        - facts:
+            title: 状態の移り方
+            items:
+              - label: 状態
+                from:
+                  - 対応中
+                to: 中断
+        - form:
+            action: POST /todo/{id}/suspend-todo
+            hidden:
+              - date
+              - reason
+              - resume_on
+              - flow
+              - from
+            body:
+              - actions:
+                  - label: 確定
+                    kind: submit
+                    emphasis: primary
+                  - label: 入力へ戻る
+                    kind: submit
+                    action: POST /todo/{id}/suspend-todo/back
+                    emphasis: secondary
+designId: DOC-screen-designs-operations.suspend-todo
+designKind: screen-designs-operations
+designPath: design/detail/final/screen-designs/operations/suspend-todo.yaml
+origins:
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

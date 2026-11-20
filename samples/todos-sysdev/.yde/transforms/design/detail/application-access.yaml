@@ -1,0 +1,2299 @@
+id: application-access
+name: 確定したテーブルアクセスから Mapper の受け渡しと SQL を確定する
+scope: design
+dependsOn:
+  - table-access
+  - application-data-model
+output: design/detail/final/application-access.yaml
+input:
+  mappers:
+    $each:
+      $view: table-access-input
+    $build:
+      $apply: mapper
+      $with:
+        document:
+          $copy: values.record
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-access
+      $then:
+        $copy: declared
+build:
+  $apply: validated
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $copy: contracts
+        documents:
+          design/detail/final/application-access.yaml:
+            id: APP-access
+            mappers:
+              $copy: mappers
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: table
+    with:
+      - name
+    build:
+      $first:
+        - $apply: record
+          $with:
+            row:
+              $view: application-physical-table-input
+              $where:
+                - path: values.record.name
+                  equals:
+                    $copy: .
+                    $of: name
+              $one: true
+        - $apply: record
+          $with:
+            row:
+              $view: application-physical-table-input
+              $where:
+                - path: values.record.originalName
+                  equals:
+                    $copy: .
+                    $of: name
+              $one: true
+  - id: row-model
+    with:
+      - table
+    build:
+      $apply: record
+      $with:
+        row:
+          $view: application-row-model-input
+          $where:
+            - path: values.record.table
+              equals:
+                $copy: .
+                $of: table
+          $one: true
+  - id: column
+    with:
+      - table
+      - item
+      - columnId
+    build:
+      $apply: column-result
+      $with:
+        physical:
+          $first:
+            - $apply: record
+              $with:
+                row:
+                  $view: application-physical-column-input
+                  $where:
+                    - path: id
+                      equals:
+                        $copy: .
+                        $of: columnId
+                  $one: true
+            - $apply: first
+              $with:
+                items:
+                  $each: columns
+                  $of: table
+                  $build:
+                    $when:
+                      - path: item
+                        equals:
+                          $copy: .
+                          $of: item
+                    $then:
+                      $copy: .
+  - id: column-result
+    with:
+      - physical
+    build:
+      id:
+        $copy: id
+        $of: physical
+      column:
+        $copy: name
+        $of: physical
+      item:
+        $copy: item
+        $of: physical
+      role:
+        $copy: role
+        $of: physical
+      source:
+        $copy: source
+        $of: physical
+      referencesTable:
+        $copy: referencesTable
+        $of: physical
+      referencesColumn:
+        $copy: referencesColumn
+        $of: physical
+      model:
+        $apply: record
+        $with:
+          row:
+            $view: application-java-column-input
+            $where:
+              - path: values.record.source
+                equals:
+                  $copy: id
+                  $of: physical
+            $one: true
+  - id: method-source
+    with:
+      - method
+      - document
+    build:
+      raw:
+        $copy: .
+        $of: method
+      where:
+        $first:
+          - $copy: where
+            $of: method
+          - $apply: inherited-where
+            $with:
+              source:
+                $apply: first
+                $with:
+                  items:
+                    $each: methods
+                    $of: document
+                    $build:
+                      $when:
+                        - path: methodId
+                          equals:
+                            $copy: whereFrom
+                            $of: method
+                      $then:
+                        $copy: .
+          - []
+      conditionSource:
+        $copy: whereFrom
+        $of: method
+      includesCatalog:
+        $group:
+          $each: methods
+          $of: document
+          $flatten: true
+          $build:
+            $copy: includes
+        $by:
+          $copy: item
+        $build:
+          $copy: items[0]
+      conditionReferenceResolved:
+        $first:
+          - $when:
+              - path: whereFrom
+                exists: false
+                of: method
+            $then: true
+          - $apply: source-found
+            $with:
+              record:
+                $apply: first
+                $with:
+                  items:
+                    $each: methods
+                    $of: document
+                    $build:
+                      $when:
+                        - path: methodId
+                          equals:
+                            $copy: whereFrom
+                            $of: method
+                      $then:
+                        $copy: .
+          - false
+  - id: inherited-where
+    with:
+      - source
+    when:
+      - path: .
+        exists: true
+        of: source
+    build:
+      $copy: where
+      $of: source
+  - id: mapper
+    with:
+      - document
+    build:
+      id:
+        $format: MAP-{id}
+        $with:
+          id:
+            $copy: id
+            $of: document
+      source:
+        $copy: designId
+        $of: document
+      name:
+        $copy: mapper
+        $of: document
+      methods:
+        $each: methods
+        $of: document
+        $build:
+          $apply: merge
+          $with:
+            base:
+              $apply: method
+              $with:
+                source:
+                  $apply: method-source
+                  $with:
+                    method:
+                      $copy: .
+                    document:
+                      $copy: .
+                      $of: document
+                table:
+                  $apply: table
+                  $with:
+                    name:
+                      $copy: table
+                row:
+                  $apply: row-model
+                  $with:
+                    table:
+                      $copy: table
+            extra:
+              id:
+                $format: JMTH-{mapper}.{method}
+                $with:
+                  mapper:
+                    $copy: id
+                    $of: document
+                  method:
+                    $copy: methodId
+  - id: method
+    with:
+      - source
+      - table
+      - row
+    build:
+      $apply: method-final
+      $with:
+        source:
+          $copy: .
+          $of: source
+        table:
+          $copy: .
+          $of: table
+        row:
+          $copy: .
+          $of: row
+        conditions:
+          $each: where
+          $of: source
+          $build:
+            $apply: condition
+            $with:
+              node:
+                $copy: .
+              table:
+                $copy: .
+                $of: table
+        writes:
+          $each: raw.set
+          $of: source
+          $build:
+            $apply: write
+            $with:
+              node:
+                $copy: .
+              table:
+                $copy: .
+                $of: table
+  - id: condition
+    with:
+      - node
+      - table
+    build:
+      $apply: condition-resolved
+      $with:
+        node:
+          $copy: .
+          $of: node
+        table:
+          $first:
+            - $apply: table
+              $with:
+                name:
+                  $copy: table
+                  $of: node
+            - $copy: .
+              $of: table
+        column:
+          $apply: column
+          $with:
+            table:
+              $first:
+                - $apply: table
+                  $with:
+                    name:
+                      $copy: table
+                      $of: node
+                - $copy: .
+                  $of: table
+            item:
+              $copy: item
+              $of: node
+            columnId:
+              $copy: columnId
+              $of: node
+  - id: condition-base
+    with:
+      - node
+      - table
+      - column
+    build:
+      raw:
+        $copy: .
+        $of: node
+      column:
+        $copy: column
+        $of: column
+      table:
+        $copy: name
+        $of: table
+      type:
+        $copy: model.java.qualifiedName
+        $of: column
+      param:
+        $case:
+          $first:
+            - $copy: param
+              $of: node
+            - $value:
+                extract:
+                  - of: node
+                    path: value
+                  - ^\$(.+)$
+        $as: camel
+      operator:
+        $first:
+          - $copy: op
+            $of: node
+          - $when:
+              - path: param
+                exists: true
+                of: node
+            $then: equals
+          - $when:
+              - path: equals
+                exists: true
+                of: node
+            $then: equals
+          - $when:
+              - path: notEquals
+                exists: true
+                of: node
+            $then: notEquals
+          - $when:
+              - path: oneOf
+                exists: true
+                of: node
+            $then: in
+          - $when:
+              - path: startsWith
+                exists: true
+                of: node
+            $then: startsWith
+      constant:
+        $first:
+          - $copy: equals
+            $of: node
+          - $copy: notEquals
+            $of: node
+          - $copy: value
+            $of: node
+      values:
+        $first:
+          - $copy: oneOf
+            $of: node
+          - $copy: values
+            $of: node
+      prefix:
+        $copy: startsWith
+        $of: node
+      optional:
+        $copy: skipIfEmpty
+        $of: node
+      collection:
+        $when:
+          - path: op
+            equals: includesAny
+            of: node
+        $then: true
+      link:
+        $when:
+          - path: op
+            equals: includesAny
+            of: node
+        $then:
+          $apply: link
+          $with:
+            table:
+              $apply: table
+              $with:
+                name:
+                  $copy: via
+                  $of: node
+            parent:
+              $copy: .
+              $of: table
+  - id: link
+    with:
+      - table
+      - parent
+    build:
+      table:
+        $copy: name
+        $of: table
+      keys:
+        $each: columns
+        $of: table
+        $build:
+          $when:
+            - path: referencesTable
+              equals:
+                $copy: id
+                $of: parent
+            - path: role
+              equals: parent
+          $then:
+            column:
+              $copy: name
+            parentColumn:
+              $apply: column-name
+              $with:
+                id:
+                  $copy: referencesColumn
+      element:
+        $apply: first
+        $with:
+          items:
+            $each: columns
+            $of: table
+            $build:
+              $when:
+                - path: role
+                  equals: element
+              $then:
+                $apply: column
+                $with:
+                  table:
+                    $copy: .
+                    $of: table
+                  item:
+                    $copy: item
+                  columnId:
+                    $copy: id
+  - id: column-name
+    with:
+      - id
+    build:
+      $apply: name
+      $with:
+        record:
+          $apply: record
+          $with:
+            row:
+              $view: application-physical-column-input
+              $where:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: id
+              $one: true
+  - id: name
+    with:
+      - record
+    build:
+      $copy: name
+      $of: record
+  - id: write-base
+    with:
+      - node
+      - table
+    build:
+      column:
+        $apply: column
+        $with:
+          table:
+            $copy: .
+            $of: table
+          item:
+            $copy: item
+            $of: node
+          columnId:
+            $copy: columnId
+            $of: node
+      raw:
+        $copy: .
+        $of: node
+      value:
+        $apply: write-value
+        $with:
+          node:
+            $copy: .
+            $of: node
+      condition:
+        $each: when
+        $of: node
+        $build:
+          param:
+            $case:
+              $copy: path
+            $as: camel
+          boolean:
+            $when:
+              - path: equals
+                exists: true
+            $then: true
+          exists:
+            $copy: exists
+          value:
+            $copy: equals
+  - id: write-value
+    with:
+      - node
+    when:
+      - of: node
+        path: value
+        startsWith: $$
+    build:
+      param:
+        $case:
+          $value:
+            extract:
+              - of: node
+                path: value
+              - ^\$(.+)$
+        $as: camel
+  - id: write-value
+    with:
+      - node
+    when:
+      - path: value.$copy
+        exists: true
+        of: node
+    build:
+      param:
+        $case:
+          $format: '{scope}-{path}'
+          $with:
+            scope:
+              $copy: value.$of
+              $of: node
+            path:
+              $copy: value.$copy
+              $of: node
+        $as: camel
+  - id: write-value
+    with:
+      - node
+    when:
+      - path: mode
+        equals: clear
+        of: node
+    build:
+      nil: true
+  - id: write-value
+    with:
+      - node
+    build:
+      constant:
+        $copy: value
+        $of: node
+  - id: method-data
+    with:
+      - source
+      - table
+      - row
+      - conditions
+      - writes
+    build:
+      name:
+        $copy: raw.name
+        $of: source
+      source:
+        $copy: raw.methodId
+        $of: source
+      kind:
+        $copy: raw.kind
+        $of: source
+      raw:
+        $copy: raw
+        $of: source
+      table:
+        $copy: name
+        $of: table
+      tableId:
+        $copy: id
+        $of: table
+      row:
+        $copy: .
+        $of: row
+      conditionSource:
+        $copy: conditionSource
+        $of: source
+      inputClass:
+        $format: '{name}Input'
+        $with:
+          name:
+            $case:
+              $copy: raw.name
+              $of: source
+            $as: pascal
+      resultClass:
+        $format: '{name}Result'
+        $with:
+          name:
+            $case:
+              $copy: raw.name
+              $of: source
+            $as: pascal
+      conditions:
+        $copy: .
+        $of: conditions
+      writes:
+        $copy: .
+        $of: writes
+      joins:
+        $each: raw.join
+        $of: source
+        $build:
+          table:
+            $copy: table
+          column:
+            $copy: column
+          other:
+            $apply: column-name-by-item
+            $with:
+              table:
+                $copy: .
+                $of: table
+              item:
+                $copy: equalsItem
+      order:
+        $each: raw.order
+        $of: source
+        $build:
+          column:
+            $copy: column
+          direction:
+            $first:
+              - $copy: dir
+              - asc
+          nulls:
+            $copy: nulls
+      parameters:
+        $apply: parameters
+        $with:
+          conditions:
+            $copy: .
+            $of: conditions
+          writes:
+            $copy: .
+            $of: writes
+      maxColumn:
+        $when:
+          - path: raw.kind
+            equals: max
+            of: source
+        $then:
+          $apply: column
+          $with:
+            table:
+              $copy: .
+              $of: table
+            columnId:
+              $copy: raw.columnId
+              $of: source
+            item:
+              $copy: raw.item
+              $of: source
+      bindings:
+        $copy: columns
+        $of: row
+      properties:
+        $apply: properties
+        $with:
+          source:
+            $copy: .
+            $of: source
+          table:
+            $copy: .
+            $of: table
+      baseBindings:
+        $apply: base-bindings
+        $with:
+          source:
+            $copy: .
+            $of: source
+          table:
+            $copy: .
+            $of: table
+          row:
+            $copy: .
+            $of: row
+      single:
+        $when:
+          - path: raw.kind
+            equals: select
+            of: source
+          - path: raw.columns
+            exists: false
+            of: source
+        $then: true
+      select:
+        $when:
+          - of: source
+            path: raw.kind
+            oneOf:
+              - select
+              - aggregate
+        $then: true
+      insert:
+        $when:
+          - path: raw.kind
+            equals: insert
+            of: source
+        $then: true
+      update:
+        $when:
+          - path: raw.kind
+            equals: update
+            of: source
+        $then: true
+      delete:
+        $when:
+          - path: raw.kind
+            equals: delete
+            of: source
+        $then: true
+      count:
+        $when:
+          - path: raw.kind
+            equals: count
+            of: source
+        $then: true
+      max:
+        $when:
+          - path: raw.kind
+            equals: max
+            of: source
+        $then: true
+      writeGroups:
+        $group:
+          $copy: .
+          $of: writes
+        $by:
+          $copy: column.id
+        $build:
+          column:
+            $copy: items[0].column.column
+          type:
+            $copy: items[0].column.model.java.qualifiedName
+          branches:
+            $concat:
+              - $each: items
+                $build:
+                  $when:
+                    - path: value.nil
+                      equals: true
+                  $then:
+                    $copy: .
+              - $each: items
+                $build:
+                  $when:
+                    - path: value.nil
+                      exists: false
+                  $then:
+                    $copy: .
+      many:
+        $when:
+          - or:
+              - path: raw.columns
+                exists: true
+                of: source
+              - path: raw.kind
+                equals: aggregate
+                of: source
+        $then: true
+      numericMax:
+        $when:
+          - path: raw.kind
+            equals: max
+            of: source
+          - not:
+              path: raw.item
+              equals: id
+              of: source
+        $then: true
+      idMax:
+        $when:
+          - path: raw.kind
+            equals: max
+            of: source
+          - path: raw.item
+            equals: id
+            of: source
+        $then: true
+      conditionReferenceResolved:
+        $copy: conditionReferenceResolved
+        $of: source
+      requiredConditions:
+        $each: .
+        $of: conditions
+        $build:
+          $when:
+            - or:
+                - path: optional
+                  exists: false
+                - path: optional
+                  equals: false
+          $then:
+            $copy: .
+  - id: column-name-by-item
+    with:
+      - table
+      - item
+    build:
+      $apply: name
+      $with:
+        record:
+          $apply: first
+          $with:
+            items:
+              $each: columns
+              $of: table
+              $build:
+                $when:
+                  - path: item
+                    equals:
+                      $copy: .
+                      $of: item
+                $then:
+                  $copy: .
+  - id: parameters
+    with:
+      - conditions
+      - writes
+    build:
+      $group:
+        $concat:
+          - $each: .
+            $of: conditions
+            $build:
+              $when:
+                - path: param
+                  exists: true
+              $then:
+                name:
+                  $copy: param
+                type:
+                  $first:
+                    - $when:
+                        - path: collection
+                          equals: true
+                      $then:
+                        $format: java.util.List<{type}>
+                        $with:
+                          type:
+                            $copy: link.element.model.java.qualifiedName
+                    - $copy: type
+          - $each: .
+            $of: writes
+            $build:
+              $when:
+                - path: value.param
+                  exists: true
+              $then:
+                name:
+                  $copy: value.param
+                type:
+                  $copy: column.model.java.qualifiedName
+          - $each: .
+            $of: writes
+            $flatten: true
+            $build:
+              $each: condition
+              $build:
+                $when:
+                  - path: boolean
+                    equals: true
+                $then:
+                  name:
+                    $copy: param
+                  type: java.lang.Boolean
+      $by:
+        $copy: name
+      $build:
+        name:
+          $copy: key
+        accessor:
+          $case:
+            $copy: key
+          $as: pascal
+        type:
+          $copy: items[0].type
+        types:
+          $group:
+            $copy: items
+          $by:
+            $copy: type
+          $build:
+            $copy: key
+  - id: validated
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: incoming
+    with:
+      - relation
+      - parent
+    build:
+      $apply: incoming-record
+      $with:
+        ref:
+          $view: application-reference-input
+          $where:
+            - path: values.relation
+              equals:
+                $copy: .
+                $of: relation
+          $one: true
+        parent:
+          $copy: .
+          $of: parent
+  - id: incoming-record
+    with:
+      - ref
+      - parent
+    build:
+      $apply: incoming-query
+      $with:
+        ref:
+          $copy: values.record
+          $of: ref
+        parent:
+          $copy: .
+          $of: parent
+        owner:
+          $apply: record
+          $with:
+            row:
+              $view: application-physical-table-input
+              $where:
+                - path: values.record.source
+                  equals:
+                    $copy: values.owner
+                    $of: ref
+              $one: true
+        refTable:
+          $apply: record
+          $with:
+            row:
+              $view: application-physical-table-input
+              $where:
+                - path: id
+                  equals:
+                    $copy: values.record.table
+                    $of: ref
+              $one: true
+  - id: incoming-query
+    with:
+      - ref
+      - parent
+      - owner
+      - refTable
+    build:
+      table:
+        $copy: name
+        $of: owner
+      key:
+        $apply: first
+        $with:
+          items:
+            $each: columns
+            $of: owner
+            $build:
+              $when:
+                - path: primaryKey
+                  exists: true
+              $then:
+                $copy: name
+      reference:
+        $copy: name
+        $of: ref
+      parentColumn:
+        $apply: column-name
+        $with:
+          id:
+            $copy: referencesColumn
+            $of: ref
+      alias:
+        $first:
+          - $when:
+              - path: id
+                equals:
+                  $copy: id
+                  $of: owner
+                of: refTable
+            $then: c
+          - r
+      join:
+        $when:
+          - of: refTable
+            path: id
+            notEquals:
+              $copy: id
+              $of: owner
+        $then:
+          table:
+            $copy: name
+            $of: refTable
+          keys:
+            $each: columns
+            $of: refTable
+            $build:
+              $when:
+                - path: referencesTable
+                  equals:
+                    $copy: id
+                    $of: owner
+                - path: role
+                  equals: parent
+              $then:
+                column:
+                  $copy: name
+                parentColumn:
+                  $apply: column-name
+                  $with:
+                    id:
+                      $copy: referencesColumn
+  - id: child-query
+    with:
+      - table
+      - parent
+    build:
+      table:
+        $copy: name
+        $of: table
+      keys:
+        $each: columns
+        $of: table
+        $build:
+          $when:
+            - path: referencesTable
+              equals:
+                $copy: id
+                $of: parent
+            - path: role
+              equals: parent
+          $then:
+            column:
+              $copy: name
+            parentColumn:
+              $apply: column-name
+              $with:
+                id:
+                  $copy: referencesColumn
+  - id: count-expression
+    with:
+      - node
+      - source
+      - table
+    when:
+      - path: count
+        equals: 参照してくる要素
+        of: node
+    build:
+      incoming:
+        $apply: incoming
+        $with:
+          relation:
+            $copy: relation
+            $of: node
+          parent:
+            $copy: .
+            $of: table
+  - id: count-expression
+    with:
+      - node
+      - source
+      - table
+    build:
+      $apply: child-count-lookup
+      $with:
+        childName:
+          $copy: count
+          $of: node
+        node:
+          $copy: .
+          $of: node
+        table:
+          $copy: .
+          $of: table
+        include:
+          $apply: first
+          $with:
+            items:
+              $each: includesCatalog
+              $of: source
+              $build:
+                $when:
+                  - path: item
+                    equals:
+                      $copy: item
+                      $of: node
+                $then:
+                  $copy: .
+  - id: child-count-lookup
+    with:
+      - childName
+      - node
+      - table
+      - include
+    build:
+      $apply: child-count
+      $with:
+        child:
+          $apply: table
+          $with:
+            name:
+              $first:
+                - $copy: table
+                  $of: include
+                - $copy: .
+                  $of: childName
+        node:
+          $copy: .
+          $of: node
+        table:
+          $copy: .
+          $of: table
+  - id: child-count
+    with:
+      - child
+      - node
+      - table
+    build:
+      child:
+        $apply: child-query
+        $with:
+          table:
+            $copy: .
+            $of: child
+          parent:
+            $copy: .
+            $of: table
+      conditions:
+        $each: where
+        $of: node
+        $build:
+          $apply: condition
+          $with:
+            node:
+              $copy: .
+            table:
+              $copy: .
+              $of: child
+  - id: property
+    with:
+      - node
+      - name
+      - table
+      - source
+    when:
+      - path: names
+        exists: true
+        of: node
+    build:
+      $apply: name-property
+      $with:
+        node:
+          $copy: names
+          $of: node
+        name:
+          $copy: .
+          $of: name
+        item:
+          $copy: item
+          $of: node
+        table:
+          $copy: .
+          $of: table
+        source:
+          $copy: .
+          $of: source
+  - id: property
+    with:
+      - node
+      - name
+      - table
+      - source
+    when:
+      - path: computed.of.format
+        exists: true
+        of: node
+    build:
+      name:
+        $copy: .
+        $of: name
+      accessor:
+        $case:
+          $copy: .
+          $of: name
+        $as: pascal
+      type: java.lang.String
+      format:
+        $copy: computed.of.format
+        $of: node
+      parts:
+        $eachEntry: computed.of.parts
+        $of: node
+        $flatten: true
+        $build:
+          - name:
+              $format: '{name}{key}'
+              $with:
+                name:
+                  $copy: .
+                  $of: name
+                key:
+                  $case: $key
+                  $as: pascal
+            accessor:
+              $case:
+                $format: '{name}{key}'
+                $with:
+                  name:
+                    $copy: .
+                    $of: name
+                  key:
+                    $case: $key
+                    $as: pascal
+              $as: pascal
+            key: $key
+            hole:
+              $format: '{open}{key}{close}'
+              $with:
+                open: '{'
+                key: $key
+                close: '}'
+            type: java.lang.Long
+            count:
+              $apply: count-expression
+              $with:
+                node:
+                  $copy: .
+                source:
+                  $copy: .
+                  $of: source
+                table:
+                  $copy: .
+                  $of: table
+      replacements:
+        $eachEntry: computed.replace
+        $of: node
+        $flatten: true
+        $build:
+          - from: $key
+            to:
+              $copy: .
+  - id: property
+    with:
+      - node
+      - name
+      - table
+      - source
+    when:
+      - path: computed
+        exists: true
+        of: node
+    build:
+      name:
+        $copy: .
+        $of: name
+      accessor:
+        $case:
+          $copy: .
+          $of: name
+        $as: pascal
+      type: java.lang.Long
+      count:
+        $apply: count-expression
+        $with:
+          node:
+            $copy: computed
+            $of: node
+          source:
+            $copy: .
+            $of: source
+          table:
+            $copy: .
+            $of: table
+  - id: property
+    with:
+      - node
+      - name
+      - table
+      - source
+    build:
+      $apply: plain-property
+      $with:
+        name:
+          $copy: .
+          $of: name
+        column:
+          $apply: column
+          $with:
+            table:
+              $copy: .
+              $of: table
+            item:
+              $first:
+                - $copy: item
+                  $of: node
+                - $copy: .
+                  $of: node
+            columnId:
+              $copy: columnId
+              $of: node
+  - id: plain-property
+    with:
+      - name
+      - column
+    build:
+      name:
+        $copy: .
+        $of: name
+      accessor:
+        $case:
+          $copy: .
+          $of: name
+        $as: pascal
+      type:
+        $copy: model.java.qualifiedName
+        $of: column
+      column:
+        $copy: column
+        $of: column
+  - id: name-property
+    with:
+      - node
+      - name
+      - item
+      - table
+      - source
+    build:
+      $apply: name-property-lookup
+      $with:
+        node:
+          $copy: .
+          $of: node
+        name:
+          $copy: .
+          $of: name
+        item:
+          $copy: .
+          $of: item
+        table:
+          $copy: .
+          $of: table
+        target:
+          $apply: table
+          $with:
+            name:
+              $copy: table
+              $of: node
+        column:
+          $apply: column
+          $with:
+            table:
+              $copy: .
+              $of: table
+            item:
+              $copy: .
+              $of: item
+            columnId:
+              $copy: __absent
+        include:
+          $apply: first
+          $with:
+            items:
+              $each: includesCatalog
+              $of: source
+              $build:
+                $when:
+                  - path: item
+                    equals:
+                      $copy: .
+                      $of: item
+                $then:
+                  $copy: .
+  - id: name-property-lookup
+    with:
+      - node
+      - name
+      - item
+      - table
+      - target
+      - column
+      - include
+    build:
+      name:
+        $copy: .
+        $of: name
+      accessor:
+        $case:
+          $copy: .
+          $of: name
+        $as: pascal
+      type:
+        $first:
+          - $when:
+              - path: referencesColumn
+                exists: true
+                of: column
+            $then: java.lang.String
+          - java.util.List<java.lang.String>
+      lookup:
+        $when:
+          - path: referencesColumn
+            exists: true
+            of: column
+        $then:
+          table:
+            $copy: name
+            $of: target
+          column:
+            $apply: column-name-by-item
+            $with:
+              table:
+                $copy: .
+                $of: target
+              item:
+                $copy: name
+                $of: node
+          key:
+            $apply: column-name
+            $with:
+              id:
+                $copy: referencesColumn
+                $of: column
+          parentColumn:
+            $copy: column
+            $of: column
+      collection:
+        $when:
+          - path: referencesColumn
+            exists: false
+            of: column
+        $then:
+          $apply: names-collection
+          $with:
+            include:
+              $copy: .
+              $of: include
+            parent:
+              $copy: .
+              $of: table
+            target:
+              $copy: .
+              $of: target
+            title:
+              $copy: name
+              $of: node
+  - id: names-collection
+    with:
+      - include
+      - parent
+      - target
+      - title
+    build:
+      $apply: names-collection-resolved
+      $with:
+        link:
+          $apply: table
+          $with:
+            name:
+              $copy: table
+              $of: include
+        parent:
+          $copy: .
+          $of: parent
+        target:
+          $copy: .
+          $of: target
+        title:
+          $copy: .
+          $of: title
+        include:
+          $copy: .
+          $of: include
+  - id: names-collection-resolved
+    with:
+      - link
+      - parent
+      - target
+      - title
+      - include
+    build:
+      query:
+        $apply: child-query
+        $with:
+          table:
+            $copy: .
+            $of: link
+          parent:
+            $copy: .
+            $of: parent
+      scalar: true
+      elementType: java.lang.String
+      target:
+        table:
+          $copy: name
+          $of: target
+        column:
+          $apply: column-name-by-item
+          $with:
+            table:
+              $copy: .
+              $of: target
+            item:
+              $copy: .
+              $of: title
+        keys:
+          $each: columns
+          $of: link
+          $build:
+            $when:
+              - path: referencesTable
+                equals:
+                  $copy: id
+                  $of: target
+              - path: role
+                equals: element
+            $then:
+              column:
+                $copy: name
+              parentColumn:
+                $apply: column-name
+                $with:
+                  id:
+                    $copy: referencesColumn
+      order:
+        $copy: order
+        $of: include
+  - id: include-property
+    with:
+      - node
+      - table
+    build:
+      $apply: include-property-resolved
+      $with:
+        node:
+          $copy: .
+          $of: node
+        table:
+          $copy: .
+          $of: table
+        child:
+          $apply: table
+          $with:
+            name:
+              $copy: table
+              $of: node
+        row:
+          $apply: row-model
+          $with:
+            table:
+              $copy: table
+              $of: node
+  - id: include-property-resolved
+    with:
+      - node
+      - table
+      - child
+      - row
+    build:
+      name:
+        $case:
+          $copy: item
+          $of: node
+        $as: camel
+      accessor:
+        $case:
+          $copy: item
+          $of: node
+        $as: pascal
+      type:
+        $first:
+          - $when:
+              - path: columnId
+                exists: true
+                of: node
+            $then:
+              $format: java.util.List<{type}>
+              $with:
+                type:
+                  $apply: type-of-column
+                  $with:
+                    column:
+                      $apply: column
+                      $with:
+                        table:
+                          $copy: .
+                          $of: child
+                        item:
+                          $copy: item
+                          $of: node
+                        columnId:
+                          $copy: columnId
+                          $of: node
+          - $format: java.util.List<{row}>
+            $with:
+              row:
+                $copy: className
+                $of: row
+      collection:
+        query:
+          $apply: child-query
+          $with:
+            table:
+              $copy: .
+              $of: child
+            parent:
+              $copy: .
+              $of: table
+        scalar:
+          $when:
+            - path: columnId
+              exists: true
+              of: node
+          $then: true
+        elementType:
+          $when:
+            - path: columnId
+              exists: true
+              of: node
+          $then:
+            $apply: type-of-column
+            $with:
+              column:
+                $apply: column
+                $with:
+                  table:
+                    $copy: .
+                    $of: child
+                  item:
+                    $copy: item
+                    $of: node
+                  columnId:
+                    $copy: columnId
+                    $of: node
+        column:
+          $copy: column
+          $of: node
+        row:
+          $copy: .
+          $of: row
+        order:
+          $copy: order
+          $of: node
+  - id: type-of-column
+    with:
+      - column
+    build:
+      $copy: model.java.qualifiedName
+      $of: column
+  - id: properties
+    with:
+      - source
+      - table
+    build:
+      $concat:
+        - $each: raw.columns
+          $of: source
+          $build:
+            $apply: property
+            $with:
+              node:
+                $copy: .
+              name:
+                $format: column{index}
+                $with:
+                  index: $index
+              table:
+                $copy: .
+                $of: table
+              source:
+                $copy: .
+                $of: source
+        - $each: raw.includes
+          $of: source
+          $build:
+            $apply: include-property
+            $with:
+              node:
+                $copy: .
+              table:
+                $copy: .
+                $of: table
+        - $each: raw.names
+          $of: source
+          $build:
+            $apply: name-property
+            $with:
+              node:
+                $copy: .
+              name:
+                $case:
+                  $format: '{item}-display'
+                  $with:
+                    item:
+                      $copy: item
+                $as: camel
+              item:
+                $copy: item
+              table:
+                $copy: .
+                $of: table
+              source:
+                $copy: .
+                $of: source
+        - $each: raw.groupBy[1].values
+          $of: source
+          $build:
+            name:
+              $format: count{index}
+              $with:
+                index: $index
+            accessor:
+              $format: Count{index}
+              $with:
+                index: $index
+            type: java.lang.Long
+            axisValue:
+              $copy: .
+            count:
+              incoming:
+                $apply: incoming
+                $with:
+                  relation:
+                    $copy: raw.via.relation
+                    $of: source
+                  parent:
+                    $copy: .
+                    $of: table
+              axis:
+                column:
+                  $apply: axis-column
+                  $with:
+                    table:
+                      $apply: table
+                      $with:
+                        name:
+                          $copy: raw.counts
+                          $of: source
+                    item:
+                      $copy: raw.groupBy[1].item
+                      $of: source
+                value:
+                  $copy: .
+  - id: axis-column
+    with:
+      - table
+      - item
+    build:
+      $apply: column-name-by-item
+      $with:
+        table:
+          $copy: .
+          $of: table
+        item:
+          $copy: .
+          $of: item
+  - id: base-bindings
+    with:
+      - source
+      - row
+      - table
+    build:
+      $each: columns
+      $of: row
+      $bind: bindingSource
+      $build:
+        $apply: binding-selection
+        $with:
+          binding:
+            $copy: .
+          physical:
+            $apply: first
+            $with:
+              items:
+                $each: columns
+                $of: table
+                $build:
+                  $when:
+                    - path: id
+                      equals:
+                        $copy: source
+                        $of: bindingSource
+                  $then:
+                    $copy: .
+          source:
+            $copy: .
+            $of: source
+  - id: binding-selection
+    with:
+      - binding
+      - physical
+      - source
+    build:
+      $apply: binding-selected
+      $with:
+        binding:
+          $copy: .
+          $of: binding
+        physical:
+          $copy: .
+          $of: physical
+        source:
+          $copy: .
+          $of: source
+        match:
+          $apply: first
+          $with:
+            items:
+              $each: raw.columns
+              $of: source
+              $build:
+                $when:
+                  - or:
+                      - path: item
+                        equals:
+                          $copy: item
+                          $of: physical
+                      - path: columnId
+                        equals:
+                          $copy: id
+                          $of: physical
+                      - path: .
+                        equals:
+                          $copy: item
+                          $of: physical
+                $then: true
+  - id: binding-selected
+    with:
+      - binding
+      - physical
+      - source
+      - match
+    build:
+      $when:
+        - or:
+            - path: raw.columns
+              exists: false
+              of: source
+            - path: raw.columns.mode
+              equals: all
+              of: source
+            - path: primaryKey
+              exists: true
+              of: physical
+            - path: .
+              equals: true
+              of: match
+      $then:
+        $copy: .
+        $of: binding
+  - id: condition-resolved
+    with:
+      - node
+      - table
+      - column
+    build:
+      $apply: condition-flags
+      $with:
+        data:
+          $apply: condition-base
+          $with:
+            node:
+              $copy: .
+              $of: node
+            table:
+              $copy: .
+              $of: table
+            column:
+              $copy: .
+              $of: column
+  - id: merged
+    with:
+      - value
+    build:
+      $copy: records[0].value
+      $of: value
+  - id: merge
+    with:
+      - base
+      - extra
+    when:
+      - of: extra
+        path: .
+        empty: true
+    build:
+      $copy: .
+      $of: base
+  - id: merge
+    with:
+      - base
+      - extra
+    build:
+      $apply: merged
+      $with:
+        value:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: base
+                source:
+                  id: design
+            additions: []
+            changes:
+              - target: record
+                set:
+                  $copy: .
+                  $of: extra
+                priority: individual
+                source:
+                  id: code-contract
+  - id: condition-flags
+    with:
+      - data
+    build:
+      $apply: merge
+      $with:
+        base:
+          $copy: .
+          $of: data
+        extra:
+          compare:
+            $when:
+              - of: data
+                path: operator
+                oneOf:
+                  - equals
+                  - notEquals
+                  - lt
+                  - lte
+                  - gt
+                  - gte
+            $then: true
+          symbol:
+            $map:
+              $copy: operator
+              $of: data
+            $using:
+              equals: '='
+              notEquals: <>
+              lt: <
+              lte: <=
+              gt: '>'
+              gte: '>='
+          inValues:
+            $when:
+              - path: operator
+                equals: in
+                of: data
+            $then: true
+          notNull:
+            $when:
+              - path: operator
+                equals: notNull
+                of: data
+            $then: true
+          startsWith:
+            $when:
+              - path: operator
+                equals: startsWith
+                of: data
+            $then: true
+          literal:
+            $when:
+              - path: param
+                exists: false
+                of: data
+            $then: true
+          values:
+            $when:
+              - path: operator
+                equals: in
+                of: data
+            $then:
+              $each: values
+              $of: data
+              $build:
+                value:
+                  $copy: .
+                type:
+                  $copy: type
+                  $of: data
+                literal: true
+                quoted:
+                  $when:
+                    - of: data
+                      path: type
+                      oneOf:
+                        - java.lang.String
+                        - java.time.LocalDate
+                  $then: true
+                plain:
+                  $when:
+                    - not:
+                        of: data
+                        path: type
+                        oneOf:
+                          - java.lang.String
+                          - java.time.LocalDate
+                  $then: true
+          quoted:
+            $when:
+              - of: data
+                path: type
+                oneOf:
+                  - java.lang.String
+                  - java.time.LocalDate
+            $then: true
+          plain:
+            $when:
+              - not:
+                  of: data
+                  path: type
+                  oneOf:
+                    - java.lang.String
+                    - java.time.LocalDate
+            $then: true
+          optionalTest:
+            $first:
+              - $when:
+                  - path: collection
+                    equals: true
+                    of: data
+                $then:
+                  $format: input.{p} != null and !input.{p}.isEmpty()
+                  $with:
+                    p:
+                      $copy: param
+                      $of: data
+              - $when:
+                  - path: type
+                    equals: java.lang.String
+                    of: data
+                $then:
+                  $format: input.{p} != null and input.{p} != ''
+                  $with:
+                    p:
+                      $copy: param
+                      $of: data
+              - $format: input.{p} != null
+                $with:
+                  p:
+                    $copy: param
+                    $of: data
+  - id: write
+    with:
+      - node
+      - table
+    build:
+      $apply: write-flags
+      $with:
+        data:
+          $apply: write-base
+          $with:
+            node:
+              $copy: .
+              $of: node
+            table:
+              $copy: .
+              $of: table
+  - id: write-flags
+    with:
+      - data
+    build:
+      $apply: merge
+      $with:
+        base:
+          $copy: .
+          $of: data
+        extra:
+          literal:
+            $when:
+              - path: value.constant
+                exists: true
+                of: data
+            $then: true
+          quoted:
+            $when:
+              - of: data
+                path: column.model.java.qualifiedName
+                oneOf:
+                  - java.lang.String
+                  - java.time.LocalDate
+            $then: true
+          plain:
+            $when:
+              - not:
+                  of: data
+                  path: column.model.java.qualifiedName
+                  oneOf:
+                    - java.lang.String
+                    - java.time.LocalDate
+            $then: true
+          unconditional:
+            $when:
+              - of: data
+                path: condition
+                empty: true
+            $then: true
+  - id: method-final
+    with:
+      - source
+      - table
+      - row
+      - conditions
+      - writes
+    build:
+      $apply: method-render
+      $with:
+        data:
+          $apply: method-data
+          $with:
+            source:
+              $copy: .
+              $of: source
+            table:
+              $copy: .
+              $of: table
+            row:
+              $copy: .
+              $of: row
+            conditions:
+              $copy: .
+              $of: conditions
+            writes:
+              $copy: .
+              $of: writes
+  - id: method-render
+    with:
+      - data
+    build:
+      $apply: merge
+      $with:
+        base:
+          $copy: .
+          $of: data
+        extra:
+          bindings:
+            $each: bindings
+            $of: data
+            $build:
+              $apply: merge
+              $with:
+                base:
+                  $copy: .
+                extra:
+                  noDefault:
+                    $when:
+                      - path: default
+                        exists: false
+                    $then: true
+          properties:
+            $each: properties
+            $of: data
+            $build:
+              $apply: merge
+              $with:
+                base:
+                  $copy: .
+                extra:
+                  methodName:
+                    $copy: name
+                    $of: data
+                  collection:
+                    $when:
+                      - path: collection
+                        exists: true
+                    $then:
+                      $apply: merge
+                      $with:
+                        base:
+                          $copy: collection
+                        extra:
+                          rowMap:
+                            $when:
+                              - path: collection.scalar
+                                exists: false
+                            $then: true
+                          directScalar:
+                            $when:
+                              - path: collection.scalar
+                                equals: true
+                              - path: collection.target
+                                exists: false
+                            $then: true
+          joins:
+            $each: joins
+            $of: data
+            $build:
+              $apply: merge
+              $with:
+                base:
+                  $copy: .
+                extra:
+                  outerTable:
+                    $copy: table
+                    $of: data
+  - id: source-found
+    with:
+      - record
+    build:
+      $when:
+        - path: methodId
+          exists: true
+          of: record
+      $then: true

@@ -1,0 +1,3 @@
+{{"outputs":[
+{#each outputs}  {{"report":"{report}","params":{{{#each params}"{key}":"{value}"{#if more},{/if}{/each}}}{#if destination},"destination":"{destination}"{/if}}}{#if more},{/if}
+{/each}]}}

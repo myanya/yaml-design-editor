@@ -1,0 +1,37 @@
+# 生成物（application-java-types）: 手で直さず、業務モデルか生成の定義（design/detail/application-java-types.yaml）を直して作り直します（CLI generate）。
+id: APP-java-types
+mappings:
+  - base: string
+    name: String
+    qualifiedName: java.lang.String
+    literal: string
+  - base: id
+    name: String
+    qualifiedName: java.lang.String
+    literal: string
+  - base: ref
+    name: String
+    qualifiedName: java.lang.String
+    literal: string
+  - base: enum
+    name: String
+    qualifiedName: java.lang.String
+    literal: string
+  - base: boolean
+    name: Boolean
+    qualifiedName: java.lang.Boolean
+    literal: boolean
+  - base: int
+    name: Long
+    qualifiedName: java.lang.Long
+    literal: number
+  - base: number
+    name: BigDecimal
+    qualifiedName: java.math.BigDecimal
+    literal: number
+  - base: date
+    name: LocalDate
+    qualifiedName: java.time.LocalDate
+    literal: date
+source: INPUT-application-java-types
+reason: Form とテーブルの行モデルで同じ型対応を使う。省略と false・0 を区別するため参照型を使い、整数は YDE の整数の範囲を保つ Long とする。初期値は DB の DEFAULT として保持し、行モデルの未設定値を置き換えない。

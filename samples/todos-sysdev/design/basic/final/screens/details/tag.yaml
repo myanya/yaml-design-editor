@@ -1,0 +1,26 @@
+# 生成物（screen-details）: 手で直さず、業務モデルか生成の定義（design/basic/screen-details.yaml）を直して作り直します（CLI generate）。
+id: tag
+name: タグ詳細
+kind: detail
+url: /tag/{id}
+items:
+  - key: id
+    label: ID
+    type: common#タグ番号
+  - key: name
+    label: タグ名
+    type: common#一行の文
+tables: []
+buttons: []
+originalRoutes:
+  url: /tag/{id}
+designId: DOC-screen-details.tag
+designKind: screen-details
+designPath: design/basic/final/screens/details/tag.yaml
+origins:
+  source:
+    id: rule-screen-details
+    document: .yde/transforms/design/basic/screen-details-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

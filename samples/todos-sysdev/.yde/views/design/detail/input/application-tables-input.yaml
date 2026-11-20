@@ -1,0 +1,8 @@
+id: application-tables-input
+name: application-tables-input
+rows:
+  idPattern: SYS-physical-final
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/final/tables.yaml

@@ -1,0 +1,38 @@
+id: application-columns-input
+name: 確定した物理列と型の根拠
+rows:
+  idPattern: COL-*
+  schemaIds:
+    - detail-table-list
+columns:
+  - label: record
+    path: .
+  - label: base
+    value:
+      first:
+        - via: source
+          path: item.base
+        - via: source
+          path: value.base
+        - via: source
+          path: base
+  - label: sql
+    value:
+      format:
+        via: sqlType
+        path: sql
+      scopes:
+        - via: source
+      with:
+        maxLength:
+          first:
+            - via: source
+              path: item.maxLength
+            - via: source
+              path: value.maxLength
+            - via: source
+              path: maxLength
+  - label: literal
+    value:
+      via: sqlType
+      path: literal

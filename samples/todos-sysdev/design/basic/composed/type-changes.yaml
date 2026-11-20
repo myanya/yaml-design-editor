@@ -1,4 +1,4 @@
-# 生成物（basic-type-changes）: 手で直さず、業務モデルか生成の定義（design/basic-type-changes.yaml）を直して作り直します（CLI generate）。
+# 生成物（basic-type-changes）: 手で直さず、業務モデルか生成の定義（design/basic/basic-type-changes.yaml）を直して作り直します（CLI generate）。
 id: CMP-type-changes
 items:
   - id: CMP-TYPE-TYP-common.TODO番号

@@ -1,0 +1,387 @@
+# 生成物（system-screen-bindings）: 手で直さず、業務モデルか生成の定義（design/basic/system-screen-bindings.yaml）を直して作り直します（CLI generate）。
+id: SYS-system-screen-bindings
+bindings:
+  - before: GET /
+    after: GET /
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: /
+    after: /
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /category/{id}
+    after: GET /category/{id}
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: /category/{id}
+    after: /category/{id}
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /tag/{id}
+    after: GET /tag/{id}
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: /tag/{id}
+    after: /tag/{id}
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}
+    after: GET /todo/{id}
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: /todo/{id}
+    after: /todo/{id}
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /category/add-category
+    after: GET /category/add-category
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /category/add-category/confirm
+    after: POST /category/add-category/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /category/add-category/back
+    after: POST /category/add-category/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /category/add-category
+    after: POST /category/add-category
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /tag/add-tag
+    after: GET /tag/add-tag
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /tag/add-tag/confirm
+    after: POST /tag/add-tag/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /tag/add-tag/back
+    after: POST /tag/add-tag/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /tag/add-tag
+    after: POST /tag/add-tag
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/add-todo-comment
+    after: GET /todo/{id}/add-todo-comment
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/add-todo-comment/confirm
+    after: POST /todo/{id}/add-todo-comment/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/add-todo-comment/back
+    after: POST /todo/{id}/add-todo-comment/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/add-todo-comment
+    after: POST /todo/{id}/add-todo-comment
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/add-todo-task
+    after: GET /todo/{id}/add-todo-task
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/add-todo-task/confirm
+    after: POST /todo/{id}/add-todo-task/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/add-todo-task/back
+    after: POST /todo/{id}/add-todo-task/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/add-todo-task
+    after: POST /todo/{id}/add-todo-task
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/cancel-todo
+    after: GET /todo/{id}/cancel-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/cancel-todo/confirm
+    after: POST /todo/{id}/cancel-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/cancel-todo/back
+    after: POST /todo/{id}/cancel-todo/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/cancel-todo
+    after: POST /todo/{id}/cancel-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/complete-todo
+    after: GET /todo/{id}/complete-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/complete-todo/confirm
+    after: POST /todo/{id}/complete-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/complete-todo/back
+    after: POST /todo/{id}/complete-todo/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/complete-todo
+    after: POST /todo/{id}/complete-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/edit-todo
+    after: GET /todo/{id}/edit-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/edit-todo/confirm
+    after: POST /todo/{id}/edit-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/edit-todo/back
+    after: POST /todo/{id}/edit-todo/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/edit-todo
+    after: POST /todo/{id}/edit-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/register-todo
+    after: GET /todo/register-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/register-todo/confirm
+    after: POST /todo/register-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/register-todo/back
+    after: POST /todo/register-todo/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/register-todo
+    after: POST /todo/register-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/resume-todo
+    after: GET /todo/{id}/resume-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/resume-todo/confirm
+    after: POST /todo/{id}/resume-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/resume-todo/back
+    after: POST /todo/{id}/resume-todo/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/resume-todo
+    after: POST /todo/{id}/resume-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/start-todo/confirm
+    after: GET /todo/{id}/start-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/start-todo
+    after: POST /todo/{id}/start-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/suspend-todo
+    after: GET /todo/{id}/suspend-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/suspend-todo/confirm
+    after: POST /todo/{id}/suspend-todo/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/suspend-todo/back
+    after: POST /todo/{id}/suspend-todo/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/suspend-todo
+    after: POST /todo/{id}/suspend-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo-task/{id}/todo-task.finish/confirm
+    after: GET /todo-task/{id}/todo-task.finish/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo-task/{id}/todo-task.finish
+    after: POST /todo-task/{id}/todo-task.finish
+    roles:
+      - request
+      - action
+      - to
+      - url

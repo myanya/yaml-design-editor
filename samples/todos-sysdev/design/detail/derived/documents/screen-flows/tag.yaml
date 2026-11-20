@@ -1,0 +1,59 @@
+# 生成物（screen-flows-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-flows-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-flows.tag
+record:
+  id: DOC-screen-flows.tag
+  value:
+    id: tag
+    name: タグの画面の動き
+    controller: TagController
+    screens:
+      - screen: tag
+        handler: show
+        request: GET /tag/{id}
+        does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+        service: TagService.findDetail
+        reads:
+          - TagMapper.findDetail
+        session:
+          reads:
+            - notice
+    handlers:
+      - action: add-tag
+        name: タグを追加する
+        form: AddTagForm
+        service: TagService.addTag
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: addTagInput
+            request: GET /tag/add-tag
+            screen: add-tag/input
+            does: 初期値でフォームを作って入力画面を出す
+            reads: []
+          - handler: addTagConfirm
+            request: POST /tag/add-tag/confirm
+            screen: add-tag/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads: []
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: addTagBack
+            request: POST /tag/add-tag/back
+            screen: add-tag/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: addTag
+            request: POST /tag/add-tag
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals: []
+  source:
+    id: rule-screen-flows
+    document: .yde/transforms/design/detail/screen-flows-derived.yaml
