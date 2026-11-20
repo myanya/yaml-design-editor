@@ -1,0 +1,14 @@
+id: UX-368
+title: レポートのひな形に、CSV のセルの逃がし方（カンマ・引用符・改行を含む値を引用符で囲む）が無い
+status: todo
+kind: feature
+origin_on: 2026-11-20
+origin: labs/microchip-registry（環境省「要件定義書」の犬猫マイクロチップ登録業務を YDE で再現する試作）。ワンストップ情報 CSV をレポートで作ったとき
+memo: |-
+  ひな形の穴の形は cell（Markdown の表）と sql-string だけで、CSV 用が無い。住所や名前にカンマが入ると列がずれる。
+  書き出し（skill の export）の CSV は正しく逃がすが、受け取る値で行を絞れない（UX-367）ので、絞った CSV はレポートで作ることになる。
+  - 当たり: 穴の形 csv（値にカンマ・引用符・改行があれば引用符で囲み、引用符を重ねる）を TextTemplate に足す。UX-367 で export が値を受け取れるようになれば、そちらを使えば足りる。
+features:
+  - X-15
+related:
+  - UX-367

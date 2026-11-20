@@ -1,0 +1,14 @@
+id: UX-371
+title: 定義の索引の要素（yde-action）を起点にした検査を文書スキーマに書いても、検証の指摘にならない（yde-view を起点にしたものは指摘になる）
+status: todo
+kind: spec
+origin_on: 2026-11-20
+origin: labs/microchip-registry（環境省「要件定義書」の犬猫マイクロチップ登録業務を YDE で再現する試作）。「業務の操作は、どれかの業務の記述から参照されていること」（要件に根拠の無い操作を見つける網羅の検査）を書いたとき
+memo: |-
+  文書スキーマ（business-list）の constraints に match: [{node: {entity: yde-action, bind: act}}, {edge: {dir: in, relation: realized-by-action}}, {node: {}}] ＋ expect: exists（warning）を書き、どの文書からも参照されていない操作を作っても、validate に指摘が出ない（checks には展開されて出る。query では yde-action の要素を引ける）。
+  同じ形で yde-view を起点にした検査（ダッシュボードが利用者区分か業務に対応付いていること）は、.yde/views のファイルへの指摘として出る。操作の定義がある .yde/schemas の文書には、利用者の検査の指摘が配られないように見える。
+  試作では、ビュー（operation-coverage-grid。refCount と backlinks の列）とダッシュボードの区画（filter の expect: absent）で「対応の無い操作」を見えるようにした。
+  - 当たり: 定義の文書（スキーマ）の要素を起点にした検査の配り先を決める（スキーマのファイルへの指摘にするか、検査を書いた側の台帳の指摘にするか）。業務モデルと設計書・要件の記述の網羅を機械で見る用途（P53 の設計書体系でも要る）。
+features:
+  - S-37
+  - V-09

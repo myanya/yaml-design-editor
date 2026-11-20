@@ -1,0 +1,14 @@
+id: UX-370
+title: 操作の前提の check の違反と、受け手が対象外のときの文面で、束縛の穴（{束縛.id}・{束縛.title}）が埋まらない
+status: todo
+kind: bug
+origin_on: 2026-11-20
+origin: labs/microchip-registry（環境省「要件定義書」の犬猫マイクロチップ登録業務を YDE で再現する試作）。操作「手数料の支払を記録する」の前提（申請 → 料金 と辿って支払額を比べる）の文面に {f.id} を書いたとき
+memo: |-
+  前提 match: [申請 a, edge via feeId, 料金 f] ＋ check: [{eq: [$amount, {of: f, path: amount}]}] の message に {f.id}・{f.title} を書くと、違反のときに穴の文字がそのまま出る（「支払額が手数料と違います（料金 {f.id}）」）。{id}（受け手）は埋まる。
+  ActionPlanner.message は r.matches の先頭の行の束縛で埋めるが、check の違反では matches に解が入らないらしい（検査の指摘の文面では {left}・{right}・束縛が埋まる）。
+  検査の exists の違反で束縛が埋まらない UX-283 と同じ種類の不足。
+features:
+  - OP-03
+related:
+  - UX-283

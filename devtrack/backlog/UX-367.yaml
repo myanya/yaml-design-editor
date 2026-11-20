@@ -1,0 +1,17 @@
+id: UX-367
+title: レポートの条件（$where・$when）で日付の大小を比べられず、レポートと書き出しの $view にビューの受け取る値を渡せない（期間で絞った CSV を作れない）
+status: todo
+kind: feature
+origin_on: 2026-11-20
+origin: labs/microchip-registry（環境省「要件定義書」の犬猫マイクロチップ登録業務を YDE で再現する試作）。要件の「ワンストップ情報照会」（日付の範囲で絞って CSV をダウンロードする）
+memo: |-
+  ビュー（onestop-grid）は受け取る値 from・to と type: date の条件で期間を絞れるが、同じ絞り込みを CSV にする道が無い。
+  - レポートの $view は、ビューの受け取る値（params）を渡せない。$where で行を絞ることになるが、$where の条件には type が書けず（未知のキー）、gte・lte は数として比べるので、日付の文字（2026-05-01）の大小は成り立たない（行が 0 件になる）。
+  - 書き出し（skill の export）の source.view も、ビューを受け取る値なしで解決する。export の命令にも値を渡す口が無い。
+  試作では、ビューに年月の計算列（yearMonth）を足し、レポートは年月の一致（equals）で絞る「月ごとの CSV」にして逃げた（labs/microchip-registry/.yde/reports/onestop-csv.yaml）。
+  - 当たり: (1) $view に params を渡す（{$view: ID, $params: {from: $from}}）。絞り込みはビューの側 1 か所になる。(2) ひな型の条件に type（date など）を書けるようにする。(3) export に --param を足し、source.view へ渡す。
+features:
+  - X-15
+  - SK-03
+related:
+  - UX-129
