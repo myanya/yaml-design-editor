@@ -1,0 +1,10 @@
+id: table-access-input
+name: '生成入力（確定項目: table-access）'
+rows:
+  idPattern: DOC-table-access.*
+  schemaIds:
+    - table-access
+columns:
+  - label: record
+    path: .
+    schemaId: table-access

@@ -1,0 +1,10 @@
+id: session-design-input
+name: '生成入力（確定項目: session-design）'
+rows:
+  idPattern: DOC-session-design.*
+  schemaIds:
+    - session-design
+columns:
+  - label: record
+    path: .
+    schemaId: session-design

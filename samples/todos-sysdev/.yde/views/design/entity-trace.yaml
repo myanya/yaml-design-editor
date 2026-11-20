@@ -2,10 +2,69 @@ id: entity-trace
 name: エンティティの設計の対応
 description: 業務モデルのエンティティ型ごとに、どの設計書に降りているかの対応表（トレーサビリティ）。行は業務モデルのエンティティ型（定義の索引）で、数が 0 の欄は設計が無い
 rows:
-  match: [{ node: { entity: yde-entity, bind: e } }]
+  match:
+    - node:
+        entity: yde-entity
+        bind: e
+        not:
+          id: sysdev-*
 columns:
-  - { label: 名前, value: "{title}" }
-  - { label: 基本設計項目一覧, value: { refCount: { of: e, dir: in, via: source } } }
-  - { label: テーブル（詳細設計項目一覧）, value: { count: { all: { match: [{ node: { entity: yde-entity, bind: e } }, { edge: { via: source, dir: in } }, { node: { id: "ENT-*", bind: x } }, { edge: { via: source, dir: in } }, { node: { id: "TBL-*", bind: tb } }], of: tb } } } }
-  - { label: テーブルアクセス設計書, value: { occurrenceCount: { of: e, schema: table-access } } }
-  - { label: 画面遷移設計（Controller）, value: { occurrenceCount: { of: e, schema: screen-flow } } }
+  - label: 名前
+    value: '{title}'
+  - label: 基本設計項目一覧
+    value:
+      refCount:
+        of: e
+        dir: in
+        via: source
+  - label: テーブル（詳細設計項目一覧）
+    value:
+      count:
+        all:
+          match:
+            - node:
+                entity: yde-entity
+                bind: e
+            - edge:
+                via: source
+                dir: in
+            - node:
+                id: ENT-*
+                bind: x
+            - edge:
+                via: source
+                dir: in
+            - node:
+                id: TBL-*
+                bind: tb
+          of: tb
+  - label: テーブルアクセス設計書
+    value:
+      count:
+        all:
+          from: e
+          match:
+            - node:
+                bind: e
+            - edge:
+                via: id
+                dir: in
+            - node:
+                entity: sysdev-table-access
+                bind: design
+          of: design
+  - label: 画面遷移設計（Controller）
+    value:
+      count:
+        all:
+          from: e
+          match:
+            - node:
+                bind: e
+            - edge:
+                via: id
+                dir: in
+            - node:
+                entity: sysdev-screen-flow
+                bind: design
+          of: design

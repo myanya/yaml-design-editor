@@ -1,4 +1,4 @@
-# 生成物（screen-operations）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
 id: suspend-todo
 name: TODOを中断する
 kind: operation
@@ -21,11 +21,14 @@ input:
       label: 中断日
       type: common#年月日
       base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
       required: true
+      format: yyyy年M月d日
     - key: reason
       label: 中断理由
       type: todo-operations#操作の記録
       base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
       required: true
       minLength: 1
       multiline: true
@@ -33,6 +36,8 @@ input:
       label: 再開予定日
       type: common#年月日
       base: date
+      description: 決まっていれば入れます。中断日以降の日付です。
+      format: yyyy年M月d日
   initial:
     date:
       $copy: today
@@ -65,3 +70,18 @@ execute:
     - key: check.resume-not-before-suspend
       message: 再開予定日（{left}）は、中断した日（{right}）より前にできません
   onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+originalRoutes:
+  input: GET /todo/{id}/suspend-todo
+  confirm: POST /todo/{id}/suspend-todo/confirm
+  back: POST /todo/{id}/suspend-todo/back
+  execute: POST /todo/{id}/suspend-todo
+designId: DOC-screen-operations.suspend-todo
+designKind: screen-operations
+designPath: design/generated/screens/operations/suspend-todo.yaml
+origins:
+  source:
+    id: rule-screen-operations
+    document: .yde/transforms/design/screen-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

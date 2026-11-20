@@ -1,15 +1,24 @@
 id: domain-relations
 name: ドメイン関連定義書
 kind: document
-description: >-
-  基本設計。ドメイン（集約）の一覧と、ドメインの間の関係と、ドメインの中の入れ子。業務の言葉で書く。
-  生成物（.yde/transforms/design/domain-relations.yaml）で、手で直さない
-match: "design/generated/domain-relations.yaml"
+description: 基本設計。ドメイン（集約）の一覧と、ドメインの間の関係と、ドメインの中の入れ子。業務の言葉で書く。 生成物（.yde/transforms/design/domain-relations.yaml）で、手で直さない
+match: design/generated/domain-relations.yaml
 root:
   type: object
   fields:
-    - { key: id, label: 設計書, type: string, required: true }
-    - { key: name, label: 名前, type: string, role: title }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: 設計書
+      type: string
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
     - key: domains
       label: ドメイン
       type: array
@@ -17,9 +26,18 @@ root:
       item:
         type: object
         fields:
-          - { key: domain, label: ドメイン, type: ref, required: true }
-          - { key: label, label: 名前, type: string }
-          - { key: members, label: 構成, type: array, item: { type: string } }
+          - key: domain
+            label: ドメイン
+            type: ref
+            required: true
+          - key: label
+            label: 名前
+            type: string
+          - key: members
+            label: 構成
+            type: array
+            item:
+              type: string
     - key: relations
       label: 関係
       type: array
@@ -27,17 +45,40 @@ root:
       item:
         type: object
         fields:
-          - { key: relation, label: 関係, type: string, required: true }
-          - { key: label, label: 名前, type: string }
-          - { key: inverseLabel, label: 逆向きの名前, type: string }
-          - { key: from, label: 元, type: ref }
-          - { key: fromLabel, label: 元の名前, type: string }
-          - { key: to, label: 先, type: ref }
-          - { key: toLabel, label: 先の名前, type: string }
-          - { key: many, label: 元から先へいくつ, type: string }
-          - { key: back, label: 先から元へいくつ, type: string }
-          - { key: acyclic, label: 循環, type: string }
-          - { key: note, label: 説明, type: text }
+          - key: relation
+            label: 関係
+            type: string
+            required: true
+          - key: label
+            label: 名前
+            type: string
+          - key: inverseLabel
+            label: 逆向きの名前
+            type: string
+          - key: from
+            label: 元
+            type: ref
+          - key: fromLabel
+            label: 元の名前
+            type: string
+          - key: to
+            label: 先
+            type: ref
+          - key: toLabel
+            label: 先の名前
+            type: string
+          - key: many
+            label: 元から先へいくつ
+            type: string
+          - key: back
+            label: 先から元へいくつ
+            type: string
+          - key: acyclic
+            label: 循環
+            type: string
+          - key: note
+            label: 説明
+            type: text
     - key: holdings
       label: 入れ子
       type: array
@@ -45,7 +86,30 @@ root:
       item:
         type: object
         fields:
-          - { key: from, label: 外側, type: ref }
-          - { key: to, label: 中, type: ref }
-          - { key: toLabel, label: 中の名前, type: string }
-          - { key: note, label: 説明, type: string }
+          - key: from
+            label: 外側
+            type: ref
+          - key: to
+            label: 中
+            type: ref
+          - key: toLabel
+            label: 中の名前
+            type: string
+          - key: note
+            label: 説明
+            type: string
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error
+entity:
+  type: sysdev-domain-relations
+  defines: true

@@ -1,4 +1,4 @@
-# 生成物（screen-details）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-details）: 手で直さず、業務モデルか生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODO詳細
 kind: detail
@@ -121,3 +121,15 @@ buttons:
       - value: SUSPENDED
         label: 中断
     to: cancel-todo/input
+originalRoutes:
+  url: /todo/{id}
+designId: DOC-screen-details.todo
+designKind: screen-details
+designPath: design/generated/screens/details/todo.yaml
+origins:
+  source:
+    id: rule-screen-details
+    document: .yde/transforms/design/screen-details-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

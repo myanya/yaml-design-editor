@@ -1,136 +1,199 @@
 id: screen-operations
-name: 画面定義書（操作の画面）
-description: >-
-  基本設計。ダッシュボードからたどれる操作ごとに、入力画面と確認画面を 1 本にする（業務モデルの項の reach.operations）。
-  決め打ちの規則（画面系の議論で決めたもの）: 受け取る値がある操作は 入力画面 → 確認画面 → 確定、無い操作は 確認画面 → 確定・
-  入力の値は hidden 項目で持ち回り、確定で入力検査・状態・前提をすべて確かめ直す・確定の後は起点の画面へリダイレクトし、完了の知らせを出す・
-  起点の画面は画面の ID で受け取る（URL は受け取らない）・断ったときは確認画面に断りの文を出す。URL は業務の ID のまま
+name: 画面定義書（操作の画面）の保存
 scope: business
-stage: basic
-each: actions
-output: "design/generated/screens/operations/{id}.yaml"
+dependsOn:
+  - screen-operation-candidates
+  - messages
+each: documents
+output: '{file}.yaml'
+input:
+  documents:
+    $each:
+      $view: screen-operation-candidates-input
+    $build:
+      file:
+        $format: design/generated/screens/operations/{id}
+        $with:
+          id:
+            $copy: values.record.id
+      document:
+        $copy: values.record
 build:
-  $when: [{ of: model, path: reach.operations, includes: { $copy: id } }]
-  id: { $copy: id }
-  name: { $copy: label }
-  kind: operation
-  target: { $copy: target.entity }
-  # 起点の画面（この操作のボタンがある画面）。確定の後は、ここへ戻る
-  starts:
-    $concat:
-      - $each: dashboards
-        $of: model
-        $build:
-          $when: [{ path: actions, includes: { $copy: id, $of: element } }]
-          screen: { $copy: id }
-          place: 上部のボタン
-      - $each: dashboards
-        $of: model
-        $bind: d
-        $flatten: true
-        $build:
-          $each: sections
-          $bind: sec
-          $flatten: true
-          $build:
-            $each: views
-            $of: model
-            $build:
-              $when:
-                - { path: id, equals: { $copy: view, $of: sec } }
-                - { path: kind, equals: grid }
-                - { path: rows, equals: { $copy: target.entity, $of: element } }
-              screen: { $copy: id, $of: d }
-              place: { $format: "区画「{l}」の行のボタン", $with: { l: { $copy: label, $of: sec } } }
-      - $when: [{ path: target.entity, exists: true }, { of: model, path: reach.entities, includes: { $copy: target.entity } }]
-        $then: [{ screen: { $copy: target.entity }, place: 画面のボタン }]
-      - $each: entities
-        $of: model
-        $build:
-          $when: [{ path: id, equals: { $copy: target.entity, $of: element } }, { path: owner.entity, exists: true }]
-          screen: { $copy: owner.entity }
-          place: { $format: "表「{l}」の行のボタン", $with: { l: { $copy: label } } }
-  shownWhen: { $apply: shown-when }
-  input:
-    $when: [{ path: params, empty: false }]
-    $then:
-      screen: { $format: "{id}/input" }
-      request: { $format: "GET {u}", $with: { u: { $apply: url } } }
-      items:
-        $each: params
-        $build:
-          key: { $copy: key }
-          label: { $copy: label }
-          type: { $copy: type }
-          base: { $copy: base }
-          required: { $copy: required }
-          minLength: { $copy: minLength }
-          maxLength: { $copy: maxLength }
-          pattern: { $copy: pattern }
-          multiline: { $copy: multiline }
-          values: { $copy: values }
-          target: { $first: [{ $copy: target }, { $copy: item.target }] }
-          many: { $when: [{ path: base, equals: array }], $then: true }
-      initial: { $copy: input.initial }
-      submit: { $copy: input.submit }
-  confirm:
-    screen: { $format: "{id}/confirm" }
-    request:
-      $first:
-        - $when: [{ path: params, empty: false }]
-          $then: { $format: "POST {u}/confirm", $with: { u: { $apply: url } } }
-        - { $format: "GET {u}/confirm", $with: { u: { $apply: url } } }
-    shows: { $each: params, $build: { $copy: label } }
-    stateChange:
-      $each: lifecycle.transitions
+  $apply: linked-document
+  $with:
+    document:
+      $copy: document
+    bindings: []
+    messages:
+      $each:
+        $view: messages-input
+      $flatten: true
       $build:
-        from: { $each: from, $build: { $copy: label } }
-        to: { $copy: to.label }
-    back:
-      $when: [{ path: params, empty: false }]
-      $then: { request: { $format: "POST {u}/back", $with: { u: { $apply: url } } }, to: { $format: "{id}/input" } }
-  execute:
-    request: { $format: "POST {u}", $with: { u: { $apply: url } } }
-    returns: 起点の画面（starts の画面。画面の ID で受け取る）
-    notice: { $format: "{id}.done" }
-    refusals:
-      $concat:
-        - $when: [{ path: lifecycle.refusal, exists: true }]
-          $then: [{ key: { $format: "{id}.state" }, message: { $copy: lifecycle.refusal } }]
-        - $each: require
-          $build:
-            $when: [{ path: id, exists: true }]
-            key: { $format: "{a}.{r}", $with: { a: { $copy: id, $of: element }, r: { $copy: id } } }
-            message: { $copy: message }
-        # データの決まり（エラー定義書で確かめるもの）
-        - $each: checks
-          $bind: c
-          $flatten: true
-          $build:
-            $each: constraints
-            $of: model
-            $build:
-              $when:
-                - { path: id, equals: { $copy: constraint, $of: c } }
-                - { path: level, equals: error }
-                - or: [{ path: form, equals: element }, { path: "rule.match[1].edge.contains", equals: true }, { path: kind, equals: acyclic }]
-              key: { $format: "check.{id}" }
-              message:
-                $first:
-                  - { $copy: message }
-                  - $when: [{ path: kind, equals: acyclic }]
-                    $then: { $format: "「{r}」をたどると、自分（{id}）に戻ります（循環はできません）", $with: { r: { $copy: relationLabel }, id: "{id}" } }
-                  - { $copy: label }
-    onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+        $copy: values.record.messages
 rules:
-  - id: shown-when
-    when: [{ path: lifecycle.transitions, exists: true }]
-    build: { $each: lifecycle.transitions, $flatten: true, $build: { $each: from, $build: { value: { $copy: value }, label: { $copy: label } } } }
-  - id: shown-when
-    build: いつも
-  # いまの場所＝操作。受け手のある操作は /型/{id}/操作、受け手の無い操作は /型/操作（型は主体のエンティティ型。業務の ID のまま）
-  - id: url
-    when: [{ path: target.entity, exists: true }]
-    build: { $format: "/{t}/{k}/{a}", $with: { t: { $copy: subject }, k: "{id}", a: { $copy: id } } }
-  - id: url
-    build: { $format: "/{t}/{a}", $with: { t: { $copy: subject }, a: { $copy: id } } }
+  - id: linked-document
+    with:
+      - document
+      - bindings
+      - messages
+    build:
+      $apply: linked-tree
+      $of: document
+      $with:
+        bindings:
+          $copy: .
+          $of: bindings
+        role: document
+        messages:
+          $copy: .
+          $of: messages
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: linked-tree
+    with:
+      - bindings
+      - role
+      - messages
+    build:
+      $first:
+        - $apply: linked-map
+          $with:
+            entries:
+              $eachEntry: .
+              $flatten: true
+              $build:
+                - key: $key
+                  value:
+                    $apply: linked-tree
+                    $with:
+                      bindings:
+                        $copy: .
+                        $of: bindings
+                      role: $key
+                      messages:
+                        $copy: .
+                        $of: messages
+            node:
+              $copy: .
+            messages:
+              $copy: .
+              $of: messages
+        - $each: .
+          $build:
+            $apply: linked-tree
+            $with:
+              bindings:
+                $copy: .
+                $of: bindings
+              role:
+                $copy: .
+                $of: role
+              messages:
+                $copy: .
+                $of: messages
+        - $apply: linked-scalar
+          $with:
+            leaf:
+              $copy: .
+            bindings:
+              $copy: .
+              $of: bindings
+            role:
+              $copy: .
+              $of: role
+  - id: linked-scalar
+    with:
+      - leaf
+      - bindings
+      - role
+    build:
+      $first:
+        - $apply: contract-first
+          $with:
+            matches:
+              $each: .
+              $of: bindings
+              $build:
+                $when:
+                  - path: before
+                    equals:
+                      $copy: .
+                      $of: leaf
+                  - path: roles
+                    includes:
+                      $copy: .
+                      $of: role
+                $then:
+                  $copy: after
+        - $copy: .
+          $of: leaf
+  - id: linked-map
+    with:
+      - entries
+      - node
+      - messages
+    when:
+      - path: .
+        of: entries
+        exists: true
+    build:
+      $entries:
+        $concat:
+          - $copy: .
+            $of: entries
+          - $when:
+              - path: text
+                of: node
+                exists: true
+              - path: message
+                of: node
+                exists: true
+            $then:
+              - key: text
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: messages
+                      $build:
+                        $when:
+                          - path: key
+                            equals:
+                              $copy: message
+                              $of: node
+                        $then:
+                          $copy: text
+          - $when:
+              - path: key
+                of: node
+                exists: true
+              - path: message
+                of: node
+                exists: true
+            $then:
+              - key: message
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: messages
+                      $build:
+                        $when:
+                          - path: key
+                            equals:
+                              $copy: key
+                              $of: node
+                        $then:
+                          $copy: text

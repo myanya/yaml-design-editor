@@ -1,4 +1,4 @@
-# 生成物（error-handling）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/error-handling.yaml）を直して作り直します（CLI generate）。
+# 生成物（error-handling）: 手で直さず、業務モデルか生成の定義（design/error-handling.yaml）を直して作り直します（CLI generate）。
 id: error-handling
 name: エラー設計書
 exceptions:
@@ -184,3 +184,13 @@ settings:
   - key: spring.messages.basename
     value: messages
     why: メッセージ定義書の文（messages.properties）を読む
+designId: DOC-error-handling.error-handling
+designKind: error-handling
+designPath: design/generated/error-handling.yaml
+origins:
+  source:
+    id: rule-error-handling
+    document: .yde/transforms/design/error-handling-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

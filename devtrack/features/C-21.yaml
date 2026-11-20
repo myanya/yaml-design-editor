@@ -27,7 +27,7 @@ implementation:
 tests:
   - name: GenerationTest
   - name: SchemaModelsTest
-    note: モジュール間の型解決、初期値、再帰、重複と誤った指定の拒否
+    note: モジュール間の型解決、ビュー原文と参照、初期値、再帰、重複と誤った指定の拒否
   - name: SchemaUsesTest
     note: 共通型の利用箇所の分離、継承と明記、再帰と変更前の値の保持
   - name: TermCompositionTest
@@ -60,10 +60,12 @@ tests:
   - name: TransformReadsTest
   - name: GeneratedValidationTest
     note: 組み立てた文書の構造・参照・成立条件、予約領域と未割当文書の拒否
+  - name: TodosSystemDocumentsTest
+    note: 全設計書の確定、設計書間の補正の伝達、追加・競合・不正入力の拒否と再生成
 design:
-- label: transform
-  link: architecture/transform.md
-  heading: 生成（業務モデルから文書へ）
+  - label: transform
+    link: architecture/transform.md
+    heading: 生成（業務モデルから文書へ）
 manual:
   - link: manual/generate.md
     heading: 生成の定義（`.yde/transforms/`）

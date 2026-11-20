@@ -1,6 +1,6 @@
 id: table-definition-columns
 name: テーブル設計書（カラム一覧）
-description: カラムと確定した基本設計項目を読む。SQL の型の穴には利用箇所の確定値を渡す。型の継承と基本設計の補正をビューで計算し直さない。
+description: カラムと確定した基本設計項目を読む。SQL の型の穴には利用箇所の確定値を渡す。型の継承と基本設計の補正をビューで計算し直さない。 補正と台帳の追加は保存済みの確定値に含む。
 params:
   - table
 rows:
@@ -20,9 +20,6 @@ rows:
       equals: $table
 order:
   schemaId: detail-table-list
-corrections:
-  schemaIds:
-    - detail-corrections
 columns:
   - label: 項番
     path: seq
@@ -58,9 +55,12 @@ columns:
       with:
         maxLength:
           first:
-            - {via: source, path: item.maxLength}
-            - {via: source, path: value.maxLength}
-            - {via: source, path: maxLength}
+            - via: source
+              path: item.maxLength
+            - via: source
+              path: value.maxLength
+            - via: source
+              path: maxLength
   - label: NOT NULL
     value:
       first:

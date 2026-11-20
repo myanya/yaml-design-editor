@@ -1,9 +1,22 @@
 id: basic-derived-targets
 name: 導出項目と説明の候補
 description: 確定前の導出記録。説明の候補が二つ以上ある項目は、補正で代表の説明を指定する
-rows: {schemaIds: [basic-targets], idPattern: 'DRV-FLD-*'}
+rows:
+  schemaIds:
+    - basic-targets
+  idPattern: DRV-FLD-*
 columns:
-  - {label: 設計項目, schemaId: basic-targets, path: designId}
-  - {label: 所属, schemaId: basic-targets, path: owner}
-  - {label: 場所, schemaId: basic-targets, path: path}
-  - {label: 候補数, schemaId: basic-targets, value: {count: {path: descriptions}}}
+  - label: 設計項目
+    schemaId: basic-targets
+    path: designId
+  - label: 所属
+    schemaId: basic-targets
+    path: owner
+  - label: 場所
+    schemaId: basic-targets
+    path: path
+  - label: 候補数
+    schemaId: basic-targets
+    value:
+      count:
+        path: descriptions

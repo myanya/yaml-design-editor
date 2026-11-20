@@ -1,0 +1,12 @@
+id: system-actions-model
+name: system-actions-model
+kind: document
+match: design/system/system-actions-model.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: model
+      type: any

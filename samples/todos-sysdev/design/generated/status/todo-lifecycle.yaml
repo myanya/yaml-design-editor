@@ -1,4 +1,4 @@
-# 生成物（status-rules）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/status-rules.yaml）を直して作り直します（CLI generate）。
+# 生成物（status-rules）: 手で直さず、業務モデルか生成の定義（design/status-rules.yaml）を直して作り直します（CLI generate）。
 id: todo-lifecycle
 entity: todo
 enum:
@@ -56,3 +56,13 @@ transitions:
 terminal:
   - CLOSED
   - CANCELED
+designId: DOC-status-rules.todo-lifecycle
+designKind: status-rules
+designPath: design/generated/status/todo-lifecycle.yaml
+origins:
+  source:
+    id: rule-status-rules
+    document: .yde/transforms/design/status-rules-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

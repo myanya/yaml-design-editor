@@ -1,4 +1,4 @@
-# 生成物（screen-details）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-details）: 手で直さず、業務モデルか生成の定義（design/screen-details.yaml）を直して作り直します（CLI generate）。
 id: tag
 name: タグ詳細
 kind: detail
@@ -12,3 +12,15 @@ items:
     type: common#一行の文
 tables: []
 buttons: []
+originalRoutes:
+  url: /tag/{id}
+designId: DOC-screen-details.tag
+designKind: screen-details
+designPath: design/generated/screens/details/tag.yaml
+origins:
+  source:
+    id: rule-screen-details
+    document: .yde/transforms/design/screen-details-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

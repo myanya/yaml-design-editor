@@ -1,0 +1,387 @@
+# 生成物（detail-tables-derived）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/detail-tables-derived.yaml）を直して作り直します（CLI generate）。
+id: SYS-physical-derived
+document:
+  tables:
+    - seq: '01'
+      id: TBL-category
+      name: category
+      kind: main
+      source: ENT-category
+      primaryKeyName: pk_category
+      columns:
+        - seq: '01'
+          id: COL-category.id
+          name: id
+          source: FLD-category.id
+          sqlType: SQL-common.カテゴリ番号
+          primaryKey: 1
+        - seq: '02'
+          id: COL-category.name
+          name: name
+          source: FLD-category.name
+          sqlType: SQL-common.一行の文
+      indexes: []
+      foreignKeys: []
+    - seq: '02'
+      id: TBL-tag
+      name: tag
+      kind: main
+      source: ENT-tag
+      primaryKeyName: pk_tag
+      columns:
+        - seq: '01'
+          id: COL-tag.id
+          name: id
+          source: FLD-tag.id
+          sqlType: SQL-common.タグ番号
+          primaryKey: 1
+        - seq: '02'
+          id: COL-tag.name
+          name: name
+          source: FLD-tag.name
+          sqlType: SQL-common.一行の文
+      indexes: []
+      foreignKeys: []
+    - seq: '03'
+      id: TBL-todo
+      name: todo
+      kind: main
+      source: ENT-todo
+      primaryKeyName: pk_todo
+      columns:
+        - seq: '01'
+          id: COL-todo.id
+          name: id
+          source: FLD-todo.id
+          sqlType: SQL-common.TODO番号
+          primaryKey: 1
+        - seq: '02'
+          id: COL-todo.title
+          name: title
+          source: FLD-todo.title
+          sqlType: SQL-common.一行の文
+        - seq: '03'
+          id: COL-todo.summary
+          name: summary
+          source: FLD-todo.summary
+          sqlType: SQL-common.一行の文
+        - seq: '04'
+          id: COL-todo.category
+          name: category
+          source: FLD-todo.category
+          sqlType: SQL-common.カテゴリ参照
+          referencesTable: TBL-category
+          referencesColumn: COL-category.id
+        - seq: '05'
+          id: COL-todo.follows
+          name: follows
+          source: FLD-todo.follows
+          sqlType: SQL-common.TODO参照
+          referencesTable: TBL-todo
+          referencesColumn: COL-todo.id
+        - seq: '06'
+          id: COL-todo.status
+          name: status
+          source: FLD-todo.status
+          sqlType: SQL-common.ステータス
+        - seq: '07'
+          id: COL-todo.created_on
+          name: created_on
+          source: FLD-todo.created_on
+          sqlType: SQL-common.年月日
+        - seq: '08'
+          id: COL-todo.updated_on
+          name: updated_on
+          source: FLD-todo.updated_on
+          sqlType: SQL-common.年月日
+        - seq: '09'
+          id: COL-todo.due_on
+          name: due_on
+          source: FLD-todo.due_on
+          sqlType: SQL-common.年月日
+        - seq: '10'
+          id: COL-todo.completed_on
+          name: completed_on
+          source: FLD-todo.completed_on
+          sqlType: SQL-common.年月日
+        - seq: '11'
+          id: COL-todo.details
+          name: details
+          source: FLD-todo.details
+          sqlType: SQL-common.文章
+        - seq: '12'
+          id: COL-todo.result
+          name: result
+          source: FLD-todo.result
+          sqlType: SQL-common.文章
+      indexes:
+        - seq: '01'
+          id: IDX-ix_todo_category
+          name: ix_todo_category
+          table: TBL-todo
+          columns:
+            - column: COL-todo.category
+          source: FK-fk_todo_category
+        - seq: '02'
+          id: IDX-ix_todo_follows
+          name: ix_todo_follows
+          table: TBL-todo
+          columns:
+            - column: COL-todo.follows
+          source: FK-fk_todo_follows
+      foreignKeys:
+        - seq: '01'
+          id: FK-fk_todo_category
+          name: fk_todo_category
+          columns:
+            - COL-todo.category
+          referencesTable: TBL-category
+        - seq: '02'
+          id: FK-fk_todo_follows
+          name: fk_todo_follows
+          columns:
+            - COL-todo.follows
+          referencesTable: TBL-todo
+    - seq: '04'
+      id: TBL-todo_task
+      name: todo_task
+      kind: main
+      source: ENT-todo-task
+      parent: TBL-todo
+      primaryKeyName: pk_todo_task
+      columns:
+        - seq: '01'
+          id: COL-todo_task.id
+          name: id
+          source: FLD-todo-task.id
+          sqlType: SQL-common.作業項目番号
+          primaryKey: 1
+        - seq: '02'
+          id: COL-todo_task.todo_id
+          name: todo_id
+          role: parent
+          label: TODOのID
+          description: 入れ子で持つ外側のエンティティの行の ID（親のテーブルの主キーを指す）
+          sqlType: SQL-common.TODO番号
+          notNull: true
+          referencesTable: TBL-todo
+          referencesColumn: COL-todo.id
+        - seq: '03'
+          id: COL-todo_task.seq
+          name: seq
+          role: seq
+          label: 並び順
+          description: 業務モデルの配列の中の順（1 から）
+          sqlType: SQL-seq
+          notNull: true
+        - seq: '04'
+          id: COL-todo_task.title
+          name: title
+          source: FLD-todo-task.title
+          sqlType: SQL-common.一行の文
+        - seq: '05'
+          id: COL-todo_task.done
+          name: done
+          source: FLD-todo-task.done
+          sqlType: SQL-boolean
+      indexes:
+        - seq: '01'
+          id: IDX-ix_todo_task_todo_id
+          name: ix_todo_task_todo_id
+          table: TBL-todo_task
+          columns:
+            - column: COL-todo_task.todo_id
+          source: FK-fk_todo_task_todo
+      foreignKeys:
+        - seq: '01'
+          id: FK-fk_todo_task_todo
+          name: fk_todo_task_todo
+          columns:
+            - COL-todo_task.todo_id
+          referencesTable: TBL-todo
+          onDelete: cascade
+    - seq: '05'
+      id: TBL-todo_tags
+      name: todo_tags
+      label: TODOのタグ
+      kind: detail
+      source: FLD-todo.tags
+      parent: TBL-todo
+      primaryKeyName: pk_todo_tags
+      columns:
+        - seq: '01'
+          id: COL-todo_tags.todo_id
+          name: todo_id
+          role: parent
+          label: TODOのID
+          description: 配列・マップを持つエンティティの行の ID（親のテーブルの主キーを指す）
+          sqlType: SQL-common.TODO番号
+          notNull: true
+          primaryKey: 1
+          referencesTable: TBL-todo
+          referencesColumn: COL-todo.id
+        - seq: '02'
+          id: COL-todo_tags.seq
+          name: seq
+          role: seq
+          label: 並び順
+          description: 業務モデルの配列の中の順（1 から）
+          sqlType: SQL-seq
+          notNull: true
+          primaryKey: 2
+        - seq: '03'
+          id: COL-todo_tags.tag_id
+          name: tag_id
+          role: element
+          source: FLD-todo.tags
+          sqlType: SQL-common.タグ参照
+          notNull: true
+          referencesTable: TBL-tag
+          referencesColumn: COL-tag.id
+      indexes:
+        - seq: '01'
+          id: IDX-ux_todo_tags_tag_id
+          name: ux_todo_tags_tag_id
+          table: TBL-todo_tags
+          unique: true
+          columns:
+            - column: COL-todo_tags.todo_id
+            - column: COL-todo_tags.tag_id
+          source: FLD-todo.tags
+        - seq: '02'
+          id: IDX-ix_todo_tags_tag_id
+          name: ix_todo_tags_tag_id
+          table: TBL-todo_tags
+          columns:
+            - column: COL-todo_tags.tag_id
+          source: FK-fk_todo_tags_tag_id
+      foreignKeys:
+        - seq: '01'
+          id: FK-fk_todo_tags_todo
+          name: fk_todo_tags_todo
+          columns:
+            - COL-todo_tags.todo_id
+          referencesTable: TBL-todo
+          onDelete: cascade
+        - seq: '02'
+          id: FK-fk_todo_tags_tag_id
+          name: fk_todo_tags_tag_id
+          columns:
+            - COL-todo_tags.tag_id
+          referencesTable: TBL-tag
+    - seq: '06'
+      id: TBL-todo_comments
+      name: todo_comments
+      label: TODOのコメント一覧
+      kind: detail
+      source: FLD-todo.comments
+      parent: TBL-todo
+      primaryKeyName: pk_todo_comments
+      columns:
+        - seq: '01'
+          id: COL-todo_comments.todo_id
+          name: todo_id
+          role: parent
+          label: TODOのID
+          description: 配列・マップを持つエンティティの行の ID（親のテーブルの主キーを指す）
+          sqlType: SQL-common.TODO番号
+          notNull: true
+          primaryKey: 1
+          referencesTable: TBL-todo
+          referencesColumn: COL-todo.id
+        - seq: '02'
+          id: COL-todo_comments.seq
+          name: seq
+          role: seq
+          label: 並び順
+          description: 業務モデルの配列の中の順（1 から）
+          sqlType: SQL-seq
+          notNull: true
+          primaryKey: 2
+        - seq: '03'
+          id: COL-todo_comments.date
+          name: date
+          source: FLD-todo.comments.item.date
+          sqlType: SQL-common.年月日
+        - seq: '04'
+          id: COL-todo_comments.body
+          name: body
+          source: FLD-todo.comments.item.body
+          sqlType: SQL-text
+      indexes: []
+      foreignKeys:
+        - seq: '01'
+          id: FK-fk_todo_comments_todo
+          name: fk_todo_comments_todo
+          columns:
+            - COL-todo_comments.todo_id
+          referencesTable: TBL-todo
+          onDelete: cascade
+    - seq: '07'
+      id: TBL-todo_history
+      name: todo_history
+      label: TODOの状態の履歴
+      kind: detail
+      source: FLD-todo.history
+      parent: TBL-todo
+      primaryKeyName: pk_todo_history
+      columns:
+        - seq: '01'
+          id: COL-todo_history.todo_id
+          name: todo_id
+          role: parent
+          label: TODOのID
+          description: 配列・マップを持つエンティティの行の ID（親のテーブルの主キーを指す）
+          sqlType: SQL-common.TODO番号
+          notNull: true
+          primaryKey: 1
+          referencesTable: TBL-todo
+          referencesColumn: COL-todo.id
+        - seq: '02'
+          id: COL-todo_history.seq
+          name: seq
+          role: seq
+          label: 並び順
+          description: 業務モデルの配列の中の順（1 から）
+          sqlType: SQL-seq
+          notNull: true
+          primaryKey: 2
+        - seq: '03'
+          id: COL-todo_history.date
+          name: date
+          source: FLD-todo.history.item.date
+          sqlType: SQL-common.年月日
+        - seq: '04'
+          id: COL-todo_history.action
+          name: action
+          source: FLD-todo.history.item.action
+          sqlType: SQL-common.TODOの操作
+        - seq: '05'
+          id: COL-todo_history.from_
+          name: from_
+          source: FLD-todo.history.item.from
+          sqlType: SQL-common.ステータス
+        - seq: '06'
+          id: COL-todo_history.to_
+          name: to_
+          source: FLD-todo.history.item.to
+          sqlType: SQL-common.ステータス
+        - seq: '07'
+          id: COL-todo_history.note
+          name: note
+          source: FLD-todo.history.item.note
+          sqlType: SQL-common.文章
+        - seq: '08'
+          id: COL-todo_history.resume_on
+          name: resume_on
+          source: FLD-todo.history.item.resume_on
+          sqlType: SQL-common.年月日
+      indexes: []
+      foreignKeys:
+        - seq: '01'
+          id: FK-fk_todo_history_todo
+          name: fk_todo_history_todo
+          columns:
+            - COL-todo_history.todo_id
+          referencesTable: TBL-todo
+          onDelete: cascade

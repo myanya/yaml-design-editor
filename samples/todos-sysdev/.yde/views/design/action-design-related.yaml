@@ -1,0 +1,23 @@
+id: action-design-related
+name: 関連する確定設計項目
+params:
+  - source
+rows:
+  match:
+    - node:
+        entity: sysdev-process
+        bind: design
+  where:
+    - of: design
+      path: id
+      equals: $source
+  rowKey: design
+columns:
+  - label: service
+    path: service
+  - label: confirm
+    path: confirm
+  - label: transaction
+    path: transaction
+  - label: steps
+    path: steps

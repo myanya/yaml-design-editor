@@ -69,13 +69,15 @@
 `$view` は `VirtualViews` → `ReportRows` で、その新しい木から読む。依存先が失敗すれば後続を実行せず、計画に誤りがあれば取引の操作を空にする。
 `input` があれば段を当てる前に `SemanticTransform.runAt` で入力を組み立てる。`Stages` は入力の適用済みの段が宣言順の先頭と一致することを確かめ、残りだけを当てる。循環・存在しない依存先・段の順の不一致は計画の誤りになる。
 
-`$schemaModel` は Construct で組み立てたスキーマ文書の配列を、`Generators` が供給する `SchemaModels.resolve` へ渡す。
+`$schemaModel` は Construct で組み立てたスキーマ文書の配列、または `{schemas, views?}` を、`Generators` が供給する `SchemaModels.resolve` へ渡す。
+`BusinessModel.viewDefinitions` はスコープ内のビュー原文を保持する。型を補正した後も、その原文から列と到達範囲を再解決し、補正前の表示情報を混ぜない。
 入力の文書だけをメモリ上のストアに置き、`WorkspaceReader`・組込みのメタスキーマ・`WorkspaceCheckRunner` で定義を検査してから、`BusinessModel` で型を解いた項を返す。
 外のワークスペースの型や前回の出力は参照しない。重複する ID、型の参照切れ、狭める規則に反する指定、定義の検査の保留は生成を失敗させる。利用者データに対する成立条件の評価はここでは行わない。
 入力の位置を仮の文書座標 `.yde/schemas/input/<番号>.yaml` に使い、宣言の来歴に残す。候補の原本の `source`・`decisions` は呼び出す変換が別に保持する。
 これはスキーマの項を既存の解釈へ渡し、参照付きの有限の項へ射影する接続であり、型解決規則を追加しない。semantic-core は供給元だけを受け取り、workspace-core へ依存しない。供給元の無い入口では使用を拒否する。
 
-`$validate` は組み立てた `{schemas, documents}` を `SchemaModels.validate` へ渡す。
+`$validate` は組み立てた `{schemas, documents, views?}` を `SchemaModels.validate` へ渡す。
+任意のビュー定義も同じストアへ置き、ビューの定義への参照を外部のワークスペースで補わず検査する。
 schemas の定義と documents の値をメモリ上の同じストアに置き、既存の構造・参照・条件検査を実行する。
 検査エラーや保留、スキーマ未割当の文書、予約領域への文書配置は失敗とし、成功時は文書のマップを変更せず返す。
 警告だけでは停止しない。確定に必須の条件の重さは定義側で決める。外部の参照先は補わず、設計固有の規則もここへ書かない。

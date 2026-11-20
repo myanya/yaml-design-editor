@@ -5625,6 +5625,297 @@ model:
                   - 1
             level: error
             message: TODO「{id}」に個票がありません（TODOは「TODOを登録する」で一覧と個票を一緒に作ります）
+  viewDefinitions:
+    - id: category-management
+      name: カテゴリ一覧
+      description: カテゴリを並べ、名前と、そのカテゴリのTODOの数を見ます。ダッシュボードの「マスタ」の区画から開きます。カテゴリの追加はダッシュボード上部の操作です。
+      rows:
+        match:
+          - node:
+              entity: category
+              bind: c
+      order:
+        schemaId: category-list
+      columns:
+        - label: カテゴリ名
+          schemaId: category-list
+          path: name
+        - label: TODOの数
+          value:
+            refCount:
+              of: c
+              dir: in
+              relation: in-category
+    - id: category-status-matrix
+      name: カテゴリ×ステータス
+      kind: matrix
+      description: 行＝カテゴリ、列＝TODOの状態、セル＝そのカテゴリのTODOの件数です。合計の行と列は自動で付きます。セルを押すと、数えたTODOへ移動できます。
+      rows:
+        idPattern: CAT-*
+      order:
+        schemaId: category-list
+      unclassified: false
+      cells:
+        match:
+          - node:
+              entity: category
+              bind: cat
+          - edge:
+              relation: in-category
+              dir: in
+          - node:
+              entity: todo
+              bind: t
+        of: t
+        columns:
+          path: status
+          values:
+            - value: OPEN
+              label: 未着手
+            - value: IN_PROGRESS
+              label: 対応中
+            - value: SUSPENDED
+              label: 中断
+            - value: CLOSED
+              label: 完了
+            - value: CANCELED
+              label: 中止
+    - id: tag-management
+      name: タグ一覧
+      description: タグを並べ、名前と、そのタグを付けたTODOの数を見ます。ダッシュボードの「マスタ」の区画から開きます。タグの追加はダッシュボード上部の操作です。
+      rows:
+        match:
+          - node:
+              entity: tag
+              bind: g
+      order:
+        schemaId: tag-list
+      columns:
+        - label: タグ名
+          schemaId: tag-list
+          path: name
+        - label: TODOの数
+          value:
+            refCount:
+              of: g
+              dir: in
+              relation: tagged
+    - id: tag-status-matrix
+      name: タグ×ステータス
+      kind: matrix
+      description: 行＝タグ、列＝TODOの状態、セル＝そのタグを付けたTODOの件数です。1 件のTODOに複数のタグを付けられるので、同じTODOが複数の行に数えられます（そのため合計の行と列は出しません）。セルを押すと、数えたTODOへ移動できます。
+      rows:
+        idPattern: TAG-*
+      order:
+        schemaId: tag-list
+      unclassified: false
+      totals: false
+      cells:
+        match:
+          - node:
+              entity: tag
+              bind: tag
+          - edge:
+              relation: tagged
+              dir: in
+          - node:
+              entity: todo
+              bind: t
+        of: t
+        columns:
+          path: status
+          values:
+            - value: OPEN
+              label: 未着手
+            - value: IN_PROGRESS
+              label: 対応中
+            - value: SUSPENDED
+              label: 中断
+            - value: CLOSED
+              label: 完了
+            - value: CANCELED
+              label: 中止
+    - id: todo-by-due
+      name: 期限順
+      params:
+        - tags
+        - category
+      rows:
+        match:
+          - node:
+              entity: todo
+              bind: t
+        where:
+          - of: t
+            path: tags
+            includesAny: $tags
+          - of: t
+            path: category
+            equals: $category
+      order:
+        schemaId: todo-detail
+        path: due_on
+      columns:
+        - label: タイトル
+          schemaId: todo-list
+          path: title
+        - label: ステータス
+          schemaId: todo-detail
+          path: status
+        - label: 期限
+          schemaId: todo-detail
+          path: due_on
+          editable: true
+        - label: 完了日
+          schemaId: todo-detail
+          path: completed_on
+      detail:
+        fileGlob: todos/details/*.yaml
+        filePattern: todos/details/{id}.yaml
+    - id: todo-dashboard
+      name: TODOダッシュボード
+      kind: dashboard
+      default: true
+      description: 業務の流れで状態ごとの件数と、いま操作できるTODOを示します。気になる状況の件数を選び、一覧のIDから詳細と操作へ進みます。期限超過は未完了で期限が基準日より前のTODOです。
+      actions:
+        - register-todo
+        - add-category
+        - add-tag
+      inputs:
+        - key: tags
+          label: タグ
+          type: common#タグ参照
+          multiple: true
+        - key: category
+          label: カテゴリ
+          type: common#カテゴリ参照
+      flow:
+        lifecycle: todo-lifecycle
+        view: todo-management
+        group: 状況
+        direction: right
+      sections:
+        - id: overdue
+          label: 期限超過
+          group: 注意
+          view: todo-by-due
+          filter:
+            match:
+              - node:
+                  entity: todo
+                  bind: t
+            where:
+              - of: t
+                state:
+                  - todo-OPEN
+                  - todo-IN_PROGRESS
+              - of: t
+                path: due_on
+                exists: true
+            check:
+              - lt:
+                  - of: t
+                    in:
+                      schemaId: todo-detail
+                    path: due_on
+                  - $today
+                type: date
+        - id: all
+          label: すべてのTODO
+          group: 全体
+          view: todo-management
+        - id: categories
+          label: カテゴリ別の状況
+          group: 全体
+          view: category-status-matrix
+        - id: tags
+          label: タグ別の状況
+          group: 全体
+          view: tag-status-matrix
+        - id: categories-master
+          label: カテゴリ一覧
+          group: マスタ
+          view: category-management
+        - id: tags-master
+          label: タグ一覧
+          group: マスタ
+          view: tag-management
+    - id: todo-management
+      name: TODO管理
+      params:
+        - tags
+        - category
+      rows:
+        match:
+          - node:
+              entity: todo
+              bind: t
+        where:
+          - of: t
+            path: tags
+            includesAny: $tags
+          - of: t
+            path: category
+            equals: $category
+      order:
+        fileGlob: todos/todo-list.yaml
+      columns:
+        - label: カテゴリ
+          schemaId: todo-list
+          path: category
+          editable: true
+        - label: ステータス
+          schemaId: todo-detail
+          path: status
+        - label: 作業
+          schemaId: todo-detail
+          value:
+            map:
+              format: '{done}/{all}'
+              with:
+                done:
+                  count:
+                    all:
+                      match:
+                        - node:
+                            entity: todo
+                            bind: t
+                        - edge:
+                            contains: true
+                        - node:
+                            entity: todo-task
+                            bind: s
+                      where:
+                        - of: s
+                          path: done
+                          equals: true
+                      of: s
+                all:
+                  count:
+                    path: tasks[*].id
+            using:
+              0/0: ''
+        - label: タグ
+          schemaId: todo-list
+          path: tags
+          editable: true
+        - label: 期限
+          schemaId: todo-detail
+          path: due_on
+          editable: true
+        - label: 概要
+          schemaId: todo-list
+          path: summary
+          editable: true
+        - label: 作成日
+          schemaId: todo-detail
+          path: created_on
+        - label: 更新日
+          schemaId: todo-detail
+          path: updated_on
+      detail:
+        fileGlob: todos/details/*.yaml
+        filePattern: todos/details/{id}.yaml
   views:
     - id: category-management
       label: カテゴリ一覧

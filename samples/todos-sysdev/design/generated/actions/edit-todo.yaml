@@ -1,4 +1,4 @@
-# 生成物（action-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
 id: edit-todo
 name: TODOを編集する
 description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
@@ -114,7 +114,7 @@ inputs:
           base: date
           declarations:
             - schema: common
-              document: .yde/schemas/business/common.yaml
+              document: .yde/schemas/input/1.yaml
               path:
                 - definitions
                 - 年月日
@@ -124,7 +124,7 @@ inputs:
                 format: yyyy年M月d日
                 description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
             - schema: common
-              document: .yde/schemas/business/common.yaml
+              document: .yde/schemas/input/1.yaml
               path:
                 - definitions
                 - コメント
@@ -153,7 +153,7 @@ inputs:
                 type: string
                 display: multiline
             - schema: common
-              document: .yde/schemas/business/common.yaml
+              document: .yde/schemas/input/1.yaml
               path:
                 - definitions
                 - コメント
@@ -277,79 +277,342 @@ initial:
 preconditions: []
 effects:
   - op: set
-    entity: todo
+    schema: todo-list
     path: title
     value: $title
+    of: self
+    when:
+      - path: title
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: title
+      base: string
+  - op: set
+    schema: todo-list
     path: summary
     value: $summary
+    of: self
+    when:
+      - path: summary
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: summary
+      base: string
+  - op: set
+    schema: todo-list
     path: category
     value: $category
+    of: self
+    when:
+      - path: category
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: category
+      base: ref
+  - op: set
+    schema: todo-list
     path: tags
     value: $tags
+    of: self
+    when:
+      - path: tags
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: tags
+      base: array
+      item:
+        base: ref
+  - op: set
+    schema: todo-detail
     path: created_on
     value: $created_on
+    of: self
+    when:
+      - path: created_on
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: created_on
+      base: date
+  - op: set
+    schema: todo-detail
     path: due_on
     value: $due_on
+    of: self
+    when:
+      - path: due_on
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: due_on
+      base: date
+  - op: set
+    schema: todo-detail
     path: details
     value: $details
+    of: self
+    when:
+      - path: details
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: details
+      base: string
+  - op: set
+    schema: todo-detail
     path: result
     value: $result
+    of: self
+    when:
+      - path: result
+        exists: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: result
+      base: string
+  - op: set
+    schema: todo-detail
     path: comments
     value: $comments
+    of: self
+    when:
+      - path: comments
+        exists: true
     source: do
-  - op: delete
     entity: todo
+    field:
+      key: comments
+      base: array
+      item:
+        base: object
+  - op: delete
+    schema: todo-list
     path: category
+    of: self
+    when:
+      - path: clear.category
+        equals: true
     source: do
-  - op: delete
     entity: todo
+    field:
+      key: category
+      base: ref
+  - op: delete
+    schema: todo-list
     path: tags
+    of: self
+    when:
+      - path: clear.tags
+        equals: true
     source: do
-  - op: delete
     entity: todo
+    field:
+      key: tags
+      base: array
+      item:
+        base: ref
+  - op: delete
+    schema: todo-detail
     path: due_on
+    of: self
+    when:
+      - path: clear.due_on
+        equals: true
     source: do
-  - op: delete
     entity: todo
+    field:
+      key: due_on
+      base: date
+  - op: delete
+    schema: todo-detail
     path: details
+    of: self
+    when:
+      - path: clear.details
+        equals: true
     source: do
+    entity: todo
+    field:
+      key: details
+      base: string
   - op: delete
-    entity: todo
+    schema: todo-detail
     path: result
+    of: self
+    when:
+      - path: clear.result
+        equals: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: result
+      base: string
+  - op: set
+    schema: todo-detail
     path: comments
     value: []
+    of: self
+    when:
+      - path: clear.comments
+        equals: true
     source: do
-  - op: set
     entity: todo
+    field:
+      key: comments
+      base: array
+      item:
+        base: object
+  - op: set
+    schema: todo-detail
     path: updated_on
     value:
       $copy: today
       $of: context
     source: auto
+    auto: updated
+    entity: todo
+    field:
+      key: updated_on
+      base: date
+receiver:
+  entity: todo
+inputPolicy:
+  submit: changed
+  initial:
+    title:
+      $copy: title
+      $of: self
+      $in:
+        schemaId: todo-list
+    summary:
+      $copy: summary
+      $of: self
+      $in:
+        schemaId: todo-list
+    category:
+      $copy: category
+      $of: self
+      $in:
+        schemaId: todo-list
+    tags:
+      $copy: tags
+      $of: self
+      $in:
+        schemaId: todo-list
+    created_on:
+      $copy: created_on
+      $of: self
+      $in:
+        schemaId: todo-detail
+    due_on:
+      $copy: due_on
+      $of: self
+      $in:
+        schemaId: todo-detail
+    details:
+      $copy: details
+      $of: self
+      $in:
+        schemaId: todo-detail
+    result:
+      $copy: result
+      $of: self
+      $in:
+        schemaId: todo-detail
+    comments:
+      $copy: comments
+      $of: self
+      $in:
+        schemaId: todo-detail
+checks:
+  - constraint: due-not-before-created
+    form: element
+    level: error
+    items:
+      - todo.due_on
+      - todo.created_on
+    params:
+      - due_on
+      - created_on
+  - constraint: updated-not-before-created
+    form: element
+    level: error
+    items:
+      - todo.updated_on
+      - todo.created_on
+    params:
+      - created_on
+  - constraint: completed-not-before-created
+    form: element
+    level: error
+    items:
+      - todo.created_on
+    params:
+      - created_on
+  - constraint: closed-has-result
+    form: element
+    level: error
+    items:
+      - todo.result
+    params:
+      - result
+  - constraint: in-category.outMax
+    form: relation
+    level: warning
+    kind: outMax
+    multiple: false
+    items:
+      - todo.category
+    params:
+      - category
+  - constraint: in-category.types
+    form: relation
+    level: warning
+    kind: types
+    multiple: false
+    items:
+      - todo.category
+    params:
+      - category
+  - constraint: tagged.types
+    form: relation
+    level: warning
+    kind: types
+    multiple: true
+    items:
+      - todo.tags
+    params:
+      - tags
+writes:
+  - CRUD-todo.edit-todo.title
+  - CRUD-todo.edit-todo.summary
+  - CRUD-todo.edit-todo.category
+  - CRUD-todo.edit-todo.tags
+  - CRUD-todo.edit-todo.created_on
+  - CRUD-todo.edit-todo.due_on
+  - CRUD-todo.edit-todo.details
+  - CRUD-todo.edit-todo.result
+  - CRUD-todo.edit-todo.comments
+  - CRUD-todo.edit-todo.updated_on
+designId: DOC-action-specs.edit-todo
+designKind: action-specs
+designPath: design/generated/actions/edit-todo.yaml
+origins:
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/action-specs-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

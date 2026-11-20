@@ -1,0 +1,202 @@
+id: system-actions-model
+name: 確定した操作を後段へ渡す
+scope: business
+dependsOn:
+  - system-model
+  - action-specs
+output: design/system/system-actions-model.yaml
+input:
+  $apply: model
+  $with:
+    row:
+      $view: system-model-input
+      $one: true
+    actions:
+      $each:
+        $view: action-specs-input
+      $build:
+        $copy: values.record
+build:
+  id: SYS-system-actions-model
+  model:
+    $copy: .
+rules:
+  - id: model
+    with:
+      - row
+      - actions
+    build:
+      $apply: result
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  actions:
+                    $each: values.model.actions
+                    $of: row
+                    $bind: originalAction
+                    $build:
+                      $apply: action
+                      $with:
+                        document:
+                          $apply: contract-first
+                          $with:
+                            matches:
+                              $each: .
+                              $of: actions
+                              $build:
+                                $when:
+                                  - path: id
+                                    equals:
+                                      $copy: id
+                                      $of: originalAction
+                                $then:
+                                  $copy: .
+                        original:
+                          - $copy: .
+                priority: individual
+                source:
+                  id: action-specs
+  - id: action
+    with:
+      - document
+      - original
+    build:
+      $apply: action-result
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: action
+                value:
+                  $copy: '[0]'
+                  $of: original
+                source:
+                  id: derived-action
+            additions: []
+            changes:
+              - target: action
+                set:
+                  id:
+                    $copy: id
+                    $of: document
+                  label:
+                    $copy: name
+                    $of: document
+                  description:
+                    $copy: description
+                    $of: document
+                  subject:
+                    $copy: subject
+                    $of: document
+                  kind:
+                    $copy: kind
+                    $of: document
+                  params:
+                    $copy: inputs
+                    $of: document
+                  lifecycle:
+                    $copy: state
+                    $of: document
+                  require:
+                    $copy: preconditions
+                    $of: document
+                  effects:
+                    $copy: effects
+                    $of: document
+                  target:
+                    $copy: receiver
+                    $of: document
+                  input:
+                    $apply: action-input
+                    $with:
+                      policy:
+                        $first:
+                          - $copy: inputPolicy
+                            $of: document
+                          - {}
+                      initial:
+                        $copy: initial
+                        $of: document
+                  checks:
+                    $copy: checks
+                    $of: document
+                  provides:
+                    $copy: provides
+                    $of: document
+                priority: individual
+                source:
+                  id:
+                    $copy: designId
+                    $of: document
+  - id: action-result
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
+  - id: result
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
+  - id: action-input
+    with:
+      - policy
+      - initial
+    when:
+      - path: .
+        of: initial
+        exists: true
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: policy
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  initial:
+                    $copy: .
+                    $of: initial
+                priority: individual
+                source:
+                  id: contract
+  - id: action-input
+    with:
+      - policy
+      - initial
+    build:
+      $copy: .
+      $of: policy
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

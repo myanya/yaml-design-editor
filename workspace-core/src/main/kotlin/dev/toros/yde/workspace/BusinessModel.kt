@@ -109,6 +109,8 @@ object BusinessModel {
                 linkedMapOf("id" to schema.id, "document" to schema.source.value, "declared" to YamlIO.toAny(declaration))
             }
         }
+        // 表示済みの列から原文を戻さず、再解決でも同じビューの宣言を使う。
+        model["viewDefinitions"] = viewDocuments
         @Suppress("UNCHECKED_CAST")
         model.putAll(BusinessModelViews.terms(viewDocuments, model["entities"] as List<Map<String, Any?>>, actions, model["states"] as List<Map<String, Any?>>))
         return YamlIO.fromAny(model)

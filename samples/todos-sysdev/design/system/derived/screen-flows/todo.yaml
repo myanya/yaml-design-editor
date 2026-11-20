@@ -1,0 +1,392 @@
+# 生成物（screen-flows-derived）: 手で直さず、業務モデルか生成の定義（design/screen-flows-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-flows.todo
+record:
+  id: DOC-screen-flows.todo
+  value:
+    id: todo
+    name: TODOの画面の動き
+    controller: TodoController
+    screens:
+      - screen: todo
+        handler: show
+        request: GET /todo/{id}
+        does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+        service: TodoService.findDetail
+        reads:
+          - TodoMapper.findDetail
+        session:
+          reads:
+            - notice
+    handlers:
+      - action: register-todo
+        name: TODOを登録する
+        form: RegisterTodoForm
+        service: TodoService.registerTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: registerTodoInput
+            request: GET /todo/register-todo
+            screen: register-todo/input
+            does: 初期値でフォームを作って入力画面を出す
+            reads:
+              - CategoryMapper.selectAll
+              - TagMapper.selectAll
+              - TodoMapper.selectAll
+          - handler: registerTodoConfirm
+            request: POST /todo/register-todo/confirm
+            screen: register-todo/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads: []
+            calls:
+              - TodoService.checkRegisterTodo
+            session:
+              puts:
+                - token
+          - handler: registerTodoBack
+            request: POST /todo/register-todo/back
+            screen: register-todo/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: registerTodo
+            request: POST /todo/register-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - check.due-not-before-created
+              - check.updated-not-before-created
+              - check.follows-not-self
+              - check.follow-up-of.acyclic
+      - action: add-todo-comment
+        name: TODOにコメントを追加する
+        form: AddTodoCommentForm
+        service: TodoService.addTodoComment
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: addTodoCommentInput
+            request: GET /todo/{id}/add-todo-comment
+            screen: add-todo-comment/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: addTodoCommentConfirm
+            request: POST /todo/{id}/add-todo-comment/confirm
+            screen: add-todo-comment/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: addTodoCommentBack
+            request: POST /todo/{id}/add-todo-comment/back
+            screen: add-todo-comment/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: addTodoComment
+            request: POST /todo/{id}/add-todo-comment
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - check.updated-not-before-created
+      - action: add-todo-task
+        name: 作業項目を追加する
+        form: AddTodoTaskForm
+        service: TodoService.addTodoTask
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: addTodoTaskInput
+            request: GET /todo/{id}/add-todo-task
+            screen: add-todo-task/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: addTodoTaskConfirm
+            request: POST /todo/{id}/add-todo-task/confirm
+            screen: add-todo-task/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: addTodoTaskBack
+            request: POST /todo/{id}/add-todo-task/back
+            screen: add-todo-task/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: addTodoTask
+            request: POST /todo/{id}/add-todo-task
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - add-todo-task.active
+              - check.updated-not-before-created
+              - check.closed-has-no-open-task
+      - action: edit-todo
+        name: TODOを編集する
+        form: EditTodoForm
+        service: TodoService.editTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: editTodoInput
+            request: GET /todo/{id}/edit-todo
+            screen: edit-todo/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+              - CategoryMapper.selectAll
+              - TagMapper.selectAll
+          - handler: editTodoConfirm
+            request: POST /todo/{id}/edit-todo/confirm
+            screen: edit-todo/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls:
+              - TodoService.checkEditTodo
+            session:
+              puts:
+                - token
+          - handler: editTodoBack
+            request: POST /todo/{id}/edit-todo/back
+            screen: edit-todo/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: editTodo
+            request: POST /todo/{id}/edit-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - check.due-not-before-created
+              - check.updated-not-before-created
+              - check.completed-not-before-created
+              - check.closed-has-result
+      - action: start-todo
+        name: TODOに着手する
+        service: TodoService.startTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: startTodoConfirm
+            request: GET /todo/{id}/start-todo/confirm
+            screen: start-todo/confirm
+            does: 受け手を読んで確認画面を出す
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: startTodo
+            request: POST /todo/{id}/start-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - start-todo.state
+              - check.updated-not-before-created
+              - check.unfinished-has-no-completed-on
+      - action: suspend-todo
+        name: TODOを中断する
+        form: SuspendTodoForm
+        service: TodoService.suspendTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: suspendTodoInput
+            request: GET /todo/{id}/suspend-todo
+            screen: suspend-todo/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: suspendTodoConfirm
+            request: POST /todo/{id}/suspend-todo/confirm
+            screen: suspend-todo/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls:
+              - TodoService.checkSuspendTodo
+            session:
+              puts:
+                - token
+          - handler: suspendTodoBack
+            request: POST /todo/{id}/suspend-todo/back
+            screen: suspend-todo/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: suspendTodo
+            request: POST /todo/{id}/suspend-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - suspend-todo.state
+              - check.updated-not-before-created
+              - check.unfinished-has-no-completed-on
+              - check.resume-not-before-suspend
+      - action: resume-todo
+        name: TODOを再開する
+        form: ResumeTodoForm
+        service: TodoService.resumeTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: resumeTodoInput
+            request: GET /todo/{id}/resume-todo
+            screen: resume-todo/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: resumeTodoConfirm
+            request: POST /todo/{id}/resume-todo/confirm
+            screen: resume-todo/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: resumeTodoBack
+            request: POST /todo/{id}/resume-todo/back
+            screen: resume-todo/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: resumeTodo
+            request: POST /todo/{id}/resume-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - resume-todo.state
+              - check.updated-not-before-created
+              - check.unfinished-has-no-completed-on
+      - action: complete-todo
+        name: TODOを完了する
+        form: CompleteTodoForm
+        service: TodoService.completeTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: completeTodoInput
+            request: GET /todo/{id}/complete-todo
+            screen: complete-todo/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: completeTodoConfirm
+            request: POST /todo/{id}/complete-todo/confirm
+            screen: complete-todo/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls:
+              - TodoService.checkCompleteTodo
+            session:
+              puts:
+                - token
+          - handler: completeTodoBack
+            request: POST /todo/{id}/complete-todo/back
+            screen: complete-todo/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: completeTodo
+            request: POST /todo/{id}/complete-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - complete-todo.state
+              - complete-todo.no-open-task
+              - check.updated-not-before-created
+              - check.completed-not-before-created
+              - check.closed-has-completed-on
+              - check.closed-has-result
+              - check.closed-has-no-open-task
+      - action: cancel-todo
+        name: TODOを中止する
+        form: CancelTodoForm
+        service: TodoService.cancelTodo
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: cancelTodoInput
+            request: GET /todo/{id}/cancel-todo
+            screen: cancel-todo/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: cancelTodoConfirm
+            request: POST /todo/{id}/cancel-todo/confirm
+            screen: cancel-todo/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: cancelTodoBack
+            request: POST /todo/{id}/cancel-todo/back
+            screen: cancel-todo/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: cancelTodo
+            request: POST /todo/{id}/cancel-todo
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - cancel-todo.state
+              - check.updated-not-before-created
+              - check.unfinished-has-no-completed-on
+  source:
+    id: rule-screen-flows
+    document: .yde/transforms/design/screen-flows-derived.yaml

@@ -1,0 +1,10 @@
+id: screen-styles-derived-input
+name: '生成入力（導出した設計書: screen-styles）'
+rows:
+  idPattern: DRV-document-screen-styles.*
+  schemaIds:
+    - system-derived
+columns:
+  - label: record
+    path: record
+    schemaId: system-derived

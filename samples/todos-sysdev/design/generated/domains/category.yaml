@@ -1,4 +1,4 @@
-# 生成物（domains）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
+# 生成物（domains）: 手で直さず、業務モデルか生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
 id: category
 name: カテゴリ
 description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
@@ -36,3 +36,13 @@ relations:
     toLabel: TODO
     many: いくつでも
     note: TODO はカテゴリを 1 つまで参照します（未分類なら参照しません）。参照は一覧の行に書きます
+designId: DOC-domains.category
+designKind: domains
+designPath: design/generated/domains/category.yaml
+origins:
+  source:
+    id: rule-domains
+    document: .yde/transforms/design/domains-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

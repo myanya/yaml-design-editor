@@ -1,0 +1,52 @@
+# 生成物（action-specs-derived）: 手で直さず、業務モデルか生成の定義（design/action-specs-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-action-specs.todo-task.finish
+record:
+  id: DOC-action-specs.todo-task.finish
+  value:
+    id: todo-task.finish
+    name: 作業項目を済にする
+    kind: method
+    subject: todo-task
+    inputs: []
+    effects:
+      - op: set
+        path: done
+        value: true
+        source: do
+        schema: todo-detail
+        within: todo-task
+        entity: todo-task
+        field:
+          key: done
+          base: boolean
+      - op: set
+        schema: todo-detail
+        path: updated_on
+        value:
+          $copy: today
+          $of: context
+        source: auto
+        auto: updated
+        entity: todo
+        field:
+          key: updated_on
+          base: date
+    receiver:
+      entity: todo-task
+    checks:
+      - constraint: updated-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.updated_on
+      - constraint: closed-has-no-open-task
+        form: pattern
+        level: error
+        items:
+          - todo-task.done
+    writes:
+      - CRUD-todo.todo-task.finish.updated_on
+      - CRUD-todo-task.todo-task.finish.done
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/action-specs-derived.yaml

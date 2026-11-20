@@ -1,0 +1,8 @@
+id: system-corrections-document
+name: system-corrections-document
+rows:
+  idPattern: INPUT-system-corrections
+columns:
+  - label: record
+    path: .
+    fileGlob: design/**

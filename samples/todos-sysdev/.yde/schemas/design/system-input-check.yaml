@@ -1,0 +1,11 @@
+id: system-input-check
+name: system-input-check
+kind: document
+match: design/system/input-check.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+    - key: status
+      type: string

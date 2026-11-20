@@ -1,4 +1,4 @@
-# 生成物（session-design）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/session-design.yaml）を直して作り直します（CLI generate）。
+# 生成物（session-design）: 手で直さず、業務モデルか生成の定義（design/session-design.yaml）を直して作り直します（CLI generate）。
 id: session
 name: セッション情報設計
 policy:
@@ -12,6 +12,7 @@ attributes:
     puts: Spring Security（入れるときに議論する）
     reads: すべての POST
     status: 将来
+    role: csrf
   - key: token
     contents: 二重確定を防ぐトークン（流れの ID → トークン。流れの ID は確認画面の hidden 項目で持つので、タブごとに別）
     purpose: セキュリティ（同じ確定を 2 回通さない・確認画面を経ない確定を断る）
@@ -42,6 +43,7 @@ attributes:
       - TagController.addTag
       - TodoTaskController.todoTaskFinish
     removes: 確定で照合したとき（使った・違った）と、セッションの期限
+    role: token
   - key: notice
     contents: 完了の知らせ（「TODO-006 を登録しました」。メッセージのキーは 操作ID.done）と、二重の確定・時間切れの知らせ（error.token）
     purpose: 利便（確定の後のリダイレクト（PRG）の先で 1 回だけ出す）
@@ -65,6 +67,7 @@ attributes:
       - CategoryController.show
       - TagController.show
     removes: 1 回読んだとき（Spring の flash 属性）
+    role: notice
 notKept:
   - what: 入力の値
     where: 確認画面の hidden 項目（確定で入力検査・状態・前提を確かめ直す）
@@ -72,3 +75,13 @@ notKept:
     where: URL のパラメータ（タブごとに独立）
   - what: 起点の画面
     where: 画面の ID（パラメータ from。URL は受け取らない）
+designId: DOC-session-design.session-design
+designKind: session-design
+designPath: design/generated/session.yaml
+origins:
+  source:
+    id: rule-session-design
+    document: .yde/transforms/design/session-design-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

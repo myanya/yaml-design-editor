@@ -1,0 +1,10 @@
+id: system-session-bindings-input
+name: '生成入力（確定項目: system-session-bindings）'
+rows:
+  idPattern: SYS-system-session-bindings
+  schemaIds:
+    - system-session-bindings
+columns:
+  - label: bindings
+    path: bindings
+    schemaId: system-session-bindings

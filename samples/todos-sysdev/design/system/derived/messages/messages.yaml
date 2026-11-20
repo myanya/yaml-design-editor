@@ -1,0 +1,448 @@
+# 生成物（messages-derived）: 手で直さず、業務モデルか生成の定義（design/messages-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-messages.messages
+record:
+  id: DOC-messages.messages
+  value:
+    id: messages
+    name: メッセージ定義書
+    file: src/main/resources/messages.properties
+    writing:
+      - 名前の穴（{id} など）は、文の中で最初に出た順に {0} {1} … へ置き換えて書く（MessageFormat）。穴の意味は holes
+      - 入力の誤りのキーは、Bean Validation の誤りのコードの頭に validation. を付けたもの（DefaultMessageCodesResolver の prefix）。日付として読めない誤りは typeMismatch
+      - 文に ' を書くときは '' と書く（MessageFormat）
+    holes:
+      - name: id
+        means: 受け手の ID（作る操作は作った要素の ID。データの決まりは、決まりの起点の要素の ID）
+      - name: state
+        means: 受け手の今の状態の名前
+      - name: left
+        means: データの決まりの check の左の値（画面の表示の形）
+      - name: right
+        means: データの決まりの check の右の値（画面の表示の形）
+      - name: 'no'
+        means: 受付番号（ログと突き合わせる）
+    messages:
+      - key: start-todo.state
+        kind: 状態の断り
+        text: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+        source: 操作 start-todo の Lifecycle（todo-lifecycle）
+      - key: suspend-todo.state
+        kind: 状態の断り
+        text: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+        source: 操作 suspend-todo の Lifecycle（todo-lifecycle）
+      - key: resume-todo.state
+        kind: 状態の断り
+        text: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+        source: 操作 resume-todo の Lifecycle（todo-lifecycle）
+      - key: complete-todo.state
+        kind: 状態の断り
+        text: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
+        source: 操作 complete-todo の Lifecycle（todo-lifecycle）
+      - key: cancel-todo.state
+        kind: 状態の断り
+        text: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+        source: 操作 cancel-todo の Lifecycle（todo-lifecycle）
+      - key: add-todo-task.active
+        kind: 前提の断り
+        text: '{id} は完了か中止をしているので、作業項目を足せません'
+        source: 操作 add-todo-task の前提 active
+      - key: complete-todo.no-open-task
+        kind: 前提の断り
+        text: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+        source: 操作 complete-todo の前提 no-open-task
+      - key: check.due-not-before-created
+        kind: データの決まり
+        text: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+        source: 決まり due-not-before-created（common#TODO個票）
+      - key: check.updated-not-before-created
+        kind: データの決まり
+        text: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+        source: 決まり updated-not-before-created（common#TODO個票）
+      - key: check.completed-not-before-created
+        kind: データの決まり
+        text: TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です
+        source: 決まり completed-not-before-created（common#TODO個票）
+      - key: check.closed-has-completed-on
+        kind: データの決まり
+        text: 完了した TODO「{id}」に完了日がありません
+        source: 決まり closed-has-completed-on（common#TODO個票）
+      - key: check.closed-has-result
+        kind: データの決まり
+        text: 完了した TODO「{id}」に結果がありません
+        source: 決まり closed-has-result（common#TODO個票）
+      - key: check.unfinished-has-no-completed-on
+        kind: データの決まり
+        text: 完了していない TODO「{id}」に完了日が残っています
+        source: 決まり unfinished-has-no-completed-on（common#TODO個票）
+      - key: check.resume-not-before-suspend
+        kind: データの決まり
+        text: 再開予定日（{left}）は、中断した日（{right}）より前にできません
+        source: 決まり resume-not-before-suspend（common#状態の記録）
+      - key: check.follows-not-self
+        kind: データの決まり
+        text: TODO「{id}」の元のTODOに、自分自身は選べません
+        source: 決まり follows-not-self（common#TODO一覧の行）
+      - key: check.closed-has-no-open-task
+        kind: データの決まり
+        text: 完了したTODO「{id}」に、済んでいない作業項目があります
+        source: 決まり closed-has-no-open-task（todo-detail）
+      - key: check.follow-up-of.acyclic
+        kind: データの決まり
+        text: 「元のTODO」をたどると、自分（{id}）に戻ります（循環はできません）
+        source: 決まり follow-up-of.acyclic（todo-relations）
+      - key: add-category.done
+        kind: 完了の知らせ
+        text: カテゴリを追加しました（{id}）
+        source: 操作 add-category の名前
+      - key: register-todo.done
+        kind: 完了の知らせ
+        text: TODOを登録しました（{id}）
+        source: 操作 register-todo の名前
+      - key: add-todo-comment.done
+        kind: 完了の知らせ
+        text: TODOにコメントを追加しました（{id}）
+        source: 操作 add-todo-comment の名前
+      - key: add-todo-task.done
+        kind: 完了の知らせ
+        text: 作業項目を追加しました（{id}）
+        source: 操作 add-todo-task の名前
+      - key: edit-todo.done
+        kind: 完了の知らせ
+        text: TODOを編集しました（{id}）
+        source: 操作 edit-todo の名前
+      - key: start-todo.done
+        kind: 完了の知らせ
+        text: TODOに着手しました（{id}）
+        source: 操作 start-todo の名前
+      - key: suspend-todo.done
+        kind: 完了の知らせ
+        text: TODOを中断しました（{id}）
+        source: 操作 suspend-todo の名前
+      - key: resume-todo.done
+        kind: 完了の知らせ
+        text: TODOを再開しました（{id}）
+        source: 操作 resume-todo の名前
+      - key: complete-todo.done
+        kind: 完了の知らせ
+        text: TODOを完了しました（{id}）
+        source: 操作 complete-todo の名前
+      - key: cancel-todo.done
+        kind: 完了の知らせ
+        text: TODOを中止しました（{id}）
+        source: 操作 cancel-todo の名前
+      - key: add-tag.done
+        kind: 完了の知らせ
+        text: タグを追加しました（{id}）
+        source: 操作 add-tag の名前
+      - key: todo-task.finish.done
+        kind: 完了の知らせ
+        text: 作業項目を済にしました（{id}）
+        source: 操作 todo-task.finish の名前
+      - key: list.empty.todo
+        kind: 絞り込みの結果
+        text: 該当するTODOはありません
+        source: ダッシュボードの区画の一覧
+      - key: list.empty.category
+        kind: 絞り込みの結果
+        text: 該当するカテゴリはありません
+        source: ダッシュボードの区画の一覧
+      - key: list.empty.tag
+        kind: 絞り込みの結果
+        text: 該当するタグはありません
+        source: ダッシュボードの区画の一覧
+      - key: error.notFound.todo
+        kind: 見つからない
+        text: TODO「{id}」は見つかりません
+        source: ID を指定して読んで無いとき（404）
+      - key: error.notFound.category
+        kind: 見つからない
+        text: カテゴリ「{id}」は見つかりません
+        source: ID を指定して読んで無いとき（404）
+      - key: error.notFound.tag
+        kind: 見つからない
+        text: タグ「{id}」は見つかりません
+        source: ID を指定して読んで無いとき（404）
+      - key: error.notFound.todo-task
+        kind: 見つからない
+        text: 作業項目「{id}」は見つかりません
+        source: ID を指定して読んで無いとき（404）
+      - key: error.token
+        kind: 二重の確定・時間切れ
+        text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
+        source: 確定のトークンが無い・違う
+      - key: error.unexpected
+        kind: 想定外
+        text: 処理できませんでした。時間をおいてやり直してください（受付番号 {no}）
+        source: 想定外の例外（500）
+    validation:
+      - form: addCategoryForm
+        field: name
+        label: カテゴリ名
+        messages:
+          - key: validation.NotNull.addCategoryForm.name
+            kind: 入力の誤り
+            text: カテゴリ名を入力してください
+            source: 必須
+          - key: validation.Size.addCategoryForm.name
+            kind: 入力の誤り
+            text: カテゴリ名は100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.addCategoryForm.name
+            kind: 入力の誤り
+            text: カテゴリ名の書き方が正しくありません
+            source: 形式
+      - form: registerTodoForm
+        field: title
+        label: タイトル
+        messages:
+          - key: validation.NotNull.registerTodoForm.title
+            kind: 入力の誤り
+            text: タイトルを入力してください
+            source: 必須
+          - key: validation.Size.registerTodoForm.title
+            kind: 入力の誤り
+            text: タイトルは100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.registerTodoForm.title
+            kind: 入力の誤り
+            text: タイトルの書き方が正しくありません
+            source: 形式
+      - form: registerTodoForm
+        field: summary
+        label: 概要
+        messages:
+          - key: validation.NotNull.registerTodoForm.summary
+            kind: 入力の誤り
+            text: 概要を入力してください
+            source: 必須
+          - key: validation.Size.registerTodoForm.summary
+            kind: 入力の誤り
+            text: 概要は100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.registerTodoForm.summary
+            kind: 入力の誤り
+            text: 概要の書き方が正しくありません
+            source: 形式
+      - form: registerTodoForm
+        field: tags
+        label: タグ
+        messages:
+          - key: validation.UniqueElements.registerTodoForm.tags
+            kind: 入力の誤り
+            text: タグに同じものを 2 回選べません
+            source: 重なり不可
+      - form: registerTodoForm
+        field: due
+        label: 期限
+        messages:
+          - key: validation.typeMismatch.registerTodoForm.due
+            kind: 入力の誤り
+            text: 期限は年月日で入力してください
+            source: 日付として読めない
+      - form: addTodoCommentForm
+        field: date
+        label: 記録日
+        messages:
+          - key: validation.NotNull.addTodoCommentForm.date
+            kind: 入力の誤り
+            text: 記録日を入力してください
+            source: 必須
+          - key: validation.typeMismatch.addTodoCommentForm.date
+            kind: 入力の誤り
+            text: 記録日は年月日で入力してください
+            source: 日付として読めない
+      - form: addTodoCommentForm
+        field: body
+        label: コメント本文
+        messages:
+          - key: validation.NotNull.addTodoCommentForm.body
+            kind: 入力の誤り
+            text: コメント本文を入力してください
+            source: 必須
+          - key: validation.Size.addTodoCommentForm.body
+            kind: 入力の誤り
+            text: コメント本文は1文字以上で入力してください
+            source: 文字数
+      - form: addTodoTaskForm
+        field: title
+        label: 作業
+        messages:
+          - key: validation.NotNull.addTodoTaskForm.title
+            kind: 入力の誤り
+            text: 作業を入力してください
+            source: 必須
+          - key: validation.Size.addTodoTaskForm.title
+            kind: 入力の誤り
+            text: 作業は100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.addTodoTaskForm.title
+            kind: 入力の誤り
+            text: 作業の書き方が正しくありません
+            source: 形式
+      - form: editTodoForm
+        field: title
+        label: タイトル
+        messages:
+          - key: validation.Size.editTodoForm.title
+            kind: 入力の誤り
+            text: タイトルは100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.editTodoForm.title
+            kind: 入力の誤り
+            text: タイトルの書き方が正しくありません
+            source: 形式
+      - form: editTodoForm
+        field: summary
+        label: 概要
+        messages:
+          - key: validation.Size.editTodoForm.summary
+            kind: 入力の誤り
+            text: 概要は100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.editTodoForm.summary
+            kind: 入力の誤り
+            text: 概要の書き方が正しくありません
+            source: 形式
+      - form: editTodoForm
+        field: tags
+        label: タグ
+        messages:
+          - key: validation.UniqueElements.editTodoForm.tags
+            kind: 入力の誤り
+            text: タグに同じものを 2 回選べません
+            source: 重なり不可
+      - form: editTodoForm
+        field: createdOn
+        label: 作成日
+        messages:
+          - key: validation.typeMismatch.editTodoForm.createdOn
+            kind: 入力の誤り
+            text: 作成日は年月日で入力してください
+            source: 日付として読めない
+      - form: editTodoForm
+        field: dueOn
+        label: 期限
+        messages:
+          - key: validation.typeMismatch.editTodoForm.dueOn
+            kind: 入力の誤り
+            text: 期限は年月日で入力してください
+            source: 日付として読めない
+      - form: editTodoForm
+        field: comments.date
+        label: 日付
+        messages:
+          - key: validation.NotNull.editTodoForm.comments.date
+            kind: 入力の誤り
+            text: 日付を入力してください
+            source: 必須
+          - key: validation.typeMismatch.editTodoForm.comments.date
+            kind: 入力の誤り
+            text: 日付は年月日で入力してください
+            source: 日付として読めない
+      - form: editTodoForm
+        field: comments.body
+        label: コメント本文
+        messages:
+          - key: validation.NotNull.editTodoForm.comments.body
+            kind: 入力の誤り
+            text: コメント本文を入力してください
+            source: 必須
+      - form: suspendTodoForm
+        field: date
+        label: 中断日
+        messages:
+          - key: validation.NotNull.suspendTodoForm.date
+            kind: 入力の誤り
+            text: 中断日を入力してください
+            source: 必須
+          - key: validation.typeMismatch.suspendTodoForm.date
+            kind: 入力の誤り
+            text: 中断日は年月日で入力してください
+            source: 日付として読めない
+      - form: suspendTodoForm
+        field: reason
+        label: 中断理由
+        messages:
+          - key: validation.NotNull.suspendTodoForm.reason
+            kind: 入力の誤り
+            text: 中断理由を入力してください
+            source: 必須
+          - key: validation.Size.suspendTodoForm.reason
+            kind: 入力の誤り
+            text: 中断理由は1文字以上で入力してください
+            source: 文字数
+      - form: suspendTodoForm
+        field: resumeOn
+        label: 再開予定日
+        messages:
+          - key: validation.typeMismatch.suspendTodoForm.resumeOn
+            kind: 入力の誤り
+            text: 再開予定日は年月日で入力してください
+            source: 日付として読めない
+      - form: resumeTodoForm
+        field: date
+        label: 再開日
+        messages:
+          - key: validation.NotNull.resumeTodoForm.date
+            kind: 入力の誤り
+            text: 再開日を入力してください
+            source: 必須
+          - key: validation.typeMismatch.resumeTodoForm.date
+            kind: 入力の誤り
+            text: 再開日は年月日で入力してください
+            source: 日付として読めない
+      - form: completeTodoForm
+        field: date
+        label: 完了日
+        messages:
+          - key: validation.NotNull.completeTodoForm.date
+            kind: 入力の誤り
+            text: 完了日を入力してください
+            source: 必須
+          - key: validation.typeMismatch.completeTodoForm.date
+            kind: 入力の誤り
+            text: 完了日は年月日で入力してください
+            source: 日付として読めない
+      - form: completeTodoForm
+        field: result
+        label: 完了結果
+        messages:
+          - key: validation.NotNull.completeTodoForm.result
+            kind: 入力の誤り
+            text: 完了結果を入力してください
+            source: 必須
+          - key: validation.Size.completeTodoForm.result
+            kind: 入力の誤り
+            text: 完了結果は1文字以上で入力してください
+            source: 文字数
+      - form: cancelTodoForm
+        field: reason
+        label: 中止理由
+        messages:
+          - key: validation.NotNull.cancelTodoForm.reason
+            kind: 入力の誤り
+            text: 中止理由を入力してください
+            source: 必須
+          - key: validation.Size.cancelTodoForm.reason
+            kind: 入力の誤り
+            text: 中止理由は1文字以上で入力してください
+            source: 文字数
+      - form: addTagForm
+        field: name
+        label: タグ名
+        messages:
+          - key: validation.NotNull.addTagForm.name
+            kind: 入力の誤り
+            text: タグ名を入力してください
+            source: 必須
+          - key: validation.Size.addTagForm.name
+            kind: 入力の誤り
+            text: タグ名は100文字以内で入力してください
+            source: 文字数
+          - key: validation.Pattern.addTagForm.name
+            kind: 入力の誤り
+            text: タグ名の書き方が正しくありません
+            source: 形式
+  source:
+    id: rule-messages
+    document: .yde/transforms/design/messages-derived.yaml

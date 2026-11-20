@@ -1,0 +1,10 @@
+id: system-physical-derived-input
+name: '生成入力（導出した設計書: system-physical）'
+rows:
+  idPattern: SYS-physical-derived
+  schemaIds:
+    - system-physical-derived
+columns:
+  - label: document
+    path: document
+    schemaId: system-physical-derived

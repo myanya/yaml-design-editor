@@ -1,0 +1,10 @@
+id: dashboard-flows-input
+name: '生成入力（確定項目: dashboard-flows）'
+rows:
+  idPattern: DOC-dashboard-flows.*
+  schemaIds:
+    - dashboard-flow
+columns:
+  - label: record
+    path: .
+    schemaId: dashboard-flow

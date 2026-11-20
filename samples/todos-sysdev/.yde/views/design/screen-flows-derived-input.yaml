@@ -1,0 +1,10 @@
+id: screen-flows-derived-input
+name: '生成入力（導出した設計書: screen-flows）'
+rows:
+  idPattern: DRV-document-screen-flows.*
+  schemaIds:
+    - system-derived
+columns:
+  - label: record
+    path: record
+    schemaId: system-derived

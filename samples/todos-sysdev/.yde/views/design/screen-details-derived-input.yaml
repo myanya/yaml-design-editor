@@ -1,0 +1,10 @@
+id: screen-details-derived-input
+name: '生成入力（導出した設計書: screen-details）'
+rows:
+  idPattern: DRV-document-screen-details.*
+  schemaIds:
+    - system-derived
+columns:
+  - label: record
+    path: record
+    schemaId: system-derived

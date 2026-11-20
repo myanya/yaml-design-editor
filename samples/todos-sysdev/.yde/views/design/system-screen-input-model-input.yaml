@@ -1,0 +1,10 @@
+id: system-screen-input-model-input
+name: system-screen-input-model-input
+rows:
+  idPattern: SYS-system-screen-input-model
+  schemaIds:
+    - system-screen-input-model
+columns:
+  - label: model
+    path: model
+    schemaId: system-screen-input-model

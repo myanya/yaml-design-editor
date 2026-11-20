@@ -1,0 +1,1873 @@
+id: detail-tables-derived
+name: 詳細設計項目一覧（テーブル）
+description: >-
+  詳細設計の段の項から、テーブル・カラム・索引・外部キーの設計項目を 1 本の一覧にする。持つのは詳細設計にだけ出てくるもの （テーブル名・カラム名・主キーの順と名前・型対応への参照・親のキーと並び順・索引・外部キー）だけで、名称・必須・論理型・初期値・選択肢は
+  導出元（基本設計項目一覧のエンティティ・項目・論理型）を参照でたどって読む（テーブル設計書のビューと DDL のレポート）。 業務モデルの形からテーブルへの写し方（深さによらない）: エンティティ型 → 主のテーブル（入れ子のエンティティは、親の ID
+  と、親の中の位置＝配列なら並び順・マップならキー）・ 配列とマップの項目 → 明細テーブル（親のキー＋並び順かキーが主キー。行の中の配列・マップは、さらに下の明細テーブルで、親への外部キーは複合）・ 名前の有無によらない object（エンティティでない）→
+  埋め込み（中の項目を 親のキー_項目 のカラムに）・要素が名前の無い配列・マップの配列とマップは テーブルにできない形（対応の検査が指摘する）。 テーブルは TBL-テーブル名、カラムは COL-テーブル名.カラム名、索引は IDX-索引名、外部キーは
+  FK-制約名。テーブル名はエンティティ型のスネーク、明細は 親のテーブル名_項目、 カラム名は項目のキー（SQL の予約語は末尾に _）。SQL の型は型対応表（design/detail/sql-types.yaml）の SQL-論理型 を指す。
+  外部キーは、入れ子で持つ親へ 1 つ（親の主キーのカラムの組。親の行を消したら一緒に消す）と、参照のカラムごとに 1 つ（消したときの動きは指定しない）。 索引は、配列の「同じものは 1 度だけ」（親のキーと要素・比べる項目の一意の索引）と、入れ子のエンティティの親の
+  ID（1 件・マップは一意）と、 外部キーのカラム（主キーの先頭のカラムは主キーの索引で足りるので除く）に張る。業務モデルから導けない索引は、人が書く詳細設計項目台帳（design/detail/ledger.yaml）に書く
+scope: business
+stage: detail
+dependsOn:
+  - basic-types
+  - basic-entities
+input:
+  stages:
+    - id: basic
+  entities:
+    $each:
+      $view: basic-model-entities
+    $build:
+      $apply: restored-entity
+      $at: values.record
+output: design/system/physical-derived.yaml
+build:
+  id: SYS-physical-derived
+  document:
+    tables:
+      $group:
+        $concat:
+          - $each: entities
+            $bind: ent
+            $build:
+              id:
+                $format: TBL-{t}
+                $with:
+                  t:
+                    $case:
+                      $copy: id
+                    $as: snake
+              name:
+                $case:
+                  $copy: id
+                $as: snake
+              kind: main
+              source:
+                $format: ENT-{id}
+              parent:
+                $when:
+                  - path: owner.entity
+                    exists: true
+                $then:
+                  $format: TBL-{t}
+                  $with:
+                    t:
+                      $case:
+                        $copy: owner.entity
+                      $as: snake
+              uniques:
+                $when:
+                  - path: owner.entity
+                    exists: true
+                $then:
+                  $apply: owner-uniques
+                  $with:
+                    o:
+                      $copy: owner
+                    b:
+                      $apply: owner-base
+                      $with:
+                        o:
+                          $copy: owner
+                    t:
+                      $case:
+                        $copy: id
+                      $as: snake
+              parentIndexed:
+                $when:
+                  - path: owner.entity
+                    exists: true
+                $then:
+                  $apply: owner-indexed
+                  $with:
+                    b:
+                      $apply: owner-base
+                      $with:
+                        o:
+                          $copy: owner
+              columns:
+                $group:
+                  $concat:
+                    - $each: aspects
+                      $flatten: true
+                      $build:
+                        $each: fields
+                        $flatten: true
+                        $build:
+                          $when:
+                            - path: base
+                              equals: id
+                          $then:
+                            - id:
+                                $format: COL-{t}.{c}
+                                $with:
+                                  t:
+                                    $case:
+                                      $copy: id
+                                      $of: ent
+                                    $as: snake
+                                  c:
+                                    $apply: sql-name
+                                    $with:
+                                      name:
+                                        $copy: key
+                              name:
+                                $apply: sql-name
+                                $with:
+                                  name:
+                                    $copy: key
+                              source:
+                                $format: FLD-{e}.{key}
+                                $with:
+                                  e:
+                                    $copy: id
+                                    $of: ent
+                              sqlType:
+                                $apply: sql-ref
+                              pk: true
+                    - $when:
+                        - path: owner.entity
+                          exists: true
+                      $then:
+                        $concat:
+                          - - id:
+                                $format: COL-{t}.{p}_id
+                                $with:
+                                  t:
+                                    $case:
+                                      $copy: id
+                                    $as: snake
+                                  p:
+                                    $case:
+                                      $copy: owner.entity
+                                    $as: snake
+                              name:
+                                $format: '{p}_id'
+                                $with:
+                                  p:
+                                    $case:
+                                      $copy: owner.entity
+                                    $as: snake
+                              role: parent
+                              label:
+                                $format: '{l[0]}のID'
+                                $with:
+                                  l:
+                                    $each: entities
+                                    $of: model
+                                    $flatten: true
+                                    $build:
+                                      $when:
+                                        - path: id
+                                          equals:
+                                            $copy: owner.entity
+                                            $of: ent
+                                      $then:
+                                        - $copy: label
+                              description: 入れ子で持つ外側のエンティティの行の ID（親のテーブルの主キーを指す）
+                              sqlType:
+                                $format: '{l[0]}'
+                                $with:
+                                  l:
+                                    $each: entities
+                                    $of: model
+                                    $flatten: true
+                                    $build:
+                                      $when:
+                                        - path: id
+                                          equals:
+                                            $copy: owner.entity
+                                            $of: ent
+                                      $then:
+                                        $apply: id-sql-refs
+                              notNull: true
+                              referencesTable:
+                                $format: TBL-{p}
+                                $with:
+                                  p:
+                                    $case:
+                                      $copy: owner.entity
+                                    $as: snake
+                              referencesColumn:
+                                $format: COL-{p}.{c}
+                                $with:
+                                  p:
+                                    $case:
+                                      $copy: owner.entity
+                                    $as: snake
+                                  c:
+                                    $apply: target-id-col
+                                    $with:
+                                      e:
+                                        $copy: owner.entity
+                          - $apply: owner-key
+                            $with:
+                              o:
+                                $copy: owner
+                              b:
+                                $apply: owner-base
+                                $with:
+                                  o:
+                                    $copy: owner
+                              t:
+                                $case:
+                                  $copy: id
+                                $as: snake
+                    - $each: aspects
+                      $flatten: true
+                      $build:
+                        $each: fields
+                        $flatten: true
+                        $build:
+                          $when:
+                            - path: base
+                              notEquals: id
+                          $then:
+                            $apply: cols
+                            $with:
+                              ctx:
+                                table:
+                                  $case:
+                                    $copy: id
+                                    $of: ent
+                                  $as: snake
+                                src:
+                                  $copy: id
+                                  $of: ent
+                                optional: false
+                $by:
+                  $copy: id
+                $apply: column
+          - $each: entities
+            $bind: ent
+            $flatten: true
+            $build:
+              $each: aspects
+              $flatten: true
+              $build:
+                $each: fields
+                $flatten: true
+                $apply: tables
+                $with:
+                  ctx:
+                    table:
+                      $case:
+                        $copy: id
+                        $of: ent
+                      $as: snake
+                    label:
+                      $copy: label
+                      $of: ent
+                    src:
+                      $copy: id
+                      $of: ent
+                    optional: false
+                    keys:
+                      - name:
+                          $format: '{t}_id'
+                          $with:
+                            t:
+                              $case:
+                                $copy: id
+                                $of: ent
+                              $as: snake
+                        ref:
+                          $format: COL-{t}.{c}
+                          $with:
+                            t:
+                              $case:
+                                $copy: id
+                                $of: ent
+                              $as: snake
+                            c:
+                              $apply: target-id-col
+                              $with:
+                                e:
+                                  $copy: id
+                                  $of: ent
+                        sqlType:
+                          $format: '{l[0]}'
+                          $with:
+                            l:
+                              $apply: id-sql-refs
+                              $of: ent
+                        label:
+                          $format: '{e}のID'
+                          $with:
+                            e:
+                              $copy: label
+                              $of: ent
+                        description: 配列・マップを持つエンティティの行の ID（親のテーブルの主キーを指す）
+      $by:
+        $copy: id
+      $bind: tg
+      $build:
+        seq:
+          $number: $position
+          $as: '00'
+        id:
+          $copy: items[0].id
+        name:
+          $copy: items[0].name
+        label:
+          $copy: items[0].label
+        kind:
+          $copy: items[0].kind
+        source:
+          $copy: items[0].source
+        parent:
+          $copy: items[0].parent
+        primaryKeyName:
+          $format: pk_{n}
+          $with:
+            'n':
+              $copy: items[0].name
+        columns:
+          $copy: items[0].columns
+        indexes:
+          $group:
+            $concat:
+              - $each: items[0].uniques
+                $build:
+                  id:
+                    $format: IDX-{name}
+                  name:
+                    $copy: name
+                  unique: true
+                  columns:
+                    $each: columns
+                    $build:
+                      column:
+                        $copy: .
+                  source:
+                    $copy: source
+              - $each: items[0].columns
+                $build:
+                  $when:
+                    - path: role
+                      equals: parent
+                    - path: primaryKey
+                      exists: false
+                    - of: tg
+                      path: items[0].parentIndexed
+                      exists: false
+                  $then:
+                    id:
+                      $format: IDX-ix_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                    name:
+                      $format: ix_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                    columns:
+                      - column:
+                          $copy: id
+                    source:
+                      $format: FK-fk_{t}_{p}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                        p:
+                          $value:
+                            extract:
+                              - of: tg
+                                path: items[0].parent
+                              - ^TBL-(.+)$
+              - $each: items[0].columns
+                $build:
+                  $when:
+                    - path: referencesTable
+                      exists: true
+                    - or:
+                        - path: role
+                          exists: false
+                        - path: role
+                          notEquals: parent
+                    - or:
+                        - path: primaryKey
+                          exists: false
+                        - path: primaryKey
+                          notEquals: 1
+                  $then:
+                    id:
+                      $format: IDX-ix_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                    name:
+                      $format: ix_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                    columns:
+                      - column:
+                          $copy: id
+                    source:
+                      $format: FK-fk_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+          $by:
+            $copy: id
+          $build:
+            seq:
+              $number: $position
+              $as: '00'
+            id:
+              $copy: items[0].id
+            name:
+              $copy: items[0].name
+            table:
+              $copy: items[0].id
+              $of: tg
+            unique:
+              $copy: items[0].unique
+            columns:
+              $copy: items[0].columns
+            source:
+              $copy: items[0].source
+        foreignKeys:
+          $group:
+            $concat:
+              - $when:
+                  - path: items[0].parent
+                    exists: true
+                $then:
+                  - id:
+                      $format: FK-fk_{t}_{p}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                        p:
+                          $value:
+                            extract:
+                              - path: items[0].parent
+                              - ^TBL-(.+)$
+                    name:
+                      $format: fk_{t}_{p}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                        p:
+                          $value:
+                            extract:
+                              - path: items[0].parent
+                              - ^TBL-(.+)$
+                    columns:
+                      $each: items[0].columns
+                      $build:
+                        $when:
+                          - path: role
+                            equals: parent
+                        $then:
+                          $copy: id
+                    referencesTable:
+                      $copy: items[0].parent
+                    onDelete: cascade
+              - $each: items[0].columns
+                $build:
+                  $when:
+                    - path: referencesTable
+                      exists: true
+                    - or:
+                        - path: role
+                          exists: false
+                        - path: role
+                          notEquals: parent
+                  $then:
+                    id:
+                      $format: FK-fk_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                    name:
+                      $format: fk_{t}_{name}
+                      $with:
+                        t:
+                          $copy: items[0].name
+                          $of: tg
+                    columns:
+                      - $copy: id
+                    referencesTable:
+                      $copy: referencesTable
+          $by:
+            $copy: id
+          $build:
+            seq:
+              $number: $position
+              $as: '00'
+            id:
+              $copy: items[0].id
+            name:
+              $copy: items[0].name
+            columns:
+              $copy: items[0].columns
+            referencesTable:
+              $copy: items[0].referencesTable
+            onDelete:
+              $copy: items[0].onDelete
+rules:
+  - id: restored-entity
+    build:
+      id:
+        $value:
+          extract:
+            - path: id
+            - ^ENT-(.*)$
+      label:
+        $copy: label
+      description:
+        $copy: description
+      numbering:
+        $copy: numbering
+      owner:
+        $when:
+          - path: parent
+            exists: true
+        $then:
+          entity:
+            $value:
+              extract:
+                - path: parent
+                - ^ENT-(.*)$
+          field:
+            $value:
+              extract:
+                - path: parentField
+                - \.([^.]*)$
+      aspects:
+        - schema:
+            $copy: documents[0]
+          fields:
+            $each: items
+            $apply: restored-field
+  - id: restored-type
+    with:
+      - ref
+    build:
+      $apply: restored-first
+      $with:
+        found:
+          $each:
+            $view: basic-model-types
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              - $copy: values.record
+  - id: restored-first
+    with:
+      - found
+    build:
+      $copy: '[0]'
+      $of: found
+  - id: column
+    build:
+      seq:
+        $number: $position
+        $as: '00'
+      id:
+        $copy: items[0].id
+      name:
+        $copy: items[0].name
+      role:
+        $copy: items[0].role
+      label:
+        $copy: items[0].label
+      description:
+        $copy: items[0].description
+      source:
+        $copy: items[0].source
+      sqlType:
+        $copy: items[0].sqlType
+      notNull:
+        $copy: items[0].notNull
+      primaryKey:
+        $when:
+          - path: items[0].pk
+            equals: true
+        $then:
+          $number: $position
+      referencesTable:
+        $copy: items[0].referencesTable
+      referencesColumn:
+        $copy: items[0].referencesColumn
+  - id: cols
+    with:
+      - ctx
+    when:
+      - or:
+          - path: base
+            oneOf:
+              - array
+              - map
+          - path: entity
+            exists: true
+    build: []
+  - id: cols
+    with:
+      - ctx
+    when:
+      - path: base
+        equals: object
+    build:
+      $each: fields
+      $flatten: true
+      $apply: cols
+      $with:
+        ctx:
+          $apply: embed-ctx
+          $with:
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: cols
+    with:
+      - ctx
+    build:
+      - id:
+          $format: COL-{t}.{c}
+          $with:
+            t:
+              $copy: table
+              $of: ctx
+            c:
+              $apply: col-name
+              $with:
+                ctx:
+                  $copy: .
+                  $of: ctx
+        name:
+          $apply: col-name
+          $with:
+            ctx:
+              $copy: .
+              $of: ctx
+        label:
+          $when:
+            - of: ctx
+              path: labelPrefix
+              exists: true
+          $then:
+            $format: '{p}{l}'
+            $with:
+              p:
+                $copy: labelPrefix
+                $of: ctx
+              l:
+                $first:
+                  - $copy: label
+                  - $copy: key
+        source:
+          $copy: id
+        sqlType:
+          $apply: sql-ref
+        notNull:
+          $when:
+            - of: ctx
+              path: optional
+              equals: true
+            - path: required
+              equals: true
+          $then: false
+        referencesTable:
+          $when:
+            - path: base
+              equals: ref
+            - path: target
+              exists: true
+          $then:
+            $format: TBL-{r}
+            $with:
+              r:
+                $case:
+                  $copy: target
+                $as: snake
+        referencesColumn:
+          $when:
+            - path: base
+              equals: ref
+            - path: target
+              exists: true
+          $then:
+            $format: COL-{r}.{c}
+            $with:
+              r:
+                $case:
+                  $copy: target
+                $as: snake
+              c:
+                $apply: target-id-col
+                $with:
+                  e:
+                    $copy: target
+  - id: embed-ctx
+    with:
+      - ctx
+    build:
+      table:
+        $copy: table
+        $of: ctx
+      label:
+        $copy: label
+        $of: ctx
+      keys:
+        $copy: keys
+        $of: ctx
+      prefix:
+        $first:
+          - $format: '{p}{key}_'
+            $with:
+              p:
+                $copy: prefix
+                $of: ctx
+          - $format: '{key}_'
+      labelPrefix:
+        $first:
+          - $format: '{p}{l}の'
+            $with:
+              p:
+                $copy: labelPrefix
+                $of: ctx
+              l:
+                $first:
+                  - $copy: label
+                  - $copy: key
+          - $format: '{l}の'
+            $with:
+              l:
+                $first:
+                  - $copy: label
+                  - $copy: key
+      src:
+        $first:
+          - $when:
+              - path: type
+                contains: '#'
+            $then:
+              $apply: typ-key
+          - $format: '{s}.{key}'
+            $with:
+              s:
+                $copy: src
+                $of: ctx
+      optional:
+        $first:
+          - $when:
+              - path: required
+                equals: true
+            $then:
+              $copy: optional
+              $of: ctx
+          - true
+  - id: col-name
+    with:
+      - ctx
+    build:
+      $apply: sql-name
+      $with:
+        name:
+          $first:
+            - $format: '{p}{key}'
+              $with:
+                p:
+                  $copy: prefix
+                  $of: ctx
+            - $copy: key
+  - id: tables
+    with:
+      - ctx
+    when:
+      - path: base
+        equals: array
+    build:
+      $apply: detail-table
+      $at: item
+      $with:
+        ctx:
+          $copy: .
+          $of: ctx
+        field:
+          $apply: field-info
+          $with:
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: tables
+    with:
+      - ctx
+    when:
+      - path: base
+        equals: map
+    build:
+      $apply: detail-table
+      $at: value
+      $with:
+        ctx:
+          $copy: .
+          $of: ctx
+        field:
+          $apply: field-info
+          $with:
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: tables
+    with:
+      - ctx
+    when:
+      - path: base
+        equals: object
+      - path: entity
+        exists: false
+    build:
+      $each: fields
+      $flatten: true
+      $apply: tables
+      $with:
+        ctx:
+          $apply: embed-ctx
+          $with:
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: tables
+    with:
+      - ctx
+    build: []
+  - id: field-info
+    with:
+      - ctx
+    build:
+      key:
+        $copy: key
+      name:
+        $first:
+          - $format: '{p}{key}'
+            $with:
+              p:
+                $copy: prefix
+                $of: ctx
+          - $copy: key
+      labelName:
+        $first:
+          - $format: '{p}{l}'
+            $with:
+              p:
+                $copy: labelPrefix
+                $of: ctx
+              l:
+                $first:
+                  - $copy: label
+                  - $copy: key
+          - $first:
+              - $copy: label
+              - $copy: key
+      collection:
+        $copy: base
+      unique:
+        $copy: unique
+      source:
+        $copy: id
+      element:
+        $apply: sql-name
+        $with:
+          name:
+            $copy: key
+  - id: detail-table
+    with:
+      - ctx
+      - field
+    when:
+      - or:
+          - path: entity
+            exists: true
+          - path: base
+            oneOf:
+              - array
+              - map
+    build: []
+  - id: detail-table
+    with:
+      - ctx
+      - field
+    build:
+      $concat:
+        - - id:
+              $format: TBL-{t}_{n}
+              $with:
+                t:
+                  $copy: table
+                  $of: ctx
+                'n':
+                  $copy: name
+                  $of: field
+            name:
+              $format: '{t}_{n}'
+              $with:
+                t:
+                  $copy: table
+                  $of: ctx
+                'n':
+                  $copy: name
+                  $of: field
+            label:
+              $format: '{t}の{n}'
+              $with:
+                t:
+                  $copy: label
+                  $of: ctx
+                'n':
+                  $copy: labelName
+                  $of: field
+            kind: detail
+            source:
+              $copy: source
+              $of: field
+            parent:
+              $format: TBL-{t}
+              $with:
+                t:
+                  $copy: table
+                  $of: ctx
+            uniques:
+              $apply: detail-uniques
+              $with:
+                ctx:
+                  $copy: .
+                  $of: ctx
+                field:
+                  $copy: .
+                  $of: field
+            columns:
+              $group:
+                $concat:
+                  - $each: keys
+                    $of: ctx
+                    $build:
+                      id:
+                        $format: COL-{t}_{n}.{name}
+                        $with:
+                          t:
+                            $copy: table
+                            $of: ctx
+                          'n':
+                            $copy: name
+                            $of: field
+                      name:
+                        $copy: name
+                      role: parent
+                      label:
+                        $copy: label
+                      description:
+                        $copy: description
+                      sqlType:
+                        $copy: sqlType
+                      notNull: true
+                      pk: true
+                      referencesTable:
+                        $format: TBL-{t}
+                        $with:
+                          t:
+                            $copy: table
+                            $of: ctx
+                      referencesColumn:
+                        $copy: ref
+                  - - $when:
+                        - of: field
+                          path: collection
+                          equals: array
+                      $then:
+                        id:
+                          $format: COL-{t}_{n}.seq
+                          $with:
+                            t:
+                              $copy: table
+                              $of: ctx
+                            'n':
+                              $copy: name
+                              $of: field
+                        name: seq
+                        role: seq
+                        label: 並び順
+                        description: 業務モデルの配列の中の順（1 から）
+                        sqlType: SQL-seq
+                        notNull: true
+                        pk: true
+                    - $when:
+                        - of: field
+                          path: collection
+                          equals: map
+                      $then:
+                        id:
+                          $format: COL-{t}_{n}.{n}_key
+                          $with:
+                            t:
+                              $copy: table
+                              $of: ctx
+                            'n':
+                              $copy: name
+                              $of: field
+                        name:
+                          $format: '{n}_key'
+                          $with:
+                            'n':
+                              $copy: name
+                              $of: field
+                        role: key
+                        label:
+                          $format: '{n}のキー'
+                          $with:
+                            'n':
+                              $copy: labelName
+                              $of: field
+                        description: 業務モデルのマップのキー
+                        sqlType: SQL-key
+                        notNull: true
+                        pk: true
+                  - $apply: elem-cols
+                    $with:
+                      ctx:
+                        $apply: row-ctx
+                        $with:
+                          ctx:
+                            $copy: .
+                            $of: ctx
+                          field:
+                            $copy: .
+                            $of: field
+                      field:
+                        $copy: .
+                        $of: field
+              $by:
+                $copy: id
+              $apply: column
+        - $when:
+            - path: base
+              equals: object
+          $then:
+            $each: fields
+            $flatten: true
+            $apply: tables
+            $with:
+              ctx:
+                $apply: row-ctx
+                $with:
+                  ctx:
+                    $copy: .
+                    $of: ctx
+                  field:
+                    $copy: .
+                    $of: field
+  - id: row-ctx
+    with:
+      - ctx
+      - field
+    build:
+      table:
+        $format: '{t}_{n}'
+        $with:
+          t:
+            $copy: table
+            $of: ctx
+          'n':
+            $copy: name
+            $of: field
+      label:
+        $format: '{t}の{n}'
+        $with:
+          t:
+            $copy: label
+            $of: ctx
+          'n':
+            $copy: labelName
+            $of: field
+      src:
+        $first:
+          - $when:
+              - path: type
+                contains: '#'
+            $then:
+              $apply: typ-key
+          - $value:
+              extract:
+                - of: field
+                  path: source
+                - ^FLD-(.+)$
+      optional: false
+      keys:
+        $concat:
+          - $each: keys
+            $of: ctx
+            $build:
+              name:
+                $copy: name
+              ref:
+                $format: COL-{t}_{n}.{c}
+                $with:
+                  t:
+                    $copy: table
+                    $of: ctx
+                  'n':
+                    $copy: name
+                    $of: field
+                  c:
+                    $copy: name
+              sqlType:
+                $copy: sqlType
+              label:
+                $copy: label
+              description:
+                $copy: description
+          - - $when:
+                - of: field
+                  path: collection
+                  equals: array
+              $then:
+                name:
+                  $format: '{n}_seq'
+                  $with:
+                    'n':
+                      $copy: name
+                      $of: field
+                ref:
+                  $format: COL-{t}_{n}.seq
+                  $with:
+                    t:
+                      $copy: table
+                      $of: ctx
+                    'n':
+                      $copy: name
+                      $of: field
+                sqlType: SQL-seq
+                label:
+                  $format: '{n}の並び順'
+                  $with:
+                    'n':
+                      $copy: labelName
+                      $of: field
+                description: 親の明細テーブルの行の並び順（親のテーブルの主キーを指す）
+            - $when:
+                - of: field
+                  path: collection
+                  equals: map
+              $then:
+                name:
+                  $format: '{n}_key'
+                  $with:
+                    'n':
+                      $copy: name
+                      $of: field
+                ref:
+                  $format: COL-{t}_{n}.{n}_key
+                  $with:
+                    t:
+                      $copy: table
+                      $of: ctx
+                    'n':
+                      $copy: name
+                      $of: field
+                sqlType: SQL-key
+                label:
+                  $format: '{n}のキー'
+                  $with:
+                    'n':
+                      $copy: labelName
+                      $of: field
+                description: 親の明細テーブルの行のキー（親のテーブルの主キーを指す）
+  - id: elem-cols
+    with:
+      - ctx
+      - field
+    when:
+      - path: base
+        equals: object
+    build:
+      $each: fields
+      $flatten: true
+      $apply: cols
+      $with:
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: elem-cols
+    with:
+      - ctx
+      - field
+    when:
+      - path: base
+        equals: ref
+    build:
+      - id:
+          $format: COL-{t}.{r}_id
+          $with:
+            t:
+              $copy: table
+              $of: ctx
+            r:
+              $case:
+                $copy: target
+              $as: snake
+        name:
+          $format: '{r}_id'
+          $with:
+            r:
+              $case:
+                $copy: target
+              $as: snake
+        role: element
+        source:
+          $copy: source
+          $of: field
+        sqlType:
+          $apply: sql-ref
+        notNull: true
+        referencesTable:
+          $format: TBL-{r}
+          $with:
+            r:
+              $case:
+                $copy: target
+              $as: snake
+        referencesColumn:
+          $format: COL-{r}.{c}
+          $with:
+            r:
+              $case:
+                $copy: target
+              $as: snake
+            c:
+              $apply: target-id-col
+              $with:
+                e:
+                  $copy: target
+  - id: elem-cols
+    with:
+      - ctx
+      - field
+    build:
+      - id:
+          $format: COL-{t}.{c}
+          $with:
+            t:
+              $copy: table
+              $of: ctx
+            c:
+              $copy: element
+              $of: field
+        name:
+          $copy: element
+          $of: field
+        role: element
+        source:
+          $copy: source
+          $of: field
+        sqlType:
+          $apply: sql-ref
+        notNull: true
+  - id: detail-uniques
+    with:
+      - ctx
+      - field
+    when:
+      - of: field
+        path: unique
+        equals: true
+      - path: base
+        notEquals: object
+    build:
+      - name:
+          $format: ux_{t}_{n}_{c}
+          $with:
+            t:
+              $copy: table
+              $of: ctx
+            'n':
+              $copy: name
+              $of: field
+            c:
+              $apply: elem-col-name
+              $with:
+                field:
+                  $copy: .
+                  $of: field
+        columns:
+          $concat:
+            - $each: keys
+              $of: ctx
+              $build:
+                $format: COL-{t}_{n}.{name}
+                $with:
+                  t:
+                    $copy: table
+                    $of: ctx
+                  'n':
+                    $copy: name
+                    $of: field
+            - - $format: COL-{t}_{n}.{c}
+                $with:
+                  t:
+                    $copy: table
+                    $of: ctx
+                  'n':
+                    $copy: name
+                    $of: field
+                  c:
+                    $apply: elem-col-name
+                    $with:
+                      field:
+                        $copy: .
+                        $of: field
+        source:
+          $copy: source
+          $of: field
+  - id: detail-uniques
+    with:
+      - ctx
+      - field
+    when:
+      - of: field
+        path: unique
+        exists: true
+      - path: base
+        equals: object
+    build:
+      - name:
+          $format: ux_{t}_{n}_{c}
+          $with:
+            t:
+              $copy: table
+              $of: ctx
+            'n':
+              $copy: name
+              $of: field
+            c:
+              $first:
+                - $copy: unique[0]
+                  $of: field
+                - $copy: unique
+                  $of: field
+        columns:
+          $concat:
+            - $each: keys
+              $of: ctx
+              $build:
+                $format: COL-{t}_{n}.{name}
+                $with:
+                  t:
+                    $copy: table
+                    $of: ctx
+                  'n':
+                    $copy: name
+                    $of: field
+            - $first:
+                - $each: unique
+                  $of: field
+                  $build:
+                    $format: COL-{t}_{n}.{c}
+                    $with:
+                      t:
+                        $copy: table
+                        $of: ctx
+                      'n':
+                        $copy: name
+                        $of: field
+                      c:
+                        $apply: sql-name
+                        $with:
+                          name:
+                            $copy: .
+                - - $format: COL-{t}_{n}.{c}
+                    $with:
+                      t:
+                        $copy: table
+                        $of: ctx
+                      'n':
+                        $copy: name
+                        $of: field
+                      c:
+                        $apply: sql-name
+                        $with:
+                          name:
+                            $copy: unique
+                            $of: field
+        source:
+          $copy: source
+          $of: field
+  - id: detail-uniques
+    with:
+      - ctx
+      - field
+    build: []
+  - id: elem-col-name
+    with:
+      - field
+    when:
+      - path: base
+        equals: ref
+    build:
+      $format: '{r}_id'
+      $with:
+        r:
+          $case:
+            $copy: target
+          $as: snake
+  - id: elem-col-name
+    with:
+      - field
+    build:
+      $copy: element
+      $of: field
+  - id: owner-base
+    with:
+      - o
+    build:
+      $format: '{b[0]}'
+      $with:
+        b:
+          $each: entities
+          $of: model
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: entity
+                  $of: o
+            $then:
+              $each: aspects
+              $flatten: true
+              $build:
+                $each: fields
+                $flatten: true
+                $build:
+                  $when:
+                    - path: key
+                      equals:
+                        $copy: field
+                        $of: o
+                  $then:
+                    - $copy: base
+  - id: owner-key
+    with:
+      - o
+      - b
+      - t
+    when:
+      - of: b
+        path: .
+        equals: array
+    build:
+      - id:
+          $format: COL-{t}.seq
+          $with:
+            t:
+              $copy: .
+              $of: t
+        name: seq
+        role: seq
+        label: 並び順
+        description: 業務モデルの配列の中の順（1 から）
+        sqlType: SQL-seq
+        notNull: true
+  - id: owner-key
+    with:
+      - o
+      - b
+      - t
+    when:
+      - of: b
+        path: .
+        equals: map
+    build:
+      - id:
+          $format: COL-{t}.{f}_key
+          $with:
+            t:
+              $copy: .
+              $of: t
+            f:
+              $copy: field
+              $of: o
+        name:
+          $format: '{f}_key'
+          $with:
+            f:
+              $copy: field
+              $of: o
+        role: key
+        label: キー
+        description: 業務モデルのマップのキー
+        sqlType: SQL-key
+        notNull: true
+  - id: owner-key
+    with:
+      - o
+      - b
+      - t
+    build: []
+  - id: owner-uniques
+    with:
+      - o
+      - b
+      - t
+    when:
+      - of: b
+        path: .
+        equals: map
+    build:
+      - name:
+          $format: ux_{t}_{p}_id
+          $with:
+            t:
+              $copy: .
+              $of: t
+            p:
+              $case:
+                $copy: entity
+                $of: o
+              $as: snake
+        columns:
+          - $format: COL-{t}.{p}_id
+            $with:
+              t:
+                $copy: .
+                $of: t
+              p:
+                $case:
+                  $copy: entity
+                  $of: o
+                $as: snake
+          - $format: COL-{t}.{f}_key
+            $with:
+              t:
+                $copy: .
+                $of: t
+              f:
+                $copy: field
+                $of: o
+        source:
+          $format: FLD-{e}.{f}
+          $with:
+            e:
+              $copy: entity
+              $of: o
+            f:
+              $copy: field
+              $of: o
+  - id: owner-uniques
+    with:
+      - o
+      - b
+      - t
+    when:
+      - of: b
+        path: .
+        equals: object
+    build:
+      - name:
+          $format: ux_{t}_{p}_id
+          $with:
+            t:
+              $copy: .
+              $of: t
+            p:
+              $case:
+                $copy: entity
+                $of: o
+              $as: snake
+        columns:
+          - $format: COL-{t}.{p}_id
+            $with:
+              t:
+                $copy: .
+                $of: t
+              p:
+                $case:
+                  $copy: entity
+                  $of: o
+                $as: snake
+        source:
+          $format: FLD-{e}.{f}
+          $with:
+            e:
+              $copy: entity
+              $of: o
+            f:
+              $copy: field
+              $of: o
+  - id: owner-uniques
+    with:
+      - o
+      - b
+      - t
+    build: []
+  - id: owner-indexed
+    with:
+      - b
+    when:
+      - of: b
+        path: .
+        oneOf:
+          - map
+          - object
+    build: true
+  - id: target-id-col
+    with:
+      - e
+    build:
+      $format: '{c[0]}'
+      $with:
+        c:
+          $each: entities
+          $of: model
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: e
+            $then:
+              $each: aspects
+              $flatten: true
+              $build:
+                $each: fields
+                $flatten: true
+                $build:
+                  $when:
+                    - path: base
+                      equals: id
+                  $then:
+                    - $apply: sql-name
+                      $with:
+                        name:
+                          $copy: key
+  - id: id-sql-refs
+    build:
+      $each: aspects
+      $flatten: true
+      $build:
+        $each: fields
+        $build:
+          $when:
+            - path: base
+              equals: id
+          $then:
+            $apply: sql-ref
+  - id: typ-key
+    build:
+      $first:
+        - $format: '{m}.{n}'
+          $with:
+            m:
+              $value:
+                extract:
+                  - path: type
+                  - ^([^#]+)#
+            'n':
+              $value:
+                extract:
+                  - path: type
+                  - '#(.+)$'
+        - $copy: type
+  - id: sql-ref
+    build:
+      $format: SQL-{k}
+      $with:
+        k:
+          $apply: typ-key
+  - id: sql-name
+    with:
+      - name
+    build:
+      $map:
+        $copy: .
+        $of: name
+      $using:
+        all: all_
+        and: and_
+        any: any_
+        array: array_
+        as: as_
+        asymmetric: asymmetric_
+        authorization: authorization_
+        between: between_
+        both: both_
+        case: case_
+        cast: cast_
+        check: check_
+        constraint: constraint_
+        cross: cross_
+        current_catalog: current_catalog_
+        current_date: current_date_
+        current_path: current_path_
+        current_role: current_role_
+        current_schema: current_schema_
+        current_time: current_time_
+        current_timestamp: current_timestamp_
+        current_user: current_user_
+        day: day_
+        default: default_
+        distinct: distinct_
+        else: else_
+        end: end_
+        except: except_
+        exists: exists_
+        'false': false_
+        fetch: fetch_
+        for: for_
+        foreign: foreign_
+        from: from_
+        full: full_
+        group: group_
+        groups: groups_
+        having: having_
+        hour: hour_
+        if: if_
+        ilike: ilike_
+        in: in_
+        inner: inner_
+        intersect: intersect_
+        interval: interval_
+        is: is_
+        join: join_
+        key: key_
+        leading: leading_
+        left: left_
+        like: like_
+        limit: limit_
+        localtime: localtime_
+        localtimestamp: localtimestamp_
+        minus: minus_
+        minute: minute_
+        month: month_
+        natural: natural_
+        not: not_
+        'null': null_
+        offset: offset_
+        'on': on_
+        or: or_
+        order: order_
+        over: over_
+        partition: partition_
+        primary: primary_
+        qualify: qualify_
+        range: range_
+        regexp: regexp_
+        right: right_
+        row: row_
+        rownum: rownum_
+        rows: rows_
+        second: second_
+        select: select_
+        session_user: session_user_
+        set: set_
+        some: some_
+        symmetric: symmetric_
+        system_user: system_user_
+        table: table_
+        to: to_
+        top: top_
+        trailing: trailing_
+        'true': true_
+        uescape: uescape_
+        union: union_
+        unique: unique_
+        unknown: unknown_
+        user: user_
+        using: using_
+        value: value_
+        values: values_
+        when: when_
+        where: where_
+        window: window_
+        with: with_
+        year: year_
+  - id: restored-field
+    build:
+      $apply: restored-field-body
+      $with:
+        common:
+          $apply: restored-type
+          $with:
+            ref:
+              $copy: type
+  - id: restored-field-body
+    with:
+      - common
+    build:
+      key:
+        $copy: key
+      label:
+        $copy: label
+      base:
+        $copy: base
+      maxLength:
+        $copy: maxLength
+      minLength:
+        $copy: minLength
+      pattern:
+        $copy: pattern
+      format:
+        $copy: format
+      min:
+        $copy: min
+      max:
+        $copy: max
+      multiline:
+        $copy: multiline
+      values:
+        $copy: values
+      required:
+        $copy: required
+      default:
+        $copy: default
+      auto:
+        $copy: auto
+      unique:
+        $copy: unique
+      description:
+        $copy: description
+      type:
+        $first:
+          - $copy: name
+            $of: common
+          - $copy: base
+      entity:
+        $value:
+          extract:
+            - path: entity
+            - ^ENT-(.*)$
+      target:
+        $value:
+          extract:
+            - path: reference.entities[0]
+            - ^ENT-(.*)$
+      fields:
+        $each: fields
+        $apply: restored-field
+      item:
+        $apply: restored-field
+        $at: item
+      value:
+        $apply: restored-field
+        $at: value
+      id:
+        $copy: id

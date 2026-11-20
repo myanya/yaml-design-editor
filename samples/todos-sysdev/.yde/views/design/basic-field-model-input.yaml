@@ -1,6 +1,8 @@
 id: basic-field-model-input
 rows:
   idPattern: CMP-field-model
+  schemaIds:
+    - basic-field-model
 columns:
   - label: model
     path: model

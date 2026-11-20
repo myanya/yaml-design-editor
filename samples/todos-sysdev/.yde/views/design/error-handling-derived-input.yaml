@@ -1,0 +1,10 @@
+id: error-handling-derived-input
+name: '生成入力（導出した設計書: error-handling）'
+rows:
+  idPattern: DRV-document-error-handling.*
+  schemaIds:
+    - system-derived
+columns:
+  - label: record
+    path: record
+    schemaId: system-derived

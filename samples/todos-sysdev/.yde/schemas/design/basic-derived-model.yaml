@@ -6,13 +6,24 @@ definitions:
   制限:
     type: basic-design-values#属性
     fields:
-      - { key: target, label: 導出した参照先, type: any, description: 業務モデルの項のまま、一つの名前か複数の名前を保持する }
+      - key: target
+        label: 導出した参照先
+        type: any
+        description: 業務モデルの項のまま、一つの名前か複数の名前を保持する
   組込み型:
     type: 制限
     fields:
-      - { key: name, label: 型の名前, type: string, required: true }
-      - { key: base, type: basic-design-values#基底, required: true }
-      - { key: builtin, label: 組込み, type: boolean, required: true }
+      - key: name
+        label: 型の名前
+        type: string
+        required: true
+      - key: base
+        type: basic-design-values#基底
+        required: true
+      - key: builtin
+        label: 組込み
+        type: boolean
+        required: true
   値:
     type: 制限
     fields:
@@ -115,38 +126,72 @@ definitions:
       - key: builtinType
         label: 組込み型の性質
         type: 組込み型
+      - key: viewDefinitions
+        type: array
+        item:
+          type: any
   項目:
     type: 値
     fields:
-      - { key: key, type: string, required: true }
+      - key: key
+        type: string
+        required: true
   型:
     type: 値
     fields:
-      - { key: name, label: 型の名前, type: string, required: true }
+      - key: name
+        label: 型の名前
+        type: string
+        required: true
   保有元:
     type: object
     unknownFields: error
     fields:
-      - { key: entity, label: エンティティ, type: string, required: true }
-      - { key: field, label: 項目, type: string, required: true }
+      - key: entity
+        label: エンティティ
+        type: string
+        required: true
+      - key: field
+        label: 項目
+        type: string
+        required: true
   エンティティ:
     type: object
     unknownFields: error
     fields:
-      - { key: id, label: 業務のエンティティ名, type: string, required: true }
-      - { key: label, label: 名称, type: string }
-      - { key: description, label: 説明, type: text }
-      - { key: aggregate, label: 集約, type: string }
-      - { key: title, label: 見出しの項目, type: string }
-      - { key: owner, label: 保有元, type: 保有元 }
+      - key: id
+        label: 業務のエンティティ名
+        type: string
+        required: true
+      - key: label
+        label: 名称
+        type: string
+      - key: description
+        label: 説明
+        type: text
+      - key: aggregate
+        label: 集約
+        type: string
+      - key: title
+        label: 見出しの項目
+        type: string
+      - key: owner
+        label: 保有元
+        type: 保有元
       - key: numbering
         label: 採番
         type: object
         unknownFields: error
         fields:
-          - { key: path, label: ID を入れる場所, type: string }
-          - { key: prefix, label: 接頭辞, type: any }
-          - { key: digits, label: 桁, type: int }
+          - key: path
+            label: ID を入れる場所
+            type: string
+          - key: prefix
+            label: 接頭辞
+            type: any
+          - key: digits
+            label: 桁
+            type: int
       - key: aspects
         label: 側面
         type: array
@@ -155,12 +200,31 @@ definitions:
           type: object
           unknownFields: error
           fields:
-            - { key: schema, label: スキーマ, type: string, required: true }
-            - { key: defines, label: 定義の出現, type: boolean, required: true }
-            - { key: at, label: 場所, type: string, description: 空文字は文書のルートを表す }
-            - { key: recursiveType, label: 再帰先の型, type: string, description: 同じ型へ戻った最初の側面。それより下の繰り返しは型への参照で表す }
-            - { key: owner, label: 保有元, type: 保有元 }
-            - { key: fields, label: 項目, type: array, item: { type: 項目 }, required: true }
+            - key: schema
+              label: スキーマ
+              type: string
+              required: true
+            - key: defines
+              label: 定義の出現
+              type: boolean
+              required: true
+            - key: at
+              label: 場所
+              type: string
+              description: 空文字は文書のルートを表す
+            - key: recursiveType
+              label: 再帰先の型
+              type: string
+              description: 同じ型へ戻った最初の側面。それより下の繰り返しは型への参照で表す
+            - key: owner
+              label: 保有元
+              type: 保有元
+            - key: fields
+              label: 項目
+              type: array
+              item:
+                type: 項目
+              required: true
   モデル:
     type: object
     unknownFields: error
@@ -222,3 +286,7 @@ definitions:
       - key: reach
         label: 閲覧する範囲
         type: any
+      - key: viewDefinitions
+        type: array
+        item:
+          type: any

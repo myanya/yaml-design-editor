@@ -1,0 +1,579 @@
+# 生成物（system-access-bindings）: 手で直さず、業務モデルか生成の定義（design/system-access-bindings.yaml）を直して作り直します（CLI generate）。
+id: SYS-system-access-bindings
+bindings:
+  - before: CategoryMapper.findDetail
+    after: CategoryMapper.findDetail
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.findDetail の次
+    after: CategoryMapper.findDetail の次
+    roles:
+      - seq
+  - before: CategoryMapper.selectAll
+    after: CategoryMapper.selectAll
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.selectAll の次
+    after: CategoryMapper.selectAll の次
+    roles:
+      - seq
+  - before: CategoryMapper.selectTodoDashboardCategories
+    after: CategoryMapper.selectTodoDashboardCategories
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.selectTodoDashboardCategories の次
+    after: CategoryMapper.selectTodoDashboardCategories の次
+    roles:
+      - seq
+  - before: CategoryMapper.countTodoDashboardCategories
+    after: CategoryMapper.countTodoDashboardCategories
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.countTodoDashboardCategories の次
+    after: CategoryMapper.countTodoDashboardCategories の次
+    roles:
+      - seq
+  - before: CategoryMapper.selectTodoDashboardCategoriesMaster
+    after: CategoryMapper.selectTodoDashboardCategoriesMaster
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.selectTodoDashboardCategoriesMaster の次
+    after: CategoryMapper.selectTodoDashboardCategoriesMaster の次
+    roles:
+      - seq
+  - before: CategoryMapper.countTodoDashboardCategoriesMaster
+    after: CategoryMapper.countTodoDashboardCategoriesMaster
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.countTodoDashboardCategoriesMaster の次
+    after: CategoryMapper.countTodoDashboardCategoriesMaster の次
+    roles:
+      - seq
+  - before: CategoryMapper.insert
+    after: CategoryMapper.insert
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.insert の次
+    after: CategoryMapper.insert の次
+    roles:
+      - seq
+  - before: CategoryMapper.maxId
+    after: CategoryMapper.maxId
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: CategoryMapper.maxId の次
+    after: CategoryMapper.maxId の次
+    roles:
+      - seq
+  - before: TagMapper.findDetail
+    after: TagMapper.findDetail
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.findDetail の次
+    after: TagMapper.findDetail の次
+    roles:
+      - seq
+  - before: TagMapper.selectAll
+    after: TagMapper.selectAll
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.selectAll の次
+    after: TagMapper.selectAll の次
+    roles:
+      - seq
+  - before: TagMapper.selectTodoDashboardTags
+    after: TagMapper.selectTodoDashboardTags
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.selectTodoDashboardTags の次
+    after: TagMapper.selectTodoDashboardTags の次
+    roles:
+      - seq
+  - before: TagMapper.countTodoDashboardTags
+    after: TagMapper.countTodoDashboardTags
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.countTodoDashboardTags の次
+    after: TagMapper.countTodoDashboardTags の次
+    roles:
+      - seq
+  - before: TagMapper.selectTodoDashboardTagsMaster
+    after: TagMapper.selectTodoDashboardTagsMaster
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.selectTodoDashboardTagsMaster の次
+    after: TagMapper.selectTodoDashboardTagsMaster の次
+    roles:
+      - seq
+  - before: TagMapper.countTodoDashboardTagsMaster
+    after: TagMapper.countTodoDashboardTagsMaster
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.countTodoDashboardTagsMaster の次
+    after: TagMapper.countTodoDashboardTagsMaster の次
+    roles:
+      - seq
+  - before: TagMapper.insert
+    after: TagMapper.insert
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.insert の次
+    after: TagMapper.insert の次
+    roles:
+      - seq
+  - before: TagMapper.maxId
+    after: TagMapper.maxId
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TagMapper.maxId の次
+    after: TagMapper.maxId の次
+    roles:
+      - seq
+  - before: TodoMapper.findDetail
+    after: TodoMapper.findDetail
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.findDetail の次
+    after: TodoMapper.findDetail の次
+    roles:
+      - seq
+  - before: TodoMapper.selectAll
+    after: TodoMapper.selectAll
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.selectAll の次
+    after: TodoMapper.selectAll の次
+    roles:
+      - seq
+  - before: TodoMapper.selectTodoDashboardOverdue
+    after: TodoMapper.selectTodoDashboardOverdue
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.selectTodoDashboardOverdue の次
+    after: TodoMapper.selectTodoDashboardOverdue の次
+    roles:
+      - seq
+  - before: TodoMapper.countTodoDashboardOverdue
+    after: TodoMapper.countTodoDashboardOverdue
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.countTodoDashboardOverdue の次
+    after: TodoMapper.countTodoDashboardOverdue の次
+    roles:
+      - seq
+  - before: TodoMapper.selectTodoDashboardAll
+    after: TodoMapper.selectTodoDashboardAll
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.selectTodoDashboardAll の次
+    after: TodoMapper.selectTodoDashboardAll の次
+    roles:
+      - seq
+  - before: TodoMapper.countTodoDashboardAll
+    after: TodoMapper.countTodoDashboardAll
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.countTodoDashboardAll の次
+    after: TodoMapper.countTodoDashboardAll の次
+    roles:
+      - seq
+  - before: TodoMapper.findById
+    after: TodoMapper.findById
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.findById の次
+    after: TodoMapper.findById の次
+    roles:
+      - seq
+  - before: TodoMapper.insert
+    after: TodoMapper.insert
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.insert の次
+    after: TodoMapper.insert の次
+    roles:
+      - seq
+  - before: TodoMapper.maxId
+    after: TodoMapper.maxId
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.maxId の次
+    after: TodoMapper.maxId の次
+    roles:
+      - seq
+  - before: TodoMapper.insertTodoTags
+    after: TodoMapper.insertTodoTags
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.insertTodoTags の次
+    after: TodoMapper.insertTodoTags の次
+    roles:
+      - seq
+  - before: TodoMapper.insertTodoHistory
+    after: TodoMapper.insertTodoHistory
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.insertTodoHistory の次
+    after: TodoMapper.insertTodoHistory の次
+    roles:
+      - seq
+  - before: TodoMapper.maxSeqTodoHistory
+    after: TodoMapper.maxSeqTodoHistory
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.maxSeqTodoHistory の次
+    after: TodoMapper.maxSeqTodoHistory の次
+    roles:
+      - seq
+  - before: TodoMapper.insertTodoComments
+    after: TodoMapper.insertTodoComments
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.insertTodoComments の次
+    after: TodoMapper.insertTodoComments の次
+    roles:
+      - seq
+  - before: TodoMapper.maxSeqTodoComments
+    after: TodoMapper.maxSeqTodoComments
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.maxSeqTodoComments の次
+    after: TodoMapper.maxSeqTodoComments の次
+    roles:
+      - seq
+  - before: TodoMapper.addTodoComment
+    after: TodoMapper.addTodoComment
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.addTodoComment の次
+    after: TodoMapper.addTodoComment の次
+    roles:
+      - seq
+  - before: TodoMapper.addTodoTask
+    after: TodoMapper.addTodoTask
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.addTodoTask の次
+    after: TodoMapper.addTodoTask の次
+    roles:
+      - seq
+  - before: TodoMapper.editTodo
+    after: TodoMapper.editTodo
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.editTodo の次
+    after: TodoMapper.editTodo の次
+    roles:
+      - seq
+  - before: TodoMapper.deleteTodoTags
+    after: TodoMapper.deleteTodoTags
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.deleteTodoTags の次
+    after: TodoMapper.deleteTodoTags の次
+    roles:
+      - seq
+  - before: TodoMapper.deleteTodoComments
+    after: TodoMapper.deleteTodoComments
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.deleteTodoComments の次
+    after: TodoMapper.deleteTodoComments の次
+    roles:
+      - seq
+  - before: TodoMapper.startTodo
+    after: TodoMapper.startTodo
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.startTodo の次
+    after: TodoMapper.startTodo の次
+    roles:
+      - seq
+  - before: TodoMapper.suspendTodo
+    after: TodoMapper.suspendTodo
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.suspendTodo の次
+    after: TodoMapper.suspendTodo の次
+    roles:
+      - seq
+  - before: TodoMapper.resumeTodo
+    after: TodoMapper.resumeTodo
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.resumeTodo の次
+    after: TodoMapper.resumeTodo の次
+    roles:
+      - seq
+  - before: TodoMapper.completeTodo
+    after: TodoMapper.completeTodo
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.completeTodo の次
+    after: TodoMapper.completeTodo の次
+    roles:
+      - seq
+  - before: TodoMapper.cancelTodo
+    after: TodoMapper.cancelTodo
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.cancelTodo の次
+    after: TodoMapper.cancelTodo の次
+    roles:
+      - seq
+  - before: TodoMapper.todoTaskFinish
+    after: TodoMapper.todoTaskFinish
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.todoTaskFinish の次
+    after: TodoMapper.todoTaskFinish の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.findById
+    after: TodoTaskMapper.findById
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.findById の次
+    after: TodoTaskMapper.findById の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.insert
+    after: TodoTaskMapper.insert
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.insert の次
+    after: TodoTaskMapper.insert の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.maxId
+    after: TodoTaskMapper.maxId
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.maxId の次
+    after: TodoTaskMapper.maxId の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.maxSeq
+    after: TodoTaskMapper.maxSeq
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.maxSeq の次
+    after: TodoTaskMapper.maxSeq の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.todoTaskFinish
+    after: TodoTaskMapper.todoTaskFinish
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.todoTaskFinish の次
+    after: TodoTaskMapper.todoTaskFinish の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.countCompleteTodoNoOpenTask
+    after: TodoTaskMapper.countCompleteTodoNoOpenTask
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.countCompleteTodoNoOpenTask の次
+    after: TodoTaskMapper.countCompleteTodoNoOpenTask の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.countClosedHasNoOpenTask
+    after: TodoTaskMapper.countClosedHasNoOpenTask
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.countClosedHasNoOpenTask の次
+    after: TodoTaskMapper.countClosedHasNoOpenTask の次
+    roles:
+      - seq

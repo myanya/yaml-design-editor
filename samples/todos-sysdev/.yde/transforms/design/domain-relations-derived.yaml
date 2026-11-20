@@ -1,0 +1,206 @@
+id: domain-relations-derived
+name: ドメイン関連定義書
+description: >-
+  基本設計。ドメイン（集約）の一覧と、ドメインの間の関係（関係レジストリの関係: 名前・逆向きの名前・元と先・多重度・循環しない）と、 ドメインの中の入れ子（保有）を 1 本にする。業務の言葉で書き、人が読む文書（ほかの設計書の入力にはしない）。 元と先はドメイン定義書の
+  ID（エンティティ型の ID）で書き、YDE の図で関係を見られる
+scope: business
+output: design/system/derived/domain-relations/domain-relations.yaml
+dependsOn:
+  - system-actions-model
+  - system-input-gate
+  - domains
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: system-actions-model-input
+      $one: true
+build:
+  id:
+    $format: DRV-document-domain-relations.domain-relations
+  record:
+    id:
+      $format: DOC-domain-relations.domain-relations
+    value:
+      id: domain-relations
+      name: ドメイン関連定義書
+      domains:
+        $each: entities
+        $of: model
+        $bind: d
+        $build:
+          $when:
+            - path: owner
+              exists: false
+          domain:
+            $copy: id
+          label:
+            $apply: contract-first
+            $with:
+              matches:
+                $each:
+                  $view: domains-input
+                $build:
+                  $when:
+                    - path: values.record.id
+                      equals:
+                        $copy: id
+                        $of: d
+                  $then:
+                    $copy: values.record.name
+          members:
+            $each: entities
+            $of: model
+            $build:
+              $when:
+                - path: aggregate
+                  equals:
+                    $copy: id
+                    $of: d
+              $then:
+                $copy: label
+      relations:
+        $each: relations
+        $of: model
+        $bind: r
+        $build:
+          relation:
+            $copy: id
+          label:
+            $copy: label
+          inverseLabel:
+            $copy: inverseLabel
+          from:
+            $copy: source[0]
+          fromLabel:
+            $apply: domain-label
+            $with:
+              entity:
+                $copy: from
+              fallback:
+                $format: '{l[0]}'
+                $with:
+                  l:
+                    $each: entities
+                    $of: model
+                    $build:
+                      $when:
+                        - path: id
+                          equals:
+                            $copy: source[0]
+                            $of: r
+                      $then:
+                        $copy: label
+          to:
+            $copy: target[0]
+          toLabel:
+            $apply: domain-label
+            $with:
+              entity:
+                $copy: to
+              fallback:
+                $format: '{l[0]}'
+                $with:
+                  l:
+                    $each: entities
+                    $of: model
+                    $build:
+                      $when:
+                        - path: id
+                          equals:
+                            $copy: target[0]
+                            $of: r
+                      $then:
+                        $copy: label
+          many:
+            $first:
+              - $when:
+                  - path: cardinality.outMax
+                    equals: 1
+                $then: 1 つまで
+              - いくつでも
+          back:
+            $first:
+              - $when:
+                  - path: cardinality.inMax
+                    equals: 1
+                $then: 1 つまで
+              - いくつでも
+          acyclic:
+            $when:
+              - path: acyclic
+                equals: true
+            $then: 循環しない
+          note:
+            $copy: description
+      holdings:
+        $each: entities
+        $of: model
+        $bind: h
+        $build:
+          $when:
+            - path: owner
+              exists: true
+          from:
+            $copy: owner.entity
+          to:
+            $copy: id
+          toLabel:
+            $copy: label
+          note:
+            $format: 「{o[0]}」の中にだけあり、「{o[0]}」が無ければ無い
+            $with:
+              o:
+                $each: entities
+                $of: model
+                $build:
+                  $when:
+                    - path: id
+                      equals:
+                        $copy: owner.entity
+                        $of: h
+                  $then:
+                    $copy: label
+    source:
+      id: rule-domain-relations
+      document: .yde/transforms/design/domain-relations-derived.yaml
+rules:
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
+  - id: domain-label
+    with:
+      - entity
+      - fallback
+    build:
+      $first:
+        - $apply: contract-first
+          $with:
+            matches:
+              $each:
+                $view: domains-input
+              $build:
+                $when:
+                  - path: values.record.id
+                    equals:
+                      $copy: .
+                      $of: entity
+                $then:
+                  $copy: values.record.name
+        - $copy: .
+          $of: fallback
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

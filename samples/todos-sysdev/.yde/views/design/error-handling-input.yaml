@@ -1,0 +1,10 @@
+id: error-handling-input
+name: '生成入力（確定項目: error-handling）'
+rows:
+  idPattern: DOC-error-handling.*
+  schemaIds:
+    - error-handling
+columns:
+  - label: record
+    path: .
+    schemaId: error-handling

@@ -1,4 +1,4 @@
-# 生成物（screen-operations）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
 id: complete-todo
 name: TODOを完了する
 kind: operation
@@ -21,11 +21,14 @@ input:
       label: 完了日
       type: common#年月日
       base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
       required: true
+      format: yyyy年M月d日
     - key: result
       label: 完了結果
       type: todo-operations#操作の記録
       base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
       required: true
       minLength: 1
       multiline: true
@@ -66,3 +69,18 @@ execute:
     - key: check.closed-has-no-open-task
       message: 完了したTODO「{id}」に、済んでいない作業項目があります
   onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+originalRoutes:
+  input: GET /todo/{id}/complete-todo
+  confirm: POST /todo/{id}/complete-todo/confirm
+  back: POST /todo/{id}/complete-todo/back
+  execute: POST /todo/{id}/complete-todo
+designId: DOC-screen-operations.complete-todo
+designKind: screen-operations
+designPath: design/generated/screens/operations/complete-todo.yaml
+origins:
+  source:
+    id: rule-screen-operations
+    document: .yde/transforms/design/screen-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

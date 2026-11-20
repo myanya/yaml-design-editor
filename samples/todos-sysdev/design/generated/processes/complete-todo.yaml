@@ -1,4 +1,4 @@
-# 生成物（processes）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
 id: complete-todo
 name: TODOを完了する
 service:
@@ -128,3 +128,21 @@ steps:
     expect: 0 件なら通す
     violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
     message: check.closed-has-no-open-task
+subject: todo
+originalService:
+  class: TodoService
+  method: completeTodo
+  arguments:
+    - id
+    - date
+    - result
+designId: DOC-processes.complete-todo
+designKind: processes
+designPath: design/generated/processes/complete-todo.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

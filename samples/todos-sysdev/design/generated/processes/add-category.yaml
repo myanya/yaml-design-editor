@@ -1,4 +1,4 @@
-# 生成物（processes）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
 id: add-category
 name: カテゴリを追加する
 service:
@@ -22,3 +22,19 @@ steps:
     values:
       id: 採番した番号
       name: $name
+subject: category
+originalService:
+  class: CategoryService
+  method: addCategory
+  arguments:
+    - name
+designId: DOC-processes.add-category
+designKind: processes
+designPath: design/generated/processes/add-category.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

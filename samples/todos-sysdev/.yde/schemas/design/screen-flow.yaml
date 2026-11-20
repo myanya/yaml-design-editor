@@ -2,18 +2,38 @@ id: screen-flow
 name: 画面遷移設計（Controller）
 kind: document
 description: >-
-  詳細設計。エンティティ型ごとの Controller と、詳細画面のハンドラと、操作のハンドラ（入力・確認・入力へ戻る・確定。URL・受け取るフォームのクラス・
-  Service・セッションのキー・断りの種類・戻り先）。Thymeleaf の画面遷移（SPA ではない）。生成物（.yde/transforms/design/screen-flows.yaml）で、手で直さない
-match: "design/generated/controllers/*.yaml"
-# 業務のエンティティ型と同じ ID の詳細化（Controller はエンティティ型ごと）
-entity: { type: yde-entity, defines: false }
+  詳細設計。エンティティ型ごとの Controller と、詳細画面のハンドラと、操作のハンドラ（入力・確認・入力へ戻る・確定。URL・受け取るフォームのクラス・ Service・セッションのキー・断りの種類・戻り先）。Thymeleaf の画面遷移（SPA
+  ではない）。生成物（.yde/transforms/design/screen-flows.yaml）で、手で直さない
+match: design/generated/controllers/*.yaml
+entity:
+  type: sysdev-screen-flow
+  defines: true
 root:
   type: object
   fields:
-    - { key: id, label: エンティティ型, type: id, required: true }
-    - { key: name, label: 名前, type: string, role: title }
-    - { key: controller, label: Controller, type: string, required: true }
-    - { key: screens, label: 画面のハンドラ, type: array, display: table, item: { type: any } }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: エンティティ型
+      type: ref
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
+    - key: controller
+      label: Controller
+      type: string
+      required: true
+    - key: screens
+      label: 画面のハンドラ
+      type: array
+      display: table
+      item:
+        type: any
     - key: handlers
       label: 操作のハンドラ
       type: array
@@ -21,9 +41,38 @@ root:
       item:
         type: object
         fields:
-          - { key: action, label: 操作, type: ref, required: true }
-          - { key: name, label: 操作名, type: string, role: title }
-          - { key: form, label: フォーム（項目は画面設計書）, type: string }
-          - { key: service, label: Service, type: string }
-          - { key: returnTo, label: 戻り先, type: string }
-          - { key: steps, label: ハンドラ, type: array, display: list, item: { type: any } }
+          - key: action
+            label: 操作
+            type: ref
+            required: true
+          - key: name
+            label: 操作名
+            type: string
+            role: title
+          - key: form
+            label: フォーム（項目は画面設計書）
+            type: string
+          - key: service
+            label: Service
+            type: string
+          - key: returnTo
+            label: 戻り先
+            type: string
+          - key: steps
+            label: ハンドラ
+            type: array
+            display: list
+            item:
+              type: any
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error

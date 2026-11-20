@@ -1,18 +1,19 @@
 id: table-definition-summary
 name: テーブル設計書（概要）
-description: >-
-  詳細設計項目一覧のテーブルに、補正一覧（詳細設計）を重ねた概要（テーブル設計書の 1 区画）。テーブル日本語名は、明細テーブルなら詳細設計項目一覧の名前、
-  主のテーブルなら導出元のエンティティの名称。テーブル区分は、導出元のエンティティ（明細テーブルは配列・マップの項目を持つエンティティ）の区分（基本設計項目台帳）。DDL のレポートもこの表を読む
-params: [table]
+description: 確定した詳細設計項目一覧のテーブルの概要。日本語名と区分は基本設計の確定項目を参照する。DDL もこの表を読む。補正と台帳の索引は生成時に合成済み。
+params:
+  - table
 rows:
   match:
-    - node: { id: "TBL-*", bind: t }
+    - node:
+        id: TBL-*
+        bind: t
   where:
-    - { of: t, path: id, equals: $table }
-order: { schemaId: detail-table-list }
-corrections:
-  schemaIds:
-    - detail-corrections
+    - of: t
+      path: id
+      equals: $table
+order:
+  schemaId: detail-table-list
 columns:
   - label: 項番
     path: seq

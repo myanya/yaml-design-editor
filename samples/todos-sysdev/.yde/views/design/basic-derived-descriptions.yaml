@@ -1,8 +1,19 @@
 id: basic-derived-descriptions
 name: 導出した説明の候補
 description: 一つの候補を一行に表示する。同じ説明を使う複数の出現は候補の中にすべて保持する
-rows: {schemaIds: [basic-targets], idPattern: 'DRV-DESC-FLD-*'}
+rows:
+  schemaIds:
+    - basic-targets
+  idPattern: DRV-DESC-FLD-*
 columns:
-  - {label: 設計項目, schemaId: basic-targets, path: designId}
-  - {label: 説明, schemaId: basic-targets, path: value}
-  - {label: 出現数, schemaId: basic-targets, value: {count: {path: occurrences}}}
+  - label: 設計項目
+    schemaId: basic-targets
+    path: designId
+  - label: 説明
+    schemaId: basic-targets
+    path: value
+  - label: 出現数
+    schemaId: basic-targets
+    value:
+      count:
+        path: occurrences

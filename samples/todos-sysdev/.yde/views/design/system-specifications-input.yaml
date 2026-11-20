@@ -1,0 +1,8 @@
+id: system-specifications-input
+name: '生成入力（確定項目: system-specifications）'
+rows:
+  idPattern: SSPC-*
+columns:
+  - label: specification
+    path: .
+    fileGlob: design/**

@@ -1,0 +1,10 @@
+id: screen-transitions-derived-input
+name: '生成入力（導出した設計書: screen-transitions）'
+rows:
+  idPattern: DRV-document-screen-transitions.*
+  schemaIds:
+    - system-derived
+columns:
+  - label: record
+    path: record
+    schemaId: system-derived

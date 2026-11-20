@@ -1,0 +1,152 @@
+# 生成物（screen-operation-candidates）: 手で直さず、業務モデルか生成の定義（design/screen-operation-candidates.yaml）を直して作り直します（CLI generate）。
+id: CAN-screen-operation.register-todo
+document:
+  id: register-todo
+  name: TODOを登録する
+  kind: operation
+  starts:
+    - screen: todo-dashboard
+      place: 上部のボタン
+  shownWhen: いつも
+  input:
+    screen: register-todo/input
+    request: GET /todo/register-todo
+    items:
+      - key: title
+        label: タイトル
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+      - key: summary
+        label: 概要
+        type: common#一行の文
+        base: string
+        required: true
+        maxLength: 100
+        pattern: ^[^\r\n]*$
+      - key: category
+        label: カテゴリ
+        type: common#カテゴリ参照
+        base: ref
+        description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
+        target: category
+        targetTitle: name
+        targetLabel: カテゴリ
+      - key: tags
+        label: タグ
+        type: array
+        base: array
+        unique: true
+        item:
+          type: common#タグ参照
+          base: ref
+          description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
+          target: tag
+          targetTitle: name
+          targetLabel: タグ
+      - key: follows
+        label: 元のTODO
+        type: common#TODO参照
+        base: ref
+        description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+        refTarget: entity
+        idPatternLayers:
+          -   - TODO-*
+        scope:
+          schemaIds:
+            - todo-list
+          documentIds: []
+        relation: follow-up-of
+        idPatterns:
+          - TODO-*
+        schemas:
+          - todo-list
+        targets:
+          - todo
+        target: todo
+        targetTitle: title
+        targetLabel: TODO
+      - key: due
+        label: 期限
+        type: common#年月日
+        base: date
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+        format: yyyy年M月d日
+      - key: details
+        label: 詳細
+        type: common#文章
+        base: string
+        multiline: true
+  confirm:
+    screen: register-todo/confirm
+    request: POST /todo/register-todo/confirm
+    shows:
+      - タイトル
+      - 概要
+      - カテゴリ
+      - タグ
+      - 元のTODO
+      - 期限
+      - 詳細
+    back:
+      request: POST /todo/register-todo/back
+      to: register-todo/input
+  execute:
+    request: POST /todo/register-todo
+    returns: 起点の画面（starts の画面。画面の ID で受け取る）
+    notice: register-todo.done
+    refusals:
+      - key: check.due-not-before-created
+        message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+      - key: check.updated-not-before-created
+        message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+      - key: check.follows-not-self
+        message: TODO「{id}」の元のTODOに、自分自身は選べません
+      - key: check.follow-up-of.acyclic
+        message: 「元のTODO」をたどると、自分（{id}）に戻ります（循環はできません）
+    onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+  originalRoutes:
+    input: GET /todo/register-todo
+    confirm: POST /todo/register-todo/confirm
+    back: POST /todo/register-todo/back
+    execute: POST /todo/register-todo
+  designId: DOC-screen-operations.register-todo
+  designKind: screen-operations
+  designPath: design/generated/screens/operations/register-todo.yaml
+  origins:
+    source:
+      id: rule-screen-operations
+      document: .yde/transforms/design/screen-operations-derived.yaml
+      path: []
+    decisions: []
+    inputs: []

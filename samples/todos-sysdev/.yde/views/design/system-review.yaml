@@ -1,0 +1,27 @@
+id: system-review
+name: 設計書の全体レビュー
+kind: dashboard
+description: 導出・補正・指定・追加から確定した設計書を一覧し、原本と根拠を確認する。基本・詳細の個別ビューも同じ保存値を読む。
+inputs:
+  - key: document
+    label: 設計書
+    type: ref
+    idPatterns:
+      - DOC-*
+    default: DOC-action-specs.complete-todo
+sections:
+  - id: summary
+    label: 選んだ設計書
+    view: system-document-summary
+  - id: content
+    label: 確定した内容
+    view: system-document-content
+  - id: documents
+    label: 全設計書
+    view: system-document-list
+  - id: actions
+    label: 操作と設計書の対応
+    view: action-trace
+  - id: entities
+    label: エンティティと設計書の対応
+    view: entity-trace

@@ -1,0 +1,10 @@
+id: screen-designs-details-input
+name: '生成入力（確定項目: screen-designs-details）'
+rows:
+  idPattern: DOC-screen-designs-details.*
+  schemaIds:
+    - screen-design-detail
+columns:
+  - label: record
+    path: .
+    schemaId: screen-design-detail

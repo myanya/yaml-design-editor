@@ -1,4 +1,4 @@
-# 生成物（domains）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
+# 生成物（domains）: 手で直さず、業務モデルか生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
 id: tag
 name: タグ
 description: TODO に付ける目印です。1 件の TODO に、いくつでも付けられます。
@@ -36,3 +36,13 @@ relations:
     toLabel: TODO
     many: いくつでも
     note: TODO はタグをいくつでも参照します（多対多）。参照は一覧の行の tags に書きます
+designId: DOC-domains.tag
+designKind: domains
+designPath: design/generated/domains/tag.yaml
+origins:
+  source:
+    id: rule-domains
+    document: .yde/transforms/design/domains-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

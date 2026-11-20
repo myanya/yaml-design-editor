@@ -1,4 +1,4 @@
-# 生成物（screen-lists）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-lists.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-lists）: 手で直さず、業務モデルか生成の定義（design/screen-lists.yaml）を直して作り直します（CLI generate）。
 id: todo-dashboard
 name: TODOダッシュボード
 kind: list
@@ -234,3 +234,15 @@ sections:
       by: 行の ID
       to: tag
     rowButtons: []
+originalRoutes:
+  url: /
+designId: DOC-screen-lists.todo-dashboard
+designKind: screen-lists
+designPath: design/generated/screens/lists/todo-dashboard.yaml
+origins:
+  source:
+    id: rule-screen-lists
+    document: .yde/transforms/design/screen-lists-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

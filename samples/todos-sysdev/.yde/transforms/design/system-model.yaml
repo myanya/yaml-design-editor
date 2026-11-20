@@ -1,0 +1,116 @@
+id: system-model
+name: 設計書で共有する補正後の業務モデル
+scope: business
+dependsOn:
+  - basic-entities
+  - basic-types
+output: design/system/model.yaml
+input:
+  $apply: basic-facts
+  $with:
+    original:
+      $apply: resolve
+      $with:
+        schemas:
+          $each:
+            $view: basic-field-model-input
+          $flatten: true
+          $build:
+            $each: values.model.schemas
+            $build:
+              $copy: declared
+        views:
+          $each:
+            $view: basic-derived-input
+          $flatten: true
+          $build:
+            $copy: values.model.viewDefinitions
+build:
+  id: SYS-model
+  model:
+    $copy: .
+rules:
+  - id: resolve
+    with:
+      - schemas
+      - views
+    build:
+      $schemaModel:
+        schemas:
+          $copy: .
+          $of: schemas
+        views:
+          $copy: .
+          $of: views
+  - id: basic-facts
+    with:
+      - original
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: original
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  entities:
+                    $each: entities
+                    $of: original
+                    $bind: entity
+                    $build:
+                      $apply: contract-result
+                      $with:
+                        combined:
+                          $compose:
+                            derived:
+                              - id: record
+                                value:
+                                  $copy: .
+                                source:
+                                  id: contract
+                            additions: []
+                            changes:
+                              - target: record
+                                set:
+                                  $apply: contract-first
+                                  $with:
+                                    matches:
+                                      $each:
+                                        $view: basic-model-entities
+                                      $build:
+                                        $when:
+                                          - path: values.record.source
+                                            equals:
+                                              $copy: id
+                                              $of: entity
+                                        $then:
+                                          label:
+                                            $copy: values.record.label
+                                          description:
+                                            $copy: values.record.description
+                                priority: individual
+                                source:
+                                  id: contract
+                priority: individual
+                source:
+                  id: contract
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

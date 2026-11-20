@@ -1,0 +1,29 @@
+id: system-final-documents
+name: 確定した設計書の生成入力
+rows:
+  idPattern: DOC-*
+  schemaIds:
+    - action-spec
+    - dashboard-flow
+    - domain-definition
+    - domain-relations
+    - error-definition
+    - error-handling
+    - message-definition
+    - process
+    - screen-design-detail
+    - screen-design-list
+    - screen-design-operation
+    - screen-detail
+    - screen-flow
+    - screen-list
+    - screen-operation
+    - screen-styles
+    - screen-transitions
+    - session-design
+    - status-rule
+    - table-access
+columns:
+  - label: record
+    path: .
+    fileGlob: design/**

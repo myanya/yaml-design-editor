@@ -2,6 +2,8 @@ id: basic-entity-candidates-input
 name: basic-entity-candidates の生成入力
 rows:
   idPattern: CMP-basic-entity-candidates
+  schemaIds:
+    - basic-entity-candidates
 columns:
   - label: entities
     path: entities

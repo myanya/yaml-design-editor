@@ -4,12 +4,23 @@ kind: document
 description: >-
   詳細設計。画面設計書の部品と物理パラメータを写す、決まった名前のクラスと、その中身（Tailwind CSS のユーティリティ）。③では @apply で CSS にする。
   生成物（.yde/transforms/design/screen-styles.yaml）で、手で直さない
-match: "design/generated/screen-designs/styles.yaml"
+match: design/generated/screen-designs/styles.yaml
 root:
   type: object
   fields:
-    - { key: id, label: 設計書, type: string, required: true }
-    - { key: name, label: 名前, type: string, role: title }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: 設計書
+      type: string
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
     - key: naming
       label: クラスの名前の決まり
       type: array
@@ -17,8 +28,12 @@ root:
       item:
         type: object
         fields:
-          - { key: part, label: 部品・パラメータ, type: string }
-          - { key: rule, label: クラスの名前, type: string }
+          - key: part
+            label: 部品・パラメータ
+            type: string
+          - key: rule
+            label: クラスの名前
+            type: string
     - key: classes
       label: クラスの中身
       type: array
@@ -26,5 +41,25 @@ root:
       item:
         type: object
         fields:
-          - { key: class, label: クラス, type: string, required: true }
-          - { key: applies, label: Tailwind CSS のユーティリティ, type: string }
+          - key: class
+            label: クラス
+            type: string
+            required: true
+          - key: applies
+            label: Tailwind CSS のユーティリティ
+            type: string
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error
+entity:
+  type: sysdev-screen-styles
+  defines: true

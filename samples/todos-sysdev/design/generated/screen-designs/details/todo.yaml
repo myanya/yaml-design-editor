@@ -1,4 +1,4 @@
-# 生成物（screen-designs-details）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-designs-details.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-designs-details）: 手で直さず、業務モデルか生成の定義（design/screen-designs-details.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODO詳細（画面設計書）
 screens:
@@ -145,7 +145,7 @@ screens:
                     - item: id
                       label: ID
                     - item: title
-                      label: 作業
+                      label: タイトル
                     - item: done
                       label: 済
                       mark:
@@ -223,3 +223,13 @@ screens:
                 - OPEN
                 - IN_PROGRESS
                 - SUSPENDED
+designId: DOC-screen-designs-details.todo
+designKind: screen-designs-details
+designPath: design/generated/screen-designs/details/todo.yaml
+origins:
+  source:
+    id: rule-screen-designs-details
+    document: .yde/transforms/design/screen-designs-details-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

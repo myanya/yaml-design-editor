@@ -1,15 +1,46 @@
 id: dashboard-flow
 name: 画面遷移設計（一覧画面の Controller）
 kind: document
-description: >-
-  詳細設計。ダッシュボード 1 つの一覧画面の Controller（URL・URL のパラメータで受け取る絞り込み・セッションのキー）。
-  生成物（.yde/transforms/design/dashboard-flows.yaml）で、手で直さない
-match: "design/generated/controllers/dashboards/*.yaml"
-entity: { type: yde-view, defines: false }
+description: 詳細設計。ダッシュボード 1 つの一覧画面の Controller（URL・URL のパラメータで受け取る絞り込み・セッションのキー）。 生成物（.yde/transforms/design/dashboard-flows.yaml）で、手で直さない
+match: design/generated/controllers/dashboards/*.yaml
+entity:
+  type: sysdev-dashboard-flow
+  defines: true
 root:
   type: object
   fields:
-    - { key: id, label: ダッシュボード, type: id, required: true }
-    - { key: name, label: 名前, type: string, role: title }
-    - { key: controller, label: Controller, type: string, required: true }
-    - { key: screens, label: 画面のハンドラ, type: array, display: list, item: { type: any } }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: ダッシュボード
+      type: ref
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
+    - key: controller
+      label: Controller
+      type: string
+      required: true
+    - key: screens
+      label: 画面のハンドラ
+      type: array
+      display: list
+      item:
+        type: any
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error

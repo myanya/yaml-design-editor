@@ -1,4 +1,4 @@
-# 生成物（messages）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/messages.yaml）を直して作り直します（CLI generate）。
+# 生成物（messages）: 手で直さず、業務モデルか生成の定義（design/messages.yaml）を直して作り直します（CLI generate）。
 id: messages
 name: メッセージ定義書
 file: src/main/resources/messages.properties
@@ -15,7 +15,7 @@ holes:
     means: データの決まりの check の左の値（画面の表示の形）
   - name: right
     means: データの決まりの check の右の値（画面の表示の形）
-  - name: false
+  - name: 'no'
     means: 受付番号（ログと突き合わせる）
 messages:
   - key: start-todo.state
@@ -439,3 +439,13 @@ validation:
         kind: 入力の誤り
         text: タグ名の書き方が正しくありません
         source: 形式
+designId: DOC-messages.messages
+designKind: messages
+designPath: design/generated/messages.yaml
+origins:
+  source:
+    id: rule-messages
+    document: .yde/transforms/design/messages-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

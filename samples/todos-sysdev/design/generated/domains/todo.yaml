@@ -1,4 +1,4 @@
-# 生成物（domains）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
+# 生成物（domains）: 手で直さず、業務モデルか生成の定義（design/domains.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODO
 description: やることを 1 件ずつ管理する単位です。タイトル・概要・分類（カテゴリとタグ）を一覧に、進み具合（状態・日付・結果・作業項目・コメント・状態の履歴）を個票に書きます。
@@ -20,7 +20,7 @@ information:
         label: ID
         kind: 番号
         required: 必ずある
-        note: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+        note: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
       - key: title
         label: タイトル
         kind: 一行の文（100 文字まで）
@@ -299,3 +299,13 @@ relations:
     many: いくつでも
     acyclic: 循環しない
     note: 完了したTODOに追加の作業が要るとき、新しく登録したTODOが元のTODOを 1 つまで参照します。参照は一覧の行に書きます
+designId: DOC-domains.todo
+designKind: domains
+designPath: design/generated/domains/todo.yaml
+origins:
+  source:
+    id: rule-domains
+    document: .yde/transforms/design/domains-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

@@ -1,4 +1,4 @@
-# 生成物（screen-designs-details）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-designs-details.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-designs-details）: 手で直さず、業務モデルか生成の定義（design/screen-designs-details.yaml）を直して作り直します（CLI generate）。
 id: category
 name: カテゴリ詳細（画面設計書）
 screens:
@@ -20,3 +20,13 @@ screens:
               - item: name
                 label: カテゴリ名
         - actions: []
+designId: DOC-screen-designs-details.category
+designKind: screen-designs-details
+designPath: design/generated/screen-designs/details/category.yaml
+origins:
+  source:
+    id: rule-screen-designs-details
+    document: .yde/transforms/design/screen-designs-details-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

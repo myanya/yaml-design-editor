@@ -1,0 +1,25 @@
+id: system-document-summary
+name: 確定設計書の概要
+params:
+  - document
+rows:
+  match:
+    - node:
+        id: DOC-*
+        bind: document
+  rowKey: document
+  where:
+    - of: document
+      path: designId
+      equals: $document
+columns:
+  - label: 種類
+    path: designKind
+  - label: 導出元
+    path: id
+  - label: 名前
+    path: name
+  - label: 保存先
+    path: designPath
+  - label: 補正と追加の根拠
+    path: origins

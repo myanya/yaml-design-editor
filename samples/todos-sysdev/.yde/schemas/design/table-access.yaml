@@ -2,18 +2,37 @@ id: table-access
 name: テーブルアクセス設計書（Repository）
 kind: document
 description: >-
-  詳細設計。エンティティ型ごとの Mapper と、そのテーブル（主のテーブルと明細テーブル）を読み書きするメソッド。メソッドは操作をまたいで 1 つにまとめ、
-  使う操作を並べる。列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書から引く。MyBatis の XML に書く SQL の元。
-  生成物（.yde/transforms/design/table-access.yaml）で、手で直さない
-match: "design/generated/table-access/*.yaml"
-entity: { type: yde-entity, defines: false }
+  詳細設計。エンティティ型ごとの Mapper と、そのテーブル（主のテーブルと明細テーブル）を読み書きするメソッド。メソッドは操作をまたいで 1 つにまとめ、 使う操作を並べる。列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書から引く。MyBatis の
+  XML に書く SQL の元。 生成物（.yde/transforms/design/table-access.yaml）で、手で直さない
+match: design/generated/table-access/*.yaml
+entity:
+  type: sysdev-table-access
+  defines: true
 root:
   type: object
   fields:
-    - { key: id, label: エンティティ型, type: id, required: true }
-    - { key: name, label: 名前, type: string, role: title }
-    - { key: mapper, label: Mapper, type: string, required: true }
-    - { key: tables, label: テーブル, type: array, item: { type: string } }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: エンティティ型
+      type: ref
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
+    - key: mapper
+      label: Mapper
+      type: string
+      required: true
+    - key: tables
+      label: テーブル
+      type: array
+      item:
+        type: string
     - key: methods
       label: メソッド
       type: array
@@ -21,37 +40,138 @@ root:
       item:
         type: object
         fields:
-          - { key: name, label: メソッド, type: string, required: true, role: title }
+          - key: name
+            label: メソッド
+            type: string
+            required: true
+            role: title
           - key: kind
             label: 種類
             type: enum
             values:
-              - { value: select, label: 1 件を読む }
-              - { value: insert, label: 足す }
-              - { value: update, label: 書き換える }
-              - { value: delete, label: 消す }
-              - { value: max, label: 最大の値 }
-              - { value: count, label: 件数 }
-              - { value: aggregate, label: 集計 }
-          - { key: table, label: テーブル, type: string, required: true }
-          - { key: columns, label: 列, type: any }
-          - { key: item, label: 読む項目, type: string }
-          - { key: set, label: 書く項目, type: array, display: table, item: { type: any } }
-          - { key: join, label: つなぐテーブル, type: array, display: table, item: { type: any } }
-          - { key: where, label: 条件, type: any }
-          - { key: numbering, label: 採番の決まり, type: any }
-          - { key: precondition, label: 業務モデルの前提, type: ref }
-          - { key: constraint, label: 業務モデルのデータの決まり, type: string }
+              - value: select
+                label: 1 件を読む
+              - value: insert
+                label: 足す
+              - value: update
+                label: 書き換える
+              - value: delete
+                label: 消す
+              - value: max
+                label: 最大の値
+              - value: count
+                label: 件数
+              - value: aggregate
+                label: 集計
+          - key: table
+            label: テーブル
+            type: string
+            required: true
+          - key: columns
+            label: 列
+            type: any
+          - key: item
+            label: 読む項目
+            type: string
+          - key: set
+            label: 書く項目
+            type: array
+            display: table
+            item:
+              type: any
+          - key: join
+            label: つなぐテーブル
+            type: array
+            display: table
+            item:
+              type: any
+          - key: where
+            label: 条件
+            type: any
+          - key: numbering
+            label: 採番の決まり
+            type: any
+          - key: precondition
+            label: 業務モデルの前提
+            type: ref
+          - key: constraint
+            label: 業務モデルのデータの決まり
+            type: string
           - key: expect
             label: 通す件数
             type: enum
-            values: [{ value: absent, label: 0 件 }, { value: exists, label: 1 件以上 }]
-          - { key: includes, label: 一緒に読む明細, type: array, display: table, item: { type: any } }
-          - { key: names, label: 一緒に読む参照先の名前, type: array, display: table, item: { type: any } }
-          - { key: order, label: 並び, type: array, item: { type: any } }
-          - { key: groupBy, label: まとめる単位, type: array, item: { type: any } }
-          - { key: counts, label: 数える要素のテーブル, type: string }
-          - { key: via, label: 数える要素への線, type: any }
-          - { key: params, label: 受け取る値, type: array, item: { type: string } }
-          - { key: operations, label: 使う操作, type: array, item: { type: ref } }
-          - { key: screens, label: 使う画面, type: array, item: { type: string } }
+            values:
+              - value: absent
+                label: 0 件
+              - value: exists
+                label: 1 件以上
+          - key: includes
+            label: 一緒に読む明細
+            type: array
+            display: table
+            item:
+              type: any
+          - key: names
+            label: 一緒に読む参照先の名前
+            type: array
+            display: table
+            item:
+              type: any
+          - key: order
+            label: 並び
+            type: array
+            item:
+              type: any
+          - key: groupBy
+            label: まとめる単位
+            type: array
+            item:
+              type: any
+          - key: counts
+            label: 数える要素のテーブル
+            type: string
+          - key: via
+            label: 数える要素への線
+            type: any
+          - key: params
+            label: 受け取る値
+            type: array
+            item:
+              type: string
+          - key: operations
+            label: 使う操作
+            type: array
+            item:
+              type: ref
+          - key: screens
+            label: 使う画面
+            type: array
+            item:
+              type: string
+          - key: methodId
+            type: string
+            required: true
+          - key: tableId
+            type: ref
+            idPatterns:
+              - TBL-*
+          - key: columnBindings
+            type: any
+          - key: columnId
+            type: ref
+            idPatterns:
+              - COL-*
+          - key: column
+            type: string
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error

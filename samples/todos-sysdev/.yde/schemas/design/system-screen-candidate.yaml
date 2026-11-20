@@ -1,0 +1,11 @@
+id: system-screen-candidate
+name: system-screen-candidate
+kind: document
+match: design/system/candidates/screen-operations/*.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+    - key: document
+      type: any

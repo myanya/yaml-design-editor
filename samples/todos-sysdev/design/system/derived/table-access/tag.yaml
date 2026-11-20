@@ -1,0 +1,217 @@
+# 生成物（table-access-derived）: 手で直さず、業務モデルか生成の定義（design/table-access-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-table-access.tag
+record:
+  id: DOC-table-access.tag
+  value:
+    id: tag
+    name: タグの読み書き
+    mapper: TagMapper
+    tables:
+      - tag
+    methods:
+      - name: findDetail
+        kind: select
+        table: tag
+        where:
+          - item: id
+            param: id
+            columnId: COL-tag.id
+            column: id
+        includes: []
+        names: []
+        operations: []
+        screens:
+          - tag
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: findDetail
+        tableId: TBL-tag
+      - name: selectAll
+        kind: select
+        table: tag
+        columns:
+          - id
+          - name
+        order:
+          - item: id
+            columnId: COL-tag.id
+            column: id
+        operations: []
+        screens:
+          - 参照の候補
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: selectAll
+        tableId: TBL-tag
+      - name: selectTodoDashboardTags
+        kind: aggregate
+        table: tag
+        order:
+          - item: id
+            columnId: COL-tag.id
+            column: id
+        groupBy:
+          - item: id
+            columnId: COL-tag.id
+            column: id
+          - item: status
+            of: todo
+            values:
+              - OPEN
+              - IN_PROGRESS
+              - SUSPENDED
+              - CLOSED
+              - CANCELED
+        counts: todo
+        via:
+          relation: tagged
+          dir: in
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: selectTodoDashboardTags
+        tableId: TBL-tag
+      - name: countTodoDashboardTags
+        kind: count
+        table: tag
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: countTodoDashboardTags
+        tableId: TBL-tag
+      - name: selectTodoDashboardTagsMaster
+        kind: select
+        table: tag
+        columns:
+          - item: id
+            columnId: COL-tag.id
+            column: id
+          - label: タグ名
+            item: name
+            columnId: COL-tag.name
+            column: name
+          - label: TODOの数
+            computed:
+              count: 参照してくる要素
+              relation: tagged
+              dir: in
+        where: []
+        order:
+          - item: id
+            columnId: COL-tag.id
+            column: id
+        params: []
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: selectTodoDashboardTagsMaster
+        tableId: TBL-tag
+      - name: countTodoDashboardTagsMaster
+        kind: count
+        table: tag
+        where: 上の select と同じ条件
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: countTodoDashboardTagsMaster
+        tableId: TBL-tag
+      - name: insert
+        kind: insert
+        table: tag
+        columns: テーブル設計書のすべての列
+        operations:
+          - add-tag
+        screens: []
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: insert
+        tableId: TBL-tag
+      - name: maxId
+        kind: max
+        table: tag
+        item: id
+        where:
+          - item: id
+            startsWith: TAG-
+            columnId: COL-tag.id
+            column: id
+        numbering:
+          path: id
+          prefix: TAG-
+          digits: 3
+        operations:
+          - add-tag
+        screens: []
+        columnId: COL-tag.id
+        column: id
+        columnBindings:
+          - columnId: COL-tag.id
+            item: id
+            name: id
+            source: FLD-tag.id
+          - columnId: COL-tag.name
+            item: name
+            name: name
+            source: FLD-tag.name
+        methodId: maxId
+        tableId: TBL-tag
+  source:
+    id: rule-table-access
+    document: .yde/transforms/design/table-access-derived.yaml

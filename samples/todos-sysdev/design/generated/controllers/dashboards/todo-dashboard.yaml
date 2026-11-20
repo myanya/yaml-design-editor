@@ -1,4 +1,4 @@
-# 生成物（dashboard-flows）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/dashboard-flows.yaml）を直して作り直します（CLI generate）。
+# 生成物（dashboard-flows）: 手で直さず、業務モデルか生成の定義（design/dashboard-flows.yaml）を直して作り直します（CLI generate）。
 id: todo-dashboard
 name: TODOダッシュボードの画面の動き
 controller: TodoDashboardController
@@ -43,3 +43,13 @@ screens:
     session:
       reads:
         - notice
+designId: DOC-dashboard-flows.todo-dashboard
+designKind: dashboard-flows
+designPath: design/generated/controllers/dashboards/todo-dashboard.yaml
+origins:
+  source:
+    id: rule-dashboard-flows
+    document: .yde/transforms/design/dashboard-flows-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

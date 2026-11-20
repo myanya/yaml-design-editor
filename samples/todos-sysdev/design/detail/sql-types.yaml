@@ -1,20 +1,91 @@
-# 型対応表（論理型 → SQL）: 人が書く。基本設計の論理型ごとに SQL の型の書き方を決める。穴 {maxLength} などは論理型の値で埋まる。
-# literal は初期値の出力方法（string・number・boolean・date）。値の見た目や SQL の型名から推測しない
-# 詳細設計項目一覧（テーブル）のカラムは SQL-論理型 でここを指す（論理型が増えて対応が無ければ、参照切れで分かる）
+inputId: INPUT-detail-sql-types
 mappings:
-  - { seq: '01', id: SQL-common.TODO番号, type: TYP-common.TODO番号, literal: string, sql: VARCHAR, description: 番号は業務モデルに上限が無いので長さを決めない }
-  - { seq: '02', id: SQL-common.カテゴリ番号, type: TYP-common.カテゴリ番号, literal: string, sql: VARCHAR }
-  - { seq: '03', id: SQL-common.タグ番号, type: TYP-common.タグ番号, literal: string, sql: VARCHAR }
-  - { seq: '04', id: SQL-common.作業項目番号, type: TYP-common.作業項目番号, literal: string, sql: VARCHAR }
-  - { seq: '05', id: SQL-common.カテゴリ参照, type: TYP-common.カテゴリ参照, literal: string, sql: VARCHAR, description: 参照先の番号と同じ型 }
-  - { seq: '06', id: SQL-common.タグ参照, type: TYP-common.タグ参照, literal: string, sql: VARCHAR, description: 参照先の番号と同じ型 }
-  - { seq: '07', id: SQL-common.TODO参照, type: TYP-common.TODO参照, literal: string, sql: VARCHAR, description: 参照先の番号と同じ型 }
-  - { seq: '08', id: SQL-common.年月日, type: TYP-common.年月日, literal: date, sql: DATE }
-  - { seq: '09', id: SQL-common.一行の文, type: TYP-common.一行の文, literal: string, sql: "VARCHAR({maxLength})", description: 最大文字数を長さにする }
-  - { seq: '10', id: SQL-common.文章, type: TYP-common.文章, literal: string, sql: VARCHAR, description: 業務モデルに上限が無いので長さを決めない }
-  - { seq: '11', id: SQL-common.ステータス, type: TYP-common.ステータス, literal: string, sql: VARCHAR, description: 選択肢の値は CHECK で縛る }
-  - { seq: '12', id: SQL-common.TODOの操作, type: TYP-common.TODOの操作, literal: string, sql: VARCHAR, description: 選択肢の値は CHECK で縛る }
-  - { seq: '13', id: SQL-text, type: TYP-text, literal: string, sql: VARCHAR, description: 組込みの文章（上限なし） }
-  - { seq: '14', id: SQL-boolean, type: TYP-boolean, literal: boolean, sql: BOOLEAN }
-  - { seq: '15', id: SQL-seq, literal: number, sql: INTEGER, description: 詳細設計だけの型。明細と入れ子のテーブルの並び順（1 から） }
-  - { seq: '16', id: SQL-key, literal: string, sql: VARCHAR, description: 詳細設計だけの型。マップの項目を写した明細テーブルのキー（業務モデルのマップのキー） }
+  - seq: '01'
+    id: SQL-common.TODO番号
+    type: TYP-common.TODO番号
+    literal: string
+    sql: VARCHAR
+    description: 番号は業務モデルに上限が無いので長さを決めない
+  - seq: '02'
+    id: SQL-common.カテゴリ番号
+    type: TYP-common.カテゴリ番号
+    literal: string
+    sql: VARCHAR
+  - seq: '03'
+    id: SQL-common.タグ番号
+    type: TYP-common.タグ番号
+    literal: string
+    sql: VARCHAR
+  - seq: '04'
+    id: SQL-common.作業項目番号
+    type: TYP-common.作業項目番号
+    literal: string
+    sql: VARCHAR
+  - seq: '05'
+    id: SQL-common.カテゴリ参照
+    type: TYP-common.カテゴリ参照
+    literal: string
+    sql: VARCHAR
+    description: 参照先の番号と同じ型
+  - seq: '06'
+    id: SQL-common.タグ参照
+    type: TYP-common.タグ参照
+    literal: string
+    sql: VARCHAR
+    description: 参照先の番号と同じ型
+  - seq: '07'
+    id: SQL-common.TODO参照
+    type: TYP-common.TODO参照
+    literal: string
+    sql: VARCHAR
+    description: 参照先の番号と同じ型
+  - seq: '08'
+    id: SQL-common.年月日
+    type: TYP-common.年月日
+    literal: date
+    sql: DATE
+  - seq: '09'
+    id: SQL-common.一行の文
+    type: TYP-common.一行の文
+    literal: string
+    sql: VARCHAR({maxLength})
+    description: 最大文字数を長さにする
+  - seq: '10'
+    id: SQL-common.文章
+    type: TYP-common.文章
+    literal: string
+    sql: VARCHAR
+    description: 業務モデルに上限が無いので長さを決めない
+  - seq: '11'
+    id: SQL-common.ステータス
+    type: TYP-common.ステータス
+    literal: string
+    sql: VARCHAR
+    description: 選択肢の値は CHECK で縛る
+  - seq: '12'
+    id: SQL-common.TODOの操作
+    type: TYP-common.TODOの操作
+    literal: string
+    sql: VARCHAR
+    description: 選択肢の値は CHECK で縛る
+  - seq: '13'
+    id: SQL-text
+    type: TYP-text
+    literal: string
+    sql: VARCHAR
+    description: 組込みの文章（上限なし）
+  - seq: '14'
+    id: SQL-boolean
+    type: TYP-boolean
+    literal: boolean
+    sql: BOOLEAN
+  - seq: '15'
+    id: SQL-seq
+    literal: number
+    sql: INTEGER
+    description: 詳細設計だけの型。明細と入れ子のテーブルの並び順（1 から）
+  - seq: '16'
+    id: SQL-key
+    literal: string
+    sql: VARCHAR
+    description: 詳細設計だけの型。マップの項目を写した明細テーブルのキー（業務モデルのマップのキー）

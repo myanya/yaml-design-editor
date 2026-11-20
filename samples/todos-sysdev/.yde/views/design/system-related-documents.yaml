@@ -1,0 +1,21 @@
+id: system-related-documents
+name: 同じ導出元の設計書
+params:
+  - source
+rows:
+  match:
+    - node:
+        id: DOC-*
+        bind: document
+  rowKey: document
+  where:
+    - of: document
+      path: id
+      equals: $source
+columns:
+  - label: 設計書
+    path: name
+  - label: 種類
+    path: designKind
+  - label: 保存先
+    path: designPath

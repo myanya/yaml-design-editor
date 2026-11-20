@@ -1,0 +1,364 @@
+# 生成物（screen-transitions-derived）: 手で直さず、業務モデルか生成の定義（design/screen-transitions-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-transitions.todo-dashboard
+record:
+  id: DOC-screen-transitions.todo-dashboard
+  value:
+    id: todo-dashboard
+    name: TODOダッシュボードからの画面遷移
+    start: todo-dashboard
+    screens:
+      - id: todo-dashboard
+        kind: list
+        label: TODOダッシュボード
+        source: DOC-screen-lists.todo-dashboard
+        url: /
+      - id: category
+        kind: detail
+        label: カテゴリ詳細
+        source: DOC-screen-details.category
+        url: /category/{id}
+      - id: tag
+        kind: detail
+        label: タグ詳細
+        source: DOC-screen-details.tag
+        url: /tag/{id}
+      - id: todo
+        kind: detail
+        label: TODO詳細
+        source: DOC-screen-details.todo
+        url: /todo/{id}
+      - id: add-category/input
+        kind: input
+        label: カテゴリを追加する（入力）
+        source: DOC-screen-operations.add-category
+        request: GET /category/add-category
+      - id: add-category/confirm
+        kind: confirm
+        label: カテゴリを追加する（確認）
+        source: DOC-screen-operations.add-category
+        request: POST /category/add-category/confirm
+      - id: add-tag/input
+        kind: input
+        label: タグを追加する（入力）
+        source: DOC-screen-operations.add-tag
+        request: GET /tag/add-tag
+      - id: add-tag/confirm
+        kind: confirm
+        label: タグを追加する（確認）
+        source: DOC-screen-operations.add-tag
+        request: POST /tag/add-tag/confirm
+      - id: add-todo-comment/input
+        kind: input
+        label: TODOにコメントを追加する（入力）
+        source: DOC-screen-operations.add-todo-comment
+        request: GET /todo/{id}/add-todo-comment
+      - id: add-todo-comment/confirm
+        kind: confirm
+        label: TODOにコメントを追加する（確認）
+        source: DOC-screen-operations.add-todo-comment
+        request: POST /todo/{id}/add-todo-comment/confirm
+      - id: add-todo-task/input
+        kind: input
+        label: 作業項目を追加する（入力）
+        source: DOC-screen-operations.add-todo-task
+        request: GET /todo/{id}/add-todo-task
+      - id: add-todo-task/confirm
+        kind: confirm
+        label: 作業項目を追加する（確認）
+        source: DOC-screen-operations.add-todo-task
+        request: POST /todo/{id}/add-todo-task/confirm
+      - id: cancel-todo/input
+        kind: input
+        label: TODOを中止する（入力）
+        source: DOC-screen-operations.cancel-todo
+        request: GET /todo/{id}/cancel-todo
+      - id: cancel-todo/confirm
+        kind: confirm
+        label: TODOを中止する（確認）
+        source: DOC-screen-operations.cancel-todo
+        request: POST /todo/{id}/cancel-todo/confirm
+      - id: complete-todo/input
+        kind: input
+        label: TODOを完了する（入力）
+        source: DOC-screen-operations.complete-todo
+        request: GET /todo/{id}/complete-todo
+      - id: complete-todo/confirm
+        kind: confirm
+        label: TODOを完了する（確認）
+        source: DOC-screen-operations.complete-todo
+        request: POST /todo/{id}/complete-todo/confirm
+      - id: edit-todo/input
+        kind: input
+        label: TODOを編集する（入力）
+        source: DOC-screen-operations.edit-todo
+        request: GET /todo/{id}/edit-todo
+      - id: edit-todo/confirm
+        kind: confirm
+        label: TODOを編集する（確認）
+        source: DOC-screen-operations.edit-todo
+        request: POST /todo/{id}/edit-todo/confirm
+      - id: register-todo/input
+        kind: input
+        label: TODOを登録する（入力）
+        source: DOC-screen-operations.register-todo
+        request: GET /todo/register-todo
+      - id: register-todo/confirm
+        kind: confirm
+        label: TODOを登録する（確認）
+        source: DOC-screen-operations.register-todo
+        request: POST /todo/register-todo/confirm
+      - id: resume-todo/input
+        kind: input
+        label: TODOを再開する（入力）
+        source: DOC-screen-operations.resume-todo
+        request: GET /todo/{id}/resume-todo
+      - id: resume-todo/confirm
+        kind: confirm
+        label: TODOを再開する（確認）
+        source: DOC-screen-operations.resume-todo
+        request: POST /todo/{id}/resume-todo/confirm
+      - id: start-todo/confirm
+        kind: confirm
+        label: TODOに着手する（確認）
+        source: DOC-screen-operations.start-todo
+        request: GET /todo/{id}/start-todo/confirm
+      - id: suspend-todo/input
+        kind: input
+        label: TODOを中断する（入力）
+        source: DOC-screen-operations.suspend-todo
+        request: GET /todo/{id}/suspend-todo
+      - id: suspend-todo/confirm
+        kind: confirm
+        label: TODOを中断する（確認）
+        source: DOC-screen-operations.suspend-todo
+        request: POST /todo/{id}/suspend-todo/confirm
+      - id: todo-task.finish/confirm
+        kind: confirm
+        label: 作業項目を済にする（確認）
+        source: DOC-screen-operations.todo-task.finish
+        request: GET /todo-task/{id}/todo-task.finish/confirm
+    transitions:
+      - from: todo-dashboard
+        by: 区画「期限超過」の行の ID
+        to: todo
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行の ID
+        to: todo
+      - from: todo-dashboard
+        by: 区画「カテゴリ別の状況」のセル
+        to: todo-dashboard
+        note: その行と列で絞る（URL のパラメータ）
+      - from: todo-dashboard
+        by: 区画「タグ別の状況」のセル
+        to: todo-dashboard
+        note: その行と列で絞る（URL のパラメータ）
+      - from: todo-dashboard
+        by: 区画「カテゴリ一覧」の行の ID
+        to: category
+      - from: todo-dashboard
+        by: 区画「タグ一覧」の行の ID
+        to: tag
+      - from: todo-dashboard
+        by: ボタン「TODOを登録する」
+        to: register-todo/input
+      - from: todo-dashboard
+        by: ボタン「カテゴリを追加する」
+        to: add-category/input
+      - from: todo-dashboard
+        by: ボタン「タグを追加する」
+        to: add-tag/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOにコメントを追加する」
+        to: add-todo-comment/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「作業項目を追加する」
+        to: add-todo-task/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOを編集する」
+        to: edit-todo/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOに着手する」
+        to: start-todo/confirm
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOを中断する」
+        to: suspend-todo/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOを再開する」
+        to: resume-todo/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOを完了する」
+        to: complete-todo/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「TODOを中止する」
+        to: cancel-todo/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOにコメントを追加する」
+        to: add-todo-comment/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「作業項目を追加する」
+        to: add-todo-task/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOを編集する」
+        to: edit-todo/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOに着手する」
+        to: start-todo/confirm
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOを中断する」
+        to: suspend-todo/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOを再開する」
+        to: resume-todo/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOを完了する」
+        to: complete-todo/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「TODOを中止する」
+        to: cancel-todo/input
+      - from: todo
+        by: 項目「カテゴリ」
+        to: category
+      - from: todo
+        by: 項目「タグ」
+        to: tag
+      - from: todo
+        by: 項目「元のTODO」
+        to: todo
+      - from: todo
+        by: ボタン「TODOにコメントを追加する」
+        to: add-todo-comment/input
+      - from: todo
+        by: ボタン「作業項目を追加する」
+        to: add-todo-task/input
+      - from: todo
+        by: ボタン「TODOを編集する」
+        to: edit-todo/input
+      - from: todo
+        by: ボタン「TODOに着手する」
+        to: start-todo/confirm
+      - from: todo
+        by: ボタン「TODOを中断する」
+        to: suspend-todo/input
+      - from: todo
+        by: ボタン「TODOを再開する」
+        to: resume-todo/input
+      - from: todo
+        by: ボタン「TODOを完了する」
+        to: complete-todo/input
+      - from: todo
+        by: ボタン「TODOを中止する」
+        to: cancel-todo/input
+      - from: todo
+        by: 表「作業項目」の行のボタン「作業項目を済にする」
+        to: todo-task.finish/confirm
+      - from: add-category/input
+        by: ボタン「確認へ」
+        to: add-category/confirm
+      - from: add-category/confirm
+        by: ボタン「入力へ戻る」
+        to: add-category/input
+      - from: add-category/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: register-todo/input
+        by: ボタン「確認へ」
+        to: register-todo/confirm
+      - from: register-todo/confirm
+        by: ボタン「入力へ戻る」
+        to: register-todo/input
+      - from: register-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: add-todo-comment/input
+        by: ボタン「確認へ」
+        to: add-todo-comment/confirm
+      - from: add-todo-comment/confirm
+        by: ボタン「入力へ戻る」
+        to: add-todo-comment/input
+      - from: add-todo-comment/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: add-todo-task/input
+        by: ボタン「確認へ」
+        to: add-todo-task/confirm
+      - from: add-todo-task/confirm
+        by: ボタン「入力へ戻る」
+        to: add-todo-task/input
+      - from: add-todo-task/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: edit-todo/input
+        by: ボタン「確認へ」
+        to: edit-todo/confirm
+      - from: edit-todo/confirm
+        by: ボタン「入力へ戻る」
+        to: edit-todo/input
+      - from: edit-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: start-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: suspend-todo/input
+        by: ボタン「確認へ」
+        to: suspend-todo/confirm
+      - from: suspend-todo/confirm
+        by: ボタン「入力へ戻る」
+        to: suspend-todo/input
+      - from: suspend-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: resume-todo/input
+        by: ボタン「確認へ」
+        to: resume-todo/confirm
+      - from: resume-todo/confirm
+        by: ボタン「入力へ戻る」
+        to: resume-todo/input
+      - from: resume-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: complete-todo/input
+        by: ボタン「確認へ」
+        to: complete-todo/confirm
+      - from: complete-todo/confirm
+        by: ボタン「入力へ戻る」
+        to: complete-todo/input
+      - from: complete-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: cancel-todo/input
+        by: ボタン「確認へ」
+        to: cancel-todo/confirm
+      - from: cancel-todo/confirm
+        by: ボタン「入力へ戻る」
+        to: cancel-todo/input
+      - from: cancel-todo/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: add-tag/input
+        by: ボタン「確認へ」
+        to: add-tag/confirm
+      - from: add-tag/confirm
+        by: ボタン「入力へ戻る」
+        to: add-tag/input
+      - from: add-tag/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: todo-task.finish/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+  source:
+    id: rule-screen-transitions
+    document: .yde/transforms/design/screen-transitions-derived.yaml

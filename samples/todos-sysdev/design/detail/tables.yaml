@@ -1,4 +1,4 @@
-# 生成物（detail-tables）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/detail-tables.yaml）を直して作り直します（CLI generate）。
+# 生成物（detail-tables）: 手で直さず、業務モデルか生成の定義（design/detail-tables.yaml）を直して作り直します（CLI generate）。
 tables:
   - seq: '01'
     id: TBL-category
@@ -6,6 +6,7 @@ tables:
     kind: main
     source: ENT-category
     primaryKeyName: pk_category
+    originalName: category
     columns:
       - seq: '01'
         id: COL-category.id
@@ -13,19 +14,24 @@ tables:
         source: FLD-category.id
         sqlType: SQL-common.カテゴリ番号
         primaryKey: 1
+        item: id
+        table: TBL-category
       - seq: '02'
         id: COL-category.name
         name: name
         source: FLD-category.name
         sqlType: SQL-common.一行の文
-    indexes: []
+        item: name
+        table: TBL-category
     foreignKeys: []
+    indexes: []
   - seq: '02'
     id: TBL-tag
     name: tag
     kind: main
     source: ENT-tag
     primaryKeyName: pk_tag
+    originalName: tag
     columns:
       - seq: '01'
         id: COL-tag.id
@@ -33,19 +39,24 @@ tables:
         source: FLD-tag.id
         sqlType: SQL-common.タグ番号
         primaryKey: 1
+        item: id
+        table: TBL-tag
       - seq: '02'
         id: COL-tag.name
         name: name
         source: FLD-tag.name
         sqlType: SQL-common.一行の文
-    indexes: []
+        item: name
+        table: TBL-tag
     foreignKeys: []
+    indexes: []
   - seq: '03'
     id: TBL-todo
     name: todo
     kind: main
     source: ENT-todo
     primaryKeyName: pk_todo
+    originalName: todo
     columns:
       - seq: '01'
         id: COL-todo.id
@@ -53,16 +64,22 @@ tables:
         source: FLD-todo.id
         sqlType: SQL-common.TODO番号
         primaryKey: 1
+        item: id
+        table: TBL-todo
       - seq: '02'
         id: COL-todo.title
         name: title
         source: FLD-todo.title
         sqlType: SQL-common.一行の文
+        item: title
+        table: TBL-todo
       - seq: '03'
         id: COL-todo.summary
         name: summary
         source: FLD-todo.summary
         sqlType: SQL-common.一行の文
+        item: summary
+        table: TBL-todo
       - seq: '04'
         id: COL-todo.category
         name: category
@@ -70,6 +87,8 @@ tables:
         sqlType: SQL-common.カテゴリ参照
         referencesTable: TBL-category
         referencesColumn: COL-category.id
+        item: category
+        table: TBL-todo
       - seq: '05'
         id: COL-todo.follows
         name: follows
@@ -77,41 +96,72 @@ tables:
         sqlType: SQL-common.TODO参照
         referencesTable: TBL-todo
         referencesColumn: COL-todo.id
+        item: follows
+        table: TBL-todo
       - seq: '06'
         id: COL-todo.status
         name: status
         source: FLD-todo.status
         sqlType: SQL-common.ステータス
+        item: status
+        table: TBL-todo
       - seq: '07'
         id: COL-todo.created_on
         name: created_on
         source: FLD-todo.created_on
         sqlType: SQL-common.年月日
+        item: created_on
+        table: TBL-todo
       - seq: '08'
         id: COL-todo.updated_on
         name: updated_on
         source: FLD-todo.updated_on
         sqlType: SQL-common.年月日
+        item: updated_on
+        table: TBL-todo
       - seq: '09'
         id: COL-todo.due_on
         name: due_on
         source: FLD-todo.due_on
         sqlType: SQL-common.年月日
+        item: due_on
+        table: TBL-todo
       - seq: '10'
         id: COL-todo.completed_on
         name: completed_on
         source: FLD-todo.completed_on
         sqlType: SQL-common.年月日
+        item: completed_on
+        table: TBL-todo
       - seq: '11'
         id: COL-todo.details
         name: details
         source: FLD-todo.details
         sqlType: SQL-common.文章
+        item: details
+        table: TBL-todo
       - seq: '12'
         id: COL-todo.result
         name: result
         source: FLD-todo.result
         sqlType: SQL-common.文章
+        item: result
+        table: TBL-todo
+    foreignKeys:
+      - seq: '01'
+        id: FK-fk_todo_category
+        name: fk_todo_category
+        columns:
+          - COL-todo.category
+        referencesTable: TBL-category
+        table: TBL-todo
+      - seq: '02'
+        id: FK-fk_todo_follows
+        name: fk_todo_follows
+        columns:
+          - COL-todo.follows
+        referencesTable: TBL-todo
+        table: TBL-todo
     indexes:
       - seq: '01'
         id: IDX-ix_todo_category
@@ -127,19 +177,14 @@ tables:
         columns:
           - column: COL-todo.follows
         source: FK-fk_todo_follows
-    foreignKeys:
       - seq: '01'
-        id: FK-fk_todo_category
-        name: fk_todo_category
+        id: IDX-ix_todo_status_due_on
+        name: ix_todo_status_due_on
+        table: TBL-todo
         columns:
-          - COL-todo.category
-        referencesTable: TBL-category
-      - seq: '02'
-        id: FK-fk_todo_follows
-        name: fk_todo_follows
-        columns:
-          - COL-todo.follows
-        referencesTable: TBL-todo
+          - column: COL-todo.status
+          - column: COL-todo.due_on
+        reason: ダッシュボードの「期限超過」の区画で、TODO を状態（未着手・対応中）と期限（今日より前）で絞るため
   - seq: '04'
     id: TBL-todo_task
     name: todo_task
@@ -147,6 +192,7 @@ tables:
     source: ENT-todo-task
     parent: TBL-todo
     primaryKeyName: pk_todo_task
+    originalName: todo_task
     columns:
       - seq: '01'
         id: COL-todo_task.id
@@ -154,6 +200,8 @@ tables:
         source: FLD-todo-task.id
         sqlType: SQL-common.作業項目番号
         primaryKey: 1
+        item: id
+        table: TBL-todo_task
       - seq: '02'
         id: COL-todo_task.todo_id
         name: todo_id
@@ -164,6 +212,8 @@ tables:
         notNull: true
         referencesTable: TBL-todo
         referencesColumn: COL-todo.id
+        item: todo_id
+        table: TBL-todo_task
       - seq: '03'
         id: COL-todo_task.seq
         name: seq
@@ -172,24 +222,22 @@ tables:
         description: 業務モデルの配列の中の順（1 から）
         sqlType: SQL-seq
         notNull: true
+        item: seq
+        table: TBL-todo_task
       - seq: '04'
         id: COL-todo_task.title
         name: title
         source: FLD-todo-task.title
         sqlType: SQL-common.一行の文
+        item: title
+        table: TBL-todo_task
       - seq: '05'
         id: COL-todo_task.done
         name: done
         source: FLD-todo-task.done
         sqlType: SQL-boolean
-    indexes:
-      - seq: '01'
-        id: IDX-ix_todo_task_todo_id
-        name: ix_todo_task_todo_id
+        item: done
         table: TBL-todo_task
-        columns:
-          - column: COL-todo_task.todo_id
-        source: FK-fk_todo_task_todo
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_task_todo
@@ -198,6 +246,15 @@ tables:
           - COL-todo_task.todo_id
         referencesTable: TBL-todo
         onDelete: cascade
+        table: TBL-todo_task
+    indexes:
+      - seq: '01'
+        id: IDX-ix_todo_task_todo_id
+        name: ix_todo_task_todo_id
+        table: TBL-todo_task
+        columns:
+          - column: COL-todo_task.todo_id
+        source: FK-fk_todo_task_todo
   - seq: '05'
     id: TBL-todo_tags
     name: todo_tags
@@ -206,6 +263,7 @@ tables:
     source: FLD-todo.tags
     parent: TBL-todo
     primaryKeyName: pk_todo_tags
+    originalName: todo_tags
     columns:
       - seq: '01'
         id: COL-todo_tags.todo_id
@@ -218,6 +276,8 @@ tables:
         primaryKey: 1
         referencesTable: TBL-todo
         referencesColumn: COL-todo.id
+        item: todo_id
+        table: TBL-todo_tags
       - seq: '02'
         id: COL-todo_tags.seq
         name: seq
@@ -227,6 +287,8 @@ tables:
         sqlType: SQL-seq
         notNull: true
         primaryKey: 2
+        item: seq
+        table: TBL-todo_tags
       - seq: '03'
         id: COL-todo_tags.tag_id
         name: tag_id
@@ -236,6 +298,24 @@ tables:
         notNull: true
         referencesTable: TBL-tag
         referencesColumn: COL-tag.id
+        item: tags
+        table: TBL-todo_tags
+    foreignKeys:
+      - seq: '01'
+        id: FK-fk_todo_tags_todo
+        name: fk_todo_tags_todo
+        columns:
+          - COL-todo_tags.todo_id
+        referencesTable: TBL-todo
+        onDelete: cascade
+        table: TBL-todo_tags
+      - seq: '02'
+        id: FK-fk_todo_tags_tag_id
+        name: fk_todo_tags_tag_id
+        columns:
+          - COL-todo_tags.tag_id
+        referencesTable: TBL-tag
+        table: TBL-todo_tags
     indexes:
       - seq: '01'
         id: IDX-ux_todo_tags_tag_id
@@ -253,20 +333,6 @@ tables:
         columns:
           - column: COL-todo_tags.tag_id
         source: FK-fk_todo_tags_tag_id
-    foreignKeys:
-      - seq: '01'
-        id: FK-fk_todo_tags_todo
-        name: fk_todo_tags_todo
-        columns:
-          - COL-todo_tags.todo_id
-        referencesTable: TBL-todo
-        onDelete: cascade
-      - seq: '02'
-        id: FK-fk_todo_tags_tag_id
-        name: fk_todo_tags_tag_id
-        columns:
-          - COL-todo_tags.tag_id
-        referencesTable: TBL-tag
   - seq: '06'
     id: TBL-todo_comments
     name: todo_comments
@@ -275,6 +341,7 @@ tables:
     source: FLD-todo.comments
     parent: TBL-todo
     primaryKeyName: pk_todo_comments
+    originalName: todo_comments
     columns:
       - seq: '01'
         id: COL-todo_comments.todo_id
@@ -287,6 +354,8 @@ tables:
         primaryKey: 1
         referencesTable: TBL-todo
         referencesColumn: COL-todo.id
+        item: todo_id
+        table: TBL-todo_comments
       - seq: '02'
         id: COL-todo_comments.seq
         name: seq
@@ -296,17 +365,22 @@ tables:
         sqlType: SQL-seq
         notNull: true
         primaryKey: 2
+        item: seq
+        table: TBL-todo_comments
       - seq: '03'
         id: COL-todo_comments.date
         name: date
         source: FLD-todo.comments.item.date
         sqlType: SQL-common.年月日
+        item: date
+        table: TBL-todo_comments
       - seq: '04'
         id: COL-todo_comments.body
         name: body
         source: FLD-todo.comments.item.body
         sqlType: SQL-text
-    indexes: []
+        item: body
+        table: TBL-todo_comments
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_comments_todo
@@ -315,6 +389,8 @@ tables:
           - COL-todo_comments.todo_id
         referencesTable: TBL-todo
         onDelete: cascade
+        table: TBL-todo_comments
+    indexes: []
   - seq: '07'
     id: TBL-todo_history
     name: todo_history
@@ -323,6 +399,7 @@ tables:
     source: FLD-todo.history
     parent: TBL-todo
     primaryKeyName: pk_todo_history
+    originalName: todo_history
     columns:
       - seq: '01'
         id: COL-todo_history.todo_id
@@ -335,6 +412,8 @@ tables:
         primaryKey: 1
         referencesTable: TBL-todo
         referencesColumn: COL-todo.id
+        item: todo_id
+        table: TBL-todo_history
       - seq: '02'
         id: COL-todo_history.seq
         name: seq
@@ -344,37 +423,50 @@ tables:
         sqlType: SQL-seq
         notNull: true
         primaryKey: 2
+        item: seq
+        table: TBL-todo_history
       - seq: '03'
         id: COL-todo_history.date
         name: date
         source: FLD-todo.history.item.date
         sqlType: SQL-common.年月日
+        item: date
+        table: TBL-todo_history
       - seq: '04'
         id: COL-todo_history.action
         name: action
         source: FLD-todo.history.item.action
         sqlType: SQL-common.TODOの操作
+        item: action
+        table: TBL-todo_history
       - seq: '05'
         id: COL-todo_history.from_
         name: from_
         source: FLD-todo.history.item.from
         sqlType: SQL-common.ステータス
+        item: from
+        table: TBL-todo_history
       - seq: '06'
         id: COL-todo_history.to_
         name: to_
         source: FLD-todo.history.item.to
         sqlType: SQL-common.ステータス
+        item: to
+        table: TBL-todo_history
       - seq: '07'
         id: COL-todo_history.note
         name: note
         source: FLD-todo.history.item.note
         sqlType: SQL-common.文章
+        item: note
+        table: TBL-todo_history
       - seq: '08'
         id: COL-todo_history.resume_on
         name: resume_on
         source: FLD-todo.history.item.resume_on
         sqlType: SQL-common.年月日
-    indexes: []
+        item: resume_on
+        table: TBL-todo_history
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_history_todo
@@ -383,3 +475,97 @@ tables:
           - COL-todo_history.todo_id
         referencesTable: TBL-todo
         onDelete: cascade
+        table: TBL-todo_history
+    indexes: []
+mappings:
+  - seq: '01'
+    id: SQL-common.TODO番号
+    type: TYP-common.TODO番号
+    literal: string
+    sql: VARCHAR
+    description: 番号は業務モデルに上限が無いので長さを決めない
+  - seq: '02'
+    id: SQL-common.カテゴリ番号
+    type: TYP-common.カテゴリ番号
+    literal: string
+    sql: VARCHAR
+  - seq: '03'
+    id: SQL-common.タグ番号
+    type: TYP-common.タグ番号
+    literal: string
+    sql: VARCHAR
+  - seq: '04'
+    id: SQL-common.作業項目番号
+    type: TYP-common.作業項目番号
+    literal: string
+    sql: VARCHAR
+  - seq: '05'
+    id: SQL-common.カテゴリ参照
+    type: TYP-common.カテゴリ参照
+    literal: string
+    sql: VARCHAR
+    description: 参照先の番号と同じ型
+  - seq: '06'
+    id: SQL-common.タグ参照
+    type: TYP-common.タグ参照
+    literal: string
+    sql: VARCHAR
+    description: 参照先の番号と同じ型
+  - seq: '07'
+    id: SQL-common.TODO参照
+    type: TYP-common.TODO参照
+    literal: string
+    sql: VARCHAR
+    description: 参照先の番号と同じ型
+  - seq: '08'
+    id: SQL-common.年月日
+    type: TYP-common.年月日
+    literal: date
+    sql: DATE
+  - seq: '09'
+    id: SQL-common.一行の文
+    type: TYP-common.一行の文
+    literal: string
+    sql: VARCHAR({maxLength})
+    description: 最大文字数を長さにする
+  - seq: '10'
+    id: SQL-common.文章
+    type: TYP-common.文章
+    literal: string
+    sql: VARCHAR
+    description: 業務モデルに上限が無いので長さを決めない
+  - seq: '11'
+    id: SQL-common.ステータス
+    type: TYP-common.ステータス
+    literal: string
+    sql: VARCHAR
+    description: 選択肢の値は CHECK で縛る
+  - seq: '12'
+    id: SQL-common.TODOの操作
+    type: TYP-common.TODOの操作
+    literal: string
+    sql: VARCHAR
+    description: 選択肢の値は CHECK で縛る
+  - seq: '13'
+    id: SQL-text
+    type: TYP-text
+    literal: string
+    sql: VARCHAR
+    description: 組込みの文章（上限なし）
+  - seq: '14'
+    id: SQL-boolean
+    type: TYP-boolean
+    literal: boolean
+    sql: BOOLEAN
+  - seq: '15'
+    id: SQL-seq
+    literal: number
+    sql: INTEGER
+    description: 詳細設計だけの型。明細と入れ子のテーブルの並び順（1 から）
+  - seq: '16'
+    id: SQL-key
+    literal: string
+    sql: VARCHAR
+    description: 詳細設計だけの型。マップの項目を写した明細テーブルのキー（業務モデルのマップのキー）
+decisions: []
+documentId: SYS-physical-final

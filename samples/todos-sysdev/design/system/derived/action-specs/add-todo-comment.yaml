@@ -1,0 +1,84 @@
+# 生成物（action-specs-derived）: 手で直さず、業務モデルか生成の定義（design/action-specs-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-action-specs.add-todo-comment
+record:
+  id: DOC-action-specs.add-todo-comment
+  value:
+    id: add-todo-comment
+    name: TODOにコメントを追加する
+    description: TODOの個票へ、状態に関係なく日付と本文を記録します。
+    kind: action
+    subject: todo
+    inputs:
+      - key: date
+        label: 記録日
+        type: common#年月日
+        base: date
+        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+        required: true
+        format: yyyy年M月d日
+      - key: body
+        label: コメント本文
+        type: todo-operations#操作の記録
+        base: string
+        description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+        required: true
+        minLength: 1
+        multiline: true
+    initial:
+      date:
+        $copy: today
+        $of: context
+    preconditions: []
+    effects:
+      - op: insert
+        schema: todo-detail
+        path: comments
+        value:
+          date: $date
+          body: $body
+        of: self
+        source: do
+        entity: todo
+        field:
+          key: comments
+          base: array
+          item:
+            base: object
+        written:
+          - key: date
+            value: $date
+            base: date
+          - key: body
+            value: $body
+            base: string
+      - op: set
+        schema: todo-detail
+        path: updated_on
+        value:
+          $copy: today
+          $of: context
+        source: auto
+        auto: updated
+        entity: todo
+        field:
+          key: updated_on
+          base: date
+    receiver:
+      entity: todo
+    inputPolicy:
+      initial:
+        date:
+          $copy: today
+          $of: context
+    checks:
+      - constraint: updated-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.updated_on
+    writes:
+      - CRUD-todo.add-todo-comment.comments
+      - CRUD-todo.add-todo-comment.updated_on
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/action-specs-derived.yaml

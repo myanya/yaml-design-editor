@@ -1,0 +1,23 @@
+# 生成物（screen-details-derived）: 手で直さず、業務モデルか生成の定義（design/screen-details-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-details.tag
+record:
+  id: DOC-screen-details.tag
+  value:
+    id: tag
+    name: タグ詳細
+    kind: detail
+    url: /tag/{id}
+    items:
+      - key: id
+        label: ID
+        type: common#タグ番号
+      - key: name
+        label: タグ名
+        type: common#一行の文
+    tables: []
+    buttons: []
+    originalRoutes:
+      url: /tag/{id}
+  source:
+    id: rule-screen-details
+    document: .yde/transforms/design/screen-details-derived.yaml

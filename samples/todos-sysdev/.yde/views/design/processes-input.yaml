@@ -1,0 +1,10 @@
+id: processes-input
+name: '生成入力（確定項目: processes）'
+rows:
+  idPattern: DOC-processes.*
+  schemaIds:
+    - process
+columns:
+  - label: record
+    path: .
+    schemaId: process

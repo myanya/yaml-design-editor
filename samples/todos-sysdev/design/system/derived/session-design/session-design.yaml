@@ -1,0 +1,84 @@
+# 生成物（session-design-derived）: 手で直さず、業務モデルか生成の定義（design/session-design-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-session-design.session-design
+record:
+  id: DOC-session-design.session-design
+  value:
+    id: session
+    name: セッション情報設計
+    policy:
+      - セキュリティに要るもの（CSRF トークン・二重確定を防ぐトークン）を先に置く
+      - そのほかは、タブをまたいで共有してよいものだけを置く（セッションはすべてのタブで共有される）
+      - Controller は、ここにあるキーだけを使う
+    attributes:
+      - key: csrf
+        contents: CSRF トークン
+        purpose: セキュリティ（よそのサイトからの POST を断る）
+        puts: Spring Security（入れるときに議論する）
+        reads: すべての POST
+        status: 将来
+        role: csrf
+      - key: token
+        contents: 二重確定を防ぐトークン（流れの ID → トークン。流れの ID は確認画面の hidden 項目で持つので、タブごとに別）
+        purpose: セキュリティ（同じ確定を 2 回通さない・確認画面を経ない確定を断る）
+        puts:
+          - CategoryController.addCategoryConfirm
+          - TodoController.registerTodoConfirm
+          - TodoController.addTodoCommentConfirm
+          - TodoController.addTodoTaskConfirm
+          - TodoController.editTodoConfirm
+          - TodoController.startTodoConfirm
+          - TodoController.suspendTodoConfirm
+          - TodoController.resumeTodoConfirm
+          - TodoController.completeTodoConfirm
+          - TodoController.cancelTodoConfirm
+          - TagController.addTagConfirm
+          - TodoTaskController.todoTaskFinishConfirm
+        reads:
+          - CategoryController.addCategory
+          - TodoController.registerTodo
+          - TodoController.addTodoComment
+          - TodoController.addTodoTask
+          - TodoController.editTodo
+          - TodoController.startTodo
+          - TodoController.suspendTodo
+          - TodoController.resumeTodo
+          - TodoController.completeTodo
+          - TodoController.cancelTodo
+          - TagController.addTag
+          - TodoTaskController.todoTaskFinish
+        removes: 確定で照合したとき（使った・違った）と、セッションの期限
+        role: token
+      - key: notice
+        contents: 完了の知らせ（「TODO-006 を登録しました」。メッセージのキーは 操作ID.done）と、二重の確定・時間切れの知らせ（error.token）
+        purpose: 利便（確定の後のリダイレクト（PRG）の先で 1 回だけ出す）
+        puts:
+          - CategoryController.addCategory
+          - TodoController.registerTodo
+          - TodoController.addTodoComment
+          - TodoController.addTodoTask
+          - TodoController.editTodo
+          - TodoController.startTodo
+          - TodoController.suspendTodo
+          - TodoController.resumeTodo
+          - TodoController.completeTodo
+          - TodoController.cancelTodo
+          - TagController.addTag
+          - TodoTaskController.todoTaskFinish
+          - GlobalExceptionHandler（InvalidTokenException。エラー設計書）
+        reads:
+          - TodoDashboardController.show
+          - TodoController.show
+          - CategoryController.show
+          - TagController.show
+        removes: 1 回読んだとき（Spring の flash 属性）
+        role: notice
+    notKept:
+      - what: 入力の値
+        where: 確認画面の hidden 項目（確定で入力検査・状態・前提を確かめ直す）
+      - what: 絞り込み
+        where: URL のパラメータ（タブごとに独立）
+      - what: 起点の画面
+        where: 画面の ID（パラメータ from。URL は受け取らない）
+  source:
+    id: rule-session-design
+    document: .yde/transforms/design/session-design-derived.yaml

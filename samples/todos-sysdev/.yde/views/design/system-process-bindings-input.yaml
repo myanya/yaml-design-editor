@@ -1,0 +1,10 @@
+id: system-process-bindings-input
+name: '生成入力（確定項目: system-process-bindings）'
+rows:
+  idPattern: SYS-system-process-bindings
+  schemaIds:
+    - system-process-bindings
+columns:
+  - label: bindings
+    path: bindings
+    schemaId: system-process-bindings

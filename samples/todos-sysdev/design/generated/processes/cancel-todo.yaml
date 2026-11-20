@@ -1,4 +1,4 @@
-# 生成物（processes）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
 id: cancel-todo
 name: TODOを中止する
 service:
@@ -74,3 +74,20 @@ steps:
       to: CANCELED
       note: $reason
     seq: TodoMapper.maxSeqTodoHistory の次
+subject: todo
+originalService:
+  class: TodoService
+  method: cancelTodo
+  arguments:
+    - id
+    - reason
+designId: DOC-processes.cancel-todo
+designKind: processes
+designPath: design/generated/processes/cancel-todo.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

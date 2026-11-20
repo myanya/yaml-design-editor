@@ -1,15 +1,24 @@
 id: error-definition
 name: エラー定義書
 kind: document
-description: >-
-  基本設計。断りの種類と出す場所、業務モデルのデータの決まりの扱い（どう確かめるか・確かめない理由）、操作ごとの断り。
-  生成物（.yde/transforms/design/errors.yaml）で、手で直さない
-match: "design/generated/errors.yaml"
+description: 基本設計。断りの種類と出す場所、業務モデルのデータの決まりの扱い（どう確かめるか・確かめない理由）、操作ごとの断り。 生成物（.yde/transforms/design/errors.yaml）で、手で直さない
+match: design/generated/errors.yaml
 root:
   type: object
   fields:
-    - { key: id, label: 設計書, type: string, required: true }
-    - { key: name, label: 名前, type: string, role: title }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: 設計書
+      type: string
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
     - key: kinds
       label: 断りの種類と出す場所
       type: array
@@ -17,12 +26,25 @@ root:
       item:
         type: object
         fields:
-          - { key: kind, label: 種類, type: string, required: true }
-          - { key: label, label: 名前, type: string }
-          - { key: when, label: 起きるとき, type: string }
-          - { key: shownAt, label: 出す場所, type: string }
-          - { key: status, label: HTTP の状態, type: int }
-          - { key: message, label: メッセージのキーの形, type: string }
+          - key: kind
+            label: 種類
+            type: string
+            required: true
+          - key: label
+            label: 名前
+            type: string
+          - key: when
+            label: 起きるとき
+            type: string
+          - key: shownAt
+            label: 出す場所
+            type: string
+          - key: status
+            label: HTTP の状態
+            type: int
+          - key: message
+            label: メッセージのキーの形
+            type: string
     - key: constraints
       label: データの決まりの扱い
       type: array
@@ -30,28 +52,80 @@ root:
       item:
         type: object
         fields:
-          - { key: constraint, label: 決まり, type: string, required: true }
-          - { key: label, label: 名前, type: string }
-          - { key: level, label: 重さ, type: string }
-          - { key: form, label: 形, type: string }
+          - key: constraint
+            label: 決まり
+            type: string
+            required: true
+          - key: label
+            label: 名前
+            type: string
+          - key: level
+            label: 重さ
+            type: string
+          - key: form
+            label: 形
+            type: string
           - key: by
             label: 確かめ方
             type: enum
-            values: [{ value: Java }, { value: SQL }, { value: 対象外 }, { value: 手で書く }]
-          - { key: how, label: やり方・確かめない理由, type: string }
-          - { key: message, label: メッセージのキー, type: string }
-          - { key: operations, label: 確かめる操作, type: array, item: { type: string } }
+            values:
+              - value: Java
+              - value: SQL
+              - value: 対象外
+              - value: 手で書く
+          - key: how
+            label: やり方・確かめない理由
+            type: string
+          - key: message
+            label: メッセージのキー
+            type: string
+          - key: operations
+            label: 確かめる操作
+            type: array
+            item:
+              type: string
     - key: operations
       label: 操作ごとの断り
       type: array
       display: list
       item:
         type: object
-        # 業務モデルの操作（定義の索引）と同じ ID の詳細化
-        entity: { type: yde-action, defines: false }
         fields:
-          - { key: id, label: 操作, type: id, required: true }
-          - { key: name, label: 操作名, type: string, role: title }
-          - { key: screens, label: 画面, type: string }
-          - { key: inputs, label: 入力の誤り（確認へ）, type: array, display: table, item: { type: any } }
-          - { key: refusals, label: 断り, type: array, display: table, item: { type: any } }
+          - key: id
+            label: 操作
+            type: ref
+            required: true
+          - key: name
+            label: 操作名
+            type: string
+            role: title
+          - key: screens
+            label: 画面
+            type: string
+          - key: inputs
+            label: 入力の誤り（確認へ）
+            type: array
+            display: table
+            item:
+              type: any
+          - key: refusals
+            label: 断り
+            type: array
+            display: table
+            item:
+              type: any
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error
+entity:
+  type: sysdev-error-definition
+  defines: true

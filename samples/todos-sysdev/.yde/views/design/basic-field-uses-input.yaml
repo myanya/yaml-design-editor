@@ -1,6 +1,13 @@
 id: basic-field-uses-input
 name: 個別補正の利用箇所（生成の入力）
-rows: {schemaIds: [basic-field-uses], idPattern: CMP-field-uses}
+rows:
+  schemaIds:
+    - basic-field-uses
+  idPattern: CMP-field-uses
 columns:
-  - {label: schemas, schemaId: basic-field-uses, path: schemas}
-  - {label: items, schemaId: basic-field-uses, path: items}
+  - label: schemas
+    schemaId: basic-field-uses
+    path: schemas
+  - label: items
+    schemaId: basic-field-uses
+    path: items

@@ -1,0 +1,39 @@
+id: design-review-error-handling
+name: エラー設計書
+kind: dashboard
+description: エラー設計書の確定文書を選び、概要・内容・根拠を確認する。対象を空にすると、この種類の文書をまとめて表示する。
+inputs:
+  - key: document
+    label: 対象の設計書
+    type: ref
+    idPatterns:
+      - DOC-error-handling.*
+    default: DOC-error-handling.error-handling
+sections:
+  - id: summary
+    label: 概要と根拠
+    view: system-document-summary
+    filter:
+      match:
+        - node:
+            id: DOC-error-handling.*
+            bind: design
+      expect: exists
+  - id: content
+    label: 設計内容
+    view: system-document-content
+    filter:
+      match:
+        - node:
+            id: DOC-error-handling.*
+            bind: design
+      expect: exists
+  - id: documents
+    label: この設計書の一覧
+    view: system-document-list
+    filter:
+      match:
+        - node:
+            id: DOC-error-handling.*
+            bind: design
+      expect: exists

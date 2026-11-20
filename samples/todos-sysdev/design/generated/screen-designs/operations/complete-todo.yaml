@@ -1,4 +1,4 @@
-# 生成物（screen-designs-operations）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
 id: complete-todo
 name: TODOを完了する（画面設計書）
 form:
@@ -111,3 +111,13 @@ screens:
                     kind: submit
                     action: POST /todo/{id}/complete-todo/back
                     emphasis: secondary
+designId: DOC-screen-designs-operations.complete-todo
+designKind: screen-designs-operations
+designPath: design/generated/screen-designs/operations/complete-todo.yaml
+origins:
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/screen-designs-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

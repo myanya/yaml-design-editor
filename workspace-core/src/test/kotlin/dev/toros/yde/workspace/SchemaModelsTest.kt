@@ -55,6 +55,66 @@ class SchemaModelsTest {
     }
 
     @Test
+    fun `補正後の型とビュー原文から表示形式と到達性を一緒に解決する`() {
+        val input = """
+            schemas:
+              - id: rows
+                kind: document
+                match: rows.yaml
+                entity: {type: row}
+                root:
+                  type: object
+                  fields:
+                    - {key: id, type: id}
+                    - {key: day, type: date, format: yyyy/MM/dd}
+            views:
+              - id: list
+                rows: {match: [{node: {entity: row}}]}
+                columns: [{label: 日付, path: day, schemaId: rows}]
+              - id: dashboard
+                kind: dashboard
+                sections: [{id: main, view: list}]
+        """.trimIndent()
+        val result = model(input)
+        val column = (((result["views"] as List<*>).single() as Map<*, *>)["columns"] as List<*>).single() as Map<*, *>
+        assertEquals("yyyy/MM/dd", (column["field"] as Map<*, *>)["format"])
+        assertEquals(listOf("row"), (result["reach"] as Map<*, *>)["entities"])
+        assertEquals(2, (result["viewDefinitions"] as List<*>).size)
+        val changedView = (model(input.replace("yyyy/MM/dd", "yyyy-MM-dd"))["views"] as List<*>).single() as Map<*, *>
+        val changedColumn = (changedView["columns"] as List<*>).single() as Map<*, *>
+        assertEquals("yyyy-MM-dd", (changedColumn["field"] as Map<*, *>)["format"])
+        for (bad in listOf("{schemas: [], views: {}}", "{schemas: [], views: [null]}", "{schemas: [], views: [{id: a}, {id: a}]}", "{schemas: [], unexpected: []}")) {
+            assertFailsWith<RuntimeException>(bad) { model(bad) }
+        }
+    }
+
+    @Test
+    fun `文書からビュー定義への参照は渡したビューだけで検査する`() {
+        val input = """
+            schemas:
+              - id: record
+                match: record.yaml
+                root:
+                  type: object
+                  fields:
+                    - {key: id, type: id}
+                    - {key: source, type: ref}
+            views:
+              - id: source-view
+                rows: {idPattern: 'ROW-*'}
+                columns: [{label: ID, path: id}]
+            documents:
+              record.yaml: {id: DOC-1, source: source-view}
+        """.trimIndent()
+        val term = YamlIO.fromAny(YamlIO.parseToRaw(input))
+        val result = YamlIO.toAny(SchemaModels.validate(term)) as Map<*, *>
+        assertEquals(mapOf("id" to "DOC-1", "source" to "source-view"), result["record.yaml"])
+        assertFailsWith<RuntimeException> {
+            SchemaModels.validate(YamlIO.fromAny(YamlIO.parseToRaw(input.replace("source: source-view", "source: missing-view"))))
+        }
+    }
+
+    @Test
     fun `入力の欠落や重複や型の誤りは一部だけ解決して通さない`() {
         for (bad in listOf("{}", "[null]", "[{kind: library}]", "[{id: 1, kind: library}]",
             "[{id: a, kind: library}, {id: a, kind: library}]",

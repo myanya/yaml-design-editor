@@ -1,4 +1,4 @@
-# 生成物（screen-flows）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-flows.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-flows）: 手で直さず、業務モデルか生成の定義（design/screen-flows.yaml）を直して作り直します（CLI generate）。
 id: todo
 name: TODOの画面の動き
 controller: TodoController
@@ -383,3 +383,13 @@ handlers:
           - cancel-todo.state
           - check.updated-not-before-created
           - check.unfinished-has-no-completed-on
+designId: DOC-screen-flows.todo
+designKind: screen-flows
+designPath: design/generated/controllers/todo.yaml
+origins:
+  source:
+    id: rule-screen-flows
+    document: .yde/transforms/design/screen-flows-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

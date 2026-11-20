@@ -1,0 +1,612 @@
+id: messages-derived
+name: メッセージ定義書
+description: >-
+  基本設計。画面に出す文の一覧（キー・種類・文・出どころ）を 1 本にする。③で messages.properties（Spring の MessageSource）に写す。 決め打ちの規則（エラーとメッセージの議論で決めたもの）: 状態の断りは業務モデルが
+  Lifecycle から作る文・前提の断りは前提の message・ データの決まりは決まりの message（循環の決まりは決まった文）・入力の誤りは検査の種類ごとの決まった文で、キーはフォームと項目まで書く
+  （必須は欄の種類で「入力して」か「選んで」）・完了の知らせは操作の名前の末尾の「する」を「しました」にして ID を添える・ 絞り込みの結果が 0
+  件は「該当する…はありません」・見つからない・二重の確定・想定外は決まった文。確かめない決まり（エラー定義書の対象外）の文は載せない
+scope: business
+output: design/system/derived/messages/messages.yaml
+dependsOn:
+  - system-screen-input-model
+  - errors
+  - system-input-gate
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: system-screen-input-model-input
+      $one: true
+build:
+  id:
+    $format: DRV-document-messages.messages
+  record:
+    id:
+      $format: DOC-messages.messages
+    value:
+      $apply: linked-document
+      $with:
+        document:
+          id: messages
+          name: メッセージ定義書
+          file: src/main/resources/messages.properties
+          writing:
+            - 名前の穴（{id} など）は、文の中で最初に出た順に {0} {1} … へ置き換えて書く（MessageFormat）。穴の意味は holes
+            - 入力の誤りのキーは、Bean Validation の誤りのコードの頭に validation. を付けたもの（DefaultMessageCodesResolver の prefix）。日付として読めない誤りは typeMismatch
+            - 文に ' を書くときは '' と書く（MessageFormat）
+          holes:
+            - name: id
+              means: 受け手の ID（作る操作は作った要素の ID。データの決まりは、決まりの起点の要素の ID）
+            - name: state
+              means: 受け手の今の状態の名前
+            - name: left
+              means: データの決まりの check の左の値（画面の表示の形）
+            - name: right
+              means: データの決まりの check の右の値（画面の表示の形）
+            - name: 'no'
+              means: 受付番号（ログと突き合わせる）
+          messages:
+            $concat:
+              - $each: actions
+                $of: model
+                $build:
+                  $when:
+                    - path: lifecycle.refusal
+                      exists: true
+                  key:
+                    $format: '{id}.state'
+                  kind: 状態の断り
+                  text:
+                    $copy: lifecycle.refusal
+                  source:
+                    $format: 操作 {id} の Lifecycle（{l}）
+                    $with:
+                      l:
+                        $copy: lifecycle.id
+              - $each: actions
+                $of: model
+                $bind: a
+                $flatten: true
+                $build:
+                  $each: require
+                  $build:
+                    $when:
+                      - path: id
+                        exists: true
+                    key:
+                      $format: '{a}.{r}'
+                      $with:
+                        a:
+                          $copy: id
+                          $of: a
+                        r:
+                          $copy: id
+                    kind: 前提の断り
+                    text:
+                      $first:
+                        - $copy: message
+                        - $format: '{a}.{r}'
+                          $with:
+                            a:
+                              $copy: id
+                              $of: a
+                            r:
+                              $copy: id
+                    source:
+                      $format: 操作 {a} の前提 {r}
+                      $with:
+                        a:
+                          $copy: id
+                          $of: a
+                        r:
+                          $copy: id
+              - $each: constraints
+                $of: model
+                $build:
+                  $when:
+                    - path: level
+                      equals: error
+                    - or:
+                        - path: form
+                          equals: element
+                        - path: rule.match[1].edge.contains
+                          equals: true
+                        - path: kind
+                          equals: acyclic
+                  key:
+                    $format: check.{id}
+                  kind: データの決まり
+                  text:
+                    $first:
+                      - $copy: message
+                      - $when:
+                          - path: kind
+                            equals: acyclic
+                        $then:
+                          $format: 「{r}」をたどると、自分（{id}）に戻ります（循環はできません）
+                          $with:
+                            r:
+                              $copy: relationLabel
+                            id: '{id}'
+                      - $copy: label
+                  source:
+                    $format: 決まり {id}（{source}）
+              - $each: actions
+                $of: model
+                $build:
+                  key:
+                    $format: '{id}.done'
+                  kind: 完了の知らせ
+                  text:
+                    $first:
+                      - $format: '{s}しました（{id}）'
+                        $with:
+                          s:
+                            $value:
+                              extract:
+                                - path: label
+                                - ^(.*)する$
+                          id: '{id}'
+                      - $format: 「{l}」が済みました（{id}）
+                        $with:
+                          l:
+                            $copy: label
+                          id: '{id}'
+                  source:
+                    $format: 操作 {id} の名前
+              - $group:
+                  $each: dashboards
+                  $of: model
+                  $flatten: true
+                  $build:
+                    $each: sections
+                    $bind: sec
+                    $flatten: true
+                    $build:
+                      $each: views
+                      $of: model
+                      $build:
+                        $when:
+                          - path: id
+                            equals:
+                              $copy: view
+                              $of: sec
+                        $then:
+                          $copy: rows
+                $by:
+                  $copy: .
+                $bind: g
+                $build:
+                  key:
+                    $format: list.empty.{key}
+                  kind: 絞り込みの結果
+                  text:
+                    $format: 該当する{l[0]}はありません
+                    $with:
+                      l:
+                        $each: entities
+                        $of: model
+                        $build:
+                          $when:
+                            - path: id
+                              equals:
+                                $copy: key
+                                $of: g
+                          $then:
+                            $copy: label
+                  source: ダッシュボードの区画の一覧
+              - $group:
+                  $concat:
+                    - $copy: reach.entities
+                      $of: model
+                    - $each: actions
+                      $of: model
+                      $build:
+                        $when:
+                          - path: target.entity
+                            exists: true
+                        $then:
+                          $copy: target.entity
+                $by:
+                  $copy: .
+                $bind: g
+                $build:
+                  key:
+                    $format: error.notFound.{key}
+                  kind: 見つからない
+                  text:
+                    $format: '{l[0]}「{id}」は見つかりません'
+                    $with:
+                      l:
+                        $each: entities
+                        $of: model
+                        $build:
+                          $when:
+                            - path: id
+                              equals:
+                                $copy: key
+                                $of: g
+                          $then:
+                            $copy: label
+                      id: '{id}'
+                  source: ID を指定して読んで無いとき（404）
+              - - key: error.token
+                  kind: 二重の確定・時間切れ
+                  text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
+                  source: 確定のトークンが無い・違う
+                - key: error.unexpected
+                  kind: 想定外
+                  text: 処理できませんでした。時間をおいてやり直してください（受付番号 {no}）
+                  source: 想定外の例外（500）
+          validation:
+            $group:
+              $each: actions
+              $of: model
+              $bind: a
+              $flatten: true
+              $build:
+                $when:
+                  - of: model
+                    path: reach.operations
+                    includes:
+                      $copy: id
+                $then:
+                  $concat:
+                    - $each: params
+                      $build:
+                        $when:
+                          - not:
+                              path: base
+                              equals: object
+                          - or:
+                              - path: item.base
+                                exists: false
+                              - not:
+                                  path: item.base
+                                  equals: object
+                          - or:
+                              - path: required
+                                equals: true
+                              - path: maxLength
+                                exists: true
+                              - path: minLength
+                                exists: true
+                              - path: pattern
+                                exists: true
+                              - path: base
+                                equals: date
+                              - path: unique
+                                exists: true
+                        form:
+                          $format: '{f}Form'
+                          $with:
+                            f:
+                              $case:
+                                $copy: id
+                                $of: a
+                              $as: camel
+                        field:
+                          $case:
+                            $copy: key
+                          $as: camel
+                        def:
+                          $copy: .
+                    - $each: params
+                      $bind: p
+                      $flatten: true
+                      $build:
+                        $when:
+                          - path: item.base
+                            equals: object
+                        $then:
+                          $each: item.fields
+                          $build:
+                            $when:
+                              - or:
+                                  - path: required
+                                    equals: true
+                                  - path: maxLength
+                                    exists: true
+                                  - path: minLength
+                                    exists: true
+                                  - path: pattern
+                                    exists: true
+                                  - path: base
+                                    equals: date
+                                  - path: unique
+                                    exists: true
+                            form:
+                              $format: '{f}Form'
+                              $with:
+                                f:
+                                  $case:
+                                    $copy: id
+                                    $of: a
+                                  $as: camel
+                            field:
+                              $format: '{p}.{k}'
+                              $with:
+                                p:
+                                  $case:
+                                    $copy: key
+                                    $of: p
+                                  $as: camel
+                                k:
+                                  $case:
+                                    $copy: key
+                                  $as: camel
+                            def:
+                              $copy: .
+            $by:
+              $format: '{form}.{field}'
+            $build:
+              $apply: input-messages
+              $at: items[0]
+        bindings:
+          $concat: []
+        messages: []
+    source:
+      id: rule-messages
+      document: .yde/transforms/design/messages-derived.yaml
+rules:
+  - id: input-messages
+    build:
+      form:
+        $copy: form
+      field:
+        $copy: field
+      label:
+        $copy: def.label
+      messages:
+        $concat:
+          - $when:
+              - path: def.required
+                equals: true
+            $then:
+              - key:
+                  $format: validation.NotNull.{form}.{field}
+                kind: 入力の誤り
+                text:
+                  $first:
+                    - $when:
+                        - or:
+                            - path: def.base
+                              oneOf:
+                                - ref
+                                - enum
+                            - path: def.item.base
+                              equals: ref
+                      $then:
+                        $format: '{def.label}を選んでください'
+                    - $format: '{def.label}を入力してください'
+                source: 必須
+          - $when:
+              - path: def.maxLength
+                exists: true
+            $then:
+              - key:
+                  $format: validation.Size.{form}.{field}
+                kind: 入力の誤り
+                text:
+                  $first:
+                    - $when:
+                        - path: def.minLength
+                          gt: 1
+                      $then:
+                        $format: '{def.label}は{def.minLength}文字以上{def.maxLength}文字以内で入力してください'
+                    - $format: '{def.label}は{def.maxLength}文字以内で入力してください'
+                source: 文字数
+          - $when:
+              - path: def.maxLength
+                exists: false
+              - path: def.minLength
+                exists: true
+            $then:
+              - key:
+                  $format: validation.Size.{form}.{field}
+                kind: 入力の誤り
+                text:
+                  $format: '{def.label}は{def.minLength}文字以上で入力してください'
+                source: 文字数
+          - $when:
+              - path: def.pattern
+                exists: true
+            $then:
+              - key:
+                  $format: validation.Pattern.{form}.{field}
+                kind: 入力の誤り
+                text:
+                  $format: '{def.label}の書き方が正しくありません'
+                source: 形式
+          - $when:
+              - path: def.base
+                equals: date
+            $then:
+              - key:
+                  $format: validation.typeMismatch.{form}.{field}
+                kind: 入力の誤り
+                text:
+                  $format: '{def.label}は年月日で入力してください'
+                source: 日付として読めない
+          - $when:
+              - path: def.unique
+                exists: true
+            $then:
+              - key:
+                  $format: validation.UniqueElements.{form}.{field}
+                kind: 入力の誤り
+                text:
+                  $format: '{def.label}に同じものを 2 回選べません'
+                source: 重なり不可
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
+  - id: linked-document
+    with:
+      - document
+      - bindings
+      - messages
+    build:
+      $apply: linked-tree
+      $of: document
+      $with:
+        bindings:
+          $copy: .
+          $of: bindings
+        role: document
+        messages:
+          $copy: .
+          $of: messages
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: linked-tree
+    with:
+      - bindings
+      - role
+      - messages
+    build:
+      $first:
+        - $apply: linked-map
+          $with:
+            entries:
+              $eachEntry: .
+              $flatten: true
+              $build:
+                - key: $key
+                  value:
+                    $apply: linked-tree
+                    $with:
+                      bindings:
+                        $copy: .
+                        $of: bindings
+                      role: $key
+                      messages:
+                        $copy: .
+                        $of: messages
+            node:
+              $copy: .
+            messages:
+              $copy: .
+              $of: messages
+        - $each: .
+          $build:
+            $apply: linked-tree
+            $with:
+              bindings:
+                $copy: .
+                $of: bindings
+              role:
+                $copy: .
+                $of: role
+              messages:
+                $copy: .
+                $of: messages
+        - $apply: linked-scalar
+          $with:
+            leaf:
+              $copy: .
+            bindings:
+              $copy: .
+              $of: bindings
+            role:
+              $copy: .
+              $of: role
+  - id: linked-scalar
+    with:
+      - leaf
+      - bindings
+      - role
+    build:
+      $first:
+        - $apply: contract-first
+          $with:
+            matches:
+              $each: .
+              $of: bindings
+              $build:
+                $when:
+                  - path: before
+                    equals:
+                      $copy: .
+                      $of: leaf
+                  - path: roles
+                    includes:
+                      $copy: .
+                      $of: role
+                $then:
+                  $copy: after
+        - $copy: .
+          $of: leaf
+  - id: linked-map
+    with:
+      - entries
+      - node
+      - messages
+    when:
+      - path: .
+        of: entries
+        exists: true
+    build:
+      $entries:
+        $concat:
+          - $copy: .
+            $of: entries
+          - $when:
+              - path: text
+                of: node
+                exists: true
+              - path: message
+                of: node
+                exists: true
+            $then:
+              - key: text
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: messages
+                      $build:
+                        $when:
+                          - path: key
+                            equals:
+                              $copy: message
+                              $of: node
+                        $then:
+                          $copy: text
+          - $when:
+              - path: key
+                of: node
+                exists: true
+              - path: message
+                of: node
+                exists: true
+            $then:
+              - key: message
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: messages
+                      $build:
+                        $when:
+                          - path: key
+                            equals:
+                              $copy: key
+                              $of: node
+                        $then:
+                          $copy: text

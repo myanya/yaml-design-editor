@@ -1,11 +1,10 @@
-# 詳細設計項目台帳: 人が書く。業務モデルから導けない詳細設計の項目（画面の絞り込みや並びのための索引など）を、詳細設計項目一覧と同じ形で足す。
-# 生成した項目の値を置き換えるときは、ここではなく補正一覧（corrections.yaml）に書く
+inputId: INPUT-detail-ledger
 indexes:
   - seq: '01'
     id: IDX-ix_todo_status_due_on
     name: ix_todo_status_due_on
     table: TBL-todo
     columns:
-      - { column: COL-todo.status }
-      - { column: COL-todo.due_on }
+      - column: COL-todo.status
+      - column: COL-todo.due_on
     reason: ダッシュボードの「期限超過」の区画で、TODO を状態（未着手・対応中）と期限（今日より前）で絞るため

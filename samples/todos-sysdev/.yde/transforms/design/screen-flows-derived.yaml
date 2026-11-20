@@ -1,0 +1,561 @@
+id: screen-flows-derived
+name: 画面遷移設計（Controller）
+description: >-
+  詳細設計。ダッシュボードからたどれるエンティティ型（と入れ子の型）ごとに Controller を 1 つ作り、詳細画面のハンドラと、その型を主体にする 操作のハンドラ（入力・確認・入力へ戻る・確定）を書く。決め打ちの規則（画面系の議論で決めたもの）: 状態を変えるのは
+  POST だけ（GET は読むだけ）・ 確認で入力検査（Bean Validation）と、受け取る値が原因で破れうるデータの決まり（Service の確かめ）・確定でトークンを照合し、Service が入力検査・状態・前提・
+  データの決まりを確かめ直す・断りは確認画面に出す（例外とメッセージのキーはエラー設計書）・確定の後は起点の画面へリダイレクト（PRG）・ 起点の画面は画面の ID（パラメータ
+  from）で受け取る・セッションは「セッション情報設計」のキーだけを使う。フォームの項目は画面設計書で決める（ここはクラス名で指す）
+scope: business
+each: entities
+output: design/system/derived/screen-flows/{id}.yaml
+dependsOn:
+  - system-actions-model
+  - system-access-bindings
+  - system-process-bindings
+  - system-session-bindings
+  - screen-designs-operations
+  - screen-operations
+  - screen-details
+  - error-handling
+  - system-input-gate
+  - system-screen-bindings
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: system-actions-model-input
+      $one: true
+build:
+  id:
+    $format: DRV-document-screen-flows.{id}
+  record:
+    id:
+      $format: DOC-screen-flows.{id}
+    value:
+      $apply: linked-document
+      $with:
+        document:
+          $when:
+            - or:
+                - of: model
+                  path: reach.entities
+                  includes:
+                    $copy: id
+                - of: model
+                  path: reach.nested
+                  includes:
+                    $copy: id
+          id:
+            $copy: id
+          name:
+            $format: '{label}の画面の動き'
+          controller:
+            $format: '{name}Controller'
+            $with:
+              name:
+                $case:
+                  $copy: id
+                $as: pascal
+          screens:
+            $when:
+              - of: model
+                path: reach.entities
+                includes:
+                  $copy: id
+            $then:
+              - screen:
+                  $copy: id
+                handler: show
+                request:
+                  $format: GET /{t}/{k}
+                  $with:
+                    t:
+                      $copy: id
+                    k: '{id}'
+                does: 受け手を読んで詳細画面を出す（無ければ「見つかりません」）
+                service:
+                  $format: '{n}Service.findDetail'
+                  $with:
+                    'n':
+                      $case:
+                        $copy: id
+                      $as: pascal
+                reads:
+                  - $format: '{n}Mapper.findDetail'
+                    $with:
+                      'n':
+                        $case:
+                          $copy: id
+                        $as: pascal
+                session:
+                  reads:
+                    - notice
+          handlers:
+            $each: actions
+            $of: model
+            $bind: a
+            $build:
+              $when:
+                - path: subject
+                  equals:
+                    $copy: id
+                    $of: element
+                - of: model
+                  path: reach.operations
+                  includes:
+                    $copy: id
+              action:
+                $copy: id
+              name:
+                $copy: label
+              form:
+                $when:
+                  - path: params
+                    empty: false
+                $then:
+                  $format: '{name}Form'
+                  $with:
+                    name:
+                      $case:
+                        $copy: id
+                      $as: pascal
+              service:
+                $format: '{s}Service.{m}'
+                $with:
+                  s:
+                    $case:
+                      $copy: subject
+                    $as: pascal
+                  m:
+                    $case:
+                      $copy: id
+                    $as: camel
+              returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+              steps:
+                $concat:
+                  - $when:
+                      - path: params
+                        empty: false
+                    $then:
+                      - handler:
+                          $format: '{m}Input'
+                          $with:
+                            m:
+                              $case:
+                                $copy: id
+                              $as: camel
+                        request:
+                          $format: GET {u}
+                          $with:
+                            u:
+                              $apply: url
+                        screen:
+                          $format: '{id}/input'
+                        does:
+                          $first:
+                            - $when:
+                                - path: target.entity
+                                  exists: true
+                              $then: 受け手を読み、初期値でフォームを作って入力画面を出す
+                            - 初期値でフォームを作って入力画面を出す
+                        reads:
+                          $apply: input-reads
+                  - - handler:
+                        $format: '{m}Confirm'
+                        $with:
+                          m:
+                            $case:
+                              $copy: id
+                            $as: camel
+                      request:
+                        $first:
+                          - $when:
+                              - path: params
+                                empty: false
+                            $then:
+                              $format: POST {u}/confirm
+                              $with:
+                                u:
+                                  $apply: url
+                          - $format: GET {u}/confirm
+                            $with:
+                              u:
+                                $apply: url
+                      screen:
+                        $format: '{id}/confirm'
+                      does:
+                        $first:
+                          - $when:
+                              - path: params
+                                empty: false
+                            $then: >-
+                              フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service
+                              で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+                          - 受け手を読んで確認画面を出す
+                      reads:
+                        $concat:
+                          - $when:
+                              - path: target.entity
+                                exists: true
+                            $then:
+                              - $format: '{n}Mapper.findById'
+                                $with:
+                                  'n':
+                                    $case:
+                                      $copy: target.entity
+                                    $as: pascal
+                      calls:
+                        $group:
+                          $each: checks
+                          $build:
+                            $when:
+                              - path: params
+                                exists: true
+                              - path: level
+                                equals: error
+                              - or:
+                                  - path: form
+                                    equals: element
+                                  - path: kind
+                                    equals: acyclic
+                            $then:
+                              $copy: .
+                        $by: confirm
+                        $build:
+                          $format: '{s}Service.check{m}'
+                          $with:
+                            s:
+                              $case:
+                                $copy: subject
+                                $of: a
+                              $as: pascal
+                            m:
+                              $case:
+                                $copy: id
+                                $of: a
+                              $as: pascal
+                      session:
+                        puts:
+                          - token
+                  - $when:
+                      - path: params
+                        empty: false
+                    $then:
+                      - handler:
+                          $format: '{m}Back'
+                          $with:
+                            m:
+                              $case:
+                                $copy: id
+                              $as: camel
+                        request:
+                          $format: POST {u}/back
+                          $with:
+                            u:
+                              $apply: url
+                        screen:
+                          $format: '{id}/input'
+                        does: hidden 項目の値で入力画面を出す
+                  - - handler:
+                        $case:
+                          $copy: id
+                        $as: camel
+                      request:
+                        $format: POST {u}
+                        $with:
+                          u:
+                            $apply: url
+                      does: >-
+                        トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く →
+                        断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+                      session:
+                        reads:
+                          - token
+                        removes:
+                          - token
+                        puts:
+                          - notice
+                      refusals:
+                        $concat:
+                          - $when:
+                              - path: lifecycle.refusal
+                                exists: true
+                            $then:
+                              - $format: '{id}.state'
+                          - $each: require
+                            $build:
+                              $when:
+                                - path: id
+                                  exists: true
+                              $then:
+                                $format: '{a}.{r}'
+                                $with:
+                                  a:
+                                    $copy: id
+                                    $of: a
+                                  r:
+                                    $copy: id
+                          - $each: checks
+                            $build:
+                              $when:
+                                - path: level
+                                  equals: error
+                                - or:
+                                    - path: form
+                                      equals: element
+                                    - path: form
+                                      equals: pattern
+                                    - path: kind
+                                      equals: acyclic
+                              $then:
+                                $format: check.{c}
+                                $with:
+                                  c:
+                                    $copy: constraint
+        bindings:
+          $concat:
+            - $each:
+                $view: system-access-bindings-input
+              $flatten: true
+              $build:
+                $copy: values.bindings
+            - $each:
+                $view: system-process-bindings-input
+              $flatten: true
+              $build:
+                $copy: values.bindings
+            - $each:
+                $view: system-session-bindings-input
+              $flatten: true
+              $build:
+                $copy: values.bindings
+            - $each:
+                $view: system-screen-bindings-input
+              $flatten: true
+              $build:
+                $copy: values.bindings
+        messages: []
+    source:
+      id: rule-screen-flows
+      document: .yde/transforms/design/screen-flows-derived.yaml
+rules:
+  - id: input-reads
+    build:
+      $concat:
+        - $when:
+            - path: target.entity
+              exists: true
+          $then:
+            - $format: '{n}Mapper.findById'
+              $with:
+                'n':
+                  $case:
+                    $copy: target.entity
+                  $as: pascal
+        - $group:
+            $each: params
+            $build:
+              $first:
+                - $copy: target
+                - $copy: item.target
+          $by:
+            $copy: .
+          $build:
+            $format: '{n}Mapper.selectAll'
+            $with:
+              'n':
+                $case:
+                  $copy: key
+                $as: pascal
+  - id: url
+    when:
+      - path: target.entity
+        exists: true
+    build:
+      $format: /{t}/{k}/{a}
+      $with:
+        t:
+          $copy: subject
+        k: '{id}'
+        a:
+          $copy: id
+  - id: url
+    build:
+      $format: /{t}/{a}
+      $with:
+        t:
+          $copy: subject
+        a:
+          $copy: id
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
+  - id: linked-document
+    with:
+      - document
+      - bindings
+      - messages
+    build:
+      $apply: linked-tree
+      $of: document
+      $with:
+        bindings:
+          $copy: .
+          $of: bindings
+        role: document
+        messages:
+          $copy: .
+          $of: messages
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: linked-tree
+    with:
+      - bindings
+      - role
+      - messages
+    build:
+      $first:
+        - $apply: linked-map
+          $with:
+            entries:
+              $eachEntry: .
+              $flatten: true
+              $build:
+                - key: $key
+                  value:
+                    $apply: linked-tree
+                    $with:
+                      bindings:
+                        $copy: .
+                        $of: bindings
+                      role: $key
+                      messages:
+                        $copy: .
+                        $of: messages
+            node:
+              $copy: .
+            messages:
+              $copy: .
+              $of: messages
+        - $each: .
+          $build:
+            $apply: linked-tree
+            $with:
+              bindings:
+                $copy: .
+                $of: bindings
+              role:
+                $copy: .
+                $of: role
+              messages:
+                $copy: .
+                $of: messages
+        - $apply: linked-scalar
+          $with:
+            leaf:
+              $copy: .
+            bindings:
+              $copy: .
+              $of: bindings
+            role:
+              $copy: .
+              $of: role
+  - id: linked-scalar
+    with:
+      - leaf
+      - bindings
+      - role
+    build:
+      $first:
+        - $apply: contract-first
+          $with:
+            matches:
+              $each: .
+              $of: bindings
+              $build:
+                $when:
+                  - path: before
+                    equals:
+                      $copy: .
+                      $of: leaf
+                  - path: roles
+                    includes:
+                      $copy: .
+                      $of: role
+                $then:
+                  $copy: after
+        - $copy: .
+          $of: leaf
+  - id: linked-map
+    with:
+      - entries
+      - node
+      - messages
+    when:
+      - path: .
+        of: entries
+        exists: true
+    build:
+      $entries:
+        $concat:
+          - $copy: .
+            $of: entries
+          - $when:
+              - path: text
+                of: node
+                exists: true
+              - path: message
+                of: node
+                exists: true
+            $then:
+              - key: text
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: messages
+                      $build:
+                        $when:
+                          - path: key
+                            equals:
+                              $copy: message
+                              $of: node
+                        $then:
+                          $copy: text
+          - $when:
+              - path: key
+                of: node
+                exists: true
+              - path: message
+                of: node
+                exists: true
+            $then:
+              - key: message
+                value:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: messages
+                      $build:
+                        $when:
+                          - path: key
+                            equals:
+                              $copy: key
+                              $of: node
+                        $then:
+                          $copy: text

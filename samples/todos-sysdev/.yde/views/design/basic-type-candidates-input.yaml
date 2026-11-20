@@ -2,6 +2,8 @@ id: basic-type-candidates-input
 name: basic-type-candidates の生成入力
 rows:
   idPattern: CMP-basic-type-candidates
+  schemaIds:
+    - basic-type-candidates
 columns:
   - label: types
     path: types

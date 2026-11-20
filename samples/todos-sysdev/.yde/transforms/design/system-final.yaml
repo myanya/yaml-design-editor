@@ -1,0 +1,1957 @@
+id: system-final
+name: 全設計書の確定前検査
+scope: design
+dependsOn:
+  - action-specs
+  - dashboard-flows
+  - domain-relations
+  - domains
+  - error-handling
+  - errors
+  - messages
+  - processes
+  - screen-designs-details
+  - screen-designs-lists
+  - screen-designs-operations
+  - screen-details
+  - screen-flows
+  - screen-lists
+  - screen-operations
+  - screen-styles
+  - screen-transitions
+  - session-design
+  - status-rules
+  - table-access
+  - detail-tables
+  - basic-types
+  - basic-entities
+output: design/system/review.yaml
+input:
+  $apply: validate-system
+  $with:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            notEquals: design-coverage
+        $then:
+          $copy: declared
+    documents:
+      $each:
+        $view: system-final-documents
+      $build:
+        $copy: values.record
+    business:
+      $view: system-model-input
+      $one: true
+build:
+  id: SYS-system-review
+  status: validated
+  documents:
+    $each:
+      $view: system-final-documents
+    $build:
+      id:
+        $copy: id
+      kind:
+        $copy: values.record.designKind
+      source:
+        $copy: values.record.id
+      path:
+        $copy: values.record.designPath
+  inputs:
+    corrections:
+      $each:
+        $view: system-corrections-input
+      $build:
+        $copy: values.correction
+    specifications:
+      $each:
+        $view: system-specifications-input
+      $build:
+        $copy: values.specification
+    additions:
+      $each:
+        $view: system-additions-input
+      $build:
+        $copy: values.addition
+rules:
+  - id: validate-system
+    with:
+      - schemas
+      - documents
+      - business
+    build:
+      $validate:
+        schemas:
+          $concat:
+            - $copy: .
+              $of: schemas
+            - $each: values.model.schemas
+              $of: business
+              $build:
+                $copy: declared
+        views:
+          $copy: values.model.viewDefinitions
+          $of: business
+        documents:
+          $entries:
+            $concat:
+              - $each:
+                  $view: system-final-documents
+                $build:
+                  key:
+                    $copy: values.record.designPath
+                  value:
+                    $copy: values.record
+              - - key: design/basic/entities.yaml
+                  value:
+                    entities:
+                      $each:
+                        $view: basic-model-entities
+                      $build:
+                        $copy: values.record
+                - key: design/basic/types.yaml
+                  value:
+                    types:
+                      $each:
+                        $view: basic-model-types
+                      $build:
+                        $copy: values.record
+                - key: design/basic/classes.yaml
+                  value:
+                    classes:
+                      $each:
+                        $view: system-classes-input
+                      $build:
+                        $copy: values.record
+                - key: design/detail/tables.yaml
+                  value:
+                    $apply: record-row
+                    $with:
+                      row:
+                        $view: physical-final-input
+                        $one: true
+                - key: design/system/corrections.yaml
+                  value:
+                    $apply: record-row
+                    $with:
+                      row:
+                        $view: system-corrections-document
+                        $one: true
+                - key: design/system/additions.yaml
+                  value:
+                    $apply: record-row
+                    $with:
+                      row:
+                        $view: system-additions-document
+                        $one: true
+                - key: design/system/finalization-gate.yaml
+                  value:
+                    $apply: gate
+                    $with:
+                      documents:
+                        $copy: .
+                        $of: documents
+  - id: record-row
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: gate
+    with:
+      - documents
+    build:
+      id: GATE-system-final
+      documents:
+        $each: .
+        $of: documents
+        $build:
+          $copy: designId
+      identities:
+        $concat:
+          - $each:
+              $view: action-specs-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: dashboard-flows-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: domain-relations-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: domains-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: error-handling-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: errors-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: messages-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: processes-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-designs-details-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-designs-lists-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-designs-operations-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-details-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-flows-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-lists-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-operations-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-styles-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: screen-transitions-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: session-design-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: status-rules-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+          - $each:
+              $view: table-access-derived-input
+            $bind: derived
+            $build:
+              $when:
+                - path: values.record.value
+                  exists: true
+              $then:
+                target:
+                  $copy: values.record.id
+                expected:
+                  $copy: values.record.value.id
+                actual:
+                  $apply: contract-first
+                  $with:
+                    matches:
+                      $each: .
+                      $of: documents
+                      $build:
+                        $when:
+                          - path: designId
+                            equals:
+                              $copy: values.record.id
+                              $of: derived
+                        $then:
+                          $copy: id
+      pending:
+        $concat:
+          - $each:
+              $view: system-corrections-input
+            $flatten: true
+            $build:
+              $apply: pending-keys
+              $with:
+                input:
+                  $copy: values.correction
+                value:
+                  $copy: values.correction.set
+                reserved:
+                  - id
+                  - designId
+                  - designKind
+                  - designPath
+                  - origins
+                  - originalRoutes
+                  - originalService
+                  - methodId
+                  - originalName
+                  - role
+          - $each:
+              $view: system-specifications-input
+            $flatten: true
+            $build:
+              $apply: pending-keys
+              $with:
+                input:
+                  $copy: values.specification
+                value:
+                  $copy: values.specification.settings
+                reserved:
+                  - id
+                  - designId
+                  - designKind
+                  - designPath
+                  - origins
+                  - originalRoutes
+                  - originalService
+                  - methodId
+                  - originalName
+                  - role
+          - $each:
+              $view: system-corrections-input
+            $bind: correction
+            $flatten: true
+            $build:
+              $each: values.correction.changes
+              $build:
+                $when:
+                  - path: path[0]
+                    oneOf:
+                      - id
+                      - designId
+                      - designKind
+                      - designPath
+                      - origins
+                      - originalRoutes
+                      - originalService
+                      - methodId
+                      - originalName
+                      - role
+                $then:
+                  input:
+                    $copy: id
+                    $of: correction
+                  path:
+                    $copy: path
+                  reason: 識別子と導出記録は変更できません
+          - $each:
+              $view: system-additions-input
+            $build:
+              $when:
+                - path: values.addition.collection
+                  exists: true
+              $then:
+                $apply: pending-addition
+                $with:
+                  input:
+                    $copy: values.addition
+                  document:
+                    $apply: contract-first
+                    $with:
+                      matches:
+                        $each: .
+                        $of: documents
+                        $build:
+                          $when:
+                            - path: designId
+                              equals:
+                                $copy: values.addition.target
+                                $of: addition
+                          $then:
+                            $copy: .
+            $bind: addition
+          - $each:
+              $view: system-corrections-input
+            $bind: correction
+            $flatten: true
+            $build:
+              $each: values.correction.changes
+              $bind: change
+              $flatten: true
+              $build:
+                $each: path
+                $build:
+                  $when:
+                    - path: .
+                      oneOf:
+                        - designId
+                        - designKind
+                        - designPath
+                        - origins
+                        - originalRoutes
+                        - originalService
+                        - methodId
+                        - originalName
+                  $then:
+                    input:
+                      $copy: id
+                      $of: correction
+                    path:
+                      $copy: path
+                      $of: change
+                    reason: 導出時の識別子や来歴は変更できません
+      inputs: []
+      consistency:
+        $concat:
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: kind
+                expected:
+                  $first:
+                    - $copy: values.record.value.kind
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: kind
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: subject
+                expected:
+                  $first:
+                    - $copy: values.record.value.subject
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: subject
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: effects
+                expected:
+                  $first:
+                    - $copy: values.record.value.effects
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: effects
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: state
+                expected:
+                  $first:
+                    - $copy: values.record.value.state
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: state
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: preconditions
+                expected:
+                  $first:
+                    - $copy: values.record.value.preconditions
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: preconditions
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: receiver
+                expected:
+                  $first:
+                    - $copy: values.record.value.receiver
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: receiver
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: checks
+                expected:
+                  $first:
+                    - $copy: values.record.value.checks
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: checks
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: provides
+                expected:
+                  $first:
+                    - $copy: values.record.value.provides
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: provides
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: action-specs-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: writes
+                expected:
+                  $first:
+                    - $copy: values.record.value.writes
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: writes
+                    - unset: true
+            $bind: derived
+          - $each: .
+            $of: documents
+            $flatten: true
+            $build:
+              $when:
+                - path: designKind
+                  equals: screen-flows
+              $then:
+                $each: handlers
+                $build:
+                  $apply: check-form
+                  $with:
+                    handler:
+                      $copy: .
+                    design:
+                      $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designKind
+                                equals: screen-designs-operations
+                              - path: id
+                                equals:
+                                  $copy: action
+                                  $of: handler
+                            $then:
+                              $copy: .
+                $bind: handler
+          - $each:
+              $view: status-rules-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: entity
+                expected:
+                  $first:
+                    - $copy: values.record.value.entity
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: entity
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: status-rules-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: enum
+                expected:
+                  $first:
+                    - $copy: values.record.value.enum
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: enum
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: status-rules-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: groups
+                expected:
+                  $first:
+                    - $copy: values.record.value.groups
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: groups
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: status-rules-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: entry
+                expected:
+                  $first:
+                    - $copy: values.record.value.entry
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: entry
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: status-rules-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: transitions
+                expected:
+                  $first:
+                    - $copy: values.record.value.transitions
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: transitions
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: status-rules-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: terminal
+                expected:
+                  $first:
+                    - $copy: values.record.value.terminal
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: terminal
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: screen-lists-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: filters
+                expected:
+                  $first:
+                    - $copy: values.record.value.filters
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: filters
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: screen-lists-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: buttons
+                expected:
+                  $first:
+                    - $copy: values.record.value.buttons
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: buttons
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: screen-lists-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: sections
+                expected:
+                  $first:
+                    - $copy: values.record.value.sections
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: sections
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: screen-flows-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: controller
+                expected:
+                  $first:
+                    - $copy: values.record.value.controller
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: controller
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: dashboard-flows-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: controller
+                expected:
+                  $first:
+                    - $copy: values.record.value.controller
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: controller
+                    - unset: true
+            $bind: derived
+          - $each:
+              $view: screen-designs-operations-derived-input
+            $build:
+              $apply: check-attribute
+              $with:
+                subject:
+                  $copy: values.record.id
+                attribute: form.class
+                expected:
+                  $first:
+                    - $copy: values.record.value.form.class
+                    - unset: true
+                actual:
+                  $first:
+                    - $apply: contract-first
+                      $with:
+                        matches:
+                          $each: .
+                          $of: documents
+                          $build:
+                            $when:
+                              - path: designId
+                                equals:
+                                  $copy: values.record.id
+                                  $of: derived
+                            $then:
+                              $copy: form.class
+                    - unset: true
+            $bind: derived
+  - id: pending-keys
+    with:
+      - input
+      - value
+      - reserved
+    build:
+      $eachEntry: .
+      $of: value
+      $flatten: true
+      $build:
+        - $when:
+            - path: $key
+              oneOf:
+                - id
+                - designId
+                - designKind
+                - designPath
+                - origins
+                - originalRoutes
+                - originalService
+                - methodId
+                - originalName
+                - role
+          $then:
+            input:
+              $copy: id
+              $of: input
+            attribute: $key
+            reason: 識別子と導出記録は変更できません
+  - id: pending-addition
+    with:
+      - input
+      - document
+    build:
+      $first:
+        - $when:
+            - path: kind
+              of: input
+              equals: action-specs
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - inputs
+                  - effects
+                  - writes
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: dashboard-flows
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - screens
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: domain-relations
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - domains
+                  - relations
+                  - holdings
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: domains
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - members
+                  - information
+                  - states
+                  - operations
+                  - rules
+                  - relations
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: error-handling
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - exceptions
+                  - refusals
+                  - screens
+                  - settings
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: errors
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - kinds
+                  - constraints
+                  - operations
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: messages
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - holes
+                  - messages
+                  - validation
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: processes
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - confirm
+                  - steps
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-designs-details
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - screens
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-designs-lists
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - screens
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-designs-operations
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - screens
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-details
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - items
+                  - tables
+                  - buttons
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-flows
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - screens
+                  - handlers
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-lists
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - filters
+                  - buttons
+                  - sections
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-operations
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - starts
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-styles
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - naming
+                  - classes
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: screen-transitions
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - screens
+                  - transitions
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: session-design
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - attributes
+                  - notKept
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: status-rules
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - groups
+                  - entry
+                  - transitions
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+        - $when:
+            - path: kind
+              of: input
+              equals: table-access
+            - not:
+                of: input
+                path: collection
+                oneOf:
+                  - methods
+          $then:
+            input:
+              $copy: id
+              $of: input
+            collection:
+              $copy: collection
+              $of: input
+            reason: このコレクションへの追加には対応していません
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches
+  - id: check-attribute
+    with:
+      - subject
+      - attribute
+      - expected
+      - actual
+    build:
+      $apply: checked-value
+      $with:
+        result:
+          $compose:
+            derived:
+              - id: value
+                value:
+                  checked: true
+                source:
+                  id: consistency
+            additions: []
+            changes:
+              - target: value
+                set:
+                  value:
+                    $copy: .
+                    $of: expected
+                priority: rule
+                source:
+                  id:
+                    $format: '{subject}.{attribute}.expected'
+                    $with:
+                      subject:
+                        $copy: .
+                        $of: subject
+                      attribute:
+                        $copy: .
+                        $of: attribute
+              - target: value
+                set:
+                  value:
+                    $copy: .
+                    $of: actual
+                priority: rule
+                source:
+                  id:
+                    $format: '{subject}.{attribute}.actual'
+                    $with:
+                      subject:
+                        $copy: .
+                        $of: subject
+                      attribute:
+                        $copy: .
+                        $of: attribute
+  - id: check-form
+    with:
+      - handler
+      - design
+    build:
+      $apply: check-attribute
+      $with:
+        subject:
+          $copy: action
+          $of: handler
+        attribute: form
+        expected:
+          $first:
+            - $copy: form.class
+              $of: design
+            - unset: true
+        actual:
+          $first:
+            - $copy: form
+              $of: handler
+            - unset: true
+  - id: checked-value
+    with:
+      - result
+    build:
+      $copy: records[0].value.checked
+      $of: result

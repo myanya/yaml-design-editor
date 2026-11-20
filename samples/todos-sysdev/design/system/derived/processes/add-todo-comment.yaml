@@ -1,0 +1,60 @@
+# 生成物（processes-derived）: 手で直さず、業務モデルか生成の定義（design/processes-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-processes.add-todo-comment
+record:
+  id: DOC-processes.add-todo-comment
+  value:
+    id: add-todo-comment
+    name: TODOにコメントを追加する
+    service:
+      class: TodoService
+      method: addTodoComment
+      arguments:
+        - id
+        - date
+        - body
+    confirm: []
+    transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+    steps:
+      - step: read
+        call: TodoMapper.findById
+        key: id
+        missing: 見つからなければ NotFoundException（error.notFound.todo）
+      - step: check
+        constraint: updated-not-before-created
+        by: Java（書いた後の値）
+        rule:
+          check:
+            - gte:
+                - path: updated_on
+                - path: created_on
+        message: check.updated-not-before-created
+      - step: write
+        call: TodoMapper.insertTodoComments
+        kind: insert
+        values:
+          todo_id: $id
+          date: $date
+          body: $body
+        seq: TodoMapper.maxSeqTodoComments の次
+      - step: write
+        call: TodoMapper.addTodoComment
+        kind: update
+        set:
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+        where:
+          - item: id
+            param: id
+    subject: todo
+    originalService:
+      class: TodoService
+      method: addTodoComment
+      arguments:
+        - id
+        - date
+        - body
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/processes-derived.yaml

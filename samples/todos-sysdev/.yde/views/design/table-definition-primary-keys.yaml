@@ -1,22 +1,33 @@
 id: table-definition-primary-keys
 name: テーブル設計書（主キーの並び）
-description: >-
-  詳細設計項目一覧の主キーのカラムを、主キーの順に並べた一覧（補正一覧（詳細設計）を重ねる）。カラム一覧の「主キーの順」と同じ値を、DDL のレポートが主キーの順に読むための並び
-params: [table]
+description: 確定した詳細設計項目一覧の主キーのカラムを、主キーの順に並べる。カラム一覧と DDL が同じ保存値を使う。
+params:
+  - table
 rows:
   match:
-    - node: { id: "TBL-*", bind: t }
-    - edge: { contains: true }
-    - node: { id: "COL-*", bind: c }
+    - node:
+        id: TBL-*
+        bind: t
+    - edge:
+        contains: true
+    - node:
+        id: COL-*
+        bind: c
   rowKey: c
   where:
-    - { of: t, path: id, equals: $table }
-    - { of: c, path: primaryKey, exists: true }
-order: { path: primaryKey }
-corrections:
-  schemaIds:
-    - detail-corrections
+    - of: t
+      path: id
+      equals: $table
+    - of: c
+      path: primaryKey
+      exists: true
+order:
+  path: primaryKey
 columns:
-  - { label: テーブル, of: t, path: id }
-  - { label: 主キーの順, path: primaryKey }
-  - { label: カラム名, path: name }
+  - label: テーブル
+    of: t
+    path: id
+  - label: 主キーの順
+    path: primaryKey
+  - label: カラム名
+    path: name

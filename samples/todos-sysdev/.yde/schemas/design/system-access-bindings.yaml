@@ -1,0 +1,11 @@
+id: system-access-bindings
+name: system-access-bindings
+kind: document
+match: design/system/system-access-bindings.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+    - key: bindings
+      type: any

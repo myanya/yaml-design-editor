@@ -47,7 +47,8 @@ class TodosSysdevTest {
         assertEquals(listOf("completed_on", "result", "status", "updated_on"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update")
         val count = list(doc("design/generated/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
         assertEquals("complete-todo.no-open-task", count["precondition"])
-        assertEquals(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), count["where"])
+        val conditions = list(count, "where").map { (it as Map<*, *>).filterKeys { key -> key != "column" && key != "columnId" } }
+        assertEquals<List<*>>(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), conditions)
         val todo = list(doc("design/basic/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
         val operations = list(todo, "operations").map { it as Map<*, *> }
         fun status(action: String) = list(operations.single { it["action"] == action }, "writes")
@@ -99,7 +100,7 @@ class TodosSysdevTest {
         assertTrue("flag=clear.category" in edit && "rows={item=comments" in edit, "値を消すのチェックと、コメント一覧の行の表")
         val access = list(doc("design/generated/table-access/todo.yaml"), "methods")
         val overdue = access.single { it["name"] == "selectTodoDashboardOverdue" }
-        assertTrue(mapOf("item" to "status", "op" to "in", "values" to listOf("OPEN", "IN_PROGRESS")) in (overdue["where"] as List<*>), "区画の条件の State は値の条件")
+        assertTrue((overdue["where"] as List<*>).any { (it as Map<*, *>).let { row -> row["item"] == "status" && row["op"] == "in" && row["values"] == listOf("OPEN", "IN_PROGRESS") } }, "区画の条件の State は値の条件")
         assertTrue(access.any { it["name"] == "findDetail" } && access.any { it["name"] == "selectAll" })
         val matrix = list(doc("design/generated/table-access/category.yaml"), "methods").single { it["name"] == "selectTodoDashboardCategories" }
         assertEquals("aggregate", matrix["kind"])
@@ -247,7 +248,7 @@ class TodosSysdevTest {
         assertEquals("TYP-common.年月日", list(types.getValue("TYP-common.コメント"), "fields").first()["type"], "行の型の項目も論理型を参照する")
         val tables = list(doc("design/detail/tables.yaml"), "tables").associateBy { it["name"] }
         val title = list(tables.getValue("todo"), "columns").single { it["name"] == "title" }
-        assertEquals(setOf("seq", "id", "name", "source", "sqlType"), title.keys.map { it.toString() }.toSet(), "基本設計の値（名称・必須・文字数）は持たない")
+        assertEquals(setOf("seq", "id", "name", "source", "sqlType", "item", "table"), title.keys.map { it.toString() }.toSet(), "基本設計の値（名称・必須・文字数）は持たず、後続が参照する物理項目の対応を持つ")
         assertEquals("SQL-common.一行の文", title["sqlType"])
         val tags = tables.getValue("todo_tags")
         assertEquals("TODOのタグ", tags["label"], "明細テーブルの日本語名は詳細設計だけのもの")
@@ -359,7 +360,9 @@ class TodosSysdevTest {
             }
             assertEquals(listOf("ux_shape_spec_shape_id"), list(tables.getValue("shape_spec"), "indexes").map { it["name"] }, "入れ子のエンティティ 1 件は、親の ID が一意（親の ID の索引を兼ねる）")
             assertEquals(listOf("shape_id", "seq", "labels"), columns("shape_labels").keys.toList(), "スカラーの配列は値のカラム")
-            assertEquals(listOf("COL-shape_parts.shape_id", "COL-shape_parts.code"), list(list(tables.getValue("shape_parts"), "indexes").single(), "columns").map { it["column"] }, "キーの組で重ならない")
+            val partIndexes = list(tables.getValue("shape_parts"), "indexes")
+            assertEquals(2, partIndexes.size, "導出した一意索引と台帳の索引を同じ確定一覧へ保存する")
+            assertEquals(listOf("COL-shape_parts.shape_id", "COL-shape_parts.code"), list(partIndexes.single { it["unique"] == true }, "columns").map { it["column"] }, "キーの組で重ならない")
             val tags = tables.getValue("shape_parts_notes_tags")
             assertEquals(listOf("shape_id" to 1, "parts_seq" to 2, "notes_seq" to 3, "seq" to 4), list(tags, "columns").filter { it["primaryKey"] != null }.map { it["name"] to it["primaryKey"] })
             list(tags, "foreignKeys").first().let {
@@ -452,13 +455,14 @@ class TodosSysdevTest {
         @Suppress("UNCHECKED_CAST")
         val lineage = Generators.lineage(WorkspaceSession(FileSystemDocumentStore(root))).associateBy { it["id"] }
         fun concepts(id: String) = lineage[id]?.get("concepts") as List<*>
-        assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "constraints.rule").all { it in concepts("processes") }, "処理設計書: ${concepts("processes")}")
-        assertTrue("relations.cardinality" in concepts("domains") && "lifecycles.transitions" in concepts("domains"), "ドメイン定義書: ${concepts("domains")}")
-        assertEquals(emptyList<Any>(), concepts("screen-styles"), "クラスの対応表は業務モデルを読まない（決まった表）")
+        assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "constraints.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
+        assertTrue("relations.cardinality" in concepts("domains-derived") && "lifecycles.transitions" in concepts("domains-derived"), "ドメイン定義書の導出: ${concepts("domains-derived")}")
+        assertEquals(emptyList<Any>(), concepts("screen-styles-derived"), "クラスの対応表の導出は業務モデルを読まない（決まった表）")
         assertEquals(null, lineage["basic-entities"]?.get("stage"), "確定項目への移行後は段を再適用しない")
         assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "basic-entities" }.dependsOn.contains("basic-final"))
-        assertEquals("detail", lineage["processes"]?.get("stage"))
-        assertTrue((lineage["processes"]?.get("reads") as List<*>).contains("actions[*].effects[*].field.key"))
+        assertEquals(null, lineage["processes"]?.get("stage"))
+        assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "processes" }.dependsOn.contains("processes-derived"))
+        assertTrue((lineage["processes-derived"]?.get("reads") as List<*>).contains("actions[*].effects[*].field.key"))
     }
 
     @Test

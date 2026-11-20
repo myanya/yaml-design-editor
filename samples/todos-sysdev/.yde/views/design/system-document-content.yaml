@@ -1,0 +1,17 @@
+id: system-document-content
+name: 確定設計書の内容
+params:
+  - document
+rows:
+  match:
+    - node:
+        id: DOC-*
+        bind: document
+  rowKey: document
+  where:
+    - of: document
+      path: designId
+      equals: $document
+columns:
+  - label: 内容
+    path: .

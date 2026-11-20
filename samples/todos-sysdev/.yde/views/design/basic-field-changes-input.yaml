@@ -1,5 +1,10 @@
 id: basic-field-changes-input
 name: 個別項目の補正候補（生成の入力）
-rows: {schemaIds: [basic-field-changes], idPattern: CMP-field-changes}
+rows:
+  schemaIds:
+    - basic-field-changes
+  idPattern: CMP-field-changes
 columns:
-  - {label: items, schemaId: basic-field-changes, path: items}
+  - label: items
+    schemaId: basic-field-changes
+    path: items

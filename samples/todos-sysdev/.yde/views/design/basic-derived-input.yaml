@@ -1,5 +1,10 @@
 id: basic-derived-input
 name: 導出記録（生成の入力）
-rows: {schemaIds: [basic-derived], idPattern: DRV-business}
+rows:
+  schemaIds:
+    - basic-derived
+  idPattern: DRV-business
 columns:
-  - {label: model, schemaId: basic-derived, path: model}
+  - label: model
+    schemaId: basic-derived
+    path: model

@@ -1,0 +1,10 @@
+id: domain-relations-input
+name: '生成入力（確定項目: domain-relations）'
+rows:
+  idPattern: DOC-domain-relations.*
+  schemaIds:
+    - domain-relations
+columns:
+  - label: record
+    path: .
+    schemaId: domain-relations

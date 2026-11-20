@@ -1,0 +1,37 @@
+# 生成物（processes-derived）: 手で直さず、業務モデルか生成の定義（design/processes-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-processes.add-category
+record:
+  id: DOC-processes.add-category
+  value:
+    id: add-category
+    name: カテゴリを追加する
+    service:
+      class: CategoryService
+      method: addCategory
+      arguments:
+        - name
+    confirm: []
+    transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+    steps:
+      - step: number
+        entity: category
+        call: CategoryMapper.maxId
+        rule:
+          path: id
+          prefix: CAT-
+          digits: 3
+      - step: write
+        call: CategoryMapper.insert
+        kind: insert
+        values:
+          id: 採番した番号
+          name: $name
+    subject: category
+    originalService:
+      class: CategoryService
+      method: addCategory
+      arguments:
+        - name
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/processes-derived.yaml

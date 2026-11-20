@@ -1,4 +1,4 @@
-# 生成物（action-specs）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
+# 生成物（action-specs）: 手で直さず、業務モデルか生成の定義（design/action-specs.yaml）を直して作り直します（CLI generate）。
 id: add-todo-comment
 name: TODOにコメントを追加する
 description: TODOの個票へ、状態に関係なく日付と本文を記録します。
@@ -27,16 +27,61 @@ initial:
 preconditions: []
 effects:
   - op: insert
-    entity: todo
+    schema: todo-detail
     path: comments
     value:
       date: $date
       body: $body
+    of: self
     source: do
-  - op: set
     entity: todo
+    field:
+      key: comments
+      base: array
+      item:
+        base: object
+    written:
+      - key: date
+        value: $date
+        base: date
+      - key: body
+        value: $body
+        base: string
+  - op: set
+    schema: todo-detail
     path: updated_on
     value:
       $copy: today
       $of: context
     source: auto
+    auto: updated
+    entity: todo
+    field:
+      key: updated_on
+      base: date
+receiver:
+  entity: todo
+inputPolicy:
+  initial:
+    date:
+      $copy: today
+      $of: context
+checks:
+  - constraint: updated-not-before-created
+    form: element
+    level: error
+    items:
+      - todo.updated_on
+writes:
+  - CRUD-todo.add-todo-comment.comments
+  - CRUD-todo.add-todo-comment.updated_on
+designId: DOC-action-specs.add-todo-comment
+designKind: action-specs
+designPath: design/generated/actions/add-todo-comment.yaml
+origins:
+  source:
+    id: rule-action-specs
+    document: .yde/transforms/design/action-specs-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

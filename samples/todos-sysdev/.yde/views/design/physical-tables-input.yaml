@@ -1,0 +1,7 @@
+id: physical-tables-input
+name: '生成入力（確定項目: physical-tables）'
+rows:
+  idPattern: TBL-*
+columns:
+  - label: record
+    path: .

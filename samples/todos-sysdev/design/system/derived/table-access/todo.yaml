@@ -1,0 +1,1695 @@
+# 生成物（table-access-derived）: 手で直さず、業務モデルか生成の定義（design/table-access-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-table-access.todo
+record:
+  id: DOC-table-access.todo
+  value:
+    id: todo
+    name: TODOの読み書き
+    mapper: TodoMapper
+    tables:
+      - todo
+      - todo_tags
+      - todo_comments
+      - todo_history
+    methods:
+      - name: findDetail
+        kind: select
+        table: todo
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        includes:
+          - item: tags
+            table: todo_tags
+            order:
+              - item: seq
+                columnId: COL-todo_tags.seq
+                column: seq
+            columnId: COL-todo_tags.tag_id
+            column: tag_id
+          - item: comments
+            table: todo_comments
+            order:
+              - item: seq
+                columnId: COL-todo_comments.seq
+                column: seq
+          - item: history
+            table: todo_history
+            order:
+              - item: seq
+                columnId: COL-todo_history.seq
+                column: seq
+          - item: tasks
+            table: todo_task
+            order:
+              - item: seq
+                columnId: COL-todo_task.seq
+                column: seq
+        names:
+          - item: category
+            table: category
+            name: name
+          - item: tags
+            table: tag
+            name: name
+          - item: follows
+            table: todo
+            name: title
+            columnId: COL-todo.follows
+            column: follows
+        operations: []
+        screens:
+          - todo
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: findDetail
+        tableId: TBL-todo
+      - name: selectAll
+        kind: select
+        table: todo
+        columns:
+          - id
+          - title
+        order:
+          - item: id
+            columnId: COL-todo.id
+            column: id
+        operations: []
+        screens:
+          - 参照の候補
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: selectAll
+        tableId: TBL-todo
+      - name: selectTodoDashboardOverdue
+        kind: select
+        table: todo
+        columns:
+          - item: id
+            columnId: COL-todo.id
+            column: id
+          - label: タイトル
+            item: title
+            columnId: COL-todo.title
+            column: title
+          - label: ステータス
+            item: status
+            columnId: COL-todo.status
+            column: status
+          - label: 期限
+            item: due_on
+            columnId: COL-todo.due_on
+            column: due_on
+          - label: 完了日
+            item: completed_on
+            columnId: COL-todo.completed_on
+            column: completed_on
+        where:
+          - item: tags
+            op: includesAny
+            value: $tags
+            via: todo_tags
+            skipIfEmpty: true
+          - item: category
+            op: equals
+            value: $category
+            skipIfEmpty: true
+            columnId: COL-todo.category
+            column: category
+          - item: status
+            op: in
+            values:
+              - OPEN
+              - IN_PROGRESS
+            columnId: COL-todo.status
+            column: status
+          - item: due_on
+            op: notNull
+            columnId: COL-todo.due_on
+            column: due_on
+          - item: due_on
+            op: lt
+            value: $today
+            columnId: COL-todo.due_on
+            column: due_on
+        order:
+          - item: due_on
+            nulls: last
+            columnId: COL-todo.due_on
+            column: due_on
+        params:
+          - tags
+          - category
+          - today
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: selectTodoDashboardOverdue
+        tableId: TBL-todo
+      - name: countTodoDashboardOverdue
+        kind: count
+        table: todo
+        where: 上の select と同じ条件
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: countTodoDashboardOverdue
+        tableId: TBL-todo
+      - name: selectTodoDashboardAll
+        kind: select
+        table: todo
+        columns:
+          - item: id
+            columnId: COL-todo.id
+            column: id
+          - label: カテゴリ
+            item: category
+            names:
+              table: category
+              name: name
+            columnId: COL-todo.category
+            column: category
+          - label: ステータス
+            item: status
+            columnId: COL-todo.status
+            column: status
+          - label: 作業
+            computed:
+              of:
+                format: '{done}/{all}'
+                parts:
+                  done:
+                    count: todo_task
+                    parent: 行の ID
+                    where:
+                      - item: done
+                        op: equals
+                        value: true
+                  all:
+                    count: 入れ子の要素
+                    item: tasks
+                    parent: 行の ID
+              replace:
+                0/0: ''
+          - label: タグ
+            item: tags
+            names:
+              table: tag
+              name: name
+              many: true
+          - label: 期限
+            item: due_on
+            columnId: COL-todo.due_on
+            column: due_on
+          - label: 概要
+            item: summary
+            columnId: COL-todo.summary
+            column: summary
+          - label: 作成日
+            item: created_on
+            columnId: COL-todo.created_on
+            column: created_on
+          - label: 更新日
+            item: updated_on
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: tags
+            op: includesAny
+            value: $tags
+            via: todo_tags
+            skipIfEmpty: true
+          - item: category
+            op: equals
+            value: $category
+            skipIfEmpty: true
+            columnId: COL-todo.category
+            column: category
+        order:
+          - item: id
+            columnId: COL-todo.id
+            column: id
+        params:
+          - tags
+          - category
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: selectTodoDashboardAll
+        tableId: TBL-todo
+      - name: countTodoDashboardAll
+        kind: count
+        table: todo
+        where: 上の select と同じ条件
+        operations: []
+        screens:
+          - todo-dashboard
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: countTodoDashboardAll
+        tableId: TBL-todo
+      - name: findById
+        kind: select
+        table: todo
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - add-todo-comment
+          - add-todo-task
+          - edit-todo
+          - start-todo
+          - suspend-todo
+          - resume-todo
+          - complete-todo
+          - cancel-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: findById
+        tableId: TBL-todo
+      - name: insert
+        kind: insert
+        table: todo
+        columns: テーブル設計書のすべての列
+        operations:
+          - register-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: insert
+        tableId: TBL-todo
+      - name: maxId
+        kind: max
+        table: todo
+        item: id
+        where:
+          - item: id
+            startsWith: TODO-
+            columnId: COL-todo.id
+            column: id
+        numbering:
+          path: id
+          prefix: TODO-
+          digits: 3
+        operations:
+          - register-todo
+        screens: []
+        columnId: COL-todo.id
+        column: id
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: maxId
+        tableId: TBL-todo
+      - name: insertTodoTags
+        kind: insert
+        table: todo_tags
+        columns: テーブル設計書のすべての列
+        operations:
+          - register-todo
+          - edit-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo_tags.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_tags.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_tags.tag_id
+            item: tags
+            name: tag_id
+            source: FLD-todo.tags
+        methodId: insertTodoTags
+        tableId: TBL-todo_tags
+      - name: insertTodoHistory
+        kind: insert
+        table: todo_history
+        columns: テーブル設計書のすべての列
+        operations:
+          - register-todo
+          - start-todo
+          - suspend-todo
+          - resume-todo
+          - complete-todo
+          - cancel-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo_history.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_history.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_history.date
+            item: date
+            name: date
+            source: FLD-todo.history.item.date
+          - columnId: COL-todo_history.action
+            item: action
+            name: action
+            source: FLD-todo.history.item.action
+          - columnId: COL-todo_history.from_
+            item: from
+            name: from_
+            source: FLD-todo.history.item.from
+          - columnId: COL-todo_history.to_
+            item: to
+            name: to_
+            source: FLD-todo.history.item.to
+          - columnId: COL-todo_history.note
+            item: note
+            name: note
+            source: FLD-todo.history.item.note
+          - columnId: COL-todo_history.resume_on
+            item: resume_on
+            name: resume_on
+            source: FLD-todo.history.item.resume_on
+        methodId: insertTodoHistory
+        tableId: TBL-todo_history
+      - name: maxSeqTodoHistory
+        kind: max
+        table: todo_history
+        item: seq
+        where:
+          - item: todo_id
+            param: id
+            columnId: COL-todo_history.todo_id
+            column: todo_id
+        operations:
+          - register-todo
+          - start-todo
+          - suspend-todo
+          - resume-todo
+          - complete-todo
+          - cancel-todo
+        screens: []
+        columnId: COL-todo_history.seq
+        column: seq
+        columnBindings:
+          - columnId: COL-todo_history.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_history.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_history.date
+            item: date
+            name: date
+            source: FLD-todo.history.item.date
+          - columnId: COL-todo_history.action
+            item: action
+            name: action
+            source: FLD-todo.history.item.action
+          - columnId: COL-todo_history.from_
+            item: from
+            name: from_
+            source: FLD-todo.history.item.from
+          - columnId: COL-todo_history.to_
+            item: to
+            name: to_
+            source: FLD-todo.history.item.to
+          - columnId: COL-todo_history.note
+            item: note
+            name: note
+            source: FLD-todo.history.item.note
+          - columnId: COL-todo_history.resume_on
+            item: resume_on
+            name: resume_on
+            source: FLD-todo.history.item.resume_on
+        methodId: maxSeqTodoHistory
+        tableId: TBL-todo_history
+      - name: insertTodoComments
+        kind: insert
+        table: todo_comments
+        columns: テーブル設計書のすべての列
+        operations:
+          - add-todo-comment
+          - edit-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo_comments.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_comments.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_comments.date
+            item: date
+            name: date
+            source: FLD-todo.comments.item.date
+          - columnId: COL-todo_comments.body
+            item: body
+            name: body
+            source: FLD-todo.comments.item.body
+        methodId: insertTodoComments
+        tableId: TBL-todo_comments
+      - name: maxSeqTodoComments
+        kind: max
+        table: todo_comments
+        item: seq
+        where:
+          - item: todo_id
+            param: id
+            columnId: COL-todo_comments.todo_id
+            column: todo_id
+        operations:
+          - add-todo-comment
+        screens: []
+        columnId: COL-todo_comments.seq
+        column: seq
+        columnBindings:
+          - columnId: COL-todo_comments.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_comments.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_comments.date
+            item: date
+            name: date
+            source: FLD-todo.comments.item.date
+          - columnId: COL-todo_comments.body
+            item: body
+            name: body
+            source: FLD-todo.comments.item.body
+        methodId: maxSeqTodoComments
+        tableId: TBL-todo_comments
+      - name: addTodoComment
+        kind: update
+        table: todo
+        set:
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - add-todo-comment
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: addTodoComment
+        tableId: TBL-todo
+      - name: addTodoTask
+        kind: update
+        table: todo
+        set:
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - add-todo-task
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: addTodoTask
+        tableId: TBL-todo
+      - name: editTodo
+        kind: update
+        table: todo
+        set:
+          - item: title
+            value: $title
+            when:
+              - path: title
+                exists: true
+            columnId: COL-todo.title
+            column: title
+          - item: summary
+            value: $summary
+            when:
+              - path: summary
+                exists: true
+            columnId: COL-todo.summary
+            column: summary
+          - item: category
+            value: $category
+            when:
+              - path: category
+                exists: true
+            columnId: COL-todo.category
+            column: category
+          - item: created_on
+            value: $created_on
+            when:
+              - path: created_on
+                exists: true
+            columnId: COL-todo.created_on
+            column: created_on
+          - item: due_on
+            value: $due_on
+            when:
+              - path: due_on
+                exists: true
+            columnId: COL-todo.due_on
+            column: due_on
+          - item: details
+            value: $details
+            when:
+              - path: details
+                exists: true
+            columnId: COL-todo.details
+            column: details
+          - item: result
+            value: $result
+            when:
+              - path: result
+                exists: true
+            columnId: COL-todo.result
+            column: result
+          - item: category
+            value: null
+            when:
+              - path: clear.category
+                equals: true
+            columnId: COL-todo.category
+            column: category
+          - item: due_on
+            value: null
+            when:
+              - path: clear.due_on
+                equals: true
+            columnId: COL-todo.due_on
+            column: due_on
+          - item: details
+            value: null
+            when:
+              - path: clear.details
+                equals: true
+            columnId: COL-todo.details
+            column: details
+          - item: result
+            value: null
+            when:
+              - path: clear.result
+                equals: true
+            columnId: COL-todo.result
+            column: result
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - edit-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: editTodo
+        tableId: TBL-todo
+      - name: deleteTodoTags
+        kind: delete
+        table: todo_tags
+        where:
+          - item: todo_id
+            param: id
+            columnId: COL-todo_tags.todo_id
+            column: todo_id
+        operations:
+          - edit-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo_tags.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_tags.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_tags.tag_id
+            item: tags
+            name: tag_id
+            source: FLD-todo.tags
+        methodId: deleteTodoTags
+        tableId: TBL-todo_tags
+      - name: deleteTodoComments
+        kind: delete
+        table: todo_comments
+        where:
+          - item: todo_id
+            param: id
+            columnId: COL-todo_comments.todo_id
+            column: todo_id
+        operations:
+          - edit-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo_comments.todo_id
+            item: todo_id
+            name: todo_id
+          - columnId: COL-todo_comments.seq
+            item: seq
+            name: seq
+          - columnId: COL-todo_comments.date
+            item: date
+            name: date
+            source: FLD-todo.comments.item.date
+          - columnId: COL-todo_comments.body
+            item: body
+            name: body
+            source: FLD-todo.comments.item.body
+        methodId: deleteTodoComments
+        tableId: TBL-todo_comments
+      - name: startTodo
+        kind: update
+        table: todo
+        set:
+          - item: status
+            value: IN_PROGRESS
+            columnId: COL-todo.status
+            column: status
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - start-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: startTodo
+        tableId: TBL-todo
+      - name: suspendTodo
+        kind: update
+        table: todo
+        set:
+          - item: status
+            value: SUSPENDED
+            columnId: COL-todo.status
+            column: status
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - suspend-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: suspendTodo
+        tableId: TBL-todo
+      - name: resumeTodo
+        kind: update
+        table: todo
+        set:
+          - item: status
+            value: IN_PROGRESS
+            columnId: COL-todo.status
+            column: status
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - resume-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: resumeTodo
+        tableId: TBL-todo
+      - name: completeTodo
+        kind: update
+        table: todo
+        set:
+          - item: completed_on
+            value: $date
+            columnId: COL-todo.completed_on
+            column: completed_on
+          - item: result
+            value: $result
+            columnId: COL-todo.result
+            column: result
+          - item: status
+            value: CLOSED
+            columnId: COL-todo.status
+            column: status
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - complete-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: completeTodo
+        tableId: TBL-todo
+      - name: cancelTodo
+        kind: update
+        table: todo
+        set:
+          - item: result
+            value: $reason
+            columnId: COL-todo.result
+            column: result
+          - item: status
+            value: CANCELED
+            columnId: COL-todo.status
+            column: status
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: id
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - cancel-todo
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: cancelTodo
+        tableId: TBL-todo
+      - name: todoTaskFinish
+        kind: update
+        table: todo
+        set:
+          - item: updated_on
+            value:
+              $copy: today
+              $of: context
+            columnId: COL-todo.updated_on
+            column: updated_on
+        where:
+          - item: id
+            param: todoId
+            columnId: COL-todo.id
+            column: id
+        operations:
+          - todo-task.finish
+        screens: []
+        columnBindings:
+          - columnId: COL-todo.id
+            item: id
+            name: id
+            source: FLD-todo.id
+          - columnId: COL-todo.title
+            item: title
+            name: title
+            source: FLD-todo.title
+          - columnId: COL-todo.summary
+            item: summary
+            name: summary
+            source: FLD-todo.summary
+          - columnId: COL-todo.category
+            item: category
+            name: category
+            source: FLD-todo.category
+          - columnId: COL-todo.follows
+            item: follows
+            name: follows
+            source: FLD-todo.follows
+          - columnId: COL-todo.status
+            item: status
+            name: status
+            source: FLD-todo.status
+          - columnId: COL-todo.created_on
+            item: created_on
+            name: created_on
+            source: FLD-todo.created_on
+          - columnId: COL-todo.updated_on
+            item: updated_on
+            name: updated_on
+            source: FLD-todo.updated_on
+          - columnId: COL-todo.due_on
+            item: due_on
+            name: due_on
+            source: FLD-todo.due_on
+          - columnId: COL-todo.completed_on
+            item: completed_on
+            name: completed_on
+            source: FLD-todo.completed_on
+          - columnId: COL-todo.details
+            item: details
+            name: details
+            source: FLD-todo.details
+          - columnId: COL-todo.result
+            item: result
+            name: result
+            source: FLD-todo.result
+        methodId: todoTaskFinish
+        tableId: TBL-todo
+  source:
+    id: rule-table-access
+    document: .yde/transforms/design/table-access-derived.yaml

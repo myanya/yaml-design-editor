@@ -1,7 +1,16 @@
 id: basic-type-model-input
 name: 共通型の再解決結果（生成の入力）
-rows: {schemaIds: [basic-type-model], idPattern: CMP-type-model}
+rows:
+  schemaIds:
+    - basic-type-model
+  idPattern: CMP-type-model
 columns:
-  - {label: model, schemaId: basic-type-model, path: model}
-  - {label: pending, schemaId: basic-type-model, path: pending}
-  - {label: builtinPending, schemaId: basic-type-model, path: builtinPending}
+  - label: model
+    schemaId: basic-type-model
+    path: model
+  - label: pending
+    schemaId: basic-type-model
+    path: pending
+  - label: builtinPending
+    schemaId: basic-type-model
+    path: builtinPending

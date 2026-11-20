@@ -2,60 +2,187 @@ id: design-coverage
 name: 設計の対応の検査
 kind: library
 description: >-
-  業務モデルの定義（定義の索引の操作・エンティティ型・Lifecycle）が、どれも設計書に降りていることを確かめる。
-  操作はアクション定義書・処理設計書・エラー定義書・Controller のハンドラ・Mapper のメソッドへ、エンティティ型はエンティティ定義書・
-  テーブル設計書・テーブルアクセス設計書へ降りる。ダッシュボードは画面遷移定義書・一覧画面の画面定義書・Controller へ降り、
+  業務モデルの定義（定義の索引の操作・エンティティ型・Lifecycle）が、どれも設計書に降りていることを確かめる。 操作はアクション定義書・処理設計書・エラー定義書・Controller のハンドラ・Mapper
+  のメソッドへ、エンティティ型はエンティティ定義書・ テーブル設計書・テーブルアクセス設計書へ降りる。ダッシュボードは画面遷移定義書・一覧画面の画面定義書・Controller へ降り、
   操作はダッシュボードからたどれれば画面定義書（入力画面と確認画面）へ降りる（たどれない操作は、業務モデルのダッシュボードの不足）。
   業務モデルを写し直したのに作り直していない・生成の定義が要素を落とした、のどちらも指摘になる（指摘は業務モデルの定義の場所に出る）
 constraints:
   - id: action-has-spec
     description: どの操作にもアクション定義書がある
-    match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ occurrenceCount: { of: a, schema: action-spec } }, 1] }]
+    match:
+      - node:
+          entity: yde-action
+          bind: a
+    check:
+      - gte:
+          - count:
+              all:
+                from: a
+                match:
+                  - node:
+                      bind: a
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-action-spec
+                      bind: design
+                of: design
+          - 1
     level: error
-    message: "操作「{id}」にアクション定義書がありません（generate で作り直します）"
+    message: 操作「{id}」にアクション定義書がありません（generate で作り直します）
   - id: action-has-process
     description: どの操作にも処理設計書がある
-    match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ occurrenceCount: { of: a, schema: process } }, 1] }]
+    match:
+      - node:
+          entity: yde-action
+          bind: a
+    check:
+      - gte:
+          - count:
+              all:
+                from: a
+                match:
+                  - node:
+                      bind: a
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-process
+                      bind: design
+                of: design
+          - 1
     level: error
-    message: "操作「{id}」に処理設計書がありません（generate で作り直します）"
+    message: 操作「{id}」に処理設計書がありません（generate で作り直します）
   - id: action-has-handler
     description: どの操作にも Controller のハンドラがある（ダッシュボードからたどれない操作には、画面もハンドラも作らないので警告）
-    match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ refCount: { of: a, dir: in, via: action } }, 1] }]
+    match:
+      - node:
+          entity: yde-action
+          bind: a
+    check:
+      - gte:
+          - refCount:
+              of: a
+              dir: in
+              via: action
+          - 1
     level: warning
-    message: "操作「{id}」を扱う Controller のハンドラがありません（ダッシュボードからたどれない操作か、主体のエンティティ型が決まらない操作です）"
+    message: 操作「{id}」を扱う Controller のハンドラがありません（ダッシュボードからたどれない操作か、主体のエンティティ型が決まらない操作です）
   - id: action-has-access
     description: どの操作にも Mapper の読み書きがある
-    match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ refCount: { of: a, dir: in, via: operations } }, 1] }]
+    match:
+      - node:
+          entity: yde-action
+          bind: a
+    check:
+      - gte:
+          - refCount:
+              of: a
+              dir: in
+              via: operations
+          - 1
     level: error
-    message: "操作「{id}」の読み書きがテーブルアクセス設計書にありません"
+    message: 操作「{id}」の読み書きがテーブルアクセス設計書にありません
   - id: action-has-error-definition
     description: どの操作もエラー定義書に載っている（断りの種類と出す場所）
-    match: [{ node: { entity: yde-action, bind: a } }]
-    check: [{ gte: [{ occurrenceCount: { of: a, schema: error-definition } }, 1] }]
+    match:
+      - node:
+          entity: yde-action
+          bind: a
+    check:
+      - gte:
+          - count:
+              all:
+                from: a
+                match:
+                  - node:
+                      bind: a
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-error-definition
+                      bind: design
+                of: design
+          - 1
     level: error
-    message: "操作「{id}」がエラー定義書にありません（generate で作り直します）"
+    message: 操作「{id}」がエラー定義書にありません（generate で作り直します）
   - id: lifecycle-has-status-rule
     description: どの Lifecycle にも状態の判定がある
-    match: [{ node: { entity: yde-lifecycle, bind: l } }]
-    check: [{ gte: [{ occurrenceCount: { of: l, schema: status-rule } }, 1] }]
+    match:
+      - node:
+          entity: yde-lifecycle
+          bind: l
+    check:
+      - gte:
+          - count:
+              all:
+                from: l
+                match:
+                  - node:
+                      bind: l
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-status-rule
+                      bind: design
+                of: design
+          - 1
     level: error
-    message: "Lifecycle「{id}」に状態の判定（enum と遷移）がありません（generate で作り直します）"
+    message: Lifecycle「{id}」に状態の判定（enum と遷移）がありません（generate で作り直します）
   - id: entity-has-spec
     description: どのエンティティ型にも基本設計項目一覧のエンティティがある（導出元 source で業務のエンティティ型を指す）
-    match: [{ node: { entity: yde-entity, bind: e } }]
-    check: [{ gte: [{ refCount: { of: e, dir: in, via: source } }, 1] }]
+    match:
+      - node:
+          entity: yde-entity
+          bind: e
+          not:
+            id: sysdev-*
+    check:
+      - gte:
+          - refCount:
+              of: e
+              dir: in
+              via: source
+          - 1
     level: error
-    message: "エンティティ型「{id}」が基本設計項目一覧にありません（generate で作り直します）"
+    message: エンティティ型「{id}」が基本設計項目一覧にありません（generate で作り直します）
   - id: entity-has-table
     description: どのエンティティ型にもテーブルがある（詳細設計項目一覧のテーブルが、基本設計のエンティティを導出元にし、そのエンティティが業務のエンティティ型を導出元にする）
-    match: [{ node: { entity: yde-entity, bind: e } }]
-    check: [{ gte: [{ count: { all: { from: e, match: [{ node: { entity: yde-entity, bind: e } }, { edge: { via: source, dir: in } }, { node: { id: "ENT-*", bind: x } }, { edge: { via: source, dir: in } }, { node: { id: "TBL-*", bind: tb } }], of: tb } } }, 1] }]
+    match:
+      - node:
+          entity: yde-entity
+          bind: e
+          not:
+            id: sysdev-*
+    check:
+      - gte:
+          - count:
+              all:
+                from: e
+                match:
+                  - node:
+                      entity: yde-entity
+                      bind: e
+                  - edge:
+                      via: source
+                      dir: in
+                  - node:
+                      id: ENT-*
+                      bind: x
+                  - edge:
+                      via: source
+                      dir: in
+                  - node:
+                      id: TBL-*
+                      bind: tb
+                of: tb
+          - 1
     level: error
-    message: "エンティティ型「{id}」のテーブルが詳細設計項目一覧にありません（generate で作り直します）"
+    message: エンティティ型「{id}」のテーブルが詳細設計項目一覧にありません（generate で作り直します）
   - id: entity-has-class
     description: 区分の追加とエンティティへの指定を合成し、確定項目が区分を参照する
     match:
@@ -63,7 +190,12 @@ constraints:
           id: ENT-*
           bind: e
     check:
-      - eq: [{refCount: {of: e, dir: out, via: entityClass}}, 1]
+      - eq:
+          - refCount:
+              of: e
+              dir: out
+              via: entityClass
+          - 1
     level: error
     message: エンティティ「{id}」の区分を補正・指定一覧に指定してください
   - id: item-element-is-tableable
@@ -105,27 +237,152 @@ constraints:
     message: 項目「{id}」は、マップの要素がエンティティなのでテーブルにできません（業務モデルで、エンティティの配列にします）
   - id: entity-has-mapper
     description: どのエンティティ型にもテーブルアクセス設計書（Mapper）がある
-    match: [{ node: { entity: yde-entity, bind: e } }]
-    check: [{ gte: [{ occurrenceCount: { of: e, schema: table-access } }, 1] }]
+    match:
+      - node:
+          entity: yde-entity
+          bind: e
+          not:
+            id: sysdev-*
+    check:
+      - gte:
+          - count:
+              all:
+                from: e
+                match:
+                  - node:
+                      bind: e
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-table-access
+                      bind: design
+                of: design
+          - 1
     level: error
-    message: "エンティティ型「{id}」にテーブルアクセス設計書がありません（generate で作り直します）"
+    message: エンティティ型「{id}」にテーブルアクセス設計書がありません（generate で作り直します）
   - id: dashboard-has-screens
     description: どのダッシュボードにも画面遷移定義書・一覧画面の画面定義書・一覧画面の Controller がある
-    match: [{ node: { entity: yde-view, bind: v } }]
-    # 設計書のビュー（エンティティ定義書・テーブル設計書）はアプリの画面にしない。検査がスコープで絞れるようになったら、業務モデルのダッシュボードだけにする
-    where: [{ of: v, path: kind, equals: dashboard }, { of: v, path: id, notEquals: entity-definition }, { of: v, path: id, notEquals: table-definition }]
+    match:
+      - node:
+          entity: yde-view
+          bind: v
+    where:
+      - of: v
+        path: kind
+        equals: dashboard
+      - of: v
+        path: id
+        notEquals: entity-definition
+      - of: v
+        path: id
+        notEquals: table-definition
+      - of: v
+        path: id
+        notEquals: system-review
+      - not:
+          of: v
+          path: id
+          startsWith: design-review-
     check:
-      - { gte: [{ occurrenceCount: { of: v, schema: screen-transitions } }, 1] }
-      - { gte: [{ occurrenceCount: { of: v, schema: screen-list } }, 1] }
-      - { gte: [{ occurrenceCount: { of: v, schema: dashboard-flow } }, 1] }
-      - { gte: [{ occurrenceCount: { of: v, schema: screen-design-list } }, 1] }
+      - gte:
+          - count:
+              all:
+                from: v
+                match:
+                  - node:
+                      bind: v
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-screen-transitions
+                      bind: design
+                of: design
+          - 1
+      - gte:
+          - count:
+              all:
+                from: v
+                match:
+                  - node:
+                      bind: v
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-screen-list
+                      bind: design
+                of: design
+          - 1
+      - gte:
+          - count:
+              all:
+                from: v
+                match:
+                  - node:
+                      bind: v
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-dashboard-flow
+                      bind: design
+                of: design
+          - 1
+      - gte:
+          - count:
+              all:
+                from: v
+                match:
+                  - node:
+                      bind: v
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-screen-design-list
+                      bind: design
+                of: design
+          - 1
     level: error
-    message: "ダッシュボード「{id}」の画面の設計書がそろっていません（generate で作り直します）"
+    message: ダッシュボード「{id}」の画面の設計書がそろっていません（generate で作り直します）
   - id: action-has-screen
     description: どの操作にも画面定義書（入力画面と確認画面）がある＝ダッシュボードからたどれる
-    match: [{ node: { entity: yde-action, bind: a } }]
+    match:
+      - node:
+          entity: yde-action
+          bind: a
     check:
-      - { gte: [{ occurrenceCount: { of: a, schema: screen-operation } }, 1] }
-      - { gte: [{ occurrenceCount: { of: a, schema: screen-design-operation } }, 1] }
+      - gte:
+          - count:
+              all:
+                from: a
+                match:
+                  - node:
+                      bind: a
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-screen-operation
+                      bind: design
+                of: design
+          - 1
+      - gte:
+          - count:
+              all:
+                from: a
+                match:
+                  - node:
+                      bind: a
+                  - edge:
+                      via: id
+                      dir: in
+                  - node:
+                      entity: sysdev-screen-design-operation
+                      bind: design
+                of: design
+          - 1
     level: warning
-    message: "操作「{id}」はダッシュボードからたどれず、画面がありません（業務モデルのダッシュボードに、操作のボタンか、受け手の型の一覧を足します）"
+    message: 操作「{id}」はダッシュボードからたどれず、画面がありません（業務モデルのダッシュボードに、操作のボタンか、受け手の型の一覧を足します）

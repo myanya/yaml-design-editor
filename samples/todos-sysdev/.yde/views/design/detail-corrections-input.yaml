@@ -1,0 +1,10 @@
+id: detail-corrections-input
+name: '生成入力（確定項目: detail-corrections）'
+rows:
+  idPattern: DCOR-*
+  schemaIds:
+    - detail-corrections
+columns:
+  - label: record
+    path: .
+    schemaId: detail-corrections

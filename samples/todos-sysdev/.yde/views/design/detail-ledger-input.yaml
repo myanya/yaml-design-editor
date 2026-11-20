@@ -1,0 +1,10 @@
+id: detail-ledger-input
+name: '生成入力（確定項目: detail-ledger）'
+rows:
+  idPattern: INPUT-detail-ledger
+  schemaIds:
+    - detail-ledger
+columns:
+  - label: record
+    path: .
+    schemaId: detail-ledger

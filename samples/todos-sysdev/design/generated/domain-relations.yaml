@@ -1,4 +1,4 @@
-# 生成物（domain-relations）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/domain-relations.yaml）を直して作り直します（CLI generate）。
+# 生成物（domain-relations）: 手で直さず、業務モデルか生成の定義（design/domain-relations.yaml）を直して作り直します（CLI generate）。
 id: domain-relations
 name: ドメイン関連定義書
 domains:
@@ -52,3 +52,13 @@ holdings:
     to: todo-task
     toLabel: 作業項目
     note: 「TODO」の中にだけあり、「TODO」が無ければ無い
+designId: DOC-domain-relations.domain-relations
+designKind: domain-relations
+designPath: design/generated/domain-relations.yaml
+origins:
+  source:
+    id: rule-domain-relations
+    document: .yde/transforms/design/domain-relations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

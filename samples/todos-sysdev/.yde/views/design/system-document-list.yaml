@@ -1,0 +1,17 @@
+id: system-document-list
+name: 全設計書の一覧
+rows:
+  idPattern: DOC-*
+columns:
+  - label: 種類
+    path: designKind
+    fileGlob: design/**
+  - label: 導出元
+    path: id
+    fileGlob: design/**
+  - label: 名前
+    path: name
+    fileGlob: design/**
+  - label: 保存先
+    path: designPath
+    fileGlob: design/**

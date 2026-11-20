@@ -2,13 +2,43 @@ id: screen-design-detail
 name: 画面設計書（詳細画面）
 kind: document
 description: >-
-  詳細設計。ダッシュボードからたどれるエンティティ型 1 つの、詳細画面の部品の木（page・notice・facts・section・table・actions）と読み出し。
-  HTML の手前の形で、③で Thymeleaf のテンプレートに機械的に写す。生成物（.yde/transforms/design/screen-designs-details.yaml）で、手で直さない
-match: "design/generated/screen-designs/details/*.yaml"
-entity: { type: yde-entity, defines: false }
+  詳細設計。ダッシュボードからたどれるエンティティ型 1 つの、詳細画面の部品の木（page・notice・facts・section・table・actions）と読み出し。 HTML の手前の形で、③で Thymeleaf
+  のテンプレートに機械的に写す。生成物（.yde/transforms/design/screen-designs-details.yaml）で、手で直さない
+match: design/generated/screen-designs/details/*.yaml
+entity:
+  type: sysdev-screen-design-detail
+  defines: true
 root:
   type: object
   fields:
-    - { key: id, label: エンティティ型, type: id, required: true }
-    - { key: name, label: 名前, type: string, role: title }
-    - { key: screens, label: 画面（部品の木）, type: array, display: list, item: { type: any } }
+    - key: designId
+      type: id
+      label: 設計項目ID
+      required: true
+      pattern: ^DOC-\S+$
+    - key: id
+      label: エンティティ型
+      type: ref
+      required: true
+    - key: name
+      label: 名前
+      type: string
+      role: title
+    - key: screens
+      label: 画面（部品の木）
+      type: array
+      display: list
+      item:
+        type: any
+    - key: designKind
+      type: system-inputs#種類
+      label: 設計書の種類
+      required: true
+    - key: designPath
+      type: string
+      label: 保存先
+      required: true
+    - key: origins
+      type: any
+      label: 根拠
+  unknownFields: error

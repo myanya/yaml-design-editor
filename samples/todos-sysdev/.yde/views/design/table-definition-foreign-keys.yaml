@@ -1,30 +1,66 @@
 id: table-definition-foreign-keys
 name: テーブル設計書（外部キー）
-description: >-
-  詳細設計項目一覧の外部キーに、補正一覧（詳細設計）を重ねた一覧（テーブル設計書の 1 区画）。入れ子で持つ親への外部キーは親のキーの組（複合）で、
-  親の行を消したら一緒に消す。どのカラムがどのカラムを指すかは、外部キーのカラムの参照先を読む（カラム一覧の参照先と同じもの・同じ順）。DDL のレポートもこの表を読む
-params: [table]
+description: 詳細設計項目一覧に確定した外部キーの一覧。入れ子の親への複合キーと、参照のカラムの参照先・削除時の扱いを表示する。
+params:
+  - table
 rows:
   match:
-    - node: { id: "TBL-*", bind: t }
-    - edge: { contains: true }
-    - node: { id: "FK-*", bind: f }
+    - node:
+        id: TBL-*
+        bind: t
+    - edge:
+        contains: true
+    - node:
+        id: FK-*
+        bind: f
   rowKey: f
   where:
-    - { of: t, path: id, equals: $table }
-order: { schemaId: detail-table-list }
-corrections:
-  schemaIds:
-    - detail-corrections
+    - of: t
+      path: id
+      equals: $table
+order:
+  schemaId: detail-table-list
 columns:
-  - { label: 項番, path: seq }
-  - { label: テーブル, of: t, path: id }
-  - { label: 制約名, path: name }
-  - { label: カラム, path: columns }
-  - { label: カラム名, value: { each: { path: columns }, value: { path: name } } }
-  - { label: 参照先テーブル, path: referencesTable }
-  - { label: 参照先テーブル名, value: { via: referencesTable, path: name } }
-  - { label: 参照先カラム, value: { each: { path: columns }, value: { path: referencesColumn } } }
-  - { label: 参照先カラム名, value: { each: { path: columns }, value: { via: referencesColumn, path: name } } }
-  - { label: 消したときの動き, value: { first: [{ path: onDelete }, 指定しない] } }
-  - { label: 補正, backlinks: { schemaIds: [detail-corrections] } }
+  - label: 項番
+    path: seq
+  - label: テーブル
+    of: t
+    path: id
+  - label: 制約名
+    path: name
+  - label: カラム
+    path: columns
+  - label: カラム名
+    value:
+      each:
+        path: columns
+      value:
+        path: name
+  - label: 参照先テーブル
+    path: referencesTable
+  - label: 参照先テーブル名
+    value:
+      via: referencesTable
+      path: name
+  - label: 参照先カラム
+    value:
+      each:
+        path: columns
+      value:
+        path: referencesColumn
+  - label: 参照先カラム名
+    value:
+      each:
+        path: columns
+      value:
+        via: referencesColumn
+        path: name
+  - label: 消したときの動き
+    value:
+      first:
+        - path: onDelete
+        - 指定しない
+  - label: 補正
+    backlinks:
+      schemaIds:
+        - detail-corrections

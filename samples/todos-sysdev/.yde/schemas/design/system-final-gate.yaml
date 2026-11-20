@@ -1,0 +1,64 @@
+id: system-final-gate
+name: system-final-gate
+kind: document
+match: design/system/finalization-gate.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: documents
+      type: array
+      item:
+        type: ref
+        idPatterns:
+          - DOC-*
+      required: true
+    - key: identities
+      type: array
+      item:
+        type: object
+        fields:
+          - key: target
+            type: ref
+          - key: expected
+            type: string
+            required: true
+          - key: actual
+            type: string
+            required: true
+        constraints:
+          - id: identity-stable
+            check:
+              - eq:
+                  - path: expected
+                  - path: actual
+            level: error
+            message: 導出元の ID は補正では変更できません
+    - key: pending
+      type: array
+      item:
+        type: any
+      required: true
+    - key: inputs
+      type: array
+      item:
+        type: any
+    - key: checks
+      type: array
+      item:
+        type: any
+    - key: consistency
+      type: array
+      item:
+        type: boolean
+  constraints:
+    - id: no-pending
+      check:
+        - eq:
+            - count:
+                path: pending
+            - 0
+      level: error
+      message: 未処理または対応していない入力があります。pending の対象・属性・理由を確認してください

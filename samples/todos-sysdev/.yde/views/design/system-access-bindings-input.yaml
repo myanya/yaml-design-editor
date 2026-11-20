@@ -1,0 +1,10 @@
+id: system-access-bindings-input
+name: '生成入力（確定項目: system-access-bindings）'
+rows:
+  idPattern: SYS-system-access-bindings
+  schemaIds:
+    - system-access-bindings
+columns:
+  - label: bindings
+    path: bindings
+    schemaId: system-access-bindings

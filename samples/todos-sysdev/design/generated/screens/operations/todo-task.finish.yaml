@@ -1,4 +1,4 @@
-# 生成物（screen-operations）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/screen-operations.yaml）を直して作り直します（CLI generate）。
 id: todo-task.finish
 name: 作業項目を済にする
 kind: operation
@@ -21,3 +21,16 @@ execute:
     - key: check.closed-has-no-open-task
       message: 完了したTODO「{id}」に、済んでいない作業項目があります
   onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+originalRoutes:
+  confirm: GET /todo-task/{id}/todo-task.finish/confirm
+  execute: POST /todo-task/{id}/todo-task.finish
+designId: DOC-screen-operations.todo-task.finish
+designKind: screen-operations
+designPath: design/generated/screens/operations/todo-task.finish.yaml
+origins:
+  source:
+    id: rule-screen-operations
+    document: .yde/transforms/design/screen-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

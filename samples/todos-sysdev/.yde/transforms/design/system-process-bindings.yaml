@@ -1,0 +1,70 @@
+id: system-process-bindings
+name: 設計書間で共有する system-process-bindings
+scope: business
+dependsOn:
+  - processes
+output: design/system/system-process-bindings.yaml
+build:
+  id: SYS-system-process-bindings
+  bindings:
+    $each:
+      $view: processes-input
+    $bind: service
+    $flatten: true
+    $build:
+      $concat:
+        - - before:
+              $format: '{c}.{m}'
+              $with:
+                c:
+                  $copy: values.record.originalService.class
+                m:
+                  $copy: values.record.originalService.method
+            after:
+              $format: '{c}.{m}'
+              $with:
+                c:
+                  $copy: values.record.service.class
+                m:
+                  $copy: values.record.service.method
+            roles:
+              - service
+              - calls
+              - call
+        - $each: values.record.confirm
+          $build:
+            before:
+              $format: '{c}.check{m}'
+              $with:
+                c:
+                  $copy: values.record.originalService.class
+                  $of: service
+                m:
+                  $case:
+                    $copy: values.record.id
+                    $of: service
+                  $as: pascal
+            after:
+              $format: '{c}.{m}'
+              $with:
+                c:
+                  $copy: values.record.service.class
+                  $of: service
+                m:
+                  $copy: method
+            roles:
+              - calls
+              - call
+rules:
+  - id: contract-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  - id: contract-first
+    with:
+      - matches
+    build:
+      $copy: '[0]'
+      $of: matches

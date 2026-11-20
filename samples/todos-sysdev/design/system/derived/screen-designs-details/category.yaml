@@ -1,0 +1,29 @@
+# 生成物（screen-designs-details-derived）: 手で直さず、業務モデルか生成の定義（design/screen-designs-details-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-details.category
+record:
+  id: DOC-screen-designs-details.category
+  value:
+    id: category
+    name: カテゴリ詳細（画面設計書）
+    screens:
+      - id: category
+        template: category/detail
+        read: CategoryMapper.findDetail
+        page:
+          title: カテゴリ詳細
+          width: l
+          body:
+            - notice:
+                kind: done
+            - facts:
+                of: category
+                columns: 2
+                items:
+                  - item: id
+                    label: ID
+                  - item: name
+                    label: カテゴリ名
+            - actions: []
+  source:
+    id: rule-screen-designs-details
+    document: .yde/transforms/design/screen-designs-details-derived.yaml

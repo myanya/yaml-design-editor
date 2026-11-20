@@ -1,4 +1,4 @@
-# 生成物（errors）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/errors.yaml）を直して作り直します（CLI generate）。
+# 生成物（errors）: 手で直さず、業務モデルか生成の定義（design/errors.yaml）を直して作り直します（CLI generate）。
 id: errors
 name: エラー定義書
 kinds:
@@ -644,3 +644,13 @@ operations:
         message: error.token
         when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
         shownAt: 起点の画面へ戻し、知らせで出す
+designId: DOC-errors.errors
+designKind: errors
+designPath: design/generated/errors.yaml
+origins:
+  source:
+    id: rule-errors
+    document: .yde/transforms/design/errors-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

@@ -1,0 +1,48 @@
+# 生成物（screen-operations-derived）: 手で直さず、業務モデルか生成の定義（design/screen-operations-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-operations.add-category
+record:
+  id: DOC-screen-operations.add-category
+  value:
+    id: add-category
+    name: カテゴリを追加する
+    kind: operation
+    starts:
+      - screen: todo-dashboard
+        place: 上部のボタン
+    shownWhen: いつも
+    input:
+      screen: add-category/input
+      request: GET /category/add-category
+      items:
+        - key: name
+          label: カテゴリ名
+          type: common#一行の文
+          base: string
+          required: true
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+    confirm:
+      screen: add-category/confirm
+      request: POST /category/add-category/confirm
+      shows:
+        - カテゴリ名
+      back:
+        request: POST /category/add-category/back
+        to: add-category/input
+    execute:
+      request: POST /category/add-category
+      returns: 起点の画面（starts の画面。画面の ID で受け取る）
+      notice: add-category.done
+      refusals: []
+      onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+    originalRoutes:
+      input: GET /category/add-category
+      confirm: POST /category/add-category/confirm
+      back: POST /category/add-category/back
+      execute: POST /category/add-category
+  source:
+    id: rule-screen-operations
+    document: .yde/transforms/design/screen-operations-derived.yaml

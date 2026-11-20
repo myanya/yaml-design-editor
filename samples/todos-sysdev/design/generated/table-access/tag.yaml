@@ -1,4 +1,4 @@
-# 生成物（table-access）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
+# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/table-access.yaml）を直して作り直します（CLI generate）。
 id: tag
 name: タグの読み書き
 mapper: TagMapper
@@ -11,11 +11,24 @@ methods:
     where:
       - item: id
         param: id
+        columnId: COL-tag.id
+        column: id
     includes: []
     names: []
     operations: []
     screens:
       - tag
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: findDetail
+    tableId: TBL-tag
   - name: selectAll
     kind: select
     table: tag
@@ -24,16 +37,33 @@ methods:
       - name
     order:
       - item: id
+        columnId: COL-tag.id
+        column: id
     operations: []
     screens:
       - 参照の候補
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: selectAll
+    tableId: TBL-tag
   - name: selectTodoDashboardTags
     kind: aggregate
     table: tag
     order:
       - item: id
+        columnId: COL-tag.id
+        column: id
     groupBy:
       - item: id
+        columnId: COL-tag.id
+        column: id
       - item: status
         of: todo
         values:
@@ -49,19 +79,45 @@ methods:
     operations: []
     screens:
       - todo-dashboard
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: selectTodoDashboardTags
+    tableId: TBL-tag
   - name: countTodoDashboardTags
     kind: count
     table: tag
     operations: []
     screens:
       - todo-dashboard
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: countTodoDashboardTags
+    tableId: TBL-tag
   - name: selectTodoDashboardTagsMaster
     kind: select
     table: tag
     columns:
       - item: id
+        columnId: COL-tag.id
+        column: id
       - label: タグ名
         item: name
+        columnId: COL-tag.name
+        column: name
       - label: TODOの数
         computed:
           count: 参照してくる要素
@@ -70,10 +126,23 @@ methods:
     where: []
     order:
       - item: id
+        columnId: COL-tag.id
+        column: id
     params: []
     operations: []
     screens:
       - todo-dashboard
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: selectTodoDashboardTagsMaster
+    tableId: TBL-tag
   - name: countTodoDashboardTagsMaster
     kind: count
     table: tag
@@ -81,6 +150,17 @@ methods:
     operations: []
     screens:
       - todo-dashboard
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: countTodoDashboardTagsMaster
+    tableId: TBL-tag
   - name: insert
     kind: insert
     table: tag
@@ -88,6 +168,17 @@ methods:
     operations:
       - add-tag
     screens: []
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: insert
+    tableId: TBL-tag
   - name: maxId
     kind: max
     table: tag
@@ -95,6 +186,8 @@ methods:
     where:
       - item: id
         startsWith: TAG-
+        columnId: COL-tag.id
+        column: id
     numbering:
       path: id
       prefix: TAG-
@@ -102,3 +195,26 @@ methods:
     operations:
       - add-tag
     screens: []
+    columnId: COL-tag.id
+    column: id
+    columnBindings:
+      - columnId: COL-tag.id
+        item: id
+        name: id
+        source: FLD-tag.id
+      - columnId: COL-tag.name
+        item: name
+        name: name
+        source: FLD-tag.name
+    methodId: maxId
+    tableId: TBL-tag
+designId: DOC-table-access.tag
+designKind: table-access
+designPath: design/generated/table-access/tag.yaml
+origins:
+  source:
+    id: rule-table-access
+    document: .yde/transforms/design/table-access-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

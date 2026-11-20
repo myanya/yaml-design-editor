@@ -1,0 +1,10 @@
+id: screen-flows-input
+name: '生成入力（確定項目: screen-flows）'
+rows:
+  idPattern: DOC-screen-flows.*
+  schemaIds:
+    - screen-flow
+columns:
+  - label: record
+    path: .
+    schemaId: screen-flow

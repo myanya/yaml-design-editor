@@ -1,0 +1,10 @@
+id: action-specs-derived-input
+name: '生成入力（導出した設計書: action-specs）'
+rows:
+  idPattern: DRV-document-action-specs.*
+  schemaIds:
+    - system-derived
+columns:
+  - label: record
+    path: record
+    schemaId: system-derived

@@ -1,4 +1,4 @@
-# 生成物（processes）: 手で直さず、業務モデルか段の規則・補正（.yde/stages）か生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/processes.yaml）を直して作り直します（CLI generate）。
 id: start-todo
 name: TODOに着手する
 service:
@@ -68,3 +68,19 @@ steps:
         $of: self
       to: IN_PROGRESS
     seq: TodoMapper.maxSeqTodoHistory の次
+subject: todo
+originalService:
+  class: TodoService
+  method: startTodo
+  arguments:
+    - id
+designId: DOC-processes.start-todo
+designKind: processes
+designPath: design/generated/processes/start-todo.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

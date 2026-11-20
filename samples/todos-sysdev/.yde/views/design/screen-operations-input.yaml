@@ -1,0 +1,10 @@
+id: screen-operations-input
+name: '生成入力（確定項目: screen-operations）'
+rows:
+  idPattern: DOC-screen-operations.*
+  schemaIds:
+    - screen-operation
+columns:
+  - label: record
+    path: .
+    schemaId: screen-operation

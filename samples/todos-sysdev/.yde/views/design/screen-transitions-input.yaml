@@ -1,0 +1,10 @@
+id: screen-transitions-input
+name: '生成入力（確定項目: screen-transitions）'
+rows:
+  idPattern: DOC-screen-transitions.*
+  schemaIds:
+    - screen-transitions
+columns:
+  - label: record
+    path: .
+    schemaId: screen-transitions
