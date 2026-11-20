@@ -1,0 +1,33 @@
+id: BF-26
+name: "行政アカウント登録・削除"
+business: BIZ-22
+source: "別紙 3 業務フロー 47〜49／66"
+lanes:
+  - { actor: ACT-MUNICIPALITY, label: "都道府県等・基礎自治体・警察" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-26-S01, title: "行政アカウント発行申請書を作成し、申請する", actor: ACT-MUNICIPALITY, kind: document }
+  - { id: BF-26-S02, title: "発行申請を受領し、申請者を認証する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-26-S03, title: "行政アカウントの登録情報を入力する", actor: ACT-REGISTRAR, kind: system, action: register-account }
+  - { id: BF-26-S04, title: "行政アカウントを採番し、情報を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: register-account }
+  - { id: BF-26-S05, title: "行政アカウント登録完了の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "メールの送信と、パスワードの払い出しは再現していません。" }
+  - { id: BF-26-S06, title: "完了メールを受領する", actor: ACT-MUNICIPALITY, kind: document }
+  - { id: BF-26-S07, title: "行政アカウント削除申請書を作成し、申請する", actor: ACT-MUNICIPALITY, kind: document }
+  - { id: BF-26-S08, title: "削除依頼を受領し、申請者を認証する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-26-S09, title: "行政アカウントの削除情報を入力する", actor: ACT-REGISTRAR, kind: system, action: delete-account }
+  - { id: BF-26-S10, title: "行政アカウント情報を削除する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: delete-account, note: "文書は消さず、状態を削除済みにします（担当した申請と問い合わせの記録が切れないようにするため）。" }
+  - { id: BF-26-S11, title: "行政アカウント削除完了の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-26-S12, title: "完了メールを受領する", actor: ACT-MUNICIPALITY, kind: document }
+transitions:
+  - { from: BF-26-S01, to: BF-26-S02, label: "行政アカウント発行申請書（メール or FAX）" }
+  - { from: BF-26-S02, to: BF-26-S03 }
+  - { from: BF-26-S03, to: BF-26-S04, label: "氏名、メールアドレス、全国地方公共団体コードなど" }
+  - { from: BF-26-S04, to: BF-26-S05 }
+  - { from: BF-26-S05, to: BF-26-S06, label: "行政 ID＋新 PWD" }
+  - { from: BF-26-S07, to: BF-26-S08, label: "行政アカウント削除申請書（メール or FAX）" }
+  - { from: BF-26-S08, to: BF-26-S09 }
+  - { from: BF-26-S09, to: BF-26-S10, label: "行政 ID" }
+  - { from: BF-26-S10, to: BF-26-S11 }
+  - { from: BF-26-S11, to: BF-26-S12 }
+notes: "登録（工程 1〜6）と削除（工程 7〜12）の 2 つの流れです。都道府県等・基礎自治体・警察に共通です。"

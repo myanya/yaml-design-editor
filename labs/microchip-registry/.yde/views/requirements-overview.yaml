@@ -45,6 +45,27 @@ sections:
     label: 業務フロー
     group: 業務
     view: flow-grid
+  - id: steps
+    label: 工程と再現の対応
+    group: 業務
+    view: step-grid
+  # システムを使う工程のうち、対応する操作もビューも無いもの（備考に理由がある）
+  - id: unreproduced-steps
+    label: 再現していない工程
+    group: 業務
+    view: step-grid
+    filter:
+      match:
+        - node: { entity: flow-step, bind: s }
+      where:
+        - { of: s, path: kind, oneOf: [system, data] }
+        - { of: s, path: action, exists: false }
+        - { of: s, path: view, exists: false }
+      expect: exists
+  - id: steps-by-kind
+    label: 業務プロセス×工程の種類
+    group: 業務
+    view: step-by-kind
   - id: actors
     label: 利用者区分と登場者
     group: 要件の一覧

@@ -47,7 +47,7 @@
 | `registry/inquiries/INQ-<番号>.yaml` | 問い合わせの原本です（「お問い合わせ情報」に当たります） |
 | `registry/masters/municipalities.yaml`・`fees.yaml` | 自治体と料金のマスタです（「マスタ情報」に当たります。料金は仮の値です） |
 | `spec/businesses.yaml`・`actors.yaml`・`forms.yaml`・`apis.yaml` | 要件定義書の業務一覧（表 6）・利用者一覧（表 3）・帳票一覧（表 8）・API 一覧（別紙 4）と、再現の対応です |
-| `spec/flows/BF-<番号>.yaml` | 要件定義書の業務フロー（別紙 3）を写した文書です。いまは主な 10 本です |
+| `spec/flows/BF-<番号>.yaml` | 要件定義書の業務フロー（別紙 3）を写した文書です。31 本で、別紙 3 の業務プロセスのすべてです |
 | `.yde/schemas/common.yaml` | 共通の型です。番号・参照・選択肢の値の型と、業務のオブジェクト型（形と検査）を持ちます |
 | `.yde/schemas/registry-behavior.yaml` | 状態の流れの原本です（申請・届出、マイクロチップ登録、アカウント、問い合わせ） |
 | `.yde/schemas/operations.yaml` | 業務の操作 15 個です |
@@ -111,7 +111,7 @@
 | 日付の順 | 生年月日 ≤ 装着日 ≤ 登録日、受付日 ≤ 完了日、オンラインの申請は受付日 ≤ 支払日 |
 | 参照を辿る検査 | 支払額は料金の手数料と同じ、料金は手続種別と経路に合う、母親はメスで同じ種別で子より先に生まれている、1 つの登録に手続の途中の申請は 1 件まで |
 | 関係の多重度 | 登録は所有者と所在地の自治体を 1 件ずつ、申請は申請者を 1 件、母親の関係は循環しない |
-| 業務の記述 | 再現・一部とした業務には対応する操作・ビュー・レポート・スクリプトがある、一部・対象外には足りないことが書いてある、システム利用の工程には対応か理由がある |
+| 業務の記述 | 再現・一部とした業務には対応する操作・ビュー・レポート・スクリプトがある、一部・対象外には足りないことが書いてある、業務には業務フローがある、システム利用の工程には対応か理由がある、ダッシュボードは利用者区分か業務に対応付いている |
 
 ## ビューとダッシュボード
 
@@ -124,12 +124,14 @@
 | 警察（逸走情報検索）（`police-dashboard`） | 警察 | マイクロチップ番号から、犬猫と所有者の連絡先 |
 | ヘルプデスク・コールセンター（`helpdesk-dashboard`） | 指定登録機関 | 問い合わせの業務の流れ、登録の検索、トレーサビリティ照会 |
 | 管理・保守（`admin-dashboard`） | 指定登録機関・保守者 | アカウントの業務の流れ、自治体と料金のマスタ |
-| 要件定義書との対応（`requirements-overview`） | 開発する人 | 業務一覧と再現の対応、一部・対象外の業務、対応の無い操作（0 件が正しい）、業務フロー、利用者区分、帳票、API |
+| 要件定義書との対応（`requirements-overview`） | 開発する人 | 業務一覧と再現の対応、一部・対象外の業務、対応の無い操作（0 件が正しい）、業務フロー、工程と再現の対応、再現していない工程、利用者区分、帳票、API |
 
 - **ワンストップ情報**（`onestop-grid`）は、通知情報を別に書き込まず、完了した犬の手続と登録から導きます。所在地と所有者は手続の時点のもの（申請・届出に残した所在地と申請者）です。
 - **トレーサビリティ照会**（`traceability-grid`）は、1 頭の完了した手続を完了日の順に並べ、所有者の移り変わりを辿ります。
 - **飼養管理**（`breeding-grid`・`mother-grid`）は、母親の参照から、出産時の母親の日齢と、母親ごとの子の登録数を導きます。
 - **業務フロー図**（`business-flow-diagram`）は、台帳の「フロー」タブで、スイムレーンの図として見られます。
+- **工程と再現の対応**（`step-grid`）は、業務フローの工程 243 個（システム外 54・システム利用 69・データ 64・書類 56）の一覧です。システムを使う 133 個のうち、108 個に操作かビューを対応付けています。
+  残りの 25 個が「再現していない工程」で、利用規約の確認、決済、本人確認用の認証番号、ログインとパスワード、登録証明書のダウンロード（レポートで作ります）です。
 
 ## レポート
 
@@ -176,6 +178,8 @@
 ./yde view labs/microchip-registry municipality-dashboard --param municipality=LG-991011 --param from=2026-04-01
 ./yde view labs/microchip-registry traceability-grid --param mc=MC-999000000000004
 ./yde view labs/microchip-registry requirements-overview                 # 要件定義書との対応
+./yde view labs/microchip-registry business-flow-diagram spec/flows/BF-01.yaml   # 業務フロー図の表示モデル（帯・箱・線）
+./yde view labs/microchip-registry step-grid --param kind=system         # システム利用の工程と、対応する操作・ビュー
 ./yde action labs/microchip-registry                                     # 操作の一覧
 ./yde action labs/microchip-registry record-payment --on APP-000042 --param date=2026-11-20 --param amount=300   # 支払の記録の計画（--apply で適用）
 ./yde action labs/microchip-registry apply-transfer --on MC-999000000000003 --param applicantId=OWN-0006 --param changeKey=CK-000003 --param receivedOn=2026-11-20 --param locationMunicipalityId=LG-991037
@@ -237,6 +241,6 @@ python3 labs/microchip-registry/scripts/daily-batch.py --date 2026-04-14 --works
 
 ## 残り
 
-- 業務フロー（別紙 3）は、主な 10 本を写しました。残り（一括・紙運用の所有者変更と届出・検索・アカウント・コールセンター・マスタ設定・ログインなど）は写していません。
 - ローカル接続の業務 Web での確認（利用者区分ごとに、接続者へ操作を許可して使う）は試していません。
-- 画面での確認は、この試作を作った環境（Linux のコンテナ）ではできていません。定義・データ・操作・ビュー・レポートは、CLI で確かめています。
+- 画面での確認は、この試作を作った環境（Linux のコンテナ）ではできていません。定義・データ・操作・ビュー・レポート・業務フロー図の表示モデルは、CLI で確かめています。
+- 業務フローの工程は、レポートと skill を参照で指せません（定義の索引に載らないため）。登録証明書やマスタの取り込みの工程は、備考の文字で対応を書いています。

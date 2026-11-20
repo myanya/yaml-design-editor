@@ -1,0 +1,16 @@
+id: BF-21
+name: "行政アカウント情報更新"
+business: BIZ-17
+source: "別紙 3 業務フロー 39／66"
+lanes:
+  - { actor: ACT-MUNICIPALITY, label: "都道府県等・基礎自治体・警察" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-21-S01, title: "更新情報を入力する", actor: ACT-MUNICIPALITY, kind: system, action: update-account, note: "都道府県等・基礎自治体・警察に共通のフローです。氏名・所属・メールアドレスを更新します（パスワードは扱いません）。" }
+  - { id: BF-21-S02, title: "行政アカウント情報を更新する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: update-account }
+  - { id: BF-21-S03, title: "行政アカウント更新完了の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-21-S04, title: "完了メールを受領する", actor: ACT-MUNICIPALITY, kind: document }
+transitions:
+  - { from: BF-21-S01, to: BF-21-S02, label: "メールアドレス、パスワード、氏名など" }
+  - { from: BF-21-S02, to: BF-21-S03 }
+  - { from: BF-21-S03, to: BF-21-S04 }

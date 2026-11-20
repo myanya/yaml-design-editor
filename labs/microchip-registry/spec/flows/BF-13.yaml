@@ -1,0 +1,17 @@
+id: BF-13
+name: "情報変更（一括）"
+business: BIZ-06
+source: "別紙 3 業務フロー 15／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-13-S01, title: "利用規約を確認する", actor: ACT-OWNER, kind: system, note: "利用規約の確認は再現していません。" }
+  - { id: BF-13-S02, title: "情報変更の情報を入力する（一括）", actor: ACT-OWNER, kind: system, action: report-change, note: "外のスクリプト scripts/bulk.py change に CSV を渡します。" }
+  - { id: BF-13-S03, title: "犬猫／所有者情報の変更を一括で受け付け、登録を変更する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: report-change, note: "スクリプトが操作を 1 行ずつ呼びます。メールアドレスの変更を断る決まりは、スクリプトが持ちます。" }
+  - { id: BF-13-S04, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+transitions:
+  - { from: BF-13-S01, to: BF-13-S02 }
+  - { from: BF-13-S02, to: BF-13-S03, label: "MC 番号＋変更キー＋情報変更（犬猫／所有者情報）、一括情報変更 CSV" }
+  - { from: BF-13-S03, to: BF-13-S04 }
+notes: "なりすまし防止のため、一括で情報変更するときはメールアドレスを変更できません。届出なので、所有者に登録完了の連絡はしません。"

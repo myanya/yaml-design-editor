@@ -23,3 +23,12 @@ constraints:
     expect: exists
     level: warning
     message: "ダッシュボード {v.id} は、どの利用者区分にも業務にも対応付いていません"
+  - id: business-has-flow
+    description: 業務には、業務フロー（spec/flows）が 1 つ以上あること
+    match:
+      - node: { entity: business, bind: b }
+      - edge: { dir: in, relation: for-business }
+      - node: { entity: business-flow }
+    expect: exists
+    level: warning
+    message: "業務 {b.id} に業務フローがありません"

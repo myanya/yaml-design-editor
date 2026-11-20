@@ -1,0 +1,21 @@
+id: step-by-kind
+name: 業務プロセス×工程の種類
+kind: matrix
+description: 行＝業務フロー、列＝工程の種類（システム外・システム利用・データ・書類）、セル＝工程の数。業務ごとに、システムの外の作業がどれだけあるかの全体像です。
+rows:
+  idPattern: "BF-??"
+  schemaIds: [business-flow]
+cells:
+  match:
+    - node: { entity: business-flow, bind: f }
+    - edge: { relation: has-step }
+    - node: { entity: flow-step, bind: s }
+  of: s
+  columns:
+    path: kind
+    values:
+      - { value: outside, label: システム外 }
+      - { value: system, label: システム利用 }
+      - { value: data, label: データ }
+      - { value: document, label: 書類 }
+  aggregate: count

@@ -1,0 +1,21 @@
+id: step-grid
+name: 業務フローの工程と再現の対応
+description: 業務フローの工程ごとの、実施者・種類・対応する操作かビュー・備考です。システム利用の工程で、操作もビューも無いものが、再現していない工程です（備考に理由があります）。
+params: [kind]
+rows:
+  # 行＝工程。属するフローへ入れ子の線を逆に辿る
+  match:
+    - node: { entity: flow-step, bind: s }
+    - edge: { relation: has-step, dir: in }
+    - node: { entity: business-flow, bind: f }
+  rowKey: s
+  where:
+    - { of: s, path: kind, equals: $kind }
+columns:
+  - { label: 業務プロセス, of: f, path: name }
+  - { label: 工程, path: title }
+  - { label: 実施者, path: actor }
+  - { label: 種類, path: kind }
+  - { label: 対応する操作, path: action }
+  - { label: 対応するビュー, path: view }
+  - { label: 備考, path: note }

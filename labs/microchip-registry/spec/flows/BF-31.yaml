@@ -1,0 +1,23 @@
+id: BF-31
+name: "ログイン"
+business: BIZ-29
+source: "別紙 3 業務フロー 62〜63／66"
+lanes:
+  - { actor: ACT-MUNICIPALITY, label: "都道府県等・基礎自治体・警察" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-31-S01, title: "ログイン情報を入力する", actor: ACT-REGISTRAR, kind: system, note: "ログインとパスワードは再現していません。行政（都道府県等・基礎自治体・警察）も同じ流れです。" }
+  - { id: BF-31-S02, title: "ログインを認証する（共通 DB）", actor: ACT-SYSTEM, kind: data, note: "ログインとパスワードは再現していません。" }
+  - { id: BF-31-S03, title: "パスワード再設定を選ぶ", actor: ACT-REGISTRAR, kind: system, note: "ログインとパスワードは再現していません。" }
+  - { id: BF-31-S04, title: "パスワード再設定の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "ログインとパスワードは再現していません。" }
+  - { id: BF-31-S05, title: "仮パスワードでログインし、新しいパスワードを入力する", actor: ACT-REGISTRAR, kind: system, note: "ログインとパスワードは再現していません。" }
+  - { id: BF-31-S06, title: "パスワードを再設定する（共通 DB）", actor: ACT-SYSTEM, kind: data, note: "ログインとパスワードは再現していません。" }
+  - { id: BF-31-S07, title: "新パスワード再設定完了の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "ログインとパスワードは再現していません。" }
+transitions:
+  - { from: BF-31-S01, to: BF-31-S02, label: "指定登録機関 ID or 行政 ID／PWD" }
+  - { from: BF-31-S03, to: BF-31-S04, label: "指定登録機関 ID or 行政 ID" }
+  - { from: BF-31-S04, to: BF-31-S05, label: "仮パスワード（時間制限付き）" }
+  - { from: BF-31-S05, to: BF-31-S06 }
+  - { from: BF-31-S06, to: BF-31-S07 }
+notes: "ほかの業務フローから呼び出されるフローです。ログイン（工程 1〜2）と、パスワード再設定（工程 3〜7）の 2 つの流れです。"
