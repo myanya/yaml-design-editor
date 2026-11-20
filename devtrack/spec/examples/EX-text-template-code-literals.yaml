@@ -1,0 +1,23 @@
+id: EX-text-template-code-literals
+title: ひな形の XML と Java の形式は値を出力言語に合わせて逃がす
+area: templates
+illustrates: [KW-report.template]
+files:
+  - path: .yde/reports/example.yaml
+    text: |-
+      id: example
+      build:
+        text: "O'Brien & <tag>"
+        java: "a\n\"b\"\\c"
+      template: example.txt
+  - path: .yde/reports/example.txt
+    text: |-
+      <x value="{text:xml}">{text:sql-string-xml}</x>
+      String value = {java:java-string};
+expect:
+  result: ok
+  report:
+    id: example
+    text: |-
+      <x value="O&apos;Brien &amp; &lt;tag&gt;">&apos;O&apos;&apos;Brien &amp; &lt;tag&gt;&apos;</x>
+      String value = "a\n\"b\"\\c";

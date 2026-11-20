@@ -3,6 +3,7 @@ package dev.toros.yde.semantic
 import dev.toros.yde.yaml.YamlIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -86,6 +87,26 @@ class TextTemplateTest {
         val r = TextTemplate.render("{quote:sql-string}|{empty:sql-string}|{number:sql-string}|{flag:sql-string}|{body:sql-string}|{spaces:sql-string}", input)
         assertEquals("'O''Brien'|''|'001'|'false'|'a\nb\\c{d}'|' \n '", r.text)
         assertTrue(r.missing.isEmpty())
+    }
+
+    @Test
+    fun `XML と Java の定数は引用符と制御文字を逃がして値を保持する`() {
+        val value = "O'Brien & <tag> \"x\"\n\r\t]]>\\u000a\u0001"
+        val input = YamlIO.fromAny(mapOf("text" to value, "empty" to ""))
+        val renderedJava = TextTemplate.render("{text:java-string}|{empty:java-string}", input)
+        assertEquals("\"O'Brien & <tag> \\\"x\\\"\\n\\r\\t]]>\\\\u000a\\001\"|\"\"", renderedJava.text)
+        val xmlValue = "O'Brien & <tag> \"x\"\n\r\t]]>"
+        val xmlInput = YamlIO.fromAny(mapOf("text" to xmlValue))
+        val escaped = TextTemplate.render("<x value=\"{text:xml}\">{text:sql-string-xml}</x>", xmlInput)
+        val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+        val element = factory.newDocumentBuilder().parse(java.io.ByteArrayInputStream(escaped.text.toByteArray())).documentElement
+        assertEquals(xmlValue, element.getAttribute("value"))
+        assertEquals("'" + xmlValue.replace("'", "''") + "'", element.textContent)
+        assertTrue(escaped.missing.isEmpty())
+        for (invalid in listOf("\u0000", "\u0001", "\uD800", "\uFFFE")) {
+            assertFailsWith<IllegalArgumentException> { TextTemplate.render("{text:xml}", YamlIO.fromAny(mapOf("text" to invalid))) }
+        }
+        assertEquals("😀", TextTemplate.render("{text:xml}", YamlIO.fromAny(mapOf("text" to "😀"))).text)
     }
 
     @Test

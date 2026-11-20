@@ -1101,6 +1101,36 @@ template: example.md
 {/each}
 ```
 
+## ひな形の XML と Java の形式は値を出力言語に合わせて逃がす
+
+- ID: EX-text-template-code-literals
+- 示す仕様: KW-report.template
+- 結果: 通る（誤りも警告も無い）
+
+レポート `example` の出力:
+
+```text
+<x value="O&apos;Brien &amp; &lt;tag&gt;">&apos;O&apos;&apos;Brien &amp; &lt;tag&gt;&apos;</x>
+String value = "a\n\"b\"\\c";
+```
+
+`.yde/reports/example.yaml`
+
+```yaml
+id: example
+build:
+  text: "O'Brien & <tag>"
+  java: "a\n\"b\"\\c"
+template: example.txt
+```
+
+`.yde/reports/example.txt`
+
+```yaml
+<x value="{text:xml}">{text:sql-string-xml}</x>
+String value = {java:java-string};
+```
+
 ## ひな形の穴は、形と表のセルの書き方を添えられる
 
 - ID: EX-text-template-format-cell

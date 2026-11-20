@@ -6,4 +6,4 @@ status: stable
 forms:
   - required: true
     value: "ファイルの場所"
-    meaning: "文字のひな形のファイル（定義と同じ場所からの相対）。穴・繰り返し・条件だけを書けます。"
+    meaning: "文字のひな形のファイル（定義と同じ場所からの相対）。穴・繰り返し・条件を書けます。穴の sql-string・xml・sql-string-xml・java-string は、出力言語に合わせた文字の囲みとエスケープです。型は判断しません。"

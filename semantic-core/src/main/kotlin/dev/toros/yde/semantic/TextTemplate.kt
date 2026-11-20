@@ -83,8 +83,9 @@ object TextTemplate {
     /** 穴の文字。配列やマップは YAML の文字。形は表のセル・SQL の文字列定数・数・日付。 */
     private fun text(node: YNode, format: String?): String {
         // 出力する文字列の空白は値そのもの。通常の読み取り用 scalarText（空白を値なしにする）は通さない
-        if (format == SQL_STRING && node is YNode.Scalar && node.value != null) {
-            return "'" + node.value.toString().replace("'", "''") + "'"
+        if (format in setOf(SQL_STRING, "sql-string-xml") && node is YNode.Scalar && node.value != null) {
+            val quoted = "'" + node.value.toString().replace("'", "''") + "'"
+            return if (format == "sql-string-xml") xmlText(quoted) else quoted
         }
         // 空の文字（と空白だけの文字）は、その文字のまま書く。YAML の書き出しに回すと '' になる。値の無い穴（null）とは分ける
         val raw = scalarText(node)
@@ -92,6 +93,8 @@ object TextTemplate {
             ?: return YamlIO.dumpPlain(node).trimEnd()
         if (format == null) return raw
         return when {
+            format == "xml" -> xmlText(raw)
+            format == "java-string" -> javaString(raw)
             format == CELL -> raw.replace("|", "\\|").replace("\r\n", "<br>").replace("\n", "<br>")
             format.any { it == '0' || it == '#' } ->
                 SemanticExpression.numberOf(raw)?.let { n -> runCatching { DecimalFormat(format, NUMBER_SYMBOLS).format(n) }.getOrNull() } ?: raw
@@ -99,6 +102,40 @@ object TextTemplate {
                 SemanticExpression.readDate(raw)?.let { runCatching { SemanticExpression.formatDate(it, format) }.getOrNull() } ?: raw
             else -> raw
         }
+    }
+
+    /** XML の本文・引用符で囲む属性の値。改行も属性の正規化で失われない形にする。 */
+    private fun xmlText(value: String): String = buildString {
+        require(value.codePoints().allMatch { it == 9 || it == 10 || it == 13 || it in 0x20..0xD7FF || it in 0xE000..0xFFFD || it in 0x10000..0x10FFFF }) {
+            "ひな形: XML 1.0 に書けない文字が含まれています"
+        }
+        value.forEach { c -> append(when (c) {
+            '&' -> "&amp;"
+            '<' -> "&lt;"
+            '>' -> "&gt;"
+            '"' -> "&quot;"
+            '\'' -> "&apos;"
+            '\n' -> "&#10;"
+            '\r' -> "&#13;"
+            '\t' -> "&#9;"
+            else -> c.toString()
+        }) }
+    }
+
+    /** Java の通常の文字列定数。先に解釈される Unicode エスケープを作らず、制御文字は八進数で逃がす。 */
+    private fun javaString(value: String): String = buildString {
+        append('"')
+        value.forEach { c -> append(when (c) {
+            '\\' -> "\\\\"
+            '"' -> "\\\""
+            '\n' -> "\\n"
+            '\r' -> "\\r"
+            '\t' -> "\\t"
+            '\b' -> "\\b"
+            '\u000C' -> "\\f"
+            else -> if (c.code < 32 || c.code == 127) "\\" + c.code.toString(8).padStart(3, '0') else c.toString()
+        }) }
+        append('"')
     }
 
     /** 条件の真偽: 無い・空・false・0 件は偽。 */

@@ -147,6 +147,7 @@ Core Calculus では Construct が組み立てた Term の候補を、Rewrite �
 - **流れ**: `Reports.run` → `SemanticTransform.run(def.transform, 空のマップ, params, views)` → `TextTemplate.render(ひな形, 項)` → 文字と埋まらない穴。`output` も同じひな形で埋める。
 - **規律**: 出力は派生物で、YAML と `.yde/` の下には書かない（`Reports.write` が拒む）。ひな形にコードや計算を足さない（並べ替え・集計はビューか `build`）。`$view` の行に出どころは持たせない（解決した行は派生）。レポートの定義は REPORTS ゾーン（メタスキーマ `builtin-report`。エージェントの提出ゲートも同じパース）。
 - **文字列の出力形式**: `TextTemplate` の `sql-string` は SQL の文字列定数として引用符を二重にして囲むだけ。型を値の見た目から決めず、数値・真偽値・日付などの出し分けは定義の側で決める（型対応表 → ビュー → レポートの `build`）。空文字や false を持つ初期値は、値の有無と分けた object に組み立ててから `{#if}` に渡す。
+- **出力言語の文字**: `xml` は本文と属性の実体参照・文字参照、`sql-string-xml` は SQL の文字列定数を XML に埋める形式、`java-string` は引用符付きの Java 文字列定数。XML 1.0 に書けない文字は拒否する。Java の制御文字は通常のエスケープか八進数で出し、先に解釈される Unicode エスケープを作らない。型や SQL の構造の判断は変換定義が持つ。
 
 ## 計算列と決定論的射影
 
