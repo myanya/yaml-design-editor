@@ -143,7 +143,7 @@ class WorkspaceSession private constructor(
         clock: () -> Instant = { Instant.now() },
     ) : this(store, incrementalDerive, builtins, viewKinds, sourceTexts?.let {
         val loaded = WorkspaceReader.load(store, builtins = builtins, sourceTexts = it)
-        Seed(loaded, loaded.storeTexts, readerDumps(loaded))
+        Seed(loaded, loaded.storeTexts, emptyMap())
     }, clock)
 
     /** fork が渡す、読み込み済みの状態（読み取り専用の写し）。dumps は書き出しの覚え（木の同一性で確かめるので、未保存を含む写しにも渡せる）。 */
@@ -272,9 +272,6 @@ class WorkspaceSession private constructor(
         /** 連続入力を1記録へ合体する時間窓（ms。EditBuffer.COALESCE_WINDOW_MS と同値）。 */
         const val COALESCE_WINDOW_MS = 1000L
 
-        /** ストアから読んだ状態の書き出しの覚え。読み取り（WorkspaceReader.load）は保存基準を、その木を書き出して作る。 */
-        fun readerDumps(loaded: LoadedWorkspace): Map<DocumentId, Pair<YDocument, String>> =
-            loaded.snapshot.documents.mapNotNull { (id, d) -> d.persistedText?.let { id to (d.document to it) } }.toMap()
     }
 
     /** 合体の連鎖を断ち切る（Undo/Redo・取り込み・適用など、編集の連続性が切れる操作で呼ぶ）。 */
@@ -297,7 +294,8 @@ class WorkspaceSession private constructor(
         version = loaded.snapshot.version
         derived = loaded.derived
         storeTexts.putAll(seed?.storeTexts ?: loaded.storeTexts)
-        dumps.putAll(seed?.dumps ?: readerDumps(loaded))
+        // 読み込んだままの文書は、保存基準と同じ木なので書き出しを覚えなくても未保存でないと分かる（WorkspaceDocument.matchesPersisted）
+        seed?.dumps?.let(dumps::putAll)
     }
 
     /**
@@ -521,7 +519,7 @@ class WorkspaceSession private constructor(
         val candidate = LinkedHashMap(workingDocuments)
         val parsed = text?.let { runCatching { DefaultYamlCodec.parse(id, it) }.getOrNull() }
         if (parsed == null) candidate.remove(id)
-        else candidate[id] = WorkspaceDocument(parsed, DefaultYamlCodec.dump(parsed),
+        else candidate[id] = WorkspaceDocument.loaded(parsed,
             WorkspaceReader.assignSchemaId(id.value, parsed, schemas, layout), layout.inLedger(id.value))
         commitCandidate(candidate, touched = if (parsed != null) setOf(id) else emptySet(),
             removed = if (parsed == null) setOf(id) else emptySet(), schemaTouched = touchesSchemas(id.value))
@@ -581,6 +579,8 @@ class WorkspaceSession private constructor(
     /** dirty か（保存済みテキストと現在の dump 結果の比較。ADR-0007）。 */
     fun isDirty(id: DocumentId): Boolean {
         val d = workingDocuments[id] ?: return false
+        // 保存基準を書き出した元の木のままなら、書き出して比べるまでもない（開いただけの文書を書き出さない）
+        if (d.matchesPersisted) return false
         return d.persistedText != dumpOf(id, d.document)
     }
 
@@ -663,11 +663,12 @@ class WorkspaceSession private constructor(
         }
         for ((id, d) in workingDocuments) {
             if (selection != null && id !in selection) continue
+            if (!force && d.matchesPersisted) continue
             val text = dumpOf(id, d.document)
             if (!force && text == d.persistedText) continue
             runCatching { checkSave(id); store.write(id, text) }
                 .onSuccess {
-                    workingDocuments[id] = d.copy(persistedText = text)
+                    workingDocuments[id] = d.withPersistedText(text, ofDocument = true)
                     storeTexts[id] = text
                     written += id
                 }
@@ -858,12 +859,8 @@ class WorkspaceSession private constructor(
         val schemaTouched = layout.zoneOf(rel) == WorkspaceLayout.Zone.SCHEMAS ||
             schemas.any { s -> s.derive?.matchesSource(rel) == true }
         val candidate = LinkedHashMap(workingDocuments)
-        candidate[id] = WorkspaceDocument(
-            document = copied,
-            persistedText = existing?.persistedText,
-            schemaId = existing?.schemaId ?: WorkspaceReader.assignSchemaId(rel, copied, schemas, layout),
-            inLedger = existing?.inLedger ?: layout.inLedger(rel),
-        )
+        candidate[id] = existing?.copy(document = copied)
+            ?: WorkspaceDocument(copied, null, WorkspaceReader.assignSchemaId(rel, copied, schemas, layout), layout.inLedger(rel))
         commitCandidate(candidate, touched = setOf(id), removed = emptySet(), schemaTouched = schemaTouched)
         return TransactionResult(true, null, version)
     }
@@ -1067,12 +1064,7 @@ class WorkspaceSession private constructor(
                 continue
             }
             val rel = id.value
-            workingDocuments[id] = WorkspaceDocument(
-                document = parsed,
-                persistedText = DefaultYamlCodec.dump(parsed),
-                schemaId = WorkspaceReader.assignSchemaId(rel, parsed, schemas, layout),
-                inLedger = layout.inLedger(rel),
-            )
+            workingDocuments[id] = WorkspaceDocument.loaded(parsed, WorkspaceReader.assignSchemaId(rel, parsed, schemas, layout), layout.inLedger(rel))
             touched += id
         }
         version += 1
@@ -1099,12 +1091,8 @@ class WorkspaceSession private constructor(
             }
             val rel = id.value
             val existing = candidate[id]
-            candidate[id] = WorkspaceDocument(
-                document = doc,
-                persistedText = existing?.persistedText,
-                schemaId = existing?.schemaId ?: WorkspaceReader.assignSchemaId(rel, doc, schemas, layout),
-                inLedger = existing?.inLedger ?: layout.inLedger(rel),
-            )
+            candidate[id] = existing?.copy(document = doc)
+                ?: WorkspaceDocument(doc, null, WorkspaceReader.assignSchemaId(rel, doc, schemas, layout), layout.inLedger(rel))
             touched += id
         }
         return deriveIncremental(candidate, touched, removedIds, version)
@@ -1198,8 +1186,7 @@ class WorkspaceSession private constructor(
                         val d = candidate.remove(op.from) ?: error("移動元が存在しません: ${op.from.value}")
                         require(op.to !in candidate) { "移動先が既に存在します: ${op.to.value}" }
                         val rel = op.to.value
-                        candidate[op.to] = d.copy(
-                            persistedText = op.toPersistedText,
+                        candidate[op.to] = d.withPersistedText(op.toPersistedText).copy(
                             schemaId = WorkspaceReader.assignSchemaId(rel, d.document, schemas, layout),
                             inLedger = layout.inLedger(rel),
                         )
@@ -1306,10 +1293,10 @@ class WorkspaceSession private constructor(
         newVersion: Long,
     ): WorkspaceDerivedState {
         val byId = schemas.associateBy { it.id }
-        val structural = linkedMapOf<DocumentId, List<StructuralIssue>>()
-        for ((id, d) in candidate) {
-            val issues = if (id in touched) WorkspaceReader.validateOne(d, byId) else derived.structuralIssues[id]
-            if (issues != null) structural[id] = issues
+        // 触れていない文書は、前の結果の入れ物をそのまま引き継ぐ（計算していなければ、しないまま）。触れた文書は、読まれたときに検証する
+        val before = derived.structuralIssues
+        val structural = WorkspaceReader.structuralIssues(candidate.filterKeys { it in touched || before.containsKey(it) }, byId) { id ->
+            if (id in touched) null else (before as? StructuralIssueMap)?.cell(id) ?: before[id]?.let(::lazyOf)
         }
         val changedSemanticDocs = touched.mapNotNull { id ->
             candidate[id]?.let { WorkspaceReader.semanticDocument(id, it, byId, layout) }

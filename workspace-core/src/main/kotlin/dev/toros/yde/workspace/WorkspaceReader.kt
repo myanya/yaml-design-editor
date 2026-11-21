@@ -161,21 +161,56 @@ class WorkspaceSchema(
         kind == SchemaKind.DOCUMENT && !isTemplate && regex?.matches(rel) == true
 }
 
-/** 文書1件のworking状態（計画書§4.3。読取専用フェーズでは persisted と同値）。 */
-data class WorkspaceDocument(
+/**
+ * 文書1件のworking状態（計画書§4.3。読取専用フェーズでは persisted と同値）。
+ * 保存基準のテキストは、読み込んだ文書では「読み込んだ木を書き出した文字」なので、読まれるときまで書き出さない
+ * （開くときに全文書を書き出さない。UX-301）。木はその場で書き換えない決まり（ADR-0003）が前提。
+ */
+class WorkspaceDocument private constructor(
     val document: YDocument,
-    /**
-     * 保存基準のテキスト（未保存の新規文書は null）。dirty 判定は現在の dump 結果との比較で行う（ADR-0007）。
-     * 読取時に正規化（dump）した値を入れる——外部で書かれたファイルの表記ゆれ（末尾改行等）で
-     * 偽 dirty にならないための、現行 EditBuffer（savedSnapshot = canonicalText）と同じ基準。
-     * ストア上の生テキストとの比較（外部変更検出）は WorkspaceSession が別に追跡する。
-     */
-    val persistedText: String?,
+    private val persisted: Lazy<String?>,
+    /** 保存基準のテキストを書き出した元の木（分かっているときだけ）。document がこの木のままなら、書き出さなくても未保存でない。 */
+    private val persistedTree: YDocument?,
     /** 割当てられたスキーマID（match するスキーマがなければ null）。 */
     val schemaId: String?,
     /** 台帳の文書か（R13-03。台帳外はエディタ層の検証だけが効く）。 */
     val inLedger: Boolean,
-)
+) {
+    constructor(document: YDocument, persistedText: String?, schemaId: String?, inLedger: Boolean) :
+        this(document, lazyOf(persistedText), null, schemaId, inLedger)
+
+    /**
+     * 保存基準のテキスト（未保存の新規文書は null）。dirty 判定は現在の dump 結果との比較で行う（ADR-0007）。
+     * 読取時の木を正規化（dump）した値——外部で書かれたファイルの表記ゆれ（末尾改行等）で
+     * 偽 dirty にならないための、現行 EditBuffer（savedSnapshot = canonicalText）と同じ基準。
+     * ストア上の生テキストとの比較（外部変更検出）は WorkspaceSession が別に追跡する。
+     */
+    val persistedText: String? get() = persisted.value
+
+    /** 保存基準と同じ内容だと、書き出さずに分かるか（保存基準を書き出した元の木のまま）。false は「違う」ではなく「比べないと分からない」。 */
+    val matchesPersisted: Boolean get() = persistedTree === document
+
+    /** 木・スキーマ・台帳の扱いを差し替えた写し。保存基準はそのまま引き継ぐ（書き出さない）。 */
+    fun copy(document: YDocument = this.document, schemaId: String? = this.schemaId, inLedger: Boolean = this.inLedger): WorkspaceDocument =
+        WorkspaceDocument(document, persisted, persistedTree, schemaId, inLedger)
+
+    /** 保存基準を差し替えた写し。ofDocument は、そのテキストがいまの木を書き出したものか（保存の直後）。 */
+    fun withPersistedText(text: String?, ofDocument: Boolean = false): WorkspaceDocument =
+        WorkspaceDocument(document, lazyOf(text), document.takeIf { ofDocument && text != null }, schemaId, inLedger)
+
+    override fun equals(other: Any?): Boolean = this === other || (other is WorkspaceDocument && document == other.document &&
+        schemaId == other.schemaId && inLedger == other.inLedger && persistedText == other.persistedText)
+
+    override fun hashCode(): Int = 31 * (31 * document.hashCode() + (schemaId?.hashCode() ?: 0)) + inLedger.hashCode()
+
+    override fun toString(): String = "WorkspaceDocument(document=$document, schemaId=$schemaId, inLedger=$inLedger)"
+
+    companion object {
+        /** ストアから読んだ文書。保存基準は読み込んだ木を書き出した文字で、読まれるときに 1 回だけ書き出す。 */
+        fun loaded(document: YDocument, schemaId: String?, inLedger: Boolean): WorkspaceDocument =
+            WorkspaceDocument(document, lazy { DefaultYamlCodec.dump(document) }, document, schemaId, inLedger)
+    }
+}
 
 /** ワークスペースのworking snapshot（計画書§4.3）。 */
 class WorkspaceSnapshot(
@@ -186,9 +221,37 @@ class WorkspaceSnapshot(
 /** 派生状態（構造検証＋意味解析）。鮮度は sourceVersion の一致で判断する（ADR-0007）。 */
 class WorkspaceDerivedState(
     val sourceVersion: Long,
+    /** 文書ごとの構造の検証の結果。値は読まれたときに計算する（[StructuralIssueMap]）。キーは検証の対象の文書（文書の順）。 */
     val structuralIssues: Map<DocumentId, List<StructuralIssue>>,
     val semantic: SemanticSnapshot,
 )
+
+/**
+ * 文書ごとの構造の検証の結果。値は、読まれたときに文書ごとに 1 回だけ計算する（開くときに全文書を検証しない。UX-302）。
+ * キー（検証の対象＝スキーマの割当があり、空でない文書）は初めから決まっていて、文書の順に並ぶ。
+ * 全部の値を読む（values・entries・比較）と、まだ計算していない文書をその場で検証する。
+ */
+class StructuralIssueMap internal constructor(
+    private val cells: LinkedHashMap<DocumentId, Lazy<List<StructuralIssue>>>,
+) : AbstractMap<DocumentId, List<StructuralIssue>>() {
+    override val size: Int get() = cells.size
+    override val keys: Set<DocumentId> get() = cells.keys
+    override fun containsKey(key: DocumentId): Boolean = cells.containsKey(key)
+    override fun get(key: DocumentId): List<StructuralIssue>? = cells[key]?.value
+    override val entries: Set<Map.Entry<DocumentId, List<StructuralIssue>>> = object : AbstractSet<Map.Entry<DocumentId, List<StructuralIssue>>>() {
+        override val size: Int get() = cells.size
+        override fun iterator(): Iterator<Map.Entry<DocumentId, List<StructuralIssue>>> {
+            val each = cells.entries.iterator()
+            return object : Iterator<Map.Entry<DocumentId, List<StructuralIssue>>> {
+                override fun hasNext() = each.hasNext()
+                override fun next() = each.next().let { java.util.AbstractMap.SimpleImmutableEntry(it.key, it.value.value) }
+            }
+        }
+    }
+
+    /** その文書の結果の入れ物（計算しないまま、次の導出へ引き継ぐために渡す）。 */
+    internal fun cell(id: DocumentId): Lazy<List<StructuralIssue>>? = cells[id]
+}
 
 /** 読取の結果一式。 */
 class LoadedWorkspace(
@@ -457,14 +520,10 @@ object WorkspaceReader {
 
         // 3) スキーマ割当（`_schemas` 配下はメタスキーマだけ・一般スキーマの match は及ばない）
         val documents = linkedMapOf<DocumentId, WorkspaceDocument>()
-        Timings.measure("スキーマの割当と保存基準の書き出し") { for ((id, parsed) in rawDocuments) {
+        Timings.measure("スキーマの割当") { for ((id, parsed) in rawDocuments) {
             val rel = id.value
-            documents[id] = WorkspaceDocument(
-                document = parsed,
-                persistedText = DefaultYamlCodec.dump(parsed),
-                schemaId = assignSchemaId(rel, parsed, linked, layout),
-                inLedger = layout.inLedger(rel),
-            )
+            // 保存基準のテキストは、読まれるときまで書き出さない（WorkspaceDocument.loaded）
+            documents[id] = WorkspaceDocument.loaded(parsed, assignSchemaId(rel, parsed, linked, layout), layout.inLedger(rel))
         } }
 
         // 4) 構造検証＋意味解析（WorkspaceSession の apply / undo / redo と共有する導出）
@@ -497,16 +556,29 @@ object WorkspaceReader {
         version: Long,
     ): WorkspaceDerivedState {
         val byId = schemas.associateBy { it.id }
-        val structuralIssues = linkedMapOf<DocumentId, List<StructuralIssue>>()
-        // 構造のスキーマの導出（スキーマ 1 件ごとに 1 回）も、最初に使う文書の検証の中で起きる
-        Timings.measure("構造の検証") { for ((id, d) in documents) {
-            structuralIssues[id] = validateOne(d, byId) ?: continue
-        } }
+        // 構造の検証は、結果が読まれた文書だけ、そのときに行う（構造のスキーマの導出も、最初に使う文書の検証の中で起きる）
+        val structuralIssues = structuralIssues(documents, byId)
         val semantic = Timings.measure("意味の導出") { SemanticEngine.build(semanticInput(documents, schemas, declarations, layout, version)) }
         return WorkspaceDerivedState(version, structuralIssues, semantic)
     }
 
-    /** 1文書の構造検証（スキーマ割当なし・空文書は null）。derive とセッションの増分導出で共有する。 */
+    /** 文書ごとの構造の検証の結果（値は読まれたときに計算する）。carry は、検証し直さない文書の、前の結果の入れ物。 */
+    internal fun structuralIssues(
+        documents: Map<DocumentId, WorkspaceDocument>,
+        schemasById: Map<String, WorkspaceSchema>,
+        carry: (DocumentId) -> Lazy<List<StructuralIssue>>? = { null },
+    ): StructuralIssueMap {
+        val cells = LinkedHashMap<DocumentId, Lazy<List<StructuralIssue>>>()
+        for ((id, d) in documents) {
+            carry(id)?.let { cells[id] = it; continue }
+            val sc = d.schemaId?.let { schemasById[it] } ?: continue
+            val root = d.document.documents.firstOrNull() ?: continue
+            cells[id] = lazy { sc.structures.validate(root) }
+        }
+        return StructuralIssueMap(cells)
+    }
+
+    /** 1文書の構造検証（スキーマ割当なし・空文書は null）。その場で検証する（結果の入れ物を作るのは structuralIssues）。 */
     fun validateOne(d: WorkspaceDocument, schemasById: Map<String, WorkspaceSchema>): List<StructuralIssue>? {
         val sc = d.schemaId?.let { schemasById[it] } ?: return null
         val root = d.document.documents.firstOrNull() ?: return null

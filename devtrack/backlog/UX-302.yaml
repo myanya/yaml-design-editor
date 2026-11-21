@@ -1,6 +1,6 @@
 id: UX-302
 title: 開くときに全文書の構造を検証する（583 件。冷えた JVM で 0.28〜0.33 秒、結果を読むのは適用の requireValid と CLI の shell だけ）
-status: discussing
+status: resolved
 kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
@@ -12,3 +12,8 @@ related:
   - UX-293
 features:
   - C-01
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "案 A6 を入れた。構造の検証の結果（WorkspaceDerivedState.structuralIssues＝StructuralIssueMap）は、文書ごとに読まれたときに 1 回だけ計算する。読み込みと増分の導出は検証せず、触れていない文書は計算していない入れ物をそのまま引き継ぐ。全部を読むのは requireValid の適用と CLI の shell の validate だけで、全文書の誤りで適用を止める意味は変わらない（LazyLoadStateTest）。開いて最初の検証つきの適用で、全文書の検証（開くときに払っていた時間）を 1 回払う。この環境の CLI で、開く処理の「構造の検証」0.44〜0.69 秒が無くなった。オーナーの Windows での効き目は次の timings.log で確かめる"

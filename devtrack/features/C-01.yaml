@@ -10,6 +10,7 @@ tests:
 - name: WorkspaceLoadingTest
 - name: DocumentStoreTest
 - name: ParallelReadsTest
+- name: LazyLoadStateTest
 design:
 - label: workspace
   link: architecture/workspace.md

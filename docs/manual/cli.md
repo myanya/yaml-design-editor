@@ -78,7 +78,7 @@ CLI の出力は UTF-8 です。起動のしかたは 2 つあります。
 ./gradlew runCli -q --args="generate samples/todos-sysdev [--apply|--check|--model [--scope business] [--stage basic]|--lineage]"   # 業務モデルから文書を作る（生成の定義は .yde/transforms。計画・書く・最新かの検査・業務モデルを展開した形（--scope でスコープから・--stage で段の項）・生成の系譜。[generate.md](generate.md)）
 ./gradlew runCli -q --args="readiness my-ws --pending"         # 準備完了レポート（エンティティ単位にエラーを帰属。--pending で未完了のみ。判定を保留した検査＝データの不備で確かめられなかった検査の件数と内訳も出る）
 ./gradlew runCli -q --args="bench --modules 2,4,8,16"                    # 規模の計測（合成ワークスペースを作り、開く・全体の検証・準備完了レポートの時間と、規模に対する伸び方を出す。--keep <dir> で作ったものを残す）
-./gradlew runCli -q --args="validate my-ws --timings"         # 時間の内訳（どのコマンドにも付けられる。ワークスペースを開く段階＝ファイルの読み取り・YAML の解析・スキーマの組み立て・構造の検証・意味の導出など＝とコマンドの処理の時間を標準エラーに出す）
+./gradlew runCli -q --args="validate my-ws --timings"         # 時間の内訳（どのコマンドにも付けられる。ワークスペースを開く段階＝ファイルの読み取り・YAML の解析・スキーマの組み立て・意味の導出など＝とコマンドの処理の時間を標準エラーに出す）
 ./gradlew runCli -q --args="checks my-ws --definitions"        # 展開後の検査の表示（語彙・定義の使用が、どんな基本の検査へ展開されたか。--definitions で定義と語彙の一覧も）
 ./gradlew runCli -q --args="hash my-ws path/to/doc.yaml"       # 変更セットの base に使う内容ハッシュ
 ./gradlew runCli -q --args="apply my-ws changeset.yaml --dry-run"  # 変更セットの適用（ドライラン。適用のときは保存時に自動で入る値＝更新日・版も入る）

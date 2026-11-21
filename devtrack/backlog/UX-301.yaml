@@ -1,6 +1,6 @@
 id: UX-301
 title: 開くときに全文書の保存基準のテキストを書き出す（584 件。冷えた JVM で 0.15〜0.19 秒、使うのは未保存の判定だけ）
-status: discussing
+status: resolved
 kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
@@ -10,3 +10,8 @@ memo: |-
 theme: T-04
 features:
   - C-01
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "案 A5 を入れた。保存基準のテキスト（WorkspaceDocument.persistedText）は、読み込んだ木を書き出した文字なので、読まれたときに書き出す。木が読み込んだときのままなら（matchesPersisted）、未保存の判定と保存は書き出さずに済ませる（編集した文書だけを書き出して比べる）。前提は、セッションの木をその場で書き換えない決まり（ADR-0003。architecture/workspace.md の規律に書いた）。この環境の CLI で、「スキーマの割当と保存基準の書き出し」0.17〜0.18 秒が「スキーマの割当」0.01 秒になった（LazyLoadStateTest）"

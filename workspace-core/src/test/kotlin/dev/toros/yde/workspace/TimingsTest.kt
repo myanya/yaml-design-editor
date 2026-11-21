@@ -115,8 +115,10 @@ class TimingsTest {
         val t = Timings("開く")
         Timings.within(t) { WorkspaceReader.load(store) }
         val names = t.entries().map { it.name }
-        listOf("ファイルの読み取り", "文書の解析（YAML）", "スキーマの組み立て", "スキーマの割当と保存基準の書き出し", "構造の検証", "意味の導出")
+        // 保存基準の書き出しと構造の検証は、読まれたときに行うので、読み込みの段には無い（UX-301・UX-302）
+        listOf("ファイルの読み取り", "文書の解析（YAML）", "スキーマの組み立て", "スキーマの割当", "意味の導出")
             .forEach { assertTrue(it in names, "$it が無い: $names") }
-        assertTrue(t.report().contains("構造の検証"))
+        assertTrue("構造の検証" !in names, "開くときに全文書の構造を検証しない: $names")
+        assertTrue(t.report().contains("意味の導出"))
     }
 }
