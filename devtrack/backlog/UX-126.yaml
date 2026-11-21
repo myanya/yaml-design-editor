@@ -1,6 +1,6 @@
 id: UX-126
 title: 公開前の残件
-status: in-progress
+status: resolved
 origin_on: 2026-09-22
 origin: 公開準備
 body: '**公開前の残件**（2026-09-22 の棚卸し。済み: LICENSE〔MIT〕・Gradle Wrapper の追跡・`samples/`（公開用）と `labs/`（実験場）の用意・`specs/` への参照の削除。**2026-09-23
@@ -19,3 +19,7 @@ resolutions:
     kind: 一部
     note: ①旧ディレクトリの削除（R47-04）②CI（.github/workflows/test.yml）④移行台帳・計画書の archive への移動は済み。残りは③公開物としての AGENTS.md（「この Windows 環境」「Codex
       からのビルド」などの内部向けの節）を良しとするかの判断と、空の samples/sample-workspace/.gitkeep
+  - date: 2026-11-21
+    kind: 解決
+    note: "オーナーの判断（2026-11-21）: AGENTS.md の内部向けの節（「この Windows 環境」「Codex からのビルド」）は、公開物としてそのまま残す。空の samples/sample-workspace/.gitkeep は、manual の指し先を付け替えた（UX-125）ので消した。これで 2026-09-22 の棚卸しの残件は無くなった"
+closed_on: 2026-11-21

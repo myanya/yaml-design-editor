@@ -1,6 +1,6 @@
 id: UX-125
 title: 利用者マニュアル（docs/manual/。旧 README.md）と関連文書が、消す予定の `sample-workspace/` を前提にしている
-status: in-progress
+status: resolved
 kind: doc
 origin_on: 2026-09-22
 origin: 公開準備
@@ -19,3 +19,7 @@ resolutions:
     kind: 一部
     note: manual/cli.md のコマンド例の sample-workspace を、ほかの例と同じ仮の名前 my-ws に付け替えた。残りは manual/ids.md・checks.md・views.md と UX-SCENARIOS.md
       の実例の差し替え、tutorial、英語版の要否
+  - date: 2026-11-21
+    kind: 解決
+    note: "オーナーの判断（2026-11-21）: 今ある samples で代用する・台本 S4 と S6 は取りやめる・英語版は作らない。manual の sample-workspace を指す実例 6 か所を、今ある samples へ付け替えた（ids.md と checks.md と views.md → samples/todos-sysdev-tablemodel・samples/todos-sysdev・samples/orders）。同じ形の実例が無い 2 か所（excluded の宣言・入力欄から値型への適合）は、指し先を外して本文の例だけにした。docs/UX-SCENARIOS.md から S4 の行と S6 の台本（§8）を外した。tutorial は自前の題材で sample-workspace に頼っておらず、中身の無い章は UX-195 で扱う"
+closed_on: 2026-11-21

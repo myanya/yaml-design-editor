@@ -1,6 +1,6 @@
 id: UX-305
 title: Windows で開くと、ファイルの一覧と本文の読み取りに 0.46〜3.0 秒かかる（YAML 1 件ごとに実パスを 2 回確かめ、1 回ごとにパスの段の数だけ名前を調べる）
-status: in-progress
+status: resolved
 kind: usability
 origin_on: 2026-11-12
 origin: オーナーの Windows の timings.log（labs/adventurers-guild を 3 度開いた記録）
@@ -28,3 +28,7 @@ resolutions:
       件未満は 1 本）。結果は一覧の順、読めない文書は一覧の順で最初の誤り。組込みスキーマを読み取りと重ねるのは見送った。この環境では本文の段が 0.124 → 0.060 秒。Windows での効果はオーナーの次の timings.log
       で確かめる
     targets: ParallelReads・FileSystemDocumentStore.capture・ParallelReadsTest
+  - date: 2026-11-21
+    kind: 解決
+    note: "G2 の効き目をオーナーの Windows の timings.log（2026-11-21。labs/adventurers-guild を 3 度）で確かめた。冷えた 1 度目のファイルの段は 3.36 → 0.53 秒（合計 6.30 → 3.53 秒）、暖まったときは 0.30 → 0.19 秒で、ファイルの段は合計の 6% になった。読む直前の実パスの確認は 8 本で並べると 1 回 1.8 ms（1 本では 0.37 ms）に延びるが、残りは 0.16 秒で、これ以上は追わない。記録は docs/archive/workspace-open-analysis.md「追記: G2 の後のオーナーの端末の記録」。開く速さの残り（セッションの読み込みと画面の段）は T-04 の A・B の案で続ける"
+closed_on: 2026-11-21

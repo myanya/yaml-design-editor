@@ -136,7 +136,7 @@ newRow:
 **クエリ行**（`rows.match`）: 行を「1つのID」ではなく、**グラフパターン照合の束縛行**（結合の組）にします。「画面→uses→ユースケース」のような**多段結合の組を1行に**でき、結合先の値もセルとして表示・編集できます:
 
 ```yaml
-# _views/entity-table-matrix.yaml（sample-workspace に同梱の実例）
+# _views/entity-table-matrix.yaml
 id: entity-table-matrix
 name: エンティティ×テーブル（結合）
 rows:
@@ -154,6 +154,7 @@ columns:
   - { label: 状態, of: tbl, path: status, editable: true }
 ```
 
+- 実例は `samples/todos-sysdev-tablemodel` の `.yde/views/table-columns.yaml`（テーブル → カラム → 業務型の 3 段の結合）です。
 - 結合により**同じIDの行が複数現れる**ことがあります（例: 1エンティティ×2テーブル = 2行）。セルの編集は従来どおり各原本文書への通常編集です
 - `also:`（`{from: 束縛名, steps: [...]}`）で束縛済みノードからもう1本の連鎖を足せます（1段のみ・内部結合）。`kind: document` のノード（文書そのもの）も扱えます
 - 行の並びは、`order` を省くとクエリの決定的順序（束縛名の辞書順に並べた値のID昇順）です。`order` を書くと、行キーの要素の出現で並べます（`order: { schemaId: tm-physical }` ならその文書のカラムの順。`path` で値の順も書けます）。同じ要素の行はクエリの順のまま並び、`limit` は並べた後で切ります。CLI `query`（[cli.md](cli.md)）で同じパターンを試作できます
@@ -174,7 +175,7 @@ columns:
 
 セルの座標はひな型の場所で、クリックのメニュー「元の値へ」でそこへ、「入力値へ」で穴を埋めた値（`{maxLength}` の 100）へジャンプできます。
 
-sample-workspace の `_views/field-traceability.yaml`（概念→実装→DDLの項目トレーサビリティ。手書きの宣言値と導出値を並置）と `_views/value-type-mappings.yaml` が実例です。
+参照を辿る導出の実例は、`samples/todos-sysdev` の `.yde/views/design/detail/input/sql-type-map.yaml`（型対応表のひな型の穴を、参照先の論理型の値で埋める）と `samples/orders` の `.yde/views/customer-grid.yaml`（所属会社の参照を辿って会社名を添える）です。
 
 値の式の列の例（TODO 個票のコメントの日付から「最終更新日」を導く。配列の並び順によらず最新の日付が出て、最新のコメントを消せば残りの最新に変わります）:
 

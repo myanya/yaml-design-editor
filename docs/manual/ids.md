@@ -52,7 +52,7 @@ _document:
 例 `derives`）で**親へ逆リンク**します。親側のスキーマは被参照の制約（`constraints` の `dir: in` ＋ `expect: exists`、または関係レジストリの `cardinality: {inMin: 1}`）で「全エンティティが1つ以上のテーブルから実装されること」を検証でき、ビュー定義の**バックリンク列**（`backlinks`。
 [views.md](views.md)）で親→分裂先の一覧を表示できます。
 
-sample-workspace の `models/00-data-model.yaml`（エンティティ）と `tables/`（テーブル設計。`entity` 項目で親へ逆リンク）、ビュー定義 `_views/entity-tables.yaml` がこの規約の実例です。
+1:1 の詳細化（同じ ID を概念・論理・物理の文書で使う）の実例は `samples/todos-sysdev-tablemodel` です（`model/` の `ENT-*`、並べて見るビュー定義 `.yde/views/entity-tables.yaml`）。
 
 ## 保有と所属（入れ子で決まる関係）
 
