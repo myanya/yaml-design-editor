@@ -309,8 +309,11 @@ object WorkspaceReader {
             val rel = id.value
             val fileName = rel.substringAfterLast('/')
             try {
-                // スキーマ文書1件の読み取りは、アプリ側と同じ1実装（SchemaDocuments。P27 段C の C-3a・意図的差分 D-31）
-                val parsed = SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library, metaschema)
+                // スキーマ文書1件の読み取りは、アプリ側と同じ1実装（SchemaDocuments。P27 段C の C-3a・意図的差分 D-31）。
+                // 検査の定義集めで読んだ値をそのまま渡し、同じ本文をもう一度解析しない（UX-297）。読めなかった本文は、ここで読み直して同じ誤りを出す
+                val raw = rawById[id]
+                val parsed = if (raw != null) SchemaDocuments.parseRaw(raw, fileName.substringBeforeLast('.'), fileName, library, metaschema)
+                else SchemaDocuments.parse(text, fileName.substringBeforeLast('.'), fileName, library, metaschema)
                 if (StateConditions.uses(rawById[id])) usingStates += schemas.size to id
                 schemas += WorkspaceSchema.of(parsed, id)
                 if (parsed.kind == SchemaKind.RELATIONS) {

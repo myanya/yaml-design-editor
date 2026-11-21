@@ -101,14 +101,22 @@ object YamlIO {
         }
     }
 
-    /** テキストを SnakeYAML の生オブジェクト（Map / List / スカラー）にパースする（コメントなし）。 */
+    /** compose したノードから、load() と同じ生オブジェクトを作る（同じ本文をもう一度解析しないため）。 */
+    private class RawValues(options: LoaderOptions) : SafeConstructor(options) {
+        fun of(node: Node): Any? = constructDocument(node)
+    }
+
+    /**
+     * テキストを SnakeYAML の生オブジェクト（Map / List / スカラー）にパースする（コメントなし）。
+     * 本文の解析は 1 回で、組み立てたノードから展開の上限の確認と値の組み立ての両方を行う（UX-296）。
+     */
     fun parseToRaw(text: String): Any? {
+        val node = newComposer().compose(PairSafeReader(text)) ?: return null
         // 生オブジェクトを使う定義ローダにも同じ展開上限を適用する。load のキー型などの互換性は維持する。
-        newComposer().compose(PairSafeReader(text))?.let { convertDocument(it) }
-        val loader = LoaderOptions().apply { isAllowDuplicateKeys = false }
-        val dumper = newDumperOptions()
-        val v: Any? = Yaml(SafeConstructor(loader), Representer(dumper), dumper, loader, PlainDateResolver()).load(PairSafeReader(text))
-        return v
+        convertDocument(node)
+        // 値の無い文書（`~`・空・コメントだけ）は load() と同じく null。コメントだけの文書は、印（Tag.COMMENT）の付いた空のノードになる
+        if (node.tag == Tag.NULL || node.tag == Tag.COMMENT) return null
+        return RawValues(LoaderOptions().apply { isAllowDuplicateKeys = false }).of(node)
     }
 
     /** 先頭ドキュメントを SnakeYAML のノードのまま返す（位置の表 `YamlPositions` が使う。空なら null、壊れていれば例外）。 */

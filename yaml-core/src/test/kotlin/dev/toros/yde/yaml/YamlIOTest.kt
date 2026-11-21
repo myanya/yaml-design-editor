@@ -32,6 +32,44 @@ class YamlIOTest {
     }
 
     @Test
+    fun `生の値への解析は 本文を 1 回読んで load と同じ値を作る`() {
+        val raw = YamlIO.parseToRaw(
+            """
+            # 先頭のコメント
+            base: &base { kind: note, size: 3 }
+            item:
+              <<: *base
+              size: 5          # 明示したキーが優先
+            same: *base
+            1: 数のキー
+            flags: [true, no, ~, 1.5, 0x10]
+            day: 2026-11-21
+            time: 09:30
+            text: "引用した 12"
+            empty:
+            """.trimIndent(),
+        ) as Map<*, *>
+        assertEquals(mapOf("kind" to "note", "size" to 3), raw["base"])
+        assertEquals(mapOf("kind" to "note", "size" to 5), raw["item"], "マージキーは展開し、明示したキーが優先")
+        assertEquals(raw["base"], raw["same"])
+        assertEquals("数のキー", raw[1], "数のキーは数のまま（load と同じキーの型）")
+        assertEquals(listOf(true, false, null, 1.5, 16), raw["flags"])
+        assertEquals("2026-11-21", raw["day"], "日付は文字のまま")
+        assertEquals("09:30", raw["time"], "時刻は 60 進数として読まない")
+        assertEquals("引用した 12", raw["text"])
+        assertTrue(raw.containsKey("empty") && raw["empty"] == null)
+        assertEquals(listOf("base", "item", "same", 1, "flags", "day", "time", "text", "empty"), raw.keys.toList(), "キーは書いた順")
+        // 値の無い文書は null。重複したキー・複数の文書は誤り
+        assertEquals(null, YamlIO.parseToRaw(""))
+        assertEquals(null, YamlIO.parseToRaw("# コメントだけ\n"))
+        assertEquals(null, YamlIO.parseToRaw("~\n"))
+        assertEquals(listOf(1, "a"), YamlIO.parseToRaw("[1, a]"))
+        assertEquals("ただの文字", YamlIO.parseToRaw("ただの文字"))
+        assertFailsWith<IllegalStateException> { YamlIO.parseToRaw("a: 1\na: 2\n") }
+        assertFailsWith<Exception> { YamlIO.parseToRaw("a: 1\n---\nb: 2\n") }
+    }
+
+    @Test
     fun `スカラーの反復展開にも文字数上限が働く`() {
         val text = "value: &v " + "x".repeat(100_000) + "\nitems: [" + List(90) { "*v" }.joinToString(", ") + "]"
         val error = assertFailsWith<IllegalArgumentException> { YamlIO.parse(text) }

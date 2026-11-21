@@ -1,6 +1,6 @@
 id: UX-296
 title: 生の値への解析（parseToRaw）が本文を 2 回解析する（スキーマ・ビュー・組込みの定義の読み込みがすべて 2 倍）
-status: discussing
+status: resolved
 kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
@@ -10,3 +10,8 @@ memo: |-
 theme: T-04
 features:
   - C-01
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "案 A1 を入れた。YamlIO.parseToRaw は本文を 1 回だけ解析し、組み立てたノードから展開の上限の確認と値の組み立ての両方を行う（SafeConstructor の constructDocument）。リポジトリの YAML 4,431 件で、直す前と値・キーの型・誤りが同じことを突き合わせた（突き合わせの仮のコードは残していない）。コメントだけの文書が null になることなどは YamlIOTest「生の値への解析は 本文を 1 回読んで load と同じ値を作る」が見る。この環境の CLI（labs/adventurers-guild）で、スキーマ文書の解析 0.38〜0.65 → 0.32〜0.35 秒、組込みスキーマ 0.35〜0.74 → 0.28〜0.33 秒"
