@@ -5,6 +5,7 @@ import dev.toros.yde.cli.asText
 import dev.toros.yde.cli.asData
 import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Reports
+import dev.toros.yde.app.core.ReportBatch
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.app.index.Query
 import dev.toros.yde.cli.stringFlag
@@ -100,6 +101,17 @@ internal fun transformCommand(rest: List<String>): CliResult = run {
 }
 
 internal fun reportCommand(rest: List<String>): CliResult = run {
+    val batch = stringFlag(rest, "--batch")
+    if (batch != null) {
+        require(rest.getOrNull(1)?.startsWith("--") != false && rest.none { it in setOf("--param", "--out", "--print") }) {
+            "--batch は個別の ID・--param・--out・--print と同時には指定できません"
+        }
+        val requests = ReportBatch.parse(Files.readString(Path.of(batch)))
+        val results = ReportBatch.write(workspaceOf(rest), requests)
+        return@run asData(linkedMapOf("outputs" to results.map {
+            linkedMapOf("report" to it.report, "written" to it.written, "file" to it.file.toString(), "missing" to emptyList<String>())
+        }))
+    }
     val ws = workspaceOf(rest)
     val loaded = Reports.load(ws.root)
     val id = rest.getOrNull(1)?.takeIf { !it.startsWith("--") }

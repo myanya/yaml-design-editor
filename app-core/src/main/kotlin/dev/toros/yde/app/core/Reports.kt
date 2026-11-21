@@ -83,12 +83,16 @@ object Reports {
 
     /** 出力先へ書く（派生物。YAML と、定義・記録の場所には書かない）。 */
     fun write(workspace: Path, rel: String, text: String): Path {
-        val layout = WorkspaceLayout.of(workspace)
-        require(!rel.endsWith(".yaml") && !rel.endsWith(".yml")) { "レポートは YAML には書きません（原本は YAML）: $rel" }
-        require(!layout.isReserved(rel)) { "定義・記録の場所には書きません: $rel" }
-        val target = WorkspacePaths.resolve(workspace, rel)
+        val target = outputPath(workspace, rel)
         Files.createDirectories(target.parent)
         Files.writeString(target, text)
         return target
+    }
+
+    internal fun outputPath(workspace: Path, rel: String): Path {
+        val layout = WorkspaceLayout.of(workspace)
+        require(!rel.endsWith(".yaml") && !rel.endsWith(".yml")) { "レポートは YAML には書きません（原本は YAML）: $rel" }
+        require(!layout.isReserved(rel)) { "定義・記録の場所には書きません: $rel" }
+        return WorkspacePaths.resolve(workspace, rel)
     }
 }

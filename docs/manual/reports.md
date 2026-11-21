@@ -104,6 +104,25 @@ rules:
 ./gradlew runCli -q --args="report samples/orders monthly-report --param month=2026-10 --print"
 ```
 
+## 一括で保存する
+
+複数の出力を一度に保存する場合は `report <workspace> --batch <一覧.yaml>` を使います。JSON も同じ形で読めます。
+一覧のファイルはコマンドを起動した場所からのパス、`destination` はワークスペースからの相対パスです。
+
+```yaml
+outputs:
+  - report: monthly-report
+    params: {month: '2026-10'}
+  - report: monthly-report
+    params: {month: '2026-11'}
+    destination: reports/review.md
+```
+
+`destination` を省くと定義の `output` を使います。ワークスペースと定義を一度だけ読み、一覧の順で作ります。
+定義の誤り・不足した引数・埋まらない穴・出力先の重複があれば、全件を書き込まずに終了します。
+保存中のディスク障害などによる書き込みの途中失敗は元に戻しません。`--batch` と個別の ID・`--param`・`--out`・`--print` は併用できません。
+結果は `outputs` の配列で、各要素に `report`・`written`・`file`・`missing` を返します。
+
 ## 決まり
 
 - 出力は派生物です。YAML と、定義・記録の場所（`.yde/` の下）には書きません。

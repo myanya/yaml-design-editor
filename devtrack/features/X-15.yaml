@@ -1,5 +1,5 @@
 id: X-15
-title: レポート（`.yde/reports`＝変換→ひな形・穴の出力形式〔cell・sql-string・xml・sql-string-xml・java-string〕・each と if・出力 output・CLI report・台帳のビュータブ）
+title: レポート（`.yde/reports`＝変換→ひな形・穴の出力形式〔cell・sql-string・xml・sql-string-xml・java-string〕・each と if・出力 output・CLI report と --batch・台帳のビュータブ）
 implementation:
 - path: semantic-core/semantic/TextTemplate.kt
   module: semantic-core
@@ -9,11 +9,15 @@ implementation:
   module: workspace-core
 - path: core/Reports.kt
   module: app-core
+- path: core/ReportBatch.kt
+  module: app-core
 - path: ui/view/ReportPane.kt
   module: desktop
 tests:
 - name: TextTemplateTest
 - name: ReportsTest
+- name: ReportBatchTest
+- name: ReportBatchCliTest
 - name: SemanticTransformTest
 design:
 - label: transform

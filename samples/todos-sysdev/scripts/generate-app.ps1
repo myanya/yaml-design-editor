@@ -76,16 +76,14 @@ try {
     foreach ($output in $outputRows) {
         $reportId = $output.report
         if ($reportId -notin $reports.reports.id) { throw "出力計画のレポートが見つかりません: $reportId" }
-        $arguments = @('report', $stage, $reportId)
         if ($output.PSObject.Properties.Name -contains 'destination') {
             $null = Resolve-ApplicationPath $stage $output.destination
-            $arguments += @('--out', $output.destination)
         }
-        foreach ($parameter in $output.params.PSObject.Properties) {
-            $arguments += @('--param', "$($parameter.Name)=$($parameter.Value)")
-        }
-        $result = Invoke-YdeResult $arguments
-        if ($result.missing.Count -ne 0) { throw "ひな形に渡せない値があります: ${reportId}: $($result.missing -join ', ')" }
+    }
+    # 確定した出力計画をそのまま渡す。Java とワークスペースの開き直しは出力ごとに行わない。
+    $batch = Invoke-YdeResult @('report', $stage, '--batch', (Join-Path $stage $outputPlan.written))
+    if ($batch.outputs.Count -ne $outputRows.Count) { throw '出力計画と実行結果の件数が一致しません' }
+    foreach ($result in $batch.outputs) {
         $relative = $result.written
         $target = Resolve-ApplicationPath $stage $relative
         if ($files.ContainsKey($relative)) { throw "生成先が重複しています: $relative" }

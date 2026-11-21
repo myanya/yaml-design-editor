@@ -142,9 +142,11 @@ Core Calculus では Construct が組み立てた Term の候補を、Rewrite �
 | `TextTemplate` | semantic-core/semantic/TextTemplate.kt | 文字のひな形（穴 `{パス}` / `{パス:形}`・表のセル `{パス:cell}`・`{#each}`〔`index`・`position`・並びの区切りの `more`〕・`{#if}`・`{{`）。タグだけの行は消す。埋まらない穴は名前を返す |
 | `ReportDef` / `ReportDefinitions` | workspace-core/workspace/ReportDefinitions.kt | 定義のパース（`params` と `build` と `rules` は `TransformDef`。`template` は同じ場所の相対パス、`output` はワークスペース相対で YAML 不可） |
 | `core/Reports` | core/Reports.kt | `.yde/reports` の読み込み（ひな形の点検も）・実行（`$view` は `Views.resolve` の行）・派生物の書き込み |
+| `core/ReportBatch` | core/ReportBatch.kt | 同じ読み取り状態で実行リストを解決し、全件の出力先と不足値を確かめてから `Reports.write` へ渡す |
 | `ReportPane` | ui/view/ReportPane.kt | ビュータブの一覧から選ぶ。受け取る値の欄・表示（`MarkdownView`）・保存 |
 
 - **流れ**: `Reports.run` → `SemanticTransform.run(def.transform, 空のマップ, params, views)` → `TextTemplate.render(ひな形, 項)` → 文字と埋まらない穴。`output` も同じひな形で埋める。
+- **一括実行**: `ReportBatch` は一回の呼び出しの中でレポート・ビュー定義を共有する。対象と値の導出は既存の Query・Expression・Construct、文字化は `TextTemplate` のまま。実行リストの順序は維持し、不明な ID・不足値・出力先の競合は保存前の誤りとする。結果はレポート ID と出力先へ対応付け、原本の変更や新しい評価器・保存経路を持ち込まない。
 - **規律**: 出力は派生物で、YAML と `.yde/` の下には書かない（`Reports.write` が拒む）。ひな形にコードや計算を足さない（並べ替え・集計はビューか `build`）。`$view` の行に出どころは持たせない（解決した行は派生）。レポートの定義は REPORTS ゾーン（メタスキーマ `builtin-report`。エージェントの提出ゲートも同じパース）。
 - **文字列の出力形式**: `TextTemplate` の `sql-string` は SQL の文字列定数として引用符を二重にして囲むだけ。型を値の見た目から決めず、数値・真偽値・日付などの出し分けは定義の側で決める（型対応表 → ビュー → レポートの `build`）。空文字や false を持つ初期値は、値の有無と分けた object に組み立ててから `{#if}` に渡す。
 - **出力言語の文字**: `xml` は本文と属性の実体参照・文字参照、`sql-string-xml` は SQL の文字列定数を XML に埋める形式、`java-string` は引用符付きの Java 文字列定数。XML 1.0 に書けない文字は拒否する。Java の制御文字は通常のエスケープか八進数で出し、先に解釈される Unicode エスケープを作らない。型や SQL の構造の判断は変換定義が持つ。
