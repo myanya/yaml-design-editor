@@ -31,7 +31,7 @@
     },
     {
       "path": "app/README.md",
-      "sha256": "32c272e774849ecc387e32badd8f380b7c04b57a699a070570252d95bd31ff31"
+      "sha256": "d1dcd9c1881cf91868a82c01eaaaf73fdd944208c328a8b0cefb5dc519e6c55b"
     },
     {
       "path": "app/settings.gradle.kts",
@@ -224,6 +224,54 @@
     {
       "path": "app/src/main/java/example/todos/web/form/SuspendTodoForm.java",
       "sha256": "2b4f4f4178e8ecc809fa3014123c86390080cc43708e832e24f58a7f85bdf106"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/AddCategoryWebOperation.java",
+      "sha256": "7e60845e4bada9dfe2709f8882500f321eeb8c04fe3ed466c8049efc09c49ac0"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/AddTagWebOperation.java",
+      "sha256": "e6036437846e388008034c0a0233bf204951fac776b6876fe23431f379ba4c3b"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/AddTodoCommentWebOperation.java",
+      "sha256": "a16fb41362913863cb30b70ec27225bc34f7f650cbbc3f3a7c72ec90cfd40916"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/AddTodoTaskWebOperation.java",
+      "sha256": "45a967a4de87922195903c9f76b25794e0f4dfb5687f69cdedf8dadfa66bcbf2"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/CancelTodoWebOperation.java",
+      "sha256": "5f2252133a0ad9e6d0c3c25aa6261e7968fb9bb2c431412634ca9b8d288a1162"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/CompleteTodoWebOperation.java",
+      "sha256": "c1a49bf5ff6b768e087dfed400d8e2456fe57068116675e41c79563ed5a0fbda"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/EditTodoWebOperation.java",
+      "sha256": "93b8eda08a4cd8134283e19e1de2e42063544d09c9b25953f71f0cdfd9042063"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/RegisterTodoWebOperation.java",
+      "sha256": "bc052d6bb3c12256e48c2ca4b59cbf1a6e53425290d87a415bfcd510a368553d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/ResumeTodoWebOperation.java",
+      "sha256": "4b5430c3f0ea5e25817295402bc0e2a6dad9083c751f77863141394506478e8b"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/StartTodoWebOperation.java",
+      "sha256": "2741dff0d4a3d84f331210a91b00f26fba246e66c87a85caa049463730792d7e"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/SuspendTodoWebOperation.java",
+      "sha256": "deae6dbfc3bafa25d0ebd8f50a33a6ccf224e7a72981a27668940dace9ab7782"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/TodoTaskFinishWebOperation.java",
+      "sha256": "ead911955ab13457efb237414a4ed0898da9522227302083b62fb79d38b9ccf8"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebBinding.java",

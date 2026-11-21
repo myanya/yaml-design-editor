@@ -46,6 +46,9 @@ root:
               - key: form
                 type: string
                 pattern: ^JFORM-[A-Za-z0-9_.-]+$
+              - key: webOperation
+                type: string
+                pattern: ^JWEB-[A-Za-z0-9_.-]+$
             unknownFields: error
           - key: destination
             type: string

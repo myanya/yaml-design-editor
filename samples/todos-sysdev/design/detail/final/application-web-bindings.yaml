@@ -1,0 +1,1276 @@
+# 生成物（application-web-bindings）: 手で直さず、業務モデルか生成の定義（design/detail/application-web-bindings.yaml）を直して作り直します（CLI generate）。
+id: APP-web-bindings
+operations:
+  - id: JWEB-add-category
+    action: add-category
+    source: DOC-processes.add-category
+    controllerService: CategoryService.addCategory
+    className: AddCategoryWebOperation
+    service: CategoryService
+    method: addCategory
+    inputClass: AddCategoryInput
+    formClass: AddCategoryForm
+    formSource: DOC-screen-designs-operations.add-category
+    arguments:
+      - accessor: Name
+    confirm: []
+    handlerMatches:
+      - action: add-category
+        service: CategoryService.addCategory
+    formMatches:
+      - id: JFORM-add-category
+        className: AddCategoryForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: name
+          matches:
+            - name: name
+        - item: name
+          matches:
+            - name: name
+      assignments:
+        - item: name
+          kind: scalar
+          source: name
+          target: name
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setName(form.getName());
+    receiverFields: []
+  - id: JWEB-add-tag
+    action: add-tag
+    source: DOC-processes.add-tag
+    controllerService: TagService.addTag
+    className: AddTagWebOperation
+    service: TagService
+    method: addTag
+    inputClass: AddTagInput
+    formClass: AddTagForm
+    formSource: DOC-screen-designs-operations.add-tag
+    arguments:
+      - accessor: Name
+    confirm: []
+    handlerMatches:
+      - action: add-tag
+        service: TagService.addTag
+    formMatches:
+      - id: JFORM-add-tag
+        className: AddTagForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: name
+          matches:
+            - name: name
+        - item: name
+          matches:
+            - name: name
+      assignments:
+        - item: name
+          kind: scalar
+          source: name
+          target: name
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setName(form.getName());
+    receiverFields: []
+  - id: JWEB-add-todo-comment
+    action: add-todo-comment
+    source: DOC-processes.add-todo-comment
+    controllerService: TodoService.addTodoComment
+    className: AddTodoCommentWebOperation
+    service: TodoService
+    method: addTodoComment
+    inputClass: AddTodoCommentInput
+    formClass: AddTodoCommentForm
+    formSource: DOC-screen-designs-operations.add-todo-comment
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Date
+      - accessor: Body
+    confirm: []
+    handlerMatches:
+      - action: add-todo-comment
+        service: TodoService.addTodoComment
+    formMatches:
+      - id: JFORM-add-todo-comment
+        className: AddTodoCommentForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: date
+          matches:
+            - name: date
+        - item: body
+          matches:
+            - name: body
+        - item: date
+          matches:
+            - name: date
+        - item: body
+          matches:
+            - name: body
+      assignments:
+        - item: date
+          kind: scalar
+          source: date
+          target: date
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDate(form.getDate());
+        - item: body
+          kind: scalar
+          source: body
+          target: body
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setBody(form.getBody());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-add-todo-task
+    action: add-todo-task
+    source: DOC-processes.add-todo-task
+    controllerService: TodoService.addTodoTask
+    className: AddTodoTaskWebOperation
+    service: TodoService
+    method: addTodoTask
+    inputClass: AddTodoTaskInput
+    formClass: AddTodoTaskForm
+    formSource: DOC-screen-designs-operations.add-todo-task
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Title
+    confirm: []
+    handlerMatches:
+      - action: add-todo-task
+        service: TodoService.addTodoTask
+    formMatches:
+      - id: JFORM-add-todo-task
+        className: AddTodoTaskForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: title
+          matches:
+            - name: title
+        - item: title
+          matches:
+            - name: title
+      assignments:
+        - item: title
+          kind: scalar
+          source: title
+          target: title
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setTitle(form.getTitle());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-cancel-todo
+    action: cancel-todo
+    source: DOC-processes.cancel-todo
+    controllerService: TodoService.cancelTodo
+    className: CancelTodoWebOperation
+    service: TodoService
+    method: cancelTodo
+    inputClass: CancelTodoInput
+    formClass: CancelTodoForm
+    formSource: DOC-screen-designs-operations.cancel-todo
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Reason
+    confirm: []
+    handlerMatches:
+      - action: cancel-todo
+        service: TodoService.cancelTodo
+    formMatches:
+      - id: JFORM-cancel-todo
+        className: CancelTodoForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: reason
+          matches:
+            - name: reason
+        - item: reason
+          matches:
+            - name: reason
+      assignments:
+        - item: reason
+          kind: scalar
+          source: reason
+          target: reason
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setReason(form.getReason());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-complete-todo
+    action: complete-todo
+    source: DOC-processes.complete-todo
+    controllerService: TodoService.completeTodo
+    className: CompleteTodoWebOperation
+    service: TodoService
+    method: completeTodo
+    inputClass: CompleteTodoInput
+    formClass: CompleteTodoForm
+    formSource: DOC-screen-designs-operations.complete-todo
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Date
+      - accessor: Result
+    confirm:
+      - method: checkCompleteTodo
+    handlerMatches:
+      - action: complete-todo
+        service: TodoService.completeTodo
+    formMatches:
+      - id: JFORM-complete-todo
+        className: CompleteTodoForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: date
+          matches:
+            - name: date
+        - item: result
+          matches:
+            - name: result
+        - item: date
+          matches:
+            - name: date
+        - item: result
+          matches:
+            - name: result
+      assignments:
+        - item: date
+          kind: scalar
+          source: date
+          target: date
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDate(form.getDate());
+        - item: result
+          kind: scalar
+          source: result
+          target: result
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setResult(form.getResult());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-edit-todo
+    action: edit-todo
+    source: DOC-processes.edit-todo
+    controllerService: TodoService.editTodo
+    className: EditTodoWebOperation
+    service: TodoService
+    method: editTodo
+    inputClass: EditTodoInput
+    formClass: EditTodoForm
+    formSource: DOC-screen-designs-operations.edit-todo
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Title
+      - accessor: Summary
+      - accessor: Category
+      - accessor: Tags
+      - accessor: CreatedOn
+      - accessor: DueOn
+      - accessor: Details
+      - accessor: Result
+      - accessor: Comments
+      - accessor: Clear
+    confirm:
+      - method: checkEditTodo
+    handlerMatches:
+      - action: edit-todo
+        service: TodoService.editTodo
+    formMatches:
+      - id: JFORM-edit-todo
+        className: EditTodoForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: title
+          matches:
+            - name: title
+        - item: summary
+          matches:
+            - name: summary
+        - item: category
+          matches:
+            - name: category
+        - item: tags
+          matches:
+            - name: tags
+        - item: created_on
+          matches:
+            - name: createdOn
+        - item: due_on
+          matches:
+            - name: dueOn
+        - item: details
+          matches:
+            - name: details
+        - item: result
+          matches:
+            - name: result
+        - item: comments
+          matches:
+            - name: comments
+        - item: clear
+          matches:
+            - name: clear
+        - item: title
+          matches:
+            - name: title
+        - item: summary
+          matches:
+            - name: summary
+        - item: category
+          matches:
+            - name: category
+        - item: tags
+          matches:
+            - name: tags
+        - item: created_on
+          matches:
+            - name: createdOn
+        - item: due_on
+          matches:
+            - name: dueOn
+        - item: details
+          matches:
+            - name: details
+        - item: result
+          matches:
+            - name: result
+        - item: comments
+          matches:
+            - name: comments
+        - item: clear
+          matches:
+            - name: clear
+      assignments:
+        - item: title
+          kind: scalar
+          source: title
+          target: title
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setTitle(form.getTitle());
+        - item: summary
+          kind: scalar
+          source: summary
+          target: summary
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setSummary(form.getSummary());
+        - item: category
+          kind: scalar
+          source: category
+          target: category
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setCategory(form.getCategory());
+        - item: tags
+          kind: list
+          source: tags
+          target: tags
+          checks:
+            - valid: true
+              error: 配列要素の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setTags(form.getTags() == null ? null : new java.util.ArrayList<>(form.getTags()));
+        - item: created_on
+          kind: scalar
+          source: createdOn
+          target: createdOn
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setCreatedOn(form.getCreatedOn());
+        - item: due_on
+          kind: scalar
+          source: dueOn
+          target: dueOn
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDueOn(form.getDueOn());
+        - item: details
+          kind: scalar
+          source: details
+          target: details
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDetails(form.getDetails());
+        - item: result
+          kind: scalar
+          source: result
+          target: result
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setResult(form.getResult());
+        - item: comments
+          kind: rows
+          source: comments
+          target: comments
+          classes:
+            - name: EditTodoCommentsRow
+          children:
+            coverage:
+              - item: date
+                matches:
+                  - name: date
+              - item: body
+                matches:
+                  - name: body
+              - item: date
+                matches:
+                  - name: date
+              - item: body
+                matches:
+                  - name: body
+            assignments:
+              - item: date
+                kind: scalar
+                source: date
+                target: date
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueComments.setDate(rowComments.getDate());
+              - item: body
+                kind: scalar
+                source: body
+                target: body
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueComments.setBody(rowComments.getBody());
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        if (form.getComments() != null) {
+            - valid: true
+              plain: true
+              raw: |2
+                            var valuesComments = new java.util.ArrayList<EditTodoInput.EditTodoCommentsItem>();
+                            for (var rowComments : form.getComments()) {
+                                if (rowComments == null) throw new IllegalArgumentException("入力の明細に空の行があります");
+            - valid: true
+              plain: true
+              raw: |2
+                            var valueComments = new EditTodoInput.EditTodoCommentsItem();
+            - valid: true
+              plain: true
+              raw: |2
+                        valueComments.setDate(rowComments.getDate());
+            - valid: true
+              plain: true
+              raw: |2
+                        valueComments.setBody(rowComments.getBody());
+            - valid: true
+              plain: true
+              raw: |2
+                                valuesComments.add(valueComments);
+                            }
+            - valid: true
+              plain: true
+              raw: |2
+                            input.setComments(valuesComments);
+                        }
+        - item: clear
+          source: clear
+          target: clear
+          classes:
+            - name: EditTodoClear
+          children:
+            coverage:
+              - item: category
+                matches:
+                  - name: category
+              - item: tags
+                matches:
+                  - name: tags
+              - item: due_on
+                matches:
+                  - name: dueOn
+              - item: details
+                matches:
+                  - name: details
+              - item: result
+                matches:
+                  - name: result
+              - item: comments
+                matches:
+                  - name: comments
+              - item: category
+                matches:
+                  - name: category
+              - item: tags
+                matches:
+                  - name: tags
+              - item: due_on
+                matches:
+                  - name: dueOn
+              - item: details
+                matches:
+                  - name: details
+              - item: result
+                matches:
+                  - name: result
+              - item: comments
+                matches:
+                  - name: comments
+            assignments:
+              - item: category
+                kind: scalar
+                source: category
+                target: category
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueClear.setCategory(form.getClear().getCategory());
+              - item: tags
+                kind: scalar
+                source: tags
+                target: tags
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueClear.setTags(form.getClear().getTags());
+              - item: due_on
+                kind: scalar
+                source: dueOn
+                target: dueOn
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueClear.setDueOn(form.getClear().getDueOn());
+              - item: details
+                kind: scalar
+                source: details
+                target: details
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueClear.setDetails(form.getClear().getDetails());
+              - item: result
+                kind: scalar
+                source: result
+                target: result
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueClear.setResult(form.getClear().getResult());
+              - item: comments
+                kind: scalar
+                source: comments
+                target: comments
+                checks:
+                  - valid: true
+                    error: Form と Service 入力の型が一致しません
+                tokens:
+                  - valid: true
+                    plain: true
+                    raw: |2
+                              valueClear.setComments(form.getClear().getComments());
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        if (form.getClear() != null) {
+            - valid: true
+              plain: true
+              raw: |2
+                            var valueClear = new EditTodoInput.EditTodoClear();
+            - valid: true
+              plain: true
+              raw: |2
+                        valueClear.setCategory(form.getClear().getCategory());
+            - valid: true
+              plain: true
+              raw: |2
+                        valueClear.setTags(form.getClear().getTags());
+            - valid: true
+              plain: true
+              raw: |2
+                        valueClear.setDueOn(form.getClear().getDueOn());
+            - valid: true
+              plain: true
+              raw: |2
+                        valueClear.setDetails(form.getClear().getDetails());
+            - valid: true
+              plain: true
+              raw: |2
+                        valueClear.setResult(form.getClear().getResult());
+            - valid: true
+              plain: true
+              raw: |2
+                        valueClear.setComments(form.getClear().getComments());
+            - valid: true
+              plain: true
+              raw: |2
+                            input.setClear(valueClear);
+                        }
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-register-todo
+    action: register-todo
+    source: DOC-processes.register-todo
+    controllerService: TodoService.registerTodo
+    className: RegisterTodoWebOperation
+    service: TodoService
+    method: registerTodo
+    inputClass: RegisterTodoInput
+    formClass: RegisterTodoForm
+    formSource: DOC-screen-designs-operations.register-todo
+    arguments:
+      - accessor: Title
+      - accessor: Summary
+      - accessor: Category
+      - accessor: Tags
+      - accessor: Follows
+      - accessor: Due
+      - accessor: Details
+    confirm:
+      - method: checkRegisterTodo
+    handlerMatches:
+      - action: register-todo
+        service: TodoService.registerTodo
+    formMatches:
+      - id: JFORM-register-todo
+        className: RegisterTodoForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: title
+          matches:
+            - name: title
+        - item: summary
+          matches:
+            - name: summary
+        - item: category
+          matches:
+            - name: category
+        - item: tags
+          matches:
+            - name: tags
+        - item: follows
+          matches:
+            - name: follows
+        - item: due
+          matches:
+            - name: due
+        - item: details
+          matches:
+            - name: details
+        - item: title
+          matches:
+            - name: title
+        - item: summary
+          matches:
+            - name: summary
+        - item: category
+          matches:
+            - name: category
+        - item: tags
+          matches:
+            - name: tags
+        - item: follows
+          matches:
+            - name: follows
+        - item: due
+          matches:
+            - name: due
+        - item: details
+          matches:
+            - name: details
+      assignments:
+        - item: title
+          kind: scalar
+          source: title
+          target: title
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setTitle(form.getTitle());
+        - item: summary
+          kind: scalar
+          source: summary
+          target: summary
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setSummary(form.getSummary());
+        - item: category
+          kind: scalar
+          source: category
+          target: category
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setCategory(form.getCategory());
+        - item: tags
+          kind: list
+          source: tags
+          target: tags
+          checks:
+            - valid: true
+              error: 配列要素の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setTags(form.getTags() == null ? null : new java.util.ArrayList<>(form.getTags()));
+        - item: follows
+          kind: scalar
+          source: follows
+          target: follows
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setFollows(form.getFollows());
+        - item: due
+          kind: scalar
+          source: due
+          target: due
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDue(form.getDue());
+        - item: details
+          kind: scalar
+          source: details
+          target: details
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDetails(form.getDetails());
+    receiverFields: []
+  - id: JWEB-resume-todo
+    action: resume-todo
+    source: DOC-processes.resume-todo
+    controllerService: TodoService.resumeTodo
+    className: ResumeTodoWebOperation
+    service: TodoService
+    method: resumeTodo
+    inputClass: ResumeTodoInput
+    formClass: ResumeTodoForm
+    formSource: DOC-screen-designs-operations.resume-todo
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Date
+      - accessor: Note
+    confirm: []
+    handlerMatches:
+      - action: resume-todo
+        service: TodoService.resumeTodo
+    formMatches:
+      - id: JFORM-resume-todo
+        className: ResumeTodoForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: date
+          matches:
+            - name: date
+        - item: note
+          matches:
+            - name: note
+        - item: date
+          matches:
+            - name: date
+        - item: note
+          matches:
+            - name: note
+      assignments:
+        - item: date
+          kind: scalar
+          source: date
+          target: date
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDate(form.getDate());
+        - item: note
+          kind: scalar
+          source: note
+          target: note
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setNote(form.getNote());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-start-todo
+    action: start-todo
+    source: DOC-processes.start-todo
+    controllerService: TodoService.startTodo
+    className: StartTodoWebOperation
+    service: TodoService
+    method: startTodo
+    inputClass: StartTodoInput
+    receiver: true
+    arguments:
+      - accessor: Id
+    confirm: []
+    handlerMatches:
+      - action: start-todo
+        service: TodoService.startTodo
+    formMatches: []
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage: []
+      assignments: []
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-suspend-todo
+    action: suspend-todo
+    source: DOC-processes.suspend-todo
+    controllerService: TodoService.suspendTodo
+    className: SuspendTodoWebOperation
+    service: TodoService
+    method: suspendTodo
+    inputClass: SuspendTodoInput
+    formClass: SuspendTodoForm
+    formSource: DOC-screen-designs-operations.suspend-todo
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Date
+      - accessor: Reason
+      - accessor: ResumeOn
+    confirm:
+      - method: checkSuspendTodo
+    handlerMatches:
+      - action: suspend-todo
+        service: TodoService.suspendTodo
+    formMatches:
+      - id: JFORM-suspend-todo
+        className: SuspendTodoForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: date
+          matches:
+            - name: date
+        - item: reason
+          matches:
+            - name: reason
+        - item: resume_on
+          matches:
+            - name: resumeOn
+        - item: date
+          matches:
+            - name: date
+        - item: reason
+          matches:
+            - name: reason
+        - item: resume_on
+          matches:
+            - name: resumeOn
+      assignments:
+        - item: date
+          kind: scalar
+          source: date
+          target: date
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDate(form.getDate());
+        - item: reason
+          kind: scalar
+          source: reason
+          target: reason
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setReason(form.getReason());
+        - item: resume_on
+          kind: scalar
+          source: resumeOn
+          target: resumeOn
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setResumeOn(form.getResumeOn());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-todo-task.finish
+    action: todo-task.finish
+    source: DOC-processes.todo-task.finish
+    controllerService: TodoTaskService.todoTaskFinish
+    className: TodoTaskFinishWebOperation
+    service: TodoTaskService
+    method: todoTaskFinish
+    inputClass: TodoTaskFinishInput
+    receiver: true
+    arguments:
+      - accessor: Id
+    confirm: []
+    handlerMatches:
+      - action: todo-task.finish
+        service: TodoTaskService.todoTaskFinish
+    formMatches: []
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage: []
+      assignments: []
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo-task
+        receiver: true
+        classes: []
+controllerCoverage:
+  - action: add-category
+    matches:
+      - id: JOP-add-category
+  - action: add-tag
+    matches:
+      - id: JOP-add-tag
+  - action: register-todo
+    matches:
+      - id: JOP-register-todo
+  - action: add-todo-comment
+    matches:
+      - id: JOP-add-todo-comment
+  - action: add-todo-task
+    matches:
+      - id: JOP-add-todo-task
+  - action: edit-todo
+    matches:
+      - id: JOP-edit-todo
+  - action: start-todo
+    matches:
+      - id: JOP-start-todo
+  - action: suspend-todo
+    matches:
+      - id: JOP-suspend-todo
+  - action: resume-todo
+    matches:
+      - id: JOP-resume-todo
+  - action: complete-todo
+    matches:
+      - id: JOP-complete-todo
+  - action: cancel-todo
+    matches:
+      - id: JOP-cancel-todo
+  - action: todo-task.finish
+    matches:
+      - id: JOP-todo-task.finish

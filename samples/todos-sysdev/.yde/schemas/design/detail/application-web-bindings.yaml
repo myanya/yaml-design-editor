@@ -1,0 +1,273 @@
+id: application-web-bindings
+name: 画面入力と Service の確定した対応
+kind: document
+match: design/detail/final/application-web-bindings.yaml
+definitions:
+  対応:
+    type: object
+    unknownFields: allow
+    fields:
+      - key: coverage
+        type: array
+        required: false
+        item:
+          type: object
+          unknownFields: allow
+          fields:
+            - key: item
+              type: string
+              required: true
+            - key: matches
+              type: array
+              required: true
+              item:
+                type: object
+                unknownFields: allow
+                fields: []
+          constraints:
+            - id: cardinality-matches
+              check:
+                - gte:
+                    - count:
+                        path: matches
+                    - 1
+                - lte:
+                    - count:
+                        path: matches
+                    - 1
+              level: error
+              message: 対応先は指定された件数で一意に解決する必要があります
+      - key: assignments
+        type: array
+        required: false
+        item:
+          type: application-web-bindings#代入
+  代入:
+    type: object
+    unknownFields: allow
+    fields:
+      - key: item
+        type: string
+        required: true
+      - key: checks
+        type: array
+        required: false
+        item:
+          type: object
+          unknownFields: allow
+          fields:
+            - key: valid
+              type: boolean
+              required: true
+          constraints:
+            - id: valid
+              check:
+                - eq:
+                    - path: valid
+                    - true
+              level: error
+              message: Form と Service の対応に未解決の項目があります
+      - key: classes
+        type: array
+        required: false
+        item:
+          type: object
+          unknownFields: allow
+          fields: []
+      - key: children
+        type: application-web-bindings#対応
+        required: false
+      - key: tokens
+        type: array
+        required: true
+        item:
+          type: object
+          unknownFields: allow
+          fields:
+            - key: valid
+              type: boolean
+              required: true
+            - key: raw
+              type: string
+              required: true
+    constraints:
+      - id: cardinality-classes
+        where:
+          - path: classes
+            exists: true
+        check:
+          - gte:
+              - count:
+                  path: classes
+              - 1
+          - lte:
+              - count:
+                  path: classes
+              - 1
+        level: error
+        message: 対応先は指定された件数で一意に解決する必要があります
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: controllerCoverage
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: action
+            type: string
+            required: true
+          - key: matches
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields: []
+        constraints:
+          - id: cardinality-matches
+            check:
+              - gte:
+                  - count:
+                      path: matches
+                  - 1
+              - lte:
+                  - count:
+                      path: matches
+                  - 1
+            level: error
+            message: 対応先は指定された件数で一意に解決する必要があります
+    - key: operations
+      type: array
+      required: true
+      unique:
+        - id
+        - className
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: action
+            type: string
+            required: true
+          - key: source
+            type: string
+            required: true
+          - key: className
+            type: string
+            required: true
+            pattern: ^[A-Z][A-Za-z0-9]*$
+          - key: service
+            type: string
+            required: true
+          - key: method
+            type: string
+            required: true
+          - key: inputClass
+            type: string
+            required: true
+          - key: confirm
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: method
+                  type: string
+                  required: true
+          - key: handlerMatches
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields: []
+          - key: formMatches
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields: []
+          - key: checks
+            type: array
+            required: false
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: valid
+                  type: boolean
+                  required: true
+              constraints:
+                - id: valid
+                  check:
+                    - eq:
+                        - path: valid
+                        - true
+                  level: error
+                  message: Form と Service の対応に未解決の項目があります
+          - key: fields
+            type: application-web-bindings#対応
+            required: true
+          - key: receiverFields
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: name
+                  type: string
+                  required: true
+        constraints:
+          - id: cardinality-confirm
+            check:
+              - lte:
+                  - count:
+                      path: confirm
+                  - 1
+            level: error
+            message: 対応先は指定された件数で一意に解決する必要があります
+          - id: cardinality-handlerMatches
+            check:
+              - gte:
+                  - count:
+                      path: handlerMatches
+                  - 1
+              - lte:
+                  - count:
+                      path: handlerMatches
+                  - 1
+            level: error
+            message: 対応先は指定された件数で一意に解決する必要があります
+          - id: cardinality-formMatches
+            check:
+              - gte:
+                  - count:
+                      path: formMatches
+                  - 0
+              - lte:
+                  - count:
+                      path: formMatches
+                  - 1
+            level: error
+            message: 対応先は指定された件数で一意に解決する必要があります
+          - id: cardinality-receiverFields
+            check:
+              - lte:
+                  - count:
+                      path: receiverFields
+                  - 1
+            level: error
+            message: 対応先は指定された件数で一意に解決する必要があります

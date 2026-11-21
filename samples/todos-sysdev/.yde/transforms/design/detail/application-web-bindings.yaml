@@ -1,0 +1,1231 @@
+id: application-web-bindings
+name: 確定した Controller・Form と Service の入力を照合する
+scope: design
+dependsOn:
+  - application-web-forms
+  - application-service-programs
+  - screen-flows
+output: design/detail/final/application-web-bindings.yaml
+input:
+  forms:
+    $each:
+      $view: application-web-forms-input
+    $build:
+      $copy: values.record
+  services:
+    $each:
+      $view: application-service-programs-input
+    $build:
+      $copy: values.record
+  handlers:
+    $each:
+      $view: screen-flows-input
+    $build:
+      $each: values.record.handlers
+      $build:
+        $copy: .
+    $flatten: true
+  types:
+    $apply: record
+    $with:
+      row:
+        $view: application-java-types-input
+        $one: true
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-web-bindings
+      $then:
+        $copy: declared
+build:
+  $apply: validate
+  $with:
+    global:
+      $copy: .
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: same
+    with:
+      - left
+      - right
+    build:
+      $apply: same-groups
+      $with:
+        groups:
+          $group:
+            - $first:
+                - $copy: .
+                  $of: left
+                - null
+            - $first:
+                - $copy: .
+                  $of: right
+                - null
+          $by:
+            $copy: .
+          $build: true
+  - id: same-groups
+    with:
+      - groups
+    build:
+      $when:
+        - path: '[1]'
+          of: groups
+          exists: false
+      $then: true
+  - id: check
+    with:
+      - ok
+      - message
+    build:
+      valid:
+        $first:
+          - $copy: .
+            $of: ok
+          - false
+      error:
+        $copy: .
+        $of: message
+  - id: operation
+    with:
+      - global
+      - operationRow
+    build:
+      $apply: selected
+      $with:
+        global:
+          $copy: .
+          $of: global
+        operationRow:
+          $copy: .
+          $of: operationRow
+        formSource:
+          $format: DOC-screen-designs-operations.{action}
+          $with:
+            action:
+              $copy: input.action
+  - id: selected
+    with:
+      - global
+      - operationRow
+      - formSource
+    build:
+      $apply: matched
+      $with:
+        operation:
+          $copy: .
+          $of: operationRow
+        global:
+          $copy: .
+          $of: global
+        handlers:
+          $each: handlers
+          $of: global
+          $build:
+            $when:
+              - path: action
+                equals:
+                  $copy: input.action
+                  $of: operationRow
+            $then:
+              $copy: .
+        forms:
+          $each: forms
+          $of: global
+          $build:
+            $when:
+              - path: source
+                equals:
+                  $copy: .
+                  $of: formSource
+            $then:
+              $copy: .
+  - id: matched
+    with:
+      - operation
+      - global
+      - handlers
+      - forms
+    build:
+      $apply: bound
+      $with:
+        operation:
+          $copy: .
+          $of: operation
+        global:
+          $copy: .
+          $of: global
+        handlers:
+          $copy: .
+          $of: handlers
+        forms:
+          $copy: .
+          $of: forms
+        handler:
+          $apply: first
+          $with:
+            items:
+              $copy: .
+              $of: handlers
+        form:
+          $apply: first
+          $with:
+            items:
+              $copy: .
+              $of: forms
+  - id: bound
+    with:
+      - operation
+      - global
+      - handlers
+      - forms
+      - handler
+      - form
+    build:
+      id:
+        $format: JWEB-{action}
+        $with:
+          action:
+            $copy: input.action
+            $of: operation
+      action:
+        $copy: input.action
+        $of: operation
+      source:
+        $copy: source
+        $of: operation
+      controllerService:
+        $copy: service
+        $of: handler
+      className:
+        $format: '{action}WebOperation'
+        $with:
+          action:
+            $case:
+              $copy: input.action
+              $of: operation
+            $as: pascal
+      service:
+        $copy: service
+        $of: operation
+      method:
+        $copy: method
+        $of: operation
+      inputClass:
+        $copy: input.className
+        $of: operation
+      formClass:
+        $copy: className
+        $of: form
+      formSource:
+        $copy: source
+        $of: form
+      receiver:
+        $apply: first
+        $with:
+          items:
+            $each: input.arguments
+            $of: operation
+            $build:
+              $when:
+                - path: receiver
+                  equals: true
+              $then: true
+      arguments:
+        $each: arguments
+        $of: operation
+        $build:
+          accessor:
+            $copy: accessor
+      confirm:
+        $each: confirm
+        $of: operation
+        $build:
+          method:
+            $copy: method
+      handlerMatches:
+        $each: .
+        $of: handlers
+        $build:
+          action:
+            $copy: action
+          service:
+            $copy: service
+      formMatches:
+        $each: .
+        $of: forms
+        $build:
+          id:
+            $copy: id
+          className:
+            $copy: className
+      checks:
+        - $apply: check
+          $with:
+            ok:
+              $apply: same
+              $with:
+                left:
+                  $copy: service
+                  $of: handler
+                right:
+                  $format: '{s}.{m}'
+                  $with:
+                    s:
+                      $copy: service
+                      $of: operation
+                    m:
+                      $copy: method
+                      $of: operation
+            message: Controller と Service の実行先が一致しません
+        - $apply: check
+          $with:
+            ok:
+              $apply: same
+              $with:
+                left:
+                  $first:
+                    - $copy: form
+                      $of: handler
+                    - null
+                right:
+                  $first:
+                    - $copy: className
+                      $of: form
+                    - null
+            message: Controller と Form のクラスが一致しません
+        - $apply: check
+          $with:
+            ok:
+              $apply: same
+              $with:
+                left:
+                  $each: steps
+                  $of: handler
+                  $build:
+                    $first:
+                      - $copy: calls
+                      - []
+                  $flatten: true
+                right:
+                  $each: confirm
+                  $of: operation
+                  $build:
+                    $format: '{s}.{m}'
+                    $with:
+                      s:
+                        $copy: service
+                        $of: operation
+                      m:
+                        $copy: method
+            message: Controller と Service の確認用メソッドが一致しません
+        - $apply: check
+          $with:
+            ok:
+              $apply: same
+              $with:
+                left:
+                  $each: arguments
+                  $of: operation
+                  $build:
+                    name:
+                      $copy: name
+                    accessor:
+                      $copy: accessor
+                right:
+                  $each: input.arguments
+                  $of: operation
+                  $build:
+                    name:
+                      $copy: name
+                    accessor:
+                      $copy: accessor
+            message: Service 本体と入力の引数が一致しません
+      fields:
+        $apply: fields
+        $with:
+          fields:
+            $each: input.arguments
+            $of: operation
+            $build:
+              $when:
+                - path: receiver
+                  exists: false
+              $then:
+                $copy: .
+          formFields:
+            $first:
+              - $copy: fields
+                $of: form
+              - []
+          form:
+            $copy: .
+            $of: form
+          global:
+            $copy: .
+            $of: global
+          owner:
+            $copy: input.className
+            $of: operation
+          source: form
+          target: input
+      receiverFields:
+        $each: input.arguments
+        $of: operation
+        $build:
+          $when:
+            - path: receiver
+              equals: true
+          $then:
+            $copy: .
+  - id: fields
+    with:
+      - fields
+      - formFields
+      - form
+      - global
+      - owner
+      - source
+      - target
+    build:
+      coverage:
+        $concat:
+          - $each: .
+            $of: fields
+            $build:
+              item:
+                $copy: key
+              matches:
+                $each: .
+                $of: formFields
+                $build:
+                  $when:
+                    - path: item
+                      equals:
+                        $copy: key
+                        $of: serviceField
+                  $then:
+                    name:
+                      $copy: name
+            $bind: serviceField
+          - $each: .
+            $of: formFields
+            $build:
+              item:
+                $copy: item
+              matches:
+                $each: .
+                $of: fields
+                $build:
+                  $when:
+                    - path: key
+                      equals:
+                        $copy: item
+                        $of: formField
+                  $then:
+                    name:
+                      $copy: name
+            $bind: formField
+      assignments:
+        $each: .
+        $of: fields
+        $build:
+          $apply: field
+          $with:
+            form:
+              $copy: .
+              $of: form
+            global:
+              $copy: .
+              $of: global
+            owner:
+              $copy: .
+              $of: owner
+            source:
+              $copy: .
+              $of: source
+            target:
+              $copy: .
+              $of: target
+            field:
+              $apply: first
+              $with:
+                items:
+                  $each: .
+                  $of: formFields
+                  $build:
+                    $when:
+                      - path: item
+                        equals:
+                          $copy: key
+                          $of: serviceField
+                    $then:
+                      $copy: .
+        $bind: serviceField
+  - id: field
+    with:
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+    build:
+      $apply: value
+      $with:
+        raw:
+          $copy: .
+        field:
+          $copy: .
+          $of: field
+        form:
+          $copy: .
+          $of: form
+        global:
+          $copy: .
+          $of: global
+        owner:
+          $copy: .
+          $of: owner
+        source:
+          $format: '{source}.get{accessor}()'
+          $with:
+            source:
+              $copy: .
+              $of: source
+            accessor:
+              $copy: accessor
+              $of: field
+        target:
+          $format: '{target}.set{accessor}'
+          $with:
+            target:
+              $copy: .
+              $of: target
+            accessor:
+              $copy: accessor
+        suffix:
+          $case:
+            $copy: path
+          $as: pascal
+  - id: value
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+    when:
+      - path: base
+        of: raw
+        matches: ^(string|id|ref|enum|boolean|int|number|date)$
+    build:
+      $apply: scalar
+      $with:
+        raw:
+          $copy: .
+          $of: raw
+        field:
+          $copy: .
+          $of: field
+        form:
+          $copy: .
+          $of: form
+        global:
+          $copy: .
+          $of: global
+        owner:
+          $copy: .
+          $of: owner
+        source:
+          $copy: .
+          $of: source
+        target:
+          $copy: .
+          $of: target
+        suffix:
+          $copy: .
+          $of: suffix
+        type:
+          $apply: first
+          $with:
+            items:
+              $each: types.mappings
+              $of: global
+              $build:
+                $when:
+                  - path: qualifiedName
+                    equals:
+                      $copy: type
+                      $of: raw
+                $then:
+                  $copy: .
+  - id: scalar
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+      - type
+    build:
+      item:
+        $copy: key
+        $of: raw
+      kind: scalar
+      source:
+        $copy: name
+        $of: field
+      target:
+        $copy: name
+        $of: raw
+      checks:
+        - $apply: check
+          $with:
+            ok:
+              $apply: same
+              $with:
+                left:
+                  $copy: type
+                  $of: field
+                right:
+                  $copy: name
+                  $of: type
+            message: Form と Service 入力の型が一致しません
+      tokens:
+        - valid: true
+          plain: true
+          raw:
+            $format: |2
+                      {target}({source});
+            $with:
+              target:
+                $copy: .
+                $of: target
+              source:
+                $copy: .
+                $of: source
+  - id: value
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+    when:
+      - path: base
+        of: raw
+        equals: object
+    build:
+      $apply: object
+      $with:
+        raw:
+          $copy: .
+          $of: raw
+        field:
+          $copy: .
+          $of: field
+        form:
+          $copy: .
+          $of: form
+        global:
+          $copy: .
+          $of: global
+        owner:
+          $copy: .
+          $of: owner
+        source:
+          $copy: .
+          $of: source
+        target:
+          $copy: .
+          $of: target
+        suffix:
+          $copy: .
+          $of: suffix
+        classes:
+          $each: classes
+          $of: form
+          $build:
+            $when:
+              - path: name
+                equals:
+                  $copy: type
+                  $of: field
+            $then:
+              $copy: .
+        targetType:
+          $copy: type
+          $of: raw
+        children:
+          $copy: children
+          $of: raw
+        array: false
+  - id: value
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+    when:
+      - path: base
+        of: raw
+        equals: array
+    build:
+      $apply: array
+      $with:
+        raw:
+          $copy: .
+          $of: raw
+        field:
+          $copy: .
+          $of: field
+        form:
+          $copy: .
+          $of: form
+        global:
+          $copy: .
+          $of: global
+        owner:
+          $copy: .
+          $of: owner
+        source:
+          $copy: .
+          $of: source
+        target:
+          $copy: .
+          $of: target
+        suffix:
+          $copy: .
+          $of: suffix
+        itemType:
+          $first:
+            - $copy: item.name
+              $of: raw
+            - UNRESOLVED
+        scalar:
+          $apply: first
+          $with:
+            items:
+              $each: types.mappings
+              $of: global
+              $build:
+                $when:
+                  - path: qualifiedName
+                    equals:
+                      $copy: item.name
+                      $of: raw
+                $then:
+                  $copy: .
+  - id: array
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+      - itemType
+      - scalar
+    when:
+      - path: name
+        of: scalar
+        exists: true
+    build:
+      item:
+        $copy: key
+        $of: raw
+      kind: list
+      source:
+        $copy: name
+        $of: field
+      target:
+        $copy: name
+        $of: raw
+      checks:
+        - $apply: check
+          $with:
+            ok:
+              $apply: same
+              $with:
+                left:
+                  $copy: type
+                  $of: field
+                right:
+                  $format: List<{type}>
+                  $with:
+                    type:
+                      $copy: name
+                      $of: scalar
+            message: 配列要素の型が一致しません
+      tokens:
+        - valid: true
+          plain: true
+          raw:
+            $format: |2
+                      {target}({source} == null ? null : new java.util.ArrayList<>({source}));
+            $with:
+              target:
+                $copy: .
+                $of: target
+              source:
+                $copy: .
+                $of: source
+  - id: array
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+      - itemType
+      - scalar
+    when:
+      - path: item.fields
+        of: raw
+        exists: true
+    build:
+      $apply: object
+      $with:
+        raw:
+          $copy: .
+          $of: raw
+        field:
+          $copy: .
+          $of: field
+        form:
+          $copy: .
+          $of: form
+        global:
+          $copy: .
+          $of: global
+        owner:
+          $copy: .
+          $of: owner
+        source:
+          $copy: .
+          $of: source
+        target:
+          $copy: .
+          $of: target
+        suffix:
+          $copy: .
+          $of: suffix
+        classes:
+          $each: classes
+          $of: form
+          $build:
+            $apply: class-match
+            $with:
+              expected:
+                $copy: type
+                $of: field
+              actual:
+                $format: List<{name}>
+                $with:
+                  name:
+                    $copy: name
+              raw:
+                $copy: .
+        targetType:
+          $copy: item.name
+          $of: raw
+        children:
+          $copy: item.fields
+          $of: raw
+        array: true
+  - id: array
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+      - itemType
+      - scalar
+    build:
+      item:
+        $copy: key
+        $of: raw
+      checks:
+        - $apply: check
+          $with:
+            ok: false
+            message: この配列要素の入力には対応していません
+      tokens: []
+  - id: class-match
+    with:
+      - expected
+      - actual
+      - raw
+    build:
+      $when:
+        - path: .
+          of: expected
+          equals:
+            $copy: .
+            $of: actual
+      $then:
+        $copy: .
+        $of: raw
+  - id: value
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+    build:
+      item:
+        $copy: key
+        $of: raw
+      checks:
+        - $apply: check
+          $with:
+            ok: false
+            message: この入力の種類には対応していません
+      tokens: []
+  - id: object
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+      - classes
+      - targetType
+      - children
+      - array
+    build:
+      $apply: object-ready
+      $with:
+        raw:
+          $copy: .
+          $of: raw
+        field:
+          $copy: .
+          $of: field
+        form:
+          $copy: .
+          $of: form
+        global:
+          $copy: .
+          $of: global
+        owner:
+          $copy: .
+          $of: owner
+        source:
+          $copy: .
+          $of: source
+        target:
+          $copy: .
+          $of: target
+        suffix:
+          $copy: .
+          $of: suffix
+        classes:
+          $copy: .
+          $of: classes
+        targetType:
+          $copy: .
+          $of: targetType
+        children:
+          $copy: .
+          $of: children
+        array:
+          $copy: .
+          $of: array
+        converted:
+          $apply: fields
+          $with:
+            fields:
+              $copy: .
+              $of: children
+            formFields:
+              $first:
+                - $apply: class-fields
+                  $with:
+                    candidate:
+                      $apply: first
+                      $with:
+                        items:
+                          $copy: .
+                          $of: classes
+                - []
+            form:
+              $copy: .
+              $of: form
+            global:
+              $copy: .
+              $of: global
+            owner:
+              $copy: .
+              $of: owner
+            source:
+              $first:
+                - $when:
+                    - path: .
+                      of: array
+                      equals: true
+                  $then:
+                    $format: row{suffix}
+                    $with:
+                      suffix:
+                        $copy: .
+                        $of: suffix
+                - $copy: .
+                  $of: source
+            target:
+              $format: value{suffix}
+              $with:
+                suffix:
+                  $copy: .
+                  $of: suffix
+  - id: class-fields
+    with:
+      - candidate
+    build:
+      $copy: fields
+      $of: candidate
+  - id: object-ready
+    with:
+      - raw
+      - field
+      - form
+      - global
+      - owner
+      - source
+      - target
+      - suffix
+      - classes
+      - targetType
+      - children
+      - array
+      - converted
+    build:
+      item:
+        $copy: key
+        $of: raw
+      kind:
+        $when:
+          - path: .
+            of: array
+            equals: true
+        $then: rows
+      source:
+        $copy: name
+        $of: field
+      target:
+        $copy: name
+        $of: raw
+      classes:
+        $each: .
+        $of: classes
+        $build:
+          name:
+            $copy: name
+      children:
+        $copy: .
+        $of: converted
+      tokens:
+        $concat:
+          - - valid: true
+              plain: true
+              raw:
+                $format: |2
+                          if ({source} != null) {
+                $with:
+                  source:
+                    $copy: .
+                    $of: source
+          - $when:
+              - path: .
+                of: array
+                equals: true
+            $then:
+              - valid: true
+                plain: true
+                raw:
+                  $format: |2
+                                var values{suffix} = new java.util.ArrayList<{owner}.{targetType}>();
+                                for (var row{suffix} : {source}) {
+                                    if (row{suffix} == null) throw new IllegalArgumentException("入力の明細に空の行があります");
+                  $with:
+                    suffix:
+                      $copy: .
+                      $of: suffix
+                    owner:
+                      $copy: .
+                      $of: owner
+                    targetType:
+                      $copy: .
+                      $of: targetType
+                    source:
+                      $copy: .
+                      $of: source
+          - - valid: true
+              plain: true
+              raw:
+                $format: |2
+                              var value{suffix} = new {owner}.{targetType}();
+                $with:
+                  suffix:
+                    $copy: .
+                    $of: suffix
+                  owner:
+                    $copy: .
+                    $of: owner
+                  targetType:
+                    $copy: .
+                    $of: targetType
+          - $each: assignments
+            $of: converted
+            $build:
+              $copy: tokens
+            $flatten: true
+          - $when:
+              - path: .
+                of: array
+                equals: true
+            $then:
+              - valid: true
+                plain: true
+                raw:
+                  $format: |2
+                                    values{suffix}.add(value{suffix});
+                                }
+                  $with:
+                    suffix:
+                      $copy: .
+                      $of: suffix
+          - - valid: true
+              plain: true
+              raw:
+                $format: |2
+                              {target}({value});
+                          }
+                $with:
+                  target:
+                    $copy: .
+                    $of: target
+                  value:
+                    $first:
+                      - $when:
+                          - path: .
+                            of: array
+                            equals: true
+                        $then:
+                          $format: values{suffix}
+                          $with:
+                            suffix:
+                              $copy: .
+                              $of: suffix
+                      - $format: value{suffix}
+                        $with:
+                          suffix:
+                            $copy: .
+                            $of: suffix
+  - id: validate
+    with:
+      - global
+    build:
+      $apply: unwrap
+      $with:
+        documents:
+          $validate:
+            schemas:
+              $copy: contracts
+              $of: global
+            documents:
+              design/detail/final/application-web-bindings.yaml:
+                id: APP-web-bindings
+                operations:
+                  $each: services
+                  $of: global
+                  $build:
+                    $each: operations
+                    $build:
+                      $apply: operation
+                      $with:
+                        global:
+                          $copy: .
+                          $of: global
+                        operationRow:
+                          $copy: .
+                    $bind: operationRow
+                  $flatten: true
+                controllerCoverage:
+                  $each: handlers
+                  $of: global
+                  $build:
+                    action:
+                      $copy: action
+                    matches:
+                      $each: services
+                      $of: global
+                      $build:
+                        $each: operations
+                        $build:
+                          $when:
+                            - path: input.action
+                              equals:
+                                $copy: action
+                                $of: handlerRow
+                          $then:
+                            id:
+                              $copy: id
+                      $flatten: true
+                  $bind: handlerRow
+  - id: unwrap
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .

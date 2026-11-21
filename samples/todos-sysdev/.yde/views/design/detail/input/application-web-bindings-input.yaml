@@ -1,0 +1,10 @@
+id: application-web-bindings-input
+name: 確定した画面入力と処理の対応
+rows:
+  idPattern: JWEB-*
+  schemaIds:
+    - application-web-bindings
+columns:
+  - label: record
+    path: .
+    schemaId: application-web-bindings

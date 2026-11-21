@@ -1,0 +1,13 @@
+id: UX-365
+title: todos-sysdev の生成契約にある minItems・maxItems が配列件数を検査しない
+status: todo
+origin_on: 2026-11-21
+kind: bug
+origin: 画面入力と Service の対応を検査する負例試験で、余分な項目を拒否できないことから確認
+body: 既存の application-access・application-runtime-model・application-service-programs・application-web-forms のスキーマに、YDE が解釈しない
+  minItems/maxItems がある。件数制限として効かず、対応先の空や複数を許す可能性がある。count を使う成立条件へ直し、ゼロ件・複数件の負例を追加する。今回追加の application-web-bindings は count
+  の条件で検査する。
+features:
+  - C-21
+roadmap:
+  - R53-11

@@ -1,7 +1,7 @@
 # todos-generated
 
 詳細設計の確定設定から生成した、独立した Spring Boot プロジェクトです。
-物理テーブルの Java 行モデル、Mapper と XML、DB の初期作成、状態型と業務例外、全操作の Service、入力検査付き Form、デザイン台帳からの CSS と確認画面を生成します。業務の一覧・詳細・確認・確定をつなぐ Controller は後続です。
+物理テーブルの Java 行モデル、Mapper と XML、DB の初期作成、状態型と業務例外、全操作の Service、入力検査付き Form と Service への接続、デザイン台帳からの CSS と確認画面を生成します。業務の一覧・詳細・確認・確定をつなぐ Controller は後続です。
 
 同時更新の方式は `local-serialized` です。アプリ共通の `OperationRunner` が、採番前からトランザクションの確定・取り消しまで順番を保ちます。
 操作は既存のトランザクションの外から呼びます。複数アプリから同じ DB を更新する構成には対応していません。

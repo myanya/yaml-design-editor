@@ -12,6 +12,7 @@ dependsOn:
   - application-theme
   - screen-styles
   - application-web-forms
+  - application-web-bindings
 output: design/detail/final/application-output-plan.yaml
 build:
   id: APP-output-plan
@@ -155,3 +156,12 @@ build:
         - id: OUTPUT-app-validation-messages
           report: app-validation-messages
           params: {}
+      - $each:
+          $view: application-web-bindings-input
+        $build:
+          id:
+            $format: OUTPUT-{id}
+          report: app-web-operation
+          params:
+            webOperation:
+              $copy: id

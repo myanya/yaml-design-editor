@@ -1,0 +1,35 @@
+id: app-web-operation
+name: 入力フォームから業務処理への呼出し
+params:
+  - webOperation
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-web-bindings-input
+        $where:
+          - path: id
+            equals: $webOperation
+        $one: true
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: values.record.settings
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: WebOperation.java
+output: app/src/main/java/{#each config.package}{.}/{/each}web/operation/{record.className}.java

@@ -107,7 +107,7 @@ body:
         prereq: R53-10 の業務処理と画面設計の対応範囲の確認
         done_criteria: 一覧・詳細・入力・確認・実行・エラー表示が接続し、Form とメッセージの制約が一致する
         state: in-progress
-        state_note: 画面デザイン台帳と通常のCSS・確認画面・入力検査付きFormを接続中。業務の一覧・詳細と確認から確定までのControllerは残る
+        state_note: デザイン台帳・CSS・確認画面・入力 Form と全操作の Service 接続を生成。入れ子・補正・入力再検査を照合。業務の読出し・Controller・画面遷移は残る
 sections:
   - title: 現在の材料とレビュー状態
     body:

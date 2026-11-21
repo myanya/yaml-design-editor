@@ -238,3 +238,51 @@ outputs:
   - id: OUTPUT-app-validation-messages
     report: app-validation-messages
     params: {}
+  - id: OUTPUT-JWEB-add-category
+    report: app-web-operation
+    params:
+      webOperation: JWEB-add-category
+  - id: OUTPUT-JWEB-add-tag
+    report: app-web-operation
+    params:
+      webOperation: JWEB-add-tag
+  - id: OUTPUT-JWEB-add-todo-comment
+    report: app-web-operation
+    params:
+      webOperation: JWEB-add-todo-comment
+  - id: OUTPUT-JWEB-add-todo-task
+    report: app-web-operation
+    params:
+      webOperation: JWEB-add-todo-task
+  - id: OUTPUT-JWEB-cancel-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-cancel-todo
+  - id: OUTPUT-JWEB-complete-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-complete-todo
+  - id: OUTPUT-JWEB-edit-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-edit-todo
+  - id: OUTPUT-JWEB-register-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-register-todo
+  - id: OUTPUT-JWEB-resume-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-resume-todo
+  - id: OUTPUT-JWEB-start-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-start-todo
+  - id: OUTPUT-JWEB-suspend-todo
+    report: app-web-operation
+    params:
+      webOperation: JWEB-suspend-todo
+  - id: OUTPUT-JWEB-todo-task.finish
+    report: app-web-operation
+    params:
+      webOperation: JWEB-todo-task.finish

@@ -1,7 +1,7 @@
 # アプリの生成と独立ビルド
 
 現在は、独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL、状態型・業務例外・全操作の Service を生成する。
-H2 で実際の保存・検索・更新・削除と業務処理を確認できる。入力 Form とデザイン確認画面も生成する。業務の Controller と画面遷移は、[作業計画](application-generation-plan.md)の後続で追加する。
+H2 で実際の保存・検索・更新・削除と業務処理を確認できる。入力 Form と Service の接続、デザイン確認画面も生成する。業務の Controller と画面遷移は、[作業計画](application-generation-plan.md)の後続で追加する。
 設計書のレビュー完了や業務アプリの完成を意味しない。
 
 ## 入力と出力
@@ -19,6 +19,7 @@ H2 で実際の保存・検索・更新・削除と業務処理を確認でき�
 | DB | レビュー用 DDL と同じレポートから出す `resources/schema.sql` |
 | 状態と例外 | `service/state/` の状態型と、`service/error/` の違反・業務例外 |
 | 業務処理 | `service/` の 4 Service・12 操作、入力型・確認処理・共通実行部 |
+| 画面入力 | `web/form/` の入力型と、`web/operation/` の Service 呼出し |
 | 検証 | Spring の起動、DB 初期化、Mapper の読込みを確かめるテスト |
 | 利用 | README・.gitignore |
 
@@ -100,7 +101,7 @@ Service は同じ状態設計の許可値と表示名を使い、違反の内容
 
 操作は、受け手と必要な親の読出し → 更新後の行の組立て → 書込み前の検査 → 書込み → 書込み後の件数検査の順で実行する。
 配列の検査は追加・置換する行を対象とし、変更しない既存の明細は再検査しない。入力の省略は null として扱い、未知の比較結果を違反へ変えない。
-現在値の前提は満たした場合だけ通す。型・必須・桁などの入力検査は Controller で接続する。
+現在値の前提は満たした場合だけ通す。型・必須・桁などの入力検査は Form と、下記の Service 呼出しで行う。Controller から欄の横への表示は後続で接続する。
 
 ## 操作の実行と同時更新
 
@@ -118,6 +119,24 @@ Service は同じ状態設計の許可値と表示名を使い、違反の内容
 
 これらは Query で確定値を選び、Construct で生成値を組み立て、Predicate で検査し、既存レポートで Java に出力する。
 YDE 本体に業務固有の評価器や書込経路を追加しない。
+
+## 画面入力と Service の接続
+
+`final/application-web-bindings.yaml` は、確定した Controller の呼出先・生成用 Form・Service の入力と確認用メソッドを照合する。
+`application-web-bindings` が `$validate` で対応を確かめ、`app-web-operation` が `web/operation/` のクラスを操作ごとに出す。
+生成規則は業務モデルから入力を作り直さず、保存した確定項目だけを使う。
+
+Form の `item` と Service 入力の `key` で対応付け、Java の項目名や明細クラス名が異なっていても同じ入力を渡す。
+双方にある全項目を照合し、片側にだけある項目・重複・型の食い違い・未定義の明細クラス・呼出先の食い違いでは生成を止める。
+対応先の件数は、YDE の `count` を使う成立条件で検査する。
+
+呼出しは `execute` と、処理設計に確認がある場合の `check`。両方が同じ `toInput` を通り、Form の Bean Validation を実行してから Service を呼ぶ。
+対象の ID は Form の値に混ぜず、呼出しの引数で受け取る。Form のない操作も同じ経路で実行できる。
+コメントの明細とクリア指定は Service の型へ写す。省略・空の配列・`false` を区別し、配列と入れ子の可変オブジェクトを Form と共有しない。
+確認後に入力が変わった場合も実行時に検査し直す。Service の確認処理は書き込まず、操作本体が業務の規則を再確認して更新する。
+
+この接続は Controller が利用する部品で、業務の HTTP エンドポイントはまだ公開しない。
+次は一覧・詳細の読出し、入力の初期値と参照候補、確認・戻る・確定の遷移、トークン・通知・エラー表示を接続する。
 
 ## 生成する
 
@@ -166,7 +185,7 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 ./samples/todos-sysdev/scripts/verify-app.ps1
 ```
 
-アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service の結合テストを検証用コピーへ追加して実行する。
+アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service・画面入力の結合テストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
 検証結果はコピー内の `build/reports/tests/test/index.html` に残す。元のアプリとその DB には書かない。
 
@@ -178,7 +197,9 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 - `TodosServiceFoundationTest`: 処理の個別条件・明細の削除・親の検査対象、状態型・例外・採番の呼出名の補正、未解決の状態と呼び先による停止。標準型と同名に補正した Java のコンパイルも確認する。
 - `TodosServiceBindingsTest`: 入れ子の入力型、親のキー、状態・物理名・呼出名の補正、未知の引数と更新内容の食い違いによる停止。
 - `TodosServiceProgramsTest`: 全操作の実行手順、未対応の比較・参照・検査対象による停止。
-- `scripts/verify-app.ps1`: 全 Mapper と全操作、状態・前提の拒否、クリアの優先、確認時の非更新、親子の取り消し、同時採番、独立ビルド。
+- `TodosWebDesignTest`: デザインの確定値と Form の制約・メッセージの一致、未対応の入力による停止。
+- `TodosWebBindingsTest`: 全操作の Form と Service の照合、補正された項目名と明細・呼出名の接続、余分な項目・重複・型の不一致による停止。
+- `scripts/verify-app.ps1`: 全 Mapper と全操作、画面入力からの更新と再検査、クリアの優先、確認時の非更新、親子の取り消し、同時採番、独立ビルド。
 - `scripts/test-application-files.ps1`: 再生成の一致、空ファイル、競合、書込失敗時の復元、名前変更・削除の範囲。
 - `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、生成の一致とアプリ単独のビルドを確認する。
 
