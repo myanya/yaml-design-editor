@@ -43,7 +43,7 @@ class TodosServiceBindingsTest {
     }
 
     @Test
-    fun `状態の補正と物理名と呼出名の補正がServiceの入力まで届く`() {
+    fun `状態の補正と物理名と呼出名の補正がServiceの本体まで届く`() {
         val input = store()
         put(input, "design/detail/inputs/tables/corrections.yaml", raw("""
             corrections:
@@ -60,7 +60,7 @@ class TodosServiceBindingsTest {
                 mapOf("id" to "SCOR-store", "kind" to "table-access", "target" to "DOC-table-access.todo",
                     "set" to mapOf("mapper" to "TodoStore"), "reason" to "検証"),
             )))
-        val plan = Generators.plan(WorkspaceSession(input), setOf("application-service-bindings"))
+        val plan = Generators.plan(WorkspaceSession(input), setOf("application-service-programs"))
         assertEquals(emptyList(), plan.errors)
         val bindings = rows(raw(plan.outputs.single { it.generator == "application-service-bindings" }.text), "operations")
         val start = bindings.single { it["id"] == "SPROG-start-todo" }
@@ -71,6 +71,9 @@ class TodosServiceBindingsTest {
         val check = rows(process, "steps").single { it["checkMode"] == "state" }
         assertEquals(listOf("OPEN", "SUSPENDED"), check["allowed"])
         assertEquals("status", check["stateField"])
+        val program = plan.outputs.single { it.generator == "application-service-programs" }.text
+        assertTrue("getSubject()" in program)
+        assertTrue("TodoStore.StartTodoInput" in program)
     }
 
     private fun probe(input: InMemoryDocumentStore, generator: String) {

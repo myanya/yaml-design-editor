@@ -1,0 +1,10 @@
+id: application-service-programs-input
+name: 確定した Service の実行手順
+rows:
+  idPattern: JSERVICE-*
+  schemaIds:
+    - application-service-programs
+columns:
+  - label: record
+    path: .
+    schemaId: application-service-programs

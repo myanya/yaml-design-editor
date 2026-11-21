@@ -1,0 +1,36 @@
+id: app-service
+name: 業務の Service
+params:
+  - service
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+        $where: []
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-service-programs-input
+        $where:
+          - path: id
+            equals: $service
+        $one: true
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: values.record.settings
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: Service.java
+output: app/src/main/java/{#each config.package}{.}/{/each}service/{record.name}.java

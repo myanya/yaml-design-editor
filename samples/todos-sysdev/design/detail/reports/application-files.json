@@ -31,7 +31,7 @@
     },
     {
       "path": "app/README.md",
-      "sha256": "6b05dcba5232f94b3919a53ec529f469a5a6587c09af3348276384a0e8fe7081"
+      "sha256": "2efc4f40a94df78e5012469014e17f8483f77a8610475ca497a99755d6cf9ec3"
     },
     {
       "path": "app/settings.gradle.kts",
@@ -80,6 +80,10 @@
     {
       "path": "app/src/main/java/example/todos/data/model/TodoTaskRow.java",
       "sha256": "741abdea2cef1124b47ea93de76ad8a1101bb650a240c8196e5856fae60e6527"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/CategoryService.java",
+      "sha256": "833c28514565ed24cb341419e44c52dd7e89a9be686673175193ddb0fa3ba363"
     },
     {
       "path": "app/src/main/java/example/todos/service/error/BusinessViolation.java",
@@ -142,6 +146,10 @@
       "sha256": "e1310300a52e73886a23ceb1e2c43e6c7e67222dc6e8ae242f8883252a880149"
     },
     {
+      "path": "app/src/main/java/example/todos/service/runtime/OperationOutcome.java",
+      "sha256": "01102a0d16df06a0a9a21da897f46201dce2420ca4ef2b9570e4a7f2f10a5148"
+    },
+    {
       "path": "app/src/main/java/example/todos/service/runtime/OperationRunner.java",
       "sha256": "4eb835e6ca3e210c7dcecb0dfe7c9fbcc4f742bb2553aa554dc36a66a2adf8b2"
     },
@@ -150,12 +158,28 @@
       "sha256": "a23ab847815e0bdee8b4311ae26df9a46492a221441426371815066dd96a9937"
     },
     {
+      "path": "app/src/main/java/example/todos/service/runtime/ServiceChecks.java",
+      "sha256": "92e0b2bb285bf41286c1c847c3674d5d10f6b6ff6dec7b56516e2490ce3becbf"
+    },
+    {
       "path": "app/src/main/java/example/todos/service/state/TodoStatus.java",
       "sha256": "d51f49ffd801f3c74f838a09eb33c30edc0c085678e965a76a3c677771814e41"
     },
     {
+      "path": "app/src/main/java/example/todos/service/TagService.java",
+      "sha256": "ac69b6d31e74031d80bb758cecf7936f349254899debd9eecde2a6643d2c8505"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/TodoService.java",
+      "sha256": "99b13782f6f7e78b13696bb2140738931d646475bddad3a45b794b702ac87a8d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/TodoTaskService.java",
+      "sha256": "3398586fdbdcf7f9fed678cfefa7fb209d4d88528c30d67ae08970728dced080"
+    },
+    {
       "path": "app/src/main/java/example/todos/TodoApplication.java",
-      "sha256": "25df4d1bc905486d3201783b3e82f7e93dce96535774219d2409367d8b77d6de"
+      "sha256": "034c83a102a6b0345e6f571e64a45d12bb27fea7c60429ea625a693fde2ca8a1"
     },
     {
       "path": "app/src/main/resources/application.properties",

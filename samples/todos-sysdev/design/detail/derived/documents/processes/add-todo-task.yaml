@@ -33,6 +33,7 @@ record:
         message: add-todo-task.active
         text: '{id} は完了か中止をしているので、作業項目を足せません'
         checkMode: current
+        subjectAlias: t
         phase: before
         entity: todo
       - step: number

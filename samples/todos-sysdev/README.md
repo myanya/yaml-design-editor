@@ -15,7 +15,7 @@
 「対象の設計書」で文書を選ぶと、概要と根拠・設計内容が切り替わります。「この設計書の一覧」には同じ種類の文書だけが並びます。全体の対応は「設計書の全体レビュー」で確認できます。
 [設計書の確定と全体レビュー](docs/design-document-migration-plan.md)に、対象・受け渡し・入力例・試し方をまとめています。
 計画と未決事項は [ロードマップ](../../docs/ROADMAP.md#p53-業務モデルから作る設計書体系とアプリ生成) にあります。
-設計の配置を段階・役割ごとに整理し、独立した `app/` の行モデル・Mapper・XML・共通 DDL・状態型・業務例外・Service の入力型と共通実行部を生成します。型対応は Form・行モデル・Mapper・Service で共通です。業務処理の操作本体・画面のコード生成は後続です。
+設計の配置を段階・役割ごとに整理し、独立した `app/` の行モデル・Mapper・XML・共通 DDL・状態型・業務例外・Service の入力型・共通実行部・全操作本体を生成します。型対応は Form・行モデル・Mapper・Service で共通です。Controller と画面のコード生成は後続です。
 全体の順序は [作業計画](docs/application-generation-plan.md)、現在の出力範囲と操作は [アプリの生成と独立ビルド](docs/application-generation.md) を参照してください。
 
 導出・補正と指定・追加から確定項目一覧を作り、ビューと後段で共有する方針は [ADR-0039](../../docs/decisions/0039-finalized-design-items.md) に従います。
@@ -125,7 +125,7 @@
 - DDL は、レポート `ddl`（`.yde/reports/design/`）がテーブル設計書のビューの行から作ります（`report samples/todos-sysdev ddl` で `design/detail/reports/ddl/schema.sql` に書く）。主キーは主キーの順と制約名で、索引は CREATE INDEX（降順は DESC）です。外部キーは、すべてのテーブルを作った後に ALTER TABLE で足します（テーブルの順に左右されない）。テストで H2 に流して確かめています。
 - 初期値の出力方法は型対応表の `literal` で指定します。`string` は `'OPEN'`、`number` は `1`、`boolean` は `FALSE`、`date` は `DATE '2026-11-16'` の形です。文字列の引用符は二重にし、空文字は `''` にします。値の見た目では型を決めません。未設定と `false`・`0`・空文字・文字そのものの「設定なし」を区別します。
   `auto: created` などの自動値は Service が設定するもので、SQL の DEFAULT にはしません。
-  Form と行モデルの Java 型は共通の対応表を使います。初期値の式と Java の初期化方法の接続は今後です。
+  Form と行モデルの Java 型は共通の対応表を使います。Service の初期化式の対応範囲は[アプリの生成](docs/application-generation.md)にまとめています。
 テーブルは補正後の基本設計を入力にして、詳細設計の段の規則を当てます。`detail-tables` の `dependsOn` により、基本設計も同じ生成計画で先に作り直します。
 
 ## ドメインの決まり

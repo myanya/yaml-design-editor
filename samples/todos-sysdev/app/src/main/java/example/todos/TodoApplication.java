@@ -19,6 +19,9 @@ public class TodoApplication {
     }
 
     @Bean
+    java.time.Clock serviceClock() { return java.time.Clock.systemDefaultZone(); }
+
+    @Bean
     ApplicationRunner databaseSetup(DataSource source) {
         return args -> initializeDatabase(source);
     }

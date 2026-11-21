@@ -161,3 +161,25 @@ outputs:
   - id: OUTPUT-sequence-numbers
     report: app-sequence-numbers
     params: {}
+  - id: OUTPUT-service-checks
+    report: app-service-checks
+    params: {}
+  - id: OUTPUT-operation-outcome
+    report: app-operation-outcome
+    params: {}
+  - id: OUTPUT-JSERVICE-CategoryService
+    report: app-service
+    params:
+      service: JSERVICE-CategoryService
+  - id: OUTPUT-JSERVICE-TagService
+    report: app-service
+    params:
+      service: JSERVICE-TagService
+  - id: OUTPUT-JSERVICE-TodoService
+    report: app-service
+    params:
+      service: JSERVICE-TodoService
+  - id: OUTPUT-JSERVICE-TodoTaskService
+    report: app-service
+    params:
+      service: JSERVICE-TodoTaskService

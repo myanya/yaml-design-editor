@@ -543,6 +543,8 @@ rules:
       text:
         $copy: message
       checkMode: current
+      subjectAlias:
+        $copy: rule.match[0].node.bind
       phase: before
       entity:
         $copy: target.entity

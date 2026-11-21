@@ -1,0 +1,133 @@
+id: application-service-programs
+name: Service の実行手順
+kind: document
+match: design/detail/final/application-service-programs.yaml
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: services
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: name
+            type: string
+            required: true
+          - key: operations
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: id
+                  type: id
+                  required: true
+                - key: source
+                  type: string
+                  required: true
+                - key: tokens
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    unknownFields: allow
+                    fields:
+                      - key: valid
+                        type: boolean
+                        required: true
+                      - key: raw
+                        type: string
+                        required: false
+                      - key: literal
+                        type: boolean
+                        required: false
+                      - key: value
+                        type: string
+                        required: false
+                      - key: digits
+                        type: int
+                        required: false
+                        min: 1
+                      - key: prefixFormat
+                        type: string
+                        required: false
+                        pattern: ^[^{}]*\{id\}[^{}]*$
+                      - key: errorClass
+                        type: string
+                        required: false
+                        pattern: ^[A-Z][A-Za-z0-9]*$
+                      - key: integer
+                        type: int
+                        required: false
+                      - key: boolean
+                        type: boolean
+                        required: false
+                    constraints:
+                      - id: supported
+                        check:
+                          - eq:
+                              - path: valid
+                              - true
+                        level: error
+                        message: Service の式・参照・手順を Java に変換できません
+                - key: method
+                  type: string
+                  required: true
+                - key: contract
+                  type: object
+                  required: true
+                  fields:
+                    - key: reads
+                      type: array
+                      required: true
+                      maxItems: 1
+                      item:
+                        type: int
+                    - key: numbers
+                      type: array
+                      required: true
+                      maxItems: 1
+                      item:
+                        type: int
+                    - key: steps
+                      type: array
+                      required: true
+                      item:
+                        type: enum
+                        values:
+                          - read
+                          - number
+                          - write
+                          - check
+                    - key: confirms
+                      type: array
+                      required: true
+                      item:
+                        type: object
+                        unknownFields: allow
+                        fields:
+                          - key: sameArguments
+                            type: boolean
+                            required: true
+                        constraints:
+                          - id: sameArguments
+                            check:
+                              - eq:
+                                  - path: sameArguments
+                                  - true
+                            level: error
+                            message: 確認と実行の引数は同じ順序・項目にしてください
+            unique:
+              - method
+      unique:
+        - name

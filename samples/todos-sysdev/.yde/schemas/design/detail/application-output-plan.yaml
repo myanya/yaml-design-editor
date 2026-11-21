@@ -40,6 +40,9 @@ root:
               - key: operation
                 type: string
                 pattern: ^SINPUT-[A-Za-z0-9_.-]+$
+              - key: service
+                type: string
+                pattern: ^JSERVICE-[A-Za-z0-9_]+$
             unknownFields: error
           - key: destination
             type: string

@@ -8,6 +8,7 @@ dependsOn:
   - application-runtime-model
   - application-process-gate
   - application-service-bindings
+  - application-service-programs
 output: design/detail/final/application-output-plan.yaml
 build:
   id: APP-output-plan
@@ -112,3 +113,18 @@ build:
         - id: OUTPUT-sequence-numbers
           report: app-sequence-numbers
           params: {}
+      - - id: OUTPUT-service-checks
+          report: app-service-checks
+          params: {}
+        - id: OUTPUT-operation-outcome
+          report: app-operation-outcome
+          params: {}
+      - $each:
+          $view: application-service-programs-input
+        $build:
+          id:
+            $format: OUTPUT-{id}
+          report: app-service
+          params:
+            service:
+              $copy: id

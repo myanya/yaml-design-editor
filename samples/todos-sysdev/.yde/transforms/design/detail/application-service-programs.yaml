@@ -1,0 +1,4332 @@
+id: application-service-programs
+name: 確定した処理を Service の実行手順へ変換する
+scope: design
+dependsOn:
+  - application-service-bindings
+  - application-runtime-model
+  - application-configuration
+output: design/detail/final/application-service-programs.yaml
+input:
+  processes:
+    $each:
+      $view: processes-input
+    $build:
+      $copy: values.record
+  inputs:
+    $each:
+      $view: application-service-inputs-input
+    $build:
+      $copy: values.record
+  bindings:
+    $each:
+      $view: application-service-bindings-input
+    $build:
+      $copy: values.record
+  methods:
+    $each:
+      $view: application-method-input
+    $build:
+      $copy: values.record
+  tables:
+    $each:
+      $view: application-physical-table-input
+    $build:
+      $copy: values.record
+  entities:
+    $each:
+      $view: basic-model-entities
+    $build:
+      $copy: values.record
+  states:
+    $each:
+      $view: application-state-input
+    $build:
+      $copy: values.record
+  errors:
+    $each:
+      $view: application-exception-input
+    $build:
+      $copy: values.record
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-service-programs
+      $then:
+        $copy: declared
+build:
+  $apply: all
+  $with:
+    global:
+      $copy: .
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: all
+    with:
+      - global
+    build:
+      $apply: finish
+      $with:
+        global:
+          $copy: .
+          $of: global
+        operations:
+          $each: processes
+          $of: global
+          $build:
+            $apply: operation
+            $with:
+              process:
+                $copy: .
+              global:
+                $copy: .
+                $of: global
+  - id: finish
+    with:
+      - global
+      - operations
+    build:
+      $apply: validated
+      $with:
+        documents:
+          $validate:
+            schemas:
+              $copy: contracts
+              $of: global
+            documents:
+              design/detail/final/application-service-programs.yaml:
+                id: APP-service-programs
+                services:
+                  $group:
+                    $copy: .
+                    $of: operations
+                  $by:
+                    $copy: service
+                  $build:
+                    id:
+                      $format: JSERVICE-{name}
+                      $with:
+                        name:
+                          $copy: key
+                    name:
+                      $copy: key
+                    operations:
+                      $copy: items
+                    mappers:
+                      $group:
+                        $copy: methods
+                        $of: global
+                      $by:
+                        $copy: mapper
+                      $build:
+                        name:
+                          $copy: key
+                        variable:
+                          $case:
+                            $copy: key
+                          $as: camel
+                    errors:
+                      $copy: errors
+                      $of: global
+  - id: validated
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: method
+    with:
+      - call
+      - global
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: methods
+          $of: global
+          $build:
+            $when:
+              - path: call
+                equals:
+                  $copy: .
+                  $of: call
+            $then:
+              $copy: .
+  - id: method-id
+    with:
+      - id
+      - global
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: methods
+          $of: global
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: id
+            $then:
+              $copy: .
+  - id: operation
+    with:
+      - process
+      - global
+    build:
+      $apply: operation-ready
+      $with:
+        ctx:
+          process:
+            $copy: .
+            $of: process
+          global:
+            $copy: .
+            $of: global
+          input:
+            $apply: first
+            $with:
+              items:
+                $each: inputs
+                $of: global
+                $build:
+                  $when:
+                    - path: source
+                      equals:
+                        $copy: designId
+                        $of: process
+                  $then:
+                    $copy: .
+          binding:
+            $apply: first
+            $with:
+              items:
+                $each: bindings
+                $of: global
+                $build:
+                  $when:
+                    - path: source
+                      equals:
+                        $copy: designId
+                        $of: process
+                  $then:
+                    $copy: .
+  - id: operation-ready
+    with:
+      - ctx
+    build:
+      $apply: operation-steps
+      $with:
+        ctx:
+          $copy: .
+          $of: ctx
+        primary:
+          $apply: method-id
+          $with:
+            id:
+              $copy: binding.primary
+              $of: ctx
+            global:
+              $copy: global
+              $of: ctx
+        steps:
+          $each: process.steps
+          $of: ctx
+          $build:
+            $apply: step
+            $with:
+              raw:
+                $copy: .
+              stepNumber: $position
+              ctx:
+                $copy: .
+                $of: ctx
+  - id: step
+    with:
+      - raw
+      - stepNumber
+      - ctx
+    build:
+      index:
+        $copy: .
+        $of: stepNumber
+      raw:
+        $copy: .
+        $of: raw
+      method:
+        $apply: method
+        $with:
+          call:
+            $copy: call
+            $of: raw
+          global:
+            $copy: global
+            $of: ctx
+      binding:
+        $apply: first
+        $with:
+          items:
+            $each: binding.steps
+            $of: ctx
+            $build:
+              $when:
+                - path: index
+                  equals:
+                    $copy: .
+                    $of: stepNumber
+              $then:
+                $copy: .
+      row:
+        $format: row{i}
+        $with:
+          i:
+            $copy: .
+            $of: stepNumber
+      rows:
+        $format: rows{i}
+        $with:
+          i:
+            $copy: .
+            $of: stepNumber
+  - id: operation-steps
+    with:
+      - ctx
+      - primary
+      - steps
+    build:
+      $apply: operation-body
+      $with:
+        ctx:
+          process:
+            $copy: process
+            $of: ctx
+          global:
+            $copy: global
+            $of: ctx
+          input:
+            $copy: input
+            $of: ctx
+          binding:
+            $copy: binding
+            $of: ctx
+          primary:
+            $copy: .
+            $of: primary
+          steps:
+            $copy: .
+            $of: steps
+          writes:
+            $each: .
+            $of: steps
+            $build:
+              $when:
+                - path: raw.step
+                  equals: write
+              $then:
+                $apply: write-context
+                $with:
+                  step:
+                    $copy: .
+                  ctx:
+                    $copy: .
+                    $of: ctx
+          number:
+            $apply: first
+            $with:
+              items:
+                $each: .
+                $of: steps
+                $build:
+                  $when:
+                    - path: raw.step
+                      equals: number
+                  $then:
+                    $copy: .
+          inputScope:
+            symbols:
+              $each: binding.symbols
+              $of: ctx
+              $build:
+                $when:
+                  - path: place
+                    equals: input
+                $then:
+                  $copy: .
+          currentScope:
+            $apply: row-scope
+            $with:
+              java: original
+              method:
+                $copy: .
+                $of: primary
+  - id: write-context
+    with:
+      - step
+      - ctx
+    build:
+      $apply: write-context-ready
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        table:
+          $apply: first
+          $with:
+            items:
+              $each: global.tables
+              $of: ctx
+              $build:
+                $when:
+                  - path: id
+                    equals:
+                      $copy: method.tableId
+                      $of: step
+                $then:
+                  $copy: .
+        reader:
+          $apply: first
+          $with:
+            items:
+              $each: global.methods
+              $of: ctx
+              $build:
+                $when:
+                  - path: tableId
+                    equals:
+                      $copy: method.tableId
+                      $of: step
+                  - path: source
+                    equals: findById
+                $then:
+                  $copy: .
+  - id: operation-body
+    with:
+      - ctx
+    build:
+      id:
+        $format: JOP-{id}
+        $with:
+          id:
+            $copy: process.id
+            $of: ctx
+      source:
+        $copy: process.designId
+        $of: ctx
+      service:
+        $copy: input.service
+        $of: ctx
+      method:
+        $copy: input.method
+        $of: ctx
+      input:
+        $copy: input
+        $of: ctx
+      confirm:
+        $each: process.confirm
+        $of: ctx
+        $build:
+          method:
+            $copy: method
+          operationMethod:
+            $copy: input.method
+            $of: ctx
+          arguments:
+            $each: input.arguments
+            $of: ctx
+            $build:
+              name:
+                $copy: name
+              accessor:
+                $copy: accessor
+              type:
+                $apply: external-type
+                $with:
+                  className:
+                    $copy: input.className
+                    $of: ctx
+          inputClass:
+            $copy: input.className
+            $of: ctx
+      tokens:
+        $concat:
+          - - valid: true
+              plain: true
+              raw: |2
+                        var today = java.time.LocalDate.now(clock);
+                        var violations = new java.util.ArrayList<BusinessViolation>();
+          - $each: steps
+            $of: ctx
+            $build:
+              $when:
+                - path: raw.step
+                  equals: read
+              $then:
+                $apply: read
+                $with:
+                  step:
+                    $copy: .
+                  ctx:
+                    $copy: .
+                    $of: ctx
+            $flatten: true
+          - $each: steps
+            $of: ctx
+            $build:
+              $when:
+                - path: raw.step
+                  equals: number
+              $then:
+                $apply: number
+                $with:
+                  step:
+                    $copy: .
+                  ctx:
+                    $copy: .
+                    $of: ctx
+            $flatten: true
+          - $each: writes
+            $of: ctx
+            $build:
+              $apply: prepare-write
+              $with:
+                write:
+                  $copy: .
+                ctx:
+                  $copy: .
+                  $of: ctx
+            $flatten: true
+          - $each: steps
+            $of: ctx
+            $build:
+              $when:
+                - path: raw.step
+                  equals: check
+                - path: raw.phase
+                  equals: before
+              $then:
+                $apply: check
+                $with:
+                  step:
+                    $copy: .
+                  ctx:
+                    $copy: .
+                    $of: ctx
+            $flatten: true
+          - - valid: true
+              plain: true
+              raw: '        if (preview) return new OperationOutcome('
+          - $apply: operation-id
+            $with:
+              ctx:
+                $copy: .
+                $of: ctx
+          - - valid: true
+              plain: true
+              raw: |
+                , violations);
+          - $apply: refuse
+            $with:
+              ctx:
+                $copy: .
+                $of: ctx
+          - $each: writes
+            $of: ctx
+            $build:
+              $apply: execute-write
+              $with:
+                write:
+                  $copy: .
+                ctx:
+                  $copy: .
+                  $of: ctx
+            $flatten: true
+          - $each: steps
+            $of: ctx
+            $build:
+              $when:
+                - path: raw.step
+                  equals: check
+                - path: raw.phase
+                  equals: after
+              $then:
+                $apply: check
+                $with:
+                  step:
+                    $copy: .
+                  ctx:
+                    $copy: .
+                    $of: ctx
+            $flatten: true
+          - $apply: refuse
+            $with:
+              ctx:
+                $copy: .
+                $of: ctx
+          - - valid: true
+              plain: true
+              raw: '        return new OperationOutcome('
+          - $apply: operation-id
+            $with:
+              ctx:
+                $copy: .
+                $of: ctx
+          - - valid: true
+              plain: true
+              raw: |
+                , violations);
+      arguments:
+        $each: input.arguments
+        $of: ctx
+        $build:
+          name:
+            $copy: name
+          accessor:
+            $copy: accessor
+          type:
+            $apply: external-type
+            $with:
+              className:
+                $copy: input.className
+                $of: ctx
+      contract:
+        reads:
+          $each: steps
+          $of: ctx
+          $build:
+            $when:
+              - path: raw.step
+                equals: read
+            $then:
+              $copy: index
+        numbers:
+          $each: steps
+          $of: ctx
+          $build:
+            $when:
+              - path: raw.step
+                equals: number
+            $then:
+              $copy: index
+        steps:
+          $each: steps
+          $of: ctx
+          $build:
+            $copy: raw.step
+        confirms:
+          $each: process.confirm
+          $of: ctx
+          $build:
+            sameArguments:
+              $apply: same
+              $with:
+                left:
+                  $copy: arguments
+                right:
+                  $copy: process.service.arguments
+                  $of: ctx
+  - id: operation-id
+    with:
+      - ctx
+    when:
+      - of: ctx
+        path: number
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw: numberedId
+  - id: operation-id
+    with:
+      - ctx
+    build:
+      $first:
+        - $apply: symbol-token
+          $with:
+            symbol:
+              $apply: first
+              $with:
+                items:
+                  $each: binding.symbols
+                  $of: ctx
+                  $build:
+                    $when:
+                      - path: place
+                        equals: input
+                      - path: name
+                        equals: id
+                    $then:
+                      $copy: .
+        - - valid: false
+            raw: UNSUPPORTED
+            error: 操作の ID を解決できません
+  - id: refuse
+    with:
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        if (!violations.isEmpty()) throw new '
+        - - valid: true
+            errorClass:
+              $apply: error-name
+              $with:
+                kind: refused
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              (violations.getFirst());
+  - id: error-name
+    with:
+      - kind
+      - ctx
+    build:
+      $apply: error-name-ready
+      $with:
+        error:
+          $apply: first
+          $with:
+            items:
+              $each: global.errors
+              $of: ctx
+              $build:
+                $when:
+                  - path: kind
+                    equals:
+                      $copy: .
+                      $of: kind
+                $then:
+                  $copy: .
+  - id: error-name-ready
+    with:
+      - error
+    build:
+      $copy: name
+      $of: error
+  - id: read
+    with:
+      - step
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        var original = '
+        - $apply: call
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |-
+              ;
+                      if (original == null) throw new 
+        - - valid: true
+            errorClass:
+              $apply: error-name
+              $with:
+                kind: notFound
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: (
+        - - valid: true
+            literal: true
+            value:
+              $copy: raw.entity
+              $of: step
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: key
+          $with:
+            source:
+              $copy: raw.key
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              );
+  - id: call
+    with:
+      - step
+      - ctx
+    build:
+      $apply: method-call
+      $with:
+        method:
+          $copy: method
+          $of: step
+        parameters:
+          $copy: binding.parameters
+          $of: step
+  - id: method-call
+    with:
+      - method
+      - parameters
+    when:
+      - of: parameters
+        path: '[0]'
+        exists: false
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '{m}.{n}()'
+              $with:
+                m:
+                  $case:
+                    $copy: mapper
+                    $of: method
+                  $as: camel
+                'n':
+                  $copy: name
+                  $of: method
+  - id: method-call
+    with:
+      - method
+      - parameters
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: 'ServiceChecks.call(new {m}.{i}(), p -> '
+              $with:
+                m:
+                  $copy: mapper
+                  $of: method
+                i:
+                  $copy: inputClass
+                  $of: method
+        - - valid: true
+            plain: true
+            raw: '{ '
+        - $each: .
+          $of: parameters
+          $build:
+            $concat:
+              - - valid: true
+                  plain: true
+                  raw:
+                    $format: p.set{a}(
+                    $with:
+                      a:
+                        $copy: accessor
+              - - valid: true
+                  plain: true
+                  raw:
+                    $copy: binding.java
+              - - valid: true
+                  plain: true
+                  raw: '); '
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: '}, '
+        - - valid: true
+            plain: true
+            raw:
+              $format: '{m}::{n})'
+              $with:
+                m:
+                  $case:
+                    $copy: mapper
+                    $of: method
+                  $as: camel
+                'n':
+                  $copy: name
+                  $of: method
+  - id: call-key
+    with:
+      - method
+      - keyTokens
+    when:
+      - of: method
+        path: parameters[0]
+        exists: true
+      - of: method
+        path: parameters[1]
+        exists: false
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: ServiceChecks.call(new {m}.{i}(), p -> p.set{a}(
+              $with:
+                m:
+                  $copy: mapper
+                  $of: method
+                i:
+                  $copy: inputClass
+                  $of: method
+                a:
+                  $copy: parameters[0].accessor
+                  $of: method
+        - $copy: .
+          $of: keyTokens
+        - - valid: true
+            plain: true
+            raw:
+              $format: ), {m}::{n})
+              $with:
+                m:
+                  $case:
+                    $copy: mapper
+                    $of: method
+                  $as: camel
+                'n':
+                  $copy: name
+                  $of: method
+  - id: call-key
+    with:
+      - method
+      - keyTokens
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: キーを一つ渡す Mapper 呼出しを解決できません
+  - id: key
+    with:
+      - source
+      - ctx
+    when:
+      - of: source
+        path: param
+        exists: true
+    build:
+      $apply: symbol-token
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: binding.symbols
+              $of: ctx
+              $build:
+                $when:
+                  - path: place
+                    equals: input
+                  - path: name
+                    equals:
+                      $copy: param
+                      $of: source
+                $then:
+                  $copy: .
+  - id: key
+    with:
+      - source
+      - ctx
+    when:
+      - of: source
+        path: self
+        exists: true
+    build:
+      $apply: symbol-token
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: binding.symbols
+              $of: ctx
+              $build:
+                $when:
+                  - path: place
+                    equals: self
+                  - path: path
+                    equals:
+                      $copy: self
+                      $of: source
+                $then:
+                  $copy: .
+  - id: key
+    with:
+      - source
+      - ctx
+    when:
+      - of: source
+        path: generated
+        exists: true
+    build:
+      $apply: symbol-token
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: binding.symbols
+              $of: ctx
+              $build:
+                $when:
+                  - path: place
+                    equals: generated
+                  - path: path
+                    equals:
+                      $copy: generated
+                      $of: source
+                $then:
+                  $copy: .
+  - id: key
+    with:
+      - source
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: キーの参照元を解決できません
+  - id: symbol-token
+    with:
+      - symbol
+    when:
+      - of: symbol
+        path: java
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $copy: java
+          $of: symbol
+  - id: symbol-token
+    with:
+      - symbol
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 値の参照元を解決できません
+  - id: number
+    with:
+      - step
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        var numberedId = SequenceNumbers.nextId('
+        - $apply: call
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: prefix
+          $with:
+            rule:
+              $copy: raw.rule
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ', '
+        - - valid: true
+            plain: true
+            raw:
+              $format: '{d}'
+              $with:
+                d:
+                  $copy: raw.rule.digits
+                  $of: step
+            digits:
+              $copy: raw.rule.digits
+              $of: step
+        - - valid: true
+            plain: true
+            raw: |
+              );
+  - id: prefix
+    with:
+      - rule
+      - ctx
+    when:
+      - of: rule
+        path: prefix.$of
+        equals: owner
+      - of: rule
+        path: prefix.$format
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            literal: true
+            value:
+              $copy: prefix.$format
+              $of: rule
+            prefixFormat:
+              $copy: prefix.$format
+              $of: rule
+        - - valid: true
+            plain: true
+            raw: '.replace("{id}", '
+        - $apply: symbol-token
+          $with:
+            symbol:
+              $apply: first
+              $with:
+                items:
+                  $each: binding.symbols
+                  $of: ctx
+                  $build:
+                    $when:
+                      - path: place
+                        equals: self
+                      - path: path
+                        equals: id
+                    $then:
+                      $copy: .
+        - - valid: true
+            plain: true
+            raw: )
+  - id: prefix
+    with:
+      - rule
+      - ctx
+    build:
+      - valid: true
+        literal: true
+        value:
+          $copy: prefix
+          $of: rule
+  - id: value
+    with:
+      - value
+      - type
+      - ctx
+    build:
+      $apply: value-ready
+      $with:
+        record:
+          value:
+            $copy: .
+            $of: value
+        type:
+          $copy: .
+          $of: type
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: value-ready
+    with:
+      - record
+      - type
+      - ctx
+    when:
+      - of: record
+        path: value.$copy
+        exists: true
+    build:
+      $apply: value-copy
+      $with:
+        place:
+          $first:
+            - $copy: value.$of
+              $of: record
+            - input
+        path:
+          $copy: value.$copy
+          $of: record
+        type:
+          $copy: .
+          $of: type
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: value-copy
+    with:
+      - place
+      - path
+      - type
+      - ctx
+    build:
+      $apply: typed-symbol
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: binding.symbols
+              $of: ctx
+              $build:
+                $when:
+                  - path: place
+                    equals:
+                      $copy: .
+                      $of: place
+                  - path: path
+                    equals:
+                      $copy: .
+                      $of: path
+                $then:
+                  $copy: .
+        type:
+          $copy: .
+          $of: type
+  - id: value-ready
+    with:
+      - record
+      - type
+      - ctx
+    when:
+      - of: record
+        path: value.generated
+        exists: true
+    build:
+      $apply: value-copy
+      $with:
+        place: generated
+        path:
+          $copy: value.generated
+          $of: record
+        type:
+          $copy: .
+          $of: type
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: value-ready
+    with:
+      - record
+      - type
+      - ctx
+    when:
+      - of: record
+        path: value.sequence
+        exists: true
+      - of: type
+        path: qualifiedName
+        equals: java.lang.Long
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: SequenceNumbers.nextPosition(
+        - $apply: call-key
+          $with:
+            method:
+              $apply: method
+              $with:
+                call:
+                  $copy: value.sequence.call
+                  $of: record
+                global:
+                  $copy: global
+                  $of: ctx
+            keyTokens:
+              $apply: key
+              $with:
+                source:
+                  $copy: value.sequence.key
+                  $of: record
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: )
+  - id: value-ready
+    with:
+      - record
+      - type
+      - ctx
+    when:
+      - of: record
+        path: value
+        matches: ^\$\$.*
+      - of: type
+        path: qualifiedName
+        equals: java.lang.String
+    build:
+      $concat:
+        - - valid: true
+            literal: true
+            value:
+              $copy: value
+              $of: record
+        - - valid: true
+            plain: true
+            raw: .substring(1)
+  - id: value-ready
+    with:
+      - record
+      - type
+      - ctx
+    when:
+      - of: record
+        path: value
+        matches: ^\$[^$].*
+    build:
+      $apply: typed-symbol
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: binding.symbols
+              $of: ctx
+              $build:
+                $when:
+                  - path: ref
+                    equals:
+                      $copy: value
+                      $of: record
+                $then:
+                  $copy: .
+        type:
+          $copy: .
+          $of: type
+  - id: value-ready
+    with:
+      - record
+      - type
+      - ctx
+    build:
+      $apply: literal
+      $with:
+        value:
+          $copy: value
+          $of: record
+        type:
+          $copy: .
+          $of: type
+  - id: typed-symbol
+    with:
+      - symbol
+      - type
+    when:
+      - of: symbol
+        path: java
+        exists: true
+    build:
+      - valid:
+          $first:
+            - $when:
+                - of: symbol
+                  path: type
+                  equals:
+                    $copy: qualifiedName
+                    $of: type
+              $then: true
+            - false
+        plain: true
+        raw:
+          $copy: java
+          $of: symbol
+        error: 値の型が書込先の Java 型と一致しません
+  - id: typed-symbol
+    with:
+      - symbol
+      - type
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 値の参照元がありません
+  - id: literal
+    with:
+      - value
+      - type
+    build:
+      $apply: literal-null
+      $with:
+        value:
+          $copy: .
+          $of: value
+        type:
+          $copy: .
+          $of: type
+        isNull:
+          $apply: same
+          $with:
+            left:
+              $copy: .
+              $of: value
+            right: null
+  - id: literal-null
+    with:
+      - value
+      - type
+      - isNull
+    when:
+      - of: isNull
+        path: .
+        equals: true
+    build:
+      - valid: true
+        plain: true
+        raw: 'null'
+  - id: literal-null
+    with:
+      - value
+      - type
+      - isNull
+    build:
+      $apply: literal-typed
+      $with:
+        value:
+          $copy: .
+          $of: value
+        type:
+          $copy: .
+          $of: type
+  - id: literal-typed
+    with:
+      - value
+      - type
+    when:
+      - of: value
+        path: .
+        exists: false
+    build:
+      - valid: true
+        plain: true
+        raw: 'null'
+  - id: literal-typed
+    with:
+      - value
+      - type
+    when:
+      - of: type
+        path: qualifiedName
+        equals: java.lang.String
+    build:
+      - valid: true
+        literal: true
+        value:
+          $copy: .
+          $of: value
+  - id: literal-typed
+    with:
+      - value
+      - type
+    when:
+      - of: type
+        path: qualifiedName
+        equals: java.time.LocalDate
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: java.time.LocalDate.parse(
+        - - valid: true
+            literal: true
+            value:
+              $copy: .
+              $of: value
+        - - valid: true
+            plain: true
+            raw: )
+  - id: literal-typed
+    with:
+      - value
+      - type
+    when:
+      - of: type
+        path: qualifiedName
+        equals: java.lang.Long
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: '{v}L'
+          $with:
+            v:
+              $copy: .
+              $of: value
+        integer:
+          $copy: .
+          $of: value
+  - id: literal-typed
+    with:
+      - value
+      - type
+    when:
+      - of: type
+        path: qualifiedName
+        equals: java.lang.Boolean
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: '{v}'
+          $with:
+            v:
+              $copy: .
+              $of: value
+        boolean:
+          $copy: .
+          $of: value
+  - id: literal-typed
+    with:
+      - value
+      - type
+    when:
+      - of: type
+        path: qualifiedName
+        equals: java.math.BigDecimal
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: new java.math.BigDecimal(
+        - - valid: true
+            literal: true
+            value:
+              $format: '{v}'
+              $with:
+                v:
+                  $copy: .
+                  $of: value
+        - - valid: true
+            plain: true
+            raw: )
+  - id: literal-typed
+    with:
+      - value
+      - type
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: Java の定数へ変換できない型です
+  - id: row-symbol
+    with:
+      - binding
+      - column
+      - java
+    build:
+      path:
+        $copy: item
+        $of: binding
+      java:
+        $format: '{r}.get{a}()'
+        $with:
+          r:
+            $copy: .
+            $of: java
+          a:
+            $copy: accessor
+            $of: column
+      type:
+        $copy: java.qualifiedName
+        $of: column
+  - id: row-symbol-lookup
+    with:
+      - binding
+      - columns
+      - java
+    build:
+      $apply: row-symbol
+      $with:
+        binding:
+          $copy: .
+          $of: binding
+        column:
+          $apply: first
+          $with:
+            items:
+              $each: .
+              $of: columns
+              $build:
+                $when:
+                  - path: source
+                    equals:
+                      $copy: columnId
+                      $of: binding
+                $then:
+                  $copy: .
+        java:
+          $copy: .
+          $of: java
+  - id: row-scope
+    with:
+      - java
+      - method
+    build:
+      symbols:
+        $each: raw.columnBindings
+        $of: method
+        $build:
+          $apply: row-symbol-lookup
+          $with:
+            binding:
+              $copy: .
+            columns:
+              $copy: row.columns
+              $of: method
+            java:
+              $copy: .
+              $of: java
+  - id: path
+    with:
+      - name
+      - scope
+    build:
+      $apply: symbol-token
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: symbols
+              $of: scope
+              $build:
+                $when:
+                  - path: path
+                    equals:
+                      $copy: .
+                      $of: name
+                $then:
+                  $copy: .
+  - id: path-type
+    with:
+      - name
+      - scope
+    build:
+      $apply: symbol-type
+      $with:
+        symbol:
+          $apply: first
+          $with:
+            items:
+              $each: symbols
+              $of: scope
+              $build:
+                $when:
+                  - path: path
+                    equals:
+                      $copy: .
+                      $of: name
+                $then:
+                  $copy: .
+  - id: symbol-type
+    with:
+      - symbol
+    build:
+      qualifiedName:
+        $copy: type
+        $of: symbol
+  - id: conditions
+    with:
+      - conditions
+      - scope
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.and(Boolean.TRUE
+        - $each: .
+          $of: conditions
+          $build:
+            $concat:
+              - - valid: true
+                  plain: true
+                  raw: ', '
+              - $apply: condition
+                $with:
+                  condition:
+                    $copy: .
+                  scope:
+                    $copy: .
+                    $of: scope
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: )
+  - id: condition
+    with:
+      - condition
+      - scope
+    when:
+      - of: condition
+        path: of
+        exists: true
+      - of: scope
+        path: alias
+        exists: false
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 条件の束縛を解決できません
+  - id: condition
+    with:
+      - condition
+      - scope
+    when:
+      - of: condition
+        path: of
+        exists: true
+      - of: condition
+        path: of
+        notEquals:
+          $copy: alias
+          $of: scope
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 条件の束縛が対象と異なります
+  - id: condition
+    with:
+      - condition
+      - scope
+    when:
+      - of: condition
+        path: not
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.not(
+        - $apply: condition
+          $at: not
+          $with:
+            condition:
+              $copy: not
+              $of: condition
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: )
+  - id: condition
+    with:
+      - condition
+      - scope
+    when:
+      - of: condition
+        path: or
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.or(Boolean.FALSE
+        - $each: or
+          $of: condition
+          $build:
+            $concat:
+              - - valid: true
+                  plain: true
+                  raw: ', '
+              - $apply: condition
+                $with:
+                  condition:
+                    $copy: .
+                  scope:
+                    $copy: .
+                    $of: scope
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: )
+  - id: condition
+    with:
+      - condition
+      - scope
+    build:
+      $apply: condition-ready
+      $with:
+        condition:
+          $copy: .
+          $of: condition
+        left:
+          $apply: path
+          $with:
+            name:
+              $copy: path
+              $of: condition
+            scope:
+              $copy: .
+              $of: scope
+        type:
+          $apply: path-type
+          $with:
+            name:
+              $copy: path
+              $of: condition
+            scope:
+              $copy: .
+              $of: scope
+  - id: condition-ready
+    with:
+      - condition
+      - left
+      - type
+    when:
+      - of: condition
+        path: exists
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: Boolean.valueOf(
+        - $copy: .
+          $of: left
+        - $first:
+            - $when:
+                - of: condition
+                  path: exists
+                  equals: true
+              $then:
+                - valid: true
+                  plain: true
+                  raw: ' != null)'
+            - - valid: true
+                plain: true
+                raw: ' == null)'
+  - id: condition-ready
+    with:
+      - condition
+      - left
+      - type
+    when:
+      - of: condition
+        path: empty
+        exists: true
+    build:
+      $concat:
+        - $first:
+            - $when:
+                - of: condition
+                  path: empty
+                  equals: false
+              $then:
+                - valid: true
+                  plain: true
+                  raw: '!'
+            - []
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.empty(
+        - $copy: .
+          $of: left
+        - - valid: true
+            plain: true
+            raw: )
+  - id: condition-ready
+    with:
+      - condition
+      - left
+      - type
+    when:
+      - of: condition
+        path: equals
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.equal(
+        - $copy: .
+          $of: left
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: literal
+          $with:
+            value:
+              $copy: equals
+              $of: condition
+            type:
+              $copy: .
+              $of: type
+        - - valid: true
+            plain: true
+            raw: )
+  - id: condition-ready
+    with:
+      - condition
+      - left
+      - type
+    when:
+      - of: condition
+        path: oneOf
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.oneOf(
+        - $copy: .
+          $of: left
+        - - valid: true
+            plain: true
+            raw: ', java.util.Arrays.asList('
+        - $each: oneOf
+          $of: condition
+          $build:
+            $concat:
+              - $when:
+                  - path: $index
+                    gt: 0
+                $then:
+                  - valid: true
+                    plain: true
+                    raw: ', '
+              - $apply: literal
+                $with:
+                  value:
+                    $copy: .
+                  type:
+                    $copy: .
+                    $of: type
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: ))
+  - id: condition-ready
+    with:
+      - condition
+      - left
+      - type
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 対応していない条件です
+  - id: comparison
+    with:
+      - comparison
+      - scope
+    build:
+      $apply: comparison-types
+      $with:
+        comparison:
+          $copy: .
+          $of: comparison
+        scope:
+          $copy: .
+          $of: scope
+        leftType:
+          $apply: path-type
+          $with:
+            name:
+              $first:
+                - $copy: gte[0].path
+                  $of: comparison
+                - $copy: ne[0].path
+                  $of: comparison
+            scope:
+              $copy: .
+              $of: scope
+        rightType:
+          $apply: path-type
+          $with:
+            name:
+              $first:
+                - $copy: gte[1].path
+                  $of: comparison
+                - $copy: ne[1].path
+                  $of: comparison
+            scope:
+              $copy: .
+              $of: scope
+  - id: comparison-types
+    with:
+      - comparison
+      - scope
+      - leftType
+      - rightType
+    when:
+      - of: leftType
+        path: qualifiedName
+        exists: true
+      - of: leftType
+        path: qualifiedName
+        equals:
+          $copy: qualifiedName
+          $of: rightType
+    build:
+      $apply: comparison-typed
+      $with:
+        comparison:
+          $copy: .
+          $of: comparison
+        scope:
+          $copy: .
+          $of: scope
+  - id: comparison-types
+    with:
+      - comparison
+      - scope
+      - leftType
+      - rightType
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 比較する項目の型を対応付けられません
+  - id: comparison-typed
+    with:
+      - comparison
+      - scope
+    when:
+      - of: comparison
+        path: gte[0].path
+        exists: true
+      - of: comparison
+        path: gte[1].path
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.atLeast(
+        - $apply: path
+          $with:
+            name:
+              $copy: gte[0].path
+              $of: comparison
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: path
+          $with:
+            name:
+              $copy: gte[1].path
+              $of: comparison
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: )
+  - id: comparison-typed
+    with:
+      - comparison
+      - scope
+    when:
+      - of: comparison
+        path: ne[0].path
+        exists: true
+      - of: comparison
+        path: ne[1].path
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.not(ServiceChecks.equal(
+        - $apply: path
+          $with:
+            name:
+              $copy: ne[0].path
+              $of: comparison
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: path
+          $with:
+            name:
+              $copy: ne[1].path
+              $of: comparison
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: ))
+  - id: comparison-typed
+    with:
+      - comparison
+      - scope
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 対応していない値の比較です
+  - id: prepare-write
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: delete
+    build: []
+  - id: prepare-write
+    with:
+      - write
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: |2-
+                        var {rows} = new java.util.ArrayList<{type}>();
+                        if (Boolean.TRUE.equals(
+              $with:
+                rows:
+                  $copy: step.rows
+                  $of: write
+                type:
+                  $copy: step.method.row.className
+                  $of: write
+        - $apply: conditions
+          $with:
+            conditions:
+              $copy: step.raw.when
+              $of: write
+            scope:
+              $copy: inputScope
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              )) {
+        - $apply: prepare-rows
+          $with:
+            write:
+              $copy: .
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |2
+                      }
+  - id: prepare-rows
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.each
+        exists: false
+    build:
+      $concat:
+        - $apply: new-row
+          $with:
+            write:
+              $copy: .
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - $apply: prepare-values
+          $with:
+            write:
+              $copy: .
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw:
+              $format: |2
+                            {rows}.add({row});
+              $with:
+                rows:
+                  $copy: step.rows
+                  $of: write
+                row:
+                  $copy: step.row
+                  $of: write
+  - id: prepare-rows
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.each
+        empty: true
+    build: []
+  - id: prepare-rows
+    with:
+      - write
+      - ctx
+    build:
+      $apply: array-ready
+      $with:
+        write:
+          $copy: .
+          $of: write
+        ctx:
+          $copy: .
+          $of: ctx
+        symbol:
+          $apply: array-symbol
+          $with:
+            record:
+              value:
+                $copy: step.raw.each
+                $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: array-symbol
+    with:
+      - record
+      - ctx
+    when:
+      - of: record
+        path: value.$copy
+        exists: true
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: binding.symbols
+          $of: ctx
+          $build:
+            $when:
+              - path: place
+                equals: input
+              - path: path
+                equals:
+                  $copy: value.$copy
+                  $of: record
+            $then:
+              $copy: .
+  - id: array-symbol
+    with:
+      - record
+      - ctx
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: binding.symbols
+          $of: ctx
+          $build:
+            $when:
+              - path: ref
+                equals:
+                  $copy: value
+                  $of: record
+            $then:
+              $copy: .
+  - id: array-ready
+    with:
+      - write
+      - ctx
+      - symbol
+    when:
+      - of: symbol
+        path: java
+        exists: true
+    build:
+      $apply: array-typed
+      $with:
+        write:
+          $copy: .
+          $of: write
+        ctx:
+          $copy: .
+          $of: ctx
+        symbol:
+          $copy: .
+          $of: symbol
+        input:
+          $apply: first
+          $with:
+            items:
+              $each: input.arguments
+              $of: ctx
+              $build:
+                $apply: find-field
+                $with:
+                  name:
+                    $copy: path
+                    $of: symbol
+  - id: array-ready
+    with:
+      - write
+      - ctx
+      - symbol
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 繰り返す入力の配列を解決できません
+  - id: find-field
+    with:
+      - name
+    when:
+      - path: path
+        equals:
+          $copy: .
+          $of: name
+    build:
+      $copy: .
+  - id: find-field
+    with:
+      - name
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: children
+          $build:
+            $apply: find-field
+            $with:
+              name:
+                $copy: .
+                $of: name
+  - id: array-typed
+    with:
+      - write
+      - ctx
+      - symbol
+      - input
+    when:
+      - of: input
+        path: base
+        equals: array
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '            if ({source} != null) '
+              $with:
+                source:
+                  $copy: java
+                  $of: symbol
+        - - valid: true
+            plain: true
+            raw: |-
+              {
+                              long position = 
+        - $apply: sequence
+          $with:
+            sequence:
+              $copy: step.raw.seq
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              ;
+        - - valid: true
+            plain: true
+            raw: |2
+                              boolean firstItem = true;
+        - - valid: true
+            plain: true
+            raw:
+              $format: '                for (var item : {source}) '
+              $with:
+                source:
+                  $copy: java
+                  $of: symbol
+        - - valid: true
+            plain: true
+            raw: |
+              {
+                                  if (!firstItem) position = SequenceNumbers.nextPosition(position);
+                                  firstItem = false;
+        - - valid: true
+            plain: true
+            raw: |2
+                                  java.util.Objects.requireNonNull(item, "配列の要素が null です");
+        - $apply: new-row
+          $with:
+            write:
+              $copy: .
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - $each: table.columns
+          $of: write
+          $build:
+            $apply: array-column
+            $with:
+              column:
+                $copy: .
+              write:
+                $copy: .
+                $of: write
+              ctx:
+                $copy: .
+                $of: ctx
+              input:
+                $copy: .
+                $of: input
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw:
+              $format: |2
+                                    {rows}.add({row});
+              $with:
+                rows:
+                  $copy: step.rows
+                  $of: write
+                row:
+                  $copy: step.row
+                  $of: write
+        - - valid: true
+            plain: true
+            raw: |2
+                              }
+                          }
+  - id: array-typed
+    with:
+      - write
+      - ctx
+      - symbol
+      - input
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 繰り返す項目が配列ではありません
+  - id: array-column
+    with:
+      - column
+      - write
+      - ctx
+      - input
+    when:
+      - of: column
+        path: role
+        equals: parent
+    build:
+      $apply: set-column
+      $with:
+        column:
+          $copy: .
+          $of: column
+        write:
+          $copy: .
+          $of: write
+        value:
+          $apply: key
+          $with:
+            source:
+              $copy: step.raw.ownerKey
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: array-column
+    with:
+      - column
+      - write
+      - ctx
+      - input
+    when:
+      - of: column
+        path: role
+        equals: seq
+    build:
+      $apply: set-column
+      $with:
+        column:
+          $copy: .
+          $of: column
+        write:
+          $copy: .
+          $of: write
+        value:
+          - valid: true
+            plain: true
+            raw: position
+  - id: array-column
+    with:
+      - column
+      - write
+      - ctx
+      - input
+    when:
+      - of: column
+        path: role
+        equals: element
+    build:
+      $apply: set-column
+      $with:
+        column:
+          $copy: .
+          $of: column
+        write:
+          $copy: .
+          $of: write
+        value:
+          - valid: true
+            plain: true
+            raw: item
+  - id: array-column
+    with:
+      - column
+      - write
+      - ctx
+      - input
+    build:
+      $apply: array-field
+      $with:
+        column:
+          $copy: .
+          $of: column
+        write:
+          $copy: .
+          $of: write
+        field:
+          $apply: first
+          $with:
+            items:
+              $each: item.fields
+              $of: input
+              $build:
+                $when:
+                  - path: key
+                    equals:
+                      $copy: item
+                      $of: column
+                $then:
+                  $copy: .
+  - id: array-field
+    with:
+      - column
+      - write
+      - field
+    when:
+      - of: field
+        path: accessor
+        exists: true
+    build:
+      $apply: set-column
+      $with:
+        column:
+          $copy: .
+          $of: column
+        write:
+          $copy: .
+          $of: write
+        value:
+          - valid: true
+            plain: true
+            raw:
+              $format: item.get{a}()
+              $with:
+                a:
+                  $copy: accessor
+                  $of: field
+  - id: array-field
+    with:
+      - column
+      - write
+      - field
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 配列の要素と明細の列を対応付けられません
+  - id: set-column
+    with:
+      - column
+      - write
+      - value
+    build:
+      $apply: set-column-ready
+      $with:
+        columnModel:
+          $apply: first
+          $with:
+            items:
+              $each: step.method.row.columns
+              $of: write
+              $build:
+                $when:
+                  - path: source
+                    equals:
+                      $copy: id
+                      $of: column
+                $then:
+                  $copy: .
+        write:
+          $copy: .
+          $of: write
+        value:
+          $copy: .
+          $of: value
+  - id: set-column-ready
+    with:
+      - columnModel
+      - write
+      - value
+    when:
+      - of: columnModel
+        path: accessor
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '            {row}.set{a}('
+              $with:
+                row:
+                  $copy: step.row
+                  $of: write
+                a:
+                  $copy: accessor
+                  $of: columnModel
+        - $apply: insert-default
+          $with:
+            columnModel:
+              $copy: .
+              $of: columnModel
+            write:
+              $copy: .
+              $of: write
+            value:
+              $copy: .
+              $of: value
+        - - valid: true
+            plain: true
+            raw: |
+              );
+  - id: insert-default
+    with:
+      - columnModel
+      - write
+      - value
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: insert
+      - of: columnModel
+        path: default
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.orDefault(
+        - $copy: .
+          $of: value
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: literal
+          $with:
+            value:
+              $copy: default.value
+              $of: columnModel
+            type:
+              $copy: java
+              $of: columnModel
+        - - valid: true
+            plain: true
+            raw: )
+  - id: insert-default
+    with:
+      - columnModel
+      - write
+      - value
+    build:
+      $copy: .
+      $of: value
+  - id: set-column-ready
+    with:
+      - columnModel
+      - write
+      - value
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 書込先の物理列を解決できません
+  - id: sequence
+    with:
+      - sequence
+      - ctx
+    when:
+      - of: sequence
+        path: mode
+        equals: position
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: '{s}L'
+          $with:
+            s:
+              $copy: start
+              $of: sequence
+        integer:
+          $copy: start
+          $of: sequence
+  - id: sequence
+    with:
+      - sequence
+      - ctx
+    when:
+      - of: sequence
+        path: mode
+        equals: next
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: SequenceNumbers.nextPosition(
+        - $apply: call-key
+          $with:
+            method:
+              $apply: method
+              $with:
+                call:
+                  $copy: call
+                  $of: sequence
+                global:
+                  $copy: global
+                  $of: ctx
+            keyTokens:
+              $apply: key
+              $with:
+                source:
+                  $copy: key
+                  $of: sequence
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: )
+  - id: sequence
+    with:
+      - sequence
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 並び順の方式を解決できません
+  - id: new-row
+    with:
+      - write
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: |2
+                            var {row} = new {type}();
+              $with:
+                row:
+                  $copy: step.row
+                  $of: write
+                type:
+                  $copy: step.method.row.className
+                  $of: write
+        - $each: step.method.row.columns
+          $of: write
+          $build:
+            $when:
+              - path: default
+                exists: true
+            $then:
+              $concat:
+                - - valid: true
+                    plain: true
+                    raw:
+                      $format: '            {row}.set{a}('
+                      $with:
+                        row:
+                          $copy: step.row
+                          $of: write
+                        a:
+                          $copy: accessor
+                - $apply: value
+                  $with:
+                    value:
+                      $copy: default.value
+                    type:
+                      $copy: java
+                    ctx:
+                      $copy: .
+                      $of: ctx
+                - - valid: true
+                    plain: true
+                    raw: |
+                      );
+          $flatten: true
+  - id: prepare-values
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: update
+    build:
+      $concat:
+        - $apply: copy-current
+          $with:
+            write:
+              $copy: .
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - $each: step.method.writeGroups
+          $of: write
+          $build:
+            $concat:
+              - $each: branches
+                $build:
+                  $concat:
+                    - - valid: true
+                        plain: true
+                        raw: '            if (Boolean.TRUE.equals('
+                    - $apply: conditions
+                      $with:
+                        conditions:
+                          $copy: raw.when
+                        scope:
+                          $copy: inputScope
+                          $of: ctx
+                    - - valid: true
+                        plain: true
+                        raw: |
+                          )) {
+                    - - valid: true
+                        plain: true
+                        raw:
+                          $format: '                {row}.set{a}('
+                          $with:
+                            row:
+                              $copy: step.row
+                              $of: write
+                            a:
+                              $copy: column.model.accessor
+                    - $apply: value
+                      $with:
+                        value:
+                          $copy: raw.value
+                        type:
+                          $copy: column.model.java
+                        ctx:
+                          $copy: .
+                          $of: ctx
+                    - - valid: true
+                        plain: true
+                        raw: |-
+                          );
+                                      } else 
+                $flatten: true
+              - - valid: true
+                  plain: true
+                  raw: |
+                    {}
+          $flatten: true
+  - id: prepare-values
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: insert
+    build:
+      $concat:
+        - $eachEntry: step.raw.values
+          $of: write
+          $flatten: true
+          $build:
+            $apply: insert-value
+            $with:
+              item: $key
+              value:
+                $copy: .
+              write:
+                $copy: .
+                $of: write
+              ctx:
+                $copy: .
+                $of: ctx
+        - $when:
+            - of: write
+              path: step.raw.seq
+              exists: true
+          $then:
+            $each: table.columns
+            $of: write
+            $build:
+              $when:
+                - path: role
+                  equals: seq
+              $then:
+                $apply: set-column
+                $with:
+                  column:
+                    $copy: .
+                  write:
+                    $copy: .
+                    $of: write
+                  value:
+                    $apply: sequence
+                    $with:
+                      sequence:
+                        $copy: step.raw.seq
+                        $of: write
+                      ctx:
+                        $copy: .
+                        $of: ctx
+            $flatten: true
+  - id: prepare-values
+    with:
+      - write
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 書込みの方式を解決できません
+  - id: copy-current
+    with:
+      - write
+      - ctx
+    build:
+      $concat:
+        - $apply: read-current
+          $with:
+            write:
+              $copy: .
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - $each: step.method.row.columns
+          $of: write
+          $build:
+            - valid: true
+              plain: true
+              raw:
+                $format: |2
+                              {row}.set{a}(before{index}.get{a}());
+                $with:
+                  row:
+                    $copy: step.row
+                    $of: write
+                  index:
+                    $copy: step.index
+                    $of: write
+                  a:
+                    $copy: accessor
+          $flatten: true
+  - id: read-current
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.method.tableId
+        equals:
+          $copy: primary.tableId
+          $of: ctx
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |2
+                        var before{index} = original;
+          $with:
+            index:
+              $copy: step.index
+              $of: write
+  - id: read-current
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: reader.id
+        exists: true
+      - of: write
+        path: step.raw.where[1]
+        exists: false
+      - of: write
+        path: step.raw.where[0].item
+        equals:
+          $copy: reader.raw.where[0].item
+          $of: write
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '            var before{index} = '
+              $with:
+                index:
+                  $copy: step.index
+                  $of: write
+        - $apply: call-key
+          $with:
+            method:
+              $copy: reader
+              $of: write
+            keyTokens:
+              $apply: key
+              $with:
+                source:
+                  $copy: step.raw.where[0].value
+                  $of: write
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              ;
+        - - valid: true
+            plain: true
+            raw:
+              $format: '            if (before{index} == null) throw new '
+              $with:
+                index:
+                  $copy: step.index
+                  $of: write
+        - - valid: true
+            errorClass:
+              $apply: error-name
+              $with:
+                kind: notFound
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: (
+        - - valid: true
+            literal: true
+            value:
+              $apply: table-entity
+              $with:
+                table:
+                  $copy: table
+                  $of: write
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: key
+          $with:
+            source:
+              $copy: step.raw.where[0].value
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              );
+  - id: read-current
+    with:
+      - write
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 更新する親の行を読む方法を解決できません
+  - id: table-entity
+    with:
+      - table
+      - ctx
+    build:
+      $apply: entity-source
+      $with:
+        entity:
+          $apply: first
+          $with:
+            items:
+              $each: global.entities
+              $of: ctx
+              $build:
+                $when:
+                  - path: id
+                    equals:
+                      $copy: source
+                      $of: table
+                $then:
+                  $copy: .
+  - id: entity-source
+    with:
+      - entity
+    build:
+      $copy: source
+      $of: entity
+  - id: insert-value
+    with:
+      - item
+      - value
+      - write
+      - ctx
+    build:
+      $apply: insert-column
+      $with:
+        column:
+          $apply: first
+          $with:
+            items:
+              $each: table.columns
+              $of: write
+              $build:
+                $when:
+                  - path: item
+                    equals:
+                      $copy: .
+                      $of: item
+                $then:
+                  $copy: .
+        value:
+          $copy: .
+          $of: value
+        write:
+          $copy: .
+          $of: write
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: insert-column
+    with:
+      - column
+      - value
+      - write
+      - ctx
+    build:
+      $apply: insert-model
+      $with:
+        column:
+          $copy: .
+          $of: column
+        columnModel:
+          $apply: first
+          $with:
+            items:
+              $each: step.method.row.columns
+              $of: write
+              $build:
+                $when:
+                  - path: source
+                    equals:
+                      $copy: id
+                      $of: column
+                $then:
+                  $copy: .
+        value:
+          $copy: .
+          $of: value
+        write:
+          $copy: .
+          $of: write
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: insert-model
+    with:
+      - column
+      - columnModel
+      - value
+      - write
+      - ctx
+    when:
+      - of: columnModel
+        path: java
+        exists: true
+    build:
+      $apply: set-column
+      $with:
+        column:
+          $copy: .
+          $of: column
+        write:
+          $copy: .
+          $of: write
+        value:
+          $apply: value
+          $with:
+            value:
+              $copy: .
+              $of: value
+            type:
+              $copy: java
+              $of: columnModel
+            ctx:
+              $copy: .
+              $of: ctx
+  - id: insert-model
+    with:
+      - column
+      - columnModel
+      - value
+      - write
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 作る値に対応する物理列がありません
+  - id: execute-write
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: delete
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        if (Boolean.TRUE.equals('
+        - $apply: conditions
+          $with:
+            conditions:
+              $copy: step.raw.when
+              $of: write
+            scope:
+              $copy: inputScope
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ')) '
+        - - valid: true
+            plain: true
+            raw: |-
+              {
+                          
+        - $apply: call
+          $with:
+            step:
+              $copy: step
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              ;
+                      }
+  - id: execute-write
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: insert
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '        for (var writing : {rows}) '
+              $with:
+                rows:
+                  $copy: step.rows
+                  $of: write
+        - - valid: true
+            plain: true
+            raw: |-
+              {
+                          
+        - - valid: true
+            plain: true
+            raw:
+              $format: |
+                {mapper}.{method}(writing);
+              $with:
+                mapper:
+                  $case:
+                    $copy: step.method.mapper
+                    $of: write
+                  $as: camel
+                method:
+                  $copy: step.method.name
+                  $of: write
+        - - valid: true
+            plain: true
+            raw: |2
+                      }
+  - id: execute-write
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.kind
+        equals: update
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '        if (!{rows}.isEmpty()) '
+              $with:
+                rows:
+                  $copy: step.rows
+                  $of: write
+        - - valid: true
+            plain: true
+            raw: |-
+              {
+                          
+        - $apply: call
+          $with:
+            step:
+              $copy: step
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              ;
+                      }
+  - id: execute-write
+    with:
+      - write
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 書込みを Java に変換できません
+  - id: violation
+    with:
+      - step
+      - ctx
+      - left
+      - right
+      - state
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '            violations.add(ServiceChecks.violation('
+        - - valid: true
+            literal: true
+            value:
+              $copy: raw.message
+              $of: step
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $first:
+            - $when:
+                - of: step
+                  path: raw.field
+                  exists: true
+              $then:
+                - valid: true
+                  literal: true
+                  value:
+                    $copy: raw.field
+                    $of: step
+            - - valid: true
+                plain: true
+                raw: 'null'
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: violation-id
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $copy: .
+          $of: state
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $copy: .
+          $of: left
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $copy: .
+          $of: right
+        - - valid: true
+            plain: true
+            raw: |
+              ));
+  - id: violation-id
+    with:
+      - step
+      - ctx
+    when:
+      - of: step
+        path: raw.key
+        exists: true
+    build:
+      $apply: key
+      $with:
+        source:
+          $copy: raw.key
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: violation-id
+    with:
+      - step
+      - ctx
+    build:
+      $apply: violation-source
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        sourceKey:
+          $format: ENT-{e}
+          $with:
+            e:
+              $copy: raw.entity
+              $of: step
+  - id: violation-source
+    with:
+      - step
+      - ctx
+      - sourceKey
+    build:
+      $apply: violation-source-ready
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        read:
+          $apply: first
+          $with:
+            items:
+              $each: steps
+              $of: ctx
+              $build:
+                $when:
+                  - path: raw.step
+                    equals: read
+                  - path: raw.entity
+                    equals:
+                      $copy: raw.entity
+                      $of: step
+                $then:
+                  $copy: .
+        write:
+          $apply: first
+          $with:
+            items:
+              $each: writes
+              $of: ctx
+              $build:
+                $when:
+                  - path: table.source
+                    equals:
+                      $copy: .
+                      $of: sourceKey
+                  - path: step.raw.kind
+                    equals: update
+                $then:
+                  $copy: .
+  - id: violation-source-ready
+    with:
+      - step
+      - ctx
+      - read
+      - write
+    when:
+      - of: read
+        path: raw.key
+        exists: true
+    build:
+      $apply: key
+      $with:
+        source:
+          $copy: raw.key
+          $of: read
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: violation-source-ready
+    with:
+      - step
+      - ctx
+      - read
+      - write
+    when:
+      - of: write
+        path: step.raw.where[0].value
+        exists: true
+    build:
+      $apply: key
+      $with:
+        source:
+          $copy: step.raw.where[0].value
+          $of: write
+        ctx:
+          $copy: .
+          $of: ctx
+  - id: violation-source-ready
+    with:
+      - step
+      - ctx
+      - read
+      - write
+    when:
+      - of: ctx
+        path: number.raw.entity
+        equals:
+          $copy: raw.entity
+          $of: step
+    build:
+      - valid: true
+        plain: true
+        raw: numberedId
+  - id: violation-source-ready
+    with:
+      - step
+      - ctx
+      - read
+      - write
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 違反した対象の ID を解決できません
+  - id: check
+    with:
+      - step
+      - ctx
+    when:
+      - of: step
+        path: raw.checkMode
+        equals: state
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        if (!Boolean.TRUE.equals(ServiceChecks.oneOf('
+        - $apply: path
+          $with:
+            name:
+              $copy: raw.stateField
+              $of: step
+            scope:
+              $copy: currentScope
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ', java.util.Arrays.asList('
+        - $each: raw.allowed
+          $of: step
+          $build:
+            $concat:
+              - $when:
+                  - path: $index
+                    gt: 0
+                $then:
+                  - valid: true
+                    plain: true
+                    raw: ', '
+              - - valid: true
+                  literal: true
+                  value:
+                    $copy: .
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: |
+              )))) {
+        - $apply: violation
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+            left:
+              - valid: true
+                plain: true
+                raw: 'null'
+            right:
+              - valid: true
+                plain: true
+                raw: 'null'
+            state:
+              $apply: state-label
+              $with:
+                step:
+                  $copy: .
+                  $of: step
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: |2
+                      }
+  - id: state-label
+    with:
+      - step
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.label(
+        - $apply: path
+          $with:
+            name:
+              $copy: raw.stateField
+              $of: step
+            scope:
+              $copy: currentScope
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ', java.util.Map.ofEntries('
+        - $each: global.states
+          $of: ctx
+          $build:
+            $when:
+              - path: entity
+                equals:
+                  $copy: raw.entity
+                  $of: step
+            $then:
+              $each: values
+              $build:
+                $concat:
+                  - $when:
+                      - path: $index
+                        gt: 0
+                    $then:
+                      - valid: true
+                        plain: true
+                        raw: ', '
+                  - - valid: true
+                      plain: true
+                      raw: java.util.Map.entry(
+                  - - valid: true
+                      literal: true
+                      value:
+                        $copy: constant
+                  - - valid: true
+                      plain: true
+                      raw: ', '
+                  - - valid: true
+                      literal: true
+                      value:
+                        $copy: label
+                  - - valid: true
+                      plain: true
+                      raw: )
+              $flatten: true
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: ))
+  - id: check
+    with:
+      - step
+      - ctx
+    when:
+      - of: step
+        path: raw.checkMode
+        equals: current
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        if (!Boolean.TRUE.equals('
+        - $apply: conditions
+          $with:
+            conditions:
+              $copy: raw.rule
+              $of: step
+            scope:
+              alias:
+                $copy: raw.subjectAlias
+                $of: step
+              symbols:
+                $copy: currentScope.symbols
+                $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              )) {
+        - $apply: violation
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+            left:
+              - valid: true
+                plain: true
+                raw: 'null'
+            right:
+              - valid: true
+                plain: true
+                raw: 'null'
+            state:
+              - valid: true
+                plain: true
+                raw: 'null'
+        - - valid: true
+            plain: true
+            raw: |2
+                      }
+  - id: check
+    with:
+      - step
+      - ctx
+    when:
+      - of: step
+        path: raw.checkMode
+        equals: count
+    build:
+      $apply: count-check
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        predicate:
+          $first:
+            - $when:
+                - of: step
+                  path: raw.countExpectation
+                  equals: absent
+              $then: zero
+            - $when:
+                - of: step
+                  path: raw.countExpectation
+                  equals: exists
+              $then: positive
+  - id: count-check
+    with:
+      - step
+      - ctx
+      - predicate
+    when:
+      - of: predicate
+        path: .
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: '        if (!ServiceChecks.{p}('
+              $with:
+                p:
+                  $copy: .
+                  $of: predicate
+        - $apply: call
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              )) {
+        - $apply: violation
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+            left:
+              - valid: true
+                plain: true
+                raw: 'null'
+            right:
+              - valid: true
+                plain: true
+                raw: 'null'
+            state:
+              - valid: true
+                plain: true
+                raw: 'null'
+        - - valid: true
+            plain: true
+            raw: |2
+                      }
+  - id: count-check
+    with:
+      - step
+      - ctx
+      - predicate
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 件数の検査方式を解決できません
+  - id: check
+    with:
+      - step
+      - ctx
+    when:
+      - of: step
+        path: raw.checkMode
+        oneOf:
+          - prospective
+          - cycle
+    build:
+      $apply: check-writes-select
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        sourceKey:
+          $apply: check-source
+          $with:
+            step:
+              $copy: .
+              $of: step
+  - id: check-source
+    with:
+      - step
+    when:
+      - of: step
+        path: raw.at
+        exists: true
+    build:
+      $format: FLD-{e}.{a}
+      $with:
+        e:
+          $copy: raw.entity
+          $of: step
+        a:
+          $copy: raw.at
+          $of: step
+  - id: check-source
+    with:
+      - step
+    build:
+      $format: ENT-{e}
+      $with:
+        e:
+          $copy: raw.entity
+          $of: step
+  - id: check-writes-select
+    with:
+      - step
+      - ctx
+      - sourceKey
+    build:
+      $apply: check-writes
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        writes:
+          $each: writes
+          $of: ctx
+          $build:
+            $when:
+              - path: step.raw.kind
+                oneOf:
+                  - insert
+                  - update
+              - path: checkSource
+                equals:
+                  $copy: .
+                  $of: sourceKey
+            $then:
+              $copy: .
+  - id: check-writes
+    with:
+      - step
+      - ctx
+      - writes
+    when:
+      - of: writes
+        path: '[0]'
+        exists: true
+    build:
+      $each: .
+      $of: writes
+      $build:
+        $concat:
+          - - valid: true
+              plain: true
+              raw:
+                $format: '        for (var checked : {rows}) '
+                $with:
+                  rows:
+                    $copy: step.rows
+          - - valid: true
+              plain: true
+              raw: |
+                {
+          - $apply: row-check
+            $with:
+              step:
+                $copy: .
+                $of: step
+              ctx:
+                $copy: .
+                $of: ctx
+              write:
+                $copy: .
+              scope:
+                $apply: row-scope
+                $with:
+                  java: checked
+                  method:
+                    $copy: step.method
+          - - valid: true
+              plain: true
+              raw: |2
+                        }
+      $flatten: true
+  - id: check-writes
+    with:
+      - step
+      - ctx
+      - writes
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 検査対象の更新後の行がありません
+  - id: row-check
+    with:
+      - step
+      - ctx
+      - write
+      - scope
+    when:
+      - of: step
+        path: raw.checkMode
+        equals: cycle
+    build:
+      $apply: cycle-check
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        scope:
+          $copy: .
+          $of: scope
+  - id: row-check
+    with:
+      - step
+      - ctx
+      - write
+      - scope
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '            if (Boolean.TRUE.equals('
+        - $apply: conditions
+          $with:
+            conditions:
+              $copy: raw.rule.where
+              $of: step
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: |
+              )) {
+        - $apply: rule-check
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: |2
+                          }
+  - id: rule-check
+    with:
+      - step
+      - ctx
+      - scope
+    when:
+      - of: step
+        path: raw.rule.expect
+        equals: absent
+    build:
+      $apply: violation
+      $with:
+        step:
+          $copy: .
+          $of: step
+        ctx:
+          $copy: .
+          $of: ctx
+        left:
+          - valid: true
+            plain: true
+            raw: 'null'
+        right:
+          - valid: true
+            plain: true
+            raw: 'null'
+        state:
+          - valid: true
+            plain: true
+            raw: 'null'
+  - id: rule-check
+    with:
+      - step
+      - ctx
+      - scope
+    when:
+      - of: step
+        path: raw.rule.check[0]
+        exists: true
+    build:
+      $each: raw.rule.check
+      $of: step
+      $build:
+        $concat:
+          - - valid: true
+              plain: true
+              raw: '                if (Boolean.FALSE.equals('
+          - $apply: comparison
+            $with:
+              comparison:
+                $copy: .
+              scope:
+                $copy: .
+                $of: scope
+          - - valid: true
+              plain: true
+              raw: |
+                )) {
+          - $apply: violation
+            $with:
+              step:
+                $copy: .
+                $of: step
+              ctx:
+                $copy: .
+                $of: ctx
+              left:
+                $apply: path
+                $with:
+                  name:
+                    $first:
+                      - $copy: gte[0].path
+                      - $copy: ne[0].path
+                  scope:
+                    $copy: .
+                    $of: scope
+              right:
+                $apply: path
+                $with:
+                  name:
+                    $first:
+                      - $copy: gte[1].path
+                      - $copy: ne[1].path
+                  scope:
+                    $copy: .
+                    $of: scope
+              state:
+                - valid: true
+                  plain: true
+                  raw: 'null'
+          - - valid: true
+              plain: true
+              raw: |2
+                                }
+      $flatten: true
+  - id: rule-check
+    with:
+      - step
+      - ctx
+      - scope
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 更新後の検査の形式を解決できません
+  - id: cycle-check
+    with:
+      - step
+      - ctx
+      - scope
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: |2-
+                          {
+                              var cursor = 
+        - $apply: path
+          $with:
+            name:
+              $copy: raw.follow
+              $of: step
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: |-
+              ;
+                              var visited = new java.util.HashSet<String>();
+                              while (cursor != null) {
+                                  if (java.util.Objects.equals(cursor, 
+        - $apply: path
+          $with:
+            name: id
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: |
+              ) || !visited.add(cursor)) {
+        - $apply: violation
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+            left:
+              - valid: true
+                plain: true
+                raw: 'null'
+            right:
+              - valid: true
+                plain: true
+                raw: 'null'
+            state:
+              - valid: true
+                plain: true
+                raw: 'null'
+        - - valid: true
+            plain: true
+            raw: |2-
+                                      break;
+                                  }
+                                  var lookup = cursor;
+                                  var linked = 
+        - $apply: call-key
+          $with:
+            method:
+              $copy: method
+              $of: step
+            keyTokens:
+              - valid: true
+                plain: true
+                raw: lookup
+        - - valid: true
+            plain: true
+            raw: |-
+              ;
+                                  if (linked == null) break;
+                                  cursor = 
+        - $apply: path
+          $with:
+            name:
+              $copy: raw.follow
+              $of: step
+            scope:
+              $apply: row-scope
+              $with:
+                java: linked
+                method:
+                  $copy: method
+                  $of: step
+        - - valid: true
+            plain: true
+            raw: |
+              ;
+                              }
+                          }
+  - id: check
+    with:
+      - step
+      - ctx
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 検査を Java に変換できません
+  - id: write-context-ready
+    with:
+      - step
+      - ctx
+      - table
+      - reader
+    build:
+      step:
+        $copy: .
+        $of: step
+      table:
+        $copy: .
+        $of: table
+      reader:
+        $copy: .
+        $of: reader
+      checkSource:
+        $first:
+          - $when:
+              - of: table
+                path: source
+                matches: ^FLD-.*
+            $then:
+              $format: '{s}[*]'
+              $with:
+                s:
+                  $copy: source
+                  $of: table
+          - $copy: source
+            $of: table
+  - id: same
+    with:
+      - left
+      - right
+    build:
+      $apply: one-group
+      $with:
+        groups:
+          $group:
+            - $copy: .
+              $of: left
+            - $copy: .
+              $of: right
+          $by:
+            $copy: .
+          $build: true
+  - id: one-group
+    with:
+      - groups
+    build:
+      $first:
+        - $when:
+            - of: groups
+              path: '[1]'
+              exists: false
+          $then: true
+        - false
+  - id: external-type
+    with:
+      - className
+    when:
+      - path: base
+        equals: object
+    build:
+      $format: '{c}.{t}'
+      $with:
+        c:
+          $copy: .
+          $of: className
+        t:
+          $copy: type
+  - id: external-type
+    with:
+      - className
+    when:
+      - path: fields
+        exists: true
+    build:
+      $format: '{c}.{t}'
+      $with:
+        c:
+          $copy: .
+          $of: className
+        t:
+          $copy: name
+  - id: external-type
+    with:
+      - className
+    when:
+      - path: base
+        equals: array
+    build:
+      $format: java.util.List<{t}>
+      $with:
+        t:
+          $apply: external-type
+          $at: item
+          $with:
+            className:
+              $copy: .
+              $of: className
+  - id: external-type
+    with:
+      - className
+    build:
+      $first:
+        - $copy: type
+        - $copy: name
