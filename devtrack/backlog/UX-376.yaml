@@ -1,6 +1,6 @@
 id: UX-376
 title: master の CI が落ちている。生成したアプリの .gitignore の「data/」が Java のパッケージ example.todos.data まで無視し、行モデルと Mapper の 11 ファイルがリポジトリに入っていない
-status: todo
+status: resolved
 kind: bug
 origin_on: 2026-11-21
 origin: 11 月の指摘の棚卸しのあと、全テスト（./gradlew test）を新しいクローンで回したとき。GitHub Actions でも master（a923982）の test と todos-application が失敗している
@@ -14,3 +14,8 @@ features:
   - C-21
 roadmap:
   - R53-03
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "修正ブランチ fix/todos-application-tracked-files（2f731a5「生成アプリの data 除外を保存先に限定し Java の登録漏れを修正する」）で直った。ひな形 gitignore.txt の除外を保存先に限り、無視されていた行モデルと Mapper の 11 ファイルを登録し、出力先が git に入っているかを見る検査（test-application-files・test-application-index）を足している。取り込んだ後、新しいクローンで TodosApplicationTest の 3 件が通ることを確かめた。GitHub Actions の todos-application の結果は見ていない"

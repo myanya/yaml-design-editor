@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "app/.gitignore",
-      "sha256": "3e562e11faa7e6f8342bdfb30946654edd4a91d3e3255bd6ca9392cb28c534e6"
+      "sha256": "aa05397d93b6c09885678d20100a8a8ae1bc3e303d7b6d3ed8139d7b5c314e7c"
     },
     {
       "path": "app/build.gradle.kts",

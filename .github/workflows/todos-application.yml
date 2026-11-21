@@ -31,6 +31,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Git の登録漏れと保存データの除外を確認する
+        run: |
+          ./samples/todos-sysdev/scripts/test-application-files.ps1
+          ./samples/todos-sysdev/scripts/test-application-index.ps1
+          ./samples/todos-sysdev/scripts/export-app-index.ps1 -Destination scratchpad/todos-application-index
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -40,7 +45,7 @@ jobs:
         run: .\gradlew.bat :cli:cliDist --no-daemon --console=plain
       - name: 生成物の一致と再生成時の保護を確認する
         run: |
-          ./samples/todos-sysdev/scripts/generate-app.ps1 -SkipCliBuild -Check
-          ./samples/todos-sysdev/scripts/test-application-files.ps1
-      - name: アプリだけをコピーしてテスト・ビルドする
-        run: ./samples/todos-sysdev/scripts/verify-app.ps1
+          ./samples/todos-sysdev/scripts/generate-app.ps1 -Workspace scratchpad/todos-application-index/samples/todos-sysdev -SkipCliBuild -Check
+      - name: Git に登録したアプリをテスト・ビルドする
+        run: |
+          ./samples/todos-sysdev/scripts/verify-app.ps1 -Application scratchpad/todos-application-index/samples/todos-sysdev/app -Verification scratchpad/todos-application-index/samples/todos-sysdev/verification

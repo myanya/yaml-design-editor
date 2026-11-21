@@ -46,11 +46,15 @@ try {
     Assert-Result ([IO.File]::ReadAllText((Join-Path $root 'app/a.txt')) -eq 'A') '更新対象以外の競合で別ファイルを更新した'
     [IO.File]::WriteAllBytes((Join-Path $root 'app/b.txt'), $initial['app/b.txt'])
     [IO.File]::WriteAllText((Join-Path $root 'app/handwritten.txt'), '残す')
+    $database = Join-Path $root 'app/data/todos.mv.db'
+    [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($database)) | Out-Null
+    [IO.File]::WriteAllText($database, '実 DB ではない試験用データ')
     $renamed = @{ 'app/renamed.txt' = $utf8.GetBytes('A') }
     Save-ApplicationFilePlan (Get-ApplicationFilePlan $root $renamed)
     Assert-Result (-not [IO.File]::Exists((Join-Path $root 'app/a.txt'))) '名前変更前の生成ファイルが残る'
     Assert-Result (-not [IO.File]::Exists((Join-Path $root 'app/b.txt'))) '不要になった生成ファイルが残る'
     Assert-Result ([IO.File]::ReadAllText((Join-Path $root 'app/handwritten.txt')) -eq '残す') '記録にないファイルを削除した'
+    Assert-Result ([IO.File]::ReadAllText($database) -eq '実 DB ではない試験用データ') '再生成で保存データが変わった'
     Assert-Fails { Get-ApplicationFilePlan $root @{ 'app/handwritten.txt' = $utf8.GetBytes('別の値') } } '生成記録のない'
     Assert-Fails { Get-ApplicationFilePlan $root @{ 'app/../outside.txt' = $utf8.GetBytes('禁止') } } 'アプリの外'
     Write-Output '生成・一致・空ファイル・途中失敗の復元・手修正・計画後の競合・名前変更・削除範囲: OK'
