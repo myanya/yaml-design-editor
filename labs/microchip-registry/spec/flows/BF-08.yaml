@@ -1,0 +1,23 @@
+id: BF-08
+name: "逸走情報検索"
+business: BIZ-16
+source: "別紙 3 業務フロー 38／66"
+lanes:
+  - { actor: ACT-PREFECTURE, label: "都道府県等" }
+  - { actor: ACT-MUNICIPALITY, label: "基礎自治体（狂犬病予防法上の登録担当部局）" }
+  - { actor: ACT-POLICE, label: "警察" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+steps:
+  - { id: BF-08-S01, title: "マイクロチップ番号を読み取る", actor: ACT-POLICE, kind: outside }
+  - { id: BF-08-S02, title: "マイクロチップ番号を入力する", actor: ACT-POLICE, kind: system, view: police-dashboard, note: "都道府県等と基礎自治体も、それぞれのダッシュボードから同じ検索をします。" }
+  - { id: BF-08-S03, title: "マイクロチップ情報を検索する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: microchip-grid }
+  - { id: BF-08-S04, title: "所有者へ連絡する", actor: ACT-POLICE, kind: outside }
+  - { id: BF-08-S05, title: "所有者へ犬猫を返還する", actor: ACT-POLICE, kind: outside }
+  - { id: BF-08-S06, title: "犬猫を引き取る", actor: ACT-OWNER, kind: outside }
+transitions:
+  - { from: BF-08-S01, to: BF-08-S02 }
+  - { from: BF-08-S02, to: BF-08-S03, label: "MC 番号" }
+  - { from: BF-08-S03, to: BF-08-S04, label: "犬猫情報＋所有者情報" }
+  - { from: BF-08-S04, to: BF-08-S05, label: "電話 or メール or はがき" }
+  - { from: BF-08-S05, to: BF-08-S06 }

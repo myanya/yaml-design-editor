@@ -1,0 +1,164 @@
+id: spec-types
+name: 業務の記述の型
+kind: library
+description: >-
+  要件定義書の業務の記述（利用者区分・業務一覧・帳票・API・業務フロー）の型です。動く業務モデル（操作・ビュー）とは別の層で、
+  「要件定義書のどの業務を、どの操作・ビュー・レポート・スクリプトで再現したか」を参照でつなぎます。操作とビューは定義の索引
+  （yde-action・yde-view・yde-require）の ID で指すので、定義から消えた操作を指したままの記述は検証が知らせます。
+definitions:
+  業務番号: { type: id, pattern: "^BIZ-[0-9]{2}$", placeholder: BIZ-01, description: 「BIZ-」と 2 桁の数字。01〜27 は要件定義書の業務一覧（表 6）の No です。 }
+  利用者番号: { type: id, pattern: "^ACT-[A-Z]+(-[A-Z]+)*$", placeholder: ACT-OWNER, description: 「ACT-」と英大文字の名前。 }
+  帳票番号: { type: id, pattern: "^FORM-[0-9]{2}$", placeholder: FORM-01, description: 「FORM-」と 2 桁の数字。要件定義書の帳票一覧（表 8）の No です。 }
+  API番号: { type: id, pattern: "^API-[A-Z0-9]+$", placeholder: API-A101, description: 「API-」と要件定義書の API 一覧（別紙 4）の API ID。 }
+  フロー番号: { type: id, pattern: "^BF-[0-9]{2}$", placeholder: BF-01, description: 「BF-」と 2 桁の数字。 }
+  工程番号: { type: id, pattern: "^BF-[0-9]{2}-S[0-9]{2}$", placeholder: BF-01-S01, description: フロー番号に「-S」と 2 桁の枝番。 }
+  一行の文: { type: line, maxLength: 120 }
+  文章: { type: text, rows: 3 }
+  # 参照の型: 業務の記述から、動く業務モデルの定義（定義の索引）と、記述どうしを指す
+  操作参照: { type: ref, relation: realized-by-action, description: 業務の操作（operations.yaml の actions の id）。 }
+  前提参照: { type: ref, relation: realized-by-require, description: 操作の前提（操作ID.前提ID）。 }
+  ビュー参照: { type: ref, relation: realized-by-view, description: ビューかダッシュボード（.yde/views の id）。 }
+  業務参照: { type: ref, idPattern: "BIZ-*", scope: { schemaIds: [business-list] }, relation: for-business }
+  利用者参照: { type: ref, idPattern: "ACT-*", scope: { schemaIds: [actor-list] }, relation: involves }
+  再現の状態:
+    type: enum
+    values:
+      - { value: implemented, label: 再現, description: 業務の中身（データ・状態・前提・記録・照会）を、YDE の定義で再現しています。 }
+      - { value: partial, label: 一部, description: 一部を再現しています。足りない部分を「足りないこと」に書きます。 }
+      - { value: external, label: システムの外, description: YDE の外（スクリプト・人の作業・別の仕組み）で行います。 }
+      - { value: out-of-scope, label: 対象外, description: 再現しません。理由を「足りないこと」に書きます。 }
+  業務区分:
+    type: enum
+    values:
+      - { value: registration, label: 登録業務 }
+      - { value: registration-paper, label: 登録業務（紙運用） }
+      - { value: government, label: 行政業務 }
+      - { value: government-paper, label: 行政業務（紙運用） }
+      - { value: management, label: 管理業務 }
+      - { value: other, label: その他業務 }
+      - { value: maintenance, label: 保守業務 }
+      - { value: shared, label: 呼出フロー }
+  利用者の種類:
+    type: enum
+    values:
+      - { value: user, label: 利用者区分, description: 要件定義書の利用者一覧（表 3）の区分。 }
+      - { value: participant, label: フローの登場者, description: 業務フローのレーンにだけ現れる登場者（システム・獣医師・決済など）。 }
+  工程の種類:
+    type: enum
+    values:
+      - { value: outside, label: システム外, description: システムを使わない作業（装着・譲渡・郵送・電話など）。 }
+      - { value: system, label: システム利用, description: システムを使う作業。対応する操作かビューを書きます。 }
+      - { value: data, label: データの更新・参照, description: システムが行う登録・検索（共通 DB・個別 Web）。 }
+      - { value: document, label: 帳票・書類, description: 書類やメールの受け渡し。 }
+  # 再現の対応: 業務・帳票・API に共通の項目
+  再現の対応:
+    type: object
+    label: 再現の対応
+    fields:
+      - { key: status, label: 再現の状態, type: 再現の状態, required: true }
+      - { key: actions, label: 操作, type: array, default: [], unique: true, item: { type: 操作参照 } }
+      - { key: requires, label: 操作の前提, type: array, default: [], unique: true, item: { type: 前提参照 } }
+      - { key: views, label: ビュー, type: array, default: [], unique: true, item: { type: ビュー参照 } }
+      - { key: reports, label: レポート・skill, type: array, default: [], item: { type: word }, description: レポート（.yde/reports）と skill（.yde/skills）の id。定義の索引に載らないので、文字で書きます。 }
+      - { key: scripts, label: 外のスクリプト, type: array, default: [], item: { type: 一行の文 }, description: YDE の外で動かすスクリプト（scripts/）。 }
+      - { key: gap, label: 足りないこと, type: 文章, description: 再現していない部分と、代わりの手段。 }
+    constraints:
+      - id: reproduced-has-means
+        description: 再現・一部の対応には、操作・前提・ビュー・レポート・スクリプトのどれかがあること
+        where:
+          - { path: status, oneOf: [implemented, partial] }
+          - { path: actions, empty: true }
+          - { path: requires, empty: true }
+          - { path: views, empty: true }
+          - { path: reports, empty: true }
+          - { path: scripts, empty: true }
+        expect: absent
+        level: error
+        message: 再現・一部としているのに、対応する操作・前提・ビュー・レポート・スクリプトがありません
+      - id: not-reproduced-has-reason
+        description: 一部・システムの外・対象外の対応には、足りないことが書いてあること
+        where:
+          - { path: status, oneOf: [partial, external, out-of-scope] }
+          - { path: gap, empty: true }
+        expect: absent
+        level: error
+        message: 一部・システムの外・対象外としているのに、足りないことが書いてありません
+  利用者:
+    type: object
+    label: 利用者・登場者
+    fields:
+      - { key: id, label: 利用者番号, type: 利用者番号, required: true }
+      - { key: name, label: 名前, type: 一行の文, role: title, required: true }
+      - { key: kind, label: 種類, type: 利用者の種類, required: true }
+      - { key: description, label: 特性, type: 文章, required: true }
+      - { key: tasks, label: 主な対象業務, type: 一行の文 }
+      - { key: entry, label: 入口のダッシュボード, type: ビュー参照, description: この利用者が使うダッシュボード。 }
+  業務:
+    type: object
+    label: 業務
+    fields:
+      - { key: id, label: 業務番号, type: 業務番号, required: true }
+      - { key: category, label: 業務区分, type: 業務区分, required: true }
+      - { key: name, label: 業務名, type: 一行の文, role: title, required: true }
+      - { key: actors, label: 関わる利用者, type: array, default: [], unique: true, item: { type: 利用者参照 } }
+      - { key: scale, label: 想定規模, type: 一行の文, description: 要件定義書の業務規模一覧（表 5）の値。 }
+      - { key: realization, label: 再現の対応, type: 再現の対応, required: true }
+  帳票:
+    type: object
+    label: 帳票
+    fields:
+      - { key: id, label: 帳票番号, type: 帳票番号, required: true }
+      - { key: name, label: 帳票名, type: 一行の文, role: title, required: true }
+      - { key: fileKind, label: ファイル種類, type: enum, values: [ { value: document, label: PDF・Word 等 }, { value: csv, label: CSV } ], required: true }
+      - { key: madeBySystem, label: 個別 Web で作成, type: boolean, required: true, default: false }
+      - { key: downloadable, label: ダウンロード可, type: boolean, required: true, default: false }
+      - { key: realization, label: 再現の対応, type: 再現の対応, required: true }
+  API権限:
+    type: object
+    label: 利用権限
+    fields:
+      - { key: guest, label: ゲスト（所有者）, type: boolean, required: true, default: false }
+      - { key: registrar, label: 指定登録機関, type: boolean, required: true, default: false }
+      - { key: prefecture, label: 都道府県等, type: boolean, required: true, default: false }
+      - { key: municipality, label: 基礎自治体, type: boolean, required: true, default: false }
+      - { key: police, label: 警察, type: boolean, required: true, default: false }
+  API:
+    type: object
+    label: API
+    fields:
+      - { key: id, label: API番号, type: API番号, required: true }
+      - { key: name, label: API 名, type: 一行の文, role: title, required: true }
+      - { key: group, label: API 群, type: 一行の文, required: true }
+      - { key: summary, label: 概要, type: 文章, required: true }
+      - { key: businesses, label: 利用する業務, type: array, default: [], unique: true, item: { type: 業務参照 } }
+      - { key: permissions, label: 利用権限, type: API権限, required: true }
+      - { key: bulk, label: 一括操作, type: boolean, default: false, description: 一括操作に対応する API なら true。 }
+      - { key: realization, label: 再現の対応, type: 再現の対応, required: true }
+  工程:
+    type: object
+    label: 工程
+    entity: { type: flow-step, defines: true }
+    fields:
+      - { key: id, label: 工程番号, type: 工程番号, required: true }
+      - { key: title, label: 工程, type: 一行の文, role: title, required: true }
+      - { key: actor, label: 実施者, type: ref, idPattern: "ACT-*", scope: { schemaIds: [actor-list] }, relation: performed-by, required: true }
+      - { key: kind, label: 種類, type: 工程の種類, required: true }
+      - { key: action, label: 対応する操作, type: 操作参照 }
+      - { key: view, label: 対応するビュー, type: ビュー参照 }
+      - { key: note, label: 備考, type: 文章 }
+    constraints:
+      - id: outside-has-no-action
+        description: システム外の工程には、操作とビューを書かないこと
+        where:
+          - { path: kind, equals: outside }
+          - { or: [ { path: action, exists: true }, { path: view, exists: true } ] }
+        expect: absent
+        level: error
+        message: "システム外の工程「{id}」に操作かビューが書かれています"
+  遷移:
+    type: object
+    label: 遷移
+    fields:
+      - { key: from, label: 前の工程, type: ref, idPattern: "BF-*-S*", scope: { schemaIds: [business-flow] }, relation: flows-from, required: true }
+      - { key: to, label: 次の工程, type: ref, idPattern: "BF-*-S*", scope: { schemaIds: [business-flow] }, relation: flows-to, required: true }
+      - { key: label, label: 受け渡すもの・条件, type: 一行の文 }

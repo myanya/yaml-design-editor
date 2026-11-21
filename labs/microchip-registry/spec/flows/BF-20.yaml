@@ -1,0 +1,18 @@
+id: BF-20
+name: "ワンストップ情報照会"
+business: BIZ-15
+source: "別紙 3 業務フロー 36〜37／66"
+lanes:
+  - { actor: ACT-MUNICIPALITY, label: "基礎自治体（狂犬病予防法上の登録担当部局）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-20-S01, title: "ワンストップ情報の検索条件を入力する", actor: ACT-MUNICIPALITY, kind: system, view: municipality-dashboard }
+  - { id: BF-20-S02, title: "ワンストップ情報を抽出する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid }
+  - { id: BF-20-S03, title: "抽出結果を確認する", actor: ACT-MUNICIPALITY, kind: system, view: municipality-dashboard }
+  - { id: BF-20-S04, title: "抽出結果の CSV を作成する", actor: ACT-SYSTEM, kind: document, note: "レポート onestop-csv で、月ごとの CSV を作ります（日付の範囲では作れません）。" }
+  - { id: BF-20-S05, title: "ワンストップ情報 CSV をダウンロードして受領する", actor: ACT-MUNICIPALITY, kind: document }
+transitions:
+  - { from: BF-20-S01, to: BF-20-S02, label: "日付（From－To）" }
+  - { from: BF-20-S02, to: BF-20-S03 }
+  - { from: BF-20-S03, to: BF-20-S04 }
+  - { from: BF-20-S04, to: BF-20-S05, label: "ワンストップ情報 CSV（新規登録、変更登録、情報変更、死亡届）" }

@@ -1,0 +1,22 @@
+inquiryId: INQ-0005
+channel: call
+status: closed
+receivedOn: 2026-07-19
+inquirerKind: owner
+inquirerName: 雪村 ほのか
+subject: コンビニ払いの期限
+body: コンビニ払いを選んだが、いつまでに払えばよいか。
+inquirerContact: 090-0000-0111
+microchipId: MC-999000000000012
+answer: 支払案内のメールに書いた期限までにお支払いください。入金を確認すると手続を進めます。
+answeredOn: 2026-07-19
+answeredBy: ACC-0001
+history:
+  - date: 2026-07-19
+    action: record-call
+    to: answered
+  - date: 2026-07-19
+    action: close-inquiry
+    from: answered
+    to: closed
+closedOn: 2026-07-19

@@ -1,0 +1,31 @@
+applicationId: APP-000024
+kind: transfer
+channel: online
+receivedOn: 2026-06-15
+status: completed
+applicantId: OWN-0012
+microchipId: MC-999000000000013
+previousOwnerId: OWN-0002
+location:
+  municipalityId: LG-981015
+  address: やまなみ県ゆきしろ市雪見X-X-X
+feeId: FEE-TRF-ONLINE
+history:
+  - date: 2026-06-15
+    action: apply-transfer
+    to: accepted
+  - date: 2026-06-15
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000024
+  - date: 2026-06-15
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-06-15
+  amount: 300
+  receiptNo: PAY-000024
+completedOn: 2026-06-15

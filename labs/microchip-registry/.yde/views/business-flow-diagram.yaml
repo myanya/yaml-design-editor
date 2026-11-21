@@ -1,0 +1,37 @@
+id: business-flow-diagram
+name: 業務フロー図
+kind: flow
+description: 要件定義書の業務フロー（別紙 3）を写した文書を、スイムレーンの図にします。帯は実施者、箱は工程、線は受け渡しです。箱の名前の先頭に、工程の種類（システム外・システム利用・データ・書類）を添えます。
+schemaId: business-flow
+layout:
+  direction: down
+projection:
+  id: business-flow-projection
+  build:
+    lanes:
+      $each: lanes
+      $build:
+        key: { $copy: actor }
+        label: { $copy: label }
+    nodes:
+      $each: steps
+      $build:
+        key: { $copy: id }
+        label:
+          $format: "{kind}：{title}"
+          $with:
+            kind:
+              $map: { $copy: kind }
+              $using: { outside: システム外, system: システム利用, data: データ, document: 書類 }
+        lane: { $copy: actor }
+        shape:
+          $map: { $copy: kind }
+          $using: { outside: rounded, system: box, data: box, document: box }
+        detail: { $copy: . }
+    edges:
+      $each: transitions
+      $build:
+        from: { $copy: from }
+        to: { $copy: to }
+        label: { $copy: label }
+        detail: { $copy: . }

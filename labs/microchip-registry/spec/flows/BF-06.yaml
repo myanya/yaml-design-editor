@@ -1,0 +1,27 @@
+id: BF-06
+name: "手数料支払"
+business: BIZ-30
+source: "別紙 3 業務フロー 64〜66／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-PAYMENT, label: "決済関連" }
+steps:
+  - { id: BF-06-S01, title: "手数料の料金を確認する（登録・変更登録・再交付）", actor: ACT-OWNER, kind: system, view: fee-grid }
+  - { id: BF-06-S02, title: "支払方法を選ぶ", actor: ACT-OWNER, kind: system, note: "支払方法は、支払の記録の入力で選びます。" }
+  - { id: BF-06-S03, title: "クレジットカードで決済する", actor: ACT-PAYMENT, kind: outside }
+  - { id: BF-06-S04, title: "支払い情報を入力する（コンビニ払い）", actor: ACT-OWNER, kind: system, note: "再現していません（決済はシステムの外）。" }
+  - { id: BF-06-S05, title: "支払い情報を受け付け、支払案内メールを送る", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-06-S06, title: "料金を支払う", actor: ACT-OWNER, kind: outside }
+  - { id: BF-06-S07, title: "決済を処理し、結果を返す", actor: ACT-PAYMENT, kind: outside }
+  - { id: BF-06-S08, title: "支払結果を登録する", actor: ACT-SYSTEM, kind: data, action: record-payment, note: "支払額が料金一覧の手数料と同じことを、操作の前提が確かめます。" }
+transitions:
+  - { from: BF-06-S01, to: BF-06-S02 }
+  - { from: BF-06-S02, to: BF-06-S03, label: "【クレジットカード払いを選択】" }
+  - { from: BF-06-S02, to: BF-06-S04, label: "【コンビニ払いを選択】" }
+  - { from: BF-06-S03, to: BF-06-S08 }
+  - { from: BF-06-S04, to: BF-06-S05 }
+  - { from: BF-06-S05, to: BF-06-S06, label: "支払い番号＋料金" }
+  - { from: BF-06-S06, to: BF-06-S07 }
+  - { from: BF-06-S07, to: BF-06-S08, label: "支払い番号＋料金＋入金結果" }
+notes: "クレジット決済は一連の画面の流れで行うため、要件定義書でも詳細フローを省略しています。"

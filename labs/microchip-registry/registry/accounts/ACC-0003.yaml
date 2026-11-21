@@ -1,0 +1,12 @@
+accountId: ACC-0003
+kind: municipality
+status: active
+name: 緑川 千尋
+organization: あおば市 生活衛生課
+email: midorikawa@city.aoba.example.jp
+registeredOn: 2026-03-10
+municipalityId: LG-991011
+history:
+  - date: 2026-03-10
+    action: register-account
+    to: active

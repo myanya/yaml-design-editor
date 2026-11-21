@@ -1,0 +1,27 @@
+id: BF-29
+name: "コールセンター業務"
+business: BIZ-26
+source: "別紙 3 業務フロー 57〜58／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）・都道府県等・基礎自治体・警察" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-29-S01, title: "コールセンターへ電話で問い合わせる", actor: ACT-OWNER, kind: outside }
+  - { id: BF-29-S02, title: "問い合わせを受け付ける", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-29-S03, title: "犬猫と所有者の情報の確認を実行する", actor: ACT-REGISTRAR, kind: system, view: helpdesk-dashboard }
+  - { id: BF-29-S04, title: "マイクロチップ情報を検索して表示する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: microchip-grid }
+  - { id: BF-29-S05, title: "電話で問い合わせに回答する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-29-S06, title: "回答を受領する（電話応対完了）", actor: ACT-OWNER, kind: outside }
+  - { id: BF-29-S07, title: "お問い合わせの内容と回答を入力する", actor: ACT-REGISTRAR, kind: system, action: record-call }
+  - { id: BF-29-S08, title: "お問い合わせ内容・回答を登録する", actor: ACT-SYSTEM, kind: data, action: record-call }
+  - { id: BF-29-S09, title: "お問い合わせを完了登録する", actor: ACT-REGISTRAR, kind: system, action: close-inquiry }
+transitions:
+  - { from: BF-29-S01, to: BF-29-S02, label: "電話" }
+  - { from: BF-29-S02, to: BF-29-S03 }
+  - { from: BF-29-S03, to: BF-29-S04, label: "所有者情報（電話番号等）、MC 番号" }
+  - { from: BF-29-S04, to: BF-29-S05 }
+  - { from: BF-29-S05, to: BF-29-S06, label: "電話" }
+  - { from: BF-29-S05, to: BF-29-S07 }
+  - { from: BF-29-S07, to: BF-29-S08 }
+  - { from: BF-29-S08, to: BF-29-S09 }

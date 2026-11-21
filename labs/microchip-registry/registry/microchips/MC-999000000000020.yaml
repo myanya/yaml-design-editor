@@ -1,0 +1,25 @@
+mcNumber: MC-999000000000020
+status: deceased
+animal:
+  species: dog
+  name: ポチ
+  sex: male
+  birthDate: 2014-09-01
+  breed: 雑種
+  color: 茶
+implantedOn: 2026-05-15
+ownerId: OWN-0005
+locationMunicipalityId: LG-981023
+changeKey: CK-000014
+registeredOn: 2026-05-19
+veterinarian: つきかげ診療所 月見
+locationAddress: やまなみ県つきかげ村大字月影X-X
+history:
+  - date: 2026-05-19
+    action: complete-application
+    to: registered
+  - date: 2026-09-10
+    action: report-death
+    from: registered
+    to: deceased
+deceasedOn: 2026-09-08

@@ -1,0 +1,20 @@
+mcNumber: MC-999000000000030
+status: registered
+animal:
+  species: dog
+  name: ハナ
+  sex: female
+  birthDate: 2020-07-07
+  breed: ビーグル
+  color: 白茶
+implantedOn: 2026-05-30
+ownerId: OWN-0006
+locationMunicipalityId: LG-991037
+changeKey: CK-000017
+registeredOn: 2026-06-04
+veterinarian: あおば動物病院 青葉
+locationAddress: みなと県こもれび町木陰X-X-X
+history:
+  - date: 2026-06-04
+    action: complete-application
+    to: registered

@@ -1,0 +1,12 @@
+id: police-dashboard
+name: 警察（逸走情報検索）
+kind: dashboard
+description: >-
+  警察の入口です。拾得した犬猫のマイクロチップ番号を上部に入れると、犬猫の情報と所有者の連絡先が出ます。
+  番号を入れない間は全件が並びます（YDE には利用者ごとの閲覧制限が無いので、検索の範囲は見せ方で、権限ではありません）。
+inputs:
+  - { key: mc, label: マイクロチップ番号, type: string }
+sections:
+  - id: lost
+    label: 逸走情報検索
+    view: microchip-grid

@@ -1,0 +1,42 @@
+applicationId: APP-000011
+kind: registration
+channel: online
+receivedOn: 2026-05-11
+status: completed
+applicantId: OWN-0002
+registration:
+  mcNumber: MC-999000000000012
+  animal:
+    species: cat
+    name: すず
+    breed: 日本猫
+    color: 三毛
+    sex: female
+    birthDate: 2026-03-01
+  implantedOn: 2026-05-08
+  veterinarian: ゆきしろ犬猫クリニック 白雪
+  motherId: MC-999000000000010
+location:
+  municipalityId: LG-981015
+  address: やまなみ県ゆきしろ市本町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-05-11
+    action: apply-registration
+    to: accepted
+  - date: 2026-05-11
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000011
+  - date: 2026-05-12
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-05-11
+  amount: 300
+  receiptNo: PAY-000011
+completedOn: 2026-05-12
+microchipId: MC-999000000000012

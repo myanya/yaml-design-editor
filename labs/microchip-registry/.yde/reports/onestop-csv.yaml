@@ -1,0 +1,23 @@
+id: onestop-csv
+name: ワンストップ情報 CSV
+description: >-
+  基礎自治体が受け取るワンストップ情報を、月ごとの CSV にします。自治体と完了日の年月を受け取り、ビュー「ワンストップ情報」の行を絞って並べます。
+  日付の範囲（から・まで）で見るときは、ダッシュボード「基礎自治体」を使います（レポートの条件は日付の大小を比べられないので、年月の一致で絞ります）。
+  値にカンマ・引用符・改行があると列がずれます（ひな形に CSV の逃がし方が無いため。架空データには含めていません）。
+params: [municipality, month]             # 例 LG-991011 2026-05
+build:
+  municipality: $municipality
+  month: $month
+  rows:
+    $each:
+      $view: onestop-grid
+      $where:
+        - { path: values.通知先の自治体, equals: $municipality }
+        - { path: values.完了月, equals: $month }
+    $build:
+      id: { $copy: id }
+      kind: { $map: { $copy: values.情報種別 }, $using: { registration: 新規登録, transfer: 所有者変更, change: 情報変更, death: 死亡届 } }
+      sex: { $map: { $copy: values.性別 }, $using: { male: オス, female: メス } }
+      values: { $copy: values }
+template: onestop-csv.csv
+output: "output/onestop/{municipality}_{month}.csv"

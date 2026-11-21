@@ -1,0 +1,12 @@
+applicationId: APP-000046
+kind: reissue
+channel: online
+receivedOn: 2026-11-19
+status: accepted
+applicantId: OWN-0012
+microchipId: MC-999000000000013
+feeId: FEE-RIS-ONLINE
+history:
+  - date: 2026-11-19
+    action: apply-reissue
+    to: accepted

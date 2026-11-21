@@ -1,0 +1,33 @@
+id: BF-27
+name: "指定登録機関アカウント登録・削除"
+business: BIZ-23
+source: "別紙 3 業務フロー 50〜52／66"
+lanes:
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-DB-MAINT, label: "保守者" }
+steps:
+  - { id: BF-27-S01, title: "指定登録機関アカウント登録申請書を作成し、申請する", actor: ACT-REGISTRAR, kind: document }
+  - { id: BF-27-S02, title: "アカウント発行申請を受領する", actor: ACT-DB-MAINT, kind: outside }
+  - { id: BF-27-S03, title: "指定登録機関アカウント情報を登録する", actor: ACT-DB-MAINT, kind: system, action: register-account }
+  - { id: BF-27-S04, title: "指定登録機関アカウント情報を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: register-account }
+  - { id: BF-27-S05, title: "指定登録機関アカウント登録の完了を通知する", actor: ACT-DB-MAINT, kind: document, note: "メールの送信と、パスワードの払い出しは再現していません。" }
+  - { id: BF-27-S06, title: "完了連絡を受領する", actor: ACT-REGISTRAR, kind: document }
+  - { id: BF-27-S07, title: "指定登録機関アカウント削除申請書を作成し、依頼する", actor: ACT-REGISTRAR, kind: document }
+  - { id: BF-27-S08, title: "アカウント削除依頼を受領する", actor: ACT-DB-MAINT, kind: outside }
+  - { id: BF-27-S09, title: "削除を実行する", actor: ACT-DB-MAINT, kind: system, action: delete-account }
+  - { id: BF-27-S10, title: "指定登録機関アカウント情報を削除する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: delete-account, note: "文書は消さず、状態を削除済みにします。" }
+  - { id: BF-27-S11, title: "指定登録機関アカウント削除の完了を通知する", actor: ACT-DB-MAINT, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-27-S12, title: "完了連絡を受領する", actor: ACT-REGISTRAR, kind: document }
+transitions:
+  - { from: BF-27-S01, to: BF-27-S02, label: "指定登録機関アカウント登録申請書（メール）" }
+  - { from: BF-27-S02, to: BF-27-S03 }
+  - { from: BF-27-S03, to: BF-27-S04 }
+  - { from: BF-27-S04, to: BF-27-S05 }
+  - { from: BF-27-S05, to: BF-27-S06, label: "指定登録機関 ID＋PWD" }
+  - { from: BF-27-S07, to: BF-27-S08, label: "指定登録機関アカウント削除申請（メール）" }
+  - { from: BF-27-S08, to: BF-27-S09 }
+  - { from: BF-27-S09, to: BF-27-S10, label: "指定登録機関 ID" }
+  - { from: BF-27-S10, to: BF-27-S11 }
+  - { from: BF-27-S11, to: BF-27-S12 }
+notes: "登録（工程 1〜6）と削除（工程 7〜12）の 2 つの流れです。"

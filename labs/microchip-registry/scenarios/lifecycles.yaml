@@ -1,0 +1,103 @@
+# 状態の流れ（registry-behavior.yaml）の業務シナリオ。リポジトリの根で次のように実行します:
+#   ./yde behavior-scenarios labs/microchip-registry labs/microchip-registry/scenarios/lifecycles.yaml
+# どのケースも保存済みの同じデータから評価し、原本は変えません（ケースの間で変更を引き継ぎません）。
+# 前段の操作が要らないよう、データに各状態の申請を置いています:
+#   支払待ち APP-000042（新規登録）・APP-000044（所有者変更）・APP-000046（再交付）、支払済み APP-000041（新規登録）・APP-000045（所有者変更）
+cases:
+  # ---- 申請・届出（application-lifecycle）と、マイクロチップ登録（microchip-lifecycle） ----
+  - id: apply-registration
+    action: apply-registration
+    params: { mcNumber: MC-999000000000050, applicantId: OWN-0007, receivedOn: 2026-11-20, species: cat, name: シナリオ, sex: male, birthDate: 2026-09-01, implantedOn: 2026-11-18, locationMunicipalityId: LG-991011 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000047, before: [], after: [app-accepted], verdict: MATCHED }
+  - id: record-payment
+    action: record-payment
+    target: APP-000042
+    params: { date: 2026-11-20, method: credit, amount: 300 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000042, before: [app-accepted], after: [app-paid], verdict: MATCHED }
+  # 新規登録の完了: 申請が完了へ進み、マイクロチップ登録ができる（マイクロチップ登録の入口）
+  - id: complete-registration
+    action: complete-application
+    target: APP-000041
+    params: { date: 2026-11-20 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000041, before: [app-paid], after: [app-completed], verdict: MATCHED }
+      - { lifecycle: microchip-lifecycle, entity: MC-999000000000043, before: [], after: [mc-registered], verdict: MATCHED }
+  # 所有者変更の完了: 申請が完了へ進む。登録は登録済みのままで所有者と変更キーが変わる（状態の変わらない関連先は照合に出ない）
+  - id: complete-transfer
+    action: complete-application
+    target: APP-000045
+    params: { date: 2026-11-20 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000045, before: [app-paid], after: [app-completed], verdict: MATCHED }
+  - id: apply-transfer
+    action: apply-transfer
+    target: MC-999000000000003
+    params: { applicantId: OWN-0006, changeKey: CK-000003, receivedOn: 2026-11-20, locationMunicipalityId: LG-991037 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000047, before: [], after: [app-accepted], verdict: MATCHED }
+      - { lifecycle: microchip-lifecycle, entity: MC-999000000000003, before: [mc-registered], after: [mc-registered], verdict: UNCHANGED }
+  - id: apply-reissue
+    action: apply-reissue
+    target: MC-999000000000003
+    params: { auth: CK-000003, receivedOn: 2026-11-20 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000047, before: [], after: [app-accepted], verdict: MATCHED }
+      - { lifecycle: microchip-lifecycle, entity: MC-999000000000003, before: [mc-registered], after: [mc-registered], verdict: UNCHANGED }
+  # 届出: 受け付けた時点で完了（申請・届出の入口が完了）
+  - id: report-change
+    action: report-change
+    target: MC-999000000000031
+    params: { changeKey: CK-000018, receivedOn: 2026-11-20, animalColor: ブルーグレー }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000047, before: [], after: [app-completed], verdict: MATCHED }
+      - { lifecycle: microchip-lifecycle, entity: MC-999000000000031, before: [mc-registered], after: [mc-registered], verdict: UNCHANGED }
+  - id: report-death
+    action: report-death
+    target: MC-999000000000003
+    params: { changeKey: CK-000003, deathOn: 2026-11-19, receivedOn: 2026-11-20 }
+    expect:
+      - { lifecycle: application-lifecycle, entity: APP-000047, before: [], after: [app-completed], verdict: MATCHED }
+      - { lifecycle: microchip-lifecycle, entity: MC-999000000000003, before: [mc-registered], after: [mc-deceased], verdict: MATCHED }
+  # ---- アカウント（account-lifecycle） ----
+  - id: register-account
+    action: register-account
+    params: { kind: municipality, name: シナリオ 太郎, organization: こもれび町 住民課, municipalityId: LG-991037, email: scenario@town.komorebi.example.jp, date: 2026-11-20 }
+    expect:
+      - { lifecycle: account-lifecycle, entity: ACC-0009, before: [], after: [account-active], verdict: MATCHED }
+  - id: update-account
+    action: update-account
+    target: ACC-0003
+    params: { organization: あおば市 生活衛生課 動物係 }
+    expect:
+      - { lifecycle: account-lifecycle, entity: ACC-0003, before: [account-active], after: [account-active], verdict: UNCHANGED }
+  - id: delete-account
+    action: delete-account
+    target: ACC-0003
+    params: { date: 2026-11-20, reason: 異動のため }
+    expect:
+      - { lifecycle: account-lifecycle, entity: ACC-0003, before: [account-active], after: [account-deleted], verdict: MATCHED }
+  # ---- 問い合わせ（inquiry-lifecycle） ----
+  - id: receive-inquiry
+    action: receive-inquiry
+    params: { inquirerName: シナリオ 花子, subject: シナリオの問い合わせ, body: 受け付けると未回答になる, receivedOn: 2026-11-20 }
+    expect:
+      - { lifecycle: inquiry-lifecycle, entity: INQ-0007, before: [], after: [inquiry-open], verdict: MATCHED }
+  - id: record-call
+    action: record-call
+    params: { inquirerName: シナリオ 花子, subject: シナリオの電話, body: 電話の問い合わせ, answer: その場で回答した, answeredBy: ACC-0002, receivedOn: 2026-11-20 }
+    expect:
+      - { lifecycle: inquiry-lifecycle, entity: INQ-0007, before: [], after: [inquiry-answered], verdict: MATCHED }
+  - id: answer-inquiry
+    action: answer-inquiry
+    target: INQ-0003
+    params: { answer: 同じ町内でも、所在地が変わるので情報変更の届出が必要です。, answeredBy: ACC-0002, date: 2026-11-20 }
+    expect:
+      - { lifecycle: inquiry-lifecycle, entity: INQ-0003, before: [inquiry-open], after: [inquiry-answered], verdict: MATCHED }
+  - id: close-inquiry
+    action: close-inquiry
+    target: INQ-0002
+    params: { date: 2026-11-20 }
+    expect:
+      - { lifecycle: inquiry-lifecycle, entity: INQ-0002, before: [inquiry-answered], after: [inquiry-closed], verdict: MATCHED }

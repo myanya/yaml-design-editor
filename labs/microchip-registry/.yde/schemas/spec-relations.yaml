@@ -1,0 +1,56 @@
+# 関係レジストリ: 業務の記述の関係の語彙（記述 → 動く業務モデルの定義、記述どうし）
+id: spec-relations
+kind: relations
+entities:
+  - { type: actor, label: 利用者・登場者 }
+  - { type: business, label: 業務 }
+  - { type: form, label: 帳票 }
+  - { type: api, label: API }
+  - { type: business-flow, label: 業務フロー }
+  - { type: flow-step, label: 工程 }
+relations:
+  - name: realized-by-action
+    label: 対応する操作
+    inverseLabel: この操作で再現する業務・帳票・API・工程
+    source: [business, form, api, flow-step]
+    target: [yde-action]
+  - name: realized-by-require
+    label: 対応する操作の前提
+    inverseLabel: この前提で再現する業務・API
+    source: [business, form, api]
+    target: [yde-require]
+  - name: realized-by-view
+    label: 対応するビュー
+    inverseLabel: このビューで再現する業務・帳票・API・工程・利用者区分
+    source: [business, form, api, flow-step, actor]
+    target: [yde-view]
+  - name: for-business
+    label: 業務
+    inverseLabel: この業務のフロー・API
+    source: [business-flow, api]
+    target: [business]
+  - name: involves
+    label: 関わる利用者
+    inverseLabel: 関わる業務・フロー
+    source: [business, business-flow]
+    target: [actor]
+  - name: performed-by
+    label: 実施者
+    inverseLabel: 実施する工程
+    source: [flow-step]
+    target: [actor]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: flows-from
+    label: 前の工程
+    source: [business-flow]
+    target: [flow-step]
+  - name: flows-to
+    label: 次の工程
+    source: [business-flow]
+    target: [flow-step]
+  - name: has-step
+    label: 工程
+    inverseLabel: 属するフロー
+    source: [business-flow]
+    target: [flow-step]
+    description: 業務フローが工程を保有します（入れ子で書くので、文書には何も書きません）

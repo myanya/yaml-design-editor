@@ -1,0 +1,38 @@
+id: municipality-dashboard
+name: 基礎自治体（ワンストップ情報）
+kind: dashboard
+description: >-
+  基礎自治体（狂犬病予防法の犬の登録の担当）の入口です。上部の「自治体」で自分の市区町村を選び、完了日の範囲を入れると、
+  通知されたワンストップ情報（犬の新規登録・所有者変更・情報変更・死亡届）が並びます。CSV はレポート onestop-csv で作ります。
+  逸走した犬猫の所有者は、マイクロチップ番号を入れて「逸走情報検索」で確かめます（所管の外で保護した犬猫も検索できます）。
+inputs:
+  - { key: municipality, label: 自治体, type: ref, idPattern: "LG-*", scope: { schemaIds: [municipality-list] } }
+  - { key: from, label: 完了日（から）, type: date, default: $monthStart }
+  - { key: to, label: 完了日（まで）, type: date }
+  - { key: mc, label: マイクロチップ番号, type: string }
+sections:
+  - id: onestop
+    label: ワンストップ情報
+    group: ワンストップ
+    view: onestop-grid
+  - id: dogs
+    label: 所在する犬
+    group: ワンストップ
+    view: microchip-grid
+    filter:
+      match:
+        - node: { entity: microchip, bind: m }
+      where:
+        - { of: m, path: animal.species, equals: dog }
+        - { of: m, path: locationMunicipalityId, equals: $municipality }
+      expect: exists
+  - id: lost
+    label: 逸走情報検索
+    group: 検索
+    view: microchip-grid
+    filter:
+      match:
+        - node: { entity: microchip, bind: m }
+      where:
+        - { of: m, path: mcNumber, equals: $mc }
+      expect: exists

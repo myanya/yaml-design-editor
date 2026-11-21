@@ -1,0 +1,12 @@
+accountId: ACC-0005
+kind: municipality
+status: active
+name: 雪野 桃子
+organization: ゆきしろ市 市民生活課
+email: yukino@city.yukishiro.example.jp
+registeredOn: 2026-03-12
+municipalityId: LG-981015
+history:
+  - date: 2026-03-12
+    action: register-account
+    to: active

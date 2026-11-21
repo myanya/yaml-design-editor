@@ -1,0 +1,80 @@
+id: requirements-overview
+name: 要件定義書との対応
+kind: dashboard
+description: >-
+  要件定義書の業務の記述（業務一覧・利用者区分・帳票・API・業務フロー）と、このワークスペースの操作・ビュー・レポートの対応です。
+  「一部・対象外の業務」と各一覧の「足りないこと」が、YDE でまだ再現できていない部分です。業務フローの図は、台帳の「フロー」タブで見ます。
+inputs:
+  - { key: status, label: 再現の状態, type: spec-types#再現の状態 }
+  - { key: category, label: 業務区分, type: spec-types#業務区分 }
+sections:
+  - id: businesses
+    label: 業務一覧
+    group: 業務
+    view: business-grid
+  - id: gaps
+    label: 一部・対象外の業務
+    group: 業務
+    view: business-grid
+    filter:
+      match:
+        - node: { entity: business, bind: b }
+      where:
+        - { of: b, path: realization.status, oneOf: [partial, external, out-of-scope] }
+      expect: exists
+  # 網羅: どの業務・帳票・API・工程にも対応付いていない操作（0 件が正しい）
+  - id: unmapped-actions
+    label: 対応の無い操作
+    group: 業務
+    view: operation-coverage-grid
+    filter:
+      match:
+        - node: { entity: yde-action, bind: act }
+        - edge: { dir: in, relation: realized-by-action }
+        - node: {}
+      expect: absent
+  - id: actions
+    label: 操作と業務の対応
+    group: 業務
+    view: operation-coverage-grid
+  - id: by-status
+    label: 業務区分×再現の状態
+    group: 業務
+    view: business-by-status
+  - id: flows
+    label: 業務フロー
+    group: 業務
+    view: flow-grid
+  - id: steps
+    label: 工程と再現の対応
+    group: 業務
+    view: step-grid
+  # システムを使う工程のうち、対応する操作もビューも無いもの（備考に理由がある）
+  - id: unreproduced-steps
+    label: 再現していない工程
+    group: 業務
+    view: step-grid
+    filter:
+      match:
+        - node: { entity: flow-step, bind: s }
+      where:
+        - { of: s, path: kind, oneOf: [system, data] }
+        - { of: s, path: action, exists: false }
+        - { of: s, path: view, exists: false }
+      expect: exists
+  - id: steps-by-kind
+    label: 業務プロセス×工程の種類
+    group: 業務
+    view: step-by-kind
+  - id: actors
+    label: 利用者区分と登場者
+    group: 要件の一覧
+    view: actor-grid
+  - id: forms
+    label: 帳票一覧
+    group: 要件の一覧
+    view: form-grid
+  - id: apis
+    label: API 一覧
+    group: 要件の一覧
+    view: api-grid

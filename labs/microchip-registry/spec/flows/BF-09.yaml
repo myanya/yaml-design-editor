@@ -1,0 +1,17 @@
+id: BF-09
+name: "ワンストップ通知"
+business: BIZ-19
+source: "別紙 3 業務フロー 41／66"
+lanes:
+  - { actor: ACT-MUNICIPALITY, label: "基礎自治体（狂犬病予防法上の登録担当部局）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-09-S01, title: "ワンストップ通知情報を集計する（日次バッチ）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "レポート onestop-notice を、外のスクリプト scripts/daily-batch.py が前日の分について作ります。" }
+  - { id: BF-09-S02, title: "ワンストップ情報の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません（できた文面を外の仕組みで送ります）。" }
+  - { id: BF-09-S03, title: "通知メールを受領する", actor: ACT-MUNICIPALITY, kind: document }
+  - { id: BF-09-S04, title: "ワンストップ情報を照会する", actor: ACT-MUNICIPALITY, kind: system, view: municipality-dashboard }
+transitions:
+  - { from: BF-09-S01, to: BF-09-S02 }
+  - { from: BF-09-S02, to: BF-09-S03, label: "ワンストップ件数" }
+  - { from: BF-09-S03, to: BF-09-S04 }
+notes: "集計は、ワンストップ参加の自治体ごとです。4 つ目の工程は業務フロー「ワンストップ情報照会」（36〜37／66）です。"

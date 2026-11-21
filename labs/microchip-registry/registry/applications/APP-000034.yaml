@@ -1,0 +1,27 @@
+applicationId: APP-000034
+kind: reissue
+channel: online
+receivedOn: 2026-09-15
+status: completed
+applicantId: OWN-0009
+microchipId: MC-999000000000005
+feeId: FEE-RIS-ONLINE
+history:
+  - date: 2026-09-15
+    action: apply-reissue
+    to: accepted
+  - date: 2026-09-16
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000034
+  - date: 2026-09-16
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: convenience
+  paidOn: 2026-09-16
+  amount: 200
+  receiptNo: PAY-000034
+completedOn: 2026-09-16

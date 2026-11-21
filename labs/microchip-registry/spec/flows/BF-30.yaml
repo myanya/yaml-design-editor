@@ -1,0 +1,16 @@
+id: BF-30
+name: "マスタ設定"
+business: BIZ-27
+source: "別紙 3 業務フロー 60／66"
+lanes:
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-DB-MAINT, label: "保守者" }
+steps:
+  - { id: BF-30-S01, title: "マスタ変更用の更新データ（CSV）を作成する", actor: ACT-DB-MAINT, kind: document }
+  - { id: BF-30-S02, title: "CSV をインポートし、マスタメンテナンスを実行する", actor: ACT-DB-MAINT, kind: system, view: admin-dashboard, note: "skill import-municipalities・import-fees で取り込みます（追加だけです。変更と削除は、マスタの一覧を画面で直します）。" }
+  - { id: BF-30-S03, title: "マスタを設定する（登録 or 変更 or 削除）（共通 DB）", actor: ACT-SYSTEM, kind: data, view: municipality-grid }
+  - { id: BF-30-S04, title: "実行結果を確認する", actor: ACT-DB-MAINT, kind: system, view: admin-dashboard }
+transitions:
+  - { from: BF-30-S01, to: BF-30-S02, label: "CSV" }
+  - { from: BF-30-S02, to: BF-30-S03 }
+  - { from: BF-30-S03, to: BF-30-S04 }

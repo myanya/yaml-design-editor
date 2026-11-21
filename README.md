@@ -137,6 +137,7 @@ JDK 21 が必要です。無ければ Gradle が自動で取得します（`./gr
 | [labs/adventurers-guild](labs/adventurers-guild/README.md) | 架空の冒険者ギルドの運営を題材に、概念を型、つながりを関係レジストリ、運営の決まりを検査に書いて、オントロジーとして定義することを試しています |
 | [labs/aws-webapp](labs/aws-webapp/README.md) | 企業向けWEBアプリのAWS設定を原本に、構成図・全設定表・生成入力を導きます。ログ・監視・セッション・復旧を含む設計ラボです |
 | [labs/kakeibo](labs/kakeibo/README.md) | 家計簿を題材に、月と費目ごとの集計、残高の検査、銀行の CSV の取り込みを試しています |
+| [labs/microchip-registry](labs/microchip-registry/README.md) | 環境省の要件定義書（犬猫マイクロチップ情報登録の指定登録機関 Web システム）の業務を、登録・所有者変更・届出の操作と状態の流れ、利用者区分ごとのダッシュボード、要件との対応の記述で再現することを試しています。データは架空です |
 | [labs/rpmz](labs/rpmz/README.md) | RPG Maker MZ のデータベースを題材に、ゲームが読む入れ子の JSON を YAML の原本で管理し、取り込みと書き出しで往復させることを試しています。データは架空のオリジナルで、MZ の既定のデータと素材は含みません |
 | [labs/sysdev-template](labs/sysdev-template/README.md) | 会議室予約システムを題材に、要件から設計、試験までの文書体系と、設計の機械的な検証を試しています |
 | [labs/sysdev-todo](labs/sysdev-todo/README.md) | TODO Web アプリの設計体系です。ドメインの定義から画面、API、テーブルの設計を導きます |

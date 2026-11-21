@@ -1,0 +1,19 @@
+id: flow-grid
+name: 業務フローの一覧
+description: 要件定義書の業務フロー（別紙 3）のうち、写したものです。図は台帳の「フロー」タブ（業務フロー図）で見ます。
+rows:
+  match:
+    - node: { entity: business-flow, bind: f }
+columns:
+  - { label: 業務プロセス, path: name }
+  - { label: 業務, path: business }
+  - { label: 出どころ, path: source }
+  - label: 工程の数
+    value:
+      count:
+        all:
+          of: s
+          match:
+            - node: { entity: business-flow, bind: f }
+            - edge: { relation: has-step }
+            - node: { entity: flow-step, bind: s }

@@ -1,0 +1,61 @@
+id: business-flow
+name: 業務フロー
+kind: document
+description: >-
+  要件定義書の業務フロー（別紙 3）を、1 業務 1 ファイルで写したものです。レーン（実施者）・工程・遷移を持ち、システムを使う工程には、
+  対応する操作かビューを書きます。台帳の「フロー」タブで、スイムレーンの図として見られます（ビュー business-flow-diagram）。
+match: "spec/flows/*.yaml"
+filePattern: "spec/flows/{id}.yaml"
+entity: { type: business-flow, idType: spec-types#フロー番号, defines: true }
+root:
+  type: object
+  fields:
+    - { key: id, label: フロー番号, type: spec-types#フロー番号, required: true }
+    - { key: name, label: 業務プロセス, type: spec-types#一行の文, role: title, required: true }
+    - { key: business, label: 業務, type: spec-types#業務参照, required: true }
+    - { key: source, label: 出どころ, type: spec-types#一行の文, description: 要件定義書の別紙 3 のページ。 }
+    - key: lanes
+      label: レーン（実施者）
+      type: array
+      default: []
+      display: table
+      description: 図の帯です。見出しは、要件定義書の業務フローの列の名前のまま書きます。
+      item:
+        type: object
+        fields:
+          - { key: actor, label: 実施者, type: spec-types#利用者参照, required: true }
+          - { key: label, label: 見出し, type: spec-types#一行の文, required: true }
+    - key: steps
+      label: 工程
+      type: array
+      default: []
+      display: table
+      relation: has-step
+      methods:
+        insert:
+          id: { path: id, prefix: { $format: "{id}-S", $of: self }, digits: 2 }
+      item: { type: spec-types#工程 }
+    - { key: transitions, label: 遷移, type: array, default: [], display: table, item: { type: spec-types#遷移 } }
+    - { key: notes, label: 備考, type: spec-types#文章 }
+constraints:
+  - id: step-id-starts-with-flow-id
+    description: 工程番号は、そのフローの番号で始まること
+    match:
+      - node: { entity: business-flow, bind: f }
+      - edge: { relation: has-step }
+      - node: { entity: flow-step, bind: s }
+    check:
+      - { startsWith: [ { of: s, path: id }, { format: "{id}-S", scopes: [ { of: f } ] } ] }
+    level: error
+    message: "工程番号 {left} はフロー番号 {f.id} で始まっていません"
+  - id: system-step-has-means
+    description: システム利用の工程には、対応する操作かビューがあること（無ければ、再現していない工程として備考に理由を書く）
+    match: [ { node: { entity: flow-step, bind: s } } ]
+    where:
+      - { of: s, path: kind, equals: system }
+      - { of: s, path: action, exists: false }
+      - { of: s, path: view, exists: false }
+      - { of: s, path: note, empty: true }
+    expect: absent
+    level: warning
+    message: "システム利用の工程 {s.id} に、対応する操作もビューも、再現していない理由もありません"

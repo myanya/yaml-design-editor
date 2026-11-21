@@ -1,13 +1,20 @@
 id: UX-365
-title: todos-sysdev の生成契約にある minItems・maxItems が配列件数を検査しない
+title: 取り込み（skill の import）から業務の操作を行ごとに呼べず、行ごとの成否を返せない（CSV の一括登録を定義だけで書けない）
 status: todo
-origin_on: 2026-11-21
-kind: bug
-origin: 画面入力と Service の対応を検査する負例試験で、余分な項目を拒否できないことから確認
-body: 既存の application-access・application-runtime-model・application-service-programs・application-web-forms のスキーマに、YDE が解釈しない
-  minItems/maxItems がある。件数制限として効かず、対応先の空や複数を許す可能性がある。count を使う成立条件へ直し、ゼロ件・複数件の負例を追加する。今回追加の application-web-bindings は count
-  の条件で検査する。
+kind: feature
+origin_on: 2026-11-20
+origin: labs/microchip-registry（環境省「要件定義書」の犬猫マイクロチップ登録業務を YDE で再現する試作）。要件の「マイクロチップ情報登録（一括）」「所有者変更登録（一括）」「情報変更（一括）」と結果 CSV
+memo: |-
+  やりたいこと: CSV の 1 行を 1 件の申請として、行ごとに業務の操作（前提の確認＝二重登録・変更キー、状態の流れ、履歴）を当て、成功した行だけを確定し、行ごとの成否と理由を結果のファイルで返す。
+  いまの取り込みは、(1) 誤りが 1 行でもあれば全体を取り込まない（全件か無しか）、(2) 文書の作成・配列への追記だけで、操作（actions）を呼べないので前提が効かない、(3) 結果は作成・更新の一覧だけで、行ごとの結果のファイルを出せない。
+  試作では、YDE の外のスクリプト（labs/microchip-registry/scripts/bulk.py）が CLI の action --apply を 1 行ずつ呼び、結果 CSV を書いている。1 回の呼び出しごとに JVM を起動して全体を読むので、1 行に 3 つの操作で数秒かかる。
+  - 当たり: 取り込みの target に操作を書く形（target: {action: 操作ID, params: 行のひな型}）と、行ごとの確定（1 行＝変更セット 1 つ）と、結果の書き出し（行・成否・作った ID・理由）。ROADMAP R41-06（取り込みを create / insert に寄せる）の続き。
+  - CLI だけで足りるなら、操作をまとめて当てる入口（action に入力の一式のファイルを渡し、1 回の起動で順に計画・適用して結果を返す）でも外のスクリプトは薄くなる。
+related:
+  - UX-185
+  - UX-54
 features:
-  - C-21
+  - SK-02
+  - OP-04
 roadmap:
-  - R53-11
+  - R41-06

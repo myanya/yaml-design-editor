@@ -1,0 +1,42 @@
+applicationId: APP-000037
+kind: registration
+channel: online
+receivedOn: 2026-10-19
+status: completed
+applicantId: OWN-0001
+registration:
+  mcNumber: MC-999000000000041
+  animal:
+    species: dog
+    name: つくし
+    breed: 柴
+    color: 赤
+    sex: male
+    birthDate: 2026-08-20
+  implantedOn: 2026-10-16
+  veterinarian: あおば動物病院 青葉
+  motherId: MC-999000000000001
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市緑町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-10-19
+    action: apply-registration
+    to: accepted
+  - date: 2026-10-19
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000037
+  - date: 2026-10-20
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-10-19
+  amount: 300
+  receiptNo: PAY-000037
+completedOn: 2026-10-20
+microchipId: MC-999000000000041

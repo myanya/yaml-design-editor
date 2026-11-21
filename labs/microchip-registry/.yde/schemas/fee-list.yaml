@@ -1,0 +1,18 @@
+id: fee-list
+name: 料金一覧
+kind: document
+description: 手数料のマスタです（料金マスタに当たる）。申請が手続と経路に合う料金を参照し、支払額が料金と同じであることを支払の操作が確かめます。金額は仮の値です。
+match: registry/masters/fees.yaml
+entity:
+  type: fee
+  idType: common#料金番号
+  defines: true
+root:
+  type: object
+  fields:
+    - key: fees
+      label: 料金一覧
+      type: array
+      default: []
+      display: table
+      item: { type: common#料金 }

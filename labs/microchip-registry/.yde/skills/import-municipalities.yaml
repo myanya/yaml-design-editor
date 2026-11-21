@@ -1,0 +1,19 @@
+id: import-municipalities
+name: 自治体マスタの取り込み（CSV）
+description: >-
+  保守の「マスタ設定」です。自治体の CSV（見出し行あり: 自治体番号,自治体名,種類,都道府県,ワンストップ参加,通知先メールアドレス）を、
+  自治体一覧（registry/masters/municipalities.yaml）へ追記します。同じ自治体番号の行が既にあれば取り込みません（変更と削除は、一覧を画面で直します）。
+  誤りのある行が 1 つでもあれば、何も取り込みません。
+kind: import
+input: { format: csv, encoding: UTF-8 }
+target:
+  file: registry/masters/municipalities.yaml
+  path: municipalities
+  key: [id]
+build:
+  id: { $trim: { $copy: 自治体番号 } }
+  name: { $trim: { $copy: 自治体名 } }
+  kind: { $map: { $trim: { $copy: 種類 } }, $using: { 都道府県等: prefecture, 市区町村: city } }
+  prefecture: { $trim: { $copy: 都道府県 } }
+  oneStop: { $first: [ { $when: { path: ワンストップ参加, equals: 参加 }, $then: true }, false ] }
+  email: { $trim: { $copy: 通知先メールアドレス } }

@@ -1,0 +1,14 @@
+id: UX-369
+title: 操作の前提（require）で、受け手に書いた where が「受け手がその条件に合うこと」を意味する決まりが、操作の説明に無い
+status: todo
+kind: doc
+origin_on: 2026-11-20
+origin: labs/microchip-registry（環境省「要件定義書」の犬猫マイクロチップ登録業務を YDE で再現する試作）。前提に「受け手の値が受け取った値と等しくないこと」「紙の申請は対象から外す」を where で書いて、意図と逆に止まったとき
+memo: |-
+  manual/actions.md「前提（require）」は「match の先頭の node が受け手に当たり、検査と同じ 4 つの結果で決めます。違反と保留は実行しません」と書くが、実装（ActionPlanner.checkRequire）は「対象外」のうち、受け手が where に合わない場合（NOT_IN_SCOPE）も実行を止める（文面は message）。
+  このため、検査と同じつもりで書くと逆になる。
+  - where: [{of: m, path: ownerId, equals: $applicantId}] ＋ expect: absent（「いまの所有者と同じなら止める」のつもり）は、受け手がこの条件に合わないので、いつも止まる。正しくは check: [{ne: [{of: m, path: ownerId}, $applicantId]}]。
+  - where: [{of: a, path: channel, equals: online}] ＋ check（「オンラインの申請だけ確かめる」のつもり）は、紙の申請で止まる。正しくは check の or に条件を入れる。
+  - 当たり: manual/actions.md の前提の節に「受け手への where は、受け手が満たすべき条件。受け手の値と受け取った値の比較や、一部の受け手だけに当てる条件は check に書く」と例を足す。
+features:
+  - OP-03

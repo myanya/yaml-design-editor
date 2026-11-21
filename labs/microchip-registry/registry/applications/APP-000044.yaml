@@ -1,0 +1,16 @@
+applicationId: APP-000044
+kind: transfer
+channel: online
+receivedOn: 2026-11-16
+status: accepted
+applicantId: OWN-0003
+microchipId: MC-999000000000014
+previousOwnerId: OWN-0002
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市駅前X-X-X
+feeId: FEE-TRF-ONLINE
+history:
+  - date: 2026-11-16
+    action: apply-transfer
+    to: accepted

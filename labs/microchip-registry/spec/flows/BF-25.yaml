@@ -1,0 +1,28 @@
+id: BF-25
+name: "逸走情報検索（紙運用）"
+business: BIZ-20
+source: "別紙 3 業務フロー 45〜46／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+  - { actor: ACT-POLICE, label: "警察" }
+steps:
+  - { id: BF-25-S01, title: "マイクロチップ番号を読み取る", actor: ACT-POLICE, kind: outside }
+  - { id: BF-25-S02, title: "捜査照会書を作成し、逸走情報を照会する", actor: ACT-POLICE, kind: document }
+  - { id: BF-25-S03, title: "逸走情報の照会を受け付ける", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-25-S04, title: "マイクロチップ番号を入力する", actor: ACT-REGISTRAR, kind: system, view: helpdesk-dashboard }
+  - { id: BF-25-S05, title: "マイクロチップ情報を検索する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: microchip-grid }
+  - { id: BF-25-S06, title: "逸走情報検索の結果を回答する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-25-S07, title: "所有者へ連絡する", actor: ACT-POLICE, kind: outside }
+  - { id: BF-25-S08, title: "所有者へ犬猫を返還する", actor: ACT-POLICE, kind: outside }
+  - { id: BF-25-S09, title: "犬猫を引き取る", actor: ACT-OWNER, kind: outside }
+transitions:
+  - { from: BF-25-S01, to: BF-25-S02 }
+  - { from: BF-25-S02, to: BF-25-S03, label: "捜査照会書（郵送 or FAX or 電話）" }
+  - { from: BF-25-S03, to: BF-25-S04 }
+  - { from: BF-25-S04, to: BF-25-S05, label: "MC 番号" }
+  - { from: BF-25-S05, to: BF-25-S06, label: "所有者情報" }
+  - { from: BF-25-S06, to: BF-25-S07, label: "捜査照会回答（郵送 or FAX or 電話）" }
+  - { from: BF-25-S07, to: BF-25-S08, label: "電話 or メール or はがき" }
+  - { from: BF-25-S08, to: BF-25-S09 }

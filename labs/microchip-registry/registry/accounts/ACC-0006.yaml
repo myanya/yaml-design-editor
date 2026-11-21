@@ -1,0 +1,12 @@
+accountId: ACC-0006
+kind: prefecture
+status: active
+name: 港 誠
+organization: みなと県 動物愛護管理センター
+email: minato@pref.minato.example.jp
+registeredOn: 2026-03-12
+municipalityId: LG-990001
+history:
+  - date: 2026-03-12
+    action: register-account
+    to: active

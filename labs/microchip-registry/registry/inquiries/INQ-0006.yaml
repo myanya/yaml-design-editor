@@ -1,0 +1,16 @@
+inquiryId: INQ-0006
+channel: call
+status: answered
+receivedOn: 2026-11-12
+inquirerKind: prefecture
+inquirerName: 港 誠
+subject: 飼養管理の検索の範囲
+body: 飼養管理の検索は、県内の事業者だけが対象か。
+inquirerContact: 045-0000-0191
+answer: 所管の範囲の事業者が対象です。ダッシュボードの所管の自治体で絞れます。
+answeredOn: 2026-11-12
+answeredBy: ACC-0002
+history:
+  - date: 2026-11-12
+    action: record-call
+    to: answered

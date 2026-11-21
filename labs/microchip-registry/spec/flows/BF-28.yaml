@@ -1,0 +1,16 @@
+id: BF-28
+name: "指定登録機関アカウント情報更新"
+business: BIZ-24
+source: "別紙 3 業務フロー 53／66"
+lanes:
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-28-S01, title: "更新情報を入力する", actor: ACT-REGISTRAR, kind: system, action: update-account, note: "氏名・所属・メールアドレスを更新します（パスワードは扱いません）。" }
+  - { id: BF-28-S02, title: "指定登録機関アカウント情報を更新する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: update-account }
+  - { id: BF-28-S03, title: "指定登録機関アカウント更新完了の通知メールを送信する", actor: ACT-SYSTEM, kind: document, note: "メールの送信は再現していません。" }
+  - { id: BF-28-S04, title: "完了メールを受領する", actor: ACT-REGISTRAR, kind: document }
+transitions:
+  - { from: BF-28-S01, to: BF-28-S02, label: "メールアドレス、パスワード、氏名など" }
+  - { from: BF-28-S02, to: BF-28-S03 }
+  - { from: BF-28-S03, to: BF-28-S04 }

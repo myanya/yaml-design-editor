@@ -1,0 +1,41 @@
+applicationId: APP-000002
+kind: registration
+channel: online
+receivedOn: 2026-04-06
+status: completed
+applicantId: OWN-0001
+registration:
+  mcNumber: MC-999000000000002
+  animal:
+    species: dog
+    name: さくら
+    breed: 柴
+    color: 黒
+    sex: female
+    birthDate: 2018-12-01
+  implantedOn: 2026-04-03
+  veterinarian: あおば動物病院 青葉
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市緑町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-04-06
+    action: apply-registration
+    to: accepted
+  - date: 2026-04-06
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000002
+  - date: 2026-04-07
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-04-06
+  amount: 300
+  receiptNo: PAY-000002
+completedOn: 2026-04-07
+microchipId: MC-999000000000002

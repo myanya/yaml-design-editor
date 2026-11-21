@@ -1,0 +1,49 @@
+id: onestop-grid
+name: ワンストップ情報
+description: >-
+  狂犬病予防法の犬の登録に使う通知情報です。完了した犬の手続（新規登録・所有者変更・情報変更・死亡届）のうち、
+  手続の時点の所在地がワンストップ参加の市区町村のものを、完了日の範囲と自治体で絞ります。通知情報は別に書き込まず、申請・届出と登録から導きます。
+  所在地と所有者は手続の時点のもの（申請・届出に残した所在地と申請者）で、犬の名前などは登録のいまの値です。
+params: [from, to, municipality]
+rows:
+  # 行＝申請・届出。対象の登録（犬で絞る）と、手続の時点の所在地の自治体（ワンストップ参加で絞る）へ参照を辿る
+  match:
+    - node: { entity: application, bind: a }
+    - edge: { via: microchipId }
+    - node: { entity: microchip, bind: m }
+  also:
+    from: a
+    steps:
+      - edge: { via: location.municipalityId }
+      - node: { entity: municipality, bind: lg }
+  rowKey: a
+  where:
+    - { of: a, path: status, equals: completed }
+    - { of: a, path: kind, oneOf: [registration, transfer, change, death] }
+    - { of: m, path: animal.species, equals: dog }
+    - { of: lg, path: oneStop, equals: true }
+    - { of: a, path: completedOn, gte: $from, type: date }
+    - { of: a, path: completedOn, lte: $to, type: date }
+    - { of: a, path: location.municipalityId, equals: $municipality }
+columns:
+  - { label: 情報種別, path: kind }
+  - { label: 完了日, path: completedOn }
+  # 完了日から年月を導く（月ごとの CSV の鍵。レポートの条件は日付の大小を比べられないので、年月の一致で絞る）
+  - { label: 完了月, value: { yearMonth: { path: completedOn } } }
+  - { label: 通知先の自治体, path: location.municipalityId }
+  - { label: 通知先の自治体名, of: lg, path: name }
+  - { label: 通知先メールアドレス, of: lg, path: email }
+  - { label: マイクロチップ番号, of: m, path: mcNumber }
+  - { label: 犬の名前, of: m, path: animal.name }
+  - { label: 品種, of: m, path: animal.breed }
+  - { label: 毛色, of: m, path: animal.color }
+  - { label: 性別, of: m, path: animal.sex }
+  - { label: 生年月日, of: m, path: animal.birthDate }
+  - { label: 所在地, path: location.address }
+  - { label: 所有者, path: applicantId }
+  - { label: 所有者の氏名・名称, value: { via: applicantId, path: name } }
+  - { label: 所有者の住所, value: { via: applicantId, path: address } }
+  - { label: 所有者の電話番号, value: { via: applicantId, path: phone } }
+  - { label: 旧所有者, path: previousOwnerId }
+  - { label: 死亡日, path: deathOn }
+order: { path: completedOn, type: date }

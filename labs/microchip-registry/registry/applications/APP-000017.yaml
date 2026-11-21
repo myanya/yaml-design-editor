@@ -1,0 +1,42 @@
+applicationId: APP-000017
+kind: registration
+channel: paper
+receivedOn: 2026-06-03
+status: completed
+applicantId: OWN-0006
+registration:
+  mcNumber: MC-999000000000030
+  animal:
+    species: dog
+    name: ハナ
+    breed: ビーグル
+    color: 白茶
+    sex: female
+    birthDate: 2020-07-07
+  implantedOn: 2026-05-30
+  veterinarian: あおば動物病院 青葉
+location:
+  municipalityId: LG-991037
+  address: みなと県こもれび町木陰X-X-X
+feeId: FEE-REG-PAPER
+handledBy: ACC-0001
+history:
+  - date: 2026-06-03
+    action: apply-registration
+    to: accepted
+  - date: 2026-06-01
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000017
+  - date: 2026-06-04
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: counter
+  paidOn: 2026-06-01
+  amount: 1000
+  receiptNo: PAY-000017
+completedOn: 2026-06-04
+microchipId: MC-999000000000030

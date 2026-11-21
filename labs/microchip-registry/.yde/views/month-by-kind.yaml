@@ -1,0 +1,19 @@
+id: month-by-kind
+name: 月×手続種別の件数
+kind: matrix
+description: 行＝受付日の年月、列＝手続種別、セル＝申請・届出の件数。合計の行と列が自動で付きます。担当部署への報告に使う件数です。
+rows:
+  value: { yearMonth: { path: receivedOn } }
+cells:
+  match:
+    - node: { entity: application, bind: a }
+  of: a
+  columns:
+    path: kind
+    values:
+      - { value: registration, label: 新規登録 }
+      - { value: transfer, label: 所有者変更 }
+      - { value: change, label: 情報変更 }
+      - { value: death, label: 死亡届 }
+      - { value: reissue, label: 再交付 }
+  aggregate: count

@@ -1,0 +1,14 @@
+id: BF-24
+name: "所有者別検索（指定登録機関）"
+business: BIZ-28
+source: "別紙 3 業務フロー 44／66"
+lanes:
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-24-S01, title: "検索条件を入力する", actor: ACT-REGISTRAR, kind: system, view: helpdesk-dashboard }
+  - { id: BF-24-S02, title: "所有者別に検索する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: microchip-grid }
+  - { id: BF-24-S03, title: "抽出結果を確認する", actor: ACT-REGISTRAR, kind: system, view: helpdesk-dashboard }
+transitions:
+  - { from: BF-24-S01, to: BF-24-S02, label: "氏名（個人名、法人名称）＋マイクロチップ番号" }
+  - { from: BF-24-S02, to: BF-24-S03 }

@@ -1,0 +1,22 @@
+id: municipality-grid
+name: 自治体の一覧（マスタ）
+description: 自治体のマスタと、所在地として参照している登録の数です。
+rows:
+  idPattern: "LG-*"
+  schemaIds: [municipality-list]
+columns:
+  - { label: 自治体名, schemaId: municipality-list, path: name }
+  - { label: 種類, schemaId: municipality-list, path: kind }
+  - { label: 都道府県, schemaId: municipality-list, path: prefecture }
+  - { label: ワンストップ参加, schemaId: municipality-list, path: oneStop }
+  - { label: 通知先メールアドレス, schemaId: municipality-list, path: email }
+  - label: 所在する犬猫
+    schemaId: municipality-list
+    value:
+      count:
+        all:
+          of: m
+          match:
+            - node: { entity: municipality, bind: lg }
+            - edge: { via: locationMunicipalityId, dir: in }
+            - node: { entity: microchip, bind: m }

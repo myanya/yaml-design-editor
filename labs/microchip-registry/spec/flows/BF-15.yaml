@@ -1,0 +1,22 @@
+id: BF-15
+name: "情報変更（紙運用）"
+business: BIZ-11
+source: "別紙 3 業務フロー 26〜27／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-15-S01, title: "情報変更届出書を作成する", actor: ACT-OWNER, kind: document }
+  - { id: BF-15-S02, title: "郵送か窓口で情報変更を届け出る", actor: ACT-OWNER, kind: outside }
+  - { id: BF-15-S03, title: "情報変更の届出を受領する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-15-S04, title: "犬猫／所有者情報を入力する", actor: ACT-REGISTRAR, kind: system, action: report-change, note: "経路を「紙」にし、担当者を入れます。変更キーは登録証明書（写）から読みます。" }
+  - { id: BF-15-S05, title: "犬猫／所有者情報の変更を受け付け、登録を変更する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: report-change }
+  - { id: BF-15-S06, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+transitions:
+  - { from: BF-15-S01, to: BF-15-S02 }
+  - { from: BF-15-S02, to: BF-15-S03, label: "情報変更届出書＋登録証明書（写）" }
+  - { from: BF-15-S03, to: BF-15-S04 }
+  - { from: BF-15-S04, to: BF-15-S05, label: "MC 番号＋変更キー＋情報変更（犬猫／所有者情報）" }
+  - { from: BF-15-S05, to: BF-15-S06 }
+notes: "所有者の変更は「所有者変更」の業務で行います。届出なので、所有者に登録完了の連絡はしません。情報変更のあとの登録証明書が要るときは、業務フロー「再交付」で取得します。"

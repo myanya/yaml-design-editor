@@ -1,0 +1,59 @@
+actors:
+  - id: ACT-OWNER
+    name: 所有者（個人・法人）
+    kind: user
+    description: 犬又は猫を所有する個人又は法人。犬猫繁殖業者・ペットショップ等は装着と登録・変更登録の義務があり、愛護団体と飼い主は装着が努力義務で、装着したら登録します。
+    tasks: マイクロチップ情報登録・所有者変更・情報変更
+    entry: owner-dashboard
+  - id: ACT-MUNICIPALITY
+    name: 基礎自治体
+    kind: user
+    description: 狂犬病予防法の犬の登録を行う市区町村。通知されたワンストップ情報を受け取り、犬の登録を行います。
+    tasks: マイクロチップ情報検索・ワンストップ情報の受領
+    entry: municipality-dashboard
+  - id: ACT-PREFECTURE
+    name: 都道府県等
+    kind: user
+    description: 保健所・動物愛護管理センター。逸走情報を検索して保護・返還を行い、飼養管理の情報を受け取って動物取扱事業者を指導します。
+    tasks: マイクロチップ情報検索
+    entry: prefecture-dashboard
+  - id: ACT-POLICE
+    name: 警察
+    kind: user
+    description: 警察官。逸走情報を検索して保護・返還を行います。
+    tasks: マイクロチップ情報検索
+    entry: police-dashboard
+  - id: ACT-REGISTRAR
+    name: 指定登録機関（担当者）
+    kind: user
+    description: マイクロチップ情報の登録関係事務を担う機関の担当者。紙の申請の入力、行政のアカウントの管理、問い合わせの対応を行います。
+    tasks: マイクロチップ情報登録・マイクロチップ情報検索・問合せ対応
+    entry: registrar-dashboard
+  - id: ACT-DB-MAINT
+    name: 共通 DB 運用保守事業者（保守者）
+    kind: user
+    description: 共通 DB システムの運用・保守を行う事業者。マスタの登録と、指定登録機関のアカウントの発行を行います。
+    tasks: 問い合わせ対応・マスタ設定・指定登録機関 ID 登録
+    entry: admin-dashboard
+  - id: ACT-WEB-MAINT
+    name: 個別 Web 運用保守事業者
+    kind: user
+    description: 個別 Web システムの運用・保守を行う事業者。問い合わせに対応します。
+    tasks: 問合せ対応
+    entry: helpdesk-dashboard
+  - id: ACT-SYSTEM
+    name: 指定登録機関（個別 Web システム）
+    kind: participant
+    description: 業務フローのレーン「指定登録機関（個別 Web システム）」。受付・認証・登録・メール送信を行うシステムです。このワークスペースでは、操作の前提と手、ビュー、レポートが当たります。
+  - id: ACT-VET
+    name: MC 装着者（獣医師）
+    kind: participant
+    description: マイクロチップを装着し、装着証明書を発行する獣医師。システムは使いません。
+  - id: ACT-OLD-OWNER
+    name: 旧所有者（個人・法人）
+    kind: participant
+    description: 所有者変更で、犬猫と登録証明書（変更キーを含む）を譲り渡す側の所有者。
+  - id: ACT-PAYMENT
+    name: 決済関連
+    kind: participant
+    description: クレジットカード決済・コンビニ払い・窓口・銀行振込の決済の仕組み。システムの外にあり、結果だけを受け取ります。

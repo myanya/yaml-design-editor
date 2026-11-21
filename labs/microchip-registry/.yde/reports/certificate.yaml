@@ -1,0 +1,19 @@
+id: certificate
+name: マイクロチップ登録証明書
+description: >-
+  登録済みの犬猫 1 頭の登録証明書を HTML で作ります（ブラウザの印刷で紙と PDF にできます）。マイクロチップ番号を受け取り、
+  犬猫情報・所有者・変更キーを材料のビュー（doc-certificate）から読みます。変更キーは、登録・所有者変更・再交付が完了するたびに変わるので、
+  手続のあとで作り直した証明書が最新です。死亡の届出がある登録は交付できません（材料の行が無いので、中身が空になります）。
+params: [mc]                              # 例 MC-999000000000004
+build:
+  mc: $mc
+  # 材料の行を 1 行ずつ組み立てる（番号で絞るので 1 行）。表示の文字（種別・性別）は、値を辞書で置き換えて作る（ひな形では値を比べられない）
+  certificates:
+    $each: { $view: doc-certificate, $where: [ { path: id, equals: $mc } ] }
+    $build:
+      id: { $copy: id }
+      species: { $map: { $copy: values.種別 }, $using: { dog: 犬, cat: 猫 } }
+      sex: { $map: { $copy: values.性別 }, $using: { male: オス, female: メス } }
+      values: { $copy: values }
+template: certificate.html
+output: "output/certificates/{mc}.html"

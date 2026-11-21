@@ -1,0 +1,17 @@
+id: monthly-report
+name: 月次の手続件数（担当部署への報告）
+description: 指定した月の申請・届出の件数を、手続種別と経路で集めた Markdown を作ります。数はビュー（月×手続種別・月×経路）から受け取り、ここでは件数を数えません。オンライン利用率だけ、経路の件数から計算します。
+params: [month]                           # 例 2026-05
+build:
+  month: $month
+  kinds: { $view: month-by-kind, $where: [ { path: id, equals: $month } ], $one: true }
+  # 経路の行を 1 行組み立て、オンライン利用率（%）＝オンライン ÷ 合計 × 100 を添える（目標 90% 以上）
+  channels:
+    $each: { $view: month-by-channel, $where: [ { path: id, equals: $month } ] }
+    $build:
+      cells: { $copy: cells }
+      onlineRate:
+        $number: { $value: { divide: [ { multiply: [ { number: { path: values.オンライン } }, 100 ] }, { number: { path: values.合計 } } ] } }
+        $as: "0.0"
+template: monthly-report.md
+output: "output/reports/{month}.md"

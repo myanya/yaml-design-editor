@@ -1,0 +1,31 @@
+applicationId: APP-000027
+kind: transfer
+channel: online
+receivedOn: 2026-07-19
+status: completed
+applicantId: OWN-0011
+microchipId: MC-999000000000012
+previousOwnerId: OWN-0004
+location:
+  municipalityId: LG-991029
+  address: みなと県しおかぜ市浜風X-X-X
+feeId: FEE-TRF-ONLINE
+history:
+  - date: 2026-07-19
+    action: apply-transfer
+    to: accepted
+  - date: 2026-07-20
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000027
+  - date: 2026-07-20
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: convenience
+  paidOn: 2026-07-20
+  amount: 300
+  receiptNo: PAY-000027
+completedOn: 2026-07-20

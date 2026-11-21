@@ -1,0 +1,16 @@
+id: BF-18
+name: "飼養管理検索"
+business: BIZ-14
+source: "別紙 3 業務フロー 34／66"
+lanes:
+  - { actor: ACT-PREFECTURE, label: "都道府県等（各都道府県、動物愛護管理センター、保健所）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-18-S01, title: "検索条件を入力する", actor: ACT-PREFECTURE, kind: system, view: prefecture-dashboard, note: "登録日の範囲（から・まで）で絞ります。" }
+  - { id: BF-18-S02, title: "飼養管理基準の超過情報を検索する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: breeding-grid, note: "判定条件は要件定義書に無いので、仮の基準です。" }
+  - { id: BF-18-S03, title: "抽出結果を確認する", actor: ACT-PREFECTURE, kind: system, view: prefecture-dashboard }
+  - { id: BF-18-S04, title: "所有者へ指導する", actor: ACT-PREFECTURE, kind: outside }
+transitions:
+  - { from: BF-18-S01, to: BF-18-S02, label: "日付（期間か、指定の年月）" }
+  - { from: BF-18-S02, to: BF-18-S03 }
+  - { from: BF-18-S03, to: BF-18-S04 }

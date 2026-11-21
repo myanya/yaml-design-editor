@@ -1,0 +1,16 @@
+applicationId: APP-000033
+kind: death
+channel: online
+receivedOn: 2026-10-05
+status: completed
+applicantId: OWN-0002
+completedOn: 2026-10-05
+microchipId: MC-999000000000011
+location:
+  municipalityId: LG-981015
+  address: やまなみ県ゆきしろ市本町X-X-X
+deathOn: 2026-10-02
+history:
+  - date: 2026-10-05
+    action: report-death
+    to: completed

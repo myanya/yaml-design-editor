@@ -1,0 +1,7 @@
+fees:
+  - { id: FEE-REG-ONLINE, name: 新規登録（オンライン）, kind: registration, channel: online, amount: 300 }
+  - { id: FEE-REG-PAPER, name: 新規登録（紙）, kind: registration, channel: paper, amount: 1000 }
+  - { id: FEE-TRF-ONLINE, name: 所有者変更（オンライン）, kind: transfer, channel: online, amount: 300 }
+  - { id: FEE-TRF-PAPER, name: 所有者変更（紙）, kind: transfer, channel: paper, amount: 1000 }
+  - { id: FEE-RIS-ONLINE, name: 再交付（オンライン）, kind: reissue, channel: online, amount: 200 }
+  - { id: FEE-RIS-PAPER, name: 再交付（紙）, kind: reissue, channel: paper, amount: 700 }

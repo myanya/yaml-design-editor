@@ -1,0 +1,7 @@
+id: owner
+name: 所有者
+kind: document
+description: 所有者 1 件を 1 ファイルで管理します。マイクロチップ登録と申請から番号で参照されます。
+match: "registry/owners/*.yaml"
+filePattern: "registry/owners/{id}.yaml"
+root: { type: common#所有者 }

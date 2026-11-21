@@ -1,0 +1,44 @@
+id: application
+name: 申請・届出
+kind: document
+description: 申請・届出 1 件を 1 ファイルで管理します。受付と手数料の支払の状態を持ち、完了するとマイクロチップ登録へ反映します。
+match: "registry/applications/*.yaml"
+filePattern: "registry/applications/{id}.yaml"
+root: { type: common#申請 }
+# 他の要素へ線を辿る検査（申請 → 料金、申請 → 登録）
+constraints:
+  - id: fee-matches-kind-and-channel
+    description: 申請の料金は、手続種別と経路に合うものであること
+    match:
+      - node: { entity: application, bind: a }
+      - edge: { via: feeId }
+      - node: { entity: fee, bind: f }
+    check:
+      - { eq: [ { of: a, path: kind }, { of: f, path: kind } ] }
+      - { eq: [ { of: a, path: channel }, { of: f, path: channel } ] }
+    level: error
+    message: "申請 {a.id} の料金 {f.id} が、手続種別か経路に合いません"
+  - id: payment-matches-fee
+    description: 支払額は料金の手数料と同じであること
+    match:
+      - node: { entity: application, bind: a }
+      - edge: { via: feeId }
+      - node: { entity: fee, bind: f }
+    where: [ { of: a, path: payment, exists: true } ]
+    check: [ { eq: [ { of: a, path: payment.amount }, { of: f, path: amount } ] } ]
+    level: error
+    message: "申請 {a.id} の支払額 {left} が、料金 {f.id} の手数料 {right} と違います"
+  - id: transfer-owners-differ
+    description: 所有者変更の申請者（新しい所有者）と旧所有者は別であること
+    match: [ { node: { entity: application, bind: a } } ]
+    where: [ { of: a, path: kind, equals: transfer } ]
+    check: [ { ne: [ { of: a, path: applicantId }, { of: a, path: previousOwnerId } ] } ]
+    level: error
+    message: "所有者変更 {a.id} の申請者と旧所有者が同じです"
+  - id: change-has-content
+    description: 情報変更の届出には、変えた項目が 1 つ以上あること
+    match: [ { node: { entity: application, bind: a } } ]
+    where: [ { of: a, path: kind, equals: change }, { of: a, path: changes, empty: true } ]
+    expect: absent
+    level: error
+    message: "情報変更 {a.id} に変えた項目がありません（変えたい項目を 1 つ以上入れます）"

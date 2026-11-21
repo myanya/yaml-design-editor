@@ -1,0 +1,12 @@
+accountId: ACC-0004
+kind: municipality
+status: active
+name: 浜野 拓
+organization: しおかぜ市 環境衛生課
+email: hamano@city.shiokaze.example.jp
+registeredOn: 2026-03-10
+municipalityId: LG-991029
+history:
+  - date: 2026-03-10
+    action: register-account
+    to: active

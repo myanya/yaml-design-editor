@@ -1,0 +1,47 @@
+id: microchip
+name: マイクロチップ登録
+kind: document
+description: マイクロチップ登録 1 件を 1 ファイルで管理します。犬猫情報と現在の所有者・所在地・変更キーを持ち、申請と届出から対象として参照されます。
+match: "registry/microchips/*.yaml"
+filePattern: "registry/microchips/{id}.yaml"
+root: { type: common#マイクロチップ登録 }
+# 他の要素へ線を辿る検査は、型ではなくスキーマに書きます（子 → 母親、登録 ← 申請）
+constraints:
+  - id: mother-is-female
+    description: 母親はメスであること
+    match:
+      - node: { entity: microchip, bind: c }
+      - edge: { via: motherId }
+      - node: { entity: microchip, bind: mo }
+    where: [ { of: mo, path: animal.sex, notEquals: female } ]
+    expect: absent
+    level: error
+    message: "{c.id} の母親 {mo.id} はメスではありません"
+  - id: mother-same-species
+    description: 母親と子は同じ種別であること
+    match:
+      - node: { entity: microchip, bind: c }
+      - edge: { via: motherId }
+      - node: { entity: microchip, bind: mo }
+    check: [ { eq: [ { of: c, path: animal.species }, { of: mo, path: animal.species } ] } ]
+    level: error
+    message: "{c.id} と母親 {mo.id} の種別が違います"
+  - id: mother-born-before-child
+    description: 母親の生年月日は子の生年月日より前であること
+    match:
+      - node: { entity: microchip, bind: c }
+      - edge: { via: motherId }
+      - node: { entity: microchip, bind: mo }
+    check: [ { lt: [ { of: mo, path: animal.birthDate }, { of: c, path: animal.birthDate } ] } ]
+    level: error
+    message: "{c.id} の母親 {mo.id} の生年月日が、子の生年月日以降です"
+  - id: one-pending-application
+    description: 1 つの登録に、手続の途中の申請は 1 件までであること
+    match:
+      - node: { entity: microchip, bind: m }
+      - edge: { via: microchipId, dir: in }
+      - node: { entity: application, bind: a }
+    where: [ { of: a, state: [app-accepted, app-paid] } ]
+    count: { max: 1 }
+    level: error
+    message: "{m.id} に手続の途中の申請が {count} 件あります"

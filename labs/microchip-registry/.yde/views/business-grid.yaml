@@ -1,0 +1,20 @@
+id: business-grid
+name: 業務一覧と再現の対応
+description: 要件定義書の業務ごとの、再現の状態と、対応する操作・ビュー・レポート・スクリプト、足りないことです。
+params: [status, category]
+rows:
+  match:
+    - node: { entity: business, bind: b }
+  where:
+    - { of: b, path: realization.status, equals: $status }
+    - { of: b, path: category, equals: $category }
+columns:
+  - { label: 業務区分, path: category }
+  - { label: 業務名, path: name }
+  - { label: 再現の状態, path: realization.status }
+  - { label: 操作, path: realization.actions }
+  - { label: ビュー, path: realization.views }
+  - { label: レポート・skill, path: realization.reports }
+  - { label: 外のスクリプト, path: realization.scripts }
+  - { label: 足りないこと, path: realization.gap }
+  - { label: 想定規模, path: scale }

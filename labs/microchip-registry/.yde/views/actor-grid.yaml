@@ -1,0 +1,12 @@
+id: actor-grid
+name: 利用者区分と登場者
+description: 要件定義書の利用者区分（表 3）と、業務フローの登場者です。利用者区分には入口のダッシュボードを対応付けています。
+rows:
+  match:
+    - node: { entity: actor, bind: u }
+columns:
+  - { label: 名前, path: name }
+  - { label: 種類, path: kind }
+  - { label: 特性, path: description }
+  - { label: 主な対象業務, path: tasks }
+  - { label: 入口のダッシュボード, path: entry }

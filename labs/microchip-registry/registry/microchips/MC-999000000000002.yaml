@@ -1,0 +1,20 @@
+mcNumber: MC-999000000000002
+status: registered
+animal:
+  species: dog
+  name: さくら
+  sex: female
+  birthDate: 2018-12-01
+  breed: 柴
+  color: 黒
+implantedOn: 2026-04-03
+ownerId: OWN-0001
+locationMunicipalityId: LG-991011
+changeKey: CK-000002
+registeredOn: 2026-04-07
+veterinarian: あおば動物病院 青葉
+locationAddress: みなと県あおば市緑町X-X-X
+history:
+  - date: 2026-04-07
+    action: complete-application
+    to: registered

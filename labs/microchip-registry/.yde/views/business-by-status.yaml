@@ -1,0 +1,18 @@
+id: business-by-status
+name: 業務区分×再現の状態
+kind: matrix
+description: 行＝業務区分、列＝再現の状態、セル＝業務の件数。要件定義書の業務を、どこまで再現したかの全体像です。
+rows:
+  value: { path: category }
+cells:
+  match:
+    - node: { entity: business, bind: b }
+  of: b
+  columns:
+    path: realization.status
+    values:
+      - { value: implemented, label: 再現 }
+      - { value: partial, label: 一部 }
+      - { value: external, label: システムの外 }
+      - { value: out-of-scope, label: 対象外 }
+  aggregate: count

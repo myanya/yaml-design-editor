@@ -1,0 +1,21 @@
+mcNumber: MC-999000000000008
+status: registered
+animal:
+  species: dog
+  name: ゆず
+  sex: female
+  birthDate: 2026-01-20
+  breed: 柴
+  color: 赤
+implantedOn: 2026-04-10
+ownerId: OWN-0001
+locationMunicipalityId: LG-991011
+changeKey: CK-000008
+registeredOn: 2026-04-14
+veterinarian: あおば動物病院 青葉
+motherId: MC-999000000000002
+locationAddress: みなと県あおば市緑町X-X-X
+history:
+  - date: 2026-04-14
+    action: complete-application
+    to: registered

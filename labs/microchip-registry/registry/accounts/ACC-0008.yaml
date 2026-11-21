@@ -1,0 +1,18 @@
+accountId: ACC-0008
+kind: municipality
+status: deleted
+name: 青柳 修
+organization: あおば市 生活衛生課
+email: aoyagi@city.aoba.example.jp
+registeredOn: 2026-03-10
+municipalityId: LG-991011
+history:
+  - date: 2026-03-10
+    action: register-account
+    to: active
+  - date: 2026-09-30
+    action: delete-account
+    from: active
+    to: deleted
+    note: 異動のため
+deletedOn: 2026-09-30

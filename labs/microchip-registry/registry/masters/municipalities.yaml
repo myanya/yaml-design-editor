@@ -1,0 +1,8 @@
+municipalities:
+  - { id: LG-990001, name: みなと県, kind: prefecture, prefecture: みなと県, oneStop: false, email: doubutsu@pref.minato.example.jp }
+  - { id: LG-991011, name: あおば市, kind: city, prefecture: みなと県, oneStop: true, email: inu-touroku@city.aoba.example.jp }
+  - { id: LG-991029, name: しおかぜ市, kind: city, prefecture: みなと県, oneStop: true, email: kankyo@city.shiokaze.example.jp }
+  - { id: LG-991037, name: こもれび町, kind: city, prefecture: みなと県, oneStop: false, email: jumin@town.komorebi.example.jp }
+  - { id: LG-980007, name: やまなみ県, kind: prefecture, prefecture: やまなみ県, oneStop: false, email: aigo@pref.yamanami.example.jp }
+  - { id: LG-981015, name: ゆきしろ市, kind: city, prefecture: やまなみ県, oneStop: true, email: seikatsu@city.yukishiro.example.jp }
+  - { id: LG-981023, name: つきかげ村, kind: city, prefecture: やまなみ県, oneStop: false, email: yakuba@vill.tsukikage.example.jp }

@@ -1,0 +1,28 @@
+applicationId: APP-000035
+kind: reissue
+channel: paper
+receivedOn: 2026-10-06
+status: completed
+applicantId: OWN-0005
+microchipId: MC-999000000000022
+feeId: FEE-RIS-PAPER
+handledBy: ACC-0002
+history:
+  - date: 2026-10-06
+    action: apply-reissue
+    to: accepted
+  - date: 2026-10-05
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000035
+  - date: 2026-10-07
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: counter
+  paidOn: 2026-10-05
+  amount: 700
+  receiptNo: PAY-000035
+completedOn: 2026-10-07

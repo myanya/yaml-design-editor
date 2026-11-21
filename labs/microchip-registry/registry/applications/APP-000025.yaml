@@ -1,0 +1,31 @@
+applicationId: APP-000025
+kind: transfer
+channel: online
+receivedOn: 2026-06-20
+status: completed
+applicantId: OWN-0008
+microchipId: MC-999000000000004
+previousOwnerId: OWN-0003
+location:
+  municipalityId: LG-991029
+  address: みなと県しおかぜ市汐見X-X-X
+feeId: FEE-TRF-ONLINE
+history:
+  - date: 2026-06-20
+    action: apply-transfer
+    to: accepted
+  - date: 2026-06-20
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000025
+  - date: 2026-06-20
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: credit
+  paidOn: 2026-06-20
+  amount: 300
+  receiptNo: PAY-000025
+completedOn: 2026-06-20

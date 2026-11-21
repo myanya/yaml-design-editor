@@ -1,0 +1,14 @@
+id: BF-23
+name: "トレーサビリティ照会"
+business: BIZ-21
+source: "別紙 3 業務フロー 43／66"
+lanes:
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-23-S01, title: "犬猫登録履歴の照会を実行する", actor: ACT-REGISTRAR, kind: system, view: helpdesk-dashboard }
+  - { id: BF-23-S02, title: "登録履歴を抽出する（登録・変更登録・死亡）（共通 DB）", actor: ACT-SYSTEM, kind: data, view: traceability-grid }
+  - { id: BF-23-S03, title: "犬猫登録履歴の結果を確認する", actor: ACT-REGISTRAR, kind: system, view: traceability-grid }
+transitions:
+  - { from: BF-23-S01, to: BF-23-S02, label: "MC 番号" }
+  - { from: BF-23-S02, to: BF-23-S03, label: "犬猫情報＋所有者情報" }

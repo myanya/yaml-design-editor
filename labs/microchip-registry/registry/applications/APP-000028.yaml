@@ -1,0 +1,32 @@
+applicationId: APP-000028
+kind: transfer
+channel: paper
+receivedOn: 2026-08-02
+status: completed
+applicantId: OWN-0006
+microchipId: MC-999000000000021
+previousOwnerId: OWN-0005
+location:
+  municipalityId: LG-991037
+  address: みなと県こもれび町木陰X-X-X
+feeId: FEE-TRF-PAPER
+handledBy: ACC-0001
+history:
+  - date: 2026-08-02
+    action: apply-transfer
+    to: accepted
+  - date: 2026-07-31
+    action: record-payment
+    from: accepted
+    to: paid
+    note: PAY-000028
+  - date: 2026-08-03
+    action: complete-application
+    from: paid
+    to: completed
+payment:
+  method: bank
+  paidOn: 2026-07-31
+  amount: 1000
+  receiptNo: PAY-000028
+completedOn: 2026-08-03

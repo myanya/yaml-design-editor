@@ -1,0 +1,14 @@
+id: BF-19
+name: "所有者別検索"
+business: BIZ-28
+source: "別紙 3 業務フロー 35／66"
+lanes:
+  - { actor: ACT-PREFECTURE, label: "都道府県等（各都道府県、動物愛護管理センター、保健所）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-19-S01, title: "検索条件を入力する", actor: ACT-PREFECTURE, kind: system, view: prefecture-dashboard }
+  - { id: BF-19-S02, title: "所有者別に検索する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: microchip-grid }
+  - { id: BF-19-S03, title: "抽出結果を確認する", actor: ACT-PREFECTURE, kind: system, view: prefecture-dashboard }
+transitions:
+  - { from: BF-19-S01, to: BF-19-S02, label: "氏名（個人名、法人名称）＋マイクロチップ番号" }
+  - { from: BF-19-S02, to: BF-19-S03 }

@@ -1,0 +1,15 @@
+id: form-grid
+name: 帳票一覧と再現の対応
+description: 要件定義書の帳票（表 8）ごとの、再現の状態と、対応するレポート・スクリプトです。
+rows:
+  match:
+    - node: { entity: form, bind: f }
+columns:
+  - { label: 帳票名, path: name }
+  - { label: ファイル種類, path: fileKind }
+  - { label: 個別 Web で作成, path: madeBySystem }
+  - { label: ダウンロード可, path: downloadable }
+  - { label: 再現の状態, path: realization.status }
+  - { label: レポート・skill, path: realization.reports }
+  - { label: 外のスクリプト, path: realization.scripts }
+  - { label: 足りないこと, path: realization.gap }

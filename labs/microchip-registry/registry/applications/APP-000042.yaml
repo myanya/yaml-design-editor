@@ -1,0 +1,26 @@
+applicationId: APP-000042
+kind: registration
+channel: online
+receivedOn: 2026-11-18
+status: accepted
+applicantId: OWN-0001
+registration:
+  mcNumber: MC-999000000000044
+  animal:
+    species: dog
+    name: わらび
+    breed: 柴
+    color: 黒
+    sex: male
+    birthDate: 2026-09-15
+  implantedOn: 2026-11-17
+  veterinarian: あおば動物病院 青葉
+  motherId: MC-999000000000002
+location:
+  municipalityId: LG-991011
+  address: みなと県あおば市緑町X-X-X
+feeId: FEE-REG-ONLINE
+history:
+  - date: 2026-11-18
+    action: apply-registration
+    to: accepted

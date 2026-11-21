@@ -1,0 +1,19 @@
+id: onestop-notice
+name: ワンストップ通知（日次）
+description: >-
+  指定した日に完了した犬の手続を、通知先の市区町村ごとに数えて、通知メールの宛先と件数の一覧にします（業務フロー「ワンストップ通知」の日次の集計）。
+  メールの送信と、毎日の決まった時刻の実行はシステムの外で行います（scripts/daily-batch.py が前日の分を作ります）。
+params: [date]                            # 例 2026-04-14
+build:
+  date: $date
+  # 通知先の自治体ごとにまとめる（まとまりは {key, items}。件数は items の数）
+  groups:
+    $group: { $each: { $view: onestop-grid, $where: [ { path: values.完了日, equals: $date } ] }, $build: { $copy: . } }
+    $by: { $copy: values.通知先の自治体 }
+    $build:
+      id: { $copy: key }
+      name: { $copy: "items[0].values.通知先の自治体名" }
+      email: { $copy: "items[0].values.通知先メールアドレス" }
+      count: { $value: { count: { path: items } } }
+template: onestop-notice.md
+output: "output/notices/onestop-{date}.md"

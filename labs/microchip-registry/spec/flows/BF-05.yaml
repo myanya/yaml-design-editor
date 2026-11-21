@@ -1,0 +1,29 @@
+id: BF-05
+name: "再交付"
+business: BIZ-08
+source: "別紙 3 業務フロー 17〜19／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-05-S01, title: "マイクロチップ登録証明書の有無を確認する", actor: ACT-OWNER, kind: outside }
+  - { id: BF-05-S02, title: "マイクロチップ番号を読み取る", actor: ACT-OWNER, kind: outside }
+  - { id: BF-05-S03, title: "利用規約を確認する", actor: ACT-OWNER, kind: system, note: "利用規約の確認は再現していません。" }
+  - { id: BF-05-S04, title: "登録証明書の再交付を申請する", actor: ACT-OWNER, kind: system, action: apply-reissue }
+  - { id: BF-05-S05, title: "本人を認証し、再交付を受け付ける（共通 DB）", actor: ACT-SYSTEM, kind: data, action: apply-reissue, note: "登録証明書があれば変更キー、無ければ所有者本人しか知らない情報（ここでは登録した電話番号）で確かめます。" }
+  - { id: BF-05-S06, title: "再交付手数料を支払う", actor: ACT-OWNER, kind: system, note: "決済はシステムの外です（業務フロー「手数料支払」）。" }
+  - { id: BF-05-S07, title: "支払結果を確認する", actor: ACT-SYSTEM, kind: data, action: record-payment }
+  - { id: BF-05-S08, title: "新しい変更キーを発行する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: complete-application }
+  - { id: BF-05-S09, title: "マイクロチップ登録証明書を発行する", actor: ACT-SYSTEM, kind: document, note: "レポート certificate で HTML を作ります。メールでの送付はシステムの外です。" }
+  - { id: BF-05-S10, title: "マイクロチップ登録証明書を受領する", actor: ACT-OWNER, kind: document }
+transitions:
+  - { from: BF-05-S01, to: BF-05-S02, label: "【登録証明書無】" }
+  - { from: BF-05-S01, to: BF-05-S03, label: "【登録証明書有】" }
+  - { from: BF-05-S02, to: BF-05-S03 }
+  - { from: BF-05-S03, to: BF-05-S04 }
+  - { from: BF-05-S04, to: BF-05-S05, label: "MC 番号＋変更キー、または MC 番号＋本人認証情報（電話番号など）" }
+  - { from: BF-05-S05, to: BF-05-S06 }
+  - { from: BF-05-S06, to: BF-05-S07 }
+  - { from: BF-05-S07, to: BF-05-S08 }
+  - { from: BF-05-S08, to: BF-05-S09 }
+  - { from: BF-05-S09, to: BF-05-S10, label: "MC 番号＋変更キー（新）" }

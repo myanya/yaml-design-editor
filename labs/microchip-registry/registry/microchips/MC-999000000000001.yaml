@@ -1,0 +1,20 @@
+mcNumber: MC-999000000000001
+status: registered
+animal:
+  species: dog
+  name: こむぎ
+  sex: female
+  birthDate: 2021-03-10
+  breed: 柴
+  color: 赤
+implantedOn: 2026-04-03
+ownerId: OWN-0001
+locationMunicipalityId: LG-991011
+changeKey: CK-000001
+registeredOn: 2026-04-07
+veterinarian: あおば動物病院 青葉
+locationAddress: みなと県あおば市緑町X-X-X
+history:
+  - date: 2026-04-07
+    action: complete-application
+    to: registered

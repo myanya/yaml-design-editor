@@ -1,0 +1,15 @@
+id: api-grid
+name: API 一覧と再現の対応
+description: 要件定義書の API（別紙 4）ごとの、利用する業務と、同じ働きをする操作・前提・ビューです。
+rows:
+  match:
+    - node: { entity: api, bind: p }
+columns:
+  - { label: API 名, path: name }
+  - { label: API 群, path: group }
+  - { label: 利用する業務, path: businesses }
+  - { label: 再現の状態, path: realization.status }
+  - { label: 操作, path: realization.actions }
+  - { label: 操作の前提, path: realization.requires }
+  - { label: ビュー, path: realization.views }
+  - { label: 足りないこと, path: realization.gap }

@@ -1,0 +1,36 @@
+id: breeding-grid
+name: 飼養管理（母親と子の登録）
+description: >-
+  母親の分かる登録を、子ごとに並べます。出産時の母親の日齢（母親と子の生年月日の差）と、母親の所有者（繁殖した事業者）を添えます。
+  飼養管理基準の判定条件は要件定義書に無いので、ダッシュボードの「基準超過の疑い」は仮の基準（出産時に 6 歳を超える）です。
+params: [from, to, prefecture]
+rows:
+  # 行＝子の登録。母親 → 母親の所有者 → 所有者の住所の自治体 と参照を辿る（所管の都道府県で絞るため）
+  match:
+    - node: { entity: microchip, bind: c }
+    - edge: { via: motherId }
+    - node: { entity: microchip, bind: mo }
+    - edge: { via: ownerId }
+    - node: { entity: owner, bind: o }
+    - edge: { via: municipalityId }
+    - node: { entity: municipality, bind: lg }
+  rowKey: c
+  where:
+    - { of: c, path: registeredOn, gte: $from, type: date }
+    - { of: c, path: registeredOn, lte: $to, type: date }
+    - { of: lg, path: prefecture, equals: $prefecture }
+columns:
+  - { label: 子の名前, path: animal.name }
+  - { label: 種別, path: animal.species }
+  - { label: 子の生年月日, path: animal.birthDate }
+  - { label: 子の登録日, path: registeredOn }
+  - { label: 母親, path: motherId }
+  - { label: 母親の名前, of: mo, path: animal.name }
+  - { label: 母親の生年月日, of: mo, path: animal.birthDate }
+  - label: 出産時の母親の日齢
+    display: grouped
+    value: { daysBetween: [ { of: mo, path: animal.birthDate }, { of: c, path: animal.birthDate } ] }
+  - { label: 母親の所有者, of: mo, path: ownerId }
+  - { label: 母親の所有者の名称, of: o, path: name }
+  - { label: 所有者の都道府県, of: lg, path: prefecture }
+order: { path: animal.birthDate, type: date }

@@ -1,0 +1,22 @@
+id: BF-17
+name: "死亡届（紙運用）"
+business: BIZ-12
+source: "別紙 3 業務フロー 31〜32／66"
+lanes:
+  - { actor: ACT-OWNER, label: "所有者（個人・法人）" }
+  - { actor: ACT-REGISTRAR, label: "指定登録機関（担当者）" }
+  - { actor: ACT-SYSTEM, label: "指定登録機関（個別 Web システム）" }
+steps:
+  - { id: BF-17-S01, title: "死亡届出書を作成する", actor: ACT-OWNER, kind: document }
+  - { id: BF-17-S02, title: "郵送か窓口で死亡を届け出る", actor: ACT-OWNER, kind: outside }
+  - { id: BF-17-S03, title: "死亡届出を受領する", actor: ACT-REGISTRAR, kind: outside }
+  - { id: BF-17-S04, title: "死亡登録の情報を入力する", actor: ACT-REGISTRAR, kind: system, action: report-death, note: "経路を「紙」にし、担当者を入れます。変更キーは登録証明書（写）から読みます。" }
+  - { id: BF-17-S05, title: "死亡届出を受け付け、死亡を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, action: report-death }
+  - { id: BF-17-S06, title: "ワンストップ通知を登録する（共通 DB）", actor: ACT-SYSTEM, kind: data, view: onestop-grid, note: "通知情報は書き込まず、ビューで導きます。" }
+transitions:
+  - { from: BF-17-S01, to: BF-17-S02 }
+  - { from: BF-17-S02, to: BF-17-S03, label: "死亡届出書＋登録証明書（写）" }
+  - { from: BF-17-S03, to: BF-17-S04 }
+  - { from: BF-17-S04, to: BF-17-S05, label: "MC 番号＋変更キー" }
+  - { from: BF-17-S05, to: BF-17-S06 }
+notes: "届出なので、所有者に登録完了の連絡はしません。"
