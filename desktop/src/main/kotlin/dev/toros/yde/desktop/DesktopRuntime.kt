@@ -105,12 +105,21 @@ internal class DesktopRuntime(
                     jobs?.stop()
                     // activateWorkspace は最初に workspace を切り替える。以降は新しい場所の所有権を持つ。
                     lease = next
-                    try { timings.phase("切り替え") { host.activateWorkspace(root, candidate, fresh) } }
-                    finally { if (previous !== next) previous?.close() }
-                    connectionWorkspace = root to workspaceId
-                    timings.phase("画面の状態を戻す") { state.afterWorkspaceOpened(root) }
-                    jobs = WorkspaceJobs(root)
-                    state.openTimings = timings
+                    // 切り替えから最初の描画まで、このスレッド（画面）に記録を置く。その間のビュー定義の読み込み・ダッシュボードの集計などが
+                    // 内訳に出る（Timings.measureEach）。最初の描画で外す（AppState.finishOpenTimings）。開けなかったときは、ここで外す
+                    Timings.attach(timings)
+                    var opened = false
+                    try {
+                        try { timings.phase("切り替え") { host.activateWorkspace(root, candidate, fresh) } }
+                        finally { if (previous !== next) previous?.close() }
+                        connectionWorkspace = root to workspaceId
+                        timings.phase("画面の状態を戻す") { state.afterWorkspaceOpened(root) }
+                        jobs = WorkspaceJobs(root)
+                        state.openTimings = timings
+                        opened = true
+                    } finally {
+                        if (!opened) Timings.detach(timings)
+                    }
                 } finally {
                     if (next !== lease) next?.close()
                 }

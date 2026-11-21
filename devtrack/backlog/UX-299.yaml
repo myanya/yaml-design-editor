@@ -1,6 +1,6 @@
 id: UX-299
 title: ビュー定義を画面の部品ごとにディスクから読み直す（開いた直後に 2 回・呼び手 11 か所・画面のスレッドで 1 回 0.03〜0.14 秒）
-status: discussing
+status: resolved
 kind: usability
 origin_on: 2026-11-12
 origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
@@ -14,3 +14,8 @@ features:
   - C-07
   - X-05
   - X-13
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "案 A4・B2 を入れた。画面のビュー定義は AppState.viewCatalog から受け取り、同じ版（ワークスペース・スキーマ・索引の版・編集の版）の間は 1 回だけ読んで共有する。画面の 11 か所の Views.load を置き換え、開くときの既定のダッシュボード探しも同じ一式を使う（開いた直後の 2 回が 1 回になる見込み。画面では測っていない）。編集のたびに部品の数だけ読み直すことも無くなる。ディスクの定義だけを読む一式（ビュータブ・埋め込みの図）は、編集の版では読み直さない。画面の部品が Views.load を直接呼ばないことは、ソースの規則 23 が見る（ViewCatalogSharingTest・SourceRulesTest）。1 回の読み込みの中身（木を書き出して解析し直す）は変えていない"

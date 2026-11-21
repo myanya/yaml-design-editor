@@ -160,6 +160,7 @@
 - **照合で選ぶ列**: `columns.each.rows` は通常のクエリ行として下ろし、同じ入力と補正後の木で解決する。選んだ要素の ID を列の式に差し込み、解決した行から `columnsOf` で見出しを取る。
 
 - ビュー専用の書込経路を作らない。UI は docCache の木の直接編集、エージェントは `read_view` → `apply_patch`。
+- 画面のビュー定義は `AppState.viewCatalog` から受け取る。部品ごとに `Views.load` を呼ばない。`viewCatalog` は同じ版（ワークスペース・スキーマ・索引の版・編集の版）の間は 1 回だけ読んで共有する。部品は `remember` の鍵に `state.indexVersion`（未保存の定義も見るなら `state.editVersion` も）を入れて購読する。
 - ビュー定義の型はカーネルの型（`semantic/VirtualViews.kt`）で、app-core の型はその別名。app-core にビュー定義の型や読み取りを書き足さない。
 - 定義項目の追加は、宣言の型・`ViewDefinitions.parseView`・メタスキーマ `builtin-view`（`builtin-schemas/view.yaml`）を対で更新する。差し込み口を通る種類なら、その種類の型・`ViewKind.parse`・断片を対で更新する。
 - 中核（カーネル・app-core の読み出し・画面の共通部）に種類ごとの分岐（`is VirtualChartDef` や kind の文字での分岐）を書かない。差し込み口を通る種類は `ExtensionViewDef` / `ExtensionViewResult` の窓口と `ViewRenderers` で扱う。

@@ -121,4 +121,27 @@ class TimingsTest {
         assertTrue("構造の検証" !in names, "開くときに全文書の構造を検証しない: $names")
         assertTrue(t.report().contains("意味の導出"))
     }
+
+    @Test
+    fun `置いたままの記録は 外すまでそのスレッドの区切りを受け取り 別の記録が置かれていれば外さない`() {
+        val first = Timings("開く")
+        Timings.attach(first)
+        try {
+            Timings.measureEach("ビュー定義の読み込み") { }
+            Timings.measureEach("ビュー定義の読み込み") { }
+            assertTrue(first.entries().any { it.name == "ビュー定義の読み込み（2 回の合計）" }, first.entries().map { it.name }.toString())
+            // 次の記録が置かれた後は、前の記録を外そうとしても外れない（次の開く処理の記録を消さない）
+            val second = Timings("もう一度開く")
+            Timings.attach(second)
+            Timings.detach(first)
+            assertTrue(Timings.current() === second)
+            Timings.detach(second)
+            assertTrue(Timings.current() == null)
+            // 外した後の区切りは、どの記録にも足されない
+            Timings.measureEach("ビュー定義の読み込み") { }
+            assertTrue(second.entries().isEmpty())
+        } finally {
+            Timings.current()?.let(Timings::detach)
+        }
+    }
 }

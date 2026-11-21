@@ -60,7 +60,7 @@ private fun flowCatalog(state: AppState): Views.LoadResult {
     val ws = state.workspace
     return remember(ws, state.indexVersion, state.editVersion) {
         if (ws == null) Views.LoadResult(emptyList(), emptyList(), emptyList())
-        else Views.load(ws, state.schemas, state.unsavedFirstTree())
+        else state.viewCatalog() ?: Views.LoadResult(emptyList(), emptyList(), emptyList())
     }
 }
 
@@ -152,7 +152,7 @@ private fun FlowPane(state: AppState, doc: OpenDocument, view: VirtualFlowDef, m
     val definition = state.ensureDoc(view.source)
     definition.version
     val resolution = remember(doc, doc.version, view, state.indexVersion, state.editVersion) {
-        (Views.resolveExtension(view, state.workspace?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) }, state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, document) as FlowViewResult).resolution
+        (Views.resolveExtension(view, state.viewCatalog(), state.overlayIndex(), state.unsavedFirstTree(), state::schemaFor, document) as FlowViewResult).resolution
     }
     val selection = state.flowSelections[view.id to document]
     val model = resolution.model

@@ -172,7 +172,7 @@ private fun rememberLensModel(state: AppState): LensModel {
     // 矢印を逆向きに描く関係（_views の kind: lens の定義。表示だけ）。定義は未保存優先で読む
     val ws = state.workspace
     val catalog = remember(ws, state.indexVersion, state.editVersion) {
-        ws?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) }
+        ws?.let { state.viewCatalog() }
     }
     val profile = catalog?.selectableLenses?.singleOrNull { it.id == state.memory.lensAppearanceId }
     val reversed = catalog?.reversedRelations.orEmpty() + profile?.reversedRelations.orEmpty()

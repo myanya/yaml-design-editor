@@ -117,7 +117,7 @@ limit: 100
 - 近傍の「線の多い箱の先は辿らない」（`LensSelectParams.stopAtHubs`）は、絞り込み後の参照・保有の線が `LensGraphs.HUB_EDGES` 本以上の箱（起点を除く）を表示するが、その先へは辿らない。
 - 全ノードの現在位置と固定をワークスペースの表示状態へ保存する。通常は現在位置を保持し、明示的な「再配置」で未固定だけを並べ直す。ドラッグの一時位置と保存済みの位置は分離する（[図の手動位置](diagram-positions.md)）。
 - 矢印の向き: `_views` のレンズの見え方の定義（`kind: lens`。`VirtualLensDef`）で `arrow: reverse` と書いた関係は、`LensGraphs` が辺の from / to を入れ替えて `reversed` の印を付ける（文字は inverseLabel）。
-  レンズは定義を未保存優先で読む（`Views.load` → `reversedRelations`）。向きは絵と階層配置にだけ効き、起点の近傍（向きを問わない）・検証・クエリの `dir`・バックリンクには関与しない。
+  レンズは定義を未保存優先で読む（`AppState.viewCatalog` → `reversedRelations`）。向きは絵と階層配置にだけ効き、起点の近傍（向きを問わない）・検証・クエリの `dir`・バックリンクには関与しない。
 
 ## スキーマレンズ（型の段）
 

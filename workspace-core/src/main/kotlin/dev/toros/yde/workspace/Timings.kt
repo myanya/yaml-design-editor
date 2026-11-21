@@ -121,6 +121,15 @@ class Timings(val title: String, private val clock: () -> Long = System::nanoTim
             }
         }
 
+        /**
+         * このスレッドに記録を置いたままにする。block で囲めない間（画面のスレッドの、切り替えから最初の描画まで）を測るため。
+         * 置いたスレッドで、必ず [detach] で外す（外さないと、そのスレッドの後の処理まで記録に足され続ける）。
+         */
+        fun attach(timings: Timings) { ambient.set(timings) }
+
+        /** [attach] で置いた記録を外す。別の記録が置かれていれば（次の開く処理が始まっていれば）何もしない。 */
+        fun detach(timings: Timings) { if (ambient.get() === timings) ambient.remove() }
+
         /** このスレッドに置かれた記録があれば、段階として測る。無ければ block をそのまま実行する。 */
         fun <T> measure(name: String, block: () -> T): T = ambient.get()?.phase(name, block) ?: block()
 

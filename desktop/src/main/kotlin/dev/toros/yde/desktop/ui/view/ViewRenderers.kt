@@ -79,7 +79,7 @@ internal fun ExtensionViewPane(state: AppState, loaded: Views.LoadResult, def: E
 @Composable
 internal fun EmbeddedExtensionPane(state: AppState, doc: OpenDocument, embed: VirtualDocEmbed) {
     val ws = state.workspace ?: return
-    val loaded = remember(ws, state.indexVersion) { Views.load(ws, state.schemas) }
+    val loaded = remember(ws, state.indexVersion) { state.viewCatalog(unsavedFirst = false) } ?: return
     val def = runCatching { Views.embeddedDef(embed, loaded) }.getOrNull()
     val renderer = ViewRenderers.of(embed.kind)
     when {

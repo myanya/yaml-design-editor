@@ -145,6 +145,7 @@ class SourceRulesTest {
     @Test fun `規則20 ローカル接続の通信依存と入口を隔離する`() = check(20)
     @Test fun `規則21 テストは labs の下のワークスペースを読まない`() = check(21)
     @Test fun `規則22 定義ゾーンのファイルの一覧は WorkspaceLayout definitionFiles`() = check(22)
+    @Test fun `規則23 画面のビュー定義は AppState viewCatalog から受け取る`() = check(23)
 
     @Test
     fun `規則20 は通信の漏れとサーバから入口への逆依存を拒否する`() {

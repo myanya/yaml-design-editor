@@ -26,13 +26,13 @@ object Dashboards {
         schemaFor: (DocumentId) -> SchemaDef?, loader: (DocumentId) -> YNode?,
         /** 共有の入力の値。鍵があればその値（空＝絞らない）、無ければ定義の default（基準日から）。 */
         inputs: Map<String, String?> = emptyMap(),
-    ): DashboardResolution {
+    ): DashboardResolution = dev.toros.yde.workspace.Timings.measureEach("ダッシュボードの集計") {
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun tree(d: DocumentId): YNode? = if (trees.containsKey(d)) trees[d] else loader(d).also { trees[d] = it }
         val values = view.inputs.associate { input ->
             input.key to (if (inputs.containsKey(input.key)) inputs[input.key]?.takeIf { it.isNotBlank() } else input.defaultFor(date))
         }
-        return DashboardViews.resolve(view, date, catalog::dashboardGrid,
+        DashboardViews.resolve(view, date, catalog::dashboardGrid,
             { grid, params -> Views.resolveDetailed(grid, index, ::tree, schemaFor, params) }, index.entries, index.refs, index.graph, ::tree,
             fieldAt = { d, path -> tree(d)?.let { schemaFor(d)?.fieldAt(it, path) } },
             embedded = catalog::extensionView, inputs = values)

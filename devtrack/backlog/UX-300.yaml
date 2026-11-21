@@ -7,6 +7,7 @@ origin: 開く処理の分析（docs/archive/workspace-open-analysis.md）
 memo: |-
   ui/view/DashboardPane.kt の remember の中で Dashboards.resolve（表 18 個の行の解決）と dashboardFlow を計算する。開いた直後の最初の描画を遅らせ、編集の版が変わるたびにも画面のスレッドで計算し直す。
   案 B1: 背景で計算し、計算中の表示を出す。画面の購読の規律（版の鍵）を保つ。
+  （2026-11-21 追記）背景へ移す前に、画面の段の内訳を測れるようにした。切り替えから最初の描画まで、画面のスレッドに時間の記録を置いたままにし（Timings.attach）、ビュー定義の読み込み・ビューの行の解決・ダッシュボードの集計・業務の流れの集計が、回数つきの合計で timings.log に出る。オーナーの Windows の次の記録で、「画面の状態を戻した後 → 最初の描画」の 1.0 秒のうち集計がどれだけかを確かめてから、案 B1 を入れるかを決める。
 theme: T-04
 related:
   - UX-299

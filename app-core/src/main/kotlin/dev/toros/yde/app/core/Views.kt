@@ -5,6 +5,7 @@ import dev.toros.yde.app.index.IdIndex
 import dev.toros.yde.app.index.RefEntry
 import dev.toros.yde.app.ext.Extensions
 import dev.toros.yde.semantic.ExtensionViewDef
+import dev.toros.yde.workspace.Timings
 import dev.toros.yde.semantic.ExtensionViewResult
 import dev.toros.yde.semantic.ViewContext
 import dev.toros.yde.semantic.VirtualBacklink
@@ -156,7 +157,9 @@ object Views {
     fun load(
         workspace: Path, schemas: List<SchemaDef> = emptyList(),
         loader: ((DocumentId) -> YNode?)? = null,
-    ): LoadResult {
+    ): LoadResult = Timings.measureEach("ビュー定義の読み込み") { loadNow(workspace, schemas, loader) }
+
+    private fun loadNow(workspace: Path, schemas: List<SchemaDef>, loader: ((DocumentId) -> YNode?)?): LoadResult {
         runCatching { dev.toros.yde.workspace.WorkspacePaths.resolve(workspace, WorkspaceLayout.of(workspace).viewsDir) }
             .getOrElse { return LoadResult(emptyList(), emptyList(), listOf(it.message ?: "ビュー定義の場所を解決できません")) }
         // 下のフォルダも読む（フォルダは置き場所の整理だけ。ID はゾーン全体で 1 つ）
@@ -266,10 +269,10 @@ object Views {
         loader: (DocumentId) -> YNode?,
         schemaFor: (DocumentId) -> SchemaDef? = { null },
         params: Map<String, Any?> = emptyMap(),
-    ): ResolvedRows {
+    ): ResolvedRows = Timings.measureEach("ビューの行の解決") {
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun treeOf(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
-        return VirtualViews.resolveDetailed(
+        VirtualViews.resolveDetailed(
             view, index.entries, index.refs, index.graph, { it.value }, ::treeOf,
             fieldAt = { d, path -> schemaFor(d)?.let { s -> treeOf(d)?.let { root -> s.fieldAt(root, path) } } },
             params = params,

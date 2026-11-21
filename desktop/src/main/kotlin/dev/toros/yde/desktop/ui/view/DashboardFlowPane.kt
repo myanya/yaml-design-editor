@@ -161,7 +161,7 @@ private fun summary(row: dev.toros.yde.semantic.VirtualRow): String =
 @Composable
 fun DashboardPositionPanel(state: AppState, id: String) {
     val ws = state.workspace ?: return
-    val catalog = remember(ws, state.indexVersion, state.editVersion) { Views.load(ws, state.schemas, state.unsavedFirstTree()) }
+    val catalog = remember(ws, state.indexVersion, state.editVersion) { state.viewCatalog() } ?: return
     val view = (state.dashboardId?.let(catalog::dashboard) ?: catalog.defaultDashboard())?.takeIf { it.flow != null } ?: return
     val date = state.memory.dashboardDate[view.id] ?: LocalDate.now()
     val position = remember(view, id, date, state.indexVersion, state.editVersion) { state.dashboardPosition(view, id, date) } ?: return

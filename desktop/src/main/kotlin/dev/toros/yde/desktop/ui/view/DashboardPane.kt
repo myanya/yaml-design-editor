@@ -48,9 +48,7 @@ import dev.toros.yde.desktop.ui.common.PanelShape
 @Composable
 fun DashboardPane(state: AppState, entityPage: @Composable (id: String) -> Unit) {
     val ws = state.workspace ?: return
-    val catalog = remember(ws, state.indexVersion, state.editVersion) {
-        Views.load(ws, state.schemas, state.unsavedFirstTree())
-    }
+    val catalog = remember(ws, state.indexVersion, state.editVersion) { state.viewCatalog() } ?: return
     val view = state.dashboardId?.let(catalog::dashboard) ?: catalog.defaultDashboard()
     var today by remember(ws) { mutableStateOf(LocalDate.now()) }
     LaunchedEffect(ws) {

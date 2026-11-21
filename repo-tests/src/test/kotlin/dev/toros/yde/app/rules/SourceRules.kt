@@ -238,6 +238,12 @@ object SourceRules {
                 "下のフォルダの定義が誤りも出さずに消える。フォルダの一覧を読む所（実行記録・作業記録・初期化）だけ許す",
             doc = "architecture/workspace.md「ワークスペース構造と layout」",
         ) { files -> onlyIn(files, Regex("""\bFiles\.list\("""), filesListAllowed) },
+        Rule(
+            23, "画面のビュー定義は AppState.viewCatalog から受け取る",
+            why = "画面の部品がそれぞれ Views.load を呼ぶと、同じ版の定義を部品の数だけディスクから読んで解析し直す（開くときと、編集のたび）。" +
+                "AppState.viewCatalog は同じ版（索引の版・編集の版）の間は 1 回だけ読んで共有する",
+            doc = "architecture/views.md「規律」",
+        ) { files -> onlyIn(files.filter { it.module == "desktop" }, Regex("""\bViews\.load\("""), setOf("desktop/src/main/kotlin/dev/toros/yde/desktop/AppState.kt")) },
     )
 
     /** Files.list を直接呼んでよいファイル（定義ゾーンではないフォルダを読む所）。 */

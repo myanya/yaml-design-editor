@@ -77,7 +77,7 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
     val doc = ctx.doc
     val ws = state.workspace
     // 表の区画（grid）は表の定義を目録から引く（索引の更新ごとに読み直す）
-    val catalog = remember(ws, state.indexVersion) { ws?.let { Views.load(it, state.schemas, state.unsavedFirstTree()) } }
+    val catalog = remember(ws, state.indexVersion) { ws?.let { state.viewCatalog() } }
     // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）。
     // 表の区画は未保存の編集にも追随する（editVersion）
     val resolved = remember(doc, doc.version, state.indexVersion, state.editVersion, view, catalog) {

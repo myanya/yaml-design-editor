@@ -284,6 +284,28 @@ class AppState(
         get() = editVersionState.value
         private set(value) { documents.editVersion = value }
 
+    private class ViewCatalogMemo(val workspace: Path, val schemas: List<SchemaDef>, val indexVersion: Int, val editVersion: Int, val catalog: Views.LoadResult)
+    /** viewCatalog の覚え（0＝未保存を優先して読んだもの・1＝ディスクの定義だけ）。 */
+    private val viewCatalogMemos = arrayOfNulls<ViewCatalogMemo>(2)
+
+    /**
+     * ビュー定義の一式。同じ版（ワークスペース・スキーマ・索引の版・編集の版）の間は 1 回だけ読み、画面の部品で共有する
+     * （部品ごとにディスクから読み直さない。UX-299）。unsavedFirst＝未保存の定義を優先して読む（既定）。false はディスクの定義だけで、
+     * 編集の版では読み直さない。indexVersion / editVersion（Compose 状態）を読むので、コンポジション中の呼び出しは自動で購読される。
+     */
+    fun viewCatalog(unsavedFirst: Boolean = true): Views.LoadResult? {
+        val ws = workspace ?: return null
+        val slot = if (unsavedFirst) 0 else 1
+        val index = indexVersion
+        val edit = if (unsavedFirst) editVersion else 0
+        val current = schemas
+        viewCatalogMemos[slot]?.let { m ->
+            if (m.workspace == ws && m.schemas === current && m.indexVersion == index && m.editVersion == edit) return m.catalog
+        }
+        return Views.load(ws, current, if (unsavedFirst) unsavedFirstTree() else null)
+            .also { viewCatalogMemos[slot] = ViewCatalogMemo(ws, current, index, edit, it) }
+    }
+
     /**
      * 未保存編集を重ねたオーバーレイ索引（architecture/index-references.md「索引の二層」）。UI 層の検証・カバレッジ・ビュー行集合・
      * 参照解決はディスク索引（index）ではなく**こちら**を読む＝「見たままの状態で判定する」。
@@ -360,7 +382,7 @@ class AppState(
         val ws = workspace ?: return emptyList()
         val rel = relPath(file)
         if (!layout.inLedger(rel) || isSchemaDocument(file)) return emptyList()
-        return Views.load(ws, schemas, unsavedFirstTree()).docViewsFor(rel, schemaFor(file)?.id)
+        return viewCatalog()?.docViewsFor(rel, schemaFor(file)?.id).orEmpty()
     }
 
     /**
@@ -934,7 +956,7 @@ class AppState(
 
     /** 段の件数と工程ごとの可否。 */
     fun dashboardFlow(view: dev.toros.yde.semantic.VirtualDashboardDef, result: dev.toros.yde.semantic.DashboardResolution) =
-        documents.dashboardFlow(view, result)
+        Timings.measureEach("業務の流れの集計") { documents.dashboardFlow(view, result) }
 
     /** 対象 1 件の流れの中の位置。 */
     fun dashboardPosition(view: dev.toros.yde.semantic.VirtualDashboardDef, id: String, date: java.time.LocalDate) =
@@ -944,7 +966,7 @@ class AppState(
     private fun flowMoveOf(work: ActionWork, plan: ActionPlan): FlowMove? = runCatching {
         val target = work.target ?: return null
         val ws = workspace ?: return null
-        val catalog = dev.toros.yde.app.core.Views.load(ws, schemas, unsavedFirstTree())
+        val catalog = viewCatalog() ?: return null
         val date = dashboardId?.let { memory.dashboardDate[it] } ?: java.time.LocalDate.now()
         val (view, t) = documents.actionTransition(catalog, dashboardId, work.entry.name, target, plan, date) ?: return null
         fun label(step: String) = view.sections.firstOrNull { it.id == step }?.label ?: step
@@ -976,6 +998,8 @@ class AppState(
 
     /** 最初の描画の点を残し、`.yde/state/timings.log` へ追記して、合計を状態欄に添える。 */
     fun finishOpenTimings(timings: Timings) {
+        // 画面のスレッドに置いた記録を外す（DesktopRuntime.openWorkspace が置いた。別の開く処理に替わっていても、この記録は外す）
+        Timings.detach(timings)
         if (openTimings !== timings) return
         openTimings = null
         timings.mark("最初の描画")
@@ -1628,7 +1652,7 @@ class AppState(
         }
     }
 
-    private fun historyViewCatalog() = workspace?.let { ws -> runCatching { dev.toros.yde.app.core.Views.load(ws, schemas) }.getOrNull() }
+    private fun historyViewCatalog() = runCatching { viewCatalog() }.getOrNull()
 
     private fun canRestoreHistoryLocation(loc: NavLocation): Boolean = when {
         loc.space == UiSpace.EDIT -> loc.help == null && !loc.reference && loc.file != null &&

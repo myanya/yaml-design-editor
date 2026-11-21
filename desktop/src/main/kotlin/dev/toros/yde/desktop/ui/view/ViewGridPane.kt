@@ -90,7 +90,7 @@ private val EDITABLE_TYPES = setOf(
 fun ViewGridView(state: AppState) {
     state.indexVersion
     val ws = state.workspace ?: return
-    val loaded = remember(state.indexVersion, ws) { Views.load(ws, state.schemas) }
+    val loaded = remember(state.indexVersion, ws) { state.viewCatalog(unsavedFirst = false) } ?: return
     // レポート（R30-04）も同じ一覧から選ぶ（ID は表・チャートと共有）
     val reports = remember(state.indexVersion, ws) { Reports.load(ws) }
     val report = reports.report(state.viewGridId ?: "")
