@@ -13,8 +13,10 @@ transaction: 1 操作 1 トランザクション（全部書けたときだけ�
 steps:
   - step: read
     call: TodoMapper.findById
-    key: id
+    key:
+      param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -24,6 +26,9 @@ steps:
             - path: updated_on
             - path: created_on
     message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: write
     call: TodoMapper.insertTodoComments
     kind: insert
@@ -31,7 +36,11 @@ steps:
       todo_id: $id
       date: $date
       body: $body
-    seq: TodoMapper.maxSeqTodoComments の次
+    seq:
+      mode: next
+      call: TodoMapper.maxSeqTodoComments
+      key:
+        param: id
   - step: write
     call: TodoMapper.addTodoComment
     kind: update
@@ -51,6 +60,7 @@ originalService:
     - id
     - date
     - body
+transactionMode: atomic
 designId: DOC-processes.add-todo-comment
 designKind: processes
 designPath: design/detail/final/processes/add-todo-comment.yaml

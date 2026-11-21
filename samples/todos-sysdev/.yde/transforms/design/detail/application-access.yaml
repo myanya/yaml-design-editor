@@ -285,6 +285,17 @@ rules:
                     $of: document
                   method:
                     $copy: methodId
+              mapper:
+                $copy: mapper
+                $of: document
+              call:
+                $format: '{mapper}.{method}'
+                $with:
+                  mapper:
+                    $copy: mapper
+                    $of: document
+                  method:
+                    $copy: name
   - id: method
     with:
       - source

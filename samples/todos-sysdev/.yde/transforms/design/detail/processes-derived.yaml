@@ -128,12 +128,15 @@ build:
                           $case:
                             $copy: target.entity
                           $as: pascal
-                    key: id
+                    key:
+                      param: id
                     missing:
                       $format: 見つからなければ NotFoundException（error.notFound.{e}）
                       $with:
                         e:
                           $copy: target.entity
+                    entity:
+                      $copy: target.entity
               - $when:
                   - path: lifecycle.transitions
                     exists: true
@@ -153,6 +156,10 @@ build:
                       $format: '{id}.state'
                     text:
                       $copy: lifecycle.refusal
+                    checkMode: state
+                    phase: before
+                    entity:
+                      $copy: target.entity
               - $each: require
                 $build:
                   $when:
@@ -227,19 +234,16 @@ build:
                               $as: camel
                             message:
                               $format: check.{id}
+                            checkMode: cycle
+                            phase: before
+                            entity:
+                              $copy: entity
                         - step: check
                           constraint:
                             $copy: id
                           by: Java（書いた後の値）
                           at:
-                            $when:
-                              - path: at
-                                exists: true
-                            $then:
-                              $format: 足す {a} の行
-                              $with:
-                                a:
-                                  $copy: at
+                            $copy: at
                           rule:
                             $copy: rule
                           field:
@@ -249,6 +253,10 @@ build:
                             $as: camel
                           message:
                             $format: check.{id}
+                          checkMode: prospective
+                          phase: before
+                          entity:
+                            $copy: entity
               - $group:
                   $apply: writes
                 $by:
@@ -292,6 +300,8 @@ build:
                           $copy: value
                         when:
                           $copy: when
+                        mode:
+                          $copy: mode
                   each:
                     $copy: items[0].each
                   seq:
@@ -299,7 +309,11 @@ build:
                   where:
                     $copy: items[0].where
                   when:
-                    $copy: items[0].when
+                    $when:
+                      - path: items[0].kind
+                        notEquals: update
+                    $then:
+                      $copy: items[0].when
               - $each: checks
                 $bind: c
                 $flatten: true
@@ -341,20 +355,22 @@ build:
                               path: target.entity
                               equals:
                                 $copy: rule.match[0].node.entity
-                          $then: id
+                          $then:
+                            param: id
                         - $when:
                             - of: element
                               path: target.entity
                               equals:
                                 $copy: rule.match[2].node.entity
                           $then:
-                            $format: 読んだ行の {p}_id
-                            $with:
-                              p:
-                                $case:
-                                  $copy: rule.match[0].node.entity
-                                $as: snake
-                        - 作った要素の ID
+                            self:
+                              $format: '{p}_id'
+                              $with:
+                                p:
+                                  $case:
+                                    $copy: rule.match[0].node.entity
+                                  $as: snake
+                        - generated: numberedId
                     expect:
                       $map:
                         $copy: rule.expect
@@ -364,6 +380,12 @@ build:
                     violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
                     message:
                       $format: check.{id}
+                    checkMode: count
+                    phase: after
+                    entity:
+                      $copy: entity
+                    countExpectation:
+                      $copy: rule.expect
           subject:
             $copy: subject
           originalService:
@@ -390,6 +412,7 @@ build:
                     $case:
                       $copy: key
                     $as: camel
+          transactionMode: atomic
         bindings:
           $concat:
             - $each:
@@ -455,6 +478,15 @@ rules:
             $copy: id
       text:
         $copy: message
+      checkMode: count
+      phase: before
+      entity:
+        $copy: target.entity
+        $of: element
+      countExpectation:
+        $copy: rule.expect
+      key:
+        param: id
   - id: precondition
     when:
       - path: rule.match[1]
@@ -486,6 +518,11 @@ rules:
             $copy: id
       text:
         $copy: message
+      checkMode: current
+      phase: before
+      entity:
+        $copy: target.entity
+        $of: element
   - id: precondition
     build:
       step: check
@@ -510,6 +547,11 @@ rules:
             $copy: id
       text:
         $copy: message
+      checkMode: unsupported
+      phase: before
+      entity:
+        $copy: target.entity
+        $of: element
   - id: writes
     build:
       $each: effects
@@ -536,7 +578,8 @@ rules:
                       kind: insert
                       item:
                         $copy: numbering.path
-                      value: 採番した番号
+                      value:
+                        generated: numberedId
                 - $each: written
                   $build:
                     $when:
@@ -580,7 +623,8 @@ rules:
                       kind: insert
                       item:
                         $copy: numbering.path
-                      value: 採番した番号
+                      value:
+                        generated: numberedId
                 - $each: written
                   $build:
                     $when:
@@ -608,7 +652,8 @@ rules:
                               equals:
                                 $copy: numbering.path
                                 $of: e
-                          $then: 採番した番号
+                          $then:
+                            generated: numberedId
                         - $copy: value
                 - $when:
                     - path: entity
@@ -641,12 +686,16 @@ rules:
                       kind: insert
                       item: seq
                       value:
-                        $format: 次の並び順（{n}Mapper.maxSeq の次）
-                        $with:
-                          'n':
-                            $case:
-                              $copy: field.item.entity
-                            $as: pascal
+                        sequence:
+                          call:
+                            $format: '{n}Mapper.maxSeq'
+                            $with:
+                              'n':
+                                $case:
+                                  $copy: field.item.entity
+                                $as: pascal
+                          key:
+                            param: id
           - $when:
               - or:
                   - path: op
@@ -725,6 +774,11 @@ rules:
                                 $case:
                                   $copy: entity
                                 $as: camel
+                mode:
+                  $when:
+                    - path: op
+                      equals: delete
+                  $then: clear
           - $when:
               - path: op
                 equals: insert
@@ -750,16 +804,28 @@ rules:
                       $as: pascal
                 kind: insert
                 seq:
-                  $format: '{n}Mapper.maxSeq{d} の次'
-                  $with:
-                    'n':
-                      $case:
-                        $copy: entity
-                      $as: pascal
-                    d:
-                      $case:
-                        $apply: effect-detail-name
-                      $as: pascal
+                  mode: next
+                  call:
+                    $format: '{n}Mapper.maxSeq{d}'
+                    $with:
+                      'n':
+                        $case:
+                          $copy: entity
+                        $as: pascal
+                      d:
+                        $case:
+                          $apply: effect-detail-name
+                        $as: pascal
+                  key:
+                    $first:
+                      - $when:
+                          - of: element
+                            path: creates
+                            includes:
+                              $copy: entity
+                        $then:
+                          generated: numberedId
+                      - param: id
                 values:
                   $entries:
                     $concat:
@@ -777,7 +843,8 @@ rules:
                                     path: creates
                                     includes:
                                       $copy: entity
-                                $then: 採番した番号
+                                $then:
+                                  generated: numberedId
                               - $$id
                       - $each: written
                         $build:
@@ -829,7 +896,9 @@ rules:
                 kind: insert
                 each:
                   $copy: value
-                seq: 配列の順（1 から）
+                seq:
+                  mode: position
+                  start: 1
                 when:
                   $copy: when
           - $when:
@@ -887,7 +956,35 @@ rules:
                 kind: insert
                 each:
                   $copy: value
-                seq: 配列の順（1 から）
+                seq:
+                  mode: position
+                  start: 1
+          - $when:
+              - path: op
+                equals: delete
+              - path: field.base
+                equals: array
+              - path: field.item.entity
+                exists: false
+            $then:
+              - row:
+                  $format: row-{i}-clear
+                  $with:
+                    i: $index
+                call:
+                  $format: '{n}Mapper.delete{d}'
+                  $with:
+                    'n':
+                      $case:
+                        $copy: entity
+                      $as: pascal
+                    d:
+                      $case:
+                        $apply: effect-detail-name
+                      $as: pascal
+                kind: delete
+                when:
+                  $copy: when
   - id: effect-detail-name
     build:
       $format: '{t}_{k}'

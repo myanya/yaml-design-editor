@@ -41,6 +41,7 @@ build:
               caughtBy: 各 Controller の確定のハンドラ（確認画面に断りの文を出す。HTTP 200）
               transaction: 取り消す（RuntimeException なので、@Transactional が書いたものを取り消す）
               log: 出さない（業務の断りは正常な応答）
+              kind: refused
             - class: NotFoundException
               extends: RuntimeException
               holds: エンティティ型・ID
@@ -49,6 +50,7 @@ build:
               caughtBy: GlobalExceptionHandler（見つからない画面。HTTP 404）
               transaction: 取り消す
               log: INFO（エンティティ型と ID）
+              kind: notFound
             - class: InvalidTokenException
               extends: RuntimeException
               holds: 起点の画面の ID
@@ -57,11 +59,13 @@ build:
               caughtBy: GlobalExceptionHandler（起点の画面へリダイレクトし、知らせ error.token を置く）
               transaction: 始めない（照合は Service を呼ぶ前）
               log: INFO（起点の画面の ID）
+              kind: invalidToken
             - class: そのほかの例外（Exception）
               means: 想定外（DB の誤り・外部キーで書けない参照の値・プログラムの誤り）
               caughtBy: GlobalExceptionHandler（エラー画面。HTTP 500）
               transaction: 取り消す
               log: ERROR（受付番号・例外・スタックトレース）
+              kind: unexpected
           advice:
             class: GlobalExceptionHandler
             annotation: '@ControllerAdvice'

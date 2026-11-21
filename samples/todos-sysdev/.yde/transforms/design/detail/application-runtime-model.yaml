@@ -1,0 +1,210 @@
+id: application-runtime-model
+name: 状態型と業務例外の生成値を確定する
+scope: design
+dependsOn:
+  - status-rules
+  - error-handling
+output: design/detail/final/application-runtime-model.yaml
+input:
+  states:
+    $each:
+      $view: status-rules-input
+    $build:
+      $apply: state
+      $with:
+        source:
+          $copy: values.record
+        constants:
+          $each: values.record.enum.values
+          $build:
+            $copy: constant
+  errors:
+    $each:
+      $view: error-handling-input
+    $build:
+      $each: values.record.exceptions
+      $build:
+        $when:
+          - path: kind
+            oneOf:
+              - refused
+              - notFound
+        $then:
+          id:
+            $format: JERR-{kind}
+            $with:
+              kind:
+                $copy: kind
+          kind:
+            $copy: kind
+          name:
+            $copy: class
+          parent:
+            $copy: extends
+          refused:
+            $when:
+              - path: kind
+                equals: refused
+            $then: true
+          notFound:
+            $when:
+              - path: kind
+                equals: notFound
+            $then: true
+    $flatten: true
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-runtime-model
+      $then:
+        $copy: declared
+build:
+  $apply: validated
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $copy: contracts
+        documents:
+          design/detail/final/application-runtime-model.yaml:
+            id: APP-runtime
+            states:
+              $copy: states
+            errors:
+              $copy: errors
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: validated
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: state
+    with:
+      - source
+      - constants
+    build:
+      id:
+        $format: JSTATE-{id}
+        $with:
+          id:
+            $copy: id
+            $of: source
+      source:
+        $copy: designId
+        $of: source
+      name:
+        $copy: enum.name
+        $of: source
+      values:
+        $copy: enum.values
+        $of: source
+      groups:
+        $first:
+          - $copy: groups
+            $of: source
+          - []
+      transitions:
+        $first:
+          - $copy: transitions
+            $of: source
+          - []
+      entry:
+        $first:
+          - $copy: entry
+            $of: source
+          - []
+      terminal:
+        $first:
+          - $copy: terminal
+            $of: source
+          - []
+      invalidReferences:
+        $concat:
+          - $each: transitions
+            $of: source
+            $build:
+              $concat:
+                - $each: from
+                  $build:
+                    $when:
+                      - not:
+                          path: .
+                          of: constants
+                          includes:
+                            $copy: .
+                    $then:
+                      $copy: .
+                - $when:
+                    - not:
+                        path: .
+                        of: constants
+                        includes:
+                          $copy: to
+                  $then:
+                    - $copy: to
+            $flatten: true
+          - $each: entry
+            $of: source
+            $build:
+              $when:
+                - not:
+                    path: .
+                    of: constants
+                    includes:
+                      $copy: to
+              $then:
+                $copy: to
+          - $each: terminal
+            $of: source
+            $build:
+              $when:
+                - not:
+                    path: .
+                    of: constants
+                    includes:
+                      $copy: .
+              $then:
+                $copy: .
+          - $each: groups
+            $of: source
+            $build:
+              $each: values
+              $build:
+                $when:
+                  - not:
+                      path: .
+                      of: constants
+                      includes:
+                        $copy: .
+                $then:
+                  $copy: .
+            $flatten: true
+      transitionPairs:
+        $each: transitions
+        $of: source
+        $build:
+          $each: from
+          $build:
+            action:
+              $copy: action
+              $of: transition
+            state:
+              $copy: .
+        $bind: transition
+        $flatten: true

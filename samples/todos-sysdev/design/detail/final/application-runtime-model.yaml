@@ -1,0 +1,86 @@
+# 生成物（application-runtime-model）: 手で直さず、業務モデルか生成の定義（design/detail/application-runtime-model.yaml）を直して作り直します（CLI generate）。
+id: APP-runtime
+states:
+  - id: JSTATE-todo-lifecycle
+    source: DOC-status-rules.todo-lifecycle
+    name: TodoStatus
+    values:
+      - constant: OPEN
+        label: 未着手
+        state: todo-OPEN
+      - constant: IN_PROGRESS
+        label: 対応中
+        state: todo-IN_PROGRESS
+      - constant: SUSPENDED
+        label: 中断
+        state: todo-SUSPENDED
+      - constant: CLOSED
+        label: 完了
+        state: todo-CLOSED
+      - constant: CANCELED
+        label: 中止
+        state: todo-CANCELED
+    groups:
+      - method: isTodoActive
+        label: 未完了
+        state: todo-ACTIVE
+        values:
+          - OPEN
+          - IN_PROGRESS
+          - SUSPENDED
+    transitions:
+      - action: complete-todo
+        from:
+          - IN_PROGRESS
+        to: CLOSED
+      - action: cancel-todo
+        from:
+          - OPEN
+          - IN_PROGRESS
+          - SUSPENDED
+        to: CANCELED
+      - action: start-todo
+        from:
+          - OPEN
+        to: IN_PROGRESS
+      - action: suspend-todo
+        from:
+          - IN_PROGRESS
+        to: SUSPENDED
+      - action: resume-todo
+        from:
+          - SUSPENDED
+        to: IN_PROGRESS
+    entry:
+      - action: register-todo
+        to: OPEN
+    terminal:
+      - CLOSED
+      - CANCELED
+    invalidReferences: []
+    transitionPairs:
+      - action: complete-todo
+        state: IN_PROGRESS
+      - action: cancel-todo
+        state: OPEN
+      - action: cancel-todo
+        state: IN_PROGRESS
+      - action: cancel-todo
+        state: SUSPENDED
+      - action: start-todo
+        state: OPEN
+      - action: suspend-todo
+        state: IN_PROGRESS
+      - action: resume-todo
+        state: SUSPENDED
+errors:
+  - id: JERR-refused
+    kind: refused
+    name: RefusedException
+    parent: RuntimeException
+    refused: true
+  - id: JERR-notFound
+    kind: notFound
+    name: NotFoundException
+    parent: RuntimeException
+    notFound: true

@@ -1,0 +1,75 @@
+id: application-process-contract
+name: 業務処理の生成前の対応検査
+kind: document
+match: design/detail/composed/application/process-contract.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: processes
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: error
+        fields:
+          - key: source
+            type: string
+            required: true
+          - key: transactionMode
+            type: string
+            required: true
+            pattern: ^atomic$
+          - key: checks
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: error
+              fields:
+                - key: mode
+                  type: enum
+                  required: true
+                  values:
+                    - state
+                    - current
+                    - prospective
+                    - cycle
+                    - count
+                - key: entity
+                  type: string
+                  required: true
+                - key: phase
+                  type: enum
+                  required: true
+                  values:
+                    - before
+                    - after
+          - key: calls
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: error
+              fields:
+                - key: call
+                  type: string
+                  required: true
+                - key: method
+                  type: string
+                  required: true
+                  pattern: ^JMTH-\S+$
+                - key: resolved
+                  type: boolean
+                  required: true
+              constraints:
+                - id: resolved
+                  check:
+                    - eq:
+                        - path: resolved
+                        - true
+                  level: error
+                  message: 処理設計の呼び先に対応する Mapper メソッドが見つかりません

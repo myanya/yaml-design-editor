@@ -1,0 +1,153 @@
+id: application-process-gate
+name: 処理設計の機械的な指定と Mapper の呼び先を照合する
+scope: design
+dependsOn:
+  - processes
+  - application-access
+output: design/detail/composed/application/process-contract.yaml
+input:
+  processes:
+    $each:
+      $view: processes-input
+    $build:
+      $apply: process
+      $with:
+        source:
+          $copy: values.record
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-process-contract
+      $then:
+        $copy: declared
+build:
+  $apply: validated
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $copy: contracts
+        documents:
+          design/detail/composed/application/process-contract.yaml:
+            id: SYS-application-process-check
+            processes:
+              $copy: processes
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: validated
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: process
+    with:
+      - source
+    build:
+      source:
+        $copy: designId
+        $of: source
+      transactionMode:
+        $copy: transactionMode
+        $of: source
+      checks:
+        $each: steps
+        $of: source
+        $build:
+          $when:
+            - path: step
+              equals: check
+          $then:
+            mode:
+              $copy: checkMode
+            entity:
+              $copy: entity
+            phase:
+              $copy: phase
+      calls:
+        $each: steps
+        $of: source
+        $build:
+          $concat:
+            - $when:
+                - path: call
+                  exists: true
+              $then:
+                - $apply: call
+                  $with:
+                    name:
+                      $copy: call
+            - $when:
+                - path: seq.call
+                  exists: true
+              $then:
+                - $apply: call
+                  $with:
+                    name:
+                      $copy: seq.call
+            - $eachEntry: values
+              $flatten: true
+              $build:
+                $when:
+                  - path: sequence.call
+                    exists: true
+                $then:
+                  - $apply: call
+                    $with:
+                      name:
+                        $copy: sequence.call
+        $flatten: true
+  - id: call
+    with:
+      - name
+    build:
+      $apply: resolved
+      $with:
+        name:
+          $copy: .
+          $of: name
+        row:
+          $first:
+            - $view: application-method-input
+              $where:
+                - path: values.record.call
+                  equals:
+                    $copy: .
+                    $of: name
+              $one: true
+            - {}
+  - id: resolved
+    with:
+      - name
+      - row
+    build:
+      call:
+        $copy: .
+        $of: name
+      method:
+        $first:
+          - $copy: values.record.id
+            $of: row
+          - ''
+      resolved:
+        $first:
+          - $when:
+              - of: row
+                path: values.record.id
+                exists: true
+            $then: true
+          - false

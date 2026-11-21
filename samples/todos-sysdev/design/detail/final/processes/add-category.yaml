@@ -20,7 +20,8 @@ steps:
     call: CategoryMapper.insert
     kind: insert
     values:
-      id: 採番した番号
+      id:
+        generated: numberedId
       name: $name
 subject: category
 originalService:
@@ -28,6 +29,7 @@ originalService:
   method: addCategory
   arguments:
     - name
+transactionMode: atomic
 designId: DOC-processes.add-category
 designKind: processes
 designPath: design/detail/final/processes/add-category.yaml

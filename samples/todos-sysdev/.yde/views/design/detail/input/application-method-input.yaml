@@ -1,0 +1,10 @@
+id: application-method-input
+name: 確定した Mapper メソッドの入力
+rows:
+  idPattern: JMTH-*
+  schemaIds:
+    - application-access
+columns:
+  - label: record
+    path: .
+    schemaId: application-access

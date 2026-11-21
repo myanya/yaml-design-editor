@@ -1,0 +1,34 @@
+id: app-status
+name: app-status
+params:
+  - runtime
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-state-input
+        $where:
+          - path: id
+            equals: $runtime
+        $one: true
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: '[0].values.record.settings'
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: Status.java
+output: app/src/main/java/{#each config.package}{.}/{/each}service/state/{record.name}.java

@@ -17,8 +17,10 @@ record:
     steps:
       - step: read
         call: TodoMapper.findById
-        key: id
+        key:
+          param: id
         missing: 見つからなければ NotFoundException（error.notFound.todo）
+        entity: todo
       - step: check
         precondition: resume-todo.state
         by: Java（読んだ行の状態）
@@ -26,6 +28,9 @@ record:
           - SUSPENDED
         message: resume-todo.state
         text: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+        checkMode: state
+        phase: before
+        entity: todo
       - step: check
         constraint: updated-not-before-created
         by: Java（書いた後の値）
@@ -35,6 +40,9 @@ record:
                 - path: updated_on
                 - path: created_on
         message: check.updated-not-before-created
+        checkMode: prospective
+        phase: before
+        entity: todo
       - step: check
         constraint: unfinished-has-no-completed-on
         by: Java（書いた後の値）
@@ -47,6 +55,9 @@ record:
               exists: true
           expect: absent
         message: check.unfinished-has-no-completed-on
+        checkMode: prospective
+        phase: before
+        entity: todo
       - step: write
         call: TodoMapper.resumeTodo
         kind: update
@@ -73,7 +84,11 @@ record:
           to: IN_PROGRESS
           note:
             $copy: note
-        seq: TodoMapper.maxSeqTodoHistory の次
+        seq:
+          mode: next
+          call: TodoMapper.maxSeqTodoHistory
+          key:
+            param: id
     subject: todo
     originalService:
       class: TodoService
@@ -82,6 +97,7 @@ record:
         - id
         - date
         - note
+    transactionMode: atomic
   source:
     id: rule-processes
     document: .yde/transforms/design/detail/processes-derived.yaml

@@ -28,6 +28,11 @@ root:
       item:
         type: object
         fields:
+          - key: kind
+            label: 例外の役割
+            type: enum
+            required: true
+            values: [refused, notFound, invalidToken, unexpected]
           - key: class
             label: クラス
             type: string

@@ -34,6 +34,9 @@ root:
               - key: mapper
                 type: string
                 pattern: ^MAP-[a-z][a-z0-9_-]*$
+              - key: runtime
+                type: string
+                pattern: ^J(?:STATE|ERR)-[A-Za-z0-9_-]+$
             unknownFields: error
           - key: destination
             type: string

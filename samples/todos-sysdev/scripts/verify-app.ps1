@@ -16,10 +16,11 @@ try {
     $tests = Join-Path $copy 'src/test/java/verification'
     [IO.Directory]::CreateDirectory($tests) | Out-Null
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/MapperIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/ServiceFoundationTest.java') -Destination $tests
     $env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
     & (Join-Path $copy 'gradlew.bat') -p $copy test bootJar projects --no-daemon --no-parallel --console=plain --max-workers=2
     if ($LASTEXITCODE -ne 0) { throw "アプリの検証に失敗しました。結果: $copy/build/reports/tests/test/index.html" }
-    Write-Output "独立アプリのビルドと全 Mapper の入出力を確認しました。結果: $copy/build/reports/tests/test/index.html"
+    Write-Output "独立アプリのビルド・全 Mapper の入出力・状態型と業務例外を確認しました。結果: $copy/build/reports/tests/test/index.html"
 } finally {
     $env:GRADLE_USER_HOME = $oldGradleHome
     # 失敗時も結果を確認できるよう、コピーはコミットまで作業用フォルダに残す。

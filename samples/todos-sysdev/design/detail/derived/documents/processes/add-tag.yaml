@@ -24,7 +24,8 @@ record:
         call: TagMapper.insert
         kind: insert
         values:
-          id: 採番した番号
+          id:
+            generated: numberedId
           name: $name
     subject: tag
     originalService:
@@ -32,6 +33,7 @@ record:
       method: addTag
       arguments:
         - name
+    transactionMode: atomic
   source:
     id: rule-processes
     document: .yde/transforms/design/detail/processes-derived.yaml

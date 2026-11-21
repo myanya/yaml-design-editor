@@ -1,0 +1,172 @@
+package dev.toros.yde.app.core
+
+import dev.toros.yde.workspace.Generators
+import dev.toros.yde.workspace.InMemoryDocumentStore
+import dev.toros.yde.workspace.WorkspaceSession
+import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.DocumentId
+import java.io.ByteArrayOutputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import javax.tools.ToolProvider
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/** 処理の呼び先・検査対象・状態型を確定項目から引き、未解決の指定を生成へ通さない。 */
+class TodosServiceFoundationTest {
+    private val sample = Path.of("samples/todos-sysdev")
+    private fun raw(text: String) = YamlIO.parseToRaw(text) as Map<*, *>
+    private fun rows(value: Map<*, *>, key: String) = (value[key] as List<*>).map { it as Map<*, *> }
+    private fun document(file: String) = raw(Files.readString(sample.resolve(file)))
+    private fun store() = InMemoryDocumentStore(TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
+        .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) })
+    private fun put(store: InMemoryDocumentStore, file: String, value: Any) = store.write(DocumentId(file), YamlIO.dumpPlain(YamlIO.fromAny(value)))
+
+    @Test
+    fun `編集の個別条件と明細のクリアと親の検査対象を保持する`() {
+        val edit = document("design/detail/final/processes/edit-todo.yaml")
+        val steps = rows(edit, "steps")
+        val update = steps.single { it["kind"] == "update" }
+        assertFalse(update.containsKey("when"), "最初の代入の条件で更新全体を止めない")
+        val title = rows(update, "set").single { it["item"] == "title" }
+        assertEquals(listOf(mapOf("path" to "title", "exists" to true)), title["when"])
+        assertTrue(steps.any { it["kind"] == "delete" && it["call"] == "TodoMapper.deleteTodoTags" &&
+            it["when"] == listOf(mapOf("path" to "clear.tags", "equals" to true)) })
+        val child = document("design/detail/final/processes/todo-task.finish.yaml")
+        assertTrue(rows(child, "steps").filter { it["step"] == "check" }.all { it["entity"] == "todo" })
+        val after = rows(child, "steps").single { it["phase"] == "after" }
+        assertEquals(mapOf("self" to "todo_id"), after["key"])
+        val check = document("design/detail/composed/application/process-contract.yaml")
+        assertEquals(12, rows(check, "processes").size)
+        assertTrue(rows(check, "processes").all { it["transactionMode"] == "atomic" && rows(it, "calls").all { call -> call["method"] != null } })
+    }
+
+    @Test
+    fun `状態型と例外と並び順の呼出名への補正が生成値に届く`() {
+        val input = store()
+        val corrections = raw("""
+            inputId: INPUT-detail-document-corrections
+            corrections:
+              - {id: SCOR-status-name, kind: status-rules, target: DOC-status-rules.todo-lifecycle, set: {}, reason: 検証}
+              - {id: SCOR-exception, kind: error-handling, target: DOC-error-handling.error-handling, select: {collection: exceptions, key: kind, equals: refused}, set: {class: OperationRefused}, reason: 検証}
+              - {id: SCOR-sequence, kind: table-access, target: DOC-table-access.todo-task, select: {collection: methods, key: methodId, equals: maxSeq}, set: {name: lastPosition}, reason: 検証}
+        """.trimIndent()).toMutableMap()
+        val status = (document("design/detail/final/status/todo-lifecycle.yaml")["enum"] as Map<*, *>).toMutableMap()
+        status["name"] = "TaskState"
+        corrections["corrections"] = rows(corrections, "corrections").mapIndexed { index, correction ->
+            if (index != 0) correction else correction.toMutableMap().also { it["set"] = mapOf("enum" to status) }
+        }
+        put(input, "design/detail/inputs/documents/corrections.yaml", corrections)
+        val plan = Generators.plan(WorkspaceSession(input), setOf("application-runtime-model", "application-process-gate"))
+        assertEquals(emptyList(), plan.errors)
+        val runtime = raw(plan.outputs.single { it.generator == "application-runtime-model" }.text)
+        assertEquals("TaskState", rows(runtime, "states").single()["name"])
+        assertEquals("OperationRefused", rows(runtime, "errors").single { it["kind"] == "refused" }["name"])
+        val process = raw(plan.outputs.single { it.document.value == "design/detail/final/processes/add-todo-task.yaml" }.text)
+        val insert = rows(process, "steps").single { it["kind"] == "insert" }
+        val sequence = (((insert["values"] as Map<*, *>)["seq"] as Map<*, *>)["sequence"] as Map<*, *>)
+        assertEquals("TodoTaskMapper.lastPosition", sequence["call"])
+    }
+
+    private fun probe(input: InMemoryDocumentStore, generator: String) {
+        // 前回の生成物は通常の入力から外れるため、検査用の値を印なしの入力にする。
+        val files = if (generator == "application-runtime-model") {
+            listOf("design/detail/final/status/todo-lifecycle.yaml", "design/detail/final/error-handling.yaml")
+        } else {
+            Files.list(sample.resolve("design/detail/final/processes")).use { paths ->
+                paths.map { "design/detail/final/processes/${it.fileName}" }.toList()
+            } + "design/detail/final/application-access.yaml"
+        }
+        files.forEach { put(input, it, raw(input.read(DocumentId(it))!!.text)) }
+        val definition = TodosSysdevFiles.definition(sample, "transforms", generator)
+        val copy = raw(Files.readString(sample.resolve(definition))).toMutableMap()
+        copy["id"] = "service-foundation-probe"
+        copy["dependsOn"] = emptyList<String>()
+        copy["output"] = "probe/foundation.yaml"
+        put(input, ".yde/transforms/design/detail/service-foundation-probe.yaml", copy)
+    }
+
+    @Test
+    fun `存在しない状態と重なる遷移と使えない判定名を拒否する`() {
+        for (invalid in listOf("state", "duplicate", "clone", "finalize", "byte")) {
+            val input = store()
+            probe(input, "application-runtime-model")
+            assertEquals(emptyList(), Generators.plan(WorkspaceSession(input), setOf("service-foundation-probe")).errors)
+            val file = "design/detail/final/status/todo-lifecycle.yaml"
+            val source = raw(input.read(DocumentId(file))!!.text).toMutableMap()
+            if (invalid !in listOf("state", "duplicate")) {
+                source["groups"] = rows(source, "groups").map { it.toMutableMap().also { group -> group["method"] = invalid } }
+            } else {
+                val transitions = rows(source, "transitions").toMutableList()
+                if (invalid == "duplicate") transitions.add(transitions.first())
+                else transitions[0] = transitions[0].toMutableMap().also { it["to"] = "MISSING" }
+                source["transitions"] = transitions
+            }
+            put(input, file, source)
+            val plan = Generators.plan(WorkspaceSession(input), setOf("service-foundation-probe"))
+            val diagnostic = when (invalid) {
+                "state" -> "未定義の状態"
+                "duplicate" -> "transitionPairs"
+                else -> "method"
+            }
+            assertTrue(plan.errors.any { diagnostic in it }, plan.errors.toString())
+            assertTrue(plan.transaction.operations.isEmpty())
+        }
+    }
+
+    @Test
+    fun `標準型と同名に補正しても状態型と業務例外をコンパイルできる`() {
+        val copy = Files.createTempDirectory("sysdev-runtime-names")
+        try {
+            TodosSysdevFiles.copy(sample, copy)
+            val runtimeFile = copy.resolve("design/detail/final/application-runtime-model.yaml")
+            val runtime = raw(Files.readString(runtimeFile)).toMutableMap()
+            runtime["states"] = rows(runtime, "states").map { it.toMutableMap().also { state -> state["name"] = "String" } }
+            runtime["errors"] = rows(runtime, "errors").map {
+                it.toMutableMap().also { error -> error["name"] = if (error["kind"] == "refused") "RuntimeException" else "String" }
+            }
+            Files.writeString(runtimeFile, YamlIO.dumpPlain(YamlIO.fromAny(runtime)))
+            val workspace = Workspace.open(copy)
+            val reports = Reports.load(copy)
+            val views = Views.load(copy, workspace.schemas)
+            assertEquals(emptyList(), reports.errors)
+            assertEquals(emptyList(), views.errors)
+            val outputs = listOf(
+                "app-status" to "JSTATE-todo-lifecycle",
+                "app-exception" to "JERR-refused",
+                "app-exception" to "JERR-notFound",
+                "app-business-violation" to null,
+            ).map { (report, record) ->
+                val params = record?.let { mapOf("runtime" to it) } ?: emptyMap()
+                val result = Reports.run(reports.reports.single { it.def.id == report }, params, views,
+                    workspace.index, workspace::treeOf, workspace::schemaFor)
+                assertEquals(emptyList(), result.missing)
+                copy.resolve(result.outputRel!!).also { file ->
+                    Files.createDirectories(file.parent)
+                    Files.writeString(file, result.text)
+                }.toString()
+            }
+            val classes = Files.createDirectories(copy.resolve("compiled"))
+            val diagnostics = ByteArrayOutputStream()
+            val code = ToolProvider.getSystemJavaCompiler().run(null, diagnostics, diagnostics,
+                "-encoding", "UTF-8", "-d", classes.toString(), *outputs.toTypedArray())
+            assertEquals(0, code, diagnostics.toString(Charsets.UTF_8))
+        } finally {
+            copy.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `並び順の未解決の呼び先も生成前に拒否する`() {
+        val input = store()
+        probe(input, "application-process-gate")
+        assertEquals(emptyList(), Generators.plan(WorkspaceSession(input), setOf("service-foundation-probe")).errors)
+        val file = "design/detail/final/processes/add-todo-task.yaml"
+        input.write(DocumentId(file), input.read(DocumentId(file))!!.text.replace("TodoTaskMapper.maxSeq", "TodoTaskMapper.missing"))
+        val plan = Generators.plan(WorkspaceSession(input), setOf("service-foundation-probe"))
+        assertTrue(plan.errors.any { "呼び先に対応する" in it }, plan.errors.toString())
+        assertTrue(plan.transaction.operations.isEmpty())
+    }
+}

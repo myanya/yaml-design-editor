@@ -15,8 +15,10 @@ record:
     steps:
       - step: read
         call: TodoTaskMapper.findById
-        key: id
+        key:
+          param: id
         missing: 見つからなければ NotFoundException（error.notFound.todo-task）
+        entity: todo-task
       - step: check
         constraint: updated-not-before-created
         by: Java（書いた後の値）
@@ -26,6 +28,9 @@ record:
                 - path: updated_on
                 - path: created_on
         message: check.updated-not-before-created
+        checkMode: prospective
+        phase: before
+        entity: todo
       - step: write
         call: TodoTaskMapper.todoTaskFinish
         kind: update
@@ -50,16 +55,22 @@ record:
         constraint: closed-has-no-open-task
         by: SQL（件数。書いた後）
         call: TodoTaskMapper.countClosedHasNoOpenTask
-        key: 読んだ行の todo_id
+        key:
+          self: todo_id
         expect: 0 件なら通す
         violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
         message: check.closed-has-no-open-task
+        checkMode: count
+        phase: after
+        entity: todo
+        countExpectation: absent
     subject: todo-task
     originalService:
       class: TodoTaskService
       method: todoTaskFinish
       arguments:
         - id
+    transactionMode: atomic
   source:
     id: rule-processes
     document: .yde/transforms/design/detail/processes-derived.yaml

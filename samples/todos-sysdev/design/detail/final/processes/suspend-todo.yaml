@@ -25,8 +25,10 @@ transaction: 1 操作 1 トランザクション（全部書けたときだけ�
 steps:
   - step: read
     call: TodoMapper.findById
-    key: id
+    key:
+      param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
   - step: check
     precondition: suspend-todo.state
     by: Java（読んだ行の状態）
@@ -34,6 +36,9 @@ steps:
       - IN_PROGRESS
     message: suspend-todo.state
     text: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+    checkMode: state
+    phase: before
+    entity: todo
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -43,6 +48,9 @@ steps:
             - path: updated_on
             - path: created_on
     message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: unfinished-has-no-completed-on
     by: Java（書いた後の値）
@@ -55,10 +63,13 @@ steps:
           exists: true
       expect: absent
     message: check.unfinished-has-no-completed-on
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: resume-not-before-suspend
     by: Java（書いた後の値）
-    at: 足す history[*] の行
+    at: history[*]
     rule:
       where:
         - path: resume_on
@@ -69,6 +80,9 @@ steps:
             - path: date
     field: resumeOn
     message: check.resume-not-before-suspend
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: write
     call: TodoMapper.suspendTodo
     kind: update
@@ -96,7 +110,11 @@ steps:
       note: $reason
       resume_on:
         $copy: resume_on
-    seq: TodoMapper.maxSeqTodoHistory の次
+    seq:
+      mode: next
+      call: TodoMapper.maxSeqTodoHistory
+      key:
+        param: id
 subject: todo
 originalService:
   class: TodoService
@@ -106,6 +124,7 @@ originalService:
     - date
     - reason
     - resumeOn
+transactionMode: atomic
 designId: DOC-processes.suspend-todo
 designKind: processes
 designPath: design/detail/final/processes/suspend-todo.yaml

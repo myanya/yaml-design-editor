@@ -1,0 +1,318 @@
+# 生成物（application-process-gate）: 手で直さず、業務モデルか生成の定義（design/detail/application-process-gate.yaml）を直して作り直します（CLI generate）。
+id: SYS-application-process-check
+processes:
+  - source: DOC-processes.add-category
+    transactionMode: atomic
+    checks: []
+    calls:
+      - call: CategoryMapper.maxId
+        method: JMTH-category.maxId
+        resolved: true
+      - call: CategoryMapper.insert
+        method: JMTH-category.insert
+        resolved: true
+  - source: DOC-processes.add-tag
+    transactionMode: atomic
+    checks: []
+    calls:
+      - call: TagMapper.maxId
+        method: JMTH-tag.maxId
+        resolved: true
+      - call: TagMapper.insert
+        method: JMTH-tag.insert
+        resolved: true
+  - source: DOC-processes.add-todo-comment
+    transactionMode: atomic
+    checks:
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.insertTodoComments
+        method: JMTH-todo.insertTodoComments
+        resolved: true
+      - call: TodoMapper.maxSeqTodoComments
+        method: JMTH-todo.maxSeqTodoComments
+        resolved: true
+      - call: TodoMapper.addTodoComment
+        method: JMTH-todo.addTodoComment
+        resolved: true
+  - source: DOC-processes.add-todo-task
+    transactionMode: atomic
+    checks:
+      - mode: current
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: count
+        entity: todo
+        phase: after
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoTaskMapper.maxId
+        method: JMTH-todo-task.maxId
+        resolved: true
+      - call: TodoTaskMapper.insert
+        method: JMTH-todo-task.insert
+        resolved: true
+      - call: TodoTaskMapper.maxSeq
+        method: JMTH-todo-task.maxSeq
+        resolved: true
+      - call: TodoMapper.addTodoTask
+        method: JMTH-todo.addTodoTask
+        resolved: true
+      - call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        resolved: true
+  - source: DOC-processes.cancel-todo
+    transactionMode: atomic
+    checks:
+      - mode: state
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.cancelTodo
+        method: JMTH-todo.cancelTodo
+        resolved: true
+      - call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        resolved: true
+      - call: TodoMapper.maxSeqTodoHistory
+        method: JMTH-todo.maxSeqTodoHistory
+        resolved: true
+  - source: DOC-processes.complete-todo
+    transactionMode: atomic
+    checks:
+      - mode: state
+        entity: todo
+        phase: before
+      - mode: count
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: count
+        entity: todo
+        phase: after
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoTaskMapper.countCompleteTodoNoOpenTask
+        method: JMTH-todo-task.countCompleteTodoNoOpenTask
+        resolved: true
+      - call: TodoMapper.completeTodo
+        method: JMTH-todo.completeTodo
+        resolved: true
+      - call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        resolved: true
+      - call: TodoMapper.maxSeqTodoHistory
+        method: JMTH-todo.maxSeqTodoHistory
+        resolved: true
+      - call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        resolved: true
+  - source: DOC-processes.edit-todo
+    transactionMode: atomic
+    checks:
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.editTodo
+        method: JMTH-todo.editTodo
+        resolved: true
+      - call: TodoMapper.deleteTodoTags
+        method: JMTH-todo.deleteTodoTags
+        resolved: true
+      - call: TodoMapper.insertTodoTags
+        method: JMTH-todo.insertTodoTags
+        resolved: true
+      - call: TodoMapper.deleteTodoComments
+        method: JMTH-todo.deleteTodoComments
+        resolved: true
+      - call: TodoMapper.insertTodoComments
+        method: JMTH-todo.insertTodoComments
+        resolved: true
+      - call: TodoMapper.deleteTodoTags
+        method: JMTH-todo.deleteTodoTags
+        resolved: true
+      - call: TodoMapper.deleteTodoComments
+        method: JMTH-todo.deleteTodoComments
+        resolved: true
+      - call: TodoMapper.insertTodoComments
+        method: JMTH-todo.insertTodoComments
+        resolved: true
+  - source: DOC-processes.register-todo
+    transactionMode: atomic
+    checks:
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: cycle
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.maxId
+        method: JMTH-todo.maxId
+        resolved: true
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.insert
+        method: JMTH-todo.insert
+        resolved: true
+      - call: TodoMapper.insertTodoTags
+        method: JMTH-todo.insertTodoTags
+        resolved: true
+      - call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        resolved: true
+      - call: TodoMapper.maxSeqTodoHistory
+        method: JMTH-todo.maxSeqTodoHistory
+        resolved: true
+  - source: DOC-processes.resume-todo
+    transactionMode: atomic
+    checks:
+      - mode: state
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.resumeTodo
+        method: JMTH-todo.resumeTodo
+        resolved: true
+      - call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        resolved: true
+      - call: TodoMapper.maxSeqTodoHistory
+        method: JMTH-todo.maxSeqTodoHistory
+        resolved: true
+  - source: DOC-processes.start-todo
+    transactionMode: atomic
+    checks:
+      - mode: state
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.startTodo
+        method: JMTH-todo.startTodo
+        resolved: true
+      - call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        resolved: true
+      - call: TodoMapper.maxSeqTodoHistory
+        method: JMTH-todo.maxSeqTodoHistory
+        resolved: true
+  - source: DOC-processes.suspend-todo
+    transactionMode: atomic
+    checks:
+      - mode: state
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.suspendTodo
+        method: JMTH-todo.suspendTodo
+        resolved: true
+      - call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        resolved: true
+      - call: TodoMapper.maxSeqTodoHistory
+        method: JMTH-todo.maxSeqTodoHistory
+        resolved: true
+  - source: DOC-processes.todo-task.finish
+    transactionMode: atomic
+    checks:
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: count
+        entity: todo
+        phase: after
+    calls:
+      - call: TodoTaskMapper.findById
+        method: JMTH-todo-task.findById
+        resolved: true
+      - call: TodoTaskMapper.todoTaskFinish
+        method: JMTH-todo-task.todoTaskFinish
+        resolved: true
+      - call: TodoMapper.todoTaskFinish
+        method: JMTH-todo.todoTaskFinish
+        resolved: true
+      - call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        resolved: true

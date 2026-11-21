@@ -1,0 +1,171 @@
+id: application-runtime-model
+name: 状態型と業務例外の確定項目
+kind: document
+match: design/detail/final/application-runtime-model.yaml
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: states
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: source
+            type: string
+            required: true
+          - key: name
+            type: string
+            required: true
+            pattern: ^[A-Z][A-Za-z0-9]*$
+          - key: values
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: constant
+                  type: string
+                  required: true
+                  pattern: ^[A-Z][A-Z0-9_]*$
+                - key: label
+                  type: string
+                  required: true
+            unique:
+              - constant
+            minItems: 1
+          - key: groups
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: method
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:isTerminal|getLabel|allows|next|name|ordinal|toString|hashCode|clone|finalize|getDeclaringClass|notify|notifyAll|wait|getClass|values|valueOf)$)(?!(?:class|new|return|this|super|true|false|null|_|record|enum|int|long|boolean|void|byte|short|char|float|double|const|goto|static|public|private|protected|final|abstract|package|import|default|switch|case|break|continue|throw|throws|try|catch|finally|extends|implements|interface|instanceof|synchronized|volatile|transient|native|strictfp|assert|if|else|for|while|do|yield|var|sealed|permits)$)[A-Za-z][A-Za-z0-9]*$
+                - key: values
+                  type: array
+                  required: true
+                  item:
+                    type: string
+                  minItems: 1
+            unique:
+              - method
+          - key: transitions
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: action
+                  type: string
+                  required: true
+                - key: from
+                  type: array
+                  required: true
+                  item:
+                    type: string
+                  minItems: 1
+                - key: to
+                  type: string
+                  required: true
+          - key: entry
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: action
+                  type: string
+                  required: true
+                - key: to
+                  type: string
+                  required: true
+            unique:
+              - action
+          - key: terminal
+            type: array
+            required: true
+            item:
+              type: string
+          - key: invalidReferences
+            type: array
+            required: true
+            item:
+              type: string
+          - key: transitionPairs
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: action
+                  type: string
+                  required: true
+                - key: state
+                  type: string
+                  required: true
+            unique:
+              - action
+              - state
+        constraints:
+          - id: references
+            check:
+              - eq:
+                  - count:
+                      path: invalidReferences
+                  - 0
+            level: error
+            message: 状態の遷移・群・終端に未定義の状態があります
+      unique:
+        - name
+    - key: errors
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: kind
+            type: enum
+            required: true
+            values:
+              - refused
+              - notFound
+          - key: name
+            type: string
+            required: true
+            pattern: ^[A-Z][A-Za-z0-9]*$
+          - key: parent
+            type: string
+            required: true
+            pattern: ^RuntimeException$
+      unique:
+        - kind
+  constraints:
+    - id: error-kinds
+      check:
+        - eq:
+            - count:
+                path: errors
+            - 2
+      level: error
+      message: 業務の断りと見つからない場合の例外が必要です

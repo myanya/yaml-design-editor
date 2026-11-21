@@ -153,7 +153,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: CategoryMapper.findDetail
         id: JMTH-category.findDetail
+        mapper: CategoryMapper
       - name: selectAll
         source: selectAll
         kind: select
@@ -282,7 +284,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: CategoryMapper.selectAll
         id: JMTH-category.selectAll
+        mapper: CategoryMapper
       - name: selectTodoDashboardCategories
         source: selectTodoDashboardCategories
         kind: aggregate
@@ -489,7 +493,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: CategoryMapper.selectTodoDashboardCategories
         id: JMTH-category.selectTodoDashboardCategories
+        mapper: CategoryMapper
       - name: countTodoDashboardCategories
         source: countTodoDashboardCategories
         kind: count
@@ -597,7 +603,9 @@ mappers:
         count: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: CategoryMapper.countTodoDashboardCategories
         id: JMTH-category.countTodoDashboardCategories
+        mapper: CategoryMapper
       - name: selectTodoDashboardCategoriesMaster
         source: selectTodoDashboardCategoriesMaster
         kind: select
@@ -749,7 +757,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: CategoryMapper.selectTodoDashboardCategoriesMaster
         id: JMTH-category.selectTodoDashboardCategoriesMaster
+        mapper: CategoryMapper
       - name: countTodoDashboardCategoriesMaster
         source: countTodoDashboardCategoriesMaster
         kind: count
@@ -859,7 +869,9 @@ mappers:
         count: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: CategoryMapper.countTodoDashboardCategoriesMaster
         id: JMTH-category.countTodoDashboardCategoriesMaster
+        mapper: CategoryMapper
       - name: insert
         source: insert
         kind: insert
@@ -970,7 +982,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: CategoryMapper.insert
         id: JMTH-category.insert
+        mapper: CategoryMapper
       - name: maxId
         source: maxId
         kind: max
@@ -1136,7 +1150,9 @@ mappers:
             quoted: true
             startsWith: true
             symbol: startsWith
+        call: CategoryMapper.maxId
         id: JMTH-category.maxId
+        mapper: CategoryMapper
   - id: MAP-tag
     source: DOC-table-access.tag
     name: TagMapper
@@ -1289,7 +1305,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TagMapper.findDetail
         id: JMTH-tag.findDetail
+        mapper: TagMapper
       - name: selectAll
         source: selectAll
         kind: select
@@ -1418,7 +1436,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TagMapper.selectAll
         id: JMTH-tag.selectAll
+        mapper: TagMapper
       - name: selectTodoDashboardTags
         source: selectTodoDashboardTags
         kind: aggregate
@@ -1650,7 +1670,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TagMapper.selectTodoDashboardTags
         id: JMTH-tag.selectTodoDashboardTags
+        mapper: TagMapper
       - name: countTodoDashboardTags
         source: countTodoDashboardTags
         kind: count
@@ -1758,7 +1780,9 @@ mappers:
         count: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TagMapper.countTodoDashboardTags
         id: JMTH-tag.countTodoDashboardTags
+        mapper: TagMapper
       - name: selectTodoDashboardTagsMaster
         source: selectTodoDashboardTagsMaster
         kind: select
@@ -1915,7 +1939,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TagMapper.selectTodoDashboardTagsMaster
         id: JMTH-tag.selectTodoDashboardTagsMaster
+        mapper: TagMapper
       - name: countTodoDashboardTagsMaster
         source: countTodoDashboardTagsMaster
         kind: count
@@ -2025,7 +2051,9 @@ mappers:
         count: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TagMapper.countTodoDashboardTagsMaster
         id: JMTH-tag.countTodoDashboardTagsMaster
+        mapper: TagMapper
       - name: insert
         source: insert
         kind: insert
@@ -2136,7 +2164,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TagMapper.insert
         id: JMTH-tag.insert
+        mapper: TagMapper
       - name: maxId
         source: maxId
         kind: max
@@ -2302,7 +2332,9 @@ mappers:
             quoted: true
             startsWith: true
             symbol: startsWith
+        call: TagMapper.maxId
         id: JMTH-tag.maxId
+        mapper: TagMapper
   - id: MAP-todo
     source: DOC-table-access.todo
     name: TodoMapper
@@ -3230,7 +3262,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.findDetail
         id: JMTH-todo.findDetail
+        mapper: TodoMapper
       - name: selectAll
         source: selectAll
         kind: select
@@ -3634,7 +3668,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.selectAll
         id: JMTH-todo.selectAll
+        mapper: TodoMapper
       - name: selectTodoDashboardOverdue
         source: selectTodoDashboardOverdue
         kind: select
@@ -4320,7 +4356,9 @@ mappers:
             optionalTest: input.today != null
             quoted: true
             symbol: <
+        call: TodoMapper.selectTodoDashboardOverdue
         id: JMTH-todo.selectTodoDashboardOverdue
+        mapper: TodoMapper
       - name: countTodoDashboardOverdue
         source: countTodoDashboardOverdue
         kind: count
@@ -4998,7 +5036,9 @@ mappers:
             optionalTest: input.today != null
             quoted: true
             symbol: <
+        call: TodoMapper.countTodoDashboardOverdue
         id: JMTH-todo.countTodoDashboardOverdue
+        mapper: TodoMapper
       - name: selectTodoDashboardAll
         source: selectTodoDashboardAll
         kind: select
@@ -5690,7 +5730,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.selectTodoDashboardAll
         id: JMTH-todo.selectTodoDashboardAll
+        mapper: TodoMapper
       - name: countTodoDashboardAll
         source: countTodoDashboardAll
         kind: count
@@ -6255,7 +6297,9 @@ mappers:
         count: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.countTodoDashboardAll
         id: JMTH-todo.countTodoDashboardAll
+        mapper: TodoMapper
       - name: findById
         source: findById
         kind: select
@@ -6797,7 +6841,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.findById
         id: JMTH-todo.findById
+        mapper: TodoMapper
       - name: insert
         source: insert
         kind: insert
@@ -7296,7 +7342,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.insert
         id: JMTH-todo.insert
+        mapper: TodoMapper
       - name: maxId
         source: maxId
         kind: max
@@ -7850,7 +7898,9 @@ mappers:
             quoted: true
             startsWith: true
             symbol: startsWith
+        call: TodoMapper.maxId
         id: JMTH-todo.maxId
+        mapper: TodoMapper
       - name: insertTodoTags
         source: insertTodoTags
         kind: insert
@@ -7998,7 +8048,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.insertTodoTags
         id: JMTH-todo.insertTodoTags
+        mapper: TodoMapper
       - name: insertTodoHistory
         source: insertTodoHistory
         kind: insert
@@ -8340,7 +8392,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.insertTodoHistory
         id: JMTH-todo.insertTodoHistory
+        mapper: TodoMapper
       - name: maxSeqTodoHistory
         source: maxSeqTodoHistory
         kind: max
@@ -8738,7 +8792,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.maxSeqTodoHistory
         id: JMTH-todo.maxSeqTodoHistory
+        mapper: TodoMapper
       - name: insertTodoComments
         source: insertTodoComments
         kind: insert
@@ -8924,7 +8980,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoMapper.insertTodoComments
         id: JMTH-todo.insertTodoComments
+        mapper: TodoMapper
       - name: maxSeqTodoComments
         source: maxSeqTodoComments
         kind: max
@@ -9165,7 +9223,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.maxSeqTodoComments
         id: JMTH-todo.maxSeqTodoComments
+        mapper: TodoMapper
       - name: addTodoComment
         source: addTodoComment
         kind: update
@@ -9775,7 +9835,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.addTodoComment
         id: JMTH-todo.addTodoComment
+        mapper: TodoMapper
       - name: addTodoTask
         source: addTodoTask
         kind: update
@@ -10385,7 +10447,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.addTodoTask
         id: JMTH-todo.addTodoTask
+        mapper: TodoMapper
       - name: editTodo
         source: editTodo
         kind: update
@@ -11879,7 +11943,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.editTodo
         id: JMTH-todo.editTodo
+        mapper: TodoMapper
       - name: deleteTodoTags
         source: deleteTodoTags
         kind: delete
@@ -12061,7 +12127,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.deleteTodoTags
         id: JMTH-todo.deleteTodoTags
+        mapper: TodoMapper
       - name: deleteTodoComments
         source: deleteTodoComments
         kind: delete
@@ -12281,7 +12349,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.deleteTodoComments
         id: JMTH-todo.deleteTodoComments
+        mapper: TodoMapper
       - name: startTodo
         source: startTodo
         kind: update
@@ -12961,7 +13031,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.startTodo
         id: JMTH-todo.startTodo
+        mapper: TodoMapper
       - name: suspendTodo
         source: suspendTodo
         kind: update
@@ -13641,7 +13713,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.suspendTodo
         id: JMTH-todo.suspendTodo
+        mapper: TodoMapper
       - name: resumeTodo
         source: resumeTodo
         kind: update
@@ -14321,7 +14395,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.resumeTodo
         id: JMTH-todo.resumeTodo
+        mapper: TodoMapper
       - name: completeTodo
         source: completeTodo
         kind: update
@@ -15135,7 +15211,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.completeTodo
         id: JMTH-todo.completeTodo
+        mapper: TodoMapper
       - name: cancelTodo
         source: cancelTodo
         kind: update
@@ -15882,7 +15960,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoMapper.cancelTodo
         id: JMTH-todo.cancelTodo
+        mapper: TodoMapper
       - name: todoTaskFinish
         source: todoTaskFinish
         kind: update
@@ -16492,7 +16572,9 @@ mappers:
             optionalTest: input.todoId != null and input.todoId != ''
             quoted: true
             symbol: =
+        call: TodoMapper.todoTaskFinish
         id: JMTH-todo.todoTaskFinish
+        mapper: TodoMapper
   - id: MAP-todo-task
     source: DOC-table-access.todo-task
     name: TodoTaskMapper
@@ -16763,7 +16845,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoTaskMapper.findById
         id: JMTH-todo-task.findById
+        mapper: TodoTaskMapper
       - name: insert
         source: insert
         kind: insert
@@ -16994,7 +17078,9 @@ mappers:
         many: true
         conditionReferenceResolved: true
         requiredConditions: []
+        call: TodoTaskMapper.insert
         id: JMTH-todo-task.insert
+        mapper: TodoTaskMapper
       - name: maxId
         source: maxId
         kind: max
@@ -17287,7 +17373,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoTaskMapper.maxId
         id: JMTH-todo-task.maxId
+        mapper: TodoTaskMapper
       - name: maxSeq
         source: maxSeq
         kind: max
@@ -17574,7 +17662,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoTaskMapper.maxSeq
         id: JMTH-todo-task.maxSeq
+        mapper: TodoTaskMapper
       - name: todoTaskFinish
         source: todoTaskFinish
         kind: update
@@ -17913,7 +18003,9 @@ mappers:
             optionalTest: input.id != null and input.id != ''
             quoted: true
             symbol: =
+        call: TodoTaskMapper.todoTaskFinish
         id: JMTH-todo-task.todoTaskFinish
+        mapper: TodoTaskMapper
       - name: countCompleteTodoNoOpenTask
         source: countCompleteTodoNoOpenTask
         kind: count
@@ -18213,7 +18305,9 @@ mappers:
             literal: true
             plain: true
             symbol: =
+        call: TodoTaskMapper.countCompleteTodoNoOpenTask
         id: JMTH-todo-task.countCompleteTodoNoOpenTask
+        mapper: TodoTaskMapper
       - name: countClosedHasNoOpenTask
         source: countClosedHasNoOpenTask
         kind: count
@@ -18561,4 +18655,6 @@ mappers:
             literal: true
             plain: true
             symbol: =
+        call: TodoTaskMapper.countClosedHasNoOpenTask
         id: JMTH-todo-task.countClosedHasNoOpenTask
+        mapper: TodoTaskMapper

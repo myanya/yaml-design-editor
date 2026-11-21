@@ -353,7 +353,7 @@ AND todo.due_on &lt; #{input.today}
 
 
 
-      
+
 
 (SELECT COUNT(*) FROM todo_task c WHERE c.todo_id = todo.id
 
@@ -366,7 +366,7 @@ AND c.done = true
 
 )
  AS column3Done,
-      
+
 
 (SELECT COUNT(*) FROM todo_task c WHERE c.todo_id = todo.id
 )

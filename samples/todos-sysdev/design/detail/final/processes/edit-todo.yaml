@@ -48,8 +48,10 @@ transaction: 1 操作 1 トランザクション（全部書けたときだけ�
 steps:
   - step: read
     call: TodoMapper.findById
-    key: id
+    key:
+      param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
   - step: check
     constraint: due-not-before-created
     by: Java（書いた後の値）
@@ -63,6 +65,9 @@ steps:
             - path: created_on
     field: dueOn
     message: check.due-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -73,6 +78,9 @@ steps:
             - path: created_on
     field: createdOn
     message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: completed-not-before-created
     by: Java（書いた後の値）
@@ -86,6 +94,9 @@ steps:
             - path: created_on
     field: createdOn
     message: check.completed-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: closed-has-result
     by: Java（書いた後の値）
@@ -98,6 +109,9 @@ steps:
       expect: absent
     field: result
     message: check.closed-has-result
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: write
     call: TodoMapper.editTodo
     kind: update
@@ -142,21 +156,25 @@ steps:
         when:
           - path: clear.category
             equals: true
+        mode: clear
       - item: due_on
         value: null
         when:
           - path: clear.due_on
             equals: true
+        mode: clear
       - item: details
         value: null
         when:
           - path: clear.details
             equals: true
+        mode: clear
       - item: result
         value: null
         when:
           - path: clear.result
             equals: true
+        mode: clear
       - item: updated_on
         value:
           $copy: today
@@ -164,9 +182,6 @@ steps:
     where:
       - item: id
         param: id
-    when:
-      - path: title
-        exists: true
   - step: write
     call: TodoMapper.deleteTodoTags
     kind: delete
@@ -177,7 +192,9 @@ steps:
     call: TodoMapper.insertTodoTags
     kind: insert
     each: $tags
-    seq: 配列の順（1 から）
+    seq:
+      mode: position
+      start: 1
     when:
       - path: tags
         exists: true
@@ -191,10 +208,18 @@ steps:
     call: TodoMapper.insertTodoComments
     kind: insert
     each: $comments
-    seq: 配列の順（1 から）
+    seq:
+      mode: position
+      start: 1
     when:
       - path: comments
         exists: true
+  - step: write
+    call: TodoMapper.deleteTodoTags
+    kind: delete
+    when:
+      - path: clear.tags
+        equals: true
   - step: write
     call: TodoMapper.deleteTodoComments
     kind: delete
@@ -205,7 +230,9 @@ steps:
     call: TodoMapper.insertTodoComments
     kind: insert
     each: []
-    seq: 配列の順（1 から）
+    seq:
+      mode: position
+      start: 1
     when:
       - path: clear.comments
         equals: true
@@ -225,6 +252,7 @@ originalService:
     - result
     - comments
     - clear
+transactionMode: atomic
 designId: DOC-processes.edit-todo
 designKind: processes
 designPath: design/detail/final/processes/edit-todo.yaml

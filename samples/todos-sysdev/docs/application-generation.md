@@ -1,7 +1,7 @@
 # アプリの生成と独立ビルド
 
-現在は、独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL を生成する。
-H2 で実際の保存・検索・更新・削除を確認できる。Service・Controller・画面は、[作業計画](application-generation-plan.md)の後続で追加する。
+現在は、独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL、状態型と業務例外を生成する。
+H2 で実際の保存・検索・更新・削除を確認できる。Service の操作本体・Controller・画面は、[作業計画](application-generation-plan.md)の後続で追加する。
 設計書のレビュー完了や業務アプリの完成を意味しない。
 
 ## 入力と出力
@@ -17,10 +17,11 @@ H2 で実際の保存・検索・更新・削除を確認できる。Service・C
 | データの型 | 物理テーブルごとの Java 行モデル（`data/model/`） |
 | データアクセス | `data/mapper/` のインターフェースと入力・結果の型、`resources/mappers/` の MyBatis XML |
 | DB | レビュー用 DDL と同じレポートから出す `resources/schema.sql` |
+| 状態と例外 | `service/state/` の状態型と、`service/error/` の違反・業務例外 |
 | 検証 | Spring の起動、DB 初期化、Mapper の読込みを確かめるテスト |
 | 利用 | README・.gitignore |
 
-基本構造の 12 ファイルに、7 テーブルの行モデル、4 Mapper と対応する XML、DDL を加え、現在は計 28 ファイル。
+基本構造に、テーブルの行モデル、Mapper と対応する XML、DDL、状態型と業務例外を加える。
 Wrapper の JAR とスクリプトは、公式タスクで準備した固定資源をコピーする。
 業務の処理・画面はまだこの出力に含めない。Mapper の直接呼出しは、業務の前提や状態の検査を代行しない。
 空の DB には起動時に DDL を適用し、必要なテーブルがそろっている既存 DB はそのまま使う。必要なテーブルが欠けていれば起動を止める。
@@ -63,6 +64,27 @@ Java クラス名・型・対象数を PowerShell で計算しない。行モデ
 現在の `todos` にある条件・件数と表示用の計算が対象。任意の式からの SQL・Java 生成や、H2 以外の DB での動作は未対応。
 設計の SQL 文字列定数に MyBatis の予約記法 `#{`・`${` が含まれる場合は生成を止める。実行時の入力値は引数で渡すので、この制限はない。
 入力・結果の型と SQL の対応は [MyBatis の XML](https://mybatis.org/mybatis-3/sqlmap-xml.html) と [動的 SQL](https://mybatis.org/mybatis-3/dynamic-sql.html) の規則に従う。
+
+## 処理の指定と状態型
+
+処理設計の `transactionMode: atomic` は、操作全体を一つのトランザクションにする指定。
+`checkMode` は状態・現在値・更新後の値・循環・件数を区別し、`entity` と `at` が検査対象、`phase` が書込み前後を示す。
+採番した値は `{generated: numberedId}`、既存行を読むキーは `{param: id}`、親のキーは `{self: todo_id}` のように保持する。
+明細の並び順は `{mode: position, start: 1}` または `{mode: next, call, key}`、値の中の採番は `{sequence: {call, key}}`。
+説明文の中から呼出名や値の意味を取り出さない。並び順の呼び先にも Mapper の補正を適用する。
+
+`composed/application/process-contract.yaml` は、確定した処理設計のトランザクション指定・検査区分・呼出先を照合する記録。
+採番を含む呼び先が未解決ならアプリの生成を止める。式のすべてを Java にできることを保証する検査ではない。
+更新全体には最初の代入の条件を付けず、各代入が条件を持つ。配列のクリアも明細の削除として保持する。
+
+`final/application-runtime-model.yaml` は確定した状態設計とエラー設計を読み、状態型と例外クラスを組み立てる。
+状態の群・終端・操作の可否・次の状態を Java の enum に生成する。未定義の状態、同じ操作と開始状態に重なる遷移、Java 名の不正は生成前に拒否する。
+ビュー「Java の状態型と遷移」で同じ確定値を確認できる。
+`BusinessViolation` はメッセージのキー・欄・埋め込み値を保持し、確認時の戻り値と実行時の `RefusedException` で共有するための型。
+状態型と例外はまだ Service の操作本体へ接続していない。実際の更新、確認時の非更新、拒否時の取り消しは次の実装・検証対象。
+
+これらは Query で確定値を選び、Construct で生成値を組み立て、Predicate で検査し、既存レポートで Java に出力する。
+YDE 本体に業務固有の評価器や書込経路を追加しない。
 
 ## 生成する
 
@@ -110,7 +132,7 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 ./samples/todos-sysdev/scripts/verify-app.ps1
 ```
 
-アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/MapperIntegrationTest.java` を検証用コピーへ追加して実行する。
+アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper と状態型・例外のテストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
 検証結果はコピー内の `build/reports/tests/test/index.html` に残す。元のアプリとその DB には書かない。
 
@@ -119,7 +141,8 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 - `TodosApplicationTest`: 確定設定と生成物の一致、未確定値を読まないこと、方式の変更と不正な入力の拒否。
 - `TodosJavaModelsTest`: Form の要素型、物理列の網羅、補正の伝達、型の不足・SQL の不一致・Java 名の衝突による停止。
 - `TodosMappersTest`: 全メソッドの網羅、検索と件数の一致、補正の伝達、未解決の条件・列・演算子による停止。
-- `scripts/verify-app.ps1`: 全 48 メソッドの実行、DB の初期値、子の順序、絞り込み、集計、変更・クリア・削除と独立ビルド。
+- `TodosServiceFoundationTest`: 処理の個別条件・明細の削除・親の検査対象、状態型・例外・採番の呼出名の補正、未解決の状態と呼び先による停止。標準型と同名に補正した Java のコンパイルも確認する。
+- `scripts/verify-app.ps1`: 全 Mapper の実行、DB の初期値、子の順序、絞り込み、集計、変更・クリア・削除、状態の遷移と違反の値の保持、独立ビルド。
 - `scripts/test-application-files.ps1`: 再生成の一致、空ファイル、競合、書込失敗時の復元、名前変更・削除の範囲。
 - `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、生成の一致とアプリ単独のビルドを確認する。
 

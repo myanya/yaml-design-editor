@@ -31,7 +31,7 @@
     },
     {
       "path": "app/README.md",
-      "sha256": "aec8dd5ba48f8ad9fb7fc3e5c1fc2ea3cf6aca98f22f10d89474e06ee5daad44"
+      "sha256": "8d07a30b38953b2696970926bbf87280ff59dbfbe841188804b4a1bd56911fdd"
     },
     {
       "path": "app/settings.gradle.kts",
@@ -82,6 +82,22 @@
       "sha256": "741abdea2cef1124b47ea93de76ad8a1101bb650a240c8196e5856fae60e6527"
     },
     {
+      "path": "app/src/main/java/example/todos/service/error/BusinessViolation.java",
+      "sha256": "b88c5d41b592915e4203d59d9835e7d8864a3495ee7f231360d650dc084808aa"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/error/NotFoundException.java",
+      "sha256": "9bae5a5dd68115c8f6969092401b6f1748256e597da90451600ee99f6dbe1fa2"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/error/RefusedException.java",
+      "sha256": "a15bd07afd789b5dd81a65ffc1481d03ec1ed72dfc3d6c4e2b3e03205cc27d6d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/state/TodoStatus.java",
+      "sha256": "d51f49ffd801f3c74f838a09eb33c30edc0c085678e965a76a3c677771814e41"
+    },
+    {
       "path": "app/src/main/java/example/todos/TodoApplication.java",
       "sha256": "25df4d1bc905486d3201783b3e82f7e93dce96535774219d2409367d8b77d6de"
     },
@@ -91,15 +107,15 @@
     },
     {
       "path": "app/src/main/resources/mappers/CategoryMapper.xml",
-      "sha256": "f632081f8f8510ea01d72a5398868fb5303702caee6eafca97811e0f25f657d8"
+      "sha256": "631f9111b4edf9449c9469b27d389cb26092d5f480eae418d788fa2d1ffd7b6b"
     },
     {
       "path": "app/src/main/resources/mappers/TagMapper.xml",
-      "sha256": "737c7a7884e6c31b1e324f93a8c2dc17a233cd195657698ba62e3e070caad543"
+      "sha256": "b6434ed4e83d7b3c4d89b942c2d2bfb94a935ee3b48a640caff9ad50104d0cc0"
     },
     {
       "path": "app/src/main/resources/mappers/TodoMapper.xml",
-      "sha256": "1204bc26bfff49989dafa822b6a75e2e49d2f1981aa2ca384b3c546ff0e308a8"
+      "sha256": "0b43824c74e069117b9ccbffb7287632d21137dcf7553dfa246b1541d96ed30f"
     },
     {
       "path": "app/src/main/resources/mappers/TodoTaskMapper.xml",

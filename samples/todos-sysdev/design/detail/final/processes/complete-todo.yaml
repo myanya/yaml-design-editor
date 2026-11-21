@@ -29,8 +29,10 @@ transaction: 1 操作 1 トランザクション（全部書けたときだけ�
 steps:
   - step: read
     call: TodoMapper.findById
-    key: id
+    key:
+      param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
   - step: check
     precondition: complete-todo.state
     by: Java（読んだ行の状態）
@@ -38,6 +40,9 @@ steps:
       - IN_PROGRESS
     message: complete-todo.state
     text: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
+    checkMode: state
+    phase: before
+    entity: todo
   - step: check
     precondition: complete-todo.no-open-task
     by: SQL（件数）
@@ -45,6 +50,12 @@ steps:
     expect: 0 件なら通す
     message: complete-todo.no-open-task
     text: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+    checkMode: count
+    phase: before
+    entity: todo
+    countExpectation: absent
+    key:
+      param: id
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -54,6 +65,9 @@ steps:
             - path: updated_on
             - path: created_on
     message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: completed-not-before-created
     by: Java（書いた後の値）
@@ -67,6 +81,9 @@ steps:
             - path: created_on
     field: date
     message: check.completed-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: closed-has-completed-on
     by: Java（書いた後の値）
@@ -79,6 +96,9 @@ steps:
       expect: absent
     field: date
     message: check.closed-has-completed-on
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: closed-has-result
     by: Java（書いた後の値）
@@ -91,6 +111,9 @@ steps:
       expect: absent
     field: result
     message: check.closed-has-result
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: write
     call: TodoMapper.completeTodo
     kind: update
@@ -119,15 +142,24 @@ steps:
         $copy: status
         $of: self
       to: CLOSED
-    seq: TodoMapper.maxSeqTodoHistory の次
+    seq:
+      mode: next
+      call: TodoMapper.maxSeqTodoHistory
+      key:
+        param: id
   - step: check
     constraint: closed-has-no-open-task
     by: SQL（件数。書いた後）
     call: TodoTaskMapper.countClosedHasNoOpenTask
-    key: id
+    key:
+      param: id
     expect: 0 件なら通す
     violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
     message: check.closed-has-no-open-task
+    checkMode: count
+    phase: after
+    entity: todo
+    countExpectation: absent
 subject: todo
 originalService:
   class: TodoService
@@ -136,6 +168,7 @@ originalService:
     - id
     - date
     - result
+transactionMode: atomic
 designId: DOC-processes.complete-todo
 designKind: processes
 designPath: design/detail/final/processes/complete-todo.yaml

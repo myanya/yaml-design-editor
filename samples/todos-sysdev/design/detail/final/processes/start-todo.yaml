@@ -11,8 +11,10 @@ transaction: 1 操作 1 トランザクション（全部書けたときだけ�
 steps:
   - step: read
     call: TodoMapper.findById
-    key: id
+    key:
+      param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
   - step: check
     precondition: start-todo.state
     by: Java（読んだ行の状態）
@@ -20,6 +22,9 @@ steps:
       - OPEN
     message: start-todo.state
     text: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+    checkMode: state
+    phase: before
+    entity: todo
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -29,6 +34,9 @@ steps:
             - path: updated_on
             - path: created_on
     message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: check
     constraint: unfinished-has-no-completed-on
     by: Java（書いた後の値）
@@ -41,6 +49,9 @@ steps:
           exists: true
       expect: absent
     message: check.unfinished-has-no-completed-on
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: write
     call: TodoMapper.startTodo
     kind: update
@@ -67,13 +78,18 @@ steps:
         $copy: status
         $of: self
       to: IN_PROGRESS
-    seq: TodoMapper.maxSeqTodoHistory の次
+    seq:
+      mode: next
+      call: TodoMapper.maxSeqTodoHistory
+      key:
+        param: id
 subject: todo
 originalService:
   class: TodoService
   method: startTodo
   arguments:
     - id
+transactionMode: atomic
 designId: DOC-processes.start-todo
 designKind: processes
 designPath: design/detail/final/processes/start-todo.yaml

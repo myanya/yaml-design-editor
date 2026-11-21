@@ -12,8 +12,10 @@ transaction: 1 操作 1 トランザクション（全部書けたときだけ�
 steps:
   - step: read
     call: TodoMapper.findById
-    key: id
+    key:
+      param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
   - step: check
     precondition: add-todo-task.active
     by: Java（読んだ行）
@@ -26,6 +28,9 @@ steps:
           - SUSPENDED
     message: add-todo-task.active
     text: '{id} は完了か中止をしているので、作業項目を足せません'
+    checkMode: current
+    phase: before
+    entity: todo
   - step: number
     entity: todo-task
     call: TodoTaskMapper.maxId
@@ -44,15 +49,23 @@ steps:
             - path: updated_on
             - path: created_on
     message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
   - step: write
     call: TodoTaskMapper.insert
     kind: insert
     values:
-      id: 採番した番号
+      id:
+        generated: numberedId
       title: $title
       done: false
       todo_id: $id
-      seq: 次の並び順（TodoTaskMapper.maxSeq の次）
+      seq:
+        sequence:
+          call: TodoTaskMapper.maxSeq
+          key:
+            param: id
   - step: write
     call: TodoMapper.addTodoTask
     kind: update
@@ -68,10 +81,15 @@ steps:
     constraint: closed-has-no-open-task
     by: SQL（件数。書いた後）
     call: TodoTaskMapper.countClosedHasNoOpenTask
-    key: id
+    key:
+      param: id
     expect: 0 件なら通す
     violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
     message: check.closed-has-no-open-task
+    checkMode: count
+    phase: after
+    entity: todo
+    countExpectation: absent
 subject: todo
 originalService:
   class: TodoService
@@ -79,6 +97,7 @@ originalService:
   arguments:
     - id
     - title
+transactionMode: atomic
 designId: DOC-processes.add-todo-task
 designKind: processes
 designPath: design/detail/final/processes/add-todo-task.yaml

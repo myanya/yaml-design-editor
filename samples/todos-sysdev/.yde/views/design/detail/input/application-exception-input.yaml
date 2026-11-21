@@ -1,0 +1,10 @@
+id: application-exception-input
+name: application-exception-input
+rows:
+  idPattern: JERR-*
+  schemaIds:
+    - application-runtime-model
+columns:
+  - label: record
+    path: .
+    schemaId: application-runtime-model

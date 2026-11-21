@@ -24,7 +24,7 @@
 {/each}
 {#each properties}{#if column}      {table}.{column} AS {name},{/if}
 {#if lookup}      (SELECT n.{lookup.column} FROM {lookup.table} n WHERE n.{lookup.key} = {table}.{lookup.parentColumn}) AS {name},{/if}
-{#if count}      {#if count}
+{#if count}{#if count}
 {#if count.incoming}(SELECT COUNT(DISTINCT c.{count.incoming.key}) FROM {count.incoming.table} c
 {#if count.incoming.join}JOIN {count.incoming.join.table} r ON {#each count.incoming.join.keys}r.{column} = c.{parentColumn}{#if more} AND {/if}{/each}{/if}
 WHERE {count.incoming.alias}.{count.incoming.reference} = {table}.{count.incoming.parentColumn}{#if count.axis} AND c.{count.axis.column} = {count.axis.value:sql-string-xml}{/if}){/if}
@@ -39,7 +39,7 @@ WHERE {count.incoming.alias}.{count.incoming.reference} = {table}.{count.incomin
 {#if optional}</if>{/if}
 {/each}{/if}){/if}
 {/if} AS {name},{/if}
-{#if parts}{#each parts}      {#if count}
+{#if parts}{#each parts}{#if count}
 {#if count.incoming}(SELECT COUNT(DISTINCT c.{count.incoming.key}) FROM {count.incoming.table} c
 {#if count.incoming.join}JOIN {count.incoming.join.table} r ON {#each count.incoming.join.keys}r.{column} = c.{parentColumn}{#if more} AND {/if}{/each}{/if}
 WHERE {count.incoming.alias}.{count.incoming.reference} = {table}.{count.incoming.parentColumn}{#if count.axis} AND c.{count.axis.column} = {count.axis.value:sql-string-xml}{/if}){/if}

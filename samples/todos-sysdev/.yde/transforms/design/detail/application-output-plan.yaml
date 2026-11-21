@@ -5,6 +5,8 @@ dependsOn:
   - application-configuration
   - application-data-model
   - application-access
+  - application-runtime-model
+  - application-process-gate
 output: design/detail/final/application-output-plan.yaml
 build:
   id: APP-output-plan
@@ -67,3 +69,30 @@ build:
           report: ddl
           params: {}
           destination: app/src/main/resources/schema.sql
+      - $each:
+          $view: application-state-input
+        $build:
+          id:
+            $format: OUTPUT-{id}
+            $with:
+              id:
+                $copy: id
+          report: app-status
+          params:
+            runtime:
+              $copy: id
+      - $each:
+          $view: application-exception-input
+        $build:
+          id:
+            $format: OUTPUT-{id}
+            $with:
+              id:
+                $copy: id
+          report: app-exception
+          params:
+            runtime:
+              $copy: id
+      - - id: OUTPUT-business-violation
+          report: app-business-violation
+          params: {}

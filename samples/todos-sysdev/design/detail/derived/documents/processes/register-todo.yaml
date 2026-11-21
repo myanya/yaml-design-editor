@@ -59,6 +59,9 @@ record:
                 - path: created_on
         field: due
         message: check.due-not-before-created
+        checkMode: prospective
+        phase: before
+        entity: todo
       - step: check
         constraint: updated-not-before-created
         by: Java（書いた後の値）
@@ -68,6 +71,9 @@ record:
                 - path: updated_on
                 - path: created_on
         message: check.updated-not-before-created
+        checkMode: prospective
+        phase: before
+        entity: todo
       - step: check
         constraint: follows-not-self
         by: Java（書いた後の値）
@@ -81,6 +87,9 @@ record:
                 - path: id
         field: follows
         message: check.follows-not-self
+        checkMode: prospective
+        phase: before
+        entity: todo
       - step: check
         constraint: follow-up-of.acyclic
         by: Java（参照の先をたどる）
@@ -89,11 +98,15 @@ record:
         how: 書く参照の先から、同じ項目の参照を findById でたどり、受け手（作る操作は作る要素）に戻れば断る
         field: follows
         message: check.follow-up-of.acyclic
+        checkMode: cycle
+        phase: before
+        entity: todo
       - step: write
         call: TodoMapper.insert
         kind: insert
         values:
-          id: 採番した番号
+          id:
+            generated: numberedId
           due_on:
             $copy: due
           details:
@@ -116,18 +129,25 @@ record:
         kind: insert
         each:
           $copy: tags
-        seq: 配列の順（1 から）
+        seq:
+          mode: position
+          start: 1
       - step: write
         call: TodoMapper.insertTodoHistory
         kind: insert
         values:
-          todo_id: 採番した番号
+          todo_id:
+            generated: numberedId
           date:
             $copy: today
             $of: context
           action: register-todo
           to: OPEN
-        seq: TodoMapper.maxSeqTodoHistory の次
+        seq:
+          mode: next
+          call: TodoMapper.maxSeqTodoHistory
+          key:
+            generated: numberedId
     subject: todo
     originalService:
       class: TodoService
@@ -140,6 +160,7 @@ record:
         - follows
         - due
         - details
+    transactionMode: atomic
   source:
     id: rule-processes
     document: .yde/transforms/design/detail/processes-derived.yaml

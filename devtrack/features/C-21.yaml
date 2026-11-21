@@ -68,9 +68,11 @@ tests:
     note: Form と行モデルの共通型、可変個数の出力、物理列の補正と型・名前の不一致の拒否
   - name: TodosMappersTest
     note: 全メソッドの網羅、一覧と件数の条件の一致、物理名とメソッド名の補正、未解決の条件と列の拒否
+  - name: TodosServiceFoundationTest
+    note: 処理の個別条件・明細の削除・親の検査対象、状態型・例外・採番の呼出名の補正、未解決の状態と呼び先の拒否
   - name: verify-app.ps1
     kind: check
-    note: 生成アプリのコピーで全 48 メソッドを H2 に実行し、初期値・入れ子・絞り込み・集計・更新・削除を検証
+    note: 生成アプリのコピーで全 Mapper を H2 に実行し、状態の遷移と業務例外も検証
   - name: test-application-files.ps1
     kind: check
     note: todos-sysdev の再生成で手修正・計画後の競合・途中失敗・名前変更と削除の範囲を確認

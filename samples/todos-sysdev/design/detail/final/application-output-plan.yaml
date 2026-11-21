@@ -92,3 +92,18 @@ outputs:
     report: ddl
     params: {}
     destination: app/src/main/resources/schema.sql
+  - id: OUTPUT-JSTATE-todo-lifecycle
+    report: app-status
+    params:
+      runtime: JSTATE-todo-lifecycle
+  - id: OUTPUT-JERR-notFound
+    report: app-exception
+    params:
+      runtime: JERR-notFound
+  - id: OUTPUT-JERR-refused
+    report: app-exception
+    params:
+      runtime: JERR-refused
+  - id: OUTPUT-business-violation
+    report: app-business-violation
+    params: {}

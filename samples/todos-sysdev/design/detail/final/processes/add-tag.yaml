@@ -20,7 +20,8 @@ steps:
     call: TagMapper.insert
     kind: insert
     values:
-      id: 採番した番号
+      id:
+        generated: numberedId
       name: $name
 subject: tag
 originalService:
@@ -28,6 +29,7 @@ originalService:
   method: addTag
   arguments:
     - name
+transactionMode: atomic
 designId: DOC-processes.add-tag
 designKind: processes
 designPath: design/detail/final/processes/add-tag.yaml

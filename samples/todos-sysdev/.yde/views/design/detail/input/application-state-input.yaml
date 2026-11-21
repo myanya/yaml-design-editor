@@ -1,0 +1,10 @@
+id: application-state-input
+name: application-state-input
+rows:
+  idPattern: JSTATE-*
+  schemaIds:
+    - application-runtime-model
+columns:
+  - label: record
+    path: .
+    schemaId: application-runtime-model

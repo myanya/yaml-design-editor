@@ -1,0 +1,17 @@
+id: application-state-types
+name: Java の状態型と遷移
+rows:
+  idPattern: JSTATE-*
+  schemaIds:
+    - application-runtime-model
+columns:
+  - label: 型
+    path: name
+  - label: 状態
+    path: values
+  - label: 状態の群
+    path: groups
+  - label: 遷移
+    path: transitions
+  - label: 終端
+    path: terminal
