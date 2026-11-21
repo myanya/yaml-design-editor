@@ -1,0 +1,45 @@
+id: app-controller
+name: 確定した入口と読出しを Java にする
+params:
+  - controller
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-web-controllers-input
+        $where:
+          - path: id
+            equals: $controller
+        $one: true
+  mappers:
+    $each:
+      $view: application-access-input
+    $build:
+      name:
+        $copy: values.record.name
+      variable:
+        $case:
+          $copy: values.record.name
+        $as: camel
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: values.record.settings
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: Controller.java
+output: app/src/main/java/{#each config.package}{.}/{/each}web/{record.controller}.java

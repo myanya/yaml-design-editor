@@ -48,4 +48,10 @@ public class CategoryService {
         if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
         return new OperationOutcome(numberedId, violations);
     }
+
+    public CategoryMapper.FindDetailResult findDetail(java.lang.String id) {
+        var input = new CategoryMapper.FindDetailInput();
+        input.setId(id);
+        return categoryMapper.findDetail(input);
+    }
 }

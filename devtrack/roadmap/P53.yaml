@@ -2,7 +2,7 @@ id: P53
 number: 53
 title: 業務モデルから作る設計書体系とアプリ生成
 status: in-progress
-status_note: 基本・詳細別の配置と独立アプリのデータアクセス・業務処理を実装。画面の生成と内容レビューを継続
+status_note: 基本・詳細別の配置から独立アプリの業務画面まで生成を接続。設計書と画面の内容レビューを継続
 body:
   - text: >-
       対象は [samples/todos-sysdev](../samples/todos-sysdev/README.md)。全体は samples/todos の業務モデル整備 → 設計書体系 → ログインなしの Spring Boot
@@ -21,7 +21,7 @@ body:
 
       基本設計・詳細設計を上位で分け、各段階に入力・導出・合成・確定を置く。生成アプリは同じワークスペースの app/ に置き、YDE 本体の Gradle から独立させる方針を合意した。 [ADR-0041](decisions/0041-design-layout-and-independent-app.md)
       と [配置整理からアプリ生成までの作業計画](../samples/todos-sysdev/docs/application-generation-plan.md) に境界と完了条件をまとめた。 配置移行と、方式設定からビルド・起動の基本構造を生成する経路を整えた。アプリだけを別の場所へコピーしたテスト・ビルド・起動も確認した。
-      共通の Java 型、行モデル、Mapper・XML・DDL と全操作の Service を接続した。次は R53-03 の入力検査との対応を整理し、R53-11 の画面 → R53-04 の全体検証と進む。設計書のレビューは各段階で続ける。
+      共通の Java 型、行モデル、Mapper・XML・DDL と全操作の Service、26 画面・5 Controller を接続した。実 HTTP で全操作と入力の往復、部分更新、二重送信、別タブの確認を検証する。設計書と画面の内容レビューは継続する。
 
       過不足は今の todos の利用箇所だけでなく、設計書として必要な内容と業務モデルの構造から判断する。
   - columns: work
@@ -53,14 +53,15 @@ body:
         prereq: 配置移行後の確定項目と現行の設計書の形式
         done_criteria: 補正後の値を共有し、各コード出力と確定項目の対応、型・初期値・方式、未対応時の扱いが明示される
         state: in-progress
-        state_note: Java の型を Form・行モデル・Mapper・Service で共有し、SQL 型・初期値・操作の式と検査を接続。数値範囲・Bean Validation は継続
+        state_note: Java と SQL の型・初期値・呼出先・現行の Form と Service と画面の検査を接続し照合。新たに数値入力へ広げる場合の範囲の確認は継続
       - id: R53-04
         title: Spring Boot アプリの全体生成と独立実行を確認する
         places: app/ のソース・資源・ビルドと、全体の再生成・動作確認・CI
         prereq: R53-09・R53-10・R53-11 の生成が接続し、生成を妨げる未決事項が解消されていること
         done_criteria: 再生成の一致、補正の伝達、単独でのテスト・ビルド・起動、業務の閲覧と操作、YDE の全テストを確認する
-        state: todo
-        state_note: 基本構造は単独ビルド・起動を確認済み。業務コードと画面の生成後に全体を確認する。内容レビューとは分ける
+        state: done
+        state_note: 122 ファイルの生成と一致、補正の伝達、独立アプリの 34 テストと JAR の実起動、YDE の全テストを確認。設計内容と画面の見え方はレビューを継続
+        state_on: 2026-11-21
       - id: R53-06
         title: 基本設計と詳細設計ごとに入力・導出・合成・確定を配置する
         places: design/ と .yde/ の定義・参照・ビュー・テスト・文書
@@ -106,8 +107,9 @@ body:
         places: Controller・Form・Thymeleaf・CSS・JS・メッセージ・セッション・エラー応答
         prereq: R53-10 の業務処理と画面設計の対応範囲の確認
         done_criteria: 一覧・詳細・入力・確認・実行・エラー表示が接続し、Form とメッセージの制約が一致する
-        state: in-progress
-        state_note: デザイン台帳・CSS・確認画面・入力 Form と全操作の Service 接続を生成。入れ子・補正・入力再検査を照合。業務の読出し・Controller・画面遷移は残る
+        state: done
+        state_note: 26 画面・5 Controller・全 12 操作を接続。実 HTTP で入力保持・欄の違反・別タブ・二重送信・状態再検査・部分更新・コメント全件削除を確認
+        state_on: 2026-11-21
 sections:
   - title: 現在の材料とレビュー状態
     body:
@@ -129,7 +131,8 @@ sections:
           | 段のルールと補正 | basic・detail の段を宣言。段のルールは無く、基本の COR-001 は TODO の ID の代表の説明、詳細の補正一覧は空 | 説明の合成に接続。基本の補正はテーブルの生成と DDL
           に反映。物理名は Mapper、呼出名は処理と Controller に反映 |
 
-          | アプリ | `app/` の独立した基本構造・行モデル・Mapper・XML・共通 DDL・全操作の Service、生成予定と更新の手順 | データアクセスと業務処理を生成。Controller・画面は後続 |
+          | アプリ | `app/` の独立した基本構造・行モデル・Mapper・XML・共通 DDL・全操作の Service・業務の Controller と 26 画面、生成予定と更新の手順 | 確定値からデータアクセス・業務処理・画面まで生成。設計と動作を合わせてレビューする
+          |
   - title: エンティティ定義書の修正前の調査結果とレビュー範囲
     body:
       - text: |-

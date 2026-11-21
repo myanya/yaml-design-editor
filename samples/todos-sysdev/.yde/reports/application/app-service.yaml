@@ -19,6 +19,15 @@ build:
           - path: id
             equals: $service
         $one: true
+  read:
+    $apply: record
+    $with:
+      row:
+        $view: application-web-read-services-input
+        $where:
+          - path: values.record.program
+            equals: $service
+        $one: true
 rules:
   - id: config
     with:

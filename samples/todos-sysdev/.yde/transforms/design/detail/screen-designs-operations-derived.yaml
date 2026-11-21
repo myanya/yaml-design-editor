@@ -349,6 +349,14 @@ rules:
             emphasis: secondary
             per: row
         redraw: 入力画面へ POST して描き直す
+        clearable:
+          $when:
+            - path: clearedBy
+              exists: true
+          $then:
+            flag:
+              $copy: clearedBy
+            label: 値を消す
   - id: field
     when:
       - path: base

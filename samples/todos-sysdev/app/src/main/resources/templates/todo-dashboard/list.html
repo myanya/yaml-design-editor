@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/business :: head}"></head>
+<body><header th:replace="~{fragments/business :: header}"></header>
+<main id="main" th:fragment="main" class="page w-l">
+<h1>TODOダッシュボード</h1>
+<div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
+<form class="filters" method="get" th:action="${page.url(page.node('page.body[1].filters').action)}" th:with="node=${page.node('page.body[1].filters')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+<div th:replace="~{fragments/business :: choices(${page.node('page.body[1].filters.body[0].choices')})}"></div>
+<div th:replace="~{fragments/business :: field(${page.node('page.body[1].filters.body[1].field')})}"></div>
+<div th:replace="~{fragments/business :: field(${page.node('page.body[1].filters.body[2].field')})}"></div>
+<div th:replace="~{fragments/business :: actions(${page.node('page.body[1].filters.body[3].actions')})}"></div>
+</form>
+<div th:replace="~{fragments/business :: actions(${page.node('page.body[2].actions')})}"></div>
+<section class="panel section" th:with="node=${page.node('page.body[3].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<section class="panel section" th:with="node=${page.node('page.body[3].section.body[0].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<div th:replace="~{fragments/business :: dataTable(${page.node('page.body[3].section.body[0].section.body[0].table')})}"></div>
+</section>
+</section>
+<section class="panel section" th:with="node=${page.node('page.body[4].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<section class="panel section" th:with="node=${page.node('page.body[4].section.body[0].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<div th:replace="~{fragments/business :: dataTable(${page.node('page.body[4].section.body[0].section.body[0].table')})}"></div>
+</section>
+<section class="panel section" th:with="node=${page.node('page.body[4].section.body[1].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<div th:replace="~{fragments/business :: matrix(${page.node('page.body[4].section.body[1].section.body[0].matrix')})}"></div>
+</section>
+<section class="panel section" th:with="node=${page.node('page.body[4].section.body[2].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<div th:replace="~{fragments/business :: matrix(${page.node('page.body[4].section.body[2].section.body[0].matrix')})}"></div>
+</section>
+</section>
+<section class="panel section" th:with="node=${page.node('page.body[5].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<section class="panel section" th:with="node=${page.node('page.body[5].section.body[0].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<div th:replace="~{fragments/business :: dataTable(${page.node('page.body[5].section.body[0].section.body[0].table')})}"></div>
+</section>
+<section class="panel section" th:with="node=${page.node('page.body[5].section.body[1].section')}"><h2 th:text="${node.title}"></h2><span class="muted" th:if="${node['count'] != null}" th:text="${page.count(node)}"></span>
+<div th:replace="~{fragments/business :: dataTable(${page.node('page.body[5].section.body[1].section.body[0].table')})}"></div>
+</section>
+</section>
+<nav><a th:href="${page.homeUrl()}">一覧へ戻る</a></nav>
+</main></body></html>

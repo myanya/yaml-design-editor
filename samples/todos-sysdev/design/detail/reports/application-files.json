@@ -31,7 +31,7 @@
     },
     {
       "path": "app/README.md",
-      "sha256": "d1dcd9c1881cf91868a82c01eaaaf73fdd944208c328a8b0cefb5dc519e6c55b"
+      "sha256": "7f7b9891fb87a68973b7456a34b484f12a8773008d65d9a39df58f2863441a52"
     },
     {
       "path": "app/settings.gradle.kts",
@@ -83,7 +83,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/CategoryService.java",
-      "sha256": "833c28514565ed24cb341419e44c52dd7e89a9be686673175193ddb0fa3ba363"
+      "sha256": "df3cc43adce093813fe536a3c2b5051590c23b70ed4a7fc3726bba7e79891ea9"
     },
     {
       "path": "app/src/main/java/example/todos/service/error/BusinessViolation.java",
@@ -167,11 +167,15 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/TagService.java",
-      "sha256": "ac69b6d31e74031d80bb758cecf7936f349254899debd9eecde2a6643d2c8505"
+      "sha256": "f33a9e3651f25cf1e7fd717ad0c9afce384e727e6085b36549627cadd9c81baa"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/TodoDashboardService.java",
+      "sha256": "35c094b11f7db4a431e3a8efc1e29f632dd20eb9c1aa6c19faa610d2f8b796ac"
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoService.java",
-      "sha256": "99b13782f6f7e78b13696bb2140738931d646475bddad3a45b794b702ac87a8d"
+      "sha256": "7f51a8fa23603cd82a4bd2a5f34a41c0d25d3938d783dcb288cd5a3a6d037836"
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoTaskService.java",
@@ -180,6 +184,10 @@
     {
       "path": "app/src/main/java/example/todos/TodoApplication.java",
       "sha256": "034c83a102a6b0345e6f571e64a45d12bb27fea7c60429ea625a693fde2ca8a1"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/CategoryController.java",
+      "sha256": "504d48cc7c9ea797252c28e3bca4e4094206f38805bad27e9e3641590b43ad44"
     },
     {
       "path": "app/src/main/java/example/todos/web/DesignPreviewController.java",
@@ -274,8 +282,48 @@
       "sha256": "ead911955ab13457efb237414a4ed0898da9522227302083b62fb79d38b9ccf8"
     },
     {
+      "path": "app/src/main/java/example/todos/web/TagController.java",
+      "sha256": "a5e34d3b686377763416a1f2b3e928bfb57978cc395a3e2e0ee1790b7c16d12f"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/TodoController.java",
+      "sha256": "57d04713e38aaf9856e2e6e975d6b8f84c117a0cbbd964bcc629fddbacdc3d87"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/TodoDashboardController.java",
+      "sha256": "c4d119e94b02144b883d2f9ee74421108cf8ddaab6734b413b266d9131cb7902"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/TodoTaskController.java",
+      "sha256": "748c4c3feb9e7216370d1720002a76c0774d6b6cce9387b68f9b1650f4d17fa6"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebActions.java",
+      "sha256": "1009c2a8e5c62202fa8025489ac699608967e4a13e59faad9605fc69c6f9de26"
+    },
+    {
       "path": "app/src/main/java/example/todos/web/WebBinding.java",
       "sha256": "4fd1fbbbf852b4ccf52e911e816cc68e47ec2bf9317b93a69c60369d9022d95d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebCatalog.java",
+      "sha256": "58864f6743716f3be5dee0e11fd9297f0fa621f536d230eb9aa3dfafb7a815b7"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebErrors.java",
+      "sha256": "ed966b9168d7c4c97057ee1df22040958871e0ffd76c266fe10527b283942bf1"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebPage.java",
+      "sha256": "02956c1e1dab67265936b0a4182a22d96a8ed7821a6b23011d922cc5f28c5a91"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebReads.java",
+      "sha256": "0364647b47977c8920c2e1ef2bbf50a9e31fa7518f32171ec2bd16ec8fae5b0f"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebRuntime.java",
+      "sha256": "08825ca4e276e6f7df49f93e58ff40c3c5db4fcd0e7ed51bfb908a569caf30db"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebValidationMessages.java",
@@ -302,6 +350,10 @@
       "sha256": "d5b93de22770f3129ed64b2358eaad4bea6fa4b1b8ac0406f32e334c12c68764"
     },
     {
+      "path": "app/src/main/resources/META-INF/licenses/htmx.txt",
+      "sha256": "d3d2456f76414f2456104660ebd65aff1c04cd7966b942bdabd63f3cdb316a38"
+    },
+    {
       "path": "app/src/main/resources/schema.sql",
       "sha256": "3ff59eee5183ebd49f3930750e25e601effabdad96f0789d75d84a588068dbfe"
     },
@@ -310,8 +362,128 @@
       "sha256": "a2a701b66a3bc7b45c48246211f9804286c2ec134053081ee31f119268d42136"
     },
     {
+      "path": "app/src/main/resources/static/js/htmx.min.js",
+      "sha256": "d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717"
+    },
+    {
+      "path": "app/src/main/resources/templates/category/add-category/confirm.html",
+      "sha256": "0f20790c412d5c834f1d4d897b72b7b2a6a6902331946cd70a936c5e640d34dc"
+    },
+    {
+      "path": "app/src/main/resources/templates/category/add-category/input.html",
+      "sha256": "c66521261cae3c3e8eaae4bfbda06ddf074d1dd0903dc854b424f6764317144e"
+    },
+    {
+      "path": "app/src/main/resources/templates/category/detail.html",
+      "sha256": "e30a77b317a01454f78a8735dc4ff713e003b548f1e37480b517af46e463ebd5"
+    },
+    {
       "path": "app/src/main/resources/templates/design-preview.html",
       "sha256": "a68f4956225d7de18e24a1314f8ca676b8294183bb76ff1b378b4fdde3f5c105"
+    },
+    {
+      "path": "app/src/main/resources/templates/error.html",
+      "sha256": "e015518bbf8f9cb5c9c656330a0219bbf62c9196eb3a77a92b3aec48a7f695b7"
+    },
+    {
+      "path": "app/src/main/resources/templates/fragments/business.html",
+      "sha256": "b6332ac66c2c41f3fb6e86ed29ac2f5da5279bab8a651095e8d5dd75db7e9876"
+    },
+    {
+      "path": "app/src/main/resources/templates/tag/add-tag/confirm.html",
+      "sha256": "3e660f85c25237bcd2dcbf35c2dad345543dc2f91c632020362c04bfeefce4cf"
+    },
+    {
+      "path": "app/src/main/resources/templates/tag/add-tag/input.html",
+      "sha256": "948ee4533fd7c788db4722351fb177503798bfa46ebd2b8fa999f2923effe6c1"
+    },
+    {
+      "path": "app/src/main/resources/templates/tag/detail.html",
+      "sha256": "4394e73ea26464a9dc640899cee1adf7aa958e4fd572d87fcb2a866ba78fa4e6"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo-dashboard/list.html",
+      "sha256": "0f7c43444b556ec5e6121d7fc36ae65fb35616cb548b1a6a6921354fc53cdf2b"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo-task/todo-task.finish/confirm.html",
+      "sha256": "79b6c69e82968c0e4a4681c353df487d4bc02190bc88d3cd16993c08a7c249b6"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/add-todo-comment/confirm.html",
+      "sha256": "a60fb8a0491d873998b2926d49d1e90d2b5f0f8e4351252615c0eb97a0b2386c"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/add-todo-comment/input.html",
+      "sha256": "c1c8a905367a3ae12de194df6f812a7b1e8428bc3d822f020e1503b5c1805c54"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/add-todo-task/confirm.html",
+      "sha256": "d333dc00bc06c9d0f641f790a02ae2b5225c6646f945fcad351525007ed48369"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/add-todo-task/input.html",
+      "sha256": "214aec6e6fb6342094091819d41deeb76c06a049ba8b770649bb62c6ddf295cc"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/cancel-todo/confirm.html",
+      "sha256": "ca5cbb43b2524acdd848dd74e0ae95ebdd159f36c6e670252029f85fd17321b4"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/cancel-todo/input.html",
+      "sha256": "9bc6bfec2a167dbe35b4235a8e16808675ddb43aa387d489edeac62f2ebf32f5"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/complete-todo/confirm.html",
+      "sha256": "f7eca86f5350cfeb8ddb30ab3383f6d4cbabfa219ca77c979405dfcaf358cfa6"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/complete-todo/input.html",
+      "sha256": "07b044159ae907b32cdf7787a95c1c32a998f2a6b6f894f3c2d1a82a2e683e75"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/detail.html",
+      "sha256": "8fc25d7b3b0341f7ace0aa337589e6d3bab1b6c760abe5e1ba16750cc8fa6fa7"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/edit-todo/confirm.html",
+      "sha256": "9888f48a4f1d52526a1093f4bbb73786ec686b5ecf166e65a7fb2335efb3c55a"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/edit-todo/input.html",
+      "sha256": "f1d583d9564d89311f6f03bcee9d9698a6a52d6c01642355abacf1e0f83d6bd6"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/register-todo/confirm.html",
+      "sha256": "e8b3699a0619d2f111b14623aba5b7f4b8c002603031a6e40990bc454a4206b5"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/register-todo/input.html",
+      "sha256": "8add66c0ddb376c0e4b0913427c894da0174d503d573ed51c58e10bbdb72d950"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/resume-todo/confirm.html",
+      "sha256": "fd97b2878adeb9b3c15bdccdbc9a52bef4347e1f2cc99de8bb21d24f97d4ed7f"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/resume-todo/input.html",
+      "sha256": "593b95f0de29000d36d798d4a6ac0eac62d785c7d8e7407838183507de6b6437"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/start-todo/confirm.html",
+      "sha256": "136af7e40acf3fa2095db048e19cb831efe44907eade18685694d67f5951f90d"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/suspend-todo/confirm.html",
+      "sha256": "866469fbfdac04349c9743896225196cea0529abcffcc5bf02d7ea2a50c99efe"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/suspend-todo/input.html",
+      "sha256": "bd1ffdff89db402041f50d1ddbc9a446bb258677b824c8ec315d3dce431231bb"
+    },
+    {
+      "path": "app/src/main/resources/web-model.json",
+      "sha256": "8897cd205f52b8f6325ff6d897c4467b9c4af8158fc94da7bc55fde9a2a5aa08"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

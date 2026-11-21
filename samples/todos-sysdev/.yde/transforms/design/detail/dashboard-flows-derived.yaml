@@ -53,14 +53,10 @@ build:
                   - $format: GET /{id}
               params:
                 $concat:
-                  - $each: inputs
-                    $build:
-                      key:
-                        $copy: key
-                      label:
-                        $copy: label
-                      multiple:
-                        $copy: multiple
+                  - $apply: final-filter-params
+                    $with:
+                      dashboard:
+                        $copy: id
                   - $each: sections
                     $bind: sec
                     $flatten: true
@@ -357,3 +353,42 @@ rules:
                               $of: node
                         $then:
                           $copy: text
+  - id: final-filter-params
+    with:
+      - dashboard
+    build:
+      $each:
+        $view: screen-designs-lists-input
+        $where:
+          - path: values.record.id
+            equals:
+              $copy: .
+              $of: dashboard
+      $build:
+        $each: values.record.screens
+        $build:
+          $each: page.body
+          $build:
+            $each: filters.body
+            $build:
+              $first:
+                - $when:
+                    - path: field
+                      exists: true
+                  $then:
+                    key:
+                      $copy: field.item
+                    label:
+                      $copy: field.label
+                - $when:
+                    - path: choices
+                      exists: true
+                  $then:
+                    key:
+                      $copy: choices.item
+                    label:
+                      $copy: choices.label
+                    multiple: true
+          $flatten: true
+        $flatten: true
+      $flatten: true

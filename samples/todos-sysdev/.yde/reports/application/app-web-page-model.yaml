@@ -1,0 +1,30 @@
+id: app-web-page-model
+name: 業務 Web アプリの共通処理と表示
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-web-input
+        $one: true
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: values.record.settings
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: WebPage.java
+output: app/src/main/java/{#each config.package}{.}/{/each}web/WebPage.java

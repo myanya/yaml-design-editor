@@ -78,9 +78,11 @@ tests:
     note: デザイン台帳の確定後の CSS と HTML の共有、入力 Form の網羅と未対応の検査・メッセージ不足の拒否
   - name: TodosWebBindingsTest
     note: 全操作の Form と Service の照合、項目名・明細と呼出名の補正、対応漏れ・重複・型不一致の拒否
+  - name: TodosWebPagesTest
+    note: 保存した確定値と全画面・入口・読出しの一致、題と列順の補正、未対応部品・遷移先・子の行の項目対応の不足による停止
   - name: verify-app.ps1
     kind: check
-    note: 生成アプリのコピーで全 Mapper・全操作・同時採番・取り消し、画面入力からの更新・再検査とデザイン確認画面の非更新を検証
+    note: 生成アプリのコピーで全 Mapper・全操作・同時採番・取り消し、実 HTTP の全画面・二重送信・別タブ・部分更新・空配列、絞り込みと URL の補正を検証
   - name: test-application-files.ps1
     kind: check
     note: todos-sysdev の再生成で手修正・計画後の競合・途中失敗・名前変更と削除の範囲を確認

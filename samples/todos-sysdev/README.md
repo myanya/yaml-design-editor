@@ -16,7 +16,8 @@
 [設計書の確定と全体レビュー](docs/design-document-migration-plan.md)に、対象・受け渡し・入力例・試し方をまとめています。
 計画と未決事項は [ロードマップ](../../docs/ROADMAP.md#p53-業務モデルから作る設計書体系とアプリ生成) にあります。
 設計の配置を段階・役割ごとに整理し、独立した `app/` の行モデル・Mapper・XML・共通 DDL・状態型・業務例外・全操作の Service・入力検査付き Form と Service への接続を生成します。
-サイバーパンクのデザイン台帳から CSS と確認用画面も生成します。型対応は Form・行モデル・Mapper・Service で共通です。業務画面の Controller と画面遷移は後続です。
+サイバーパンクのデザイン台帳から CSS と確認用画面も生成します。型対応は Form・行モデル・Mapper・Service で共通です。
+業務の 26 画面・12 操作、読出し・Controller・画面遷移も接続しました。テンプレートの場所と動作の試し方は [業務画面の生成と確認](docs/web-generation.md) を参照してください。
 全体の順序は [作業計画](docs/application-generation-plan.md)、現在の出力範囲と操作は [アプリの生成と独立ビルド](docs/application-generation.md) を参照してください。
 
 導出・補正と指定・追加から確定項目一覧を作り、ビューと後段で共有する方針は [ADR-0039](../../docs/decisions/0039-finalized-design-items.md) に従います。

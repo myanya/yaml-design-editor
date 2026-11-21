@@ -1,0 +1,10 @@
+id: application-web-pages-input
+name: 確定した業務 Web アプリの生成入力
+rows:
+  idPattern: WPAGE-*
+  schemaIds:
+    - application-web
+columns:
+  - label: record
+    path: .
+    schemaId: application-web

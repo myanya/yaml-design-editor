@@ -12,6 +12,8 @@ screens:
         multiple: true
       - key: category
         label: カテゴリ
+      - key: date
+        label: 基準日
       - key: categories.cell
         label: 区画「カテゴリ別の状況」のセル（行と列）
       - key: tags.cell

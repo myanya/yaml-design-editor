@@ -49,6 +49,15 @@ root:
               - key: webOperation
                 type: string
                 pattern: ^JWEB-[A-Za-z0-9_.-]+$
+              - key: page
+                type: string
+                pattern: ^WPAGE-[a-z][a-z0-9/_.-]*$
+              - key: controller
+                type: string
+                pattern: ^JCONT-[A-Za-z0-9_.-]+$
+              - key: reader
+                type: string
+                pattern: ^JREAD-[A-Za-z0-9_]+$
             unknownFields: error
           - key: destination
             type: string

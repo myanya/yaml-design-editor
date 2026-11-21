@@ -286,3 +286,158 @@ outputs:
     report: app-web-operation
     params:
       webOperation: JWEB-todo-task.finish
+  - id: OUTPUT-WPAGE-add-category/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-add-category/confirm
+  - id: OUTPUT-WPAGE-add-category/input
+    report: app-web-page
+    params:
+      page: WPAGE-add-category/input
+  - id: OUTPUT-WPAGE-add-tag/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-add-tag/confirm
+  - id: OUTPUT-WPAGE-add-tag/input
+    report: app-web-page
+    params:
+      page: WPAGE-add-tag/input
+  - id: OUTPUT-WPAGE-add-todo-comment/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-add-todo-comment/confirm
+  - id: OUTPUT-WPAGE-add-todo-comment/input
+    report: app-web-page
+    params:
+      page: WPAGE-add-todo-comment/input
+  - id: OUTPUT-WPAGE-add-todo-task/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-add-todo-task/confirm
+  - id: OUTPUT-WPAGE-add-todo-task/input
+    report: app-web-page
+    params:
+      page: WPAGE-add-todo-task/input
+  - id: OUTPUT-WPAGE-cancel-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-cancel-todo/confirm
+  - id: OUTPUT-WPAGE-cancel-todo/input
+    report: app-web-page
+    params:
+      page: WPAGE-cancel-todo/input
+  - id: OUTPUT-WPAGE-category
+    report: app-web-page
+    params:
+      page: WPAGE-category
+  - id: OUTPUT-WPAGE-complete-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-complete-todo/confirm
+  - id: OUTPUT-WPAGE-complete-todo/input
+    report: app-web-page
+    params:
+      page: WPAGE-complete-todo/input
+  - id: OUTPUT-WPAGE-edit-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-edit-todo/confirm
+  - id: OUTPUT-WPAGE-edit-todo/input
+    report: app-web-page
+    params:
+      page: WPAGE-edit-todo/input
+  - id: OUTPUT-WPAGE-register-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-register-todo/confirm
+  - id: OUTPUT-WPAGE-register-todo/input
+    report: app-web-page
+    params:
+      page: WPAGE-register-todo/input
+  - id: OUTPUT-WPAGE-resume-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-resume-todo/confirm
+  - id: OUTPUT-WPAGE-resume-todo/input
+    report: app-web-page
+    params:
+      page: WPAGE-resume-todo/input
+  - id: OUTPUT-WPAGE-start-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-start-todo/confirm
+  - id: OUTPUT-WPAGE-suspend-todo/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-suspend-todo/confirm
+  - id: OUTPUT-WPAGE-suspend-todo/input
+    report: app-web-page
+    params:
+      page: WPAGE-suspend-todo/input
+  - id: OUTPUT-WPAGE-tag
+    report: app-web-page
+    params:
+      page: WPAGE-tag
+  - id: OUTPUT-WPAGE-todo
+    report: app-web-page
+    params:
+      page: WPAGE-todo
+  - id: OUTPUT-WPAGE-todo-dashboard
+    report: app-web-page
+    params:
+      page: WPAGE-todo-dashboard
+  - id: OUTPUT-WPAGE-todo-task.finish/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-todo-task.finish/confirm
+  - id: OUTPUT-app-web-model
+    report: app-web-model
+    params: {}
+  - id: OUTPUT-app-business-fragments
+    report: app-business-fragments
+    params: {}
+  - id: OUTPUT-app-web-runtime
+    report: app-web-runtime
+    params: {}
+  - id: OUTPUT-app-web-page-model
+    report: app-web-page-model
+    params: {}
+  - id: OUTPUT-app-web-catalog
+    report: app-web-catalog
+    params: {}
+  - id: OUTPUT-app-web-reads
+    report: app-web-reads
+    params: {}
+  - id: OUTPUT-app-web-actions
+    report: app-web-actions
+    params: {}
+  - id: OUTPUT-app-web-errors
+    report: app-web-errors
+    params: {}
+  - id: OUTPUT-app-error-page
+    report: app-error-page
+    params: {}
+  - id: OUTPUT-JCONT-category
+    report: app-controller
+    params:
+      controller: JCONT-category
+  - id: OUTPUT-JCONT-tag
+    report: app-controller
+    params:
+      controller: JCONT-tag
+  - id: OUTPUT-JCONT-todo
+    report: app-controller
+    params:
+      controller: JCONT-todo
+  - id: OUTPUT-JCONT-todo-dashboard
+    report: app-controller
+    params:
+      controller: JCONT-todo-dashboard
+  - id: OUTPUT-JCONT-todo-task
+    report: app-controller
+    params:
+      controller: JCONT-todo-task
+  - id: OUTPUT-JREAD-TodoDashboardService
+    report: app-read-service
+    params:
+      reader: JREAD-TodoDashboardService

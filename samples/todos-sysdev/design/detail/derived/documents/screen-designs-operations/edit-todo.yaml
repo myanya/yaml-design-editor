@@ -217,6 +217,9 @@ record:
                           emphasis: secondary
                           per: row
                       redraw: 入力画面へ POST して描き直す
+                      clearable:
+                        flag: clear.comments
+                        label: 値を消す
                   - actions:
                       - label: 確認へ
                         kind: submit

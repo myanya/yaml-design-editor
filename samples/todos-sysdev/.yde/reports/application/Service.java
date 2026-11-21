@@ -34,4 +34,13 @@ public class {record.name} {{
 {/each}
     private OperationOutcome run{method}({input.className} input, boolean preview) {{
 {#each tokens}{#if errorClass}{#each config.package}{.}.{/each}service.error.{errorClass}{/if}{#if plain}{raw}{/if}{#if literal}{value:java-string}{/if}{/each}    }
-{/each}}
+{/each}
+{#if read}{#each read.methods}
+{#each queries}
+    public {mapper}.{resultClass} {method}(java.lang.String id) {{
+        var input = new {mapper}.{inputClass}();
+        input.setId(id);
+        return {variable}.{name}(input);
+    }
+{/each}
+{/each}{/if}}

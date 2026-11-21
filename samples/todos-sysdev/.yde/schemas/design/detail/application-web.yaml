@@ -1,0 +1,271 @@
+id: application-web
+name: 業務 Web アプリの生成入力
+kind: document
+match: design/detail/final/application-web.yaml
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: pages
+      type: array
+      required: true
+      unique:
+        - id
+        - template
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: key
+            type: string
+            required: true
+          - key: template
+            type: string
+            required: true
+            pattern: ^[a-z][a-z0-9_./-]*$
+          - key: screen
+            type: object
+            required: true
+            unknownFields: allow
+            fields: []
+          - key: html
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: valid
+                  type: boolean
+                  required: true
+                - key: raw
+                  type: string
+                  required: true
+                - key: plain
+                  type: boolean
+                  required: false
+                - key: error
+                  type: string
+                  required: false
+              constraints:
+                - id: supported
+                  check:
+                    - eq:
+                        - path: valid
+                        - true
+                  level: error
+                  message: 対応していない画面部品です
+          - key: routeMatches
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields: []
+        constraints:
+          - id: has-routeMatches
+            check:
+              - gte:
+                  - count:
+                      path: routeMatches
+                  - 1
+            level: error
+            message: '対応する画面・入口・読出しが必要です: routeMatches'
+    - key: controllers
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: controller
+            type: string
+            required: true
+            pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+          - key: routes
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: handler
+                  type: string
+                  required: true
+                  pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+                - key: path
+                  type: string
+                  required: true
+                - key: method
+                  type: string
+                  required: true
+                - key: screenMatches
+                  type: array
+                  item:
+                    type: object
+                    unknownFields: allow
+                    fields: []
+              constraints:
+                - id: has-screenMatches
+                  where:
+                    - path: screenMatches
+                      exists: true
+                  check:
+                    - gte:
+                        - count:
+                            path: screenMatches
+                        - 1
+                  level: error
+                  message: '対応する画面・入口・読出しが必要です: screenMatches'
+    - key: forms
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields: []
+    - key: operations
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields: []
+    - key: reads
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields: []
+    - key: rows
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: className
+            type: string
+            required: true
+          - key: columns
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: name
+                  type: string
+                  required: true
+                - key: mapping
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    unknownFields: allow
+                    fields: []
+              constraints:
+                - id: column-mapping
+                  check:
+                    - eq:
+                        - count:
+                            path: mapping
+                        - 1
+                  level: error
+                  message: 表示する列と物理列は一意に対応する必要があります
+    - key: transitions
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields: []
+    - key: inputs
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields: []
+    - key: messages
+      type: object
+      required: true
+      unknownFields: allow
+      fields: []
+    - key: readServices
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: name
+            type: string
+            required: true
+            pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+          - key: methods
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: serviceClass
+                  type: string
+                  required: true
+                - key: method
+                  type: string
+                  required: true
+                  pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+                - key: call
+                  type: string
+                  required: true
+                - key: queries
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    unknownFields: allow
+                    fields:
+                      - key: call
+                        type: string
+                        required: true
+                      - key: mapper
+                        type: string
+                        required: true
+                      - key: name
+                        type: string
+                        required: true
+              constraints:
+                - id: has-queries
+                  check:
+                    - gte:
+                        - count:
+                            path: queries
+                        - 1
+                  level: error
+                  message: '対応する画面・入口・読出しが必要です: queries'
+                - id: detail-query
+                  where:
+                    - path: detail
+                      equals: true
+                  check:
+                    - eq:
+                        - count:
+                            path: queries
+                        - 1
+                  level: error
+                  message: 詳細の読出しは一つに解決する必要があります

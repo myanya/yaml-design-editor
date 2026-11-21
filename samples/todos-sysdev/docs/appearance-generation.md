@@ -7,7 +7,7 @@
 
 | 内容 | 人が書く場所 | 確定項目と利用先 |
 |---|---|---|
-| 配色・文字・余白・幅・動き・名前 | `design/detail/inputs/appearance/theme.yaml` | `final/application-theme.yaml` → CSS と確認画面 |
+| 配色・文字・余白・幅・動き・名前 | `design/detail/inputs/appearance/theme.yaml` | `final/application-theme.yaml` → 共通 CSS・業務画面・確認画面 |
 | 部品と CSS の対応 | 既定値は `screen-styles-derived`、個別変更は `inputs/documents/corrections.yaml`、追加は `inputs/documents/additions.yaml` | `final/screen-designs/styles.yaml` → CSS |
 | 入力欄・型・制約 | 基本設計から導出した画面設計と、詳細設計の補正・追加 | `final/screen-designs/operations/` → `final/application-web-forms.yaml` → Form |
 | 入力の誤りの文 | 基本設計のメッセージ定義と補正・追加 | `design/basic/final/messages.yaml` → Form の検査と入力エラー表示 |
@@ -40,5 +40,5 @@ Form と Service は、確定した項目キーで照合し、明細とクリア
 正しい入力では形式確認の通知を出す。いずれも Service を呼ばず、DB を更新しない。
 一覧と状態の値は表示例で、業務データではない。狭い画面での配置と、Tab キーでの移動、フォーカスの見え方も確認する。
 
-業務の一覧・詳細・入力から確認・確定までの 26 画面の接続は後続で行う。現在 `/` は 404 である。
-そのときも同じ確定デザインと CSS を使い、画面ごとに配色や制約を作り直さない。
+業務の一覧・詳細・入力から確認・確定までの 26 画面も、同じ確定デザインと CSS を使う。
+`http://localhost:8085/` から操作できる。テンプレートの場所と試し方は [業務画面の生成と確認](web-generation.md) を参照する。

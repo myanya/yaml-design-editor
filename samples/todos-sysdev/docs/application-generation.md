@@ -1,8 +1,8 @@
 # アプリの生成と独立ビルド
 
-現在は、独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL、状態型・業務例外・全操作の Service を生成する。
-H2 で実際の保存・検索・更新・削除と業務処理を確認できる。入力 Form と Service の接続、デザイン確認画面も生成する。業務の Controller と画面遷移は、[作業計画](application-generation-plan.md)の後続で追加する。
-設計書のレビュー完了や業務アプリの完成を意味しない。
+独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL、状態型・業務例外・全操作の Service、業務の Controller と画面を生成する。
+H2 で実際の保存・検索・更新・削除と業務処理を確認できる。26 画面・12 操作、入力検査、確認・実行・通知を接続した。
+設計書の内容と画面のオーナーレビューは継続する。対応範囲は [作業計画](application-generation-plan.md) と [業務画面の生成と確認](web-generation.md) にまとめる。
 
 ## 入力と出力
 
@@ -20,13 +20,16 @@ H2 で実際の保存・検索・更新・削除と業務処理を確認でき�
 | 状態と例外 | `service/state/` の状態型と、`service/error/` の違反・業務例外 |
 | 業務処理 | `service/` の 4 Service・12 操作、入力型・確認処理・共通実行部 |
 | 画面入力 | `web/form/` の入力型と、`web/operation/` の Service 呼出し |
+| 業務画面 | `web/` の 5 Controller と共通処理、26 の Thymeleaf、共通部品、表示用 JSON |
+| 読出し | 既存の Service の詳細取得と、一覧の `TodoDashboardService` |
+| デザインと部分更新 | 共通 CSS・デザイン確認画面・固定版 htmx |
 | 検証 | Spring の起動、DB 初期化、Mapper の読込みを確かめるテスト |
 | 利用 | README・.gitignore |
 
 基本構造に、テーブルの行モデル、Mapper と対応する XML、DDL、状態型と業務例外を加える。
 Wrapper の JAR とスクリプトは、公式タスクで準備した固定資源をコピーする。
 デザイン台帳から CSS・確認用の Controller と Thymeleaf、画面設計から入力 Form とエラーメッセージを生成する。
-業務画面の Controller はまだ含めない。Mapper の直接呼出しは、業務の前提や状態の検査を代行しない。
+業務画面の読出しは Service と Mapper、更新は入力検査付きの操作を経由する。Mapper の直接呼出しは、業務の前提や状態の検査を代行しない。
 空の DB には起動時に DDL を適用し、必要なテーブルがそろっている既存 DB はそのまま使う。必要なテーブルが欠けていれば起動を止める。
 Flyway は使わない。既存の列・制約の比較や変更・データ移行は未対応なので、設計変更の検証には別の DB 名を使う。
 
@@ -101,7 +104,7 @@ Service は同じ状態設計の許可値と表示名を使い、違反の内容
 
 操作は、受け手と必要な親の読出し → 更新後の行の組立て → 書込み前の検査 → 書込み → 書込み後の件数検査の順で実行する。
 配列の検査は追加・置換する行を対象とし、変更しない既存の明細は再検査しない。入力の省略は null として扱い、未知の比較結果を違反へ変えない。
-現在値の前提は満たした場合だけ通す。型・必須・桁などの入力検査は Form と、下記の Service 呼出しで行う。Controller から欄の横への表示は後続で接続する。
+現在値の前提は満たした場合だけ通す。型・必須・桁などの入力検査は Form と、下記の Service 呼出しで行う。入力に対応する違反は Controller から欄の横へ表示する。
 
 ## 操作の実行と同時更新
 
@@ -135,7 +138,8 @@ Form の `item` と Service 入力の `key` で対応付け、Java の項目名�
 コメントの明細とクリア指定は Service の型へ写す。省略・空の配列・`false` を区別し、配列と入れ子の可変オブジェクトを Form と共有しない。
 確認後に入力が変わった場合も実行時に検査し直す。Service の確認処理は書き込まず、操作本体が業務の規則を再確認して更新する。
 
-この接続は Controller が利用する部品で、業務の HTTP エンドポイントはまだ公開しない。
+この接続を業務の Controller が使い、確認では非更新の検査、確定では再検査と更新を行う。
+画面・読出し・セッションの対応とテンプレートの場所は [業務画面の生成と確認](web-generation.md) を参照する。
 次は一覧・詳細の読出し、入力の初期値と参照候補、確認・戻る・確定の遷移、トークン・通知・エラー表示を接続する。
 
 ## 生成する
@@ -174,18 +178,18 @@ java -jar build/libs/todos-generated.jar
 ```
 
 `projects` に `todos-generated` だけが出ることと、テストの成功を確認する。
-起動時は 8085 番ポートを使う。`/design-preview` でデザインと入力検査を確認できる。
-詳しくは [画面デザインの台帳と生成](appearance-generation.md) を参照する。業務画面は未接続のため `/` は 404 になる。終了は起動した端末で Ctrl+C。
+起動時は 8085 番ポートを使う。`http://localhost:8085/` で業務の一覧を開き、登録から完了まで操作できる。
+`/design-preview` ではデザインと入力検査を確認できる。詳しくは [業務画面の生成と確認](web-generation.md) と [画面デザインの台帳と生成](appearance-generation.md) を参照する。終了は起動した端末で Ctrl+C。
 DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置かれ、設計の入力にも Git にも入らない。
 `app/` だけを別の場所へコピーして同じ手順で実行できる。macOS・Linux では `sh ./gradlew test bootJar projects` を使う。
 
-標準の todos 設計について全 Mapper の入出力まで確認する場合は、リポジトリのルートで次を実行する。
+標準の todos 設計について Mapper・Service と業務画面を確認する場合は、リポジトリのルートで次を実行する。
 
 ```powershell
 ./samples/todos-sysdev/scripts/verify-app.ps1
 ```
 
-アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service・画面入力の結合テストを検証用コピーへ追加して実行する。
+アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service・画面入力・実 HTTP の結合テストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
 検証結果はコピー内の `build/reports/tests/test/index.html` に残す。元のアプリとその DB には書かない。
 
@@ -199,7 +203,8 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 - `TodosServiceProgramsTest`: 全操作の実行手順、未対応の比較・参照・検査対象による停止。
 - `TodosWebDesignTest`: デザインの確定値と Form の制約・メッセージの一致、未対応の入力による停止。
 - `TodosWebBindingsTest`: 全操作の Form と Service の照合、補正された項目名と明細・呼出名の接続、余分な項目・重複・型の不一致による停止。
-- `scripts/verify-app.ps1`: 全 Mapper と全操作、画面入力からの更新と再検査、クリアの優先、確認時の非更新、親子の取り消し、同時採番、独立ビルド。
+- `TodosWebPagesTest`: 保存した確定値と画面・入口・読出しの一致、題と列順の補正、未対応部品と遷移先の不足による停止。
+- `scripts/verify-app.ps1`: 全 Mapper と全操作、画面入力からの更新と再検査、クリアの優先、確認時の非更新、親子の取り消し、同時採番、実 HTTP での全画面・二重送信・別タブ・空配列・部分更新、独立ビルド。
 - `scripts/test-application-files.ps1`: 再生成の一致、空ファイル、競合、書込失敗時の復元、名前変更・削除の範囲。
 - `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、生成の一致とアプリ単独のビルドを確認する。
 
@@ -208,3 +213,4 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 [MyBatis の対応範囲](https://mybatis.org/spring-boot-starter/mybatis-spring-boot-autoconfigure/index.html)を基に、独立ビルドで検証する。
 対応版を変えるときは設定の形式と固定資源も更新し、同じ検証をやり直す。
 Wrapper の取得元・作り直し方・ハッシュは [固定資源の記録](../assets/gradle-wrapper/README.md)を参照する。
+htmx の版・取得元・ライセンス・ハッシュは [Web の固定資源](../assets/web/README.md) に記録する。

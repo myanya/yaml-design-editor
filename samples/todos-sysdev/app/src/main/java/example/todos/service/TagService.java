@@ -48,4 +48,10 @@ public class TagService {
         if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
         return new OperationOutcome(numberedId, violations);
     }
+
+    public TagMapper.FindDetailResult findDetail(java.lang.String id) {
+        var input = new TagMapper.FindDetailInput();
+        input.setId(id);
+        return tagMapper.findDetail(input);
+    }
 }

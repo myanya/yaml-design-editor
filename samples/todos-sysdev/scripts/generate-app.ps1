@@ -91,16 +91,18 @@ try {
         if ($files.ContainsKey($relative)) { throw "生成先が重複しています: $relative" }
         $files[$relative] = [IO.File]::ReadAllBytes($target)
     }
-    $assetsDirectory = Join-Path $PSScriptRoot '../assets/gradle-wrapper'
-    $assets = Get-Content -LiteralPath (Join-Path $assetsDirectory 'files.json') -Encoding UTF8 -Raw | ConvertFrom-Json
-    foreach ($asset in $assets.files) {
-        $relative = "app/$($asset.path)"
-        $null = Resolve-ApplicationPath $stage $relative
-        $bytes = [IO.File]::ReadAllBytes((Join-Path $assetsDirectory $asset.path))
-        if ((Get-ApplicationHash $bytes) -ne $asset.sha256) { throw "Wrapper の固定資源が変わっています: $($asset.path)" }
-        if ($files.ContainsKey($relative)) {
-            if ((Get-ApplicationHash $files[$relative]) -ne $asset.sha256) { throw "設定の Gradle 版と Wrapper 資源が一致しません: $($asset.path)" }
-        } else { $files[$relative] = $bytes }
+    foreach ($assetGroup in @('gradle-wrapper', 'web')) {
+        $assetsDirectory = Join-Path $PSScriptRoot "../assets/$assetGroup"
+        $assets = Get-Content -LiteralPath (Join-Path $assetsDirectory 'files.json') -Encoding UTF8 -Raw | ConvertFrom-Json
+        foreach ($asset in $assets.files) {
+            $relative = "app/$($asset.path)"
+            $null = Resolve-ApplicationPath $stage $relative
+            $bytes = [IO.File]::ReadAllBytes((Join-Path $assetsDirectory $asset.path))
+            if ((Get-ApplicationHash $bytes) -ne $asset.sha256) { throw "固定資源が変わっています: $assetGroup/$($asset.path)" }
+            if ($files.ContainsKey($relative)) {
+                if ((Get-ApplicationHash $files[$relative]) -ne $asset.sha256) { throw "設定の Gradle 版と Wrapper 資源が一致しません: $($asset.path)" }
+            } else { $files[$relative] = $bytes }
+        }
     }
     $plan = Get-ApplicationFilePlan $Workspace $files
     [ordered]@{ files = $plan.fileCount; operations = @($plan.operations | ForEach-Object { [ordered]@{ kind = $_.kind; path = $_.path } }); apply = [bool]$Apply } | ConvertTo-Json -Depth 10 | Write-Output

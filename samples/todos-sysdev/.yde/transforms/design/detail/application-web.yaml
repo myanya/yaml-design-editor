@@ -1,0 +1,957 @@
+id: application-web
+name: 確定した画面・遷移・読出しを業務 Web アプリに結び付ける
+scope: design
+dependsOn:
+  - screen-designs-lists
+  - screen-designs-details
+  - screen-designs-operations
+  - screen-flows
+  - dashboard-flows
+  - screen-transitions
+  - application-web-forms
+  - application-web-bindings
+  - application-access
+  - application-data-model
+  - messages
+  - application-theme
+  - session-design
+output: design/detail/final/application-web.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            equals: application-web
+        $then:
+          $copy: declared
+    documents:
+      design/detail/final/application-web.yaml:
+        id: APP-web
+        pages:
+          $concat:
+            - $each:
+                $view: screen-designs-lists-input
+              $build:
+                $each: values.record.screens
+                $build:
+                  $apply: page
+                  $with: {}
+              $flatten: true
+            - $each:
+                $view: screen-designs-details-input
+              $build:
+                $each: values.record.screens
+                $build:
+                  $apply: page
+                  $with: {}
+              $flatten: true
+            - $each:
+                $view: screen-designs-operations-input
+              $build:
+                $each: values.record.screens
+                $build:
+                  $apply: page
+                  $with: {}
+              $flatten: true
+        controllers:
+          $concat:
+            - $each:
+                $view: screen-flows-input
+              $build:
+                $apply: web-controller
+                $at: values.record
+                $with: {}
+            - $each:
+                $view: dashboard-flows-input
+              $build:
+                $apply: web-controller
+                $at: values.record
+                $with: {}
+        forms:
+          $each:
+            $view: application-web-forms-input
+          $build:
+            className:
+              $copy: values.record.className
+            beanName:
+              $copy: values.record.beanName
+            fields:
+              $each: values.record.fields
+              $build:
+                name:
+                  $copy: name
+                item:
+                  $copy: item
+                type:
+                  $copy: type
+            classes:
+              $each: values.record.classes
+              $build:
+                name:
+                  $copy: name
+                fields:
+                  $each: fields
+                  $build:
+                    name:
+                      $copy: name
+                    item:
+                      $copy: item
+                    type:
+                      $copy: type
+        operations:
+          $each:
+            $view: application-web-bindings-input
+          $build:
+            $apply: operation
+            $at: values.record
+        reads:
+          $each:
+            $view: application-access-input
+          $build:
+            name:
+              $copy: values.record.name
+            methods:
+              $each: values.record.methods
+              $build:
+                $when:
+                  - or:
+                      - path: select
+                        equals: true
+                      - path: count
+                        equals: true
+                $then:
+                  name:
+                    $copy: name
+                  call:
+                    $copy: call
+                  mapper:
+                    $copy: mapper
+                  select:
+                    $copy: select
+                  count:
+                    $copy: count
+                  many:
+                    $copy: many
+                  single:
+                    $copy: single
+                  inputClass:
+                    $copy: inputClass
+                  parameters:
+                    $copy: parameters
+                  tableId:
+                    $copy: tableId
+                  raw:
+                    columnBindings:
+                      $copy: raw.columnBindings
+                    groupBy:
+                      $copy: raw.groupBy
+                  properties:
+                    $each: properties
+                    $build:
+                      name:
+                        $copy: name
+                      axisValue:
+                        $copy: axisValue
+                  projections:
+                    $zip:
+                      column: raw.columns
+                      property: properties
+                    $build:
+                      $when:
+                        - path: column
+                          exists: true
+                      $then:
+                        item:
+                          $copy: column.item
+                        label:
+                          $copy: column.label
+                        property:
+                          $copy: property.name
+        rows:
+          $each:
+            $view: application-row-model-input
+          $build:
+            $apply: web-row
+            $with:
+              row:
+                $copy: values.record
+              table:
+                $apply: record
+                $with:
+                  row:
+                    $view: application-physical-table-input
+                    $where:
+                      - path: id
+                        equals:
+                          $copy: values.record.tableId
+                    $one: true
+        transitions:
+          $each:
+            $view: screen-transitions-input
+          $build:
+            $copy: values.record
+        inputs:
+          $each:
+            $view: screen-operations-input
+          $build:
+            id:
+              $copy: values.record.id
+            target:
+              $copy: values.record.target
+            starts:
+              $copy: values.record.starts
+            input:
+              initial:
+                $copy: values.record.input.initial
+              items:
+                $each: values.record.input.items
+                $build:
+                  key:
+                    $copy: key
+                  clearedBy:
+                    $copy: clearedBy
+        messages:
+          $apply: record
+          $with:
+            row:
+              $view: messages-input
+              $one: true
+        theme:
+          $apply: record
+          $with:
+            row:
+              $view: application-theme-input
+              $one: true
+        session:
+          $apply: record
+          $with:
+            row:
+              $view: session-design-input
+              $one: true
+        readServices:
+          $group:
+            $concat:
+              - $each:
+                  $view: screen-flows-input
+                $build:
+                  $each: values.record.screens
+                  $build:
+                    $apply: web-read-method
+                    $with: {}
+                $flatten: true
+              - $each:
+                  $view: dashboard-flows-input
+                $build:
+                  $each: values.record.screens
+                  $build:
+                    $apply: web-read-method
+                    $with: {}
+                $flatten: true
+          $by:
+            $copy: serviceClass
+          $build:
+            $apply: web-read-service
+            $with:
+              className:
+                $copy: key
+              methods:
+                $copy: items
+              matches:
+                $view: application-service-programs-input
+                $where:
+                  - path: values.record.name
+                    equals:
+                      $copy: key
+build:
+  $apply: first
+  $with:
+    items:
+      $eachEntry: .
+      $flatten: true
+      $build:
+        - $copy: .
+rules:
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: page
+    build:
+      id:
+        $format: WPAGE-{id}
+      key:
+        $copy: id
+      template:
+        $copy: template
+      screen:
+        $copy: .
+      html:
+        $each: page.body
+        $build:
+          $apply: html
+          $with:
+            address:
+              $format: page.body[{n}]
+              $with:
+                'n': $index
+        $flatten: true
+      routeMatches:
+        $apply: page-routes
+        $with:
+          screenId:
+            $copy: id
+  - id: html
+    with:
+      - address
+    when:
+      - path: notice
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: notice(${page.node('{address}.notice')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: facts
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: facts(${page.node('{address}.facts')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: actions
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: actions(${page.node('{address}.actions')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: table
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: dataTable(${page.node('{address}.table')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: matrix
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: matrix(${page.node('{address}.matrix')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: field
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: field(${page.node('{address}.field')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: choices
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: choices(${page.node('{address}.choices')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: rows
+        exists: true
+    build:
+      - valid: true
+        plain: true
+        raw:
+          $format: |
+            <div th:replace="~{fragments/business :: rows(${page.node('{address}.rows')})}"></div>
+          $with:
+            address:
+              $copy: .
+              $of: address
+  - id: html
+    with:
+      - address
+    when:
+      - path: section
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: >
+                <section class="panel section" th:with="node=${page.node('{address}.section')}"><h2
+                th:text="{titleExpression}"></h2><span class="muted" th:if="{protectedTh0}"
+                th:text="{protectedTh1}"></span>
+              $with:
+                address:
+                  $copy: .
+                  $of: address
+                titleExpression: ${node.title}
+                nodeExpression: ${node}
+                protectedTh0: ${node['count'] != null}
+                protectedTh1: ${page.count(node)}
+        - $each: section.body
+          $build:
+            $apply: html
+            $with:
+              address:
+                $format: '{parent}.section.body[{n}]'
+                $with:
+                  parent:
+                    $copy: .
+                    $of: address
+                  'n': $index
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: |
+              </section>
+  - id: html
+    with:
+      - address
+    when:
+      - path: form
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: >
+                <form class="form" method="post" th:action="${page.url(page.node('{address}.form').action)}"
+                th:with="node=${page.node('{address}.form')}"><th:block th:replace="~{fragments/business ::
+                hidden({nodeExpression})}"></th:block>
+              $with:
+                address:
+                  $copy: .
+                  $of: address
+                titleExpression: ${node.title}
+                nodeExpression: ${node}
+        - $each: form.body
+          $build:
+            $apply: html
+            $with:
+              address:
+                $format: '{parent}.form.body[{n}]'
+                $with:
+                  parent:
+                    $copy: .
+                    $of: address
+                  'n': $index
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: |
+              </form>
+  - id: html
+    with:
+      - address
+    when:
+      - path: filters
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw:
+              $format: >
+                <form class="filters" method="get" th:action="${page.url(page.node('{address}.filters').action)}"
+                th:with="node=${page.node('{address}.filters')}"><th:block th:replace="~{fragments/business ::
+                hidden({nodeExpression})}"></th:block>
+              $with:
+                address:
+                  $copy: .
+                  $of: address
+                titleExpression: ${node.title}
+                nodeExpression: ${node}
+        - $each: filters.body
+          $build:
+            $apply: html
+            $with:
+              address:
+                $format: '{parent}.filters.body[{n}]'
+                $with:
+                  parent:
+                    $copy: .
+                    $of: address
+                  'n': $index
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: |
+              </form>
+  - id: html
+    with:
+      - address
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 対応していない画面部品です
+  - id: operation
+    build:
+      action:
+        $copy: action
+      className:
+        $copy: className
+      formClass:
+        $copy: formClass
+      receiver:
+        $copy: receiver
+      noForm:
+        $when:
+          - path: formClass
+            exists: false
+        $then: true
+      hasConfirm:
+        $when:
+          - path: confirm[0]
+            exists: true
+        $then: true
+      noConfirm:
+        $when:
+          - path: confirm[0]
+            exists: false
+        $then: true
+      fieldTargets:
+        $each: fields.assignments
+        $build:
+          source:
+            $copy: source
+          target:
+            $copy: target
+  - id: web-row
+    with:
+      - row
+      - table
+    build:
+      $apply: web-row-bound
+      $with:
+        row:
+          $copy: .
+          $of: row
+        table:
+          $apply: record
+          $with:
+            row:
+              $view: application-physical-table-input
+              $where:
+                - path: id
+                  equals:
+                    $copy: tableId
+                    $of: row
+              $one: true
+  - id: web-column
+    with:
+      - column
+      - table
+    build:
+      name:
+        $copy: name
+        $of: column
+      source:
+        $copy: source
+        $of: column
+      mapping:
+        $each: columns
+        $of: table
+        $build:
+          $when:
+            - path: id
+              equals:
+                $copy: source
+                $of: column
+          $then:
+            item:
+              $copy: item
+            role:
+              $copy: role
+            referencesTable:
+              $copy: referencesTable
+  - id: web-controller
+    build:
+      id:
+        $format: JCONT-{id}
+      key:
+        $copy: id
+      controller:
+        $copy: controller
+      screens:
+        $copy: screens
+      handlers:
+        $copy: handlers
+      routes:
+        $concat:
+          - $each: screens
+            $build:
+              $apply: web-route
+              $with: {}
+          - $each: handlers
+            $build:
+              $each: steps
+              $build:
+                $apply: web-route
+                $with: {}
+            $flatten: true
+  - id: web-route
+    build:
+      handler:
+        $copy: handler
+      path:
+        $value:
+          extract:
+            - path: request
+            - ^(?:GET|POST) (/.+|/)$
+      method:
+        $value:
+          extract:
+            - path: request
+            - '^(GET|POST) '
+      screenMatches:
+        $when:
+          - path: screen
+            exists: true
+        $then:
+          $apply: route-pages
+          $with:
+            screenId:
+              $copy: screen
+  - id: web-read-service
+    with:
+      - className
+      - methods
+      - matches
+    build:
+      $apply: web-read-service-result
+      $with:
+        className:
+          $copy: .
+          $of: className
+        methods:
+          $copy: .
+          $of: methods
+        matches:
+          $view: application-service-programs-input
+          $where:
+            - path: values.record.name
+              equals:
+                $copy: .
+                $of: className
+  - id: web-read-method
+    build:
+      serviceClass:
+        $value:
+          extract:
+            - path: service
+            - ^([A-Za-z_][A-Za-z0-9_]*)\.
+      method:
+        $value:
+          extract:
+            - path: service
+            - \.([A-Za-z_][A-Za-z0-9_]*)$
+      call:
+        $copy: service
+      detail:
+        $when:
+          - path: params
+            exists: false
+        $then: true
+      dashboard:
+        $when:
+          - path: params
+            exists: true
+        $then: true
+      queries:
+        $first:
+          - $when:
+              - path: params
+                exists: true
+            $then:
+              $concat:
+                - $each: reads
+                  $build:
+                    $concat:
+                      - - $apply: web-query
+                          $with:
+                            call:
+                              $copy: select
+                      - - $apply: web-query
+                          $with:
+                            call:
+                              $copy: count
+                  $flatten: true
+                - $each: candidates
+                  $build:
+                    $apply: web-query
+                    $with:
+                      call:
+                        $copy: .
+          - $each: reads
+            $build:
+              $apply: web-query
+              $with:
+                call:
+                  $copy: .
+  - id: web-query
+    with:
+      - call
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: application-access-input
+          $build:
+            $each: values.record.methods
+            $build:
+              $when:
+                - path: call
+                  equals:
+                    $copy: .
+                    $of: call
+              $then:
+                call:
+                  $copy: call
+                mapper:
+                  $copy: mapper
+                name:
+                  $copy: name
+                parameters:
+                  $copy: parameters
+                inputClass:
+                  $copy: inputClass
+                resultClass:
+                  $copy: resultClass
+                variable:
+                  $case:
+                    $copy: mapper
+                  $as: camel
+          $flatten: true
+  - id: web-read-service-result
+    with:
+      - className
+      - methods
+      - matches
+    build:
+      id:
+        $format: JREAD-{className}
+        $with:
+          className:
+            $copy: .
+            $of: className
+      name:
+        $copy: .
+        $of: className
+      program:
+        $format: JSERVICE-{className}
+        $with:
+          className:
+            $copy: .
+            $of: className
+      methods:
+        $copy: .
+        $of: methods
+      standalone:
+        $when:
+          - path: '[0]'
+            of: matches
+            exists: false
+        $then: true
+  - id: page-routes
+    with:
+      - screenId
+    build:
+      $concat:
+        - $each:
+            $view: screen-flows-input
+          $build:
+            $concat:
+              - $each: values.record.screens
+                $build:
+                  $when:
+                    - path: screen
+                      equals:
+                        $copy: .
+                        $of: screenId
+                  $then:
+                    handler:
+                      $copy: handler
+              - $each: values.record.handlers
+                $build:
+                  $each: steps
+                  $build:
+                    $when:
+                      - path: screen
+                        equals:
+                          $copy: .
+                          $of: screenId
+                    $then:
+                      handler:
+                        $copy: handler
+                $flatten: true
+          $flatten: true
+        - $each:
+            $view: dashboard-flows-input
+          $build:
+            $concat:
+              - $each: values.record.screens
+                $build:
+                  $when:
+                    - path: screen
+                      equals:
+                        $copy: .
+                        $of: screenId
+                  $then:
+                    handler:
+                      $copy: handler
+              - $each: values.record.handlers
+                $build:
+                  $each: steps
+                  $build:
+                    $when:
+                      - path: screen
+                        equals:
+                          $copy: .
+                          $of: screenId
+                    $then:
+                      handler:
+                        $copy: handler
+                $flatten: true
+          $flatten: true
+  - id: route-pages
+    with:
+      - screenId
+    build:
+      $concat:
+        - $each:
+            $view: screen-designs-lists-input
+          $build:
+            $each: values.record.screens
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: screenId
+              $then:
+                screen:
+                  $copy: id
+          $flatten: true
+        - $each:
+            $view: screen-designs-details-input
+          $build:
+            $each: values.record.screens
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: screenId
+              $then:
+                screen:
+                  $copy: id
+          $flatten: true
+        - $each:
+            $view: screen-designs-operations-input
+          $build:
+            $each: values.record.screens
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: screenId
+              $then:
+                screen:
+                  $copy: id
+          $flatten: true
+  - id: web-row-bound
+    with:
+      - row
+      - table
+    build:
+      className:
+        $copy: className
+        $of: row
+      columns:
+        $each: columns
+        $of: row
+        $build:
+          $apply: web-column
+          $with:
+            column:
+              $copy: .
+            table:
+              $copy: .
+              $of: table

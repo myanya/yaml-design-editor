@@ -874,4 +874,10 @@ public class TodoService {
         if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
         return new OperationOutcome(input.getId(), violations);
     }
+
+    public TodoMapper.FindDetailResult findDetail(java.lang.String id) {
+        var input = new TodoMapper.FindDetailInput();
+        input.setId(id);
+        return todoMapper.findDetail(input);
+    }
 }

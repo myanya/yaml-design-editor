@@ -1,0 +1,10 @@
+id: application-web-controllers-input
+name: 確定した Web の入口と読出し
+rows:
+  idPattern: JCONT-*
+  schemaIds:
+    - application-web
+columns:
+  - label: record
+    path: .
+    schemaId: application-web

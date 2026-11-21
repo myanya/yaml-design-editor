@@ -1,0 +1,108 @@
+id: app-web-model
+name: 確定した Web 表示のモデル
+build:
+  tokens:
+    $apply: json-root
+    $with:
+      row:
+        $view: application-web-input
+        $one: true
+rules:
+  - id: json-root
+    with:
+      - row
+    build:
+      $apply: json
+      $at: values.record
+      $of: row
+  - id: json
+    build:
+      $first:
+        - $apply: json-map
+          $with:
+            members:
+              $eachEntry: .
+              $flatten: true
+              $build:
+                - key: $key
+                  tokens:
+                    $apply: json
+                    $with: {}
+        - $apply: json-array
+          $with:
+            members:
+              $each: .
+              $build:
+                $apply: json
+                $with: {}
+        - - valid: true
+            literal: true
+            value:
+              $first:
+                - $format: '{.}'
+                - ''
+  - id: json-map
+    with:
+      - members
+    when:
+      - path: .
+        of: members
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '{'
+        - $each: .
+          $of: members
+          $build:
+            $concat:
+              - $when:
+                  - path: $index
+                    gt: 0
+                $then:
+                  - valid: true
+                    plain: true
+                    raw: ','
+              - - valid: true
+                  literal: true
+                  value:
+                    $copy: key
+              - - valid: true
+                  plain: true
+                  raw: ':'
+              - $copy: tokens
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: '}'
+  - id: json-array
+    with:
+      - members
+    when:
+      - path: .
+        of: members
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '['
+        - $each: .
+          $of: members
+          $build:
+            $concat:
+              - $when:
+                  - path: $index
+                    gt: 0
+                $then:
+                  - valid: true
+                    plain: true
+                    raw: ','
+              - $copy: .
+          $flatten: true
+        - - valid: true
+            plain: true
+            raw: ']'
+template: web-model.json
+output: app/src/main/resources/web-model.json
