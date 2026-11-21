@@ -159,7 +159,8 @@ Windows の PowerShell 7 で、YDE リポジトリのルートから実行する
 
 スクリプトは YDE CLI を一度ビルドしてから、設計だけを一時領域へコピーする。
 検証・確定項目の最新性・全レポート・固定資源を確かめ、生成先の重複と埋まらない穴も検出する。
-`-Workspace <場所>` で作業用コピーを指定できる。CLI が最新の検証では `-SkipCliBuild` でそのビルドを省ける。
+`-Workspace <場所>` で作業用コピーを指定できる。コピーには `.yde/`・`design/`・`assets/`・生成済みの `app/` を含める。固定資源も指定先から読む。
+CLI が最新の検証では `-SkipCliBuild` でそのビルドを省ける。
 
 ファイルの一覧と SHA-256 は `design/detail/reports/application-files.json` に保存する。
 前回の内容から変更・削除されたファイルや、生成記録のない異なる内容のファイルがあれば上書きせず止める。
@@ -181,6 +182,8 @@ java -jar build/libs/todos-generated.jar
 起動時は 8085 番ポートを使う。`http://localhost:8085/` で業務の一覧を開き、登録から完了まで操作できる。
 `/design-preview` ではデザインと入力検査を確認できる。詳しくは [業務画面の生成と確認](web-generation.md) と [画面デザインの台帳と生成](appearance-generation.md) を参照する。終了は起動した端末で Ctrl+C。
 DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置かれ、設計の入力にも Git にも入らない。
+`app/.gitignore` の `/data/` は `app/` 直下の保存先だけを除外する。Java パッケージの `src/main/java/.../data/` は生成ソースとして Git に登録する。
+保存データは生成記録に含めず、再生成でも更新・削除しない。別の作業場所から起動すると DB の保存先も変わるため、上の起動手順では `app/` へ移動する。
 `app/` だけを別の場所へコピーして同じ手順で実行できる。macOS・Linux では `sh ./gradlew test bootJar projects` を使う。
 
 標準の todos 設計について Mapper・Service と業務画面を確認する場合は、リポジトリのルートで次を実行する。
@@ -192,6 +195,22 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service・画面入力・実 HTTP の結合テストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
 検証結果はコピー内の `build/reports/tests/test/index.html` に残す。元のアプリとその DB には書かない。
+
+## Git に登録する内容の検証
+
+コミット前には、設計・生成定義・固定資源・生成物・生成記録・検証コードの変更を `git add` してから、次を実行する。
+取り出し先は毎回新しいフォルダにする。既存のフォルダは上書きしない。
+
+```powershell
+./samples/todos-sysdev/scripts/export-app-index.ps1 -Destination scratchpad/application-index-review
+./samples/todos-sysdev/scripts/generate-app.ps1 -Workspace scratchpad/application-index-review/samples/todos-sysdev -Check
+./samples/todos-sysdev/scripts/verify-app.ps1 -Application scratchpad/application-index-review/samples/todos-sysdev/app -Verification scratchpad/application-index-review/samples/todos-sysdev/verification
+```
+
+最初の処理は Git のインデックスから設計とアプリを取り出し、生成記録にあるファイルの登録漏れと内容の不一致を検出する。
+手元の未登録ファイルや、ステージしていない変更はコピーしない。保存データが登録されている場合は、取り出す前に停止する。
+取り出した除外規則を Git で検査し、保存データは除外され、生成物は除外されていないことも確かめる。
+続く再生成とビルドは取り出した内容を使う。CI も同じ手順を使い、登録漏れの検査を YDE のビルドより先に行う。
 
 ## 検証の分担と固定資源
 
@@ -206,7 +225,8 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 - `TodosWebPagesTest`: 保存した確定値と画面・入口・読出しの一致、題と列順の補正、未対応部品と遷移先の不足による停止。
 - `scripts/verify-app.ps1`: 全 Mapper と全操作、画面入力からの更新と再検査、クリアの優先、確認時の非更新、親子の取り消し、同時採番、実 HTTP での全画面・二重送信・別タブ・空配列・部分更新、独立ビルド。
 - `scripts/test-application-files.ps1`: 再生成の一致、空ファイル、競合、書込失敗時の復元、名前変更・削除の範囲。
-- `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、生成の一致とアプリ単独のビルドを確認する。
+- `scripts/test-application-index.ps1`: Git の登録漏れ・誤った除外規則・未登録ファイルの分離・保存データの保護・バッチの改行・生成記録の一致。
+- `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、Git 登録内容の不足と除外規則、再生成の一致、アプリ単独のビルドを確認する。
 
 固定する版は Java 21・Spring Boot 4.0.9・MyBatis Starter 4.0.1・Gradle 9.3.0。
 [Spring Boot の対応範囲](https://docs.spring.io/spring-boot/4.0/system-requirements.html)と、

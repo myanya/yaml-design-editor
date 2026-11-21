@@ -85,10 +85,13 @@ tests:
     note: 生成アプリのコピーで全 Mapper・全操作・同時採番・取り消し、実 HTTP の全画面・二重送信・別タブ・部分更新・空配列、絞り込みと URL の補正を検証
   - name: test-application-files.ps1
     kind: check
-    note: todos-sysdev の再生成で手修正・計画後の競合・途中失敗・名前変更と削除の範囲を確認
+    note: todos-sysdev の再生成で手修正・計画後の競合・途中失敗・名前変更と削除の範囲・保存データの保持を確認
+  - name: test-application-index.ps1
+    kind: check
+    note: Git の登録漏れ・除外規則・未登録ファイルの分離・保存データの保護・改行・生成記録の一致を確認
   - name: todos-application.yml
     kind: check
-    note: 生成したアプリだけをコピーし、YDE の通常テストとは別の CI でビルドを確認
+    note: Git に登録した設計と生成アプリを取り出し、登録漏れ・除外規則・再生成と独立ビルドを確認
 design:
   - label: transform
     link: architecture/transform.md

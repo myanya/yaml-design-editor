@@ -92,7 +92,7 @@ try {
         $files[$relative] = [IO.File]::ReadAllBytes($target)
     }
     foreach ($assetGroup in @('gradle-wrapper', 'web')) {
-        $assetsDirectory = Join-Path $PSScriptRoot "../assets/$assetGroup"
+        $assetsDirectory = Join-Path $Workspace "assets/$assetGroup"
         $assets = Get-Content -LiteralPath (Join-Path $assetsDirectory 'files.json') -Encoding UTF8 -Raw | ConvertFrom-Json
         foreach ($asset in $assets.files) {
             $relative = "app/$($asset.path)"

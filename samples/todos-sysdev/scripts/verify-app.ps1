@@ -1,6 +1,9 @@
 #Requires -Version 7.0
 [CmdletBinding()]
-param([string] $Application = (Join-Path (Split-Path -Parent $PSScriptRoot) 'app'))
+param(
+    [string] $Application = (Join-Path (Split-Path -Parent $PSScriptRoot) 'app'),
+    [string] $Verification = (Join-Path (Split-Path -Parent $PSScriptRoot) 'verification')
+)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $repository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -15,14 +18,14 @@ try {
     }
     $tests = Join-Path $copy 'src/test/java/verification'
     [IO.Directory]::CreateDirectory($tests) | Out-Null
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/MapperIntegrationTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/ServiceFoundationTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/OperationRunnerTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/ServiceIntegrationTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/WebDesignIntegrationTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/WebOperationIntegrationTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/BusinessWebIntegrationTest.java') -Destination $tests
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/WebMetadataTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'MapperIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'ServiceFoundationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'OperationRunnerTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'ServiceIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'WebDesignIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'WebOperationIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'BusinessWebIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $Verification 'WebMetadataTest.java') -Destination $tests
     $env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
     & (Join-Path $copy 'gradlew.bat') -p $copy test bootJar projects --no-daemon --no-parallel --console=plain --max-workers=2
     if ($LASTEXITCODE -ne 0) { throw "アプリの検証に失敗しました。結果: $copy/build/reports/tests/test/index.html" }

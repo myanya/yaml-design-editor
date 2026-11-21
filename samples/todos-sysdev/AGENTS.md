@@ -15,6 +15,7 @@
 - `.yde/` の設計の定義は基本・詳細・共用に分け、ビューは `input/` と `review/` を分けます。フォルダを定義 ID の名前空間にせず、既存 ID を維持します。
 - 設計のテスト入力は `.yde/` の定義と `design/` に限定します。生成アプリの `app/` や、その `build/`・`.gradle/`、ワークスペースの表示状態をコピーしません。
 - `app/` は独立した Gradle プロジェクトです。YDE 本体の settings に登録しません。生成方法・固定資源・検証は `docs/application-generation.md` に従います。生成済みファイルは `scripts/generate-app.ps1` から更新し、記録や競合検査を迂回して上書きしません。
+- `app/data/` は実行時の保存データで、生成記録にも Git にも入れません。Java パッケージの `data/` は生成ソースとして登録します。コミット前は `scripts/export-app-index.ps1` で Git の登録内容を取り出し、その内容で再生成と独立ビルドを確認します。
 - 画面入力を `screen-operation-candidates` で先に確定し、その同じ入力から Form とメッセージを生成します。表示文を埋める処理で入力を再合成しません。
 - 詳細設計の台帳・型対応・補正は `detail-tables` で合成して保存します。ビューへ補正の適用を戻さず、DDL と Mapper は同じ物理名を読みます。
 - 詳細設計項目一覧（`design/detail/final/tables.yaml`）には、詳細設計にだけ出てくるものだけを持たせます（基本設計の値は導出元をたどって読む）。SQL の型は型対応表（`design/detail/inputs/tables/sql-types.yaml`。人が書く）で決め、DDL はレポート `ddl` で作り直します（`TodosSysdevTest` が `design/detail/reports/ddl/schema.sql` が最新かを確かめます）。
