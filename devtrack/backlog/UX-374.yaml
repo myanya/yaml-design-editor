@@ -1,0 +1,18 @@
+id: UX-374
+title: todos-sysdev のエラー設計書が言うクラス（GlobalExceptionHandler・InvalidTokenException）と受ける例外が、生成したアプリ（WebErrors）と合っていない
+status: todo
+kind: bug
+origin_on: 2026-11-21
+origin: 11 月の指摘の棚卸し（UX-331 の現物確認）で、エラー設計書と生成したアプリのひな形を見比べたとき
+memo: |-
+  エラー設計書（samples/todos-sysdev の design/detail/final/error-handling.yaml）は、@ControllerAdvice のクラスを GlobalExceptionHandler と書き、受ける例外を NotFoundException（404）・InvalidTokenException（302。起点の画面へ）・Exception（500）の 3 つとする。Controller の設計書（design/detail/final/controllers）も「無い・違うなら InvalidTokenException」と書く。
+  生成したアプリ（.yde/reports/application/WebErrors.java → app/src/main/java/example/todos/web/WebErrors.java）は、クラスが WebErrors で、NotFoundException・ResponseStatusException・NoResourceFoundException と HttpRequestMethodNotSupportedException・Exception を受ける。InvalidTokenException というクラスは生成したアプリに無い（トークンは WebRuntime・WebPage が扱う）。
+  設計書とアプリのどちらを正にするかを決めて合わせる。アプリを設計の確定値から作る流れ（ADR-0041）に沿うなら、エラー設計書の確定値（クラス名・受ける例外と HTTP の番号）から WebErrors を作るか、設計書の導出（.yde/transforms/design/detail/error-handling-derived.yaml）をいまのアプリの作りに合わせる。
+  どの例外を 400 番台に分けるかは UX-331 で決める。こちらは、決めた内容が設計書とアプリで同じになることを扱う。
+  確かめ方: 定義と生成物の読みから（アプリは動かしていない）。
+related:
+  - UX-331
+features:
+  - C-21
+roadmap:
+  - R53-02

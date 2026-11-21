@@ -1,6 +1,6 @@
 id: UX-239
 title: 繰り返しの中から、入力の別の場所にある一覧を条件に使えない
-status: todo
+status: resolved
 kind: feature
 origin_on: 2026-11-02
 origin: labs/rpmz 段階 2（MZ の JSON の取り込み）
@@ -15,3 +15,8 @@ related:
 features:
   - C-15
   - SK-02
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "今のひな型で書ける。当てる側で一覧を規則へ渡し（`{$each: skillTypes, $apply: skillType, $with: {magic: {$copy: magicSkills}}}`）、規則の中で `{$when: {of: magic, includes: $index}, $then: true}` と書く。labs/rpmz の import-types をこの形に直し、番号が一覧にあるスキルタイプにだけ magic: true が付くことを、作った System.json の取り込みのプレビューで確かめた。この組み合わせのテストを足した（TransformRuleWithTest「渡した一覧に 自分の番号があるかを 規則の中の条件で調べられる」）。メモの案（条件の比べる値に入力の場所を書く）は入れていない"

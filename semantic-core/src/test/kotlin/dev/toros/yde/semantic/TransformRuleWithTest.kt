@@ -181,4 +181,34 @@ class TransformRuleWithTest {
         assertTrue("entities[*].id" in reads, reads.toString())
         assertTrue("entities[*].fields[*].key" in reads, reads.toString())
     }
+
+    // 並びの番号が、入力の別の場所にある番号の一覧に入っているか（MZ の System.json の skillTypes と magicSkills。UX-239）
+    @Test
+    fun `渡した一覧に 自分の番号があるかを 規則の中の条件で調べられる`() {
+        val def = parse(
+            """
+            id: t
+            build:
+              ${d}each: skillTypes
+              ${d}apply: skillType
+              ${d}with: { magic: { ${d}copy: magicSkills } }
+            rules:
+              - id: skillType
+                when: [{ path: ., empty: false }]
+                with: [magic]
+                build:
+                  name: { ${d}copy: . }
+                  magic: { ${d}when: { of: magic, includes: ${d}index }, ${d}then: true }
+            """.trimIndent(),
+        )
+        val out = SemanticTransform.runAt(
+            def,
+            SemanticTransform.TemplatePlace(YamlIO.parseFirst("skillTypes: ['', 術, 技, 祈り]\nmagicSkills: [1, 3]")!!, null, emptyList()),
+        ).term!!
+        assertEquals(
+            listOf(mapOf("name" to "術", "magic" to true), mapOf("name" to "技"), mapOf("name" to "祈り", "magic" to true)),
+            YamlIO.toAny(out),
+            "一覧に無い番号の要素には、条件つきの項目ごと出ない",
+        )
+    }
 }

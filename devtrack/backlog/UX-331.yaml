@@ -8,6 +8,8 @@ memo: |-
   エラー設計書は NotFoundException（404）・InvalidTokenException（起点の画面へ）・そのほかの例外（500。受付番号）の 3 つを受ける。
   利用者の要求の誤り（MethodArgumentTypeMismatchException・MissingServletRequestParameterException・HttpRequestMethodNotSupportedException など）は、
   いまは想定外として 500 になり、ERROR のログが出る。400 番台に分けるか（画面と文・ログの重さ）を議論で決める
+related:
+  - UX-374
 features:
   - C-21
 resolutions:
