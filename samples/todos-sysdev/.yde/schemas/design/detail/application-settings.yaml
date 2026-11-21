@@ -68,6 +68,13 @@ definitions:
         required: true
         values:
           - empty-schema
+      - key: writeConcurrency
+        label: 同時更新の方式
+        type: enum
+        required: true
+        values:
+          - local-serialized
+        description: 一つのアプリ内で、採番前からトランザクション完了まで更新を順番に実行する
     unknownFields: error
     constraints:
       - id: package-required

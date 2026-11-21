@@ -1,0 +1,1461 @@
+# 生成物（application-service-inputs）: 手で直さず、業務モデルか生成の定義（design/detail/application-service-inputs.yaml）を直して作り直します（CLI generate）。
+id: APP-service-inputs
+operations:
+  - id: SINPUT-add-category
+    source: DOC-processes.add-category
+    action: add-category
+    service: CategoryService
+    method: addCategory
+    className: AddCategoryInput
+    arguments:
+      - key: name
+        name: name
+        accessor: Name
+        path: name
+        type: java.lang.String
+        base: string
+        constraints:
+          key: name
+          label: カテゴリ名
+          type: common#一行の文
+          base: string
+          required: true
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+        classes: []
+    classes: []
+  - id: SINPUT-add-tag
+    source: DOC-processes.add-tag
+    action: add-tag
+    service: TagService
+    method: addTag
+    className: AddTagInput
+    arguments:
+      - key: name
+        name: name
+        accessor: Name
+        path: name
+        type: java.lang.String
+        base: string
+        constraints:
+          key: name
+          label: タグ名
+          type: common#一行の文
+          base: string
+          required: true
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+        classes: []
+    classes: []
+  - id: SINPUT-add-todo-comment
+    source: DOC-processes.add-todo-comment
+    action: add-todo-comment
+    service: TodoService
+    method: addTodoComment
+    className: AddTodoCommentInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: date
+        name: date
+        accessor: Date
+        path: date
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        classes: []
+      - key: body
+        name: body
+        accessor: Body
+        path: body
+        type: java.lang.String
+        base: string
+        constraints:
+          key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+        classes: []
+    classes: []
+  - id: SINPUT-add-todo-task
+    source: DOC-processes.add-todo-task
+    action: add-todo-task
+    service: TodoService
+    method: addTodoTask
+    className: AddTodoTaskInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: title
+        name: title
+        accessor: Title
+        path: title
+        type: java.lang.String
+        base: string
+        constraints:
+          key: title
+          label: 作業
+          type: common#一行の文
+          base: string
+          required: true
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+        classes: []
+    classes: []
+  - id: SINPUT-cancel-todo
+    source: DOC-processes.cancel-todo
+    action: cancel-todo
+    service: TodoService
+    method: cancelTodo
+    className: CancelTodoInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: reason
+        name: reason
+        accessor: Reason
+        path: reason
+        type: java.lang.String
+        base: string
+        constraints:
+          key: reason
+          label: 中止理由
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+        classes: []
+    classes: []
+  - id: SINPUT-complete-todo
+    source: DOC-processes.complete-todo
+    action: complete-todo
+    service: TodoService
+    method: completeTodo
+    className: CompleteTodoInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: date
+        name: date
+        accessor: Date
+        path: date
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: date
+          label: 完了日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        classes: []
+      - key: result
+        name: result
+        accessor: Result
+        path: result
+        type: java.lang.String
+        base: string
+        constraints:
+          key: result
+          label: 完了結果
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+        classes: []
+    classes: []
+  - id: SINPUT-edit-todo
+    source: DOC-processes.edit-todo
+    action: edit-todo
+    service: TodoService
+    method: editTodo
+    className: EditTodoInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: title
+        name: title
+        accessor: Title
+        path: title
+        type: java.lang.String
+        base: string
+        constraints:
+          key: title
+          label: タイトル
+          type: common#一行の文
+          base: string
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+        classes: []
+      - key: summary
+        name: summary
+        accessor: Summary
+        path: summary
+        type: java.lang.String
+        base: string
+        constraints:
+          key: summary
+          label: 概要
+          type: common#一行の文
+          base: string
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+        classes: []
+      - key: category
+        name: category
+        accessor: Category
+        path: category
+        type: java.lang.String
+        base: ref
+        constraints:
+          key: category
+          label: カテゴリ
+          type: common#カテゴリ参照
+          base: ref
+          description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+          refTarget: entity
+          idPatternLayers:
+            -   - CAT-*
+          scope:
+            schemaIds:
+              - category-list
+            documentIds: []
+          relation: in-category
+          idPatterns:
+            - CAT-*
+          schemas:
+            - category-list
+          targets:
+            - category
+          target: category
+          targetTitle: name
+          targetLabel: カテゴリ
+          clearedBy: clear.category
+        classes: []
+      - key: tags
+        name: tags
+        accessor: Tags
+        path: tags
+        type: java.util.List<java.lang.String>
+        base: array
+        constraints:
+          key: tags
+          label: タグ
+          type: array
+          base: array
+          description: 入力した並びで全体を置き換えます。
+          unique: true
+          item:
+            type: common#タグ参照
+            base: ref
+            description: タグ一覧の ID を 1 件。
+            refTarget: entity
+            idPatternLayers:
+              -   - TAG-*
+            scope:
+              schemaIds:
+                - tag-list
+              documentIds: []
+            relation: tagged
+            idPatterns:
+              - TAG-*
+            schemas:
+              - tag-list
+            targets:
+              - tag
+            target: tag
+            targetTitle: name
+            targetLabel: タグ
+          clearedBy: clear.tags
+        classes: []
+        item:
+          name: java.lang.String
+          base: ref
+          classes: []
+      - key: created_on
+        name: createdOn
+        accessor: CreatedOn
+        path: created_on
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: created_on
+          label: 作成日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        classes: []
+      - key: due_on
+        name: dueOn
+        accessor: DueOn
+        path: due_on
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: due_on
+          label: 期限
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+          clearedBy: clear.due_on
+        classes: []
+      - key: details
+        name: details
+        accessor: Details
+        path: details
+        type: java.lang.String
+        base: string
+        constraints:
+          key: details
+          label: 詳細
+          type: common#文章
+          base: string
+          multiline: true
+          clearedBy: clear.details
+        classes: []
+      - key: result
+        name: result
+        accessor: Result
+        path: result
+        type: java.lang.String
+        base: string
+        constraints:
+          key: result
+          label: 結果・中止理由
+          type: common#文章
+          base: string
+          multiline: true
+          clearedBy: clear.result
+        classes: []
+      - key: comments
+        name: comments
+        accessor: Comments
+        path: comments
+        type: java.util.List<EditTodoCommentsItem>
+        base: array
+        constraints:
+          key: comments
+          label: コメント一覧
+          type: array
+          base: array
+          description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
+          item:
+            type: common#コメント
+            base: object
+            fields:
+              - key: date
+                label: 日付
+                type: common#年月日
+                base: date
+                declarations:
+                  - schema: common
+                    document: .yde/schemas/input/1.yaml
+                    path:
+                      - definitions
+                      - 年月日
+                    inherited: true
+                    declared:
+                      type: date
+                      format: yyyy年M月d日
+                      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                  - schema: common
+                    document: .yde/schemas/input/1.yaml
+                    path:
+                      - definitions
+                      - コメント
+                      - fields
+                      - 0
+                    inherited: false
+                    declared:
+                      key: date
+                      label: 日付
+                      type: 年月日
+                      required: true
+                description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                required: true
+                format: yyyy年M月d日
+              - key: body
+                label: コメント本文
+                type: text
+                base: string
+                declarations:
+                  - schema: builtin-types
+                    path:
+                      - definitions
+                      - text
+                    inherited: true
+                    declared:
+                      type: string
+                      display: multiline
+                  - schema: common
+                    document: .yde/schemas/input/1.yaml
+                    path:
+                      - definitions
+                      - コメント
+                      - fields
+                      - 1
+                    inherited: false
+                    declared:
+                      key: body
+                      label: コメント本文
+                      type: text
+                      required: true
+                required: true
+                multiline: true
+                builtinType:
+                  name: text
+                  base: string
+                  builtin: true
+                  multiline: true
+          clearedBy: clear.comments
+        classes:
+          - name: EditTodoCommentsItem
+            fields:
+              - key: date
+                name: date
+                accessor: Date
+                path: commentsItem.date
+                type: java.time.LocalDate
+                base: date
+                constraints:
+                  key: date
+                  label: 日付
+                  type: common#年月日
+                  base: date
+                  declarations:
+                    - schema: common
+                      document: .yde/schemas/input/1.yaml
+                      path:
+                        - definitions
+                        - 年月日
+                      inherited: true
+                      declared:
+                        type: date
+                        format: yyyy年M月d日
+                        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                    - schema: common
+                      document: .yde/schemas/input/1.yaml
+                      path:
+                        - definitions
+                        - コメント
+                        - fields
+                        - 0
+                      inherited: false
+                      declared:
+                        key: date
+                        label: 日付
+                        type: 年月日
+                        required: true
+                  description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                  required: true
+                  format: yyyy年M月d日
+                classes: []
+              - key: body
+                name: body
+                accessor: Body
+                path: commentsItem.body
+                type: java.lang.String
+                base: string
+                constraints:
+                  key: body
+                  label: コメント本文
+                  type: text
+                  base: string
+                  declarations:
+                    - schema: builtin-types
+                      path:
+                        - definitions
+                        - text
+                      inherited: true
+                      declared:
+                        type: string
+                        display: multiline
+                    - schema: common
+                      document: .yde/schemas/input/1.yaml
+                      path:
+                        - definitions
+                        - コメント
+                        - fields
+                        - 1
+                      inherited: false
+                      declared:
+                        key: body
+                        label: コメント本文
+                        type: text
+                        required: true
+                  required: true
+                  multiline: true
+                  builtinType:
+                    name: text
+                    base: string
+                    builtin: true
+                    multiline: true
+                classes: []
+        item:
+          name: EditTodoCommentsItem
+          fields:
+            - key: date
+              name: date
+              accessor: Date
+              path: commentsItem.date
+              type: java.time.LocalDate
+              base: date
+              constraints:
+                key: date
+                label: 日付
+                type: common#年月日
+                base: date
+                declarations:
+                  - schema: common
+                    document: .yde/schemas/input/1.yaml
+                    path:
+                      - definitions
+                      - 年月日
+                    inherited: true
+                    declared:
+                      type: date
+                      format: yyyy年M月d日
+                      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                  - schema: common
+                    document: .yde/schemas/input/1.yaml
+                    path:
+                      - definitions
+                      - コメント
+                      - fields
+                      - 0
+                    inherited: false
+                    declared:
+                      key: date
+                      label: 日付
+                      type: 年月日
+                      required: true
+                description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                required: true
+                format: yyyy年M月d日
+              classes: []
+            - key: body
+              name: body
+              accessor: Body
+              path: commentsItem.body
+              type: java.lang.String
+              base: string
+              constraints:
+                key: body
+                label: コメント本文
+                type: text
+                base: string
+                declarations:
+                  - schema: builtin-types
+                    path:
+                      - definitions
+                      - text
+                    inherited: true
+                    declared:
+                      type: string
+                      display: multiline
+                  - schema: common
+                    document: .yde/schemas/input/1.yaml
+                    path:
+                      - definitions
+                      - コメント
+                      - fields
+                      - 1
+                    inherited: false
+                    declared:
+                      key: body
+                      label: コメント本文
+                      type: text
+                      required: true
+                required: true
+                multiline: true
+                builtinType:
+                  name: text
+                  base: string
+                  builtin: true
+                  multiline: true
+              classes: []
+          classes:
+            - name: EditTodoCommentsItem
+              fields:
+                - key: date
+                  name: date
+                  accessor: Date
+                  path: commentsItem.date
+                  type: java.time.LocalDate
+                  base: date
+                  constraints:
+                    key: date
+                    label: 日付
+                    type: common#年月日
+                    base: date
+                    declarations:
+                      - schema: common
+                        document: .yde/schemas/input/1.yaml
+                        path:
+                          - definitions
+                          - 年月日
+                        inherited: true
+                        declared:
+                          type: date
+                          format: yyyy年M月d日
+                          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                      - schema: common
+                        document: .yde/schemas/input/1.yaml
+                        path:
+                          - definitions
+                          - コメント
+                          - fields
+                          - 0
+                        inherited: false
+                        declared:
+                          key: date
+                          label: 日付
+                          type: 年月日
+                          required: true
+                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                    required: true
+                    format: yyyy年M月d日
+                  classes: []
+                - key: body
+                  name: body
+                  accessor: Body
+                  path: commentsItem.body
+                  type: java.lang.String
+                  base: string
+                  constraints:
+                    key: body
+                    label: コメント本文
+                    type: text
+                    base: string
+                    declarations:
+                      - schema: builtin-types
+                        path:
+                          - definitions
+                          - text
+                        inherited: true
+                        declared:
+                          type: string
+                          display: multiline
+                      - schema: common
+                        document: .yde/schemas/input/1.yaml
+                        path:
+                          - definitions
+                          - コメント
+                          - fields
+                          - 1
+                        inherited: false
+                        declared:
+                          key: body
+                          label: コメント本文
+                          type: text
+                          required: true
+                    required: true
+                    multiline: true
+                    builtinType:
+                      name: text
+                      base: string
+                      builtin: true
+                      multiline: true
+                  classes: []
+      - key: clear
+        name: clear
+        accessor: Clear
+        path: clear
+        type: EditTodoClear
+        base: object
+        constraints:
+          key: clear
+          label: 値を消す
+          type: object
+          base: object
+          description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+          default: {}
+          fields:
+            - key: category
+              label: カテゴリを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: tags
+              label: タグを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: due_on
+              label: 期限を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: details
+              label: 詳細を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: result
+              label: 結果・中止理由を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: comments
+              label: コメント一覧を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+        classes:
+          - name: EditTodoClear
+            fields:
+              - key: category
+                name: category
+                accessor: Category
+                path: clear.category
+                type: java.lang.Boolean
+                base: boolean
+                constraints:
+                  key: category
+                  label: カテゴリを消す
+                  type: boolean
+                  base: boolean
+                  builtinType:
+                    name: boolean
+                    base: boolean
+                    builtin: true
+                classes: []
+              - key: tags
+                name: tags
+                accessor: Tags
+                path: clear.tags
+                type: java.lang.Boolean
+                base: boolean
+                constraints:
+                  key: tags
+                  label: タグを消す
+                  type: boolean
+                  base: boolean
+                  builtinType:
+                    name: boolean
+                    base: boolean
+                    builtin: true
+                classes: []
+              - key: due_on
+                name: dueOn
+                accessor: DueOn
+                path: clear.due_on
+                type: java.lang.Boolean
+                base: boolean
+                constraints:
+                  key: due_on
+                  label: 期限を消す
+                  type: boolean
+                  base: boolean
+                  builtinType:
+                    name: boolean
+                    base: boolean
+                    builtin: true
+                classes: []
+              - key: details
+                name: details
+                accessor: Details
+                path: clear.details
+                type: java.lang.Boolean
+                base: boolean
+                constraints:
+                  key: details
+                  label: 詳細を消す
+                  type: boolean
+                  base: boolean
+                  builtinType:
+                    name: boolean
+                    base: boolean
+                    builtin: true
+                classes: []
+              - key: result
+                name: result
+                accessor: Result
+                path: clear.result
+                type: java.lang.Boolean
+                base: boolean
+                constraints:
+                  key: result
+                  label: 結果・中止理由を消す
+                  type: boolean
+                  base: boolean
+                  builtinType:
+                    name: boolean
+                    base: boolean
+                    builtin: true
+                classes: []
+              - key: comments
+                name: comments
+                accessor: Comments
+                path: clear.comments
+                type: java.lang.Boolean
+                base: boolean
+                constraints:
+                  key: comments
+                  label: コメント一覧を消す
+                  type: boolean
+                  base: boolean
+                  builtinType:
+                    name: boolean
+                    base: boolean
+                    builtin: true
+                classes: []
+        children:
+          - key: category
+            name: category
+            accessor: Category
+            path: clear.category
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: category
+              label: カテゴリを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: tags
+            name: tags
+            accessor: Tags
+            path: clear.tags
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: tags
+              label: タグを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: due_on
+            name: dueOn
+            accessor: DueOn
+            path: clear.due_on
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: due_on
+              label: 期限を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: details
+            name: details
+            accessor: Details
+            path: clear.details
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: details
+              label: 詳細を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: result
+            name: result
+            accessor: Result
+            path: clear.result
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: result
+              label: 結果・中止理由を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: comments
+            name: comments
+            accessor: Comments
+            path: clear.comments
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: comments
+              label: コメント一覧を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+    classes:
+      - name: EditTodoCommentsItem
+        fields:
+          - key: date
+            name: date
+            accessor: Date
+            path: commentsItem.date
+            type: java.time.LocalDate
+            base: date
+            constraints:
+              key: date
+              label: 日付
+              type: common#年月日
+              base: date
+              declarations:
+                - schema: common
+                  document: .yde/schemas/input/1.yaml
+                  path:
+                    - definitions
+                    - 年月日
+                  inherited: true
+                  declared:
+                    type: date
+                    format: yyyy年M月d日
+                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+                - schema: common
+                  document: .yde/schemas/input/1.yaml
+                  path:
+                    - definitions
+                    - コメント
+                    - fields
+                    - 0
+                  inherited: false
+                  declared:
+                    key: date
+                    label: 日付
+                    type: 年月日
+                    required: true
+              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+              required: true
+              format: yyyy年M月d日
+            classes: []
+          - key: body
+            name: body
+            accessor: Body
+            path: commentsItem.body
+            type: java.lang.String
+            base: string
+            constraints:
+              key: body
+              label: コメント本文
+              type: text
+              base: string
+              declarations:
+                - schema: builtin-types
+                  path:
+                    - definitions
+                    - text
+                  inherited: true
+                  declared:
+                    type: string
+                    display: multiline
+                - schema: common
+                  document: .yde/schemas/input/1.yaml
+                  path:
+                    - definitions
+                    - コメント
+                    - fields
+                    - 1
+                  inherited: false
+                  declared:
+                    key: body
+                    label: コメント本文
+                    type: text
+                    required: true
+              required: true
+              multiline: true
+              builtinType:
+                name: text
+                base: string
+                builtin: true
+                multiline: true
+            classes: []
+      - name: EditTodoClear
+        fields:
+          - key: category
+            name: category
+            accessor: Category
+            path: clear.category
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: category
+              label: カテゴリを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: tags
+            name: tags
+            accessor: Tags
+            path: clear.tags
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: tags
+              label: タグを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: due_on
+            name: dueOn
+            accessor: DueOn
+            path: clear.due_on
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: due_on
+              label: 期限を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: details
+            name: details
+            accessor: Details
+            path: clear.details
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: details
+              label: 詳細を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: result
+            name: result
+            accessor: Result
+            path: clear.result
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: result
+              label: 結果・中止理由を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+          - key: comments
+            name: comments
+            accessor: Comments
+            path: clear.comments
+            type: java.lang.Boolean
+            base: boolean
+            constraints:
+              key: comments
+              label: コメント一覧を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            classes: []
+  - id: SINPUT-register-todo
+    source: DOC-processes.register-todo
+    action: register-todo
+    service: TodoService
+    method: registerTodo
+    className: RegisterTodoInput
+    arguments:
+      - key: title
+        name: title
+        accessor: Title
+        path: title
+        type: java.lang.String
+        base: string
+        constraints:
+          key: title
+          label: タイトル
+          type: common#一行の文
+          base: string
+          required: true
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+        classes: []
+      - key: summary
+        name: summary
+        accessor: Summary
+        path: summary
+        type: java.lang.String
+        base: string
+        constraints:
+          key: summary
+          label: 概要
+          type: common#一行の文
+          base: string
+          required: true
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+        classes: []
+      - key: category
+        name: category
+        accessor: Category
+        path: category
+        type: java.lang.String
+        base: ref
+        constraints:
+          key: category
+          label: カテゴリ
+          type: common#カテゴリ参照
+          base: ref
+          description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+          refTarget: entity
+          idPatternLayers:
+            -   - CAT-*
+          scope:
+            schemaIds:
+              - category-list
+            documentIds: []
+          relation: in-category
+          idPatterns:
+            - CAT-*
+          schemas:
+            - category-list
+          targets:
+            - category
+          target: category
+          targetTitle: name
+          targetLabel: カテゴリ
+        classes: []
+      - key: tags
+        name: tags
+        accessor: Tags
+        path: tags
+        type: java.util.List<java.lang.String>
+        base: array
+        constraints:
+          key: tags
+          label: タグ
+          type: array
+          base: array
+          unique: true
+          item:
+            type: common#タグ参照
+            base: ref
+            description: タグ一覧の ID を 1 件。
+            refTarget: entity
+            idPatternLayers:
+              -   - TAG-*
+            scope:
+              schemaIds:
+                - tag-list
+              documentIds: []
+            relation: tagged
+            idPatterns:
+              - TAG-*
+            schemas:
+              - tag-list
+            targets:
+              - tag
+            target: tag
+            targetTitle: name
+            targetLabel: タグ
+        classes: []
+        item:
+          name: java.lang.String
+          base: ref
+          classes: []
+      - key: follows
+        name: follows
+        accessor: Follows
+        path: follows
+        type: java.lang.String
+        base: ref
+        constraints:
+          key: follows
+          label: 元のTODO
+          type: common#TODO参照
+          base: ref
+          description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+          refTarget: entity
+          idPatternLayers:
+            -   - TODO-*
+          scope:
+            schemaIds:
+              - todo-list
+            documentIds: []
+          relation: follow-up-of
+          idPatterns:
+            - TODO-*
+          schemas:
+            - todo-list
+          targets:
+            - todo
+          target: todo
+          targetTitle: title
+          targetLabel: TODO
+        classes: []
+      - key: due
+        name: due
+        accessor: Due
+        path: due
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: due
+          label: 期限
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        classes: []
+      - key: details
+        name: details
+        accessor: Details
+        path: details
+        type: java.lang.String
+        base: string
+        constraints:
+          key: details
+          label: 詳細
+          type: common#文章
+          base: string
+          multiline: true
+        classes: []
+    classes: []
+  - id: SINPUT-resume-todo
+    source: DOC-processes.resume-todo
+    action: resume-todo
+    service: TodoService
+    method: resumeTodo
+    className: ResumeTodoInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: date
+        name: date
+        accessor: Date
+        path: date
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: date
+          label: 再開日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        classes: []
+      - key: note
+        name: note
+        accessor: Note
+        path: note
+        type: java.lang.String
+        base: string
+        constraints:
+          key: note
+          label: メモ
+          type: common#文章
+          base: string
+          multiline: true
+        classes: []
+    classes: []
+  - id: SINPUT-start-todo
+    source: DOC-processes.start-todo
+    action: start-todo
+    service: TodoService
+    method: startTodo
+    className: StartTodoInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+    classes: []
+  - id: SINPUT-suspend-todo
+    source: DOC-processes.suspend-todo
+    action: suspend-todo
+    service: TodoService
+    method: suspendTodo
+    className: SuspendTodoInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: date
+        name: date
+        accessor: Date
+        path: date
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: date
+          label: 中断日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        classes: []
+      - key: reason
+        name: reason
+        accessor: Reason
+        path: reason
+        type: java.lang.String
+        base: string
+        constraints:
+          key: reason
+          label: 中断理由
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+        classes: []
+      - key: resume_on
+        name: resumeOn
+        accessor: ResumeOn
+        path: resume_on
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: resume_on
+          label: 再開予定日
+          type: common#年月日
+          base: date
+          description: 決まっていれば入れます。中断日以降の日付です。
+          format: yyyy年M月d日
+        classes: []
+    classes: []
+  - id: SINPUT-todo-task.finish
+    source: DOC-processes.todo-task.finish
+    action: todo-task.finish
+    service: TodoTaskService
+    method: todoTaskFinish
+    className: TodoTaskFinishInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo-task
+        receiver: true
+        classes: []
+    classes: []

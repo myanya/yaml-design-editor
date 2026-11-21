@@ -1,0 +1,928 @@
+id: application-service-bindings
+name: 処理と Mapper の引数・更新条件を照合する
+scope: design
+dependsOn:
+  - application-service-inputs
+  - application-access
+output: design/detail/final/application-service-bindings.yaml
+input:
+  operations:
+    $each:
+      $view: application-service-inputs-input
+    $build:
+      $apply: operation
+      $with:
+        input:
+          $copy: values.record
+        process:
+          $view: processes-input
+          $where:
+            - path: values.record.designId
+              equals:
+                $copy: values.record.source
+                $of: inputRow
+          $one: true
+    $bind: inputRow
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-service-bindings
+      $then:
+        $copy: declared
+build:
+  $apply: validated
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $copy: contracts
+        documents:
+          design/detail/final/application-service-bindings.yaml:
+            id: APP-service-bindings
+            operations:
+              $copy: operations
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: validated
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: operation
+    with:
+      - input
+      - process
+    build:
+      $apply: primary-read
+      $with:
+        input:
+          $copy: .
+          $of: input
+        process:
+          $copy: values.record
+          $of: process
+        call:
+          $apply: first
+          $with:
+            items:
+              $each: values.record.steps
+              $of: process
+              $build:
+                $when:
+                  - path: step
+                    equals: read
+                $then:
+                  $copy: call
+  - id: primary-read
+    with:
+      - input
+      - process
+      - call
+    build:
+      $apply: with-read
+      $with:
+        input:
+          $copy: .
+          $of: input
+        process:
+          $copy: .
+          $of: process
+        primary:
+          $first:
+            - $when:
+                - of: call
+                  path: .
+                  exists: true
+              $then:
+                $view: application-method-input
+                $where:
+                  - path: values.record.call
+                    equals:
+                      $copy: .
+                      $of: call
+                $one: true
+            - {}
+  - id: with-read
+    with:
+      - input
+      - process
+      - primary
+    build:
+      $apply: with-symbols
+      $with:
+        input:
+          $copy: .
+          $of: input
+        process:
+          $copy: .
+          $of: process
+        primary:
+          $copy: values.record
+          $of: primary
+        symbols:
+          $concat:
+            - $each: arguments
+              $of: input
+              $build:
+                $apply: symbols
+                $with:
+                  path:
+                    $first:
+                      - $copy: path
+                      - $copy: key
+                  java:
+                    $format: input.get{a}()
+                    $with:
+                      a:
+                        $copy: accessor
+              $flatten: true
+            - - path: today
+                place: context
+                name: contextToday
+                java: today
+                type: java.time.LocalDate
+            - $each: values.record.raw.columnBindings
+              $of: primary
+              $build:
+                $apply: column-symbol
+                $with:
+                  binding:
+                    $copy: .
+                  columns:
+                    $copy: values.record.row.columns
+                    $of: primary
+            - $each: steps
+              $of: process
+              $build:
+                $when:
+                  - path: step
+                    equals: number
+                $then:
+                  path: numberedId
+                  place: generated
+                  name: numberedId
+                  java: numberedId
+                  type: java.lang.String
+  - id: column-symbol
+    with:
+      - binding
+      - columns
+    build:
+      $apply: column-symbol-ready
+      $with:
+        binding:
+          $copy: .
+          $of: binding
+        column:
+          $apply: first
+          $with:
+            items:
+              $each: .
+              $of: columns
+              $build:
+                $when:
+                  - path: source
+                    equals:
+                      $copy: columnId
+                      $of: binding
+                $then:
+                  $copy: .
+  - id: column-symbol-ready
+    with:
+      - binding
+      - column
+    build:
+      path:
+        $copy: item
+        $of: binding
+      place: self
+      name:
+        $case:
+          $copy: item
+          $of: binding
+        $as: camel
+      java:
+        $format: original.get{a}()
+        $with:
+          a:
+            $copy: accessor
+            $of: column
+      type:
+        $copy: java.qualifiedName
+        $of: column
+  - id: symbols
+    with:
+      - path
+      - java
+    build:
+      $concat:
+        - - path:
+              $copy: .
+              $of: path
+            place: input
+            name:
+              $case:
+                $copy: .
+                $of: path
+              $as: camel
+            ref:
+              $format: ${p}
+              $with:
+                p:
+                  $copy: .
+                  $of: path
+            java:
+              $copy: .
+              $of: java
+            type:
+              $copy: type
+            base:
+              $copy: base
+        - $each: children
+          $build:
+            $apply: symbols
+            $with:
+              path:
+                $format: '{p}.{k}'
+                $with:
+                  p:
+                    $copy: .
+                    $of: path
+                  k:
+                    $copy: key
+              java:
+                $format: '({p} == null ? null : {p}.get{a}())'
+                $with:
+                  p:
+                    $copy: .
+                    $of: java
+                  a:
+                    $copy: accessor
+          $flatten: true
+  - id: with-symbols
+    with:
+      - input
+      - process
+      - symbols
+      - primary
+    build:
+      id:
+        $format: SPROG-{a}
+        $with:
+          a:
+            $copy: action
+            $of: input
+      source:
+        $copy: source
+        $of: input
+      input:
+        $copy: id
+        $of: input
+      symbols:
+        $copy: .
+        $of: symbols
+      inputSymbols:
+        $each: .
+        $of: symbols
+        $build:
+          $when:
+            - path: place
+              equals: input
+          $then:
+            $copy: .
+      primary:
+        $copy: id
+        $of: primary
+      steps:
+        $each: steps
+        $of: process
+        $build:
+          $apply: step
+          $with:
+            step:
+              $copy: .
+            order: $position
+            symbols:
+              $copy: .
+              $of: symbols
+  - id: step
+    with:
+      - step
+      - order
+      - symbols
+    build:
+      $apply: step-resolved
+      $with:
+        step:
+          $copy: .
+          $of: step
+        order:
+          $copy: .
+          $of: order
+        symbols:
+          $copy: .
+          $of: symbols
+        method:
+          $first:
+            - $when:
+                - of: step
+                  path: call
+                  exists: true
+              $then:
+                $view: application-method-input
+                $where:
+                  - path: values.record.call
+                    equals:
+                      $copy: call
+                      $of: step
+                $one: true
+            - {}
+  - id: step-resolved
+    with:
+      - step
+      - order
+      - symbols
+      - method
+    build:
+      $apply: step-checked
+      $with:
+        step:
+          $copy: .
+          $of: step
+        order:
+          $copy: .
+          $of: order
+        symbols:
+          $copy: .
+          $of: symbols
+        method:
+          $copy: values.record
+          $of: method
+        expectedSet:
+          $apply: canonical-set
+          $with:
+            source:
+              $copy: set
+              $of: step
+        actualSet:
+          $apply: canonical-set
+          $with:
+            source:
+              $copy: values.record.raw.set
+              $of: method
+        expectedWhere:
+          $apply: canonical-where
+          $with:
+            source:
+              $copy: where
+              $of: step
+        actualWhere:
+          $apply: canonical-where
+          $with:
+            source:
+              $copy: values.record.raw.where
+              $of: method
+  - id: canonical-set
+    with:
+      - source
+    build:
+      $each: .
+      $of: source
+      $build:
+        item:
+          $copy: item
+        mode:
+          $first:
+            - $copy: mode
+            - value
+        value:
+          $copy: value
+        when:
+          $first:
+            - $copy: when
+            - []
+  - id: canonical-where
+    with:
+      - source
+    build:
+      $each: .
+      $of: source
+      $build:
+        item:
+          $copy: item
+        param:
+          $copy: param
+  - id: step-checked
+    with:
+      - step
+      - order
+      - symbols
+      - method
+      - expectedSet
+      - actualSet
+      - expectedWhere
+      - actualWhere
+    build:
+      index:
+        $copy: .
+        $of: order
+      kind:
+        $copy: step
+        $of: step
+      call:
+        $copy: call
+        $of: step
+      method:
+        $copy: id
+        $of: method
+      callResolved:
+        $first:
+          - $when:
+              - of: step
+                path: call
+                exists: false
+            $then: true
+          - $when:
+              - of: method
+                path: id
+                exists: true
+            $then: true
+          - false
+      keyArityMatches:
+        $first:
+          - $when:
+              - of: step
+                path: key
+                exists: false
+            $then: true
+          - $when:
+              - of: method
+                path: parameters[0]
+                exists: true
+              - of: method
+                path: parameters[1]
+                exists: false
+            $then: true
+          - false
+      stateResolved:
+        $first:
+          - $when:
+              - of: step
+                path: checkMode
+                exists: false
+            $then: true
+          - $when:
+              - of: step
+                path: checkMode
+                notEquals: state
+            $then: true
+          - $apply: first
+            $with:
+              items:
+                $each: .
+                $of: symbols
+                $build:
+                  $when:
+                    - path: place
+                      equals: self
+                    - path: path
+                      equals:
+                        $copy: stateField
+                        $of: step
+                    - path: type
+                      equals: java.lang.String
+                  $then: true
+          - false
+      setMatches:
+        $first:
+          - $when:
+              - of: step
+                path: kind
+                notEquals: update
+            $then: true
+          - $when:
+              - of: step
+                path: kind
+                exists: false
+            $then: true
+          - $apply: same
+            $with:
+              left:
+                $copy: .
+                $of: expectedSet
+              right:
+                $copy: .
+                $of: actualSet
+      whereMatches:
+        $first:
+          - $when:
+              - of: step
+                path: kind
+                notEquals: update
+            $then: true
+          - $when:
+              - of: step
+                path: kind
+                exists: false
+            $then: true
+          - $apply: same
+            $with:
+              left:
+                $copy: .
+                $of: expectedWhere
+              right:
+                $copy: .
+                $of: actualWhere
+      parameters:
+        $first:
+          - $each: parameters
+            $of: method
+            $build:
+              $apply: parameter
+              $with:
+                parameter:
+                  $copy: .
+                step:
+                  $copy: .
+                  $of: step
+                method:
+                  $copy: .
+                  $of: method
+                symbols:
+                  $copy: .
+                  $of: symbols
+          - []
+  - id: same
+    with:
+      - left
+      - right
+    build:
+      $apply: one-group
+      $with:
+        groups:
+          $group:
+            - $copy: .
+              $of: left
+            - $copy: .
+              $of: right
+          $by:
+            $copy: .
+          $build: true
+  - id: one-group
+    with:
+      - groups
+    build:
+      $first:
+        - $when:
+            - of: groups
+              path: '[1]'
+              exists: false
+          $then: true
+        - false
+  - id: parameter
+    with:
+      - parameter
+      - step
+      - method
+      - symbols
+    build:
+      $apply: parameter-bound
+      $with:
+        parameter:
+          $copy: .
+          $of: parameter
+        binding:
+          $first:
+            - $when:
+                - of: step
+                  path: checkMode
+                  equals: cycle
+              $then:
+                path: cursor
+                place: iteration
+                java: cursor
+                type: java.lang.String
+            - $when:
+                - of: step
+                  path: key
+                  exists: true
+              $then:
+                $first:
+                  - $apply: key-symbol
+                    $with:
+                      sourceKey:
+                        $copy: key
+                        $of: step
+                      symbols:
+                        $copy: .
+                        $of: symbols
+                  - path: UNRESOLVED
+                    place: unresolved
+                    java: UNRESOLVED
+                    type: UNRESOLVED
+            - $apply: first
+              $with:
+                items:
+                  $each: where
+                  $of: step
+                  $build:
+                    $when:
+                      - path: param
+                        equals:
+                          $copy: name
+                          $of: parameter
+                    $then:
+                      $first:
+                        - $apply: key-symbol
+                          $with:
+                            sourceKey:
+                              $copy: value
+                            symbols:
+                              $copy: .
+                              $of: symbols
+                        - path: UNRESOLVED
+                          place: unresolved
+                          java: UNRESOLVED
+                          type: UNRESOLVED
+            - $apply: first
+              $with:
+                items:
+                  $each: writes
+                  $of: method
+                  $build:
+                    $when:
+                      - path: value.param
+                        equals:
+                          $copy: name
+                          $of: parameter
+                    $then:
+                      $apply: value-symbol
+                      $with:
+                        value:
+                          $copy: raw.value
+                        symbols:
+                          $copy: .
+                          $of: symbols
+            - $apply: first
+              $with:
+                items:
+                  $each: writes
+                  $of: method
+                  $build:
+                    $each: condition
+                    $build:
+                      $when:
+                        - path: param
+                          equals:
+                            $copy: name
+                            $of: parameter
+                      $then:
+                        $apply: named-input
+                        $with:
+                          name:
+                            $copy: param
+                          symbols:
+                            $copy: .
+                            $of: symbols
+                  $flatten: true
+            - $apply: first
+              $with:
+                items:
+                  $each: raw.where
+                  $of: method
+                  $build:
+                    $when:
+                      - path: param
+                        equals:
+                          $copy: name
+                          $of: parameter
+                    $then:
+                      $apply: named-input
+                      $with:
+                        name:
+                          $copy: param
+                        symbols:
+                          $copy: .
+                          $of: symbols
+        step:
+          $copy: .
+          $of: step
+  - id: key-symbol
+    with:
+      - sourceKey
+      - symbols
+    when:
+      - of: sourceKey
+        path: param
+        exists: true
+    build:
+      $apply: named-input
+      $with:
+        name:
+          $copy: param
+          $of: sourceKey
+        symbols:
+          $copy: .
+          $of: symbols
+  - id: key-symbol
+    with:
+      - sourceKey
+      - symbols
+    when:
+      - of: sourceKey
+        path: self
+        exists: true
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: symbols
+          $build:
+            $when:
+              - path: place
+                equals: self
+              - path: path
+                equals:
+                  $copy: self
+                  $of: sourceKey
+            $then:
+              $copy: .
+  - id: key-symbol
+    with:
+      - sourceKey
+      - symbols
+    when:
+      - of: sourceKey
+        path: generated
+        exists: true
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: symbols
+          $build:
+            $when:
+              - path: place
+                equals: generated
+              - path: path
+                equals:
+                  $copy: generated
+                  $of: sourceKey
+            $then:
+              $copy: .
+  - id: named-input
+    with:
+      - name
+      - symbols
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: symbols
+          $build:
+            $when:
+              - path: place
+                equals: input
+              - path: name
+                equals:
+                  $copy: .
+                  $of: name
+            $then:
+              $copy: .
+  - id: value-symbol
+    with:
+      - value
+      - symbols
+    build:
+      $apply: wrapped-value-symbol
+      $with:
+        record:
+          value:
+            $copy: .
+            $of: value
+        symbols:
+          $copy: .
+          $of: symbols
+  - id: wrapped-value-symbol
+    with:
+      - record
+      - symbols
+    when:
+      - of: record
+        path: value.$copy
+        exists: true
+    build:
+      $apply: copy-symbol
+      $with:
+        place:
+          $first:
+            - $copy: value.$of
+              $of: record
+            - input
+        path:
+          $copy: value.$copy
+          $of: record
+        symbols:
+          $copy: .
+          $of: symbols
+  - id: copy-symbol
+    with:
+      - place
+      - path
+      - symbols
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: symbols
+          $build:
+            $when:
+              - path: place
+                equals:
+                  $copy: .
+                  $of: place
+              - path: path
+                equals:
+                  $copy: .
+                  $of: path
+            $then:
+              $copy: .
+  - id: wrapped-value-symbol
+    with:
+      - record
+      - symbols
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: symbols
+          $build:
+            $when:
+              - path: ref
+                equals:
+                  $copy: value
+                  $of: record
+            $then:
+              $copy: .
+  - id: parameter-bound
+    with:
+      - parameter
+      - binding
+      - step
+    build:
+      name:
+        $copy: name
+        $of: parameter
+      accessor:
+        $copy: accessor
+        $of: parameter
+      type:
+        $copy: type
+        $of: parameter
+      binding:
+        path:
+          $copy: path
+          $of: binding
+        place:
+          $copy: place
+          $of: binding
+        java:
+          $first:
+            - $copy: java
+              $of: binding
+            - UNRESOLVED
+        type:
+          $first:
+            - $copy: type
+              $of: binding
+            - UNRESOLVED
+      typeMatches:
+        $first:
+          - $when:
+              - of: binding
+                path: type
+                equals:
+                  $copy: type
+                  $of: parameter
+            $then: true
+          - false

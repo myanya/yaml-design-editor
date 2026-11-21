@@ -107,3 +107,57 @@ outputs:
   - id: OUTPUT-business-violation
     report: app-business-violation
     params: {}
+  - id: OUTPUT-SINPUT-add-category
+    report: app-service-input
+    params:
+      operation: SINPUT-add-category
+  - id: OUTPUT-SINPUT-add-tag
+    report: app-service-input
+    params:
+      operation: SINPUT-add-tag
+  - id: OUTPUT-SINPUT-add-todo-comment
+    report: app-service-input
+    params:
+      operation: SINPUT-add-todo-comment
+  - id: OUTPUT-SINPUT-add-todo-task
+    report: app-service-input
+    params:
+      operation: SINPUT-add-todo-task
+  - id: OUTPUT-SINPUT-cancel-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-cancel-todo
+  - id: OUTPUT-SINPUT-complete-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-complete-todo
+  - id: OUTPUT-SINPUT-edit-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-edit-todo
+  - id: OUTPUT-SINPUT-register-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-register-todo
+  - id: OUTPUT-SINPUT-resume-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-resume-todo
+  - id: OUTPUT-SINPUT-start-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-start-todo
+  - id: OUTPUT-SINPUT-suspend-todo
+    report: app-service-input
+    params:
+      operation: SINPUT-suspend-todo
+  - id: OUTPUT-SINPUT-todo-task.finish
+    report: app-service-input
+    params:
+      operation: SINPUT-todo-task.finish
+  - id: OUTPUT-operation-runner
+    report: app-operation-runner
+    params: {}
+  - id: OUTPUT-sequence-numbers
+    report: app-sequence-numbers
+    params: {}

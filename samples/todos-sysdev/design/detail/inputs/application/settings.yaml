@@ -13,4 +13,5 @@ settings:
   port: 8085
   databaseName: todos
   databaseInitialization: empty-schema
+  writeConcurrency: local-serialized
 reason: 業務モデルから導けない実装方式。Java 21・Spring Boot 4・MyBatis・Thymeleaf・H2 を使い、YDE 本体と独立してビルド・起動する

@@ -123,6 +123,17 @@ root:
             unique:
               - action
               - state
+          - key: entity
+            type: string
+            required: true
+          - key: stateFields
+            type: array
+            required: true
+            minItems: 1
+            maxItems: 1
+            item:
+              type: string
+              pattern: ^(?!UNRESOLVED$).+$
         constraints:
           - id: references
             check:

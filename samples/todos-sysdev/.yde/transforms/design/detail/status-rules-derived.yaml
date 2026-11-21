@@ -1,6 +1,8 @@
 id: status-rules-derived
 name: 状態の判定（処理設計書）
-description: 'Lifecycle ごとに、状態の enum（保存する値）と、詳細化の親の判定と、操作ごとにできる状態と移り先を書く。 決め打ちの規則: enum の名前は「型の名前＋Status」・定数は保存する値・親の判定は「is＋親の ID」のメソッド'
+description: >-
+  Lifecycle ごとに、状態の enum（保存する値）と、詳細化の親の判定と、操作ごとにできる状態と移り先を書く。 決め打ちの規則: enum の名前は「型の名前＋Status」・定数は保存する値・親の判定は「is＋親の
+  ID」のメソッド
 scope: business
 each: lifecycles
 output: design/detail/derived/documents/status-rules/{id}.yaml
@@ -83,6 +85,21 @@ build:
         $each: terminal
         $build:
           $copy: value
+      stateFields:
+        $group:
+          $each: states
+          $build:
+            $apply: state-field
+            $with:
+              state:
+                $copy: id
+              states:
+                $copy: states
+                $of: model
+        $by:
+          $copy: .
+        $build:
+          $copy: key
     source:
       id: rule-status-rules
       document: .yde/transforms/design/detail/status-rules-derived.yaml
@@ -93,3 +110,31 @@ rules:
     build:
       $copy: values.model
       $of: row
+  - id: state-field
+    with:
+      - state
+      - states
+    build:
+      $apply: first-state-field
+      $with:
+        items:
+          $each: .
+          $of: states
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: state
+            $then:
+              $first:
+                - $copy: path
+                - UNRESOLVED
+  - id: first-state-field
+    with:
+      - items
+    build:
+      $first:
+        - $copy: '[0]'
+          $of: items
+        - UNRESOLVED

@@ -28,6 +28,7 @@ steps:
     checkMode: state
     phase: before
     entity: todo
+    stateField: status
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -70,6 +71,8 @@ steps:
     where:
       - item: id
         param: id
+        value:
+          param: id
   - step: write
     call: TodoMapper.insertTodoHistory
     kind: insert

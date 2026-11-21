@@ -83,6 +83,27 @@ Java クラス名・型・対象数を PowerShell で計算しない。行モデ
 `BusinessViolation` はメッセージのキー・欄・埋め込み値を保持し、確認時の戻り値と実行時の `RefusedException` で共有するための型。
 状態型と例外はまだ Service の操作本体へ接続していない。実際の更新、確認時の非更新、拒否時の取り消しは次の実装・検証対象。
 
+`final/application-service-inputs.yaml` は、確定したアクションの入力と処理の引数を対応付ける。
+日付・参照・配列・入れ子の型を共通の Java 型対応から引き、`service/input/` に入力クラスを生成する。未知の引数・型・使えない Java 名は拒否する。
+型や桁数などの入力検査は後続の Controller の担当で、この入力クラスにはまだ Bean Validation を付けない。
+`final/application-service-bindings.yaml` は、入力・現在値・基準日・採番値と Mapper の引数の対応を保持する。
+親のキーや明細の所有者は処理設計に参照元を明記する。処理と Mapper の更新値・条件・更新対象が異なるとき、値の参照元や引数の型を解決できないときは生成を止める。
+状態の対象項目と許可される遷移は確定した状態設計を読む。遷移を補正するときは、基本設計のメッセージも内容をそろえる。
+
+## 操作の実行と同時更新
+
+方式入力の `writeConcurrency: local-serialized` は、一つのアプリ内で操作を順番に実行する指定。
+生成する `service/runtime/OperationRunner` はアプリ共通の一つのインスタンスを使い、採番の読出し前から DB の確定・取り消しと完了通知が終わるまでロックを保つ。
+`execute` の中で Mapper を呼び、業務例外や書込みエラーが出ればその操作全体を取り消す。外側のトランザクションや別の操作の途中からの呼出しは拒否する。
+この境界は [Spring の TransactionTemplate](https://docs.spring.io/spring-framework/docs/7.0.10/javadoc-api/org/springframework/transaction/support/TransactionTemplate.html) を使う。
+`preview` は読出し専用として実行し、DB 更新を確定させない。各操作の確認処理では書込み自体を呼ばないよう、後続で接続する。
+`SequenceNumbers` は接頭辞と桁数に従う次の ID と明細の並び順を計算する。MAX の取得と書込みは必ず同じ `execute` 内で行う。
+桁を超えた ID は桁数を広げ、不正な既存番号や並び順の整数上限は拒否する。
+
+共通実行部について、同時採番・確定と取り消しの完了までの待機・拒否後の再実行・確認時の非確定を H2 で検証する。
+各業務操作の成功・状態や前提による拒否・更新後の検査をこの実行部へつなぐ作業は残っている。
+複数のアプリから同じ DB を更新する方式は対象外。将来その構成にする場合は、DB による採番と同時更新の方式を別途設計する。
+
 これらは Query で確定値を選び、Construct で生成値を組み立て、Predicate で検査し、既存レポートで Java に出力する。
 YDE 本体に業務固有の評価器や書込経路を追加しない。
 
@@ -132,7 +153,7 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 ./samples/todos-sysdev/scripts/verify-app.ps1
 ```
 
-アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper と状態型・例外のテストを検証用コピーへ追加して実行する。
+アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部のテストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
 検証結果はコピー内の `build/reports/tests/test/index.html` に残す。元のアプリとその DB には書かない。
 
@@ -142,7 +163,8 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 - `TodosJavaModelsTest`: Form の要素型、物理列の網羅、補正の伝達、型の不足・SQL の不一致・Java 名の衝突による停止。
 - `TodosMappersTest`: 全メソッドの網羅、検索と件数の一致、補正の伝達、未解決の条件・列・演算子による停止。
 - `TodosServiceFoundationTest`: 処理の個別条件・明細の削除・親の検査対象、状態型・例外・採番の呼出名の補正、未解決の状態と呼び先による停止。標準型と同名に補正した Java のコンパイルも確認する。
-- `scripts/verify-app.ps1`: 全 Mapper の実行、DB の初期値、子の順序、絞り込み、集計、変更・クリア・削除、状態の遷移と違反の値の保持、独立ビルド。
+- `TodosServiceBindingsTest`: 入れ子の入力型、親のキー、状態・物理名・呼出名の補正、未知の引数と更新内容の食い違いによる停止。
+- `scripts/verify-app.ps1`: 全 Mapper の実行、DB の初期値、子の順序、絞り込み、集計、変更・クリア・削除、状態型と例外、共通実行部の同時採番・取り消し・確認、独立ビルド。
 - `scripts/test-application-files.ps1`: 再生成の一致、空ファイル、競合、書込失敗時の復元、名前変更・削除の範囲。
 - `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、生成の一致とアプリ単独のビルドを確認する。
 

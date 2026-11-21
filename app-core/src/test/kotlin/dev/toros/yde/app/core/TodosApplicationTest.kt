@@ -32,7 +32,7 @@ class TodosApplicationTest {
             val output = entry as Map<*, *>
             val report = loaded.reports.single { it.def.id == output["report"] }
             val params = (output["params"] as Map<*, *>).entries.associate { it.key.toString() to it.value }
-            val key = report.def.id + (params["model"]?.let { ":$it" } ?: params["mapper"]?.let { ":$it" } ?: params["runtime"]?.let { ":$it" } ?: "")
+            val key = report.def.id + (params["model"]?.let { ":$it" } ?: params["mapper"]?.let { ":$it" } ?: params["runtime"]?.let { ":$it" } ?: params["operation"]?.let { ":$it" } ?: "")
             val rendered = Reports.run(report, params, views, workspace.index, workspace::treeOf, workspace::schemaFor)
             key to rendered.copy(outputRel = output["destination"]?.toString() ?: rendered.outputRel).also {
                 assertEquals(emptyList(), it.missing, report.def.id)
@@ -44,7 +44,7 @@ class TodosApplicationTest {
     @Test
     fun `ビルドと起動の生成物は確定設定と一致し 親のビルドに依存しない`() {
         val outputs = render(sample)
-        assertEquals(29, outputs.size)
+        assertEquals(43, outputs.size)
         for ((id, output) in outputs) assertEquals(Files.readString(sample.resolve(output.outputRel!!)), output.text, id)
         val settings = outputs.getValue("app-settings").text
         val build = outputs.getValue("app-build").text
@@ -90,7 +90,7 @@ class TodosApplicationTest {
     fun `未対応の版と不正なパッケージとポートを確定前に拒否する`() {
         val originals = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
             .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }
-        for ((key, value) in listOf("javaVersion" to 17, "package" to emptyList<String>(), "package" to listOf("class"), "port" to 0)) {
+        for ((key, value) in listOf("javaVersion" to 17, "package" to emptyList<String>(), "package" to listOf("class"), "port" to 0, "writeConcurrency" to "distributed")) {
             val store = InMemoryDocumentStore(originals)
             val document = (YamlIO.parseToRaw(originals.getValue(input)) as Map<*, *>).toMutableMap()
             val settings = (document.getValue("settings") as Map<*, *>).toMutableMap()

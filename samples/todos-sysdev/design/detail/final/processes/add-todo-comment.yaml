@@ -52,6 +52,8 @@ steps:
     where:
       - item: id
         param: id
+        value:
+          param: id
 subject: todo
 originalService:
   class: TodoService

@@ -36,6 +36,8 @@ steps:
     where:
       - item: id
         param: id
+        value:
+          param: id
   - step: write
     call: TodoMapper.todoTaskFinish
     kind: update
@@ -47,6 +49,8 @@ steps:
     where:
       - item: id
         param: todoId
+        value:
+          self: todo_id
   - step: check
     constraint: closed-has-no-open-task
     by: SQL（件数。書いた後）

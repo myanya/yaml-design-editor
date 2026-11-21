@@ -73,6 +73,9 @@ states:
         state: IN_PROGRESS
       - action: resume-todo
         state: SUSPENDED
+    entity: todo
+    stateFields:
+      - status
 errors:
   - id: JERR-refused
     kind: refused

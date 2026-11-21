@@ -60,6 +60,8 @@ record:
     terminal:
       - CLOSED
       - CANCELED
+    stateFields:
+      - status
   source:
     id: rule-status-rules
     document: .yde/transforms/design/detail/status-rules-derived.yaml

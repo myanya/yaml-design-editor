@@ -1,0 +1,23 @@
+id: app-sequence-numbers
+name: SequenceNumbers
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: '[0].values.record.settings'
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: SequenceNumbers.java
+output: app/src/main/java/{#each config.package}{.}/{/each}service/runtime/SequenceNumbers.java

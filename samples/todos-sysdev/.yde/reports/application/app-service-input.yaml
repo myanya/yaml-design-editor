@@ -1,0 +1,36 @@
+id: app-service-input
+name: Service の入力
+params:
+  - operation
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+        $where: []
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-service-inputs-input
+        $where:
+          - path: id
+            equals: $operation
+        $one: true
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: values.record.settings
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: ServiceInput.java
+output: app/src/main/java/{#each config.package}{.}/{/each}service/input/{record.className}.java

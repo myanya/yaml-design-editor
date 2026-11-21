@@ -1,0 +1,91 @@
+id: application-service-inputs
+name: Service の引数と入力の型
+kind: document
+match: design/detail/final/application-service-inputs.yaml
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: operations
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: source
+            type: string
+            required: true
+          - key: action
+            type: string
+            required: true
+          - key: className
+            type: string
+            required: true
+            pattern: ^[A-Z][A-Za-z0-9]*$
+          - key: service
+            type: string
+            required: true
+            pattern: ^[A-Z][A-Za-z0-9]*$
+          - key: method
+            type: string
+            required: true
+            pattern: >-
+              ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|_)$)[a-z][A-Za-z0-9]*$
+          - key: arguments
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: name
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|_)$)[a-z][A-Za-z0-9]*$
+                - key: type
+                  type: string
+                  required: true
+                  pattern: ^(?!.*UNRESOLVED)[A-Za-z][A-Za-z0-9.<>]*$
+            unique:
+              - name
+          - key: classes
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: name
+                  type: string
+                  required: true
+                  pattern: ^[A-Z][A-Za-z0-9]*$
+                - key: fields
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    unknownFields: allow
+                    fields:
+                      - key: name
+                        type: string
+                        required: true
+                        pattern: >-
+                          ^(?!(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|true|false|null|_)$)[a-z][A-Za-z0-9]*$
+                      - key: type
+                        type: string
+                        required: true
+                        pattern: ^(?!.*UNRESOLVED)[A-Za-z][A-Za-z0-9.<>]*$
+                  unique:
+                    - name
+            unique:
+              - name
+      unique:
+        - className

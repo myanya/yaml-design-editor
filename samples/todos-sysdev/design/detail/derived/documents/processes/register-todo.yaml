@@ -132,6 +132,8 @@ record:
         seq:
           mode: position
           start: 1
+        ownerKey:
+          generated: numberedId
       - step: write
         call: TodoMapper.insertTodoHistory
         kind: insert

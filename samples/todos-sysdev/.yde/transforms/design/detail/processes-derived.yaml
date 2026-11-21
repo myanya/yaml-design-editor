@@ -2,10 +2,11 @@ id: processes-derived
 name: 処理設計書（Service）
 description: >-
   操作ごとに Service のメソッドと手順を書く。手順は、テーブルアクセス設計書の Mapper のメソッドを呼ぶ形で書く（名前の決まりは同じ）。 決め打ちの規則: 1 操作＝1
-  トランザクション・受け手を先に読む（findById）・状態の前提（Lifecycle）は読んだ行の状態で確かめる（Java）・ 業務モデルの前提は、受け手の中の要素の条件なら件数（Mapper の count）、受け手の値の条件なら読んだ行（Java）で確かめる・
-  採番は使われている番号の次（maxId）・書く手順は、同じテーブルへの値をまとめた insert か update と、明細の行（並び順は maxSeq の次）・ データの決まり（業務モデルの操作の
-  checks＝書くと破れうる決まり）は、要素ごとの決まりと循環の決まりは書いた後の値を計算して書く前に Java で、 入れ子の要素の決まりは書いた後に同じトランザクションで件数を数えて確かめる（違反なら例外で書いたものを取り消す）。断るのはエラーの決まりだけ・
-  受け取る値が原因で破れうる Java の決まりは、確認へでも確かめる（confirm のメソッド。書かない）。 型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない。断りの文はメッセージのキー（メッセージ定義書）で書く
+  トランザクション・受け手を先に読む（findById）・状態の前提（Lifecycle）は読んだ行の状態で確かめる（Java）・ 業務モデルの前提は、受け手の中の要素の条件なら件数（Mapper の
+  count）、受け手の値の条件なら読んだ行（Java）で確かめる・ 採番は使われている番号の次（maxId）・書く手順は、同じテーブルへの値をまとめた insert か update と、明細の行（並び順は maxSeq の次）・
+  データの決まり（業務モデルの操作の checks＝書くと破れうる決まり）は、要素ごとの決まりと循環の決まりは書いた後の値を計算して書く前に Java で、
+  入れ子の要素の決まりは書いた後に同じトランザクションで件数を数えて確かめる（違反なら例外で書いたものを取り消す）。断るのはエラーの決まりだけ・ 受け取る値が原因で破れうる Java の決まりは、確認へでも確かめる（confirm
+  のメソッド。書かない）。 型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない。断りの文はメッセージのキー（メッセージ定義書）で書く
 scope: business
 each: actions
 output: design/detail/derived/documents/processes/{id}.yaml
@@ -14,6 +15,7 @@ dependsOn:
   - system-access-bindings
   - messages
   - detail-document-input-gate
+  - status-rules
 input:
   $apply: model-input
   $with:
@@ -146,12 +148,19 @@ build:
                       $format: '{id}.state'
                     by: Java（読んだ行の状態）
                     allowed:
-                      $each: lifecycle.transitions
-                      $flatten: true
-                      $build:
-                        $each: from
-                        $build:
-                          $copy: value
+                      $apply: state-allowed
+                      $with:
+                        row:
+                          $view: status-rules-input
+                          $where:
+                            - path: values.record.id
+                              equals:
+                                $copy: lifecycle.id
+                                $of: element
+                          $one: true
+                        action:
+                          $copy: id
+                          $of: element
                     message:
                       $format: '{id}.state'
                     text:
@@ -160,6 +169,17 @@ build:
                     phase: before
                     entity:
                       $copy: target.entity
+                    stateField:
+                      $apply: state-field
+                      $with:
+                        row:
+                          $view: status-rules-input
+                          $where:
+                            - path: values.record.id
+                              equals:
+                                $copy: lifecycle.id
+                                $of: element
+                          $one: true
               - $each: require
                 $build:
                   $when:
@@ -314,6 +334,10 @@ build:
                         notEquals: update
                     $then:
                       $copy: items[0].when
+                  key:
+                    $copy: items[0].key
+                  ownerKey:
+                    $copy: items[0].ownerKey
               - $each: checks
                 $bind: c
                 $flatten: true
@@ -774,6 +798,29 @@ rules:
                                 $case:
                                   $copy: entity
                                 $as: camel
+                      value:
+                        $first:
+                          - $when:
+                              - of: element
+                                path: creates
+                                includes:
+                                  $copy: entity
+                            $then:
+                              generated: numberedId
+                          - $when:
+                              - path: entity
+                                equals:
+                                  $copy: target.entity
+                                  $of: element
+                            $then:
+                              param: id
+                          - self:
+                              $format: '{e}_id'
+                              $with:
+                                e:
+                                  $case:
+                                    $copy: entity
+                                  $as: snake
                 mode:
                   $when:
                     - path: op
@@ -878,6 +925,29 @@ rules:
                 kind: delete
                 when:
                   $copy: when
+                key:
+                  $first:
+                    - $when:
+                        - of: element
+                          path: creates
+                          includes:
+                            $copy: entity
+                      $then:
+                        generated: numberedId
+                    - $when:
+                        - path: entity
+                          equals:
+                            $copy: target.entity
+                            $of: element
+                      $then:
+                        param: id
+                    - self:
+                        $format: '{e}_id'
+                        $with:
+                          e:
+                            $case:
+                              $copy: entity
+                            $as: snake
               - row:
                   $format: row-{i}-insert
                   $with:
@@ -901,6 +971,29 @@ rules:
                   start: 1
                 when:
                   $copy: when
+                ownerKey:
+                  $first:
+                    - $when:
+                        - of: element
+                          path: creates
+                          includes:
+                            $copy: entity
+                      $then:
+                        generated: numberedId
+                    - $when:
+                        - path: entity
+                          equals:
+                            $copy: target.entity
+                            $of: element
+                      $then:
+                        param: id
+                    - self:
+                        $format: '{e}_id'
+                        $with:
+                          e:
+                            $case:
+                              $copy: entity
+                            $as: snake
           - $when:
               - or:
                   - path: op
@@ -959,6 +1052,8 @@ rules:
                 seq:
                   mode: position
                   start: 1
+                ownerKey:
+                  generated: numberedId
           - $when:
               - path: op
                 equals: delete
@@ -985,6 +1080,29 @@ rules:
                 kind: delete
                 when:
                   $copy: when
+                key:
+                  $first:
+                    - $when:
+                        - of: element
+                          path: creates
+                          includes:
+                            $copy: entity
+                      $then:
+                        generated: numberedId
+                    - $when:
+                        - path: entity
+                          equals:
+                            $copy: target.entity
+                            $of: element
+                      $then:
+                        param: id
+                    - self:
+                        $format: '{e}_id'
+                        $with:
+                          e:
+                            $case:
+                              $copy: entity
+                            $as: snake
   - id: effect-detail-name
     build:
       $format: '{t}_{k}'
@@ -1167,3 +1285,25 @@ rules:
                               $of: node
                         $then:
                           $copy: text
+  - id: state-field
+    with:
+      - row
+    build:
+      $copy: values.record.stateFields[0]
+      $of: row
+  - id: state-allowed
+    with:
+      - row
+      - action
+    build:
+      $each: values.record.transitions
+      $of: row
+      $flatten: true
+      $build:
+        $when:
+          - path: action
+            equals:
+              $copy: .
+              $of: action
+        $then:
+          $copy: from

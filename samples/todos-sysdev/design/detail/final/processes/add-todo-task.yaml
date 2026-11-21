@@ -77,6 +77,8 @@ steps:
     where:
       - item: id
         param: id
+        value:
+          param: id
   - step: check
     constraint: closed-has-no-open-task
     by: SQL（件数。書いた後）

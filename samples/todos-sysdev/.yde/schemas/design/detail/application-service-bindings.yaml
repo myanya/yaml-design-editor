@@ -1,0 +1,138 @@
+id: application-service-bindings
+name: Service の引数と Mapper の対応
+kind: document
+match: design/detail/final/application-service-bindings.yaml
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: operations
+      type: array
+      required: true
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: source
+            type: string
+            required: true
+          - key: inputSymbols
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: name
+                  type: string
+                  required: true
+            unique:
+              - name
+          - key: steps
+            type: array
+            required: true
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: index
+                  type: int
+                  required: true
+                - key: setMatches
+                  type: boolean
+                  required: true
+                - key: whereMatches
+                  type: boolean
+                  required: true
+                - key: callResolved
+                  type: boolean
+                  required: true
+                - key: keyArityMatches
+                  type: boolean
+                  required: true
+                - key: stateResolved
+                  type: boolean
+                  required: true
+                - key: parameters
+                  type: array
+                  required: true
+                  item:
+                    type: object
+                    unknownFields: allow
+                    fields:
+                      - key: name
+                        type: string
+                        required: true
+                      - key: type
+                        type: string
+                        required: true
+                      - key: binding
+                        type: object
+                        required: true
+                        fields:
+                          - key: path
+                            type: string
+                            required: true
+                          - key: place
+                            type: string
+                            required: true
+                          - key: java
+                            type: string
+                            required: true
+                            pattern: ^(?!UNRESOLVED).+$
+                          - key: type
+                            type: string
+                            required: true
+                      - key: typeMatches
+                        type: boolean
+                        required: true
+                    constraints:
+                      - id: type-matches
+                        check:
+                          - eq:
+                              - path: typeMatches
+                              - true
+                        level: error
+                        message: 処理から渡す値と Mapper の引数の型が一致しません
+              constraints:
+                - id: set-agreement
+                  check:
+                    - eq:
+                        - path: setMatches
+                        - true
+                  level: error
+                  message: 処理設計とテーブルアクセス設計の更新値・条件が一致しません
+                - id: where-agreement
+                  check:
+                    - eq:
+                        - path: whereMatches
+                        - true
+                  level: error
+                  message: 処理設計とテーブルアクセス設計の更新対象が一致しません
+                - id: callResolved
+                  check:
+                    - eq:
+                        - path: callResolved
+                        - true
+                  level: error
+                  message: 処理の呼出先を解決できません
+                - id: keyArityMatches
+                  check:
+                    - eq:
+                        - path: keyArityMatches
+                        - true
+                  level: error
+                  message: 処理のキーは引数が一つの呼出しに指定してください
+                - id: stateResolved
+                  check:
+                    - eq:
+                        - path: stateResolved
+                        - true
+                  level: error
+                  message: 状態を読む項目を現在値の文字列の列として解決できません

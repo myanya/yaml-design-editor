@@ -37,6 +37,9 @@ root:
               - key: runtime
                 type: string
                 pattern: ^J(?:STATE|ERR)-[A-Za-z0-9_-]+$
+              - key: operation
+                type: string
+                pattern: ^SINPUT-[A-Za-z0-9_.-]+$
             unknownFields: error
           - key: destination
             type: string

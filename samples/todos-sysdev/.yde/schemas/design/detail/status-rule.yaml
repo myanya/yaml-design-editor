@@ -1,7 +1,9 @@
 id: status-rule
 name: 状態の判定（処理設計書）
 kind: document
-description: 詳細設計。Lifecycle 1 つから、状態の enum（保存する値）・詳細化の親の判定・操作ごとにできる状態と移り先を作る。生成物（.yde/transforms/design/detail/status-rules.yaml）で、手で直さない
+description: >-
+  詳細設計。Lifecycle 1 つから、状態の
+  enum（保存する値）・詳細化の親の判定・操作ごとにできる状態と移り先を作る。生成物（.yde/transforms/design/detail/status-rules.yaml）で、手で直さない
 match: design/detail/final/status/*.yaml
 entity:
   type: sysdev-status-rule
@@ -69,4 +71,13 @@ root:
     - key: origins
       type: any
       label: 根拠
+    - key: stateFields
+      label: 状態を保持する項目
+      type: array
+      required: true
+      minItems: 1
+      maxItems: 1
+      item:
+        type: string
+        pattern: ^(?!UNRESOLVED$).+$
   unknownFields: error

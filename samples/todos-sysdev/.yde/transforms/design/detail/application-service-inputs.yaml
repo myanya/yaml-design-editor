@@ -1,0 +1,476 @@
+id: application-service-inputs
+name: 確定した操作と処理から Service の引数を確定する
+scope: design
+dependsOn:
+  - processes
+  - action-specs
+  - application-java-types
+output: design/detail/final/application-service-inputs.yaml
+input:
+  operations:
+    $each:
+      $view: processes-input
+    $build:
+      $apply: operation
+      $with:
+        process:
+          $copy: values.record
+        action:
+          $view: action-specs-input
+          $where:
+            - path: values.record.id
+              equals:
+                $copy: values.record.id
+                $of: processRow
+          $one: true
+        types:
+          $view: application-java-types-input
+          $where: []
+          $one: true
+    $bind: processRow
+  contracts:
+    $each: schemas
+    $of: model
+    $build:
+      $when:
+        - path: id
+          equals: application-service-inputs
+      $then:
+        $copy: declared
+build:
+  $apply: validated
+  $with:
+    documents:
+      $validate:
+        schemas:
+          $copy: contracts
+        documents:
+          design/detail/final/application-service-inputs.yaml:
+            id: APP-service-inputs
+            operations:
+              $copy: operations
+rules:
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: validated
+    with:
+      - documents
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: .
+          $of: documents
+          $flatten: true
+          $build:
+            - $copy: .
+  - id: operation
+    with:
+      - process
+      - action
+      - types
+    build:
+      $apply: operation-ready
+      $with:
+        process:
+          $copy: .
+          $of: process
+        fields:
+          $each: values.record.inputs
+          $of: action
+          $build:
+            $apply: field
+            $with:
+              owner:
+                $copy: id
+                $of: process
+              path:
+                $copy: key
+              types:
+                $copy: values.record.mappings
+                $of: types
+  - id: operation-ready
+    with:
+      - process
+      - fields
+    build:
+      id:
+        $format: SINPUT-{id}
+        $with:
+          id:
+            $copy: id
+            $of: process
+      source:
+        $copy: designId
+        $of: process
+      action:
+        $copy: id
+        $of: process
+      service:
+        $copy: service.class
+        $of: process
+      method:
+        $copy: service.method
+        $of: process
+      className:
+        $format: '{n}Input'
+        $with:
+          'n':
+            $case:
+              $copy: id
+              $of: process
+            $as: pascal
+      arguments:
+        $each: service.arguments
+        $of: process
+        $build:
+          $apply: argument
+          $with:
+            name:
+              $copy: .
+            fields:
+              $copy: .
+              $of: fields
+            target:
+              $copy: subject
+              $of: process
+            receiver:
+              $apply: first
+              $with:
+                items:
+                  $each: steps
+                  $of: process
+                  $build:
+                    $when:
+                      - path: step
+                        equals: read
+                    $then: true
+      classes:
+        $each: .
+        $of: fields
+        $build:
+          $copy: classes
+        $flatten: true
+  - id: argument
+    with:
+      - name
+      - fields
+      - target
+      - receiver
+    build:
+      $apply: argument-result
+      $with:
+        name:
+          $copy: .
+          $of: name
+        field:
+          $apply: first
+          $with:
+            items:
+              $each: .
+              $of: fields
+              $build:
+                $when:
+                  - path: name
+                    equals:
+                      $copy: .
+                      $of: name
+                $then:
+                  $copy: .
+        target:
+          $copy: .
+          $of: target
+        receiver:
+          $copy: .
+          $of: receiver
+  - id: argument-result
+    with:
+      - name
+      - field
+      - target
+      - receiver
+    when:
+      - of: field
+        path: name
+        exists: true
+    build:
+      $copy: .
+      $of: field
+  - id: argument-result
+    with:
+      - name
+      - field
+      - target
+      - receiver
+    when:
+      - of: name
+        path: .
+        equals: id
+      - of: receiver
+        path: .
+        equals: true
+    build:
+      key: id
+      name: id
+      accessor: Id
+      type: java.lang.String
+      base: ref
+      target:
+        $copy: .
+        $of: target
+      receiver: true
+      classes: []
+  - id: argument-result
+    with:
+      - name
+      - field
+      - target
+      - receiver
+    build:
+      name:
+        $copy: .
+        $of: name
+      type: UNRESOLVED
+      classes: []
+  - id: field
+    with:
+      - owner
+      - path
+      - types
+    build:
+      $apply: field-ready
+      $with:
+        raw:
+          $copy: .
+        owner:
+          $copy: .
+          $of: owner
+        path:
+          $copy: .
+          $of: path
+        types:
+          $copy: .
+          $of: types
+        type:
+          $apply: type
+          $with:
+            owner:
+              $copy: .
+              $of: owner
+            path:
+              $copy: .
+              $of: path
+            types:
+              $copy: .
+              $of: types
+  - id: field-ready
+    with:
+      - raw
+      - owner
+      - path
+      - types
+      - type
+    build:
+      key:
+        $copy: key
+        $of: raw
+      name:
+        $case:
+          $copy: key
+          $of: raw
+        $as: camel
+      accessor:
+        $case:
+          $copy: key
+          $of: raw
+        $as: pascal
+      path:
+        $copy: .
+        $of: path
+      type:
+        $copy: name
+        $of: type
+      base:
+        $copy: base
+        $of: raw
+      constraints:
+        $copy: .
+        $of: raw
+      classes:
+        $first:
+          - $copy: classes
+            $of: type
+          - []
+      children:
+        $copy: fields
+        $of: type
+      item:
+        $copy: item
+        $of: type
+  - id: type
+    with:
+      - owner
+      - path
+      - types
+    when:
+      - path: base
+        equals: array
+    build:
+      $apply: array-type
+      $with:
+        item:
+          $apply: type
+          $with:
+            owner:
+              $copy: .
+              $of: owner
+            path:
+              $format: '{p}Item'
+              $with:
+                p:
+                  $copy: .
+                  $of: path
+            types:
+              $copy: .
+              $of: types
+          $at: item
+  - id: array-type
+    with:
+      - item
+    build:
+      name:
+        $format: java.util.List<{t}>
+        $with:
+          t:
+            $copy: name
+            $of: item
+      item:
+        $copy: .
+        $of: item
+      classes:
+        $first:
+          - $copy: classes
+            $of: item
+          - []
+  - id: type
+    with:
+      - owner
+      - path
+      - types
+    when:
+      - path: base
+        equals: object
+    build:
+      $apply: object-type
+      $with:
+        name:
+          $format: '{o}{p}'
+          $with:
+            o:
+              $case:
+                $copy: .
+                $of: owner
+              $as: pascal
+            p:
+              $case:
+                $copy: .
+                $of: path
+              $as: pascal
+        fields:
+          $each: fields
+          $build:
+            $apply: field
+            $with:
+              owner:
+                $copy: .
+                $of: owner
+              path:
+                $format: '{p}.{k}'
+                $with:
+                  p:
+                    $copy: .
+                    $of: path
+                  k:
+                    $copy: key
+              types:
+                $copy: .
+                $of: types
+  - id: object-type
+    with:
+      - name
+      - fields
+    build:
+      name:
+        $copy: .
+        $of: name
+      fields:
+        $copy: .
+        $of: fields
+      classes:
+        $concat:
+          - - name:
+                $copy: .
+                $of: name
+              fields:
+                $copy: .
+                $of: fields
+          - $each: .
+            $of: fields
+            $build:
+              $copy: classes
+            $flatten: true
+  - id: type
+    with:
+      - owner
+      - path
+      - types
+    build:
+      $apply: scalar-lookup
+      $with:
+        raw:
+          $copy: .
+        types:
+          $copy: .
+          $of: types
+  - id: scalar-lookup
+    with:
+      - raw
+      - types
+    build:
+      $apply: scalar-type
+      $with:
+        mapping:
+          $apply: first
+          $with:
+            items:
+              $each: .
+              $of: types
+              $build:
+                $when:
+                  - path: base
+                    equals:
+                      $copy: base
+                      $of: raw
+                $then:
+                  $copy: .
+        raw:
+          $copy: .
+          $of: raw
+  - id: scalar-type
+    with:
+      - mapping
+      - raw
+    build:
+      name:
+        $first:
+          - $copy: qualifiedName
+            $of: mapping
+          - UNRESOLVED
+      base:
+        $copy: base
+        $of: raw
+      classes: []

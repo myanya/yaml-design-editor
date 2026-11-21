@@ -182,12 +182,16 @@ steps:
     where:
       - item: id
         param: id
+        value:
+          param: id
   - step: write
     call: TodoMapper.deleteTodoTags
     kind: delete
     when:
       - path: tags
         exists: true
+    key:
+      param: id
   - step: write
     call: TodoMapper.insertTodoTags
     kind: insert
@@ -198,12 +202,16 @@ steps:
     when:
       - path: tags
         exists: true
+    ownerKey:
+      param: id
   - step: write
     call: TodoMapper.deleteTodoComments
     kind: delete
     when:
       - path: comments
         exists: true
+    key:
+      param: id
   - step: write
     call: TodoMapper.insertTodoComments
     kind: insert
@@ -214,18 +222,24 @@ steps:
     when:
       - path: comments
         exists: true
+    ownerKey:
+      param: id
   - step: write
     call: TodoMapper.deleteTodoTags
     kind: delete
     when:
       - path: clear.tags
         equals: true
+    key:
+      param: id
   - step: write
     call: TodoMapper.deleteTodoComments
     kind: delete
     when:
       - path: clear.comments
         equals: true
+    key:
+      param: id
   - step: write
     call: TodoMapper.insertTodoComments
     kind: insert
@@ -236,6 +250,8 @@ steps:
     when:
       - path: clear.comments
         equals: true
+    ownerKey:
+      param: id
 subject: todo
 originalService:
   class: TodoService

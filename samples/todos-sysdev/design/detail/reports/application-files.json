@@ -31,7 +31,7 @@
     },
     {
       "path": "app/README.md",
-      "sha256": "8d07a30b38953b2696970926bbf87280ff59dbfbe841188804b4a1bd56911fdd"
+      "sha256": "6b05dcba5232f94b3919a53ec529f469a5a6587c09af3348276384a0e8fe7081"
     },
     {
       "path": "app/settings.gradle.kts",
@@ -92,6 +92,62 @@
     {
       "path": "app/src/main/java/example/todos/service/error/RefusedException.java",
       "sha256": "a15bd07afd789b5dd81a65ffc1481d03ec1ed72dfc3d6c4e2b3e03205cc27d6d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/AddCategoryInput.java",
+      "sha256": "3969575bcec33f2611906975f99fee19092bf453dfb7d476f607f4ab7518a15d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/AddTagInput.java",
+      "sha256": "80e7d1177a656f03138095f8648064c114581162ced298f60312d8c79c7faab6"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/AddTodoCommentInput.java",
+      "sha256": "013e60717d8dadc3a0c3bc4b6e987e51422e884d01ed4f0e79e997f75ff4ee91"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/AddTodoTaskInput.java",
+      "sha256": "f2877da02128ebdcd17cde74d7533d1d5ed6fbac10f0a7a7afa71b6b672bf332"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/CancelTodoInput.java",
+      "sha256": "6d2e3965c523c711232bde4131ada3c529107717b35e04692caaaf586be72ee8"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/CompleteTodoInput.java",
+      "sha256": "7263b7193b1747d2b6d4ce5169c0270e907af3fed7f0b77ebb723c87daf05135"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/EditTodoInput.java",
+      "sha256": "b3c99f4b020367eaa07acfa6645dac39118872f1d8d4b309906ded158584c1ec"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/RegisterTodoInput.java",
+      "sha256": "47aabd6bc314add572898361198e64b136f6bc0434f15fe58aa90e58b2259c0f"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/ResumeTodoInput.java",
+      "sha256": "fae4ac20ad82b5e7bcb19ac49ef0a0f700aae7de012acacb53fffc067635a90e"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/StartTodoInput.java",
+      "sha256": "268c190a24cbc0db61df53764fcf09dca37f0a4b70b9359dabb09e80ce9cf33c"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/SuspendTodoInput.java",
+      "sha256": "80229f1fe85d11c1c1d70e5e53494353e041541fbca24cf2066c5e1a01b6319d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/TodoTaskFinishInput.java",
+      "sha256": "e1310300a52e73886a23ceb1e2c43e6c7e67222dc6e8ae242f8883252a880149"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/runtime/OperationRunner.java",
+      "sha256": "4eb835e6ca3e210c7dcecb0dfe7c9fbcc4f742bb2553aa554dc36a66a2adf8b2"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/runtime/SequenceNumbers.java",
+      "sha256": "a23ab847815e0bdee8b4311ae26df9a46492a221441426371815066dd96a9937"
     },
     {
       "path": "app/src/main/java/example/todos/service/state/TodoStatus.java",

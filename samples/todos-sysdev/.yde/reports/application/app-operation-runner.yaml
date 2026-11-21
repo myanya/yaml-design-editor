@@ -1,0 +1,23 @@
+id: app-operation-runner
+name: OperationRunner
+build:
+  config:
+    $apply: config
+    $with:
+      row:
+        $view: application-configuration-input
+rules:
+  - id: config
+    with:
+      - row
+    build:
+      $copy: '[0].values.record.settings'
+      $of: row
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: OperationRunner.java
+output: app/src/main/java/{#each config.package}{.}/{/each}service/runtime/OperationRunner.java

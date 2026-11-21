@@ -208,3 +208,9 @@ rules:
               $copy: .
         $bind: transition
         $flatten: true
+      entity:
+        $copy: entity
+        $of: source
+      stateFields:
+        $copy: stateFields
+        $of: source

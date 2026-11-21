@@ -47,6 +47,7 @@ record:
         checkMode: state
         phase: before
         entity: todo
+        stateField: status
       - step: check
         precondition: complete-todo.no-open-task
         by: SQL（件数）
@@ -135,6 +136,8 @@ record:
         where:
           - item: id
             param: id
+            value:
+              param: id
       - step: write
         call: TodoMapper.insertTodoHistory
         kind: insert

@@ -1,0 +1,10 @@
+id: application-service-bindings-input
+name: 確定した Service の処理と引数
+rows:
+  idPattern: SPROG-*
+  schemaIds:
+    - application-service-bindings
+columns:
+  - label: record
+    path: .
+    schemaId: application-service-bindings

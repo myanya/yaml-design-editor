@@ -1,0 +1,2469 @@
+# 生成物（application-service-bindings）: 手で直さず、業務モデルか生成の定義（design/detail/application-service-bindings.yaml）を直して作り直します（CLI generate）。
+id: APP-service-bindings
+operations:
+  - id: SPROG-add-category
+    source: DOC-processes.add-category
+    input: SINPUT-add-category
+    symbols:
+      - path: name
+        place: input
+        name: name
+        ref: $name
+        java: input.getName()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: numberedId
+        place: generated
+        name: numberedId
+        java: numberedId
+        type: java.lang.String
+    inputSymbols:
+      - path: name
+        place: input
+        name: name
+        ref: $name
+        java: input.getName()
+        type: java.lang.String
+        base: string
+    steps:
+      - index: 1
+        kind: number
+        call: CategoryMapper.maxId
+        method: JMTH-category.maxId
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 2
+        kind: write
+        call: CategoryMapper.insert
+        method: JMTH-category.insert
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-add-tag
+    source: DOC-processes.add-tag
+    input: SINPUT-add-tag
+    symbols:
+      - path: name
+        place: input
+        name: name
+        ref: $name
+        java: input.getName()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: numberedId
+        place: generated
+        name: numberedId
+        java: numberedId
+        type: java.lang.String
+    inputSymbols:
+      - path: name
+        place: input
+        name: name
+        ref: $name
+        java: input.getName()
+        type: java.lang.String
+        base: string
+    steps:
+      - index: 1
+        kind: number
+        call: TagMapper.maxId
+        method: JMTH-tag.maxId
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 2
+        kind: write
+        call: TagMapper.insert
+        method: JMTH-tag.insert
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-add-todo-comment
+    source: DOC-processes.add-todo-comment
+    input: SINPUT-add-todo-comment
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: body
+        place: input
+        name: body
+        ref: $body
+        java: input.getBody()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: body
+        place: input
+        name: body
+        ref: $body
+        java: input.getBody()
+        type: java.lang.String
+        base: string
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: write
+        call: TodoMapper.insertTodoComments
+        method: JMTH-todo.insertTodoComments
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: write
+        call: TodoMapper.addTodoComment
+        method: JMTH-todo.addTodoComment
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+  - id: SPROG-add-todo-task
+    source: DOC-processes.add-todo-task
+    input: SINPUT-add-todo-task
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: title
+        place: input
+        name: title
+        ref: $title
+        java: input.getTitle()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+      - path: numberedId
+        place: generated
+        name: numberedId
+        java: numberedId
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: title
+        place: input
+        name: title
+        ref: $title
+        java: input.getTitle()
+        type: java.lang.String
+        base: string
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: number
+        call: TodoTaskMapper.maxId
+        method: JMTH-todo-task.maxId
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: write
+        call: TodoTaskMapper.insert
+        method: JMTH-todo-task.insert
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
+        kind: write
+        call: TodoMapper.addTodoTask
+        method: JMTH-todo.addTodoTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 7
+        kind: check
+        call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: todoId
+            accessor: TodoId
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+  - id: SPROG-cancel-todo
+    source: DOC-processes.cancel-todo
+    input: SINPUT-cancel-todo
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: reason
+        place: input
+        name: reason
+        ref: $reason
+        java: input.getReason()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: reason
+        place: input
+        name: reason
+        ref: $reason
+        java: input.getReason()
+        type: java.lang.String
+        base: string
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: write
+        call: TodoMapper.cancelTodo
+        method: JMTH-todo.cancelTodo
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: reason
+            accessor: Reason
+            type: java.lang.String
+            binding:
+              path: reason
+              place: input
+              java: input.getReason()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 6
+        kind: write
+        call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-complete-todo
+    source: DOC-processes.complete-todo
+    input: SINPUT-complete-todo
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: result
+        place: input
+        name: result
+        ref: $result
+        java: input.getResult()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: result
+        place: input
+        name: result
+        ref: $result
+        java: input.getResult()
+        type: java.lang.String
+        base: string
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        call: TodoTaskMapper.countCompleteTodoNoOpenTask
+        method: JMTH-todo-task.countCompleteTodoNoOpenTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 7
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 8
+        kind: write
+        call: TodoMapper.completeTodo
+        method: JMTH-todo.completeTodo
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: date
+            accessor: Date
+            type: java.time.LocalDate
+            binding:
+              path: date
+              place: input
+              java: input.getDate()
+              type: java.time.LocalDate
+            typeMatches: true
+          - name: result
+            accessor: Result
+            type: java.lang.String
+            binding:
+              path: result
+              place: input
+              java: input.getResult()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 9
+        kind: write
+        call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 10
+        kind: check
+        call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: todoId
+            accessor: TodoId
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+  - id: SPROG-edit-todo
+    source: DOC-processes.edit-todo
+    input: SINPUT-edit-todo
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: title
+        place: input
+        name: title
+        ref: $title
+        java: input.getTitle()
+        type: java.lang.String
+        base: string
+      - path: summary
+        place: input
+        name: summary
+        ref: $summary
+        java: input.getSummary()
+        type: java.lang.String
+        base: string
+      - path: category
+        place: input
+        name: category
+        ref: $category
+        java: input.getCategory()
+        type: java.lang.String
+        base: ref
+      - path: tags
+        place: input
+        name: tags
+        ref: $tags
+        java: input.getTags()
+        type: java.util.List<java.lang.String>
+        base: array
+      - path: created_on
+        place: input
+        name: createdOn
+        ref: $created_on
+        java: input.getCreatedOn()
+        type: java.time.LocalDate
+        base: date
+      - path: due_on
+        place: input
+        name: dueOn
+        ref: $due_on
+        java: input.getDueOn()
+        type: java.time.LocalDate
+        base: date
+      - path: details
+        place: input
+        name: details
+        ref: $details
+        java: input.getDetails()
+        type: java.lang.String
+        base: string
+      - path: result
+        place: input
+        name: result
+        ref: $result
+        java: input.getResult()
+        type: java.lang.String
+        base: string
+      - path: comments
+        place: input
+        name: comments
+        ref: $comments
+        java: input.getComments()
+        type: java.util.List<EditTodoCommentsItem>
+        base: array
+      - path: clear
+        place: input
+        name: clear
+        ref: $clear
+        java: input.getClear()
+        type: EditTodoClear
+        base: object
+      - path: clear.category
+        place: input
+        name: clearCategory
+        ref: $clear.category
+        java: '(input.getClear() == null ? null : input.getClear().getCategory())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.tags
+        place: input
+        name: clearTags
+        ref: $clear.tags
+        java: '(input.getClear() == null ? null : input.getClear().getTags())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.due_on
+        place: input
+        name: clearDueOn
+        ref: $clear.due_on
+        java: '(input.getClear() == null ? null : input.getClear().getDueOn())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.details
+        place: input
+        name: clearDetails
+        ref: $clear.details
+        java: '(input.getClear() == null ? null : input.getClear().getDetails())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.result
+        place: input
+        name: clearResult
+        ref: $clear.result
+        java: '(input.getClear() == null ? null : input.getClear().getResult())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.comments
+        place: input
+        name: clearComments
+        ref: $clear.comments
+        java: '(input.getClear() == null ? null : input.getClear().getComments())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: title
+        place: input
+        name: title
+        ref: $title
+        java: input.getTitle()
+        type: java.lang.String
+        base: string
+      - path: summary
+        place: input
+        name: summary
+        ref: $summary
+        java: input.getSummary()
+        type: java.lang.String
+        base: string
+      - path: category
+        place: input
+        name: category
+        ref: $category
+        java: input.getCategory()
+        type: java.lang.String
+        base: ref
+      - path: tags
+        place: input
+        name: tags
+        ref: $tags
+        java: input.getTags()
+        type: java.util.List<java.lang.String>
+        base: array
+      - path: created_on
+        place: input
+        name: createdOn
+        ref: $created_on
+        java: input.getCreatedOn()
+        type: java.time.LocalDate
+        base: date
+      - path: due_on
+        place: input
+        name: dueOn
+        ref: $due_on
+        java: input.getDueOn()
+        type: java.time.LocalDate
+        base: date
+      - path: details
+        place: input
+        name: details
+        ref: $details
+        java: input.getDetails()
+        type: java.lang.String
+        base: string
+      - path: result
+        place: input
+        name: result
+        ref: $result
+        java: input.getResult()
+        type: java.lang.String
+        base: string
+      - path: comments
+        place: input
+        name: comments
+        ref: $comments
+        java: input.getComments()
+        type: java.util.List<EditTodoCommentsItem>
+        base: array
+      - path: clear
+        place: input
+        name: clear
+        ref: $clear
+        java: input.getClear()
+        type: EditTodoClear
+        base: object
+      - path: clear.category
+        place: input
+        name: clearCategory
+        ref: $clear.category
+        java: '(input.getClear() == null ? null : input.getClear().getCategory())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.tags
+        place: input
+        name: clearTags
+        ref: $clear.tags
+        java: '(input.getClear() == null ? null : input.getClear().getTags())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.due_on
+        place: input
+        name: clearDueOn
+        ref: $clear.due_on
+        java: '(input.getClear() == null ? null : input.getClear().getDueOn())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.details
+        place: input
+        name: clearDetails
+        ref: $clear.details
+        java: '(input.getClear() == null ? null : input.getClear().getDetails())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.result
+        place: input
+        name: clearResult
+        ref: $clear.result
+        java: '(input.getClear() == null ? null : input.getClear().getResult())'
+        type: java.lang.Boolean
+        base: boolean
+      - path: clear.comments
+        place: input
+        name: clearComments
+        ref: $clear.comments
+        java: '(input.getClear() == null ? null : input.getClear().getComments())'
+        type: java.lang.Boolean
+        base: boolean
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
+        kind: write
+        call: TodoMapper.editTodo
+        method: JMTH-todo.editTodo
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: title
+            accessor: Title
+            type: java.lang.String
+            binding:
+              path: title
+              place: input
+              java: input.getTitle()
+              type: java.lang.String
+            typeMatches: true
+          - name: summary
+            accessor: Summary
+            type: java.lang.String
+            binding:
+              path: summary
+              place: input
+              java: input.getSummary()
+              type: java.lang.String
+            typeMatches: true
+          - name: category
+            accessor: Category
+            type: java.lang.String
+            binding:
+              path: category
+              place: input
+              java: input.getCategory()
+              type: java.lang.String
+            typeMatches: true
+          - name: createdOn
+            accessor: CreatedOn
+            type: java.time.LocalDate
+            binding:
+              path: created_on
+              place: input
+              java: input.getCreatedOn()
+              type: java.time.LocalDate
+            typeMatches: true
+          - name: dueOn
+            accessor: DueOn
+            type: java.time.LocalDate
+            binding:
+              path: due_on
+              place: input
+              java: input.getDueOn()
+              type: java.time.LocalDate
+            typeMatches: true
+          - name: details
+            accessor: Details
+            type: java.lang.String
+            binding:
+              path: details
+              place: input
+              java: input.getDetails()
+              type: java.lang.String
+            typeMatches: true
+          - name: result
+            accessor: Result
+            type: java.lang.String
+            binding:
+              path: result
+              place: input
+              java: input.getResult()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+          - name: clearCategory
+            accessor: ClearCategory
+            type: java.lang.Boolean
+            binding:
+              path: clear.category
+              place: input
+              java: '(input.getClear() == null ? null : input.getClear().getCategory())'
+              type: java.lang.Boolean
+            typeMatches: true
+          - name: clearDueOn
+            accessor: ClearDueOn
+            type: java.lang.Boolean
+            binding:
+              path: clear.due_on
+              place: input
+              java: '(input.getClear() == null ? null : input.getClear().getDueOn())'
+              type: java.lang.Boolean
+            typeMatches: true
+          - name: clearDetails
+            accessor: ClearDetails
+            type: java.lang.Boolean
+            binding:
+              path: clear.details
+              place: input
+              java: '(input.getClear() == null ? null : input.getClear().getDetails())'
+              type: java.lang.Boolean
+            typeMatches: true
+          - name: clearResult
+            accessor: ClearResult
+            type: java.lang.Boolean
+            binding:
+              path: clear.result
+              place: input
+              java: '(input.getClear() == null ? null : input.getClear().getResult())'
+              type: java.lang.Boolean
+            typeMatches: true
+      - index: 7
+        kind: write
+        call: TodoMapper.deleteTodoTags
+        method: JMTH-todo.deleteTodoTags
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 8
+        kind: write
+        call: TodoMapper.insertTodoTags
+        method: JMTH-todo.insertTodoTags
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 9
+        kind: write
+        call: TodoMapper.deleteTodoComments
+        method: JMTH-todo.deleteTodoComments
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 10
+        kind: write
+        call: TodoMapper.insertTodoComments
+        method: JMTH-todo.insertTodoComments
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 11
+        kind: write
+        call: TodoMapper.deleteTodoTags
+        method: JMTH-todo.deleteTodoTags
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 12
+        kind: write
+        call: TodoMapper.deleteTodoComments
+        method: JMTH-todo.deleteTodoComments
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 13
+        kind: write
+        call: TodoMapper.insertTodoComments
+        method: JMTH-todo.insertTodoComments
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-register-todo
+    source: DOC-processes.register-todo
+    input: SINPUT-register-todo
+    symbols:
+      - path: title
+        place: input
+        name: title
+        ref: $title
+        java: input.getTitle()
+        type: java.lang.String
+        base: string
+      - path: summary
+        place: input
+        name: summary
+        ref: $summary
+        java: input.getSummary()
+        type: java.lang.String
+        base: string
+      - path: category
+        place: input
+        name: category
+        ref: $category
+        java: input.getCategory()
+        type: java.lang.String
+        base: ref
+      - path: tags
+        place: input
+        name: tags
+        ref: $tags
+        java: input.getTags()
+        type: java.util.List<java.lang.String>
+        base: array
+      - path: follows
+        place: input
+        name: follows
+        ref: $follows
+        java: input.getFollows()
+        type: java.lang.String
+        base: ref
+      - path: due
+        place: input
+        name: due
+        ref: $due
+        java: input.getDue()
+        type: java.time.LocalDate
+        base: date
+      - path: details
+        place: input
+        name: details
+        ref: $details
+        java: input.getDetails()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: numberedId
+        place: generated
+        name: numberedId
+        java: numberedId
+        type: java.lang.String
+    inputSymbols:
+      - path: title
+        place: input
+        name: title
+        ref: $title
+        java: input.getTitle()
+        type: java.lang.String
+        base: string
+      - path: summary
+        place: input
+        name: summary
+        ref: $summary
+        java: input.getSummary()
+        type: java.lang.String
+        base: string
+      - path: category
+        place: input
+        name: category
+        ref: $category
+        java: input.getCategory()
+        type: java.lang.String
+        base: ref
+      - path: tags
+        place: input
+        name: tags
+        ref: $tags
+        java: input.getTags()
+        type: java.util.List<java.lang.String>
+        base: array
+      - path: follows
+        place: input
+        name: follows
+        ref: $follows
+        java: input.getFollows()
+        type: java.lang.String
+        base: ref
+      - path: due
+        place: input
+        name: due
+        ref: $due
+        java: input.getDue()
+        type: java.time.LocalDate
+        base: date
+      - path: details
+        place: input
+        name: details
+        ref: $details
+        java: input.getDetails()
+        type: java.lang.String
+        base: string
+    steps:
+      - index: 1
+        kind: number
+        call: TodoMapper.maxId
+        method: JMTH-todo.maxId
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: check
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: cursor
+              place: iteration
+              java: cursor
+              type: java.lang.String
+            typeMatches: true
+      - index: 6
+        kind: write
+        call: TodoMapper.insert
+        method: JMTH-todo.insert
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 7
+        kind: write
+        call: TodoMapper.insertTodoTags
+        method: JMTH-todo.insertTodoTags
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 8
+        kind: write
+        call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-resume-todo
+    source: DOC-processes.resume-todo
+    input: SINPUT-resume-todo
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: note
+        place: input
+        name: note
+        ref: $note
+        java: input.getNote()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: note
+        place: input
+        name: note
+        ref: $note
+        java: input.getNote()
+        type: java.lang.String
+        base: string
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: write
+        call: TodoMapper.resumeTodo
+        method: JMTH-todo.resumeTodo
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 6
+        kind: write
+        call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-start-todo
+    source: DOC-processes.start-todo
+    input: SINPUT-start-todo
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: write
+        call: TodoMapper.startTodo
+        method: JMTH-todo.startTodo
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 6
+        kind: write
+        call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-suspend-todo
+    source: DOC-processes.suspend-todo
+    input: SINPUT-suspend-todo
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: reason
+        place: input
+        name: reason
+        ref: $reason
+        java: input.getReason()
+        type: java.lang.String
+        base: string
+      - path: resume_on
+        place: input
+        name: resumeOn
+        ref: $resume_on
+        java: input.getResumeOn()
+        type: java.time.LocalDate
+        base: date
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: reason
+        place: input
+        name: reason
+        ref: $reason
+        java: input.getReason()
+        type: java.lang.String
+        base: string
+      - path: resume_on
+        place: input
+        name: resumeOn
+        ref: $resume_on
+        java: input.getResumeOn()
+        type: java.time.LocalDate
+        base: date
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
+        kind: write
+        call: TodoMapper.suspendTodo
+        method: JMTH-todo.suspendTodo
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 7
+        kind: write
+        call: TodoMapper.insertTodoHistory
+        method: JMTH-todo.insertTodoHistory
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+  - id: SPROG-todo-task.finish
+    source: DOC-processes.todo-task.finish
+    input: SINPUT-todo-task.finish
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: todo_id
+        place: self
+        name: todoId
+        java: original.getTodoId()
+        type: java.lang.String
+      - path: seq
+        place: self
+        name: seq
+        java: original.getSeq()
+        type: java.lang.Long
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: done
+        place: self
+        name: done
+        java: original.getDone()
+        type: java.lang.Boolean
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+    primary: JMTH-todo-task.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoTaskMapper.findById
+        method: JMTH-todo-task.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: write
+        call: TodoTaskMapper.todoTaskFinish
+        method: JMTH-todo-task.todoTaskFinish
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 4
+        kind: write
+        call: TodoMapper.todoTaskFinish
+        method: JMTH-todo.todoTaskFinish
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: todoId
+            accessor: TodoId
+            type: java.lang.String
+            binding:
+              path: todo_id
+              place: self
+              java: original.getTodoId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+      - index: 5
+        kind: check
+        call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: todoId
+            accessor: TodoId
+            type: java.lang.String
+            binding:
+              path: todo_id
+              place: self
+              java: original.getTodoId()
+              type: java.lang.String
+            typeMatches: true
