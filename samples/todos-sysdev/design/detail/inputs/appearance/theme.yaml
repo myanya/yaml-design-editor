@@ -1,0 +1,41 @@
+inputId: INPUT-application-theme
+theme:
+  name: NEON OPS
+  description: ゲームの情報パネルを思わせるサイバーパンク。濃紺の面、シアンの操作、マゼンタの補助線。日本語の本文と入力を読みやすくする。
+  implementation: css
+  colors:
+    background: '#080D19'
+    surface: '#101B2D'
+    raised: '#17263B'
+    text: '#E7F3FF'
+    muted: '#A9BDD3'
+    line: '#59758F'
+    primary: '#63F5EC'
+    secondary: '#F6A4EF'
+    success: '#8DF5BB'
+    warning: '#FFD27A'
+    danger: '#FF9CA8'
+    ink: '#06131C'
+  dimensions:
+    body: 16px
+    small: 14px
+    heading: 32px
+    spaceSmall: 8px
+    spaceMedium: 16px
+    spaceLarge: 32px
+    radius: 4px
+    lineHeight: '1.7'
+    widthSmall: 640px
+    widthMedium: 800px
+    widthLarge: 1280px
+  fonts:
+    body: '"Yu Gothic UI", "Meiryo", sans-serif'
+    display: '"Bahnschrift", "Yu Gothic UI", sans-serif'
+    mono: '"Cascadia Mono", "Consolas", monospace'
+  motion:
+    duration: 120
+    reducedMotion: true
+  preview:
+    title: デザイン確認
+    subtitle: 配色・部品・入力検査を確認するための画面です。業務データは更新しません。
+reason: オーナー指定のゲーム風サイバーパンク。外部フォントや Node の工程に依存せず、YDE の確定項目から通常の CSS と確認画面を生成する。

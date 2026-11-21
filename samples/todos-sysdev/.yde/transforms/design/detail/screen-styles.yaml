@@ -1,5 +1,5 @@
 id: screen-styles
-name: 画面のクラスの対応表（Tailwind CSS）
+name: 画面のクラスと CSS の対応表
 description: 導出・方式の既定値・追加・個別補正を合成する。確定値を既存ビューと後段の生成で共有し、全体の検査を通して保存する
 scope: business
 dependsOn:

@@ -1,0 +1,871 @@
+# 生成物（application-web-forms）: 手で直さず、業務モデルか生成の定義（design/detail/application-web-forms.yaml）を直して作り直します（CLI generate）。
+id: APP-web-forms
+forms:
+  - id: JFORM-add-category
+    source: DOC-screen-designs-operations.add-category
+    className: AddCategoryForm
+    beanName: addCategoryForm
+    fields:
+      - name: name
+        item: name
+        type: String
+        accessor: Name
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: カテゴリ名を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: カテゴリ名は100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: カテゴリ名の書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+    classes: []
+  - id: JFORM-add-tag
+    source: DOC-screen-designs-operations.add-tag
+    className: AddTagForm
+    beanName: addTagForm
+    fields:
+      - name: name
+        item: name
+        type: String
+        accessor: Name
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: タグ名を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: タグ名は100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: タグ名の書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+    classes: []
+  - id: JFORM-add-todo-comment
+    source: DOC-screen-designs-operations.add-todo-comment
+    className: AddTodoCommentForm
+    beanName: addTodoCommentForm
+    fields:
+      - name: date
+        item: date
+        type: LocalDate
+        accessor: Date
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 記録日を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: NotNull
+          - name: DateTimeFormat
+            iso: DATE
+      - name: body
+        item: body
+        type: String
+        accessor: Body
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: コメント本文を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: コメント本文は1文字以上で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+    classes: []
+  - id: JFORM-add-todo-task
+    source: DOC-screen-designs-operations.add-todo-task
+    className: AddTodoTaskForm
+    beanName: addTodoTaskForm
+    fields:
+      - name: title
+        item: title
+        type: String
+        accessor: Title
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 作業を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: 作業は100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: 作業の書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+    classes: []
+  - id: JFORM-cancel-todo
+    source: DOC-screen-designs-operations.cancel-todo
+    className: CancelTodoForm
+    beanName: cancelTodoForm
+    fields:
+      - name: reason
+        item: reason
+        type: String
+        accessor: Reason
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 中止理由を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: 中止理由は1文字以上で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+    classes: []
+  - id: JFORM-complete-todo
+    source: DOC-screen-designs-operations.complete-todo
+    className: CompleteTodoForm
+    beanName: completeTodoForm
+    fields:
+      - name: date
+        item: date
+        type: LocalDate
+        accessor: Date
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 完了日を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: NotNull
+          - name: DateTimeFormat
+            iso: DATE
+      - name: result
+        item: result
+        type: String
+        accessor: Result
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 完了結果を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: 完了結果は1文字以上で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+    classes: []
+  - id: JFORM-edit-todo
+    source: DOC-screen-designs-operations.edit-todo
+    className: EditTodoForm
+    beanName: editTodoForm
+    fields:
+      - name: title
+        item: title
+        type: String
+        accessor: Title
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: タイトルは100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: タイトルの書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: Size
+            min: 1
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+      - name: summary
+        item: summary
+        type: String
+        accessor: Summary
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: 概要は100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: 概要の書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: Size
+            min: 1
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+      - name: category
+        item: category
+        type: String
+        accessor: Category
+        string: true
+        annotations: []
+        validations: []
+      - name: tags
+        item: tags
+        type: List<String>
+        accessor: Tags
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@org.hibernate.validator.constraints.UniqueElements(message = '
+          - valid: true
+            literal: true
+            value: タグに同じものを 2 回選べません
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: UniqueElements
+      - name: createdOn
+        item: created_on
+        type: LocalDate
+        accessor: CreatedOn
+        annotations:
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: DateTimeFormat
+            iso: DATE
+      - name: dueOn
+        item: due_on
+        type: LocalDate
+        accessor: DueOn
+        annotations:
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: DateTimeFormat
+            iso: DATE
+      - name: details
+        item: details
+        type: String
+        accessor: Details
+        string: true
+        annotations: []
+        validations: []
+      - name: result
+        item: result
+        type: String
+        accessor: Result
+        string: true
+        annotations: []
+        validations: []
+      - name: comments
+        item: comments
+        type: List<EditTodoCommentsRow>
+        accessor: Comments
+        annotations:
+          - valid: true
+            plain: true
+            raw: |
+              @jakarta.validation.Valid
+        validations:
+          - name: Valid
+      - name: clear
+        item: clear
+        type: EditTodoClear
+        accessor: Clear
+        annotations: []
+        validations: []
+    classes:
+      - name: EditTodoCommentsRow
+        fields:
+          - name: date
+            item: date
+            type: LocalDate
+            accessor: Date
+            annotations:
+              - valid: true
+                plain: true
+                raw: '@jakarta.validation.constraints.NotNull(message = '
+              - valid: true
+                literal: true
+                value: 日付を入力してください
+              - valid: true
+                plain: true
+                raw: |
+                  )
+              - valid: true
+                plain: true
+                raw: |
+                  @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            validations:
+              - name: NotNull
+              - name: DateTimeFormat
+                iso: DATE
+          - name: body
+            item: body
+            type: String
+            accessor: Body
+            string: true
+            annotations:
+              - valid: true
+                plain: true
+                raw: '@jakarta.validation.constraints.NotNull(message = '
+              - valid: true
+                literal: true
+                value: コメント本文を入力してください
+              - valid: true
+                plain: true
+                raw: |
+                  )
+            validations:
+              - name: NotNull
+      - name: EditTodoClear
+        fields:
+          - name: category
+            item: category
+            type: Boolean
+            accessor: Category
+            annotations: []
+            validations: []
+          - name: tags
+            item: tags
+            type: Boolean
+            accessor: Tags
+            annotations: []
+            validations: []
+          - name: dueOn
+            item: due_on
+            type: Boolean
+            accessor: DueOn
+            annotations: []
+            validations: []
+          - name: details
+            item: details
+            type: Boolean
+            accessor: Details
+            annotations: []
+            validations: []
+          - name: result
+            item: result
+            type: Boolean
+            accessor: Result
+            annotations: []
+            validations: []
+          - name: comments
+            item: comments
+            type: Boolean
+            accessor: Comments
+            annotations: []
+            validations: []
+  - id: JFORM-register-todo
+    source: DOC-screen-designs-operations.register-todo
+    className: RegisterTodoForm
+    beanName: registerTodoForm
+    fields:
+      - name: title
+        item: title
+        type: String
+        accessor: Title
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: タイトルを入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: タイトルは100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: タイトルの書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+      - name: summary
+        item: summary
+        type: String
+        accessor: Summary
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 概要を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: 概要は100文字以内で入力してください
+          - valid: true
+            plain: true
+            raw: ', max = 100'
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+          - valid: true
+            literal: true
+            value: 概要の書き方が正しくありません
+          - valid: true
+            plain: true
+            raw: ', regexp = '
+          - valid: true
+            literal: true
+            value: ^[^\r\n]*$
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            max: 100
+          - name: Pattern
+            regexp: ^[^\r\n]*$
+      - name: category
+        item: category
+        type: String
+        accessor: Category
+        string: true
+        annotations: []
+        validations: []
+      - name: tags
+        item: tags
+        type: List<String>
+        accessor: Tags
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@org.hibernate.validator.constraints.UniqueElements(message = '
+          - valid: true
+            literal: true
+            value: タグに同じものを 2 回選べません
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: UniqueElements
+      - name: follows
+        item: follows
+        type: String
+        accessor: Follows
+        string: true
+        annotations: []
+        validations: []
+      - name: due
+        item: due
+        type: LocalDate
+        accessor: Due
+        annotations:
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: DateTimeFormat
+            iso: DATE
+      - name: details
+        item: details
+        type: String
+        accessor: Details
+        string: true
+        annotations: []
+        validations: []
+    classes: []
+  - id: JFORM-resume-todo
+    source: DOC-screen-designs-operations.resume-todo
+    className: ResumeTodoForm
+    beanName: resumeTodoForm
+    fields:
+      - name: date
+        item: date
+        type: LocalDate
+        accessor: Date
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 再開日を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: NotNull
+          - name: DateTimeFormat
+            iso: DATE
+      - name: note
+        item: note
+        type: String
+        accessor: Note
+        string: true
+        annotations: []
+        validations: []
+    classes: []
+  - id: JFORM-suspend-todo
+    source: DOC-screen-designs-operations.suspend-todo
+    className: SuspendTodoForm
+    beanName: suspendTodoForm
+    fields:
+      - name: date
+        item: date
+        type: LocalDate
+        accessor: Date
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 中断日を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: NotNull
+          - name: DateTimeFormat
+            iso: DATE
+      - name: reason
+        item: reason
+        type: String
+        accessor: Reason
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 中断理由を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: 中断理由は1文字以上で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+          - name: Size
+            min: 1
+      - name: resumeOn
+        item: resume_on
+        type: LocalDate
+        accessor: ResumeOn
+        annotations:
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: DateTimeFormat
+            iso: DATE
+    classes: []

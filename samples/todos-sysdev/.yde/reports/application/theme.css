@@ -1,0 +1,61 @@
+/* 画面デザイン台帳と確定した部品のクラスから生成。 */
+:root {{
+  color-scheme: dark;
+{#each record.theme.colors}
+  --{key}: {value};
+{/each}
+  --body: {record.theme.dimensions.body};
+  --small: {record.theme.dimensions.small};
+  --heading: {record.theme.dimensions.heading};
+  --space-small: {record.theme.dimensions.spaceSmall};
+  --space-medium: {record.theme.dimensions.spaceMedium};
+  --space-large: {record.theme.dimensions.spaceLarge};
+  --radius: {record.theme.dimensions.radius};
+  --width-small: {record.theme.dimensions.widthSmall};
+  --width-medium: {record.theme.dimensions.widthMedium};
+  --width-large: {record.theme.dimensions.widthLarge};
+  --font-body: {record.theme.fonts.body};
+  --font-display: {record.theme.fonts.display};
+  --font-mono: {record.theme.fonts.mono};
+  --duration: {record.theme.motion.duration}ms;
+}
+* {{ box-sizing: border-box; }
+body {{ margin: 0; background: var(--background); color: var(--text); font: var(--body)/{record.theme.dimensions.lineHeight} var(--font-body); }
+body::before {{ content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: linear-gradient(color-mix(in srgb, var(--line) 15%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--line) 15%, transparent) 1px, transparent 1px); background-size: 48px 48px; }
+h1, h2, h3, p {{ margin: 0; }
+h1 {{ font: 700 var(--heading)/1.35 var(--font-display); letter-spacing: .04em; overflow-wrap: anywhere; }
+h2 {{ font-size: 1.2rem; }
+h3 {{ font-size: 1rem; }
+a {{ color: var(--primary); text-underline-offset: .25em; }
+button, input, textarea, select {{ font: inherit; }
+button, .button-primary, .button-secondary {{ display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: .55em 1.1em; border-radius: var(--radius); text-decoration: none; cursor: pointer; transition: box-shadow var(--duration), border-color var(--duration); }
+button:hover, .button-primary:hover, .button-secondary:hover {{ box-shadow: 0 0 0 1px var(--primary); }
+:focus-visible {{ outline: 3px solid var(--primary); outline-offset: 4px; }
+button:disabled {{ cursor: default; opacity: .55; box-shadow: none; }
+input:not([type=checkbox]):not([type=hidden]), select, textarea {{ min-height: 44px; width: 100%; max-width: 100%; padding: .65em .8em; }
+input[aria-invalid=true], textarea[aria-invalid=true], select[aria-invalid=true] {{ border-color: var(--danger); }
+textarea {{ resize: vertical; }
+label {{ font-weight: 600; }
+fieldset {{ margin: 0; padding: 0; border: 0; min-width: 0; }
+legend {{ margin-bottom: var(--space-small); font-weight: 600; }
+.choices label {{ display: inline-flex; align-items: center; gap: var(--space-small); min-height: 44px; font-weight: 400; }
+th, td {{ padding: .8em; border-bottom: 1px solid var(--line); vertical-align: top; }
+th {{ color: var(--muted); font-size: var(--small); font-weight: 600; }
+tbody tr:hover {{ background: var(--raised); }
+dd {{ margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+dt {{ color: var(--muted); }
+{#each styles.classes}
+.{class} {{ {applies}; }
+{/each}
+.muted, .help {{ color: var(--muted); }
+.help, .field-error {{ font-size: var(--small); }
+.skip-link:focus {{ top: var(--space-small); }
+@media (max-width: 760px) {{
+  .panel-grid, .cols-2 {{ grid-template-columns: minmax(0, 1fr); }
+  .shell-header {{ padding: var(--space-medium); }
+  .facts {{ grid-template-columns: minmax(0, 1fr); }
+  .facts dd {{ padding-bottom: var(--space-small); }
+}
+@media (prefers-reduced-motion: reduce) {{
+  *, *::before, *::after {{ animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

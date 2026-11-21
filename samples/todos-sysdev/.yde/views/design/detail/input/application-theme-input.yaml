@@ -1,0 +1,10 @@
+id: application-theme-input
+name: 確定した画面デザイン
+rows:
+  idPattern: APP-theme
+  schemaIds:
+    - application-theme
+columns:
+  - label: record
+    path: .
+    schemaId: application-theme

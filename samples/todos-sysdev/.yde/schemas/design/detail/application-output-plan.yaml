@@ -43,6 +43,9 @@ root:
               - key: service
                 type: string
                 pattern: ^JSERVICE-[A-Za-z0-9_]+$
+              - key: form
+                type: string
+                pattern: ^JFORM-[A-Za-z0-9_.-]+$
             unknownFields: error
           - key: destination
             type: string

@@ -19,6 +19,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/ServiceFoundationTest.java') -Destination $tests
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/OperationRunnerTest.java') -Destination $tests
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/ServiceIntegrationTest.java') -Destination $tests
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../verification/WebDesignIntegrationTest.java') -Destination $tests
     $env:GRADLE_USER_HOME = Join-Path $env:USERPROFILE '.gradle'
     & (Join-Path $copy 'gradlew.bat') -p $copy test bootJar projects --no-daemon --no-parallel --console=plain --max-workers=2
     if ($LASTEXITCODE -ne 0) { throw "アプリの検証に失敗しました。結果: $copy/build/reports/tests/test/index.html" }

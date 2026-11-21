@@ -1,0 +1,35 @@
+id: application-theme-input-gate
+name: 画面デザイン台帳を検査する
+scope: design
+dependsOn: []
+output: design/detail/composed/appearance/input-check.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            oneOf:
+              - application-theme-values
+              - application-theme-ledger
+        $then:
+          $copy: declared
+    documents:
+      design/detail/inputs/appearance/theme.yaml:
+        $apply: record
+        $with:
+          row:
+            $view: application-theme-ledger-input
+            $one: true
+build:
+  id: SYS-application-theme-input-check
+  status: validated
+rules:
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row

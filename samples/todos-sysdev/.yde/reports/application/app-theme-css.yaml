@@ -1,0 +1,30 @@
+id: app-theme-css
+name: 画面デザインの CSS
+build:
+  config:
+    $apply: record
+    $with:
+      row:
+        $view: application-configuration-input
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-theme-input
+        $one: true
+  styles:
+    $apply: record
+    $with:
+      row:
+        $view: screen-styles-input
+        $one: true
+rules:
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: theme.css
+output: app/src/main/resources/static/css/theme.css

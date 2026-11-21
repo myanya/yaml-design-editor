@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>デザイン確認 | NEON OPS</title>
+  <link rel="stylesheet" th:href="@{/css/theme.css}" href="/css/theme.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="shell-header">
+    <a class="brand" href="#main">NEON OPS</a>
+    <nav class="actions" aria-label="確認する部品"><a href="#components">入力と通知</a><a href="#palette">配色</a></nav>
+  </header>
+  <main id="main" class="page w-l">
+    <div class="hero">
+      <p class="eyebrow">Interface / Design preview</p>
+      <h1>デザイン確認</h1>
+      <p class="muted">配色・部品・入力検査を確認するための画面です。業務データは更新しません。</p>
+    </div>
+    <div class="panel-grid" id="components">
+      <section class="section" aria-labelledby="input-heading">
+        <div class="panel-title"><h2 id="input-heading">入力フィールド</h2><span class="eyebrow">01 / Input</span></div>
+        <p class="help">登録フォームの入力検査を試せます。値の保存や業務処理は行いません。</p>
+        <div class="notice-done" th:if="${accepted}" role="status">入力の形式を確認しました。データは保存していません。</div>
+        <form class="form" method="post" th:action="@{/design-preview}" th:object="${registerTodoForm}">
+          <div class="notice-errors" th:if="${#fields.hasAnyErrors()}" role="alert">入力内容を確認してください。</div>
+          <div class="field">
+            <label for="title">タイトル<span class="required">必須</span></label>
+            <input class="control-text" id="title" th:field="*{title}" aria-describedby="title-help title-error" th:attr="aria-invalid=${#fields.hasErrors('title')}">
+            <p class="help" id="title-help">確認用の入力です。保存はされません。</p>
+            <p class="field-error" id="title-error" th:errors="*{title}"></p>
+          </div>
+          <div class="field">
+            <label for="summary">概要<span class="required">必須</span></label>
+            <input class="control-text" id="summary" th:field="*{summary}" aria-describedby="summary-error" th:attr="aria-invalid=${#fields.hasErrors('summary')}">
+            <p class="field-error" id="summary-error" th:errors="*{summary}"></p>
+          </div>
+          <div class="field"><label for="due">期限</label><input class="control-date" type="date" id="due" th:field="*{due}" aria-describedby="due-error"><p class="field-error" id="due-error" th:errors="*{due}"></p></div>
+          <div class="field"><label for="details">詳細</label><textarea class="control-textarea" id="details" rows="3" th:field="*{details}"></textarea></div>
+          <div class="actions"><button class="button-primary" type="submit">入力検査を試す</button><a class="button-secondary" th:href="@{/design-preview}">入力を戻す</a></div>
+        </form>
+      </section>
+      <div class="form">
+        <section class="section" aria-labelledby="state-heading">
+          <div class="panel-title"><h2 id="state-heading">状態と通知</h2><span class="eyebrow">02 / Feedback</span></div>
+          <p class="help">表示例です。色と文字を併用して状態を伝えます。</p>
+          <div class="actions"><span class="badge status-active">対応中</span><span class="badge status-done">完了</span><span class="badge status-waiting">待機</span></div>
+          <p class="notice-done">完了：処理が完了しました。</p>
+          <p class="notice-refusal">注意：未完了の作業があります。</p>
+          <p class="notice-errors">入力エラー：内容を確認してください。</p>
+        </section>
+        <section class="section" aria-labelledby="table-heading">
+          <div class="panel-title"><h2 id="table-heading">一覧の表示例</h2><span class="eyebrow">03 / Table</span></div>
+          <div class="table-scroll"><table class="table"><caption class="help">デザイン確認用の架空の値</caption><thead><tr><th scope="col">ID</th><th scope="col">タイトル</th><th scope="col">状態</th></tr></thead><tbody><tr><td>DEMO-001</td><td>画面デザインの確認</td><td><span class="badge status-active">対応中</span></td></tr><tr><td>DEMO-002</td><td>入力欄と通知の確認</td><td><span class="badge status-done">完了</span></td></tr></tbody></table></div>
+        </section>
+      </div>
+    </div>
+    <section class="section" id="palette" aria-labelledby="palette-heading">
+      <div class="panel-title"><h2 id="palette-heading">デザイン台帳の配色</h2><span class="eyebrow">04 / Palette</span></div>
+      <div class="palette">
+        <div class="swatch" style="--swatch: #080D19"><span>background</span><span>#080D19</span></div>
+        <div class="swatch" style="--swatch: #101B2D"><span>surface</span><span>#101B2D</span></div>
+        <div class="swatch" style="--swatch: #17263B"><span>raised</span><span>#17263B</span></div>
+        <div class="swatch" style="--swatch: #E7F3FF"><span>text</span><span>#E7F3FF</span></div>
+        <div class="swatch" style="--swatch: #A9BDD3"><span>muted</span><span>#A9BDD3</span></div>
+        <div class="swatch" style="--swatch: #59758F"><span>line</span><span>#59758F</span></div>
+        <div class="swatch" style="--swatch: #63F5EC"><span>primary</span><span>#63F5EC</span></div>
+        <div class="swatch" style="--swatch: #F6A4EF"><span>secondary</span><span>#F6A4EF</span></div>
+        <div class="swatch" style="--swatch: #8DF5BB"><span>success</span><span>#8DF5BB</span></div>
+        <div class="swatch" style="--swatch: #FFD27A"><span>warning</span><span>#FFD27A</span></div>
+        <div class="swatch" style="--swatch: #FF9CA8"><span>danger</span><span>#FF9CA8</span></div>
+        <div class="swatch" style="--swatch: #06131C"><span>ink</span><span>#06131C</span></div>
+      </div>
+      <p class="help">ゲームの情報パネルを思わせるサイバーパンク。濃紺の面、シアンの操作、マゼンタの補助線。日本語の本文と入力を読みやすくする。</p>
+    </section>
+    <footer class="footer">画面の幅を狭めた場合と、キーボードの Tab による移動も確認できます。</footer>
+  </main>
+</body>
+</html>

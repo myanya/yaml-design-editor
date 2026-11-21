@@ -1,0 +1,10 @@
+id: application-web-forms-input
+name: 確定した生成用 Form
+rows:
+  idPattern: JFORM-*
+  schemaIds:
+    - application-web-forms
+columns:
+  - label: record
+    path: .
+    schemaId: application-web-forms

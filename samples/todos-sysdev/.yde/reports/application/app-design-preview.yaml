@@ -1,0 +1,109 @@
+id: app-design-preview
+name: 画面デザインの確認ページ
+build:
+  config:
+    $apply: record
+    $with:
+      row:
+        $view: application-configuration-input
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-theme-input
+        $one: true
+  styles:
+    $apply: record
+    $with:
+      row:
+        $view: screen-styles-input
+        $one: true
+  previewForm:
+    $apply: record
+    $with:
+      row:
+        $view: application-web-forms-input
+        $where:
+          - path: id
+            equals: JFORM-register-todo
+        $one: true
+  previewFields:
+    $apply: preview-fields
+    $with:
+      form:
+        $apply: record
+        $with:
+          row:
+            $view: application-web-forms-input
+            $where:
+              - path: id
+                equals: JFORM-register-todo
+            $one: true
+rules:
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: preview-fields
+    with:
+      - form
+    build:
+      title:
+        $apply: preview-first
+        $with:
+          items:
+            $each: fields
+            $of: form
+            $build:
+              $when:
+                - path: item
+                  equals: title
+              $then:
+                $copy: name
+      summary:
+        $apply: preview-first
+        $with:
+          items:
+            $each: fields
+            $of: form
+            $build:
+              $when:
+                - path: item
+                  equals: summary
+              $then:
+                $copy: name
+      due:
+        $apply: preview-first
+        $with:
+          items:
+            $each: fields
+            $of: form
+            $build:
+              $when:
+                - path: item
+                  equals: due
+              $then:
+                $copy: name
+      details:
+        $apply: preview-first
+        $with:
+          items:
+            $each: fields
+            $of: form
+            $build:
+              $when:
+                - path: item
+                  equals: details
+              $then:
+                $copy: name
+  - id: preview-first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+template: design-preview.html
+output: app/src/main/resources/templates/design-preview.html

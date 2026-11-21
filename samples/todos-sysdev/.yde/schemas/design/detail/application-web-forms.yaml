@@ -1,0 +1,144 @@
+id: application-web-forms
+name: 生成する入力フォームと検査
+kind: document
+match: design/detail/final/application-web-forms.yaml
+definitions:
+  項目:
+    type: object
+    unknownFields: allow
+    fields:
+      - key: name
+        type: string
+        required: true
+        pattern: >-
+          ^(?!(?:class|public|private|static|void|true|false|null|return|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|extends|implements|interface|enum|package|import|this|super|final|int|long|boolean|double|float|byte|short|char|const|goto|assert|break|continue|do|instanceof|native|protected|synchronized|transient|volatile|abstract|strictfp|_)$)[A-Za-z][A-Za-z0-9]*$
+      - key: item
+        type: string
+        required: true
+      - key: accessor
+        type: string
+        required: true
+        pattern: >-
+          ^(?!(?:class|public|private|static|void|true|false|null|return|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|extends|implements|interface|enum|package|import|this|super|final|int|long|boolean|double|float|byte|short|char|const|goto|assert|break|continue|do|instanceof|native|protected|synchronized|transient|volatile|abstract|strictfp|_)$)[A-Za-z][A-Za-z0-9]*$
+      - key: type
+        type: string
+        required: true
+        pattern: >-
+          ^(?:String|Boolean|Long|BigDecimal|LocalDate|[A-Z][A-Za-z0-9]*)(?:<String|<Boolean|<Long|<BigDecimal|<LocalDate|<[A-Z][A-Za-z0-9]*)?>?$
+      - key: annotations
+        type: array
+        required: true
+        item:
+          type: object
+          unknownFields: allow
+          fields:
+            - key: valid
+              type: boolean
+              required: true
+            - key: plain
+              type: boolean
+            - key: raw
+              type: string
+            - key: literal
+              type: boolean
+            - key: value
+              type: string
+          constraints:
+            - id: supported
+              check:
+                - eq:
+                    - path: valid
+                    - true
+              level: error
+              message: Form の未対応の検査、または確定メッセージの不足があります
+      - key: validations
+        type: array
+        required: true
+        item:
+          type: object
+          unknownFields: error
+          fields:
+            - key: name
+              type: enum
+              required: true
+              values:
+                - NotNull
+                - Size
+                - Pattern
+                - UniqueElements
+                - Valid
+                - DateTimeFormat
+            - key: min
+              type: int
+              min: 0
+              max: 2147483647
+            - key: max
+              type: int
+              min: 0
+              max: 2147483647
+            - key: regexp
+              type: string
+            - key: iso
+              type: enum
+              values:
+                - DATE
+root:
+  type: object
+  unknownFields: allow
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: forms
+      type: array
+      required: true
+      unique:
+        - id
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - key: id
+            type: id
+            required: true
+          - key: source
+            type: string
+            required: true
+          - key: className
+            type: string
+            required: true
+            pattern: >-
+              ^(?!(?:class|public|private|static|void|true|false|null|return|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|extends|implements|interface|enum|package|import|this|super|final|int|long|boolean|double|float|byte|short|char|const|goto|assert|break|continue|do|instanceof|native|protected|synchronized|transient|volatile|abstract|strictfp|_)$)[A-Za-z][A-Za-z0-9]*$
+          - key: beanName
+            type: string
+            required: true
+            pattern: >-
+              ^(?!(?:class|public|private|static|void|true|false|null|return|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|extends|implements|interface|enum|package|import|this|super|final|int|long|boolean|double|float|byte|short|char|const|goto|assert|break|continue|do|instanceof|native|protected|synchronized|transient|volatile|abstract|strictfp|_)$)[A-Za-z][A-Za-z0-9]*$
+          - key: fields
+            type: array
+            required: true
+            unique:
+              - name
+            item:
+              type: application-web-forms#項目
+          - key: classes
+            type: array
+            required: true
+            unique:
+              - name
+            item:
+              type: object
+              unknownFields: allow
+              fields:
+                - key: name
+                  type: string
+                  required: true
+                  pattern: >-
+                    ^(?!(?:class|public|private|static|void|true|false|null|return|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|extends|implements|interface|enum|package|import|this|super|final|int|long|boolean|double|float|byte|short|char|const|goto|assert|break|continue|do|instanceof|native|protected|synchronized|transient|volatile|abstract|strictfp|_)$)[A-Za-z][A-Za-z0-9]*$
+                - key: fields
+                  type: array
+                  required: true
+                  unique:
+                    - name
+                  item:
+                    type: application-web-forms#項目

@@ -9,6 +9,9 @@ dependsOn:
   - application-process-gate
   - application-service-bindings
   - application-service-programs
+  - application-theme
+  - screen-styles
+  - application-web-forms
 output: design/detail/final/application-output-plan.yaml
 build:
   id: APP-output-plan
@@ -128,3 +131,27 @@ build:
           params:
             service:
               $copy: id
+      - - id: OUTPUT-app-theme-css
+          report: app-theme-css
+          params: {}
+        - id: OUTPUT-app-design-preview
+          report: app-design-preview
+          params: {}
+        - id: OUTPUT-app-design-preview-controller
+          report: app-design-preview-controller
+          params: {}
+      - $each:
+          $view: application-web-forms-input
+        $build:
+          id:
+            $format: OUTPUT-{id}
+          report: app-web-form
+          params:
+            form:
+              $copy: id
+      - - id: OUTPUT-app-web-binding
+          report: app-web-binding
+          params: {}
+        - id: OUTPUT-app-validation-messages
+          report: app-validation-messages
+          params: {}

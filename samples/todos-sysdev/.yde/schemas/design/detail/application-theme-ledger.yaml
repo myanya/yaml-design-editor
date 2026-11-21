@@ -1,0 +1,17 @@
+id: application-theme-ledger
+name: 画面デザインの台帳
+kind: document
+match: design/detail/inputs/appearance/theme.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: theme
+      type: application-theme-values#テーマ
+      required: true
+    - key: reason
+      type: text
+      required: true

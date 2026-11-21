@@ -106,7 +106,8 @@ body:
         places: Controller・Form・Thymeleaf・CSS・JS・メッセージ・セッション・エラー応答
         prereq: R53-10 の業務処理と画面設計の対応範囲の確認
         done_criteria: 一覧・詳細・入力・確認・実行・エラー表示が接続し、Form とメッセージの制約が一致する
-        state: todo
+        state: in-progress
+        state_note: 画面デザイン台帳と通常のCSS・確認画面・入力検査付きFormを接続中。業務の一覧・詳細と確認から確定までのControllerは残る
 sections:
   - title: 現在の材料とレビュー状態
     body:

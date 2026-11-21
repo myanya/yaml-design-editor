@@ -183,3 +183,58 @@ outputs:
     report: app-service
     params:
       service: JSERVICE-TodoTaskService
+  - id: OUTPUT-app-theme-css
+    report: app-theme-css
+    params: {}
+  - id: OUTPUT-app-design-preview
+    report: app-design-preview
+    params: {}
+  - id: OUTPUT-app-design-preview-controller
+    report: app-design-preview-controller
+    params: {}
+  - id: OUTPUT-JFORM-add-category
+    report: app-web-form
+    params:
+      form: JFORM-add-category
+  - id: OUTPUT-JFORM-add-tag
+    report: app-web-form
+    params:
+      form: JFORM-add-tag
+  - id: OUTPUT-JFORM-add-todo-comment
+    report: app-web-form
+    params:
+      form: JFORM-add-todo-comment
+  - id: OUTPUT-JFORM-add-todo-task
+    report: app-web-form
+    params:
+      form: JFORM-add-todo-task
+  - id: OUTPUT-JFORM-cancel-todo
+    report: app-web-form
+    params:
+      form: JFORM-cancel-todo
+  - id: OUTPUT-JFORM-complete-todo
+    report: app-web-form
+    params:
+      form: JFORM-complete-todo
+  - id: OUTPUT-JFORM-edit-todo
+    report: app-web-form
+    params:
+      form: JFORM-edit-todo
+  - id: OUTPUT-JFORM-register-todo
+    report: app-web-form
+    params:
+      form: JFORM-register-todo
+  - id: OUTPUT-JFORM-resume-todo
+    report: app-web-form
+    params:
+      form: JFORM-resume-todo
+  - id: OUTPUT-JFORM-suspend-todo
+    report: app-web-form
+    params:
+      form: JFORM-suspend-todo
+  - id: OUTPUT-app-web-binding
+    report: app-web-binding
+    params: {}
+  - id: OUTPUT-app-validation-messages
+    report: app-validation-messages
+    params: {}

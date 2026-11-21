@@ -1,0 +1,16 @@
+id: appearance-definition
+name: 画面デザイン
+kind: dashboard
+sections:
+  - id: theme
+    label: 配色・文字・余白
+    view: application-theme-values
+  - id: classes
+    label: 部品のクラス
+    view: system-document-content
+    filter:
+      match:
+        - node:
+            id: DOC-screen-styles.*
+            bind: design
+      expect: exists

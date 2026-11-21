@@ -1,9 +1,7 @@
 id: screen-styles
-name: 画面のクラスの対応表（Tailwind CSS）
+name: 画面のクラスと CSS の対応表
 kind: document
-description: >-
-  詳細設計。画面設計書の部品と物理パラメータを写す、決まった名前のクラスと、その中身（Tailwind CSS のユーティリティ）。③では @apply で CSS にする。
-  生成物（.yde/transforms/design/detail/screen-styles.yaml）で、手で直さない
+description: 画面部品と CSS 宣言の確定した対応。配色・文字・余白は画面デザイン台帳の CSS 変数を使う。
 match: design/detail/final/screen-designs/styles.yaml
 root:
   type: object
@@ -46,7 +44,7 @@ root:
             type: string
             required: true
           - key: applies
-            label: Tailwind CSS のユーティリティ
+            label: CSS の宣言
             type: string
     - key: designKind
       type: system-inputs#種類

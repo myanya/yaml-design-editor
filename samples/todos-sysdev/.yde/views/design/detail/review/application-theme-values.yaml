@@ -1,0 +1,22 @@
+id: application-theme-values
+name: 画面デザインの確定値
+rows:
+  idPattern: APP-theme
+  schemaIds:
+    - application-theme
+columns:
+  - label: 名前
+    path: theme.name
+    schemaId: application-theme
+  - label: 方針
+    path: theme.description
+    schemaId: application-theme
+  - label: 値
+    path: theme
+    schemaId: application-theme
+  - label: 追加の根拠
+    path: reason
+    schemaId: application-theme
+  - label: 入力
+    path: source
+    schemaId: application-theme

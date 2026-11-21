@@ -1,0 +1,203 @@
+id: application-theme-values
+name: 画面デザインの指定値
+kind: library
+definitions:
+  テーマ:
+    type: object
+    unknownFields: error
+    fields:
+      - key: name
+        type: string
+        required: true
+        maxLength: 40
+        label: 名前
+      - key: description
+        type: string
+        required: true
+        label: デザインの方針
+      - key: implementation
+        type: enum
+        required: true
+        values:
+          - css
+        label: 出力方式
+      - key: colors
+        type: object
+        required: true
+        unknownFields: error
+        fields:
+          - key: background
+            type: string
+            required: true
+            label: 背景
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: surface
+            type: string
+            required: true
+            label: パネル
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: raised
+            type: string
+            required: true
+            label: 入力欄と段差
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: text
+            type: string
+            required: true
+            label: 本文
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: muted
+            type: string
+            required: true
+            label: 補足
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: line
+            type: string
+            required: true
+            label: 罫線
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: primary
+            type: string
+            required: true
+            label: 主要操作とフォーカス
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: secondary
+            type: string
+            required: true
+            label: 補助のアクセント
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: success
+            type: string
+            required: true
+            label: 完了
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: warning
+            type: string
+            required: true
+            label: 注意と拒否
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: danger
+            type: string
+            required: true
+            label: 入力の誤り
+            pattern: ^#[0-9A-Fa-f]{6}$
+          - key: ink
+            type: string
+            required: true
+            label: 明るいボタン上の文字
+            pattern: ^#[0-9A-Fa-f]{6}$
+        label: 配色
+      - key: dimensions
+        type: object
+        required: true
+        unknownFields: error
+        fields:
+          - key: body
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 本文
+          - key: small
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 補足の文字
+          - key: heading
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 見出し
+          - key: spaceSmall
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 小さい余白
+          - key: spaceMedium
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 標準の余白
+          - key: spaceLarge
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 大きい余白
+          - key: radius
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 角の丸み
+          - key: lineHeight
+            type: string
+            required: true
+            pattern: ^(1\.[5-9]|2(?:\.0)?)$
+            label: 行の高さ
+          - key: widthSmall
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 狭い画面幅
+          - key: widthMedium
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 標準の画面幅
+          - key: widthLarge
+            type: string
+            required: true
+            pattern: ^[1-9][0-9]{0,3}px$
+            label: 広い画面幅
+        label: 文字と余白・幅
+      - key: fonts
+        type: object
+        required: true
+        unknownFields: error
+        fields:
+          - key: body
+            type: string
+            required: true
+            pattern: ^[A-Za-z0-9 ,"-]+$
+            label: 本文
+          - key: display
+            type: string
+            required: true
+            pattern: ^[A-Za-z0-9 ,"-]+$
+            label: 見出し用
+          - key: mono
+            type: string
+            required: true
+            pattern: ^[A-Za-z0-9 ,"-]+$
+            label: 等幅
+        label: フォント
+      - key: motion
+        type: object
+        required: true
+        unknownFields: error
+        fields:
+          - key: duration
+            type: int
+            required: true
+            min: 0
+            max: 200
+            label: 変化の時間（ms）
+          - key: reducedMotion
+            type: enum
+            required: true
+            values:
+              - true
+            label: 動きを減らす設定を尊重
+        label: 動き
+      - key: preview
+        type: object
+        required: true
+        unknownFields: error
+        fields:
+          - key: title
+            type: string
+            required: true
+            label: 見出し
+          - key: subtitle
+            type: string
+            required: true
+            label: 説明
+        label: 確認用画面

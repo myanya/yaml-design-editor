@@ -1,7 +1,7 @@
 # アプリの生成と独立ビルド
 
 現在は、独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL、状態型・業務例外・全操作の Service を生成する。
-H2 で実際の保存・検索・更新・削除と業務処理を確認できる。Controller と画面は、[作業計画](application-generation-plan.md)の後続で追加する。
+H2 で実際の保存・検索・更新・削除と業務処理を確認できる。入力 Form とデザイン確認画面も生成する。業務の Controller と画面遷移は、[作業計画](application-generation-plan.md)の後続で追加する。
 設計書のレビュー完了や業務アプリの完成を意味しない。
 
 ## 入力と出力
@@ -24,7 +24,8 @@ H2 で実際の保存・検索・更新・削除と業務処理を確認でき�
 
 基本構造に、テーブルの行モデル、Mapper と対応する XML、DDL、状態型と業務例外を加える。
 Wrapper の JAR とスクリプトは、公式タスクで準備した固定資源をコピーする。
-Controller と画面はまだこの出力に含めない。Mapper の直接呼出しは、業務の前提や状態の検査を代行しない。
+デザイン台帳から CSS・確認用の Controller と Thymeleaf、画面設計から入力 Form とエラーメッセージを生成する。
+業務画面の Controller はまだ含めない。Mapper の直接呼出しは、業務の前提や状態の検査を代行しない。
 空の DB には起動時に DDL を適用し、必要なテーブルがそろっている既存 DB はそのまま使う。必要なテーブルが欠けていれば起動を止める。
 Flyway は使わない。既存の列・制約の比較や変更・データ移行は未対応なので、設計変更の検証には別の DB 名を使う。
 
@@ -86,7 +87,7 @@ Service は同じ状態設計の許可値と表示名を使い、違反の内容
 
 `final/application-service-inputs.yaml` は、確定したアクションの入力と処理の引数を対応付ける。
 日付・参照・配列・入れ子の型を共通の Java 型対応から引き、`service/input/` に入力クラスを生成する。未知の引数・型・使えない Java 名は拒否する。
-型や桁数などの入力検査は後続の Controller の担当で、この入力クラスにはまだ Bean Validation を付けない。
+型や桁数などの入力検査は `web.form` の Form の担当で、Service の入力クラスには Bean Validation を付けない。
 `final/application-service-bindings.yaml` は、入力・現在値・基準日・採番値と Mapper の引数の対応を保持する。
 親のキーや明細の所有者は処理設計に参照元を明記する。処理と Mapper の更新値・条件・更新対象が異なるとき、値の参照元や引数の型を解決できないときは生成を止める。
 状態の対象項目と許可される遷移は確定した状態設計を読む。遷移を補正するときは、基本設計のメッセージも内容をそろえる。
@@ -154,7 +155,8 @@ java -jar build/libs/todos-generated.jar
 ```
 
 `projects` に `todos-generated` だけが出ることと、テストの成功を確認する。
-起動時は 8085 番ポートを使う。まだ業務画面がないため `/` は 404 になる。終了は起動した端末で Ctrl+C。
+起動時は 8085 番ポートを使う。`/design-preview` でデザインと入力検査を確認できる。
+詳しくは [画面デザインの台帳と生成](appearance-generation.md) を参照する。業務画面は未接続のため `/` は 404 になる。終了は起動した端末で Ctrl+C。
 DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置かれ、設計の入力にも Git にも入らない。
 `app/` だけを別の場所へコピーして同じ手順で実行できる。macOS・Linux では `sh ./gradlew test bootJar projects` を使う。
 

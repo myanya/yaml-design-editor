@@ -31,7 +31,7 @@
     },
     {
       "path": "app/README.md",
-      "sha256": "2efc4f40a94df78e5012469014e17f8483f77a8610475ca497a99755d6cf9ec3"
+      "sha256": "32c272e774849ecc387e32badd8f380b7c04b57a699a070570252d95bd31ff31"
     },
     {
       "path": "app/settings.gradle.kts",
@@ -182,6 +182,58 @@
       "sha256": "034c83a102a6b0345e6f571e64a45d12bb27fea7c60429ea625a693fde2ca8a1"
     },
     {
+      "path": "app/src/main/java/example/todos/web/DesignPreviewController.java",
+      "sha256": "b1226f65d7e6f80ff10088332e104bc8c15c8413d2b33a227c0643bca0472a8e"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/AddCategoryForm.java",
+      "sha256": "8cd7b7f5be3f9d7e15eaf443a17428a97e3d1fae923965ca65e43460453a0cfc"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/AddTagForm.java",
+      "sha256": "3c5851e398add24585b7a7e9ef8bdf5a6fb0077e92a902f4d22b60b1192c0ce8"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/AddTodoCommentForm.java",
+      "sha256": "f8a942ffba1743017ebcea669b3af0b0a9cf0806aba6282576137c4346a86f1a"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/AddTodoTaskForm.java",
+      "sha256": "86582c8ac3f83ac2b8684b60c5159ee56cc744e0f88ffba632482308603db409"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/CancelTodoForm.java",
+      "sha256": "d37bad1a257a72fc705d7e8940652de89b01b5cfd8847ac0b77cdfdf42b9de27"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/CompleteTodoForm.java",
+      "sha256": "23e187dc1bbf94463ffe9889265fd6c8ca5e724411336de365b1bbc39962d27a"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/EditTodoForm.java",
+      "sha256": "3bb2c4a0e4733ade256e9fed8b836d6dc51e508fa634ddcb771390834479952d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/RegisterTodoForm.java",
+      "sha256": "16ecaa380615e1c98a386d8919be9d673bf13e5d26a6a9609e8c2669c3021bc8"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/ResumeTodoForm.java",
+      "sha256": "7f35c97dd415727c669799dacd798aa69364bb8e82ce905f987ef6af3d8d9db9"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/SuspendTodoForm.java",
+      "sha256": "2b4f4f4178e8ecc809fa3014123c86390080cc43708e832e24f58a7f85bdf106"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebBinding.java",
+      "sha256": "4fd1fbbbf852b4ccf52e911e816cc68e47ec2bf9317b93a69c60369d9022d95d"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/WebValidationMessages.java",
+      "sha256": "d2a795159b77241dffd00020d96666184d51ff77ef58d999cd3596f106140bf4"
+    },
+    {
       "path": "app/src/main/resources/application.properties",
       "sha256": "eafa80b9529d0cfaa51f19d01eef4f28eb6cca18da2bc1e793258021eece8e82"
     },
@@ -204,6 +256,14 @@
     {
       "path": "app/src/main/resources/schema.sql",
       "sha256": "3ff59eee5183ebd49f3930750e25e601effabdad96f0789d75d84a588068dbfe"
+    },
+    {
+      "path": "app/src/main/resources/static/css/theme.css",
+      "sha256": "a2a701b66a3bc7b45c48246211f9804286c2ec134053081ee31f119268d42136"
+    },
+    {
+      "path": "app/src/main/resources/templates/design-preview.html",
+      "sha256": "a68f4956225d7de18e24a1314f8ca676b8294183bb76ff1b378b4fdde3f5c105"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

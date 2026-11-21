@@ -1,0 +1,10 @@
+id: application-theme-ledger-input
+name: 画面デザイン台帳の入力
+rows:
+  idPattern: INPUT-application-theme
+  schemaIds:
+    - application-theme-ledger
+columns:
+  - label: record
+    path: .
+    schemaId: application-theme-ledger

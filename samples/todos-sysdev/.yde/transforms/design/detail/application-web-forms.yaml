@@ -1,0 +1,538 @@
+id: application-web-forms
+name: 確定画面設計の Form を出力用に検査する
+scope: design
+dependsOn:
+  - screen-designs-operations
+  - messages
+output: design/detail/final/application-web-forms.yaml
+input:
+  $validate:
+    schemas:
+      $each: schemas
+      $of: model
+      $build:
+        $when:
+          - path: id
+            equals: application-web-forms
+        $then:
+          $copy: declared
+    documents:
+      design/detail/final/application-web-forms.yaml:
+        id: APP-web-forms
+        forms:
+          $each:
+            $view: screen-designs-operations-input
+          $build:
+            $when:
+              - path: values.record.form
+                exists: true
+            $then:
+              $apply: form
+              $with:
+                raw:
+                  $copy: values.record
+                messages:
+                  $apply: record
+                  $with:
+                    row:
+                      $view: messages-input
+                      $one: true
+build:
+  $apply: first
+  $with:
+    items:
+      $eachEntry: .
+      $flatten: true
+      $build:
+        - $copy: .
+rules:
+  - id: form
+    with:
+      - raw
+      - messages
+    build:
+      id:
+        $format: JFORM-{id}
+        $with:
+          id:
+            $copy: id
+            $of: raw
+      source:
+        $copy: designId
+        $of: raw
+      className:
+        $copy: form.class
+        $of: raw
+      beanName:
+        $case:
+          $copy: form.class
+          $of: raw
+        $as: camel
+      fields:
+        $each: form.fields
+        $of: raw
+        $build:
+          $apply: field
+          $with:
+            form:
+              $case:
+                $copy: form.class
+                $of: raw
+              $as: camel
+            messages:
+              $copy: .
+              $of: messages
+      classes:
+        $each: form.classes
+        $of: raw
+        $build:
+          $apply: nested
+          $with:
+            form:
+              $case:
+                $copy: form.class
+                $of: raw
+              $as: camel
+            messages:
+              $copy: .
+              $of: messages
+            raw:
+              $copy: .
+            parentFields:
+              $copy: form.fields
+              $of: raw
+  - id: field
+    with:
+      - form
+      - messages
+    build:
+      $apply: field-built
+      $with:
+        raw:
+          $copy: .
+        form:
+          $copy: .
+          $of: form
+        messages:
+          $copy: .
+          $of: messages
+        fieldName:
+          $copy: name
+  - id: message
+    with:
+      - form
+      - field
+      - annotation
+      - messages
+    build:
+      $apply: message-key
+      $with:
+        messages:
+          $copy: .
+          $of: messages
+        form:
+          $copy: .
+          $of: form
+        field:
+          $copy: .
+          $of: field
+        messageKey:
+          $format: validation.{annotation}.{form}.{field}
+          $with:
+            annotation:
+              $copy: .
+              $of: annotation
+            form:
+              $copy: .
+              $of: form
+            field:
+              $copy: .
+              $of: field
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: nested
+    with:
+      - form
+      - messages
+      - raw
+      - parentFields
+    build:
+      name:
+        $copy: name
+        $of: raw
+      fields:
+        $each: fields
+        $of: raw
+        $build:
+          $apply: nested-field
+          $with:
+            form:
+              $copy: .
+              $of: form
+            messages:
+              $copy: .
+              $of: messages
+            raw:
+              $copy: .
+            parent:
+              $apply: parent
+              $with:
+                parentFields:
+                  $copy: .
+                  $of: parentFields
+                className:
+                  $copy: name
+                  $of: raw
+                listType:
+                  $format: List<{name}>
+                  $with:
+                    name:
+                      $copy: name
+                      $of: raw
+  - id: nested-field
+    with:
+      - form
+      - messages
+      - raw
+      - parent
+    build:
+      $apply: field-built
+      $with:
+        raw:
+          $copy: .
+          $of: raw
+        form:
+          $copy: .
+          $of: form
+        messages:
+          $copy: .
+          $of: messages
+        fieldName:
+          $format: '{parent}.{name}'
+          $with:
+            parent:
+              $copy: .
+              $of: parent
+            name:
+              $copy: name
+              $of: raw
+  - id: field-built
+    with:
+      - raw
+      - form
+      - messages
+      - fieldName
+    build:
+      name:
+        $copy: name
+        $of: raw
+      item:
+        $copy: item
+        $of: raw
+      type:
+        $copy: type
+        $of: raw
+      accessor:
+        $case:
+          $copy: name
+          $of: raw
+        $as: pascal
+      string:
+        $when:
+          - path: type
+            of: raw
+            equals: String
+        $then: true
+      annotations:
+        $each: validations
+        $of: raw
+        $build:
+          $apply: annotation
+          $with:
+            raw:
+              $copy: .
+            message:
+              $apply: message
+              $with:
+                form:
+                  $copy: .
+                  $of: form
+                field:
+                  $copy: .
+                  $of: fieldName
+                annotation:
+                  $copy: name
+                messages:
+                  $copy: .
+                  $of: messages
+            fieldType:
+              $copy: type
+              $of: raw
+        $flatten: true
+      validations:
+        $copy: validations
+        $of: raw
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    when:
+      - path: name
+        of: raw
+        equals: NotNull
+      - path: .
+        of: message
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+        - - valid: true
+            literal: true
+            value:
+              $copy: .
+              $of: message
+        - - valid: true
+            plain: true
+            raw: |
+              )
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    when:
+      - path: name
+        of: raw
+        equals: Size
+      - path: .
+        of: message
+        exists: true
+      - or:
+          - path: .
+            of: fieldType
+            equals: String
+          - path: .
+            of: fieldType
+            matches: ^List<.*>$
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+        - - valid: true
+            literal: true
+            value:
+              $copy: .
+              $of: message
+        - $when:
+            - path: min
+              of: raw
+              exists: true
+          $then:
+            - valid: true
+              plain: true
+              raw:
+                $format: ', min = {value}'
+                $with:
+                  value:
+                    $copy: min
+                    $of: raw
+        - $when:
+            - path: max
+              of: raw
+              exists: true
+          $then:
+            - valid: true
+              plain: true
+              raw:
+                $format: ', max = {value}'
+                $with:
+                  value:
+                    $copy: max
+                    $of: raw
+        - - valid: true
+            plain: true
+            raw: |
+              )
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    when:
+      - path: name
+        of: raw
+        equals: Pattern
+      - path: .
+        of: message
+        exists: true
+      - path: .
+        of: fieldType
+        equals: String
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Pattern(message = '
+        - - valid: true
+            literal: true
+            value:
+              $copy: .
+              $of: message
+        - - valid: true
+            plain: true
+            raw: ', regexp = '
+        - - valid: true
+            literal: true
+            value:
+              $copy: regexp
+              $of: raw
+        - - valid: true
+            plain: true
+            raw: |
+              )
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    when:
+      - path: name
+        of: raw
+        equals: UniqueElements
+      - path: .
+        of: message
+        exists: true
+      - path: .
+        of: fieldType
+        matches: ^List<.*>$
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '@org.hibernate.validator.constraints.UniqueElements(message = '
+        - - valid: true
+            literal: true
+            value:
+              $copy: .
+              $of: message
+        - - valid: true
+            plain: true
+            raw: |
+              )
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    when:
+      - path: name
+        of: raw
+        equals: DateTimeFormat
+      - path: iso
+        of: raw
+        equals: DATE
+      - path: .
+        of: fieldType
+        equals: LocalDate
+    build:
+      - valid: true
+        plain: true
+        raw: |
+          @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    when:
+      - path: name
+        of: raw
+        equals: Valid
+      - path: .
+        of: fieldType
+        matches: ^List<.*>$
+    build:
+      - valid: true
+        plain: true
+        raw: |
+          @jakarta.validation.Valid
+  - id: annotation
+    with:
+      - raw
+      - message
+      - fieldType
+    build:
+      - valid: false
+        raw: UNSUPPORTED
+        error: 対応する入力検査か確定メッセージがありません
+  - id: message-key
+    with:
+      - messages
+      - form
+      - field
+      - messageKey
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: validation
+          $of: messages
+          $build:
+            $when:
+              - path: form
+                equals:
+                  $copy: .
+                  $of: form
+              - path: field
+                equals:
+                  $copy: .
+                  $of: field
+            $then:
+              $each: messages
+              $build:
+                $when:
+                  - path: key
+                    equals:
+                      $copy: .
+                      $of: messageKey
+                $then:
+                  $copy: text
+          $flatten: true
+  - id: parent
+    with:
+      - parentFields
+      - className
+      - listType
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: parentFields
+          $build:
+            $when:
+              - or:
+                  - path: type
+                    equals:
+                      $copy: .
+                      $of: className
+                  - path: type
+                    equals:
+                      $copy: .
+                      $of: listType
+            $then:
+              $copy: name

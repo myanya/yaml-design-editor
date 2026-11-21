@@ -1,0 +1,17 @@
+id: application-theme
+name: 画面デザイン台帳を確定する
+scope: design
+dependsOn:
+  - application-theme-input-gate
+output: design/detail/final/application-theme.yaml
+input:
+  $view: application-theme-ledger-input
+  $one: true
+build:
+  id: APP-theme
+  theme:
+    $copy: values.record.theme
+  source:
+    $copy: values.record.inputId
+  reason:
+    $copy: values.record.reason

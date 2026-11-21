@@ -1,13 +1,13 @@
 # 生成物（screen-styles）: 手で直さず、業務モデルか生成の定義（design/detail/screen-styles.yaml）を直して作り直します（CLI generate）。
 id: screen-styles
-name: 画面のクラスの対応表（Tailwind CSS）
+name: 画面のクラスと CSS の対応表
 naming:
   - part: 部品
     rule: 部品の名前をそのままクラスにする（page・notice・filters・section・facts・table・form・field・choices・rows・actions・matrix）
   - part: width（画面）
     rule: w-{s|m|l}
   - part: width（欄）
-    rule: w-{n}ch（Tailwind の任意の値 w-[{n}ch]）
+    rule: w-{n}ch（欄の最大幅。狭い画面では画面幅に収める）
   - part: columns
     rule: cols-{n}
   - part: emphasis
@@ -22,65 +22,111 @@ naming:
     rule: control-{text|textarea|date|select|checkbox|number}
 classes:
   - class: page
-    applies: mx-auto px-4 py-6 space-y-6
+    applies: 'margin: 0 auto; padding: var(--space-large) var(--space-medium); display: grid; gap: var(--space-large)'
   - class: w-s
-    applies: max-w-2xl
+    applies: 'max-width: var(--width-small)'
   - class: w-m
-    applies: max-w-3xl
+    applies: 'max-width: var(--width-medium)'
   - class: w-l
-    applies: max-w-7xl
+    applies: 'max-width: var(--width-large)'
   - class: notice-done
-    applies: rounded-md bg-green-50 p-3 text-green-800
+    applies: 'border-left: 3px solid var(--success); color: var(--success); padding: var(--space-medium); background: var(--surface)'
   - class: notice-errors
-    applies: rounded-md bg-red-50 p-3 text-red-800
+    applies: 'border-left: 3px solid var(--danger); color: var(--danger); padding: var(--space-medium); background: var(--surface)'
   - class: notice-refusal
-    applies: rounded-md bg-amber-50 p-3 text-amber-900
+    applies: 'border-left: 3px solid var(--warning); color: var(--warning); padding: var(--space-medium); background: var(--surface)'
   - class: section
-    applies: space-y-3
+    applies: 'display: grid; gap: var(--space-medium); padding: var(--space-medium); background: var(--surface); border: 1px
+      solid var(--line); border-radius: var(--radius)'
   - class: filters
-    applies: flex flex-wrap items-end gap-4 rounded-md bg-gray-50 p-3
+    applies: 'display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-medium); padding: var(--space-medium); border:
+      1px solid var(--line); background: var(--surface)'
   - class: facts
-    applies: grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2
+    applies: 'display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-small) var(--space-medium)'
   - class: cols-2
-    applies: md:grid-cols-[max-content_1fr_max-content_1fr]
+    applies: 'grid-template-columns: repeat(2, max-content minmax(0, 1fr))'
   - class: table
-    applies: min-w-full divide-y divide-gray-200 text-sm
+    applies: 'width: 100%; border-collapse: collapse; text-align: left'
   - class: matrix
-    applies: min-w-full divide-y divide-gray-200 text-sm
+    applies: 'width: 100%; border-collapse: collapse; text-align: left'
   - class: form
-    applies: space-y-4
+    applies: 'display: grid; gap: var(--space-medium)'
   - class: field
-    applies: flex flex-col gap-1
+    applies: 'display: flex; flex-direction: column; gap: var(--space-small)'
   - class: choices
-    applies: flex flex-wrap gap-3
+    applies: 'display: flex; flex-wrap: wrap; gap: var(--space-medium)'
   - class: rows
-    applies: min-w-full divide-y divide-gray-200 text-sm
+    applies: 'width: 100%; border-collapse: collapse; text-align: left'
   - class: control-text
-    applies: rounded-md border-gray-300
+    applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
   - class: control-textarea
-    applies: rounded-md border-gray-300
+    applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
   - class: control-date
-    applies: rounded-md border-gray-300
+    applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
   - class: control-select
-    applies: rounded-md border-gray-300
+    applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
   - class: control-number
-    applies: rounded-md border-gray-300 text-right
+    applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius);
+      text-align: right'
   - class: control-checkbox
-    applies: rounded border-gray-300
+    applies: 'accent-color: var(--primary); width: 1.25rem; height: 1.25rem'
   - class: actions
-    applies: flex flex-wrap gap-2
+    applies: 'display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-small)'
   - class: button-primary
-    applies: rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700
+    applies: 'background: var(--primary); color: var(--ink); border: 1px solid var(--primary); font-weight: 700'
   - class: button-secondary
-    applies: rounded-md border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50
+    applies: 'background: var(--surface); color: var(--text); border: 1px solid var(--line)'
   - class: align-end
-    applies: text-right
+    applies: 'text-align: right'
   - class: gap-s
-    applies: space-y-2
+    applies: 'gap: var(--space-small)'
   - class: gap-m
-    applies: space-y-4
+    applies: 'gap: var(--space-medium)'
   - class: gap-l
-    applies: space-y-8
+    applies: 'gap: var(--space-large)'
+  - class: badge
+    applies: 'display: inline-flex; padding: .15em .6em; border: 1px solid currentColor; border-radius: var(--radius); font-size:
+      var(--small); white-space: nowrap'
+  - class: brand
+    applies: 'font-family: var(--font-display); font-weight: 700; letter-spacing: .16em; color: var(--primary); text-decoration:
+      none'
+  - class: eyebrow
+    applies: 'font-family: var(--font-mono); color: var(--primary); font-size: var(--small); letter-spacing: .14em; text-transform:
+      uppercase'
+  - class: field-error
+    applies: 'color: var(--danger)'
+  - class: footer
+    applies: 'color: var(--muted); border-top: 1px solid var(--line); padding-top: var(--space-medium); font-size: var(--small)'
+  - class: hero
+    applies: 'border-left: 3px solid var(--secondary); padding-left: var(--space-medium); display: grid; gap: var(--space-small)'
+  - class: palette
+    applies: 'display: flex; flex-wrap: wrap; gap: var(--space-small)'
+  - class: panel-grid
+    applies: 'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-medium); align-items: start'
+  - class: panel-title
+    applies: 'display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-small); padding-bottom:
+      var(--space-small); border-bottom: 1px solid var(--line)'
+  - class: required
+    applies: 'color: var(--secondary); font-size: var(--small); margin-left: .5em'
+  - class: shell-header
+    applies: 'display: flex; align-items: center; justify-content: space-between; gap: var(--space-medium); flex-wrap: wrap;
+      padding: var(--space-medium) var(--space-large); border-bottom: 1px solid var(--line); background: var(--surface)'
+  - class: skip-link
+    applies: 'position: absolute; top: -100px; left: var(--space-medium); padding: var(--space-small); background: var(--primary);
+      color: var(--ink); z-index: 2'
+  - class: status-active
+    applies: 'color: var(--primary)'
+  - class: status-done
+    applies: 'color: var(--success)'
+  - class: status-error
+    applies: 'color: var(--danger)'
+  - class: status-waiting
+    applies: 'color: var(--warning)'
+  - class: swatch
+    applies: 'display: grid; gap: .3em; flex: 1 0 130px; padding: var(--space-small); border: 1px solid var(--line); border-top:
+      4px solid var(--swatch); font: var(--small)/1.6 var(--font-mono); background: var(--surface)'
+  - class: table-scroll
+    applies: 'overflow-x: auto'
 designId: DOC-screen-styles.screen-styles
 designKind: screen-styles
 designPath: design/detail/final/screen-designs/styles.yaml
@@ -90,4 +136,54 @@ origins:
     document: .yde/transforms/design/detail/screen-styles-derived.yaml
     path: []
   decisions: []
-  inputs: []
+  inputs:
+    - id: SADD-cyberpunk-components
+      kind: screen-styles
+      target: DOC-screen-styles.screen-styles
+      collection: classes
+      items:
+        - class: shell-header
+          applies: 'display: flex; align-items: center; justify-content: space-between; gap: var(--space-medium); flex-wrap:
+            wrap; padding: var(--space-medium) var(--space-large); border-bottom: 1px solid var(--line); background: var(--surface)'
+        - class: brand
+          applies: 'font-family: var(--font-display); font-weight: 700; letter-spacing: .16em; color: var(--primary); text-decoration:
+            none'
+        - class: eyebrow
+          applies: 'font-family: var(--font-mono); color: var(--primary); font-size: var(--small); letter-spacing: .14em;
+            text-transform: uppercase'
+        - class: hero
+          applies: 'border-left: 3px solid var(--secondary); padding-left: var(--space-medium); display: grid; gap: var(--space-small)'
+        - class: field-error
+          applies: 'color: var(--danger)'
+        - class: required
+          applies: 'color: var(--secondary); font-size: var(--small); margin-left: .5em'
+        - class: panel-grid
+          applies: 'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-medium); align-items:
+            start'
+        - class: panel-title
+          applies: 'display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-small); padding-bottom:
+            var(--space-small); border-bottom: 1px solid var(--line)'
+        - class: badge
+          applies: 'display: inline-flex; padding: .15em .6em; border: 1px solid currentColor; border-radius: var(--radius);
+            font-size: var(--small); white-space: nowrap'
+        - class: status-active
+          applies: 'color: var(--primary)'
+        - class: status-done
+          applies: 'color: var(--success)'
+        - class: status-waiting
+          applies: 'color: var(--warning)'
+        - class: status-error
+          applies: 'color: var(--danger)'
+        - class: table-scroll
+          applies: 'overflow-x: auto'
+        - class: palette
+          applies: 'display: flex; flex-wrap: wrap; gap: var(--space-small)'
+        - class: swatch
+          applies: 'display: grid; gap: .3em; flex: 1 0 130px; padding: var(--space-small); border: 1px solid var(--line);
+            border-top: 4px solid var(--swatch); font: var(--small)/1.6 var(--font-mono); background: var(--surface)'
+        - class: skip-link
+          applies: 'position: absolute; top: -100px; left: var(--space-medium); padding: var(--space-small); background: var(--primary);
+            color: var(--ink); z-index: 2'
+        - class: footer
+          applies: 'color: var(--muted); border-top: 1px solid var(--line); padding-top: var(--space-medium); font-size: var(--small)'
+      reason: ゲーム風のサイバーパンクの共通ヘッダー、情報パネル、状態表示とデザイン確認用の部品を追加する。値は画面デザイン台帳の CSS 変数で共有する。

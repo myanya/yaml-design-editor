@@ -280,6 +280,9 @@ constraints:
       - of: v
         path: id
         notEquals: system-review
+      - of: v
+        path: id
+        notEquals: appearance-definition
       - not:
           of: v
           path: id

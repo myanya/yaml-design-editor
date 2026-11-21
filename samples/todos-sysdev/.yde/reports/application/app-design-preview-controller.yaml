@@ -1,0 +1,39 @@
+id: app-design-preview-controller
+name: 画面デザインの確認用 Controller
+build:
+  config:
+    $apply: record
+    $with:
+      row:
+        $view: application-configuration-input
+        $one: true
+  record:
+    $apply: record
+    $with:
+      row:
+        $view: application-theme-input
+        $one: true
+  styles:
+    $apply: record
+    $with:
+      row:
+        $view: screen-styles-input
+        $one: true
+  previewForm:
+    $apply: record
+    $with:
+      row:
+        $view: application-web-forms-input
+        $where:
+          - path: id
+            equals: JFORM-register-todo
+        $one: true
+rules:
+  - id: record
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+template: DesignPreviewController.java
+output: app/src/main/java/{#each config.settings.package}{.}/{/each}web/DesignPreviewController.java

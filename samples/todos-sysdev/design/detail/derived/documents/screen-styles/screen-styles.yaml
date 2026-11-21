@@ -4,14 +4,14 @@ record:
   id: DOC-screen-styles.screen-styles
   value:
     id: screen-styles
-    name: 画面のクラスの対応表（Tailwind CSS）
+    name: 画面のクラスと CSS の対応表
     naming:
       - part: 部品
         rule: 部品の名前をそのままクラスにする（page・notice・filters・section・facts・table・form・field・choices・rows・actions・matrix）
       - part: width（画面）
         rule: w-{s|m|l}
       - part: width（欄）
-        rule: w-{n}ch（Tailwind の任意の値 w-[{n}ch]）
+        rule: w-{n}ch（欄の最大幅。狭い画面では画面幅に収める）
       - part: columns
         rule: cols-{n}
       - part: emphasis
@@ -26,65 +26,70 @@ record:
         rule: control-{text|textarea|date|select|checkbox|number}
     classes:
       - class: page
-        applies: mx-auto px-4 py-6 space-y-6
+        applies: 'margin: 0 auto; padding: var(--space-large) var(--space-medium); display: grid; gap: var(--space-large)'
       - class: w-s
-        applies: max-w-2xl
+        applies: 'max-width: var(--width-small)'
       - class: w-m
-        applies: max-w-3xl
+        applies: 'max-width: var(--width-medium)'
       - class: w-l
-        applies: max-w-7xl
+        applies: 'max-width: var(--width-large)'
       - class: notice-done
-        applies: rounded-md bg-green-50 p-3 text-green-800
+        applies: 'border-left: 3px solid var(--success); color: var(--success); padding: var(--space-medium); background:
+          var(--surface)'
       - class: notice-errors
-        applies: rounded-md bg-red-50 p-3 text-red-800
+        applies: 'border-left: 3px solid var(--danger); color: var(--danger); padding: var(--space-medium); background: var(--surface)'
       - class: notice-refusal
-        applies: rounded-md bg-amber-50 p-3 text-amber-900
+        applies: 'border-left: 3px solid var(--warning); color: var(--warning); padding: var(--space-medium); background:
+          var(--surface)'
       - class: section
-        applies: space-y-3
+        applies: 'display: grid; gap: var(--space-medium); padding: var(--space-medium); background: var(--surface); border:
+          1px solid var(--line); border-radius: var(--radius)'
       - class: filters
-        applies: flex flex-wrap items-end gap-4 rounded-md bg-gray-50 p-3
+        applies: 'display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-medium); padding: var(--space-medium);
+          border: 1px solid var(--line); background: var(--surface)'
       - class: facts
-        applies: grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2
+        applies: 'display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-small) var(--space-medium)'
       - class: cols-2
-        applies: md:grid-cols-[max-content_1fr_max-content_1fr]
+        applies: 'grid-template-columns: repeat(2, max-content minmax(0, 1fr))'
       - class: table
-        applies: min-w-full divide-y divide-gray-200 text-sm
+        applies: 'width: 100%; border-collapse: collapse; text-align: left'
       - class: matrix
-        applies: min-w-full divide-y divide-gray-200 text-sm
+        applies: 'width: 100%; border-collapse: collapse; text-align: left'
       - class: form
-        applies: space-y-4
+        applies: 'display: grid; gap: var(--space-medium)'
       - class: field
-        applies: flex flex-col gap-1
+        applies: 'display: flex; flex-direction: column; gap: var(--space-small)'
       - class: choices
-        applies: flex flex-wrap gap-3
+        applies: 'display: flex; flex-wrap: wrap; gap: var(--space-medium)'
       - class: rows
-        applies: min-w-full divide-y divide-gray-200 text-sm
+        applies: 'width: 100%; border-collapse: collapse; text-align: left'
       - class: control-text
-        applies: rounded-md border-gray-300
+        applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
       - class: control-textarea
-        applies: rounded-md border-gray-300
+        applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
       - class: control-date
-        applies: rounded-md border-gray-300
+        applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
       - class: control-select
-        applies: rounded-md border-gray-300
+        applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius)'
       - class: control-number
-        applies: rounded-md border-gray-300 text-right
+        applies: 'color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius);
+          text-align: right'
       - class: control-checkbox
-        applies: rounded border-gray-300
+        applies: 'accent-color: var(--primary); width: 1.25rem; height: 1.25rem'
       - class: actions
-        applies: flex flex-wrap gap-2
+        applies: 'display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-small)'
       - class: button-primary
-        applies: rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700
+        applies: 'background: var(--primary); color: var(--ink); border: 1px solid var(--primary); font-weight: 700'
       - class: button-secondary
-        applies: rounded-md border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50
+        applies: 'background: var(--surface); color: var(--text); border: 1px solid var(--line)'
       - class: align-end
-        applies: text-right
+        applies: 'text-align: right'
       - class: gap-s
-        applies: space-y-2
+        applies: 'gap: var(--space-small)'
       - class: gap-m
-        applies: space-y-4
+        applies: 'gap: var(--space-medium)'
       - class: gap-l
-        applies: space-y-8
+        applies: 'gap: var(--space-large)'
   source:
     id: rule-screen-styles
     document: .yde/transforms/design/detail/screen-styles-derived.yaml

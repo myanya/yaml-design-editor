@@ -309,4 +309,54 @@ documents:
 inputs:
   corrections: []
   specifications: []
-  additions: []
+  additions:
+    - id: SADD-cyberpunk-components
+      kind: screen-styles
+      target: DOC-screen-styles.screen-styles
+      collection: classes
+      items:
+        - class: shell-header
+          applies: 'display: flex; align-items: center; justify-content: space-between; gap: var(--space-medium); flex-wrap:
+            wrap; padding: var(--space-medium) var(--space-large); border-bottom: 1px solid var(--line); background: var(--surface)'
+        - class: brand
+          applies: 'font-family: var(--font-display); font-weight: 700; letter-spacing: .16em; color: var(--primary); text-decoration:
+            none'
+        - class: eyebrow
+          applies: 'font-family: var(--font-mono); color: var(--primary); font-size: var(--small); letter-spacing: .14em;
+            text-transform: uppercase'
+        - class: hero
+          applies: 'border-left: 3px solid var(--secondary); padding-left: var(--space-medium); display: grid; gap: var(--space-small)'
+        - class: field-error
+          applies: 'color: var(--danger)'
+        - class: required
+          applies: 'color: var(--secondary); font-size: var(--small); margin-left: .5em'
+        - class: panel-grid
+          applies: 'display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-medium); align-items:
+            start'
+        - class: panel-title
+          applies: 'display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-small); padding-bottom:
+            var(--space-small); border-bottom: 1px solid var(--line)'
+        - class: badge
+          applies: 'display: inline-flex; padding: .15em .6em; border: 1px solid currentColor; border-radius: var(--radius);
+            font-size: var(--small); white-space: nowrap'
+        - class: status-active
+          applies: 'color: var(--primary)'
+        - class: status-done
+          applies: 'color: var(--success)'
+        - class: status-waiting
+          applies: 'color: var(--warning)'
+        - class: status-error
+          applies: 'color: var(--danger)'
+        - class: table-scroll
+          applies: 'overflow-x: auto'
+        - class: palette
+          applies: 'display: flex; flex-wrap: wrap; gap: var(--space-small)'
+        - class: swatch
+          applies: 'display: grid; gap: .3em; flex: 1 0 130px; padding: var(--space-small); border: 1px solid var(--line);
+            border-top: 4px solid var(--swatch); font: var(--small)/1.6 var(--font-mono); background: var(--surface)'
+        - class: skip-link
+          applies: 'position: absolute; top: -100px; left: var(--space-medium); padding: var(--space-small); background: var(--primary);
+            color: var(--ink); z-index: 2'
+        - class: footer
+          applies: 'color: var(--muted); border-top: 1px solid var(--line); padding-top: var(--space-medium); font-size: var(--small)'
+      reason: ゲーム風のサイバーパンクの共通ヘッダー、情報パネル、状態表示とデザイン確認用の部品を追加する。値は画面デザイン台帳の CSS 変数で共有する。

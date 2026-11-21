@@ -1,0 +1,20 @@
+id: application-theme
+name: 確定した画面デザイン
+kind: document
+match: design/detail/final/application-theme.yaml
+root:
+  type: object
+  unknownFields: error
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: theme
+      type: application-theme-values#テーマ
+      required: true
+    - key: source
+      type: string
+      required: true
+    - key: reason
+      type: text
+      required: true
