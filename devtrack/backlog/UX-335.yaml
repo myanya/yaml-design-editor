@@ -23,3 +23,6 @@ resolutions:
     kind: 一部
     note: SQL の型対応表に初期値の出力方法 literal（string・number・boolean・date）を追加。数値と真偽値の引用符を外し、文字列の引用符・空文字・設定なしとの区別を確認。論理型と SQL 型の対応表は存在するが、Java の型と初期化の対応、auto の体系的な写し方は未対応
     targets: samples/todos-sysdev の型対応表・テーブル設計書・DDL、TextTemplate、TodosSysdevTest
+  - date: 2026-11-21
+    kind: 一部
+    note: "Java の型の対応が人の書く表になった（samples/todos-sysdev の design/detail/inputs/application/java-types.yaml。基底の種類ごと）。対応が無いときは String で補わずに確定前に止まる（TodosJavaModelsTest「対応を削除してもStringに置き換えず確定前に止める」）。SQL の対応は design/detail/inputs/tables/sql-types.yaml（メモの「table-designs の規則に直書き」はもう無い）。残りは、設計書体系での書き方の層、論理型ごとの Java の対応、auto（作成日など）の写し方の対応表"

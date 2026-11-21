@@ -10,6 +10,7 @@ memo: |-
   - 書き出し（skill の export）の source.view も、ビューを受け取る値なしで解決する。export の命令にも値を渡す口が無い。
   試作では、ビューに年月の計算列（yearMonth）を足し、レポートは年月の一致（equals）で絞る「月ごとの CSV」にして逃げた（labs/microchip-registry/.yde/reports/onestop-csv.yaml）。
   - 当たり: (1) $view に params を渡す（{$view: ID, $params: {from: $from}}）。絞り込みはビューの側 1 か所になる。(2) ひな型の条件に type（date など）を書けるようにする。(3) export に --param を足し、source.view へ渡す。
+  （2026-11-21 現物確認）CLI の view には受け取る値を渡せる（`view <表> --param`。UX-219）が、出力は yaml / json だけで CSV は無い。レポートと書き出し（Reports.kt・Exporter.kt）はビューを受け取る値なしで解決するまま。
 features:
   - X-15
   - SK-03

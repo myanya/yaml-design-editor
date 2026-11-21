@@ -16,3 +16,7 @@ memo: |-
 features: [C-21, X-05, X-06]
 roadmap: [R53-05]
 related: [UX-336, UX-342]
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "直っている。ビュー entity-definition-crud は aggregate: max をやめ、確定項目の CRUD-* の crud を all で読む。4 エンティティの全項目と 52 個の C/U を原本と照合し、書込の無い項目の行も残ることをテストが見る（TodosEntityFoundationTest「全項目の基底と C U 表は生成原本と一致し 書込の無い項目も残る」）。原本の場所は design/basic/final/entities.yaml に移った。残りはオーナーのレビューと、R/D まで扱うかの判断"

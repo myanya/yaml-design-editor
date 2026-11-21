@@ -13,3 +13,7 @@ memo: |-
 features: [C-21, X-05, X-06]
 roadmap: [R53-05, R53-01, R53-03]
 related: [UX-324, UX-333, UX-334, UX-335]
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "題の症状は直っている。補正は生成時に合成して確定項目（design/basic/final）に保存し、ビューと後段が同じ値を読む（ADR-0039。メモ末尾の「TermChanges で読み取り用の木に重ねる」形から変わった）。論理型（TYP-*）と項目（FLD-*）を分けて補正でき、詳細の生成と DDL まで届く（TodosEntityFoundationTest「項目固有の制限と共通型を分けて保持し 補正は参照と詳細生成にも届く」・TodosTypeCorrectionsTest・TodosFieldCorrectionsTest）。残りはオーナーのレビューと、継承した選択肢の子への補正（UX-363）"

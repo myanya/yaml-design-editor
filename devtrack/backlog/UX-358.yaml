@@ -15,6 +15,7 @@ memo: |-
   4. レポートのひな形（文字の側の {パス}・{#each}・{#if}・穴の形 cell / sql-string）は、キーと値の形でないので、仕様の持ち方（語）に載せていない。例は 3 件ある。
   5. 位置そのものが無い語（設計画面の語との突き合わせで見つかった。UX-357）: 操作の手（do の要素の set / insert / delete / create / call / each とその中身）・照合の連鎖の線（edge の包み）・図のひな型の部品（port / portSide / sourcePort / targetPort / children / stroke など）。位置を足したら、SchemaValueFormsTest の「仕様にまだ無い語」の一覧から外す。
   足し方は devtrack/README.md「仕様」。例は devtrack/spec/examples に 1 件 1 ファイルで書き、SpecTest が実際に開いて確かめる。
+  （2026-11-21 現物確認）いまの数。位置 140・語 843・例 104。例の無い位置は 94 / 140 のまま（足された例は生成とひな型で、例の無かった位置には届いていない）。機能への参照を持つ語は 19（allowSingle の分）、meta を持つ位置は 128。突き合わせの無い位置は CTX-query-branch・CTX-selector の 2 つのまま。4 の穴の形は 5 つ（UX-368 の追記）。
 related:
   - UX-356
   - UX-357

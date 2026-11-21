@@ -7,6 +7,7 @@ origin: 'samples/todos-sysdev の生成を CLI だけで作ったとき'
 memo: |-
   生成は CLI generate だけにある。デスクトップでは transforms ゾーンの文書が設計スペースに出ず、計画（作る・作り直す・消す）を見て書く画面も無い。レポートの画面（ビュータブの一覧から選ぶ）と同じ置き方が考えられる。
   2026-11-16 追記: 段の規則と補正の置き場 stages（.yde/stages）も同じで、設計スペースに出ない。段の項（--model --stage）を画面で見る入口も無い
+  （2026-11-21 現物確認）todos-sysdev の補正と追加は台帳の普通の文書（design/basic/inputs・design/detail/inputs）になり、画面で編集できる。このサンプルは .yde/stages を使わなくなった。生成の定義（transforms）が設計スペースに出ず、計画を見て書く画面が無い点は同じ（DesignSpace.kt のゾーンに無く、desktop は Generators を使っていない）。
 features:
   - C-21
   - C-23

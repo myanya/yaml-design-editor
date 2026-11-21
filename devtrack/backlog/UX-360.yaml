@@ -11,6 +11,7 @@ memo: |-
   - 小さな言語（クエリ・条件・値の比較・値の式・変換のひな型・操作の手）: 約 65 か所。UX-357 で扱う。
   - 本当に何でも書ける値: 項目の default・sample、語彙定義の args・with の値、初期値 initial の値、eval の context.items の要素、ビューの入力のひな型 inputs など。any のままでよいかを確かめ、よいものは説明に理由を書く。
   進め方: メタスキーマ（builtin-schemas/*.yaml と view/chart・flow の断片）の any を一覧にし、読み取りの実装と突き合わせて 1 つずつ決める。型を付けたら仕様の位置に meta を足す。
+  （2026-11-21 現物確認）いまの any は、builtin-schemas に 98（schema 31・view 28・relations 16・skill 7・stage 7・transform 4・report 3・activity 1・eval 1）と、業務フロー図の断片（view/flow）に 7。チャートの断片は 0。
 features:
   - S-15
 related:

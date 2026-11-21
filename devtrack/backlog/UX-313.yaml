@@ -7,5 +7,6 @@ origin: samples/todos の TODO-004 の業務詳細で、個票の「状態の履
 memo: |-
   個票の日付の項目（作成日・更新日）とコメント一覧（縦並び）の日付は「2026年10月1日」で出るが、状態の履歴（display table）の日付の列は「2026-10-01」だった。
   どの列も型は common#年月日（format yyyy年M月d日）。表のセルが項目の見せ方を読んでいないか、読んでいるのが型を解決する前の項目かもしれない（UX-310 と同じ形の取りこぼしの可能性）。見た目だけで、値と検証は変わらない
+  （2026-11-21 現物確認）当たりは ui/form/FormTables.kt の readOnlyCellText。閲覧専用の表のセルは BOOLEAN と ENUM 以外を raw.toString() のまま出し、ValueFormat.display を通さない（縦並びの欄は ScalarEditors.kt で通る）。画面では確かめていない。
 features:
   - E-13

@@ -11,5 +11,6 @@ memo: |-
   - 関係から推論して、境界づけられたコンテキスト（案 B: 業務モデルにドメインを宣言して型を束ねる）に近いまとまりを作る
   - 必要なら、案 B のドメインを業務モデルに明示的に宣言できるようにする
   直すときは、業務モデルの項（BusinessModel の aggregate）と、todos-sysdev の生成の定義（domains・domain-relations）を合わせて直す
+  （2026-11-21 現物確認）直す生成の定義は 4 本になった（導出の domains-derived・domain-relations-derived と、確定の domains・domain-relations）。集約が入れ子だけで決まる点は同じ。
 features:
   - C-21

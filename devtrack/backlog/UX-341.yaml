@@ -14,3 +14,7 @@ memo: |-
 features: [C-21]
 roadmap: [R53-05, R53-03]
 related: [UX-339, UX-342]
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "直っている。項目固有の制限と共通型を分けて保持する（タイトル 40・コメント本文 55・TYP-text の複数行。TodosEntityFoundationTest「項目固有の制限と共通型を分けて保持し…」「導出記録は明記と継承を区別し…」）。メモの「引き続き確認」の 3 点（側面の間の食い違い・名前付き object の利用箇所での狭め方・複数の参照先）にもテストがある（TodosDesignTargetsTest・TodosFieldCorrectionsTest・TodosDesignContractTest。テストの名前と中身を読んだだけ）。残りはオーナーのレビュー"

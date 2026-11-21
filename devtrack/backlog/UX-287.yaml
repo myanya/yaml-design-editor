@@ -4,7 +4,10 @@ status: todo
 kind: doc
 origin_on: 2026-11-10
 origin: labs/adventurers-guild の「依頼を掲示する」で、「期限があれば、期限は掲示日以降」を where（期限がある）＋ check で書いたら、期限の無い依頼まで「期限を過ぎているため掲示できません」で止まったとき
-memo: ActionPlanner.checkRequire は NOT_APPLICABLE（NOT_IN_SCOPE）を止める側に倒し、文面には前提の message を使う。状態の前提（where で状態を絞って exists）はこの作りで書けているので意図どおりだが、
-  「条件つきの前提」を書くつもりだと、条件に当たらない受け手まで止まり、文面も誤解を招く。actions.md の「前提」に、受け手を where で絞ると前提になることと、条件つきにする書き方（値が無いときの既定を first で補う など）を書くか
+memo: |-
+  ActionPlanner.checkRequire は NOT_APPLICABLE（NOT_IN_SCOPE）を止める側に倒し、文面には前提の message を使う。状態の前提（where で状態を絞って exists）はこの作りで書けているので意図どおりだが、 「条件つきの前提」を書くつもりだと、条件に当たらない受け手まで止まり、文面も誤解を招く。actions.md の「前提」に、受け手を where で絞ると前提になることと、条件つきにする書き方（値が無いときの既定を first で補う など）を書くか
+  （2026-11-21 現物確認）UX-369（2026-11-20 登録）が同じ場所（ActionPlanner.checkRequire の NOT_IN_SCOPE と manual/actions.md「前提」）を指している。こちらにだけある点は、条件つきの前提の書き方（値が無いときの既定を first で補う）と、止まったときの文面が前提の message になって誤解を招くこと。architecture/actions.md には決まりが書いてあり、無いのは manual と語の仕様（KW-action.require）。
+related:
+  - UX-369
 features:
   - OP-03

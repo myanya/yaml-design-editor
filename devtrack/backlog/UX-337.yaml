@@ -8,5 +8,6 @@ memo: |-
   design/basic/entities.yaml の ENT-todo-task の numbering.prefix が、業務モデルの採番の決まりのひな型（{$format: '{id}-S', $of: owner}）のまま写っている。
   エンティティ定義書の概要の「接頭辞」の列は、文字でなくオブジェクトの要約になる（説明の列は「親の ID に「-S」と 2 桁の番号を続ける」と読める）。
   機械が読める形のままにするなら、接頭辞を「親の ID ＋ -S」と分けて持つ（例 prefixFrom: parent・prefix: -S）か、ひな型を値として持つことを決める
+  （2026-11-21 現物確認）原本の場所は design/basic/final/entities.yaml に移った。ENT-todo-task の numbering.prefix はひな型（{$format: '{id}-S', $of: owner}）のまま。
 features:
   - C-21

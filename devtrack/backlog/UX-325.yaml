@@ -1,6 +1,7 @@
 id: UX-325
 title: samples/todos の番号と参照に文字数の上限が無い（テーブルのカラムの長さが決まらない）
 status: todo
+kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のデータ系の設計書（テーブル設計書）の型の対応を決めたとき'
 memo: |-

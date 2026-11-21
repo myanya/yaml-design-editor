@@ -10,3 +10,7 @@ memo: |-
   あわせて、部品と物理パラメータの種類は、要るものが出たら足す（オーナー: 追加があれば後で）
 features:
   - C-21
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "生成物と分けて上書きする置き場はできた。設計書の補正（samples/todos-sysdev の design/detail/inputs/documents/corrections.yaml）に、画面設計書（screen-designs-operations・details・lists）を指して値を置き換える補正を書ける（入力のスキーマ system-inputs の種類にある。いまは 0 件）。題と並びを変えた確定値がアプリの生成の入力まで届くことは TodosWebPagesTest「画面の補正後の題と列順を生成入力へ保持する」が見る（定義とテストの読みから）。残りは、物理パラメータ（width・rows・emphasis など）を補正した例とテストと、部品・パラメータの種類の追加"

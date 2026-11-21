@@ -8,7 +8,9 @@ memo: |-
   前提 match: [申請 a, edge via feeId, 料金 f] ＋ check: [{eq: [$amount, {of: f, path: amount}]}] の message に {f.id}・{f.title} を書くと、違反のときに穴の文字がそのまま出る（「支払額が手数料と違います（料金 {f.id}）」）。{id}（受け手）は埋まる。
   ActionPlanner.message は r.matches の先頭の行の束縛で埋めるが、check の違反では matches に解が入らないらしい（検査の指摘の文面では {left}・{right}・束縛が埋まる）。
   検査の exists の違反で束縛が埋まらない UX-283 と同じ種類の不足。
+  （2026-11-21 現物確認）推測（check の違反では matches に解が入らない）はコードで確かめた。CheckResults.kt は check の違反を SemanticRuleResult(VIOLATED, violations = run.violations) で返し、matches は null。対象外（NOT_IN_SCOPE）も matches は null。ActionPlanner.message は matches の先頭の行しか読まない。violations を読むようにすれば、{left}・{right}（UX-280）も同じ直しで埋まる。
 features:
   - OP-03
 related:
   - UX-283
+  - UX-280

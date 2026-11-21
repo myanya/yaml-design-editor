@@ -8,6 +8,7 @@ memo: |-
   ひな形の穴の形は cell（Markdown の表）と sql-string だけで、CSV 用が無い。住所や名前にカンマが入ると列がずれる。
   書き出し（skill の export）の CSV は正しく逃がすが、受け取る値で行を絞れない（UX-367）ので、絞った CSV はレポートで作ることになる。
   - 当たり: 穴の形 csv（値にカンマ・引用符・改行があれば引用符で囲み、引用符を重ねる）を TextTemplate に足す。UX-367 で export が値を受け取れるようになれば、そちらを使えば足りる。
+  （2026-11-21 現物確認）穴の形は 5 つになった（cell・sql-string・sql-string-xml・xml・java-string。2026-11-21 に XML と Java の文字列を足した。TextTemplate.kt の text）。CSV 用は無いまま。足す場所は同じ when で、仕様（KW-report.template）・manual/reports.md・例（EX-text-template-*）・TextTemplateTest を一緒に直す。
 features:
   - X-15
 related:

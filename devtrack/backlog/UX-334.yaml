@@ -10,3 +10,7 @@ memo: |-
   エンティティ定義書の項目・テーブル設計書の列・アクション定義書の結果に、置き換えた場所と補正の名前を写す（例 changes: [{path: maxLength, by: todo-updated-by-length}]）
 features:
   - C-23
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "todos-sysdev では別の形で出るようになった。確定項目に補正の出どころが残り（design/basic/final/entities.yaml の origins に kind: correction・source: COR-…・value・reason）、ビュー entity-definition-items の「根拠」の列に出る。残りは、テーブルの確定項目（design/detail/final/tables.yaml）に origins が無いことと、カーネルの段の補正（.yde/stages。このサンプルではもう使っていない）で置き換えた値の出どころ"

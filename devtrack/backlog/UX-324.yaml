@@ -1,6 +1,6 @@
 id: UX-324
 title: 生成するテーブル名・カラム名を、項目ごとに別の名前へ付け替える仕組みが無い（いまは SQL の予約語に「_」を付ける決まりだけ）
-status: todo
+status: resolved
 kind: feature
 origin_on: 2026-11-15
 origin: 'samples/todos-sysdev のデータ系の設計書（テーブル設計書）の命名規約を決めたとき'
@@ -11,3 +11,8 @@ features:
   - C-21
 related:
   - UX-319
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 解決
+    note: "詳細設計の補正一覧（samples/todos-sysdev の design/detail/inputs/tables/corrections.yaml）に、設計項目の ID で `target: COL-todo.title`・`set: {name: …}` と書いて、テーブル名・カラム名を付け替えられる。業務モデルの名前は変えない。付け替えた名前は生成時に確定値へ合成され、テーブルアクセス・行モデル・Mapper・Service まで同じ名前が届き、名前の衝突は確定前に止まる（TodosSystemDocumentsTest・TodosJavaModelsTest「物理名の補正は行モデルへ伝わり SQLとJavaの不一致と名前衝突は停止する」）。予約語に「_」を付ける既定はそのまま。2026-11-21 の棚卸しで定義とテストを確かめて閉じた（画面では確かめていない）"

@@ -7,6 +7,7 @@ origin: 開く処理の分析（docs/archive/workspace-open-analysis.md の「�
 memo: |-
   WorkspaceLayout.of(root) は呼ばれるたびに構成ファイルを読み、parseFilesText と parseLedgerText でそれぞれ解析する。開く処理の読み込みで 8 回、ビュー定義の読み込み（Views.load）のたびに 2 回。1 回は軽く、いまの負担は小さい。
   当たり: 1 回の読み込みで決めた構成を、同じ操作の中で渡して使う（Workspace.layout・セッションの layout を引く）。ビュー定義の読み込みを 1 か所にまとめる案（UX-299）と合わせて直すのが自然
+  （2026-11-21 現物確認）解析は 2 回から 4 回になった。WorkspaceLayout.of が台帳（parseLedgerText）・ファイルの許可（parseFilesText）に加えて、定義体のスコープ（parseScopesText）と段（parseStagesText）を、同じ本文からそれぞれ解析する。1 回の重さは測り直していない。
 theme: T-04
 related:
   - UX-299

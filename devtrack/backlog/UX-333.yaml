@@ -9,5 +9,6 @@ memo: |-
   形は generate --model --stage で見られるが、補正を書くたびに項の形を調べることになる。
   案: 補正にだけ、ID で当たり先を書く短い形（例 target: { entity: todo, field: updated_by }）を足し、読み込みで each・where へ下ろす。
   生成物から「この値の補正のひな型」を出す入口（CLI か画面）も考えられる
+  （2026-11-21 現物確認）前提が変わった。samples/todos-sysdev は段の補正（.yde/stages の each・where）をやめ、人が書く入力文書に設計項目の ID で書く形になった（design/basic/inputs/entities/corrections.yaml の `target: FLD-todo.id`・`set: {…}`。型は TYP-…、テーブルは COL-…）。項の形を知らなくても書ける。カーネルの段の補正（TermChanges。each・where・bind・set・add）は残っていて、短い形も補正のひな型を出す入口も足されていない。段の補正をこれからも使うなら残り、使わないなら閉じられる
 features:
   - C-23

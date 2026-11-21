@@ -7,3 +7,7 @@ origin: AWS設計ラボ
 memo: '`$eachEntry`は既存キーを保持するため、動的キーと衝突検査を持つ変換が必要。型ごとのProperties・参照展開は別の生成契約として扱う（[生成入力](../labs/aws-webapp/GENERATION.md)）'
 features:
   - C-15
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "動的なキーのマップは、変換のひな型の $entries（{key, value} の並びからマップを作る。2026-11-15。TransformDef.kt・TransformGroupTest・manual/schema.md）で組める。残りは、同じキーの衝突を誤りにする指定（いまは後の値で置き換える）。型ごとの Properties・参照展開は別の生成契約のまま。"

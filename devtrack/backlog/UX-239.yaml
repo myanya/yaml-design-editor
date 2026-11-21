@@ -6,7 +6,9 @@ origin_on: 2026-11-02
 origin: labs/rpmz 段階 2（MZ の JSON の取り込み）
 body: '**繰り返しの中から、入力の別の場所にある一覧を条件に使えない**: MZ の System.json はスキルタイプの名前の並び（`skillTypes`）と、魔法スキルの番号の一覧（`magicSkills: [1]`）を別に持つ。スキルタイプごとに「自分の番号が一覧にあるか」を調べる書き方が無く、`magic`
   を取り込んでいない（`$zip` は同じ番号の並びだけ）'
-memo: '条件の比べる値に入力の場所を書けるようにする（`{path: $index, oneOf: {$copy: magicSkills, $of: …}}`）か、繰り返しの中から入力の根を読む（UX-236 の案 B）。書き出しは今のひな型で書ける'
+memo: |-
+  条件の比べる値に入力の場所を書けるようにする（`{path: $index, oneOf: {$copy: magicSkills, $of: …}}`）か、繰り返しの中から入力の根を読む（UX-236 の案 B）。書き出しは今のひな型で書ける
+  （2026-11-21 現物確認）登録のあと、規則へ外側の値を渡す $with（`{$each, $apply, $with}`。値は $each を書いた場所で計算する）と、条件の includes / includesAny（場所の配列の要素で比べる。TransformGroupTest）が入った。当てる側で `$with: {magic: {$copy: magicSkills}}` を渡し、規則の中で `{$when: {of: magic, includes: $index}}` と書けば足りる見込み（コードの読みから。includes の比べる値に $index を書く組み合わせのテストは無く、labs/rpmz の import-types は「書き方が無いため取り込みません」のまま）。試して書ければ解決にする。
 targets: UX-236
 related:
   - UX-236

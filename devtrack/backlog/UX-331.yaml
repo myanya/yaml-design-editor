@@ -10,3 +10,7 @@ memo: |-
   いまは想定外として 500 になり、ERROR のログが出る。400 番台に分けるか（画面と文・ログの重さ）を議論で決める
 features:
   - C-21
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "生成アプリの側は一部を分けている。WebErrors（.yde/reports/application/WebErrors.java）が、静的資源なし（NoResourceFoundException）と決まっていない HTTP メソッド（HttpRequestMethodNotSupportedException）を個別に受ける。パラメータの型違い・不足（MethodArgumentTypeMismatchException・MissingServletRequestParameterException）は Exception（500）のまま。設計書（design/detail/final/error-handling.yaml の handlers）は 404・302・500 の 3 つのままで、アプリと合っていない。設計書に出る GlobalExceptionHandler・InvalidTokenException という名前も生成アプリには無い（アプリは WebErrors）"

@@ -7,3 +7,7 @@ origin: labs/adventurers-guild で、受注する操作とパーティを組む�
 memo: 受注で受け手のパーティが同時に受けられる数を超えても、パーティを組むで他のパーティの冒険者を構成員にしても（多重度の inMax）、指摘はパーティや冒険者の文書に出るので、変えた依頼やパーティの文書の結果に入らず適用された。試作では検査の起点を、操作が変える受注とパーティの側に書き換えて避けた。適用前後の全体の検証の差（新しく増えた誤り）で止めるか、変更が関わるエンティティの文書も検証するか
 features:
   - OP-03
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "適用前後で検査の結果が変わる文書まで検証する仕組みはできている（ChangeSetValidation.validate の includeAffected。ローカル接続の操作・エージェントのステージング・CLI の generate はこれを通る）。指摘の起点の CLI の action と画面の操作パネルは、互換窓口 ChangeSetApplier.apply が includeAffected = false で呼ぶので、変える文書だけを見るまま。残りは、この 2 つの入口を同じ検証範囲にすること。"

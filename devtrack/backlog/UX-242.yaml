@@ -10,3 +10,7 @@ body: '**値の式の `via` が、ID の無い配列の要素から参照を辿�
 memo: (2) は少なくともビュー定義のリントで「via に番号は書けません」と止める。直すなら、参照の場所（`ScannedRef` の path）で `via` のパスを番号まで照合する。(1) は `each` のいまの要素の場所（文書の中のパス）を持ち回り、その部分木に書かれた参照を辿れるようにする
 features:
   - X-09
+resolutions:
+  - date: 2026-11-21
+    kind: 一部
+    note: "(1) は直っている。each の要素が ID の無い行でも、その行の下に書かれた参照を via で辿れる（SemanticValues の Environment.inside・eachOf。SemanticViaTest「each は参照の並びと 参照を持つ行の並びを 並びの順に辿る」。manual/views.md）。コードとテストの読みからで、labs/rpmz のドロップ表では試していない。残りは (2)＝番号つきの via が番号を黙って無視する点（QuerySpec の viaMatches が `[` 以降を捨てる。読み込みの断りも無い）。"
