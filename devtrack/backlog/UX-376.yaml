@@ -1,0 +1,16 @@
+id: UX-376
+title: master の CI が落ちている。生成したアプリの .gitignore の「data/」が Java のパッケージ example.todos.data まで無視し、行モデルと Mapper の 11 ファイルがリポジトリに入っていない
+status: todo
+kind: bug
+origin_on: 2026-11-21
+origin: 11 月の指摘の棚卸しのあと、全テスト（./gradlew test）を新しいクローンで回したとき。GitHub Actions でも master（a923982）の test と todos-application が失敗している
+memo: |-
+  TodosApplicationTest「ビルドと起動の生成物は確定設定と一致し 親のビルドに依存しない」が、新しいクローンで NoSuchFileException になる（app-core の 564 件のうち、この 1 件）。GitHub Actions の test は master の a923982 で失敗しており、同じコミットの todos-application も失敗している（todos-application の失敗の原因は、ログを読んでいない）。
+  原因: 生成したアプリの samples/todos-sysdev/app/.gitignore（ひな形は .yde/reports/application/gitignore.txt）の 3 行目「data/」は、実行時のデータの置き場（app/data/）のつもりだが、先頭に「/」が無いので、どの深さの data ディレクトリにも当たる。Java のパッケージ app/src/main/java/example/todos/data/（行モデル data/model の 7 つと Mapper data/mapper の 4 つ）が無視され、コミットされていない（git check-ignore で確かめた）。作った人の手元にはファイルがあるので、手元のテストは通る。
+  影響: リポジトリから取り出したアプリは、data.model・data.mapper を import する Service と Web の層がコンパイルできない。生成物と確定設定の一致を見るテストが、新しいクローンと CI で落ちる。
+  直し方: ひな形 gitignore.txt の「data/」を「/data/」にし（build/ と .gradle/ も、同じ理由で根だけに当てるかを決める）、アプリを作り直して、無視されていた 11 ファイルをコミットする。作り直しの手順は samples/todos-sysdev の README と docs/application-generation.md。
+  あわせて、同じ形の取りこぼしを防ぐ検査（生成の計画の出力先が git に入っているか）を足すかを決める。
+features:
+  - C-21
+roadmap:
+  - R53-03

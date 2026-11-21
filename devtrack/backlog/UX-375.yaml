@@ -1,0 +1,26 @@
+id: UX-375
+title: 段の規則と補正（.yde/stages）を今後使わないと決めたあと、カーネルに残る仕組み・メタスキーマ・仕様・manual・ADR-0034 の扱いが決まっていない
+status: discussing
+kind: spec
+origin_on: 2026-11-21
+origin: 11 月の指摘の棚卸し。UX-333（段の補正の書きにくさ）を「段の補正は今後使わない」というオーナーの判断で見送りにしたとき
+memo: |-
+  samples/todos-sysdev は、段の規則と補正（.yde/stages の each・where・set・add・after）をやめ、人が書く入力文書の補正を生成時に合成して確定項目に保存する形になった（ADR-0039・0041）。構成ファイルは段（basic・detail）の宣言だけを残し、「保存済みの確定値へ stage の規則と補正をもう一度当てない」と書いている。.yde/stages を置くワークスペースは、リポジトリにもう無い。
+  製品の側には、使われなくなった仕組みがそのまま残っている。
+  - 実装: workspace/Stages.kt（段の規則と補正を当てる）・layout/DefinitionStages.kt（構成の stages）・Generators の `stage`・CLI `generate --model --stage`。semantic/TermChanges.kt は、いまの補正の合成（semantic/Corrections.kt）も使っているので、段の補正だけの物ではない。
+  - 定義と仕様: メタスキーマ builtin-schemas/stage.yaml、仕様の位置 CTX-stage・CTX-stage-change・CTX-workspace-stage と語（KW-stage.*・KW-generator.stage）。
+  - 文書: manual/generate.md「段（基本設計・詳細設計）と、規則・補正」、architecture/transform.md「段の項（段階的詳細化）」、機能 C-23、ADR-0034（承認済みのまま。ADR-0039 が補正の置き場を変えたが、0034 を上書きするとは宣言していない）。
+  - テスト: StagesTest・TermChangesTest・TodosSysdevTest の段の部分。
+  決めること（小さい順）:
+  1. 残して「使わない」と書くだけにする（manual と ADR-0034 に、設計書の補正は確定項目の経路を使うと書き添える）。
+  2. 段の規則と補正だけを外す（.yde/stages の読み取り・メタスキーマ・仕様の位置と語・manual の節）。段の宣言と `generate --model --stage` を残すかは、段の項を読む生成の定義が残っているかで決める。
+  3. 段そのもの（宣言・生成の定義の `stage`）も外す。
+  外すなら、新しい ADR で ADR-0034 の上書きを宣言し、語彙の廃止の手順（CONVENTIONS「語を変える・廃止するとき」）に従う。
+  確かめ方: ファイルの有無と grep（samples・labs・templates に .yde/stages の文書は無い）。生成の定義に `stage:` を書いているのは、samples/todos-sysdev で 1 本だけ（detail-tables-derived.yaml）。
+related:
+  - UX-333
+  - UX-334
+features:
+  - C-23
+roadmap:
+  - P53
