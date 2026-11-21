@@ -8,6 +8,7 @@ memo: |-
   補正の set は、要素の origins に {path, 段, 補正の ID と名前} を残すが、生成の定義はまだ origins を写していない。
   エンティティ定義書の更新者は 100 文字に変わるが、出どころは「基本設計「更新者を記録する」」のままで、補正で長さを変えたことはレビューで分からない。
   エンティティ定義書の項目・テーブル設計書の列・アクション定義書の結果に、置き換えた場所と補正の名前を写す（例 changes: [{path: maxLength, by: todo-updated-by-length}]）
+  （2026-11-21 オーナーの判断）カーネルの段の補正（.yde/stages）は今後使わない（UX-333 を見送り）。残りは、テーブルの確定項目（design/detail/final/tables.yaml）に補正の出どころ（origins）が無いことだけ。
 features:
   - C-23
 resolutions:

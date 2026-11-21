@@ -11,7 +11,7 @@ columns:
   - { label: 状態の値, schemaId: item, path: status }
   - label: 状態
     schemaId: item
-    value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌" } }
+    value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌", duplicate: "🔁" } }
   - { label: 起点の日, schemaId: item, path: origin_on }
   - { label: 起点, schemaId: item, path: origin }
   - label: 指摘
@@ -22,4 +22,6 @@ columns:
     schemaId: item
     value: { first: [ { path: targets }, "—" ] }
   - { label: 解決の日, schemaId: item, path: closed_on }
+  # 重複の指摘の寄せた先（状態の欄に「→ UX-nn」と出す）
+  - { label: 寄せた先, schemaId: item, path: duplicate_of }
   - { label: 解決の記録, schemaId: item, path: resolutions }

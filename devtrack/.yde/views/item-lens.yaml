@@ -2,7 +2,7 @@
 id: item-lens
 name: 指摘の状態
 kind: lens
-description: 指摘の箱を状態で描き分けます（解決・見送りは小さな札）。上の段の絞り込みで、終わった指摘を隠せます（未解決の指摘と関連でつながるものは残します）。
+description: 指摘の箱を状態で描き分けます（解決・見送り・重複は小さな札）。上の段の絞り込みで、終わった指摘を隠せます（未解決の指摘と関連でつながるものは残します）。
 appearance:
   nodes:
     - level: entity
@@ -14,15 +14,15 @@ appearance:
         status: {$copy: data.status}
 filters:
   - id: hide-closed
-    label: 解決・見送りを隠す
+    label: 解決・見送り・重複を隠す
     mode: hide
     entityType: backlog-item
-    where: {path: data.status, oneOf: [resolved, declined]}
+    where: {path: data.status, oneOf: [resolved, declined, duplicate]}
     # 関連する指摘の線で未解決の指摘と直接つながるものは、経緯として残す（小さな札のまま）
     keepIfLinked:
       via: [relates-to]
       entityType: backlog-item
-      where: {not: {path: data.status, oneOf: [resolved, declined]}}
+      where: {not: {path: data.status, oneOf: [resolved, declined, duplicate]}}
       depth: 1   # 辿る段数。2 にすると、関連を 2 段たどった先に未解決があるものも残す
   - id: in-motion
     label: 議論待ち・対応中だけ
@@ -38,5 +38,5 @@ filters:
     keepIfLinked:
       via: [concerns]
       entityType: backlog-item
-      where: {not: {path: data.status, oneOf: [resolved, declined]}}
+      where: {not: {path: data.status, oneOf: [resolved, declined, duplicate]}}
     default: true

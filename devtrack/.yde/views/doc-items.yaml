@@ -13,7 +13,7 @@ columns:
   # 状態の欄の絵文字（辞書に無い書き方はそのまま出る）
   - label: 状態
     schemaId: item
-    value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌" } }
+    value: { map: { path: status }, using: { todo: "📋", discussing: "💬", in-progress: "🚧", when-needed: "⏳", resolved: "✅", declined: "❌", duplicate: "🔁" } }
   # 種類の欄の絵文字と名前（書いていなければ空＝未分類）
   - label: 種類
     schemaId: item

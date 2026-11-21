@@ -1,6 +1,6 @@
 id: UX-357
 title: "小さな言語（クエリ・条件・値の式・変換のひな型・操作の手）の形がメタスキーマに無く、語の一覧が 3 か所に分かれている"
-status: discussing
+status: when-needed
 kind: feature
 origin_on: 2026-11-17
 origin: "メタスキーマの型が any の項目を仕分けたとき（UX-347）"

@@ -49,6 +49,7 @@ definitions:
       - { value: when-needed, label: ⏳ 必要になったら }
       - { value: resolved, label: ✅ 解決 }
       - { value: declined, label: ❌ 見送り }
+      - { value: duplicate, label: 🔁 重複 }
   # 指摘の種類: 1 件に 1 つ。当てはまらないものは書かない（未分類）。あとで整理する
   指摘の種類:
     type: enum
@@ -59,7 +60,7 @@ definitions:
       - { value: spec, label: 📐 仕様・定義のずれ, description: 実装・メタスキーマ・文書の食い違い }
       - { value: doc, label: 📄 文書, description: 説明の不足・誤り }
       - { value: dev, label: 🛠 開発の基盤, description: テスト・ビルド・環境・開発管理そのもの }
-  # 操作の受け取る値: 未解決の状態だけ（解決と見送りは「解決にする」で入れる）
+  # 操作の受け取る値: 未解決の状態だけ（解決と見送りは「解決にする」、重複は「重複にする」で入れる）
   未解決の状態:
     type: enum
     values:
@@ -79,7 +80,8 @@ definitions:
       - { value: 一部, label: 一部の解決（指摘は未解決のまま） }
       - { value: 解決, label: 解決 }
       - { value: 見送り, label: 見送り }
-      - { value: 再開, label: 再開（解決・見送りを取り消して未解決に戻した） }
+      - { value: 重複, label: 重複（同じ内容の別の指摘に寄せた） }
+      - { value: 再開, label: 再開（解決・見送り・重複を取り消して未解決に戻した） }
   # 参照の型: 関連する指摘（重複・派生・同じ原因など）。線の名前は relates-to
   指摘参照:
     type: ref
@@ -87,6 +89,13 @@ definitions:
     scope:
       schemaIds: [item]
     relation: relates-to
+  # 参照の型: 重複の指摘を寄せた先（同じ内容の、残す方の指摘）。線の名前は duplicate-of
+  重複先参照:
+    type: ref
+    idPattern: "UX-*"
+    scope:
+      schemaIds: [item]
+    relation: duplicate-of
   # 参照の型: 指摘が関わる機能（FEATURES.md の行）。線の名前は concerns。機能の行に未解決の指摘として出ます
   機能参照:
     type: ref
@@ -108,7 +117,7 @@ definitions:
       - { value: on-hold, label: 保留 }
 
   # ---- オブジェクト型 ----
-  # 解決の記録: 指摘の中に足していく（一部の解決・解決・見送り・再開）。操作「一部を解決する」「解決にする」「再開する」が足す
+  # 解決の記録: 指摘の中に足していく（一部の解決・解決・見送り・重複・再開）。操作「一部を解決する」「解決にする」「重複にする」「再開する」が足す
   解決の記録:
     type: object
     label: 解決の記録
@@ -185,6 +194,10 @@ definitions:
         type: array
         description: 重複・派生・同じ原因など、一緒に見たい指摘。相手の個票には「関連する指摘から」として出ます。
         item: { type: 指摘参照 }
+      - key: duplicate_of
+        label: 寄せた先
+        type: 重複先参照
+        description: 重複の指摘を寄せた先（同じ内容の、残す方の指摘）。状態が重複の指摘には必須で、ほかの状態の指摘には書きません。相手の個票には「寄せられた指摘」として出ます。
       - key: targets
         label: 対応先
         type: 一行の文
@@ -207,12 +220,12 @@ definitions:
       - key: closed_on
         label: 解決の日
         type: 年月日
-        description: 解決・見送りにした日。解決・見送りの指摘には必須で、未解決の指摘には書きません。
+        description: 解決・見送り・重複にした日。解決・見送り・重複の指摘には必須で、未解決の指摘には書きません。
       - key: resolutions
         label: 解決の記録
         type: array
         display: list
-        description: 一部の解決・解決・見送り・再開を足していきます（操作「一部を解決する」「解決にする」「再開する」）。
+        description: 一部の解決・解決・見送り・重複・再開を足していきます（操作「一部を解決する」「解決にする」「重複にする」「再開する」）。
         item: { type: 解決の記録 }
     # 型の検査: 指摘ごとに評価する。台帳の運用（devtrack/README.md「運用」）を検査にしたもの
     constraints:
@@ -225,13 +238,13 @@ definitions:
         level: error
         message: "指摘「{id}」に起点の日がありません"
       - id: closed-has-date
-        description: 解決・見送りの指摘には、解決の日があること
+        description: 解決・見送り・重複の指摘には、解決の日があること
         where:
-          - { path: status, oneOf: [resolved, declined] }
+          - { path: status, oneOf: [resolved, declined, duplicate] }
           - { path: closed_on, exists: false }
         expect: absent
         level: error
-        message: "解決・見送りの指摘「{id}」に解決の日がありません"
+        message: "解決・見送り・重複の指摘「{id}」に解決の日がありません"
       - id: open-has-no-closed-date
         description: 未解決の指摘には、解決の日を残さないこと
         where:
@@ -248,6 +261,30 @@ definitions:
         check:
           - { gte: [ { path: closed_on }, { path: origin_on } ] }
         level: error
+      - id: duplicate-has-target
+        description: 重複の指摘には、寄せた先があること
+        where:
+          - { path: status, equals: duplicate }
+          - { path: duplicate_of, exists: false }
+        expect: absent
+        level: error
+        message: "重複の指摘「{id}」に寄せた先がありません"
+      - id: target-only-for-duplicate
+        description: 寄せた先は、重複の指摘にだけ書くこと
+        where:
+          - { path: status, notEquals: duplicate }
+          - { path: duplicate_of, exists: true }
+        expect: absent
+        level: error
+        message: "重複でない指摘「{id}」に寄せた先が残っています"
+      - id: duplicate-not-self
+        description: 寄せた先は、自分でないこと
+        where:
+          - { path: duplicate_of, exists: true }
+        check:
+          - { ne: [ { path: duplicate_of }, { path: id } ] }
+        level: error
+        message: "指摘「{id}」の寄せた先が自分です"
       - id: when-needed-has-memo
         description: 「必要になったら」の指摘には、実装の当たりを技術メモに残すこと
         where:

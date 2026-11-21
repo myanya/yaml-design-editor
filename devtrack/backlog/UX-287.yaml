@@ -1,6 +1,6 @@
 id: UX-287
 title: 操作の前提で受け手を where で絞ると、合わない受け手は「対象の要素ではない」で止まることが、マニュアルに書かれていない
-status: todo
+status: duplicate
 kind: doc
 origin_on: 2026-11-10
 origin: labs/adventurers-guild の「依頼を掲示する」で、「期限があれば、期限は掲示日以降」を where（期限がある）＋ check で書いたら、期限の無い依頼まで「期限を過ぎているため掲示できません」で止まったとき
@@ -11,3 +11,9 @@ related:
   - UX-369
 features:
   - OP-03
+closed_on: 2026-11-21
+duplicate_of: UX-369
+resolutions:
+  - date: 2026-11-21
+    kind: 重複
+    note: UX-369と同じ指摘（操作の前提で、受け手に書いたwhereの意味がmanualに無い）。こちらにだけあった点（条件つきの前提の書き方・止まったときの文面が誤解を招くこと）はUX-369の技術メモへ移した

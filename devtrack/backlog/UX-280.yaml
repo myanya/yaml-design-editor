@@ -1,6 +1,6 @@
 id: UX-280
 title: 操作の前提の文面で {left} と {right} が埋まらず、比べた値（期限など）を見せられない
-status: todo
+status: duplicate
 kind: bug
 origin_on: 2026-11-08
 origin: labs/adventurers-guild の掲示する操作で、期限を過ぎた依頼の前提の文面に {left} を書いたとき
@@ -11,3 +11,9 @@ related:
   - UX-370
 features:
   - OP-03
+closed_on: 2026-11-21
+duplicate_of: UX-370
+resolutions:
+  - date: 2026-11-21
+    kind: 重複
+    note: UX-370と原因が同じ（ActionPlanner.messageが、checkの違反の解と比べた値を読まない）。{left}・{right}を埋める点はUX-370の技術メモへ移した

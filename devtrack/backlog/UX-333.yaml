@@ -1,6 +1,6 @@
 id: UX-333
 title: 段の補正を書くのに、段の項の形（entities[*].aspects[*].fields など）を知る必要がある。設計書で見ている言葉（どの型のどの項目）で当たり先を書けない
-status: todo
+status: declined
 kind: usability
 origin_on: 2026-11-16
 origin: 'samples/todos-sysdev で、補正「TODO の更新者は 100 文字まで」を書いて試したとき（オーナーの問い「人は、どうやって直すの？」）'
@@ -12,3 +12,8 @@ memo: |-
   （2026-11-21 現物確認）前提が変わった。samples/todos-sysdev は段の補正（.yde/stages の each・where）をやめ、人が書く入力文書に設計項目の ID で書く形になった（design/basic/inputs/entities/corrections.yaml の `target: FLD-todo.id`・`set: {…}`。型は TYP-…、テーブルは COL-…）。項の形を知らなくても書ける。カーネルの段の補正（TermChanges。each・where・bind・set・add）は残っていて、短い形も補正のひな型を出す入口も足されていない。段の補正をこれからも使うなら残り、使わないなら閉じられる
 features:
   - C-23
+closed_on: 2026-11-21
+resolutions:
+  - date: 2026-11-21
+    kind: 見送り
+    note: 段の補正（.yde/stagesのeach・where）は今後使わないので、短い形は足さない（オーナーの判断）。samples/todos-sysdevは、人が書く入力文書に設計項目のID（FLD-…・TYP-…・COL-…）で補正を書く形になり、項の形を知らなくても書ける

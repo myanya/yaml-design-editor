@@ -1,4 +1,4 @@
-# 指摘の箱: 解決・見送りは小さな札（印と ID だけ・薄い色）、未解決は状態の札と件名つきの箱
+# 指摘の箱: 解決・見送り・重複は小さな札（印と ID だけ・薄い色）、未解決は状態の札と件名つきの箱
 id: item-card
 name: 指摘（状態つき）
 kind: diagram-notation
@@ -11,7 +11,7 @@ input:
     - {key: status, type: string}
 build:
   $first:
-    - $when: {path: status, oneOf: [resolved, declined]}
+    - $when: {path: status, oneOf: [resolved, declined, duplicate]}
       $then:
         kind: box
         shape: box
@@ -21,7 +21,7 @@ build:
           - kind: text
             tone: muted
             maxLines: 1
-            text: {$format: "{mark} {id}", $with: {mark: {$first: [{$when: {path: status, equals: resolved}, $then: "✅"}, "❌"]}, id: {$copy: id}}}
+            text: {$format: "{mark} {id}", $with: {mark: {$first: [{$when: {path: status, equals: resolved}, $then: "✅"}, {$when: {path: status, equals: duplicate}, $then: "🔁"}, "❌"]}, id: {$copy: id}}}
     - kind: box
       shape: rounded
       width: 220

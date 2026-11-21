@@ -70,7 +70,7 @@ sections:
   - id: by-month
     label: 起点の月×状態
     view: backlog-month-status
-  # 種類ごとの件数（未解決も、解決・見送りも）と、月ごとに増えた種類
+  # 種類ごとの件数（未解決も、解決・見送り・重複も）と、月ごとに増えた種類
   - id: by-kind
     label: 種類×状態
     view: backlog-kind-status
@@ -94,7 +94,7 @@ sections:
   - id: themes
     label: テーマ
     view: theme-list
-  # 未解決のすべて: 解決でも見送りでもない指摘（状態の書き方が誤っているものも入る）
+  # 未解決のすべて: 解決でも見送りでも重複でもない指摘（状態の書き方が誤っているものも入る）
   - id: all
     label: 未解決のすべて
     view: backlog-list
@@ -104,15 +104,16 @@ sections:
       where:
         - { of: it, path: status, notEquals: resolved }
         - { of: it, path: status, notEquals: declined }
+        - { of: it, path: status, notEquals: duplicate }
       expect: exists
   - id: closed
-    label: 解決・見送り（記録）
+    label: 解決・見送り・重複（記録）
     view: closed-list
     filter:
       match:
         - node: { entity: backlog-item, bind: it }
       where:
-        - { of: it, path: status, oneOf: [resolved, declined] }
+        - { of: it, path: status, oneOf: [resolved, declined, duplicate] }
       expect: exists
   - id: manual-only-features
     label: 手動確認だけの機能

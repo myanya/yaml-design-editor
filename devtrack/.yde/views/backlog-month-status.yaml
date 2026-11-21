@@ -19,3 +19,4 @@ cells:
       - { value: when-needed, label: ⏳ 必要になったら }
       - { value: resolved, label: ✅ 解決 }
       - { value: declined, label: ❌ 見送り }
+      - { value: duplicate, label: 🔁 重複 }

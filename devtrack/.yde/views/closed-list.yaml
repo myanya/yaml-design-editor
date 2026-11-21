@@ -1,6 +1,6 @@
 id: closed-list
-name: 解決・見送りの一覧
-description: 指摘を解決の日の新しい順に並べます（解決の日の無い未解決の指摘は後ろ）。ダッシュボードの区画が解決・見送りに絞ります。
+name: 解決・見送り・重複の一覧
+description: 指摘を解決の日の新しい順に並べます（解決の日の無い未解決の指摘は後ろ）。ダッシュボードの区画が解決・見送り・重複に絞ります。
 rows:
   idPattern: "UX-*"
 order:
@@ -14,6 +14,9 @@ columns:
   - label: 解決の日
     schemaId: item
     path: closed_on
+  - label: 寄せた先
+    schemaId: item
+    path: duplicate_of
   - label: 起点の日
     schemaId: item
     path: origin_on

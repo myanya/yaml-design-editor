@@ -149,7 +149,7 @@ class DevtrackTest {
     }
 
     @Test
-    fun `登録 状態の変更 一部の解決 解決 再開の操作は 写しの上で検証のエラーを増やさずに通る`() {
+    fun `登録 状態の変更 一部の解決 解決 再開 重複の操作は 写しの上で検証のエラーを増やさずに通る`() {
         val base = createTempDirectory("yde-devtrack")
         try {
             val dir = copyTo(base)
@@ -196,6 +196,24 @@ class DevtrackTest {
             // 未解決に戻った指摘は、関わる機能の行の「未解決の指摘」に出る
             val x12 = render(ws, "features-md").lines().first { line -> line.startsWith("| X-12 |") }
             assertTrue(x12.trimEnd().endsWith("$next |") || "$next・" in x12 || "・$next |" in x12, x12)
+            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            // 重複: 同じ内容の別の指摘に寄せる。状態と寄せた先が入り、台帳から消えて、記録に「🔁 → 寄せた先」と出る
+            act("mark-duplicate", next, mapOf("into" to "UX-162", "date" to "2026-11-10", "note" to "同じ指摘"))
+            it = item(next)
+            assertEquals("duplicate", it["status"])
+            assertEquals("UX-162", it["duplicate_of"])
+            assertEquals("2026-11-10", it["closed_on"].toString())
+            assertEquals(listOf("一部", "解決", "再開", "重複"), kinds(next))
+            assertTrue("| $next |" !in render(ws, "backlog-md"))
+            val merged = render(ws, "backlog-closed-md").lines().first { line -> line.startsWith("| $next |") }
+            assertTrue("🔁 → UX-162 " in merged && "2026-11-10 重複: 同じ指摘" in merged, merged)
+            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            // 重複を取り消す: 再開で、解決の日と寄せた先を消す（寄せた先が残ると検証のエラー）
+            act("reopen-item", next, mapOf("date" to "2026-11-11", "note" to "別の指摘だった"))
+            it = item(next)
+            assertEquals("todo", it["status"])
+            assertEquals(null, it["closed_on"])
+            assertEquals(null, it["duplicate_of"])
             assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
             // 機能の登録: 系統の接頭辞の中で採番し、テスト名を省くと「手動」。FEATURES.md のその系統の節に出る
             val lastLc = Files.list(dir.resolve("features")).use { s -> s.map { it.fileName.toString() }.filter { it.startsWith("LC-") }

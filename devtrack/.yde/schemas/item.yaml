@@ -1,7 +1,7 @@
 id: item
 name: 指摘
 kind: document
-description: 指摘（未解決と、解決・見送り）を 1 件 1 ファイルで持ちます。docs/BACKLOG.md（未解決）と docs/archive/backlog-closed.md（解決・見送り）はここから生成します。
+description: 指摘（未解決と、解決・見送り・重複）を 1 件 1 ファイルで持ちます。docs/BACKLOG.md（未解決）と docs/archive/backlog-closed.md（解決・見送り・重複）はここから生成します。
 match: "backlog/*.yaml"
 filePattern: "backlog/{id}.yaml"
 # 文書のルートがオブジェクト型 指摘（同一性＝エンティティ backlog-item の定義・状態の検査つき）
@@ -45,7 +45,7 @@ actions:
 
   - id: change-status
     label: 状態を変える
-    description: 未解決の指摘の状態を、未着手・議論待ち・対応中・必要になったらの間で変えます。解決と見送りは「解決にする」で行います。
+    description: 未解決の指摘の状態を、未着手・議論待ち・対応中・必要になったらの間で変えます。解決と見送りは「解決にする」、重複は「重複にする」で行います。
     target: { entity: backlog-item, bind: it }
     params:
       - { key: status, label: 状態, type: common#未解決の状態, required: true }
@@ -53,7 +53,7 @@ actions:
       - match: [ { node: { entity: backlog-item, bind: x } } ]
         where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
         expect: exists
-        message: "{id} は解決・見送りの指摘です"
+        message: "{id} は解決・見送り・重複の指摘です"
     do:
       - set: { of: it, path: status, value: $status }
 
@@ -72,7 +72,7 @@ actions:
       - match: [ { node: { entity: backlog-item, bind: x } } ]
         where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
         expect: exists
-        message: "{id} は解決・見送りの指摘です"
+        message: "{id} は解決・見送り・重複の指摘です"
     do:
       - insert:
           of: it
@@ -97,7 +97,7 @@ actions:
       - match: [ { node: { entity: backlog-item, bind: x } } ]
         where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
         expect: exists
-        message: "{id} は既に解決・見送りの指摘です"
+        message: "{id} は既に解決・見送り・重複の指摘です"
     do:
       - set: { of: it, path: status, value: $result }
       - set: { of: it, path: closed_on, value: $date }
@@ -116,9 +116,34 @@ actions:
       - when: { path: roadmap, exists: true }
         set: { of: it, path: roadmap, value: $roadmap }
 
+  - id: mark-duplicate
+    label: 重複にする
+    description: 未解決の指摘を、同じ内容の別の指摘（寄せた先）の重複にします。解決の日と寄せた先を入れ、重複の記録を足します。この指摘にだけある点は、先に寄せた先の技術メモへ移します。
+    input:
+      initial:
+        date: { $copy: today, $of: context }
+    target: { entity: backlog-item, bind: it }
+    params:
+      - { key: into, label: 寄せた先, type: common#重複先参照, required: true, description: 同じ内容の、残す方の指摘 }
+      - { key: date, label: 重複にした日, type: common#年月日, required: true }
+      - { key: note, label: 内容, type: common#文章, required: true, minLength: 1, description: 何が同じか・寄せた先へ移した点 }
+    require:
+      - match: [ { node: { entity: backlog-item, bind: x } } ]
+        where: [ { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] } ]
+        expect: exists
+        message: "{id} は既に解決・見送り・重複の指摘です"
+    do:
+      - set: { of: it, path: status, value: duplicate }
+      - set: { of: it, path: closed_on, value: $date }
+      - set: { of: it, path: duplicate_of, value: $into }
+      - insert:
+          of: it
+          path: resolutions
+          value: { date: $date, kind: 重複, note: $note }
+
   - id: reopen-item
     label: 再開する
-    description: 解決・見送りにした指摘を、未解決に戻します。解決の日を消し、再開の記録（理由）を足します。
+    description: 解決・見送り・重複にした指摘を、未解決に戻します。解決の日（と寄せた先）を消し、再開の記録（理由）を足します。
     input:
       initial:
         date: { $copy: today, $of: context }
@@ -129,12 +154,13 @@ actions:
       - { key: note, label: 理由, type: common#文章, required: true, minLength: 1 }
     require:
       - match: [ { node: { entity: backlog-item, bind: x } } ]
-        where: [ { of: x, path: status, oneOf: [resolved, declined] } ]
+        where: [ { of: x, path: status, oneOf: [resolved, declined, duplicate] } ]
         expect: exists
         message: "{id} は未解決の指摘です"
     do:
       - set: { of: it, path: status, value: $status }
       - delete: { of: it, path: closed_on }
+      - delete: { of: it, path: duplicate_of }
       - insert:
           of: it
           path: resolutions

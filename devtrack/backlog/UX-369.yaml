@@ -10,5 +10,6 @@ memo: |-
   - where: [{of: m, path: ownerId, equals: $applicantId}] ＋ expect: absent（「いまの所有者と同じなら止める」のつもり）は、受け手がこの条件に合わないので、いつも止まる。正しくは check: [{ne: [{of: m, path: ownerId}, $applicantId]}]。
   - where: [{of: a, path: channel, equals: online}] ＋ check（「オンラインの申請だけ確かめる」のつもり）は、紙の申請で止まる。正しくは check の or に条件を入れる。
   - 当たり: manual/actions.md の前提の節に「受け手への where は、受け手が満たすべき条件。受け手の値と受け取った値の比較や、一部の受け手だけに当てる条件は check に書く」と例を足す。
+  （2026-11-21 UX-287 を寄せた）UX-287（2026-11-10。labs/adventurers-guild の「依頼を掲示する」）が同じ決まりを指していたので、こちらに寄せた。UX-287 にあった点: (1) 「期限があれば、期限は掲示日以降」のような条件つきの前提を where（期限がある）＋ check で書くと、期限の無い受け手まで止まる。manual には、条件つきにする書き方（値が無いときの既定を first で補う など）も書く。(2) 受け手が where に合わずに止まったときも文面は前提の message になるので、「期限を過ぎているため掲示できません」のように誤解を招く。決まりは architecture/actions.md には書いてあり、無いのは manual/actions.md「前提」と語の仕様（KW-action.require）。
 features:
   - OP-03

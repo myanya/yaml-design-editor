@@ -30,6 +30,13 @@ relations:
     source: [backlog-item]
     target: [backlog-item]
     description: 重複・派生・同じ原因など、一緒に見たい指摘を参照します
+  - name: duplicate-of
+    label: 寄せた先
+    inverseLabel: 寄せられた指摘
+    source: [backlog-item]
+    target: [backlog-item]
+    cardinality: { outMax: 1 }
+    description: 重複の指摘が、寄せた先（同じ内容の、残す方の指摘）を参照します
   - name: concerns
     label: 関わる機能
     inverseLabel: 関わる指摘
