@@ -9,7 +9,7 @@ memo: |-
   利用者の要求の誤り（MethodArgumentTypeMismatchException・MissingServletRequestParameterException・HttpRequestMethodNotSupportedException など）は、
   いまは想定外として 500 になり、ERROR のログが出る。400 番台に分けるか（画面と文・ログの重さ）を議論で決める
 related:
-  - UX-374
+  - UX-377
 features:
   - C-21
 resolutions:

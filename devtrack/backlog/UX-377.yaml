@@ -1,4 +1,4 @@
-id: UX-374
+id: UX-377
 title: todos-sysdev のエラー設計書が言うクラス（GlobalExceptionHandler・InvalidTokenException）と受ける例外が、生成したアプリ（WebErrors）と合っていない
 status: todo
 kind: bug
@@ -10,6 +10,7 @@ memo: |-
   設計書とアプリのどちらを正にするかを決めて合わせる。アプリを設計の確定値から作る流れ（ADR-0041）に沿うなら、エラー設計書の確定値（クラス名・受ける例外と HTTP の番号）から WebErrors を作るか、設計書の導出（.yde/transforms/design/detail/error-handling-derived.yaml）をいまのアプリの作りに合わせる。
   どの例外を 400 番台に分けるかは UX-331 で決める。こちらは、決めた内容が設計書とアプリで同じになることを扱う。
   確かめ方: 定義と生成物の読みから（アプリは動かしていない）。
+  （2026-11-22）master が同じ番号 UX-374（全件テストの時間）を先に使ったので、UX-374 から UX-377 へ振り直した。
 related:
   - UX-331
 features:
