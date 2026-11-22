@@ -41,7 +41,11 @@ tasks.register<JavaExec>("fileTreeBenchmark") {
 // 規則テストと文書の参照のテストは、全モジュールのソースと文書をファイルとして読む（クラスパスには入らない）。
 // 入力に宣言しないと、文書やコメントだけを変えたときに UP-TO-DATE で走らない（コミット前のフックが見逃す）
 val repoDir = rootProject.layout.projectDirectory
-tasks.named<Test>("test") {
+val preCommitTest = testPartition("preCommitTest", listOf(
+    "**/SourceRulesTest*.class", "**/DocReferencesTest*.class", "**/DevtrackTest*.class", "**/SpecTest*.class",
+))
+preCommitTest.configure { description = "コミット前の規則・参照・devtrack・仕様の検査（全件実行でも共有）" }
+tasks.withType<Test>().configureEach {
     inputs.files(
         repoDir.files("CLAUDE.md", "AGENTS.md", "settings.gradle.kts"),
         repoDir.dir("docs").asFileTree.matching { include("**/*.md") },

@@ -34,6 +34,7 @@ internal const val CLI_USAGE = """コマンド:
            束縛の表を返す（ビュー rows: match / foreach source: query / constraints の試作台）。
            --spec 例: "{match: [{node: {entity: screen, bind: scr}}, {edge: {relation: uses}}, {node: {entity: usecase, bind: uc}}]}"
   report   <workspace> [<id>] [--param 名前=値]... [--out <file>] [--print]
+           <workspace> --batch <outputs.yaml|outputs.json>  同じワークスペースを開いて複数のレポートを保存する
            レポート（.yde/reports の定義）を作る: 変換で値の一式を作り（ビューの行も受け取れる）、ひな形（Markdown など）にはめ込む。
            引数なしで一覧。--out は出力先（ワークスペース相対。省略時は定義の output）。--print で書かずに表示する
   transform <workspace> <定義.yaml> [--input <file>] [--param 名前=値]... [--origins]

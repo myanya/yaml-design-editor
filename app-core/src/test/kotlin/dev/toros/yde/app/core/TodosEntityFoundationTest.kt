@@ -18,8 +18,13 @@ class TodosEntityFoundationTest {
     private val root = Path.of("samples/todos-sysdev")
     private fun doc(dir: Path, name: String) = YamlIO.toAny(YamlIO.parseFirst(Files.readString(dir.resolve(name)))!!) as Map<*, *>
     private fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+    private var viewWorkspace: Workspace? = null
+    private lateinit var views: Views.LoadResult
     private fun rows(ws: Workspace, name: String, entity: String? = null): List<VirtualRow> {
-        val views = Views.load(ws.root, ws.schemas)
+        if (viewWorkspace !== ws) {
+            views = Views.load(ws.root, ws.schemas)
+            viewWorkspace = ws
+        }
         assertEquals(emptyList(), views.errors)
         return Views.resolve(assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor,
             entity?.let { mapOf("entity" to it) }.orEmpty())

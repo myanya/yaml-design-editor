@@ -40,10 +40,23 @@ class DevtrackTest {
         ws.validate(rel).filter { it.severity == Severity.ERROR }.map { "$rel ${it.path.pretty()}: ${it.message}" }
     }
 
+    private fun assertValid(ws: Workspace) {
+        val errors = errorsOf(ws)
+        assertTrue(errors.isEmpty(), errors.toString())
+    }
+
+    // 開き直したら定義も読み直す。同じ読み取り用 Workspace の中だけで共有する。
+    private var reportWorkspace: Workspace? = null
+    private lateinit var loaded: Reports.LoadResult
+    private lateinit var catalog: Views.LoadResult
+
     private fun render(ws: Workspace, report: String): String {
-        val loaded = Reports.load(ws.root)
+        if (reportWorkspace !== ws) {
+            loaded = Reports.load(ws.root)
+            catalog = Views.load(ws.root, ws.schemas)
+            reportWorkspace = ws
+        }
         assertTrue(loaded.errors.isEmpty(), loaded.errors.toString())
-        val catalog = Views.load(ws.root, ws.schemas)
         val result = Reports.run(assertNotNull(loaded.report(report), report), emptyMap(), catalog, ws.index, ws::treeOf, ws::schemaFor)
         assertTrue(result.missing.isEmpty(), "$report の埋まらなかった穴: ${result.missing}")
         return result.text
@@ -115,7 +128,8 @@ class DevtrackTest {
             fun row(report: String, prefix: String) = render(ws, report).lines().first { line -> line.startsWith(prefix) }
             // R 項目の状態を変える: 完了は「✅ 日付（補足）」。記録の行（完了したテーマの R 項目）は変えられない
             act("change-item-state", "R43-10", mapOf("state" to "done", "date" to "2026-11-08", "note" to "試した"))
-            assertTrue(row("roadmap-md", "| R43-10 |").endsWith("| ✅ 2026-11-08（試した） |"), row("roadmap-md", "| R43-10 |"))
+            val completedItem = row("roadmap-md", "| R43-10 |")
+            assertTrue(completedItem.endsWith("| ✅ 2026-11-08（試した） |"), completedItem)
             act("change-item-state", "R43-10", mapOf("state" to "todo"))
             assertTrue(row("roadmap-md", "| R43-10 |").endsWith("| 📋 未着手 |"), "未着手に戻すと日付と補足は消える")
             assertFailsWith<ActionFailure> { ActionPlanner.plan(ws.mirror, ActionRequest("change-item-state", "R1-01", mapOf("state" to "todo")), now) }
@@ -127,11 +141,12 @@ class DevtrackTest {
             act("complete-theme", "P50", mapOf("date" to "2026-11-08"))
             val roadmap = render(ws, "roadmap-md")
             assertTrue("### P50:" !in roadmap)
-            assertTrue(row("roadmap-md", "| P50 |").endsWith("| 完了（2026-11-08） |"), row("roadmap-md", "| P50 |"))
+            val completedTheme = roadmap.lines().first { it.startsWith("| P50 |") }
+            assertTrue(completedTheme.endsWith("| 完了（2026-11-08） |"), completedTheme)
             val history = render(ws, "roadmap-history-md")
             assertEquals("### P50: JSON を木のまま取り込み・書き出す（2026-11-08）", history.lines().last { it.startsWith("### ") })
             assertTrue(history.substringAfter("### P50: JSON を木のまま").lines().any { it.startsWith("| R50-08 |") }, "移した R 項目の表")
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             // 表の追加（追加ボタン・新規行の要素）: 節の中の表でも、テーマの番号の中の最大の次を振る
             val doc = DocumentId("roadmap/P52.yaml")
             val tree = assertNotNull(ws.schemaFor(doc)).tree
@@ -181,7 +196,7 @@ class DevtrackTest {
             assertEquals(listOf("UX-162"), it["related"])
             assertEquals(listOf("X-12", "X-03"), it["features"], "解決で関わる機能を置き換える")
             assertEquals(listOf("R52-05", "P52"), it["roadmap"], "解決でロードマップの項目を置き換える")
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             // 解決した指摘は台帳から消え、記録に出る（状態の欄に記録の種類と内容）。同じ日に解決した本物の指摘があっても、自分の行を引く
             assertTrue("| $next |" !in render(ws, "backlog-md"))
             val row = render(ws, "backlog-closed-md").lines().first { line -> line.startsWith("| $next |") }
@@ -196,7 +211,7 @@ class DevtrackTest {
             // 未解決に戻った指摘は、関わる機能の行の「未解決の指摘」に出る
             val x12 = render(ws, "features-md").lines().first { line -> line.startsWith("| X-12 |") }
             assertTrue(x12.trimEnd().endsWith("$next |") || "$next・" in x12 || "・$next |" in x12, x12)
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             // 重複: 同じ内容の別の指摘に寄せる。状態と寄せた先が入り、台帳から消えて、記録に「🔁 → 寄せた先」と出る
             act("mark-duplicate", next, mapOf("into" to "UX-162", "date" to "2026-11-10", "note" to "同じ指摘"))
             it = item(next)
@@ -207,14 +222,14 @@ class DevtrackTest {
             assertTrue("| $next |" !in render(ws, "backlog-md"))
             val merged = render(ws, "backlog-closed-md").lines().first { line -> line.startsWith("| $next |") }
             assertTrue("🔁 → UX-162 " in merged && "2026-11-10 重複: 同じ指摘" in merged, merged)
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             // 重複を取り消す: 再開で、解決の日と寄せた先を消す（寄せた先が残ると検証のエラー）
             act("reopen-item", next, mapOf("date" to "2026-11-11", "note" to "別の指摘だった"))
             it = item(next)
             assertEquals("todo", it["status"])
             assertEquals(null, it["closed_on"])
             assertEquals(null, it["duplicate_of"])
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             // 機能の登録: 系統の接頭辞の中で採番し、テスト名を省くと「手動」。FEATURES.md のその系統の節に出る
             val lastLc = Files.list(dir.resolve("features")).use { s -> s.map { it.fileName.toString() }.filter { it.startsWith("LC-") }
                 .map { it.removePrefix("LC-").removeSuffix(".yaml").toInt() }.toList() }.max()
@@ -230,7 +245,7 @@ class DevtrackTest {
             // テスト名を省いた機能は手動確認だけで、FEATURES.md の末尾の一覧に出る
             val manualOnly = features.substringAfter("## 手動確認だけの機能").substringBefore("## 公開サンプル")
             assertTrue(feature in manualOnly, manualOnly)
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             // 判断待ちの決定: ROADMAP.md では「判断待ち（日付 誰）」の見出しになり、ダッシュボードの判断待ちの区画に出る
             fun pendingRows(): Int {
                 val views = Views.load(dir, ws.schemas)
@@ -245,7 +260,7 @@ class DevtrackTest {
             val first = assertNotNull(decided.find(text), "P52 の決定済みの箇条")
             Files.writeString(theme, text.replaceRange(first.range, "- status: pending\n"))
             ws = Workspace.open(dir)
-            assertTrue(errorsOf(ws).isEmpty(), errorsOf(ws).toString())
+            assertValid(ws)
             assertEquals(headingsBefore + 1, render(ws, "roadmap-md").lines().count { line -> line.startsWith("- **判断待ち（") }, "判断待ちの見出し")
             assertEquals(pendingBefore + 1, pendingRows(), "判断待ちの区画")
         } finally {

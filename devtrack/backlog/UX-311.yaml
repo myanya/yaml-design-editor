@@ -1,14 +1,19 @@
 id: UX-311
 title: samples を読む一部のテストが Gradle の入力に samples を持たず、samples だけを変えるとテストが最新とみなされて走らない
-status: todo
+status: in-progress
 kind: dev
 origin_on: 2026-11-14
 origin: samples/todos の追従で、ダッシュボードとデータを変えたあとに該当のテストを回したとき（--rerun を付けるまで実行されなかった）
 memo: |-
   WebBusinessTest は samples/todos と samples/orders を一時ディレクトリへ写して読み、AppCliTest は samples/todos の catalog と outline を読む。どちらもテストのタスクの入力に samples が無いので、コードを変えずに samples だけを変えた変更では UP-TO-DATE になり、落ちるテストに気づけない（labs で同じ形だった UX-294 と同じ）。
-  app-core の Todos 系のテストも、samples/todos-sysdev の設計・レポート・生成アプリを読むが、モジュールと共通の Gradle 設定にそれらの入力宣言が無い。YAML やひな形だけを変えた場合の再実行も対応範囲に含める。
+  app-core の Todos 系は sampleTest に分け、samples/todos と todos-sysdev の設計・ひな形・生成アプリを入力に宣言した。実行時の app/data/ とビルドの生成物は含めない。ほかのモジュールの samples の入力宣言は残っている。
   直し方の候補: 読む samples をそれぞれのテストの入力に足す、または test-fixtures にその時点の写しを置いて読む（UX-294 の形。ただし Web のテストは公開サンプルそのものが動くことを見たいので、入力に足す方が目的に合う）
 related:
   - UX-294
 features:
   - C-21
+resolutions:
+  - date: 2026-11-22
+    kind: 一部
+    note: app-core の実サンプルの検査を sampleTest に分離し、設計・レポート・比較先の生成アプリを入力に宣言した。小さな入力のテストと全件実行を分け、両方で共通 fixture の変更も検出する。
+    targets: app-core/build.gradle.kts

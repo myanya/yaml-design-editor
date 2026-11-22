@@ -19,6 +19,7 @@ class CliOwnershipTest {
             listOf("infer-relations", "--apply"), listOf("agent", "missing"), listOf("watch", "--once"),
             listOf("revert", "missing"), listOf("export", "missing"), listOf("migrate"),
             listOf("eval", "missing"), listOf("report", "missing"), listOf("run-skill", "missing", "--yes"),
+            listOf("report", "--batch", "missing.json"),
             listOf("init", "--adopt"), listOf("event", "missing", "--record"),
         )
         WorkspaceOwnership().acquire(root).use {

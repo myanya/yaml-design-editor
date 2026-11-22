@@ -15,6 +15,32 @@ dependencies {
 tasks.withType<Test>().configureEach {
     // テストは samples/ や test-fixtures/ をリポジトリの根からの相対パスで読む。ほかのモジュールのテストと同じ作業ディレクトリにそろえる
     workingDir = rootDir
+    inputs.dir(rootDir.resolve("test-fixtures"))
+        .withPropertyName("fixtures").withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+// 小さな入力の契約検査と、実サンプルの全設計を読む結合検査を別の実行結果にする。
+// ./gradlew test は両方を含む。単体だけなら :app-core:test -x :app-core:sampleTest。
+val sampleTest = testPartition("sampleTest", listOf(
+    "BusinessModelTest", "TodosApplicationTest", "TodosDesignCompositionTest", "TodosDesignContractTest",
+    "TodosDesignGenerationTest", "TodosDesignTargetsTest", "TodosEntityFoundationTest", "TodosFieldCorrectionsTest",
+    "TodosJavaModelsTest", "TodosMappersTest", "TodosSchemaInputsTest", "TodosServiceBindingsTest",
+    "TodosServiceFoundationTest", "TodosServiceProgramsTest", "TodosSysdevTest", "TodosSystemDocumentsTest",
+    "TodosTypeCorrectionsTest", "TodosWebBindingsTest", "TodosWebDesignTest", "TodosWebPagesTest",
+).map { "**/$it*.class" })
+sampleTest.configure {
+    description = "TODO の実サンプル・設計生成・生成アプリの結合検査"
+    inputs.files(fileTree(rootDir.resolve("samples")) {
+        include("todos/**", "todos-sysdev/.yde/workspace.yaml", "todos-sysdev/.yde/schemas/**",
+            "todos-sysdev/.yde/views/**", "todos-sysdev/.yde/transforms/**", "todos-sysdev/.yde/reports/**",
+            "todos-sysdev/.yde/stages/**", "todos-sysdev/design/**", "todos-sysdev/assets/**",
+            "todos-sysdev/app/src/**", "todos-sysdev/app/gradle/**", "todos-sysdev/app/*.kts",
+            "todos-sysdev/app/gradlew*", "todos-sysdev/app/gradle.properties", "todos-sysdev/app/.gitignore", "todos-sysdev/app/README.md")
+        exclude("**/.yde/state/**", "**/.yde/history/**", "**/.yde/cache/**", "**/.yde/locks/**")
+    }, rootProject.file("settings.gradle.kts"),
+        // FileTree の標準除外に入るため、比較先の .gitignore は直接指定する。
+        rootProject.file("samples/todos-sysdev/app/.gitignore"))
+        .withPropertyName("sampleInputs").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 // バージョン情報を資源（build-info.properties）として jar に入れる。読むのは core/BuildInfo.kt（desktop と cli が使う）。

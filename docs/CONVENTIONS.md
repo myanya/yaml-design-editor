@@ -44,6 +44,9 @@
   ローカル接続の契約試験はインメモリ通信を優先し、待受と同梱ランタイムの検査だけは自分が起動した loopback と一時ポートを使って必ず閉じる。
 - **OS に依存する絶対パスを書かない**: 全テストは GitHub Actions（Linux）でも回る。`Path.of("C:/ws")` は Linux では相対パスになり、`\` は区切りでなく名前の一部になる。絶対パスが要るテストは `Path.of("").toAbsolutePath().root` から組むか、一時ディレクトリを使う（文字だけを見る検査＝`FilePath` の入力に `C:/` を書くのは可）。
 - 実行: `./gradlew test`（コミット前に通すこと）。コミット前フック（`scripts/git-hooks/pre-commit`）は docs-lint と規則・参照・devtrack のテストだけを回し、全テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。
+- コミット前の検査は `:repo-tests:preCommitTest`。全件実行も同じタスクに依存するため、入力が変わらなければ直後のフックで再実行しない。TODO の実サンプルの結合検査は `:app-core:sampleTest`、小さな入力の検査だけなら `:app-core:test -x :app-core:sampleTest`。
+  `./gradlew test --tests '…'` の条件は各区分にも渡す。XML と HTML の結果は各モジュールの `build/test-results/<タスク名>/` と `build/reports/tests/<タスク名>/` に出る。
+- サンプルを読む検査では原本と比較先を Gradle の入力に宣言する。`sampleTest` は設計・ひな形・生成アプリのソースを読むが、実行データ `app/data/` や `build/`・`.gradle/` は入力にもコピーにも含めない。
 
 ### スキーマ語彙と編集UIの同期
 

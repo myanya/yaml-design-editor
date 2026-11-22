@@ -7,7 +7,10 @@ Kotlin + Compose for Desktop 製のスキーマ駆動 YAML エディタ。ワー
 ## コマンド
 
 ```bash
-./gradlew test                              # 単体テスト（コミット前に必ず実行）
+./gradlew test                              # 単体・サンプルの結合テスト（コミット前に必ず実行）
+./gradlew :repo-tests:preCommitTest          # フックと共通の規則・参照・devtrack・仕様の検査
+./gradlew :app-core:sampleTest              # TODO の実サンプルの結合検査
+./gradlew :app-core:test -x :app-core:sampleTest # app-core の小さな入力の検査だけ
 ./gradlew :web-ui:bundle                    # Web 資源の型検査・ビルド（通常のアプリビルドにも含む）
 ./gradlew test --tests '*WorkspaceInitTest*'  # 絞って実行（一致しないモジュールは失敗にしない）
 git config core.hooksPath scripts/git-hooks   # コミット前フック（クローンごとに 1 回。docs-lint と規則・参照・devtrack のテスト。全テストは GitHub Actions）
@@ -113,7 +116,8 @@ Web のビルドは Gradle が固定版の Node・npm を取得し、`web-ui/pac
   PowerShell なら同じプロセスで `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` と `$env:GRADLE_OPTS = "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"` を設定してから `.\gradlew.bat` を呼ぶ（実測済み）。人が端末で読むだけなら指定しない（端末が MS932 のため）。
 - **テストを絞る**: `./gradlew test --tests '*WorkspaceInitTest*'`。一致するテストが無いモジュールは失敗にしない設定なので、ルートから回せる。
 - **画面の確認**は [.claude/skills/ui-check/SKILL.md](.claude/skills/ui-check/SKILL.md) の手順で行う（Claude Code では skill `ui-check`。ほかのエージェントも同じ文書を読む）。ワークスペースを写して hotRun で起動し、Hot Reload の MCP（`.mcp.json`）で画面の木を読んで操作し、最後にアプリとこのセッションの MCP サーバを止める（`stop.ps1 -Mcp`）。MCP サーバは `scripts/hot-mcp-server.ps1` から起動し、セッションが終わると一緒に止まる。
-- **コミット前のフックと CI**。クローンごとに 1 回 `git config core.hooksPath scripts/git-hooks` を実行する。コミットのたびに docs-lint とソースの規則・文書の参照・devtrack（検証と、生成した台帳が最新か）のテストだけが回る（30 秒ほど）。全モジュールの単体テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。手元でも `./gradlew test` をコミット前に通す決まりは変わらない。
+- **コミット前のフックと CI**。クローンごとに 1 回 `git config core.hooksPath scripts/git-hooks` を実行する。コミットのたびに docs-lint とソースの規則・文書の参照・devtrack（検証と、生成した台帳が最新か）のテストだけが回る（`:repo-tests:preCommitTest`）。
+  全件実行後は入力が同じなら検査結果を再利用する。全モジュールの単体テストは GitHub Actions（`.github/workflows/test.yml`）が push ごとに回す。手元でも `./gradlew test` をコミット前に通す決まりは変わらない。
 - **`labs/` の未コミット差分に触れない**。オーナーが別セッションで整備していることがある。自分の変更と混ぜず、コミットにも含めない。
 - **一時ファイル**はリポジトリの `scratchpad/`（`.gitignore` 済み）か、エージェントの一時領域に置く。背景で動かすコマンドの出力先は先に作る。長いスクリプトや文書は、シェルのヒアドキュメントに入れず、ファイルに書いてから実行する（長文のヒアドキュメントは失敗することがある）。
 - **`scratchpad/` は作業ごとのフォルダに分け、済んだら消す**。直下には置かず、作業ごとに `scratchpad/<作業名>/`（例 `scratchpad/r49-71/`）を作ってその中に置き、作業をコミットしたらフォルダごと消す（直下に積むと、どれが何のための物か分からなくなる）。手順が場所を決めているもの（`ui-check/`・`mcp-inspector/`・リリースの記録 `release-<版>/`）はその手順に従う。

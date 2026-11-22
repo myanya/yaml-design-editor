@@ -16,7 +16,7 @@ internal fun appCommandWrites(command: String, rest: List<String>): Boolean = wh
     "export" -> "--dry-run" !in rest
     "agent", "watch", "revert", "migrate" -> true
     "eval" -> rest.getOrNull(1)?.startsWith("--") == false
-    "report" -> rest.getOrNull(1)?.startsWith("--") == false && "--print" !in rest
+    "report" -> "--batch" in rest || rest.getOrNull(1)?.startsWith("--") == false && "--print" !in rest
     "run-skill" -> "--yes" in rest
     "init" -> ("--template" in rest || "--adopt" in rest) && "--dry-run" !in rest
     "version", "catalog", "outline", "read", "bundle", "traverse", "query", "transform", "search",
