@@ -286,11 +286,12 @@ private fun ArrayRowMenu(ctx: FormCtx, field: FieldDef, node: YNode.Seq, i: Int,
 
 /**
  * 配列の行の操作メニュー（⋯）: 行の要素に使える操作（型の操作と、その型を受け手にするアクション。architecture/actions.md）。
- * 選ぶとその要素を対象にしたパネルが開く。ID の無い要素・操作の無い型には出ない。型は走査した ID の型で見るので、未保存の行にも出る。
+ * 選ぶとその要素を対象にしたパネルが開く。操作の無い型には出ない。型は走査した ID の型で見るので、未保存の行にも出る。
+ * ID の無い行には、その行を番号で指す操作（RowIndexOpsButton）を出す。
  */
 @Composable
 internal fun ElementOpsButton(ctx: FormCtx, rowPath: YPath, modifier: Modifier = Modifier) {
-    val entry = ctx.localIds.firstOrNull { it.path == rowPath } ?: return
+    val entry = ctx.localIds.firstOrNull { it.path == rowPath } ?: run { RowIndexOpsButton(ctx, rowPath, modifier); return }
     val actions = remember(entry.id, entry.entityType, ctx.state.indexVersion) {
         entry.entityType?.let { ctx.state.actionsForEntityType(it) } ?: ctx.state.actionsForEntity(entry.id)
     }
@@ -305,6 +306,38 @@ internal fun ElementOpsButton(ctx: FormCtx, rowPath: YPath, modifier: Modifier =
             actions.forEach { e ->
                 ActionMenuItem(ctx.state, e, entry.id,
                     onClick = { open = false; ctx.state.startAction(e, entry.id) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * ID の無い行の操作メニュー（⋯）: その行を番号で指す操作（手のパスに `並び[$名前]` を書いたアクション。UX-381）。
+ * 受け手は、行を持つ最も近い ID の要素（個票なら文書のルートの要素）。選ぶと、その要素を対象に、行の番号を入れたパネルが開く。
+ * 番号は 0 から数える（パスの `[0]` と同じ）。見出しには、画面の数え方（1 行目から）で出す。
+ */
+@Composable
+private fun RowIndexOpsButton(ctx: FormCtx, rowPath: YPath, modifier: Modifier = Modifier) {
+    val index = rowPath.lastOrNull() as? Int ?: return
+    val owner = ctx.localIds
+        .filter { rowPath.size > it.path.size && rowPath.subList(0, it.path.size) == it.path }
+        .maxByOrNull { it.path.size } ?: return
+    val type = owner.entityType ?: return
+    val arrayPath = rowPath.subList(owner.path.size, rowPath.size - 1)
+    val schemaId = ctx.doc.schema?.id
+    val actions = remember(schemaId, type, arrayPath, ctx.state.indexVersion) { ctx.state.rowActions(schemaId, type, arrayPath) }
+    if (actions.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        IconButton(onClick = { open = true }, modifier = Modifier.size(24.dp)) {
+            Icon(Icons.Default.MoreVert, contentDescription = "行の操作", Modifier.size(16.dp), tint = Palette.SubText)
+        }
+        DropdownMenu(open, { open = false }) {
+            Text("${owner.id} の ${index + 1} 行目の操作", Modifier.padding(horizontal = 12.dp, vertical = 4.dp), fontSize = 10.sp, color = Palette.SubText)
+            actions.forEach { row ->
+                ActionMenuItem(ctx.state, row.entry, owner.id,
+                    onClick = { open = false; ctx.state.startAction(row.entry.name, owner.id, mapOf(row.param to index)) },
                 )
             }
         }

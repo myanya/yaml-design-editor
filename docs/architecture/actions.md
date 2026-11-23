@@ -44,6 +44,10 @@
 - **入れ子の行の採番**: `create` と `insert` で作る要素の中の配列の行のうち、ID が空のものに、その配列の `insert` の決まりの採番を当てる（`numberNested`。同じ明細の見分けはしない。`owner` は ID を持つ最も近い外側の要素）。
 - **適用**: 変更セットは `ChangeSetApplier` をそのまま通る（競合・自動で入る値・適用後の姿の検証・1 トランザクション）。CLI は既定で計画だけを出し、`--apply` で書く。検証エラーが残るなら書かず、`--allow-errors` で書く。
 - **画面**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）は `AppState.startAction(entry, target)` を呼ぶだけで、受け手を知らない入口は `target = null` で呼ぶ。`Main` が載せる浮いたパネル（`ActionPanelHost`。「AI で作成」と同じ幅）に、対象の欄と受け取る値の欄が出る。
+- **番号で指すパス**: 手の `path` の `[$名前]` は `ParamIndex`（`StepSite.path` の区切り。読み書きは `StepPaths`）で、計画の `sitePath` が受け取った値の番号（0 から）に置き換える。
+  その並びに在る要素だけを指せ、範囲の外・整数でない値・並びでない場所は `ActionFailure` で止める（黙って足さない・飛ばさない）。名前は `ActionSteps.paramNames` に入り、宣言の点検を通る。
+  ID の無い行の ⋯（`RowIndexOpsButton`）は `ActionPlanner.indexingInto`（受け手の型・配列のパス・`in` のスキーマが合い、その配列の番号の 1 件へ書く手を持つアクション）を引き、
+  行を持つ最も近い ID の要素を対象に、番号を `startAction(name, target, prefill)` で入れて始める。番号の解決を画面に書かない。
 - 対象の欄（`TargetPicker`）は要素を受け手にする操作（`ActionEntry.entityType`）だけに出る。候補は上書き索引のうちその型の出現を持つ ID（`entityCandidates`）で、値は `ActionWork.targetHolder` の木に入り、`work.target` で読む。受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。
 - 右ペインの `actionPanelContext` は表示中の横ぐしの選択IDを優先し、未選択・削除済みなら対象を空にする（背後の文書を使わない）。文書画面ではフォームで明示選択した要素、なければ文書ルートのIDを対象にする。台帳は型ごとの入口も残す。対象IDは文書別の `FormNavigationMemory.actionTarget` に保持し、スクロール追従では変えない。
 - 項目の所有者は選択パスの最も近いID出現で決める（Termの位置選択）。削除されたIDを使わず、文書の先頭も推測しない。開始済みの操作対象は背後の選択に追随しない。

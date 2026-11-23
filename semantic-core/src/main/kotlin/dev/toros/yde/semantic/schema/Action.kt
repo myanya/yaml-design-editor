@@ -20,8 +20,48 @@ import dev.toros.yde.yaml.model.parseYPath
  * 計画（変更セットの生成）は workspace-core の ActionPlanner。ここは宣言と、その形の点検だけ。
  */
 
-/** 操作の対象の場所: どの束縛の（null＝いまの要素）・どの文書の出現の・どのパス（受け手からの相対）。 */
-data class StepSite(val of: String? = null, val inDoc: DerivationSelector? = null, val path: YPath = emptyList())
+/**
+ * パスの中の「受け取った値の番号」（`comments[$row]` の `[$row]`）。並びの 1 件を、操作が受け取った値で指す。
+ * 番号は 0 から数える（`comments[0]` と同じ数え方）。計画のとき、その値の番号に置き換える（ActionPlanner）。
+ */
+data class ParamIndex(val name: String) {
+    override fun toString(): String = "[\$$name]"
+}
+
+/**
+ * 操作の対象の場所: どの束縛の（null＝いまの要素）・どの文書の出現の・どのパス（受け手からの相対）。
+ * パスの区切りには、キー・決まった番号のほかに、受け取った値の番号（ParamIndex）が入る。
+ */
+data class StepSite(val of: String? = null, val inDoc: DerivationSelector? = null, val path: YPath = emptyList()) {
+    /** パスの中で番号として読む、受け取った値の名前。 */
+    val indexParams: List<String> get() = path.filterIsInstance<ParamIndex>().map { it.name }
+}
+
+/** 手のパスの読み書き: `[$名前]`（受け取った値の番号）を含むパス。 */
+object StepPaths {
+    private val INDEX_PARAM = Regex("""\[\$([A-Za-z][A-Za-z0-9_]*)]""")
+    // 読むあいだだけ、受け取った値の番号を大きな番号に置き換えて、ふつうのパスとして読む
+    private const val PLACEHOLDER = 1_000_000_000
+
+    fun parse(text: String): YPath {
+        val names = mutableListOf<String>()
+        val plain = INDEX_PARAM.replace(text) { m -> names += m.groupValues[1]; "[${PLACEHOLDER + names.size - 1}]" }
+        require('$' !in plain) { "番号を受け取った値で指すときは [\$名前] と書きます（例 comments[\$row]）" }
+        return parseYPath(plain).map { seg -> if (seg is Int && seg >= PLACEHOLDER) ParamIndex(names[seg - PLACEHOLDER]) else seg }
+    }
+
+    /** 読める形のパス（受け取った値の番号は `[$名前]` のまま）。 */
+    fun pretty(path: YPath): String {
+        if (path.isEmpty()) return "(root)"
+        val sb = StringBuilder()
+        for (seg in path) when (seg) {
+            is Int -> sb.append('[').append(seg).append(']')
+            is ParamIndex -> sb.append(seg.toString())
+            else -> { if (sb.isNotEmpty()) sb.append('.'); sb.append(seg) }
+        }
+        return sb.toString()
+    }
+}
 
 /** 効果の 1 手。conditions（`when`）に合わないときは飛ばす。 */
 sealed interface ActionStep {
@@ -118,8 +158,8 @@ object ActionSteps {
                 }
             }
             val text = body["path"]?.toString() ?: ""
-            val path = if (text.isBlank() || text == ".") emptyList() else runCatching { parseYPath(text) }
-                .getOrElse { error("$where.$kind.path: パスとして読めません: $text") }
+            val path = if (text.isBlank() || text == ".") emptyList() else runCatching { StepPaths.parse(text) }
+                .getOrElse { error("$where.$kind.path: パスとして読めません: $text${it.message?.let { m -> "（$m）" } ?: ""}") }
             return StepSite(of, inDoc, path)
         }
         fun template(key: String, required: Boolean): Template? {
@@ -196,13 +236,13 @@ object ActionSteps {
         fun walk(s: ActionStep) {
             conditions(s.conditions)
             when (s) {
-                is ActionStep.Set -> out += s.value.paramNames()
-                is ActionStep.Insert -> { s.params?.let { out += it.paramNames() }; s.value?.let { out += it.paramNames() } }
-                is ActionStep.Delete -> Unit
+                is ActionStep.Set -> { out += s.site.indexParams; out += s.value.paramNames() }
+                is ActionStep.Insert -> { out += s.site.indexParams; s.params?.let { out += it.paramNames() }; s.value?.let { out += it.paramNames() } }
+                is ActionStep.Delete -> out += s.site.indexParams
                 is ActionStep.Create -> out += s.params.paramNames()
                 is ActionStep.Call -> out += s.params.paramNames()
                 is ActionStep.EachMatch -> s.steps.forEach(::walk)
-                is ActionStep.EachPath -> s.steps.forEach(::walk)
+                is ActionStep.EachPath -> { out += s.site.indexParams; s.steps.forEach(::walk) }
             }
         }
         steps.forEach(::walk)

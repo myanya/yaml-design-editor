@@ -40,6 +40,7 @@ import dev.toros.yde.agent.run.Staging
 import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.workspace.ActionRequest
+import dev.toros.yde.workspace.RowAction
 import dev.toros.yde.workspace.LifecycleReview
 import dev.toros.yde.workspace.ChangeRecord
 import dev.toros.yde.workspace.WorkspaceDerivedState
@@ -780,6 +781,10 @@ class AppState(
     fun actionsForEntity(id: String): List<ActionEntry> = documents.actionsForEntity(id)
 
     fun actionsForEntityType(type: String): List<ActionEntry> = documents.actionsForEntityType(type)
+
+    /** 並びの 1 件を番号で指す操作（ID の無い行の ⋯ が、その行の番号を入れて始める）。 */
+    fun rowActions(schemaId: String?, entityType: String, arrayPath: YPath): List<RowAction> =
+        documents.rowActions(schemaId, entityType, arrayPath)
 
     fun actionsForDocument(file: Path): List<ActionEntry> = documents.actionsForDocument(file)
 

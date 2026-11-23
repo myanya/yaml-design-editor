@@ -22,6 +22,7 @@ import dev.toros.yde.semantic.schema.IdSeries
 import dev.toros.yde.semantic.schema.InsertRule
 import dev.toros.yde.semantic.schema.LifecycleDef
 import dev.toros.yde.semantic.schema.MethodDef
+import dev.toros.yde.semantic.schema.ParamIndex
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.SchemaKind
 import dev.toros.yde.semantic.schema.SchemaScaffold
@@ -64,6 +65,9 @@ data class PreparedActionInput(val values: Map<String, Any?>, val sourceStamp: S
 data class ActionPlan(val title: String, val changeSet: ChangeSet, val summary: List<String>) {
     val isEmpty: Boolean get() = changeSet.changes.isEmpty()
 }
+
+/** 並びの 1 件を番号で指すアクションと、その番号を受け取る値の名前（フォームの行の ⋯ が、行の番号を入れて始める）。 */
+data class RowAction(val entry: ActionEntry, val param: String)
 
 /** 使える操作の一覧の 1 行（アクションは id、型の操作は 型名.操作名）。 */
 data class ActionEntry(
@@ -199,6 +203,36 @@ object ActionPlanner {
             s.actions.filter { a -> hits(a.steps, a.target?.schema) }.map { a ->
                 val target = a.target?.let { t -> t.entity?.let { "entity: $it" } ?: "schema: ${t.schema}" }
                 ActionEntry(a.id, "action", a.label, a.description, target, a.params, s.id, a.input)
+            }
+        }
+    }
+
+    /**
+     * 並びの 1 件を、受け取った値の番号（`comments[$row]`）で指すアクション（ID の無い行の ⋯ が使う）: 受け手がその型の要素で、
+     * 手のどこかに、受け手からその配列の「番号の 1 件」への set・delete・insert・each があるもの。`in` を書いた手はそのスキーマの文書のときだけ数え、
+     * each の中も見る。型の操作は受け手が要素そのものなので数えない。
+     */
+    fun indexingInto(schemas: List<WorkspaceSchema>, schemaId: String?, entityType: String, arrayPath: YPath): List<RowAction> {
+        fun paramOf(site: StepSite, bind: String): String? {
+            if (site.of != null && site.of != bind) return null
+            if (site.inDoc?.schemaId != null && site.inDoc?.schemaId != schemaId) return null
+            if (site.path.size <= arrayPath.size || site.path.subList(0, arrayPath.size) != arrayPath) return null
+            return (site.path[arrayPath.size] as? ParamIndex)?.name
+        }
+        fun find(steps: List<ActionStep>, bind: String): String? = steps.firstNotNullOfOrNull { step ->
+            when (step) {
+                is ActionStep.Set -> paramOf(step.site, bind)
+                is ActionStep.Delete -> paramOf(step.site, bind)
+                is ActionStep.Insert -> paramOf(step.site, bind)
+                is ActionStep.EachPath -> paramOf(step.site, bind)
+                is ActionStep.EachMatch -> find(step.steps, bind)
+                else -> null
+            }
+        }
+        return schemas.flatMap { s ->
+            s.actions.filter { it.target?.entity == entityType }.mapNotNull { a ->
+                val param = find(a.steps, a.target?.bind ?: MethodDef.SELF) ?: return@mapNotNull null
+                RowAction(ActionEntry(a.id, "action", a.label, a.description, "entity: $entityType", a.params, s.id, a.input), param)
             }
         }
     }
@@ -700,11 +734,33 @@ object ActionPlanner {
             }
         }
 
+        /**
+         * 手のパスを、文書の中の場所にする。受け取った値の番号（`comments[$row]`）は、その値の番号に置き換える。
+         * 番号は 0 から数える整数で、その並びに在る要素だけを指せる（範囲の外・整数でない値は、何も書かずに止める）。
+         */
+        private fun sitePath(site: StepSite, at: TemplatePlace, doc: DocumentId, scope: Scope, origin: String): YPath {
+            if (site.indexParams.isEmpty()) return at.path + site.path
+            var path = at.path
+            for (seg in site.path) {
+                if (seg !is ParamIndex) { path = path + seg; continue }
+                val raw = scope.params[seg.name] ?: fail("$origin: 番号の値「\$${seg.name}」がありません")
+                val index = raw.toString().trim().toIntOrNull()
+                    ?: fail("$origin: 番号の値「\$${seg.name}」は整数で渡します（0 から数えます）: $raw")
+                val array = getAt(editable(doc), path) as? YNode.Seq
+                    ?: fail("$origin: ${doc.value} の ${path.pretty()} は並びではありません（番号で指せるのは並びの要素です）")
+                if (index !in array.items.indices) {
+                    fail("$origin: ${doc.value} の ${path.pretty()} に $index 番の要素はありません（${array.items.size} 件。番号は 0 から数えます）")
+                }
+                path = path + index
+            }
+            return path
+        }
+
         private fun doSet(s: ActionStep.Set, scope: Scope) {
             val at = base(s.site, scope, s.origin)
             val doc = at.document ?: fail("${s.origin}: 書き込む文書が決まりません")
             val value = build(s.value, scope) ?: run { summary += "飛ばした: ${s.origin}（値が得られない）"; return }
-            val path = at.path + s.site.path
+            val path = sitePath(s.site, at, doc, scope, s.origin)
             record(doc, PatchOp.Set(path, value))
             summary += "設定: ${doc.value} ${path.pretty()} ← ${SemanticExpression.flowText(value)}"
         }
@@ -712,7 +768,7 @@ object ActionPlanner {
         private fun doDelete(s: ActionStep.Delete, scope: Scope) {
             val at = base(s.site, scope, s.origin)
             val doc = at.document ?: fail("${s.origin}: 書き込む文書が決まりません")
-            val path = at.path + s.site.path
+            val path = sitePath(s.site, at, doc, scope, s.origin)
             if (getAt(editable(doc), path) == null) {
                 summary += "飛ばした: ${s.origin}（${path.pretty()} は無い）"
                 return
@@ -724,7 +780,7 @@ object ActionPlanner {
         private fun doInsert(s: ActionStep.Insert, scope: Scope) {
             val at = base(s.site, scope, s.origin)
             val doc = at.document ?: fail("${s.origin}: 書き込む文書が決まりません")
-            val arrayPath = at.path + s.site.path
+            val arrayPath = sitePath(s.site, at, doc, scope, s.origin)
             val existing = getAt(editable(doc), arrayPath)
             // 配列がまだ無ければ、要素 1 つの配列を置く（1 つの操作にまとめる）
             val array = (existing ?: YNode.Seq()) as? YNode.Seq ?: fail("${s.origin}: ${doc.value} の ${arrayPath.pretty()} は配列ではありません")
@@ -872,7 +928,7 @@ object ActionPlanner {
         private fun doEachPath(s: ActionStep.EachPath, scope: Scope) {
             val at = base(s.site, scope, s.origin)
             val doc = at.document ?: fail("${s.origin}: 文書が決まりません")
-            val arrayPath = at.path + s.site.path
+            val arrayPath = sitePath(s.site, at, doc, scope, s.origin)
             val seq = getAt(editable(doc), arrayPath) as? YNode.Seq ?: run { summary += "飛ばした: ${s.origin}（${arrayPath.pretty()} は配列ではない）"; return }
             for (item in seq.items.toList()) {
                 val i = seq.items.indexOfFirst { it === item }

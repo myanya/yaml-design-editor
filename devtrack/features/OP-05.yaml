@@ -1,5 +1,5 @@
 id: OP-05
-title: 操作の入口・フォームと横ぐしの対象引継ぎ・前提の無効化・確認と適用
+title: 操作の入口・フォームと横ぐしの対象引継ぎ・ID の無い行の ⋯ から番号を入れて始める・前提の無効化・確認と適用
 implementation:
 - path: ui/action/ActionPane.kt
   module: desktop
@@ -7,9 +7,14 @@ implementation:
   module: desktop
 - path: AppState.kt
   module: desktop
+- path: ui/form/FormTables.kt
+  detail: '`RowIndexOpsButton`'
+  module: desktop
 tests:
 - name: AppStateActionTest
 - name: FormOutlineTest
+- name: RowIndexOpsUiTest
+  kind: ui
 design:
 - label: actions
   link: architecture/actions.md

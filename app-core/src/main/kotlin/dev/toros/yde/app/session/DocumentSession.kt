@@ -36,6 +36,7 @@ import dev.toros.yde.workspace.ActionEntry
 import dev.toros.yde.workspace.ActionPlan
 import dev.toros.yde.workspace.ActionPlanner
 import dev.toros.yde.workspace.ActionRequest
+import dev.toros.yde.workspace.RowAction
 import dev.toros.yde.workspace.BehaviorRuntime
 import dev.toros.yde.workspace.ChangeSetApplier
 import dev.toros.yde.workspace.LifecycleReview
@@ -1555,6 +1556,10 @@ class DocumentSession(private val editClock: () -> Long = System::currentTimeMil
     /** 型に使える操作（台帳の「要素の操作」＝受け手をパネルで選ぶ入口と、未保存の行のメニュー）。 */
     fun actionsForEntityType(type: String): List<ActionEntry> =
         core?.let { cw -> runCatching { ActionPlanner.forEntityType(cw.mirror, type) }.getOrDefault(emptyList()) }.orEmpty()
+
+    /** 並びの 1 件を番号で指す操作（ID の無い行の ⋯）: その型の要素を受け手にし、その配列の 1 件を受け取った番号で指すアクション。 */
+    fun rowActions(schemaId: String?, entityType: String, arrayPath: YPath): List<RowAction> =
+        core?.let { cw -> runCatching { ActionPlanner.indexingInto(cw.mirror.schemas, schemaId, entityType, arrayPath) }.getOrDefault(emptyList()) }.orEmpty()
 
     /** 文書に使える操作（文書ヘッダのメニュー）。 */
     fun actionsForDocument(file: Path): List<ActionEntry> =

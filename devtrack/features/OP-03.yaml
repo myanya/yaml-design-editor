@@ -5,6 +5,7 @@ implementation:
   module: workspace-core
 tests:
 - name: ActionPlannerTest
+- name: ActionIndexTest
 - name: ActionRequireIdTest
 design:
 - label: actions
