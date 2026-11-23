@@ -8,6 +8,7 @@ implementation:
   module: workspace-core
 tests:
 - name: RefactoringTest
+- name: HoldingDeleteTest
 - name: AppStateRefactorTest
 design:
 - label: graph-query

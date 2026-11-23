@@ -38,10 +38,11 @@ body:
         text: UI 用の可変幅フォントは、いまは同梱しない。必要になったら考える（BACKLOG UX-148）。
         decision: 決めたこと
       - id: DEC-017
-        status: pending
-        date: 2026-11-08
+        status: decided
+        date: 2026-11-23
         by: オーナー
-        text: Markdown をアプリ内で編集できるようにするか決める（案 B。BACKLOG UX-149）。
+        text: Markdown のアプリ内での編集は、いまは入れない。必要になったら考える（表示だけで、編集は「外部のエディタで開く」のまま。BACKLOG UX-149）。
+        decision: 決めたこと
       - id: DEC-018
         status: pending
         date: 2026-11-08

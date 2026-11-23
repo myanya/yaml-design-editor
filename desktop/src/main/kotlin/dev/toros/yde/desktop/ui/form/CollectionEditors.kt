@@ -239,10 +239,10 @@ internal fun MapEditor(ctx: FormCtx, field: FieldDef, slot: Slot, path: YPath) {
                                 ValueEditor(ctx, field.value ?: FieldDef(), MapSlot(node, key), childPath)
                             }
                             if (!ctx.readOnly) {
-                                IconButton(onClick = { node.entries.remove(key); ctx.markEdited() },
-                                    modifier = Modifier.size(32.dp).padding(top = 8.dp)) {
-                                    Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText)
-                                }
+                                MapKeyDeleteButton(ctx.doc, node, key, ctx.readOnly,
+                                    modifier = Modifier.size(32.dp).padding(top = 8.dp),
+                                    label = field.displayLabel, valueField = field.value,
+                                    titleLookup = ctx.indexTitleLookup(), markEdited = { ctx.markEdited() })
                             }
                         }
                     }

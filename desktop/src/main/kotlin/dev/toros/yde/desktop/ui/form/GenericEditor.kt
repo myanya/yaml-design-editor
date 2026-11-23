@@ -237,10 +237,9 @@ fun GenericMapEntryRow(ctx: FormCtx, map: YNode.Map, key: String, mapPath: YPath
                 Box(Modifier.weight(1f)) {
                     GenericEditor(ctx, MapSlot(map, key), childPath, refHint = childRefHint)
                 }
-                IconButton(
-                    onClick = { map.entries.remove(key); ctx.markEdited() },
+                MapKeyDeleteButton(ctx.doc, map, key, ctx.readOnly,
                     modifier = Modifier.size(32.dp).padding(top = 8.dp),
-                ) { Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(16.dp), tint = Palette.SubText) }
+                    titleLookup = ctx.indexTitleLookup(), markEdited = { ctx.markEdited() })
             }
         }
     }

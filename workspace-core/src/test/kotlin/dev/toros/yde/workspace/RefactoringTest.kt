@@ -141,11 +141,14 @@ class RefactoringTest {
     }
 
     @Test
-    fun `被参照が残るIDのdeleteは参照元一覧つきで拒否される`() {
+    fun `文書ルートのIDのdeleteは拒否され 残る被参照を参照元一覧つきで伝える`() {
+        // 要素の中の ID の削除は、被参照があっても注意事項つきで計画する（UX-165。HoldingDeleteTest）。
+        // 文書ルートの ID は要素として消せないので拒否のまま。壊れるはずだった参照は理由に添える
         val s = session(newStore())
         val e = assertFailsWith<IllegalStateException> {
             s.planRefactoring(RefactoringRequest.DeleteEntity("IT-001"))
         }
+        assertTrue("文書ルート" in (e.message ?: ""), "${e.message}")
         assertTrue("参照が 2 件" in (e.message ?: ""), "${e.message}")
         assertTrue("items/b.yaml" in (e.message ?: ""), "${e.message}")
     }

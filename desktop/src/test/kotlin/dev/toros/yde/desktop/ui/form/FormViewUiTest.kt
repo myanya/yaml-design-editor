@@ -11,7 +11,10 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import dev.toros.yde.semantic.schema.FieldDef
@@ -39,6 +42,7 @@ import dev.toros.yde.desktop.ui.common.Slot
  * - 閲覧専用では編集できる欄が 1 つも出ない（FormCtx.readOnly の分岐が画面まで届く）
  * - 欄に入力すると文書の木が変わり、未保存（dirty）になる
  * - 表示が表の配列は列の見出しと行の値を並べる（FormTables）・スキーマの無い文書は汎用エディタでキーと値を出す（GenericEditor）
+ * - map のキーの削除は確認を出し、キャンセルでは消さず、確定で消す（MapKeyDeleteButton）
  * - file 型の欄とスキーマを書くときの欄は、差し込み口（FormSlots）に渡された部品で描く（form は ui.file・ui.schema を import しない）
  * fixture は test-fixtures/workspaces/todos を一時ディレクトリへ写して使う（読み取り専用の決まり）。
  */
@@ -128,6 +132,33 @@ class FormViewUiTest {
         assertTrue(doc.schema == null, "この文書にはスキーマが当たらない前提")
         setContent { FormView(state, doc) }
         for (text in listOf("memo", "自由に書いた文書", "items", "一つ目", "二つ目")) assertTrue(shows(text), "「$text」が出ていません")
+    }
+
+    @Test
+    fun `キーの削除は確認を出し キャンセルでは消さず 確定で消す`() = runComposeUiTest {
+        // map のキーの削除にも、配列の行と同じ確認を出す（UX-189。対象の判定は MapKeyDeletionTest）
+        Files.writeString(dir.resolve("todos/free.yaml"), "memo: 自由に書いた文書\nextra: 消すキー\n")
+        val (state, doc) = open("todos/free.yaml")
+        setContent { FormView(state, doc) }
+        val root = doc.root as YNode.Map
+        onAllNodesWithContentDescription("キーを削除", useUnmergedTree = true)[1].performClick()
+        waitForIdle()
+        assertTrue(shows("キーを削除しますか？"), "確認が出ていません")
+        assertTrue(shows("free.yaml：extra"), "原本の場所が出ていません")
+        assertEquals(listOf("memo", "extra"), root.entries.keys.toList(), "確認を出しただけでは消さない")
+        onNodeWithText("キャンセル").performClick()
+        waitForIdle()
+        assertFalse(shows("キーを削除しますか？"))
+        assertEquals(listOf("memo", "extra"), root.entries.keys.toList())
+        assertFalse(doc.dirty)
+
+        onAllNodesWithContentDescription("キーを削除", useUnmergedTree = true)[1].performClick()
+        waitForIdle()
+        onNodeWithText("削除").performClick()
+        waitForIdle()
+        assertEquals(listOf("memo"), (doc.root as YNode.Map).entries.keys.toList())
+        assertTrue(doc.dirty)
+        assertFalse(shows("キーを削除しますか？"), "確定の後は確認を閉じる")
     }
 
     @Test

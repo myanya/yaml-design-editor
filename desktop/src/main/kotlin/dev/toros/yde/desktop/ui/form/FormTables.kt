@@ -317,10 +317,9 @@ internal fun MapTable(ctx: FormCtx, field: FieldDef, columns: List<FieldDef>, no
     val valueDef = ctx.doc.schema?.resolve(field.value) ?: field.value
     val rows = node.entries.entries.mapNotNull { (k, v) -> (v as? YNode.Map)?.let { k as Any to it } }
     ObjectTable(ctx, valueDef, columns, rows, path, keyHeader = "キー", opsWidth = TABLE_KEY_OPS_WIDTH, ops = { i ->
-        IconButton(
-            onClick = { node.entries.remove(rows[i].first.toString()); ctx.markEdited() },
-            modifier = Modifier.size(24.dp),
-        ) { Icon(Icons.Default.Delete, contentDescription = "キーを削除", Modifier.size(14.dp), tint = Palette.SubText) }
+        MapKeyDeleteButton(ctx.doc, node, rows[i].first.toString(), ctx.readOnly, iconSize = 14.dp,
+            label = field.displayLabel, valueField = field.value,
+            titleLookup = ctx.indexTitleLookup(), markEdited = { ctx.markEdited() })
     })
 }
 

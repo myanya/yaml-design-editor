@@ -1447,7 +1447,7 @@ class AppState(
             documents.planRefactoring(RefactoringRequest.MergeEntity(fromId, intoId, deleteOccurrences))
         }
 
-    /** エンティティ削除のプレビュー（R21-02。入次数が残っていれば生成段階で拒否される）。 */
+    /** エンティティ削除のプレビュー（R21-02。外からの参照が残っていれば、壊れる参照が計画の注意事項に並ぶ。文書ルートの ID は生成段階で拒否される）。 */
     fun planEntityDelete(id: String): Result<RefactoringPlan> = runCatching {
         documents.planRefactoring(RefactoringRequest.DeleteEntity(id))
     }

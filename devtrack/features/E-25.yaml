@@ -1,12 +1,17 @@
 id: E-25
-title: 配列行の削除確認・対象変更の拒否（リスト・表・汎用・設計の配列入力）
+title: 配列行と map のキーの削除確認・対象変更の拒否（リスト・表・汎用・設計の配列入力）
 implementation:
 - path: ui/form/ArrayDeleteButton.kt
   module: desktop
 - path: ui/form/ArrayDeletion.kt
   module: desktop
+- path: ui/form/MapKeyDeletion.kt
+  module: desktop
 tests:
 - name: ArrayDeletionTest
+- name: MapKeyDeletionTest
+- name: FormViewUiTest
+  kind: ui
 manual_check: true
 manual_check_note: 画面
 design:

@@ -28,7 +28,7 @@
   rejected（IllegalStateException）: 出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: items/c.yaml
 
 ### DeleteEntity(id=IT-001)
-  rejected（IllegalStateException）: ID「IT-001」への参照が 2 件あるため削除できません（先に参照を編集するか merge を使ってください）: items/b.yaml の parent、items/c.yaml の parent
+  rejected（IllegalStateException）: 出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: details/IT-001.yaml。この ID への参照が 2 件あります: items/b.yaml の parent、items/c.yaml の parent
 
 ### MoveDocument(from=items/b.yaml, to=items/sub/b.yaml)
   move: items/b.yaml -> items/sub/b.yaml

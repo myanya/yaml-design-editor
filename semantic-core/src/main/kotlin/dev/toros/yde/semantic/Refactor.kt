@@ -320,10 +320,10 @@ object SemanticRefactor {
     }
 
     /**
-     * 削除: 入次数が 0 でなければ参照元一覧つきで拒否する（黙って壊さない）。出現要素を削除する。
+     * 削除: 出現要素を削除する。外からその ID への参照が残っていれば、壊れる参照として参照元一覧つきで注意事項に並べる
+     * （黙って壊さない。続けるか止めるかは人が決める——計画は止めない。UX-165 で、保有する要素への参照と同じ形にそろえた）。
      * 保有する要素（削除する出現の中に入れ子で書かれた ID を持つ要素。P40）は要素ごと一緒に消える——消える要素と、
-     * それへの参照（壊れる参照）を注意事項に並べ、続けるか止めるかは人が決める（計画は止めない。
-     * 削除する出現の中に書かれた参照は、そこごと消えるので数えない）。
+     * それへの参照（壊れる参照）も注意事項に並べる（削除する出現の中に書かれた参照は、そこごと消えるので数えない）。
      */
     private fun delete(snapshot: SemanticSnapshot, request: RefactoringRequest.DeleteEntity): RefactoringPlan {
         val id = request.id
@@ -333,12 +333,10 @@ object SemanticRefactor {
         fun removedWith(document: DocumentId, path: YPath): Boolean =
             occurrences.any { e -> e.document == document && path.size >= e.path.size && path.subList(0, e.path.size) == e.path }
         val inbound = snapshot.backlinksTo(setOf(id)).filter { !removedWith(it.document, it.path) }
-        if (inbound.isNotEmpty()) {
-            val shown = SemanticRewrite.listTop(inbound.map { r -> "${r.document.value} の ${r.path.pretty()}" })
-            error("ID「$id」への参照が ${inbound.size} 件あるため削除できません（先に参照を編集するか merge を使ってください）: $shown")
-        }
+        val inboundShown = SemanticRewrite.listTop(inbound.map { r -> "${r.document.value} の ${r.path.pretty()}" })
         occurrences.firstOrNull { it.path.isEmpty() }?.let { e ->
-            error("出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: ${e.document.value}")
+            val refs = if (inbound.isEmpty()) "" else "。この ID への参照が ${inbound.size} 件あります: $inboundShown"
+            error("出現が文書ルートのため要素削除できません（ファイルの削除は手動で行ってください）: ${e.document.value}$refs")
         }
         // 保有する要素: 削除する出現の中に書かれた ID を持つ要素。定義出現か全部の出現が消える要素は要素ごと消える
         // （残る出現は浮遊詳細化になる）。詳細化の出現だけが消える要素は、その側面だけが消える
@@ -351,6 +349,9 @@ object SemanticRefactor {
                 occs.any { it.role == EntityRole.DEFINING && removedWith(it.document, it.path) }
         }
         val warnings = mutableListOf<String>()
+        if (inbound.isNotEmpty()) {
+            warnings += "ID「$id」への参照 ${inbound.size} 件が壊れます（残すなら先に参照を編集するか merge を使ってください）: $inboundShown"
+        }
         vanishing.forEach { child ->
             val broken = snapshot.backlinksTo(setOf(child)).filter { !removedWith(it.document, it.path) }
             if (broken.isNotEmpty()) {
