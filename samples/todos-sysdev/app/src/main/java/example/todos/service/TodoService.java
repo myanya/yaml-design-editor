@@ -336,7 +336,58 @@ public class TodoService {
         if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
         return new OperationOutcome(input.getId(), violations);
     }
-    public String editTodo(java.lang.String id, java.lang.String title, java.lang.String summary, java.lang.String category, java.util.List<java.lang.String> tags, java.time.LocalDate createdOn, java.time.LocalDate dueOn, java.lang.String details, java.lang.String result, java.util.List<EditTodoInput.EditTodoCommentsItem> comments, EditTodoInput.EditTodoClear clear) {
+    public String deleteTodoComment(java.lang.String id, java.lang.Long row) {
+        var input = new DeleteTodoCommentInput();
+        input.setId(id);
+        input.setRow(row);
+        return runner.execute(() -> rundeleteTodoComment(input, false)).id();
+    }
+    private OperationOutcome rundeleteTodoComment(DeleteTodoCommentInput input, boolean preview) {
+        var today = java.time.LocalDate.now(clock);
+        var violations = new java.util.ArrayList<BusinessViolation>();
+        var original = ServiceChecks.call(new TodoMapper.FindByIdInput(), p -> { p.setId(input.getId()); }, todoMapper::findById);
+        if (original == null) throw new example.todos.service.error.NotFoundException("todo", input.getId());
+        var rows4 = new java.util.ArrayList<TodoRow>();
+        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+            var row4 = new TodoRow();
+            row4.setStatus("OPEN");
+            var before4 = original;
+            row4.setId(before4.getId());
+            row4.setTitle(before4.getTitle());
+            row4.setSummary(before4.getSummary());
+            row4.setCategory(before4.getCategory());
+            row4.setFollows(before4.getFollows());
+            row4.setStatus(before4.getStatus());
+            row4.setCreatedOn(before4.getCreatedOn());
+            row4.setUpdatedOn(before4.getUpdatedOn());
+            row4.setDueOn(before4.getDueOn());
+            row4.setCompletedOn(before4.getCompletedOn());
+            row4.setDetails(before4.getDetails());
+            row4.setResult(before4.getResult());
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                row4.setUpdatedOn(today);
+            } else {}
+            rows4.add(row4);
+        }
+        for (var checked : rows4) {
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                if (Boolean.FALSE.equals(ServiceChecks.atLeast(checked.getUpdatedOn(), checked.getCreatedOn()))) {
+            violations.add(ServiceChecks.violation("check.updated-not-before-created", null, input.getId(), null, checked.getUpdatedOn(), checked.getCreatedOn()));
+                }
+            }
+        }
+        if (preview) return new OperationOutcome(input.getId(), violations);
+        if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
+        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+            if (ServiceChecks.call(new TodoMapper.DeleteTodoCommentCommentsRowInput(), p -> { p.setId(input.getId()); p.setRow(input.getRow()); }, todoMapper::deleteTodoCommentCommentsRow) == 0) throw new example.todos.service.error.NotFoundException("todo.comments", input.getId());
+        }
+        if (!rows4.isEmpty()) {
+            ServiceChecks.call(new TodoMapper.DeleteTodoCommentInput(), p -> { p.setId(input.getId()); p.setContextToday(today); }, todoMapper::deleteTodoComment);
+        }
+        if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
+        return new OperationOutcome(input.getId(), violations);
+    }
+    public String editTodo(java.lang.String id, java.lang.String title, java.lang.String summary, java.lang.String category, java.util.List<java.lang.String> tags, java.time.LocalDate createdOn, java.time.LocalDate dueOn, java.lang.String details, java.lang.String result, EditTodoInput.EditTodoClear clear) {
         var input = new EditTodoInput();
         input.setId(id);
         input.setTitle(title);
@@ -347,11 +398,10 @@ public class TodoService {
         input.setDueOn(dueOn);
         input.setDetails(details);
         input.setResult(result);
-        input.setComments(comments);
         input.setClear(clear);
         return runner.execute(() -> runeditTodo(input, false)).id();
     }
-    public java.util.List<BusinessViolation> checkEditTodo(java.lang.String id, java.lang.String title, java.lang.String summary, java.lang.String category, java.util.List<java.lang.String> tags, java.time.LocalDate createdOn, java.time.LocalDate dueOn, java.lang.String details, java.lang.String result, java.util.List<EditTodoInput.EditTodoCommentsItem> comments, EditTodoInput.EditTodoClear clear) {
+    public java.util.List<BusinessViolation> checkEditTodo(java.lang.String id, java.lang.String title, java.lang.String summary, java.lang.String category, java.util.List<java.lang.String> tags, java.time.LocalDate createdOn, java.time.LocalDate dueOn, java.lang.String details, java.lang.String result, EditTodoInput.EditTodoClear clear) {
         var input = new EditTodoInput();
         input.setId(id);
         input.setTitle(title);
@@ -362,7 +412,6 @@ public class TodoService {
         input.setDueOn(dueOn);
         input.setDetails(details);
         input.setResult(result);
-        input.setComments(comments);
         input.setClear(clear);
         return runner.preview(() -> runeditTodo(input, true)).violations();
     }
@@ -439,27 +488,6 @@ public class TodoService {
                 }
             }
         }
-        var rows10 = new java.util.ArrayList<TodoCommentsRow>();
-        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, Boolean.valueOf(input.getComments() != null)))) {
-            if (input.getComments() != null) {
-                long position = 1L;
-                boolean firstItem = true;
-                for (var item : input.getComments()) {
-                    if (!firstItem) position = SequenceNumbers.nextPosition(position);
-                    firstItem = false;
-                    java.util.Objects.requireNonNull(item, "配列の要素が null です");
-            var row10 = new TodoCommentsRow();
-            row10.setTodoId(input.getId());
-            row10.setSeq(position);
-            row10.setDate(item.getDate());
-            row10.setBody(item.getBody());
-                    rows10.add(row10);
-                }
-            }
-        }
-        var rows13 = new java.util.ArrayList<TodoCommentsRow>();
-        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, ServiceChecks.equal((input.getClear() == null ? null : input.getClear().getComments()), true)))) {
-        }
         for (var checked : rows6) {
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, Boolean.valueOf(checked.getDueOn() != null)))) {
                 if (Boolean.FALSE.equals(ServiceChecks.atLeast(checked.getDueOn(), checked.getCreatedOn()))) {
@@ -497,20 +525,61 @@ public class TodoService {
         for (var writing : rows8) {
             todoMapper.insertTodoTags(writing);
         }
-        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, Boolean.valueOf(input.getComments() != null)))) {
-            ServiceChecks.call(new TodoMapper.DeleteTodoCommentsInput(), p -> { p.setId(input.getId()); }, todoMapper::deleteTodoComments);
-        }
-        for (var writing : rows10) {
-            todoMapper.insertTodoComments(writing);
-        }
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, ServiceChecks.equal((input.getClear() == null ? null : input.getClear().getTags()), true)))) {
             ServiceChecks.call(new TodoMapper.DeleteTodoTagsInput(), p -> { p.setId(input.getId()); }, todoMapper::deleteTodoTags);
         }
-        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, ServiceChecks.equal((input.getClear() == null ? null : input.getClear().getComments()), true)))) {
-            ServiceChecks.call(new TodoMapper.DeleteTodoCommentsInput(), p -> { p.setId(input.getId()); }, todoMapper::deleteTodoComments);
+        if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
+        return new OperationOutcome(input.getId(), violations);
+    }
+    public String editTodoComment(java.lang.String id, java.lang.Long row, java.time.LocalDate date, java.lang.String body) {
+        var input = new EditTodoCommentInput();
+        input.setId(id);
+        input.setRow(row);
+        input.setDate(date);
+        input.setBody(body);
+        return runner.execute(() -> runeditTodoComment(input, false)).id();
+    }
+    private OperationOutcome runeditTodoComment(EditTodoCommentInput input, boolean preview) {
+        var today = java.time.LocalDate.now(clock);
+        var violations = new java.util.ArrayList<BusinessViolation>();
+        var original = ServiceChecks.call(new TodoMapper.FindByIdInput(), p -> { p.setId(input.getId()); }, todoMapper::findById);
+        if (original == null) throw new example.todos.service.error.NotFoundException("todo", input.getId());
+        var rows4 = new java.util.ArrayList<TodoRow>();
+        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+            var row4 = new TodoRow();
+            row4.setStatus("OPEN");
+            var before4 = original;
+            row4.setId(before4.getId());
+            row4.setTitle(before4.getTitle());
+            row4.setSummary(before4.getSummary());
+            row4.setCategory(before4.getCategory());
+            row4.setFollows(before4.getFollows());
+            row4.setStatus(before4.getStatus());
+            row4.setCreatedOn(before4.getCreatedOn());
+            row4.setUpdatedOn(before4.getUpdatedOn());
+            row4.setDueOn(before4.getDueOn());
+            row4.setCompletedOn(before4.getCompletedOn());
+            row4.setDetails(before4.getDetails());
+            row4.setResult(before4.getResult());
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                row4.setUpdatedOn(today);
+            } else {}
+            rows4.add(row4);
         }
-        for (var writing : rows13) {
-            todoMapper.insertTodoComments(writing);
+        for (var checked : rows4) {
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                if (Boolean.FALSE.equals(ServiceChecks.atLeast(checked.getUpdatedOn(), checked.getCreatedOn()))) {
+            violations.add(ServiceChecks.violation("check.updated-not-before-created", null, input.getId(), null, checked.getUpdatedOn(), checked.getCreatedOn()));
+                }
+            }
+        }
+        if (preview) return new OperationOutcome(input.getId(), violations);
+        if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
+        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+            if (ServiceChecks.call(new TodoMapper.EditTodoCommentCommentsRowInput(), p -> { p.setId(input.getId()); p.setRow(input.getRow()); p.setDate(input.getDate()); p.setBody(input.getBody()); }, todoMapper::editTodoCommentCommentsRow) == 0) throw new example.todos.service.error.NotFoundException("todo.comments", input.getId());
+        }
+        if (!rows4.isEmpty()) {
+            ServiceChecks.call(new TodoMapper.EditTodoCommentInput(), p -> { p.setId(input.getId()); p.setContextToday(today); }, todoMapper::editTodoComment);
         }
         if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
         return new OperationOutcome(input.getId(), violations);

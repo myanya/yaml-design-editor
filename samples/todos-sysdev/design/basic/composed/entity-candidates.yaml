@@ -1148,6 +1148,48 @@ entities:
             item: FLD-todo.updated_on
             crud: U
       - seq: '03'
+        id: OPS-todo.edit-todo-comment
+        action: edit-todo-comment
+        label: コメントを編集する
+        crud: U
+        writes:
+          - id: CRUD-todo.edit-todo-comment.comments
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo-comment
+            item: FLD-todo.comments
+            crud: U
+            element:
+              - U
+            elementItems:
+              - FLD-todo.comments.item.date
+              - FLD-todo.comments.item.body
+          - id: CRUD-todo.edit-todo-comment.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.edit-todo-comment
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '04'
+        id: OPS-todo.delete-todo-comment
+        action: delete-todo-comment
+        label: コメントを削除する
+        crud: U
+        writes:
+          - id: CRUD-todo.delete-todo-comment.comments
+            entity: ENT-todo
+            operation: OPS-todo.delete-todo-comment
+            item: FLD-todo.comments
+            crud: U
+            element:
+              - D
+            elementItems:
+              - FLD-todo.comments.item.date
+              - FLD-todo.comments.item.body
+          - id: CRUD-todo.delete-todo-comment.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.delete-todo-comment
+            item: FLD-todo.updated_on
+            crud: U
+      - seq: '05'
         id: OPS-todo.add-todo-task
         action: add-todo-task
         label: 作業項目を追加する
@@ -1169,7 +1211,7 @@ entities:
             operation: OPS-todo.add-todo-task
             item: FLD-todo.updated_on
             crud: U
-      - seq: '04'
+      - seq: '06'
         id: OPS-todo.edit-todo
         action: edit-todo
         label: TODOを編集する
@@ -1219,24 +1261,12 @@ entities:
             operation: OPS-todo.edit-todo
             item: FLD-todo.result
             crud: U
-          - id: CRUD-todo.edit-todo.comments
-            entity: ENT-todo
-            operation: OPS-todo.edit-todo
-            item: FLD-todo.comments
-            crud: U
-            element:
-              - C
-              - U
-              - D
-            elementItems:
-              - FLD-todo.comments.item.date
-              - FLD-todo.comments.item.body
           - id: CRUD-todo.edit-todo.updated_on
             entity: ENT-todo
             operation: OPS-todo.edit-todo
             item: FLD-todo.updated_on
             crud: U
-      - seq: '05'
+      - seq: '07'
         id: OPS-todo.start-todo
         action: start-todo
         label: TODOに着手する
@@ -1264,7 +1294,7 @@ entities:
             operation: OPS-todo.start-todo
             item: FLD-todo.updated_on
             crud: U
-      - seq: '06'
+      - seq: '08'
         id: OPS-todo.suspend-todo
         action: suspend-todo
         label: TODOを中断する
@@ -1294,7 +1324,7 @@ entities:
             operation: OPS-todo.suspend-todo
             item: FLD-todo.updated_on
             crud: U
-      - seq: '07'
+      - seq: '09'
         id: OPS-todo.resume-todo
         action: resume-todo
         label: TODOを再開する
@@ -1323,7 +1353,7 @@ entities:
             operation: OPS-todo.resume-todo
             item: FLD-todo.updated_on
             crud: U
-      - seq: '08'
+      - seq: '10'
         id: OPS-todo.complete-todo
         action: complete-todo
         label: TODOを完了する
@@ -1361,7 +1391,7 @@ entities:
             operation: OPS-todo.complete-todo
             item: FLD-todo.updated_on
             crud: U
-      - seq: '09'
+      - seq: '11'
         id: OPS-todo.cancel-todo
         action: cancel-todo
         label: TODOを中止する
@@ -1395,7 +1425,7 @@ entities:
             operation: OPS-todo.cancel-todo
             item: FLD-todo.updated_on
             crud: U
-      - seq: '10'
+      - seq: '12'
         id: OPS-todo.todo-task.finish
         action: todo-task.finish
         label: 作業項目を済にする

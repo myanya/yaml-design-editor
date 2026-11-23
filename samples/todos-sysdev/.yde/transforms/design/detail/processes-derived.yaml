@@ -338,6 +338,12 @@ build:
                     $copy: items[0].key
                   ownerKey:
                     $copy: items[0].ownerKey
+                  rowKey:
+                    $copy: items[0].rowKey
+                  missing:
+                    $copy: items[0].missing
+                  missingEntity:
+                    $copy: items[0].missingEntity
               - $each: checks
                 $bind: c
                 $flatten: true
@@ -901,12 +907,165 @@ rules:
                             $copy: key
                           value:
                             $copy: value
+          # 並びの番号で指す効果（row）: 明細テーブルの並び順の列 seq で 1 行を指す。操作が受け取る番号（row）は、アプリでは seq の値。
+          # 書き換えは、その 1 行の update（書くのは written の列だけ）。同じ行への書き換えは 1 つの update にまとめる
           - $when:
               - path: op
                 equals: set
               - path: field.base
                 equals: array
               - path: field.item.entity
+                exists: false
+              - path: row
+                exists: true
+            $then:
+              $each: written
+              $build:
+                row:
+                  $format: row-{f}-{p}-update
+                  $with:
+                    f:
+                      $copy: field.key
+                      $of: e
+                    p:
+                      $copy: row.param
+                      $of: e
+                call:
+                  $format: '{n}Mapper.{m}{f}Row'
+                  $with:
+                    'n':
+                      $case:
+                        $copy: entity
+                        $of: e
+                      $as: pascal
+                    m:
+                      $case:
+                        $copy: id
+                        $of: element
+                      $as: camel
+                    f:
+                      $case:
+                        $copy: field.key
+                        $of: e
+                      $as: pascal
+                kind: update
+                item:
+                  $copy: key
+                value:
+                  $copy: value
+                when:
+                  $copy: when
+                  $of: e
+                where:
+                  - item:
+                      $format: '{p}_id'
+                      $with:
+                        p:
+                          $case:
+                            $copy: entity
+                            $of: e
+                          $as: snake
+                    param: id
+                    value:
+                      param: id
+                  - item: seq
+                    param:
+                      $copy: row.param
+                      $of: e
+                    value:
+                      param:
+                        $copy: row.param
+                        $of: e
+                rowKey:
+                  item: seq
+                  param:
+                    $copy: row.param
+                    $of: e
+                missing:
+                  $format: 行が無ければ NotFoundException（error.notFound.{e}.{f}）
+                  $with:
+                    e:
+                      $copy: entity
+                      $of: e
+                    f:
+                      $copy: field.key
+                      $of: e
+                missingEntity:
+                  $format: '{e}.{f}'
+                  $with:
+                    e:
+                      $copy: entity
+                      $of: e
+                    f:
+                      $copy: field.key
+                      $of: e
+          # 番号で指した 1 行の削除
+          - $when:
+              - path: op
+                equals: delete
+              - path: field.base
+                equals: array
+              - path: field.item.entity
+                exists: false
+              - path: row
+                exists: true
+            $then:
+              - row:
+                  $format: row-{i}-delete-row
+                  $with:
+                    i: $index
+                call:
+                  $format: '{n}Mapper.{m}{f}Row'
+                  $with:
+                    'n':
+                      $case:
+                        $copy: entity
+                      $as: pascal
+                    m:
+                      $case:
+                        $copy: id
+                        $of: element
+                      $as: camel
+                    f:
+                      $case:
+                        $copy: field.key
+                      $as: pascal
+                kind: delete
+                when:
+                  $copy: when
+                where:
+                  - item:
+                      $format: '{p}_id'
+                      $with:
+                        p:
+                          $case:
+                            $copy: entity
+                          $as: snake
+                    param: id
+                    value:
+                      param: id
+                  - item: seq
+                    param:
+                      $copy: row.param
+                    value:
+                      param:
+                        $copy: row.param
+                rowKey:
+                  item: seq
+                  param:
+                    $copy: row.param
+                missing:
+                  $format: 行が無ければ NotFoundException（error.notFound.{entity}.{field.key}）
+                missingEntity:
+                  $format: '{entity}.{field.key}'
+          - $when:
+              - path: op
+                equals: set
+              - path: field.base
+                equals: array
+              - path: field.item.entity
+                exists: false
+              - path: row
                 exists: false
             $then:
               - row:
@@ -1062,6 +1221,8 @@ rules:
               - path: field.base
                 equals: array
               - path: field.item.entity
+                exists: false
+              - path: row
                 exists: false
             $then:
               - row:

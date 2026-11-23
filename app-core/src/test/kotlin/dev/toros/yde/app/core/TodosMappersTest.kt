@@ -29,7 +29,19 @@ class TodosMappersTest {
             rows(source, "methods").map { source["mapper"].toString() + "." + it["name"] }
         }.toSet()
         assertEquals(expected, mappers.flatMap { m -> rows(m, "methods").map { m["name"].toString() + "." + it["name"] } }.toSet())
-        assertEquals(48, expected.size)
+        assertEquals(51, expected.size)
+        // 並びの番号で指す操作は、明細テーブルの 1 行を、親のキーと並び順（seq）で指す update・delete になる
+        val table = rows(raw(Files.readString(sample.resolve("design/detail/final/table-access/todo.yaml"))), "methods").associateBy { it["name"] }
+        val editRow = table.getValue("editTodoCommentCommentsRow")
+        assertEquals(listOf("update", "todo_comments"), listOf(editRow["kind"], editRow["table"]))
+        assertEquals(listOf("date", "body"), rows(editRow, "set").map { it["item"] })
+        assertEquals(listOf("todo_id" to "id", "seq" to "row"), rows(editRow, "where").map { it["item"] to it["param"] })
+        val deleteRow = table.getValue("deleteTodoCommentCommentsRow")
+        assertEquals(listOf("delete", "todo_comments"), listOf(deleteRow["kind"], deleteRow["table"]))
+        assertEquals(listOf("todo_id" to "id", "seq" to "row"), rows(deleteRow, "where").map { it["item"] to it["param"] })
+        // 番号の無い入れ替え（タグ）の全件削除は、親のキーだけで消す（番号つきの効果では作らない）
+        assertEquals(listOf("todo_id" to "id"), rows(table.getValue("deleteTodoTags"), "where").map { it["item"] to it["param"] })
+        assertTrue("deleteTodoComments" !in table, "コメントの丸ごとの入れ替えは無くなった")
         val methods = rows(mappers.single { it["name"] == "TodoMapper" }, "methods").associateBy { it["name"] }
         for (suffix in listOf("All", "Overdue")) {
             val select = methods.getValue("selectTodoDashboard$suffix")

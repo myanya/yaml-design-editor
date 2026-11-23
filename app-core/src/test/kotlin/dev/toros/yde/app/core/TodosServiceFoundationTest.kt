@@ -34,12 +34,27 @@ class TodosServiceFoundationTest {
         assertEquals(listOf(mapOf("path" to "title", "exists" to true)), title["when"])
         assertTrue(steps.any { it["kind"] == "delete" && it["call"] == "TodoMapper.deleteTodoTags" &&
             it["when"] == listOf(mapOf("path" to "clear.tags", "equals" to true)) })
+        // 並びの番号で指す操作: 明細の 1 行を並び順（seq）で指し、行の鍵と「行が無いとき」を手順に残す。全件の削除や入れ直しにはしない
+        val editComment = rows(document("design/detail/final/processes/edit-todo-comment.yaml"), "steps")
+        val rowUpdate = editComment.single { it["call"] == "TodoMapper.editTodoCommentCommentsRow" }
+        assertEquals("update", rowUpdate["kind"])
+        assertEquals(mapOf("item" to "seq", "param" to "row"), rowUpdate["rowKey"])
+        assertEquals(listOf("date", "body"), rows(rowUpdate, "set").map { it["item"] })
+        assertEquals(listOf(mapOf("path" to "body", "exists" to true)), rows(rowUpdate, "set").single { it["item"] == "body" }["when"])
+        assertEquals(listOf("todo_id" to "id", "seq" to "row"), rows(rowUpdate, "where").map { it["item"] to it["param"] })
+        assertEquals("todo.comments", rowUpdate["missingEntity"])
+        assertTrue(editComment.none { it["kind"] == "insert" || it["kind"] == "delete" }, "1 行の書き換えは、消して入れ直さない")
+        val deleteComment = rows(document("design/detail/final/processes/delete-todo-comment.yaml"), "steps")
+        val rowDelete = deleteComment.single { it["kind"] == "delete" }
+        assertEquals("TodoMapper.deleteTodoCommentCommentsRow", rowDelete["call"])
+        assertEquals(mapOf("item" to "seq", "param" to "row"), rowDelete["rowKey"])
+        assertFalse(rowDelete.containsKey("key"), "親のキーだけの全件削除にしない")
         val child = document("design/detail/final/processes/todo-task.finish.yaml")
         assertTrue(rows(child, "steps").filter { it["step"] == "check" }.all { it["entity"] == "todo" })
         val after = rows(child, "steps").single { it["phase"] == "after" }
         assertEquals(mapOf("self" to "todo_id"), after["key"])
         val check = document("design/detail/composed/application/process-contract.yaml")
-        assertEquals(12, rows(check, "processes").size)
+        assertEquals(14, rows(check, "processes").size)
         assertTrue(rows(check, "processes").all { it["transactionMode"] == "atomic" && rows(it, "calls").all { call -> call["method"] != null } })
     }
 

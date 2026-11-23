@@ -18,7 +18,6 @@ record:
         - dueOn
         - details
         - result
-        - comments
         - clear
     confirm:
       - method: checkEditTodo
@@ -32,7 +31,6 @@ record:
           - dueOn
           - details
           - result
-          - comments
           - clear
         does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
         constraints:
@@ -209,52 +207,12 @@ record:
         ownerKey:
           param: id
       - step: write
-        call: TodoMapper.deleteTodoComments
-        kind: delete
-        when:
-          - path: comments
-            exists: true
-        key:
-          param: id
-      - step: write
-        call: TodoMapper.insertTodoComments
-        kind: insert
-        each: $comments
-        seq:
-          mode: position
-          start: 1
-        when:
-          - path: comments
-            exists: true
-        ownerKey:
-          param: id
-      - step: write
         call: TodoMapper.deleteTodoTags
         kind: delete
         when:
           - path: clear.tags
             equals: true
         key:
-          param: id
-      - step: write
-        call: TodoMapper.deleteTodoComments
-        kind: delete
-        when:
-          - path: clear.comments
-            equals: true
-        key:
-          param: id
-      - step: write
-        call: TodoMapper.insertTodoComments
-        kind: insert
-        each: []
-        seq:
-          mode: position
-          start: 1
-        when:
-          - path: clear.comments
-            equals: true
-        ownerKey:
           param: id
     subject: todo
     originalService:
@@ -270,7 +228,6 @@ record:
         - dueOn
         - details
         - result
-        - comments
         - clear
     transactionMode: atomic
   source:

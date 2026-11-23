@@ -131,10 +131,18 @@ outputs:
     report: app-service-input
     params:
       operation: SINPUT-complete-todo
+  - id: OUTPUT-SINPUT-delete-todo-comment
+    report: app-service-input
+    params:
+      operation: SINPUT-delete-todo-comment
   - id: OUTPUT-SINPUT-edit-todo
     report: app-service-input
     params:
       operation: SINPUT-edit-todo
+  - id: OUTPUT-SINPUT-edit-todo-comment
+    report: app-service-input
+    params:
+      operation: SINPUT-edit-todo-comment
   - id: OUTPUT-SINPUT-register-todo
     report: app-service-input
     params:
@@ -216,10 +224,18 @@ outputs:
     report: app-web-form
     params:
       form: JFORM-complete-todo
+  - id: OUTPUT-JFORM-delete-todo-comment
+    report: app-web-form
+    params:
+      form: JFORM-delete-todo-comment
   - id: OUTPUT-JFORM-edit-todo
     report: app-web-form
     params:
       form: JFORM-edit-todo
+  - id: OUTPUT-JFORM-edit-todo-comment
+    report: app-web-form
+    params:
+      form: JFORM-edit-todo-comment
   - id: OUTPUT-JFORM-register-todo
     report: app-web-form
     params:
@@ -262,10 +278,18 @@ outputs:
     report: app-web-operation
     params:
       webOperation: JWEB-complete-todo
+  - id: OUTPUT-JWEB-delete-todo-comment
+    report: app-web-operation
+    params:
+      webOperation: JWEB-delete-todo-comment
   - id: OUTPUT-JWEB-edit-todo
     report: app-web-operation
     params:
       webOperation: JWEB-edit-todo
+  - id: OUTPUT-JWEB-edit-todo-comment
+    report: app-web-operation
+    params:
+      webOperation: JWEB-edit-todo-comment
   - id: OUTPUT-JWEB-register-todo
     report: app-web-operation
     params:
@@ -338,6 +362,22 @@ outputs:
     report: app-web-page
     params:
       page: WPAGE-complete-todo/input
+  - id: OUTPUT-WPAGE-delete-todo-comment/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-delete-todo-comment/confirm
+  - id: OUTPUT-WPAGE-delete-todo-comment/input
+    report: app-web-page
+    params:
+      page: WPAGE-delete-todo-comment/input
+  - id: OUTPUT-WPAGE-edit-todo-comment/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-edit-todo-comment/confirm
+  - id: OUTPUT-WPAGE-edit-todo-comment/input
+    report: app-web-page
+    params:
+      page: WPAGE-edit-todo-comment/input
   - id: OUTPUT-WPAGE-edit-todo/confirm
     report: app-web-page
     params:

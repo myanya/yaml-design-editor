@@ -80,6 +80,20 @@ record:
           - NotFoundException
           - RefusedException
         confirm: []
+      - operation: edit-todo-comment
+        service: TodoService.editTodoComment
+        handler: TodoController.editTodoComment
+        throws:
+          - NotFoundException
+          - RefusedException
+        confirm: []
+      - operation: delete-todo-comment
+        service: TodoService.deleteTodoComment
+        handler: TodoController.deleteTodoComment
+        throws:
+          - NotFoundException
+          - RefusedException
+        confirm: []
       - operation: add-todo-task
         service: TodoService.addTodoTask
         handler: TodoController.addTodoTask

@@ -98,6 +98,14 @@ messages:
     kind: 完了の知らせ
     text: TODOにコメントを追加しました（{id}）
     source: 操作 add-todo-comment の名前
+  - key: edit-todo-comment.done
+    kind: 完了の知らせ
+    text: コメントを編集しました（{id}）
+    source: 操作 edit-todo-comment の名前
+  - key: delete-todo-comment.done
+    kind: 完了の知らせ
+    text: コメントを削除しました（{id}）
+    source: 操作 delete-todo-comment の名前
   - key: add-todo-task.done
     kind: 完了の知らせ
     text: 作業項目を追加しました（{id}）
@@ -162,6 +170,10 @@ messages:
     kind: 見つからない
     text: 作業項目「{id}」は見つかりません
     source: ID を指定して読んで無いとき（404）
+  - key: error.notFound.todo.comments
+    kind: 見つからない
+    text: TODO「{id}」のコメント一覧に、指定した行はありません
+    source: 行の番号を指定して書いて、その行が無いとき（404）
   - key: error.token
     kind: 二重の確定・時間切れ
     text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
@@ -259,6 +271,38 @@ validation:
         kind: 入力の誤り
         text: コメント本文は1文字以上で入力してください
         source: 文字数
+  - form: editTodoCommentForm
+    field: row
+    label: コメントの番号
+    messages:
+      - key: validation.NotNull.editTodoCommentForm.row
+        kind: 入力の誤り
+        text: コメントの番号を入力してください
+        source: 必須
+  - form: editTodoCommentForm
+    field: date
+    label: 記録日
+    messages:
+      - key: validation.typeMismatch.editTodoCommentForm.date
+        kind: 入力の誤り
+        text: 記録日は年月日で入力してください
+        source: 日付として読めない
+  - form: editTodoCommentForm
+    field: body
+    label: コメント本文
+    messages:
+      - key: validation.Size.editTodoCommentForm.body
+        kind: 入力の誤り
+        text: コメント本文は1文字以上で入力してください
+        source: 文字数
+  - form: deleteTodoCommentForm
+    field: row
+    label: コメントの番号
+    messages:
+      - key: validation.NotNull.deleteTodoCommentForm.row
+        kind: 入力の誤り
+        text: コメントの番号を入力してください
+        source: 必須
   - form: addTodoTaskForm
     field: title
     label: 作業
@@ -323,26 +367,6 @@ validation:
         kind: 入力の誤り
         text: 期限は年月日で入力してください
         source: 日付として読めない
-  - form: editTodoForm
-    field: comments.date
-    label: 日付
-    messages:
-      - key: validation.NotNull.editTodoForm.comments.date
-        kind: 入力の誤り
-        text: 日付を入力してください
-        source: 必須
-      - key: validation.typeMismatch.editTodoForm.comments.date
-        kind: 入力の誤り
-        text: 日付は年月日で入力してください
-        source: 日付として読めない
-  - form: editTodoForm
-    field: comments.body
-    label: コメント本文
-    messages:
-      - key: validation.NotNull.editTodoForm.comments.body
-        kind: 入力の誤り
-        text: コメント本文を入力してください
-        source: 必須
   - form: suspendTodoForm
     field: date
     label: 中断日

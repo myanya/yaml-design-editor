@@ -21,11 +21,11 @@ public class EditTodoWebOperation {
 
     public String execute(String id, EditTodoForm form) {
         var input = toInput(id, form);
-        return service.editTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getComments(), input.getClear());
+        return service.editTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getClear());
     }
     public java.util.List<BusinessViolation> check(String id, EditTodoForm form) {
         var input = toInput(id, form);
-        return service.checkEditTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getComments(), input.getClear());
+        return service.checkEditTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getClear());
     }
     public EditTodoInput toInput(String id, EditTodoForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -42,17 +42,6 @@ public class EditTodoWebOperation {
         input.setDueOn(form.getDueOn());
         input.setDetails(form.getDetails());
         input.setResult(form.getResult());
-        if (form.getComments() != null) {
-            var valuesComments = new java.util.ArrayList<EditTodoInput.EditTodoCommentsItem>();
-            for (var rowComments : form.getComments()) {
-                if (rowComments == null) throw new IllegalArgumentException("入力の明細に空の行があります");
-            var valueComments = new EditTodoInput.EditTodoCommentsItem();
-        valueComments.setDate(rowComments.getDate());
-        valueComments.setBody(rowComments.getBody());
-                valuesComments.add(valueComments);
-            }
-            input.setComments(valuesComments);
-        }
         if (form.getClear() != null) {
             var valueClear = new EditTodoInput.EditTodoClear();
         valueClear.setCategory(form.getClear().getCategory());
@@ -60,7 +49,6 @@ public class EditTodoWebOperation {
         valueClear.setDueOn(form.getClear().getDueOn());
         valueClear.setDetails(form.getClear().getDetails());
         valueClear.setResult(form.getClear().getResult());
-        valueClear.setComments(form.getClear().getComments());
             input.setClear(valueClear);
         }
         return input;

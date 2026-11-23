@@ -47,7 +47,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/data/mapper/TodoMapper.java",
-      "sha256": "ba9d5e59013b9773cd3503b24c3469ae5abc4fcf95d5101531793de487eb4b3f"
+      "sha256": "b2c3ca1f7f58af0fcc2e6fc847dfc265cb638742b872c44d13c87b541da1a2c9"
     },
     {
       "path": "app/src/main/java/example/todos/data/mapper/TodoTaskMapper.java",
@@ -122,8 +122,16 @@
       "sha256": "7263b7193b1747d2b6d4ce5169c0270e907af3fed7f0b77ebb723c87daf05135"
     },
     {
+      "path": "app/src/main/java/example/todos/service/input/DeleteTodoCommentInput.java",
+      "sha256": "0b5a63dcf762a85e796e6a6f32415167d1e0a4ee11a97a17e99204683c541da6"
+    },
+    {
+      "path": "app/src/main/java/example/todos/service/input/EditTodoCommentInput.java",
+      "sha256": "bc06a31f4903b59426d242bc0f4f23bf9d6a2485fa73c20bc80f67c8cbddde7f"
+    },
+    {
       "path": "app/src/main/java/example/todos/service/input/EditTodoInput.java",
-      "sha256": "b3c99f4b020367eaa07acfa6645dac39118872f1d8d4b309906ded158584c1ec"
+      "sha256": "26075b4ab535034d6ff7ef27d441796edef29e7c8a6a0787c209edd98ad16b60"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/RegisterTodoInput.java",
@@ -175,7 +183,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoService.java",
-      "sha256": "7f51a8fa23603cd82a4bd2a5f34a41c0d25d3938d783dcb288cd5a3a6d037836"
+      "sha256": "35b07094eb6d1d9e274fb4c3310b14ef1d944c874dbd454ab331591b1b25a4a7"
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoTaskService.java",
@@ -218,8 +226,16 @@
       "sha256": "23e187dc1bbf94463ffe9889265fd6c8ca5e724411336de365b1bbc39962d27a"
     },
     {
+      "path": "app/src/main/java/example/todos/web/form/DeleteTodoCommentForm.java",
+      "sha256": "e4f1f1e33d60e2fd86853a8edf58bc28e66196d50bf1b2f327dbc3e80d128522"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/EditTodoCommentForm.java",
+      "sha256": "130d176d60230a1c62f552fd561b2cb9c43221a5a2b21a94b4fe90230cb2e742"
+    },
+    {
       "path": "app/src/main/java/example/todos/web/form/EditTodoForm.java",
-      "sha256": "3bb2c4a0e4733ade256e9fed8b836d6dc51e508fa634ddcb771390834479952d"
+      "sha256": "d79316340da875273499ea2436d5bf5eda69005e11ad62e620d02e9025e30261"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/RegisterTodoForm.java",
@@ -258,8 +274,16 @@
       "sha256": "c1a49bf5ff6b768e087dfed400d8e2456fe57068116675e41c79563ed5a0fbda"
     },
     {
+      "path": "app/src/main/java/example/todos/web/operation/DeleteTodoCommentWebOperation.java",
+      "sha256": "d57fb47c0bd1448ddf18e28d740f91262f2a647aabb259ef0ae959e452a1db15"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/operation/EditTodoCommentWebOperation.java",
+      "sha256": "24e040b236e9722eda5d1df33e056b414e682e08de2d9c1b655d8661fcaee376"
+    },
+    {
       "path": "app/src/main/java/example/todos/web/operation/EditTodoWebOperation.java",
-      "sha256": "93b8eda08a4cd8134283e19e1de2e42063544d09c9b25953f71f0cdfd9042063"
+      "sha256": "764ab6942278b71cbfc74e6ca974862a8241899bca992946adce17168a13831f"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/RegisterTodoWebOperation.java",
@@ -287,7 +311,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/TodoController.java",
-      "sha256": "57d04713e38aaf9856e2e6e975d6b8f84c117a0cbbd964bcc629fddbacdc3d87"
+      "sha256": "038e3ca8f6417588a77d367797dae741eeb8d731de735485560cb2dd41ad8ff1"
     },
     {
       "path": "app/src/main/java/example/todos/web/TodoDashboardController.java",
@@ -299,7 +323,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebActions.java",
-      "sha256": "1009c2a8e5c62202fa8025489ac699608967e4a13e59faad9605fc69c6f9de26"
+      "sha256": "f505331673280715144661d8861a8e5e97cb146265bdb24f91edc50e6a7e22eb"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebBinding.java",
@@ -327,7 +351,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebValidationMessages.java",
-      "sha256": "d2a795159b77241dffd00020d96666184d51ff77ef58d999cd3596f106140bf4"
+      "sha256": "29b6b91858d6d7a0fbfea049e5a460d7394414409db2d8626f58b3da8efff183"
     },
     {
       "path": "app/src/main/resources/application.properties",
@@ -343,7 +367,7 @@
     },
     {
       "path": "app/src/main/resources/mappers/TodoMapper.xml",
-      "sha256": "0b43824c74e069117b9ccbffb7287632d21137dcf7553dfa246b1541d96ed30f"
+      "sha256": "fa605c585f23e6621394d7092367841cc84fce90c6326125042a3ba35ea29f1a"
     },
     {
       "path": "app/src/main/resources/mappers/TodoTaskMapper.xml",
@@ -442,8 +466,24 @@
       "sha256": "07b044159ae907b32cdf7787a95c1c32a998f2a6b6f894f3c2d1a82a2e683e75"
     },
     {
+      "path": "app/src/main/resources/templates/todo/delete-todo-comment/confirm.html",
+      "sha256": "133150c23282e6cfda50a3fe558447061d6e4fc567501bf4bb095630ddc56ce3"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/delete-todo-comment/input.html",
+      "sha256": "37ca93aa49e7b1cb5841e5a468aa0c60fa461d8f668e6b3c8cfd39198b050bcd"
+    },
+    {
       "path": "app/src/main/resources/templates/todo/detail.html",
       "sha256": "8fc25d7b3b0341f7ace0aa337589e6d3bab1b6c760abe5e1ba16750cc8fa6fa7"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/edit-todo-comment/confirm.html",
+      "sha256": "a3b54a109a9b719fb56e24f3610e786794aca7266b94381f4aa364802f34dbfd"
+    },
+    {
+      "path": "app/src/main/resources/templates/todo/edit-todo-comment/input.html",
+      "sha256": "3f64e351cfaf8f2ddc2aab160fca896630efa18e80b5be99ed207f74f0ed57f1"
     },
     {
       "path": "app/src/main/resources/templates/todo/edit-todo/confirm.html",
@@ -451,7 +491,7 @@
     },
     {
       "path": "app/src/main/resources/templates/todo/edit-todo/input.html",
-      "sha256": "f1d583d9564d89311f6f03bcee9d9698a6a52d6c01642355abacf1e0f83d6bd6"
+      "sha256": "f413d8513254d12d6765c14e91785bd926c927a2b8ed0de8de172b138094c004"
     },
     {
       "path": "app/src/main/resources/templates/todo/register-todo/confirm.html",
@@ -483,7 +523,7 @@
     },
     {
       "path": "app/src/main/resources/web-model.json",
-      "sha256": "8897cd205f52b8f6325ff6d897c4467b9c4af8158fc94da7bc55fde9a2a5aa08"
+      "sha256": "8cf728b176f10ebe554be75a0f5de371528cd0d1c6e043c4a095875c0d4fa5c3"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

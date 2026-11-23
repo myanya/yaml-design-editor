@@ -544,6 +544,8 @@ methods:
         column: id
     operations:
       - add-todo-comment
+      - edit-todo-comment
+      - delete-todo-comment
       - add-todo-task
       - edit-todo
       - start-todo
@@ -858,7 +860,6 @@ methods:
       mode: all
     operations:
       - add-todo-comment
-      - edit-todo
     screens: []
     columnBindings:
       - columnId: COL-todo_comments.todo_id
@@ -977,6 +978,227 @@ methods:
         name: result
         source: FLD-todo.result
     methodId: addTodoComment
+    tableId: TBL-todo
+  - name: editTodoCommentCommentsRow
+    kind: update
+    table: todo_comments
+    set:
+      - item: date
+        value: $date
+        when:
+          - path: date
+            exists: true
+        mode: value
+        columnId: COL-todo_comments.date
+        column: date
+      - item: body
+        value: $body
+        when:
+          - path: body
+            exists: true
+        mode: value
+        columnId: COL-todo_comments.body
+        column: body
+    where:
+      - item: todo_id
+        param: id
+        columnId: COL-todo_comments.todo_id
+        column: todo_id
+      - item: seq
+        param: row
+        columnId: COL-todo_comments.seq
+        column: seq
+    operations:
+      - edit-todo-comment
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_comments.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_comments.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_comments.date
+        item: date
+        name: date
+        source: FLD-todo.comments.item.date
+      - columnId: COL-todo_comments.body
+        item: body
+        name: body
+        source: FLD-todo.comments.item.body
+    methodId: editTodoCommentCommentsRow
+    tableId: TBL-todo_comments
+  - name: editTodoComment
+    kind: update
+    table: todo
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+        mode: value
+        columnId: COL-todo.updated_on
+        column: updated_on
+    where:
+      - item: id
+        param: id
+        columnId: COL-todo.id
+        column: id
+    operations:
+      - edit-todo-comment
+    screens: []
+    columnBindings:
+      - columnId: COL-todo.id
+        item: id
+        name: id
+        source: FLD-todo.id
+      - columnId: COL-todo.title
+        item: title
+        name: title
+        source: FLD-todo.title
+      - columnId: COL-todo.summary
+        item: summary
+        name: summary
+        source: FLD-todo.summary
+      - columnId: COL-todo.category
+        item: category
+        name: category
+        source: FLD-todo.category
+      - columnId: COL-todo.follows
+        item: follows
+        name: follows
+        source: FLD-todo.follows
+      - columnId: COL-todo.status
+        item: status
+        name: status
+        source: FLD-todo.status
+      - columnId: COL-todo.created_on
+        item: created_on
+        name: created_on
+        source: FLD-todo.created_on
+      - columnId: COL-todo.updated_on
+        item: updated_on
+        name: updated_on
+        source: FLD-todo.updated_on
+      - columnId: COL-todo.due_on
+        item: due_on
+        name: due_on
+        source: FLD-todo.due_on
+      - columnId: COL-todo.completed_on
+        item: completed_on
+        name: completed_on
+        source: FLD-todo.completed_on
+      - columnId: COL-todo.details
+        item: details
+        name: details
+        source: FLD-todo.details
+      - columnId: COL-todo.result
+        item: result
+        name: result
+        source: FLD-todo.result
+    methodId: editTodoComment
+    tableId: TBL-todo
+  - name: deleteTodoCommentCommentsRow
+    kind: delete
+    table: todo_comments
+    where:
+      - item: todo_id
+        param: id
+        columnId: COL-todo_comments.todo_id
+        column: todo_id
+      - item: seq
+        param: row
+        columnId: COL-todo_comments.seq
+        column: seq
+    operations:
+      - delete-todo-comment
+    screens: []
+    columnBindings:
+      - columnId: COL-todo_comments.todo_id
+        item: todo_id
+        name: todo_id
+      - columnId: COL-todo_comments.seq
+        item: seq
+        name: seq
+      - columnId: COL-todo_comments.date
+        item: date
+        name: date
+        source: FLD-todo.comments.item.date
+      - columnId: COL-todo_comments.body
+        item: body
+        name: body
+        source: FLD-todo.comments.item.body
+    methodId: deleteTodoCommentCommentsRow
+    tableId: TBL-todo_comments
+  - name: deleteTodoComment
+    kind: update
+    table: todo
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+        mode: value
+        columnId: COL-todo.updated_on
+        column: updated_on
+    where:
+      - item: id
+        param: id
+        columnId: COL-todo.id
+        column: id
+    operations:
+      - delete-todo-comment
+    screens: []
+    columnBindings:
+      - columnId: COL-todo.id
+        item: id
+        name: id
+        source: FLD-todo.id
+      - columnId: COL-todo.title
+        item: title
+        name: title
+        source: FLD-todo.title
+      - columnId: COL-todo.summary
+        item: summary
+        name: summary
+        source: FLD-todo.summary
+      - columnId: COL-todo.category
+        item: category
+        name: category
+        source: FLD-todo.category
+      - columnId: COL-todo.follows
+        item: follows
+        name: follows
+        source: FLD-todo.follows
+      - columnId: COL-todo.status
+        item: status
+        name: status
+        source: FLD-todo.status
+      - columnId: COL-todo.created_on
+        item: created_on
+        name: created_on
+        source: FLD-todo.created_on
+      - columnId: COL-todo.updated_on
+        item: updated_on
+        name: updated_on
+        source: FLD-todo.updated_on
+      - columnId: COL-todo.due_on
+        item: due_on
+        name: due_on
+        source: FLD-todo.due_on
+      - columnId: COL-todo.completed_on
+        item: completed_on
+        name: completed_on
+        source: FLD-todo.completed_on
+      - columnId: COL-todo.details
+        item: details
+        name: details
+        source: FLD-todo.details
+      - columnId: COL-todo.result
+        item: result
+        name: result
+        source: FLD-todo.result
+    methodId: deleteTodoComment
     tableId: TBL-todo
   - name: addTodoTask
     kind: update
@@ -1230,34 +1452,6 @@ methods:
         source: FLD-todo.tags
     methodId: deleteTodoTags
     tableId: TBL-todo_tags
-  - name: deleteTodoComments
-    kind: delete
-    table: todo_comments
-    where:
-      - item: todo_id
-        param: id
-        columnId: COL-todo_comments.todo_id
-        column: todo_id
-    operations:
-      - edit-todo
-    screens: []
-    columnBindings:
-      - columnId: COL-todo_comments.todo_id
-        item: todo_id
-        name: todo_id
-      - columnId: COL-todo_comments.seq
-        item: seq
-        name: seq
-      - columnId: COL-todo_comments.date
-        item: date
-        name: date
-        source: FLD-todo.comments.item.date
-      - columnId: COL-todo_comments.body
-        item: body
-        name: body
-        source: FLD-todo.comments.item.body
-    methodId: deleteTodoComments
-    tableId: TBL-todo_comments
   - name: startTodo
     kind: update
     table: todo

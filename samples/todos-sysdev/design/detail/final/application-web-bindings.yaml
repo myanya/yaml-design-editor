@@ -380,6 +380,66 @@ operations:
         target: todo
         receiver: true
         classes: []
+  - id: JWEB-delete-todo-comment
+    action: delete-todo-comment
+    source: DOC-processes.delete-todo-comment
+    controllerService: TodoService.deleteTodoComment
+    className: DeleteTodoCommentWebOperation
+    service: TodoService
+    method: deleteTodoComment
+    inputClass: DeleteTodoCommentInput
+    formClass: DeleteTodoCommentForm
+    formSource: DOC-screen-designs-operations.delete-todo-comment
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Row
+    confirm: []
+    handlerMatches:
+      - action: delete-todo-comment
+        service: TodoService.deleteTodoComment
+    formMatches:
+      - id: JFORM-delete-todo-comment
+        className: DeleteTodoCommentForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: row
+          matches:
+            - name: row
+        - item: row
+          matches:
+            - name: row
+      assignments:
+        - item: row
+          kind: scalar
+          source: row
+          target: row
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setRow(form.getRow());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
   - id: JWEB-edit-todo
     action: edit-todo
     source: DOC-processes.edit-todo
@@ -401,7 +461,6 @@ operations:
       - accessor: DueOn
       - accessor: Details
       - accessor: Result
-      - accessor: Comments
       - accessor: Clear
     confirm:
       - method: checkEditTodo
@@ -446,9 +505,6 @@ operations:
         - item: result
           matches:
             - name: result
-        - item: comments
-          matches:
-            - name: comments
         - item: clear
           matches:
             - name: clear
@@ -476,9 +532,6 @@ operations:
         - item: result
           matches:
             - name: result
-        - item: comments
-          matches:
-            - name: comments
         - item: clear
           matches:
             - name: clear
@@ -579,84 +632,6 @@ operations:
               plain: true
               raw: |2
                         input.setResult(form.getResult());
-        - item: comments
-          kind: rows
-          source: comments
-          target: comments
-          classes:
-            - name: EditTodoCommentsRow
-          children:
-            coverage:
-              - item: date
-                matches:
-                  - name: date
-              - item: body
-                matches:
-                  - name: body
-              - item: date
-                matches:
-                  - name: date
-              - item: body
-                matches:
-                  - name: body
-            assignments:
-              - item: date
-                kind: scalar
-                source: date
-                target: date
-                checks:
-                  - valid: true
-                    error: Form と Service 入力の型が一致しません
-                tokens:
-                  - valid: true
-                    plain: true
-                    raw: |2
-                              valueComments.setDate(rowComments.getDate());
-              - item: body
-                kind: scalar
-                source: body
-                target: body
-                checks:
-                  - valid: true
-                    error: Form と Service 入力の型が一致しません
-                tokens:
-                  - valid: true
-                    plain: true
-                    raw: |2
-                              valueComments.setBody(rowComments.getBody());
-          tokens:
-            - valid: true
-              plain: true
-              raw: |2
-                        if (form.getComments() != null) {
-            - valid: true
-              plain: true
-              raw: |2
-                            var valuesComments = new java.util.ArrayList<EditTodoInput.EditTodoCommentsItem>();
-                            for (var rowComments : form.getComments()) {
-                                if (rowComments == null) throw new IllegalArgumentException("入力の明細に空の行があります");
-            - valid: true
-              plain: true
-              raw: |2
-                            var valueComments = new EditTodoInput.EditTodoCommentsItem();
-            - valid: true
-              plain: true
-              raw: |2
-                        valueComments.setDate(rowComments.getDate());
-            - valid: true
-              plain: true
-              raw: |2
-                        valueComments.setBody(rowComments.getBody());
-            - valid: true
-              plain: true
-              raw: |2
-                                valuesComments.add(valueComments);
-                            }
-            - valid: true
-              plain: true
-              raw: |2
-                            input.setComments(valuesComments);
-                        }
         - item: clear
           source: clear
           target: clear
@@ -679,9 +654,6 @@ operations:
               - item: result
                 matches:
                   - name: result
-              - item: comments
-                matches:
-                  - name: comments
               - item: category
                 matches:
                   - name: category
@@ -697,9 +669,6 @@ operations:
               - item: result
                 matches:
                   - name: result
-              - item: comments
-                matches:
-                  - name: comments
             assignments:
               - item: category
                 kind: scalar
@@ -761,18 +730,6 @@ operations:
                     plain: true
                     raw: |2
                               valueClear.setResult(form.getClear().getResult());
-              - item: comments
-                kind: scalar
-                source: comments
-                target: comments
-                checks:
-                  - valid: true
-                    error: Form と Service 入力の型が一致しません
-                tokens:
-                  - valid: true
-                    plain: true
-                    raw: |2
-                              valueClear.setComments(form.getClear().getComments());
           tokens:
             - valid: true
               plain: true
@@ -805,12 +762,106 @@ operations:
             - valid: true
               plain: true
               raw: |2
-                        valueClear.setComments(form.getClear().getComments());
+                            input.setClear(valueClear);
+                        }
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+  - id: JWEB-edit-todo-comment
+    action: edit-todo-comment
+    source: DOC-processes.edit-todo-comment
+    controllerService: TodoService.editTodoComment
+    className: EditTodoCommentWebOperation
+    service: TodoService
+    method: editTodoComment
+    inputClass: EditTodoCommentInput
+    formClass: EditTodoCommentForm
+    formSource: DOC-screen-designs-operations.edit-todo-comment
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Row
+      - accessor: Date
+      - accessor: Body
+    confirm: []
+    handlerMatches:
+      - action: edit-todo-comment
+        service: TodoService.editTodoComment
+    formMatches:
+      - id: JFORM-edit-todo-comment
+        className: EditTodoCommentForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: row
+          matches:
+            - name: row
+        - item: date
+          matches:
+            - name: date
+        - item: body
+          matches:
+            - name: body
+        - item: row
+          matches:
+            - name: row
+        - item: date
+          matches:
+            - name: date
+        - item: body
+          matches:
+            - name: body
+      assignments:
+        - item: row
+          kind: scalar
+          source: row
+          target: row
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
             - valid: true
               plain: true
               raw: |2
-                            input.setClear(valueClear);
-                        }
+                        input.setRow(form.getRow());
+        - item: date
+          kind: scalar
+          source: date
+          target: date
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setDate(form.getDate());
+        - item: body
+          kind: scalar
+          source: body
+          target: body
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setBody(form.getBody());
     receiverFields:
       - key: id
         name: id
@@ -1250,6 +1301,12 @@ controllerCoverage:
   - action: add-todo-comment
     matches:
       - id: JOP-add-todo-comment
+  - action: edit-todo-comment
+    matches:
+      - id: JOP-edit-todo-comment
+  - action: delete-todo-comment
+    matches:
+      - id: JOP-delete-todo-comment
   - action: add-todo-task
     matches:
       - id: JOP-add-todo-task

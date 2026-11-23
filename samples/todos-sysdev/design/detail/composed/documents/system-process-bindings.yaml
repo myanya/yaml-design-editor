@@ -42,6 +42,12 @@ bindings:
     roles:
       - calls
       - call
+  - before: TodoService.deleteTodoComment
+    after: TodoService.deleteTodoComment
+    roles:
+      - service
+      - calls
+      - call
   - before: TodoService.editTodo
     after: TodoService.editTodo
     roles:
@@ -51,6 +57,12 @@ bindings:
   - before: TodoService.checkEditTodo
     after: TodoService.checkEditTodo
     roles:
+      - calls
+      - call
+  - before: TodoService.editTodoComment
+    after: TodoService.editTodoComment
+    roles:
+      - service
       - calls
       - call
   - before: TodoService.registerTodo

@@ -1,0 +1,88 @@
+# 生成物（screen-operations）: 手で直さず、業務モデルか生成の定義（design/basic/screen-operations.yaml）を直して作り直します（CLI generate）。
+id: edit-todo-comment
+name: コメントを編集する
+kind: operation
+target: todo
+starts:
+  - screen: todo-dashboard
+    place: 区画「期限超過」の行のボタン
+  - screen: todo-dashboard
+    place: 区画「すべてのTODO」の行のボタン
+  - screen: todo
+    place: 画面のボタン
+shownWhen: いつも
+input:
+  screen: edit-todo-comment/input
+  request: GET /todo/{id}/edit-todo-comment
+  items:
+    - key: row
+      label: コメントの番号
+      type: int
+      base: int
+      description: コメント一覧の何番目か（0 から数えます）
+      required: true
+      min: 0.0
+      overrides:
+        min: 0.0
+      builtinType:
+        name: int
+        base: int
+        builtin: true
+    - key: date
+      label: 記録日
+      type: common#年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      format: yyyy年M月d日
+    - key: body
+      label: コメント本文
+      type: todo-operations#操作の記録
+      base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+      minLength: 1
+      multiline: true
+  initial:
+    date:
+      $copy: comments[$row].date
+      $of: self
+      $in:
+        schemaId: todo-detail
+    body:
+      $copy: comments[$row].body
+      $of: self
+      $in:
+        schemaId: todo-detail
+  submit: changed
+confirm:
+  screen: edit-todo-comment/confirm
+  request: POST /todo/{id}/edit-todo-comment/confirm
+  shows:
+    - コメントの番号
+    - 記録日
+    - コメント本文
+  back:
+    request: POST /todo/{id}/edit-todo-comment/back
+    to: edit-todo-comment/input
+execute:
+  request: POST /todo/{id}/edit-todo-comment
+  returns: 起点の画面（starts の画面。画面の ID で受け取る）
+  notice: edit-todo-comment.done
+  refusals:
+    - key: check.updated-not-before-created
+      message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+  onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+originalRoutes:
+  input: GET /todo/{id}/edit-todo-comment
+  confirm: POST /todo/{id}/edit-todo-comment/confirm
+  back: POST /todo/{id}/edit-todo-comment/back
+  execute: POST /todo/{id}/edit-todo-comment
+designId: DOC-screen-operations.edit-todo-comment
+designKind: screen-operations
+designPath: design/basic/final/screens/operations/edit-todo-comment.yaml
+origins:
+  source:
+    id: rule-screen-operations
+    document: .yde/transforms/design/basic/screen-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

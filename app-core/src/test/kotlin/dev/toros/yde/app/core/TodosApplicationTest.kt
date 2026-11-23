@@ -44,8 +44,8 @@ class TodosApplicationTest {
     @Test
     fun `ビルドと起動の生成物は確定設定と一致し 親のビルドに依存しない`() {
         val outputs = render(sample)
-        assertEquals(117, outputs.size)
-        assertEquals(26, outputs.keys.count { it.startsWith("app-web-page:") })
+        assertEquals(127, outputs.size)
+        assertEquals(30, outputs.keys.count { it.startsWith("app-web-page:") })
         for ((id, output) in outputs) assertEquals(Files.readString(sample.resolve(output.outputRel!!)), output.text, id)
         val settings = outputs.getValue("app-settings").text
         val build = outputs.getValue("app-build").text

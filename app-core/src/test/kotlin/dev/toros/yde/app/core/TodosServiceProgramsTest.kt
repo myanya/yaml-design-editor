@@ -40,7 +40,7 @@ class TodosServiceProgramsTest {
         val services = rows(document, "services")
         val operations = services.flatMap { rows(it, "operations") }
         assertEquals(4, services.size)
-        assertEquals(12, operations.size)
+        assertEquals(14, operations.size)
         assertTrue(operations.flatMap { rows(it, "tokens") }.all { it["valid"] == true })
         val text = code(document)
         assertTrue("cursor = linked.getFollows()" in text)
@@ -50,7 +50,12 @@ class TodosServiceProgramsTest {
         assertTrue("setDueOn(null)" in text)
         assertTrue("LocalDate.parse(null)" !in text)
         val edit = operations.single { it["method"] == "editTodo" }
-        assertEquals("java.util.List<EditTodoInput.EditTodoCommentsItem>", rows(edit, "arguments").single { it["name"] == "comments" }["type"])
+        assertTrue(rows(edit, "arguments").none { it["name"] == "comments" }, "コメントは編集の入力に無い")
+        // 並びの番号で指す操作: 1 行の update・delete を呼び、0 件なら見つからない（黙って成功にしない）
+        assertTrue("p.setRow(input.getRow()); p.setDate(input.getDate()); p.setBody(input.getBody()); }, todoMapper::editTodoCommentCommentsRow) == 0) throw new" in text)
+        assertTrue("p.setRow(input.getRow()); }, todoMapper::deleteTodoCommentCommentsRow) == 0) throw new" in text)
+        // 例外のクラス名は別の字句（errorClass）なので、つないだ文字には出ない
+        assertTrue("== 0) throw new (todo.comments, input.getId());" in text)
     }
 
     @Test

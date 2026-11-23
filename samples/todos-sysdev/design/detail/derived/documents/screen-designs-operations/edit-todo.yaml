@@ -56,30 +56,11 @@ record:
           item: result
           type: String
           validations: []
-        - name: comments
-          item: comments
-          type: List<EditTodoCommentsRow>
-          validations:
-            - name: Valid
         - name: clear
           item: clear
           type: EditTodoClear
           validations: []
       classes:
-        - name: EditTodoCommentsRow
-          fields:
-            - name: date
-              item: date
-              type: LocalDate
-              validations:
-                - name: NotNull
-                - name: DateTimeFormat
-                  iso: DATE
-            - name: body
-              item: body
-              type: String
-              validations:
-                - name: NotNull
         - name: EditTodoClear
           fields:
             - name: category
@@ -100,10 +81,6 @@ record:
               validations: []
             - name: result
               item: result
-              type: Boolean
-              validations: []
-            - name: comments
-              item: comments
               type: Boolean
               validations: []
     screens:
@@ -192,34 +169,6 @@ record:
                       clearable:
                         flag: clear.result
                         label: 値を消す
-                  - rows:
-                      item: comments
-                      label: コメント一覧
-                      columns:
-                        - field:
-                            item: date
-                            label: 日付
-                            control: date
-                            required: true
-                            width: 10ch
-                        - field:
-                            item: body
-                            label: コメント本文
-                            control: textarea
-                            required: true
-                            rows: 5
-                      actions:
-                        - label: 行を足す
-                          kind: submit
-                          emphasis: secondary
-                        - label: この行を消す
-                          kind: submit
-                          emphasis: secondary
-                          per: row
-                      redraw: 入力画面へ POST して描き直す
-                      clearable:
-                        flag: clear.comments
-                        label: 値を消す
                   - actions:
                       - label: 確認へ
                         kind: submit
@@ -274,8 +223,6 @@ record:
                   - item: result
                     label: 結果・中止理由
                     keepBreaks: true
-                  - item: comments
-                    label: コメント一覧
             - form:
                 action: POST /todo/{id}/edit-todo
                 hidden:
@@ -287,7 +234,6 @@ record:
                   - due_on
                   - details
                   - result
-                  - comments
                   - clear
                   - flow
                   - from

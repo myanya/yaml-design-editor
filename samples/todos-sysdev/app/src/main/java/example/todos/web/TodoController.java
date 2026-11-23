@@ -46,6 +46,38 @@ public class TodoController {
     public String addTodoComment(HttpServletRequest request,HttpServletResponse response,Model model) {
         return runtime.handle(request,response,model);
     }
+    @RequestMapping(path="/todo/{id}/edit-todo-comment",method=RequestMethod.GET)
+    public String editTodoCommentInput(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/edit-todo-comment/confirm",method=RequestMethod.POST)
+    public String editTodoCommentConfirm(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/edit-todo-comment/back",method=RequestMethod.POST)
+    public String editTodoCommentBack(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/edit-todo-comment",method=RequestMethod.POST)
+    public String editTodoComment(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/delete-todo-comment",method=RequestMethod.GET)
+    public String deleteTodoCommentInput(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/delete-todo-comment/confirm",method=RequestMethod.POST)
+    public String deleteTodoCommentConfirm(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/delete-todo-comment/back",method=RequestMethod.POST)
+    public String deleteTodoCommentBack(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/delete-todo-comment",method=RequestMethod.POST)
+    public String deleteTodoComment(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
     @RequestMapping(path="/todo/{id}/add-todo-task",method=RequestMethod.GET)
     public String addTodoTaskInput(HttpServletRequest request,HttpServletResponse response,Model model) {
         return runtime.handle(request,response,model);

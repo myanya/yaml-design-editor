@@ -60,7 +60,7 @@ class TodosSysdevTest {
 
     /**
      * 画面系（画面遷移定義書・画面定義書・Controller・セッション情報設計）は、ダッシュボードを起点に業務モデルから計算で作る:
-     * 一覧画面 1・詳細画面 3（入れ子の作業項目は画面にしない）・入力画面 10・確認画面 12 の 26 画面。ビューは定義の索引の yde-view。
+     * 一覧画面 1・詳細画面 3（入れ子の作業項目は画面にしない）・入力画面 12・確認画面 14 の 30 画面。ビューは定義の索引の yde-view。
      */
     @Test
     fun `画面系の設計書はダッシュボードを起点に計算で作る`() {
@@ -68,7 +68,7 @@ class TodosSysdevTest {
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
         val transitions = doc("design/basic/final/screens/transitions/todo-dashboard.yaml")
         val kinds = list(transitions, "screens").groupingBy { it["kind"].toString() }.eachCount()
-        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 10, "confirm" to 12), kinds)
+        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 12, "confirm" to 14), kinds)
         assertTrue(java.nio.file.Files.notExists(root.resolve("design/basic/final/screens/details/todo-task.yaml")), "入れ子の型は詳細画面にしない")
         val start = doc("design/basic/final/screens/operations/start-todo.yaml")
         kotlin.test.assertNull(start["input"], "受け取る値が無い操作は、入力画面を作らない")
@@ -97,7 +97,8 @@ class TodosSysdevTest {
         assertEquals(listOf(mapOf("name" to "NotNull"), mapOf("name" to "Size", "min" to 1)), result["validations"])
         assertEquals(listOf("complete-todo/input", "complete-todo/confirm"), list(complete, "screens").map { it["id"] })
         val edit = doc("design/detail/final/screen-designs/operations/edit-todo.yaml").toString()
-        assertTrue("flag=clear.category" in edit && "rows={item=comments" in edit, "値を消すのチェックと、コメント一覧の行の表")
+        assertTrue("flag=clear.category" in edit, "値を消すのチェック")
+        assertTrue("comments" !in edit, "コメント一覧は編集の入力に無い（追加・編集・削除の操作で変える）")
         val access = list(doc("design/detail/final/table-access/todo.yaml"), "methods")
         val overdue = access.single { it["name"] == "selectTodoDashboardOverdue" }
         assertTrue((overdue["where"] as List<*>).any { (it as Map<*, *>).let { row -> row["item"] == "status" && row["op"] == "in" && row["values"] == listOf("OPEN", "IN_PROGRESS") } }, "区画の条件の State は値の条件")

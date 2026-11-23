@@ -373,6 +373,54 @@ bindings:
     after: TodoMapper.addTodoComment の次
     roles:
       - seq
+  - before: TodoMapper.editTodoCommentCommentsRow
+    after: TodoMapper.editTodoCommentCommentsRow
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.editTodoCommentCommentsRow の次
+    after: TodoMapper.editTodoCommentCommentsRow の次
+    roles:
+      - seq
+  - before: TodoMapper.editTodoComment
+    after: TodoMapper.editTodoComment
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.editTodoComment の次
+    after: TodoMapper.editTodoComment の次
+    roles:
+      - seq
+  - before: TodoMapper.deleteTodoCommentCommentsRow
+    after: TodoMapper.deleteTodoCommentCommentsRow
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.deleteTodoCommentCommentsRow の次
+    after: TodoMapper.deleteTodoCommentCommentsRow の次
+    roles:
+      - seq
+  - before: TodoMapper.deleteTodoComment
+    after: TodoMapper.deleteTodoComment
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.deleteTodoComment の次
+    after: TodoMapper.deleteTodoComment の次
+    roles:
+      - seq
   - before: TodoMapper.addTodoTask
     after: TodoMapper.addTodoTask
     roles:
@@ -407,18 +455,6 @@ bindings:
       - service
   - before: TodoMapper.deleteTodoTags の次
     after: TodoMapper.deleteTodoTags の次
-    roles:
-      - seq
-  - before: TodoMapper.deleteTodoComments
-    after: TodoMapper.deleteTodoComments
-    roles:
-      - call
-      - calls
-      - reads
-      - read
-      - service
-  - before: TodoMapper.deleteTodoComments の次
-    after: TodoMapper.deleteTodoComments の次
     roles:
       - seq
   - before: TodoMapper.startTodo

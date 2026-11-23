@@ -545,6 +545,87 @@ AND todo.id = #{input.id}
 </where>
   </update>
 
+  <update id="editTodoCommentCommentsRow">
+    UPDATE todo_comments SET
+    date = <choose>
+      <when test="input.date != null">#{input.date}</when>
+      <otherwise>date</otherwise>
+    </choose>,
+    body = <choose>
+      <when test="input.body != null">#{input.body}</when>
+      <otherwise>body</otherwise>
+    </choose>
+    <where>
+
+AND todo_comments.todo_id = #{input.id}
+
+
+
+
+
+
+
+AND todo_comments.seq = #{input.row}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="editTodoComment">
+    UPDATE todo SET
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <delete id="deleteTodoCommentCommentsRow">DELETE FROM todo_comments <where>
+
+AND todo_comments.todo_id = #{input.id}
+
+
+
+
+
+
+
+AND todo_comments.seq = #{input.row}
+
+
+
+
+
+</where></delete>
+
+  <update id="deleteTodoComment">
+    UPDATE todo SET
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
   <update id="addTodoTask">
     UPDATE todo SET
     updated_on = <choose>
@@ -614,16 +695,6 @@ AND todo.id = #{input.id}
   <delete id="deleteTodoTags">DELETE FROM todo_tags <where>
 
 AND todo_tags.todo_id = #{input.id}
-
-
-
-
-
-</where></delete>
-
-  <delete id="deleteTodoComments">DELETE FROM todo_comments <where>
-
-AND todo_comments.todo_id = #{input.id}
 
 
 

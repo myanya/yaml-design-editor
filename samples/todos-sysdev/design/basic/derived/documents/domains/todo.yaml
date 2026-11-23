@@ -184,6 +184,20 @@ record:
         inputs:
           - 記録日
           - コメント本文
+      - label: コメントを編集する
+        of: TODO
+        description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
+        requires: []
+        inputs:
+          - コメントの番号
+          - 記録日
+          - コメント本文
+      - label: コメントを削除する
+        of: TODO
+        description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
+        requires: []
+        inputs:
+          - コメントの番号
       - label: 作業項目を追加する
         of: TODO
         description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
@@ -204,7 +218,6 @@ record:
           - 期限
           - 詳細
           - 結果・中止理由
-          - コメント一覧
           - 値を消す
       - label: TODOに着手する
         of: TODO

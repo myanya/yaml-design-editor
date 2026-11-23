@@ -139,6 +139,22 @@ processes:
       - call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask
         resolved: true
+  - source: DOC-processes.delete-todo-comment
+    transactionMode: atomic
+    checks:
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoMapper.deleteTodoCommentCommentsRow
+        method: JMTH-todo.deleteTodoCommentCommentsRow
+        resolved: true
+      - call: TodoMapper.deleteTodoComment
+        method: JMTH-todo.deleteTodoComment
+        resolved: true
   - source: DOC-processes.edit-todo
     transactionMode: atomic
     checks:
@@ -167,20 +183,24 @@ processes:
       - call: TodoMapper.insertTodoTags
         method: JMTH-todo.insertTodoTags
         resolved: true
-      - call: TodoMapper.deleteTodoComments
-        method: JMTH-todo.deleteTodoComments
-        resolved: true
-      - call: TodoMapper.insertTodoComments
-        method: JMTH-todo.insertTodoComments
-        resolved: true
       - call: TodoMapper.deleteTodoTags
         method: JMTH-todo.deleteTodoTags
         resolved: true
-      - call: TodoMapper.deleteTodoComments
-        method: JMTH-todo.deleteTodoComments
+  - source: DOC-processes.edit-todo-comment
+    transactionMode: atomic
+    checks:
+      - mode: prospective
+        entity: todo
+        phase: before
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
         resolved: true
-      - call: TodoMapper.insertTodoComments
-        method: JMTH-todo.insertTodoComments
+      - call: TodoMapper.editTodoCommentCommentsRow
+        method: JMTH-todo.editTodoCommentCommentsRow
+        resolved: true
+      - call: TodoMapper.editTodoComment
+        method: JMTH-todo.editTodoComment
         resolved: true
   - source: DOC-processes.register-todo
     transactionMode: atomic

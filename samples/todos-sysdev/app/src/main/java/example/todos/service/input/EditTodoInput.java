@@ -29,20 +29,9 @@ public class EditTodoInput {
     private java.lang.String result;
     public java.lang.String getResult() { return result; }
     public void setResult(java.lang.String value) { this.result = value; }
-    private java.util.List<EditTodoCommentsItem> comments;
-    public java.util.List<EditTodoCommentsItem> getComments() { return comments; }
-    public void setComments(java.util.List<EditTodoCommentsItem> value) { this.comments = value; }
     private EditTodoClear clear;
     public EditTodoClear getClear() { return clear; }
     public void setClear(EditTodoClear value) { this.clear = value; }
-    public static class EditTodoCommentsItem {
-        private java.time.LocalDate date;
-        public java.time.LocalDate getDate() { return date; }
-        public void setDate(java.time.LocalDate value) { this.date = value; }
-        private java.lang.String body;
-        public java.lang.String getBody() { return body; }
-        public void setBody(java.lang.String value) { this.body = value; }
-    }
     public static class EditTodoClear {
         private java.lang.Boolean category;
         public java.lang.Boolean getCategory() { return category; }
@@ -59,8 +48,5 @@ public class EditTodoInput {
         private java.lang.Boolean result;
         public java.lang.Boolean getResult() { return result; }
         public void setResult(java.lang.Boolean value) { this.result = value; }
-        private java.lang.Boolean comments;
-        public java.lang.Boolean getComments() { return comments; }
-        public void setComments(java.lang.Boolean value) { this.comments = value; }
     }
 }

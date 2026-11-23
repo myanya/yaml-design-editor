@@ -83,6 +83,46 @@ actions:
           path: comments
           value: { date: $date, body: $body }
           of: self
+  # コメントは ID を持たないので、直す・消すコメントは並びの番号で指す（0 から数える。個票のコメント一覧の行の「⋯」から選べば番号が入る）
+  - id: edit-todo-comment
+    label: コメントを編集する
+    description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
+    input:
+      submit: changed
+      initial:
+        date: { $copy: "comments[$row].date", $of: self, $in: { schemaId: todo-detail } }
+        body: { $copy: "comments[$row].body", $of: self, $in: { schemaId: todo-detail } }
+    target: { entity: todo }
+    params:
+      - { key: row, label: コメントの番号, type: int, min: 0, required: true, description: コメント一覧の何番目か（0 から数えます） }
+      - { key: date, label: 記録日, type: common#年月日 }
+      - { key: body, label: コメント本文, type: 操作の記録 }
+    do:
+      - when:
+          - { path: date, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: "comments[$row].date"
+          value: $date
+          of: self
+      - when:
+          - { path: body, exists: true }
+        set:
+          in: { schemaId: todo-detail }
+          path: "comments[$row].body"
+          value: $body
+          of: self
+  - id: delete-todo-comment
+    label: コメントを削除する
+    description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
+    target: { entity: todo }
+    params:
+      - { key: row, label: コメントの番号, type: int, min: 0, required: true, description: コメント一覧の何番目か（0 から数えます） }
+    do:
+      - delete:
+          in: { schemaId: todo-detail }
+          path: "comments[$row]"
+          of: self
   - id: add-todo-task
     label: 作業項目を追加する
     description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
@@ -118,7 +158,6 @@ actions:
         due_on: { $copy: due_on, $of: self, $in: { schemaId: todo-detail } }
         details: { $copy: details, $of: self, $in: { schemaId: todo-detail } }
         result: { $copy: result, $of: self, $in: { schemaId: todo-detail } }
-        comments: { $copy: comments, $of: self, $in: { schemaId: todo-detail } }
     target: { entity: todo }
     params:
       - key: title
@@ -150,11 +189,6 @@ actions:
       - key: result
         label: 結果・中止理由
         type: common#文章
-      - key: comments
-        label: コメント一覧
-        type: array
-        item: { type: common#コメント }
-        description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
       - key: clear
         label: 値を消す
         type: object
@@ -166,7 +200,6 @@ actions:
           - { key: due_on, label: "期限を消す", type: boolean }
           - { key: details, label: "詳細を消す", type: boolean }
           - { key: result, label: "結果・中止理由を消す", type: boolean }
-          - { key: comments, label: "コメント一覧を消す", type: boolean }
     do:
       - when:
           - { path: title, exists: true }
@@ -225,13 +258,6 @@ actions:
           value: $result
           of: self
       - when:
-          - { path: comments, exists: true }
-        set:
-          in: { schemaId: todo-detail }
-          path: comments
-          value: $comments
-          of: self
-      - when:
           - { path: clear.category, equals: true }
         delete:
           in: { schemaId: todo-list }
@@ -260,13 +286,6 @@ actions:
         delete:
           in: { schemaId: todo-detail }
           path: result
-          of: self
-      - when:
-          - { path: clear.comments, equals: true }
-        set:
-          in: { schemaId: todo-detail }
-          path: comments
-          value: []
           of: self
   # ---- 状態を変える操作 ----
   # どの状態からできるか・どの状態へ移るか・状態の履歴の行は、状態の流れ（todo-behavior.yaml の transitions）から決まる。

@@ -2076,6 +2076,17 @@ rules:
       - valid: false
         raw: UNSUPPORTED
         error: 対応していない値の比較です
+  # 行の鍵（rowKey）を持つ書込み＝明細テーブルの 1 行を、親のキーと並び順で指す update・delete。
+  # 書いた後の行を組み立てない（行の決まりを確かめる対象にしない）。実行のときに 1 行を書き、0 件なら見つからない
+  - id: prepare-write
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.rowKey
+        exists: true
+    build: []
   - id: prepare-write
     with:
       - write
@@ -3202,6 +3213,78 @@ rules:
       - valid: false
         raw: UNSUPPORTED
         error: 作る値に対応する物理列がありません
+  - id: execute-write
+    with:
+      - write
+      - ctx
+    when:
+      - of: write
+        path: step.raw.rowKey
+        exists: true
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        if (Boolean.TRUE.equals('
+        - $apply: conditions
+          $with:
+            conditions:
+              $copy: step.raw.when
+              $of: write
+            scope:
+              $copy: inputScope
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ')) '
+        - - valid: true
+            plain: true
+            raw: |-
+              {
+                          if (
+        - $apply: call
+          $with:
+            step:
+              $copy: step
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: ' == 0) throw new '
+        - - valid: true
+            errorClass:
+              $apply: error-name
+              $with:
+                kind: notFound
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: (
+        - - valid: true
+            literal: true
+            value:
+              $copy: step.raw.missingEntity
+              $of: write
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: key
+          $with:
+            source:
+              $copy: step.raw.where[0].value
+              $of: write
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              );
+                      }
   - id: execute-write
     with:
       - write

@@ -2338,6 +2338,172 @@ model:
           level: error
           items:
             - todo.updated_on
+    - id: edit-todo-comment
+      kind: action
+      label: コメントを編集する
+      description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
+      target:
+        entity: todo
+      params:
+        - key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        - key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        - key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          minLength: 1
+          multiline: true
+      input:
+        submit: changed
+        initial:
+          date:
+            $copy: comments[$row].date
+            $of: self
+            $in:
+              schemaId: todo-detail
+          body:
+            $copy: comments[$row].body
+            $of: self
+            $in:
+              schemaId: todo-detail
+      require: []
+      effects:
+        - op: set
+          schema: todo-detail
+          path: comments[$row].date
+          value: $date
+          of: self
+          when:
+            - path: date
+              exists: true
+          source: do
+          entity: todo
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          row:
+            param: row
+          written:
+            - key: date
+              value: $date
+              base: date
+        - op: set
+          schema: todo-detail
+          path: comments[$row].body
+          value: $body
+          of: self
+          when:
+            - path: body
+              exists: true
+          source: do
+          entity: todo
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          row:
+            param: row
+          written:
+            - key: body
+              value: $body
+              base: string
+        - op: set
+          schema: todo-detail
+          path: updated_on
+          value:
+            $copy: today
+            $of: context
+          source: auto
+          auto: updated
+          entity: todo
+          field:
+            key: updated_on
+            base: date
+      creates: []
+      subject: todo
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+    - id: delete-todo-comment
+      kind: action
+      label: コメントを削除する
+      description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
+      target:
+        entity: todo
+      params:
+        - key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+      require: []
+      effects:
+        - op: delete
+          schema: todo-detail
+          path: comments[$row]
+          of: self
+          source: do
+          entity: todo
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          row:
+            param: row
+        - op: set
+          schema: todo-detail
+          path: updated_on
+          value:
+            $copy: today
+            $of: context
+          source: auto
+          auto: updated
+          entity: todo
+          field:
+            key: updated_on
+            base: date
+      creates: []
+      subject: todo
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+      input: {}
     - id: add-todo-task
       kind: action
       label: 作業項目を追加する
@@ -2533,80 +2699,6 @@ model:
           base: string
           multiline: true
           clearedBy: clear.result
-        - key: comments
-          label: コメント一覧
-          type: array
-          base: array
-          description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
-          item:
-            type: common#コメント
-            base: object
-            fields:
-              - key: date
-                label: 日付
-                type: common#年月日
-                base: date
-                declarations:
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - 年月日
-                    inherited: true
-                    declared:
-                      type: date
-                      format: yyyy年M月d日
-                      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - コメント
-                      - fields
-                      - 0
-                    inherited: false
-                    declared:
-                      key: date
-                      label: 日付
-                      type: 年月日
-                      required: true
-                description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                required: true
-                format: yyyy年M月d日
-              - key: body
-                label: コメント本文
-                type: text
-                base: string
-                declarations:
-                  - schema: builtin-types
-                    path:
-                      - definitions
-                      - text
-                    inherited: true
-                    declared:
-                      type: string
-                      display: multiline
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - コメント
-                      - fields
-                      - 1
-                    inherited: false
-                    declared:
-                      key: body
-                      label: コメント本文
-                      type: text
-                      required: true
-                required: true
-                multiline: true
-                builtinType:
-                  name: text
-                  base: string
-                  builtin: true
-                  multiline: true
-          clearedBy: clear.comments
         - key: clear
           label: 値を消す
           type: object
@@ -2654,14 +2746,6 @@ model:
                 name: boolean
                 base: boolean
                 builtin: true
-            - key: comments
-              label: コメント一覧を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
       input:
         submit: changed
         initial:
@@ -2702,11 +2786,6 @@ model:
               schemaId: todo-detail
           result:
             $copy: result
-            $of: self
-            $in:
-              schemaId: todo-detail
-          comments:
-            $copy: comments
             $of: self
             $in:
               schemaId: todo-detail
@@ -2818,21 +2897,6 @@ model:
           field:
             key: result
             base: string
-        - op: set
-          schema: todo-detail
-          path: comments
-          value: $comments
-          of: self
-          when:
-            - path: comments
-              exists: true
-          source: do
-          entity: todo
-          field:
-            key: comments
-            base: array
-            item:
-              base: object
         - op: delete
           schema: todo-list
           path: category
@@ -2895,21 +2959,6 @@ model:
           field:
             key: result
             base: string
-        - op: set
-          schema: todo-detail
-          path: comments
-          value: []
-          of: self
-          when:
-            - path: clear.comments
-              equals: true
-          source: do
-          entity: todo
-          field:
-            key: comments
-            base: array
-            item:
-              base: object
         - op: set
           schema: todo-detail
           path: updated_on
@@ -5477,6 +5526,74 @@ model:
                     date: $date
                     body: $body
                   of: self
+          - id: edit-todo-comment
+            label: コメントを編集する
+            description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
+            input:
+              submit: changed
+              initial:
+                date:
+                  $copy: comments[$row].date
+                  $of: self
+                  $in:
+                    schemaId: todo-detail
+                body:
+                  $copy: comments[$row].body
+                  $of: self
+                  $in:
+                    schemaId: todo-detail
+            target:
+              entity: todo
+            params:
+              - key: row
+                label: コメントの番号
+                type: int
+                min: 0
+                required: true
+                description: コメント一覧の何番目か（0 から数えます）
+              - key: date
+                label: 記録日
+                type: common#年月日
+              - key: body
+                label: コメント本文
+                type: 操作の記録
+            do:
+              - when:
+                  - path: date
+                    exists: true
+                set:
+                  in:
+                    schemaId: todo-detail
+                  path: comments[$row].date
+                  value: $date
+                  of: self
+              - when:
+                  - path: body
+                    exists: true
+                set:
+                  in:
+                    schemaId: todo-detail
+                  path: comments[$row].body
+                  value: $body
+                  of: self
+          - id: delete-todo-comment
+            label: コメントを削除する
+            description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
+            target:
+              entity: todo
+            params:
+              - key: row
+                label: コメントの番号
+                type: int
+                min: 0
+                required: true
+                description: コメント一覧の何番目か（0 から数えます）
+            do:
+              - delete:
+                  in:
+                    schemaId: todo-detail
+                  path: comments[$row]
+                  of: self
           - id: add-todo-task
             label: 作業項目を追加する
             description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
@@ -5555,11 +5672,6 @@ model:
                   $of: self
                   $in:
                     schemaId: todo-detail
-                comments:
-                  $copy: comments
-                  $of: self
-                  $in:
-                    schemaId: todo-detail
             target:
               entity: todo
             params:
@@ -5593,12 +5705,6 @@ model:
               - key: result
                 label: 結果・中止理由
                 type: common#文章
-              - key: comments
-                label: コメント一覧
-                type: array
-                item:
-                  type: common#コメント
-                description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
               - key: clear
                 label: 値を消す
                 type: object
@@ -5619,9 +5725,6 @@ model:
                     type: boolean
                   - key: result
                     label: 結果・中止理由を消す
-                    type: boolean
-                  - key: comments
-                    label: コメント一覧を消す
                     type: boolean
             do:
               - when:
@@ -5697,15 +5800,6 @@ model:
                   value: $result
                   of: self
               - when:
-                  - path: comments
-                    exists: true
-                set:
-                  in:
-                    schemaId: todo-detail
-                  path: comments
-                  value: $comments
-                  of: self
-              - when:
                   - path: clear.category
                     equals: true
                 delete:
@@ -5744,15 +5838,6 @@ model:
                   in:
                     schemaId: todo-detail
                   path: result
-                  of: self
-              - when:
-                  - path: clear.comments
-                    equals: true
-                set:
-                  in:
-                    schemaId: todo-detail
-                  path: comments
-                  value: []
                   of: self
           - id: start-todo
             label: TODOに着手する
@@ -6904,6 +6989,8 @@ model:
           - add-category
           - add-tag
           - add-todo-comment
+          - edit-todo-comment
+          - delete-todo-comment
           - add-todo-task
           - edit-todo
           - start-todo
@@ -6924,6 +7011,8 @@ model:
       - add-category
       - add-tag
       - add-todo-comment
+      - edit-todo-comment
+      - delete-todo-comment
       - add-todo-task
       - edit-todo
       - start-todo

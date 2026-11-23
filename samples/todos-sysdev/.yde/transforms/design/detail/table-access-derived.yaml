@@ -709,6 +709,8 @@ rules:
                       operation:
                         $copy: id
                         $of: a
+                # 並びの番号で指す効果（row）: 明細テーブルの 1 行を、親のキーと並び順（seq）で指す update・delete。
+                # メソッドは操作ごと（操作の名前＋項目＋Row）。書く列は操作が書く子の項目だけ
                 - $when:
                     - path: entity
                       equals:
@@ -719,6 +721,120 @@ rules:
                     - path: field.base
                       equals: array
                     - path: field.item.entity
+                      exists: false
+                    - path: row
+                      exists: true
+                  $then:
+                    $each: written
+                    $build:
+                      name:
+                        $format: '{m}{f}Row'
+                        $with:
+                          m:
+                            $case:
+                              $copy: id
+                              $of: a
+                            $as: camel
+                          f:
+                            $case:
+                              $copy: field.key
+                              $of: e
+                            $as: pascal
+                      kind: update
+                      table:
+                        $format: '{t}_{k}'
+                        $with:
+                          t:
+                            $case:
+                              $copy: entity
+                              $of: e
+                            $as: snake
+                          k:
+                            $copy: field.key
+                            $of: e
+                      set:
+                        item:
+                          $copy: key
+                        value:
+                          $copy: value
+                        when:
+                          $copy: when
+                          $of: e
+                        mode: value
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: id
+                                  $of: element
+                                $as: snake
+                          param: id
+                        - item: seq
+                          param:
+                            $copy: row.param
+                            $of: e
+                      operation:
+                        $copy: id
+                        $of: a
+                - $when:
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: element
+                    - path: op
+                      equals: delete
+                    - path: field.base
+                      equals: array
+                    - path: field.item.entity
+                      exists: false
+                    - path: row
+                      exists: true
+                  $then:
+                    - name:
+                        $format: '{m}{f}Row'
+                        $with:
+                          m:
+                            $case:
+                              $copy: id
+                              $of: a
+                            $as: camel
+                          f:
+                            $case:
+                              $copy: field.key
+                            $as: pascal
+                      kind: delete
+                      table:
+                        $apply: effect-detail-name
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: id
+                                  $of: element
+                                $as: snake
+                          param: id
+                        - item: seq
+                          param:
+                            $copy: row.param
+                      operation:
+                        $copy: id
+                        $of: a
+                - $when:
+                    - path: entity
+                      equals:
+                        $copy: id
+                        $of: element
+                    - path: op
+                      equals: set
+                    - path: field.base
+                      equals: array
+                    - path: field.item.entity
+                      exists: false
+                    - path: row
                       exists: false
                   $then:
                     - name:

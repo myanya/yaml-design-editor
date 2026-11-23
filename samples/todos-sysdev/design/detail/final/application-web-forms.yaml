@@ -347,6 +347,29 @@ forms:
           - name: Size
             min: 1
     classes: []
+  - id: JFORM-delete-todo-comment
+    source: DOC-screen-designs-operations.delete-todo-comment
+    className: DeleteTodoCommentForm
+    beanName: deleteTodoCommentForm
+    fields:
+      - name: row
+        item: row
+        type: Long
+        accessor: Row
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: コメントの番号を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+    classes: []
   - id: JFORM-edit-todo
     source: DOC-screen-designs-operations.edit-todo
     className: EditTodoForm
@@ -502,17 +525,6 @@ forms:
         string: true
         annotations: []
         validations: []
-      - name: comments
-        item: comments
-        type: List<EditTodoCommentsRow>
-        accessor: Comments
-        annotations:
-          - valid: true
-            plain: true
-            raw: |
-              @jakarta.validation.Valid
-        validations:
-          - name: Valid
       - name: clear
         item: clear
         type: EditTodoClear
@@ -520,49 +532,6 @@ forms:
         annotations: []
         validations: []
     classes:
-      - name: EditTodoCommentsRow
-        fields:
-          - name: date
-            item: date
-            type: LocalDate
-            accessor: Date
-            annotations:
-              - valid: true
-                plain: true
-                raw: '@jakarta.validation.constraints.NotNull(message = '
-              - valid: true
-                literal: true
-                value: 日付を入力してください
-              - valid: true
-                plain: true
-                raw: |
-                  )
-              - valid: true
-                plain: true
-                raw: |
-                  @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-            validations:
-              - name: NotNull
-              - name: DateTimeFormat
-                iso: DATE
-          - name: body
-            item: body
-            type: String
-            accessor: Body
-            string: true
-            annotations:
-              - valid: true
-                plain: true
-                raw: '@jakarta.validation.constraints.NotNull(message = '
-              - valid: true
-                literal: true
-                value: コメント本文を入力してください
-              - valid: true
-                plain: true
-                raw: |
-                  )
-            validations:
-              - name: NotNull
       - name: EditTodoClear
         fields:
           - name: category
@@ -595,12 +564,63 @@ forms:
             accessor: Result
             annotations: []
             validations: []
-          - name: comments
-            item: comments
-            type: Boolean
-            accessor: Comments
-            annotations: []
-            validations: []
+  - id: JFORM-edit-todo-comment
+    source: DOC-screen-designs-operations.edit-todo-comment
+    className: EditTodoCommentForm
+    beanName: editTodoCommentForm
+    fields:
+      - name: row
+        item: row
+        type: Long
+        accessor: Row
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: コメントの番号を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+      - name: date
+        item: date
+        type: LocalDate
+        accessor: Date
+        annotations:
+          - valid: true
+            plain: true
+            raw: |
+              @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        validations:
+          - name: DateTimeFormat
+            iso: DATE
+      - name: body
+        item: body
+        type: String
+        accessor: Body
+        string: true
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.Size(message = '
+          - valid: true
+            literal: true
+            value: コメント本文は1文字以上で入力してください
+          - valid: true
+            plain: true
+            raw: ', min = 1'
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: Size
+            min: 1
+    classes: []
   - id: JFORM-register-todo
     source: DOC-screen-designs-operations.register-todo
     className: RegisterTodoForm

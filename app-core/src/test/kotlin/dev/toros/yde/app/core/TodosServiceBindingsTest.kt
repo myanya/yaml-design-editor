@@ -24,15 +24,20 @@ class TodosServiceBindingsTest {
     @Test
     fun `全操作の引数と入れ子の型と親のキーを保持する`() {
         val inputs = rows(document("design/detail/final/application-service-inputs.yaml"), "operations")
-        assertEquals(12, inputs.size)
+        assertEquals(14, inputs.size)
         val edit = inputs.single { it["action"] == "edit-todo" }
         assertEquals("java.time.LocalDate", rows(edit, "arguments").single { it["name"] == "createdOn" }["type"])
-        assertEquals("java.util.List<EditTodoCommentsItem>", rows(edit, "arguments").single { it["name"] == "comments" }["type"])
+        assertTrue(rows(edit, "arguments").none { it["name"] == "comments" }, "コメントは編集の入力に無い")
+        // 並びの番号（row）は整数の入力で、明細テーブルの並び順（seq）の引数へ渡る
+        val editComment = inputs.single { it["action"] == "edit-todo-comment" }
+        assertEquals("java.lang.Long", rows(editComment, "arguments").single { it["name"] == "row" }["type"])
         val clear = rows(edit, "classes").single { it["name"] == "EditTodoClear" }
         assertTrue(rows(clear, "fields").all { it["type"] == "java.lang.Boolean" })
         val bindings = rows(document("design/detail/final/application-service-bindings.yaml"), "operations")
         assertEquals(inputs.size, bindings.size)
         assertTrue(bindings.flatMap { rows(it, "steps") }.flatMap { rows(it, "parameters") }.all { it["typeMatches"] == true })
+        val rowStep = rows(bindings.single { it["id"] == "SPROG-delete-todo-comment" }, "steps").single { it["call"] == "TodoMapper.deleteTodoCommentCommentsRow" }
+        assertEquals(listOf("id" to "input.getId()", "row" to "input.getRow()"), rows(rowStep, "parameters").map { it["name"] to (it["binding"] as Map<*, *>)["java"] })
         val child = bindings.single { it["id"] == "SPROG-todo-task.finish" }
         val parent = rows(child, "steps").single { it["call"] == "TodoMapper.todoTaskFinish" }
         val key = rows(parent, "parameters").single { it["name"] == "todoId" }["binding"] as Map<*, *>

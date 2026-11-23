@@ -103,80 +103,6 @@ record:
         base: string
         multiline: true
         clearedBy: clear.result
-      - key: comments
-        label: コメント一覧
-        type: array
-        base: array
-        description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
-        item:
-          type: common#コメント
-          base: object
-          fields:
-            - key: date
-              label: 日付
-              type: common#年月日
-              base: date
-              declarations:
-                - schema: common
-                  document: .yde/schemas/input/1.yaml
-                  path:
-                    - definitions
-                    - 年月日
-                  inherited: true
-                  declared:
-                    type: date
-                    format: yyyy年M月d日
-                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                - schema: common
-                  document: .yde/schemas/input/1.yaml
-                  path:
-                    - definitions
-                    - コメント
-                    - fields
-                    - 0
-                  inherited: false
-                  declared:
-                    key: date
-                    label: 日付
-                    type: 年月日
-                    required: true
-              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-              required: true
-              format: yyyy年M月d日
-            - key: body
-              label: コメント本文
-              type: text
-              base: string
-              declarations:
-                - schema: builtin-types
-                  path:
-                    - definitions
-                    - text
-                  inherited: true
-                  declared:
-                    type: string
-                    display: multiline
-                - schema: common
-                  document: .yde/schemas/input/1.yaml
-                  path:
-                    - definitions
-                    - コメント
-                    - fields
-                    - 1
-                  inherited: false
-                  declared:
-                    key: body
-                    label: コメント本文
-                    type: text
-                    required: true
-              required: true
-              multiline: true
-              builtinType:
-                name: text
-                base: string
-                builtin: true
-                multiline: true
-        clearedBy: clear.comments
       - key: clear
         label: 値を消す
         type: object
@@ -224,14 +150,6 @@ record:
               name: boolean
               base: boolean
               builtin: true
-          - key: comments
-            label: コメント一覧を消す
-            type: boolean
-            base: boolean
-            builtinType:
-              name: boolean
-              base: boolean
-              builtin: true
     initial:
       title:
         $copy: title
@@ -270,11 +188,6 @@ record:
           schemaId: todo-detail
       result:
         $copy: result
-        $of: self
-        $in:
-          schemaId: todo-detail
-      comments:
-        $copy: comments
         $of: self
         $in:
           schemaId: todo-detail
@@ -386,21 +299,6 @@ record:
         field:
           key: result
           base: string
-      - op: set
-        schema: todo-detail
-        path: comments
-        value: $comments
-        of: self
-        when:
-          - path: comments
-            exists: true
-        source: do
-        entity: todo
-        field:
-          key: comments
-          base: array
-          item:
-            base: object
       - op: delete
         schema: todo-list
         path: category
@@ -465,21 +363,6 @@ record:
           base: string
       - op: set
         schema: todo-detail
-        path: comments
-        value: []
-        of: self
-        when:
-          - path: clear.comments
-            equals: true
-        source: do
-        entity: todo
-        field:
-          key: comments
-          base: array
-          item:
-            base: object
-      - op: set
-        schema: todo-detail
         path: updated_on
         value:
           $copy: today
@@ -532,11 +415,6 @@ record:
             schemaId: todo-detail
         result:
           $copy: result
-          $of: self
-          $in:
-            schemaId: todo-detail
-        comments:
-          $copy: comments
           $of: self
           $in:
             schemaId: todo-detail
@@ -608,7 +486,6 @@ record:
       - CRUD-todo.edit-todo.due_on
       - CRUD-todo.edit-todo.details
       - CRUD-todo.edit-todo.result
-      - CRUD-todo.edit-todo.comments
       - CRUD-todo.edit-todo.updated_on
   source:
     id: rule-action-specs

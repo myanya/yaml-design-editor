@@ -79,6 +79,9 @@ Java クラス名・型・対象数を PowerShell で計算しない。行モデ
 採番した値は `{generated: numberedId}`、既存行を読むキーは `{param: id}`、親のキーは `{self: todo_id}` のように保持する。
 明細の並び順は `{mode: position, start: 1}` または `{mode: next, call, key}`、値の中の採番は `{sequence: {call, key}}`。
 説明文の中から呼出名や値の意味を取り出さない。並び順の呼び先にも Mapper の補正を適用する。
+並びの 1 件を番号で指す操作（業務モデルの `comments[$row]`）は、明細テーブルの 1 行を、親のキーと並び順（`seq`）で指す update・delete にする。
+手順は行の鍵 `rowKey: {item: seq, param: row}` を持ち、書いた件数が 0 なら `NotFoundException`（`error.notFound.型.項目`）で断る。
+操作が受け取る番号は、アプリでは `seq` の値として扱う（削除で欠番ができるので、業務モデルの 0 から数える番号とは一致しない）。
 
 `composed/application/process-contract.yaml` は、確定した処理設計のトランザクション指定・検査区分・呼出先を照合する記録。
 採番を含む呼び先が未解決ならアプリの生成を止める。式のすべてを Java にできることを保証する検査ではない。

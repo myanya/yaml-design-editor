@@ -97,6 +97,84 @@ handlers:
             - notice
         refusals:
           - check.updated-not-before-created
+  - action: edit-todo-comment
+    name: コメントを編集する
+    form: EditTodoCommentForm
+    service: TodoService.editTodoComment
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: editTodoCommentInput
+        request: GET /todo/{id}/edit-todo-comment
+        screen: edit-todo-comment/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
+      - handler: editTodoCommentConfirm
+        request: POST /todo/{id}/edit-todo-comment/confirm
+        screen: edit-todo-comment/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+          hidden 項目）
+        reads:
+          - TodoMapper.findById
+        calls: []
+        session:
+          puts:
+            - token
+      - handler: editTodoCommentBack
+        request: POST /todo/{id}/edit-todo-comment/back
+        screen: edit-todo-comment/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: editTodoComment
+        request: POST /todo/{id}/edit-todo-comment
+        does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - check.updated-not-before-created
+  - action: delete-todo-comment
+    name: コメントを削除する
+    form: DeleteTodoCommentForm
+    service: TodoService.deleteTodoComment
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: deleteTodoCommentInput
+        request: GET /todo/{id}/delete-todo-comment
+        screen: delete-todo-comment/input
+        does: 受け手を読み、初期値でフォームを作って入力画面を出す
+        reads:
+          - TodoMapper.findById
+      - handler: deleteTodoCommentConfirm
+        request: POST /todo/{id}/delete-todo-comment/confirm
+        screen: delete-todo-comment/confirm
+        does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+          hidden 項目）
+        reads:
+          - TodoMapper.findById
+        calls: []
+        session:
+          puts:
+            - token
+      - handler: deleteTodoCommentBack
+        request: POST /todo/{id}/delete-todo-comment/back
+        screen: delete-todo-comment/input
+        does: hidden 項目の値で入力画面を出す
+      - handler: deleteTodoComment
+        request: POST /todo/{id}/delete-todo-comment
+        does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - check.updated-not-before-created
   - action: add-todo-task
     name: 作業項目を追加する
     form: AddTodoTaskForm

@@ -230,6 +230,70 @@ build:
                             $copy: label
                       id: '{id}'
                   source: ID を指定して読んで無いとき（404）
+              # 並びの 1 件を番号で指す操作: その行が無いとき（キーは error.notFound.エンティティ型.項目）
+              - $group:
+                  $each: actions
+                  $of: model
+                  $flatten: true
+                  $build:
+                    $each: effects
+                    $build:
+                      $when:
+                        - path: row
+                          exists: true
+                      $then:
+                        key:
+                          $format: '{entity}.{field.key}'
+                        entity:
+                          $copy: entity
+                        field:
+                          $copy: field.key
+                $by:
+                  $copy: key
+                $bind: g
+                $build:
+                  key:
+                    $format: error.notFound.{key}
+                  kind: 見つからない
+                  text:
+                    $format: '{e[0]}「{id}」の{f[0]}に、指定した行はありません'
+                    $with:
+                      e:
+                        $each: entities
+                        $of: model
+                        $build:
+                          $when:
+                            - path: id
+                              equals:
+                                $copy: items[0].entity
+                                $of: g
+                          $then:
+                            $copy: label
+                      f:
+                        $each: entities
+                        $of: model
+                        $flatten: true
+                        $build:
+                          $when:
+                            - path: id
+                              equals:
+                                $copy: items[0].entity
+                                $of: g
+                          $then:
+                            $each: aspects
+                            $flatten: true
+                            $build:
+                              $each: fields
+                              $build:
+                                $when:
+                                  - path: key
+                                    equals:
+                                      $copy: items[0].field
+                                      $of: g
+                                $then:
+                                  $copy: label
+                      id: '{id}'
+                  source: 行の番号を指定して書いて、その行が無いとき（404）
               - - key: error.token
                   kind: 二重の確定・時間切れ
                   text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください

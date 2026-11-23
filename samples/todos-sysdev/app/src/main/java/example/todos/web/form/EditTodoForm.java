@@ -45,28 +45,10 @@ public class EditTodoForm {
     private String result;
     public String getResult() { return result; }
     public void setResult(String value) { this.result = (value != null && value.isEmpty()) ? null : value; }
-@jakarta.validation.Valid
-
-    private List<EditTodoCommentsRow> comments;
-    public List<EditTodoCommentsRow> getComments() { return comments; }
-    public void setComments(List<EditTodoCommentsRow> value) { this.comments = value; }
 
     private EditTodoClear clear;
     public EditTodoClear getClear() { return clear; }
     public void setClear(EditTodoClear value) { this.clear = value; }
-    public static class EditTodoCommentsRow {
-@jakarta.validation.constraints.NotNull(message = "日付を入力してください")
-@org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
-
-        private LocalDate date;
-        public LocalDate getDate() { return date; }
-        public void setDate(LocalDate value) { this.date = value; }
-@jakarta.validation.constraints.NotNull(message = "コメント本文を入力してください")
-
-        private String body;
-        public String getBody() { return body; }
-        public void setBody(String value) { this.body = (value != null && value.isEmpty()) ? null : value; }
-    }
     public static class EditTodoClear {
 
         private Boolean category;
@@ -88,9 +70,5 @@ public class EditTodoForm {
         private Boolean result;
         public Boolean getResult() { return result; }
         public void setResult(Boolean value) { this.result = value; }
-
-        private Boolean comments;
-        public Boolean getComments() { return comments; }
-        public void setComments(Boolean value) { this.comments = value; }
     }
 }

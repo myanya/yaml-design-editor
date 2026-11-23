@@ -1,0 +1,124 @@
+# 生成物（screen-designs-operations-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-operations.edit-todo-comment
+record:
+  id: DOC-screen-designs-operations.edit-todo-comment
+  value:
+    id: edit-todo-comment
+    name: コメントを編集する（画面設計書）
+    form:
+      class: EditTodoCommentForm
+      emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+      fields:
+        - name: row
+          item: row
+          type: Long
+          validations:
+            - name: NotNull
+        - name: date
+          item: date
+          type: LocalDate
+          validations:
+            - name: DateTimeFormat
+              iso: DATE
+        - name: body
+          item: body
+          type: String
+          validations:
+            - name: Size
+              min: 1
+      classes: []
+    screens:
+      - id: edit-todo-comment/input
+        template: todo/edit-todo-comment/input
+        page:
+          title: コメントを編集する
+          width: m
+          body:
+            - notice:
+                kind: errors
+                for: form
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - form:
+                action: POST /todo/{id}/edit-todo-comment/confirm
+                object: EditTodoCommentForm
+                hidden:
+                  - from
+                body:
+                  - field:
+                      item: row
+                      label: コメントの番号
+                      control: number
+                      required: true
+                      align: end
+                  - field:
+                      item: date
+                      label: 記録日
+                      control: date
+                      width: 10ch
+                  - field:
+                      item: body
+                      label: コメント本文
+                      control: textarea
+                      rows: 5
+                  - actions:
+                      - label: 確認へ
+                        kind: submit
+                        emphasis: primary
+                      - label: やめる
+                        kind: link
+                        to: 起点の画面
+                        emphasis: secondary
+      - id: edit-todo-comment/confirm
+        template: todo/edit-todo-comment/confirm
+        page:
+          title: コメントを編集する（確認）
+          width: m
+          body:
+            - notice:
+                kind: refusal
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - facts:
+                title: 変わる項目
+                kind: changes
+                compareWith: 今の値（DB から読む）
+                items:
+                  - item: row
+                    label: コメントの番号
+                  - item: date
+                    label: 記録日
+                    format: yyyy年M月d日
+                  - item: body
+                    label: コメント本文
+                    keepBreaks: true
+            - form:
+                action: POST /todo/{id}/edit-todo-comment
+                hidden:
+                  - row
+                  - date
+                  - body
+                  - flow
+                  - from
+                body:
+                  - actions:
+                      - label: 確定
+                        kind: submit
+                        emphasis: primary
+                      - label: 入力へ戻る
+                        kind: submit
+                        action: POST /todo/{id}/edit-todo-comment/back
+                        emphasis: secondary
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml

@@ -155,9 +155,14 @@ class TodosEntityFoundationTest {
         assertEquals(listOf("date", "action", "to"), (write("register-todo", "history")["elementItems"] as List<*>).map { it.toString().substringAfterLast('.') })
         assertTrue("FLD-todo.history.item.resume_on" in write("suspend-todo", "history")["elementItems"] as List<*>)
         assertTrue("FLD-todo.history.item.resume_on" !in write("resume-todo", "history")["elementItems"] as List<*>)
-        // 丸ごと入れ替える（set）と消す（delete）＝C・U・D で、子要素のすべての項目が対象。子に項目の無い並び（タグ）は項目を持たない
-        assertEquals(listOf("C", "U", "D"), write("edit-todo", "comments")["element"])
-        assertEquals(listOf("FLD-todo.comments.item.date", "FLD-todo.comments.item.body"), write("edit-todo", "comments")["elementItems"])
+        // 番号で指した 1 件の書き換え＝U（書く項目だけ）、1 件の削除＝D（子要素のすべての項目）
+        assertEquals(listOf("U"), write("edit-todo-comment", "comments")["element"])
+        assertEquals(listOf("FLD-todo.comments.item.date", "FLD-todo.comments.item.body"), write("edit-todo-comment", "comments")["elementItems"])
+        assertEquals(listOf("D"), write("delete-todo-comment", "comments")["element"])
+        assertEquals(listOf("FLD-todo.comments.item.date", "FLD-todo.comments.item.body"), write("delete-todo-comment", "comments")["elementItems"])
+        // 「TODOを編集する」はコメントを書かない（コメントは追加・編集・削除の操作で変える）
+        assertEquals(emptyList(), list(list(todo, "operations").single { it["action"] == "edit-todo" }, "writes").filter { it["item"] == "FLD-todo.comments" })
+        // 丸ごと入れ替える（set）と消す（delete）＝C・U・D。子に項目の無い並び（タグ）は項目を持たない
         assertEquals(listOf("C", "U", "D"), write("edit-todo", "tags")["element"])
         assertEquals(null, write("edit-todo", "tags")["elementItems"])
         // 作るときに値を入れる並び（タグ）は C。空で作る並び（コメント一覧）と、並びでない項目には付かない
@@ -178,7 +183,10 @@ class TodosEntityFoundationTest {
             assertEquals(expected.orEmpty(), value(row, operation["label"].toString()), "${row.id} × ${operation["label"]}")
         }
         assertEquals(listOf("U"), value(children.single { it.id == "FLD-todo.tasks" }, "作業項目を済にする"))
-        assertEquals(listOf("C", "U", "D"), value(children.single { it.id == "FLD-todo.comments" }, "TODOを編集する"))
+        assertEquals(listOf("U"), value(children.single { it.id == "FLD-todo.comments" }, "コメントを編集する"))
+        assertEquals(listOf("D"), value(children.single { it.id == "FLD-todo.comments" }, "コメントを削除する"))
+        assertEquals(emptyList<Any>(), value(children.single { it.id == "FLD-todo.comments" }, "TODOを編集する"))
+        assertEquals(listOf("C", "U", "D"), value(children.single { it.id == "FLD-todo.tags" }, "TODOを編集する"))
 
         // 子要素の 項目 × 操作: 列はその子要素に触る操作だけ。セルは、その項目を書く操作の element
         fun childRows(name: String, field: String) = Views.resolve(assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, mapOf("field" to field))
@@ -192,10 +200,11 @@ class TodosEntityFoundationTest {
         assertEquals(emptyList<Any>(), value(resumeOn, "TODOを再開する"))
         assertEquals(emptyList<Any>(), value(history.single { it.id == "FLD-todo.history.item.from" }, "TODOを登録する"), "登録には前の状態が無い")
         val comments = childRows("entity-definition-child-crud", "FLD-todo.comments")
-        assertEquals(listOf("TODOにコメントを追加する", "TODOを編集する"), comments.first().cells.drop(3).map { it.column.label })
+        assertEquals(listOf("TODOにコメントを追加する", "コメントを編集する", "コメントを削除する"), comments.first().cells.drop(3).map { it.column.label })
         comments.forEach {
             assertEquals(listOf("C"), value(it, "TODOにコメントを追加する"))
-            assertEquals(listOf("C", "U", "D"), value(it, "TODOを編集する"))
+            assertEquals(listOf("U"), value(it, "コメントを編集する"))
+            assertEquals(listOf("D"), value(it, "コメントを削除する"))
         }
         // 子要素の項目の表は、その子要素の項目だけ（一緒くたにしない）
         assertEquals(listOf("日付", "コメント本文"), childRows("entity-definition-child-items", "FLD-todo.comments").map { value(it, "名称") })
@@ -222,8 +231,9 @@ class TodosEntityFoundationTest {
             }
             assertEquals(listOf("項番", "項目", "名称") + list(entity, "operations").map { it["label"] }, crud.first().cells.map { it.column.label })
         }
-        // 52 個の C/U と、子のエンティティの中への作用（作業項目を済にする → TODO の作業項目を U）の 1 個
-        assertEquals(53, writes)
+        // C/U の書込は 56 個（子のエンティティの中への作用＝作業項目を済にする → TODO の作業項目を U、を含む。
+        // コメントの編集と削除は、TODO のコメント一覧と更新日を書く）
+        assertEquals(56, writes)
         val todo = rows(ws, "entity-definition-items", "ENT-todo")
         assertEquals(listOf("ENT-tag"), value(todo.single { it.id == "FLD-todo.tags" }, "要素の参照先"))
         assertEquals("ENT-todo-task", value(todo.single { it.id == "FLD-todo.tasks" }, "要素のエンティティ"))

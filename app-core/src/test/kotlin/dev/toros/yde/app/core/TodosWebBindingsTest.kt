@@ -51,16 +51,17 @@ class TodosWebBindingsTest {
     fun `全操作の入力と確認用メソッドを同じ確定値から接続する`() {
         val generated = raw(requireNotNull(probe(sources(), expectValid = true)))
         val operations = rows(generated, "operations")
-        assertEquals(12, operations.size)
-        assertEquals(10, operations.count { it["formClass"] != null })
+        assertEquals(14, operations.size)
+        assertEquals(12, operations.count { it["formClass"] != null })
         assertEquals(4, operations.count { rows(it, "confirm").isNotEmpty() })
         assertEquals(raw(Files.readString(sample.resolve(bindingsFile))), generated)
         val edit = operations.single { it["action"] == "edit-todo" }
         val assignments = rows(edit["fields"] as Map<*, *>, "assignments")
-        val comments = assignments.single { it["item"] == "comments" }
-        assertEquals(setOf("date", "body"), rows(comments["children"] as Map<*, *>, "assignments").map { it["item"] }.toSet())
-        assertTrue(dump(edit).contains("valueComments.setDate(rowComments.getDate())"))
+        assertTrue(assignments.none { it["item"] == "comments" }, "コメント一覧は編集の入力に無い")
         assertTrue(dump(edit).contains("valueClear.setDueOn(form.getClear().getDueOn())"))
+        // 並びの番号（row）は、Form から Service の入力へそのまま渡る
+        val editComment = operations.single { it["action"] == "edit-todo-comment" }
+        assertTrue(rows(editComment["fields"] as Map<*, *>, "assignments").any { it["item"] == "row" })
     }
 
     @Test
@@ -69,12 +70,10 @@ class TodosWebBindingsTest {
         val renamed = forms(sources) { form ->
             if (form["className"] != "EditTodoForm") form else fields(form) { field -> field.toMutableMap().also {
                 if (field["item"] == "created_on") { it["name"] = "creationDate"; it["accessor"] = "CreationDate" }
-                if (field["item"] == "comments") it["type"] = "List<CommentInputRow>"
             } }.toMutableMap().also { result ->
                 result["classes"] = rows(form, "classes").map { nested -> fields(nested) { field -> field.toMutableMap().also {
-                    if (field["item"] == "date") { it["name"] = "recordedOn"; it["accessor"] = "RecordedOn" }
                     if (field["item"] == "due_on") { it["name"] = "deadline"; it["accessor"] = "Deadline" }
-                } }.also { if (nested["name"] == "EditTodoCommentsRow") it["name"] = "CommentInputRow" } }
+                } } }
             }
         }
         val programsFile = "design/detail/final/application-service-programs.yaml"
@@ -89,7 +88,10 @@ class TodosWebBindingsTest {
             } }
         }
         val controllerFile = "design/detail/final/controllers/todo.yaml"
-        val controller = raw(sources.getValue(controllerFile).replace("TodoService.editTodo", "TodoService.updateTodo").replace("TodoService.checkEditTodo", "TodoService.checkChange"))
+        // 名前の前方一致で、コメントの編集（editTodoComment・checkEditTodoComment）まで書き換えない
+        val controller = raw(sources.getValue(controllerFile)
+            .replace(Regex("""TodoService\.editTodo(?![A-Za-z])"""), "TodoService.updateTodo")
+            .replace(Regex("""TodoService\.checkEditTodo(?![A-Za-z])"""), "TodoService.checkChange"))
         val text = requireNotNull(probe(sources, renamed, mapOf(programsFile to programs, controllerFile to controller), expectValid = true))
         val copy = Files.createTempDirectory("sysdev-web-binding")
         try {
@@ -101,7 +103,6 @@ class TodosWebBindingsTest {
             val result = Reports.run(reports.reports.single { it.def.id == "app-web-operation" }, mapOf("webOperation" to "JWEB-edit-todo"), views, workspace.index, workspace::treeOf, workspace::schemaFor)
             assertEquals(emptyList(), result.missing)
             assertTrue("input.setCreatedOn(form.getCreationDate())" in result.text)
-            assertTrue("valueComments.setDate(rowComments.getRecordedOn())" in result.text)
             assertTrue("valueClear.setDueOn(form.getClear().getDeadline())" in result.text)
             assertTrue("service.updateTodo(" in result.text)
             assertTrue("service.checkChange(" in result.text)
@@ -116,7 +117,7 @@ class TodosWebBindingsTest {
                 if (form["className"] != "EditTodoForm") form else fields(form) { field ->
                     if (change == "missing" && field["item"] == "title") null else field.toMutableMap().also {
                         if (change == "type" && field["item"] == "title") it["type"] = "Long"
-                        if (change == "nested-type" && field["item"] == "comments") it["type"] = "List<UnknownRow>"
+                        if (change == "nested-type" && field["item"] == "clear") it["type"] = "UnknownClear"
                     }
                 }.also { result ->
                     if (change in listOf("extra", "duplicate")) result["fields"] = rows(result, "fields") + rows(result, "fields").first().toMutableMap().also {
@@ -124,7 +125,7 @@ class TodosWebBindingsTest {
                         if (change == "extra") it["item"] = "extra"
                     }
                     if (change == "nested-extra") result["classes"] = rows(form, "classes").map { nested -> nested.toMutableMap().also {
-                        if (nested["name"] == "EditTodoCommentsRow") it["fields"] = rows(nested, "fields") + mapOf("name" to "extra", "item" to "extra", "accessor" to "Extra", "type" to "String")
+                        if (nested["name"] == "EditTodoClear") it["fields"] = rows(nested, "fields") + mapOf("name" to "extra", "item" to "extra", "accessor" to "Extra", "type" to "String")
                     } }
                 }
             }

@@ -1,0 +1,93 @@
+# 生成物（screen-designs-operations-derived）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations-derived.yaml）を直して作り直します（CLI generate）。
+id: DRV-document-screen-designs-operations.delete-todo-comment
+record:
+  id: DOC-screen-designs-operations.delete-todo-comment
+  value:
+    id: delete-todo-comment
+    name: コメントを削除する（画面設計書）
+    form:
+      class: DeleteTodoCommentForm
+      emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+      fields:
+        - name: row
+          item: row
+          type: Long
+          validations:
+            - name: NotNull
+      classes: []
+    screens:
+      - id: delete-todo-comment/input
+        template: todo/delete-todo-comment/input
+        page:
+          title: コメントを削除する
+          width: m
+          body:
+            - notice:
+                kind: errors
+                for: form
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - form:
+                action: POST /todo/{id}/delete-todo-comment/confirm
+                object: DeleteTodoCommentForm
+                hidden:
+                  - from
+                body:
+                  - field:
+                      item: row
+                      label: コメントの番号
+                      control: number
+                      required: true
+                      align: end
+                  - actions:
+                      - label: 確認へ
+                        kind: submit
+                        emphasis: primary
+                      - label: やめる
+                        kind: link
+                        to: 起点の画面
+                        emphasis: secondary
+      - id: delete-todo-comment/confirm
+        template: todo/delete-todo-comment/confirm
+        page:
+          title: コメントを削除する（確認）
+          width: m
+          body:
+            - notice:
+                kind: refusal
+            - facts:
+                of: todo
+                title: 対象
+                items:
+                  - item: id
+                    label: ID
+                  - item: title
+            - facts:
+                title: 入力した値
+                of: form
+                items:
+                  - item: row
+                    label: コメントの番号
+            - form:
+                action: POST /todo/{id}/delete-todo-comment
+                hidden:
+                  - row
+                  - flow
+                  - from
+                body:
+                  - actions:
+                      - label: 確定
+                        kind: submit
+                        emphasis: primary
+                      - label: 入力へ戻る
+                        kind: submit
+                        action: POST /todo/{id}/delete-todo-comment/back
+                        emphasis: secondary
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml

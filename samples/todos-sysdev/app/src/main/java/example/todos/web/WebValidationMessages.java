@@ -28,6 +28,10 @@ public class WebValidationMessages extends AbstractMessageSource {
         messages.put("validation.typeMismatch.addTodoCommentForm.date", "記録日は年月日で入力してください");
         messages.put("validation.NotNull.addTodoCommentForm.body", "コメント本文を入力してください");
         messages.put("validation.Size.addTodoCommentForm.body", "コメント本文は1文字以上で入力してください");
+        messages.put("validation.NotNull.editTodoCommentForm.row", "コメントの番号を入力してください");
+        messages.put("validation.typeMismatch.editTodoCommentForm.date", "記録日は年月日で入力してください");
+        messages.put("validation.Size.editTodoCommentForm.body", "コメント本文は1文字以上で入力してください");
+        messages.put("validation.NotNull.deleteTodoCommentForm.row", "コメントの番号を入力してください");
         messages.put("validation.NotNull.addTodoTaskForm.title", "作業を入力してください");
         messages.put("validation.Size.addTodoTaskForm.title", "作業は100文字以内で入力してください");
         messages.put("validation.Pattern.addTodoTaskForm.title", "作業の書き方が正しくありません");
@@ -38,9 +42,6 @@ public class WebValidationMessages extends AbstractMessageSource {
         messages.put("validation.UniqueElements.editTodoForm.tags", "タグに同じものを 2 回選べません");
         messages.put("validation.typeMismatch.editTodoForm.createdOn", "作成日は年月日で入力してください");
         messages.put("validation.typeMismatch.editTodoForm.dueOn", "期限は年月日で入力してください");
-        messages.put("validation.NotNull.editTodoForm.comments.date", "日付を入力してください");
-        messages.put("validation.typeMismatch.editTodoForm.comments.date", "日付は年月日で入力してください");
-        messages.put("validation.NotNull.editTodoForm.comments.body", "コメント本文を入力してください");
         messages.put("validation.NotNull.suspendTodoForm.date", "中断日を入力してください");
         messages.put("validation.typeMismatch.suspendTodoForm.date", "中断日は年月日で入力してください");
         messages.put("validation.NotNull.suspendTodoForm.reason", "中断理由を入力してください");

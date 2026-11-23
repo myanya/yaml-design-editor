@@ -213,6 +213,43 @@ operations:
           multiline: true
         classes: []
     classes: []
+  - id: SINPUT-delete-todo-comment
+    source: DOC-processes.delete-todo-comment
+    action: delete-todo-comment
+    service: TodoService
+    method: deleteTodoComment
+    className: DeleteTodoCommentInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: row
+        name: row
+        accessor: Row
+        path: row
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        classes: []
+    classes: []
   - id: SINPUT-edit-todo
     source: DOC-processes.edit-todo
     action: edit-todo
@@ -390,336 +427,6 @@ operations:
           multiline: true
           clearedBy: clear.result
         classes: []
-      - key: comments
-        name: comments
-        accessor: Comments
-        path: comments
-        type: java.util.List<EditTodoCommentsItem>
-        base: array
-        constraints:
-          key: comments
-          label: コメント一覧
-          type: array
-          base: array
-          description: 入力した一覧で全体を置き換えます。既存コメントへの追記は「コメントを追加する」を使います。
-          item:
-            type: common#コメント
-            base: object
-            fields:
-              - key: date
-                label: 日付
-                type: common#年月日
-                base: date
-                declarations:
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - 年月日
-                    inherited: true
-                    declared:
-                      type: date
-                      format: yyyy年M月d日
-                      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - コメント
-                      - fields
-                      - 0
-                    inherited: false
-                    declared:
-                      key: date
-                      label: 日付
-                      type: 年月日
-                      required: true
-                description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                required: true
-                format: yyyy年M月d日
-              - key: body
-                label: コメント本文
-                type: text
-                base: string
-                declarations:
-                  - schema: builtin-types
-                    path:
-                      - definitions
-                      - text
-                    inherited: true
-                    declared:
-                      type: string
-                      display: multiline
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - コメント
-                      - fields
-                      - 1
-                    inherited: false
-                    declared:
-                      key: body
-                      label: コメント本文
-                      type: text
-                      required: true
-                required: true
-                multiline: true
-                builtinType:
-                  name: text
-                  base: string
-                  builtin: true
-                  multiline: true
-          clearedBy: clear.comments
-        classes:
-          - name: EditTodoCommentsItem
-            fields:
-              - key: date
-                name: date
-                accessor: Date
-                path: commentsItem.date
-                type: java.time.LocalDate
-                base: date
-                constraints:
-                  key: date
-                  label: 日付
-                  type: common#年月日
-                  base: date
-                  declarations:
-                    - schema: common
-                      document: .yde/schemas/input/1.yaml
-                      path:
-                        - definitions
-                        - 年月日
-                      inherited: true
-                      declared:
-                        type: date
-                        format: yyyy年M月d日
-                        description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                    - schema: common
-                      document: .yde/schemas/input/1.yaml
-                      path:
-                        - definitions
-                        - コメント
-                        - fields
-                        - 0
-                      inherited: false
-                      declared:
-                        key: date
-                        label: 日付
-                        type: 年月日
-                        required: true
-                  description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                  required: true
-                  format: yyyy年M月d日
-                classes: []
-              - key: body
-                name: body
-                accessor: Body
-                path: commentsItem.body
-                type: java.lang.String
-                base: string
-                constraints:
-                  key: body
-                  label: コメント本文
-                  type: text
-                  base: string
-                  declarations:
-                    - schema: builtin-types
-                      path:
-                        - definitions
-                        - text
-                      inherited: true
-                      declared:
-                        type: string
-                        display: multiline
-                    - schema: common
-                      document: .yde/schemas/input/1.yaml
-                      path:
-                        - definitions
-                        - コメント
-                        - fields
-                        - 1
-                      inherited: false
-                      declared:
-                        key: body
-                        label: コメント本文
-                        type: text
-                        required: true
-                  required: true
-                  multiline: true
-                  builtinType:
-                    name: text
-                    base: string
-                    builtin: true
-                    multiline: true
-                classes: []
-        item:
-          name: EditTodoCommentsItem
-          fields:
-            - key: date
-              name: date
-              accessor: Date
-              path: commentsItem.date
-              type: java.time.LocalDate
-              base: date
-              constraints:
-                key: date
-                label: 日付
-                type: common#年月日
-                base: date
-                declarations:
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - 年月日
-                    inherited: true
-                    declared:
-                      type: date
-                      format: yyyy年M月d日
-                      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - コメント
-                      - fields
-                      - 0
-                    inherited: false
-                    declared:
-                      key: date
-                      label: 日付
-                      type: 年月日
-                      required: true
-                description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                required: true
-                format: yyyy年M月d日
-              classes: []
-            - key: body
-              name: body
-              accessor: Body
-              path: commentsItem.body
-              type: java.lang.String
-              base: string
-              constraints:
-                key: body
-                label: コメント本文
-                type: text
-                base: string
-                declarations:
-                  - schema: builtin-types
-                    path:
-                      - definitions
-                      - text
-                    inherited: true
-                    declared:
-                      type: string
-                      display: multiline
-                  - schema: common
-                    document: .yde/schemas/input/1.yaml
-                    path:
-                      - definitions
-                      - コメント
-                      - fields
-                      - 1
-                    inherited: false
-                    declared:
-                      key: body
-                      label: コメント本文
-                      type: text
-                      required: true
-                required: true
-                multiline: true
-                builtinType:
-                  name: text
-                  base: string
-                  builtin: true
-                  multiline: true
-              classes: []
-          classes:
-            - name: EditTodoCommentsItem
-              fields:
-                - key: date
-                  name: date
-                  accessor: Date
-                  path: commentsItem.date
-                  type: java.time.LocalDate
-                  base: date
-                  constraints:
-                    key: date
-                    label: 日付
-                    type: common#年月日
-                    base: date
-                    declarations:
-                      - schema: common
-                        document: .yde/schemas/input/1.yaml
-                        path:
-                          - definitions
-                          - 年月日
-                        inherited: true
-                        declared:
-                          type: date
-                          format: yyyy年M月d日
-                          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                      - schema: common
-                        document: .yde/schemas/input/1.yaml
-                        path:
-                          - definitions
-                          - コメント
-                          - fields
-                          - 0
-                        inherited: false
-                        declared:
-                          key: date
-                          label: 日付
-                          type: 年月日
-                          required: true
-                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                    required: true
-                    format: yyyy年M月d日
-                  classes: []
-                - key: body
-                  name: body
-                  accessor: Body
-                  path: commentsItem.body
-                  type: java.lang.String
-                  base: string
-                  constraints:
-                    key: body
-                    label: コメント本文
-                    type: text
-                    base: string
-                    declarations:
-                      - schema: builtin-types
-                        path:
-                          - definitions
-                          - text
-                        inherited: true
-                        declared:
-                          type: string
-                          display: multiline
-                      - schema: common
-                        document: .yde/schemas/input/1.yaml
-                        path:
-                          - definitions
-                          - コメント
-                          - fields
-                          - 1
-                        inherited: false
-                        declared:
-                          key: body
-                          label: コメント本文
-                          type: text
-                          required: true
-                    required: true
-                    multiline: true
-                    builtinType:
-                      name: text
-                      base: string
-                      builtin: true
-                      multiline: true
-                  classes: []
       - key: clear
         name: clear
         accessor: Clear
@@ -768,14 +475,6 @@ operations:
                 builtin: true
             - key: result
               label: 結果・中止理由を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            - key: comments
-              label: コメント一覧を消す
               type: boolean
               base: boolean
               builtinType:
@@ -865,22 +564,6 @@ operations:
                     base: boolean
                     builtin: true
                 classes: []
-              - key: comments
-                name: comments
-                accessor: Comments
-                path: clear.comments
-                type: java.lang.Boolean
-                base: boolean
-                constraints:
-                  key: comments
-                  label: コメント一覧を消す
-                  type: boolean
-                  base: boolean
-                  builtinType:
-                    name: boolean
-                    base: boolean
-                    builtin: true
-                classes: []
         children:
           - key: category
             name: category
@@ -962,105 +645,7 @@ operations:
                 base: boolean
                 builtin: true
             classes: []
-          - key: comments
-            name: comments
-            accessor: Comments
-            path: clear.comments
-            type: java.lang.Boolean
-            base: boolean
-            constraints:
-              key: comments
-              label: コメント一覧を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            classes: []
     classes:
-      - name: EditTodoCommentsItem
-        fields:
-          - key: date
-            name: date
-            accessor: Date
-            path: commentsItem.date
-            type: java.time.LocalDate
-            base: date
-            constraints:
-              key: date
-              label: 日付
-              type: common#年月日
-              base: date
-              declarations:
-                - schema: common
-                  document: .yde/schemas/input/1.yaml
-                  path:
-                    - definitions
-                    - 年月日
-                  inherited: true
-                  declared:
-                    type: date
-                    format: yyyy年M月d日
-                    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-                - schema: common
-                  document: .yde/schemas/input/1.yaml
-                  path:
-                    - definitions
-                    - コメント
-                    - fields
-                    - 0
-                  inherited: false
-                  declared:
-                    key: date
-                    label: 日付
-                    type: 年月日
-                    required: true
-              description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-              required: true
-              format: yyyy年M月d日
-            classes: []
-          - key: body
-            name: body
-            accessor: Body
-            path: commentsItem.body
-            type: java.lang.String
-            base: string
-            constraints:
-              key: body
-              label: コメント本文
-              type: text
-              base: string
-              declarations:
-                - schema: builtin-types
-                  path:
-                    - definitions
-                    - text
-                  inherited: true
-                  declared:
-                    type: string
-                    display: multiline
-                - schema: common
-                  document: .yde/schemas/input/1.yaml
-                  path:
-                    - definitions
-                    - コメント
-                    - fields
-                    - 1
-                  inherited: false
-                  declared:
-                    key: body
-                    label: コメント本文
-                    type: text
-                    required: true
-              required: true
-              multiline: true
-              builtinType:
-                name: text
-                base: string
-                builtin: true
-                multiline: true
-            classes: []
       - name: EditTodoClear
         fields:
           - key: category
@@ -1143,22 +728,72 @@ operations:
                 base: boolean
                 builtin: true
             classes: []
-          - key: comments
-            name: comments
-            accessor: Comments
-            path: clear.comments
-            type: java.lang.Boolean
-            base: boolean
-            constraints:
-              key: comments
-              label: コメント一覧を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            classes: []
+  - id: SINPUT-edit-todo-comment
+    source: DOC-processes.edit-todo-comment
+    action: edit-todo-comment
+    service: TodoService
+    method: editTodoComment
+    className: EditTodoCommentInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: row
+        name: row
+        accessor: Row
+        path: row
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        classes: []
+      - key: date
+        name: date
+        accessor: Date
+        path: date
+        type: java.time.LocalDate
+        base: date
+        constraints:
+          key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        classes: []
+      - key: body
+        name: body
+        accessor: Body
+        path: body
+        type: java.lang.String
+        base: string
+        constraints:
+          key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          minLength: 1
+          multiline: true
+        classes: []
+    classes: []
   - id: SINPUT-register-todo
     source: DOC-processes.register-todo
     action: register-todo

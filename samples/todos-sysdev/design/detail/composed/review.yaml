@@ -26,10 +26,18 @@ documents:
     kind: action-specs
     source: complete-todo
     path: design/basic/final/actions/complete-todo.yaml
+  - id: DOC-action-specs.delete-todo-comment
+    kind: action-specs
+    source: delete-todo-comment
+    path: design/basic/final/actions/delete-todo-comment.yaml
   - id: DOC-action-specs.edit-todo
     kind: action-specs
     source: edit-todo
     path: design/basic/final/actions/edit-todo.yaml
+  - id: DOC-action-specs.edit-todo-comment
+    kind: action-specs
+    source: edit-todo-comment
+    path: design/basic/final/actions/edit-todo-comment.yaml
   - id: DOC-action-specs.register-todo
     kind: action-specs
     source: register-todo
@@ -106,10 +114,18 @@ documents:
     kind: processes
     source: complete-todo
     path: design/detail/final/processes/complete-todo.yaml
+  - id: DOC-processes.delete-todo-comment
+    kind: processes
+    source: delete-todo-comment
+    path: design/detail/final/processes/delete-todo-comment.yaml
   - id: DOC-processes.edit-todo
     kind: processes
     source: edit-todo
     path: design/detail/final/processes/edit-todo.yaml
+  - id: DOC-processes.edit-todo-comment
+    kind: processes
+    source: edit-todo-comment
+    path: design/detail/final/processes/edit-todo-comment.yaml
   - id: DOC-processes.register-todo
     kind: processes
     source: register-todo
@@ -170,10 +186,18 @@ documents:
     kind: screen-designs-operations
     source: complete-todo
     path: design/detail/final/screen-designs/operations/complete-todo.yaml
+  - id: DOC-screen-designs-operations.delete-todo-comment
+    kind: screen-designs-operations
+    source: delete-todo-comment
+    path: design/detail/final/screen-designs/operations/delete-todo-comment.yaml
   - id: DOC-screen-designs-operations.edit-todo
     kind: screen-designs-operations
     source: edit-todo
     path: design/detail/final/screen-designs/operations/edit-todo.yaml
+  - id: DOC-screen-designs-operations.edit-todo-comment
+    kind: screen-designs-operations
+    source: edit-todo-comment
+    path: design/detail/final/screen-designs/operations/edit-todo-comment.yaml
   - id: DOC-screen-designs-operations.register-todo
     kind: screen-designs-operations
     source: register-todo
@@ -250,10 +274,18 @@ documents:
     kind: screen-operations
     source: complete-todo
     path: design/basic/final/screens/operations/complete-todo.yaml
+  - id: DOC-screen-operations.delete-todo-comment
+    kind: screen-operations
+    source: delete-todo-comment
+    path: design/basic/final/screens/operations/delete-todo-comment.yaml
   - id: DOC-screen-operations.edit-todo
     kind: screen-operations
     source: edit-todo
     path: design/basic/final/screens/operations/edit-todo.yaml
+  - id: DOC-screen-operations.edit-todo-comment
+    kind: screen-operations
+    source: edit-todo-comment
+    path: design/basic/final/screens/operations/edit-todo-comment.yaml
   - id: DOC-screen-operations.register-todo
     kind: screen-operations
     source: register-todo

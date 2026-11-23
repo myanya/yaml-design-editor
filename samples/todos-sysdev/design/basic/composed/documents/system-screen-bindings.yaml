@@ -225,6 +225,34 @@ bindings:
       - action
       - to
       - url
+  - before: GET /todo/{id}/delete-todo-comment
+    after: GET /todo/{id}/delete-todo-comment
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/delete-todo-comment/confirm
+    after: POST /todo/{id}/delete-todo-comment/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/delete-todo-comment/back
+    after: POST /todo/{id}/delete-todo-comment/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/delete-todo-comment
+    after: POST /todo/{id}/delete-todo-comment
+    roles:
+      - request
+      - action
+      - to
+      - url
   - before: GET /todo/{id}/edit-todo
     after: GET /todo/{id}/edit-todo
     roles:
@@ -248,6 +276,34 @@ bindings:
       - url
   - before: POST /todo/{id}/edit-todo
     after: POST /todo/{id}/edit-todo
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/edit-todo-comment
+    after: GET /todo/{id}/edit-todo-comment
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/edit-todo-comment/confirm
+    after: POST /todo/{id}/edit-todo-comment/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/edit-todo-comment/back
+    after: POST /todo/{id}/edit-todo-comment/back
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/edit-todo-comment
+    after: POST /todo/{id}/edit-todo-comment
     roles:
       - request
       - action

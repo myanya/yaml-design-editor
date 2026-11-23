@@ -24,6 +24,8 @@ record:
           - CategoryController.addCategoryConfirm
           - TodoController.registerTodoConfirm
           - TodoController.addTodoCommentConfirm
+          - TodoController.editTodoCommentConfirm
+          - TodoController.deleteTodoCommentConfirm
           - TodoController.addTodoTaskConfirm
           - TodoController.editTodoConfirm
           - TodoController.startTodoConfirm
@@ -37,6 +39,8 @@ record:
           - CategoryController.addCategory
           - TodoController.registerTodo
           - TodoController.addTodoComment
+          - TodoController.editTodoComment
+          - TodoController.deleteTodoComment
           - TodoController.addTodoTask
           - TodoController.editTodo
           - TodoController.startTodo
@@ -55,6 +59,8 @@ record:
           - CategoryController.addCategory
           - TodoController.registerTodo
           - TodoController.addTodoComment
+          - TodoController.editTodoComment
+          - TodoController.deleteTodoComment
           - TodoController.addTodoTask
           - TodoController.editTodo
           - TodoController.startTodo

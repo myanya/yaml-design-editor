@@ -231,6 +231,23 @@ build:
                           $copy: target.entity
                     when: 受け手の ID で読んで、無いとき
                     shownAt: 見つからない画面（404）
+              # 並びの 1 件を番号で指す操作: 指した行が無ければ断る
+              - $group:
+                  $each: effects
+                  $build:
+                    $when:
+                      - path: row
+                        exists: true
+                    $then:
+                      $format: '{entity}.{field.key}'
+                $by:
+                  $copy: .
+                $build:
+                  kind: not-found
+                  message:
+                    $format: error.notFound.{key}
+                  when: 受け取った番号の行を書こうとして、無いとき
+                  shownAt: 見つからない画面（404）
               - $when:
                   - path: lifecycle.refusal
                     exists: true

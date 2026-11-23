@@ -116,6 +116,20 @@ pages:
                               from: todo-dashboard
                               emphasis: secondary
                               shownWhen: いつも
+                            - operation: edit-todo-comment
+                              label: コメントを編集する
+                              kind: link
+                              to: GET /todo/{id}/edit-todo-comment
+                              from: todo-dashboard
+                              emphasis: secondary
+                              shownWhen: いつも
+                            - operation: delete-todo-comment
+                              label: コメントを削除する
+                              kind: link
+                              to: GET /todo/{id}/delete-todo-comment
+                              from: todo-dashboard
+                              emphasis: secondary
+                              shownWhen: いつも
                             - operation: add-todo-task
                               label: 作業項目を追加する
                               kind: link
@@ -231,6 +245,20 @@ pages:
                               label: TODOにコメントを追加する
                               kind: link
                               to: GET /todo/{id}/add-todo-comment
+                              from: todo-dashboard
+                              emphasis: secondary
+                              shownWhen: いつも
+                            - operation: edit-todo-comment
+                              label: コメントを編集する
+                              kind: link
+                              to: GET /todo/{id}/edit-todo-comment
+                              from: todo-dashboard
+                              emphasis: secondary
+                              shownWhen: いつも
+                            - operation: delete-todo-comment
+                              label: コメントを削除する
+                              kind: link
+                              to: GET /todo/{id}/delete-todo-comment
                               from: todo-dashboard
                               emphasis: secondary
                               shownWhen: いつも
@@ -749,6 +777,20 @@ pages:
                 label: TODOにコメントを追加する
                 kind: link
                 to: GET /todo/{id}/add-todo-comment
+                from: todo
+                emphasis: secondary
+                shownWhen: いつも
+              - operation: edit-todo-comment
+                label: コメントを編集する
+                kind: link
+                to: GET /todo/{id}/edit-todo-comment
+                from: todo
+                emphasis: secondary
+                shownWhen: いつも
+              - operation: delete-todo-comment
+                label: コメントを削除する
+                kind: link
+                to: GET /todo/{id}/delete-todo-comment
                 from: todo
                 emphasis: secondary
                 shownWhen: いつも
@@ -1680,6 +1722,141 @@ pages:
           </form>
     routeMatches:
       - handler: completeTodoConfirm
+  - id: WPAGE-delete-todo-comment/input
+    key: delete-todo-comment/input
+    template: todo/delete-todo-comment/input
+    screen:
+      id: delete-todo-comment/input
+      template: todo/delete-todo-comment/input
+      page:
+        title: コメントを削除する
+        width: m
+        body:
+          - notice:
+              kind: errors
+              for: form
+          - facts:
+              of: todo
+              title: 対象
+              items:
+                - item: id
+                  label: ID
+                - item: title
+          - form:
+              action: POST /todo/{id}/delete-todo-comment/confirm
+              object: DeleteTodoCommentForm
+              hidden:
+                - from
+              body:
+                - field:
+                    item: row
+                    label: コメントの番号
+                    control: number
+                    required: true
+                    align: end
+                - actions:
+                    - label: 確認へ
+                      kind: submit
+                      emphasis: primary
+                    - label: やめる
+                      kind: link
+                      to: 起点の画面
+                      emphasis: secondary
+    html:
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[1].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <form class="form" method="post" th:action="${page.url(page.node('page.body[2].form').action)}" th:with="node=${page.node('page.body[2].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[0].field')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: actions(${page.node('page.body[2].form.body[1].actions')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          </form>
+    routeMatches:
+      - handler: deleteTodoCommentInput
+      - handler: deleteTodoCommentBack
+  - id: WPAGE-delete-todo-comment/confirm
+    key: delete-todo-comment/confirm
+    template: todo/delete-todo-comment/confirm
+    screen:
+      id: delete-todo-comment/confirm
+      template: todo/delete-todo-comment/confirm
+      page:
+        title: コメントを削除する（確認）
+        width: m
+        body:
+          - notice:
+              kind: refusal
+          - facts:
+              of: todo
+              title: 対象
+              items:
+                - item: id
+                  label: ID
+                - item: title
+          - facts:
+              title: 入力した値
+              of: form
+              items:
+                - item: row
+                  label: コメントの番号
+          - form:
+              action: POST /todo/{id}/delete-todo-comment
+              hidden:
+                - row
+                - flow
+                - from
+              body:
+                - actions:
+                    - label: 確定
+                      kind: submit
+                      emphasis: primary
+                    - label: 入力へ戻る
+                      kind: submit
+                      action: POST /todo/{id}/delete-todo-comment/back
+                      emphasis: secondary
+    html:
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[1].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[2].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <form class="form" method="post" th:action="${page.url(page.node('page.body[3].form').action)}" th:with="node=${page.node('page.body[3].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: actions(${page.node('page.body[3].form.body[0].actions')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          </form>
+    routeMatches:
+      - handler: deleteTodoCommentConfirm
   - id: WPAGE-edit-todo/input
     key: edit-todo/input
     template: todo/edit-todo/input
@@ -1769,34 +1946,6 @@ pages:
                     clearable:
                       flag: clear.result
                       label: 値を消す
-                - rows:
-                    item: comments
-                    label: コメント一覧
-                    columns:
-                      - field:
-                          item: date
-                          label: 日付
-                          control: date
-                          required: true
-                          width: 10ch
-                      - field:
-                          item: body
-                          label: コメント本文
-                          control: textarea
-                          required: true
-                          rows: 5
-                    actions:
-                      - label: 行を足す
-                        kind: submit
-                        emphasis: secondary
-                      - label: この行を消す
-                        kind: submit
-                        emphasis: secondary
-                        per: row
-                    redraw: 入力画面へ POST して描き直す
-                    clearable:
-                      flag: clear.comments
-                      label: 値を消す
                 - actions:
                     - label: 確認へ
                       kind: submit
@@ -1853,11 +2002,7 @@ pages:
       - valid: true
         plain: true
         raw: |
-          <div th:replace="~{fragments/business :: rows(${page.node('page.body[2].form.body[8].rows')})}"></div>
-      - valid: true
-        plain: true
-        raw: |
-          <div th:replace="~{fragments/business :: actions(${page.node('page.body[2].form.body[9].actions')})}"></div>
+          <div th:replace="~{fragments/business :: actions(${page.node('page.body[2].form.body[8].actions')})}"></div>
       - valid: true
         plain: true
         raw: |
@@ -1915,8 +2060,6 @@ pages:
                 - item: result
                   label: 結果・中止理由
                   keepBreaks: true
-                - item: comments
-                  label: コメント一覧
           - form:
               action: POST /todo/{id}/edit-todo
               hidden:
@@ -1928,7 +2071,6 @@ pages:
                 - due_on
                 - details
                 - result
-                - comments
                 - clear
                 - flow
                 - from
@@ -1968,6 +2110,168 @@ pages:
           </form>
     routeMatches:
       - handler: editTodoConfirm
+  - id: WPAGE-edit-todo-comment/input
+    key: edit-todo-comment/input
+    template: todo/edit-todo-comment/input
+    screen:
+      id: edit-todo-comment/input
+      template: todo/edit-todo-comment/input
+      page:
+        title: コメントを編集する
+        width: m
+        body:
+          - notice:
+              kind: errors
+              for: form
+          - facts:
+              of: todo
+              title: 対象
+              items:
+                - item: id
+                  label: ID
+                - item: title
+          - form:
+              action: POST /todo/{id}/edit-todo-comment/confirm
+              object: EditTodoCommentForm
+              hidden:
+                - from
+              body:
+                - field:
+                    item: row
+                    label: コメントの番号
+                    control: number
+                    required: true
+                    align: end
+                - field:
+                    item: date
+                    label: 記録日
+                    control: date
+                    width: 10ch
+                - field:
+                    item: body
+                    label: コメント本文
+                    control: textarea
+                    rows: 5
+                - actions:
+                    - label: 確認へ
+                      kind: submit
+                      emphasis: primary
+                    - label: やめる
+                      kind: link
+                      to: 起点の画面
+                      emphasis: secondary
+    html:
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[1].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <form class="form" method="post" th:action="${page.url(page.node('page.body[2].form').action)}" th:with="node=${page.node('page.body[2].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[0].field')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[1].field')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[2].field')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: actions(${page.node('page.body[2].form.body[3].actions')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          </form>
+    routeMatches:
+      - handler: editTodoCommentInput
+      - handler: editTodoCommentBack
+  - id: WPAGE-edit-todo-comment/confirm
+    key: edit-todo-comment/confirm
+    template: todo/edit-todo-comment/confirm
+    screen:
+      id: edit-todo-comment/confirm
+      template: todo/edit-todo-comment/confirm
+      page:
+        title: コメントを編集する（確認）
+        width: m
+        body:
+          - notice:
+              kind: refusal
+          - facts:
+              of: todo
+              title: 対象
+              items:
+                - item: id
+                  label: ID
+                - item: title
+          - facts:
+              title: 変わる項目
+              kind: changes
+              compareWith: 今の値（DB から読む）
+              items:
+                - item: row
+                  label: コメントの番号
+                - item: date
+                  label: 記録日
+                  format: yyyy年M月d日
+                - item: body
+                  label: コメント本文
+                  keepBreaks: true
+          - form:
+              action: POST /todo/{id}/edit-todo-comment
+              hidden:
+                - row
+                - date
+                - body
+                - flow
+                - from
+              body:
+                - actions:
+                    - label: 確定
+                      kind: submit
+                      emphasis: primary
+                    - label: 入力へ戻る
+                      kind: submit
+                      action: POST /todo/{id}/edit-todo-comment/back
+                      emphasis: secondary
+    html:
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[1].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[2].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <form class="form" method="post" th:action="${page.url(page.node('page.body[3].form').action)}" th:with="node=${page.node('page.body[3].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: actions(${page.node('page.body[3].form.body[0].actions')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          </form>
+    routeMatches:
+      - handler: editTodoCommentConfirm
   - id: WPAGE-register-todo/input
     key: register-todo/input
     template: todo/register-todo/input
@@ -2883,6 +3187,84 @@ controllers:
                 - notice
             refusals:
               - check.updated-not-before-created
+      - action: edit-todo-comment
+        name: コメントを編集する
+        form: EditTodoCommentForm
+        service: TodoService.editTodoComment
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: editTodoCommentInput
+            request: GET /todo/{id}/edit-todo-comment
+            screen: edit-todo-comment/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: editTodoCommentConfirm
+            request: POST /todo/{id}/edit-todo-comment/confirm
+            screen: edit-todo-comment/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: editTodoCommentBack
+            request: POST /todo/{id}/edit-todo-comment/back
+            screen: edit-todo-comment/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: editTodoComment
+            request: POST /todo/{id}/edit-todo-comment
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - check.updated-not-before-created
+      - action: delete-todo-comment
+        name: コメントを削除する
+        form: DeleteTodoCommentForm
+        service: TodoService.deleteTodoComment
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: deleteTodoCommentInput
+            request: GET /todo/{id}/delete-todo-comment
+            screen: delete-todo-comment/input
+            does: 受け手を読み、初期値でフォームを作って入力画面を出す
+            reads:
+              - TodoMapper.findById
+          - handler: deleteTodoCommentConfirm
+            request: POST /todo/{id}/delete-todo-comment/confirm
+            screen: delete-todo-comment/confirm
+            does: フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は
+              hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: deleteTodoCommentBack
+            request: POST /todo/{id}/delete-todo-comment/back
+            screen: delete-todo-comment/input
+            does: hidden 項目の値で入力画面を出す
+          - handler: deleteTodoComment
+            request: POST /todo/{id}/delete-todo-comment
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - check.updated-not-before-created
       - action: add-todo-task
         name: 作業項目を追加する
         form: AddTodoTaskForm
@@ -3211,6 +3593,42 @@ controllers:
       - handler: addTodoComment
         path: /todo/{id}/add-todo-comment
         method: POST
+      - handler: editTodoCommentInput
+        path: /todo/{id}/edit-todo-comment
+        method: GET
+        screenMatches:
+          - screen: edit-todo-comment/input
+      - handler: editTodoCommentConfirm
+        path: /todo/{id}/edit-todo-comment/confirm
+        method: POST
+        screenMatches:
+          - screen: edit-todo-comment/confirm
+      - handler: editTodoCommentBack
+        path: /todo/{id}/edit-todo-comment/back
+        method: POST
+        screenMatches:
+          - screen: edit-todo-comment/input
+      - handler: editTodoComment
+        path: /todo/{id}/edit-todo-comment
+        method: POST
+      - handler: deleteTodoCommentInput
+        path: /todo/{id}/delete-todo-comment
+        method: GET
+        screenMatches:
+          - screen: delete-todo-comment/input
+      - handler: deleteTodoCommentConfirm
+        path: /todo/{id}/delete-todo-comment/confirm
+        method: POST
+        screenMatches:
+          - screen: delete-todo-comment/confirm
+      - handler: deleteTodoCommentBack
+        path: /todo/{id}/delete-todo-comment/back
+        method: POST
+        screenMatches:
+          - screen: delete-todo-comment/input
+      - handler: deleteTodoComment
+        path: /todo/{id}/delete-todo-comment
+        method: POST
       - handler: addTodoTaskInput
         path: /todo/{id}/add-todo-task
         method: GET
@@ -3469,6 +3887,13 @@ forms:
         item: result
         type: String
     classes: []
+  - className: DeleteTodoCommentForm
+    beanName: deleteTodoCommentForm
+    fields:
+      - name: row
+        item: row
+        type: Long
+    classes: []
   - className: EditTodoForm
     beanName: editTodoForm
     fields:
@@ -3496,21 +3921,10 @@ forms:
       - name: result
         item: result
         type: String
-      - name: comments
-        item: comments
-        type: List<EditTodoCommentsRow>
       - name: clear
         item: clear
         type: EditTodoClear
     classes:
-      - name: EditTodoCommentsRow
-        fields:
-          - name: date
-            item: date
-            type: LocalDate
-          - name: body
-            item: body
-            type: String
       - name: EditTodoClear
         fields:
           - name: category
@@ -3528,9 +3942,19 @@ forms:
           - name: result
             item: result
             type: Boolean
-          - name: comments
-            item: comments
-            type: Boolean
+  - className: EditTodoCommentForm
+    beanName: editTodoCommentForm
+    fields:
+      - name: row
+        item: row
+        type: Long
+      - name: date
+        item: date
+        type: LocalDate
+      - name: body
+        item: body
+        type: String
+    classes: []
   - className: RegisterTodoForm
     beanName: registerTodoForm
     fields:
@@ -3630,6 +4054,14 @@ operations:
         target: date
       - source: result
         target: result
+  - action: delete-todo-comment
+    className: DeleteTodoCommentWebOperation
+    formClass: DeleteTodoCommentForm
+    receiver: true
+    noConfirm: true
+    fieldTargets:
+      - source: row
+        target: row
   - action: edit-todo
     className: EditTodoWebOperation
     formClass: EditTodoForm
@@ -3652,10 +4084,20 @@ operations:
         target: details
       - source: result
         target: result
-      - source: comments
-        target: comments
       - source: clear
         target: clear
+  - action: edit-todo-comment
+    className: EditTodoCommentWebOperation
+    formClass: EditTodoCommentForm
+    receiver: true
+    noConfirm: true
+    fieldTargets:
+      - source: row
+        target: row
+      - source: date
+        target: date
+      - source: body
+        target: body
   - action: register-todo
     className: RegisterTodoWebOperation
     formClass: RegisterTodoForm
@@ -4941,6 +5383,16 @@ transitions:
         label: TODOを完了する（確認）
         source: DOC-screen-operations.complete-todo
         request: POST /todo/{id}/complete-todo/confirm
+      - id: delete-todo-comment/input
+        kind: input
+        label: コメントを削除する（入力）
+        source: DOC-screen-operations.delete-todo-comment
+        request: GET /todo/{id}/delete-todo-comment
+      - id: delete-todo-comment/confirm
+        kind: confirm
+        label: コメントを削除する（確認）
+        source: DOC-screen-operations.delete-todo-comment
+        request: POST /todo/{id}/delete-todo-comment/confirm
       - id: edit-todo/input
         kind: input
         label: TODOを編集する（入力）
@@ -4951,6 +5403,16 @@ transitions:
         label: TODOを編集する（確認）
         source: DOC-screen-operations.edit-todo
         request: POST /todo/{id}/edit-todo/confirm
+      - id: edit-todo-comment/input
+        kind: input
+        label: コメントを編集する（入力）
+        source: DOC-screen-operations.edit-todo-comment
+        request: GET /todo/{id}/edit-todo-comment
+      - id: edit-todo-comment/confirm
+        kind: confirm
+        label: コメントを編集する（確認）
+        source: DOC-screen-operations.edit-todo-comment
+        request: POST /todo/{id}/edit-todo-comment/confirm
       - id: register-todo/input
         kind: input
         label: TODOを登録する（入力）
@@ -5025,6 +5487,12 @@ transitions:
         by: 区画「期限超過」の行のボタン「TODOにコメントを追加する」
         to: add-todo-comment/input
       - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「コメントを編集する」
+        to: edit-todo-comment/input
+      - from: todo-dashboard
+        by: 区画「期限超過」の行のボタン「コメントを削除する」
+        to: delete-todo-comment/input
+      - from: todo-dashboard
         by: 区画「期限超過」の行のボタン「作業項目を追加する」
         to: add-todo-task/input
       - from: todo-dashboard
@@ -5048,6 +5516,12 @@ transitions:
       - from: todo-dashboard
         by: 区画「すべてのTODO」の行のボタン「TODOにコメントを追加する」
         to: add-todo-comment/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「コメントを編集する」
+        to: edit-todo-comment/input
+      - from: todo-dashboard
+        by: 区画「すべてのTODO」の行のボタン「コメントを削除する」
+        to: delete-todo-comment/input
       - from: todo-dashboard
         by: 区画「すべてのTODO」の行のボタン「作業項目を追加する」
         to: add-todo-task/input
@@ -5081,6 +5555,12 @@ transitions:
       - from: todo
         by: ボタン「TODOにコメントを追加する」
         to: add-todo-comment/input
+      - from: todo
+        by: ボタン「コメントを編集する」
+        to: edit-todo-comment/input
+      - from: todo
+        by: ボタン「コメントを削除する」
+        to: delete-todo-comment/input
       - from: todo
         by: ボタン「作業項目を追加する」
         to: add-todo-task/input
@@ -5132,6 +5612,26 @@ transitions:
         by: ボタン「入力へ戻る」
         to: add-todo-comment/input
       - from: add-todo-comment/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: edit-todo-comment/input
+        by: ボタン「確認へ」
+        to: edit-todo-comment/confirm
+      - from: edit-todo-comment/confirm
+        by: ボタン「入力へ戻る」
+        to: edit-todo-comment/input
+      - from: edit-todo-comment/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: delete-todo-comment/input
+        by: ボタン「確認へ」
+        to: delete-todo-comment/confirm
+      - from: delete-todo-comment/confirm
+        by: ボタン「入力へ戻る」
+        to: delete-todo-comment/input
+      - from: delete-todo-comment/confirm
         by: ボタン「確定」
         to: 起点の画面
         note: 完了の知らせを出す
@@ -5296,6 +5796,18 @@ inputs:
       items:
         - key: date
         - key: result
+  - id: delete-todo-comment
+    target: todo
+    starts:
+      - screen: todo-dashboard
+        place: 区画「期限超過」の行のボタン
+      - screen: todo-dashboard
+        place: 区画「すべてのTODO」の行のボタン
+      - screen: todo
+        place: 画面のボタン
+    input:
+      items:
+        - key: row
   - id: edit-todo
     target: todo
     starts:
@@ -5347,11 +5859,6 @@ inputs:
           $of: self
           $in:
             schemaId: todo-detail
-        comments:
-          $copy: comments
-          $of: self
-          $in:
-            schemaId: todo-detail
       items:
         - key: title
         - key: summary
@@ -5366,9 +5873,32 @@ inputs:
           clearedBy: clear.details
         - key: result
           clearedBy: clear.result
-        - key: comments
-          clearedBy: clear.comments
         - key: clear
+  - id: edit-todo-comment
+    target: todo
+    starts:
+      - screen: todo-dashboard
+        place: 区画「期限超過」の行のボタン
+      - screen: todo-dashboard
+        place: 区画「すべてのTODO」の行のボタン
+      - screen: todo
+        place: 画面のボタン
+    input:
+      initial:
+        date:
+          $copy: comments[$row].date
+          $of: self
+          $in:
+            schemaId: todo-detail
+        body:
+          $copy: comments[$row].body
+          $of: self
+          $in:
+            schemaId: todo-detail
+      items:
+        - key: row
+        - key: date
+        - key: body
   - id: register-todo
     starts:
       - screen: todo-dashboard
@@ -5533,6 +6063,14 @@ messages:
       kind: 完了の知らせ
       text: TODOにコメントを追加しました（{id}）
       source: 操作 add-todo-comment の名前
+    - key: edit-todo-comment.done
+      kind: 完了の知らせ
+      text: コメントを編集しました（{id}）
+      source: 操作 edit-todo-comment の名前
+    - key: delete-todo-comment.done
+      kind: 完了の知らせ
+      text: コメントを削除しました（{id}）
+      source: 操作 delete-todo-comment の名前
     - key: add-todo-task.done
       kind: 完了の知らせ
       text: 作業項目を追加しました（{id}）
@@ -5597,6 +6135,10 @@ messages:
       kind: 見つからない
       text: 作業項目「{id}」は見つかりません
       source: ID を指定して読んで無いとき（404）
+    - key: error.notFound.todo.comments
+      kind: 見つからない
+      text: TODO「{id}」のコメント一覧に、指定した行はありません
+      source: 行の番号を指定して書いて、その行が無いとき（404）
     - key: error.token
       kind: 二重の確定・時間切れ
       text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
@@ -5694,6 +6236,38 @@ messages:
           kind: 入力の誤り
           text: コメント本文は1文字以上で入力してください
           source: 文字数
+    - form: editTodoCommentForm
+      field: row
+      label: コメントの番号
+      messages:
+        - key: validation.NotNull.editTodoCommentForm.row
+          kind: 入力の誤り
+          text: コメントの番号を入力してください
+          source: 必須
+    - form: editTodoCommentForm
+      field: date
+      label: 記録日
+      messages:
+        - key: validation.typeMismatch.editTodoCommentForm.date
+          kind: 入力の誤り
+          text: 記録日は年月日で入力してください
+          source: 日付として読めない
+    - form: editTodoCommentForm
+      field: body
+      label: コメント本文
+      messages:
+        - key: validation.Size.editTodoCommentForm.body
+          kind: 入力の誤り
+          text: コメント本文は1文字以上で入力してください
+          source: 文字数
+    - form: deleteTodoCommentForm
+      field: row
+      label: コメントの番号
+      messages:
+        - key: validation.NotNull.deleteTodoCommentForm.row
+          kind: 入力の誤り
+          text: コメントの番号を入力してください
+          source: 必須
     - form: addTodoTaskForm
       field: title
       label: 作業
@@ -5758,26 +6332,6 @@ messages:
           kind: 入力の誤り
           text: 期限は年月日で入力してください
           source: 日付として読めない
-    - form: editTodoForm
-      field: comments.date
-      label: 日付
-      messages:
-        - key: validation.NotNull.editTodoForm.comments.date
-          kind: 入力の誤り
-          text: 日付を入力してください
-          source: 必須
-        - key: validation.typeMismatch.editTodoForm.comments.date
-          kind: 入力の誤り
-          text: 日付は年月日で入力してください
-          source: 日付として読めない
-    - form: editTodoForm
-      field: comments.body
-      label: コメント本文
-      messages:
-        - key: validation.NotNull.editTodoForm.comments.body
-          kind: 入力の誤り
-          text: コメント本文を入力してください
-          source: 必須
     - form: suspendTodoForm
       field: date
       label: 中断日
@@ -5949,6 +6503,8 @@ session:
         - CategoryController.addCategoryConfirm
         - TodoController.registerTodoConfirm
         - TodoController.addTodoCommentConfirm
+        - TodoController.editTodoCommentConfirm
+        - TodoController.deleteTodoCommentConfirm
         - TodoController.addTodoTaskConfirm
         - TodoController.editTodoConfirm
         - TodoController.startTodoConfirm
@@ -5962,6 +6518,8 @@ session:
         - CategoryController.addCategory
         - TodoController.registerTodo
         - TodoController.addTodoComment
+        - TodoController.editTodoComment
+        - TodoController.deleteTodoComment
         - TodoController.addTodoTask
         - TodoController.editTodo
         - TodoController.startTodo
@@ -5980,6 +6538,8 @@ session:
         - CategoryController.addCategory
         - TodoController.registerTodo
         - TodoController.addTodoComment
+        - TodoController.editTodoComment
+        - TodoController.deleteTodoComment
         - TodoController.addTodoTask
         - TodoController.editTodo
         - TodoController.startTodo

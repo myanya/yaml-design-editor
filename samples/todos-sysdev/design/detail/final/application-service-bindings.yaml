@@ -953,6 +953,189 @@ operations:
               java: input.getId()
               type: java.lang.String
             typeMatches: true
+  - id: SPROG-delete-todo-comment
+    source: DOC-processes.delete-todo-comment
+    input: SINPUT-delete-todo-comment
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: row
+        place: input
+        name: row
+        ref: $row
+        java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: row
+        place: input
+        name: row
+        ref: $row
+        java: input.getRow()
+        type: java.lang.Long
+        base: int
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: write
+        call: TodoMapper.deleteTodoCommentCommentsRow
+        method: JMTH-todo.deleteTodoCommentCommentsRow
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: row
+            accessor: Row
+            type: java.lang.Long
+            binding:
+              path: row
+              place: input
+              java: input.getRow()
+              type: java.lang.Long
+            typeMatches: true
+      - index: 4
+        kind: write
+        call: TodoMapper.deleteTodoComment
+        method: JMTH-todo.deleteTodoComment
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
   - id: SPROG-edit-todo
     source: DOC-processes.edit-todo
     input: SINPUT-edit-todo
@@ -1020,13 +1203,6 @@ operations:
         java: input.getResult()
         type: java.lang.String
         base: string
-      - path: comments
-        place: input
-        name: comments
-        ref: $comments
-        java: input.getComments()
-        type: java.util.List<EditTodoCommentsItem>
-        base: array
       - path: clear
         place: input
         name: clear
@@ -1067,13 +1243,6 @@ operations:
         name: clearResult
         ref: $clear.result
         java: '(input.getClear() == null ? null : input.getClear().getResult())'
-        type: java.lang.Boolean
-        base: boolean
-      - path: clear.comments
-        place: input
-        name: clearComments
-        ref: $clear.comments
-        java: '(input.getClear() == null ? null : input.getClear().getComments())'
         type: java.lang.Boolean
         base: boolean
       - path: today
@@ -1205,13 +1374,6 @@ operations:
         java: input.getResult()
         type: java.lang.String
         base: string
-      - path: comments
-        place: input
-        name: comments
-        ref: $comments
-        java: input.getComments()
-        type: java.util.List<EditTodoCommentsItem>
-        base: array
       - path: clear
         place: input
         name: clear
@@ -1252,13 +1414,6 @@ operations:
         name: clearResult
         ref: $clear.result
         java: '(input.getClear() == null ? null : input.getClear().getResult())'
-        type: java.lang.Boolean
-        base: boolean
-      - path: clear.comments
-        place: input
-        name: clearComments
-        ref: $clear.comments
-        java: '(input.getClear() == null ? null : input.getClear().getComments())'
         type: java.lang.Boolean
         base: boolean
     primary: JMTH-todo.findById
@@ -1472,35 +1627,6 @@ operations:
         parameters: []
       - index: 9
         kind: write
-        call: TodoMapper.deleteTodoComments
-        method: JMTH-todo.deleteTodoComments
-        callResolved: true
-        keyArityMatches: true
-        stateResolved: true
-        setMatches: true
-        whereMatches: true
-        parameters:
-          - name: id
-            accessor: Id
-            type: java.lang.String
-            binding:
-              path: id
-              place: input
-              java: input.getId()
-              type: java.lang.String
-            typeMatches: true
-      - index: 10
-        kind: write
-        call: TodoMapper.insertTodoComments
-        method: JMTH-todo.insertTodoComments
-        callResolved: true
-        keyArityMatches: true
-        stateResolved: true
-        setMatches: true
-        whereMatches: true
-        parameters: []
-      - index: 11
-        kind: write
         call: TodoMapper.deleteTodoTags
         method: JMTH-todo.deleteTodoTags
         callResolved: true
@@ -1518,10 +1644,138 @@ operations:
               java: input.getId()
               type: java.lang.String
             typeMatches: true
-      - index: 12
-        kind: write
-        call: TodoMapper.deleteTodoComments
-        method: JMTH-todo.deleteTodoComments
+  - id: SPROG-edit-todo-comment
+    source: DOC-processes.edit-todo-comment
+    input: SINPUT-edit-todo-comment
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: row
+        place: input
+        name: row
+        ref: $row
+        java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: body
+        place: input
+        name: body
+        ref: $body
+        java: input.getBody()
+        type: java.lang.String
+        base: string
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: row
+        place: input
+        name: row
+        ref: $row
+        java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: date
+        place: input
+        name: date
+        ref: $date
+        java: input.getDate()
+        type: java.time.LocalDate
+        base: date
+      - path: body
+        place: input
+        name: body
+        ref: $body
+        java: input.getBody()
+        type: java.lang.String
+        base: string
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
         callResolved: true
         keyArityMatches: true
         stateResolved: true
@@ -1537,16 +1791,88 @@ operations:
               java: input.getId()
               type: java.lang.String
             typeMatches: true
-      - index: 13
-        kind: write
-        call: TodoMapper.insertTodoComments
-        method: JMTH-todo.insertTodoComments
+      - index: 2
+        kind: check
         callResolved: true
         keyArityMatches: true
         stateResolved: true
         setMatches: true
         whereMatches: true
         parameters: []
+      - index: 3
+        kind: write
+        call: TodoMapper.editTodoCommentCommentsRow
+        method: JMTH-todo.editTodoCommentCommentsRow
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: row
+            accessor: Row
+            type: java.lang.Long
+            binding:
+              path: row
+              place: input
+              java: input.getRow()
+              type: java.lang.Long
+            typeMatches: true
+          - name: date
+            accessor: Date
+            type: java.time.LocalDate
+            binding:
+              path: date
+              place: input
+              java: input.getDate()
+              type: java.time.LocalDate
+            typeMatches: true
+          - name: body
+            accessor: Body
+            type: java.lang.String
+            binding:
+              path: body
+              place: input
+              java: input.getBody()
+              type: java.lang.String
+            typeMatches: true
+      - index: 4
+        kind: write
+        call: TodoMapper.editTodoComment
+        method: JMTH-todo.editTodoComment
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
   - id: SPROG-register-todo
     source: DOC-processes.register-todo
     input: SINPUT-register-todo

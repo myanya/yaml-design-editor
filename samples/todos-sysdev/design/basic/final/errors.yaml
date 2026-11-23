@@ -77,6 +77,8 @@ constraints:
     operations:
       - register-todo
       - add-todo-comment
+      - edit-todo-comment
+      - delete-todo-comment
       - add-todo-task
       - edit-todo
       - start-todo
@@ -307,6 +309,65 @@ operations:
         message: error.token
         when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
         shownAt: 起点の画面へ戻し、知らせで出す
+  - id: edit-todo-comment
+    name: コメントを編集する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: row
+        label: コメントの番号
+        checks:
+          - 必須
+      - field: date
+        label: 記録日
+        checks:
+          - 年月日として読める
+      - field: body
+        label: コメント本文
+        checks: []
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: not-found
+        message: error.notFound.todo.comments
+        when: 受け取った番号の行を書こうとして、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: delete-todo-comment
+    name: コメントを削除する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: row
+        label: コメントの番号
+        checks:
+          - 必須
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: not-found
+        message: error.notFound.todo.comments
+        when: 受け取った番号の行を書こうとして、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
   - id: add-todo-task
     name: 作業項目を追加する
     screens: 入力画面と確認画面（ダッシュボードからたどれる）
@@ -366,15 +427,6 @@ operations:
         label: 期限
         checks:
           - 年月日として読める
-      - field: comments.date
-        label: 日付
-        checks:
-          - 必須
-          - 年月日として読める
-      - field: comments.body
-        label: コメント本文
-        checks:
-          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
