@@ -1,0 +1,41 @@
+# レビュー用: 並びの要素が持つ項目（コメントの日付と本文、状態の履歴の各欄など）。親の項目ごとに並ぶ
+id: entity-definition-review-nested
+name: エンティティ定義書（レビュー・入れ子の項目）
+description: 並びの項目の、要素の中の項目を見せる。値は確定項目のままで、ビューでは再計算しない
+params: [entity]
+rows:
+  match:
+    - node: { id: "ENT-*", bind: e }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: p }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where:
+    - { of: e, path: id, equals: $entity }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 親の項目, of: p, path: label }
+  - { label: 項番, path: seq }
+  - { label: 項目, path: key }
+  - { label: 名称, path: label }
+  - label: 型
+    schemaId: basic-entity-list
+    value:
+      first:
+        - extract: [ { via: type, path: name }, "([^#]+)$" ]
+        - { path: base }
+  - { label: 基底, path: base, schemaId: basic-entity-list }
+  - label: 必須
+    value: { map: { path: required }, using: { "true": "●", "false": "" } }
+  - label: 形式
+    schemaId: basic-entity-list
+    value:
+      first:
+        - { map: { path: multiline }, using: { "true": 複数行 } }
+        - "表示 {format}"
+        - "{maxLength} 文字まで"
+  - label: 選択肢
+    schemaId: basic-entity-list
+    value: { path: "values[*].label" }
+  - { label: 説明, path: description }

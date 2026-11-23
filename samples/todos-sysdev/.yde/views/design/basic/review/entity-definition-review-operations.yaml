@@ -1,0 +1,32 @@
+# レビュー用: 操作と、その操作が書く項目（項目は名称で）
+id: entity-definition-review-operations
+name: エンティティ定義書（レビュー・操作と書く項目）
+description: 操作ごとに、作成か更新かと、書く項目を名称で見せる。値は確定項目のままで、ビューでは再計算しない
+params: [entity]
+rows:
+  match:
+    - node: { id: "ENT-*", bind: e }
+    - edge: { contains: true }
+    - node: { id: "OPS-*", bind: o }
+  rowKey: o
+  where:
+    - { of: e, path: id, equals: $entity }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 名称, path: label }
+  - { label: 操作, path: action }
+  - label: 作成・更新
+    value: { map: { path: crud }, using: { C: 作成, U: 更新 } }
+  # 書く項目: 操作 → 書込（CRUD-*）→ 項目（FLD-*）と辿り、項目の名称を並べる（書込は ID を持つ要素なので、照合で辿る）
+  - label: 書く項目
+    value:
+      all:
+        match:
+          - node: { id: "OPS-*" }
+          - edge: { contains: true }
+          - node: { id: "CRUD-*", bind: c }
+          - edge: { via: item }
+          - node: { id: "FLD-*", bind: f }
+        of: f
+        path: label

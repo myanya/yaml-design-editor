@@ -1,11 +1,16 @@
 id: entity-definition
 name: エンティティ定義書
 kind: dashboard
-description: 確定項目一覧の同じ値を、概要・項目一覧・操作・CRUD の観点で確認する。CRUD は operations.writes から表示する。
+description: >-
+  確定項目一覧の同じ値を見せる。「レビュー」の区画は、人が中身を読むための列だけ（型は名前・必須は ●・参照先と書く項目は名称）。
+  「確認用」の区画は、経路・属性の状態・根拠・導出元まで出す。CRUD は operations.writes から表示する。
 inputs:
   - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, default: ENT-todo }
 sections:
-  - { id: summary, label: 概要, group: エンティティ定義書, view: entity-definition-summary }
-  - { id: items, label: 項目一覧, group: エンティティ定義書, view: entity-definition-items }
-  - { id: operations, label: 操作一覧, group: エンティティ定義書, view: entity-definition-operations }
-  - { id: crud, label: CRUD, group: エンティティ定義書, view: entity-definition-crud }
+  - { id: review-items, label: 項目, group: レビュー, view: entity-definition-review-items }
+  - { id: review-nested, label: 入れ子の項目, group: レビュー, view: entity-definition-review-nested }
+  - { id: review-operations, label: 操作と書く項目, group: レビュー, view: entity-definition-review-operations }
+  - { id: crud, label: 項目 × 操作, group: レビュー, view: entity-definition-crud }
+  - { id: summary, label: 概要, group: 確認用, view: entity-definition-summary }
+  - { id: items, label: 項目一覧（根拠つき）, group: 確認用, view: entity-definition-items }
+  - { id: operations, label: 操作一覧, group: 確認用, view: entity-definition-operations }

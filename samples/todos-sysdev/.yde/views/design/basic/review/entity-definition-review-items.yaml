@@ -1,0 +1,59 @@
+# レビュー用: 中身を読むための列だけ。経路・属性の状態・根拠・導出元は entity-definition-items（確認用）にある
+id: entity-definition-review-items
+name: エンティティ定義書（レビュー・項目）
+description: 確定項目一覧を、人が中身を読むための列だけにして見せる。値は確定項目のままで、ビューでは再計算しない
+params: [entity]
+rows:
+  match:
+    - node: { id: "ENT-*", bind: e }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where:
+    - { of: e, path: id, equals: $entity }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 項目, path: key }
+  - { label: 名称, path: label }
+  # 型: 並びは「要素の型 の並び」。型の名前は「common#一行の文」の # の後ろ
+  - label: 型
+    schemaId: basic-entity-list
+    value:
+      first:
+        - format: "{t} の並び"
+          with: { t: { extract: [ { via: item.type, path: name }, "([^#]+)$" ] } }
+        - format: "{t} の並び"
+          with: { t: { via: item.entity, path: label } }
+        - extract: [ { via: type, path: name }, "([^#]+)$" ]
+        - { path: base }
+  - { label: 基底, path: base, schemaId: basic-entity-list }
+  - label: 必須
+    value: { map: { path: required }, using: { "true": "●", "false": "" } }
+  - label: 文字数
+    schemaId: basic-entity-list
+    value: "{maxLength} 文字まで"
+  - label: 形式
+    schemaId: basic-entity-list
+    value:
+      first:
+        - { map: { path: multiline }, using: { "true": 複数行 } }
+        - "表示 {format}"
+        - { map: { path: unique }, using: { "true": 重複なし } }
+        - { map: { path: pattern }, using: { "^[^\\r\\n]*$": 1 行 } }
+        - "形 {pattern}"
+  - label: 選択肢
+    schemaId: basic-entity-list
+    value: { path: "values[*].label" }
+  - label: 参照先
+    schemaId: basic-entity-list
+    value:
+      first:
+        - { each: { path: reference.entities }, value: { path: label } }
+        - { each: { path: item.reference.entities }, value: { path: label } }
+  # 並びの初期値（空の並び）は「—」。path の列だと「（配列 0 件）」と出るので、値の式で読む
+  - label: 初期値
+    value: { path: default }
+  - label: 自動で入る値
+    value: { map: { path: auto }, using: { created: 作成した日, updated: 更新した日 } }
+  - { label: 説明, path: description }
