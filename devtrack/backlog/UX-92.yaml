@@ -1,11 +1,12 @@
 id: UX-92
 title: エージェントが **list_files で一覧を得ているのに、存在しないファイルを読みに行く**挙動を観察
-status: todo
+status: when-needed
 kind: bug
 origin_on: 2026-09-02
 origin: S1第2回
-memo: '実行記録（_runs）で頻度・文脈を確認してから: ツール応答の一覧提示形式・レシピ（P19）・read_document の不存在エラー文言（「一覧にあるファイルだけを指定」の案内）の改善候補
-
-  （2026-11-18 現物確認）ツール名が変わった（list_files → list_documents、read_document → read_outline・read_node。tools/Toolset.kt）。存在しないファイルの文面は「ファイルが読めません」だけで、一覧から選ぶ案内は無い。今も起きるかは実行記録を見ないと分からない'
+memo: |-
+  実行記録（_runs）で頻度・文脈を確認してから: ツール応答の一覧提示形式・レシピ（P19）・read_document の不存在エラー文言（「一覧にあるファイルだけを指定」の案内）の改善候補
+  （2026-11-18 現物確認）ツール名が変わった（list_files → list_documents、read_document → read_outline・read_node。tools/Toolset.kt）。存在しないファイルの文面は「ファイルが読めません」だけで、一覧から選ぶ案内は無い。今も起きるかは実行記録を見ないと分からない
+  （2026-11-23 オーナーの判断）AI によるサポート機能は、いまほとんど使っていないので、優先度を下げる（必要になったら）。
 features:
   - AG-05

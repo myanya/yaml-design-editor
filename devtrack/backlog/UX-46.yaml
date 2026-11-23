@@ -1,6 +1,6 @@
 id: UX-46
 title: エージェントフローの不安定さ
-status: discussing
+status: when-needed
 kind: bug
 origin_on: 2026-08-09
 origin: S2第1回
@@ -8,6 +8,7 @@ body: '**エージェントフローの不安定さ**: ①スコープ外パス�
 memo: |-
   ①システムプロンプトの allowedPaths 明示強化・書込拒否時に「指摘追記へ切替」を誘導 ②「変更なし提出」の正常系（空 submit）と abort の使い分けをカーネル側で規範化。台本側は instruction に本文修正禁止を明記済み（対症）。抜本はエージェントフロー再設計（T-01 論点3）
   （2026-11-18 現物確認）書込の拒否の文面（tools/Toolset.kt「書込許可（allowedPaths）の対象外です」）に誘導は無く、同じ拒否の繰り返しへの介入も無い。終了は submit_changeset か abort の 2 つのまま。エンジンは空の提出を「完了・変更なし」として扱えるが、モデルに伝えていない
+  （2026-11-23 オーナーの判断）AI によるサポート機能は、いまほとんど使っていないので、優先度を下げる（必要になったら）。
 theme: T-01
 targets: T-01
 features:

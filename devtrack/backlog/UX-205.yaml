@@ -1,14 +1,14 @@
 id: UX-205
 title: エージェントの `read_view` はダッシュボードの共有の入力を受け取れず、定義の default だけで解決する
-status: todo
+status: when-needed
 kind: feature
 origin_on: 2026-10-26
 origin: ダッシュボードの共有の入力（inputs）を入れたとき
 body: '**エージェントの `read_view` はダッシュボードの共有の入力を受け取れず、定義の default だけで解決する**（CLI の `view` は `--param` で渡せる。画面も欄がある）'
-memo: '`read_view` に `params`（名前→値の辞書）を足し、`Dashboards.resolve(..., inputs)` へ渡す。空文字は「絞らない」。ツールの説明文にも inputs の名前を出す（`viewText`
-  のダッシュボード一覧に inputs を添える）
-
-  （2026-11-18 現物確認）ローカル接続の MCP の read_view（local-server の McpSchemas.kt）も id と date だけで、同じ穴がある。UX-219（CLI のグリッドの --param）と合わせて見る'
+memo: |-
+  `read_view` に `params`（名前→値の辞書）を足し、`Dashboards.resolve(..., inputs)` へ渡す。空文字は「絞らない」。ツールの説明文にも inputs の名前を出す（`viewText` のダッシュボード一覧に inputs を添える）
+  （2026-11-18 現物確認）ローカル接続の MCP の read_view（local-server の McpSchemas.kt）も id と date だけで、同じ穴がある。UX-219（CLI のグリッドの --param）と合わせて見る
+  （2026-11-23 オーナーの判断）AI によるサポート機能は、いまほとんど使っていないので、優先度を下げる（必要になったら）。
 features:
   - AG-24
   - X-13

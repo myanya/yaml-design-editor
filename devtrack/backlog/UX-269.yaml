@@ -1,6 +1,6 @@
 id: UX-269
 title: 機能索引（FEATURES.md）を系統ごとのファイルに分けるか
-status: discussing
+status: declined
 kind: dev
 origin_on: 2026-11-07
 origin: FEATURES を devtrack へ移す作業（2b-4）でのオーナーとの議論
@@ -10,3 +10,8 @@ memo: 分けるなら docs/features/<系統>.md を生成し、FEATURES.md は�
   の参照元を直す。生成はレポートを系統ごとに分けるか、出力先を受け取る値で変える
 related:
   - UX-197
+closed_on: 2026-11-23
+resolutions:
+  - date: 2026-11-23
+    kind: 見送り
+    note: "オーナーの判断（2026-11-23）: 見送り。機能索引は 1 枚のままにする（エージェントは grep で引けており、分けると案内と参照のテストを直す手間のほうが大きい）"

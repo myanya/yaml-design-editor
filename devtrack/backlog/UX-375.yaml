@@ -1,6 +1,6 @@
 id: UX-375
 title: 段の規則と補正（.yde/stages）を今後使わないと決めたあと、カーネルに残る仕組み・メタスキーマ・仕様・manual・ADR-0034 の扱いが決まっていない
-status: discussing
+status: declined
 kind: spec
 origin_on: 2026-11-21
 origin: 11 月の指摘の棚卸し。UX-333（段の補正の書きにくさ）を「段の補正は今後使わない」というオーナーの判断で見送りにしたとき
@@ -24,3 +24,8 @@ features:
   - C-23
 roadmap:
   - P53
+closed_on: 2026-11-23
+resolutions:
+  - date: 2026-11-23
+    kind: 見送り
+    note: "オーナーの判断（2026-11-23）: 段（stage）の仕組みは、今後も必要になる可能性があるので残す。実装・メタスキーマ・仕様・manual・ADR-0034 はそのままにし、何も外さない。samples/todos-sysdev がいま段の規則と補正を使っていないことは変わらない"

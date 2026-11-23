@@ -1,6 +1,6 @@
 id: UX-48
 title: リトライとターン上限のコスト設計が弱い
-status: discussing
+status: when-needed
 kind: feature
 origin_on: 2026-08-09
 origin: S2第1回
@@ -8,6 +8,7 @@ body: '**リトライとターン上限のコスト設計が弱い**: ターン�
 memo: |-
   手動実行では上限到達時の未提出ドラフトをレビューへ引き継げるが、自動リトライは毎回ゼロから。①リトライを前回ドラフトからの再開にする ②ターン上限失敗はリトライ対象外の区分にする ③リトライ横断の総トークン上限。`handleFailure` の失敗分類から設計
   （2026-11-18 現物確認）入ったのはゲート区分 no-new-errors（UX-47）だけ。失敗の分類は無く、上限到達（RunStatus.LIMIT）も再試行する（agent の auto/Automation.kt の handleFailure）。再試行をまたぐトークンの予算と、ドラフトの引き継ぎも無い
+  （2026-11-23 オーナーの判断）AI によるサポート機能は、いまほとんど使っていないので、優先度を下げる（必要になったら）。
 theme: T-01
 targets: T-01
 features:
