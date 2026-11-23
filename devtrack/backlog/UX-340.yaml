@@ -1,6 +1,6 @@
 id: UX-340
 title: エンティティ定義書の CRUD ビューが文字を max で集計し、原本の C/U がすべて空欄になる
-status: discussing
+status: resolved
 kind: bug
 origin_on: 2026-11-16
 origin: オーナーによるエンティティ定義書の再レビュー。原本とダッシュボードの CRUD が一致しない
@@ -15,8 +15,12 @@ memo: |-
   足場固めの指示を受けて実装。項目を行、所属する操作を columns.each.rows で列に選び、writes の C/U を配列のまま読む。数値集計は使わない。全4エンティティの23項目と52個のC/Uを原本と照合するテストを追加し、カテゴリ・タグのID行も残ることを確認。R/Dへの拡張は別途。オーナーレビュー待ち。
 features: [C-21, X-05, X-06]
 roadmap: [R53-05]
-related: [UX-336, UX-342]
+related: [UX-336, UX-342, UX-380]
 resolutions:
   - date: 2026-11-21
     kind: 一部
     note: "直っている。ビュー entity-definition-crud は aggregate: max をやめ、確定項目の CRUD-* の crud を all で読む。4 エンティティの全項目と 52 個の C/U を原本と照合し、書込の無い項目の行も残ることをテストが見る（TodosEntityFoundationTest「全項目の基底と C U 表は生成原本と一致し 書込の無い項目も残る」）。原本の場所は design/basic/final/entities.yaml に移った。残りはオーナーのレビューと、R/D まで扱うかの判断"
+  - date: 2026-11-23
+    kind: 解決
+    note: "オーナーのレビューで、C/U は業務の認識と合うようになったと確認（2026-11-23）。題の症状（C/U がすべて空欄）は解決。レビューで出た次の要望（子要素を個別の表で確かめたい・操作ごとに子要素の C/U/D を見たい）と、R/D の扱いは UX-380 で続ける"
+closed_on: 2026-11-23

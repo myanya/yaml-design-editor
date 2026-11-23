@@ -1,6 +1,6 @@
 id: UX-341
 title: 基本設計の論理型への集約で、項目固有の制約と組込み型の性質が落ちる
-status: discussing
+status: resolved
 kind: bug
 origin_on: 2026-11-16
 origin: エンティティ定義書の再調査。作業コピーで文字数制約を狭め、生成入力と設計書を比較
@@ -18,3 +18,7 @@ resolutions:
   - date: 2026-11-21
     kind: 一部
     note: "直っている。項目固有の制限と共通型を分けて保持する（タイトル 40・コメント本文 55・TYP-text の複数行。TodosEntityFoundationTest「項目固有の制限と共通型を分けて保持し…」「導出記録は明記と継承を区別し…」）。メモの「引き続き確認」の 3 点（側面の間の食い違い・名前付き object の利用箇所での狭め方・複数の参照先）にもテストがある（TodosDesignTargetsTest・TodosFieldCorrectionsTest・TodosDesignContractTest。テストの名前と中身を読んだだけ）。残りはオーナーのレビュー"
+  - date: 2026-11-23
+    kind: 解決
+    note: "オーナーのレビューで問題なし（2026-11-23。個票の「項目」の文字数・形式・選択肢で、項目固有の制限と共通型の値を確認）"
+closed_on: 2026-11-23
