@@ -1,7 +1,7 @@
 id: KW-view-document.sections
 key: "sections"
 context: CTX-view-document
-order: 3
+order: 4
 status: stable
 forms:
   - value: "区画の配列"

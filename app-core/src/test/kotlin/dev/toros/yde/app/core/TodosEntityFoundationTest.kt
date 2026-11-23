@@ -77,6 +77,44 @@ class TodosEntityFoundationTest {
     }
 
     @Test
+    fun `エンティティの個票は 概要と レビュー用の表を そのエンティティを根にして重ねる`() {
+        val ws = Workspace.open(root)
+        val catalog = Views.load(ws.root, ws.schemas)
+        assertEquals(emptyList(), catalog.errors)
+        val entities = list(doc(root, "design/basic/final/entities.yaml"), "entities")
+        for (entity in entities) {
+            val id = entity["id"].toString()
+            // 当たるのは確定項目のエンティティ（ENT-*）で、根は entities.yaml の中のその要素
+            val (sheet, occurrence) = assertNotNull(catalog.elementViewFor(id, ws.index.occurrences(id)), id)
+            assertEquals("entity-definition-sheet", sheet.id)
+            assertEquals("design/basic/final/entities.yaml", occurrence.document.value)
+            val sections = Views.resolveDocument(sheet, occurrence.document, ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = catalog, at = occurrence.path)
+            assertEquals(listOf("概要", "項目", "入れ子の項目", "操作と、書く項目", "項目 × 操作"), sections.map { it.section.label })
+            sections.forEach { assertEquals(null, it.reason, "$id ${it.section.label}") }
+            // 表はどれも、このエンティティの id を受け取る値にして解く
+            sections.drop(1).forEach { assertEquals(mapOf<String, Any?>("entity" to id), it.gridParams, it.section.label) }
+            val items = list(entity, "items")
+            assertEquals(items.map { it["id"] }, assertNotNull(sections[1].gridRows).map { it.id }, "項目は確定項目の順")
+            assertEquals(list(entity, "operations").map { it["id"] }, assertNotNull(sections[3].gridRows).map { it.id })
+            assertEquals(items.map { it["id"] }, assertNotNull(sections[4].gridRows).map { it.id })
+        }
+        // レビュー用の表は、値を読みやすい言葉に直すだけ（型は名前・必須は ●・書く項目は名称）
+        val title = rows(ws, "entity-definition-review-items", "ENT-todo").single { it.id == "FLD-todo.title" }
+        assertEquals("一行の文", value(title, "型"))
+        assertEquals("●", value(title, "必須"))
+        assertEquals("100 文字まで", value(title, "文字数"))
+        val tags = rows(ws, "entity-definition-review-items", "ENT-todo").single { it.id == "FLD-todo.tags" }
+        assertEquals("タグ参照 の並び", value(tags, "型"))
+        assertEquals(listOf("タグ"), value(tags, "参照先"))
+        val comment = rows(ws, "entity-definition-review-operations", "ENT-todo").single { it.id == "OPS-todo.add-todo-comment" }
+        assertEquals("更新", value(comment, "作成・更新"))
+        assertEquals(setOf("コメント一覧", "更新日"), (value(comment, "書く項目") as List<*>).toSet())
+        assertEquals(listOf("コメント一覧", "コメント一覧"), rows(ws, "entity-definition-review-nested", "ENT-todo").take(2).map { value(it, "親の項目") })
+        // 文書ビューとしては entities.yaml に当たらない（編集画面のビューのタブには出ない）
+        assertEquals(null, catalog.docViewFor("design/basic/final/entities.yaml", "basic-entity-list")?.takeIf { it.id == "entity-definition-sheet" })
+    }
+
+    @Test
     fun `全項目の基底と C U 表は生成原本と一致し 書込の無い項目も残る`() {
         val ws = Workspace.open(root)
         val entities = list(doc(root, "design/basic/final/entities.yaml"), "entities")

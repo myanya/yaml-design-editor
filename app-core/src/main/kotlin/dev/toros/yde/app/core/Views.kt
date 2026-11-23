@@ -147,6 +147,15 @@ object Views {
         /** 文書に当たる文書ビューのすべて（定義ファイル名順。画面のビューのタブで選ぶ。先頭が docViewFor と同じ既定）。 */
         fun docViewsFor(relPath: String, schemaId: String?): List<DocViewDef> =
             docViews.filter { it.appliesTo(relPath, schemaId) }
+
+        /** ID の要素（書かれた文書の相対パスとスキーマ）の個票に当たる文書ビュー（`idPattern` を書いたもの。定義ファイル名順の先頭）。 */
+        fun elementViewFor(id: String, relPath: String, schemaId: String?): DocViewDef? =
+            docViews.firstOrNull { it.appliesToElement(id, relPath, schemaId) }
+
+        /** ID の要素の個票に当たる文書ビューと、根にする出現（定義した側の出現を優先し、同じなら索引の順）。当たるビューが無ければ null。 */
+        fun elementViewFor(id: String, occurrences: List<IdEntry>): Pair<DocViewDef, IdEntry>? =
+            occurrences.sortedBy { if (it.role == dev.toros.yde.semantic.schema.EntityRole.DEFINING) 0 else 1 }
+                .firstNotNullOfOrNull { occ -> elementViewFor(id, occ.document.value, occ.schemaId)?.let { it to occ } }
     }
 
     /**
@@ -303,6 +312,8 @@ object Views {
         loader: (DocumentId) -> YNode?,
         schemaFor: (DocumentId) -> SchemaDef? = { null },
         catalog: LoadResult? = null,
+        /** 根にする要素の場所（要素に当てるビュー＝`idPattern`。空なら文書のルート）。 */
+        at: YPath = emptyList(),
     ): List<DocSectionResolved> {
         val trees = mutableMapOf<DocumentId, YNode?>()
         fun treeOf(d: DocumentId): YNode? = trees.getOrPut(d) { loader(d) }
@@ -310,6 +321,7 @@ object Views {
             view, document, index.entries, index.refs, index.graph, localIds, { it.value }, ::treeOf,
             gridDef = { id -> catalog?.view(id) },
             gridRows = { grid, params -> resolve(grid, index, ::treeOf, schemaFor, params) },
+            at = at,
         )
     }
 

@@ -1,7 +1,7 @@
 id: KW-view-document.attachments
 key: "attachments"
 context: CTX-view-document
-order: 4
+order: 5
 status: stable
 forms:
   - value: "{label, at, backlinks} の配列"

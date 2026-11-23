@@ -144,4 +144,38 @@ class CompositeDocViewTest {
         assertEquals(listOf("物理名", "テーブルID"), VirtualViews.selectColumns(gridDef, listOf("物理名", "なし", "テーブルID")).columns.map { it.label })
         assertEquals(gridDef, VirtualViews.selectColumns(gridDef, emptyList()))
     }
+
+    @Test
+    fun `要素に当てるビューは その要素を根にして区画のパスと受け取る値を読む`() {
+        val sheet = VirtualDocViewDef(
+            id = "sheet", name = "エンティティの個票", schemaId = "biz", idPattern = "ENT-*",
+            sections = listOf(
+                VirtualDocSection(label = "概要", fieldsPath = emptyList(), fieldsInclude = listOf("name", "meaning")),
+                VirtualDocSection(label = "カラム", grid = VirtualDocGrid("columns", mapOf("table" to listOf<Any>("id")))),
+                VirtualDocSection(label = "物理", fieldsPath = emptyList(), fieldsIn = DerivationSelector(schemaId = "phys")),
+            ),
+            source = DocumentId("_views/sheet.yaml"),
+        )
+        // 当て先は要素（ID の形と、書かれた文書）。文書そのものには当たらない
+        assertTrue(sheet.appliesToElement("ENT-1", business.value, "biz"))
+        assertTrue(!sheet.appliesToElement("X-1", business.value, "biz"), "ID の形が合わない")
+        assertTrue(!sheet.appliesToElement("ENT-1", physical.value, "phys"), "schemaId は要素が書かれた文書の絞り込み")
+        assertTrue(!sheet.appliesTo(business.value, "biz"), "文書のビューのタブには出さない")
+
+        val received = mutableListOf<Triple<String, List<String>, Map<String, Any?>>>()
+        val resolved = VirtualViews.resolveDocument(
+            sheet, business, ids, emptyList(), graphOf(), localIds = null, rel = { it.value }, tree = { trees[it.value] },
+            gridDef = { id -> gridDef.takeIf { it.id == id } },
+            gridRows = { def, params -> received += Triple(def.id, def.columns.map { it.label }, params); emptyList() },
+            at = listOf("entities", 0),
+        )
+        // 受け取る値は、文書のルートではなく要素の id から読む
+        assertEquals(mapOf<String, Any?>("table" to "ENT-1"), received.single().third)
+        assertNull(resolved[1].reason)
+        // 同じ ID の別の出現も、要素の ID から引く
+        assertEquals(physical, assertNotNull(resolved[2].occurrence, resolved[2].reason).document)
+        // 根を渡さなければ、文書のルート（id が無い）から読もうとして理由つきで解決しない
+        val atRoot = resolve(sheet, business)
+        assertTrue("id" in assertNotNull(atRoot[1].reason), atRoot[1].reason)
+    }
 }

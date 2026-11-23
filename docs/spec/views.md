@@ -254,6 +254,7 @@ cells の columns。
 |---|---|---|---|---|
 | `match` |  | glob の文字列 |  | このビューを当てる文書。schemaId と両方書くと、両方に合う文書です。 |
 | `schemaId` |  | スキーマ ID |  | このスキーマの文書に当てます。 |
+| `idPattern` |  | ID の形（glob の文字列。例 ENT-*） |  | 文書ではなく、この形の ID を持つ要素（エンティティ）の個票に当てます。区画のパス（fields.path・grid.params の path）は、その要素を根として読みます。match と schemaId は、要素が書かれた文書の絞り込みになります。attachments と、拡張の種類の区画（flow・chart など）は一緒に書けません。 |
 | `sections` |  | 区画の配列 |  | 区画。必ず書きます。1 つの区画は fields・backlinks・grid（と、あとから足せる種類の区画）のどれか 1 つです。 |
 | `attachments` |  | {label, at, backlinks} の配列 |  | at の形に合う要素のフォームの中に、その要素の ID への参照元の表を差し込みます。 |
 

@@ -2,11 +2,14 @@ id: entity-definition
 name: エンティティ定義書
 kind: dashboard
 description: >-
-  確定項目一覧の同じ値を見せる。「レビュー」の区画は、人が中身を読むための列だけ（型は名前・必須は ●・参照先と書く項目は名称）。
+  確定項目一覧の同じ値を見せる。「エンティティ一覧」の ID から、1 エンティティを 1 枚で読む個票（entity-definition-sheet）へ進む。
+  「レビュー」の区画は、人が中身を読むための列だけ（型は名前・必須は ●・参照先と書く項目は名称）。
   「確認用」の区画は、経路・属性の状態・根拠・導出元まで出す。CRUD は operations.writes から表示する。
 inputs:
   - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, default: ENT-todo }
 sections:
+  # 一覧の ID を押すと、そのエンティティの個票（entity-definition-sheet＝概要・項目・入れ子の項目・操作・項目 × 操作を 1 枚で）が開く
+  - { id: list, label: エンティティ一覧, group: レビュー, view: entity-definition-list }
   - { id: review-items, label: 項目, group: レビュー, view: entity-definition-review-items }
   - { id: review-nested, label: 入れ子の項目, group: レビュー, view: entity-definition-review-nested }
   - { id: review-operations, label: 操作と書く項目, group: レビュー, view: entity-definition-review-operations }

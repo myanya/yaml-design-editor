@@ -307,6 +307,13 @@ class AppState(
     }
 
     /**
+     * ID の要素の個票に当たる文書ビュー（`idPattern` を書いたもの）と、根にする出現。無ければ null（個票は項目のフォームを出す）。
+     * 定義も出現も未保存の編集を見る。
+     */
+    fun elementViewFor(id: String): Pair<DocViewDef, IdEntry>? =
+        viewCatalog()?.elementViewFor(id, overlayIndex().occurrences(id))
+
+    /**
      * 未保存編集を重ねたオーバーレイ索引（architecture/index-references.md「索引の二層」）。UI 層の検証・カバレッジ・ビュー行集合・
      * 参照解決はディスク索引（index）ではなく**こちら**を読む＝「見たままの状態で判定する」。
      * indexVersion / editVersion（Compose 状態）を読むため、コンポジション中の呼び出しは自動で購読される。

@@ -1,0 +1,35 @@
+# エンティティの一覧。ID を押すと、そのエンティティの個票（entity-definition-sheet）が開く
+id: entity-definition-list
+name: エンティティ定義書（一覧）
+description: 確定項目一覧のエンティティを並べる。ID から個票へ進む
+rows:
+  idPattern: "ENT-*"
+  schemaIds: [basic-entity-list]
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 名称, path: label }
+  - label: 区分
+    schemaId: basic-entity-list
+    value: { via: entityClass, path: label }
+  - label: 親エンティティ
+    schemaId: basic-entity-list
+    value: { via: parent, path: label }
+  - label: 項目の数
+    value:
+      count:
+        all:
+          match:
+            - node: { id: "ENT-*" }
+            - edge: { contains: true }
+            - node: { id: "FLD-*", bind: f }
+          of: f
+  - label: 操作の数
+    value:
+      count:
+        all:
+          match:
+            - node: { id: "ENT-*" }
+            - edge: { contains: true }
+            - node: { id: "OPS-*", bind: o }
+          of: o
+  - { label: 説明, path: description }

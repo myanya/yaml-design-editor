@@ -103,19 +103,39 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
     }
     // 文書ビュー（R14-01）: view <workspace> <view-id> [file] で対象文書を解決する
     loaded.docView(viewId)?.let { dv ->
-        val fileArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }?.replace('\\', '/')
-        val candidates = ws.files.map { ws.relPath(it) }
-            .filter { dv.appliesTo(it, ws.schemaFor(ws.resolve(it))?.id) }
-            .sorted()
-        val rel = fileArg ?: candidates.singleOrNull() ?: return asData(
-            linkedMapOf(
-                "view" to dv.id,
-                "kind" to "document",
-                "files" to candidates,
-                "hint" to "view <workspace> ${dv.id} <file> で対象文書を指定してください",
+        val targetArg = rest.getOrNull(2)?.takeIf { !it.startsWith("--") }
+        // 要素に当てるビュー（idPattern）: view <workspace> <view-id> <ID> で、その ID の要素を根にして解決する
+        var at: dev.toros.yde.yaml.model.YPath = emptyList()
+        var elementId: String? = null
+        val rel = if (dv.idPattern != null) {
+            fun targetOf(id: String) = loaded.elementViewFor(id, ws.index.occurrences(id))?.takeIf { it.first.id == dv.id }?.second
+            val candidates = ws.index.entries.keys.filter { targetOf(it) != null }.sorted()
+            val id = targetArg ?: candidates.singleOrNull() ?: return asData(
+                linkedMapOf(
+                    "view" to dv.id,
+                    "kind" to "document",
+                    "ids" to candidates,
+                    "hint" to "view <workspace> ${dv.id} <ID> で対象の要素を指定してください",
+                )
             )
-        )
-        val sections = Views.resolveDocument(dv, DocumentId(rel), ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = loaded)
+            val occurrence = targetOf(id) ?: error("ID「$id」の要素に、文書ビュー「${dv.id}」は当たりません（idPattern: ${dv.idPattern}）")
+            at = occurrence.path
+            elementId = id
+            occurrence.document.value
+        } else {
+            val candidates = ws.files.map { ws.relPath(it) }
+                .filter { dv.appliesTo(it, ws.schemaFor(ws.resolve(it))?.id) }
+                .sorted()
+            targetArg?.replace('\\', '/') ?: candidates.singleOrNull() ?: return asData(
+                linkedMapOf(
+                    "view" to dv.id,
+                    "kind" to "document",
+                    "files" to candidates,
+                    "hint" to "view <workspace> ${dv.id} <file> で対象文書を指定してください",
+                )
+            )
+        }
+        val sections = Views.resolveDocument(dv, DocumentId(rel), ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = loaded, at = at)
         val attachments = Views.resolveAttachments(dv, DocumentId(rel), ws.index, loader = ws::treeOf)
         // 被参照行 → YAML 構造（セクション・アタッチ共用）
         fun rowMaps(rows: List<DocBacklinkRow>?, def: DocBacklinksDef?): List<Map<String, Any?>>? =
@@ -143,6 +163,9 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                 "kind" to "document",
                 "name" to dv.name,
                 "file" to rel,
+                // 要素に当てるビュー: 根にした要素の ID と場所
+                "id" to elementId,
+                "at" to at.takeIf { it.isNotEmpty() }?.pretty(),
                 "sections" to sections.map { resolved ->
                     val section = resolved.section
                     linkedMapOf<String, Any?>(

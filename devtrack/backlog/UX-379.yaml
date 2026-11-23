@@ -1,0 +1,15 @@
+id: UX-379
+title: CLI の view は、文字の配列のセルを「（配列 n 件）」と出す（画面は「, 」でつないで中身を出す）
+status: todo
+kind: usability
+origin_on: 2026-11-23
+origin: エンティティ定義書のレビュー用の表（UX-378）を、CLI の view で確かめたとき
+memo: |-
+  値の式の列が文字の配列を返すとき（選択肢の名前の並び・参照先の名称・書く項目の名称など）、画面の表は要素を「, 」でつないで出す（ui/view/GridWidths.kt の computedCellText。UX-144）。CLI の view とエージェントの読み出しは Views.cellText のままなので、「（配列 5 件）」としか出ず、中身は来歴（derivation.inputs）を見ないと分からない。
+  画面と CLI で同じ表の見え方が違い、CLI だけで中身を確かめられない。
+  当たり: 文字の配列をつなぐ処理を Views.cellText の側（画面と CLI の共通の所）へ寄せる。オブジェクトの配列は「（配列 n 件）」のままでよい。
+features:
+  - C-07
+related:
+  - UX-144
+  - UX-378

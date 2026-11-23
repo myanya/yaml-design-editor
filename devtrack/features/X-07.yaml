@@ -1,5 +1,5 @@
 id: X-07
-title: '文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・複合文書ビュー〔別の側面の区画 `fields.in`・表の埋め込み `grid`〕・区画は変換のひな型で評価）'
+title: '文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・複合文書ビュー〔別の側面の区画 `fields.in`・表の埋め込み `grid`〕・個票に当てる `idPattern`・区画は変換のひな型で評価）'
 implementation:
 - path: core/Views.kt
   detail: '`resolveDocument`'
@@ -10,10 +10,15 @@ implementation:
 - path: ui/form/FormDocView.kt
   detail: '`DocViewSections`・`OccurrenceSection`・`GridSection`'
   module: desktop
+- path: ui/graph/IdCrossView.kt
+  detail: '`ElementSheet`（個票に当てるビュー）'
+  module: desktop
 tests:
 - name: ViewsTest
 - name: CompositeDocViewTest
 - name: CompositeDocViewDefinitionsTest
+- name: ElementSheetUiTest
+  kind: ui
 design:
 - label: views
   link: architecture/views.md
@@ -23,3 +28,5 @@ manual:
   heading: 文書ビュー
 - link: manual/views.md
   heading: 複合文書ビュー
+- link: manual/views.md
+  heading: 個票に当てる文書ビュー

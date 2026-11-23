@@ -333,13 +333,23 @@ data class VirtualDocViewDef(
     val sections: List<VirtualDocSection>,
     val attachments: List<VirtualDocAttachment> = emptyList(),
     override val source: DocumentId,
+    /**
+     * 当てる要素の ID の形（`idPattern`）。書くと、文書ではなく、その形の ID を持つ要素（エンティティ）の個票に当たる。
+     * 区画のパスと受け取る値は、その要素を根として読む。match / schemaId は、要素が書かれた文書の絞り込みになる。
+     */
+    val idPattern: String? = null,
 ) : VirtualViewDefinition {
     private val regex: Regex? by lazy { match?.let { runCatching { globToRegex(it) }.getOrNull() } }
 
-    /** ワークスペース相対パス（区切りは '/'）の文書にこのビューを適用するか。 */
-    fun appliesTo(relPath: String, schemaId: String?): Boolean =
-        (match == null || regex?.matches(relPath) == true) &&
-            (this.schemaId == null || this.schemaId == schemaId)
+    private fun documentMatches(relPath: String, schemaId: String?): Boolean =
+        (match == null || regex?.matches(relPath) == true) && (this.schemaId == null || this.schemaId == schemaId)
+
+    /** ワークスペース相対パス（区切りは '/'）の文書にこのビューを適用するか。要素に当てるビュー（idPattern）は文書には当たらない。 */
+    fun appliesTo(relPath: String, schemaId: String?): Boolean = idPattern == null && documentMatches(relPath, schemaId)
+
+    /** ID の要素（書かれた文書の相対パスとスキーマ）の個票に、このビューを適用するか。 */
+    fun appliesToElement(id: String, relPath: String, schemaId: String?): Boolean =
+        idPattern != null && idMatchesPattern(id, idPattern) && documentMatches(relPath, schemaId)
 }
 
 // ---------------------------------------------------------------- 解決結果（読み出しモデル）
@@ -1104,6 +1114,8 @@ object VirtualViews {
      *   被参照は refs 基準＝入力索引の状態。行（文書内ID）だけが編集中ツリーへ追随する
      * - gridDef / gridRows: 表の定義の引き方（ビュー ID → グリッドかクロス集計）と、列を選んだ定義を受け取る値で解いた行。
      *   表を知らない呼び出し側は省く＝表の区画は理由つきで解決しない。列の選別（`grid.columns`）はここで定義に当ててから解く（selectColumns）
+     * - at: 根にする要素の場所（要素に当てるビュー＝`idPattern`。文書の中のパス）。空なら文書のルート。
+     *   区画のパス・受け取る値・被参照の行（その要素と、その中の ID）を、この要素を根として読む
      */
     fun resolveDocument(
         view: VirtualDocViewDef,
@@ -1116,8 +1128,9 @@ object VirtualViews {
         tree: (DocumentId) -> YNode?,
         gridDef: (String) -> VirtualGridDef? = { null },
         gridRows: (VirtualGridDef, Map<String, Any?>) -> List<VirtualRow> = { _, _ -> emptyList() },
+        at: YPath = emptyList(),
     ): List<VirtualDocSectionResolved> {
-        val resolver = DocResolver(document, ids, refs, graph, localIds, rel, tree)
+        val resolver = DocResolver(document, ids, refs, graph, localIds, rel, tree, at)
         return view.sections.map { section ->
             section.backlinks?.let { return@map VirtualDocSectionResolved(section, resolver.rowsFor(it)) }
             if (section.fieldsIn != null) return@map resolver.occurrenceSection(section)
@@ -1159,18 +1172,25 @@ object VirtualViews {
         localIds: List<ScannedId>?,
         private val rel: (DocumentId) -> String,
         private val tree: (DocumentId) -> YNode?,
+        /** 根にする要素の場所（空＝文書のルート）。 */
+        private val at: YPath = emptyList(),
     ) {
         private val trees = mutableMapOf<DocumentId, YNode?>()
-        private val docIds: List<ScannedId> = localIds ?: ids.values.flatten().filter { it.document == document }
+        // 根の要素と、その中に書かれた ID（文書のルートが根なら、文書の全部の ID）
+        private val docIds: List<ScannedId> = (localIds ?: ids.values.flatten().filter { it.document == document })
+            .filter { it.path.size >= at.size && it.path.subList(0, at.size) == at }
 
         private fun cachedTree(d: DocumentId): YNode? = trees.getOrPut(d) { tree(d) }
 
-        /** 開いた文書のルート要素の ID（文書ルートに書かれた ID。無ければ null）。 */
-        private val rootId: String? = docIds.firstOrNull { it.path.isEmpty() }?.id
+        /** 根の要素（文書のルートか、at の要素）。 */
+        private fun rootNode(): YNode? = cachedTree(document)?.let { getAt(it, at) }
 
-        /** 変換の「いまの場所」＝開いた文書のルート。 */
+        /** 根の要素の ID（文書ルートか at の要素に書かれた ID。無ければ null）。 */
+        private val rootId: String? = docIds.firstOrNull { it.path == at }?.id
+
+        /** 変換の「いまの場所」＝根の要素。 */
         private val here: SemanticTransform.TemplatePlace?
-            get() = cachedTree(document)?.let { SemanticTransform.TemplatePlace(it, document, emptyList()) }
+            get() = rootNode()?.let { SemanticTransform.TemplatePlace(it, document, at) }
 
         /**
          * `fields.in` の区画: ルートの ID の出現のうち、選び方（schemaId / fileGlob）に合うものを束縛 `self` にし、
@@ -1212,7 +1232,7 @@ object VirtualViews {
             gridDef: (String) -> VirtualGridDef?,
             gridRows: (VirtualGridDef, Map<String, Any?>) -> List<VirtualRow>,
         ): VirtualDocSectionResolved {
-            val root = cachedTree(document) ?: return VirtualDocSectionResolved(section, reason = "文書を読めません")
+            val root = rootNode() ?: return VirtualDocSectionResolved(section, reason = "文書を読めません")
             val params = LinkedHashMap<String, Any?>()
             for ((name, path) in grid.params) {
                 val value = scalarText(getAt(root, path))?.takeIf { it.isNotBlank() }

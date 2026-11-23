@@ -72,7 +72,11 @@ internal fun SchemaRootForm(
  * backlinks セクションは読み取り専用の被参照表を出す——ビュー専用の書込経路は作らない（architecture/views.md「ビュー機構」）。
  */
 @Composable
-internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>) {
+internal fun DocViewSections(
+    ctx: FormCtx, view: DocViewDef, root: YNode.Map, localIds: List<IdEntry>,
+    /** 根にする要素の場所（要素に当てるビュー＝idPattern。個票が渡す）。空なら文書のルート。区画のパスはここからの相対 */
+    at: YPath = emptyList(),
+) {
     val state = ctx.state
     val doc = ctx.doc
     val ws = state.workspace
@@ -80,25 +84,27 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
     val catalog = remember(ws, state.indexVersion) { ws?.let { state.viewCatalog() } }
     // 行（文書内ID）は未保存編集を反映（localIds）、被参照は索引＝保存済み状態基準（SidePanel と同じ）。
     // 表の区画は未保存の編集にも追随する（editVersion）
-    val resolved = remember(doc, doc.version, state.indexVersion, state.editVersion, view, catalog) {
+    val resolved = remember(doc, doc.version, state.indexVersion, state.editVersion, view, catalog, at) {
         if (ws == null) emptyList() else Views.resolveDocument(
             view, state.documentOf(doc.file), state.overlayIndex(), localIds,
-            loader = state.unsavedFirstTree(), schemaFor = state::schemaFor, catalog = catalog,
+            loader = state.unsavedFirstTree(), schemaFor = state::schemaFor, catalog = catalog, at = at,
         )
     }
     resolved.forEachIndexed { i, sectionResolved ->
         val section = sectionResolved.section
-        FormAnchor(if (section.isLocalFields) section.fieldsPath!! else listOf("@view", i)) { Column(Modifier.fillMaxWidth()) {
+        FormAnchor(if (section.isLocalFields) at + section.fieldsPath!! else listOf("@view", i)) { Column(Modifier.fillMaxWidth()) {
             if (i > 0) Spacer(Modifier.height(12.dp))
             section.label?.let {
                 Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)
                 Spacer(Modifier.height(4.dp))
             }
-            val fieldsPath = section.fieldsPath
+            // 区画のパスは根の要素（at）からの相対。フォームへは文書の中の場所で渡す
+            val fieldsPath = section.fieldsPath?.let { at + it }
             if (section.fieldsIn != null) {
                 OccurrenceSection(state, sectionResolved)
             } else if (section.grid != null) {
-                GridSection(state, sectionResolved)
+                // 個票（要素が根）では、表の行を内側で送らずに全部見せる
+                GridSection(state, sectionResolved, allRows = at.isNotEmpty())
             } else if (fieldsPath != null) {
                 val include = section.fieldsInclude.ifEmpty { null }
                 val exclude = section.fieldsExclude.toSet()
@@ -113,8 +119,9 @@ internal fun DocViewSections(ctx: FormCtx, view: DocViewDef, root: YNode.Map, lo
                             "パス「${fieldsPath.pretty()}」は文書内に存在しません",
                             fontSize = 11.sp, color = Palette.WarnOrange,
                         )
-                        // 選別指定つきの object パスは、そのオブジェクトの子フィールドを直接（選別して）描画する
-                        (include != null || exclude.isNotEmpty()) &&
+                        // 選別指定つきの object パスは、そのオブジェクトの子フィールドを直接（選別して）描画する。
+                        // 根の要素そのもの（個票の `fields: {}`）も、要素の子フィールドを並べる
+                        (include != null || exclude.isNotEmpty() || section.fieldsPath.isNullOrEmpty()) &&
                             field?.type == FieldType.OBJECT && node is YNode.Map ->
                             ObjectFields(ctx, field.fields, node, fieldsPath, include, exclude)
                         field != null -> FieldRow(ctx, field, slot, fieldsPath)
@@ -206,7 +213,7 @@ private fun OccurrenceSection(state: AppState, resolved: DocSectionResolved) {
  * （セルの編集は表の経路＝原本の木の直接編集）。表は遅延描画でフォームの縦スクロールの中にあるので、行数に応じた高さを与える。
  */
 @Composable
-private fun GridSection(state: AppState, resolved: DocSectionResolved) {
+private fun GridSection(state: AppState, resolved: DocSectionResolved, allRows: Boolean = false) {
     val grid = resolved.section.grid ?: return
     val rows = resolved.gridRows
     val view = resolved.gridView
@@ -220,7 +227,7 @@ private fun GridSection(state: AppState, resolved: DocSectionResolved) {
         fontSize = 10.sp, color = Palette.SubText,
     )
     Spacer(Modifier.height(4.dp))
-    val height = (40 + rows.size.coerceIn(1, 12) * 46).dp
+    val height = (40 + rows.size.coerceIn(1, if (allRows) 60 else 12) * 46).dp
     Box(Modifier.fillMaxWidth().height(height).border(1.dp, Palette.Border, PanelShape)) {
         LocalFormSlots.current.embeddedGrid(state, view, rows)
     }

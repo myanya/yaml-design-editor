@@ -1,0 +1,8 @@
+id: KW-view-document.idPattern
+key: "idPattern"
+context: CTX-view-document
+order: 3
+status: stable
+forms:
+  - value: "ID の形（glob の文字列。例 ENT-*）"
+    meaning: "文書ではなく、この形の ID を持つ要素（エンティティ）の個票に当てます。区画のパス（fields.path・grid.params の path）は、その要素を根として読みます。match と schemaId は、要素が書かれた文書の絞り込みになります。attachments と、拡張の種類の区画（flow・chart など）は一緒に書けません。"

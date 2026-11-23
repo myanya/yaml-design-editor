@@ -491,5 +491,31 @@ sections:
 
 リントは、`in` のスキーマがあること、選別キーがそのスキーマの ID を持つ要素にあること、`grid.view` が一意なグリッドかクロス集計であること、`params` の名前がその表の `params` に宣言されていること、`columns` の見出しがその表の列にあること、パスがこの文書のスキーマから解決できることを見ます。CLI `view <view-id> <file>` と `read_view` は、側面の区画には出現の文書と場所を、表の区画には受け取った値と行を返します。
 
+### 個票に当てる文書ビュー（`idPattern`）
+
+1 つのファイルに要素がいくつも並ぶとき（エンティティの一覧のように、要素 1 つが 1 件の対象になる文書）は、文書ではなく**要素の個票**に文書ビューを当てられます。
+`idPattern` に ID の形を書くと、ダッシュボードの一覧からその ID を押して開く個票（業務詳細）が、項目のツリーの代わりに、このビューの区画を上から重ねて出します。
+
+```yaml
+# samples/todos-sysdev/.yde/views/design/basic/review/entity-definition-sheet.yaml（エンティティの個票）
+id: entity-definition-sheet
+name: エンティティ定義書（個票）
+kind: document
+idPattern: "ENT-*"                 # この形の ID を持つ要素の個票に当てる
+schemaId: basic-entity-list        # 要素が書かれた文書の絞り込み（match も書ける。省くとどの文書の要素でも）
+sections:
+  - { label: 概要, fields: { include: [label, entityClass, description] } }          # 要素の項目の抜粋
+  - label: 項目
+    grid: { view: entity-definition-review-items, params: { entity: { path: id } } }   # 要素の id を受け取る値にした表
+```
+
+- 区画のパス（`fields.path`・`grid.params` の `path`）は、文書のルートではなく**その要素**からの相対です。`fields: {}` は要素の項目の全部です。
+- 書ける区画は `fields`・`backlinks`・`grid` です。`attachments` と、拡張の種類の区画（`flow`・`chart` など）は書けません。
+- このビューは文書には当たりません（編集画面のビューのタブには出ません）。当たるのは、ダッシュボードの個票だけです。台帳のエンティティページは、これまでどおり項目のフォームです。
+- 同じ ID が複数の文書に書かれているときは、定義した側の出現を根にします。当たるビューが複数あれば、定義ファイル名の順で最初のものです。
+- 表は読み取りの派生表示で、行は内側で送らずに全部出します。セルから原本へ進めるのは、ふつうの表と同じです。「原本を開く」で、その要素が書かれた文書へ移ります。
+- CLI は `view <workspace> <ビューID> <ID>` で、その ID の要素を根にした区画を返します（ID を省くと、当たる ID の一覧）。
+
+
 区画の解決は「区画から変換のひな型（写し・ビューの行）を組んで評価し、出どころで原本に結ぶ」形で、後の段階（開いた文書から線を辿った要素の区画・任意の木の射影）は同じ経路で足します（[ROADMAP「複合文書ビューと射影ビュー」](../ROADMAP.md)）。
 

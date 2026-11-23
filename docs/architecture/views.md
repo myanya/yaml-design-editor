@@ -65,6 +65,10 @@
 - **fields セクションは既存フォームへの委譲**: ルート全体は従来のルート描画、部分表示（`path`）は `Views.fieldAt` ＋ `slotAt` ＋ `FieldRow`。`include` / `exclude` は描画対象の選別で、編集経路・実効フィールド合成は変えない。
 - **backlinks セクションは編集不可の派生表示**: グリッドのバックリンク列と同じ解決規則。行＝文書内の ID（`idPattern` で絞る）。`columns` は参照元要素からの相対 YPath の値を表示専用で添える。
 - **要素単位アタッチ（`attachments`）**: `at` パターン（YPath ＋ `[*]`）に一致する要素の展開フォーム内に、その要素の ID への被参照表を差し込む。解決結果を `FormCtx.attachments` で運び、`ObjectFields` の末尾で描画する（全描画経路に効く。専用の分岐を作らない）。
+- **個票に当てる文書ビュー**: `idPattern`（`VirtualDocViewDef.idPattern`）を書いた文書ビューは、文書ではなく、その形の ID を持つ要素に当たる（`appliesToElement`。`appliesTo` は偽＝ビューのタブには出ない）。
+  解決は同じ `resolveDocument` に根の場所 `at` を渡すだけで、区画のパス・受け取る値・被参照の行を、その要素を根として読む（`DocResolver` の `rootNode`）。
+  画面は業務詳細（`EntityPage` の `business`）が `AppState.elementViewFor`（定義した側の出現を優先）で引き、`ElementSheet` が `DocViewSections` に `at` を渡して描く。区画の描き方は文書ビューと同じで、個票のための描画は足していない。
+  リントは、パスと選別キーを、スキーマの ID を持つ要素のどれかから解決できるかで見る（どの要素に当たるかは定義からは 1 つに決まらない）。
 - **複合文書ビュー（段階 1）**: 区画に `fields.in`（同じ ID の別の出現＝側面。`VirtualDocSection.fieldsIn`）と `grid`（受け取る値つきの表の埋め込み。`VirtualDocGrid`）を足した。解決は `VirtualViews.resolveDocument` の `DocResolver` が、区画から**変換のひな型**を組んで `SemanticTransform.build` で評価する: 側面は束縛 `self`（ルートの ID の出現を選び方で選ぶ）への写し `Template.Copy`、表は `Template.ViewRows`（行は呼び出し側の `gridRows` が受け取る値で解決）。結果は `VirtualDocSectionResolved` の `term`（組み立てた項）と `origins`（出どころ）で、側面の区画は出どころが原本 1 か所の部分木なので `occurrence`（出現の座標）をそのまま編集面にする。表の行は派生（出どころ無し）。解決できなければ `reason`。
   表の区画の `columns`（`VirtualDocGrid.columns`）は見せる列の見出しで、`VirtualViews.selectColumns` が定義に当ててから解く（解決の呼び出し側は `gridDef` で定義を引き、`gridRows` で列を選んだ定義を受け取る値で解く）。クロス集計と要素ごとに広げる列は選べない（読み込み時の点検）。
   画面（`DocViewSections`）は側面の区画を `OccurrenceSection`（出現の文書を `ensureDoc` で取り込み、エンティティページの側面カードと同じ `FormCtx`＋`Slot` の経路で編集）、表の区画を `GridSection`（`FormSlots.embeddedGrid`＝台帳のビュータブと同じ `ResolvedViewGrid`。遅延描画の表に行数で高さを与える）で描く。表の定義は呼び出し側が `catalog`（`Views.LoadResult`）で渡し、CLI `view`・`read_view`・画面が同じ `resolveDocument` を使う。骨子（`documentViewOutline`）では側面・表の区画は「関連情報」の 1 項目（`isLocalFields` が偽）。

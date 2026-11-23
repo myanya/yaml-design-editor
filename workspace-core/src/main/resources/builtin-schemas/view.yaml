@@ -409,6 +409,10 @@ root:
       label: 適用先スキーマ
       type: string
       description: "文書ビューのみ: このスキーマが適用される文書へ適用する"
+    - key: idPattern
+      label: 当てる要素の ID の形
+      type: string
+      description: "文書ビューのみ: 文書ではなく、この形の ID を持つ要素（エンティティ）の個票に当てる（例 ENT-*）。区画のパスと受け取る値は、その要素を根として読む。match / schemaId は、要素が書かれた文書の絞り込みになる"
     - key: sections
       label: セクションの定義
       type: array

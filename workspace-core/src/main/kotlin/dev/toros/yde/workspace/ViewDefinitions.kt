@@ -956,7 +956,12 @@ object ViewDefinitions {
         MATRIX_KEYS.firstOrNull { raw.containsKey(it) }?.let { error("$it は kind: matrix のビューでのみ使えます") }
         val match = raw["match"]?.toString()?.takeIf { it.isNotBlank() }
         val schemaId = raw["schemaId"]?.toString()?.takeIf { it.isNotBlank() }
-        if (match == null && schemaId == null) error("文書ビューには match（適用先glob）か schemaId が必要です")
+        // 要素に当てるビュー（個票に出す）: この形の ID を持つ要素を根にして区画を読む。match / schemaId は要素が書かれた文書の絞り込み
+        val idPattern = raw["idPattern"]?.toString()?.takeIf { it.isNotBlank() }
+        if (match == null && schemaId == null && idPattern == null) {
+            error("文書ビューには match（適用先glob）か schemaId か idPattern（当てる要素の ID の形）が必要です")
+        }
+        if (idPattern != null && raw.containsKey("attachments")) error("idPattern を書いた文書ビューに attachments は書けません（要素の個票に当てるビューは区画だけ）")
         match?.let { runCatching { globToRegex(it) }.getOrElse { e -> error("match が不正です: ${e.message}") } }
         val sectionsRaw = raw["sections"] as? List<*> ?: error("sections が必要です")
         require(sectionsRaw.isNotEmpty()) { "sections には1つ以上のセクションが必要です" }
@@ -1000,6 +1005,7 @@ object ViewDefinitions {
                 return@mapIndexed VirtualDocSection(label = label, grid = VirtualDocGrid(target, params, columns))
             }
             embeds.singleOrNull()?.let { (key, value) ->
+                if (idPattern != null) error("sections[$i].$key: idPattern を書いた文書ビューには書けません（要素の個票に当てるビューの区画は fields / backlinks / grid）")
                 val em = value as? Map<*, *> ?: error("sections[$i].$key はobjectである必要があります")
                 val kind = kinds.first { it.sectionKey == key }
                 // view を書かない形は、その場の定義（開いた文書から解決する。種類が読めなければ view だけを書ける）
@@ -1081,6 +1087,7 @@ object ViewDefinitions {
             sections = sections,
             attachments = attachments,
             source = source,
+            idPattern = idPattern,
         )
     }
 
@@ -1318,6 +1325,11 @@ object ViewDefinitions {
             val docSchema = v.schemaId?.let { sid ->
                 byId[sid] ?: run { report("適用先スキーマ「$sid」が見つかりません"); null }
             }
+            // パスと選別キーを解決する根。文書のビューはスキーマのルート。要素に当てるビュー（idPattern）は、スキーマの ID を持つ要素の
+            // どれか（どの要素に当たるかは ID の形で決まり、定義からは 1 つに決まらないので、どれかで解決できればよい）
+            val roots: List<FieldDef> = docSchema?.let { sc ->
+                if (v.idPattern != null) idElementsOf(sc).map { sc.tree.resolve(it) ?: it } else listOf(sc.tree.root)
+            }.orEmpty()
             v.sections.forEachIndexed { i, s ->
                 val where = s.label ?: "sections[${i + 1}]"
                 val fieldsPath = s.fieldsPath
@@ -1338,13 +1350,14 @@ object ViewDefinitions {
                 // 表の埋め込み: 受け取る値のパスが、この文書のスキーマから解決できること
                 s.grid?.let { grid ->
                     if (docSchema != null) grid.params.forEach { (name, path) ->
-                        if (staticFieldAt(docSchema, docSchema.tree.root, path) == null) {
+                        if (roots.none { staticFieldAt(docSchema, it, path) != null }) {
                             report("セクション「$where」の受け取る値「$name」のパス「${path.pretty()}」はスキーマ「${docSchema.id}」から解決できません")
                         }
                     }
                 }
                 if (fieldsPath != null && s.fieldsIn == null && docSchema != null) {
-                    val field = staticFieldAt(docSchema, docSchema.tree.root, fieldsPath)
+                    val fieldsAt = roots.mapNotNull { staticFieldAt(docSchema, it, fieldsPath) }
+                    val field = fieldsAt.firstOrNull()
                     if (fieldsPath.isNotEmpty() && field == null) {
                         report("セクション「$where」のパス「${fieldsPath.pretty()}」はスキーマ「${docSchema.id}」から解決できません")
                     } else if (s.fieldsDefinition != null && field != null) {
@@ -1362,9 +1375,9 @@ object ViewDefinitions {
                     // 選別キー（include / exclude）がスキーマの子フィールドに存在するか（R14-03）
                     val selection = s.fieldsInclude + s.fieldsExclude
                     if (selection.isNotEmpty() && field != null) {
-                        val resolvedField = docSchema.tree.resolve(field) ?: field
-                        if (resolvedField.type == FieldType.OBJECT) {
-                            val keys = staticChildren(docSchema, resolvedField).mapNotNull { it.key }.toSet()
+                        val objects = fieldsAt.map { docSchema.tree.resolve(it) ?: it }.filter { it.type == FieldType.OBJECT }
+                        if (objects.isNotEmpty()) {
+                            val keys = objects.flatMap { staticChildren(docSchema, it).mapNotNull { c -> c.key } }.toSet()
                             selection.filterNot { it in keys }.forEach {
                                 report("セクション「$where」の選別キー「$it」はスキーマにありません")
                             }

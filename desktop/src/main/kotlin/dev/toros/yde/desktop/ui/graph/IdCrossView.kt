@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import dev.toros.yde.app.core.AspectSection
 import dev.toros.yde.app.core.Aspects
 import dev.toros.yde.app.core.Views
+import dev.toros.yde.app.core.DocViewDef
 import dev.toros.yde.app.index.DocScanner
 import dev.toros.yde.app.index.IdEntry
 import dev.toros.yde.app.index.IdIndex
@@ -65,6 +67,7 @@ import dev.toros.yde.desktop.ui.common.RootSlot
 import dev.toros.yde.desktop.ui.common.slotAt
 import dev.toros.yde.desktop.ui.form.FormCtx
 import dev.toros.yde.desktop.ui.form.GenericEditor
+import dev.toros.yde.desktop.ui.form.DocViewSections
 import dev.toros.yde.desktop.ui.form.ObjectFields
 
 /**
@@ -220,6 +223,12 @@ internal fun EntityPage(state: AppState, id: String, business: Boolean = false, 
             // 骨格が差し込む欄（業務詳細の「流れの中の位置」など。ui.graph は ui.view を import しない）
             aside?.invoke()
 
+            // ---------------- 個票のビュー（要素に当てる文書ビュー。業務詳細だけ） ----------------
+            // 当たるビューがあれば、項目のツリーの代わりに、そのビューの区画を上から重ねて出す（architecture/views.md「文書ビュー」）
+            val sheet = if (business) remember(id, state.indexVersion, state.editVersion) { state.elementViewFor(id) } else null
+            if (sheet != null) {
+                ElementSheet(state, sheet.first, sheet.second)
+            } else
             // ---------------- 合成全体像（アスペクト見出しつき） ----------------
             if (composite != null && composite.sections.isNotEmpty()) {
                 if (!business) Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,6 +343,38 @@ private fun parentSummary(doc: OpenDocument, path: YPath): String? {
         if (p.isEmpty()) return null
         p = p.dropLast(1)
     }
+}
+
+/**
+ * 個票のビュー: 要素に当てる文書ビュー（`idPattern`）の区画を、その要素を根にして上から重ねる。
+ * 区画の描き方は文書ビューと同じ（DocViewSections。フォームの区画は既存の編集経路・表は読み取りの派生表示）。
+ */
+@Composable
+private fun ElementSheet(state: AppState, view: DocViewDef, entry: IdEntry) {
+    val doc = state.ensureDoc(entry.document)
+    doc.version
+    state.indexVersion
+    Row(Modifier.fillMaxWidth().testTag("element-sheet"), verticalAlignment = Alignment.CenterVertically) {
+        Text(view.name, fontSize = 11.sp, color = Palette.SubText, modifier = Modifier.weight(1f))
+        TextButton(onClick = { state.navigateToOccurrence(entry) }) { Text("原本を開く", fontSize = 11.sp) }
+    }
+    val root = doc.root as? YNode.Map
+    if (root == null) {
+        Text("YAML を解析できないため表示できません: ${doc.parseError ?: "不明なエラー"}", fontSize = 11.sp, color = Palette.ErrorRed)
+        return
+    }
+    if (getAt(root, entry.path) !is YNode.Map) {
+        Text("この要素が見つかりません（構造が変わった可能性があります）", fontSize = 11.sp, color = Palette.WarnOrange)
+        return
+    }
+    val localIds = remember(doc, doc.version) {
+        val documentId = IdIndex.documentIdOf(root, state.relPath(doc.file))
+        DocScanner.scan(root, state.documentOf(doc.file), doc.schema, documentId).first
+    }
+    val ctx = remember(doc, doc.version, state.indexVersion, state.readOnlyMode, doc.draftBroken) {
+        FormCtx(state, doc, localIds, baseDepth = entry.path.size)
+    }
+    DocViewSections(ctx, view, root, localIds, at = entry.path)
 }
 
 @Composable

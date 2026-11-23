@@ -59,6 +59,38 @@ class ViewDefinitionsTest {
     """.trimIndent()
 
     @Test
+    fun `要素に当てる文書ビューは idPattern だけで読め 文書には当たらず 区画は fields と backlinks と grid だけ`() {
+        val sheet = """
+            id: screen-sheet
+            kind: document
+            idPattern: "SCR-*"
+            sections:
+              - { label: 概要, fields: { include: [name] } }
+              - label: 画面の一覧
+                grid: { view: screen-list }
+        """.trimIndent()
+        val catalog = ViewDefinitions.load(listOf(DocumentId("_views/a-grid.yaml") to grid, DocumentId("_views/c-sheet.yaml") to sheet), schemas())
+        assertTrue(catalog.errors.none { "c-sheet" in it }, catalog.errors.toString())
+        val view = catalog.docViews.single { it.id == "screen-sheet" }
+        assertEquals("SCR-*", view.idPattern)
+        assertTrue(view.appliesToElement("SCR-1", "screens/list.yaml", "screen"))
+        assertEquals(null, catalog.docViewFor("screens/list.yaml", "screen"), "文書のビューのタブには出さない")
+        // 当て先が 1 つも無い・要素に当てるビューに書けない物
+        fun errorsOf(text: String) = ViewDefinitions.load(listOf(DocumentId("_views/x.yaml") to text.trimIndent()), schemas()).errors.joinToString("\n")
+        assertTrue("idPattern" in errorsOf("id: x\nkind: document\nsections:\n  - fields: {}"), "当て先の案内に idPattern も出す")
+        assertTrue("attachments は書けません" in errorsOf("""
+            id: x
+            kind: document
+            idPattern: "SCR-*"
+            sections:
+              - fields: {}
+            attachments:
+              - at: "items[*]"
+                backlinks: { relation: uses }
+        """))
+    }
+
+    @Test
     fun `グリッドと文書ビューを読み取り 定義ファイル名順に並べる`() {
         val catalog = ViewDefinitions.load(
             listOf(DocumentId("_views/a-grid.yaml") to grid, DocumentId("_views/b-doc.yaml") to document),
