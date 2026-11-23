@@ -158,6 +158,9 @@ build:
                           equals:
                             $copy: rows
                             $of: v
+                        # 並びの 1 件を番号で指す操作は、行が決まる所（詳細画面のその並びの表）にだけ出す
+                        - path: rowOf
+                          exists: false
                       operation:
                         $copy: id
                       label:
@@ -196,7 +199,7 @@ rules:
     build: いつも
   - id: first-screen
     when:
-      - path: params
+      - path: inputParams
         empty: false
     build:
       $format: '{id}/input'

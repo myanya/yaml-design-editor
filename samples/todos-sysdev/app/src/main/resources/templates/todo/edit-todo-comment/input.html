@@ -9,8 +9,7 @@
 <form class="form" method="post" th:action="${page.url(page.node('page.body[2].form').action)}" th:with="node=${page.node('page.body[2].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
 <div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[0].field')})}"></div>
 <div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[1].field')})}"></div>
-<div th:replace="~{fragments/business :: field(${page.node('page.body[2].form.body[2].field')})}"></div>
-<div th:replace="~{fragments/business :: actions(${page.node('page.body[2].form.body[3].actions')})}"></div>
+<div th:replace="~{fragments/business :: actions(${page.node('page.body[2].form.body[2].actions')})}"></div>
 </form>
 <nav><a th:href="${page.homeUrl()}">一覧へ戻る</a></nav>
 </main></body></html>

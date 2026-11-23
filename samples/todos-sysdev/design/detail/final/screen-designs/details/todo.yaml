@@ -80,6 +80,27 @@ screens:
                     - item: body
                       label: コメント本文
                       keepBreaks: true
+                  rowActions:
+                    - operation: edit-todo-comment
+                      label: コメントを編集する
+                      kind: link
+                      to: GET /todo/{id}/edit-todo-comment
+                      row:
+                        param: row
+                        item: seq
+                      from: todo
+                      emphasis: secondary
+                      shownWhen: いつも
+                    - operation: delete-todo-comment
+                      label: コメントを削除する
+                      kind: link
+                      to: GET /todo/{id}/delete-todo-comment/confirm
+                      row:
+                        param: row
+                        item: seq
+                      from: todo
+                      emphasis: secondary
+                      shownWhen: いつも
         - section:
             title: 状態の履歴
             body:
@@ -164,20 +185,6 @@ screens:
               label: TODOにコメントを追加する
               kind: link
               to: GET /todo/{id}/add-todo-comment
-              from: todo
-              emphasis: secondary
-              shownWhen: いつも
-            - operation: edit-todo-comment
-              label: コメントを編集する
-              kind: link
-              to: GET /todo/{id}/edit-todo-comment
-              from: todo
-              emphasis: secondary
-              shownWhen: いつも
-            - operation: delete-todo-comment
-              label: コメントを削除する
-              kind: link
-              to: GET /todo/{id}/delete-todo-comment
               from: todo
               emphasis: secondary
               shownWhen: いつも

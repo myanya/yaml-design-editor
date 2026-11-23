@@ -6,38 +6,19 @@ document:
   kind: operation
   target: todo
   starts:
-    - screen: todo-dashboard
-      place: 区画「期限超過」の行のボタン
-    - screen: todo-dashboard
-      place: 区画「すべてのTODO」の行のボタン
     - screen: todo
-      place: 画面のボタン
+      place: 表「コメント一覧」の行のボタン
   shownWhen: いつも
-  input:
-    screen: delete-todo-comment/input
-    request: GET /todo/{id}/delete-todo-comment
-    items:
-      - key: row
-        label: コメントの番号
-        type: int
-        base: int
-        description: コメント一覧の何番目か（0 から数えます）
-        required: true
-        min: 0.0
-        overrides:
-          min: 0.0
-        builtinType:
-          name: int
-          base: int
-          builtin: true
+  row:
+    key: row
+    label: コメントの番号
+    table: comments
+    tableLabel: コメント一覧
+    carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
   confirm:
     screen: delete-todo-comment/confirm
-    request: POST /todo/{id}/delete-todo-comment/confirm
-    shows:
-      - コメントの番号
-    back:
-      request: POST /todo/{id}/delete-todo-comment/back
-      to: delete-todo-comment/input
+    request: GET /todo/{id}/delete-todo-comment/confirm
+    shows: []
   execute:
     request: POST /todo/{id}/delete-todo-comment
     returns: 起点の画面（starts の画面。画面の ID で受け取る）
@@ -47,9 +28,7 @@ document:
         message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
     onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
   originalRoutes:
-    input: GET /todo/{id}/delete-todo-comment
-    confirm: POST /todo/{id}/delete-todo-comment/confirm
-    back: POST /todo/{id}/delete-todo-comment/back
+    confirm: GET /todo/{id}/delete-todo-comment/confirm
     execute: POST /todo/{id}/delete-todo-comment
   designId: DOC-screen-operations.delete-todo-comment
   designKind: screen-operations

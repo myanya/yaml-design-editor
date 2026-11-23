@@ -64,6 +64,9 @@ rules:
                                   $copy: .
                         original:
                           - $copy: .
+                        entities:
+                          $copy: values.model.entities
+                          $of: row
                 priority: individual
                 source:
                   id: action-specs
@@ -71,6 +74,7 @@ rules:
     with:
       - document
       - original
+      - entities
     build:
       $apply: action-result
       $with:
@@ -105,6 +109,25 @@ rules:
                   params:
                     $copy: inputs
                     $of: document
+                  # 人が入れる受け取る値: 並びの番号（行が運ぶ値）を除いたもの。画面の入力欄・確認の表示はこれで作る
+                  inputParams:
+                    $apply: input-params
+                    $with:
+                      inputs:
+                        $copy: inputs
+                        $of: document
+                      rowParam:
+                        $apply: contract-first
+                        $with:
+                          matches:
+                            $each: effects
+                            $of: document
+                            $build:
+                              $when:
+                                - path: row
+                                  exists: true
+                              $then:
+                                $copy: row.param
                   lifecycle:
                     $copy: state
                     $of: document
@@ -114,6 +137,97 @@ rules:
                   effects:
                     $copy: effects
                     $of: document
+                  # 並びの 1 件を番号で指す操作（効果に row を持つ）: どの並びの行を、どの受け取る値で指すか。
+                  # 画面はこの操作を、その並びの表の行のボタンにし、番号は行が運ぶ（人は入力しない）
+                  rowOf:
+                    $apply: contract-first
+                    $with:
+                      matches:
+                        $each: effects
+                        $of: document
+                        $bind: ef
+                        $build:
+                          $when:
+                            - path: row
+                              exists: true
+                          $then:
+                            field:
+                              $copy: field.key
+                            param:
+                              $copy: row.param
+                            schema:
+                              $copy: schema
+                            entity:
+                              $copy: entity
+                            # 並びの見出し（その項目の名称）
+                            label:
+                              $apply: contract-first
+                              $with:
+                                matches:
+                                  $each: .
+                                  $of: entities
+                                  $bind: en
+                                  $flatten: true
+                                  $build:
+                                    $each: aspects
+                                    $flatten: true
+                                    $build:
+                                      $each: fields
+                                      $build:
+                                        $when:
+                                          - of: en
+                                            path: id
+                                            equals:
+                                              $copy: entity
+                                              $of: ef
+                                          - path: key
+                                            equals:
+                                              $copy: field.key
+                                              $of: ef
+                                        $then:
+                                          $copy: label
+                            # 並びの要素の項目（対象の行を見せるのに使う）
+                            fields:
+                              $apply: contract-first
+                              $with:
+                                matches:
+                                  $each: .
+                                  $of: entities
+                                  $bind: en
+                                  $flatten: true
+                                  $build:
+                                    $each: aspects
+                                    $flatten: true
+                                    $build:
+                                      $each: fields
+                                      $build:
+                                        $when:
+                                          - of: en
+                                            path: id
+                                            equals:
+                                              $copy: entity
+                                              $of: ef
+                                          - path: key
+                                            equals:
+                                              $copy: field.key
+                                              $of: ef
+                                        $then:
+                                          $copy: item.fields
+                            # 番号を受け取る値の定義（名称など）
+                            item:
+                              $apply: contract-first
+                              $with:
+                                matches:
+                                  $each: inputs
+                                  $of: document
+                                  $build:
+                                    $when:
+                                      - path: key
+                                        equals:
+                                          $copy: row.param
+                                          $of: ef
+                                    $then:
+                                      $copy: .
                   target:
                     $copy: receiver
                     $of: document
@@ -139,6 +253,32 @@ rules:
                   id:
                     $copy: designId
                     $of: document
+  - id: input-params
+    with:
+      - inputs
+      - rowParam
+    when:
+      - of: rowParam
+        path: .
+        exists: true
+    build:
+      $each: .
+      $of: inputs
+      $build:
+        $when:
+          - path: key
+            notEquals:
+              $copy: .
+              $of: rowParam
+        $then:
+          $copy: .
+  - id: input-params
+    with:
+      - inputs
+      - rowParam
+    build:
+      $copy: .
+      $of: inputs
   - id: action-result
     with:
       - composed

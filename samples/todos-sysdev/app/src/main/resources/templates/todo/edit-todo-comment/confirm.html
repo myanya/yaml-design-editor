@@ -7,8 +7,9 @@
 <div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
 <div th:replace="~{fragments/business :: facts(${page.node('page.body[1].facts')})}"></div>
 <div th:replace="~{fragments/business :: facts(${page.node('page.body[2].facts')})}"></div>
-<form class="form" method="post" th:action="${page.url(page.node('page.body[3].form').action)}" th:with="node=${page.node('page.body[3].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
-<div th:replace="~{fragments/business :: actions(${page.node('page.body[3].form.body[0].actions')})}"></div>
+<div th:replace="~{fragments/business :: facts(${page.node('page.body[3].facts')})}"></div>
+<form class="form" method="post" th:action="${page.url(page.node('page.body[4].form').action)}" th:with="node=${page.node('page.body[4].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+<div th:replace="~{fragments/business :: actions(${page.node('page.body[4].form.body[0].actions')})}"></div>
 </form>
 <nav><a th:href="${page.homeUrl()}">一覧へ戻る</a></nav>
 </main></body></html>

@@ -86,7 +86,7 @@ build:
           screens:
             $concat:
               - $when:
-                  - path: params
+                  - path: inputParams
                     empty: false
                 $then:
                   - id:
@@ -130,11 +130,21 @@ build:
                                       $case:
                                         $copy: id
                                       $as: pascal
+                                # 並びの 1 件を番号で指す操作: 初期値は、番号の指す行（並び順 seq が一致する 1 件）から読む
+                                row:
+                                  $apply: row-key
                                 hidden:
-                                  - from
+                                  $concat:
+                                    # 並びの番号は行のボタンから受け取り、人は入力しない
+                                    - $when:
+                                        - path: rowOf
+                                          exists: true
+                                      $then:
+                                        - $copy: rowOf.param
+                                    - - from
                                 body:
                                   $concat:
-                                    - $each: params
+                                    - $each: inputParams
                                       $build:
                                         $when:
                                           - not:
@@ -177,8 +187,22 @@ build:
                                 title: 対象
                                 items:
                                   $apply: receiver-items
+                        # 並びの 1 件を番号で指す操作: 対象の行（番号の指す 1 件）の今の値を見せる
                         - $when:
-                            - path: params
+                            - path: rowOf
+                              exists: true
+                          $then:
+                            - facts:
+                                title:
+                                  $format: 対象の行（{rowOf.label}）
+                                of: row
+                                row:
+                                  $apply: row-key
+                                items:
+                                  $each: rowOf.fields
+                                  $apply: show
+                        - $when:
+                            - path: inputParams
                               empty: false
                           $then:
                             - $first:
@@ -190,8 +214,10 @@ build:
                                       title: 変わる項目
                                       kind: changes
                                       compareWith: 今の値（DB から読む）
+                                      row:
+                                        $apply: row-key
                                       items:
-                                        $each: params
+                                        $each: inputParams
                                         $build:
                                           $when:
                                             - not:
@@ -203,7 +229,7 @@ build:
                                     title: 入力した値
                                     of: form
                                     items:
-                                      $each: params
+                                      $each: inputParams
                                       $build:
                                         $when:
                                           - not:
@@ -247,7 +273,7 @@ build:
                                           kind: submit
                                           emphasis: primary
                                       - $when:
-                                          - path: params
+                                          - path: inputParams
                                             empty: false
                                         $then:
                                           - label: 入力へ戻る
@@ -259,7 +285,7 @@ build:
                                                   $apply: url
                                             emphasis: secondary
                                       - $when:
-                                          - path: params
+                                          - path: inputParams
                                             empty: true
                                         $then:
                                           - label: やめる
@@ -308,6 +334,17 @@ rules:
           $copy: subject
         a:
           $copy: id
+  # 番号で指す行: どの並びの、どの受け取る値で、行のどの項目（並び順 seq）と突き合わせるか
+  - id: row-key
+    when:
+      - path: rowOf
+        exists: true
+    build:
+      table:
+        $copy: rowOf.field
+      param:
+        $copy: rowOf.param
+      item: seq
   - id: receiver-items
     build:
       $concat:
@@ -868,6 +905,29 @@ rules:
                     $of: document
                   params:
                     $each: params
+                    $of: original
+                    $bind: parameter
+                    $build:
+                      $apply: screen-parameter
+                      $with:
+                        parameter:
+                          $copy: .
+                        value:
+                          $apply: contract-first
+                          $with:
+                            matches:
+                              $each: input.items
+                              $of: document
+                              $build:
+                                $when:
+                                  - path: key
+                                    equals:
+                                      $copy: key
+                                      $of: parameter
+                                $then:
+                                  $copy: .
+                  inputParams:
+                    $each: inputParams
                     $of: original
                     $bind: parameter
                     $build:

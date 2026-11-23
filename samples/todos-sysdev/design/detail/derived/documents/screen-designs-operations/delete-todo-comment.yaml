@@ -16,42 +16,6 @@ record:
             - name: NotNull
       classes: []
     screens:
-      - id: delete-todo-comment/input
-        template: todo/delete-todo-comment/input
-        page:
-          title: コメントを削除する
-          width: m
-          body:
-            - notice:
-                kind: errors
-                for: form
-            - facts:
-                of: todo
-                title: 対象
-                items:
-                  - item: id
-                    label: ID
-                  - item: title
-            - form:
-                action: POST /todo/{id}/delete-todo-comment/confirm
-                object: DeleteTodoCommentForm
-                hidden:
-                  - from
-                body:
-                  - field:
-                      item: row
-                      label: コメントの番号
-                      control: number
-                      required: true
-                      align: end
-                  - actions:
-                      - label: 確認へ
-                        kind: submit
-                        emphasis: primary
-                      - label: やめる
-                        kind: link
-                        to: 起点の画面
-                        emphasis: secondary
       - id: delete-todo-comment/confirm
         template: todo/delete-todo-comment/confirm
         page:
@@ -68,11 +32,19 @@ record:
                     label: ID
                   - item: title
             - facts:
-                title: 入力した値
-                of: form
+                title: 対象の行（コメント一覧）
+                of: row
+                row:
+                  table: comments
+                  param: row
+                  item: seq
                 items:
-                  - item: row
-                    label: コメントの番号
+                  - item: date
+                    label: 日付
+                    format: yyyy年M月d日
+                  - item: body
+                    label: コメント本文
+                    keepBreaks: true
             - form:
                 action: POST /todo/{id}/delete-todo-comment
                 hidden:
@@ -84,9 +56,9 @@ record:
                       - label: 確定
                         kind: submit
                         emphasis: primary
-                      - label: 入力へ戻る
-                        kind: submit
-                        action: POST /todo/{id}/delete-todo-comment/back
+                      - label: やめる
+                        kind: link
+                        to: 起点の画面
                         emphasis: secondary
   source:
     id: rule-screen-designs-operations

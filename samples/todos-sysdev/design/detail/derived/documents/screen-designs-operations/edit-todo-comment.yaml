@@ -47,15 +47,14 @@ record:
             - form:
                 action: POST /todo/{id}/edit-todo-comment/confirm
                 object: EditTodoCommentForm
+                row:
+                  table: comments
+                  param: row
+                  item: seq
                 hidden:
+                  - row
                   - from
                 body:
-                  - field:
-                      item: row
-                      label: コメントの番号
-                      control: number
-                      required: true
-                      align: end
                   - field:
                       item: date
                       label: 記録日
@@ -90,12 +89,28 @@ record:
                     label: ID
                   - item: title
             - facts:
+                title: 対象の行（コメント一覧）
+                of: row
+                row:
+                  table: comments
+                  param: row
+                  item: seq
+                items:
+                  - item: date
+                    label: 日付
+                    format: yyyy年M月d日
+                  - item: body
+                    label: コメント本文
+                    keepBreaks: true
+            - facts:
                 title: 変わる項目
                 kind: changes
                 compareWith: 今の値（DB から読む）
+                row:
+                  table: comments
+                  param: row
+                  item: seq
                 items:
-                  - item: row
-                    label: コメントの番号
                   - item: date
                     label: 記録日
                     format: yyyy年M月d日

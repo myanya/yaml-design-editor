@@ -225,23 +225,19 @@ bindings:
       - action
       - to
       - url
-  - before: GET /todo/{id}/delete-todo-comment
-    after: GET /todo/{id}/delete-todo-comment
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/delete-todo-comment/confirm
+    after: GET /todo/{id}/delete-todo-comment/confirm
     roles:
       - request
       - action
       - to
       - url
-  - before: POST /todo/{id}/delete-todo-comment/confirm
-    after: POST /todo/{id}/delete-todo-comment/confirm
-    roles:
-      - request
-      - action
-      - to
-      - url
-  - before: POST /todo/{id}/delete-todo-comment/back
-    after: POST /todo/{id}/delete-todo-comment/back
-    roles:
+  - roles:
       - request
       - action
       - to

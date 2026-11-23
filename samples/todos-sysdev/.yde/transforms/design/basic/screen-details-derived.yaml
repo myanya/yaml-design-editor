@@ -84,6 +84,7 @@ build:
                   exists: false
               $then:
                 $copy: field.key
+            $bind: t
             $build:
               item:
                 $copy: key
@@ -93,6 +94,31 @@ build:
                 $each: items[0].field.item.fields
                 $build:
                   $copy: label
+              # 並びの 1 件を番号で指す操作（rowOf）は、その並びの表の行のボタン。番号は行が運ぶ
+              rowButtons:
+                $apply: non-empty
+                $with:
+                  list:
+                    $each: actions
+                    $of: model
+                    $build:
+                      $when:
+                        - path: rowOf.field
+                          equals:
+                            $copy: key
+                            $of: t
+                        - path: rowOf.entity
+                          equals:
+                            $copy: id
+                            $of: element
+                      operation:
+                        $copy: id
+                      label:
+                        $copy: label
+                      shownWhen:
+                        $apply: shown-when
+                      to:
+                        $apply: first-screen
           - $group:
               $apply: fields
             $by:
@@ -149,6 +175,9 @@ build:
               equals:
                 $copy: id
                 $of: element
+            # 並びの 1 件を番号で指す操作は、その並びの表の行のボタンに出す（上の tables）
+            - path: rowOf
+              exists: false
           operation:
             $copy: id
           label:
@@ -199,13 +228,25 @@ rules:
     build: いつも
   - id: first-screen
     when:
-      - path: params
+      - path: inputParams
         empty: false
     build:
       $format: '{id}/input'
   - id: first-screen
     build:
       $format: '{id}/confirm'
+  # 空の並びは出さない
+  - id: non-empty
+    with:
+      - list
+    build:
+      $when:
+        - of: list
+          path: .
+          empty: false
+      $then:
+        $copy: .
+        $of: list
   - id: model-input
     with:
       - row

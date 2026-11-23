@@ -60,7 +60,8 @@ class TodosSysdevTest {
 
     /**
      * 画面系（画面遷移定義書・画面定義書・Controller・セッション情報設計）は、ダッシュボードを起点に業務モデルから計算で作る:
-     * 一覧画面 1・詳細画面 3（入れ子の作業項目は画面にしない）・入力画面 12・確認画面 14 の 30 画面。ビューは定義の索引の yde-view。
+     * 一覧画面 1・詳細画面 3（入れ子の作業項目は画面にしない）・入力画面 11・確認画面 14 の 29 画面。
+     * 並びの 1 件を番号で指す操作（コメントの編集・削除）は、詳細画面のその並びの表の行のボタンから始まり、番号は行が運ぶ。ビューは定義の索引の yde-view。
      */
     @Test
     fun `画面系の設計書はダッシュボードを起点に計算で作る`() {
@@ -68,13 +69,28 @@ class TodosSysdevTest {
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
         val transitions = doc("design/basic/final/screens/transitions/todo-dashboard.yaml")
         val kinds = list(transitions, "screens").groupingBy { it["kind"].toString() }.eachCount()
-        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 12, "confirm" to 14), kinds)
+        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 11, "confirm" to 14), kinds)
         assertTrue(java.nio.file.Files.notExists(root.resolve("design/basic/final/screens/details/todo-task.yaml")), "入れ子の型は詳細画面にしない")
         val start = doc("design/basic/final/screens/operations/start-todo.yaml")
         kotlin.test.assertNull(start["input"], "受け取る値が無い操作は、入力画面を作らない")
         assertEquals("GET /todo/{id}/start-todo/confirm", (start["confirm"] as Map<*, *>)["request"])
         assertEquals(listOf(mapOf("value" to "OPEN", "label" to "未着手")), start["shownWhen"], "ボタンは Lifecycle の状態で出す")
+        // 並びの 1 件を番号で指す操作: 起点は詳細画面のその並びの表の行だけ。番号は入力の項目に出さず、行から受け取る値として書く
+        val editComment = doc("design/basic/final/screens/operations/edit-todo-comment.yaml")
+        assertEquals(listOf(mapOf("screen" to "todo", "place" to "表「コメント一覧」の行のボタン")), editComment["starts"])
+        assertEquals(listOf("date", "body"), list(editComment["input"] as Map<*, *>, "items").map { it["key"] }, "番号は人が入れない")
+        assertEquals("row" to "comments", (editComment["row"] as Map<*, *>).let { it["key"] to it["table"] })
+        val deleteComment = doc("design/basic/final/screens/operations/delete-todo-comment.yaml")
+        kotlin.test.assertNull(deleteComment["input"], "受け取る値が番号だけの操作は、入力画面を作らない（行のボタンから確認画面へ）")
+        assertEquals("GET /todo/{id}/delete-todo-comment/confirm", (deleteComment["confirm"] as Map<*, *>)["request"])
+        val todoDetail = doc("design/basic/final/screens/details/todo.yaml")
+        val commentsTable = list(todoDetail, "tables").single { it["item"] == "comments" }
+        assertEquals(listOf("edit-todo-comment" to "edit-todo-comment/input", "delete-todo-comment" to "delete-todo-comment/confirm"),
+            list(commentsTable, "rowButtons").map { it["operation"] to it["to"] })
+        kotlin.test.assertNull(list(todoDetail, "tables").single { it["item"] == "history" }["rowButtons"], "行を指す操作の無い並びには、行のボタンを書かない")
+        assertTrue(list(todoDetail, "buttons").none { "todo-comment" in it["operation"].toString() && it["operation"] != "add-todo-comment" }, "画面のボタンには出さない")
         val list = doc("design/basic/final/screens/lists/todo-dashboard.yaml")
+        assertTrue("edit-todo-comment" !in list.toString() && "delete-todo-comment" !in list.toString(), "一覧の行のボタンにも出さない")
         assertEquals(listOf("register-todo", "add-category", "add-tag"), list(list, "buttons").map { it["operation"] }, "上部のボタンはダッシュボードに書いた順")
         val session = doc("design/detail/final/session.yaml")
         assertEquals(listOf("csrf", "token", "notice"), list(session, "attributes").map { it["key"] })
@@ -99,6 +115,18 @@ class TodosSysdevTest {
         val edit = doc("design/detail/final/screen-designs/operations/edit-todo.yaml").toString()
         assertTrue("flag=clear.category" in edit, "値を消すのチェック")
         assertTrue("comments" !in edit, "コメント一覧は編集の入力に無い（追加・編集・削除の操作で変える）")
+        // 番号で指す操作の画面設計: 番号は Form の項目だが入力欄にせず hidden で持ち回す。行のボタンは、行の並び順（seq）を運ぶ
+        val editCommentDesign = doc("design/detail/final/screen-designs/operations/edit-todo-comment.yaml")
+        assertTrue(list(editCommentDesign["form"] as Map<*, *>, "fields").any { it["item"] == "row" })
+        val inputForm = (((list(editCommentDesign, "screens").first()["page"] as Map<*, *>)["body"] as List<*>).map { it as Map<*, *> }.single { "form" in it })["form"] as Map<*, *>
+        assertEquals(listOf("row", "from"), inputForm["hidden"])
+        assertEquals(mapOf("table" to "comments", "param" to "row", "item" to "seq"), inputForm["row"], "初期値は、番号の指す行から読む")
+        assertTrue((inputForm["body"] as List<*>).none { ((it as Map<*, *>)["field"] as? Map<*, *>)?.get("item") == "row" }, "番号の入力欄は無い")
+        val deleteCommentDesign = doc("design/detail/final/screen-designs/operations/delete-todo-comment.yaml")
+        assertEquals(listOf("delete-todo-comment/confirm"), list(deleteCommentDesign, "screens").map { it["id"] })
+        assertTrue("対象の行（コメント一覧）" in deleteCommentDesign.toString(), "確認画面に、番号の指す行の今の値を見せる")
+        val detailDesign = doc("design/detail/final/screen-designs/details/todo.yaml").toString()
+        assertTrue("to=GET /todo/{id}/delete-todo-comment/confirm, row={param=row, item=seq}" in detailDesign, detailDesign.substringAfter("コメント一覧").take(600))
         val access = list(doc("design/detail/final/table-access/todo.yaml"), "methods")
         val overdue = access.single { it["name"] == "selectTodoDashboardOverdue" }
         assertTrue((overdue["where"] as List<*>).any { (it as Map<*, *>).let { row -> row["item"] == "status" && row["op"] == "in" && row["values"] == listOf("OPEN", "IN_PROGRESS") } }, "区画の条件の State は値の条件")

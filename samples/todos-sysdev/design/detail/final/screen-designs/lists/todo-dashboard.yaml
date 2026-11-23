@@ -113,20 +113,6 @@ screens:
                             from: todo-dashboard
                             emphasis: secondary
                             shownWhen: いつも
-                          - operation: edit-todo-comment
-                            label: コメントを編集する
-                            kind: link
-                            to: GET /todo/{id}/edit-todo-comment
-                            from: todo-dashboard
-                            emphasis: secondary
-                            shownWhen: いつも
-                          - operation: delete-todo-comment
-                            label: コメントを削除する
-                            kind: link
-                            to: GET /todo/{id}/delete-todo-comment
-                            from: todo-dashboard
-                            emphasis: secondary
-                            shownWhen: いつも
                           - operation: add-todo-task
                             label: 作業項目を追加する
                             kind: link
@@ -242,20 +228,6 @@ screens:
                             label: TODOにコメントを追加する
                             kind: link
                             to: GET /todo/{id}/add-todo-comment
-                            from: todo-dashboard
-                            emphasis: secondary
-                            shownWhen: いつも
-                          - operation: edit-todo-comment
-                            label: コメントを編集する
-                            kind: link
-                            to: GET /todo/{id}/edit-todo-comment
-                            from: todo-dashboard
-                            emphasis: secondary
-                            shownWhen: いつも
-                          - operation: delete-todo-comment
-                            label: コメントを削除する
-                            kind: link
-                            to: GET /todo/{id}/delete-todo-comment
                             from: todo-dashboard
                             emphasis: secondary
                             shownWhen: いつも

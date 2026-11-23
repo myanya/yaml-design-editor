@@ -366,10 +366,6 @@ outputs:
     report: app-web-page
     params:
       page: WPAGE-delete-todo-comment/confirm
-  - id: OUTPUT-WPAGE-delete-todo-comment/input
-    report: app-web-page
-    params:
-      page: WPAGE-delete-todo-comment/input
   - id: OUTPUT-WPAGE-edit-todo-comment/confirm
     report: app-web-page
     params:

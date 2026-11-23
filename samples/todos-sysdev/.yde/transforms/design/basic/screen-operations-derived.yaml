@@ -74,6 +74,9 @@ build:
                           equals:
                             $copy: target.entity
                             $of: element
+                        - of: element
+                          path: rowOf
+                          exists: false
                       screen:
                         $copy: id
                         $of: d
@@ -86,6 +89,8 @@ build:
               - $when:
                   - path: target.entity
                     exists: true
+                  - path: rowOf
+                    exists: false
                   - of: model
                     path: reach.entities
                     includes:
@@ -94,6 +99,19 @@ build:
                   - screen:
                       $copy: target.entity
                     place: 画面のボタン
+              # 並びの 1 件を番号で指す操作は、行が決まる所（詳細画面のその並びの表の行）からだけ始まる
+              - $when:
+                  - path: rowOf
+                    exists: true
+                  - of: model
+                    path: reach.entities
+                    includes:
+                      $copy: target.entity
+                $then:
+                  - screen:
+                      $copy: target.entity
+                    place:
+                      $format: 表「{rowOf.label}」の行のボタン
               - $each: entities
                 $of: model
                 $build:
@@ -113,9 +131,24 @@ build:
                         $copy: label
           shownWhen:
             $apply: shown-when
+          # 行から受け取る値: 並びの番号は行のボタンが運び、人は入力しない（入力・確認の画面では hidden 項目で持ち回す）
+          row:
+            $when:
+              - path: rowOf
+                exists: true
+            $then:
+              key:
+                $copy: rowOf.param
+              label:
+                $copy: rowOf.item.label
+              table:
+                $copy: rowOf.field
+              tableLabel:
+                $copy: rowOf.label
+              carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
           input:
             $when:
-              - path: params
+              - path: inputParams
                 empty: false
             $then:
               screen:
@@ -126,7 +159,7 @@ build:
                   u:
                     $apply: url
               items:
-                $each: params
+                $each: inputParams
                 $build:
                   $copy: .
               initial:
@@ -139,7 +172,7 @@ build:
             request:
               $first:
                 - $when:
-                    - path: params
+                    - path: inputParams
                       empty: false
                   $then:
                     $format: POST {u}/confirm
@@ -151,7 +184,7 @@ build:
                     u:
                       $apply: url
             shows:
-              $each: params
+              $each: inputParams
               $build:
                 $copy: label
             stateChange:
@@ -165,7 +198,7 @@ build:
                   $copy: to.label
             back:
               $when:
-                - path: params
+                - path: inputParams
                   empty: false
               $then:
                 request:
@@ -298,6 +331,9 @@ build:
                                 equals:
                                   $copy: target.entity
                                   $of: element
+                              - of: element
+                                path: rowOf
+                                exists: false
                             screen:
                               $copy: id
                               $of: d
@@ -310,6 +346,8 @@ build:
                     - $when:
                         - path: target.entity
                           exists: true
+                        - path: rowOf
+                          exists: false
                         - of: model
                           path: reach.entities
                           includes:
@@ -318,6 +356,19 @@ build:
                         - screen:
                             $copy: target.entity
                           place: 画面のボタン
+                    # 並びの 1 件を番号で指す操作は、行が決まる所（詳細画面のその並びの表の行）からだけ始まる
+                    - $when:
+                        - path: rowOf
+                          exists: true
+                        - of: model
+                          path: reach.entities
+                          includes:
+                            $copy: target.entity
+                      $then:
+                        - screen:
+                            $copy: target.entity
+                          place:
+                            $format: 表「{rowOf.label}」の行のボタン
                     - $each: entities
                       $of: model
                       $build:
@@ -337,9 +388,24 @@ build:
                               $copy: label
                 shownWhen:
                   $apply: shown-when
+                # 行から受け取る値: 並びの番号は行のボタンが運び、人は入力しない（入力・確認の画面では hidden 項目で持ち回す）
+                row:
+                  $when:
+                    - path: rowOf
+                      exists: true
+                  $then:
+                    key:
+                      $copy: rowOf.param
+                    label:
+                      $copy: rowOf.item.label
+                    table:
+                      $copy: rowOf.field
+                    tableLabel:
+                      $copy: rowOf.label
+                    carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
                 input:
                   $when:
-                    - path: params
+                    - path: inputParams
                       empty: false
                   $then:
                     screen:
@@ -350,7 +416,7 @@ build:
                         u:
                           $apply: url
                     items:
-                      $each: params
+                      $each: inputParams
                       $build:
                         key:
                           $copy: key
@@ -391,7 +457,7 @@ build:
                   request:
                     $first:
                       - $when:
-                          - path: params
+                          - path: inputParams
                             empty: false
                         $then:
                           $format: POST {u}/confirm
@@ -403,7 +469,7 @@ build:
                           u:
                             $apply: url
                   shows:
-                    $each: params
+                    $each: inputParams
                     $build:
                       $copy: label
                   stateChange:
@@ -417,7 +483,7 @@ build:
                         $copy: to.label
                   back:
                     $when:
-                      - path: params
+                      - path: inputParams
                         empty: false
                     $then:
                       request:

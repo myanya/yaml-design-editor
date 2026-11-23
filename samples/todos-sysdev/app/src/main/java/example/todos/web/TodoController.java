@@ -62,16 +62,8 @@ public class TodoController {
     public String editTodoComment(HttpServletRequest request,HttpServletResponse response,Model model) {
         return runtime.handle(request,response,model);
     }
-    @RequestMapping(path="/todo/{id}/delete-todo-comment",method=RequestMethod.GET)
-    public String deleteTodoCommentInput(HttpServletRequest request,HttpServletResponse response,Model model) {
-        return runtime.handle(request,response,model);
-    }
-    @RequestMapping(path="/todo/{id}/delete-todo-comment/confirm",method=RequestMethod.POST)
+    @RequestMapping(path="/todo/{id}/delete-todo-comment/confirm",method=RequestMethod.GET)
     public String deleteTodoCommentConfirm(HttpServletRequest request,HttpServletResponse response,Model model) {
-        return runtime.handle(request,response,model);
-    }
-    @RequestMapping(path="/todo/{id}/delete-todo-comment/back",method=RequestMethod.POST)
-    public String deleteTodoCommentBack(HttpServletRequest request,HttpServletResponse response,Model model) {
         return runtime.handle(request,response,model);
     }
     @RequestMapping(path="/todo/{id}/delete-todo-comment",method=RequestMethod.POST)

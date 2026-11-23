@@ -65,14 +65,6 @@ sections:
         label: TODOにコメントを追加する
         shownWhen: いつも
         to: add-todo-comment/input
-      - operation: edit-todo-comment
-        label: コメントを編集する
-        shownWhen: いつも
-        to: edit-todo-comment/input
-      - operation: delete-todo-comment
-        label: コメントを削除する
-        shownWhen: いつも
-        to: delete-todo-comment/input
       - operation: add-todo-task
         label: 作業項目を追加する
         shownWhen: いつも
@@ -138,14 +130,6 @@ sections:
         label: TODOにコメントを追加する
         shownWhen: いつも
         to: add-todo-comment/input
-      - operation: edit-todo-comment
-        label: コメントを編集する
-        shownWhen: いつも
-        to: edit-todo-comment/input
-      - operation: delete-todo-comment
-        label: コメントを削除する
-        shownWhen: いつも
-        to: delete-todo-comment/input
       - operation: add-todo-task
         label: 作業項目を追加する
         shownWhen: いつも

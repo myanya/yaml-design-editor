@@ -39,6 +39,10 @@ root:
     - key: shownWhen
       label: ボタンを出す状態
       type: any
+    - key: row
+      label: 行から受け取る値
+      type: any
+      description: 並びの 1 件を番号で指す操作の番号。その並びの表の行のボタンが運び、人は入力しない（入力・確認の画面では hidden 項目で持ち回す）
     - key: input
       label: 入力画面
       type: any

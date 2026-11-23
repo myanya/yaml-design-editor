@@ -106,6 +106,7 @@ build:
                                 exists: false
                             $then:
                               $copy: field.key
+                          $bind: rt
                           $build:
                             section:
                               title:
@@ -117,6 +118,25 @@ build:
                                     columns:
                                       $each: items[0].field.item.fields
                                       $apply: show
+                                    # 並びの 1 件を番号で指す操作は、その並びの表の行のボタン。番号は、行の並び順（seq）の値を URL のパラメータで運ぶ
+                                    rowActions:
+                                      $apply: non-empty
+                                      $with:
+                                        list:
+                                          $each: actions
+                                          $of: model
+                                          $build:
+                                            $when:
+                                              - path: rowOf.field
+                                                equals:
+                                                  $copy: key
+                                                  $of: rt
+                                              - path: rowOf.entity
+                                                equals:
+                                                  $copy: id
+                                                  $of: element
+                                            $then:
+                                              $apply: row-button
                         - $group:
                             $apply: fields
                           $by:
@@ -167,6 +187,9 @@ build:
                                     equals:
                                       $copy: id
                                       $of: element
+                                  # 並びの 1 件を番号で指す操作は、その並びの表の行のボタンに出す
+                                  - path: rowOf
+                                    exists: false
                                 $then:
                                   $apply: button
             bindings:
@@ -272,6 +295,50 @@ rules:
               - int
               - number
         $then: end
+  # 空の並びは出さない
+  - id: non-empty
+    with:
+      - list
+    build:
+      $when:
+        - of: list
+          path: .
+          empty: false
+      $then:
+        $copy: .
+        $of: list
+  # 並びの行のボタン: ふつうのボタンに、番号を運ぶ決まり（受け取る値の名前と、行の並び順の項目）を添える
+  - id: row-button
+    build:
+      operation:
+        $copy: id
+      label:
+        $copy: label
+      kind: link
+      to:
+        $first:
+          - $when:
+              - path: inputParams
+                empty: false
+            $then:
+              $format: GET {u}
+              $with:
+                u:
+                  $apply: url
+          - $format: GET {u}/confirm
+            $with:
+              u:
+                $apply: url
+      row:
+        param:
+          $copy: rowOf.param
+        item: seq
+      from:
+        $copy: id
+        $of: element
+      emphasis: secondary
+      shownWhen:
+        $apply: shown-when
   - id: button
     build:
       operation:
@@ -282,7 +349,7 @@ rules:
       to:
         $first:
           - $when:
-              - path: params
+              - path: inputParams
                 empty: false
             $then:
               $format: GET {u}

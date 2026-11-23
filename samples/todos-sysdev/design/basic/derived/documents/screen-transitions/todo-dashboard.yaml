@@ -87,16 +87,11 @@ record:
         label: TODOを完了する（確認）
         source: DOC-screen-operations.complete-todo
         request: POST /todo/{id}/complete-todo/confirm
-      - id: delete-todo-comment/input
-        kind: input
-        label: コメントを削除する（入力）
-        source: DOC-screen-operations.delete-todo-comment
-        request: GET /todo/{id}/delete-todo-comment
       - id: delete-todo-comment/confirm
         kind: confirm
         label: コメントを削除する（確認）
         source: DOC-screen-operations.delete-todo-comment
-        request: POST /todo/{id}/delete-todo-comment/confirm
+        request: GET /todo/{id}/delete-todo-comment/confirm
       - id: edit-todo/input
         kind: input
         label: TODOを編集する（入力）
@@ -191,12 +186,6 @@ record:
         by: 区画「期限超過」の行のボタン「TODOにコメントを追加する」
         to: add-todo-comment/input
       - from: todo-dashboard
-        by: 区画「期限超過」の行のボタン「コメントを編集する」
-        to: edit-todo-comment/input
-      - from: todo-dashboard
-        by: 区画「期限超過」の行のボタン「コメントを削除する」
-        to: delete-todo-comment/input
-      - from: todo-dashboard
         by: 区画「期限超過」の行のボタン「作業項目を追加する」
         to: add-todo-task/input
       - from: todo-dashboard
@@ -220,12 +209,6 @@ record:
       - from: todo-dashboard
         by: 区画「すべてのTODO」の行のボタン「TODOにコメントを追加する」
         to: add-todo-comment/input
-      - from: todo-dashboard
-        by: 区画「すべてのTODO」の行のボタン「コメントを編集する」
-        to: edit-todo-comment/input
-      - from: todo-dashboard
-        by: 区画「すべてのTODO」の行のボタン「コメントを削除する」
-        to: delete-todo-comment/input
       - from: todo-dashboard
         by: 区画「すべてのTODO」の行のボタン「作業項目を追加する」
         to: add-todo-task/input
@@ -260,12 +243,6 @@ record:
         by: ボタン「TODOにコメントを追加する」
         to: add-todo-comment/input
       - from: todo
-        by: ボタン「コメントを編集する」
-        to: edit-todo-comment/input
-      - from: todo
-        by: ボタン「コメントを削除する」
-        to: delete-todo-comment/input
-      - from: todo
         by: ボタン「作業項目を追加する」
         to: add-todo-task/input
       - from: todo
@@ -286,6 +263,12 @@ record:
       - from: todo
         by: ボタン「TODOを中止する」
         to: cancel-todo/input
+      - from: todo
+        by: 表「コメント一覧」の行のボタン「コメントを編集する」
+        to: edit-todo-comment/input
+      - from: todo
+        by: 表「コメント一覧」の行のボタン「コメントを削除する」
+        to: delete-todo-comment/confirm
       - from: todo
         by: 表「作業項目」の行のボタン「作業項目を済にする」
         to: todo-task.finish/confirm
@@ -329,12 +312,6 @@ record:
         by: ボタン「確定」
         to: 起点の画面
         note: 完了の知らせを出す
-      - from: delete-todo-comment/input
-        by: ボタン「確認へ」
-        to: delete-todo-comment/confirm
-      - from: delete-todo-comment/confirm
-        by: ボタン「入力へ戻る」
-        to: delete-todo-comment/input
       - from: delete-todo-comment/confirm
         by: ボタン「確定」
         to: 起点の画面

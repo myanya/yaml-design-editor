@@ -78,14 +78,19 @@ public class WebRuntime {{
             request.getSession().setAttribute(catalog.sessionKey("notice"),catalog.message("error.token",Map.of()));
             return "redirect:"+page.returnUrl();
         }}
+        // 入力画面の無い操作（行のボタンが番号だけを運ぶ操作）は、入力へ戻さない。
+        boolean hasInput=catalog.pages.containsKey(action+"/input");
+        // 番号で指す行は、画面を出す前に確かめる（無ければ見つからない扱い）。
+        if(!stage.equals("input"))page.selectedRow();
         if(request.getParameter("_rows")!=null&&form!=null&&!stage.equals("execute")) {{
             page.editRows(request.getParameter("_rows"));page.setScreen(action+"/input");
         }} else if(page.binding!=null&&page.binding.hasErrors()) {{
+            if(!hasInput)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
             page.setScreen(action+"/input");
         }} else if(stage.equals("confirm")) {{
             var violations=operation.check().apply(id,form);
             for(var v:violations)page.violation(v);
-            if(!violations.isEmpty()&&form!=null)page.setScreen(action+"/input");
+            if(!violations.isEmpty()&&form!=null&&hasInput)page.setScreen(action+"/input");
         }} else if(stage.equals("execute")) {{
             try {{
                 String changed=operation.execute().apply(id,form);

@@ -134,7 +134,7 @@ build:
               steps:
                 $concat:
                   - $when:
-                      - path: params
+                      - path: inputParams
                         empty: false
                     $then:
                       - handler:
@@ -170,7 +170,7 @@ build:
                       request:
                         $first:
                           - $when:
-                              - path: params
+                              - path: inputParams
                                 empty: false
                             $then:
                               $format: POST {u}/confirm
@@ -186,11 +186,16 @@ build:
                       does:
                         $first:
                           - $when:
-                              - path: params
+                              - path: inputParams
                                 empty: false
                             $then: >-
                               フォームを検査し（@Validated）、誤りなら入力画面に誤りを添えて戻す。通れば、受け取る値が原因で破れうるデータの決まりを Service
                               で確かめ（calls。あれば）、違反なら入力画面の欄に添えて戻す。通れば確認画面を出す（入力の値は hidden 項目）
+                          # 並びの 1 件を番号で指す操作で、人が入れる値が無いとき: 番号は行のボタンが URL のパラメータで運ぶ
+                          - $when:
+                              - path: rowOf
+                                exists: true
+                            $then: 受け手を読み、行のボタンが運んだ番号をフォームに受けて検査し（@Validated）、確認画面を出す（番号は hidden 項目）
                           - 受け手を読んで確認画面を出す
                       reads:
                         $concat:
@@ -238,7 +243,7 @@ build:
                         puts:
                           - token
                   - $when:
-                      - path: params
+                      - path: inputParams
                         empty: false
                     $then:
                       - handler:

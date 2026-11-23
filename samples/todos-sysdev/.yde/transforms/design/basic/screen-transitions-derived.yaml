@@ -206,6 +206,8 @@ build:
                             equals:
                               $copy: rows
                               $of: v
+                          - path: rowOf
+                            exists: false
                         from:
                           $copy: id
                           $of: element
@@ -267,11 +269,29 @@ build:
                                 equals:
                                   $copy: id
                                   $of: ent
+                              - path: rowOf
+                                exists: false
                             from:
                               $copy: id
                               $of: ent
                             by:
                               $format: ボタン「{label}」
+                            to:
+                              $apply: first-screen
+                        # 並びの 1 件を番号で指す操作は、その並びの表の行のボタンから始まる
+                        - $each: actions
+                          $of: model
+                          $build:
+                            $when:
+                              - path: rowOf.entity
+                                equals:
+                                  $copy: id
+                                  $of: ent
+                            from:
+                              $copy: id
+                              $of: ent
+                            by:
+                              $format: 表「{rowOf.label}」の行のボタン「{label}」
                             to:
                               $apply: first-screen
               - $each: reach.nested
@@ -322,7 +342,7 @@ build:
                   $then:
                     $concat:
                       - $when:
-                          - path: params
+                          - path: inputParams
                             empty: false
                         $then:
                           - from:
@@ -362,7 +382,7 @@ rules:
             $of: asp
   - id: first-screen
     when:
-      - path: params
+      - path: inputParams
         empty: false
     build:
       $format: '{id}/input'

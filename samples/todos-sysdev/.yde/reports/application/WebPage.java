@@ -102,6 +102,9 @@ public class WebPage {{
         if(!value.contains("/"))value=catalog.destinations.getOrDefault(value,"/");
         String id=Objects.toString(row.getOrDefault("id",receiverId),"");
         String result=url(value.replace("{{id}}",enc(id)));
+        // 並びの行のボタンは、行の並び順の値を、操作の Form の項目名で運ぶ（人は番号を入力しない）。
+        var carry=map(button.get("row"));
+        if(!carry.isEmpty())result+=(result.contains("?")?"&":"?")+enc(formField(s(button,"operation"),s(carry,"param")))+"="+enc(row.get(s(carry,"item")));
         if(!s(button,"kind").equals("submit")&&!s(button,"action").startsWith("POST ")) {{
             String origin=screenKey.contains("/")?from:screenKey;
             String originKey=screenKey.contains("/")?originId:receiverId;
@@ -135,11 +138,32 @@ public class WebPage {{
             else {{out.add(key);if(many)out.add(key+"[*]");}}
         }}
     }}
+    private String formField(String operation,String item) {{
+        var def=catalog.forms.getOrDefault(s(catalog.operations.getOrDefault(operation,Map.of()),"formClass"),Map.of());
+        return maps(def.get("fields")).stream().filter(f->s(f,"item").equals(item)).map(f->s(f,"name")).findFirst().orElse(item);
+    }}
+    /** 番号で指す行の決まり（どの並びの、どの受け取る値で、行のどの項目と突き合わせるか）。いまの画面の定義から読む。 */
+    private Map<String,Object> rowSpec() {{
+        for(var node:maps(map(screen.get("page")).get("body")))for(var v:node.values()){{var r=map(map(v).get("row"));if(r.containsKey("table"))return r;}}
+        return Map.of();
+    }}
+    /** 番号で指す行: 受け手の並びのうち、並び順の項目が受け取った番号と一致する 1 件。無ければ見つからない扱い（データの層と同じ断り）。 */
+    public Map<String,Object> selectedRow() {{
+        var spec=rowSpec();if(spec.isEmpty())return Map.of();
+        String wanted=request.getParameter(fieldName(s(spec,"param")));
+        if(wanted!=null)for(var r:maps(self.get(s(spec,"table"))))if(Objects.toString(r.get(s(spec,"item")),"").equals(wanted.trim()))return r;
+        throw new NotFoundException(s(input,"target")+"."+s(spec,"table"),receiverId);
+    }}
     public Map<String,Object> initialValues() {{
         var logical=new LinkedHashMap<String,Object>();
+        var rowSpec=rowSpec();
+        if(!rowSpec.isEmpty()){{selectedRow();logical.put(s(rowSpec,"param"),request.getParameter(fieldName(s(rowSpec,"param"))));}}
         for(var entry:map(map(input.get("input")).get("initial")).entrySet()) {{
             var exp=map(entry.getValue());String source=s(exp,"$of"),path=s(exp,"$copy");
-            if(source.equals("self"))logical.put(entry.getKey(),at(self,path));
+            // 並びの番号で指す読み出し（comments[$row].date）は、番号の指す行から読む。
+            int open=path.indexOf("[$");
+            if(source.equals("self")&&open>=0){{String rest=path.substring(path.indexOf(']',open)+1);logical.put(entry.getKey(),at(selectedRow(),rest.startsWith(".")?rest.substring(1):rest));}}
+            else if(source.equals("self"))logical.put(entry.getKey(),at(self,path));
             else if(source.equals("context")&&path.equals("today"))logical.put(entry.getKey(),today.toString());
             else throw new IllegalArgumentException("未対応の初期値です: "+entry.getKey());
         }}
@@ -167,6 +191,8 @@ public class WebPage {{
     public List<Map<String,String>> hidden(Map<String,Object> node) {{
         var out=new ArrayList<Map<String,String>>();
         if(form!=null)for(var f:maps(formDef.get("fields")))if(s(f,"type").startsWith("List<")&&!nested(f).isEmpty()&&new BeanWrapperImpl(form).getPropertyValue(s(f,"name"))!=null)addHidden(out,"_present."+s(f,"name"),"true");
+        // 入力画面: 画面の定義が hidden と書いた Form の項目（行のボタンが運んだ番号）を持ち回す。
+        if(!screenKey.endsWith("/confirm")&&form!=null)for(Object h:list(node.get("hidden"))){{String item=h.toString();if(maps(formDef.get("fields")).stream().anyMatch(f->s(f,"item").equals(item)))addHidden(out,fieldName(item),value(item));}}
         if(screenKey.endsWith("/confirm")&&form!=null) {{
             for(String field:allowedFields()) {{
                 if(field.contains("[*]"))continue;
@@ -221,17 +247,19 @@ public class WebPage {{
     }}
     public List<Map<String,Object>> facts(Map<String,Object> node) {{
         var result=new ArrayList<Map<String,Object>>();boolean change=s(node,"kind").equals("changes");
+        // 番号で指す行の表示と比較は、受け手ではなく、その行の値を今の値にする。
+        var base=node.containsKey("row")?selectedRow():self;
         for(var f:maps(node.get("items"))) {{
-            String item=s(f,"item");Object current=self.get(item);Object next=s(node,"of").equals("form")||change?logicalValue(item):current;
+            String item=s(f,"item");Object current=base.get(item);Object next=s(node,"of").equals("form")||change?logicalValue(item,base):current;
             if(f.containsKey("to")){{current=f.get("from");next=f.get("to");}}
             if(change&&Objects.equals(comparable(current),comparable(next)))continue;
             var row=new LinkedHashMap<>(f);row.put("cells",cells(f,next));if(change||f.containsKey("to"))row.put("before",cells(f,current));result.add(row);
         }}
         return result;
     }}
-    private Object logicalValue(String item) {{
+    private Object logicalValue(String item,Map<String,Object> base) {{
         for(var f:maps(map(input.get("input")).get("items")))if(s(f,"key").equals(item)&&f.containsKey("clearedBy")&&yes(value(s(f,"clearedBy"))))return null;
-        Object value=value(item);if(value==null)return self.get(item);
+        Object value=value(item);if(value==null)return base.get(item);
         var field=maps(formDef.get("fields")).stream().filter(f->s(f,"item").equals(item)).findFirst();
         if(field.isPresent()&&!nested(field.get()).isEmpty())return logical(value,nested(field.get()));
         return value;
