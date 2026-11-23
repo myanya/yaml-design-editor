@@ -137,7 +137,8 @@ build:
                               $copy: id
                               $of: ent
                         $then: true
-                      # 並びの項目への作用は、子要素（並びの要素）への C/U/D でもある。足す＝C、丸ごと入れ替える＝C・U・D、消す＝D
+                      # 並びの項目への作用は、子要素（並びの要素）への C/U/D でもある。足す＝C、丸ごと入れ替える＝C・U・D、消す＝D。
+                      # 番号で 1 件を指す作用（row）は、その 1 件だけ: 書き換え＝U、削除＝D
                       marks:
                         $when:
                           - path: field.base
@@ -149,6 +150,18 @@ build:
                                   equals: insert
                               $then: [C]
                             - $when:
+                                - path: row
+                                  exists: true
+                                - path: op
+                                  equals: set
+                              $then: [U]
+                            - $when:
+                                - path: row
+                                  exists: true
+                                - path: op
+                                  equals: delete
+                              $then: [D]
+                            - $when:
                                 - path: op
                                   equals: set
                               $then: [C, U, D]
@@ -156,24 +169,34 @@ build:
                                 - path: op
                                   equals: delete
                               $then: [D]
-                      # 丸ごと入れ替える・消すときは、子要素のすべての項目が対象（項目の並びは書込をまとめる所で引く）
+                      # 丸ごと入れ替える・消すとき（番号で指した 1 件を消すときも）は、子要素のすべての項目が対象
+                      # （項目の並びは書込をまとめる所で引く）。番号で指した 1 件の書き換えは、書いた項目だけ
                       whole:
+                        $first:
+                          - $when:
+                              - path: field.base
+                                equals: array
+                              - path: op
+                                equals: delete
+                            $then: [true]
+                          - $when:
+                              - path: field.base
+                                equals: array
+                              - path: op
+                                equals: set
+                              - path: row
+                                exists: false
+                            $then: [true]
+                      # 足すとき・番号で指した 1 件を書き換えるときに書く子の項目。子がエンティティならその項目、そうでなければ並びの中の項目
+                      elementItems:
                         $when:
                           - path: field.base
                             equals: array
                           - or:
                               - path: op
-                                equals: set
-                              - path: op
-                                equals: delete
-                        $then: [true]
-                      # 足すときに書く子の項目。子がエンティティならその項目、そうでなければ並びの中の項目
-                      elementItems:
-                        $when:
-                          - path: field.base
-                            equals: array
-                          - path: op
-                            equals: insert
+                                equals: insert
+                              - path: row
+                                exists: true
                         $then:
                           $each: written
                           $build:

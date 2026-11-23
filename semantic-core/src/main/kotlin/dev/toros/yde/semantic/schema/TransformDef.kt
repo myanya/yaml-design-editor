@@ -347,7 +347,8 @@ data class TransformDef(
             }
             fun site(pathRaw: Any?, pathWhere: String): TemplateSite {
                 val text = pathRaw?.toString() ?: ""
-                val path = if (text == "." || text.isBlank()) emptyList() else runCatching { parseYPath(unescape(text)) }
+                // 並びの 1 件を、受け取った値の番号で読める（comments[$row].body。操作の初期値で、選んだ行の今の値を読むのに使う）
+                val path = if (text == "." || text.isBlank()) emptyList() else runCatching { StepPaths.parse(unescape(text), strict = false) }
                     .getOrElse { error("$pathWhere: パスとして読めません: $text") }
                 return TemplateSite(
                     of = m[OF]?.toString()?.takeIf { it.isNotBlank() },

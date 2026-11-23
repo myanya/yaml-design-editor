@@ -120,7 +120,7 @@ class BusinessModelTest {
         val reach = dashboard["reach"] as Map<*, *>
         assertEquals(listOf("todo", "category", "tag"), reach["entities"])
         assertEquals(listOf("todo-task"), reach["nested"])
-        assertEquals(12, (reach["operations"] as List<*>).size)
+        assertEquals(14, (reach["operations"] as List<*>).size)
         assertTrue("todo-task.finish" in (reach["operations"] as List<*>), "入れ子の型の操作も、詳細画面の表からたどれる")
         assertEquals(reach, model["reach"], "ダッシュボードが 1 つなら、和も同じ")
         // 区画の条件の State の名前は、値の条件へ置き換える（YDE の読み込みと同じ）
@@ -138,13 +138,34 @@ class BusinessModelTest {
     }
 
     @Test
+    fun `並びの 1 件を番号で指す効果は 番号の名前と 書く子の項目を持つ`() {
+        // コメントは ID を持たないので、個票への操作が、並びの番号（受け取る値 row）で 1 件を指す
+        val edit = list("effects", byId("actions", "edit-todo-comment")).filter { it["source"] == "do" }
+        assertEquals(listOf("set", "set"), edit.map { it["op"] })
+        edit.forEach {
+            assertEquals(mapOf("param" to "row"), it["row"], "番号を受け取る値の名前")
+            assertEquals("comments", (it["field"] as Map<*, *>)["key"], "書く先の項目は並びそのもの")
+        }
+        // 書く子の項目は、足すとき（insert）と同じ形の written
+        assertEquals(listOf("date", "body"), edit.map { (it["written"] as List<*>).map { w -> (w as Map<*, *>)["key"] }.single() })
+        assertEquals("date", ((edit.first()["written"] as List<*>).single() as Map<*, *>)["base"])
+        val delete = list("effects", byId("actions", "delete-todo-comment")).single { it["source"] == "do" }
+        assertEquals("delete" to mapOf("param" to "row"), delete["op"] to delete["row"])
+        assertEquals(null, delete["written"], "消すときは、書く項目は無い")
+        // 番号の無い書き換え（並びの丸ごとの入れ替え）には row が付かない
+        val tags = list("effects", byId("actions", "edit-todo")).first { it["op"] == "set" && it["path"] == "tags" }
+        assertEquals(null, tags["row"])
+    }
+
+    @Test
     fun `見出しの項目と 値を消す受け取る値`() {
         assertEquals("title", byId("entities", "todo")["title"])
         assertEquals("name", byId("entities", "category")["title"])
         val edit = byId("actions", "edit-todo")
         val params = list("params", edit).associateBy { it["key"] }
         assertEquals("clear.category", params.getValue("category")["clearedBy"], "値を消すのチェックが、どの欄のものか（効果の when から）")
-        assertEquals("clear.comments", params.getValue("comments")["clearedBy"], "空の配列にするのも消す")
+        assertEquals("clear.tags", params.getValue("tags")["clearedBy"], "並びの項目を消すのも同じ")
+        assertTrue("comments" !in params, "コメントは「TODOを編集する」では変えない（追加・編集・削除の操作で変える）")
         assertEquals(null, params.getValue("title")["clearedBy"])
         assertEquals("name", params.getValue("category")["targetTitle"], "参照の値の名前は参照先の見出しの項目")
     }

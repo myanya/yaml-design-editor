@@ -540,8 +540,21 @@ object BusinessModel {
                 (itemAspect?.numbering ?: f.insertRule?.id)?.let { extra["numbering"] = numberingTerm(it) }
             }
         }
+        // 並びの 1 件を受け取った番号で指す（`comments[$row]`・`comments[$row].body`）: 番号を受け取る値の名前（row.param）と、
+        // 書く子の項目（written。足すときと同じ形）。番号の無い書き換え（並びの丸ごとの入れ替え）と、下流が見分けられるようにする
+        ROW_PATH.matchEntire(effect["path"]?.toString().orEmpty())?.let { m ->
+            extra["row"] = linkedMapOf("param" to m.groupValues[2])
+            val child = m.groupValues[3].substringBefore('.').substringBefore('[')
+            val item = f.item?.let { tree.resolve(it) ?: it }
+            if (child.isNotEmpty() && effect["op"] == "set" && item != null) {
+                extra["written"] = writtenOf(mapOf(child to effect["value"]), item, tree)
+            }
+        }
         return effect + linkedMapOf("entity" to aspect.entity, "field" to field) + extra
     }
+
+    /** 並びの 1 件を番号で指すパス（`並び[$名前]` と、その先の子の項目）。 */
+    private val ROW_PATH = Regex("""^([^.\[]+)\[\$([A-Za-z][A-Za-z0-9_]*)](?:\.(.+))?$""")
 
     /** 書く値（項目名 → 値）を、項目ごとの {key, value, base, item} の並びにする（基底の種類はその要素の項目の定義から）。 */
     private fun writtenOf(values: Any?, def: FieldDef, tree: SchemaTree): List<Map<String, Any?>> {

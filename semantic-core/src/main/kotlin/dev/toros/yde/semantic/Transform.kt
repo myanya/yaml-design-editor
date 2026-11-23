@@ -10,6 +10,7 @@ import dev.toros.yde.semantic.schema.DerivationSelector
 import dev.toros.yde.semantic.schema.NameCase
 import dev.toros.yde.semantic.schema.Projection
 import dev.toros.yde.semantic.schema.QueryNodeKind
+import dev.toros.yde.semantic.schema.StepPaths
 import dev.toros.yde.semantic.schema.Template
 import dev.toros.yde.semantic.schema.TemplateCondition
 import dev.toros.yde.semantic.schema.TemplateSite
@@ -207,7 +208,9 @@ object SemanticTransform {
             val base = if (site.of == null) here else if (site.of in localBindings) {
                 localBindings[site.of].takeIf { site.inDoc == null }
             } else bindings[site.of]?.invoke(site.inDoc)
-            return base?.at(site.path)
+            // 受け取った値の番号（comments[$row]）は、その値の番号に置き換えて読む。値が無い・整数でないなら「無い」
+            val path = StepPaths.resolve(site.path, params) ?: return null
+            return base?.at(path)
         }
 
         /** 繰り返しの略記（`$each … $apply … $with`）で規則へ渡す値（繰り返しの外側で計算したもの）。入れ子で同じ略記に入るときは、戻ったら元の値に戻す。 */

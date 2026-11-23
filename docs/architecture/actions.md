@@ -46,6 +46,8 @@
 - **画面**: 入口（エンティティページの操作メニュー・フォームとビューの行の ⋯・文書ヘッダーの「文書操作」メニュー・コマンドパレット・右ペインの「操作」タブ）は `AppState.startAction(entry, target)` を呼ぶだけで、受け手を知らない入口は `target = null` で呼ぶ。`Main` が載せる浮いたパネル（`ActionPanelHost`。「AI で作成」と同じ幅）に、対象の欄と受け取る値の欄が出る。
 - **番号で指すパス**: 手の `path` の `[$名前]` は `ParamIndex`（`StepSite.path` の区切り。読み書きは `StepPaths`）で、計画の `sitePath` が受け取った値の番号（0 から）に置き換える。
   その並びに在る要素だけを指せ、範囲の外・整数でない値・並びでない場所は `ActionFailure` で止める（黙って足さない・飛ばさない）。名前は `ActionSteps.paramNames` に入り、宣言の点検を通る。
+  ひな型の読み出し（`TemplateSite.path`。`$copy` など）にも同じ区切りが入り、`SemanticTransform` の `place` が受け取った値で置き換えて読む（値が無ければ「無い」）。初期値（`input.initial`）が、選んだ行の今の値を読むのに使う。
+  業務モデルの項（`BusinessModel.withField`）は、番号で指す効果に `row: {param}`（番号を受け取る値の名前）と、書き換えなら `written`（書く子の項目。足すときと同じ形）を添える。番号の無い書き換え（並びの丸ごとの入れ替え）と、下流の生成が見分けるため。
   ID の無い行の ⋯（`RowIndexOpsButton`）は `ActionPlanner.indexingInto`（受け手の型・配列のパス・`in` のスキーマが合い、その配列の番号の 1 件へ書く手を持つアクション）を引き、
   行を持つ最も近い ID の要素を対象に、番号を `startAction(name, target, prefill)` で入れて始める。番号の解決を画面に書かない。
 - 対象の欄（`TargetPicker`）は要素を受け手にする操作（`ActionEntry.entityType`）だけに出る。候補は上書き索引のうちその型の出現を持つ ID（`entityCandidates`）で、値は `ActionWork.targetHolder` の木に入り、`work.target` で読む。受け取る値は仮の文書の木を `FormCtx` と `FieldRow` で編集する（型・選択肢・参照の候補・ID の提案がそのまま効く）。

@@ -44,6 +44,19 @@ class ActionIndexTest {
               - { key: body, label: 本文, type: string, required: true }
             do:
               - set: { path: "comments[${d}row].body", value: ${d}body }
+          - id: review-comment
+            label: コメントを見直す
+            target: { entity: memo }
+            input:
+              submit: changed
+              initial:
+                body: { ${d}copy: "comments[${d}row].body", ${d}of: self }
+            params:
+              - { key: row, label: 番号, type: int, required: true }
+              - { key: body, label: 本文, type: string }
+            do:
+              - when: [ { path: body, exists: true } ]
+                set: { path: "comments[${d}row].body", value: ${d}body }
           - id: delete-comment
             label: コメントを削除する
             target: { entity: memo }
@@ -78,6 +91,19 @@ class ActionIndexTest {
         assertTrue(ChangeSetApplier.apply(s, plan(s, "delete-comment", "M-1", "row" to 0).changeSet, requireValid = true, now = now).ok)
         val text = dev.toros.yde.yaml.DefaultYamlCodec.dump(s.snapshot.documents.getValue(dev.toros.yde.yaml.model.DocumentId("memos/M-1.yaml")).document)
         assertTrue("一つ目" !in text && "直した" in text && "三つ目" in text, text)
+    }
+
+    @Test
+    fun `初期値のひな型も 受け取った番号の 1 件を読む`() {
+        val s = session()
+        assertEquals(emptyList(), s.schemaErrors)
+        // 行から始めると番号が先に渡り、その行の今の値が初期値になる
+        val prepared = ActionPlanner.prepareInput(s, ActionRequest("review-comment", "M-1", mapOf("row" to 1)), now)
+        assertEquals("二つ目", prepared.values["body"])
+        assertEquals(1, prepared.values["row"])
+        // 番号がまだ無い・その番号の要素が無いときは、初期値を作らない（誤りにしない）
+        assertEquals(null, ActionPlanner.prepareInput(s, ActionRequest("review-comment", "M-1"), now).values["body"])
+        assertEquals(null, ActionPlanner.prepareInput(s, ActionRequest("review-comment", "M-1", mapOf("row" to 9)), now).values["body"])
     }
 
     @Test

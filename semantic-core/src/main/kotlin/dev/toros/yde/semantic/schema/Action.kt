@@ -43,11 +43,26 @@ object StepPaths {
     // 読むあいだだけ、受け取った値の番号を大きな番号に置き換えて、ふつうのパスとして読む
     private const val PLACEHOLDER = 1_000_000_000
 
-    fun parse(text: String): YPath {
+    /**
+     * パスを読む。strict（手のパス）では、[$名前] 以外の $ を誤りにする。
+     * ひな型の読み出しのパスは $key・$of などのキーも通るので、strict を外して読む。
+     */
+    fun parse(text: String, strict: Boolean = true): YPath {
+        if ('$' !in text) return parseYPath(text)
         val names = mutableListOf<String>()
         val plain = INDEX_PARAM.replace(text) { m -> names += m.groupValues[1]; "[${PLACEHOLDER + names.size - 1}]" }
-        require('$' !in plain) { "番号を受け取った値で指すときは [\$名前] と書きます（例 comments[\$row]）" }
+        if (strict) require('$' !in plain) { "番号を受け取った値で指すときは [\$名前] と書きます（例 comments[\$row]）" }
         return parseYPath(plain).map { seg -> if (seg is Int && seg >= PLACEHOLDER) ParamIndex(names[seg - PLACEHOLDER]) else seg }
+    }
+
+    /**
+     * 受け取った値の番号を、その値（0 から数える整数）に置き換えたパス。値が無い・整数でないときは null（読み出しなら「無い」）。
+     */
+    fun resolve(path: YPath, params: Map<String, Any?>): YPath? {
+        if (path.none { it is ParamIndex }) return path
+        return path.map { seg ->
+            if (seg is ParamIndex) params[seg.name]?.toString()?.trim()?.toIntOrNull()?.takeIf { it >= 0 } ?: return null else seg
+        }
     }
 
     /** 読める形のパス（受け取った値の番号は `[$名前]` のまま）。 */
@@ -308,7 +323,7 @@ internal fun Template.paramNames(): Set<String> {
             is Template.Param -> if (t.name !in TransformDef.LOOP_NAMES) out += t.name
             is Template.MapOf -> t.entries.forEach { walk(it.second) }
             is Template.ListOf -> t.items.forEach(::walk)
-            is Template.Copy -> Unit
+            is Template.Copy -> out += t.site.path.filterIsInstance<ParamIndex>().map { it.name }
             is Template.Format -> t.with.forEach { walk(it.second) }
             is Template.MapValue -> walk(t.input)
             is Template.First -> t.options.forEach(::walk)
