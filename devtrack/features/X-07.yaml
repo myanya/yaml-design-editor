@@ -1,5 +1,5 @@
 id: X-07
-title: '文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・複合文書ビュー〔別の側面の区画 `fields.in`・表の埋め込み `grid`〕・個票に当てる `idPattern`・区画は変換のひな型で評価）'
+title: '文書ビュー（`kind: document`・`sections` の fields と backlinks・`attachments`・複合文書ビュー〔別の側面の区画 `fields.in`・表の埋め込み `grid`〕・個票に当てる `idPattern`・区画の繰り返し `each`・区画は変換のひな型で評価）'
 implementation:
 - path: core/Views.kt
   detail: '`resolveDocument`'

@@ -8,12 +8,13 @@ description: >-
 inputs:
   - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, default: ENT-todo }
 sections:
-  # 一覧の ID を押すと、そのエンティティの個票（entity-definition-sheet＝概要・項目・入れ子の項目・操作・項目 × 操作を 1 枚で）が開く
+  # 一覧の ID を押すと、そのエンティティの個票（entity-definition-sheet＝概要・項目・操作・項目 × 操作・子要素ごとの表を 1 枚で）が開く
   - { id: list, label: エンティティ一覧, group: レビュー, view: entity-definition-list }
   - { id: review-items, label: 項目, group: レビュー, view: entity-definition-review-items }
   - { id: review-nested, label: 入れ子の項目, group: レビュー, view: entity-definition-review-nested }
   - { id: review-operations, label: 操作と書く項目, group: レビュー, view: entity-definition-review-operations }
   - { id: crud, label: 項目 × 操作, group: レビュー, view: entity-definition-crud }
+  - { id: review-children, label: 子要素 × 操作, group: レビュー, view: entity-definition-children }
   - { id: summary, label: 概要, group: 確認用, view: entity-definition-summary }
   - { id: items, label: 項目一覧（根拠つき）, group: 確認用, view: entity-definition-items }
   - { id: operations, label: 操作一覧, group: 確認用, view: entity-definition-operations }

@@ -5,4 +5,4 @@ order: 5
 status: stable
 forms:
   - value: "文字列"
-    meaning: "区画の見出し。"
+    meaning: "区画の見出し。each の区画では、要素ごとの見出しになり、{パス} をその要素の値で埋めます（例 「{label} の項目」）。"

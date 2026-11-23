@@ -101,6 +101,11 @@ definitions:
     unknownFields: error
     fields:
       - { key: crud, label: 作成・更新, type: enum, values: [C, U], required: true }
+      - key: element
+        label: 子要素への作用
+        type: array
+        description: 並びの項目に書くとき、並びの要素（子要素）に何をするか。C＝足す・U＝変える・D＝消す。丸ごと入れ替える操作は C・U・D。
+        item: { type: enum, values: [C, U, D] }
       - { key: origins, label: 根拠, type: array, item: { type: basic-design-values#根拠 } }
   候補の書込:
     type: 書込の属性
@@ -109,6 +114,7 @@ definitions:
       - { key: entity, type: 生成対象, pattern: '^ENT-\S+$', required: true }
       - { key: operation, type: 生成対象, pattern: '^OPS-\S+$', required: true }
       - { key: item, type: 生成対象, pattern: '^FLD-\S+$', required: true }
+      - { key: elementItems, label: 書く子の項目, type: array, item: { type: 生成対象, pattern: '^FLD-\S+$' } }
   確定した書込:
     type: 書込の属性
     fields:
@@ -116,6 +122,11 @@ definitions:
       - { key: entity, type: ref, idPatterns: [ENT-*], required: true }
       - { key: operation, type: ref, idPatterns: [OPS-*], required: true }
       - { key: item, type: ref, idPatterns: [FLD-*], required: true }
+      - key: elementItems
+        label: 書く子の項目
+        type: array
+        description: 子要素を足すときに書く子の項目。無ければ、子要素の全体（すべての項目）への作用。
+        item: { type: ref, idPatterns: [FLD-*] }
   名称と根拠:
     type: object
     unknownFields: error

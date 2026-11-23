@@ -4,7 +4,7 @@
 フローの表示モデルと来歴、型グラフの属性も開示します（[図の記法](diagram-notations.md#出力と定義の読み取り)）。
 
 ダッシュボードは `view <workspace> <dashboard-id> --date YYYY-MM-DD` で参照できます。
-文書ビューは `view <workspace> <view-id> <file>`、個票に当てる文書ビュー（`idPattern`）は `view <workspace> <view-id> <ID>` で、対象を根にした区画を返します（対象を省くと、当たる文書か ID の一覧）。
+文書ビューは `view <workspace> <view-id> <file>`、個票に当てる文書ビュー（`idPattern`）は `view <workspace> <view-id> <ID>` で、対象を根にした区画を返します（対象を省くと、当たる文書か ID の一覧）。区画の繰り返し（`each`）は、区画の `each.groups` に要素ごとのまとまりを返します。
 出力と基準日の規則は [ダッシュボード](dashboards.md#cliとエージェント) を参照してください。
 チャート（`kind: chart`）は `view <workspace> <chart-id>` で、元の表を解決した横軸の項目（`categories`）と系列ごとの数（`series`）を返します。図そのものは画面だけで描きます（[ビュー](views.md#チャートkind-chart-表を図に)）。
 

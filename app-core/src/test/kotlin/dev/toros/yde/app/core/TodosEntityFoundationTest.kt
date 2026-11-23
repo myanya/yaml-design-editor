@@ -89,15 +89,43 @@ class TodosEntityFoundationTest {
             assertEquals("entity-definition-sheet", sheet.id)
             assertEquals("design/basic/final/entities.yaml", occurrence.document.value)
             val sections = Views.resolveDocument(sheet, occurrence.document, ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = catalog, at = occurrence.path)
-            assertEquals(listOf("概要", "項目", "入れ子の項目", "操作と、書く項目", "項目 × 操作"), sections.map { it.section.label })
+            assertEquals(
+                listOf("概要", "項目", "操作と、書く項目", "項目 × 操作", "子要素 × 操作（C＝足す・U＝変える・D＝消す）", "子要素: {label}", "子要素: {label}"),
+                sections.map { it.section.label },
+            )
             sections.forEach { assertEquals(null, it.reason, "$id ${it.section.label}") }
             // 表はどれも、このエンティティの id を受け取る値にして解く
-            sections.drop(1).forEach { assertEquals(mapOf<String, Any?>("entity" to id), it.gridParams, it.section.label) }
+            sections.subList(1, 5).forEach { assertEquals(mapOf<String, Any?>("entity" to id), it.gridParams, it.section.label) }
             val items = list(entity, "items")
             assertEquals(items.map { it["id"] }, assertNotNull(sections[1].gridRows).map { it.id }, "項目は確定項目の順")
-            assertEquals(list(entity, "operations").map { it["id"] }, assertNotNull(sections[3].gridRows).map { it.id })
-            assertEquals(items.map { it["id"] }, assertNotNull(sections[4].gridRows).map { it.id })
+            assertEquals(list(entity, "operations").map { it["id"] }, assertNotNull(sections[2].gridRows).map { it.id })
+            assertEquals(items.map { it["id"] }, assertNotNull(sections[3].gridRows).map { it.id })
+            assertEquals(items.filter { it["base"] == "array" }.map { it["id"] }, assertNotNull(sections[4].gridRows).map { it.id }, "子要素は並びの項目")
+            // 子要素ごとのまとまり: 並びの中に項目を持つ子要素と、子がエンティティの子要素に分かれ、その子要素を根にして表を解く
+            val inline = items.filter { (it["item"] as? Map<*, *>)?.get("fields") != null }
+            val nested = items.filter { (it["item"] as? Map<*, *>)?.get("entity") != null }
+            val inlineGroups = assertNotNull(sections[5].groups)
+            assertEquals(inline.map { it["id"] }, inlineGroups.map { it.id })
+            assertEquals(inline.map { "子要素: ${it["label"]}" }, inlineGroups.map { it.label })
+            inlineGroups.forEach { g ->
+                g.sections.forEach { assertEquals(mapOf<String, Any?>("field" to g.id), it.gridParams, "${g.id} ${it.section.label}") }
+                val fields = list(inline.single { it["id"] == g.id }["item"] as Map<*, *>, "fields").map { it["id"] }
+                g.sections.forEach { assertEquals(fields, assertNotNull(it.gridRows).map { r -> r.id }, "${g.id} ${it.section.label}") }
+            }
+            val nestedGroups = assertNotNull(sections[6].groups)
+            assertEquals(nested.map { it["id"] }, nestedGroups.map { it.id })
+            nestedGroups.forEach { g ->
+                val child = (nested.single { it["id"] == g.id }["item"] as Map<*, *>)["entity"]
+                g.sections.forEach { assertEquals(mapOf<String, Any?>("entity" to child), it.gridParams, "${g.id} ${it.section.label}") }
+                val fields = list(entities.single { it["id"] == child }, "items").map { it["id"] }
+                g.sections.forEach { assertEquals(fields, assertNotNull(it.gridRows).map { r -> r.id }, "${g.id} ${it.section.label}") }
+            }
         }
+        // TODO の個票には、コメント一覧・状態の履歴（並びの中の項目）と、作業項目（子のエンティティ）のまとまりが出る
+        val todoSheet = assertNotNull(catalog.elementViewFor("ENT-todo", ws.index.occurrences("ENT-todo")))
+        val todoSections = Views.resolveDocument(todoSheet.first, todoSheet.second.document, ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = catalog, at = todoSheet.second.path)
+        assertEquals(listOf("子要素: コメント一覧", "子要素: 状態の履歴"), todoSections[5].groups?.map { it.label })
+        assertEquals(listOf("子要素: 作業項目"), todoSections[6].groups?.map { it.label })
         // レビュー用の表は、値を読みやすい言葉に直すだけ（型は名前・必須は ●・書く項目は名称）
         val title = rows(ws, "entity-definition-review-items", "ENT-todo").single { it.id == "FLD-todo.title" }
         assertEquals("一行の文", value(title, "型"))
@@ -112,6 +140,66 @@ class TodosEntityFoundationTest {
         assertEquals(listOf("コメント一覧", "コメント一覧"), rows(ws, "entity-definition-review-nested", "ENT-todo").take(2).map { value(it, "親の項目") })
         // 文書ビューとしては entities.yaml に当たらない（編集画面のビューのタブには出ない）
         assertEquals(null, catalog.docViewFor("design/basic/final/entities.yaml", "basic-entity-list")?.takeIf { it.id == "entity-definition-sheet" })
+    }
+
+    @Test
+    fun `子要素への作用は 業務モデルの足す 入れ替える 消すから導き 子要素ごとの表は確定項目と一致する`() {
+        val ws = Workspace.open(root)
+        val entities = list(doc(root, "design/basic/final/entities.yaml"), "entities")
+        val todo = entities.single { it["id"] == "ENT-todo" }
+        fun write(action: String, item: String) = list(list(todo, "operations").single { it["action"] == action }, "writes").single { it["item"] == "FLD-todo.$item" }
+        // 足す（insert）＝C と、そのとき書く子の項目
+        assertEquals(listOf("C"), write("add-todo-comment", "comments")["element"])
+        assertEquals(listOf("FLD-todo.comments.item.date", "FLD-todo.comments.item.body"), write("add-todo-comment", "comments")["elementItems"])
+        // 状態の履歴は操作ごとに書く項目が違う（中断だけが再開予定日を書く）
+        assertEquals(listOf("date", "action", "to"), (write("register-todo", "history")["elementItems"] as List<*>).map { it.toString().substringAfterLast('.') })
+        assertTrue("FLD-todo.history.item.resume_on" in write("suspend-todo", "history")["elementItems"] as List<*>)
+        assertTrue("FLD-todo.history.item.resume_on" !in write("resume-todo", "history")["elementItems"] as List<*>)
+        // 丸ごと入れ替える（set）と消す（delete）＝C・U・D で、子要素のすべての項目が対象。子に項目の無い並び（タグ）は項目を持たない
+        assertEquals(listOf("C", "U", "D"), write("edit-todo", "comments")["element"])
+        assertEquals(listOf("FLD-todo.comments.item.date", "FLD-todo.comments.item.body"), write("edit-todo", "comments")["elementItems"])
+        assertEquals(listOf("C", "U", "D"), write("edit-todo", "tags")["element"])
+        assertEquals(null, write("edit-todo", "tags")["elementItems"])
+        // 作るときに値を入れる並び（タグ）は C。空で作る並び（コメント一覧）と、並びでない項目には付かない
+        assertEquals(listOf("C"), write("register-todo", "tags")["element"])
+        assertEquals(null, write("register-todo", "comments")["element"])
+        assertEquals(null, write("register-todo", "title")["element"])
+        // 子のエンティティ: 足すのは親の並びへの C、子の中への作用（済にする）は親から見て U
+        assertEquals(listOf("C") to listOf("FLD-todo-task.id", "FLD-todo-task.title", "FLD-todo-task.done"),
+            write("add-todo-task", "tasks").let { it["element"] to it["elementItems"] })
+        assertEquals(listOf("U") to listOf("FLD-todo-task.done"), write("todo-task.finish", "tasks").let { it["element"] to it["elementItems"] })
+        assertEquals("U", write("todo-task.finish", "tasks")["crud"])
+
+        // 子要素 × 操作: 行は並びの項目、セルは確定項目の element のまま
+        val children = rows(ws, "entity-definition-children", "ENT-todo")
+        assertEquals(listOf("FLD-todo.tags", "FLD-todo.tasks", "FLD-todo.comments", "FLD-todo.history"), children.map { it.id })
+        for (operation in list(todo, "operations")) for (row in children) {
+            val expected = list(operation, "writes").singleOrNull { it["item"] == row.id }?.get("element") as? List<*>
+            assertEquals(expected.orEmpty(), value(row, operation["label"].toString()), "${row.id} × ${operation["label"]}")
+        }
+        assertEquals(listOf("U"), value(children.single { it.id == "FLD-todo.tasks" }, "作業項目を済にする"))
+        assertEquals(listOf("C", "U", "D"), value(children.single { it.id == "FLD-todo.comments" }, "TODOを編集する"))
+
+        // 子要素の 項目 × 操作: 列はその子要素に触る操作だけ。セルは、その項目を書く操作の element
+        fun childRows(name: String, field: String) = Views.resolve(assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, mapOf("field" to field))
+        val history = childRows("entity-definition-child-crud", "FLD-todo.history")
+        assertEquals(
+            listOf("項番", "項目", "名称", "TODOを登録する", "TODOに着手する", "TODOを中断する", "TODOを再開する", "TODOを完了する", "TODOを中止する"),
+            history.first().cells.map { it.column.label },
+        )
+        val resumeOn = history.single { it.id == "FLD-todo.history.item.resume_on" }
+        assertEquals(listOf("C"), value(resumeOn, "TODOを中断する"))
+        assertEquals(emptyList<Any>(), value(resumeOn, "TODOを再開する"))
+        assertEquals(emptyList<Any>(), value(history.single { it.id == "FLD-todo.history.item.from" }, "TODOを登録する"), "登録には前の状態が無い")
+        val comments = childRows("entity-definition-child-crud", "FLD-todo.comments")
+        assertEquals(listOf("TODOにコメントを追加する", "TODOを編集する"), comments.first().cells.drop(3).map { it.column.label })
+        comments.forEach {
+            assertEquals(listOf("C"), value(it, "TODOにコメントを追加する"))
+            assertEquals(listOf("C", "U", "D"), value(it, "TODOを編集する"))
+        }
+        // 子要素の項目の表は、その子要素の項目だけ（一緒くたにしない）
+        assertEquals(listOf("日付", "コメント本文"), childRows("entity-definition-child-items", "FLD-todo.comments").map { value(it, "名称") })
+        assertEquals(6, childRows("entity-definition-child-items", "FLD-todo.history").size)
     }
 
     @Test
@@ -134,7 +222,8 @@ class TodosEntityFoundationTest {
             }
             assertEquals(listOf("項番", "項目", "名称") + list(entity, "operations").map { it["label"] }, crud.first().cells.map { it.column.label })
         }
-        assertEquals(52, writes)
+        // 52 個の C/U と、子のエンティティの中への作用（作業項目を済にする → TODO の作業項目を U）の 1 個
+        assertEquals(53, writes)
         val todo = rows(ws, "entity-definition-items", "ENT-todo")
         assertEquals(listOf("ENT-tag"), value(todo.single { it.id == "FLD-todo.tags" }, "要素の参照先"))
         assertEquals("ENT-todo-task", value(todo.single { it.id == "FLD-todo.tasks" }, "要素のエンティティ"))

@@ -416,7 +416,7 @@ root:
     - key: sections
       label: セクションの定義
       type: array
-      description: "documentはfields / backlinks / grid（拡張の種類の flow・chart などは種類が足す）のいずれか、dashboardはid・view・任意のfilterを持つ区画"
+      description: "documentはfields / backlinks / grid / each（拡張の種類の flow・chart などは種類が足す）のいずれか、dashboardはid・view・任意のfilterを持つ区画"
       item:
         type: object
         fields:
@@ -514,6 +514,26 @@ root:
                 type: array
                 item: {type: string}
                 description: "見せる列の見出しをこの順に並べる（省略すると表の全部の列）。文書の中では全行が同じ値になる列（テーブルID など）を外すのに使う。クロス集計の表には書けない"
+          - key: each
+            label: 区画の繰り返し
+            type: object
+            description: "根の要素から path に合う要素ごとに、その要素を根にして sections の区画を重ねる（fields / backlinks / grid とは併用不可）。見出し（label）の {パス} は、その要素の値で埋まる。例 {path: \"items[*]\", where: [{path: base, equals: array}]}"
+            fields:
+              - key: path
+                label: 要素のパス
+                type: string
+                required: true
+                description: "根の要素（文書のルートか、idPattern の要素）からのパス。[*] は並びの各要素（例 items[*]）"
+              - key: where
+                label: 要素の絞り込み
+                type: array
+                item: {type: any}
+                description: "要素の条件（かつ）。変換の $when と同じ書き方で、path はその要素からの相対（例 {path: item.fields, exists: true}）"
+          - key: sections
+            label: 要素ごとに重ねる区画（each）
+            type: array
+            item: {type: any}
+            description: "each の要素ごとに重ねる区画。書き方は sections の区画と同じで、パス（fields.path・grid.params の path・each.path）はその要素からの相対。拡張の種類の区画（flow・chart など）は書けない"
     - key: attachments
       label: 要素単位アタッチ
       type: array

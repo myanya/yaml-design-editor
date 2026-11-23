@@ -255,7 +255,7 @@ cells の columns。
 | `match` |  | glob の文字列 |  | このビューを当てる文書。schemaId と両方書くと、両方に合う文書です。 |
 | `schemaId` |  | スキーマ ID |  | このスキーマの文書に当てます。 |
 | `idPattern` |  | ID の形（glob の文字列。例 ENT-*） |  | 文書ではなく、この形の ID を持つ要素（エンティティ）の個票に当てます。区画のパス（fields.path・grid.params の path）は、その要素を根として読みます。match と schemaId は、要素が書かれた文書の絞り込みになります。attachments と、拡張の種類の区画（flow・chart など）は一緒に書けません。 |
-| `sections` |  | 区画の配列 |  | 区画。必ず書きます。1 つの区画は fields・backlinks・grid（と、あとから足せる種類の区画）のどれか 1 つです。 |
+| `sections` |  | 区画の配列 |  | 区画。必ず書きます。1 つの区画は fields・backlinks・grid・each（と、あとから足せる種類の区画）のどれか 1 つです。 |
 | `attachments` |  | {label, at, backlinks} の配列 |  | at の形に合う要素のフォームの中に、その要素の ID への参照元の表を差し込みます。 |
 
 ## 区画（sections の要素）
@@ -272,10 +272,12 @@ cells の columns。
 | `group` |  | 文字列 | 名前の無い群として先頭に並びます | ダッシュボードで、同じ名前の区画を見出し付きでまとめます。 |
 | `view` |  | ビュー ID |  | ダッシュボードの区画で対象を並べる、グリッドかクロス集計のビュー。 |
 | `filter` |  | 検査（match と、expect・count・check・forAll のどれか） |  | ダッシュボードの区画に出す行の条件。行の要素を起点に検査を評価し、満たした行を出します。$today は基準日です。 |
-| `label` |  | 文字列 |  | 区画の見出し。 |
+| `label` |  | 文字列 |  | 区画の見出し。each の区画では、要素ごとの見出しになり、{パス} をその要素の値で埋めます（例 「{label} の項目」）。 |
 | `fields` |  | {path, in, definition, include, exclude} |  | 文書ビューで、スキーマのフォームを区画に出します。backlinks・grid とは一緒に書けません。 |
 | `backlinks` |  | {idPattern, relation, schemaIds, columns} |  | 文書ビューで、文書の中の ID への参照元を並べます。 |
 | `grid` |  | {view, params, columns} |  | 文書ビューで、グリッドかクロス集計のビューを区画に置きます。 |
+| `each` |  | {path, where} |  | 文書ビューで、区画を要素ごとに繰り返します。根の要素から path に合う要素ごとに、その要素を根にして sections の区画を重ねます。見出し（label）の {パス} は、その要素の値で埋まります。fields・backlinks・grid とは一緒に書けません。 |
+| `sections` |  | 区画の配列 |  | each の要素ごとに重ねる区画。書き方は sections の区画と同じで、パス（fields.path・grid.params の path・each.path）はその要素からの相対です。each と一緒に書き、拡張の種類の区画（flow・chart など）は書けません。 |
 
 ## フォームの区画（fields）
 
@@ -306,6 +308,19 @@ cells の columns。
 | `view` | 必須 | ビュー ID |  | 置くグリッドかクロス集計のビュー。 |
 | `params` |  | 名前 → {path} のマップ |  | 表の受け取る値に、開いた文書の中の値を渡します。値が無ければ区画は出ません。 |
 | `columns` |  | 見出しの配列 | 表のすべての列 | 見せる列を、この順で並べます。クロス集計の表には書けません。 |
+
+## 区画の繰り返し（each）
+
+区画の each。
+
+- メタスキーマ: builtin-schemas/view.yaml の root.sections.item.each
+- 読む実装: workspace-core/workspace/ViewDefinitions.kt の parseDocView
+- 実装する機能（[FEATURES.md](../FEATURES.md) の ID）: X-07
+
+| 語 | 必須 | 値の形 | 省いたとき | 意味 |
+|---|---|---|---|---|
+| `path` | 必須 | パス（[*] は並びの各要素。例 items[*]） |  | 繰り返す要素の場所。根の要素（文書のルートか、idPattern の要素）からのパスで書きます。[*] は、その場所の並びの各要素です。 |
+| `where` |  | 条件の配列 | 合う要素のすべて | 要素の絞り込み（かつ）。変換の $when と同じ書き方で、path はその要素からの相対です（例 {path: item.fields, exists: true}）。 |
 
 ## 参照元の一覧（backlinks）
 

@@ -510,11 +510,33 @@ sections:
 ```
 
 - 区画のパス（`fields.path`・`grid.params` の `path`）は、文書のルートではなく**その要素**からの相対です。`fields: {}` は要素の項目の全部です。
-- 書ける区画は `fields`・`backlinks`・`grid` です。`attachments` と、拡張の種類の区画（`flow`・`chart` など）は書けません。
+- 書ける区画は `fields`・`backlinks`・`grid`・`each`（下の「区画を要素ごとに繰り返す」）です。`attachments` と、拡張の種類の区画（`flow`・`chart` など）は書けません。
 - このビューは文書には当たりません（編集画面のビューのタブには出ません）。当たるのは、ダッシュボードの個票だけです。台帳のエンティティページは、これまでどおり項目のフォームです。
 - 同じ ID が複数の文書に書かれているときは、定義した側の出現を根にします。当たるビューが複数あれば、定義ファイル名の順で最初のものです。
 - 表は読み取りの派生表示で、行は内側で送らずに全部出します。セルから原本へ進めるのは、ふつうの表と同じです。「原本を開く」で、その要素が書かれた文書へ移ります。
 - CLI は `view <workspace> <ビューID> <ID>` で、その ID の要素を根にした区画を返します（ID を省くと、当たる ID の一覧）。
+
+### 区画を要素ごとに繰り返す（`each`）
+
+並びの要素ごとに同じ形の区画を並べたいとき（子要素ごとの表など）は、区画に `each` と `sections` を書きます。
+`each.path` に合う要素ごとに、その要素を根にして `sections` の区画を重ね、要素ごとの見出しを付けます。
+
+```yaml
+# エンティティの個票の中で、並びの中に項目を持つ子要素ごとに、項目の表と 項目 × 操作 を並べる
+sections:
+  - label: "子要素: {label}"                                        # 要素ごとの見出し。{パス} はその要素の値で埋まる
+    each: { path: "items[*]", where: [ { path: item.fields, exists: true } ] }
+    sections:
+      - label: 項目
+        grid: { view: entity-definition-child-items, params: { field: { path: id } } }   # path はその要素からの相対
+      - label: 項目 × 操作
+        grid: { view: entity-definition-child-crud, params: { field: { path: id } } }
+```
+
+- `each.path` は根の要素（文書のルートか、`idPattern` の要素）からのパスで、`[*]` はその場所の並びの各要素です。
+- `each.where` は要素の絞り込みです（並べると「かつ」）。書き方は変換の `$when` と同じで、`path` はその要素からの相対です。合う要素が無ければ、何も出ません。
+- 中の区画のパス（`fields.path`・`grid.params` の `path`・中の `each.path`）は、その要素からの相対です。書ける区画は `fields`・`backlinks`・`grid`・`each` です。
+- 文書に当てる文書ビュー（`match`・`schemaId`）にも書けます。CLI の出力では、区画の `each.groups` に、要素ごとのまとまり（`id`・`at`・`label`・`sections`）が入ります。
 
 
 区画の解決は「区画から変換のひな型（写し・ビューの行）を組んで評価し、出どころで原本に結ぶ」形で、後の段階（開いた文書から線を辿った要素の区画・任意の木の射影）は同じ経路で足します（[ROADMAP「複合文書ビューと射影ビュー」](../ROADMAP.md)）。

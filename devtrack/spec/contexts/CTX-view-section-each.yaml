@@ -1,0 +1,11 @@
+id: CTX-view-section-each
+title: "区画の繰り返し（each）"
+language: view
+description: "区画の each。"
+meta:
+  schema: view
+  path: [root, sections, item, each]
+features: [X-07]
+evidence:
+  metaschema: "builtin-schemas/view.yaml の root.sections.item.each"
+  reader: "workspace-core/workspace/ViewDefinitions.kt の parseDocView"

@@ -18,6 +18,7 @@ import kotlin.test.*
 /**
  * 個票に当てる文書ビュー（`idPattern`）: 業務詳細（ダッシュボードの一覧から開く個票）は、当たるビューがあれば、
  * 項目のツリーの代わりに、その要素を根にした区画（項目の抜粋と、受け取る値つきの表）を上から重ねて出す。
+ * 区画の繰り返し（`each`）は、合う要素ごとのまとまり（見出しと、その要素を根にした区画）になる。
  */
 @OptIn(ExperimentalTestApi::class)
 class ElementSheetUiTest {
@@ -89,6 +90,10 @@ class ElementSheetUiTest {
               - { label: 概要, fields: { include: [name, note] } }
               - label: 部品の一覧
                 grid: { view: item-parts, params: { item: { path: id } } }
+              - label: "部品: {label}"
+                each: { path: "parts[*]" }
+                sections:
+                  - { label: 部品の内容, fields: { include: [label] } }
         """)
         return root
     }
@@ -119,6 +124,12 @@ class ElementSheetUiTest {
             assertTrue(onAllNodesWithText("天板").fetchSemanticsNodes().isNotEmpty())
             assertTrue(onAllNodesWithText("脚").fetchSemanticsNodes().isNotEmpty())
             onAllNodesWithText("座面").assertCountEquals(0)
+            // 区画の繰り返し: 部品ごとのまとまり（見出しは部品の名前で埋まる）に、その部品を根にした区画が出る
+            onAllNodesWithTag("doc-each-group", useUnmergedTree = true).assertCountEquals(2)
+            onNodeWithText("部品: 天板").assertExists()
+            onNodeWithText("部品: 脚").assertExists()
+            onAllNodesWithText("部品の内容").assertCountEquals(2)
+            onAllNodesWithText("部品: 座面").assertCountEquals(0)
         } finally {
             cleanup(root)
         }

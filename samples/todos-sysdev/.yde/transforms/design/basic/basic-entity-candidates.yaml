@@ -97,6 +97,7 @@ build:
           $flatten: true
           $build:
             $each: effects
+            $bind: ef
             $flatten: true
             $build:
               $concat:
@@ -136,6 +137,105 @@ build:
                               $copy: id
                               $of: ent
                         $then: true
+                      # 並びの項目への作用は、子要素（並びの要素）への C/U/D でもある。足す＝C、丸ごと入れ替える＝C・U・D、消す＝D
+                      marks:
+                        $when:
+                          - path: field.base
+                            equals: array
+                        $then:
+                          $first:
+                            - $when:
+                                - path: op
+                                  equals: insert
+                              $then: [C]
+                            - $when:
+                                - path: op
+                                  equals: set
+                              $then: [C, U, D]
+                            - $when:
+                                - path: op
+                                  equals: delete
+                              $then: [D]
+                      # 丸ごと入れ替える・消すときは、子要素のすべての項目が対象（項目の並びは書込をまとめる所で引く）
+                      whole:
+                        $when:
+                          - path: field.base
+                            equals: array
+                          - or:
+                              - path: op
+                                equals: set
+                              - path: op
+                                equals: delete
+                        $then: [true]
+                      # 足すときに書く子の項目。子がエンティティならその項目、そうでなければ並びの中の項目
+                      elementItems:
+                        $when:
+                          - path: field.base
+                            equals: array
+                          - path: op
+                            equals: insert
+                        $then:
+                          $each: written
+                          $build:
+                            $first:
+                              - $when:
+                                  - of: ef
+                                    path: field.item.entity
+                                    exists: true
+                                $then:
+                                  $format: FLD-{c}.{key}
+                                  $with:
+                                    c:
+                                      $copy: field.item.entity
+                                      $of: ef
+                              - $format: FLD-{e}.{f}.item.{key}
+                                $with:
+                                  e:
+                                    $copy: id
+                                    $of: ent
+                                  f:
+                                    $copy: field.key
+                                    $of: ef
+                # 子のエンティティの中への作用（型の操作。作業項目を済にする など）は、親から見ると、その並びの子要素を変える
+                - $when:
+                    - path: within
+                      exists: true
+                    - or:
+                        - path: op
+                          equals: set
+                        - path: op
+                          equals: delete
+                        - path: op
+                          equals: insert
+                  $then:
+                    $each: entities
+                    $of: model
+                    $build:
+                      $when:
+                        - path: id
+                          equals:
+                            $copy: entity
+                            $of: ef
+                        - path: owner.entity
+                          equals:
+                            $copy: id
+                            $of: ent
+                      $then:
+                        item:
+                          $copy: owner.field
+                        action:
+                          $copy: id
+                          $of: a
+                        label:
+                          $copy: label
+                          $of: a
+                        marks: [U]
+                        elementItems:
+                          - $format: FLD-{id}.{k}
+                            $with:
+                              k:
+                                $copy: field.key
+                                $of: ef
                 - $when:
                     - path: op
                       equals: create
@@ -148,6 +248,13 @@ build:
                     $build:
                       item:
                         $copy: key
+                      marks:
+                        $when:
+                          - path: base
+                            equals: array
+                          - path: value
+                            empty: false
+                        $then: [C]
                       action:
                         $copy: id
                         $of: a
@@ -174,6 +281,13 @@ build:
                     $build:
                       item:
                         $copy: key
+                      marks:
+                        $when:
+                          - path: base
+                            equals: array
+                          - path: value
+                            empty: false
+                        $then: [C]
                       action:
                         $copy: id
                         $of: a
@@ -218,6 +332,7 @@ build:
             $group: items
             $by:
               $copy: item
+            $bind: wr
             $build:
               id:
                 $format: CRUD-{e}.{a}.{k}
@@ -261,6 +376,41 @@ build:
                         equals: true
                     $then: C
                   - U
+              element:
+                $apply: element-marks
+                $with:
+                  marks:
+                    $each: items
+                    $flatten: true
+                    $build:
+                      $copy: marks
+              elementItems:
+                $apply: non-empty
+                $with:
+                  list:
+                    $group:
+                      $concat:
+                        - $each: items
+                          $flatten: true
+                          $build:
+                            $copy: elementItems
+                        - $apply: whole-items
+                          $with:
+                            wholes:
+                              $each: items
+                              $flatten: true
+                              $build:
+                                $copy: whole
+                            field:
+                              $copy: key
+                              $of: wr
+                            owner:
+                              $copy: .
+                              $of: ent
+                    $by:
+                      $copy: .
+                    $build:
+                      $copy: key
       identifiers:
         $group:
           $each: aspects
@@ -320,6 +470,81 @@ rules:
                   - path: type
                   - '#(.+)$'
         - $format: TYP-{type}
+  # 子要素への作用を C・U・D の順にそろえる（同じ操作の複数の作用を 1 つにまとめる）
+  - id: element-marks
+    with:
+      - marks
+    build:
+      $when:
+        - of: marks
+          path: .
+          empty: false
+      $then:
+        $concat:
+          - $when:
+              - of: marks
+                path: .
+                includes: C
+            $then: [C]
+          - $when:
+              - of: marks
+                path: .
+                includes: U
+            $then: [U]
+          - $when:
+              - of: marks
+                path: .
+                includes: D
+            $then: [D]
+  # 並びを丸ごと入れ替える・消す操作が対象にする、子要素のすべての項目（並びの中に項目を持つ子要素だけ）
+  - id: whole-items
+    with:
+      - wholes
+      - field
+      - owner
+    build:
+      $when:
+        - of: wholes
+          path: .
+          empty: false
+      $then:
+        $each: aspects
+        $of: owner
+        $flatten: true
+        $build:
+          $each: fields
+          $flatten: true
+          $build:
+            $when:
+              - path: key
+                equals:
+                  $copy: .
+                  $of: field
+              - path: item.fields
+                exists: true
+            $then:
+              $each: item.fields
+              $build:
+                $format: FLD-{e}.{f}.item.{key}
+                $with:
+                  e:
+                    $copy: id
+                    $of: owner
+                  f:
+                    $copy: .
+                    $of: field
+  # 空の並びは出さない
+  - id: non-empty
+    with:
+      - list
+    build:
+      $when:
+        - of: list
+          path: .
+          empty: false
+      $then:
+        $copy: .
+        $of: list
   - id: value
     with:
       - owner

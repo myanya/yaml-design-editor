@@ -24,6 +24,7 @@ import dev.toros.yde.semantic.VirtualDetailDef
 import dev.toros.yde.semantic.VirtualDocAttachment
 import dev.toros.yde.semantic.VirtualDocBacklinkColumn
 import dev.toros.yde.semantic.VirtualDocBacklinksDef
+import dev.toros.yde.semantic.VirtualDocEach
 import dev.toros.yde.semantic.VirtualDocGrid
 import dev.toros.yde.semantic.VirtualDocSection
 import dev.toros.yde.semantic.schema.DerivationSelector
@@ -170,38 +171,42 @@ object ViewDefinitions {
         }
         if (schemas.isNotEmpty()) errors += lint(views, docViews, schemas)
         if (schemas.isNotEmpty()) errors += lintLens(lensViews, schemas)
-        docViews.forEach { doc -> doc.sections.forEachIndexed { i, section ->
-            section.embed?.takeIf { it.inline == null }?.let { embed ->
-                val matches = all.filter { it.id == embed.view }
-                if (matches.size != 1 || (matches.single() as? ExtensionViewDef)?.viewKind != embed.kind) {
-                    errors += "${fileName(doc.source)}: sections[$i].${embed.kind}.view「${embed.view}」は一意な${embed.label}（kind: ${embed.kind}）を参照してください"
-                }
-            }
-            // 表の埋め込み: 一意なグリッドかクロス集計で、受け取る値の名前はその表の params に宣言されていること
-            section.grid?.let { grid ->
-                val target = all.filter { it.id == grid.view }.singleOrNull() as? VirtualGridDef
-                if (target == null) {
-                    errors += "${fileName(doc.source)}: sections[$i].grid.view「${grid.view}」は一意なグリッドかクロス集計（kind: grid / matrix）を参照してください"
-                } else {
-                    grid.params.keys.filterNot { it in target.params }.forEach { name ->
-                        errors += "${fileName(doc.source)}: sections[$i].grid.params「$name」はビュー「${grid.view}」の params にありません" +
-                            "（params: ${target.params.joinToString(", ").ifEmpty { "なし" }}）"
+        docViews.forEach { doc ->
+            fun check(section: VirtualDocSection, w: String) {
+                section.each?.sections?.forEachIndexed { k, inner -> check(inner, "$w.sections[$k]") }
+                section.embed?.takeIf { it.inline == null }?.let { embed ->
+                    val matches = all.filter { it.id == embed.view }
+                    if (matches.size != 1 || (matches.single() as? ExtensionViewDef)?.viewKind != embed.kind) {
+                        errors += "${fileName(doc.source)}: $w.${embed.kind}.view「${embed.view}」は一意な${embed.label}（kind: ${embed.kind}）を参照してください"
                     }
-                    // 見せる列: クロス集計は列が軸から決まるので選べない。グリッドは見出しが列にあること（要素ごとに広げる列は選べない）
-                    if (grid.columns.isNotEmpty()) {
-                        if (target.matrix != null) {
-                            errors += "${fileName(doc.source)}: sections[$i].grid.columns はクロス集計（kind: matrix）の表には書けません（列は軸から決まります）"
-                        } else {
-                            val labels = target.columns.filter { it.each == null }.map { it.label }
-                            grid.columns.filterNot { it in labels }.forEach { label ->
-                                errors += "${fileName(doc.source)}: sections[$i].grid.columns「$label」はビュー「${grid.view}」の列にありません" +
-                                    "（列: ${labels.joinToString(", ").ifEmpty { "なし" }}）"
+                }
+                // 表の埋め込み: 一意なグリッドかクロス集計で、受け取る値の名前はその表の params に宣言されていること
+                section.grid?.let { grid ->
+                    val target = all.filter { it.id == grid.view }.singleOrNull() as? VirtualGridDef
+                    if (target == null) {
+                        errors += "${fileName(doc.source)}: $w.grid.view「${grid.view}」は一意なグリッドかクロス集計（kind: grid / matrix）を参照してください"
+                    } else {
+                        grid.params.keys.filterNot { it in target.params }.forEach { name ->
+                            errors += "${fileName(doc.source)}: $w.grid.params「$name」はビュー「${grid.view}」の params にありません" +
+                                "（params: ${target.params.joinToString(", ").ifEmpty { "なし" }}）"
+                        }
+                        // 見せる列: クロス集計は列が軸から決まるので選べない。グリッドは見出しが列にあること（要素ごとに広げる列は選べない）
+                        if (grid.columns.isNotEmpty()) {
+                            if (target.matrix != null) {
+                                errors += "${fileName(doc.source)}: $w.grid.columns はクロス集計（kind: matrix）の表には書けません（列は軸から決まります）"
+                            } else {
+                                val labels = target.columns.filter { it.each == null }.map { it.label }
+                                grid.columns.filterNot { it in labels }.forEach { label ->
+                                    errors += "${fileName(doc.source)}: $w.grid.columns「$label」はビュー「${grid.view}」の列にありません" +
+                                        "（列: ${labels.joinToString(", ").ifEmpty { "なし" }}）"
+                                }
                             }
                         }
                     }
                 }
             }
-        } }
+            doc.sections.forEachIndexed { i, section -> check(section, "sections[$i]") }
+        }
         return ViewCatalog(
             views = views, docViews = docViews, errors = errors, lensViews = lensViews, dashboards = dashboards,
             extensionViews = extensionViews, notations = notations,
@@ -965,107 +970,125 @@ object ViewDefinitions {
         match?.let { runCatching { globToRegex(it) }.getOrElse { e -> error("match が不正です: ${e.message}") } }
         val sectionsRaw = raw["sections"] as? List<*> ?: error("sections が必要です")
         require(sectionsRaw.isNotEmpty()) { "sections には1つ以上のセクションが必要です" }
-        val sections = sectionsRaw.mapIndexed { i, entry ->
-            val m = entry as? Map<*, *> ?: error("sections[$i] はobjectである必要があります")
-            val label = m["label"]?.toString()?.takeIf { it.isNotBlank() }
-            val fieldsRaw = m["fields"]
-            val backlinksRaw = m["backlinks"]
-            val gridRaw = m["grid"]
-            // 拡張の種類の埋め込み（`flow: {view}`・`chart: {view}` など。キーは種類の sectionKey）
-            val embeds = kinds.mapNotNull { k -> k.sectionKey?.let { key -> m[key]?.let { key to it } } }
-            if (listOf(fieldsRaw, backlinksRaw, gridRaw).count { it != null } + embeds.size != 1) {
-                error("sections[$i]: ${(listOf("fields", "backlinks", "grid") + kinds.mapNotNull { it.sectionKey }).joinToString(" / ")} のいずれか一方が必要です")
-            }
-            // 表の埋め込み（複合文書ビュー 段階 1）: `grid: {view, params: {名前: {path}}, columns: [見出し…]}`。受け取る値は開いた文書の値
-            if (gridRaw != null) {
-                val gm = gridRaw as? Map<*, *> ?: error("sections[$i].grid はobjectである必要があります")
-                gm.keys.map { it.toString() }.firstOrNull { it !in setOf("view", "params", "columns") }
-                    ?.let { error("sections[$i].grid: 未知のキーです: $it（使えるキー: view / params / columns）") }
-                val target = (gm["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].grid.view が必要です")
-                val params = when (val p = gm["params"]) {
-                    null -> emptyMap()
-                    is Map<*, *> -> p.entries.associate { (k, v) ->
-                        val name = k.toString()
-                        val pm = v as? Map<*, *> ?: error("sections[$i].grid.params.$name は {path: 文書の中のパス} で書きます")
-                        pm.keys.map { it.toString() }.firstOrNull { it != "path" }
-                            ?.let { error("sections[$i].grid.params.$name: 未知のキーです: $it（使えるキー: path）") }
-                        val pathText = pm["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("sections[$i].grid.params.$name.path が必要です")
-                        name to runCatching { parseYPath(pathText) }.getOrElse { error("sections[$i].grid.params.$name.path が読めません: $pathText") }
-                    }
-                    else -> error("sections[$i].grid.params は {名前: {path: 文書の中のパス}} で書きます")
-                }
-                // 見せる列（見出しの並び。空なら表の全部の列）
-                val columns = when (val c = gm["columns"]) {
-                    null -> emptyList()
-                    is List<*> -> c.map { it?.toString()?.takeIf { l -> l.isNotBlank() } ?: error("sections[$i].grid.columns は列の見出しの並びで書きます") }
-                    else -> error("sections[$i].grid.columns は列の見出しの並びで書きます（例 [物理名, 論理名]）")
-                }
-                columns.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.firstOrNull()
-                    ?.let { error("sections[$i].grid.columns: 見出し「$it」が重複しています") }
-                return@mapIndexed VirtualDocSection(label = label, grid = VirtualDocGrid(target, params, columns))
-            }
-            embeds.singleOrNull()?.let { (key, value) ->
-                if (idPattern != null) error("sections[$i].$key: idPattern を書いた文書ビューには書けません（要素の個票に当てるビューの区画は fields / backlinks / grid）")
-                val em = value as? Map<*, *> ?: error("sections[$i].$key はobjectである必要があります")
-                val kind = kinds.first { it.sectionKey == key }
-                // view を書かない形は、その場の定義（開いた文書から解決する。種類が読めなければ view だけを書ける）
-                if (!em.containsKey("view")) {
-                    val where = "sections[$i].$key"
-                    val inline = kind.parseSection(em, source, where) ?: error("${where}にはviewが必要です")
-                    return@mapIndexed VirtualDocSection(label = label, embed = VirtualDocEmbed(kind.id, where, kind.label, inline))
-                }
-                require(em.keys.all { it == "view" }) { "sections[$i].${key}にはviewだけを指定できます（その場の定義なら view を書きません）" }
-                val target = (em["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("sections[$i].$key.viewが必要です")
-                return@mapIndexed VirtualDocSection(label = label, embed = VirtualDocEmbed(kind.id, target, kind.label))
-            }
-            if (fieldsRaw != null) {
-                val fm = fieldsRaw as? Map<*, *> ?: error("sections[$i].fields はobjectである必要があります（空なら {}）")
-                // definition（R14-02）: このセクションが参照する named definition の宣言。修飾名へ正規化して保持し、
-                // 存在（パース・ゲート）と実使用（リント）を検査する
-                val definition = fm["definition"]?.toString()?.takeIf { it.isNotBlank() }?.let { ref ->
-                    val qualified = if (ref.contains('#')) ref
-                    else "${schemaId ?: error("sections[$i].fields.definition: 非修飾名「$ref」を使うにはビューの schemaId が必要です")}#$ref"
-                    if (schemas.isNotEmpty() && resolveDefinition(qualified, null, schemas) == null) {
-                        error("sections[$i].fields.definition「$qualified」が見つかりません")
-                    }
-                    qualified
-                }
-                // 表示キーの選別（R14-03）: include はこの順で表示、exclude は除外（両立不可）
-                val include = stringList(fm["include"])
-                val exclude = stringList(fm["exclude"])
-                if (include.isNotEmpty() && exclude.isNotEmpty()) {
-                    error("sections[$i].fields: include と exclude は併用できません")
-                }
-                // 同じ ID の別の出現（側面）のフォーム（複合文書ビュー 段階 1）: `in: {schemaId / fileGlob}`。段階 1 はルートの ID の出現のルート要素
-                val fieldsIn = fm["in"]?.let { raw ->
-                    val im = raw as? Map<*, *> ?: error("sections[$i].fields.in は {schemaId, fileGlob} で書きます")
-                    im.keys.map { it.toString() }.firstOrNull { it !in setOf("schemaId", "fileGlob") }
-                        ?.let { error("sections[$i].fields.in: 未知のキーです: $it（使えるキー: schemaId / fileGlob）") }
-                    val selector = DerivationSelector(
-                        schemaId = im["schemaId"]?.toString()?.takeIf { it.isNotBlank() },
-                        fileGlob = im["fileGlob"]?.toString()?.takeIf { it.isNotBlank() },
-                    )
-                    if (selector.isEmpty) error("sections[$i].fields.in には schemaId か fileGlob が必要です")
-                    selector.fileGlob?.let { g -> runCatching { globToRegex(g) }.getOrElse { e -> error("sections[$i].fields.in.fileGlob が不正です: ${e.message}") } }
-                    if (fm["path"]?.toString()?.isNotBlank() == true) {
-                        error("sections[$i].fields: in と path は一緒に書けません（in の区画は、同じ ID の別の出現のルート要素を出します）")
-                    }
-                    if (definition != null) error("sections[$i].fields: in と definition は一緒に書けません")
-                    selector
-                }
-                VirtualDocSection(
-                    label = label,
-                    fieldsPath = parseYPath(fm["path"]?.toString() ?: ""),
-                    fieldsDefinition = definition,
-                    fieldsInclude = include,
-                    fieldsExclude = exclude,
-                    fieldsIn = fieldsIn,
-                )
-            } else {
-                val bm = backlinksRaw as? Map<*, *> ?: error("sections[$i].backlinks はobjectである必要があります")
-                VirtualDocSection(label = label, backlinks = parseDocBacklinks(bm, "sections[$i].backlinks"))
-            }
+        fun parseSection(entry: Any?, w: String, element: Boolean): VirtualDocSection {
+        val m = entry as? Map<*, *> ?: error("$w はobjectである必要があります")
+        val label = m["label"]?.toString()?.takeIf { it.isNotBlank() }
+        val fieldsRaw = m["fields"]
+        val backlinksRaw = m["backlinks"]
+        val gridRaw = m["grid"]
+        val eachRaw = m["each"]
+        // 拡張の種類の埋め込み（`flow: {view}`・`chart: {view}` など。キーは種類の sectionKey）
+        val embeds = kinds.mapNotNull { k -> k.sectionKey?.let { key -> m[key]?.let { key to it } } }
+        if (listOf(fieldsRaw, backlinksRaw, gridRaw, eachRaw).count { it != null } + embeds.size != 1) {
+            error("$w: ${(listOf("fields", "backlinks", "grid", "each") + kinds.mapNotNull { it.sectionKey }).joinToString(" / ")} のいずれか一方が必要です")
         }
+        if (eachRaw == null && m.containsKey("sections")) error("$w.sections は each（区画の繰り返し）と一緒に書きます")
+        // 区画の繰り返し: `each: {path, where}` に合う要素ごとに、その要素を根にして sections を重ねる
+        if (eachRaw != null) {
+            val em = eachRaw as? Map<*, *> ?: error("$w.each は {path: 要素のパス, where: [条件]} で書きます")
+            em.keys.map { it.toString() }.firstOrNull { it !in setOf("path", "where") }
+                ?.let { error("$w.each: 未知のキーです: $it（使えるキー: path / where）") }
+            val pathText = em["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$w.each.path が必要です（例 items[*]）")
+            val pattern = runCatching { PathPattern.parse(pathText) }.getOrElse { error("$w.each.path が読めません: $pathText") }
+            val conditions = runCatching { TransformDef.parseConditions(em["where"], "$w.each.where") }
+                .getOrElse { error(it.message ?: "$w.each.where が読めません") }
+            val innerRaw = (m["sections"] as? List<*>)?.takeIf { it.isNotEmpty() }
+                ?: error("$w.sections が必要です（each の要素ごとに重ねる区画を 1 つ以上）")
+            val inner = innerRaw.mapIndexed { k, e -> parseSection(e, "$w.sections[$k]", element = true) }
+            return VirtualDocSection(label = label, each = VirtualDocEach(pathText, pattern, conditions, inner))
+        }
+        // 表の埋め込み（複合文書ビュー 段階 1）: `grid: {view, params: {名前: {path}}, columns: [見出し…]}`。受け取る値は開いた文書の値
+        if (gridRaw != null) {
+            val gm = gridRaw as? Map<*, *> ?: error("$w.grid はobjectである必要があります")
+            gm.keys.map { it.toString() }.firstOrNull { it !in setOf("view", "params", "columns") }
+                ?.let { error("$w.grid: 未知のキーです: $it（使えるキー: view / params / columns）") }
+            val target = (gm["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("$w.grid.view が必要です")
+            val params = when (val p = gm["params"]) {
+                null -> emptyMap()
+                is Map<*, *> -> p.entries.associate { (k, v) ->
+                    val name = k.toString()
+                    val pm = v as? Map<*, *> ?: error("$w.grid.params.$name は {path: 文書の中のパス} で書きます")
+                    pm.keys.map { it.toString() }.firstOrNull { it != "path" }
+                        ?.let { error("$w.grid.params.$name: 未知のキーです: $it（使えるキー: path）") }
+                    val pathText = pm["path"]?.toString()?.takeIf { it.isNotBlank() } ?: error("$w.grid.params.$name.path が必要です")
+                    name to runCatching { parseYPath(pathText) }.getOrElse { error("$w.grid.params.$name.path が読めません: $pathText") }
+                }
+                else -> error("$w.grid.params は {名前: {path: 文書の中のパス}} で書きます")
+            }
+            // 見せる列（見出しの並び。空なら表の全部の列）
+            val columns = when (val c = gm["columns"]) {
+                null -> emptyList()
+                is List<*> -> c.map { it?.toString()?.takeIf { l -> l.isNotBlank() } ?: error("$w.grid.columns は列の見出しの並びで書きます") }
+                else -> error("$w.grid.columns は列の見出しの並びで書きます（例 [物理名, 論理名]）")
+            }
+            columns.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.firstOrNull()
+                ?.let { error("$w.grid.columns: 見出し「$it」が重複しています") }
+            return VirtualDocSection(label = label, grid = VirtualDocGrid(target, params, columns))
+        }
+        embeds.singleOrNull()?.let { (key, value) ->
+            if (element) error("$w.$key: 要素を根にした区画（idPattern を書いた文書ビュー・each の中）には書けません（書けるのは fields / backlinks / grid / each）")
+            val em = value as? Map<*, *> ?: error("$w.$key はobjectである必要があります")
+            val kind = kinds.first { it.sectionKey == key }
+            // view を書かない形は、その場の定義（開いた文書から解決する。種類が読めなければ view だけを書ける）
+            if (!em.containsKey("view")) {
+                val where = "$w.$key"
+                val inline = kind.parseSection(em, source, where) ?: error("${where}にはviewが必要です")
+                return VirtualDocSection(label = label, embed = VirtualDocEmbed(kind.id, where, kind.label, inline))
+            }
+            require(em.keys.all { it == "view" }) { "$w.${key}にはviewだけを指定できます（その場の定義なら view を書きません）" }
+            val target = (em["view"] as? String)?.takeIf { it.isNotBlank() } ?: error("$w.$key.viewが必要です")
+            return VirtualDocSection(label = label, embed = VirtualDocEmbed(kind.id, target, kind.label))
+        }
+        return if (fieldsRaw != null) {
+            val fm = fieldsRaw as? Map<*, *> ?: error("$w.fields はobjectである必要があります（空なら {}）")
+            // definition（R14-02）: このセクションが参照する named definition の宣言。修飾名へ正規化して保持し、
+            // 存在（パース・ゲート）と実使用（リント）を検査する
+            val definition = fm["definition"]?.toString()?.takeIf { it.isNotBlank() }?.let { ref ->
+                val qualified = if (ref.contains('#')) ref
+                else "${schemaId ?: error("$w.fields.definition: 非修飾名「$ref」を使うにはビューの schemaId が必要です")}#$ref"
+                if (schemas.isNotEmpty() && resolveDefinition(qualified, null, schemas) == null) {
+                    error("$w.fields.definition「$qualified」が見つかりません")
+                }
+                qualified
+            }
+            // 表示キーの選別（R14-03）: include はこの順で表示、exclude は除外（両立不可）
+            val include = stringList(fm["include"])
+            val exclude = stringList(fm["exclude"])
+            if (include.isNotEmpty() && exclude.isNotEmpty()) {
+                error("$w.fields: include と exclude は併用できません")
+            }
+            // 同じ ID の別の出現（側面）のフォーム（複合文書ビュー 段階 1）: `in: {schemaId / fileGlob}`。段階 1 はルートの ID の出現のルート要素
+            val fieldsIn = fm["in"]?.let { raw ->
+                val im = raw as? Map<*, *> ?: error("$w.fields.in は {schemaId, fileGlob} で書きます")
+                im.keys.map { it.toString() }.firstOrNull { it !in setOf("schemaId", "fileGlob") }
+                    ?.let { error("$w.fields.in: 未知のキーです: $it（使えるキー: schemaId / fileGlob）") }
+                val selector = DerivationSelector(
+                    schemaId = im["schemaId"]?.toString()?.takeIf { it.isNotBlank() },
+                    fileGlob = im["fileGlob"]?.toString()?.takeIf { it.isNotBlank() },
+                )
+                if (selector.isEmpty) error("$w.fields.in には schemaId か fileGlob が必要です")
+                selector.fileGlob?.let { g -> runCatching { globToRegex(g) }.getOrElse { e -> error("$w.fields.in.fileGlob が不正です: ${e.message}") } }
+                if (fm["path"]?.toString()?.isNotBlank() == true) {
+                    error("$w.fields: in と path は一緒に書けません（in の区画は、同じ ID の別の出現のルート要素を出します）")
+                }
+                if (definition != null) error("$w.fields: in と definition は一緒に書けません")
+                selector
+            }
+            VirtualDocSection(
+                label = label,
+                fieldsPath = parseYPath(fm["path"]?.toString() ?: ""),
+                fieldsDefinition = definition,
+                fieldsInclude = include,
+                fieldsExclude = exclude,
+                fieldsIn = fieldsIn,
+            )
+        } else {
+            val bm = backlinksRaw as? Map<*, *> ?: error("$w.backlinks はobjectである必要があります")
+            VirtualDocSection(label = label, backlinks = parseDocBacklinks(bm, "$w.backlinks"))
+        }
+    
+        }
+        val sections = sectionsRaw.mapIndexed { i, entry -> parseSection(entry, "sections[$i]", element = idPattern != null) }
         val attachments = (raw["attachments"] as? List<*>)?.mapIndexed { i, entry ->
             val m = entry as? Map<*, *> ?: error("attachments[$i] はobjectである必要があります")
             val atText = m["at"]?.toString()?.takeIf { it.isNotBlank() } ?: error("attachments[$i].at が必要です")
@@ -1330,8 +1353,18 @@ object ViewDefinitions {
             val roots: List<FieldDef> = docSchema?.let { sc ->
                 if (v.idPattern != null) idElementsOf(sc).map { sc.tree.resolve(it) ?: it } else listOf(sc.tree.root)
             }.orEmpty()
-            v.sections.forEachIndexed { i, s ->
-                val where = s.label ?: "sections[${i + 1}]"
+            fun lintSection(s: VirtualDocSection, where: String, roots: List<FieldDef>) {
+                // 区画の繰り返し: パスが根から解決でき、中の区画は、その要素を根にして解決できること
+                s.each?.let { each ->
+                    val inner = if (docSchema == null) emptyList() else roots.mapNotNull { staticFieldAt(docSchema, it, each.path) }
+                    if (docSchema != null && inner.isEmpty()) {
+                        report("セクション「$where」の each.path「${each.pathText}」はスキーマ「${docSchema.id}」から解決できません")
+                        return
+                    }
+                    val elements = inner.map { docSchema?.tree?.resolve(it) ?: it }
+                    each.sections.forEachIndexed { k, child -> lintSection(child, child.label ?: "$where.sections[${k + 1}]", elements) }
+                    return
+                }
                 val fieldsPath = s.fieldsPath
                 // 同じ ID の別の出現（側面）の区画: 出現のスキーマが在り、選別キーがそのスキーマの ID 要素の子項目にあること
                 s.fieldsIn?.let { sel ->
@@ -1398,7 +1431,9 @@ object ViewDefinitions {
                         }
                     }
                 }
+            
             }
+            v.sections.forEachIndexed { i, s -> lintSection(s, s.label ?: "sections[${i + 1}]", roots) }
             v.attachments.forEachIndexed { i, a ->
                 val where = a.label ?: "attachments[${i + 1}]"
                 a.backlinks.filter.schemaIds.filterNot { it in ids }.forEach {

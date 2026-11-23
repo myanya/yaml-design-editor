@@ -5,4 +5,4 @@ order: 4
 status: stable
 forms:
   - value: "区画の配列"
-    meaning: "区画。必ず書きます。1 つの区画は fields・backlinks・grid（と、あとから足せる種類の区画）のどれか 1 つです。"
+    meaning: "区画。必ず書きます。1 つの区画は fields・backlinks・grid・each（と、あとから足せる種類の区画）のどれか 1 つです。"

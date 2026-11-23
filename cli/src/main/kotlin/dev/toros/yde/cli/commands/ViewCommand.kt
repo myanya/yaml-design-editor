@@ -4,6 +4,7 @@ import dev.toros.yde.cli.asData
 import dev.toros.yde.cli.CliResult
 import dev.toros.yde.app.core.Dashboards
 import dev.toros.yde.app.core.DocBacklinkRow
+import dev.toros.yde.app.core.DocSectionResolved
 import dev.toros.yde.app.core.DocBacklinksDef
 import dev.toros.yde.app.core.Views
 import dev.toros.yde.cli.stringFlag
@@ -157,6 +158,48 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                     },
                 ).filterValues { it != null }
             }
+        // 区画 1 件 → YAML 構造。区画の繰り返し（each）は、合った要素ごとのまとまり（根にした要素の ID・場所・見出し・中の区画）を入れ子で返す
+        fun sectionMap(resolved: DocSectionResolved): Map<String, Any?> {
+            val section = resolved.section
+            return linkedMapOf<String, Any?>(
+                "label" to section.label,
+                "fields" to section.fieldsPath?.let { p -> if (p.isEmpty()) "(root)" else p.pretty() },
+                // 同じ ID の別の出現（側面）の区画: 出現の選び方と、解決した出現の座標（無ければ理由）
+                "in" to section.fieldsIn?.let { sel ->
+                    linkedMapOf("schemaId" to sel.schemaId, "fileGlob" to sel.fileGlob).filterValues { it != null }
+                },
+                "file" to resolved.occurrence?.document?.value,
+                "path" to resolved.occurrence?.let { if (it.path.isEmpty()) "(root)" else it.path.pretty() },
+                "include" to section.fieldsInclude.takeIf { it.isNotEmpty() },
+                "exclude" to section.fieldsExclude.takeIf { it.isNotEmpty() },
+                "rows" to rowMaps(resolved.rows, section.backlinks),
+                // 表の埋め込み: 受け取る値（この文書の値）と、その値で解決した行（グリッドの出力と同じ形）
+                "grid" to section.grid?.let { grid ->
+                    linkedMapOf<String, Any?>(
+                        "view" to grid.view,
+                        "params" to resolved.gridParams?.takeIf { it.isNotEmpty() },
+                        "rows" to resolved.gridView?.let { gv -> resolved.gridRows?.map { gridRowMap(ws, gv, it) } },
+                    ).filterValues { it != null }
+                },
+                "each" to section.each?.let { each ->
+                    linkedMapOf<String, Any?>(
+                        "path" to each.pathText,
+                        "groups" to resolved.groups?.map { group ->
+                            linkedMapOf<String, Any?>(
+                                "id" to group.id,
+                                "at" to group.path.pretty(),
+                                "label" to group.label,
+                                "sections" to group.sections.map { sectionMap(it) },
+                            ).filterValues { it != null }
+                        },
+                    ).filterValues { it != null }
+                },
+                "reason" to resolved.reason,
+            ).also { m ->
+                // 埋め込んだ拡張の種類（フロー・チャート）: 種類の ID を鍵に、この文書で解決した値
+                section.embed?.let { embed -> m[embed.kind] = Views.embeddedReport(embed, DocumentId(rel), loaded, ws.index, ws::treeOf, ws::schemaFor) }
+            }.filterValues { it != null }
+        }
         return asData(
             linkedMapOf(
                 "view" to dv.id,
@@ -166,34 +209,7 @@ internal fun viewCommand(rest: List<String>): CliResult = run {
                 // 要素に当てるビュー: 根にした要素の ID と場所
                 "id" to elementId,
                 "at" to at.takeIf { it.isNotEmpty() }?.pretty(),
-                "sections" to sections.map { resolved ->
-                    val section = resolved.section
-                    linkedMapOf<String, Any?>(
-                        "label" to section.label,
-                        "fields" to section.fieldsPath?.let { p -> if (p.isEmpty()) "(root)" else p.pretty() },
-                        // 同じ ID の別の出現（側面）の区画: 出現の選び方と、解決した出現の座標（無ければ理由）
-                        "in" to section.fieldsIn?.let { sel ->
-                            linkedMapOf("schemaId" to sel.schemaId, "fileGlob" to sel.fileGlob).filterValues { it != null }
-                        },
-                        "file" to resolved.occurrence?.document?.value,
-                        "path" to resolved.occurrence?.let { if (it.path.isEmpty()) "(root)" else it.path.pretty() },
-                        "include" to section.fieldsInclude.takeIf { it.isNotEmpty() },
-                        "exclude" to section.fieldsExclude.takeIf { it.isNotEmpty() },
-                        "rows" to rowMaps(resolved.rows, section.backlinks),
-                        // 表の埋め込み: 受け取る値（この文書の値）と、その値で解決した行（グリッドの出力と同じ形）
-                        "grid" to section.grid?.let { grid ->
-                            linkedMapOf<String, Any?>(
-                                "view" to grid.view,
-                                "params" to resolved.gridParams?.takeIf { it.isNotEmpty() },
-                                "rows" to resolved.gridView?.let { gv -> resolved.gridRows?.map { gridRowMap(ws, gv, it) } },
-                            ).filterValues { it != null }
-                        },
-                        "reason" to resolved.reason,
-                    ).also { m ->
-                        // 埋め込んだ拡張の種類（フロー・チャート）: 種類の ID を鍵に、この文書で解決した値
-                        section.embed?.let { embed -> m[embed.kind] = Views.embeddedReport(embed, DocumentId(rel), loaded, ws.index, ws::treeOf, ws::schemaFor) }
-                    }.filterValues { it != null }
-                },
+                "sections" to sections.map { sectionMap(it) },
                 "attachments" to attachments.map { resolved ->
                     linkedMapOf<String, Any?>(
                         "label" to resolved.attachment.label,

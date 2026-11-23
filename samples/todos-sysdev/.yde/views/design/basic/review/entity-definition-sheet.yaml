@@ -1,19 +1,34 @@
-# エンティティの個票（ダッシュボードの一覧から ID を押したときの見せ方）。1 エンティティを 1 枚で、上から読む
+# エンティティの個票（ダッシュボード「エンティティ定義書」のエンティティ一覧で ID を押すと出る 1 枚）
+# 根は ENT-* の要素。概要 → 項目 → 操作 → 項目 × 操作 → 子要素（並びの項目）ごとの表 の順に読む
 id: entity-definition-sheet
 name: エンティティ定義書（個票）
-description: >-
-  確定項目一覧のエンティティ（ENT-*）の個票。概要 → 項目 → 入れ子の項目 → 操作と書く項目 → 項目 × 操作 の順に重ねる。
-  表はレビュー用のビューで、値は確定項目のまま（ビューでは再計算しない）
 kind: document
 idPattern: "ENT-*"
 schemaId: basic-entity-list
 sections:
-  - { label: 概要, fields: { include: [label, entityClass, description, parent, parentField, identifiers, numbering] } }
+  - label: 概要
+    fields: { include: [label, entityClass, description, parent, parentField, identifiers, numbering] }
   - label: 項目
     grid: { view: entity-definition-review-items, params: { entity: { path: id } } }
-  - label: 入れ子の項目
-    grid: { view: entity-definition-review-nested, params: { entity: { path: id } } }
   - label: 操作と、書く項目
     grid: { view: entity-definition-review-operations, params: { entity: { path: id } } }
   - label: 項目 × 操作
     grid: { view: entity-definition-crud, params: { entity: { path: id } } }
+  - label: 子要素 × 操作（C＝足す・U＝変える・D＝消す）
+    grid: { view: entity-definition-children, params: { entity: { path: id } } }
+  # 並びの中に項目を持つ子要素（コメント一覧・状態の履歴 など）: 子要素ごとに、項目の表と 項目 × 操作 を並べる
+  - label: "子要素: {label}"
+    each: { path: "items[*]", where: [ { path: item.fields, exists: true } ] }
+    sections:
+      - label: 項目
+        grid: { view: entity-definition-child-items, params: { field: { path: id } } }
+      - label: 項目 × 操作（C＝足す・U＝変える・D＝消す）
+        grid: { view: entity-definition-child-crud, params: { field: { path: id } } }
+  # 子がエンティティの子要素（作業項目 など）: そのエンティティの項目と 項目 × 操作 を並べる（詳しくは、そのエンティティの個票）
+  - label: "子要素: {label}"
+    each: { path: "items[*]", where: [ { path: item.entity, exists: true } ] }
+    sections:
+      - label: 項目
+        grid: { view: entity-definition-review-items, params: { entity: { path: item.entity } } }
+      - label: 項目 × 操作
+        grid: { view: entity-definition-crud, params: { entity: { path: item.entity } } }

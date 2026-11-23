@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,9 +91,42 @@ internal fun DocViewSections(
             loader = state.unsavedFirstTree(), schemaFor = state::schemaFor, catalog = catalog, at = at,
         )
     }
+    ResolvedSections(ctx, root, resolved, at, anchor = listOf("@view"))
+}
+
+/**
+ * 解決済みの区画を上から描く。区画の繰り返し（each）は、合った要素ごとに見出しを出し、その要素を根にして同じ関数で中の区画を描く。
+ * anchor は、フォームの項目でない区画（表・被参照・埋め込み・繰り返し）の位置の名前（アウトラインとスクロールの宛先）。
+ */
+@Composable
+private fun ResolvedSections(ctx: FormCtx, root: YNode.Map, resolved: List<DocSectionResolved>, at: YPath, anchor: List<Any>) {
+    val state = ctx.state
+    val doc = ctx.doc
     resolved.forEachIndexed { i, sectionResolved ->
         val section = sectionResolved.section
-        FormAnchor(if (section.isLocalFields) at + section.fieldsPath!! else listOf("@view", i)) { Column(Modifier.fillMaxWidth()) {
+        val groups = sectionResolved.groups
+        if (section.each != null) {
+            // 要素ごとのまとまり: 見出しは区画より一段大きくし、上に線を引いて、どの表がどの要素のものかを分ける
+            FormAnchor(anchor + i) { Column(Modifier.fillMaxWidth()) {
+                sectionResolved.reason?.let { Text(it, fontSize = 11.sp, color = Palette.WarnOrange) }
+                groups.orEmpty().forEachIndexed { g, group ->
+                    Spacer(Modifier.height(if (i > 0 || g > 0) 20.dp else 0.dp))
+                    HorizontalDivider(color = Palette.Border)
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("doc-each-group")) {
+                        Text(group.label ?: group.id ?: group.path.pretty(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        group.id?.takeIf { it != group.label }?.let {
+                            Spacer(Modifier.width(8.dp))
+                            Text(it, fontSize = 11.sp, color = Palette.SubText)
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    ResolvedSections(ctx, root, group.sections, group.path, anchor + i + g)
+                }
+            } }
+            return@forEachIndexed
+        }
+        FormAnchor(if (section.isLocalFields) at + section.fieldsPath!! else anchor + i) { Column(Modifier.fillMaxWidth()) {
             if (i > 0) Spacer(Modifier.height(12.dp))
             section.label?.let {
                 Text(it, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Primary)

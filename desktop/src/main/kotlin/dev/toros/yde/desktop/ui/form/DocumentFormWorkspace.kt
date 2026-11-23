@@ -41,7 +41,9 @@ internal fun documentViewOutline(items: List<FormOutlineItem>, view: DocViewDef?
         val path = section.fieldsPath?.takeIf { section.isLocalFields }
         if (path == null) {
             val key = listOf("@view", i)
-            visible[key] = FormOutlineItem(key, emptyList(), section.label ?: "関連情報 ${i + 1}", depth = 1)
+            // 区画の繰り返しの見出しは要素ごとに決まる（ひな型のままでは読めない）ので、繰り返す場所で名乗る
+            val label = section.each?.let { "要素ごと（${it.pathText}）" } ?: section.label ?: "関連情報 ${i + 1}"
+            visible[key] = FormOutlineItem(key, emptyList(), label, depth = 1)
         } else {
             val sectionItems = items.filter { item ->
                 item.path.take(path.size) == path && (item.path == path ||

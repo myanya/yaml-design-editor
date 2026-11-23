@@ -1,0 +1,41 @@
+# レビュー用: 子要素（並びの項目）1 つの、項目 × 操作。その子要素に触る操作だけを列にする
+id: entity-definition-child-crud
+name: エンティティ定義書（レビュー・子要素の項目 × 操作）
+description: 並びの項目 1 つについて、操作が子要素のどの項目へ何をするか（C＝足す・U＝変える・D＝消す）を見せる。値は確定項目のままで、ビューでは再計算しない
+params: [field]
+rows:
+  match:
+    - node: { id: "FLD-*", bind: p }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where:
+    - { of: p, path: id, equals: $field }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 項目, path: key }
+  - { label: 名称, path: label }
+  - each:
+      rows:
+        match:
+          - node: { id: "OPS-*", bind: o }
+          - edge: { contains: true }
+          - node: { id: "CRUD-*", bind: c }
+          - edge: { via: item }
+          - node: { id: "FLD-*", bind: p }
+        rowKey: o
+        where:
+          - { of: p, path: id, equals: $field }
+          - { of: c, path: element, exists: true }
+      order: { schemaId: basic-entity-list }
+      bind: op
+    value:
+      all:
+        match:
+          - node: { id: "FLD-*" }
+          - edge: { via: elementItems, dir: in }
+          - node: { id: "CRUD-*", bind: c }
+        where: [{ of: c, path: operation, equals: $op }]
+        of: c
+        path: "element[*]"

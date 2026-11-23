@@ -1,0 +1,37 @@
+# レビュー用: 子要素（並びの項目）ごとに、どの操作が足す・変える・消すか
+id: entity-definition-children
+name: エンティティ定義書（レビュー・子要素 × 操作）
+description: 並びの項目（子要素）ごとに、操作が子要素へ何をするか（C＝足す・U＝変える・D＝消す）を見せる。値は確定項目のままで、ビューでは再計算しない
+params: [entity]
+rows:
+  match:
+    - node: { id: "ENT-*", bind: e }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where:
+    - { of: e, path: id, equals: $entity }
+    - { of: f, path: base, equals: array }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 子要素, path: label }
+  - each:
+      rows:
+        match:
+          - node: { id: "ENT-*", bind: e }
+          - edge: { contains: true }
+          - node: { id: "OPS-*", bind: o }
+        rowKey: o
+        where: [{ of: e, path: id, equals: $entity }]
+      order: { schemaId: basic-entity-list }
+      bind: op
+    value:
+      all:
+        match:
+          - node: { id: "FLD-*" }
+          - edge: { via: item, dir: in }
+          - node: { id: "CRUD-*", bind: c }
+        where: [{ of: c, path: operation, equals: $op }]
+        of: c
+        path: "element[*]"

@@ -68,6 +68,9 @@
 - **個票に当てる文書ビュー**: `idPattern`（`VirtualDocViewDef.idPattern`）を書いた文書ビューは、文書ではなく、その形の ID を持つ要素に当たる（`appliesToElement`。`appliesTo` は偽＝ビューのタブには出ない）。
   解決は同じ `resolveDocument` に根の場所 `at` を渡すだけで、区画のパス・受け取る値・被参照の行を、その要素を根として読む（`DocResolver` の `rootNode`）。
   画面は業務詳細（`EntityPage` の `business`）が `AppState.elementViewFor`（定義した側の出現を優先）で引き、`ElementSheet` が `DocViewSections` に `at` を渡して描く。区画の描き方は文書ビューと同じで、個票のための描画は足していない。
+- **区画の繰り返し（`each`）**: 区画の `each: {path, where}` と `sections`（`VirtualDocEach`）は、根の要素から path に合う要素ごとに、その要素を根にして中の区画を解く。
+  個票と同じ「根の場所 `at` を渡す」だけの仕組みで、`resolveDocument` が要素ごとに `DocResolver` を作り直し、結果は区画の `groups`（`VirtualDocEachGroup`＝場所・見出し・ID・中の区画）に入る。
+  要素の絞り込みと見出しの穴埋めは変換の条件とひな型（`SemanticTransform.holds`・`Template.Format`）で、独自の条件や穴埋めは書かない。画面は `ResolvedSections` が自分を要素の場所で呼び直す。検査（`lintSection`）も、中の区画をその要素の定義を根にして見る。
   リントは、パスと選別キーを、スキーマの ID を持つ要素のどれかから解決できるかで見る（どの要素に当たるかは定義からは 1 つに決まらない）。
 - **複合文書ビュー（段階 1）**: 区画に `fields.in`（同じ ID の別の出現＝側面。`VirtualDocSection.fieldsIn`）と `grid`（受け取る値つきの表の埋め込み。`VirtualDocGrid`）を足した。解決は `VirtualViews.resolveDocument` の `DocResolver` が、区画から**変換のひな型**を組んで `SemanticTransform.build` で評価する: 側面は束縛 `self`（ルートの ID の出現を選び方で選ぶ）への写し `Template.Copy`、表は `Template.ViewRows`（行は呼び出し側の `gridRows` が受け取る値で解決）。結果は `VirtualDocSectionResolved` の `term`（組み立てた項）と `origins`（出どころ）で、側面の区画は出どころが原本 1 か所の部分木なので `occurrence`（出現の座標）をそのまま編集面にする。表の行は派生（出どころ無し）。解決できなければ `reason`。
   表の区画の `columns`（`VirtualDocGrid.columns`）は見せる列の見出しで、`VirtualViews.selectColumns` が定義に当ててから解く（解決の呼び出し側は `gridDef` で定義を引き、`gridRows` で列を選んだ定義を受け取る値で解く）。クロス集計と要素ごとに広げる列は選べない（読み込み時の点検）。

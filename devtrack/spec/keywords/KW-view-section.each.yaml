@@ -1,0 +1,8 @@
+id: KW-view-section.each
+key: "each"
+context: CTX-view-section
+order: 9
+status: stable
+forms:
+  - value: "{path, where}"
+    meaning: "文書ビューで、区画を要素ごとに繰り返します。根の要素から path に合う要素ごとに、その要素を根にして sections の区画を重ねます。見出し（label）の {パス} は、その要素の値で埋まります。fields・backlinks・grid とは一緒に書けません。"

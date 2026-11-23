@@ -221,7 +221,10 @@ class TodosSysdevTest {
         val task = entities.single { it["id"] == "ENT-todo-task" }
         assertEquals(listOf("ENT-todo", "FLD-todo.tasks"), listOf(task["parent"], task["parentField"]))
         val finish = list(todo, "operations").single { it["action"] == "todo-task.finish" }
-        assertEquals(listOf("FLD-todo.updated_on" to "U"), list(finish, "writes").map { it["item"] to it["crud"] }, "作業項目を済にすると個票の更新日が変わる")
+        assertEquals(
+            listOf("FLD-todo.tasks" to "U", "FLD-todo.updated_on" to "U"), list(finish, "writes").map { it["item"] to it["crud"] },
+            "作業項目を済にすると、TODO から見て作業項目（子要素）と個票の更新日が変わる",
+        )
         // 段: ルールが無くても段の項は作れ、頭に当てた段の一覧が付く
         val session = WorkspaceSession(FileSystemDocumentStore(root))
         val detail = dev.toros.yde.workspace.Stages.term(session, dev.toros.yde.workspace.BusinessModel.of(session, "business"), "detail")

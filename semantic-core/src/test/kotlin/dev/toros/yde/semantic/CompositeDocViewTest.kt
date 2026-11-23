@@ -1,6 +1,8 @@
 package dev.toros.yde.semantic
 
 import dev.toros.yde.semantic.schema.DerivationSelector
+import dev.toros.yde.semantic.schema.TransformDef
+import dev.toros.yde.semantic.schema.PathPattern
 import dev.toros.yde.semantic.schema.EntityRole
 import dev.toros.yde.yaml.YamlIO
 import dev.toros.yde.yaml.model.DocumentId
@@ -177,5 +179,55 @@ class CompositeDocViewTest {
         // 根を渡さなければ、文書のルート（id が無い）から読もうとして理由つきで解決しない
         val atRoot = resolve(sheet, business)
         assertTrue("id" in assertNotNull(atRoot[1].reason), atRoot[1].reason)
+    }
+
+    @Test
+    fun `区画の繰り返しは 合う要素ごとに その要素を根にして区画を重ね 見出しを要素の値で埋める`() {
+        val doc = DocumentId("model/catalog.yaml")
+        val tree = YamlIO.parse(
+            """
+            entities:
+              - id: ENT-9
+                name: 注文
+                parts:
+                  - { id: PRT-1, label: 明細, kind: list }
+                  - { id: PRT-2, label: 備考, kind: text }
+                  - { id: PRT-3, label: 履歴, kind: list }
+            """.trimIndent()
+        )
+        val scanned = listOf(
+            ScannedId("ENT-9", doc, listOf("entities", 0), "注文", "cat", doc.value, role = EntityRole.DEFINING),
+            ScannedId("PRT-1", doc, listOf("entities", 0, "parts", 0), "明細", "cat", doc.value, role = EntityRole.DEFINING),
+            ScannedId("PRT-2", doc, listOf("entities", 0, "parts", 1), "備考", "cat", doc.value, role = EntityRole.DEFINING),
+            ScannedId("PRT-3", doc, listOf("entities", 0, "parts", 2), "履歴", "cat", doc.value, role = EntityRole.DEFINING),
+        )
+        val each = VirtualDocEach(
+            pathText = "parts[*]", path = PathPattern.parse("parts[*]"),
+            where = TransformDef.parseConditions(listOf(mapOf("path" to "kind", "equals" to "list")), "each.where"),
+            sections = listOf(VirtualDocSection(label = "カラム", grid = VirtualDocGrid("columns", mapOf("table" to listOf<Any>("id"))))),
+        )
+        val sheet = VirtualDocViewDef(
+            id = "sheet", name = "個票", idPattern = "ENT-*",
+            sections = listOf(VirtualDocSection(label = "部品: {label}", each = each)),
+            source = DocumentId("_views/sheet.yaml"),
+        )
+        val received = mutableListOf<Map<String, Any?>>()
+        val resolved = VirtualViews.resolveDocument(
+            sheet, doc, scanned.groupBy { it.id }, emptyList(),
+            SemanticEntityGraph.build(listOf(DocumentScan(doc, doc.value, scanned, emptyList())), scanned.groupBy { it.id }),
+            localIds = null, rel = { it.value }, tree = { tree.takeIf { _ -> it == doc } },
+            gridDef = { id -> gridDef.takeIf { it.id == id } },
+            gridRows = { _, params -> received += params; emptyList() },
+            at = listOf("entities", 0),
+        )
+        // where に合う要素（kind: list）だけが、木の順にまとまりになる。見出しは要素の値で埋まり、まとまりは要素の ID と場所を持つ
+        val groups = assertNotNull(resolved.single().groups)
+        assertEquals(listOf("部品: 明細", "部品: 履歴"), groups.map { it.label })
+        assertEquals(listOf("PRT-1", "PRT-3"), groups.map { it.id })
+        assertEquals(listOf<Any>("entities", 0, "parts", 2), groups[1].path)
+        // 中の区画の受け取る値は、個票の根（ENT-9）ではなく、その要素から読む
+        assertEquals(listOf<Map<String, Any?>>(mapOf("table" to "PRT-1"), mapOf("table" to "PRT-3")), received)
+        assertEquals(listOf("カラム"), groups[0].sections.map { it.section.label })
+        assertNull(groups[0].sections.single().reason)
     }
 }

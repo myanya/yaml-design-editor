@@ -1,0 +1,8 @@
+id: KW-view-section.sections
+key: "sections"
+context: CTX-view-section
+order: 10
+status: stable
+forms:
+  - value: "区画の配列"
+    meaning: "each の要素ごとに重ねる区画。書き方は sections の区画と同じで、パス（fields.path・grid.params の path・each.path）はその要素からの相対です。each と一緒に書き、拡張の種類の区画（flow・chart など）は書けません。"

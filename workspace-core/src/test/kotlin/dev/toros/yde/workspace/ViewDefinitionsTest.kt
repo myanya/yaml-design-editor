@@ -91,6 +91,58 @@ class ViewDefinitionsTest {
     }
 
     @Test
+    fun `区画の繰り返しは each と sections で読め パスと中の区画を その要素を根にして検査する`() {
+        val sheet = """
+            id: screen-sheet
+            kind: document
+            schemaId: screen
+            sections:
+              - { label: 概要, fields: { include: [name] } }
+              - label: "項目: {label}"
+                each: { path: "items[*]", where: [ { path: required, equals: true } ] }
+                sections:
+                  - { label: 内容, fields: { include: [label, required] } }
+                  - label: 画面の一覧
+                    grid: { view: screen-list }
+        """.trimIndent()
+        val catalog = ViewDefinitions.load(listOf(DocumentId("_views/a-grid.yaml") to grid, DocumentId("_views/c-sheet.yaml") to sheet), schemas())
+        assertTrue(catalog.errors.none { "c-sheet" in it }, catalog.errors.toString())
+        val each = assertNotNull(catalog.docViews.single { it.id == "screen-sheet" }.sections[1].each)
+        assertEquals("items[*]", each.pathText)
+        assertEquals(1, each.where.size)
+        assertEquals(listOf("内容", "画面の一覧"), each.sections.map { it.label })
+        assertEquals(listOf("label", "required"), each.sections[0].fieldsInclude)
+
+        fun errorsOf(body: String) = ViewDefinitions.load(
+            listOf(DocumentId("_views/a-grid.yaml") to grid, DocumentId("_views/x.yaml") to ("id: x\nkind: document\nschemaId: screen\nsections:\n" + body.trimIndent().prependIndent("  "))),
+            schemas(),
+        ).errors.joinToString("\n")
+        // 書き方の誤り: 中の区画が無い・each 無しの sections・ほかの区画と一緒・未知のキー
+        assertTrue("sections が必要です" in errorsOf("""- each: { path: "items[*]" }"""))
+        assertTrue("each（区画の繰り返し）と一緒に書きます" in errorsOf("- fields: {}\n  sections:\n    - fields: {}"))
+        assertTrue("いずれか一方" in errorsOf("""- each: { path: "items[*]" }
+  fields: {}
+  sections:
+    - fields: {}"""))
+        assertTrue("未知のキーです: when" in errorsOf("""- each: { path: "items[*]", when: [] }
+  sections:
+    - fields: {}"""))
+        // 検査: パスがスキーマから解決できない・中の区画の選別キーは要素（items の要素）の項目で見る
+        assertTrue("each.path「nothing[*]」" in errorsOf("""- each: { path: "nothing[*]" }
+  sections:
+    - fields: {}"""))
+        val inner = errorsOf("""- each: { path: "items[*]" }
+  sections:
+    - fields: { include: [name] }""")
+        assertTrue("選別キー「name」はスキーマにありません" in inner, inner)
+        // 中の表の点検（参照先のビュー）も繰り返しの中へ入る
+        val grids = errorsOf("""- each: { path: "items[*]" }
+  sections:
+    - grid: { view: nothing }""")
+        assertTrue("sections[0].sections[0].grid.view「nothing」" in grids, grids)
+    }
+
+    @Test
     fun `グリッドと文書ビューを読み取り 定義ファイル名順に並べる`() {
         val catalog = ViewDefinitions.load(
             listOf(DocumentId("_views/a-grid.yaml") to grid, DocumentId("_views/b-doc.yaml") to document),

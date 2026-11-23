@@ -1978,6 +1978,8 @@ entities:
             operation: OPS-todo.register-todo
             item: FLD-todo.tags
             crud: C
+            element:
+              - C
             origins:
               - kind: derived
                 source: OPS-todo.register-todo
@@ -2002,6 +2004,12 @@ entities:
             operation: OPS-todo.register-todo
             item: FLD-todo.history
             crud: C
+            element:
+              - C
+            elementItems:
+              - FLD-todo.history.item.date
+              - FLD-todo.history.item.action
+              - FLD-todo.history.item.to
             origins:
               - kind: derived
                 source: OPS-todo.register-todo
@@ -2035,6 +2043,11 @@ entities:
             operation: OPS-todo.add-todo-comment
             item: FLD-todo.comments
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo.comments.item.date
+              - FLD-todo.comments.item.body
             origins:
               - kind: derived
                 source: OPS-todo.add-todo-comment
@@ -2060,6 +2073,12 @@ entities:
             operation: OPS-todo.add-todo-task
             item: FLD-todo.tasks
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo-task.id
+              - FLD-todo-task.title
+              - FLD-todo-task.done
             origins:
               - kind: derived
                 source: OPS-todo.add-todo-task
@@ -2109,6 +2128,10 @@ entities:
             operation: OPS-todo.edit-todo
             item: FLD-todo.tags
             crud: U
+            element:
+              - C
+              - U
+              - D
             origins:
               - kind: derived
                 source: OPS-todo.edit-todo
@@ -2149,6 +2172,13 @@ entities:
             operation: OPS-todo.edit-todo
             item: FLD-todo.comments
             crud: U
+            element:
+              - C
+              - U
+              - D
+            elementItems:
+              - FLD-todo.comments.item.date
+              - FLD-todo.comments.item.body
             origins:
               - kind: derived
                 source: OPS-todo.edit-todo
@@ -2182,6 +2212,13 @@ entities:
             operation: OPS-todo.start-todo
             item: FLD-todo.history
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo.history.item.date
+              - FLD-todo.history.item.action
+              - FLD-todo.history.item.from
+              - FLD-todo.history.item.to
             origins:
               - kind: derived
                 source: OPS-todo.start-todo
@@ -2215,6 +2252,15 @@ entities:
             operation: OPS-todo.suspend-todo
             item: FLD-todo.history
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo.history.item.date
+              - FLD-todo.history.item.action
+              - FLD-todo.history.item.from
+              - FLD-todo.history.item.to
+              - FLD-todo.history.item.note
+              - FLD-todo.history.item.resume_on
             origins:
               - kind: derived
                 source: OPS-todo.suspend-todo
@@ -2248,6 +2294,14 @@ entities:
             operation: OPS-todo.resume-todo
             item: FLD-todo.history
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo.history.item.date
+              - FLD-todo.history.item.action
+              - FLD-todo.history.item.from
+              - FLD-todo.history.item.to
+              - FLD-todo.history.item.note
             origins:
               - kind: derived
                 source: OPS-todo.resume-todo
@@ -2297,6 +2351,13 @@ entities:
             operation: OPS-todo.complete-todo
             item: FLD-todo.history
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo.history.item.date
+              - FLD-todo.history.item.action
+              - FLD-todo.history.item.from
+              - FLD-todo.history.item.to
             origins:
               - kind: derived
                 source: OPS-todo.complete-todo
@@ -2338,6 +2399,14 @@ entities:
             operation: OPS-todo.cancel-todo
             item: FLD-todo.history
             crud: U
+            element:
+              - C
+            elementItems:
+              - FLD-todo.history.item.date
+              - FLD-todo.history.item.action
+              - FLD-todo.history.item.from
+              - FLD-todo.history.item.to
+              - FLD-todo.history.item.note
             origins:
               - kind: derived
                 source: OPS-todo.cancel-todo
@@ -2358,6 +2427,18 @@ entities:
         label: 作業項目を済にする
         crud: U
         writes:
+          - id: CRUD-todo.todo-task.finish.tasks
+            entity: ENT-todo
+            operation: OPS-todo.todo-task.finish
+            item: FLD-todo.tasks
+            crud: U
+            element:
+              - U
+            elementItems:
+              - FLD-todo-task.done
+            origins:
+              - kind: derived
+                source: OPS-todo.todo-task.finish
           - id: CRUD-todo.todo-task.finish.updated_on
             entity: ENT-todo
             operation: OPS-todo.todo-task.finish

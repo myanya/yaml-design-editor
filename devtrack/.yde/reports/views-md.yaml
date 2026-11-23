@@ -40,6 +40,8 @@ build:
       rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-section-fields } ] }
     - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-section-grid } ], $one: true }
       rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-section-grid } ] }
+    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-section-each } ], $one: true }
+      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-section-each } ] }
     - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-backlinks } ], $one: true }
       rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-backlinks } ] }
     - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-attachment } ], $one: true }

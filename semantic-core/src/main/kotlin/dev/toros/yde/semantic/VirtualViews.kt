@@ -18,6 +18,7 @@ import dev.toros.yde.semantic.schema.QueryEdgeStep
 import dev.toros.yde.semantic.schema.QueryNodeKind
 import dev.toros.yde.semantic.schema.QuerySpec
 import dev.toros.yde.semantic.schema.Template
+import dev.toros.yde.semantic.schema.TemplateCondition
 import dev.toros.yde.semantic.schema.TemplateSite
 import dev.toros.yde.semantic.schema.ValueExpr
 import dev.toros.yde.semantic.schema.globToRegex
@@ -288,7 +289,21 @@ data class VirtualDocGrid(
 )
 
 /**
- * 文書ビューのセクション1件。fields（フォーム射影）・backlinks（被参照表）・grid（表の埋め込み）・embed（拡張の種類）のどれか一方を持つ。
+ * 区画の繰り返し（`each: {path, where}` と `sections`）: 根の要素から path（`[*]` は並びの各要素）に合う要素ごとに、
+ * その要素を根にして sections を重ねる。where は要素の絞り込み（変換の条件と同じ書き方で、「いまの場所」がその要素）。
+ * 見出し（区画の label）は `{パス}` をその要素の値で埋める。
+ */
+data class VirtualDocEach(
+    val pathText: String,
+    /** 根の要素からのパスのパターン（`[*]`＝AnyIndex を含んでよい。schema.PathPattern）。 */
+    val path: List<Any>,
+    val where: List<TemplateCondition> = emptyList(),
+    val sections: List<VirtualDocSection>,
+)
+
+/**
+ * 文書ビューのセクション1件。fields（フォーム射影）・backlinks（被参照表）・grid（表の埋め込み）・embed（拡張の種類）・
+ * each（区画の繰り返し）のどれか一方を持つ。
  * fields に `in`（fieldsIn）を書いた区画は、開いた文書ではなく「同じ ID の別の出現（側面）」のフォーム（複合文書ビュー 段階 1）。
  */
 data class VirtualDocSection(
@@ -304,6 +319,8 @@ data class VirtualDocSection(
     val fieldsIn: DerivationSelector? = null,
     /** 表の埋め込み（`grid: {view, params}`）。 */
     val grid: VirtualDocGrid? = null,
+    /** 区画の繰り返し（`each: {path, where}` と `sections`）。 */
+    val each: VirtualDocEach? = null,
 ) {
     /** 開いた文書そのもののフォーム区画か（別の出現の区画・表・被参照・埋め込みではない）。 */
     val isLocalFields: Boolean get() = fieldsPath != null && fieldsIn == null
@@ -436,6 +453,16 @@ data class VirtualDocSectionResolved(
     val gridView: VirtualGridDef? = null,
     /** 解決できなかった理由（ルートに ID が無い・出現が無い・表が無い・受け取る値が無い）。 */
     val reason: String? = null,
+    /** `each` の区画: 合った要素ごとのまとまり（木の順。合う要素が無ければ空）。 */
+    val groups: List<VirtualDocEachGroup>? = null,
+)
+
+/** 区画の繰り返しの 1 まとまり: 根にした要素の場所・見出し（label を要素の値で埋めたもの）・その要素の ID・重ねた区画。 */
+data class VirtualDocEachGroup(
+    val path: YPath,
+    val label: String?,
+    val id: String?,
+    val sections: List<VirtualDocSectionResolved>,
 )
 
 /** 解決済みの要素単位アタッチ。rows の各行が「差し込み先の要素（path）とその被参照」。 */
@@ -1130,13 +1157,17 @@ object VirtualViews {
         gridRows: (VirtualGridDef, Map<String, Any?>) -> List<VirtualRow> = { _, _ -> emptyList() },
         at: YPath = emptyList(),
     ): List<VirtualDocSectionResolved> {
-        val resolver = DocResolver(document, ids, refs, graph, localIds, rel, tree, at)
-        return view.sections.map { section ->
-            section.backlinks?.let { return@map VirtualDocSectionResolved(section, resolver.rowsFor(it)) }
-            if (section.fieldsIn != null) return@map resolver.occurrenceSection(section)
-            section.grid?.let { return@map resolver.gridSection(section, it, gridDef, gridRows) }
-            VirtualDocSectionResolved(section)
+        fun resolve(sections: List<VirtualDocSection>, root: YPath): List<VirtualDocSectionResolved> {
+            val resolver = DocResolver(document, ids, refs, graph, localIds, rel, tree, root)
+            return sections.map { section ->
+                section.each?.let { each -> return@map resolver.eachSection(section, each) { path -> resolve(each.sections, path) } }
+                section.backlinks?.let { return@map VirtualDocSectionResolved(section, resolver.rowsFor(it)) }
+                if (section.fieldsIn != null) return@map resolver.occurrenceSection(section)
+                section.grid?.let { return@map resolver.gridSection(section, it, gridDef, gridRows) }
+                VirtualDocSectionResolved(section)
+            }
         }
+        return resolve(view.sections, at)
     }
 
     /**
@@ -1220,6 +1251,29 @@ object VirtualViews {
                 )
             }
             return VirtualDocSectionResolved(section, occurrence = occ, term = result.term, origins = result.origins)
+        }
+
+        /**
+         * `each` の区画: 根の要素から path に合う要素（木の順）のうち、where に合うものごとに、その要素を根にして区画を重ねる。
+         * 見出しは label の `{パス}` をその要素の値で埋める（埋まらなければ label のまま）。
+         */
+        fun eachSection(
+            section: VirtualDocSection,
+            each: VirtualDocEach,
+            resolve: (YPath) -> List<VirtualDocSectionResolved>,
+        ): VirtualDocSectionResolved {
+            val root = rootNode() ?: return VirtualDocSectionResolved(section, reason = "文書を読めません")
+            val groups = PathPattern.expand(root, each.path).mapNotNull { relative ->
+                val node = getAt(root, relative) ?: return@mapNotNull null
+                val path = at + relative
+                val place = SemanticTransform.TemplatePlace(node, document, path)
+                if (!SemanticTransform.holds(each.where, emptyMap(), place)) return@mapNotNull null
+                val label = section.label?.let { text ->
+                    scalarText(SemanticTransform.build(Template.Format(text, TemplateSite()), emptyMap(), place).term) ?: text
+                }
+                VirtualDocEachGroup(path, label, docIds.firstOrNull { it.path == path }?.id, resolve(path))
+            }
+            return VirtualDocSectionResolved(section, groups = groups)
         }
 
         /**

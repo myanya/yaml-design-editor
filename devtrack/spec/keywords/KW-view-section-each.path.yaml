@@ -1,0 +1,9 @@
+id: KW-view-section-each.path
+key: "path"
+context: CTX-view-section-each
+order: 1
+status: stable
+forms:
+  - required: true
+    value: "パス（[*] は並びの各要素。例 items[*]）"
+    meaning: "繰り返す要素の場所。根の要素（文書のルートか、idPattern の要素）からのパスで書きます。[*] は、その場所の並びの各要素です。"

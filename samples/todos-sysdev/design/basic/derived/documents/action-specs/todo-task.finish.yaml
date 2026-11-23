@@ -45,6 +45,7 @@ record:
         items:
           - todo-task.done
     writes:
+      - CRUD-todo.todo-task.finish.tasks
       - CRUD-todo.todo-task.finish.updated_on
       - CRUD-todo-task.todo-task.finish.done
   source:

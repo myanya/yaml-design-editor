@@ -1,0 +1,40 @@
+# レビュー用: 子要素（並びの項目）1 つの、要素の中の項目
+id: entity-definition-child-items
+name: エンティティ定義書（レビュー・子要素の項目）
+description: 並びの項目 1 つについて、要素の中の項目を見せる。値は確定項目のままで、ビューでは再計算しない
+params: [field]
+rows:
+  match:
+    - node: { id: "FLD-*", bind: p }
+    - edge: { contains: true }
+    - node: { id: "FLD-*", bind: f }
+  rowKey: f
+  where:
+    - { of: p, path: id, equals: $field }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: 項番, path: seq }
+  - { label: 項目, path: key }
+  - { label: 名称, path: label }
+  - label: 型
+    schemaId: basic-entity-list
+    value:
+      first:
+        - extract: [ { via: type, path: name }, "([^#]+)$" ]
+        - { path: base }
+  - { label: 基底, path: base, schemaId: basic-entity-list }
+  - label: 必須
+    value: { map: { path: required }, using: { "true": "●", "false": "" } }
+  - label: 形式
+    schemaId: basic-entity-list
+    value:
+      first:
+        - { map: { path: multiline }, using: { "true": 複数行 } }
+        - "表示 {format}"
+        - "{maxLength} 文字まで"
+  - label: 選択肢
+    schemaId: basic-entity-list
+    value: { path: "values[*].label" }
+  - label: 自動で入る値
+    value: { map: { path: auto }, using: { created: 作成した日, updated: 更新した日 } }
+  - { label: 説明, path: description }

@@ -1,0 +1,9 @@
+id: KW-view-section-each.where
+key: "where"
+context: CTX-view-section-each
+order: 2
+status: stable
+forms:
+  - value: "条件の配列"
+    default: "合う要素のすべて"
+    meaning: "要素の絞り込み（かつ）。変換の $when と同じ書き方で、path はその要素からの相対です（例 {path: item.fields, exists: true}）。"
