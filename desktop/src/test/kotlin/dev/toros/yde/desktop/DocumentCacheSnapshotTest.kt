@@ -43,10 +43,16 @@ class DocumentCacheSnapshotTest {
                     val destination = if (undoing) file else renamed
                     val beforeHistory = Snapshot.takeSnapshot()
                     try {
+                        // 不安定さの切り分け（UX-383）: どの確認が落ちたかと、断られたときの理由（status）を文面に出す
+                        val step = if (undoing) "Undo" else "Redo"
                         val job = withContext(DesktopUiDispatcher) {
-                            assertNotNull(state.historyFromUi(undoing)).also {
-                                assertTrue(state.fileOperationBusy)
-                                assertTrue(state.fileHistoryBusy)
+                            val busyBefore = state.fileOperationBusy
+                            assertNotNull(
+                                state.historyFromUi(undoing),
+                                "$step の履歴のファイル操作が始まらない（始める前の処理中=$busyBefore・status=${state.status}・確認待ち=${state.pendingHistory != null}）",
+                            ).also {
+                                assertTrue(state.fileOperationBusy, "$step を始めた直後に処理中になっていない（status=${state.status}）")
+                                assertTrue(state.fileHistoryBusy, "$step を始めた直後に履歴の処理中になっていない")
                             }
                         }
                         job.join()

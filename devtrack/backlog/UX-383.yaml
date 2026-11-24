@@ -1,0 +1,13 @@
+id: UX-383
+title: DocumentCacheSnapshotTest「スキーマフォルダーの改名とUndoとRedoを跨いでも古い描画は安全に読める」が、GitHub Actions でたまに落ちる（同じコミットで通る実行と落ちる実行がある）
+status: todo
+kind: dev
+origin_on: 2026-11-24
+origin: master の c096d54 の push で GitHub Actions の test が失敗（オーナーの指摘）
+memo: |-
+  事実: コミット c096d54 の test は、ブランチ claude/tender-allen-1wd2fp の実行では成功し、master の実行では desktop:test の 520 件中この 1 件だけが失敗した（java.lang.AssertionError at Assert.java:89 と、その Caused by。行の情報はログに無い）。手元（Linux）で 8 回続けて回して 8 回とも通った。テストの本体（b6908f4 から変更なし）と、ファイル配置の履歴の経路は、このコミットで触っていない。
+  読み取れたこと: 例外が Caused by つきで出ているので、落ちたのは EDT へ渡したかたまり（withContext(DesktopUiDispatcher) の中）の 3 つの確認のどれか＝ historyFromUi が null を返した（処理中・履歴の競合で断られた・確認待ち）か、始めた直後に fileOperationBusy・fileHistoryBusy が立っていない。履歴の競合の確認（WorkspaceSession.checkHistory）は、ディスクの文字と保存基準の文字の比較で、更新時刻は使っていない。原因は特定できていない。
+  した手当て（2026-11-24）: 次に落ちたとき切り分けられるよう、テストの 3 つの確認に、Undo か Redo か・始める前の処理中・status（断りの理由）・確認待ちを文面として出すようにした。失敗したジョブは同じコミットのまま回し直した。
+  当たり: 次に落ちたときの文面で、断り（status）か処理中の旗かを見分ける。断りなら、改名の直後のディスクの文字と保存基準の食い違い（書き込みの完了と読み出しの順）を疑う。
+related:
+  - UX-374
