@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応（HTML）を作り直す。
+"""設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応・理想のファイル体系（HTML）を作り直す。
 
 1 枚目（docs/design-dependency-map.html）: 設計書の種類ごとに、ほかのどの設計書から作られているか。
     線は 4 種類: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ。
 2 枚目（docs/design-file-graph.html）: 変換定義 1 本の出力と人の入力を箱にして、どのファイルを読んで、どの順に作られるか。
 3 枚目（docs/design-target-map.html）: 目指す形の段に、いまのファイルのまとまりを置き、外れている流れを出す。
+4 枚目（docs/design-ideal-graph.html）: 理想のファイルの種類と依存関係（設定に人が描く）。いまあって理想に無いファイルを出す。
 
 使い方（リポジトリのどこからでも。Windows は py -3）:
-    python3 samples/todos-sysdev/scripts/design-map.py            # 3 枚とも作り直す（Git に入れる）
+    python3 samples/todos-sysdev/scripts/design-map.py            # 4 枚とも作り直す（Git に入れる）
     python3 samples/todos-sysdev/scripts/design-map.py --check    # 作り直した結果が、いまのファイルと同じかを確かめる（違えば 1）
     python3 samples/todos-sysdev/scripts/design-map.py --workspace 作業用コピー --out 場所.html --files-out 場所.html --target-out 場所.html
 
@@ -568,6 +569,62 @@ def build_target(workspace, config, files):
             "notes": settings.get("notes", []), "warnings": warnings}
 
 
+def build_ideal(workspace, config, files):
+    """理想のファイル体系: 箱と線は設定に書く。決まりを守っているかと、いまあって理想に無いファイルを計算する。"""
+    settings = config["ideal"]
+    warnings = []
+    layer_index = {layer["id"]: index for index, layer in enumerate(settings["layers"])}
+    nodes = settings["nodes"]
+    by_id = {node["id"]: node for node in nodes}
+    name = lambda identifier: "".join(by_id[identifier]["label"][:1])
+    file_nodes = {node["id"]: node for node in files["nodes"]}
+
+    edges = []
+    for node in nodes:
+        for kind, key in (("from", "from"), ("ref", "refs"), ("view", "reads")):
+            for source in node.get(key, []):
+                if source not in by_id:
+                    warnings.append(f"「{name(node['id'])}」が読む「{source}」が、箱にありません")
+                    continue
+                gap = layer_index[node["layer"]] - layer_index[by_id[source]["layer"]]
+                if kind == "from" and gap != 1:
+                    warnings.append(f"決まりに反する線: 「{name(node['id'])}」が「{name(source)}」を読みます（作る元は 1 つ前の段だけ）")
+                if kind in ("ref", "view") and gap != 0:
+                    warnings.append(f"決まりに反する線: 「{name(node['id'])}」が「{name(source)}」を指します（指すのは同じ段だけ）")
+                edges.append([source, node["id"], kind])
+
+    used, out_nodes = set(), []
+    for node in nodes:
+        current = []
+        for pattern in node.get("current", []):
+            hits = [i for i in file_nodes if i == pattern or (pattern.startswith("in:") and i.startswith("in:") and glob_regex(pattern[3:]).match(i[3:]))]
+            if not hits:
+                warnings.append(f"「{name(node['id'])}」の current「{pattern}」に当たるファイルが、いまはありません")
+            for hit in sorted(hits, key=lambda i: (file_nodes[i]["level"], i)):
+                used.add(hit)
+                current.append(file_nodes[hit]["path"])
+        out_nodes.append({"id": node["id"], "layer": node["layer"], "kind": node["kind"], "row": node["row"], "col": node["col"],
+                          "label": node["label"], "status": node["status"], "note": node.get("note", ""), "current": current})
+    gone = [{"path": node["path"], "name": node["name"], "by": node["by"]}
+            for identifier, node in sorted(file_nodes.items(), key=lambda item: (item[1]["level"], item[0])) if identifier not in used]
+
+    labels = settings["statuses"]
+    counted = [n for n in out_nodes if n["kind"] not in ("bm", "source")]
+    stats = [["理想の箱", f"{len(out_nodes)}（人が書くもの {sum(1 for n in out_nodes if n['kind'] in ('bm', 'input'))}、モデルと記録 "
+                          f"{sum(1 for n in out_nodes if n['kind'] in ('model', 'aux'))}、ビュー {sum(1 for n in out_nodes if n['kind'] == 'view')}、"
+                          f"ソースコード {sum(1 for n in out_nodes if n['kind'] == 'source')}）"]]
+    for status, label in labels.items():
+        hits = [n for n in counted if n["status"] == status]
+        if hits:
+            stats.append([label, f"{len(hits)}（{'、'.join(''.join(n['label'][:1]) for n in hits)}）"])
+    stats.append(["いまあって、理想に無いファイル", f"{len(gone)} 種（いまは全部で {len(file_nodes)} 種）"])
+    stats.append(["線の数", f"作る元 {sum(1 for e in edges if e[2] == 'from')} 本、同じ段を指す {sum(1 for e in edges if e[2] == 'ref')} 本、"
+                          f"ビューが読む {sum(1 for e in edges if e[2] == 'view')} 本"])
+    return {"title": settings["title"], "select": settings.get("select") if settings.get("select") in by_id else None,
+            "layers": settings["layers"], "statuses": labels, "nodes": out_nodes, "edges": edges, "gone": gone,
+            "stats": stats, "notes": settings.get("notes", []), "warnings": warnings}
+
+
 def sort_ids(identifiers, by_id):
     return sorted(identifiers, key=lambda i: (by_id[i]["col"], by_id[i]["order"]))
 
@@ -664,17 +721,19 @@ def render(template_path, data, fragment):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応（HTML）を作り直す")
+    parser = argparse.ArgumentParser(description="設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応・理想のファイル体系（HTML）を作り直す")
     parser.add_argument("--workspace", type=Path, default=SAMPLE, help="読むワークスペース（既定はこのサンプル）")
     parser.add_argument("--out", type=Path, help="設計書の依存マップ（既定はワークスペースの docs/design-dependency-map.html）")
     parser.add_argument("--files-out", type=Path, help="ファイル単位のグラフ（既定はワークスペースの docs/design-file-graph.html）")
     parser.add_argument("--target-out", type=Path, help="目指す形への対応（既定はワークスペースの docs/design-target-map.html）")
+    parser.add_argument("--ideal-out", type=Path, help="理想のファイル体系（既定はワークスペースの docs/design-ideal-graph.html）")
     parser.add_argument("--check", action="store_true", help="書かずに、作り直した結果がいまのファイルと同じかを確かめる（違えば終了コード 1）")
     parser.add_argument("--lineage", type=Path, help="generate --lineage の出力ファイル（渡すと CLI を呼ばない）")
     parser.add_argument("--config", type=Path, default=HERE / "design-map.json", help="箱の並べ方の設定")
     parser.add_argument("--template", type=Path, default=HERE / "design-map.template.html", help="設計書の依存マップのひな形")
     parser.add_argument("--files-template", type=Path, default=HERE / "design-files.template.html", help="ファイル単位のグラフのひな形")
     parser.add_argument("--target-template", type=Path, default=HERE / "design-target.template.html", help="目指す形への対応のひな形")
+    parser.add_argument("--ideal-template", type=Path, default=HERE / "design-ideal.template.html", help="理想のファイル体系のひな形")
     parser.add_argument("--fragment", action="store_true", help="html・head・body の枠を付けずに書く（枠を足す側へ渡すとき）")
     arguments = parser.parse_args()
     for stream in (sys.stdout, sys.stderr):  # 端末の文字コードで表せない字があっても、止まらずに出す
@@ -707,6 +766,11 @@ def main():
         data["workspace"] = place
         pages.append((arguments.target_out or workspace / "docs" / "design-target-map.html", arguments.target_template, data,
                       f"まとまり {len(data['groups'])}、流れ {len(data['flows'])}"))
+    if "ideal" in config:
+        data = build_ideal(workspace, config, files)
+        data["workspace"] = place
+        pages.append((arguments.ideal_out or workspace / "docs" / "design-ideal-graph.html", arguments.ideal_template, data,
+                      f"箱 {len(data['nodes'])}、線 {len(data['edges'])}"))
 
     stale = False
     for out, template, data, summary in pages:

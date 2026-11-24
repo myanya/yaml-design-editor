@@ -699,6 +699,1125 @@
       "基本設計情報への人の入力（区分の追加と割当、定義書への補正）は、目指す形での置き場所が決まっていません。"
     ]
   },
+  "ideal": {
+   "comment": "理想のファイル体系（docs/design-ideal-graph.html）の設定。箱と線はすべて人が書く（まだ無い形なので計算できない）。current は、いまのどのファイル（t: は変換定義の出力、in: は人の入力）に当たるか。スクリプトは、線が決まり（前の段か同じ段だけを読む）を守っているかと、いまあって理想に無いファイルを計算する。",
+   "title": "todos-sysdev 理想のファイル体系",
+   "select": "a-op",
+   "layers": [
+    {
+     "id": "bm",
+     "label": [
+      "業務モデル"
+     ],
+     "sub": "誤りはここを直す"
+    },
+    {
+     "id": "a",
+     "label": [
+      "抽象システムモデル",
+      "（基本設計）"
+     ],
+     "sub": "ビュー = 定義書",
+     "mapping": "アーキテクチャマッピング"
+    },
+    {
+     "id": "c",
+     "label": [
+      "具体システムモデル",
+      "（詳細設計）"
+     ],
+     "sub": "ビュー = 設計書",
+     "mapping": "技術スタックマッピング"
+    },
+    {
+     "id": "p",
+     "label": [
+      "プログラム設計",
+      "（配置）"
+     ],
+     "sub": "",
+     "mapping": "コードマッピング（前半）"
+    },
+    {
+     "id": "s",
+     "label": [
+      "ソースコード"
+     ],
+     "sub": "app/",
+     "mapping": "コードマッピング（後半）"
+    }
+   ],
+   "statuses": {
+    "same": "いまと同じ形",
+    "reshape": "文書の形から項目の形へ変える",
+    "new": "新しく足す",
+    "move": "置き場所を移す",
+    "merge": "まとめ直す",
+    "viewonly": "ファイルをやめてビューだけにする",
+    "role": "位置づけを変える"
+   },
+   "nodes": [
+    {
+     "id": "bS",
+     "layer": "bm",
+     "kind": "bm",
+     "row": 0,
+     "col": 1,
+     "label": [
+      "項目と型"
+     ],
+     "status": "same",
+     "current": [
+      "bm"
+     ]
+    },
+    {
+     "id": "bO",
+     "layer": "bm",
+     "kind": "bm",
+     "row": 0,
+     "col": 2,
+     "label": [
+      "操作・状態・決まり"
+     ],
+     "status": "same",
+     "current": [
+      "bm"
+     ]
+    },
+    {
+     "id": "bV",
+     "layer": "bm",
+     "kind": "bm",
+     "row": 0,
+     "col": 4,
+     "label": [
+      "ダッシュボードとビュー"
+     ],
+     "status": "same",
+     "current": [
+      "bm"
+     ]
+    },
+    {
+     "id": "a-policy",
+     "layer": "a",
+     "kind": "input",
+     "row": 0,
+     "col": 0,
+     "label": [
+      "全体の判断"
+     ],
+     "status": "merge",
+     "current": [
+      "in:design/basic/inputs/entities/additions.yaml"
+     ],
+     "note": "同じ種類すべてに当てる方針。いまは区分（マスタ・トランザクション）の定義だけです。認証・認可や監査項目の方針は、ここに書きます。"
+    },
+    {
+     "id": "a-dec",
+     "layer": "a",
+     "kind": "input",
+     "row": 1,
+     "col": 0,
+     "label": [
+      "個別の判断"
+     ],
+     "status": "merge",
+     "current": [
+      "in:design/basic/inputs/entities/corrections.yaml",
+      "in:design/basic/inputs/documents/*.yaml"
+     ],
+     "note": "特定の要素だけの決定。いまは区分の割当だけです。TODO の ID の説明の補正（COR-001）は、業務モデルを直すので無くなります。"
+    },
+    {
+     "id": "a-typ",
+     "layer": "a",
+     "kind": "model",
+     "row": 0,
+     "col": 1,
+     "label": [
+      "型"
+     ],
+     "status": "same",
+     "current": [
+      "t:basic-types"
+     ],
+     "from": [
+      "bS"
+     ]
+    },
+    {
+     "id": "a-ent",
+     "layer": "a",
+     "kind": "model",
+     "row": 0,
+     "col": 2,
+     "label": [
+      "エンティティと項目"
+     ],
+     "status": "same",
+     "current": [
+      "t:basic-entities",
+      "t:basic-classes"
+     ],
+     "from": [
+      "bS"
+     ],
+     "refs": [
+      "a-typ"
+     ]
+    },
+    {
+     "id": "a-sta",
+     "layer": "a",
+     "kind": "model",
+     "row": 0,
+     "col": 3,
+     "label": [
+      "状態と遷移"
+     ],
+     "status": "new",
+     "from": [
+      "bO"
+     ],
+     "refs": [
+      "a-ent"
+     ],
+     "note": "いまは詳細設計が業務モデルから直接読んでいます。"
+    },
+    {
+     "id": "a-rul",
+     "layer": "a",
+     "kind": "model",
+     "row": 0,
+     "col": 4,
+     "label": [
+      "データの決まり"
+     ],
+     "status": "new",
+     "from": [
+      "bO"
+     ],
+     "refs": [
+      "a-ent"
+     ],
+     "note": "いまは詳細設計が業務モデルから直接読んでいます。"
+    },
+    {
+     "id": "a-qry",
+     "layer": "a",
+     "kind": "model",
+     "row": 1,
+     "col": 1,
+     "label": [
+      "一覧の検索条件"
+     ],
+     "status": "new",
+     "from": [
+      "bV"
+     ],
+     "refs": [
+      "a-ent"
+     ],
+     "note": "いまはテーブルアクセス設計書が、業務モデルのダッシュボードとビューから直接作っています。"
+    },
+    {
+     "id": "a-op",
+     "layer": "a",
+     "kind": "model",
+     "row": 1,
+     "col": 2,
+     "label": [
+      "操作"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:action-specs"
+     ],
+     "from": [
+      "bO"
+     ],
+     "refs": [
+      "a-ent",
+      "a-sta",
+      "a-rul"
+     ]
+    },
+    {
+     "id": "a-err",
+     "layer": "a",
+     "kind": "model",
+     "row": 1,
+     "col": 3,
+     "label": [
+      "エラー"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:errors"
+     ],
+     "from": [
+      "bO"
+     ],
+     "refs": [
+      "a-op",
+      "a-rul",
+      "a-sta"
+     ]
+    },
+    {
+     "id": "a-msg",
+     "layer": "a",
+     "kind": "model",
+     "row": 1,
+     "col": 4,
+     "label": [
+      "メッセージ"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:messages"
+     ],
+     "from": [
+      "bO"
+     ],
+     "refs": [
+      "a-err",
+      "a-scr"
+     ]
+    },
+    {
+     "id": "a-scr",
+     "layer": "a",
+     "kind": "model",
+     "row": 2,
+     "col": 1,
+     "label": [
+      "画面"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:screen-lists",
+      "t:screen-details",
+      "t:screen-operations"
+     ],
+     "from": [
+      "bV",
+      "bO"
+     ],
+     "refs": [
+      "a-ent",
+      "a-op",
+      "a-qry"
+     ]
+    },
+    {
+     "id": "a-trn",
+     "layer": "a",
+     "kind": "model",
+     "row": 2,
+     "col": 2,
+     "label": [
+      "画面遷移"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:screen-transitions"
+     ],
+     "from": [
+      "bV"
+     ],
+     "refs": [
+      "a-scr"
+     ]
+    },
+    {
+     "id": "a-base",
+     "layer": "a",
+     "kind": "aux",
+     "row": 2,
+     "col": 3,
+     "label": [
+      "補正前（比較用）"
+     ],
+     "status": "role",
+     "current": [
+      "t:action-specs-derived",
+      "t:domains-derived",
+      "t:domain-relations-derived",
+      "t:errors-derived",
+      "t:messages-derived",
+      "t:screen-details-derived",
+      "t:screen-lists-derived",
+      "t:screen-operations-derived",
+      "t:screen-transitions-derived"
+     ],
+     "note": "個別の判断が 0 件ならこうなる、という比較の相手。確定したモデルとの差は、すべて個別の判断で説明できます。"
+    },
+    {
+     "id": "a-chk",
+     "layer": "a",
+     "kind": "aux",
+     "row": 2,
+     "col": 4,
+     "label": [
+      "検査記録"
+     ],
+     "status": "same",
+     "current": [
+      "t:basic-final",
+      "t:basic-document-input-gate"
+     ]
+    },
+    {
+     "id": "av-ent",
+     "layer": "a",
+     "kind": "view",
+     "row": 0,
+     "col": 5,
+     "label": [
+      "エンティティ定義書"
+     ],
+     "status": "same",
+     "reads": [
+      "a-ent",
+      "a-typ",
+      "a-op"
+     ]
+    },
+    {
+     "id": "av-op",
+     "layer": "a",
+     "kind": "view",
+     "row": 1,
+     "col": 5,
+     "label": [
+      "アクション定義書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "a-op",
+      "a-sta",
+      "a-rul"
+     ]
+    },
+    {
+     "id": "av-scr",
+     "layer": "a",
+     "kind": "view",
+     "row": 2,
+     "col": 5,
+     "label": [
+      "画面定義書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "a-scr",
+      "a-qry",
+      "a-ent"
+     ]
+    },
+    {
+     "id": "av-trn",
+     "layer": "a",
+     "kind": "view",
+     "row": 3,
+     "col": 5,
+     "label": [
+      "画面遷移定義書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "a-trn",
+      "a-scr"
+     ]
+    },
+    {
+     "id": "av-err",
+     "layer": "a",
+     "kind": "view",
+     "row": 4,
+     "col": 5,
+     "label": [
+      "エラー定義書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "a-err",
+      "a-rul",
+      "a-op"
+     ]
+    },
+    {
+     "id": "av-msg",
+     "layer": "a",
+     "kind": "view",
+     "row": 5,
+     "col": 5,
+     "label": [
+      "メッセージ定義書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "a-msg"
+     ]
+    },
+    {
+     "id": "av-dom",
+     "layer": "a",
+     "kind": "view",
+     "row": 6,
+     "col": 5,
+     "label": [
+      "ドメイン定義書・関連定義書"
+     ],
+     "status": "viewonly",
+     "current": [
+      "t:domains",
+      "t:domain-relations"
+     ],
+     "reads": [
+      "a-ent",
+      "a-op",
+      "a-sta",
+      "a-rul"
+     ],
+     "note": "ほかのファイルの入力になっていないので、ファイルを持たずビューだけにします。"
+    },
+    {
+     "id": "c-policy",
+     "layer": "c",
+     "kind": "input",
+     "row": 0,
+     "col": 0,
+     "label": [
+      "全体の判断"
+     ],
+     "status": "merge",
+     "current": [
+      "in:design/detail/inputs/tables/sql-types.yaml",
+      "in:design/detail/inputs/application/java-types.yaml",
+      "in:design/detail/inputs/appearance/theme.yaml",
+      "t:application-java-types",
+      "t:application-theme",
+      "t:application-theme-input-gate"
+     ],
+     "note": "型対応表（SQL・Java）とテーマ。Java の型対応を詳細設計に置くかプログラム設計に置くかは、決めていません。"
+    },
+    {
+     "id": "c-dec",
+     "layer": "c",
+     "kind": "input",
+     "row": 1,
+     "col": 0,
+     "label": [
+      "個別の判断"
+     ],
+     "status": "merge",
+     "current": [
+      "in:design/detail/inputs/tables/ledger.yaml",
+      "in:design/detail/inputs/tables/corrections.yaml",
+      "in:design/detail/inputs/documents/*.yaml"
+     ],
+     "note": "索引の追加、名前の付け替え、CSS 部品の追加など。"
+    },
+    {
+     "id": "c-tbl",
+     "layer": "c",
+     "kind": "model",
+     "row": 0,
+     "col": 1,
+     "label": [
+      "テーブル"
+     ],
+     "status": "same",
+     "current": [
+      "t:detail-tables"
+     ],
+     "from": [
+      "a-ent",
+      "a-typ"
+     ]
+    },
+    {
+     "id": "c-acc",
+     "layer": "c",
+     "kind": "model",
+     "row": 0,
+     "col": 2,
+     "label": [
+      "テーブルへの読み書き"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:table-access"
+     ],
+     "from": [
+      "a-op",
+      "a-qry",
+      "a-rul"
+     ],
+     "refs": [
+      "c-tbl"
+     ]
+    },
+    {
+     "id": "c-stt",
+     "layer": "c",
+     "kind": "model",
+     "row": 0,
+     "col": 3,
+     "label": [
+      "状態の型"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:status-rules"
+     ],
+     "from": [
+      "a-sta"
+     ]
+    },
+    {
+     "id": "c-svc",
+     "layer": "c",
+     "kind": "model",
+     "row": 0,
+     "col": 4,
+     "label": [
+      "処理の手順"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:processes"
+     ],
+     "from": [
+      "a-op",
+      "a-rul",
+      "a-err"
+     ],
+     "refs": [
+      "c-acc",
+      "c-stt"
+     ]
+    },
+    {
+     "id": "c-sty",
+     "layer": "c",
+     "kind": "model",
+     "row": 1,
+     "col": 1,
+     "label": [
+      "画面のクラスの対応表"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:screen-styles"
+     ]
+    },
+    {
+     "id": "c-pg",
+     "layer": "c",
+     "kind": "model",
+     "row": 1,
+     "col": 2,
+     "label": [
+      "画面の部品と入力"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:screen-designs-lists",
+      "t:screen-designs-details",
+      "t:screen-designs-operations"
+     ],
+     "from": [
+      "a-scr",
+      "a-msg",
+      "a-ent"
+     ],
+     "refs": [
+      "c-sty"
+     ]
+    },
+    {
+     "id": "c-hdl",
+     "layer": "c",
+     "kind": "model",
+     "row": 1,
+     "col": 3,
+     "label": [
+      "URL と遷移"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:screen-flows",
+      "t:dashboard-flows"
+     ],
+     "from": [
+      "a-trn",
+      "a-scr"
+     ],
+     "refs": [
+      "c-svc",
+      "c-pg",
+      "c-ses",
+      "c-acc"
+     ]
+    },
+    {
+     "id": "c-ses",
+     "layer": "c",
+     "kind": "model",
+     "row": 1,
+     "col": 4,
+     "label": [
+      "セッション"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:session-design"
+     ],
+     "from": [
+      "a-trn"
+     ]
+    },
+    {
+     "id": "c-eh",
+     "layer": "c",
+     "kind": "model",
+     "row": 2,
+     "col": 1,
+     "label": [
+      "エラーの扱い"
+     ],
+     "status": "reshape",
+     "current": [
+      "t:error-handling"
+     ],
+     "from": [
+      "a-err",
+      "a-msg"
+     ],
+     "refs": [
+      "c-svc"
+     ]
+    },
+    {
+     "id": "c-base",
+     "layer": "c",
+     "kind": "aux",
+     "row": 2,
+     "col": 3,
+     "label": [
+      "補正前（比較用）"
+     ],
+     "status": "role",
+     "current": [
+      "t:detail-tables-derived",
+      "t:table-access-derived",
+      "t:status-rules-derived",
+      "t:processes-derived",
+      "t:screen-styles-derived",
+      "t:session-design-derived",
+      "t:screen-designs-lists-derived",
+      "t:screen-designs-details-derived",
+      "t:screen-designs-operations-derived",
+      "t:error-handling-derived",
+      "t:screen-flows-derived",
+      "t:dashboard-flows-derived"
+     ]
+    },
+    {
+     "id": "c-chk",
+     "layer": "c",
+     "kind": "aux",
+     "row": 2,
+     "col": 4,
+     "label": [
+      "検査記録"
+     ],
+     "status": "same",
+     "current": [
+      "t:detail-document-input-gate",
+      "t:system-final"
+     ]
+    },
+    {
+     "id": "cv-tbl",
+     "layer": "c",
+     "kind": "view",
+     "row": 0,
+     "col": 5,
+     "label": [
+      "テーブル設計書"
+     ],
+     "status": "same",
+     "reads": [
+      "c-tbl"
+     ]
+    },
+    {
+     "id": "cv-acc",
+     "layer": "c",
+     "kind": "view",
+     "row": 1,
+     "col": 5,
+     "label": [
+      "テーブルアクセス設計書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-acc"
+     ]
+    },
+    {
+     "id": "cv-svc",
+     "layer": "c",
+     "kind": "view",
+     "row": 2,
+     "col": 5,
+     "label": [
+      "処理設計書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-svc"
+     ]
+    },
+    {
+     "id": "cv-stt",
+     "layer": "c",
+     "kind": "view",
+     "row": 3,
+     "col": 5,
+     "label": [
+      "状態の判定"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-stt"
+     ]
+    },
+    {
+     "id": "cv-pg",
+     "layer": "c",
+     "kind": "view",
+     "row": 4,
+     "col": 5,
+     "label": [
+      "画面設計書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-pg",
+      "c-sty"
+     ]
+    },
+    {
+     "id": "cv-hdl",
+     "layer": "c",
+     "kind": "view",
+     "row": 5,
+     "col": 5,
+     "label": [
+      "画面遷移設計"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-hdl"
+     ]
+    },
+    {
+     "id": "cv-ses",
+     "layer": "c",
+     "kind": "view",
+     "row": 6,
+     "col": 5,
+     "label": [
+      "セッション情報設計"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-ses"
+     ]
+    },
+    {
+     "id": "cv-eh",
+     "layer": "c",
+     "kind": "view",
+     "row": 7,
+     "col": 5,
+     "label": [
+      "エラー設計書"
+     ],
+     "status": "reshape",
+     "reads": [
+      "c-eh"
+     ]
+    },
+    {
+     "id": "p-policy",
+     "layer": "p",
+     "kind": "input",
+     "row": 0,
+     "col": 0,
+     "label": [
+      "全体の判断"
+     ],
+     "status": "move",
+     "current": [
+      "in:design/detail/inputs/application/settings.yaml",
+      "t:application-configuration",
+      "t:application-input-gate"
+     ],
+     "note": "パッケージ、版、ポートなど。"
+    },
+    {
+     "id": "p-row",
+     "layer": "p",
+     "kind": "model",
+     "row": 0,
+     "col": 1,
+     "label": [
+      "行モデルと DDL"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-data-model"
+     ],
+     "from": [
+      "c-tbl"
+     ]
+    },
+    {
+     "id": "p-map",
+     "layer": "p",
+     "kind": "model",
+     "row": 0,
+     "col": 2,
+     "label": [
+      "Mapper"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-access"
+     ],
+     "from": [
+      "c-acc"
+     ],
+     "refs": [
+      "p-row"
+     ]
+    },
+    {
+     "id": "p-rt",
+     "layer": "p",
+     "kind": "model",
+     "row": 0,
+     "col": 3,
+     "label": [
+      "状態型と例外"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-runtime-model"
+     ],
+     "from": [
+      "c-stt",
+      "c-eh"
+     ]
+    },
+    {
+     "id": "p-svc",
+     "layer": "p",
+     "kind": "model",
+     "row": 0,
+     "col": 4,
+     "label": [
+      "Service"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-service-inputs",
+      "t:application-service-bindings",
+      "t:application-service-programs"
+     ],
+     "from": [
+      "c-svc"
+     ],
+     "refs": [
+      "p-map",
+      "p-rt"
+     ]
+    },
+    {
+     "id": "p-frm",
+     "layer": "p",
+     "kind": "model",
+     "row": 1,
+     "col": 1,
+     "label": [
+      "Form"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-web-forms"
+     ],
+     "from": [
+      "c-pg"
+     ]
+    },
+    {
+     "id": "p-web",
+     "layer": "p",
+     "kind": "model",
+     "row": 1,
+     "col": 2,
+     "label": [
+      "Controller と画面"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-web-bindings",
+      "t:application-web"
+     ],
+     "from": [
+      "c-hdl",
+      "c-pg",
+      "c-ses",
+      "c-sty"
+     ],
+     "refs": [
+      "p-svc",
+      "p-frm"
+     ]
+    },
+    {
+     "id": "p-plan",
+     "layer": "p",
+     "kind": "model",
+     "row": 1,
+     "col": 3,
+     "label": [
+      "出力計画"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-output-plan"
+     ],
+     "refs": [
+      "p-row",
+      "p-map",
+      "p-rt",
+      "p-svc",
+      "p-frm",
+      "p-web"
+     ]
+    },
+    {
+     "id": "p-chk",
+     "layer": "p",
+     "kind": "aux",
+     "row": 1,
+     "col": 4,
+     "label": [
+      "検査記録"
+     ],
+     "status": "move",
+     "current": [
+      "t:application-form-gate",
+      "t:application-process-gate"
+     ]
+    },
+    {
+     "id": "pv",
+     "layer": "p",
+     "kind": "view",
+     "row": 0,
+     "col": 5,
+     "label": [
+      "プログラム設計のビュー"
+     ],
+     "status": "same",
+     "reads": [
+      "p-row",
+      "p-map",
+      "p-rt"
+     ]
+    },
+    {
+     "id": "s-data",
+     "layer": "s",
+     "kind": "source",
+     "row": 0,
+     "col": 1,
+     "label": [
+      "データ層",
+      "行モデル・Mapper・DDL"
+     ],
+     "status": "same",
+     "from": [
+      "p-row",
+      "p-map",
+      "p-plan"
+     ]
+    },
+    {
+     "id": "s-biz",
+     "layer": "s",
+     "kind": "source",
+     "row": 0,
+     "col": 2,
+     "label": [
+      "業務処理",
+      "Service・状態・例外"
+     ],
+     "status": "same",
+     "from": [
+      "p-svc",
+      "p-rt",
+      "p-plan"
+     ]
+    },
+    {
+     "id": "s-web",
+     "layer": "s",
+     "kind": "source",
+     "row": 0,
+     "col": 3,
+     "label": [
+      "画面",
+      "Controller・Form・テンプレート・CSS"
+     ],
+     "status": "same",
+     "from": [
+      "p-web",
+      "p-frm",
+      "p-plan"
+     ]
+    },
+    {
+     "id": "s-build",
+     "layer": "s",
+     "kind": "source",
+     "row": 0,
+     "col": 4,
+     "label": [
+      "ビルドと起動の設定"
+     ],
+     "status": "same",
+     "from": [
+      "p-plan"
+     ]
+    }
+   ],
+   "notes": [
+    "人が書くのは、業務モデルと、各段の判断（全体・個別）だけです。業務の事実の誤りは業務モデルを直します。",
+    "各段のモデルは項目の形で保存し、同じ段の項目を ID で指します。値を写さないので、判断は下流へそのまま届きます。",
+    "各段の変換は、1 つ前の段のモデルだけを読みます。定義書と設計書はビューで、ファイルを持ちません。"
+   ]
+  },
   "notes": [
     "処理設計書は、データ設計と画面設計の上に乗っていません。内容を読むのはメッセージ定義書と状態の判定だけです。テーブルアクセス設計書からは呼び名の付け替え表だけを受け取り、画面の設計書からは何も受け取りません。呼ぶ Mapper の名前は、業務モデルから同じ命名規則で計算し直しています。",
     "アクション定義書が、ほぼ全部の上流です。ほかの設計書は、補正後の業務モデルの中の操作として読みます。",
