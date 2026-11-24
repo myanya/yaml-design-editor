@@ -110,6 +110,13 @@ body:
         state: done
         state_note: 26 画面・5 Controller・全 12 操作を接続。実 HTTP で入力保持・欄の違反・別タブ・二重送信・状態再検査・部分更新・コメント全件削除を確認
         state_on: 2026-11-21
+      - id: R53-12
+        title: 抽象システムモデル・具体システムモデルの体系へ移す
+        places: samples/todos-sysdev の変換定義・設計の確定項目・ビュー・人の入力と、依存関係の 4 枚のページ（scripts/design-map.py）
+        prereq: 目指す形（業務モデル → 抽象システムモデル → 具体システムモデル → プログラム設計 → ソースコード）のオーナーとの合意
+        done_criteria: 各段の変換が 1 つ前の段だけを読み、モデルは項目の形、定義書と設計書はビュー、人の入力は段ごとの全体と個別の判断だけになる。生成アプリは変わらない
+        state: todo
+        state_note: 目指す形と理想のファイル体系を合意し、いまとの差を 4 枚のページで計算できるようにした。段階と完了の条件は samples/todos-sysdev/docs/system-model-plan.md
 sections:
   - title: 現在の材料とレビュー状態
     body:
