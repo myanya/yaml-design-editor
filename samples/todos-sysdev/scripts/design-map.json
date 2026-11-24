@@ -111,6 +111,594 @@
       "ほかの設計書の導出が読むのは 3 段目です。そのため、エンティティ定義書とアクション定義書が確定しないと、ほかの設計書を作り始められません。"
     ]
   },
+  "target": {
+    "comment": "目指す形への対応（docs/design-target-map.html）の設定。段（layers）と、各ファイルをどの段のどのまとまり（groups）に置くかを人が書く。まとまりの間の流れと、目指す形から外れているかどうかは計算する。from は、その段が読んでよい段。",
+    "title": "todos-sysdev 目指す形への対応",
+    "select": "corr-3",
+    "layers": [
+      {
+        "id": "bm",
+        "label": [
+          "業務モデル"
+        ],
+        "from": []
+      },
+      {
+        "id": "corr",
+        "label": [
+          "補正後",
+          "業務モデル"
+        ],
+        "from": [
+          "bm"
+        ]
+      },
+      {
+        "id": "basic",
+        "label": [
+          "基本設計情報"
+        ],
+        "from": [
+          "corr"
+        ],
+        "view": "定義書"
+      },
+      {
+        "id": "detail",
+        "label": [
+          "詳細設計情報",
+          "（補正含む）"
+        ],
+        "from": [
+          "basic"
+        ],
+        "view": "設計書"
+      },
+      {
+        "id": "prog",
+        "label": [
+          "プログラム設計",
+          "（目指す形の外）"
+        ],
+        "from": [
+          "detail"
+        ]
+      }
+    ],
+    "groups": [
+      {
+        "id": "bm",
+        "layer": "bm",
+        "row": 0,
+        "col": 1,
+        "label": [
+          "業務モデル"
+        ],
+        "members": [
+          "bm"
+        ]
+      },
+      {
+        "id": "corr-in",
+        "layer": "corr",
+        "row": 0,
+        "col": 0,
+        "kind": "input",
+        "label": [
+          "補正の入力"
+        ],
+        "members": [
+          "in:design/basic/inputs/entities/corrections.yaml"
+        ],
+        "note": "同じファイルに、区分の指定（基本設計情報への入力）も入っています。"
+      },
+      {
+        "id": "corr-steps",
+        "layer": "corr",
+        "row": 0,
+        "col": 1,
+        "kind": "work",
+        "label": [
+          "補正を当てる",
+          "途中経過"
+        ],
+        "members": [
+          "t:basic-derived",
+          "t:basic-targets",
+          "t:basic-type-changes",
+          "t:basic-type-model",
+          "t:basic-field-uses",
+          "t:basic-descriptions",
+          "t:basic-field-changes"
+        ]
+      },
+      {
+        "id": "corr-1",
+        "layer": "corr",
+        "row": 0,
+        "col": 2,
+        "kind": "main",
+        "label": [
+          "補正後業務モデル",
+          "（1 段目）"
+        ],
+        "members": [
+          "t:basic-field-model"
+        ]
+      },
+      {
+        "id": "corr-2",
+        "layer": "corr",
+        "row": 1,
+        "col": 1,
+        "kind": "main",
+        "label": [
+          "2 段目",
+          "＋エンティティの名称と説明"
+        ],
+        "members": [
+          "t:system-model"
+        ]
+      },
+      {
+        "id": "corr-3",
+        "layer": "corr",
+        "row": 1,
+        "col": 2,
+        "kind": "main",
+        "label": [
+          "3 段目",
+          "＋確定した操作"
+        ],
+        "members": [
+          "t:system-actions-model"
+        ]
+      },
+      {
+        "id": "corr-4",
+        "layer": "corr",
+        "row": 1,
+        "col": 3,
+        "kind": "main",
+        "label": [
+          "＋画面の入力項目"
+        ],
+        "members": [
+          "t:system-screen-input-model"
+        ]
+      },
+      {
+        "id": "corr-view",
+        "layer": "corr",
+        "row": 0,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "補正の途中経過を",
+          "確かめるビュー"
+        ],
+        "views": [
+          "basic/review/basic-composed-descriptions.yaml",
+          "basic/review/basic-derived-*.yaml",
+          "basic/review/basic-*-model-review.yaml"
+        ],
+        "reads": [
+          "corr-steps",
+          "corr-1"
+        ]
+      },
+      {
+        "id": "b-in",
+        "layer": "basic",
+        "row": 0,
+        "col": 0,
+        "kind": "input",
+        "undecided": true,
+        "label": [
+          "区分の追加と",
+          "定義書への補正・追加"
+        ],
+        "members": [
+          "in:design/basic/inputs/entities/additions.yaml",
+          "in:design/basic/inputs/documents/*.yaml"
+        ],
+        "note": "目指す形では「補正含む」が詳細設計情報の側だけなので、置き場所が決まっていません。"
+      },
+      {
+        "id": "b-ent-work",
+        "layer": "basic",
+        "row": 0,
+        "col": 1,
+        "kind": "work",
+        "label": [
+          "エンティティと型の",
+          "途中経過と検査"
+        ],
+        "members": [
+          "t:basic-entity-candidates",
+          "t:basic-type-candidates",
+          "t:basic-final"
+        ]
+      },
+      {
+        "id": "b-ent",
+        "layer": "basic",
+        "row": 0,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "エンティティと型",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:basic-entities",
+          "t:basic-types",
+          "t:basic-classes"
+        ]
+      },
+      {
+        "id": "b-ent-view",
+        "layer": "basic",
+        "row": 0,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "エンティティ定義書"
+        ],
+        "views": [
+          "basic/review/entity-definition*.yaml",
+          "basic/review/basic-types.yaml"
+        ],
+        "reads": [
+          "b-ent"
+        ]
+      },
+      {
+        "id": "b-doc-derived",
+        "layer": "basic",
+        "row": 1,
+        "col": 0,
+        "kind": "work",
+        "label": [
+          "アクション・画面ほか",
+          "の導出（9 種）"
+        ],
+        "members": [
+          "t:action-specs-derived",
+          "t:domains-derived",
+          "t:domain-relations-derived",
+          "t:errors-derived",
+          "t:messages-derived",
+          "t:screen-details-derived",
+          "t:screen-lists-derived",
+          "t:screen-operations-derived",
+          "t:screen-transitions-derived"
+        ]
+      },
+      {
+        "id": "b-check",
+        "layer": "basic",
+        "row": 1,
+        "col": 1,
+        "kind": "work",
+        "label": [
+          "画面の入力の候補と",
+          "入力の検査"
+        ],
+        "members": [
+          "t:screen-operation-candidates",
+          "t:basic-document-input-gate"
+        ]
+      },
+      {
+        "id": "b-doc",
+        "layer": "basic",
+        "row": 1,
+        "col": 2,
+        "kind": "main",
+        "shape": "documents",
+        "label": [
+          "アクション・画面ほか",
+          "（文書の形。9 種）"
+        ],
+        "members": [
+          "t:action-specs",
+          "t:domains",
+          "t:domain-relations",
+          "t:errors",
+          "t:messages",
+          "t:screen-details",
+          "t:screen-lists",
+          "t:screen-operations",
+          "t:screen-transitions"
+        ]
+      },
+      {
+        "id": "b-names",
+        "layer": "basic",
+        "row": 1,
+        "col": 3,
+        "kind": "work",
+        "label": [
+          "URL の付け替え表"
+        ],
+        "members": [
+          "t:system-screen-bindings"
+        ]
+      },
+      {
+        "id": "b-doc-view",
+        "layer": "basic",
+        "row": 1,
+        "col": 4,
+        "kind": "view",
+        "asIs": true,
+        "label": [
+          "アクション定義書・",
+          "画面定義書 ほか"
+        ],
+        "views": [
+          "basic/review/design-review-*.yaml"
+        ],
+        "reads": [
+          "b-doc"
+        ]
+      },
+      {
+        "id": "d-in",
+        "layer": "detail",
+        "row": 0,
+        "col": 0,
+        "kind": "input",
+        "label": [
+          "詳細設計の",
+          "補正・追加の入力"
+        ],
+        "members": [
+          "in:design/detail/inputs/tables/*.yaml",
+          "in:design/detail/inputs/documents/*.yaml"
+        ]
+      },
+      {
+        "id": "d-tbl-derived",
+        "layer": "detail",
+        "row": 0,
+        "col": 1,
+        "kind": "work",
+        "label": [
+          "テーブルの導出"
+        ],
+        "members": [
+          "t:detail-tables-derived"
+        ]
+      },
+      {
+        "id": "d-tbl",
+        "layer": "detail",
+        "row": 0,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "テーブル",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:detail-tables"
+        ]
+      },
+      {
+        "id": "d-tbl-view",
+        "layer": "detail",
+        "row": 0,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "テーブル設計書"
+        ],
+        "views": [
+          "detail/review/table-definition*.yaml"
+        ],
+        "reads": [
+          "d-tbl"
+        ]
+      },
+      {
+        "id": "d-doc-derived",
+        "layer": "detail",
+        "row": 1,
+        "col": 0,
+        "kind": "work",
+        "label": [
+          "処理・画面ほか",
+          "の導出（11 種）"
+        ],
+        "members": [
+          "t:table-access-derived",
+          "t:status-rules-derived",
+          "t:processes-derived",
+          "t:screen-styles-derived",
+          "t:session-design-derived",
+          "t:screen-designs-lists-derived",
+          "t:screen-designs-details-derived",
+          "t:screen-designs-operations-derived",
+          "t:error-handling-derived",
+          "t:screen-flows-derived",
+          "t:dashboard-flows-derived"
+        ]
+      },
+      {
+        "id": "d-names",
+        "layer": "detail",
+        "row": 1,
+        "col": 1,
+        "kind": "work",
+        "label": [
+          "呼び名の付け替え表"
+        ],
+        "members": [
+          "t:system-access-bindings",
+          "t:system-process-bindings",
+          "t:system-session-bindings"
+        ]
+      },
+      {
+        "id": "d-doc",
+        "layer": "detail",
+        "row": 1,
+        "col": 2,
+        "kind": "main",
+        "shape": "documents",
+        "label": [
+          "処理・画面ほか",
+          "（文書の形。11 種）"
+        ],
+        "members": [
+          "t:table-access",
+          "t:status-rules",
+          "t:processes",
+          "t:screen-styles",
+          "t:session-design",
+          "t:screen-designs-lists",
+          "t:screen-designs-details",
+          "t:screen-designs-operations",
+          "t:error-handling",
+          "t:screen-flows",
+          "t:dashboard-flows"
+        ]
+      },
+      {
+        "id": "d-check",
+        "layer": "detail",
+        "row": 1,
+        "col": 3,
+        "kind": "check",
+        "label": [
+          "入力の検査と",
+          "全体の検査"
+        ],
+        "members": [
+          "t:detail-document-input-gate",
+          "t:system-final"
+        ]
+      },
+      {
+        "id": "d-doc-view",
+        "layer": "detail",
+        "row": 1,
+        "col": 4,
+        "kind": "view",
+        "asIs": true,
+        "label": [
+          "処理設計書・",
+          "画面設計書 ほか"
+        ],
+        "views": [
+          "detail/review/design-review-*.yaml"
+        ],
+        "reads": [
+          "d-doc"
+        ]
+      },
+      {
+        "id": "x-view",
+        "layer": "detail",
+        "row": 2,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "基本と詳細を",
+          "またぐビュー"
+        ],
+        "views": [
+          "common/review/*.yaml"
+        ],
+        "reads": [
+          "b-doc",
+          "d-doc"
+        ]
+      },
+      {
+        "id": "p-in",
+        "layer": "prog",
+        "row": 0,
+        "col": 0,
+        "kind": "input",
+        "label": [
+          "方式の入力"
+        ],
+        "members": [
+          "in:design/detail/inputs/application/*.yaml",
+          "in:design/detail/inputs/appearance/*.yaml"
+        ]
+      },
+      {
+        "id": "p-info",
+        "layer": "prog",
+        "row": 0,
+        "col": 2,
+        "kind": "main",
+        "label": [
+          "プログラム設計の情報",
+          "（application-* ほか）"
+        ],
+        "members": [
+          "t:application-java-types",
+          "t:application-configuration",
+          "t:application-theme",
+          "t:application-data-model",
+          "t:application-access",
+          "t:application-runtime-model",
+          "t:application-service-inputs",
+          "t:application-service-bindings",
+          "t:application-service-programs",
+          "t:application-web-forms",
+          "t:application-web-bindings",
+          "t:application-web",
+          "t:application-output-plan"
+        ]
+      },
+      {
+        "id": "p-check",
+        "layer": "prog",
+        "row": 0,
+        "col": 3,
+        "kind": "check",
+        "label": [
+          "入力と受け渡しの検査"
+        ],
+        "members": [
+          "t:application-input-gate",
+          "t:application-theme-input-gate",
+          "t:application-form-gate",
+          "t:application-process-gate"
+        ]
+      },
+      {
+        "id": "p-view",
+        "layer": "prog",
+        "row": 0,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "プログラム設計の",
+          "ビュー"
+        ],
+        "views": [
+          "detail/review/application-*.yaml",
+          "detail/review/appearance-definition.yaml"
+        ],
+        "reads": [
+          "p-info"
+        ]
+      }
+    ],
+    "notes": [
+      "情報とビューが分かれているのは、エンティティとテーブルだけです。この 2 つは項目（ENT-・FLD-・TBL-・COL- など）を保存し、定義書・設計書はビューが組み立てます。残りは、文書の形のファイルが情報を兼ねていて、ビューは中身を表示するだけです。",
+      "基本設計情報への人の入力（区分の追加と割当、定義書への補正）は、目指す形での置き場所が決まっていません。"
+    ]
+  },
   "notes": [
     "処理設計書は、データ設計と画面設計の上に乗っていません。内容を読むのはメッセージ定義書と状態の判定だけです。テーブルアクセス設計書からは呼び名の付け替え表だけを受け取り、画面の設計書からは何も受け取りません。呼ぶ Mapper の名前は、業務モデルから同じ命名規則で計算し直しています。",
     "アクション定義書が、ほぼ全部の上流です。ほかの設計書は、補正後の業務モデルの中の操作として読みます。",

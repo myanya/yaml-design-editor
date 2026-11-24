@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""設計書の依存マップと、ファイル単位の生成グラフ（HTML）を作り直す。
+"""設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応（HTML）を作り直す。
 
 1 枚目（docs/design-dependency-map.html）: 設計書の種類ごとに、ほかのどの設計書から作られているか。
     線は 4 種類: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ。
 2 枚目（docs/design-file-graph.html）: 変換定義 1 本の出力と人の入力を箱にして、どのファイルを読んで、どの順に作られるか。
+3 枚目（docs/design-target-map.html）: 目指す形の段に、いまのファイルのまとまりを置き、外れている流れを出す。
 
 使い方（リポジトリのどこからでも。Windows は py -3）:
-    python3 samples/todos-sysdev/scripts/design-map.py            # 2 枚とも作り直す（Git に入れる）
+    python3 samples/todos-sysdev/scripts/design-map.py            # 3 枚とも作り直す（Git に入れる）
     python3 samples/todos-sysdev/scripts/design-map.py --check    # 作り直した結果が、いまのファイルと同じかを確かめる（違えば 1）
-    python3 samples/todos-sysdev/scripts/design-map.py --workspace 作業用コピー --out 場所.html --files-out 場所.html
+    python3 samples/todos-sysdev/scripts/design-map.py --workspace 作業用コピー --out 場所.html --files-out 場所.html --target-out 場所.html
 
 同じ入力からは同じ HTML になる（日時を入れない）。Git の差分が、依存の変化になる。
 
@@ -19,7 +20,7 @@
     - design/**/*.yaml            いまあるファイルの ID（2 枚目。ビューが読むファイルを決める）
     - YDE CLI の generate --lineage  変換定義が業務モデルのどの部分を読むか（--lineage でファイルを渡せば CLI を呼ばない）
     - scripts/design-map.json     箱の並べ方と、どの変換定義がどの箱を作るか（人が書く）
-    - scripts/design-map.template.html・design-files.template.html  ページのひな形
+    - scripts/design-*.template.html  ページのひな形
 
 標準ライブラリだけで動く（YAML は、必要な書き方だけを正規表現で読む）。
 """
@@ -487,6 +488,86 @@ def build_files(workspace, config, lineage_text):
             "nodes": ordered, "edges": edge_list, "stats": stats, "notes": settings.get("notes", []), "warnings": warnings}
 
 
+def build_target(workspace, config, files):
+    """目指す形への対応: 段（layers）の中に、ファイルのまとまり（groups）を置く。まとまりの間の流れは、ファイル単位のグラフから集める。"""
+    settings = config["target"]
+    warnings = []
+    layer_index = {layer["id"]: index for index, layer in enumerate(settings["layers"])}
+    allowed = {layer["id"]: set(layer.get("from", [])) | {layer["id"]} for layer in settings["layers"]}
+    file_nodes = {node["id"]: node for node in files["nodes"]}
+
+    group_of, groups = {}, []
+    view_root = workspace / ".yde" / "views" / "design"
+    seen_views = set()
+    for raw in settings["groups"]:
+        members = []
+        for pattern in raw.get("members", []):
+            hits = [i for i in file_nodes if i == pattern or (pattern.startswith("in:") and i.startswith("in:") and glob_regex(pattern[3:]).match(i[3:]))]
+            if not hits:
+                warnings.append(f"まとまり「{''.join(raw['label'])}」の「{pattern}」に当たるファイルがありません")
+            for hit in hits:
+                if hit in group_of:
+                    warnings.append(f"「{file_nodes[hit]['path']}」が 2 つのまとまりに入っています")
+                group_of[hit] = raw["id"]
+                members.append(hit)
+        views = []
+        for pattern in raw.get("views", []):
+            found = sorted(path.relative_to(view_root).as_posix() for path in view_root.glob(pattern))
+            if not found:
+                warnings.append(f"まとまり「{''.join(raw['label'])}」のビュー「{pattern}」がありません")
+            views.extend(found)
+        seen_views.update(views)
+        groups.append({
+            "id": raw["id"], "layer": raw["layer"], "row": raw.get("row", 0), "col": raw.get("col", 0), "kind": raw.get("kind", "work"),
+            "label": raw["label"], "note": raw.get("note", ""), "shape": raw.get("shape", ""),
+            "undecided": bool(raw.get("undecided")), "asIs": bool(raw.get("asIs")), "reads": raw.get("reads", []),
+            "files": [{"path": file_nodes[m]["path"], "by": file_nodes[m]["by"]} for m in sorted(members, key=lambda m: (file_nodes[m]["level"], m))],
+            "views": views,
+        })
+    for identifier, node in sorted(file_nodes.items()):
+        if identifier not in group_of:
+            warnings.append(f"「{node['path']}」が、どのまとまりにも入っていません（design-map.json の target.groups に足します）")
+    for path in sorted(view_root.glob("*/review/*.yaml")):
+        relative = path.relative_to(view_root).as_posix()
+        if relative not in seen_views:
+            warnings.append(f"ビュー「{relative}」が、どのまとまりにも入っていません")
+
+    by_id = {group["id"]: group for group in groups}
+    name = lambda identifier: "".join(by_id[identifier]["label"])
+    short = lambda identifier: file_nodes[identifier]["tag"] + "/" + file_nodes[identifier]["label"]
+    flows = {}
+    for source, target, kind in files["edges"]:
+        if kind != "c" or source not in group_of or target not in group_of:
+            continue
+        a, b = group_of[source], group_of[target]
+        if a != b:
+            flows.setdefault((a, b), []).append([short(source), short(target)])
+    out_flows = []
+    for (a, b), pairs in sorted(flows.items(), key=lambda item: (layer_index[by_id[item[0][1]]["layer"]], item[0][1], item[0][0])):
+        source_layer, target_layer = by_id[a]["layer"], by_id[b]["layer"]
+        status = "ok"
+        if by_id[b]["kind"] == "check":
+            status = "check"  # 検査は、確かめる相手をすべて読む
+        elif layer_index[source_layer] > layer_index[target_layer]:
+            status = "back"
+        elif source_layer not in allowed[target_layer]:
+            status = "skip"
+        out_flows.append({"s": a, "t": b, "status": status, "pairs": sorted(pairs)})
+
+    off = [flow for flow in out_flows if flow["status"] in ("back", "skip")]
+    stats = [
+        ["目指す形から外れている流れ", f"{len(off)} 本（後ろの段を読む {sum(1 for f in off if f['status'] == 'back')} 本、"
+                                       f"段を飛ばして読む {sum(1 for f in off if f['status'] == 'skip')} 本）。ファイルの組では {sum(len(f['pairs']) for f in off)} 組"],
+        ["目指す形どおりの流れ", f"{sum(1 for f in out_flows if f['status'] == 'ok')} 本"],
+        ["情報が文書の形のまとまり", "、".join(name(g["id"]) for g in groups if g["shape"] == "documents") or "ありません"],
+        ["情報が項目の形のまとまり", "、".join(name(g["id"]) for g in groups if g["shape"] == "items") or "ありません"],
+        ["置き場所が未定のまとまり", "、".join(name(g["id"]) for g in groups if g["undecided"]) or "ありません"],
+    ]
+    return {"title": settings["title"], "select": settings.get("select") if settings.get("select") in by_id else None,
+            "layers": settings["layers"], "groups": groups, "flows": out_flows, "stats": stats,
+            "notes": settings.get("notes", []), "warnings": warnings}
+
+
 def sort_ids(identifiers, by_id):
     return sorted(identifiers, key=lambda i: (by_id[i]["col"], by_id[i]["order"]))
 
@@ -583,15 +664,17 @@ def render(template_path, data, fragment):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="設計書の依存マップと、ファイル単位のグラフ（HTML）を作り直す")
+    parser = argparse.ArgumentParser(description="設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応（HTML）を作り直す")
     parser.add_argument("--workspace", type=Path, default=SAMPLE, help="読むワークスペース（既定はこのサンプル）")
     parser.add_argument("--out", type=Path, help="設計書の依存マップ（既定はワークスペースの docs/design-dependency-map.html）")
     parser.add_argument("--files-out", type=Path, help="ファイル単位のグラフ（既定はワークスペースの docs/design-file-graph.html）")
+    parser.add_argument("--target-out", type=Path, help="目指す形への対応（既定はワークスペースの docs/design-target-map.html）")
     parser.add_argument("--check", action="store_true", help="書かずに、作り直した結果がいまのファイルと同じかを確かめる（違えば終了コード 1）")
     parser.add_argument("--lineage", type=Path, help="generate --lineage の出力ファイル（渡すと CLI を呼ばない）")
     parser.add_argument("--config", type=Path, default=HERE / "design-map.json", help="箱の並べ方の設定")
     parser.add_argument("--template", type=Path, default=HERE / "design-map.template.html", help="設計書の依存マップのひな形")
     parser.add_argument("--files-template", type=Path, default=HERE / "design-files.template.html", help="ファイル単位のグラフのひな形")
+    parser.add_argument("--target-template", type=Path, default=HERE / "design-target.template.html", help="目指す形への対応のひな形")
     parser.add_argument("--fragment", action="store_true", help="html・head・body の枠を付けずに書く（枠を足す側へ渡すとき）")
     arguments = parser.parse_args()
     for stream in (sys.stdout, sys.stderr):  # 端末の文字コードで表せない字があっても、止まらずに出す
@@ -615,10 +698,15 @@ def main():
     edge_count = sum(len(sources) for groups in data["reads"].values() for sources in groups.values())
     pages.append((arguments.out or workspace / "docs" / "design-dependency-map.html", arguments.template, data,
                   f"箱 {len(data['nodes'])}、線 {edge_count}"))
-    data = build_files(workspace, config, lineage_text)
-    data["workspace"] = place
-    pages.append((arguments.files_out or workspace / "docs" / "design-file-graph.html", arguments.files_template, data,
-                  f"箱 {len(data['nodes'])}、線 {len(data['edges'])}"))
+    files = build_files(workspace, config, lineage_text)
+    files["workspace"] = place
+    pages.append((arguments.files_out or workspace / "docs" / "design-file-graph.html", arguments.files_template, files,
+                  f"箱 {len(files['nodes'])}、線 {len(files['edges'])}"))
+    if "target" in config:
+        data = build_target(workspace, config, files)
+        data["workspace"] = place
+        pages.append((arguments.target_out or workspace / "docs" / "design-target-map.html", arguments.target_template, data,
+                      f"まとまり {len(data['groups'])}、流れ {len(data['flows'])}"))
 
     stale = False
     for out, template, data, summary in pages:

@@ -256,31 +256,34 @@
 
 ## 設計書の依存マップ
 
-変換定義から計算した 2 枚の HTML です（ブラウザで開きます）。どちらも生成物で、Git に入れています。
+変換定義から計算した 3 枚の HTML です（ブラウザで開きます）。どちらも生成物で、Git に入れています。
 変換定義や依存を直したら作り直してコミットすると、Git の差分で依存の変化を読めます。
 
 | ページ | 箱の単位 | 見るもの |
 |---|---|---|
 | [設計書の依存マップ](docs/design-dependency-map.html) | 設計書の種類（37） | 設計書が、ほかのどの設計書から作られているか |
 | [ファイル単位の生成グラフ](docs/design-file-graph.html) | 変換定義 1 本の出力と人の入力（97） | どのファイルを読んで、どの順に作られるか |
+| [目指す形への対応](docs/design-target-map.html) | 目指す形の段に置いた、ファイルのまとまり（31） | いまのファイルが目指す形のどこに当たり、どの流れが外れているか |
 
 ```bash
-python3 samples/todos-sysdev/scripts/design-map.py            # 2 枚とも作り直す
+python3 samples/todos-sysdev/scripts/design-map.py            # 3 枚とも作り直す
 python3 samples/todos-sysdev/scripts/design-map.py --check    # 最新かを確かめる（違えば失敗）
 ```
 
 Windows では `py -3 samples/todos-sysdev/scripts/design-map.py` です。標準ライブラリだけで動きます。
 変換定義が業務モデルのどこを読むかは、YDE CLI の `generate --lineage` を中で呼んで調べます（初回は CLI のビルドを待ちます）。
-同じ入力からは同じ HTML になります（日時を入れません）。`--out`・`--files-out` で別の場所へ書けます。
+同じ入力からは同じ HTML になります（日時を入れません）。`--out`・`--files-out`・`--target-out` で別の場所へ書けます。
 GitHub Actions の `todos-application`（ジョブ `design-maps`）が、push ごとに `--check` で最新かを確かめます。
 
 - 設計書の依存マップの線は 4 種類です: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ（依存の宣言だけで、値は読まない）。
   箱の並べ方と、どの変換定義がどの箱を作るかは `scripts/design-map.json` に書きます。線と「数えたこと」は計算します。
 - ファイル単位の生成グラフは、箱も線もすべて計算します。ビューが選ぶスキーマと ID の型を、いまあるファイルと突き合わせます。
   「上流をすべて」で箱を選ぶと、その箱より前に確定している必要があるものを確かめられます。
+- 目指す形への対応は、目指す形（業務モデル → 補正後業務モデル → 基本設計情報 → 詳細設計情報。定義書と設計書は、それぞれの情報のビュー）の段と、
+  各ファイルをどの段のどのまとまりに置くかを `scripts/design-map.json` の `target` に書きます。まとまりの間の流れと、目指す形から外れているかどうか（後ろの段を読む・段を飛ばして読む）は計算します。
 - 設定に無い変換定義や、読むファイルが分からないビューは、ページの「注意」と実行結果に出ます。
-- 「読み取ったこと」は設定の `notes`・`files.notes` に人が書くメモです。構成を変えたら、図と合っているかを見直します。
-- ページの見た目は `scripts/design-map.template.html`・`scripts/design-files.template.html` を直します。
+- 「読み取ったこと」は設定の `notes`・`files.notes`・`target.notes` に人が書くメモです。構成を変えたら、図と合っているかを見直します。
+- ページの見た目は `scripts/design-map.template.html`・`scripts/design-files.template.html`・`scripts/design-target.template.html` を直します。
 
 ## 業務モデルの追従
 
