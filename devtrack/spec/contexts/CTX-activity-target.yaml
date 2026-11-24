@@ -1,6 +1,8 @@
 id: CTX-activity-target
 title: "対象"
 language: agent
+guide: GUIDE-agents
+order: 4
 description: "アクティビティの target。"
 meta:
   schema: activity

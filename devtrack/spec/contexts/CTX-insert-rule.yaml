@@ -1,6 +1,8 @@
 id: CTX-insert-rule
 title: "配列への追加の決まり"
 language: schema
+guide: GUIDE-schema-actions
+order: 5
 description: "array の項目定義の methods の insert。配列へ要素を足すときの、ID の採番と重複の見分け方です。"
 meta:
   schema: schema

@@ -1,6 +1,8 @@
 id: CTX-skill-target
 title: "取り込みの先（target）"
 language: agent
+guide: GUIDE-skills
+order: 3
 description: "skill の target。"
 meta:
   schema: skill

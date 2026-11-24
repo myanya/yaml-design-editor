@@ -1,6 +1,7 @@
 id: KW-lifecycle.history
 key: "history"
 context: CTX-lifecycle
+value_contexts: [CTX-lifecycle-history]
 order: 7
 status: stable
 forms:

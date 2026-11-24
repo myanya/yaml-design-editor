@@ -1,6 +1,7 @@
 id: KW-schema.functions
 key: "functions"
 context: CTX-schema
+value_contexts: [CTX-check-function]
 group: check
 status: stable
 forms:

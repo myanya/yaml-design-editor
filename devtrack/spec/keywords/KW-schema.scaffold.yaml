@@ -1,6 +1,7 @@
 id: KW-schema.scaffold
 key: "scaffold"
 context: CTX-schema
+value_contexts: [CTX-template]
 group: document
 status: stable
 forms:

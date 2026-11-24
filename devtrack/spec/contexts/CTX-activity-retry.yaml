@@ -1,6 +1,8 @@
 id: CTX-activity-retry
 title: "再試行"
 language: agent
+guide: GUIDE-agents
+order: 13
 description: "アクティビティの retry。"
 meta:
   schema: activity

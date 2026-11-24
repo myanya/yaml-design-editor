@@ -1,6 +1,8 @@
 id: CTX-skill-output
 title: "書き出しの出力（output）"
 language: agent
+guide: GUIDE-skills
+order: 8
 description: "skill の output。"
 meta:
   schema: skill

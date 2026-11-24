@@ -1,6 +1,7 @@
 id: KW-flow-source.rules
 key: "rules"
 context: CTX-flow-source
+value_contexts: [CTX-template-rule]
 order: 5
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-activity-context.items
 key: "items"
 context: CTX-activity-context
+value_contexts: [CTX-activity-context-item]
 order: 1
 status: stable
 forms:

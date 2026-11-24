@@ -1,6 +1,8 @@
 id: CTX-flow-source
 title: "入力（sources の要素）"
 language: view
+guide: GUIDE-charts-flows
+order: 6
 description: "業務フロー図の sources の要素。"
 meta:
   schema: view-flow

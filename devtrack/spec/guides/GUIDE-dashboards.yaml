@@ -1,0 +1,11 @@
+id: GUIDE-dashboards
+title: ダッシュボード
+language: view
+order: 11
+description: 共有の入力・区画の条件・操作・業務の流れを確認します。
+reading: 入力がどの表や条件へ渡るかを追います。区画の構造はビュー、Lifecycle の宣言は状態と振る舞いの仕様へ進みます。
+report: dashboards-md
+related:
+  - GUIDE-views
+  - GUIDE-schema-behavior
+  - GUIDE-schema-actions

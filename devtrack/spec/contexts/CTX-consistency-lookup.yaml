@@ -1,6 +1,8 @@
 id: CTX-consistency-lookup
 title: "参照の 1 段"
 language: schema
+guide: GUIDE-schema-checks
+order: 9
 description: "expected の lookup。"
 meta:
   schema: schema

@@ -1,6 +1,7 @@
 id: KW-flow-edges.to
 key: "to"
 context: CTX-flow-edges
+value_contexts: [CTX-relation-pointer]
 order: 2
 status: stable
 forms:

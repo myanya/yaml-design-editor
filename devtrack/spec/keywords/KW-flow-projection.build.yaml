@@ -1,6 +1,7 @@
 id: KW-flow-projection.build
 key: "build"
 context: CTX-flow-projection
+value_contexts: [CTX-template, CTX-flow-model]
 order: 4
 status: stable
 forms:

@@ -1,6 +1,8 @@
 id: CTX-matrix-witness
 title: "証人"
 language: schema
+guide: GUIDE-schema-checks
+order: 12
 description: "matrix の witness。"
 meta:
   schema: schema

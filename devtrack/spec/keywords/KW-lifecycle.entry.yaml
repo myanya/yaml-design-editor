@@ -1,6 +1,7 @@
 id: KW-lifecycle.entry
 key: "entry"
 context: CTX-lifecycle
+value_contexts: [CTX-lifecycle-entry]
 order: 4
 status: stable
 forms:

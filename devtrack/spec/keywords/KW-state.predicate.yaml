@@ -1,6 +1,7 @@
 id: KW-state.predicate
 key: "predicate"
 context: CTX-state
+value_contexts: [CTX-constraint]
 order: 4
 status: stable
 forms:

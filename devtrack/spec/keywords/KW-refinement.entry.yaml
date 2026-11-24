@@ -1,6 +1,7 @@
 id: KW-refinement.entry
 key: "entry"
 context: CTX-refinement
+value_contexts: [CTX-lifecycle-entry]
 order: 3
 status: stable
 forms:

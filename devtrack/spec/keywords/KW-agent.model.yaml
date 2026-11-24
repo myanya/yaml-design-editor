@@ -1,6 +1,7 @@
 id: KW-agent.model
 key: "model"
 context: CTX-agent
+value_contexts: [CTX-agent-model]
 order: 5
 status: stable
 forms:

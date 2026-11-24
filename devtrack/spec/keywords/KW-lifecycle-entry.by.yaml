@@ -1,6 +1,7 @@
 id: KW-lifecycle-entry.by
 key: "by"
 context: CTX-lifecycle-entry
+value_contexts: [CTX-lifecycle-cause]
 order: 2
 status: stable
 forms:

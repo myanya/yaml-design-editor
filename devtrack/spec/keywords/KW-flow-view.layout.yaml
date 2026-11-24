@@ -1,6 +1,7 @@
 id: KW-flow-view.layout
 key: "layout"
 context: CTX-flow-view
+value_contexts: [CTX-flow-layout]
 order: 2
 status: stable
 forms:

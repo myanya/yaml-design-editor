@@ -1,6 +1,7 @@
 id: KW-dashboard-flow.moves
 key: "moves"
 context: CTX-dashboard-flow
+value_contexts: [CTX-dashboard-flow-move]
 order: 7
 status: stable
 forms:

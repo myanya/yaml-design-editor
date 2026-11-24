@@ -2,46 +2,14 @@ id: views-md
 name: ビュー（docs/spec/views.md）
 description: ビューの位置と語から docs/spec/views.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  # 位置の所属と節順は spec/contexts の guide・order が正。
   sections:
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-common } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-common } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-grid } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-grid } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-rows } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-rows } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-order } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-order } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-column } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-column } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-column-each } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-column-each } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-column-backlinks } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-column-backlinks } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-detail } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-detail } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-new-row } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-new-row } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-corrections } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-corrections } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-matrix } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-matrix } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-cells } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-cells } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-cells-series } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-cells-series } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-cells-columns } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-cells-columns } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-document } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-document } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-section } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-section } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-section-fields } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-section-fields } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-section-grid } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-section-grid } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-backlinks } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-backlinks } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-view-attachment } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-view-attachment } ] }
+    $each: { $view: doc-contexts, $where: [ { path: values.仕様書, equals: GUIDE-views } ] }
+    $bind: context
+    $build:
+      context: { $copy: . }
+      rows:
+        $view: doc-keywords-ordered
+        $where: [ { path: values.位置, equals: { $copy: id, $of: context } } ]
+
 template: views-md.md

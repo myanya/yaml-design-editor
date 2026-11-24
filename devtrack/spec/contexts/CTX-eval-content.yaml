@@ -1,6 +1,8 @@
 id: CTX-eval-content
 title: "中身の確かめ（content の要素）"
 language: agent
+guide: GUIDE-agents
+order: 20
 description: "期待する結果の content の要素。"
 meta:
   schema: eval

@@ -1,6 +1,8 @@
 id: CTX-lens-relation
 title: "関係の見え方（relations の要素）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 2
 description: "レンズの relations の要素。"
 meta:
   schema: view

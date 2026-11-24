@@ -1,6 +1,7 @@
 id: KW-view-document.attachments
 key: "attachments"
 context: CTX-view-document
+value_contexts: [CTX-view-attachment]
 order: 4
 status: stable
 forms:

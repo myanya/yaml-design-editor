@@ -1,6 +1,8 @@
 id: CTX-view-cells-series
 title: "列ごとの行の鍵（series の要素）"
 language: view
+guide: GUIDE-views
+order: 13
 description: "cells の series の要素。"
 meta:
   schema: view

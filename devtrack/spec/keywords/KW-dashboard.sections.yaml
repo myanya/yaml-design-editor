@@ -1,6 +1,7 @@
 id: KW-dashboard.sections
 key: "sections"
 context: CTX-dashboard
+value_contexts: [CTX-view-section]
 order: 1
 status: stable
 forms:

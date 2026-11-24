@@ -1,6 +1,7 @@
 id: KW-stage.rules
 key: "rules"
 context: CTX-stage
+value_contexts: [CTX-template-rule]
 order: 7
 status: stable
 forms:

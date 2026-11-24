@@ -1,6 +1,8 @@
 id: CTX-view-cells
 title: "セルの集計（cells）"
 language: view
+guide: GUIDE-views
+order: 12
 description: "クロス集計の cells。行の要素を起点に、数える要素を集めます。"
 meta:
   schema: view

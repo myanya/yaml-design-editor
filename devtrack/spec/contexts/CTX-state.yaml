@@ -1,6 +1,8 @@
 id: CTX-state
 title: "State の宣言"
 language: schema
+guide: GUIDE-schema-behavior
+order: 1
 description: "states の要素。名前付きの状態 1 つ（id と predicate）か、enum の全部の値からの展開（source と idPrefix）のどちらかで書きます。"
 meta:
   schema: schema

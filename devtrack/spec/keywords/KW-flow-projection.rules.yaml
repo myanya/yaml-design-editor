@@ -1,6 +1,7 @@
 id: KW-flow-projection.rules
 key: "rules"
 context: CTX-flow-projection
+value_contexts: [CTX-template-rule]
 order: 5
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-view-section.filter
 key: "filter"
 context: CTX-view-section
+value_contexts: [CTX-dashboard-filter]
 order: 4
 status: stable
 forms:

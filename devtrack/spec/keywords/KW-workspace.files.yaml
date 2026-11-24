@@ -1,6 +1,7 @@
 id: KW-workspace.files
 key: "files"
 context: CTX-workspace
+value_contexts: [CTX-workspace-files]
 order: 2
 status: stable
 forms:

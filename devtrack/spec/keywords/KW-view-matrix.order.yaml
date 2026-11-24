@@ -1,6 +1,7 @@
 id: KW-view-matrix.order
 key: "order"
 context: CTX-view-matrix
+value_contexts: [CTX-view-order]
 order: 3
 status: stable
 forms:

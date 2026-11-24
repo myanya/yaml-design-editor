@@ -2,24 +2,14 @@ id: skills-md
 name: skill（取り込み・書き出し・コードの実行）（docs/spec/skills.md）
 description: skill（取り込み・書き出し・コードの実行）の位置と語から docs/spec/skills.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  # 位置の所属と節順は spec/contexts の guide・order が正。
   sections:
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-input } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-input } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-target } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-target } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-target-id } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-target-id } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-mapping } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-mapping } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-source } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-source } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-column } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-column } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-output } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-output } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-skill-run } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-skill-run } ] }
+    $each: { $view: doc-contexts, $where: [ { path: values.仕様書, equals: GUIDE-skills } ] }
+    $bind: context
+    $build:
+      context: { $copy: . }
+      rows:
+        $view: doc-keywords-ordered
+        $where: [ { path: values.位置, equals: { $copy: id, $of: context } } ]
+
 template: skills-md.md

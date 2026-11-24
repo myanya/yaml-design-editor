@@ -1,6 +1,8 @@
 id: CTX-action-target
 title: "受け手"
 language: schema
+guide: GUIDE-schema-actions
+order: 2
 description: "操作の target。entity と schema は、どちらか一方だけを書きます。"
 meta:
   schema: schema

@@ -1,6 +1,7 @@
 id: EX-matrix-in-registry
 title: "横断の検査は、関係レジストリにも書ける（matrix を関係レジストリに書いた、満たしている例）"
 area: checks
+compare_with: [EX-matrix-missing-cell]
 illustrates: [KW-schema.matrix, CTX-matrix, KW-schema.kind]
 files:
   - path: ".yde/schemas/req.yaml"

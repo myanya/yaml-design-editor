@@ -4,7 +4,9 @@ name: 生成用：位置
 rows:
   idPattern: "CTX-*"
   schemaIds: [spec-context]
+order: { schemaId: spec-context, path: order, direction: asc }
 columns:
+  - { label: 仕様書, schemaId: spec-context, path: guide }
   - { label: 名前, schemaId: spec-context, path: title }
   - { label: 説明, schemaId: spec-context, path: description }
   - { label: メタスキーマ, schemaId: spec-context, path: evidence.metaschema }

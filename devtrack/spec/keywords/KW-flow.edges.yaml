@@ -1,6 +1,7 @@
 id: KW-flow.edges
 key: "edges"
 context: CTX-flow
+value_contexts: [CTX-flow-edges]
 order: 4
 status: stable
 forms:

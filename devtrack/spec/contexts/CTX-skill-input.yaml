@@ -1,6 +1,8 @@
 id: CTX-skill-input
 title: "取り込みの入力（input）"
 language: agent
+guide: GUIDE-skills
+order: 2
 description: "skill の input。"
 meta:
   schema: skill

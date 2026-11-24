@@ -1,6 +1,7 @@
 id: KW-appearance.nodes
 key: "nodes"
 context: CTX-appearance
+value_contexts: [CTX-appearance-node]
 order: 1
 status: stable
 forms:

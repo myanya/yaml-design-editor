@@ -1,6 +1,7 @@
 id: KW-lens.relations
 key: "relations"
 context: CTX-lens
+value_contexts: [CTX-lens-relation]
 order: 1
 status: stable
 forms:

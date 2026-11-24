@@ -1,6 +1,8 @@
 id: CTX-action
 title: "操作（アクション）の定義"
 language: schema
+guide: GUIDE-schema-actions
+order: 1
 description: "スキーマ文書の actions の要素。複数の要素や文書にまたがる操作 1 つです。ここに無いキーは誤りになります。"
 meta:
   schema: schema

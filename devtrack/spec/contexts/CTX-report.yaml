@@ -1,6 +1,8 @@
 id: CTX-report
 title: "レポートの定義"
 language: transform
+guide: GUIDE-templates
+order: 5
 description: "レポートの定義（.yde/reports/ の YAML）のトップレベル。値の一式をひな型で作り（build）、文字のひな形（template）にはめ込みます。出力は派生物で、YAML と .yde の下には書きません。"
 meta:
   schema: report

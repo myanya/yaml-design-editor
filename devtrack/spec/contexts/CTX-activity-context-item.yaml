@@ -1,6 +1,8 @@
 id: CTX-activity-context-item
 title: "開示の項目（items の要素）"
 language: agent
+guide: GUIDE-agents
+order: 6
 description: "context の items の要素。種別（kind）ごとに、書ける語が変わります。値には {target} などの穴を書けます。"
 meta:
   schema: activity

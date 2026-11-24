@@ -2,6 +2,7 @@
 id: devtrack-relations
 kind: relations
 entities:
+  - { type: spec-guide, label: 仕様書 }
   - { type: backlog-item, label: 指摘 }
   - { type: theme, label: テーマ }
   - { type: note, label: メモ }
@@ -17,6 +18,28 @@ entities:
   - { type: keyword, label: 語 }
   - { type: example, label: 例 }
 relations:
+  - name: in-guide
+    label: 仕様書
+    inverseLabel: 目次の位置
+    source: [context]
+    target: [spec-guide]
+    cardinality: { outMin: 1, outMax: 1 }
+  - name: related-guide
+    label: あわせて読む仕様書
+    inverseLabel: 関連する仕様書
+    source: [spec-guide]
+    target: [spec-guide]
+  - name: value-structure
+    label: 値の構造
+    inverseLabel: この形を使う語
+    source: [keyword]
+    target: [context]
+    description: 語の値の中で使う構文の形。再帰する形も同じ位置を指します。
+  - name: compare-example
+    label: 比べて読む例
+    inverseLabel: 比べて読む例から
+    source: [example]
+    target: [example]
   - name: bundled-in
     label: テーマ
     inverseLabel: 束ねる指摘

@@ -1,6 +1,8 @@
 id: CTX-view-new-row
 title: "新しい行の入口（newRow）"
 language: view
+guide: GUIDE-views
+order: 9
 description: "グリッドの newRow。file と path の組か、filePattern のどちらかで書きます。"
 meta:
   schema: view

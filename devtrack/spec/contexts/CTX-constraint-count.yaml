@@ -1,6 +1,8 @@
 id: CTX-constraint-count
 title: "解の件数の範囲"
 language: schema
+guide: GUIDE-schema-checks
+order: 2
 description: "検査の count。"
 meta:
   schema: schema

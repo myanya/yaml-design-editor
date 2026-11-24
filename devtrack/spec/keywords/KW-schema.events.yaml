@@ -1,6 +1,7 @@
 id: KW-schema.events
 key: "events"
 context: CTX-schema
+value_contexts: [CTX-event]
 group: behavior
 status: stable
 forms:

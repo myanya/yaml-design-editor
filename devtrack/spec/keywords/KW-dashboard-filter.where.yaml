@@ -1,6 +1,7 @@
 id: KW-dashboard-filter.where
 key: "where"
 context: CTX-dashboard-filter
+value_contexts: [CTX-condition]
 order: 4
 status: stable
 forms:

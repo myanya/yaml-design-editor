@@ -1,6 +1,8 @@
 id: CTX-chart-axis
 title: "縦軸（y）"
 language: view
+guide: GUIDE-charts-flows
+order: 2
 description: "チャートの y。"
 meta:
   schema: view-chart

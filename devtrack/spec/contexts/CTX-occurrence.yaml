@@ -1,6 +1,8 @@
 id: CTX-occurrence
 title: "出現の指定"
 language: schema
+guide: GUIDE-schema-checks
+order: 10
 description: "expected の source と values の要素。同じ ID が書かれた文書のうち、どれを読むかをスキーマかファイルで指します。"
 meta:
   schema: schema

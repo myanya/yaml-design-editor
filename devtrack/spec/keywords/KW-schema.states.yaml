@@ -1,6 +1,7 @@
 id: KW-schema.states
 key: "states"
 context: CTX-schema
+value_contexts: [CTX-state]
 group: behavior
 status: stable
 forms:

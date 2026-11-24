@@ -1,6 +1,7 @@
 id: KW-activity.trigger
 key: "trigger"
 context: CTX-activity
+value_contexts: [CTX-activity-trigger]
 order: 15
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-eval-case.setup
 key: "setup"
 context: CTX-eval-case
+value_contexts: [CTX-eval-setup]
 order: 3
 status: stable
 forms:

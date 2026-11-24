@@ -1,6 +1,7 @@
 id: KW-entity-type.aspects
 key: "aspects"
 context: CTX-entity-type
+value_contexts: [CTX-aspect]
 order: 4
 status: stable
 forms:

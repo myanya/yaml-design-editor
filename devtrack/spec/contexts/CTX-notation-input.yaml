@@ -1,6 +1,8 @@
 id: CTX-notation-input
 title: "入力の項目"
 language: view
+guide: GUIDE-lens-diagrams
+order: 10
 description: "記法の入力の項目 1 つ。スキーマの項目定義のうち、形と値の決まりだけを書けます。"
 meta:
   schema: view

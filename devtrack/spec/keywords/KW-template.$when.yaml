@@ -1,6 +1,7 @@
 id: KW-template.$when
 key: "$when"
 context: CTX-template
+value_contexts: [CTX-condition]
 order: 24
 status: stable
 forms:

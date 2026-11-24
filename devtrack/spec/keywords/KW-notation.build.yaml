@@ -1,6 +1,7 @@
 id: KW-notation.build
 key: "build"
 context: CTX-notation
+value_contexts: [CTX-template]
 order: 3
 status: stable
 forms:

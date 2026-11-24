@@ -1,6 +1,7 @@
 id: EX-generate-schema-model
 title: "組み立てた共通型を解き、継承する値と項目に明記した値を生成する"
 area: generation
+compare_with: [EX-generate-schema-model-invalid]
 illustrates: [KW-template.$schemaModel, KW-generator.input]
 files:
   - path: ".yde/transforms/resolve.yaml"

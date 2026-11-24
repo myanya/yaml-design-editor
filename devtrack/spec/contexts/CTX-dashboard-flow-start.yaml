@@ -1,6 +1,8 @@
 id: CTX-dashboard-flow-start
 title: "入口（start）"
 language: view
+guide: GUIDE-dashboards
+order: 4
 description: "flow の start。"
 meta:
   schema: view

@@ -1,6 +1,8 @@
 id: CTX-derive
 title: "派生の宣言"
 language: schema
+guide: GUIDE-schema-derive
+order: 1
 description: "文書のスキーマの derive。書いたスキーマには match を書けず、root は省けます。"
 meta:
   schema: schema

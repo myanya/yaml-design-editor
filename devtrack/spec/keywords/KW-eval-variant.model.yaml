@@ -1,6 +1,7 @@
 id: KW-eval-variant.model
 key: "model"
 context: CTX-eval-variant
+value_contexts: [CTX-agent-model]
 order: 2
 status: stable
 forms:

@@ -1,6 +1,8 @@
 id: CTX-dashboard-filter
 title: "区画の条件（filter）"
 language: view
+guide: GUIDE-dashboards
+order: 7
 description: "区画の filter。検査 1 件と同じ形のうち、ここに並ぶ語を書けます。"
 meta:
   schema: view

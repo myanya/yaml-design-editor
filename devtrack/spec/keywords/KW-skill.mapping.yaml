@@ -1,6 +1,7 @@
 id: KW-skill.mapping
 key: "mapping"
 context: CTX-skill
+value_contexts: [CTX-skill-mapping]
 order: 9
 status: stable
 forms:

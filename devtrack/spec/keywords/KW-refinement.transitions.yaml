@@ -1,6 +1,7 @@
 id: KW-refinement.transitions
 key: "transitions"
 context: CTX-refinement
+value_contexts: [CTX-lifecycle-transition]
 order: 4
 status: stable
 forms:

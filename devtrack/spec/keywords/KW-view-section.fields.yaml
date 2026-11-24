@@ -1,6 +1,7 @@
 id: KW-view-section.fields
 key: "fields"
 context: CTX-view-section
+value_contexts: [CTX-view-section-fields]
 order: 6
 status: stable
 forms:

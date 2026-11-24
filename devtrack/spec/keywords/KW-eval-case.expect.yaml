@@ -1,6 +1,7 @@
 id: KW-eval-case.expect
 key: "expect"
 context: CTX-eval-case
+value_contexts: [CTX-eval-expect]
 order: 5
 status: stable
 forms:

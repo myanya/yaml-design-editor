@@ -1,6 +1,7 @@
 id: KW-expr.each
 key: "each"
 context: CTX-expr
+value_contexts: [CTX-expr]
 order: 33
 status: stable
 forms:

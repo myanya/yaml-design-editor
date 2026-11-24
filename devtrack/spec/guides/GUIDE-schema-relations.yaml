@@ -1,0 +1,10 @@
+id: GUIDE-schema-relations
+title: 関係とエンティティ型
+language: schema
+order: 3
+description: 関係の向き・多重度・側面と、エンティティ型の宣言を確認します。
+reading: source と target を起点に、入る本数と出る本数の下限・上限を区別します。関係の例では参照元と参照先を照らし合わせます。
+report: schema-relations-md
+related:
+  - GUIDE-schema-fields
+  - GUIDE-schema-checks

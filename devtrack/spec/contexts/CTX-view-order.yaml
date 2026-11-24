@@ -1,6 +1,8 @@
 id: CTX-view-order
 title: "並び（order）"
 language: view
+guide: GUIDE-views
+order: 4
 description: "グリッドとクロス集計の order。条件に合う出現の文書の中の順か、path の値の順で並べます。"
 meta:
   schema: view

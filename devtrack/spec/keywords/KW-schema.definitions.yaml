@@ -1,6 +1,7 @@
 id: KW-schema.definitions
 key: "definitions"
 context: CTX-schema
+value_contexts: [CTX-field]
 group: structure
 status: stable
 forms:

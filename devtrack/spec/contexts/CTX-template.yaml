@@ -1,6 +1,8 @@
 id: CTX-template
 title: "変換のひな型の指示"
 language: transform
+guide: GUIDE-templates
+order: 1
 description: "ひな型は、出力の形をそのまま YAML で書いたものです。`$` で始まるキーを持つマップだけが指示で、それ以外は書いたとおりに出力します。値が得られない指示は「無い」になり、マップのキーごと出力から落ちます。文字列 $名前 は受け取った値で、繰り返しの中では $key・$index（0 始まり）・$position（1 始まり）を使えます。$$ は文字の $ です。"
 code:
   sets: [TransformDef.DIRECTIVE_KEYS]

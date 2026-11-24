@@ -1,0 +1,82 @@
+id: spec-maintenance-dashboard
+name: 仕様の点検
+kind: dashboard
+description: 語の状態、仕様に関わる指摘、例との直接の紐付けを確認します。例の紐付けが無いことは、製品のテストが無いことを意味しません。
+placement: vertical
+sections:
+  - id: aliases
+    label: 別の書き方・廃止予定の語
+    view: keyword-list
+    filter:
+      match:
+        - node:
+            entity: keyword
+            bind: k
+      where:
+        - of: k
+          path: status
+          oneOf:
+            - alias
+            - deprecated
+      expect: exists
+  - id: contexts-with-issues
+    label: 未解決の指摘がある位置
+    view: context-list
+    filter:
+      match:
+        - node:
+            entity: context
+            bind: c
+        - edge:
+            relation: concerns-spec
+            dir: in
+        - node:
+            entity: backlog-item
+            bind: x
+      where:
+        - of: x
+          path: status
+          oneOf:
+            - todo
+            - discussing
+            - in-progress
+            - when-needed
+      expect: exists
+  - id: keywords-with-issues
+    label: 未解決の指摘がある語
+    view: keyword-list
+    filter:
+      match:
+        - node:
+            entity: keyword
+            bind: k
+        - edge:
+            relation: concerns-spec
+            dir: in
+        - node:
+            entity: backlog-item
+            bind: x
+      where:
+        - of: x
+          path: status
+          oneOf:
+            - todo
+            - discussing
+            - in-progress
+            - when-needed
+      expect: exists
+  - id: keywords-without-examples
+    label: 例が直接結び付かない語
+    view: keyword-list
+    filter:
+      match:
+        - node:
+            entity: keyword
+            bind: k
+        - edge:
+            relation: illustrates
+            dir: in
+        - node:
+            entity: example
+            bind: e
+      expect: absent

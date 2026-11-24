@@ -1,6 +1,7 @@
 id: KW-method.params
 key: "params"
 context: CTX-method
+value_contexts: [CTX-field]
 order: 3
 status: stable
 forms:

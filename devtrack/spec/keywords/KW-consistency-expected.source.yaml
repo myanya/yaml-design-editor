@@ -1,6 +1,7 @@
 id: KW-consistency-expected.source
 key: "source"
 context: CTX-consistency-expected
+value_contexts: [CTX-occurrence]
 order: 2
 status: stable
 forms:

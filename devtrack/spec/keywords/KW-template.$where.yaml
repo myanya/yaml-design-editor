@@ -1,6 +1,7 @@
 id: KW-template.$where
 key: "$where"
 context: CTX-template
+value_contexts: [CTX-condition]
 order: 27
 status: stable
 forms:

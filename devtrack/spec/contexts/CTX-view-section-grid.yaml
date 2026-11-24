@@ -1,6 +1,8 @@
 id: CTX-view-section-grid
 title: "表の区画（grid）"
 language: view
+guide: GUIDE-views
+order: 18
 description: "区画の grid。"
 meta:
   schema: view

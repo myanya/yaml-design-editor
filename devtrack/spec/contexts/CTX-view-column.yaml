@@ -1,6 +1,8 @@
 id: CTX-view-column
 title: "列（columns の要素）"
 language: view
+guide: GUIDE-views
+order: 5
 description: "グリッドの列 1 つ。path・backlinks・definition・value・each のどれか 1 つで、列の中身を決めます。"
 meta:
   schema: view

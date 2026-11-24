@@ -1,0 +1,11 @@
+id: GUIDE-agents
+title: エージェント・仕事・評価
+language: agent
+order: 13
+description: 実行者・アクティビティ・起動・連鎖・評価の定義を確認します。
+reading: 仕事の対象、渡す情報、書いてよい範囲、提出条件を分けて読みます。連鎖と評価は、実際の外部 API を起動せず定義として確認します。
+report: agents-md
+related:
+  - GUIDE-schema-actions
+  - GUIDE-skills
+  - GUIDE-expressions

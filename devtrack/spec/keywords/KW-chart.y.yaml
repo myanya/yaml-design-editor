@@ -1,6 +1,7 @@
 id: KW-chart.y
 key: "y"
 context: CTX-chart
+value_contexts: [CTX-chart-axis]
 order: 6
 status: stable
 forms:

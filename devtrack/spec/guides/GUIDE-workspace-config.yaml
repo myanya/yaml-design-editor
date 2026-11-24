@@ -1,0 +1,10 @@
+id: GUIDE-workspace-config
+title: ワークスペースと段
+language: workspace
+order: 15
+description: 台帳・ファイル・スコープ・段と、規則・補正を確認します。
+reading: 対象の範囲と段の順序を確認してから、規則と個別の補正を読みます。生成の例で補正前のモデルと出力を比べます。
+report: workspace-config-md
+related:
+  - GUIDE-templates
+  - GUIDE-schema-document

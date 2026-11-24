@@ -1,6 +1,7 @@
 id: KW-view-matrix.rows
 key: "rows"
 context: CTX-view-matrix
+value_contexts: [CTX-view-rows]
 order: 1
 status: stable
 forms:

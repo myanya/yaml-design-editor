@@ -1,6 +1,8 @@
 id: CTX-view-detail
 title: "詳細の文書（detail）"
 language: view
+guide: GUIDE-views
+order: 8
 description: "グリッドの detail。"
 meta:
   schema: view

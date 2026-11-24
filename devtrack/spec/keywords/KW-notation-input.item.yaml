@@ -1,6 +1,7 @@
 id: KW-notation-input.item
 key: "item"
 context: CTX-notation-input
+value_contexts: [CTX-notation-input]
 order: 7
 status: stable
 forms:

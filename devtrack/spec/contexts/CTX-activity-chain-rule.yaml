@@ -1,6 +1,8 @@
 id: CTX-activity-chain-rule
 title: "連鎖の分岐（rules の要素）"
 language: agent
+guide: GUIDE-agents
+order: 11
 description: "chain の rules の要素。"
 meta:
   schema: activity

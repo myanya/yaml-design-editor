@@ -1,6 +1,7 @@
 id: KW-skill.input
 key: "input"
 context: CTX-skill
+value_contexts: [CTX-skill-input]
 order: 5
 status: stable
 forms:

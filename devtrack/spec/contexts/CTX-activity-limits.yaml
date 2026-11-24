@@ -1,6 +1,8 @@
 id: CTX-activity-limits
 title: "ループの上限"
 language: agent
+guide: GUIDE-agents
+order: 7
 description: "アクティビティの limits。"
 meta:
   schema: activity

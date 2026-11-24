@@ -1,6 +1,8 @@
 id: CTX-check-vocabulary
 title: "語彙の定義"
 language: schema
+guide: GUIDE-schema-checks
+order: 4
 description: "vocabulary の要素。検査を短く書くための書き方（語彙）を作ります。ここに無いキーは誤りになります。"
 meta:
   schema: schema

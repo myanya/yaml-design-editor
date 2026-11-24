@@ -1,11 +1,50 @@
 id: example-list
-name: 例の一覧
-description: 仕様の例（実際に検証する小さなワークスペース）を並べます。
+name: 例を探す
+description: 結果は期待する動作です。読み込み・検証と、その後の操作・生成の成功や拒否を分けて読みます。実行履歴ではありません。
+params:
+  - area
+  - result
+  - exampleTerm
+  - spec
 rows:
-  idPattern: "EX-*"
-  schemaIds: [spec-example]
+  match:
+    - node:
+        entity: example
+        bind: e
+  where:
+    - of: e
+      path: area
+      equals: $area
+    - of: e
+      path: expect.result
+      equals: $result
+    - of: e
+      path: title
+      contains: $exampleTerm
+    - of: e
+      path: illustrates
+      includes: $spec
 columns:
-  - { label: 分野, schemaId: spec-example, path: area }
-  - { label: 示す仕様, schemaId: spec-example, path: illustrates }
-  - { label: 結果, schemaId: spec-example, path: expect.result }
-  - { label: 文面の一部, schemaId: spec-example, path: expect.message }
+  - label: 分野
+    path: area
+    schemaId: spec-example
+  - label: 示す仕様
+    path: illustrates
+    schemaId: spec-example
+  - label: 読み込み・検証
+    path: expect.result
+    schemaId: spec-example
+  - label: その後の期待
+    value:
+      first:
+        - format: '操作を拒否: {expect.action.fails}'
+        - format: '生成を停止: {expect.generate.fails}'
+        - format: 操作「{expect.action.name}」の適用後の文書を確認
+        - format: ビュー「{expect.view.id}」の行と値を確認
+        - format: レポート「{expect.report.id}」の出力を確認
+        - format: 生成する文書を確認（{n}件）
+          with:
+            'n':
+              count:
+                path: expect.generate.files
+        - 読み込み・検証の結果を確認

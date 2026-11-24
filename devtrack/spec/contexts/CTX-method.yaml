@@ -1,6 +1,8 @@
 id: CTX-method
 title: "型の操作の定義"
 language: schema
+guide: GUIDE-schema-actions
+order: 4
 description: "object の項目定義の methods の値。その object の要素 1 つを受け手にする操作です。予約の名前 create は新しい要素の中身を決めます。"
 meta:
   schema: schema

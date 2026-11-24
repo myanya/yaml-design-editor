@@ -1,6 +1,7 @@
 id: KW-lens.filters
 key: "filters"
 context: CTX-lens
+value_contexts: [CTX-lens-filter]
 order: 2
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-report.rules
 key: "rules"
 context: CTX-report
+value_contexts: [CTX-template-rule]
 order: 6
 status: stable
 forms:

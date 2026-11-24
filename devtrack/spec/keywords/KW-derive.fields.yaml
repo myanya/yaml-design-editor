@@ -1,6 +1,7 @@
 id: KW-derive.fields
 key: "fields"
 context: CTX-derive
+value_contexts: [CTX-derive-fields]
 order: 6
 status: stable
 forms:

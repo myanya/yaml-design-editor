@@ -1,6 +1,7 @@
 id: KW-query-edge.in
 key: "in"
 context: CTX-query-edge
+value_contexts: [CTX-selector]
 order: 4
 status: stable
 forms:

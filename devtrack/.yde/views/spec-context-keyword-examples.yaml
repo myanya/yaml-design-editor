@@ -1,0 +1,45 @@
+id: spec-context-keyword-examples
+name: 位置の語を示す例
+description: 例と示す語の組を並べます。同じ例が複数の語を説明するときは語ごとに行が出ます。
+params:
+  - context
+rows:
+  match:
+    - node:
+        entity: example
+        bind: e
+    - edge:
+        relation: illustrates
+    - node:
+        entity: keyword
+        bind: k
+    - edge:
+        relation: placed-in
+    - node:
+        entity: context
+        bind: c
+  where:
+    - of: c
+      path: id
+      equals: $context
+columns:
+  - label: 示す語
+    of: k
+    path: id
+  - label: 読み込み・検証
+    path: expect.result
+    schemaId: spec-example
+  - label: その後の期待
+    value:
+      first:
+        - format: '操作を拒否: {expect.action.fails}'
+        - format: '生成を停止: {expect.generate.fails}'
+        - format: 操作「{expect.action.name}」の適用後の文書を確認
+        - format: ビュー「{expect.view.id}」の行と値を確認
+        - format: レポート「{expect.report.id}」の出力を確認
+        - format: 生成する文書を確認（{n}件）
+          with:
+            'n':
+              count:
+                path: expect.generate.files
+        - 読み込み・検証の結果を確認

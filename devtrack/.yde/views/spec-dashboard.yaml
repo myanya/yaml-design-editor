@@ -1,41 +1,39 @@
 id: spec-dashboard
 name: 仕様
 kind: dashboard
-description: 定義に書ける語の仕様を、位置・語・基底の種類から眺めます。
+description: 仕様書を選び、位置・語・例へ進みます。専用の読み方は「原本を開く」→「ビュー」で選べます。キーの文字は語の一覧だけに効きます。
+placement: vertical
+inputs:
+  - key: language
+    label: 分野
+    type: spec#定義の言語
+  - key: guide
+    label: 仕様書
+    type: spec#仕様書参照
+  - key: context
+    label: 書ける位置
+    type: spec#位置参照
+  - key: term
+    label: キーに含む文字
+    type: string
 sections:
+  - id: guides
+    label: 仕様書の目次
+    view: spec-guide-list
+    group: 読む
   - id: contexts
-    label: 位置
+    label: 書ける位置
     view: context-list
-  # 未解決の指摘が関わる位置（指摘の側の「関わる仕様」を逆に辿る）
-  - id: contexts-with-issues
-    label: 未解決の指摘がある位置
-    view: context-list
-    filter:
-      match:
-        - node: { entity: context, bind: c }
-        - edge: { relation: concerns-spec, dir: in }
-        - node: { entity: backlog-item, bind: x }
-      where:
-        - { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] }
-      expect: exists
+    group: 読む
   - id: keywords
-    label: 語
+    label: 語を探す
     view: keyword-list
-  - id: aliases
-    label: 別の書き方・廃止予定の語
-    view: keyword-list
-    filter:
-      match:
-        - node: { entity: keyword, bind: k }
-      where:
-        - { of: k, path: status, oneOf: [alias, deprecated] }
-      expect: exists
-  - id: examples
-    label: 例
-    view: example-list
+    group: 読む
   - id: schema-kinds
     label: スキーマの種類
     view: schema-kind-list
+    group: 種類を確認する
   - id: base-types
     label: 基底の種類
     view: base-type-list
+    group: 種類を確認する

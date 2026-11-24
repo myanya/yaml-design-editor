@@ -1,6 +1,8 @@
 id: CTX-activity-context
 title: "文脈のレシピ"
 language: agent
+guide: GUIDE-agents
+order: 5
 description: "アクティビティの context。"
 meta:
   schema: activity

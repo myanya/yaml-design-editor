@@ -1,6 +1,7 @@
 id: KW-consistency-expected.lookup
 key: "lookup"
 context: CTX-consistency-expected
+value_contexts: [CTX-consistency-lookup]
 order: 1
 status: stable
 forms:

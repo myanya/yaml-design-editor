@@ -1,6 +1,7 @@
 id: KW-skill-target.id
 key: "id"
 context: CTX-skill-target
+value_contexts: [CTX-skill-target-id]
 order: 3
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-schema.vocabulary
 key: "vocabulary"
 context: CTX-schema
+value_contexts: [CTX-check-vocabulary]
 group: check
 status: stable
 forms:

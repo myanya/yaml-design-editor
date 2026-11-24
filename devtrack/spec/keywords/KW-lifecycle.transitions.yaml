@@ -1,6 +1,7 @@
 id: KW-lifecycle.transitions
 key: "transitions"
 context: CTX-lifecycle
+value_contexts: [CTX-lifecycle-transition]
 order: 5
 status: stable
 forms:

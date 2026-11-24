@@ -1,6 +1,7 @@
 id: KW-template.$build
 key: "$build"
 context: CTX-template
+value_contexts: [CTX-template]
 order: 22
 status: stable
 forms:

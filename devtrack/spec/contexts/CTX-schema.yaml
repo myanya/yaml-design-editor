@@ -1,6 +1,8 @@
 id: CTX-schema
 title: スキーマ文書
 language: schema
+guide: GUIDE-schema-document
+order: 1
 description: "スキーマ文書 1 つのトップレベル。スキーマの置き場（.yde/schemas/。従来の配置は _schemas/）の YAML 1 ファイルが 1 つのスキーマ文書で、種類（kind）によって書ける語が変わります。"
 features: [S-01, S-12, S-15]
 evidence:

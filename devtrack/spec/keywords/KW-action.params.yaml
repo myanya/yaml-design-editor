@@ -1,6 +1,7 @@
 id: KW-action.params
 key: "params"
 context: CTX-action
+value_contexts: [CTX-field]
 order: 5
 status: stable
 forms:

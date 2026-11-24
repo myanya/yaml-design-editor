@@ -1,6 +1,8 @@
 id: CTX-eval-expect
 title: "期待する結果"
 language: agent
+guide: GUIDE-agents
+order: 19
 description: "ケースの expect。"
 meta:
   schema: eval

@@ -1,6 +1,7 @@
 id: KW-schema.matrix
 key: "matrix"
 context: CTX-schema
+value_contexts: [CTX-matrix]
 group: check
 status: stable
 forms:

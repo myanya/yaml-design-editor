@@ -1,6 +1,8 @@
 id: CTX-flow-model-edge
 title: "線（edges の要素）"
 language: view
+guide: GUIDE-charts-flows
+order: 12
 description: "フローの図のモデルの edges の要素。"
 meta:
   schema: flow-model

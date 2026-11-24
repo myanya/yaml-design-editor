@@ -1,6 +1,8 @@
 id: CTX-view-backlinks
 title: "参照元の一覧（backlinks）"
 language: view
+guide: GUIDE-views
+order: 19
 description: "区画と attachments の backlinks。"
 meta:
   schema: view

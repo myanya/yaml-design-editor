@@ -1,6 +1,7 @@
 id: KW-schema.entities
 key: "entities"
 context: CTX-schema
+value_contexts: [CTX-entity-type]
 group: identity
 status: stable
 forms:

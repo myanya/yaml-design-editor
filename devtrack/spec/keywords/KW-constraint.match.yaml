@@ -1,6 +1,7 @@
 id: KW-constraint.match
 key: "match"
 context: CTX-constraint
+value_contexts: [CTX-query-node, CTX-query-edge]
 order: 3
 status: stable
 forms:

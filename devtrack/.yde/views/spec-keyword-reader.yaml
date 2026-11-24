@@ -1,0 +1,52 @@
+id: spec-keyword-reader
+name: 語を読む
+kind: document
+schemaId: spec-keyword
+sections:
+  - label: 語と書ける場所
+    fields:
+      include:
+        - key
+        - context
+        - status
+        - alias_of
+  - label: 適用条件・値の形・必須・既定値・意味
+    fields:
+      include:
+        - forms
+        - inherit
+  - label: 値の構造へ進む
+    fields:
+      include:
+        - value_contexts
+  - label: この語を示す例
+    grid:
+      view: example-list
+      params:
+        spec:
+          path: id
+  - label: 別の書き方
+    backlinks:
+      relation: alias-of
+      schemaIds:
+        - spec-keyword
+      columns:
+        - label: 語
+          path: key
+        - label: 位置
+          path: context
+  - label: 関わる指摘
+    backlinks:
+      relation: concerns-spec
+      schemaIds:
+        - item
+      columns:
+        - label: 件名
+          path: title
+        - label: 状態
+          path: status
+  - label: 実装と根拠
+    fields:
+      include:
+        - features
+        - evidence

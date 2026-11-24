@@ -1,6 +1,7 @@
 id: KW-view-grid.newRow
 key: "newRow"
 context: CTX-view-grid
+value_contexts: [CTX-view-new-row]
 order: 6
 status: stable
 forms:

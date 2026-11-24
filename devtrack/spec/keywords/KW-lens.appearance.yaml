@@ -1,6 +1,7 @@
 id: KW-lens.appearance
 key: "appearance"
 context: CTX-lens
+value_contexts: [CTX-appearance]
 order: 3
 status: stable
 forms:

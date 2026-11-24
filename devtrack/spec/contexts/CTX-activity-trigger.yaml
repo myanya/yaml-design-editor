@@ -1,6 +1,8 @@
 id: CTX-activity-trigger
 title: "起動のきっかけ"
 language: agent
+guide: GUIDE-agents
+order: 9
 description: "アクティビティの trigger。"
 meta:
   schema: activity

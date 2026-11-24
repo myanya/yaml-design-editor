@@ -1,6 +1,8 @@
 id: CTX-lens-keep
 title: "つながりで残す（keepIfLinked）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 4
 description: "絞り込みの keepIfLinked。"
 meta:
   schema: view

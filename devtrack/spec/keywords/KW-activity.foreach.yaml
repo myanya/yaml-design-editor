@@ -1,6 +1,7 @@
 id: KW-activity.foreach
 key: "foreach"
 context: CTX-activity
+value_contexts: [CTX-activity-foreach]
 order: 18
 status: stable
 forms:

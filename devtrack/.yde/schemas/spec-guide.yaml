@@ -1,0 +1,7 @@
+id: spec-guide
+name: 仕様書の案内
+kind: document
+description: 仕様書の目次と読むときの観点。位置の guide・order が、画面と参照文書の所属と節順を決めます。
+match: "spec/guides/*.yaml"
+filePattern: "spec/guides/{id}.yaml"
+root: { type: spec#仕様書 }

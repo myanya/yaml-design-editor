@@ -1,6 +1,7 @@
 id: KW-dashboard.inputs
 key: "inputs"
 context: CTX-dashboard
+value_contexts: [CTX-dashboard-input]
 order: 5
 status: stable
 forms:

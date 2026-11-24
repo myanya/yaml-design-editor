@@ -1,6 +1,7 @@
 id: KW-lifecycle.termination
 key: "termination"
 context: CTX-lifecycle
+value_contexts: [CTX-lifecycle-termination]
 order: 6
 status: stable
 forms:

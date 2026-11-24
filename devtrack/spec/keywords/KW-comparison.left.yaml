@@ -1,6 +1,7 @@
 id: KW-comparison.left
 key: "left"
 context: CTX-comparison
+value_contexts: [CTX-expr]
 order: 15
 status: stable
 forms:

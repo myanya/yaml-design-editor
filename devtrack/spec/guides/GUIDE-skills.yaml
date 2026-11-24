@@ -1,0 +1,11 @@
+id: GUIDE-skills
+title: 取り込み・書き出し・コード実行
+language: agent
+order: 14
+description: import・export・run で使う項目と、入出力の対応を確認します。
+reading: 最初に kind を選びます。取り込みは入力列から項目へ、書き出しは項目から出力列へたどります。コード実行の設定は別の位置で確認します。
+report: skills-md
+related:
+  - GUIDE-templates
+  - GUIDE-views
+  - GUIDE-agents

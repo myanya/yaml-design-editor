@@ -1,6 +1,7 @@
 id: EX-stage-patch-where
 title: "段の補正は、個別の要素を選んで変える"
 area: generation
+compare_with: [EX-stage-patch-no-match]
 illustrates: [KW-stage.kind, KW-stage-change.where, KW-stage-change.set]
 files:
   - path: ".yde/schemas/task.yaml"

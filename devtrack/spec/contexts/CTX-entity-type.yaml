@@ -1,6 +1,8 @@
 id: CTX-entity-type
 title: "エンティティ型の一覧の要素"
 language: schema
+guide: GUIDE-schema-relations
+order: 3
 description: "関係レジストリの entities の要素。エンティティ型の表示名と、側面の並びを宣言します。"
 meta:
   schema: relations

@@ -1,6 +1,7 @@
 id: KW-flow-model.nodes
 key: "nodes"
 context: CTX-flow-model
+value_contexts: [CTX-flow-model-node]
 order: 1
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-view-section.backlinks
 key: "backlinks"
 context: CTX-view-section
+value_contexts: [CTX-view-backlinks]
 order: 7
 status: stable
 forms:

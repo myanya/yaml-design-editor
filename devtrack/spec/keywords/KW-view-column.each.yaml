@@ -1,6 +1,7 @@
 id: KW-view-column.each
 key: "each"
 context: CTX-view-column
+value_contexts: [CTX-view-column-each]
 order: 10
 status: stable
 forms:

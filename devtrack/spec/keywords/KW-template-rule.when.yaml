@@ -1,6 +1,7 @@
 id: KW-template-rule.when
 key: "when"
 context: CTX-template-rule
+value_contexts: [CTX-condition]
 order: 2
 status: stable
 forms:

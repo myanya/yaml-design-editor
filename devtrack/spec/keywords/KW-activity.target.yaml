@@ -1,6 +1,7 @@
 id: KW-activity.target
 key: "target"
 context: CTX-activity
+value_contexts: [CTX-activity-target]
 order: 5
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-check-function.checks
 key: "checks"
 context: CTX-check-function
+value_contexts: [CTX-constraint]
 order: 4
 status: stable
 forms:

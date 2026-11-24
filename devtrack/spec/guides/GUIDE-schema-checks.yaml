@@ -1,0 +1,11 @@
+id: GUIDE-schema-checks
+title: 検査
+language: schema
+order: 6
+description: 存在・件数・比較・網羅・整合・遷移の検査を確認します。
+reading: 確かめる対象と、成り立つべき条件を分けて読みます。直接書く検査、名前で使う検査、専用チェッカーの違いを確認します。
+report: schema-checks-md
+related:
+  - GUIDE-expressions
+  - GUIDE-schema-relations
+  - GUIDE-schema-behavior

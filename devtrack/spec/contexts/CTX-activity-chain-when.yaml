@@ -1,6 +1,8 @@
 id: CTX-activity-chain-when
 title: "連鎖の条件"
 language: agent
+guide: GUIDE-agents
+order: 12
 description: "連鎖の分岐の when。"
 meta:
   schema: activity

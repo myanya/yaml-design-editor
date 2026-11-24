@@ -1,6 +1,8 @@
 id: CTX-stage-change
 title: "変更（changes の要素）"
 language: workspace
+guide: GUIDE-workspace-config
+order: 6
 description: "段の規則・補正の changes の要素。"
 meta:
   schema: stage

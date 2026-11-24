@@ -1,6 +1,8 @@
 id: CTX-appearance
 title: "図の見え方（appearance）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 5
 description: "レンズの appearance。"
 meta:
   schema: view

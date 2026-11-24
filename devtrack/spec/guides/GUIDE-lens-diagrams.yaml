@@ -1,0 +1,11 @@
+id: GUIDE-lens-diagrams
+title: レンズと図の記法
+language: view
+order: 12
+description: 矢印・箱・絞り込みと、図の部品の組み立てを確認します。
+reading: 関係の意味と、画面での見え方を区別します。レンズ「仕様をたどる」で語・値の構造・例のつながりを確認できます。
+report: lens-diagrams-md
+related:
+  - GUIDE-schema-relations
+  - GUIDE-templates
+  - GUIDE-charts-flows

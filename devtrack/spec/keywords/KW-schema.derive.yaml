@@ -1,6 +1,7 @@
 id: KW-schema.derive
 key: "derive"
 context: CTX-schema
+value_contexts: [CTX-derive]
 group: document
 status: stable
 forms:

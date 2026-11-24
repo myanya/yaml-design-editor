@@ -1,6 +1,8 @@
 id: CTX-lifecycle
 title: "Lifecycle の宣言"
 language: schema
+guide: GUIDE-schema-behavior
+order: 4
 description: "lifecycles の要素。1 つのエンティティ型の、State・生成・遷移・終端の宣言です。"
 meta:
   schema: schema

@@ -1,6 +1,8 @@
 id: CTX-view-document
 title: "文書ビュー（kind: document）"
 language: view
+guide: GUIDE-views
+order: 15
 description: "1 つの文書を、区画に分けて見せるビュー。"
 meta:
   schema: view

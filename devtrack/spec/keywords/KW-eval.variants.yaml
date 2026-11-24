@@ -1,6 +1,7 @@
 id: KW-eval.variants
 key: "variants"
 context: CTX-eval
+value_contexts: [CTX-eval-variant]
 order: 5
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-view-rows.match
 key: "match"
 context: CTX-view-rows
+value_contexts: [CTX-query-node, CTX-query-edge]
 order: 3
 status: stable
 forms:

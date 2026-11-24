@@ -1,6 +1,7 @@
 id: KW-view-grid.corrections
 key: "corrections"
 context: CTX-view-grid
+value_contexts: [CTX-view-corrections]
 order: 7
 status: stable
 forms:

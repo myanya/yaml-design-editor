@@ -1,0 +1,11 @@
+id: GUIDE-templates
+title: 変換・生成・レポート
+language: transform
+order: 9
+description: 共通の変換指示と、変換・生成・レポートの定義を確認します。
+reading: 入力、組み立て、出力を順に読みます。YAML の項を返す変換、文書を作る生成、文字を作るレポートを区別します。文字のひな形は manual/reports.md にあります。
+report: templates-md
+related:
+  - GUIDE-expressions
+  - GUIDE-workspace-config
+  - GUIDE-skills

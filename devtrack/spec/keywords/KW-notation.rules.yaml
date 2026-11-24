@@ -1,6 +1,7 @@
 id: KW-notation.rules
 key: "rules"
 context: CTX-notation
+value_contexts: [CTX-template-rule]
 order: 4
 status: stable
 forms:

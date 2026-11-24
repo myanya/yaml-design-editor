@@ -1,6 +1,7 @@
 id: KW-transform.build
 key: "build"
 context: CTX-transform
+value_contexts: [CTX-template]
 order: 6
 status: stable
 forms:

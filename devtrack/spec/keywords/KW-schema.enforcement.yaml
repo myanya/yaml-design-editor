@@ -1,6 +1,7 @@
 id: KW-schema.enforcement
 key: "enforcement"
 context: CTX-schema
+value_contexts: [CTX-enforcement]
 group: identity
 status: stable
 forms:

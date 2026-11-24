@@ -1,6 +1,7 @@
 id: KW-constraint.check
 key: "check"
 context: CTX-constraint
+value_contexts: [CTX-comparison]
 order: 9
 status: stable
 forms:

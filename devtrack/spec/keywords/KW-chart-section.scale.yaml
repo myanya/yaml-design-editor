@@ -1,6 +1,7 @@
 id: KW-chart-section.scale
 key: "scale"
 context: CTX-chart-section
+value_contexts: [CTX-chart-scale]
 order: 10
 status: stable
 forms:

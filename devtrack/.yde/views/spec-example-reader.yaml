@@ -1,0 +1,53 @@
+id: spec-example-reader
+name: 例を読む
+kind: document
+schemaId: spec-example
+sections:
+  - label: 何を示す例か
+    fields:
+      include:
+        - title
+        - area
+        - illustrates
+  - label: 期待する結果
+    grid:
+      view: spec-example-outcome
+      params:
+        example:
+          path: id
+  - label: 入力 — ファイルごとに読む
+    fields:
+      include:
+        - files
+  - label: ビューの期待する行と値
+    fields:
+      path: expect
+      include:
+        - view
+  - label: レポートの期待する出力
+    fields:
+      path: expect
+      include:
+        - report
+  - label: 操作の入力と期待する結果
+    fields:
+      path: expect
+      include:
+        - action
+  - label: 生成の期待する結果
+    fields:
+      path: expect
+      include:
+        - generate
+  - label: 比べて読む
+    fields:
+      include:
+        - compare_with
+  - label: この例と比べる例
+    backlinks:
+      relation: compare-example
+      schemaIds:
+        - spec-example
+      columns:
+        - label: 何を示すか
+          path: title

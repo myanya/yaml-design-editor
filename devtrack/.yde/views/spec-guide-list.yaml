@@ -1,0 +1,30 @@
+id: spec-guide-list
+name: 仕様書の目次
+params:
+  - guide
+  - language
+rows:
+  match:
+    - node:
+        entity: spec-guide
+        bind: g
+  where:
+    - of: g
+      path: id
+      equals: $guide
+    - of: g
+      path: language
+      equals: $language
+order:
+  schemaId: spec-guide
+  path: order
+columns:
+  - label: 分野
+    path: language
+    schemaId: spec-guide
+  - label: 扱うこと
+    path: description
+    schemaId: spec-guide
+  - label: 読むときの観点
+    path: reading
+    schemaId: spec-guide

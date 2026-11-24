@@ -1,6 +1,8 @@
 id: CTX-view-corrections
 title: "補正を重ねる（corrections）"
 language: view
+guide: GUIDE-views
+order: 10
 description: "グリッドの corrections。"
 meta:
   schema: view

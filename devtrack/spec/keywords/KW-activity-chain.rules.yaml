@@ -1,6 +1,7 @@
 id: KW-activity-chain.rules
 key: "rules"
 context: CTX-activity-chain
+value_contexts: [CTX-activity-chain-rule]
 order: 3
 status: stable
 forms:
