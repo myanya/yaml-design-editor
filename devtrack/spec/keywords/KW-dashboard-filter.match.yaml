@@ -1,6 +1,7 @@
 id: KW-dashboard-filter.match
 key: "match"
 context: CTX-dashboard-filter
+value_contexts: [CTX-query-node, CTX-query-edge]
 order: 3
 status: stable
 forms:

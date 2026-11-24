@@ -1,6 +1,7 @@
 id: KW-template-rule.build
 key: "build"
 context: CTX-template-rule
+value_contexts: [CTX-template]
 order: 4
 status: stable
 forms:

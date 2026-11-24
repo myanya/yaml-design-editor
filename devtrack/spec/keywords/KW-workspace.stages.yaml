@@ -1,6 +1,7 @@
 id: KW-workspace.stages
 key: "stages"
 context: CTX-workspace
+value_contexts: [CTX-workspace-stage]
 order: 4
 status: stable
 forms:

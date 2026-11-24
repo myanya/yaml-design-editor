@@ -1,21 +1,45 @@
 id: keyword-list
-name: 語の一覧
-description: 語（定義に書けるキー）を ID の順に並べます。ダッシュボードの区画が絞ります。
+name: 語を探す
+description: 仕様書・分野・位置・キーの文字で絞ります。値の形と意味は先頭の形の要約です。形の数が複数なら「語を読む」で適用条件と全ての形を確認します。
+params:
+  - guide
+  - language
+  - context
+  - term
 rows:
-  idPattern: "KW-*"
-  schemaIds: [spec-keyword]
-order:
-  schemaId: spec-keyword
-  path: id
-  direction: asc
-# キーは行の ID の下に出る（role: title）ので、列にしない
+  match:
+    - node:
+        entity: keyword
+        bind: k
+    - edge:
+        relation: placed-in
+    - node:
+        entity: context
+        bind: c
+  where:
+    - of: c
+      path: guide
+      equals: $guide
+    - of: c
+      path: language
+      equals: $language
+    - of: c
+      path: id
+      equals: $context
+    - of: k
+      path: key
+      contains: $term
 columns:
-  - { label: 位置, schemaId: spec-keyword, path: context }
-  - { label: 分類, schemaId: spec-keyword, path: group }
-  - { label: 状態, schemaId: spec-keyword, path: status }
-  - { label: 実装する機能, schemaId: spec-keyword, path: features }
-  - label: 値の形
+  - label: 位置
+    path: context
     schemaId: spec-keyword
+  - label: 値の形（先頭）
+    path: forms[0].value
+    schemaId: spec-keyword
+  - label: 意味（先頭）
+    path: forms[0].meaning
+    schemaId: spec-keyword
+  - label: 形の数
     value:
-      each: { path: forms }
-      value: { path: value }
+      count:
+        path: forms

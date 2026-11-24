@@ -1,6 +1,7 @@
 id: KW-schema.lifecycles
 key: "lifecycles"
 context: CTX-schema
+value_contexts: [CTX-lifecycle]
 group: behavior
 status: stable
 forms:

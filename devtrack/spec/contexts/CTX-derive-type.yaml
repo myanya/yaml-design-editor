@@ -1,6 +1,8 @@
 id: CTX-derive-type
 title: "型の決め方"
 language: schema
+guide: GUIDE-schema-derive
+order: 3
 description: "fields の type。"
 meta:
   schema: schema

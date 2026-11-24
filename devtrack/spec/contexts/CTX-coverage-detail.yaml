@@ -1,6 +1,8 @@
 id: CTX-coverage-detail
 title: "詳細を書く先"
 language: schema
+guide: GUIDE-schema-checks
+order: 6
 description: "coverage の detailIn。"
 meta:
   schema: schema

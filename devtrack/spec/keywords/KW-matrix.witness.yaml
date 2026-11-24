@@ -1,6 +1,7 @@
 id: KW-matrix.witness
 key: "witness"
 context: CTX-matrix
+value_contexts: [CTX-matrix-witness]
 order: 5
 status: stable
 forms:

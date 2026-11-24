@@ -1,6 +1,7 @@
 id: KW-refinement-exit.by
 key: "by"
 context: CTX-refinement-exit
+value_contexts: [CTX-lifecycle-cause]
 order: 1
 status: stable
 forms:

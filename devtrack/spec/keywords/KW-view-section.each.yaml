@@ -1,6 +1,7 @@
 id: KW-view-section.each
 key: "each"
 context: CTX-view-section
+value_contexts: [CTX-view-section-each]
 order: 9
 status: stable
 forms:

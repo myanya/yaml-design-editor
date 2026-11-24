@@ -1,6 +1,8 @@
 id: CTX-lifecycle-transition
 title: "遷移"
 language: schema
+guide: GUIDE-schema-behavior
+order: 6
 description: "Lifecycle の transitions と、詳細化の transitions の要素。"
 meta:
   schema: schema

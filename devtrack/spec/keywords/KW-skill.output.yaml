@@ -1,6 +1,7 @@
 id: KW-skill.output
 key: "output"
 context: CTX-skill
+value_contexts: [CTX-skill-output]
 order: 13
 status: stable
 forms:

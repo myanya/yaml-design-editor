@@ -1,6 +1,8 @@
 id: CTX-view-grid
 title: "グリッド（kind: grid）"
 language: view
+guide: GUIDE-views
+order: 2
 description: "複数の文書を横断する表。行は論理 ID か、クエリの解です。"
 meta:
   schema: view

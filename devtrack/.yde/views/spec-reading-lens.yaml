@@ -1,0 +1,20 @@
+id: spec-reading-lens
+name: 仕様をたどる
+kind: lens
+description: 仕様書・位置・語・例をたどります。語や位置を起点に近傍を表示し、必要な関係だけを選びます。「値の構造」は再利用や再帰も表します。
+relations:
+  - name: placed-in
+    arrow: reverse
+  - name: in-guide
+    arrow: reverse
+  - name: illustrates
+    arrow: reverse
+filters:
+  - id: spec-only
+    label: 仕様と例だけ
+    level: entity
+    mode: show
+    where:
+      path: id
+      matches: ^(GUIDE|CTX|KW|EX|BT|KIND)-.*$
+    default: true

@@ -1,6 +1,8 @@
 id: CTX-flow-layout
 title: "配置（layout）"
 language: view
+guide: GUIDE-charts-flows
+order: 7
 description: "業務フロー図の layout。"
 meta:
   schema: view-flow

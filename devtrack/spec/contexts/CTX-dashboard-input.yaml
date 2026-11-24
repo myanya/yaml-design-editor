@@ -1,6 +1,8 @@
 id: CTX-dashboard-input
 title: "入力（inputs の要素）"
 language: view
+guide: GUIDE-dashboards
+order: 2
 description: "ダッシュボードの inputs の要素。"
 meta:
   schema: view

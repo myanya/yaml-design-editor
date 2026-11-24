@@ -1,6 +1,7 @@
 id: KW-stage.changes
 key: "changes"
 context: CTX-stage
+value_contexts: [CTX-stage-change]
 order: 6
 status: stable
 forms:

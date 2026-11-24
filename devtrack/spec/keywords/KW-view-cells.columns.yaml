@@ -1,6 +1,7 @@
 id: KW-view-cells.columns
 key: "columns"
 context: CTX-view-cells
+value_contexts: [CTX-view-cells-columns]
 order: 10
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-method.build
 key: "build"
 context: CTX-method
+value_contexts: [CTX-template]
 order: 4
 status: stable
 forms:

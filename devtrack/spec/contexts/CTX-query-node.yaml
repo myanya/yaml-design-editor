@@ -1,6 +1,8 @@
 id: CTX-query-node
 title: "クエリの node"
 language: expression
+guide: GUIDE-expressions
+order: 1
 description: "match・steps の node。いまの要素の集まりを絞ります。ここに無いキーは誤りになります。"
 code:
   sets: [QueryNodeStep.KEYS]

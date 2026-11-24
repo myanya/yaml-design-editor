@@ -1,6 +1,7 @@
 id: KW-query-branch.steps
 key: "steps"
 context: CTX-query-branch
+value_contexts: [CTX-query-node, CTX-query-edge]
 order: 2
 status: stable
 forms:

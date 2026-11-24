@@ -1,6 +1,7 @@
 id: KW-consistency-expected.values
 key: "values"
 context: CTX-consistency-expected
+value_contexts: [CTX-occurrence]
 order: 4
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-view-matrix.cells
 key: "cells"
 context: CTX-view-matrix
+value_contexts: [CTX-view-cells]
 order: 2
 status: stable
 forms:

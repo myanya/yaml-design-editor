@@ -1,6 +1,7 @@
 id: KW-flow.usage
 key: "usage"
 context: CTX-flow
+value_contexts: [CTX-flow-edges]
 order: 7
 status: stable
 forms:

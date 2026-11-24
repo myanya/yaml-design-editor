@@ -1,6 +1,7 @@
 id: EX-behavior-lifecycle-ok
 title: "State と Lifecycle を、振る舞いの宣言（kind: behavior）に書く"
 area: checks
+compare_with: [EX-behavior-unknown-state, EX-behavior-cause-one-of]
 illustrates: [CTX-state, CTX-lifecycle, CTX-lifecycle-entry, CTX-lifecycle-transition, KW-schema.lifecycles]
 files:
   - path: ".yde/schemas/task.yaml"

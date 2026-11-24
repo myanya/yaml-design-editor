@@ -1,6 +1,7 @@
 id: KW-state.source
 key: "source"
 context: CTX-state
+value_contexts: [CTX-state-source]
 order: 5
 status: stable
 forms:

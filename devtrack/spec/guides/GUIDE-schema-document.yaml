@@ -1,0 +1,11 @@
+id: GUIDE-schema-document
+title: スキーマ文書
+language: schema
+order: 1
+description: 文書・ライブラリ・関係・振る舞いの種類を選び、トップレベルに書ける語を確認します。
+reading: kind ごとの適用条件を比べてから、root・definitions・actions などの値の構造へ進みます。
+report: schema-document-md
+related:
+  - GUIDE-schema-fields
+  - GUIDE-schema-relations
+  - GUIDE-schema-behavior

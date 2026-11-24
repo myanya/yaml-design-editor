@@ -1,6 +1,8 @@
 id: CTX-activity-foreach
 title: "一括の実行"
 language: agent
+guide: GUIDE-agents
+order: 14
 description: "アクティビティの foreach。並べる元（source）ごとに、使う語が変わります。"
 meta:
   schema: activity

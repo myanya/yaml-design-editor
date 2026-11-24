@@ -1,6 +1,8 @@
 id: CTX-cardinality
 title: "多重度"
 language: schema
+guide: GUIDE-schema-relations
+order: 2
 description: "関係の宣言の cardinality。1 つの要素について、その関係の参照の本数の下限と上限を書きます。"
 meta:
   schema: relations

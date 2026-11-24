@@ -1,6 +1,8 @@
 id: CTX-agent
 title: "エージェントの定義"
 language: agent
+guide: GUIDE-agents
+order: 1
 description: "エージェント 1 つ。性格と、使ってよい道具の範囲を持つ実行者です。"
 meta:
   schema: agent

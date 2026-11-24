@@ -1,6 +1,8 @@
 id: CTX-flow-model
 title: "フローの図のモデル"
 language: view
+guide: GUIDE-charts-flows
+order: 10
 description: "projection の build が組み立てる出力の形。ここに無いキーは誤りになります。"
 meta:
   schema: flow-model

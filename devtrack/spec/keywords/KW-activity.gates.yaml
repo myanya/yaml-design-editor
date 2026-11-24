@@ -1,6 +1,7 @@
 id: KW-activity.gates
 key: "gates"
 context: CTX-activity
+value_contexts: [CTX-activity-gates]
 order: 13
 status: stable
 forms:

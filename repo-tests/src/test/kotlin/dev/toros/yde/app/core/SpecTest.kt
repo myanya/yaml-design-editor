@@ -2,6 +2,7 @@ package dev.toros.yde.app.core
 
 import dev.toros.yde.semantic.schema.FieldType
 import dev.toros.yde.semantic.schema.SchemaKind
+import dev.toros.yde.semantic.LensFilters
 import dev.toros.yde.workspace.ActionFailure
 import dev.toros.yde.workspace.ActionPlanner
 import dev.toros.yde.workspace.ActionRequest
@@ -10,6 +11,7 @@ import dev.toros.yde.workspace.FileSystemDocumentStore
 import dev.toros.yde.workspace.Generators
 import dev.toros.yde.workspace.WorkspaceSession
 import dev.toros.yde.yaml.YamlIO
+import dev.toros.yde.yaml.model.DocumentId
 import dev.toros.yde.yaml.model.YNode
 import dev.toros.yde.yaml.model.scalarText
 import dev.toros.yde.yaml.model.pretty
@@ -385,10 +387,87 @@ class SpecTest {
     }
 
     @Test
-    fun `どの位置も 参照文書のレポートのどれかに載っている`() {
-        val reports = root.resolve(".yde/reports").listDirectoryEntries("*-md.yaml").joinToString("\n") { it.readText() }
-        val missing = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map { raw(it)["id"].toString() }.filter { "equals: $it }" !in reports }
-        assertTrue(missing.isEmpty(), "参照文書に載っていない位置があります（.yde/reports の schema-*-md.yaml に足す）: $missing")
+    fun `どの位置も 仕様書の目次と参照文書に同じ順序で載っている`() {
+        val ws = Workspace.open(root)
+        val catalog = Views.load(root, ws.schemas)
+        val reports = Reports.load(root)
+        val guides = root.resolve("spec/guides").listDirectoryEntries("*.yaml").map(::raw)
+        val contexts = root.resolve("spec/contexts").listDirectoryEntries("*.yaml").map(::raw)
+        assertEquals(guides.size, guides.map { it["order"] }.distinct().size, "仕様書の目次の順序は重複しない")
+        assertEquals(guides.map { it["id"] }.toSet(), contexts.map { it["guide"] }.toSet(), "所属先の無い位置や空の仕様書を残さない")
+        guides.forEach { guide ->
+            val owned = contexts.filter { it["guide"] == guide["id"] }.sortedBy { (it["order"] as Number).toInt() }
+            assertEquals(owned.size, owned.map { it["order"] }.distinct().size, "${guide["id"]} の節順は重複しない")
+            val reader = Views.resolveDocument(
+                assertNotNull(catalog.docView("spec-guide-reader")), DocumentId("spec/guides/${guide["id"]}.yaml"),
+                ws.index, loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = catalog,
+            )
+            assertTrue(reader.all { it.reason == null }, reader.toString())
+            assertEquals(owned.map { it["id"] }, reader.single { it.gridRows != null }.gridRows!!.map { it.id })
+            val report = assertNotNull(reports.report(guide["report"].toString()))
+            val rendered = Reports.run(report, emptyMap(), catalog, ws.index, ws::treeOf, ws::schemaFor)
+            assertTrue(rendered.missing.isEmpty(), rendered.missing.toString())
+            // トップレベルと項目定義は一つの位置を語の分類ごとに分ける。ほかは位置ごとの見出しを共有する。
+            if (guide["id"] in setOf("GUIDE-schema-document", "GUIDE-schema-fields")) {
+                assertEquals(1, owned.size)
+                val keywords = Views.resolve(assertNotNull(catalog.view("keyword-list")), ws.index, ws::treeOf, ws::schemaFor, mapOf("guide" to guide["id"]))
+                keywords.forEach { assertTrue("`${it.title}`" in rendered.text, "参照文書に ${it.id} がありません") }
+            } else {
+                assertEquals(owned.map { "## ${it["title"]}" }, rendered.text.lines().filter { it.startsWith("## ") }, guide["id"].toString())
+            }
+        }
+    }
+
+    @Test
+    fun `語の検索は同名の語を位置で区別し 未入力では全ての語を保つ`() {
+        val ws = Workspace.open(root)
+        val catalog = Views.load(root, ws.schemas)
+        val view = assertNotNull(catalog.view("keyword-list"))
+        fun search(vararg params: Pair<String, Any?>) = Views.resolve(view, ws.index, ws::treeOf, ws::schemaFor, mapOf(*params))
+        val all = search()
+        assertEquals(root.resolve("spec/keywords").listDirectoryEntries("*.yaml").size, all.size)
+        assertEquals(all.size, all.map { it.id }.distinct().size)
+        val required = search("context" to "CTX-field", "term" to "required")
+        assertEquals(setOf("KW-field.required", "KW-field.requiredFrom"), required.map { it.id }.toSet())
+        assertTrue(search("context" to "CTX-field", "language" to "view").isEmpty())
+        assertEquals(listOf("KW-view-grid.rows"), search("guide" to "GUIDE-views", "context" to "CTX-view-grid", "term" to "rows").map { it.id })
+        val pattern = search("context" to "CTX-field", "term" to "pattern").single()
+        assertEquals("4", scalarText(pattern.cells.last().value), "一覧では先頭の形だけを出すので、形が複数あることを示す")
+        assertEquals(DocumentId("spec/keywords/KW-field.pattern.yaml"), pattern.cells.first().document, "元の仕様へ戻れる座標を保つ")
+        val lens = catalog.selectableLenses.single { it.id == "spec-reading-lens" }
+        val filters = lens.filters.filter { it.default }
+        val candidates = ws.index.graph.entities.map { (id, entity) ->
+            LensFilters.Candidate(id, entity.entityType) {
+                DiagramInputs.entity(id, null, ws.index, ws.schemas, ws.entityTypes, ws::treeOf).place
+            }
+        }
+        val hidden = LensFilters.hidden(filters, "entity", candidates)
+        val specTypes = setOf("spec-guide", "context", "keyword", "example", "base-type", "schema-kind")
+        val visible = ws.index.graph.entities.filterValues { it.entityType in specTypes }.keys
+        assertEquals(visible, candidates.map { it.id }.toSet() - hidden, "仕様の箱を消さず、開発管理の箱を外す")
+        assertTrue(LensFilters.hidden(filters, "type", candidates).isEmpty(), "実体の ID の絞り込みを型の段にかけない")
+    }
+
+    @Test
+    fun `語から例と比較相手へ進め 読み込み成功と操作の拒否を区別できる`() {
+        val ws = Workspace.open(root)
+        val catalog = Views.load(root, ws.schemas)
+        fun read(view: String, file: String) = Views.resolveDocument(
+            assertNotNull(catalog.docView(view)), DocumentId(file), ws.index,
+            loader = ws::treeOf, schemaFor = ws::schemaFor, catalog = catalog,
+        ).also { sections -> assertTrue(sections.all { it.reason == null }, sections.toString()) }
+        val keyword = read("spec-keyword-reader", "spec/keywords/KW-field.required.yaml")
+        val examples = keyword.single { it.gridRows != null }.gridRows!!
+        assertEquals(setOf("EX-field-required-ok", "EX-field-required-missing", "EX-action-required-param"), examples.map { it.id }.toSet())
+        val example = read("spec-example-reader", "spec/examples/EX-action-required-param.yaml")
+        val outcome = example.single { it.gridRows != null }.gridRows!!.single()
+        assertEquals("ok", scalarText(outcome.cells[0].value))
+        assertEquals("操作を拒否: title", scalarText(outcome.cells[1].value))
+        val comparisons = example.flatMap { it.rows.orEmpty() }.flatMap { it.backlinks }.map { it.sourceId }
+        assertTrue("EX-field-required-ok" in comparisons, "比較の線を片側に書くだけで、反対側からも戻れる")
+        val context = read("spec-context-reader", "spec/contexts/CTX-field.yaml")
+        val indirect = context.single { it.gridView?.id == "spec-context-keyword-examples" }.gridRows!!
+        assertTrue(indirect.any { it.id == "EX-action-required-param" && it.bindings?.get("k") == "KW-field.required" })
     }
 
     @Test

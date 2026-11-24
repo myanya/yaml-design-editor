@@ -1,6 +1,7 @@
 id: KW-activity-chain-rule.when
 key: "when"
 context: CTX-activity-chain-rule
+value_contexts: [CTX-activity-chain-when]
 order: 1
 status: stable
 forms:

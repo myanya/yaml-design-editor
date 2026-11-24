@@ -1,6 +1,8 @@
 id: CTX-activity-chain
 title: "連鎖"
 language: agent
+guide: GUIDE-agents
+order: 10
 description: "アクティビティの chain。"
 meta:
   schema: activity

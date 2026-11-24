@@ -1,6 +1,8 @@
 id: CTX-view-matrix
 title: "クロス集計（kind: matrix）"
 language: view
+guide: GUIDE-views
+order: 11
 description: "行と列の軸で要素を数える・集計する表。"
 meta:
   schema: view

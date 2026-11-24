@@ -1,6 +1,8 @@
 id: CTX-condition
 title: "条件（where）"
 language: expression
+guide: GUIDE-expressions
+order: 4
 description: "where の要素。ノードを値で絞る条件 1 つです。同じ ID が複数の文書に書かれているときは、どれかの出現の値が条件を満たせば成り立ちます。1 件に書ける条件は 1 つで、{not: 条件} と {or: [条件, …]} で包めます（入れ子は 1 段まで）。"
 code:
   sets: [QueryWhere.KEYS]

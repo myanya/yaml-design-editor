@@ -1,6 +1,8 @@
 id: CTX-flow-edges
 title: "遷移の組"
 language: schema
+guide: GUIDE-schema-checks
+order: 15
 description: "flow の edges と usage。"
 meta:
   schema: schema

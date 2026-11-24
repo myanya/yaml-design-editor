@@ -1,0 +1,11 @@
+id: GUIDE-schema-actions
+title: 操作
+language: schema
+order: 5
+description: アクション・型の操作・配列への追加・採番を確認します。
+reading: 受け手、入力、前提、変更、結果の順に読みます。例では入力の読み込み結果と操作の成功・拒否を別々に確認します。do の手順は manual/actions.md にあります。
+report: schema-actions-md
+related:
+  - GUIDE-schema-fields
+  - GUIDE-schema-checks
+  - GUIDE-templates

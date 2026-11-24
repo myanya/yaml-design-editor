@@ -1,6 +1,7 @@
 id: KW-eval.cases
 key: "cases"
 context: CTX-eval
+value_contexts: [CTX-eval-case]
 order: 6
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-matrix-witness.column
 key: "column"
 context: CTX-matrix-witness
+value_contexts: [CTX-relation-pointer]
 order: 3
 status: stable
 forms:

@@ -1,6 +1,8 @@
 id: CTX-lens
 title: "グラフレンズの見え方（kind: lens）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 1
 description: "グラフレンズで、関係の線の向き・箱と線の記法・絞り込みを決めます。表示だけで、検証とクエリの向きは変わりません。"
 meta:
   schema: view

@@ -1,6 +1,7 @@
 id: KW-activity.chain
 key: "chain"
 context: CTX-activity
+value_contexts: [CTX-activity-chain]
 order: 16
 status: stable
 forms:

@@ -1,6 +1,7 @@
 id: KW-activity.context
 key: "context"
 context: CTX-activity
+value_contexts: [CTX-activity-context]
 order: 7
 status: stable
 forms:

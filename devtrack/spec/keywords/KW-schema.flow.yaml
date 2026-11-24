@@ -1,6 +1,7 @@
 id: KW-schema.flow
 key: "flow"
 context: CTX-schema
+value_contexts: [CTX-flow]
 group: check
 status: stable
 forms:

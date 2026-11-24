@@ -1,6 +1,8 @@
 id: CTX-state-source
 title: "enum からの展開"
 language: schema
+guide: GUIDE-schema-behavior
+order: 2
 description: "State の宣言の source。状態を持つ項目と、その enum の型を指します。"
 meta:
   schema: schema

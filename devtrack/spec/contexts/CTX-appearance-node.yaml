@@ -1,6 +1,8 @@
 id: CTX-appearance-node
 title: "箱の記法（nodes の要素）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 6
 description: "appearance の nodes の要素。"
 meta:
   schema: view

@@ -1,6 +1,8 @@
 id: CTX-view-column-backlinks
 title: "参照元の列（backlinks）"
 language: view
+guide: GUIDE-views
+order: 7
 description: "列の backlinks。"
 meta:
   schema: view

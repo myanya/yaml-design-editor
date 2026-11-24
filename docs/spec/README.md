@@ -3,6 +3,8 @@
 定義に書ける語の一覧。今の実装が読むものを、開発管理のワークスペース [devtrack/](../../devtrack/README.md) の `spec/` の YAML から生成する。
 ここの文書（この案内を除く）は直接直さない。足す・直すときは devtrack の YAML を書き、`./gradlew devtrackDocs` で作り直す。
 
+画面で探すときは devtrack のダッシュボード「仕様」を開く。仕様書・位置・キーで絞り込み、語の意味から例と比較相手へ進める。操作は [devtrack の案内](../../devtrack/README.md)「仕様を読む」にある。
+
 | 文書 | 内容 |
 |---|---|
 | [schema-document.md](schema-document.md) | スキーマ文書のトップレベルに書ける語と、`kind` に書ける種類 |

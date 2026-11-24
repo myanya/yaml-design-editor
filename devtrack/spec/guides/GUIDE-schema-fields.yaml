@@ -1,0 +1,11 @@
+id: GUIDE-schema-fields
+title: 項目定義
+language: schema
+order: 2
+description: 項目の型・必須・値の決まり・表示と、型からの引き継ぎを確認します。
+reading: 同じ語でも適用する型で意味が変わります。語の詳細では形を一つずつ読み、適用型・既定値・意味を一緒に確認します。
+report: schema-fields-md
+related:
+  - GUIDE-schema-document
+  - GUIDE-expressions
+  - GUIDE-schema-actions

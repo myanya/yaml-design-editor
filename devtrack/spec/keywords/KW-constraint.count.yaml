@@ -1,6 +1,7 @@
 id: KW-constraint.count
 key: "count"
 context: CTX-constraint
+value_contexts: [CTX-constraint-count]
 order: 8
 status: stable
 forms:

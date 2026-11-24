@@ -1,6 +1,7 @@
 id: KW-insert-rule.id
 key: "id"
 context: CTX-insert-rule
+value_contexts: [CTX-id-numbering]
 order: 3
 status: stable
 forms:

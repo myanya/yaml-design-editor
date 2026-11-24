@@ -1,6 +1,7 @@
 id: KW-view-rows.where
 key: "where"
 context: CTX-view-rows
+value_contexts: [CTX-condition]
 order: 5
 status: stable
 forms:

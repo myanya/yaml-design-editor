@@ -1,6 +1,8 @@
 id: CTX-dashboard-flow-move
 title: "工程（moves の要素）"
 language: view
+guide: GUIDE-dashboards
+order: 5
 description: "flow の moves の要素。"
 meta:
   schema: view

@@ -1,0 +1,22 @@
+id: spec-guide-reader
+name: 仕様書を読む
+kind: document
+schemaId: spec-guide
+sections:
+  - label: 読む入口
+    fields:
+      include:
+        - title
+        - description
+        - reading
+  - label: 目次 — 書ける位置を選ぶ
+    grid:
+      view: context-list
+      params:
+        guide:
+          path: id
+  - label: あわせて読む
+    fields:
+      include:
+        - related
+        - report

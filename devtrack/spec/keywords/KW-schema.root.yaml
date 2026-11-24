@@ -1,6 +1,7 @@
 id: KW-schema.root
 key: "root"
 context: CTX-schema
+value_contexts: [CTX-field]
 group: structure
 status: stable
 forms:

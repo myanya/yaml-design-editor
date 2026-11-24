@@ -1,6 +1,7 @@
 id: KW-action.require
 key: "require"
 context: CTX-action
+value_contexts: [CTX-constraint]
 order: 8
 status: stable
 forms:

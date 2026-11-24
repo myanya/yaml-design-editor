@@ -1,6 +1,8 @@
 id: CTX-refinement
 title: "State の詳細化"
 language: schema
+guide: GUIDE-schema-behavior
+order: 10
 description: "refinements の要素。Lifecycle の 1 つの State（親）の中の流れを、別に書きます。"
 meta:
   schema: schema

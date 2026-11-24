@@ -1,6 +1,8 @@
 id: CTX-appearance-edge
 title: "線の記法（edges の要素）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 7
 description: "appearance の edges の要素。"
 meta:
   schema: view

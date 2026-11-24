@@ -1,6 +1,7 @@
 id: KW-schema.constraints
 key: "constraints"
 context: CTX-schema
+value_contexts: [CTX-constraint]
 group: check
 status: stable
 forms:

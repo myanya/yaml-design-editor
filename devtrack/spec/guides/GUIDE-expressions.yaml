@@ -1,0 +1,11 @@
+id: GUIDE-expressions
+title: 値の式・条件・クエリ
+language: expression
+order: 8
+description: 要素を選ぶ・条件で絞る・値を比べる・値を計算する語を確認します。
+reading: match と where で対象を選び、all で配列を作り、集計で値にする流れを読みます。式の例の入力と結果を比べ、値が得られない場合も確認します。
+report: expressions-md
+related:
+  - GUIDE-schema-checks
+  - GUIDE-views
+  - GUIDE-templates

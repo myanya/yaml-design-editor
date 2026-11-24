@@ -1,6 +1,7 @@
 id: KW-field.fields
 key: "fields"
 context: CTX-field
+value_contexts: [CTX-field]
 group: structure
 status: stable
 forms:

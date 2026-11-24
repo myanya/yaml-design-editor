@@ -2,32 +2,14 @@ id: charts-flows-md
 name: チャートと業務フロー図（docs/spec/charts-flows.md）
 description: チャートと業務フロー図の位置と語から docs/spec/charts-flows.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  # 位置の所属と節順は spec/contexts の guide・order が正。
   sections:
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-chart } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-chart } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-chart-axis } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-chart-axis } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-chart-scale } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-chart-scale } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-chart-section } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-chart-section } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-view } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-view } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-source } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-source } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-layout } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-layout } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-projection } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-projection } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-section } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-section } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-model } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-model } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-model-node } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-model-node } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-model-edge } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-model-edge } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-flow-model-lane } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-flow-model-lane } ] }
+    $each: { $view: doc-contexts, $where: [ { path: values.仕様書, equals: GUIDE-charts-flows } ] }
+    $bind: context
+    $build:
+      context: { $copy: . }
+      rows:
+        $view: doc-keywords-ordered
+        $where: [ { path: values.位置, equals: { $copy: id, $of: context } } ]
+
 template: charts-flows-md.md

@@ -1,6 +1,7 @@
 id: KW-flow-view.projection
 key: "projection"
 context: CTX-flow-view
+value_contexts: [CTX-flow-projection]
 order: 3
 status: stable
 forms:

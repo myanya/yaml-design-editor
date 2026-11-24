@@ -1,6 +1,7 @@
 id: KW-field.methods
 key: "methods"
 context: CTX-field
+value_contexts: [CTX-method, CTX-insert-rule]
 group: behavior
 status: stable
 forms:

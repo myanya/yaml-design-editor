@@ -1,6 +1,7 @@
 id: KW-skill.columns
 key: "columns"
 context: CTX-skill
+value_contexts: [CTX-skill-column]
 order: 12
 status: stable
 forms:

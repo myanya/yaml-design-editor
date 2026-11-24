@@ -1,6 +1,8 @@
 id: CTX-id-numbering
 title: "ID の採番"
 language: schema
+guide: GUIDE-schema-actions
+order: 6
 description: "追加の決まりの id。"
 meta:
   schema: schema

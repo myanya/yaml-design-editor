@@ -1,6 +1,8 @@
 id: CTX-activity-gates
 title: "提出のゲート"
 language: agent
+guide: GUIDE-agents
+order: 8
 description: "アクティビティの gates。"
 meta:
   schema: activity

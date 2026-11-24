@@ -2,20 +2,14 @@ id: dashboards-md
 name: ダッシュボード（docs/spec/dashboards.md）
 description: ダッシュボードの位置と語から docs/spec/dashboards.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  # 位置の所属と節順は spec/contexts の guide・order が正。
   sections:
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard-input } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard-input } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard-flow } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard-flow } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard-flow-start } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard-flow-start } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard-flow-move } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard-flow-move } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard-flow-history } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard-flow-history } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-dashboard-filter } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-dashboard-filter } ] }
+    $each: { $view: doc-contexts, $where: [ { path: values.仕様書, equals: GUIDE-dashboards } ] }
+    $bind: context
+    $build:
+      context: { $copy: . }
+      rows:
+        $view: doc-keywords-ordered
+        $where: [ { path: values.位置, equals: { $copy: id, $of: context } } ]
+
 template: dashboards-md.md

@@ -1,6 +1,7 @@
 id: KW-view-attachment.backlinks
 key: "backlinks"
 context: CTX-view-attachment
+value_contexts: [CTX-view-backlinks]
 order: 3
 status: stable
 forms:

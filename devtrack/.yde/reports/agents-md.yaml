@@ -2,46 +2,14 @@ id: agents-md
 name: エージェント・アクティビティ・評価セット（docs/spec/agents.md）
 description: エージェント・アクティビティ・評価セットの位置と語から docs/spec/agents.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  # 位置の所属と節順は spec/contexts の guide・order が正。
   sections:
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-agent } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-agent } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-agent-model } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-agent-model } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-target } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-target } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-context } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-context } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-context-item } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-context-item } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-limits } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-limits } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-gates } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-gates } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-trigger } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-trigger } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-chain } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-chain } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-chain-rule } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-chain-rule } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-chain-when } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-chain-when } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-retry } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-retry } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-activity-foreach } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-activity-foreach } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-eval } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-eval } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-eval-variant } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-eval-variant } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-eval-case } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-eval-case } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-eval-setup } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-eval-setup } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-eval-expect } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-eval-expect } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-eval-content } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-eval-content } ] }
+    $each: { $view: doc-contexts, $where: [ { path: values.仕様書, equals: GUIDE-agents } ] }
+    $bind: context
+    $build:
+      context: { $copy: . }
+      rows:
+        $view: doc-keywords-ordered
+        $where: [ { path: values.位置, equals: { $copy: id, $of: context } } ]
+
 template: agents-md.md

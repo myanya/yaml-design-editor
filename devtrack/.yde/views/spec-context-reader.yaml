@@ -1,0 +1,56 @@
+id: spec-context-reader
+name: 位置を読む
+kind: document
+schemaId: spec-context
+sections:
+  - label: 書ける場所
+    fields:
+      include:
+        - title
+        - description
+        - guide
+  - label: ここに書ける語
+    grid:
+      view: keyword-list
+      params:
+        context:
+          path: id
+  - label: この位置を直接示す例
+    grid:
+      view: example-list
+      params:
+        spec:
+          path: id
+  - label: この位置の語を示す例（語ごと）
+    grid:
+      view: spec-context-keyword-examples
+      params:
+        context:
+          path: id
+  - label: この形を使う語
+    backlinks:
+      relation: value-structure
+      schemaIds:
+        - spec-keyword
+      columns:
+        - label: 語
+          path: key
+        - label: 書ける位置
+          path: context
+  - label: 関わる指摘
+    backlinks:
+      relation: concerns-spec
+      schemaIds:
+        - item
+      columns:
+        - label: 件名
+          path: title
+        - label: 状態
+          path: status
+  - label: 実装と根拠
+    fields:
+      include:
+        - features
+        - evidence
+        - meta
+        - code

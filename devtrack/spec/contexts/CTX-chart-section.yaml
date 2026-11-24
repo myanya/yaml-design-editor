@@ -1,6 +1,8 @@
 id: CTX-chart-section
 title: "チャートの区画"
 language: view
+guide: GUIDE-charts-flows
+order: 4
 description: "文書ビューの区画の chart。チャートを文書の表示に埋め込みます。view でチャートを指すか、rows で開いた文書の配列からその場で描きます。fields・backlinks・flow とは一緒に書けません。"
 meta:
   schema: view-chart

@@ -1,6 +1,8 @@
 id: CTX-derive-fields
 title: "項目の写し方"
 language: schema
+guide: GUIDE-schema-derive
+order: 2
 description: "derive の fields。導出元の配列の要素 1 つを、項目 1 つにします。"
 meta:
   schema: schema

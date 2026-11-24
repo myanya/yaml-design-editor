@@ -1,6 +1,7 @@
 id: KW-coverage.detailIn
 key: "detailIn"
 context: CTX-coverage
+value_contexts: [CTX-coverage-detail]
 order: 4
 status: stable
 forms:

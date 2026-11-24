@@ -1,0 +1,11 @@
+id: GUIDE-schema-derive
+title: 派生スキーマ
+language: schema
+order: 7
+description: 文書の値から検証用スキーマを導出する対応を確認します。
+reading: 導出元、項目の写し方、型の対応の順にたどります。生成されるスキーマの match と、導出元を選ぶ from を区別します。
+report: schema-derive-md
+related:
+  - GUIDE-schema-document
+  - GUIDE-schema-fields
+  - GUIDE-templates

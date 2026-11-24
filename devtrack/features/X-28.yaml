@@ -1,0 +1,15 @@
+id: X-28
+title: 'devtrack の仕様閲覧（仕様書の目次・位置と語の検索・文書ビュー・例の比較・値の構造をたどるレンズ）'
+implementation:
+  - text: '`devtrack/.yde/views/spec-*.yaml`・`keyword-list.yaml`・`context-list.yaml`・`example-list.yaml`'
+  - text: '`devtrack/spec/guides/`・`devtrack/.yde/schemas/spec.yaml`'
+tests:
+  - name: SpecTest
+    note: 目次と参照文書の一致・検索・例と比較相手への導線
+  - name: DevtrackTest
+design:
+  - label: ビュー機構
+    link: architecture/views.md
+    heading: ビュー機構
+manual:
+  - link: manual/views.md

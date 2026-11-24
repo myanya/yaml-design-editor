@@ -1,0 +1,12 @@
+id: GUIDE-views
+title: ビュー
+language: view
+order: 10
+description: グリッド・クロス集計・文書ビューの構成を確認します。
+reading: 表示の種類を選び、行、列、集計、区画の順にたどります。列の path・value・backlinks など、どの方法で値を得るかを比べます。
+report: views-md
+related:
+  - GUIDE-expressions
+  - GUIDE-dashboards
+  - GUIDE-charts-flows
+  - GUIDE-lens-diagrams

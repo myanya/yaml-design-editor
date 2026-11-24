@@ -1,6 +1,8 @@
 id: CTX-event
 title: "Event の宣言"
 language: schema
+guide: GUIDE-schema-behavior
+order: 3
 description: "events の要素。出来事の種類 1 つです。操作の実行ではなく、起きた事実の種類を表します。"
 meta:
   schema: schema

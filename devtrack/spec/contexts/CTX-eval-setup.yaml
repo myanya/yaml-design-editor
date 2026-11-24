@@ -1,6 +1,8 @@
 id: CTX-eval-setup
 title: "決まった入力（setup の要素）"
 language: agent
+guide: GUIDE-agents
+order: 18
 description: "ケースの setup の要素。"
 meta:
   schema: eval

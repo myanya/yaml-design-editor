@@ -1,6 +1,7 @@
 id: KW-refinement.exits
 key: "exits"
 context: CTX-refinement
+value_contexts: [CTX-refinement-exit]
 order: 5
 status: stable
 forms:

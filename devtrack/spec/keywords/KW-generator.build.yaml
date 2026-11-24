@@ -1,6 +1,7 @@
 id: KW-generator.build
 key: "build"
 context: CTX-generator
+value_contexts: [CTX-template]
 order: 8
 status: stable
 forms:

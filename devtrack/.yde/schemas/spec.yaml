@@ -3,6 +3,47 @@ name: 仕様の型
 kind: library
 description: 仕様（定義に書ける語）で使う型を 1 か所にまとめます。ID・分類（値の型）と、位置・基底の種類・語の形と検査（オブジェクト型）です。文の型は common のものを使います。
 definitions:
+  仕様書ID:
+    type: id
+    pattern: "^GUIDE-[a-z][a-z0-9-]*$"
+  仕様書参照:
+    type: ref
+    idPattern: "GUIDE-*"
+    scope: { schemaIds: [spec-guide] }
+    relation: in-guide
+  関連する仕様書:
+    type: ref
+    idPattern: "GUIDE-*"
+    scope: { schemaIds: [spec-guide] }
+    relation: related-guide
+  値の構造:
+    type: ref
+    idPattern: "CTX-*"
+    scope: { schemaIds: [spec-context] }
+    relation: value-structure
+    description: この語の値の中で使う形。使う場所が複数ある形も、同じ位置を参照します。
+  比較する例:
+    type: ref
+    idPattern: "EX-*"
+    scope: { schemaIds: [spec-example] }
+    relation: compare-example
+  仕様書:
+    type: object
+    label: 仕様書
+    entity: { type: spec-guide, defines: true }
+    fields:
+      - { key: id, label: ID, type: 仕様書ID, required: true }
+      - { key: title, label: 仕様書, type: common#一行の文, required: true, role: title }
+      - { key: language, label: 分野, type: 定義の言語, required: true }
+      - { key: order, label: 目次の順, type: int, required: true, min: 1 }
+      - { key: description, label: 扱うこと, type: common#文章, required: true }
+      - { key: reading, label: 読むときの観点, type: common#文章, required: true }
+      - { key: report, label: 参照文書のレポート, type: common#一行の文, required: true, description: 台帳のレポートで選べる ID。生成文書と画面は同じ位置の所属と節順を使います。 }
+      - key: related
+        label: あわせて読む仕様書
+        type: array
+        unique: true
+        item: { type: 関連する仕様書 }
   # ---- 値の型 ----
   位置ID:
     type: id
@@ -204,6 +245,8 @@ definitions:
       - { key: id, label: ID, type: 位置ID, required: true }
       - { key: title, label: 名前, type: common#一行の文, required: true, role: title }
       - { key: language, label: 定義の言語, type: 定義の言語, required: true }
+      - { key: guide, label: 仕様書, type: 仕様書参照, required: true }
+      - { key: order, label: 仕様書の中の順, type: int, required: true, min: 1 }
       - { key: description, label: 説明, type: common#文章, required: true }
       - { key: meta, label: メタスキーマの中の場所, type: メタスキーマの場所, description: 書くと、この位置の語と必須がメタスキーマと同じであることを SpecTest が見ます。 }
       - { key: code, label: 実装の語の集まり, type: 実装の語の集まり, description: 書くと、この位置の語が、実装の集まり・列挙・そのほかの語の和と同じであることを SpecTest が見ます。 }
@@ -247,6 +290,11 @@ definitions:
       - { key: id, label: ID, type: 例ID, required: true }
       - { key: title, label: 何を示すか, type: common#一行の文, required: true, role: title }
       - { key: area, label: 分野, type: 例の分野, required: true, description: 参照文書を分ける分野（docs/spec/examples-分野.md）。 }
+      - key: compare_with
+        label: 比べて読む例
+        type: array
+        unique: true
+        item: { type: 比較する例 }
       - key: illustrates
         label: 示す仕様
         type: array
@@ -362,6 +410,12 @@ definitions:
       - { key: id, label: ID, type: 語ID, required: true }
       - { key: key, label: キー, type: common#一行の文, required: true, role: title, description: YAML に書くキーの文字。 }
       - { key: context, label: 位置, type: 位置参照, required: true }
+      - key: value_contexts
+        label: 値の構造へ進む
+        type: array
+        unique: true
+        item: { type: 値の構造 }
+        description: 値の中で使う位置への案内です。語の意味・適用条件は下の形で確認します。
       - { key: group, label: 分類, type: 語の分類, description: 参照文書の節。スキーマ文書と項目定義の語に書きます。 }
       - { key: order, label: 並び, type: int, description: 参照文書の表での並び（位置の中の順）。 }
       - { key: status, label: 状態, type: 語の状態, required: true, default: stable }
@@ -369,6 +423,7 @@ definitions:
       - key: forms
         label: 形
         type: array
+        display: list
         required: true
         item: { type: 語の形 }
         description: 書ける基底の種類ごとの値の形と意味。種類で意味が変わらない語は 1 つだけ書きます。

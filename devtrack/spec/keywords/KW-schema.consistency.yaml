@@ -1,6 +1,7 @@
 id: KW-schema.consistency
 key: "consistency"
 context: CTX-schema
+value_contexts: [CTX-consistency]
 group: check
 status: stable
 forms:

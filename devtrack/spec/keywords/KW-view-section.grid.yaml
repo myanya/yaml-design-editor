@@ -1,6 +1,7 @@
 id: KW-view-section.grid
 key: "grid"
 context: CTX-view-section
+value_contexts: [CTX-view-section-grid]
 order: 8
 status: stable
 forms:

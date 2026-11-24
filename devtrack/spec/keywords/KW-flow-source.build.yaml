@@ -1,6 +1,7 @@
 id: KW-flow-source.build
 key: "build"
 context: CTX-flow-source
+value_contexts: [CTX-template]
 order: 4
 status: stable
 forms:

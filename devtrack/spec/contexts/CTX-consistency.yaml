@@ -1,6 +1,8 @@
 id: CTX-consistency
 title: "値の整合（consistency）"
 language: schema
+guide: GUIDE-schema-checks
+order: 7
 description: "consistency の要素。ID を持つ要素の値が、導出した期待の値と合うことを確かめます。"
 meta:
   schema: schema

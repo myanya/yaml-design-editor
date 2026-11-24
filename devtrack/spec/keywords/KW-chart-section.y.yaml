@@ -1,6 +1,7 @@
 id: KW-chart-section.y
 key: "y"
 context: CTX-chart-section
+value_contexts: [CTX-chart-axis]
 order: 8
 status: stable
 forms:

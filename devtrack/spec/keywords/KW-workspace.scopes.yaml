@@ -1,6 +1,7 @@
 id: KW-workspace.scopes
 key: "scopes"
 context: CTX-workspace
+value_contexts: [CTX-workspace-scope]
 order: 3
 status: stable
 forms:

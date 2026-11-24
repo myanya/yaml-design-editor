@@ -1,6 +1,7 @@
 id: KW-relation.cardinality
 key: "cardinality"
 context: CTX-relation
+value_contexts: [CTX-cardinality]
 order: 6
 status: stable
 forms:

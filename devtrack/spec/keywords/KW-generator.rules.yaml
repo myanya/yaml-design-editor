@@ -1,6 +1,7 @@
 id: KW-generator.rules
 key: "rules"
 context: CTX-generator
+value_contexts: [CTX-template-rule]
 order: 9
 status: stable
 forms:

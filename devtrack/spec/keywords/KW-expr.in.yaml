@@ -1,6 +1,7 @@
 id: KW-expr.in
 key: "in"
 context: CTX-expr
+value_contexts: [CTX-selector]
 order: 3
 status: stable
 forms:

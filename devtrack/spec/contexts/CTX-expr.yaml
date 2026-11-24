@@ -1,6 +1,8 @@
 id: CTX-expr
 title: "値の式"
 language: expression
+guide: GUIDE-expressions
+order: 6
 description: "値を計算する式。決まった値（文字・数・真偽値）はそのまま書け、それ以外は下の語を 1 つ持つ object で書きます。{パス} を含む文字列は、format の短い書き方です。式の全体に書いたときと、式の中で値を選ぶ・組み立てる場所（first の要素・each の value・format の with の値）で効きます。{…} を含む文字をそのまま出すには {value: 文字} と書きます。比較の右辺や正規表現のような決まった値を受け取る場所と、検査の check の中では、文字列は決まった値のままです。検査の外（スキーマの値の式・ビューの列・each の value）では「いまの要素」があるので of を省けます。値が得られないときは「得られない」になり、それを使う計算も得られません。"
 code:
   enums: [ValueExpr.UnaryFn, ValueExpr.ArithOp, ValueExpr.AggregateFn]

@@ -1,6 +1,8 @@
 id: CTX-flow-model-node
 title: "箱（nodes の要素）"
 language: view
+guide: GUIDE-charts-flows
+order: 11
 description: "フローの図のモデルの nodes の要素。"
 meta:
   schema: flow-model

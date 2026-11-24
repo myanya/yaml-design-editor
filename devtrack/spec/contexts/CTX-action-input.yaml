@@ -1,6 +1,8 @@
 id: CTX-action-input
 title: "入力のフォームの設定"
 language: schema
+guide: GUIDE-schema-actions
+order: 3
 description: "操作の input。"
 meta:
   schema: schema

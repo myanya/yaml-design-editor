@@ -1,6 +1,7 @@
 id: KW-dashboard-flow.start
 key: "start"
 context: CTX-dashboard-flow
+value_contexts: [CTX-dashboard-flow-start]
 order: 5
 status: stable
 forms:

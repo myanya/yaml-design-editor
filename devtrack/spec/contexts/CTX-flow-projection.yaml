@@ -1,6 +1,8 @@
 id: CTX-flow-projection
 title: "フローへの変換（projection）"
 language: view
+guide: GUIDE-charts-flows
+order: 8
 description: "業務フロー図の projection。変換定義と同じ形のうち、ここに並ぶ語を書きます。"
 meta:
   schema: view-flow

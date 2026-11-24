@@ -1,6 +1,7 @@
 id: EX-field-unknown-fields-default
 title: "スキーマに無いキーは、既定では警告になる"
 area: schema
+compare_with: [EX-field-unknown-fields-error]
 illustrates: [KW-field.unknownFields]
 files:
   - path: ".yde/schemas/task.yaml"

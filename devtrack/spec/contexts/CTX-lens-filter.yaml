@@ -1,6 +1,8 @@
 id: CTX-lens-filter
 title: "絞り込み（filters の要素）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 3
 description: "レンズの filters の要素。ここに無いキーは誤りになります。"
 meta:
   schema: view

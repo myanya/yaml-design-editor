@@ -1,6 +1,7 @@
 id: KW-flow-view.sources
 key: "sources"
 context: CTX-flow-view
+value_contexts: [CTX-flow-source]
 order: 1
 status: stable
 forms:

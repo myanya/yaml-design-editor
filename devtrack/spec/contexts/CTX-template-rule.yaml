@@ -1,6 +1,8 @@
 id: CTX-template-rule
 title: "名前を付けた組み立て（規則）"
 language: transform
+guide: GUIDE-templates
+order: 2
 description: "変換定義・生成の定義・レポートの rules の要素。同じ名前の規則を並べると、上から順に when を調べて、最初に合ったものを使います。"
 code:
   sets: [TransformDef.RULE_KEYS]

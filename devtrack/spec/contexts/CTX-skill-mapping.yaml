@@ -1,6 +1,8 @@
 id: CTX-skill-mapping
 title: "列の対応（mapping の要素）"
 language: agent
+guide: GUIDE-skills
+order: 5
 description: "skill の mapping の要素。"
 meta:
   schema: skill

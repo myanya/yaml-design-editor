@@ -1,6 +1,7 @@
 id: KW-field.constraints
 key: "constraints"
 context: CTX-field
+value_contexts: [CTX-constraint]
 group: behavior
 status: stable
 forms:

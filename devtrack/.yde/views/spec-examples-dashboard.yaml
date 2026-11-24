@@ -1,0 +1,22 @@
+id: spec-examples-dashboard
+name: 仕様の例
+kind: dashboard
+description: 分野・読み込みと検証の結果・題の文字で例を探します。「その後の期待」には操作や生成の拒否も表示します。
+placement: vertical
+inputs:
+  - key: area
+    label: 例の分野
+    type: spec#例の分野
+  - key: result
+    label: 読み込み・検証の結果
+    type: spec#例の結果
+  - key: exampleTerm
+    label: 題に含む文字
+    type: string
+  - key: spec
+    label: 示す仕様
+    type: spec#示す仕様
+sections:
+  - id: examples
+    label: 例を探す
+    view: example-list

@@ -1,6 +1,7 @@
 id: KW-eval-expect.content
 key: "content"
 context: CTX-eval-expect
+value_contexts: [CTX-eval-content]
 order: 5
 status: stable
 forms:

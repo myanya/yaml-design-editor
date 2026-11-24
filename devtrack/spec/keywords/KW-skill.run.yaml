@@ -1,6 +1,7 @@
 id: KW-skill.run
 key: "run"
 context: CTX-skill
+value_contexts: [CTX-skill-run]
 order: 14
 status: stable
 forms:

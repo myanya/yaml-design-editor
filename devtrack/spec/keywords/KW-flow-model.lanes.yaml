@@ -1,6 +1,7 @@
 id: KW-flow-model.lanes
 key: "lanes"
 context: CTX-flow-model
+value_contexts: [CTX-flow-model-lane]
 order: 3
 status: stable
 forms:

@@ -1,14 +1,28 @@
 id: context-list
 name: 位置の一覧
-description: 語を書ける位置を並べます。
+description: 仕様書・分野・位置で絞り、仕様書の中の順に読みます。語や例の数は原本から求めます。
 rows:
-  idPattern: "CTX-*"
-  schemaIds: [spec-context]
+  match:
+    - node:
+        entity: context
+        bind: c
+  where:
+    - of: c
+      path: guide
+      equals: $guide
+    - of: c
+      path: language
+      equals: $language
+    - of: c
+      path: id
+      equals: $context
 columns:
-  - { label: 定義の言語, schemaId: spec-context, path: language }
-  - { label: 説明, schemaId: spec-context, path: description }
-  - { label: 実装する機能, schemaId: spec-context, path: features }
-  # この位置に書ける語の数（語の側の参照を逆に辿る）
+  - label: 仕様書
+    path: guide
+    schemaId: spec-context
+  - label: 説明
+    schemaId: spec-context
+    path: description
   - label: 語の数
     schemaId: spec-context
     value:
@@ -16,10 +30,15 @@ columns:
         all:
           of: k
           match:
-            - node: { entity: context, bind: c }
-            - edge: { relation: placed-in, dir: in }
-            - node: { entity: keyword, bind: k }
-  # 未解決の指摘: この位置を「関わる仕様」で参照する指摘のうち、解決でも見送りでもないもの（ID の並び）
+            - node:
+                entity: context
+                bind: c
+            - edge:
+                relation: placed-in
+                dir: in
+            - node:
+                entity: keyword
+                bind: k
   - label: 未解決の指摘
     schemaId: spec-context
     value:
@@ -27,8 +46,43 @@ columns:
         of: x
         path: id
         match:
-          - node: { entity: context, bind: c }
-          - edge: { relation: concerns-spec, dir: in }
-          - node: { entity: backlog-item, bind: x }
+          - node:
+              entity: context
+              bind: c
+          - edge:
+              relation: concerns-spec
+              dir: in
+          - node:
+              entity: backlog-item
+              bind: x
         where:
-          - { of: x, path: status, oneOf: [todo, discussing, in-progress, when-needed] }
+          - of: x
+            path: status
+            oneOf:
+              - todo
+              - discussing
+              - in-progress
+              - when-needed
+  - label: 位置を示す例
+    schemaId: spec-context
+    value:
+      count:
+        all:
+          of: e
+          match:
+            - node:
+                entity: context
+                bind: self
+            - edge:
+                relation: illustrates
+                dir: in
+            - node:
+                entity: example
+                bind: e
+params:
+  - guide
+  - language
+  - context
+order:
+  schemaId: spec-context
+  path: order

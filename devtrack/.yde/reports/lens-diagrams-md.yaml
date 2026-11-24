@@ -2,26 +2,14 @@ id: lens-diagrams-md
 name: グラフレンズと図の記法（docs/spec/lens-diagrams.md）
 description: グラフレンズと図の記法の位置と語から docs/spec/lens-diagrams.md を作ります。書き出しは ./gradlew devtrackDocs（docs/ はワークスペースの外なので、レポートの出力先には書きません）。
 build:
-  # 節は位置ごと。並びはここが正（位置を足すときは、ここに足す）
+  # 位置の所属と節順は spec/contexts の guide・order が正。
   sections:
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-lens } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-lens } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-lens-relation } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-lens-relation } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-lens-filter } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-lens-filter } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-lens-keep } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-lens-keep } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-appearance } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-appearance } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-appearance-node } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-appearance-node } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-appearance-edge } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-appearance-edge } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-notation } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-notation } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-notation-input-root } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-notation-input-root } ] }
-    - context: { $view: doc-contexts, $where: [ { path: id, equals: CTX-notation-input } ], $one: true }
-      rows: { $view: doc-keywords-ordered, $where: [ { path: values.位置, equals: CTX-notation-input } ] }
+    $each: { $view: doc-contexts, $where: [ { path: values.仕様書, equals: GUIDE-lens-diagrams } ] }
+    $bind: context
+    $build:
+      context: { $copy: . }
+      rows:
+        $view: doc-keywords-ordered
+        $where: [ { path: values.位置, equals: { $copy: id, $of: context } } ]
+
 template: lens-diagrams-md.md

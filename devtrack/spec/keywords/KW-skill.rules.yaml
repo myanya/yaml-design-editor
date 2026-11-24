@@ -1,6 +1,7 @@
 id: KW-skill.rules
 key: "rules"
 context: CTX-skill
+value_contexts: [CTX-template-rule]
 order: 8
 status: stable
 forms:

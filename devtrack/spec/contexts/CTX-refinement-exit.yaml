@@ -1,6 +1,8 @@
 id: CTX-refinement-exit
 title: "出口"
 language: schema
+guide: GUIDE-schema-behavior
+order: 11
 description: "詳細化の exits の要素。"
 meta:
   schema: schema

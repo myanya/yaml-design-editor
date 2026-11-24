@@ -1,6 +1,8 @@
 id: CTX-flow-model-lane
 title: "レーン（lanes の要素）"
 language: view
+guide: GUIDE-charts-flows
+order: 13
 description: "フローの図のモデルの lanes の要素。"
 meta:
   schema: flow-model

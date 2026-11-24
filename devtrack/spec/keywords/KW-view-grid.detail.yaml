@@ -1,6 +1,7 @@
 id: KW-view-grid.detail
 key: "detail"
 context: CTX-view-grid
+value_contexts: [CTX-view-detail]
 order: 5
 status: stable
 forms:

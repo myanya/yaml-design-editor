@@ -1,6 +1,7 @@
 id: KW-view-column.value
 key: "value"
 context: CTX-view-column
+value_contexts: [CTX-expr]
 order: 12
 status: stable
 forms:

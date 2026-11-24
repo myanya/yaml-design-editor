@@ -1,6 +1,7 @@
 id: KW-action.target
 key: "target"
 context: CTX-action
+value_contexts: [CTX-action-target]
 order: 4
 status: stable
 forms:

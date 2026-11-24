@@ -1,6 +1,7 @@
 id: KW-view-rows.also
 key: "also"
 context: CTX-view-rows
+value_contexts: [CTX-query-branch]
 order: 4
 status: stable
 forms:

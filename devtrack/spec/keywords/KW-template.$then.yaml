@@ -1,6 +1,7 @@
 id: KW-template.$then
 key: "$then"
 context: CTX-template
+value_contexts: [CTX-template]
 order: 11
 status: stable
 forms:

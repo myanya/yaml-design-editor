@@ -1,6 +1,8 @@
 id: CTX-dashboard-flow
 title: "業務の流れ（flow）"
 language: view
+guide: GUIDE-dashboards
+order: 3
 description: "ダッシュボードの flow。lifecycle を書くと、段・区画・工程・入口・履歴を Lifecycle から作ります。そのときは steps・moves・start・history を書きません。"
 meta:
   schema: view

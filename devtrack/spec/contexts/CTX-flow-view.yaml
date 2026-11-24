@@ -1,6 +1,8 @@
 id: CTX-flow-view
 title: "業務フロー図（kind: flow）"
 language: view
+guide: GUIDE-charts-flows
+order: 5
 description: "文書を、変換のひな型（projection）で箱・線・レーンへ変えて描きます。"
 meta:
   schema: view-flow

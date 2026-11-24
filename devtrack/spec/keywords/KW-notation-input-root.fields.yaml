@@ -1,6 +1,7 @@
 id: KW-notation-input-root.fields
 key: "fields"
 context: CTX-notation-input-root
+value_contexts: [CTX-notation-input]
 order: 2
 status: stable
 forms:

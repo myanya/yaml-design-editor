@@ -1,6 +1,7 @@
 id: KW-skill.target
 key: "target"
 context: CTX-skill
+value_contexts: [CTX-skill-target]
 order: 6
 status: stable
 forms:

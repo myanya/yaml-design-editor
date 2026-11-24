@@ -1,6 +1,8 @@
 id: CTX-lifecycle-history
 title: "遷移の記録"
 language: schema
+guide: GUIDE-schema-behavior
+order: 9
 description: "Lifecycle の history。"
 meta:
   schema: schema

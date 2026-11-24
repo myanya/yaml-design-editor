@@ -1,6 +1,7 @@
 id: KW-constraint.also
 key: "also"
 context: CTX-constraint
+value_contexts: [CTX-query-branch]
 order: 4
 status: stable
 forms:

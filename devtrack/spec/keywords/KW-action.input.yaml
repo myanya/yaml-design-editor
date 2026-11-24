@@ -1,6 +1,7 @@
 id: KW-action.input
 key: "input"
 context: CTX-action
+value_contexts: [CTX-action-input]
 order: 6
 status: stable
 forms:

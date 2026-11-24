@@ -1,6 +1,7 @@
 id: KW-view-grid.order
 key: "order"
 context: CTX-view-grid
+value_contexts: [CTX-view-order]
 order: 3
 status: stable
 forms:

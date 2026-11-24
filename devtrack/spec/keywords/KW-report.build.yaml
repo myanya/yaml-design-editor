@@ -1,6 +1,7 @@
 id: KW-report.build
 key: "build"
 context: CTX-report
+value_contexts: [CTX-template]
 order: 5
 status: stable
 forms:

@@ -1,6 +1,8 @@
 id: CTX-view-section-each
 title: "区画の繰り返し（each）"
 language: view
+guide: GUIDE-views
+order: 19
 description: "区画の each。"
 meta:
   schema: view

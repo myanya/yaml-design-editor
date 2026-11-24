@@ -1,0 +1,11 @@
+id: GUIDE-schema-behavior
+title: 状態と振る舞い
+language: schema
+order: 4
+description: State・Event・Lifecycle と、状態の詳細化を確認します。
+reading: 状態の宣言から入口・遷移・終端をたどります。原因の action と event を区別し、宣言していない状態を指す例と比べます。
+report: schema-behavior-md
+related:
+  - GUIDE-schema-actions
+  - GUIDE-dashboards
+  - GUIDE-schema-checks

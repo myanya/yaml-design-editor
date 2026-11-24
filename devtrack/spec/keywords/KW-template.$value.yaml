@@ -1,6 +1,7 @@
 id: KW-template.$value
 key: "$value"
 context: CTX-template
+value_contexts: [CTX-expr]
 order: 16
 status: stable
 forms:

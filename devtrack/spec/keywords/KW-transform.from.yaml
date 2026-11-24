@@ -1,6 +1,7 @@
 id: KW-transform.from
 key: "from"
 context: CTX-transform
+value_contexts: [CTX-query-node, CTX-query-edge, CTX-condition]
 order: 5
 status: stable
 forms:

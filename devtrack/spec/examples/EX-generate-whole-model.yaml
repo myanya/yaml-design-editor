@@ -1,6 +1,7 @@
 id: EX-generate-whole-model
 title: "each を省くと、業務モデル全体から 1 文書を作る"
 area: generation
+compare_with: [EX-generate-each-actions, EX-generate-each-needs-hole]
 illustrates: [KW-generator.each]
 files:
   - path: ".yde/schemas/task.yaml"

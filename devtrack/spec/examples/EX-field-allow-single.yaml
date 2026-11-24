@@ -1,6 +1,7 @@
 id: EX-field-allow-single
 title: "allowSingle: true の配列は、要素 1 つをそのまま書いても並びで書いても通る"
 area: schema
+compare_with: [EX-field-allow-single-item-type, EX-field-allow-single-ref]
 illustrates: [KW-field.allowSingle]
 files:
   - path: ".yde/schemas/task.yaml"

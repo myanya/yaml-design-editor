@@ -1,6 +1,8 @@
 id: CTX-query-branch
 title: "クエリの分岐"
 language: expression
+guide: GUIDE-expressions
+order: 3
 description: "検査とビューの also。束縛したノードからの、もう 1 本の連鎖です（1 段だけ）。"
 features: [C-12]
 evidence:

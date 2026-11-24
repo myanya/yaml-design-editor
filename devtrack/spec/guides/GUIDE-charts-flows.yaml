@@ -1,0 +1,11 @@
+id: GUIDE-charts-flows
+title: チャートとフロー図
+language: view
+order: 16
+description: 表から描くチャートと、文書を図へ写すフローを確認します。
+reading: チャートは元の表と系列、フローは入力と箱・線・レーンの対応を読みます。共通のビューの語と、変換の指示も参照します。
+report: charts-flows-md
+related:
+  - GUIDE-views
+  - GUIDE-templates
+  - GUIDE-lens-diagrams

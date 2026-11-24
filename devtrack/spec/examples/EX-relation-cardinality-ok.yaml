@@ -1,6 +1,7 @@
 id: EX-relation-cardinality-ok
 title: "多重度を満たしていれば通る"
 area: checks
+compare_with: [EX-relation-cardinality-in-min]
 illustrates: [CTX-cardinality]
 files:
   - path: ".yde/schemas/req.yaml"

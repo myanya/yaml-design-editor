@@ -1,6 +1,8 @@
 id: CTX-lifecycle-termination
 title: "終端の方針"
 language: schema
+guide: GUIDE-schema-behavior
+order: 8
 description: "Lifecycle の termination。"
 meta:
   schema: schema

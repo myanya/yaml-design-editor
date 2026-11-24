@@ -1,6 +1,8 @@
 id: CTX-agent-model
 title: "モデルの設定"
 language: agent
+guide: GUIDE-agents
+order: 2
 description: "エージェントの model と、評価セットの変異の model。"
 meta:
   schema: agent

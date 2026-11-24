@@ -1,6 +1,8 @@
 id: CTX-eval-variant
 title: "変異（variants の要素）"
 language: agent
+guide: GUIDE-agents
+order: 16
 description: "評価セットの variants の要素。"
 meta:
   schema: eval

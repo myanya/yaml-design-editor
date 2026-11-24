@@ -1,6 +1,8 @@
 id: CTX-flow-section
 title: "フローの区画"
 language: view
+guide: GUIDE-charts-flows
+order: 9
 description: "文書ビューの区画の flow。fields・backlinks とは一緒に書けません。"
 meta:
   schema: view-flow

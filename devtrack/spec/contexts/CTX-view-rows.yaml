@@ -1,6 +1,8 @@
 id: CTX-view-rows
 title: "行（rows）"
 language: view
+guide: GUIDE-views
+order: 3
 description: "グリッドとクロス集計の rows。論理 ID の形（idPattern）か、クエリ（match）か、値の軸（value。クロス集計だけ）のどれかで書きます。"
 meta:
   schema: view

@@ -1,6 +1,7 @@
 id: KW-schema.coverage
 key: "coverage"
 context: CTX-schema
+value_contexts: [CTX-coverage]
 group: check
 status: stable
 forms:

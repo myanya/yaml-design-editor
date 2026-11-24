@@ -1,6 +1,7 @@
 id: KW-dashboard-flow.history
 key: "history"
 context: CTX-dashboard-flow
+value_contexts: [CTX-dashboard-flow-history]
 order: 8
 status: stable
 forms:

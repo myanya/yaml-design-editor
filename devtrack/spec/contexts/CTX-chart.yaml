@@ -1,6 +1,8 @@
 id: CTX-chart
 title: "チャート（kind: chart）"
 language: view
+guide: GUIDE-charts-flows
+order: 1
 description: "元の表（グリッドかクロス集計）の行を横軸の項目、数の列を系列にして描きます。データは元の表が持ち、チャートには集計を書きません。"
 meta:
   schema: view-chart

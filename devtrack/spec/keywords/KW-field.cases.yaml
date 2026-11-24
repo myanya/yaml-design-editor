@@ -1,6 +1,7 @@
 id: KW-field.cases
 key: "cases"
 context: CTX-field
+value_contexts: [CTX-field]
 group: structure
 status: stable
 forms:

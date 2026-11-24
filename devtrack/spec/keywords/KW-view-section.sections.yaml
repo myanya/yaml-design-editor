@@ -1,6 +1,7 @@
 id: KW-view-section.sections
 key: "sections"
 context: CTX-view-section
+value_contexts: [CTX-view-section]
 order: 10
 status: stable
 forms:

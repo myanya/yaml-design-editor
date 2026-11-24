@@ -1,6 +1,7 @@
 id: KW-view-grid.columns
 key: "columns"
 context: CTX-view-grid
+value_contexts: [CTX-view-column]
 order: 2
 status: stable
 forms:

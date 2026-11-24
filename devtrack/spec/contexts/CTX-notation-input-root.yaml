@@ -1,6 +1,8 @@
 id: CTX-notation-input-root
 title: "入力の決まり（input）"
 language: view
+guide: GUIDE-lens-diagrams
+order: 9
 description: "記法の input。"
 meta:
   schema: view

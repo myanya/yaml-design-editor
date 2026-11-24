@@ -1,6 +1,7 @@
 id: KW-view-cells.series
 key: "series"
 context: CTX-view-cells
+value_contexts: [CTX-view-cells-series]
 order: 9
 status: stable
 forms:

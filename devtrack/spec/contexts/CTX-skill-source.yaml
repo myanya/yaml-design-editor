@@ -1,6 +1,8 @@
 id: CTX-skill-source
 title: "書き出しの対象（source）"
 language: agent
+guide: GUIDE-skills
+order: 6
 description: "skill の source。"
 meta:
   schema: skill

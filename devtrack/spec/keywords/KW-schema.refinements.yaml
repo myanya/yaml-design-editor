@@ -1,6 +1,7 @@
 id: KW-schema.refinements
 key: "refinements"
 context: CTX-schema
+value_contexts: [CTX-refinement]
 group: behavior
 status: stable
 forms:

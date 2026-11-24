@@ -1,6 +1,7 @@
 id: KW-schema.relations
 key: "relations"
 context: CTX-schema
+value_contexts: [CTX-relation]
 group: identity
 status: stable
 forms:

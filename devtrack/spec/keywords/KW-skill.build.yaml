@@ -1,6 +1,7 @@
 id: KW-skill.build
 key: "build"
 context: CTX-skill
+value_contexts: [CTX-template]
 order: 7
 status: stable
 forms:

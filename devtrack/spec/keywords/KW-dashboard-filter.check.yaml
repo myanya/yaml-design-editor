@@ -1,6 +1,7 @@
 id: KW-dashboard-filter.check
 key: "check"
 context: CTX-dashboard-filter
+value_contexts: [CTX-comparison]
 order: 8
 status: stable
 forms:

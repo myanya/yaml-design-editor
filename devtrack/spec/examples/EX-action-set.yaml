@@ -1,6 +1,7 @@
 id: EX-action-set
 title: "操作は受け手の要素に手を当てる。set は値を入れ、$format は受け取った値で埋める"
 area: actions
+compare_with: [EX-action-require-fails, EX-action-required-param, EX-action-when-skips]
 illustrates: [CTX-action, KW-action.do, KW-action.target, KW-action.params]
 files:
   - path: ".yde/schemas/task.yaml"

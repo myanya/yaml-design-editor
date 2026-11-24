@@ -1,6 +1,7 @@
 id: KW-skill.source
 key: "source"
 context: CTX-skill
+value_contexts: [CTX-skill-source]
 order: 11
 status: stable
 forms:

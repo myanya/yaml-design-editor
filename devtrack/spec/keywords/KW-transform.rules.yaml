@@ -1,6 +1,7 @@
 id: KW-transform.rules
 key: "rules"
 context: CTX-transform
+value_contexts: [CTX-template-rule]
 order: 7
 status: stable
 forms:

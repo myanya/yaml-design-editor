@@ -1,6 +1,7 @@
 id: KW-schema.actions
 key: "actions"
 context: CTX-schema
+value_contexts: [CTX-action]
 group: behavior
 status: stable
 forms:

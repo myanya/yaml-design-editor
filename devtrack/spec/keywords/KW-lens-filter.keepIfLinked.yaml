@@ -1,6 +1,7 @@
 id: KW-lens-filter.keepIfLinked
 key: "keepIfLinked"
 context: CTX-lens-filter
+value_contexts: [CTX-lens-keep]
 order: 8
 status: stable
 forms:

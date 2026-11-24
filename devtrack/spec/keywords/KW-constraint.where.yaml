@@ -1,6 +1,7 @@
 id: KW-constraint.where
 key: "where"
 context: CTX-constraint
+value_contexts: [CTX-condition]
 order: 5
 status: stable
 forms:

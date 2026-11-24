@@ -1,6 +1,8 @@
 id: CTX-eval-case
 title: "ケース（cases の要素）"
 language: agent
+guide: GUIDE-agents
+order: 17
 description: "評価セットの cases の要素。"
 meta:
   schema: eval

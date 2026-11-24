@@ -1,6 +1,8 @@
 id: CTX-coverage
 title: "詳細の文書の要求（coverage）"
 language: schema
+guide: GUIDE-schema-checks
+order: 5
 description: "coverage の要素。このスキーマの文書に書かれた ID が、指定したスキーマの文書にも必要な数だけ書かれていることを求めます。"
 meta:
   schema: schema
