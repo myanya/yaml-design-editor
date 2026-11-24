@@ -256,16 +256,17 @@
 
 ## 設計書の依存マップ
 
-設計書の種類ごとに、ほかのどの設計書から作られているかを 1 枚の HTML にします。
-線は変換定義から計算するので、変換定義や依存を直した後に作り直すと、依存の変化を見られます。
+[設計書の依存マップ](docs/design-dependency-map.html) は、設計書の種類ごとに、ほかのどの設計書から作られているかを 1 枚にした HTML です（ブラウザで開きます）。
+線は変換定義から計算した生成物で、Git に入れています。変換定義や依存を直したら作り直してコミットすると、Git の差分で依存の変化を読めます。
 
 ```bash
-python3 samples/todos-sysdev/scripts/design-map.py
+python3 samples/todos-sysdev/scripts/design-map.py            # 作り直す
+python3 samples/todos-sysdev/scripts/design-map.py --check    # 最新かを確かめる（違えば失敗）
 ```
 
 Windows では `py -3 samples/todos-sysdev/scripts/design-map.py` です。標準ライブラリだけで動きます。
-`scratchpad/design-map/design-dependency-map.html` に書くので、ブラウザで開きます（`--out` で場所を変えられます）。
 変換定義が業務モデルのどこを読むかは、YDE CLI の `generate --lineage` を中で呼んで調べます（初回は CLI のビルドを待ちます）。
+同じ入力からは同じ HTML になります（日時を入れません）。`--out` で別の場所へ書けます。
 
 - 線は 4 種類です: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ（依存の宣言だけで、値は読まない）。
 - 箱の並べ方と、どの変換定義がどの箱を作るかは `scripts/design-map.json` に書きます。線と「数えたこと」は計算します。

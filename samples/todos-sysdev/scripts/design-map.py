@@ -5,8 +5,11 @@
 線は 4 種類: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ。
 
 使い方（リポジトリのどこからでも。Windows は py -3）:
-    python3 samples/todos-sysdev/scripts/design-map.py
+    python3 samples/todos-sysdev/scripts/design-map.py            # docs/design-dependency-map.html を作り直す（Git に入れる）
+    python3 samples/todos-sysdev/scripts/design-map.py --check    # 作り直した結果が、いまのファイルと同じかを確かめる（違えば 1）
     python3 samples/todos-sysdev/scripts/design-map.py --out 場所.html --workspace 作業用コピー
+
+同じ入力からは同じ HTML になる（日時を入れない）。Git の差分が、依存の変化になる。
 
 読むもの:
     - .yde/transforms/**/*.yaml   変換定義の dependsOn と、読むビュー（$view）
@@ -18,7 +21,6 @@
 標準ライブラリだけで動く（YAML は、必要な書き方だけを正規表現で読む）。
 """
 import argparse
-import datetime
 import fnmatch
 import html
 import json
@@ -367,7 +369,8 @@ def statistics(workspace, config, transforms, nodes, reads, matrix_rows, ignored
 def main():
     parser = argparse.ArgumentParser(description="設計書の依存マップ（HTML）を作り直す")
     parser.add_argument("--workspace", type=Path, default=SAMPLE, help="読むワークスペース（既定はこのサンプル）")
-    parser.add_argument("--out", type=Path, default=REPO / "scratchpad" / "design-map" / "design-dependency-map.html", help="書き出す HTML")
+    parser.add_argument("--out", type=Path, help="書き出す HTML（既定はワークスペースの docs/design-dependency-map.html）")
+    parser.add_argument("--check", action="store_true", help="書かずに、作り直した結果がいまのファイルと同じかを確かめる（違えば終了コード 1）")
     parser.add_argument("--lineage", type=Path, help="generate --lineage の出力ファイル（渡すと CLI を呼ばない）")
     parser.add_argument("--config", type=Path, default=HERE / "design-map.json", help="箱の並べ方の設定")
     parser.add_argument("--template", type=Path, default=HERE / "design-map.template.html", help="ページのひな形")
@@ -375,18 +378,17 @@ def main():
     arguments = parser.parse_args()
 
     workspace = arguments.workspace.resolve()
-    out = arguments.out.resolve()
+    out = (arguments.out or workspace / "docs" / "design-dependency-map.html").resolve()
     config = json.loads(arguments.config.read_text(encoding="utf-8"))
     if arguments.lineage:
         lineage_text = arguments.lineage.read_text(encoding="utf-8")
     else:
-        lineage_text = run_lineage(workspace, out.parent / "lineage.yaml")
+        lineage_text = run_lineage(workspace, REPO / "scratchpad" / "design-map" / "lineage.yaml")
     data = build(workspace, config, lineage_text)
-    data["generated"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    try:
+    try:  # 置き場所で中身が変わらないよう、リポジトリの外のコピーは名前だけにする
         data["workspace"] = workspace.relative_to(REPO).as_posix()
     except ValueError:
-        data["workspace"] = workspace.as_posix()
+        data["workspace"] = workspace.name
 
     template = arguments.template.read_text(encoding="utf-8")
     if "__DATA__" not in template or "__TITLE__" not in template or BODY_MARK not in template:
@@ -400,13 +402,19 @@ def main():
         page = ('<!doctype html>\n<html lang="ja">\n<head>\n<meta charset="utf-8">\n'
                 '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
                 + head + "</head>\n<body>" + body + "</body>\n</html>\n")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(page, encoding="utf-8", newline="\n")
-
-    edge_count = sum(len(sources) for groups in data["reads"].values() for sources in groups.values())
-    print(f"書きました: {out}（箱 {len(data['nodes'])}、線 {edge_count}）")
     for warning in data["warnings"]:
         print(f"注意: {warning}", file=sys.stderr)
+    edge_count = sum(len(sources) for groups in data["reads"].values() for sources in groups.values())
+    if arguments.check:
+        current = out.read_text(encoding="utf-8") if out.exists() else None
+        if current != page:
+            print(f"最新ではありません: {out}（--check を外して作り直し、コミットします）", file=sys.stderr)
+            raise SystemExit(1)
+        print(f"最新です: {out}（箱 {len(data['nodes'])}、線 {edge_count}）")
+        return
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(page, encoding="utf-8", newline="\n")
+    print(f"書きました: {out}（箱 {len(data['nodes'])}、線 {edge_count}）")
 
 
 if __name__ == "__main__":

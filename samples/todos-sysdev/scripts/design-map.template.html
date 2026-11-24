@@ -1,5 +1,5 @@
 <title>__TITLE__</title>
-<!-- 生成物: samples/todos-sysdev/scripts/design-map.py が、このひな形と design-map.json から作る。直すのはひな形と設定 -->
+<!-- 生成物: scripts/design-map.py が、ひな形（design-map.template.html）と設定（design-map.json）から作る。手で直さず、作り直す -->
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -271,7 +271,7 @@ document.getElementById('notes').innerHTML = DATA.notes.map(n => `<li>${esc(n)}<
 document.getElementById('notes-section').hidden = !DATA.notes.length;
 document.getElementById('warnings').innerHTML = DATA.warnings.map(n => `<li>${esc(n)}</li>`).join('');
 document.getElementById('warnings-section').hidden = !DATA.warnings.length;
-document.getElementById('footer').innerHTML = [`線は、各変換定義が読むビューと、生成器の系譜の出力（<code>generate --lineage</code>）から拾いました。`, ...DATA.footnotes.map(esc), `生成: ${esc(DATA.generated)}（${esc(DATA.workspace)}。<code>scripts/design-map.py</code>）`].map(x => `<span>${x}</span>`).join('');
+document.getElementById('footer').innerHTML = [`線は、各変換定義が読むビューと、生成器の系譜の出力（<code>generate --lineage</code>）から拾いました。`, ...DATA.footnotes.map(esc), `${esc(DATA.workspace)} の変換定義から <code>scripts/design-map.py</code> が作りました。`].map(x => `<span>${x}</span>`).join('');
 
 select(byId[DATA.select] ? DATA.select : null);
 
