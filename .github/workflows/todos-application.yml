@@ -49,3 +49,20 @@ jobs:
       - name: Git に登録したアプリをテスト・ビルドする
         run: |
           ./samples/todos-sysdev/scripts/verify-app.ps1 -Application scratchpad/todos-application-index/samples/todos-sysdev/app -Verification scratchpad/todos-application-index/samples/todos-sysdev/verification
+
+  # 設計書の依存マップとファイル単位の生成グラフ（samples/todos-sysdev/docs/ の 2 枚の HTML）が、
+  # いまの変換定義から作り直したものと同じかを確かめる。変換定義を直して作り直し忘れると、ここで止まる
+  design-maps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 設計書の依存マップが最新かを確かめる
+        run: python3 samples/todos-sysdev/scripts/design-map.py --check

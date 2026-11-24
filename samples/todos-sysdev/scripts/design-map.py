@@ -594,6 +594,9 @@ def main():
     parser.add_argument("--files-template", type=Path, default=HERE / "design-files.template.html", help="ファイル単位のグラフのひな形")
     parser.add_argument("--fragment", action="store_true", help="html・head・body の枠を付けずに書く（枠を足す側へ渡すとき）")
     arguments = parser.parse_args()
+    for stream in (sys.stdout, sys.stderr):  # 端末の文字コードで表せない字があっても、止まらずに出す
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
 
     workspace = arguments.workspace.resolve()
     config = json.loads(arguments.config.read_text(encoding="utf-8"))

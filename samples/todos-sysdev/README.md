@@ -272,6 +272,7 @@ python3 samples/todos-sysdev/scripts/design-map.py --check    # 最新かを確�
 Windows では `py -3 samples/todos-sysdev/scripts/design-map.py` です。標準ライブラリだけで動きます。
 変換定義が業務モデルのどこを読むかは、YDE CLI の `generate --lineage` を中で呼んで調べます（初回は CLI のビルドを待ちます）。
 同じ入力からは同じ HTML になります（日時を入れません）。`--out`・`--files-out` で別の場所へ書けます。
+GitHub Actions の `todos-application`（ジョブ `design-maps`）が、push ごとに `--check` で最新かを確かめます。
 
 - 設計書の依存マップの線は 4 種類です: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ（依存の宣言だけで、値は読まない）。
   箱の並べ方と、どの変換定義がどの箱を作るかは `scripts/design-map.json` に書きます。線と「数えたこと」は計算します。
