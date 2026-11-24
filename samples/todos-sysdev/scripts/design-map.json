@@ -96,6 +96,21 @@
     { "id": "theme", "name": "画面テーマ", "column": "prog", "lane": "arch", "transforms": ["application-theme-input-gate", "application-theme"],
       "ids": ["APP-theme"], "input": "design/detail/inputs/appearance/theme.yaml" }
   ],
+  "files": {
+    "comment": "ファイル単位のグラフ（docs/design-file-graph.html）の設定。箱と線はすべて計算する。idOwners は、スキーマで絞っていないビューが選ぶ ID の型を、どの変換定義の出力（in: は人の入力）が持つか。",
+    "title": "todos-sysdev ファイル単位の生成グラフ",
+    "select": "t:system-model",
+    "idOwners": {
+      "TBL-*": ["detail-tables"], "COL-*": ["detail-tables"], "SQL-*": ["detail-tables"],
+      "FLD-*": ["basic-entities"], "TYP-*": ["basic-types"], "CLS-*": ["basic-classes"],
+      "SSPC-*": ["in:design/*/inputs/documents/corrections.yaml"]
+    },
+    "notes": [
+      "補正後の業務モデルは 3 段あります。composed/field-model.yaml（補正を当てて解き直したもの）、composed/documents/model.yaml（それにエンティティの名称と説明を重ねたもの）、composed/documents/system-actions-model.yaml（さらに確定した操作を重ねたもの）です。",
+      "エンティティ定義書（final/entities.yaml）は 1 段目から作られ、2 段目に読まれます。アクション定義書（final/actions/）は 2 段目から作られ、3 段目に読まれます。輪にはなっていませんが、補正後の業務モデルと確定した設計書が互い違いに並んでいます。",
+      "ほかの設計書の導出が読むのは 3 段目です。そのため、エンティティ定義書とアクション定義書が確定しないと、ほかの設計書を作り始められません。"
+    ]
+  },
   "notes": [
     "処理設計書は、データ設計と画面設計の上に乗っていません。内容を読むのはメッセージ定義書と状態の判定だけです。テーブルアクセス設計書からは呼び名の付け替え表だけを受け取り、画面の設計書からは何も受け取りません。呼ぶ Mapper の名前は、業務モデルから同じ命名規則で計算し直しています。",
     "アクション定義書が、ほぼ全部の上流です。ほかの設計書は、補正後の業務モデルの中の操作として読みます。",

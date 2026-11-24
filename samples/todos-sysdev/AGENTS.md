@@ -23,5 +23,5 @@
 - 業務モデルを読む生成には `scope: business` を書きます。確定前の検査は保存スキーマの原文を得るため `scope: design` を使い、業務の値は依存出力から読みます。設計の型は設計のスコープに置き、業務モデルから設計は使いません。
 - 名前の決まり（ケバブからの機械的な変換だけ・URL は業務の ID のまま）と、データ系・画面系・エラーとメッセージ系の決まり（テーブル・カラムの名前・型の対応・採番・前提とデータの決まりの確かめ方・断りの出し方）は README の通りです。
 - データの決まりの確かめ方（Java・SQL・対象外）は、エラー定義書・処理設計書・テーブルアクセス設計書・メッセージ定義書・Controller の生成の定義に同じ条件で書いています。1 つを直したら、ほかもそろえます（使うキーがメッセージ定義書にあるかは `TodosSysdevTest` が確かめます）。
-- `docs/design-dependency-map.html`（設計書の依存マップ）は生成物です。手で直さず、`scripts/design-map.py` で作り直します。変換定義を足す・消す・`dependsOn` や読むビューを変えたら、作り直して同じコミットに入れます（`--check` で最新かを確かめられます）。箱の並べ方と手書きのメモは `scripts/design-map.json`、見た目は `scripts/design-map.template.html` です。
+- `docs/design-dependency-map.html`（設計書の依存マップ）と `docs/design-file-graph.html`（ファイル単位の生成グラフ）は生成物です。手で直さず、`scripts/design-map.py` で作り直します。変換定義を足す・消す・`dependsOn` や読むビューを変えたら、作り直して同じコミットに入れます（`--check` で最新かを確かめられます）。箱の並べ方と手書きのメモは `scripts/design-map.json`、見た目は `scripts/design-map.template.html`・`scripts/design-files.template.html` です。
 - labs の下のワークスペースは入力にしません。

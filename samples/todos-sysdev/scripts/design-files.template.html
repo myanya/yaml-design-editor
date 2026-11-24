@@ -1,0 +1,295 @@
+<title>__TITLE__</title>
+<!-- 生成物: scripts/design-map.py が、ひな形（design-files.template.html）と設定（design-map.json の files）から作る。手で直さず、作り直す -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 配置: 上に凡例と見方、中央に「作る順」を上から下へ並べた図と選択中のファイルの詳細、下に数えたこととメモ */
+:root {
+  --k-bm: #e6e9ef; --k-input: #fbeed3; --k-derived: #ffffff; --k-composed: #e9f1ec; --k-final: #dfeafb;
+  --bg: #f5f6f8; --surface: #ffffff; --band: #eceff4; --ink: #1b2330; --muted: #5b6676; --line: #d3d9e2;
+  --c-content: #0a66c2; --c-model: #7d889b; --c-rename: #b3741a; --c-order: #a9b1bf; --sel: #0a66c2; --sel-fill: #e3effb;
+  --font: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --k-bm: #2a313d; --k-input: #4a3a17; --k-derived: #1a202a; --k-composed: #1f3329; --k-final: #1f3555; --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48;
+  --c-content: #5aa9ff; --c-model: #8590a3; --c-rename: #e2a93f; --c-order: #596375; --sel: #5aa9ff; --sel-fill: #1d3350; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --k-bm: #2a313d; --k-input: #4a3a17; --k-derived: #1a202a; --k-composed: #1f3329; --k-final: #1f3555; --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48;
+  --c-content: #5aa9ff; --c-model: #8590a3; --c-rename: #e2a93f; --c-order: #596375; --sel: #5aa9ff; --sel-fill: #1d3350; color-scheme: dark }
+
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.75; }
+.wrap { max-width: 1360px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; text-wrap: balance; line-height: 1.4; }
+h2 { font-size: 16px; font-weight: 700; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 700; margin: 0; }
+p { margin: 0; max-width: 46em; }
+code, .path { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.lede { display: flex; flex-direction: column; gap: 10px; }
+.sub { color: var(--muted); font-size: 13px; }
+section { display: flex; flex-direction: column; gap: 12px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.legend label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; }
+.legend input { accent-color: var(--sel); margin: 0; }
+.legend input:focus-visible, button:focus-visible, .node:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.sw { width: 30px; height: 0; border-top: 2px solid; display: inline-block; }
+.sw.c { border-color: var(--c-content); } .sw.m { border-color: var(--c-model); }
+.sw.r { border-color: var(--c-rename); border-top-style: dashed; } .sw.o { border-color: var(--c-order); border-top-style: dotted; }
+.legend .desc { color: var(--muted); font-size: 12px; }
+.legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 6px 20px; }
+.legend-grid > div { display: flex; flex-direction: column; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 330px; } .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+figure { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+svg#map { display: block; width: 100%; min-width: 900px; height: auto; font-family: var(--font); }
+figcaption { color: var(--muted); font-size: 12.5px; max-width: 60em; }
+
+.lane-band { fill: var(--band); } .lane-label { fill: var(--muted); font-size: 11px; font-weight: 500; }
+.col-head { fill: var(--ink); font-size: 13px; font-weight: 700; } .col-sub { fill: var(--muted); font-size: 10px; font-family: var(--mono); }
+.col-rule { stroke: var(--line); stroke-width: 1; }
+.node { cursor: pointer; }
+.node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+.node.bm rect { fill: var(--band); }
+.node text { fill: var(--ink); font-size: 12px; }
+.node .hand { fill: var(--muted); font-size: 10px; }
+.node:hover rect { stroke: var(--ink); }
+.node.sel rect { fill: var(--sel-fill); stroke: var(--sel); stroke-width: 2; }
+.node.dim { opacity: .3; }
+.edge { fill: none; stroke-width: 1.1; opacity: .5; }
+.edge.c { stroke: var(--c-content); } .edge.m { stroke: var(--c-model); opacity: .32; }
+.edge.r { stroke: var(--c-rename); stroke-dasharray: 5 3; } .edge.o { stroke: var(--c-order); stroke-dasharray: 1.5 3; opacity: .8; }
+.edge.dim { opacity: .05; } .edge.hot { opacity: 1; stroke-width: 1.9; }
+.mk-c { fill: var(--c-content); } .mk-m { fill: var(--c-model); } .mk-r { fill: var(--c-rename); } .mk-o { fill: var(--c-order); }
+svg.hide-c .edge.c, svg.hide-m .edge.m, svg.hide-r .edge.r, svg.hide-o .edge.o { display: none; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel .stage-name { color: var(--muted); font-size: 12px; }
+.panel dl { margin: 0; display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 4px 10px; font-size: 12.5px; }
+.panel dt { color: var(--muted); } .panel dd { margin: 0; min-width: 0; }
+.rel { display: flex; flex-direction: column; gap: 6px; }
+.rel-row { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); gap: 8px; align-items: start; font-size: 12.5px; }
+.rel-row .k { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding-top: 3px; }
+.rel-row .k .sw { width: 16px; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 7px; cursor: pointer; }
+.chips button:hover { border-color: var(--ink); }
+.none { color: var(--muted); font-size: 12.5px; }
+.clear { align-self: flex-start; font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 9px; cursor: pointer; }
+.clear:hover { color: var(--ink); border-color: var(--ink); }
+
+.matrix-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table.matrix { border-collapse: collapse; font-size: 12px; }
+.matrix th, .matrix td { border: 1px solid var(--line); padding: 0; text-align: center; }
+.matrix td { width: 26px; height: 26px; min-width: 26px; font-size: 13px; line-height: 1; }
+.matrix thead .grp th { padding: 4px 6px; font-weight: 700; background: var(--band); white-space: nowrap; }
+.matrix thead .cols th { writing-mode: vertical-rl; text-align: start; padding: 6px 2px; font-weight: 400; height: 11.5em; white-space: nowrap; vertical-align: bottom; }
+.matrix tbody th { text-align: start; padding: 2px 10px; font-weight: 400; white-space: nowrap; position: sticky; left: 0; background: var(--surface); }
+.matrix tbody th.grp { font-weight: 700; background: var(--band); }
+.matrix td.self { background: var(--band); }
+.matrix td.back { box-shadow: inset 0 0 0 2px var(--c-rename); }
+.t-c { color: var(--c-content); } .t-m { color: var(--c-model); } .t-r { color: var(--c-rename); } .t-o { color: var(--c-order); }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12.5px; color: var(--muted); }
+.keys b { font-weight: 500; font-size: 14px; }
+
+ol.findings { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 10px; max-width: 52em; }
+ol.findings li::marker { color: var(--muted); }
+.note { color: var(--muted); font-size: 12.5px; max-width: 60em; }
+ul.findings { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 60em; }
+dl.stats { margin: 0; display: grid; grid-template-columns: minmax(0, 17em) minmax(0, 1fr); gap: 8px 20px; max-width: 76em; }
+dl.stats dt { color: var(--muted); } dl.stats dd { margin: 0; min-width: 0; }
+@media (max-width: 640px) { dl.stats { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.stats dd { margin-bottom: 8px; } }
+footer.note { display: flex; flex-direction: column; gap: 4px; }
+
+.k-bm rect { fill: var(--k-bm); } .k-input rect { fill: var(--k-input); } .k-derived rect { fill: var(--k-derived); }
+.k-composed rect { fill: var(--k-composed); } .k-final rect { fill: var(--k-final); stroke: var(--ink); }
+.node .tag { fill: var(--muted); font-size: 9px; font-family: var(--mono); }
+.node .name { fill: var(--ink); font-size: 11px; }
+.level-label { fill: var(--muted); font-size: 10px; font-family: var(--mono); }
+.level-rule { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.edge.i { stroke: var(--c-rename); opacity: .28; }
+.edge.i.dim, .edge.c.dim, .edge.o.dim { opacity: .04; }
+.edge.i.hot, .edge.c.hot, .edge.o.hot { opacity: 1; }
+.mk-i { fill: var(--c-rename); }
+svg.hide-i .edge.i { display: none; }
+.sw.i { border-color: var(--c-rename); }
+.kinds { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; }
+.kinds span { display: inline-flex; align-items: center; gap: 6px; }
+.kinds i { width: 22px; height: 13px; border: 1px solid var(--line); border-radius: 3px; display: inline-block; }
+.modes { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.modes label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.modes input { accent-color: var(--sel); margin: 0; }
+svg#map { min-width: 900px; }
+</style>
+<!--BODY-->
+<div class="wrap">
+  <header class="lede">
+    <h1 id="title"></h1>
+    <p id="lede"></p>
+    <p class="sub">上から下へ、作る順に並べています。箱を押すと、その箱が読むものと、その箱を読むものだけが残ります。「上流をすべて」にすると、何が確定してからその箱が作られるかを確かめられます。</p>
+  </header>
+
+  <section>
+    <h2>箱と線の種類</h2>
+    <div class="kinds">
+      <span><i style="background:var(--k-bm)"></i>業務モデル</span>
+      <span><i style="background:var(--k-input)"></i>人の入力（inputs/）</span>
+      <span><i style="background:var(--k-derived)"></i>導出（derived/）</span>
+      <span><i style="background:var(--k-composed)"></i>合成・検査（composed/）</span>
+      <span><i style="background:var(--k-final);border-color:var(--ink)"></i>確定（final/）</span>
+    </div>
+    <div class="legend-grid">
+      <div><label class="legend"><input type="checkbox" id="f-c" checked><span class="sw c"></span>読む</label><span class="desc">変換定義が、ビューを通してそのファイルを読む</span></div>
+      <div><label class="legend"><input type="checkbox" id="f-i" checked><span class="sw i"></span>人の入力を読む</label><span class="desc">人が書いた補正・追加・設定を読む</span></div>
+      <div><label class="legend"><input type="checkbox" id="f-o" checked><span class="sw o"></span>順序だけ</label><span class="desc">依存は宣言しているが、値は読んでいない</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>作る順に並べた図</h2>
+    <div class="modes" role="radiogroup" aria-label="残す範囲">
+      <label><input type="radio" name="mode" id="m-direct" value="direct" checked>直接の前後だけ</label>
+      <label><input type="radio" name="mode" id="m-up" value="up">上流をすべて</label>
+      <label><input type="radio" name="mode" id="m-down" value="down">下流をすべて</label>
+    </div>
+    <div class="stage">
+      <figure>
+        <div class="scroll"><svg id="map" role="img" aria-label="業務モデルと人の入力から、変換定義ごとの出力ファイルが作られる順と、どのファイルを読むかを示す図"></svg></div>
+        <figcaption>矢印は「読まれる側 → 読む側」です。左の数字は作る順の段で、同じ段の箱は互いを読みません。箱の上の小さな字は置き場所（段／役割）です。</figcaption>
+      </figure>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section>
+    <h2>数えたこと</h2>
+    <dl class="stats" id="stats"></dl>
+  </section>
+
+  <section id="notes-section">
+    <h2>読み取ったこと（手書きのメモ）</h2>
+    <ol class="findings" id="notes"></ol>
+    <p class="note">このメモは <code>scripts/design-map.json</code> の <code>files.notes</code> に人が書いたものです。構成を変えたら、図と合っているかを見直します。</p>
+  </section>
+
+  <section id="warnings-section" hidden>
+    <h2>注意（読み取れなかった所）</h2>
+    <ul class="findings" id="warnings"></ul>
+  </section>
+
+  <footer class="note" id="footer"></footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const NODES = DATA.nodes, byId = Object.fromEntries(NODES.map(n => [n.id, n]));
+const EDGES = DATA.edges.map(([s, t, kind]) => ({ s, t, type: kind === 'c' && byId[s].kind === 'input' ? 'i' : kind }));
+const KIND = { bm: '業務モデル', input: '人の入力', derived: '導出', composed: '合成・検査', final: '確定', other: 'そのほか' };
+const text = (id, value) => { document.getElementById(id).textContent = value; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+text('title', DATA.title);
+text('lede', `変換定義 1 本の出力を 1 つの箱にして、どのファイルを読んで作られるかを並べました。箱は ${NODES.length}、線は ${EDGES.length} 本です。`);
+
+// ---- 配置: 段ごとに 1 行。箱が多い段は折り返す。段の中の並びは、読む相手の横位置の平均で決める ----
+const NS = 'http://www.w3.org/2000/svg';
+const el = (name, attrs = {}, value) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (value != null) e.textContent = value; return e; };
+const NW = 182, NH = 34, GAPX = 10, PITCH = 46, LEVELGAP = 20, PER = 5, X0 = 44, TOP = 12;
+const W = X0 + PER * (NW + GAPX) + 6;
+const levels = []; for (const n of NODES) (levels[n.level] = levels[n.level] || []).push(n);
+const parents = {}; for (const e of EDGES) (parents[e.t] = parents[e.t] || []).push(e.s);
+let y = TOP; const levelY = [];
+levels.forEach((row, index) => {
+  if (!row) return;
+  for (const n of row) { const xs = (parents[n.id] || []).map(p => byId[p].x).filter(v => v != null); n.key = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : W / 2; }
+  row.sort((a, b) => a.key - b.key || (a.id < b.id ? -1 : 1));
+  levelY[index] = y;
+  for (let i = 0; i < row.length; i += PER) {
+    const part = row.slice(i, i + PER), width = part.length * (NW + GAPX) - GAPX, start = X0 + (W - X0 - 6 - width) / 2;
+    part.forEach((n, k) => { n.x = start + k * (NW + GAPX); n.y = y; });
+    y += PITCH;
+  }
+  y += LEVELGAP;
+});
+const svg = document.getElementById('map');
+svg.setAttribute('viewBox', `0 0 ${W} ${y}`);
+const defs = el('defs');
+for (const t of ['c', 'i', 'o']) { const m = el('marker', { id: 'mk-' + t, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, markerUnits: 'userSpaceOnUse', orient: 'auto' }); m.appendChild(el('path', { d: 'M0,0.6 L8,4 L0,7.4 Z', class: 'mk-' + t })); defs.appendChild(m); }
+svg.appendChild(defs);
+levelY.forEach((ly, index) => {
+  if (ly == null) return;
+  if (index > 0) svg.appendChild(el('line', { x1: 0, y1: ly - LEVELGAP / 2 - 6, x2: W, y2: ly - LEVELGAP / 2 - 6, class: 'level-rule' }));
+  svg.appendChild(el('text', { x: 8, y: ly + 21, class: 'level-label' }, index === 0 ? '人' : String(index)));
+});
+const edgeLayer = el('g'), nodeLayer = el('g'); svg.appendChild(edgeLayer); svg.appendChild(nodeLayer);
+for (const e of EDGES) {
+  const a = byId[e.s], b = byId[e.t], x1 = a.x + NW / 2, y1 = a.y + NH, x2 = b.x + NW / 2, y2 = b.y - 1, k = Math.max(18, (y2 - y1) * 0.45);
+  e.el = el('path', { d: `M${x1},${y1} C${x1},${y1 + k} ${x2},${y2 - k} ${x2},${y2}`, class: 'edge ' + e.type, 'marker-end': `url(#mk-${e.type})` });
+  edgeLayer.appendChild(e.el);
+}
+for (const n of NODES) {
+  const g = el('g', { class: 'node k-' + n.kind, tabindex: 0, role: 'button', 'aria-label': `${n.tag}/${n.label}` });
+  g.appendChild(el('rect', { x: n.x, y: n.y, width: NW, height: NH, rx: 4 }));
+  g.appendChild(el('text', { x: n.x + 8, y: n.y + 12.5, class: 'tag' }, n.tag));
+  const name = el('text', { x: n.x + 8, y: n.y + 26.5, class: 'name' }, n.label);
+  g.appendChild(name);
+  g.addEventListener('click', () => select(n.id));
+  g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(n.id); } });
+  n.el = g; nodeLayer.appendChild(g);
+  // 長い名前は、箱に収まるよう字を詰める
+  if (name.getComputedTextLength && name.getComputedTextLength() > NW - 14) { name.setAttribute('textLength', NW - 14); name.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+}
+
+// ---- 選択と詳細 ----
+const panel = document.getElementById('panel');
+let current = null, mode = 'direct';
+const reach = (id, up) => { const seen = new Set(), wait = [id]; while (wait.length) { const c = wait.pop(); for (const e of EDGES) { const from = up ? e.t : e.s, to = up ? e.s : e.t; if (from === c && !seen.has(to)) { seen.add(to); wait.push(to); } } } return seen; };
+const chips = ids => ids.length ? `<span class="chips">${ids.map(id => `<button type="button" data-id="${esc(id)}">${esc(byId[id].tag + '/' + byId[id].label)}</button>`).join('')}</span>` : '<span class="none">ありません</span>';
+function relRows(list) {
+  const rows = [['c', '読む'], ['i', '人の入力'], ['o', '順序だけ']].map(([t, label]) => { const ids = list.filter(x => x.type === t).map(x => x.id); return ids.length ? `<div class="rel-row"><span class="k"><span class="sw ${t}"></span>${label}</span>${chips(ids)}</div>` : ''; }).join('');
+  return rows || '<span class="none">ありません</span>';
+}
+function select(id, keep) {
+  current = !id || (id === current && !keep) ? null : id;
+  for (const n of NODES) n.el.classList.remove('sel', 'dim');
+  for (const e of EDGES) e.el.classList.remove('dim', 'hot');
+  if (!current) { panel.innerHTML = '<h3>箱を選んでください</h3><p class="none">図の箱を押すと、そのファイルが読むものと、そのファイルを読むものだけが残ります。</p>'; return; }
+  const n = byId[current];
+  const up = reach(current, true), down = reach(current, false);
+  const near = mode === 'up' ? new Set([current, ...up]) : mode === 'down' ? new Set([current, ...down]) : null;
+  const shown = new Set([current]);
+  for (const e of EDGES) {
+    const hit = near ? near.has(e.s) && near.has(e.t) : e.s === current || e.t === current;
+    e.el.classList.add(hit ? 'hot' : 'dim'); if (hit) { shown.add(e.s); shown.add(e.t); }
+  }
+  for (const m of NODES) { if (m.id === current) m.el.classList.add('sel'); else if (!shown.has(m.id)) m.el.classList.add('dim'); }
+  const ups = EDGES.filter(e => e.t === current).map(e => ({ id: e.s, type: e.type }));
+  const downs = EDGES.filter(e => e.s === current).map(e => ({ id: e.t, type: e.type }));
+  const finals = [...up].filter(i => byId[i].kind === 'final').sort((a, b) => byId[a].level - byId[b].level);
+  panel.innerHTML = `
+    <div><div class="stage-name">${esc(KIND[n.kind])}（段 ${n.level === 0 ? '人' : n.level}）</div><h3 style="font-size:15px">${esc(n.label)}</h3></div>
+    <dl><dt>場所</dt><dd class="path">${esc(n.path)}</dd>
+        ${n.by ? `<dt>作る定義</dt><dd class="path">${esc(n.by)}</dd>` : ''}
+        <dt>説明</dt><dd>${esc(n.name)}</dd></dl>
+    <div class="rel"><h3>これが読むもの</h3>${relRows(ups)}</div>
+    <div class="rel"><h3>これを読むもの</h3>${relRows(downs)}</div>
+    <div class="rel"><h3>これより前に確定している必要があるもの（${finals.length}）</h3>${chips(finals)}</div>
+    <p class="none">上流は全部で ${up.size} 箱、下流は ${down.size} 箱です。</p>
+    <button type="button" class="clear" id="clear">選択を外して全体を見る</button>`;
+}
+panel.addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; if (b.id === 'clear') select(null); else if (b.dataset.id && b.dataset.id !== current) select(b.dataset.id); });
+for (const t of ['c', 'i', 'o']) document.getElementById('f-' + t).addEventListener('change', ev => svg.classList.toggle('hide-' + t, !ev.target.checked));
+for (const r of document.querySelectorAll('input[name="mode"]')) r.addEventListener('change', ev => { mode = ev.target.value; if (current) select(current, true); });
+
+// ---- 数えたこと・メモ・注意 ----
+document.getElementById('stats').innerHTML = DATA.stats.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+document.getElementById('notes').innerHTML = DATA.notes.map(n => `<li>${esc(n)}</li>`).join('');
+document.getElementById('notes-section').hidden = !DATA.notes.length;
+document.getElementById('warnings').innerHTML = DATA.warnings.map(n => `<li>${esc(n)}</li>`).join('');
+document.getElementById('warnings-section').hidden = !DATA.warnings.length;
+document.getElementById('footer').innerHTML = [`線は、各変換定義が読むビュー（選ぶスキーマと ID の型）を、いまあるファイルと突き合わせて拾いました。業務モデルを直接読むかどうかは、生成器の系譜の出力（<code>generate --lineage</code>）で見ています。`, `${esc(DATA.workspace)} の変換定義から <code>scripts/design-map.py</code> が作りました。`].map(x => `<span>${x}</span>`).join('');
+
+select(DATA.select);
+</script>
