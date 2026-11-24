@@ -3,6 +3,7 @@ package verification;
 import example.todos.TodoApplication;
 import example.todos.web.form.*;
 import example.todos.web.operation.*;
+import example.todos.service.error.NotFoundException;
 import example.todos.service.error.RefusedException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Clock;
@@ -35,6 +36,8 @@ class WebOperationIntegrationTest {
     @Autowired AddCategoryWebOperation category;
     @Autowired AddTagWebOperation tag;
     @Autowired AddTodoCommentWebOperation comment;
+    @Autowired EditTodoCommentWebOperation editComment;
+    @Autowired DeleteTodoCommentWebOperation deleteComment;
     @Autowired AddTodoTaskWebOperation task;
     @Autowired StartTodoWebOperation start;
     @Autowired SuspendTodoWebOperation suspend;
@@ -91,27 +94,35 @@ class WebOperationIntegrationTest {
         assertEquals(1, count("todo_tags"));
     }
 
-    @Test void 明細とクリア指定を別の型へ写し省略と空とfalseを区別する() {
+    @Test void 並びとクリア指定を別の型へ写し省略と空とfalseを区別する() {
         var form = new EditTodoForm();
         var omitted = edit.toInput("TODO-001", form);
-        assertNull(omitted.getTags()); assertNull(omitted.getComments()); assertNull(omitted.getClear());
-        var row = new EditTodoForm.EditTodoCommentsRow(); row.setDate(today); row.setBody("  空白を残す  ");
-        var rows = new ArrayList<EditTodoForm.EditTodoCommentsRow>(); rows.add(row);
+        assertNull(omitted.getTags()); assertNull(omitted.getClear());
         var tags = new ArrayList<String>(); tags.add("TAG-001");
-        form.setComments(rows); form.setTags(tags);
-        var clear = new EditTodoForm.EditTodoClear(); clear.setDueOn(false); clear.setComments(true);
+        form.setTags(tags); form.setDetails("  空白を残す  ");
+        var clear = new EditTodoForm.EditTodoClear(); clear.setDueOn(false); clear.setTags(true);
         form.setClear(clear);
         var input = edit.toInput("TODO-001", form);
         assertEquals("TODO-001", input.getId());
-        assertEquals(today, input.getComments().getFirst().getDate());
-        assertEquals("  空白を残す  ", input.getComments().getFirst().getBody());
-        assertEquals(false, input.getClear().getDueOn()); assertEquals(true, input.getClear().getComments());
+        assertEquals("  空白を残す  ", input.getDetails());
+        assertEquals(false, input.getClear().getDueOn()); assertEquals(true, input.getClear().getTags());
         assertNull(input.getClear().getCategory());
-        row.setBody("変更"); rows.clear(); tags.clear(); clear.setComments(false);
-        assertEquals("  空白を残す  ", input.getComments().getFirst().getBody());
-        assertEquals(List.of("TAG-001"), input.getTags()); assertEquals(true, input.getClear().getComments());
+        // 写した後に Form を変えても、Service の入力は変わらない
+        tags.clear(); clear.setTags(false);
+        assertEquals(List.of("TAG-001"), input.getTags()); assertEquals(true, input.getClear().getTags());
         var empty = edit.toInput("TODO-001", form);
-        assertTrue(empty.getComments().isEmpty()); assertTrue(empty.getTags().isEmpty());
+        assertTrue(empty.getTags().isEmpty());
+    }
+
+    @Test void コメントの編集は番号と変えた値を写し空の本文は省略になる() {
+        var form = new EditTodoCommentForm(); form.setRow(2L); form.setBody("  空白を残す  ");
+        var input = editComment.toInput("TODO-001", form);
+        assertEquals("TODO-001", input.getId()); assertEquals(2L, input.getRow());
+        assertNull(input.getDate()); assertEquals("  空白を残す  ", input.getBody());
+        form.setBody("");
+        assertNull(editComment.toInput("TODO-001", form).getBody());
+        var remove = new DeleteTodoCommentForm(); remove.setRow(3L);
+        assertEquals(3L, deleteComment.toInput("TODO-001", remove).getRow());
     }
 
     @Test void 確認でDBを書かず実行時にも入力と業務の規則を確かめる() {
@@ -127,31 +138,66 @@ class WebOperationIntegrationTest {
         assertEquals(0, count("todo"));
     }
 
-    @Test void 明細の入力違反と空の行と対象未指定を更新前に拒否する() {
+    @Test void コメントの番号の欠落と入力なしと対象未指定を更新前に拒否する() {
         var id = register.execute(form());
-        var form = new EditTodoForm();
-        var row = new EditTodoForm.EditTodoCommentsRow(); row.setBody("日付がない");
-        form.setComments(List.of(row));
-        var failure = assertThrows(ConstraintViolationException.class, () -> edit.execute(id, form));
-        assertTrue(failure.getConstraintViolations().stream().anyMatch(v -> v.getPropertyPath().toString().equals("comments[0].date")));
-        form.setComments(Arrays.asList((EditTodoForm.EditTodoCommentsRow) null));
-        assertThrows(IllegalArgumentException.class, () -> edit.execute(id, form));
+        var add = new AddTodoCommentForm(); add.setDate(today); add.setBody("最初");
+        comment.execute(id, add);
+        var form = new EditTodoCommentForm(); form.setBody("番号がない");
+        var failure = assertThrows(ConstraintViolationException.class, () -> editComment.execute(id, form));
+        assertTrue(failure.getConstraintViolations().stream().anyMatch(v -> v.getPropertyPath().toString().equals("row")));
+        assertThrows(ConstraintViolationException.class, () -> deleteComment.execute(id, new DeleteTodoCommentForm()));
+        assertThrows(IllegalArgumentException.class, () -> editComment.execute(id, null));
+        form.setRow(1L);
+        assertThrows(IllegalArgumentException.class, () -> editComment.execute("", form));
         assertThrows(IllegalArgumentException.class, () -> start.execute(""));
         assertThrows(IllegalArgumentException.class, () -> register.execute(null));
-        assertEquals(0, count("todo_comments"));
+        assertEquals("最初", jdbc.queryForObject("SELECT body FROM todo_comments WHERE todo_id = ?", String.class, id));
         assertEquals("OPEN", status(id));
     }
 
-    @Test void 既存明細の置換とクリアの優先順位がDBにも届く() {
+    List<String> bodies(String id) { return jdbc.queryForList("SELECT body FROM todo_comments WHERE todo_id = ? ORDER BY seq", String.class, id); }
+    List<Long> seqs(String id) { return jdbc.queryForList("SELECT seq FROM todo_comments WHERE todo_id = ? ORDER BY seq", Long.class, id); }
+
+    @Test void コメントは番号の一件だけを直し消し無い番号は何も変えずに断る() {
         var id = register.execute(form());
-        var row = new EditTodoForm.EditTodoCommentsRow(); row.setDate(today); row.setBody("明細");
-        var form = new EditTodoForm(); form.setComments(List.of(row)); form.setDetails("詳細");
+        var other = register.execute(form());
+        for (var body : List.of("一つ目", "二つ目", "三つ目")) {
+            var add = new AddTodoCommentForm(); add.setDate(today.minusDays(1)); add.setBody(body);
+            comment.execute(id, add); comment.execute(other, add);
+        }
+        // 編集: 並び順（seq）の 1 行だけ。入力しなかった記録日は元のまま
+        var change = new EditTodoCommentForm(); change.setRow(2L); change.setBody("直した");
+        assertEquals(id, editComment.execute(id, change));
+        assertEquals(List.of("一つ目", "直した", "三つ目"), bodies(id));
+        assertEquals(today.minusDays(1), jdbc.queryForObject("SELECT date FROM todo_comments WHERE todo_id = ? AND seq = 2", LocalDate.class, id));
+        assertEquals(List.of("一つ目", "二つ目", "三つ目"), bodies(other), "ほかの TODO の同じ番号は変えない");
+        // 削除: その 1 行だけ。残った行の番号は振り直さない
+        var remove = new DeleteTodoCommentForm(); remove.setRow(1L);
+        assertEquals(id, deleteComment.execute(id, remove));
+        assertEquals(List.of(2L, 3L), seqs(id));
+        assertEquals(3, bodies(other).size());
+        // 消した番号・無い番号は、何も変えずに断る
+        assertThrows(NotFoundException.class, () -> deleteComment.execute(id, remove));
+        var missing = new EditTodoCommentForm(); missing.setRow(9L); missing.setBody("無い行");
+        assertThrows(NotFoundException.class, () -> editComment.execute(id, missing));
+        assertEquals(List.of("直した", "三つ目"), bodies(id));
+        // 追加は、消した後も最大の番号の次
+        var add = new AddTodoCommentForm(); add.setDate(today); add.setBody("四つ目");
+        comment.execute(id, add);
+        assertEquals(List.of(2L, 3L, 4L), seqs(id));
+    }
+
+    @Test void 編集のクリアは入力した値より優先しコメントは変えない() {
+        var id = register.execute(form());
+        var add = new AddTodoCommentForm(); add.setDate(today); add.setBody("残る");
+        comment.execute(id, add);
+        var form = new EditTodoForm(); form.setDetails("詳細");
         edit.execute(id, form);
-        assertEquals(1, count("todo_comments"));
-        var clearing = new EditTodoForm(); clearing.setComments(List.of(row)); clearing.setDetails("残さない");
-        var clear = new EditTodoForm.EditTodoClear(); clear.setComments(true); clear.setDetails(true); clearing.setClear(clear);
+        assertEquals("詳細", jdbc.queryForObject("SELECT details FROM todo WHERE id = ?", String.class, id));
+        var clearing = new EditTodoForm(); clearing.setDetails("残さない");
+        var clear = new EditTodoForm.EditTodoClear(); clear.setDetails(true); clearing.setClear(clear);
         edit.execute(id, clearing);
-        assertEquals(0, count("todo_comments"));
         assertNull(jdbc.queryForObject("SELECT details FROM todo WHERE id = ?", String.class, id));
+        assertEquals(List.of("残る"), bodies(id));
     }
 }

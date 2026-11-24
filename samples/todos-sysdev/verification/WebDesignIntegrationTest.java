@@ -92,17 +92,15 @@ class WebDesignIntegrationTest {
         assertTrue(validator.validate(form).stream().anyMatch(v -> v.getPropertyPath().toString().equals("tags")));
     }
 
-    @Test void nestedCommentFieldsAreValidatedAndAllFormsHaveMetadata() {
-        var form = new EditTodoForm();
-        var row = new EditTodoForm.EditTodoCommentsRow();
-        form.setComments(List.of(row));
-        var issues = validator.validate(form);
-        assertTrue(issues.stream().anyMatch(v -> v.getPropertyPath().toString().equals("comments[0].date")));
-        assertTrue(issues.stream().anyMatch(v -> v.getPropertyPath().toString().equals("comments[0].body")));
-        row.setDate(LocalDate.of(2026, 11, 21)); row.setBody("確認する");
+    @Test void commentRowFormsRequireTheRowNumberAndAllFormsHaveMetadata() {
+        var form = new EditTodoCommentForm();
+        assertTrue(validator.validate(form).stream().anyMatch(v -> v.getPropertyPath().toString().equals("row")));
+        form.setRow(1L); form.setDate(LocalDate.of(2026, 11, 21)); form.setBody("確認する");
         assertTrue(validator.validate(form).isEmpty());
+        assertTrue(validator.validate(new DeleteTodoCommentForm()).stream().anyMatch(v -> v.getPropertyPath().toString().equals("row")));
         for (var type : List.of(AddCategoryForm.class, AddTagForm.class, AddTodoCommentForm.class, AddTodoTaskForm.class,
-                CancelTodoForm.class, CompleteTodoForm.class, EditTodoForm.class, RegisterTodoForm.class, ResumeTodoForm.class, SuspendTodoForm.class)) {
+                CancelTodoForm.class, CompleteTodoForm.class, DeleteTodoCommentForm.class, EditTodoCommentForm.class,
+                EditTodoForm.class, RegisterTodoForm.class, ResumeTodoForm.class, SuspendTodoForm.class)) {
             assertNotNull(validator.getConstraintsForClass(type));
         }
     }

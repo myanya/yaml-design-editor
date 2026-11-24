@@ -196,6 +196,14 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 ./samples/todos-sysdev/scripts/verify-app.ps1
 ```
 
+PowerShell の無い環境（Linux・macOS・Git Bash）では、同じ手順の `scripts/verify-app.sh` を使う。
+
+```bash
+samples/todos-sysdev/scripts/verify-app.sh
+```
+
+この検証は `./gradlew test` には入っていない（GitHub Actions の `todos-application` が push ごとに回す）。業務モデル・生成の定義・ひな形を変えてアプリの型や操作が変わったら、`verification/` のテストも合わせて直し、手元で通してからコミットする。
+
 アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service・画面入力・実 HTTP の結合テストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
 検証結果はコピー内の `build/reports/tests/test/index.html` に残す。元のアプリとその DB には書かない。
@@ -227,7 +235,7 @@ DB・ビルド成果物はアプリ内の `data/`・`build/`・`.gradle/` に置
 - `TodosWebDesignTest`: デザインの確定値と Form の制約・メッセージの一致、未対応の入力による停止。
 - `TodosWebBindingsTest`: 全操作の Form と Service の照合、補正された項目名と明細・呼出名の接続、余分な項目・重複・型の不一致による停止。
 - `TodosWebPagesTest`: 保存した確定値と画面・入口・読出しの一致、題と列順の補正、未対応部品と遷移先の不足による停止。
-- `scripts/verify-app.ps1`: 全 Mapper と全操作、画面入力からの更新と再検査、クリアの優先、確認時の非更新、親子の取り消し、同時採番、実 HTTP での全画面・二重送信・別タブ・空配列・部分更新、独立ビルド。
+- `scripts/verify-app.ps1`（`verify-app.sh`）: 全 Mapper と全操作、画面入力からの更新と再検査、クリアの優先、確認時の非更新、親子の取り消し、同時採番、コメントの 1 行の編集と削除（番号の 1 件だけ・無い番号の拒否）、実 HTTP での全画面・二重送信・別タブ・入力の保持・行のボタンからの編集と削除、独立ビルド。
 - `scripts/test-application-files.ps1`: 再生成の一致、空ファイル、競合、書込失敗時の復元、名前変更・削除の範囲。
 - `scripts/test-application-index.ps1`: Git の登録漏れ・誤った除外規則・未登録ファイルの分離・保存データの保護・バッチの改行・生成記録の一致。
 - `.github/workflows/todos-application.yml`: YDE の通常テストと別のジョブで、Git 登録内容の不足と除外規則、再生成の一致、アプリ単独のビルドを確認する。

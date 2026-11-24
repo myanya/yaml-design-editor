@@ -87,40 +87,59 @@ class BusinessWebIntegrationTest {
         assertEquals(405,request("/todo/"+id+"/start-todo",null).statusCode());
     }
 
-    @Test void validationBackRowsAndEscapingPreserveInput() throws Exception {
+    @Test void validationBackAndEscapingPreserveInput() throws Exception {
         String invalid=post("/todo/register-todo/confirm",fields("title","長".repeat(101),"summary","","due","not-a-date"));
         assertTrue(invalid.contains("100文字以内")&&invalid.contains("概要を入力してください")&&invalid.contains("not-a-date"),invalid);
         String confirm=post("/todo/register-todo/confirm",fields("title","<script>alert(1)</script>","summary","  前後を保持  ","details","一行目\n二行目"));
         assertFalse(confirm.contains("<script>alert(1)</script>"));assertTrue(confirm.contains("&lt;script&gt;"));
         String back=post("/todo/register-todo/back",hidden(confirm));assertTrue(back.contains("  前後を保持  ")&&back.contains("一行目"),back);
-        execute("/todo/register-todo",fields("title","行編集対象","summary","行の操作"));
-        String id=jdbc.queryForObject("select id from todo where title='行編集対象'",String.class);
-        String base="/todo/"+id+"/edit-todo";
-        String rows=post(base+"/back",fields("title","保持するタイトル","_rows","comments:add"));
-        assertTrue(rows.contains("comments[0].date")&&rows.contains("保持するタイトル"),rows);
-        rows=post(base+"/back",fields("title","保持するタイトル","comments[0].date",LocalDate.now().toString(),"comments[0].body","保持する本文","_rows","comments:add"));
-        assertTrue(rows.contains("comments[1].body")&&rows.contains("保持する本文"),rows);
-        rows=post(base+"/back",fields("title","保持するタイトル","comments[0].body","消す本文","comments[1].body","残す本文","_rows","comments:0"));
-        assertFalse(rows.contains("消す本文"));assertTrue(rows.contains("残す本文"),rows);
+        execute("/todo/register-todo",fields("title","入力保持の対象","summary","戻るの確認"));
+        String id=jdbc.queryForObject("select id from todo where title='入力保持の対象'",String.class);
+        String kept=post("/todo/"+id+"/edit-todo/back",fields("title","保持するタイトル","details","一行目\n二行目"));
+        assertTrue(kept.contains("保持するタイトル")&&kept.contains("一行目"),kept);
+        assertEquals("入力保持の対象",jdbc.queryForObject("select title from todo where id=?",String.class,id));
     }
 
-    @Test void partialRowsAndExplicitEmptyCollectionSurviveConfirmation() throws Exception {
-        execute("/todo/register-todo",fields("title","空配列の対象","summary","コメント編集"));
-        String id=jdbc.queryForObject("select id from todo where title='空配列の対象'",String.class);
-        execute("/todo/"+id+"/add-todo-comment",fields("date",LocalDate.now().toString(),"body","元のコメント"));
-        String base="/todo/"+id+"/edit-todo";
-        String initial=get(base);assertTrue(initial.contains("元のコメント"),initial);
-        String unchanged=post(base+"/confirm",fields("comments[0].date",LocalDate.now().toString(),"comments[0].body","元のコメント"));
+    List<String> commentBodies(String id){return jdbc.queryForList("select body from todo_comments where todo_id=? order by seq",String.class,id);}
+
+    @Test void commentRowsAreEditedAndDeletedFromTheDetailPage() throws Exception {
+        String today=LocalDate.now().toString();
+        execute("/todo/register-todo",fields("title","コメントの対象","summary","行の操作"));
+        String id=jdbc.queryForObject("select id from todo where title='コメントの対象'",String.class);
+        execute("/todo/"+id+"/add-todo-comment",fields("date",today,"body","一つ目"));
+        execute("/todo/"+id+"/add-todo-comment",fields("date",today,"body","二つ目"));
+        // 詳細画面のコメントの行に、番号（並び順）を運ぶボタンが出る。一覧の行には出ない
+        String detail=decode(get("/todo/"+id));
+        for(String row:List.of("1","2")) {
+            assertTrue(Pattern.compile("/todo/"+id+"/edit-todo-comment\\?[^\"]*\\brow="+row+"\\b").matcher(detail).find(),detail);
+            assertTrue(Pattern.compile("/todo/"+id+"/delete-todo-comment/confirm\\?[^\"]*\\brow="+row+"\\b").matcher(detail).find(),detail);
+        }
+        String dashboard=get("/");assertFalse(dashboard.contains("edit-todo-comment")||dashboard.contains("delete-todo-comment"),dashboard);
+        String origin="&from=todo&origin="+id;
+        // 編集: 入力画面に選んだ行の今の値が入り、番号は hidden で持ち回す
+        String base="/todo/"+id+"/edit-todo-comment";
+        String input=get(base+"?row=2"+origin);
+        assertTrue(input.contains("二つ目")&&!input.contains("一つ目"),input);
+        assertTrue(hidden(input).contains("row=2"),hidden(input));
+        String unchanged=post(base+"/confirm",fields("row","2","date",today,"body","二つ目")+origin);
         assertTrue(unchanged.contains("変更はありません。"),unchanged);
-        var response=client.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+base+"/back"))
-            .header("HX-Request","true").header("Content-Type","application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(fields("comments[0].body","元のコメント","_rows","comments:0"))).build(),HttpResponse.BodyHandlers.ofString());
-        assertEquals(200,response.statusCode(),response.body());assertTrue(response.body().startsWith("<main"),response.body());
-        assertFalse(response.body().contains("<!doctype"));assertTrue(response.body().contains("name=\"_present.comments\""));
-        String confirm=post(base+"/confirm",hidden(response.body()));
-        assertTrue(confirm.contains("元のコメント"),confirm);
+        String confirm=post(base+"/confirm",fields("row","2","date",today,"body","直した <&>")+origin);
+        assertTrue(confirm.contains("name=\"token\"")&&confirm.contains("直した &lt;&amp;&gt;"),confirm);
+        assertEquals(List.of("一つ目","二つ目"),commentBodies(id));
         assertEquals(302,request(base,hidden(confirm)).statusCode());
-        assertEquals(0,jdbc.queryForObject("select count(*) from todo_comments where todo_id=?",Integer.class,id));
+        assertEquals(List.of("一つ目","直した <&>"),commentBodies(id));
+        // 削除: 確認画面から始まり、対象の行を見せて、その 1 件だけを消す
+        String remove="/todo/"+id+"/delete-todo-comment";
+        String removing=get(remove+"/confirm?row=1"+origin);
+        assertTrue(removing.contains("一つ目")&&removing.contains("name=\"token\""),removing);
+        assertEquals(302,request(remove,hidden(removing)).statusCode());
+        assertEquals(List.of("直した <&>"),commentBodies(id));
+        assertEquals(2L,jdbc.queryForObject("select seq from todo_comments where todo_id=?",Long.class,id));
+        // 無い番号・番号なしは、画面を出す前に 404
+        assertEquals(404,request(base+"?row=1"+origin,null).statusCode());
+        assertEquals(404,request(remove+"/confirm?row=9"+origin,null).statusCode());
+        assertEquals(404,request(remove+"/confirm?from=todo&origin="+id,null).statusCode());
+        assertEquals(List.of("直した <&>"),commentBodies(id));
     }
 
     @Test void tokensAreIndependentAndStaleStateIsRechecked() throws Exception {

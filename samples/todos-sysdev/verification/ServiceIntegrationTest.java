@@ -104,24 +104,38 @@ class ServiceIntegrationTest {
         var id = register();
         var category = categories.addCategory("業務");
         var tag = tags.addTag("重要");
-        var comment = new EditTodoInput.EditTodoCommentsItem();
-        comment.setDate(today);
-        comment.setBody("置換後");
-        assertTrue(todos.checkEditTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, List.of(comment), null).isEmpty());
-        assertEquals(0, count("todo_comments"));
+        todos.addTodoComment(id, today, "残る");
+        assertTrue(todos.checkEditTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, null).isEmpty());
+        assertEquals(0, count("todo_tags"));
         assertEquals("仕事", jdbc.queryForObject("SELECT title FROM todo WHERE id = ?", String.class, id));
-        todos.editTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, List.of(comment), null);
-        assertEquals(1, count("todo_comments"));
+        todos.editTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, null);
+        assertEquals(1, count("todo_tags"));
         var clear = new EditTodoInput.EditTodoClear();
         clear.setCategory(true);
         clear.setDueOn(true);
         clear.setTags(true);
-        clear.setComments(true);
-        todos.editTodo(id, null, null, category, List.of(tag), null, today.minusDays(1), null, null, List.of(comment), clear);
+        todos.editTodo(id, null, null, category, List.of(tag), null, today.minusDays(1), null, null, clear);
         assertNull(jdbc.queryForObject("SELECT category FROM todo WHERE id = ?", String.class, id));
         assertNull(jdbc.queryForObject("SELECT due_on FROM todo WHERE id = ?", LocalDate.class, id));
-        assertEquals(0, count("todo_comments"));
         assertEquals(0, count("todo_tags"));
+        assertEquals(1, count("todo_comments"), "TODO の編集はコメントを変えない");
+    }
+
+    @Test void commentRowIsEditedAndDeletedBySequenceAndMissingRowIsRefused() {
+        var id = register();
+        todos.addTodoComment(id, today, "一つ目");
+        todos.addTodoComment(id, today, "二つ目");
+        todos.editTodoComment(id, 2L, null, "直した");
+        assertEquals("直した", jdbc.queryForObject("SELECT body FROM todo_comments WHERE todo_id = ? AND seq = 2", String.class, id));
+        assertEquals("一つ目", jdbc.queryForObject("SELECT body FROM todo_comments WHERE todo_id = ? AND seq = 1", String.class, id));
+        todos.deleteTodoComment(id, 1L);
+        assertEquals(1, count("todo_comments"));
+        // 無い行は、親の更新日も含めて何も書かずに断る
+        jdbc.update("UPDATE todo SET updated_on = ? WHERE id = ?", today.minusDays(3), id);
+        assertThrows(NotFoundException.class, () -> todos.deleteTodoComment(id, 1L));
+        assertThrows(NotFoundException.class, () -> todos.editTodoComment(id, 7L, null, "無い行"));
+        assertEquals(today.minusDays(3), jdbc.queryForObject("SELECT updated_on FROM todo WHERE id = ?", LocalDate.class, id));
+        assertEquals(1, count("todo_comments"));
     }
 
     @Test void postWriteFailureRollsBackChildAndParentTogether() {

@@ -141,13 +141,27 @@ class MapperIntegrationTest {
         todo("cancelTodo", Map.of("id", "TODO-1000", "reason", "中止", "contextToday", today));
         assertThat(property(todo("findById", id("TODO-1000")), "status")).isEqualTo("CANCELED");
         assertThat(todo("deleteTodoTags", id("TODO-999"))).isEqualTo(2);
-        assertThat(todo("deleteTodoComments", id("TODO-999"))).isEqualTo(2);
+        // コメントの 1 行の更新と削除: 親のキーと並び順（seq）で 1 行だけ。入れなかった列は元のまま。無い行は 0 件
+        assertThat(todo("editTodoCommentCommentsRow", Map.of("id", "TODO-999", "row", 1L, "body", "直した ' <&>"))).isEqualTo(1);
+        var comments = list(property(todo("findDetail", id("TODO-999")), "comments"));
+        assertThat(comments).hasSize(2);
+        assertThat(property(comments.get(0), "body")).isEqualTo("直した ' <&>");
+        assertThat(property(comments.get(0), "date")).isEqualTo(today);
+        assertThat(property(comments.get(1), "body")).isEqualTo("後");
+        assertThat(todo("editTodoCommentCommentsRow", Map.of("id", "TODO-999", "row", 9L, "body", "無い行"))).isEqualTo(0);
+        assertThat(todo("editTodoCommentCommentsRow", Map.of("id", "TODO-1000", "row", 1L, "body", "別の TODO"))).isEqualTo(0);
+        assertThat(todo("editTodoComment", input("TODO-999"))).isEqualTo(1);
+        assertThat(todo("deleteTodoCommentCommentsRow", Map.of("id", "TODO-999", "row", 1L))).isEqualTo(1);
+        assertThat(todo("deleteTodoCommentCommentsRow", Map.of("id", "TODO-999", "row", 1L))).isEqualTo(0);
+        assertThat(todo("deleteTodoComment", input("TODO-999"))).isEqualTo(1);
+        assertThat(list(property(todo("findDetail", id("TODO-999")), "comments"))).hasSize(1);
+        assertThat(todo("maxSeqTodoComments", id("TODO-999"))).isEqualTo(2L);
         assertThat(list(property(todo("findDetail", id("TODO-999")), "tags"))).isEmpty();
         assertThat(list(property(todo("findDetail", id("TODO-1000")), "tags"))).hasSize(1);
         var expected = new HashSet<String>();
         for (var type : List.of(CategoryMapper.class, TagMapper.class, TodoMapper.class, TodoTaskMapper.class))
             for (var method : type.getDeclaredMethods()) expected.add(type.getSimpleName() + "." + method.getName());
         assertThat(called).containsExactlyInAnyOrderElementsOf(expected);
-        assertThat(called).hasSize(48);
+        assertThat(called).hasSize(51);
     }
 }
