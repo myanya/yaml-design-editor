@@ -254,6 +254,25 @@
     DDL は `./gradlew runCli -q --args="report samples/todos-sysdev ddl --print"` で見られます。
     型対応表（論理型 → SQL）で `SQL-boolean` の出力方法が `boolean` であることを見ます。テーブルを todo_task にし、done の初期値が false・設定あり、DDL が `BOOLEAN DEFAULT FALSE` になっていることを確かめます。todo の status は文字列として `DEFAULT 'OPEN'`、初期値の無いカラムは「設定なし」です。
 
+## 設計書の依存マップ
+
+設計書の種類ごとに、ほかのどの設計書から作られているかを 1 枚の HTML にします。
+線は変換定義から計算するので、変換定義や依存を直した後に作り直すと、依存の変化を見られます。
+
+```bash
+python3 samples/todos-sysdev/scripts/design-map.py
+```
+
+Windows では `py -3 samples/todos-sysdev/scripts/design-map.py` です。標準ライブラリだけで動きます。
+`scratchpad/design-map/design-dependency-map.html` に書くので、ブラウザで開きます（`--out` で場所を変えられます）。
+変換定義が業務モデルのどこを読むかは、YDE CLI の `generate --lineage` を中で呼んで調べます（初回は CLI のビルドを待ちます）。
+
+- 線は 4 種類です: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ（依存の宣言だけで、値は読まない）。
+- 箱の並べ方と、どの変換定義がどの箱を作るかは `scripts/design-map.json` に書きます。線と「数えたこと」は計算します。
+- 変換定義を足して設定に書いていないと、ページの「注意」と実行結果に出ます。`nodes` か `ignore` に足します。
+- 「読み取ったこと」は設定の `notes` に人が書くメモです。構成を変えたら、図と合っているかを見直します。
+- ページの見た目は `scripts/design-map.template.html` を直します。
+
 ## 業務モデルの追従
 
 業務モデルを直すときは、まず samples/todos を直し、一通り終えたら、todos の `.yde/schemas` と `.yde/views` を、それぞれこのサンプルの `business/` へ丸ごと写します（いまは指示があったときに手で写します）。

@@ -1,0 +1,278 @@
+<title>__TITLE__</title>
+<!-- 生成物: samples/todos-sysdev/scripts/design-map.py が、このひな形と design-map.json から作る。直すのはひな形と設定 -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 配置: 上に結論と凡例、中央に「工程 × 系統」の格子の図と選択中の設計書の詳細、下に表（読む側 × 読まれる側）と読み取れること */
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --band: #eceff4; --ink: #1b2330; --muted: #5b6676; --line: #d3d9e2;
+  --c-content: #0a66c2; --c-model: #7d889b; --c-rename: #b3741a; --c-order: #a9b1bf; --sel: #0a66c2; --sel-fill: #e3effb;
+  --font: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48;
+  --c-content: #5aa9ff; --c-model: #8590a3; --c-rename: #e2a93f; --c-order: #596375; --sel: #5aa9ff; --sel-fill: #1d3350; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48;
+  --c-content: #5aa9ff; --c-model: #8590a3; --c-rename: #e2a93f; --c-order: #596375; --sel: #5aa9ff; --sel-fill: #1d3350; color-scheme: dark }
+
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.75; }
+.wrap { max-width: 1360px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; text-wrap: balance; line-height: 1.4; }
+h2 { font-size: 16px; font-weight: 700; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 700; margin: 0; }
+p { margin: 0; max-width: 46em; }
+code, .path { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.lede { display: flex; flex-direction: column; gap: 10px; }
+.sub { color: var(--muted); font-size: 13px; }
+section { display: flex; flex-direction: column; gap: 12px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.legend label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; }
+.legend input { accent-color: var(--sel); margin: 0; }
+.legend input:focus-visible, button:focus-visible, .node:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.sw { width: 30px; height: 0; border-top: 2px solid; display: inline-block; }
+.sw.c { border-color: var(--c-content); } .sw.m { border-color: var(--c-model); }
+.sw.r { border-color: var(--c-rename); border-top-style: dashed; } .sw.o { border-color: var(--c-order); border-top-style: dotted; }
+.legend .desc { color: var(--muted); font-size: 12px; }
+.legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 6px 20px; }
+.legend-grid > div { display: flex; flex-direction: column; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 330px; } .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+figure { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+svg#map { display: block; width: 100%; min-width: 900px; height: auto; font-family: var(--font); }
+figcaption { color: var(--muted); font-size: 12.5px; max-width: 60em; }
+
+.lane-band { fill: var(--band); } .lane-label { fill: var(--muted); font-size: 11px; font-weight: 500; }
+.col-head { fill: var(--ink); font-size: 13px; font-weight: 700; } .col-sub { fill: var(--muted); font-size: 10px; font-family: var(--mono); }
+.col-rule { stroke: var(--line); stroke-width: 1; }
+.node { cursor: pointer; }
+.node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+.node.bm rect { fill: var(--band); }
+.node text { fill: var(--ink); font-size: 12px; }
+.node .hand { fill: var(--muted); font-size: 10px; }
+.node:hover rect { stroke: var(--ink); }
+.node.sel rect { fill: var(--sel-fill); stroke: var(--sel); stroke-width: 2; }
+.node.dim { opacity: .3; }
+.edge { fill: none; stroke-width: 1.1; opacity: .5; }
+.edge.c { stroke: var(--c-content); } .edge.m { stroke: var(--c-model); opacity: .32; }
+.edge.r { stroke: var(--c-rename); stroke-dasharray: 5 3; } .edge.o { stroke: var(--c-order); stroke-dasharray: 1.5 3; opacity: .8; }
+.edge.dim { opacity: .05; } .edge.hot { opacity: 1; stroke-width: 1.9; }
+.mk-c { fill: var(--c-content); } .mk-m { fill: var(--c-model); } .mk-r { fill: var(--c-rename); } .mk-o { fill: var(--c-order); }
+svg.hide-c .edge.c, svg.hide-m .edge.m, svg.hide-r .edge.r, svg.hide-o .edge.o { display: none; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel .stage-name { color: var(--muted); font-size: 12px; }
+.panel dl { margin: 0; display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 4px 10px; font-size: 12.5px; }
+.panel dt { color: var(--muted); } .panel dd { margin: 0; min-width: 0; }
+.rel { display: flex; flex-direction: column; gap: 6px; }
+.rel-row { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); gap: 8px; align-items: start; font-size: 12.5px; }
+.rel-row .k { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding-top: 3px; }
+.rel-row .k .sw { width: 16px; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 7px; cursor: pointer; }
+.chips button:hover { border-color: var(--ink); }
+.none { color: var(--muted); font-size: 12.5px; }
+.clear { align-self: flex-start; font: inherit; font-size: 12px; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 9px; cursor: pointer; }
+.clear:hover { color: var(--ink); border-color: var(--ink); }
+
+.matrix-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table.matrix { border-collapse: collapse; font-size: 12px; }
+.matrix th, .matrix td { border: 1px solid var(--line); padding: 0; text-align: center; }
+.matrix td { width: 26px; height: 26px; min-width: 26px; font-size: 13px; line-height: 1; }
+.matrix thead .grp th { padding: 4px 6px; font-weight: 700; background: var(--band); white-space: nowrap; }
+.matrix thead .cols th { writing-mode: vertical-rl; text-align: start; padding: 6px 2px; font-weight: 400; height: 11.5em; white-space: nowrap; vertical-align: bottom; }
+.matrix tbody th { text-align: start; padding: 2px 10px; font-weight: 400; white-space: nowrap; position: sticky; left: 0; background: var(--surface); }
+.matrix tbody th.grp { font-weight: 700; background: var(--band); }
+.matrix td.self { background: var(--band); }
+.matrix td.back { box-shadow: inset 0 0 0 2px var(--c-rename); }
+.t-c { color: var(--c-content); } .t-m { color: var(--c-model); } .t-r { color: var(--c-rename); } .t-o { color: var(--c-order); }
+.keys { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12.5px; color: var(--muted); }
+.keys b { font-weight: 500; font-size: 14px; }
+
+ol.findings { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 10px; max-width: 52em; }
+ol.findings li::marker { color: var(--muted); }
+.note { color: var(--muted); font-size: 12.5px; max-width: 60em; }
+ul.findings { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 60em; }
+dl.stats { margin: 0; display: grid; grid-template-columns: minmax(0, 17em) minmax(0, 1fr); gap: 8px 20px; max-width: 76em; }
+dl.stats dt { color: var(--muted); } dl.stats dd { margin: 0; min-width: 0; }
+@media (max-width: 640px) { dl.stats { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.stats dd { margin-bottom: 8px; } }
+footer.note { display: flex; flex-direction: column; gap: 4px; }
+</style>
+<!--BODY-->
+<div class="wrap">
+  <header class="lede">
+    <h1 id="title"></h1>
+    <p id="lede"></p>
+    <p class="sub">図の設計書を押すと、その設計書が読むものと、その設計書を読むものだけが残ります。</p>
+  </header>
+
+  <section>
+    <h2>線の種類</h2>
+    <div class="legend-grid">
+      <div><label class="legend"><input type="checkbox" id="f-c" checked><span class="sw c"></span>内容を読む</label><span class="desc">確定した設計書の中身を読んで計算に使う</span></div>
+      <div><label class="legend"><input type="checkbox" id="f-m" checked><span class="sw m"></span>補正後の業務モデル経由</label><span class="desc">system-actions-model.yaml の中の該当部分を読む</span></div>
+      <div><label class="legend"><input type="checkbox" id="f-r" checked><span class="sw r"></span>名前の付け替えだけ</label><span class="desc">URL や呼び名を変えたときの新旧の対応表だけを受け取る</span></div>
+      <div><label class="legend"><input type="checkbox" id="f-o" checked><span class="sw o"></span>順序だけ</label><span class="desc">依存は宣言しているが、値は読んでいない</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>工程と系統で並べた図</h2>
+    <div class="stage">
+      <figure>
+        <div class="scroll"><svg id="map" role="img" aria-label="業務モデルから基本設計・詳細設計・プログラム設計へ、設計書の種類ごとの依存関係を工程と系統の格子に並べた図"></svg></div>
+        <figcaption>矢印は「読まれる側 → 読む側」です。同じ工程の中の線は、箱の右側を回ります。「人」の印は、人が書く入力が入る設計書です。</figcaption>
+      </figure>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section>
+    <h2 id="matrix-title">読む側 × 読まれる側の表</h2>
+    <div class="keys"><span><b class="t-c">●</b> 内容を読む</span><span><b class="t-m">○</b> 補正後の業務モデル経由</span><span><b class="t-r">△</b> 名前の付け替えだけ</span><span><b class="t-o">・</b> 順序だけ</span><span>枠付きは、作る順で後ろにある設計書を読んでいる所</span></div>
+    <div class="matrix-scroll"><table class="matrix" id="matrix"></table></div>
+    <p class="note">行が読む側、列が読まれる側です。行と列は作る順に並べているので、印は対角線の左下に集まります。</p>
+  </section>
+
+  <section>
+    <h2>数えたこと</h2>
+    <dl class="stats" id="stats"></dl>
+  </section>
+
+  <section id="notes-section">
+    <h2>読み取ったこと（手書きのメモ）</h2>
+    <ol class="findings" id="notes"></ol>
+    <p class="note">このメモは <code>scripts/design-map.json</code> の <code>notes</code> に人が書いたものです。構成を変えたら、図と合っているかを見直します。</p>
+  </section>
+
+  <section id="warnings-section" hidden>
+    <h2>注意（設定と変換定義が合っていない所）</h2>
+    <ul class="findings" id="warnings"></ul>
+  </section>
+
+  <footer class="note" id="footer"></footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const COLS = DATA.cols, LANES = DATA.lanes, NODES = DATA.nodes, READS = DATA.reads;
+const TYPES = [['c', '内容を読む'], ['m', '業務モデル経由'], ['r', '名前だけ'], ['o', '順序だけ']];
+const byId = Object.fromEntries(NODES.map(n => [n.id, n]));
+const EDGES = [];
+for (const [t, groups] of Object.entries(READS)) for (const [type] of TYPES) for (const s of groups[type] || []) EDGES.push({ s, t, type });
+const text = (id, value) => { document.getElementById(id).textContent = value; };
+text('title', DATA.title);
+text('lede', '設計書の種類ごとに、ほかのどの設計書から作られているかを、変換定義から機械的に拾って並べました。' + COLS.slice(1).map((c, i) => `${c.label} ${NODES.filter(n => n.col === i + 1).length} 種`).join('・') + 'です。');
+
+// ---- 図 ----
+const NS = 'http://www.w3.org/2000/svg';
+const el = (name, attrs = {}, text) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+const NW = 172, NH = 28, ROW = 36, PAD = 9, X0 = 78, STEP = 236, TOP = 54;
+const svg = document.getElementById('map');
+const laneRows = {}; for (const n of NODES) laneRows[n.lane] = Math.max(laneRows[n.lane] || 0, n.row + 1);
+const laneTop = {}; let y = TOP;
+for (const l of LANES) { laneTop[l.id] = y; y += (laneRows[l.id] || 1) * ROW - (ROW - NH) + PAD * 2 + 6; }
+const W = X0 + STEP * (COLS.length - 1) + NW + 14, H = y + 4;
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const defs = el('defs');
+for (const [t] of TYPES) { const m = el('marker', { id: 'mk-' + t, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, markerUnits: 'userSpaceOnUse', orient: 'auto' }); m.appendChild(el('path', { d: 'M0,0.6 L8,4 L0,7.4 Z', class: 'mk-' + t })); defs.appendChild(m); }
+svg.appendChild(defs);
+LANES.forEach((l, i) => {
+  const h = (laneRows[l.id] || 1) * ROW - (ROW - NH) + PAD * 2;
+  if (i % 2 === 0) svg.appendChild(el('rect', { x: 0, y: laneTop[l.id], width: W, height: h, class: 'lane-band' }));
+  l.label.forEach((line, k) => svg.appendChild(el('text', { x: 10, y: laneTop[l.id] + PAD + 18 + k * 15, class: 'lane-label' }, line)));
+});
+COLS.forEach((c, i) => {
+  const x = X0 + STEP * i;
+  svg.appendChild(el('text', { x, y: 22, class: 'col-head' }, c.label));
+  svg.appendChild(el('text', { x, y: 38, class: 'col-sub' }, c.sub));
+});
+svg.appendChild(el('line', { x1: 0, y1: TOP - 8, x2: W, y2: TOP - 8, class: 'col-rule' }));
+const pos = n => ({ x: X0 + STEP * n.col, y: laneTop[n.lane] + PAD + n.row * ROW });
+const edgeLayer = el('g'), nodeLayer = el('g'); svg.appendChild(edgeLayer); svg.appendChild(nodeLayer);
+for (const e of EDGES) {
+  const a = byId[e.s], b = byId[e.t], pa = pos(a), pb = pos(b), ya = pa.y + NH / 2, yb = pb.y + NH / 2;
+  let d;
+  if (b.col > a.col) { const x1 = pa.x + NW, x2 = pb.x - 1, k = (x2 - x1) * 0.5; d = `M${x1},${ya} C${x1 + k},${ya} ${x2 - k},${yb} ${x2},${yb}`; }
+  else if (b.col < a.col) { const x1 = pa.x, x2 = pb.x + NW + 1, k = (x1 - x2) * 0.5; d = `M${x1},${ya} C${x1 - k},${ya} ${x2 + k},${yb} ${x2},${yb}`; }
+  else { const x = pa.x + NW, k = 16 + Math.min(34, Math.abs(yb - ya) * 0.16); d = `M${x},${ya} C${x + k},${ya} ${x + k + 1},${yb} ${x + 1},${yb}`; }
+  e.el = el('path', { d, class: 'edge ' + e.type, 'marker-end': `url(#mk-${e.type})` });
+  edgeLayer.appendChild(e.el);
+}
+for (const n of NODES) {
+  const p = pos(n), g = el('g', { class: 'node' + (n.col === 0 ? ' bm' : ''), tabindex: 0, role: 'button', 'aria-label': n.name });
+  g.appendChild(el('rect', { x: p.x, y: p.y, width: NW, height: NH, rx: 4 }));
+  g.appendChild(el('text', { x: p.x + 10, y: p.y + 18.5 }, n.name));
+  if (n.input) g.appendChild(el('text', { x: p.x + NW - 8, y: p.y + 18, 'text-anchor': 'end', class: 'hand' }, '人'));
+  g.addEventListener('click', () => select(n.id));
+  g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(n.id); } });
+  n.el = g; nodeLayer.appendChild(g);
+}
+
+// ---- 選択と詳細 ----
+const panel = document.getElementById('panel');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let current = null;
+function relRows(list) {
+  const rows = TYPES.map(([t, label]) => { const ids = list.filter(x => x.type === t).map(x => x.id); if (!ids.length) return ''; return `<div class="rel-row"><span class="k"><span class="sw ${t}"></span>${label}</span><span class="chips">${ids.map(id => `<button type="button" data-id="${id}">${esc(byId[id].name)}</button>`).join('')}</span></div>`; }).join('');
+  return rows || '<span class="none">ありません</span>';
+}
+function select(id) {
+  current = !id || id === current ? null : id;
+  for (const n of NODES) n.el.classList.remove('sel', 'dim');
+  for (const e of EDGES) e.el.classList.remove('dim', 'hot');
+  if (!current) {
+    panel.innerHTML = '<h3>設計書を選んでください</h3><p class="none">図の箱を押すと、その設計書が読むものと、その設計書を読むものだけが残ります。</p>';
+    return;
+  }
+  const n = byId[current], near = new Set([current]);
+  for (const e of EDGES) { const hit = e.s === current || e.t === current; e.el.classList.add(hit ? 'hot' : 'dim'); if (hit) { near.add(e.s); near.add(e.t); } }
+  for (const m of NODES) { if (m.id === current) m.el.classList.add('sel'); else if (!near.has(m.id)) m.el.classList.add('dim'); }
+  const ups = EDGES.filter(e => e.t === current).map(e => ({ id: e.s, type: e.type }));
+  const downs = EDGES.filter(e => e.s === current).map(e => ({ id: e.t, type: e.type }));
+  panel.innerHTML = `
+    <div><div class="stage-name">${esc(COLS[n.col].label)}</div><h3 style="font-size:15px">${esc(n.name)}</h3></div>
+    <dl><dt>${n.col === 0 ? '場所' : '確定物'}</dt><dd class="path">${esc(n.out)}</dd>
+        <dt>作る定義</dt><dd class="${n.col === 0 ? '' : 'path'}">${esc(n.by)}</dd>
+        ${n.input ? `<dt>人の入力</dt><dd class="path">${esc(n.input)}</dd>` : ''}</dl>
+    <div class="rel"><h3>これが読むもの</h3>${relRows(ups)}</div>
+    <div class="rel"><h3>これを読むもの</h3>${relRows(downs)}</div>
+    <button type="button" class="clear" id="clear">選択を外して全体を見る</button>`;
+}
+panel.addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; if (b.id === 'clear') select(current); else if (b.dataset.id && b.dataset.id !== current) select(b.dataset.id); });
+for (const [t] of TYPES) document.getElementById('f-' + t).addEventListener('change', ev => svg.classList.toggle('hide-' + t, !ev.target.checked));
+
+// ---- 表 ----
+const ORDER = DATA.matrix.rows, COLIDS = DATA.matrix.cols;
+const SYM = { c: '●', m: '○', r: '△', o: '・' };
+const typeOf = (t, s) => { for (const [k] of TYPES) if (((READS[t] || {})[k] || []).includes(s)) return k; return null; };
+const groups = ids => { const out = []; for (const id of ids) { const c = byId[id].col; if (out.length && out[out.length - 1].col === c) out[out.length - 1].n++; else out.push({ col: c, n: 1 }); } return out; };
+text('matrix-title', '読む側 × 読まれる側の表（' + groups(ORDER).map(g => COLS[g.col].label).join('と') + '）');
+let html = '<thead><tr class="grp"><th rowspan="2">読む側 ＼ 読まれる側</th>' + groups(COLIDS).map(g => `<th colspan="${g.n}">${esc(COLS[g.col].label)}</th>`).join('') + '</tr><tr class="cols">' + COLIDS.map(id => `<th scope="col">${esc(byId[id].name)}</th>`).join('') + '</tr></thead><tbody>';
+ORDER.forEach((t, i) => {
+  if (i === 0 || byId[ORDER[i - 1]].col !== byId[t].col) html += `<tr><th class="grp" colspan="${COLIDS.length + 1}">${esc(COLS[byId[t].col].label)}</th></tr>`;
+  html += `<tr><th scope="row">${esc(byId[t].name)}</th>` + COLIDS.map(s => {
+    if (s === t) return '<td class="self"></td>';
+    const k = typeOf(t, s); if (!k) return '<td></td>';
+    const back = ORDER.indexOf(s) > i ? ' back' : '';
+    return `<td class="t-${k}${back}" title="${esc(byId[t].name)} ← ${esc(byId[s].name)}（${TYPES.find(x => x[0] === k)[1]}）">${SYM[k]}</td>`;
+  }).join('') + '</tr>';
+});
+document.getElementById('matrix').innerHTML = html + '</tbody>';
+
+// ---- 数えたこと・メモ・注意 ----
+document.getElementById('stats').innerHTML = DATA.stats.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+document.getElementById('notes').innerHTML = DATA.notes.map(n => `<li>${esc(n)}</li>`).join('');
+document.getElementById('notes-section').hidden = !DATA.notes.length;
+document.getElementById('warnings').innerHTML = DATA.warnings.map(n => `<li>${esc(n)}</li>`).join('');
+document.getElementById('warnings-section').hidden = !DATA.warnings.length;
+document.getElementById('footer').innerHTML = [`線は、各変換定義が読むビューと、生成器の系譜の出力（<code>generate --lineage</code>）から拾いました。`, ...DATA.footnotes.map(esc), `生成: ${esc(DATA.generated)}（${esc(DATA.workspace)}。<code>scripts/design-map.py</code>）`].map(x => `<span>${x}</span>`).join('');
+
+select(byId[DATA.select] ? DATA.select : null);
+
+</script>
