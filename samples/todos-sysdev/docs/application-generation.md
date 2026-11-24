@@ -202,7 +202,7 @@ PowerShell の無い環境（Linux・macOS・Git Bash）では、同じ手順の
 samples/todos-sysdev/scripts/verify-app.sh
 ```
 
-この検証は `./gradlew test` には入っていない（GitHub Actions の `todos-application` が push ごとに回す）。業務モデル・生成の定義・ひな形を変えてアプリの型や操作が変わったら、`verification/` のテストも合わせて直し、手元で通してからコミットする。
+この検証は `./gradlew test` には入れていない（毎回の待ちが長くなるので、意図して外に出している。GitHub Actions の `todos-application` が push ごとに回す）。業務モデル・生成の定義・ひな形を変えてアプリの型や操作が変わったら、`verification/` のテストも合わせて直す。手元で確かめるなら上のスクリプトを使い、GitHub 上で失敗が見つかったら、そのとき直す。
 
 アプリだけを `scratchpad/application-verification/<作業ID>/` にコピーし、`verification/` の Mapper・状態型・例外・共通実行部・Service・画面入力・実 HTTP の結合テストを検証用コピーへ追加して実行する。
 この検証用データは標準の `example.todos` と現在の業務項目を対象とする。生成したアプリ自体のテストは、パッケージやテーブルを補正した場合も確定項目から作る。
