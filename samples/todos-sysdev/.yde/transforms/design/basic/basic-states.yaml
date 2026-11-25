@@ -1,0 +1,170 @@
+id: basic-states
+name: 基本設計項目一覧（状態と遷移）
+description: >-
+  業務モデルの Lifecycle と状態から、抽象システムモデルの「状態と遷移」を項目の形で作る（ADR-0042）。
+  状態・まとまり・はじまり・遷移に設計 ID を振り、同じ段の項目（エンティティ・項目・操作・状態）は ID で指す。値はすべて業務モデルから写し、設計の判断は入れない。
+  補正後の業務モデルを通さず、業務モデルを直接読む
+scope: business
+dependsOn:
+  - basic-entities
+output: design/basic/final/states.yaml
+build:
+  $apply: document
+  $with:
+    all:
+      $copy: states
+rules:
+  - id: document
+    with:
+      - all
+    build:
+      documentId: SYS-basic-states
+      lifecycles:
+        $each: lifecycles
+        $bind: lifecycle
+        $build:
+          id:
+            $format: LCY-{id}
+          source:
+            $copy: id
+          subject:
+            $copy: entity
+          entity:
+            $format: ENT-{entity}
+          states:
+            $each: states
+            $build:
+              id:
+                $format: STA-{id}
+              source:
+                $copy: id
+              value:
+                $copy: value
+              label:
+                $copy: label
+              path:
+                $apply: state-path
+                $with:
+                  state:
+                    $copy: id
+                  states:
+                    $copy: .
+                    $of: all
+              field:
+                $format: FLD-{entity}.{path}
+                $with:
+                  entity:
+                    $copy: entity
+                    $of: lifecycle
+                  path:
+                    $apply: state-path
+                    $with:
+                      state:
+                        $copy: id
+                      states:
+                        $copy: .
+                        $of: all
+          groups:
+            $each: groups
+            $build:
+              id:
+                $format: STG-{id}
+              source:
+                $copy: id
+              label:
+                $copy: label
+              states:
+                $each: states
+                $build:
+                  $format: STA-{id}
+          entries:
+            $each: entry
+            $build:
+              id:
+                $format: TRN-{lifecycle}.{action}
+                $with:
+                  lifecycle:
+                    $copy: id
+                    $of: lifecycle
+                  action:
+                    $copy: action
+              action:
+                $copy: action
+              operation:
+                $format: OPS-{entity}.{action}
+                $with:
+                  entity:
+                    $copy: entity
+                    $of: lifecycle
+                  action:
+                    $copy: action
+              to:
+                $format: STA-{to.id}
+          transitions:
+            $each: transitions
+            $build:
+              id:
+                $format: TRN-{lifecycle}.{action}
+                $with:
+                  lifecycle:
+                    $copy: id
+                    $of: lifecycle
+                  action:
+                    $copy: action
+              action:
+                $copy: action
+              operation:
+                $format: OPS-{entity}.{action}
+                $with:
+                  entity:
+                    $copy: entity
+                    $of: lifecycle
+                  action:
+                    $copy: action
+              from:
+                $each: from
+                $build:
+                  $format: STA-{id}
+              to:
+                $format: STA-{to.id}
+          terminal:
+            $each: terminal
+            $build:
+              $format: STA-{id}
+          historyPath:
+            $copy: history.path
+          history:
+            $when:
+              - path: history.path
+                exists: true
+            $then:
+              $format: FLD-{entity}.{history.path}
+  # 状態の ID から、その状態を持つ項目のキーを引く（業務モデルの states の path）
+  - id: state-path
+    with:
+      - state
+      - states
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: states
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: state
+            $then:
+              $first:
+                - $copy: path
+                - UNRESOLVED
+  - id: first
+    with:
+      - items
+    build:
+      $first:
+        - $copy: '[0]'
+          $of: items
+        - UNRESOLVED

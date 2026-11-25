@@ -1,0 +1,89 @@
+# 生成物（basic-states）: 手で直さず、業務モデルか生成の定義（design/basic/basic-states.yaml）を直して作り直します（CLI generate）。
+documentId: SYS-basic-states
+lifecycles:
+  - id: LCY-todo-lifecycle
+    source: todo-lifecycle
+    subject: todo
+    entity: ENT-todo
+    states:
+      - id: STA-todo-OPEN
+        source: todo-OPEN
+        value: OPEN
+        label: 未着手
+        path: status
+        field: FLD-todo.status
+      - id: STA-todo-IN_PROGRESS
+        source: todo-IN_PROGRESS
+        value: IN_PROGRESS
+        label: 対応中
+        path: status
+        field: FLD-todo.status
+      - id: STA-todo-SUSPENDED
+        source: todo-SUSPENDED
+        value: SUSPENDED
+        label: 中断
+        path: status
+        field: FLD-todo.status
+      - id: STA-todo-CLOSED
+        source: todo-CLOSED
+        value: CLOSED
+        label: 完了
+        path: status
+        field: FLD-todo.status
+      - id: STA-todo-CANCELED
+        source: todo-CANCELED
+        value: CANCELED
+        label: 中止
+        path: status
+        field: FLD-todo.status
+    groups:
+      - id: STG-todo-ACTIVE
+        source: todo-ACTIVE
+        label: 未完了
+        states:
+          - STA-todo-OPEN
+          - STA-todo-IN_PROGRESS
+          - STA-todo-SUSPENDED
+    entries:
+      - id: TRN-todo-lifecycle.register-todo
+        action: register-todo
+        operation: OPS-todo.register-todo
+        to: STA-todo-OPEN
+    transitions:
+      - id: TRN-todo-lifecycle.complete-todo
+        action: complete-todo
+        operation: OPS-todo.complete-todo
+        from:
+          - STA-todo-IN_PROGRESS
+        to: STA-todo-CLOSED
+      - id: TRN-todo-lifecycle.cancel-todo
+        action: cancel-todo
+        operation: OPS-todo.cancel-todo
+        from:
+          - STA-todo-OPEN
+          - STA-todo-IN_PROGRESS
+          - STA-todo-SUSPENDED
+        to: STA-todo-CANCELED
+      - id: TRN-todo-lifecycle.start-todo
+        action: start-todo
+        operation: OPS-todo.start-todo
+        from:
+          - STA-todo-OPEN
+        to: STA-todo-IN_PROGRESS
+      - id: TRN-todo-lifecycle.suspend-todo
+        action: suspend-todo
+        operation: OPS-todo.suspend-todo
+        from:
+          - STA-todo-IN_PROGRESS
+        to: STA-todo-SUSPENDED
+      - id: TRN-todo-lifecycle.resume-todo
+        action: resume-todo
+        operation: OPS-todo.resume-todo
+        from:
+          - STA-todo-SUSPENDED
+        to: STA-todo-IN_PROGRESS
+    terminal:
+      - STA-todo-CLOSED
+      - STA-todo-CANCELED
+    historyPath: history
+    history: FLD-todo.history

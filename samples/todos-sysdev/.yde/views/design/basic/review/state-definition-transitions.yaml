@@ -1,0 +1,21 @@
+id: state-definition-transitions
+name: 状態と遷移（はじまりと遷移）
+description: 基本設計の「状態と遷移」の項目一覧から、要素を作る操作（できる状態が空）と、状態を移す操作を並べる。状態と操作は、同じ段の項目への参照
+rows:
+  match:
+    - node: { id: "LCY-*", bind: l }
+    - edge: { contains: true }
+    - node: { id: "TRN-*", bind: t }
+  rowKey: t
+order: { schemaId: basic-state-list }
+columns:
+  - label: 状態の流れ
+    of: l
+    path: source
+  - label: 操作
+    path: operation
+  - label: できる状態
+    value:
+      path: from[*]
+  - label: 移り先の状態
+    path: to

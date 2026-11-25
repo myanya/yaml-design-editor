@@ -1,0 +1,169 @@
+id: basic-state-list
+name: 基本設計項目一覧（状態と遷移）
+kind: document
+description: >-
+  抽象システムモデルの「状態と遷移」。業務モデルの Lifecycle ごとに、状態・状態のまとまり・はじまり・遷移を項目の形で持つ（ADR-0042）。
+  同じ段の項目（エンティティ・項目・操作・状態）は ID で指し、名称や値を写さない。source・subject・action・path は、導出元（業務モデル）の識別子。
+  詳細設計の「状態の判定」は、業務モデルではなくこの一覧を読む。生成物で、手で直さない。
+match: design/basic/final/states.yaml
+definitions:
+  状態参照:
+    type: ref
+    idPatterns:
+      - STA-*
+    description: この一覧の状態（STA-業務モデルの状態の ID）
+root:
+  type: object
+  fields:
+    - key: documentId
+      type: id
+      required: true
+    - key: lifecycles
+      label: 状態の流れ
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: LCY-業務モデルの Lifecycle の ID
+          - key: source
+            label: 導出元
+            type: string
+            required: true
+            description: 業務モデルの Lifecycle の ID
+          - key: subject
+            label: 導出元のエンティティ型
+            type: string
+            required: true
+          - key: entity
+            label: エンティティ
+            type: ref
+            idPatterns:
+              - ENT-*
+            required: true
+          - key: states
+            label: 状態
+            type: array
+            item:
+              type: object
+              fields:
+                - key: id
+                  label: 設計項目ID
+                  type: id
+                  required: true
+                  description: STA-業務モデルの状態の ID
+                - key: source
+                  label: 導出元
+                  type: string
+                  required: true
+                  description: 業務モデルの状態の ID
+                - key: value
+                  label: 保存する値
+                  type: string
+                  required: true
+                - key: label
+                  label: 名称
+                  type: string
+                - key: path
+                  label: 状態を持つ項目のキー
+                  type: string
+                  description: 導出元（業務モデル）の項目のキー
+                - key: field
+                  label: 状態を持つ項目
+                  type: ref
+                  idPatterns:
+                    - FLD-*
+          - key: groups
+            label: 状態のまとまり
+            type: array
+            item:
+              type: object
+              fields:
+                - key: id
+                  label: 設計項目ID
+                  type: id
+                  required: true
+                  description: STG-業務モデルの親の状態の ID
+                - key: source
+                  label: 導出元
+                  type: string
+                  required: true
+                - key: label
+                  label: 名称
+                  type: string
+                - key: states
+                  label: 含む状態
+                  type: array
+                  item:
+                    type: 状態参照
+          - key: entries
+            label: はじまり
+            type: array
+            description: 要素を作る操作と、作ったときの状態
+            item:
+              type: object
+              fields:
+                - key: id
+                  label: 設計項目ID
+                  type: id
+                  required: true
+                  description: TRN-Lifecycle の ID.操作の ID
+                - key: action
+                  label: 導出元の操作
+                  type: string
+                  required: true
+                - key: operation
+                  label: 操作
+                  type: ref
+                  idPatterns:
+                    - OPS-*
+                - key: to
+                  label: 作ったときの状態
+                  type: 状態参照
+                  required: true
+          - key: transitions
+            label: 遷移
+            type: array
+            item:
+              type: object
+              fields:
+                - key: id
+                  label: 設計項目ID
+                  type: id
+                  required: true
+                  description: TRN-Lifecycle の ID.操作の ID
+                - key: action
+                  label: 導出元の操作
+                  type: string
+                  required: true
+                - key: operation
+                  label: 操作
+                  type: ref
+                  idPatterns:
+                    - OPS-*
+                - key: from
+                  label: できる状態
+                  type: array
+                  item:
+                    type: 状態参照
+                - key: to
+                  label: 移り先の状態
+                  type: 状態参照
+                  required: true
+          - key: terminal
+            label: 終わりの状態
+            type: array
+            item:
+              type: 状態参照
+          - key: historyPath
+            label: 履歴を持つ項目のキー
+            type: string
+            description: 導出元（業務モデル）の項目のキー
+          - key: history
+            label: 履歴を持つ項目
+            type: ref
+            idPatterns:
+              - FLD-*

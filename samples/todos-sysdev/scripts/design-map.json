@@ -201,6 +201,27 @@
       "input": "design/basic/inputs/entities/"
     },
     {
+      "id": "sta",
+      "name": "状態と遷移",
+      "column": "basic",
+      "lane": "op",
+      "transforms": [
+        "basic-states"
+      ],
+      "ids": [
+        "LCY-*",
+        "STA-*",
+        "STG-*",
+        "TRN-*",
+        "SYS-basic-states"
+      ],
+      "reads": {
+        "c": [
+          "bmO"
+        ]
+      }
+    },
+    {
       "id": "act",
       "name": "アクション定義書",
       "column": "basic",
@@ -768,6 +789,38 @@
         ]
       },
       {
+        "id": "b-sta",
+        "layer": "basic",
+        "row": 2,
+        "col": 3,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "状態と遷移",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:basic-states"
+        ],
+        "note": "業務モデルを直接読んで作ります（補正後の業務モデルを通しません）。詳細設計の「状態の判定」が、これを読みます。"
+      },
+      {
+        "id": "b-sta-view",
+        "layer": "basic",
+        "row": 1,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "状態と遷移の一覧"
+        ],
+        "views": [
+          "basic/review/state-definition-*.yaml"
+        ],
+        "reads": [
+          "b-sta"
+        ]
+      },
+      {
         "id": "b-ent-view",
         "layer": "basic",
         "row": 2,
@@ -1141,7 +1194,7 @@
     ],
     "notes": [
       "補正後の業務モデル（3 段）は、理想では無くなります。中身は業務モデルなので、これを読む詳細設計は、業務モデルを直接読んでいるのと同じに数えています。",
-      "情報とビューが分かれているのは、エンティティとテーブルだけです。この 2 つは項目（ENT-・FLD-・TBL-・COL- など）を保存し、定義書・設計書はビューが組み立てます。残りは、文書の形のファイルが情報を兼ねていて、ビューは中身を表示するだけです。"
+      "情報とビューが分かれているのは、エンティティ・状態と遷移・テーブルです。これらは項目（ENT-・FLD-・STA-・TRN-・TBL-・COL- など）を保存し、定義書・設計書はビューが組み立てます。残りは、文書の形のファイルが情報を兼ねていて、ビューは中身を表示するだけです。"
     ]
   },
   "ideal": {
@@ -1339,15 +1392,18 @@
         "label": [
           "状態と遷移"
         ],
-        "status": "new",
+        "status": "same",
         "from": [
           "bO"
         ],
         "refs": [
           "a-ent"
         ],
-        "note": "いまは詳細設計が業務モデルから直接読んでいます。",
-        "unit": "1 ファイル"
+        "note": "2026-11-25 に足しました。詳細設計の「状態の判定」は、業務モデルではなくこれを読みます。",
+        "unit": "1 ファイル",
+        "current": [
+          "t:basic-states"
+        ]
       },
       {
         "id": "a-rul",

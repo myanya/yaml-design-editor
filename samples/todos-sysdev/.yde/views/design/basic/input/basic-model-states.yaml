@@ -1,0 +1,7 @@
+id: basic-model-states
+name: 基本設計の生成入力（状態と遷移）
+description: 確定した状態と遷移の項目一覧を読む。詳細設計の生成は、業務モデルではなくここから状態を読む
+rows: { idPattern: "LCY-*", schemaIds: [basic-state-list] }
+order: { schemaId: basic-state-list }
+columns:
+  - { label: record, path: . }

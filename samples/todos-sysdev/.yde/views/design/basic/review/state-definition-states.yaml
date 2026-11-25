@@ -1,0 +1,22 @@
+id: state-definition-states
+name: 状態と遷移（状態）
+description: 基本設計の「状態と遷移」の項目一覧から、状態を並べる。値は確定項目をそのまま読み、ビューでは計算しない
+rows:
+  match:
+    - node: { id: "LCY-*", bind: l }
+    - edge: { contains: true }
+    - node: { id: "STA-*", bind: s }
+  rowKey: s
+order: { schemaId: basic-state-list }
+columns:
+  - label: 状態の流れ
+    of: l
+    path: source
+  - label: 状態
+    path: source
+  - label: 名称
+    path: label
+  - label: 保存する値
+    path: value
+  - label: 状態を持つ項目
+    path: field
