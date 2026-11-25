@@ -19,11 +19,25 @@ class TodosDesignTargetsTest {
     private fun raw(text: String) = YamlIO.parseToRaw(text) as Map<*, *>
     private fun rows(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
     private val accepted = "TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。"
-    private val corrections = Files.readString(sample.resolve("design/basic/inputs/entities/corrections.yaml"))
+    // サンプルの業務モデルは説明をそろえ、代表の説明の補正（COR-001）を無くした（ADR-0042）。
+    // 食い違いの検出と、補正での採用は、この試験の入力で元の食い違いを作って確かめる。
+    private val listDescription = "一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。"
+    private val detailDescription = "一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。"
+    private val corrections = """
+        corrections:
+          - id: COR-001
+            target: FLD-todo.id
+            set:
+              description: $accepted
+            reason: 一覧と個票で異なる ID の説明を、共通の番号とファイル名の関係を示す代表文にそろえる
+    """.trimIndent() + "\n"
 
     private fun store(correctionText: String = corrections, extra: String? = null): InMemoryDocumentStore {
         val files = sample.resolve(".yde/schemas/business").listDirectoryEntries("*.yaml")
             .associate { ".yde/schemas/business/${it.fileName}" to Files.readString(it) }.toMutableMap()
+        val common = ".yde/schemas/business/common.yaml"
+        assertEquals(2, files.getValue(common).split(accepted).size - 1, "一覧の行と個票の ID の説明")
+        files[common] = files.getValue(common).replaceFirst(accepted, listDescription).replaceFirst(accepted, detailDescription)
         for (name in listOf("basic-design-values", "basic-derived-model", "basic-derived", "basic-design-contract", "basic-targets", "basic-descriptions")) {
             val path = TodosSysdevFiles.definition(sample, "schemas", name)
             files[path] = Files.readString(sample.resolve(path))

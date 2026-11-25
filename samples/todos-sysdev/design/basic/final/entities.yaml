@@ -407,7 +407,7 @@ entities:
               label: ID
               type: TODO番号
               required: true
-              description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
           - kind: inherited
             source: common
             document: .yde/schemas/business/common.yaml
@@ -433,12 +433,7 @@ entities:
               label: ID
               type: TODO番号
               required: true
-              description: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
-          - kind: correction
-            source: COR-001
-            value:
               description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-            reason: 一覧と個票で異なる ID の説明を、共通の番号とファイル名の関係を示す代表文にそろえる
       - id: FLD-todo.title
         key: title
         seq: '02'

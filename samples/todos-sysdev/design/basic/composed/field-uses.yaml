@@ -160,7 +160,7 @@ schemas:
             label: ID
             type: TODO番号
             required: true
-            description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+            description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
           - key: title
             label: タイトル
             type: 一行の文
@@ -290,7 +290,7 @@ schemas:
             label: ID
             type: TODO番号
             required: true
-            description: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
+            description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
           - key: status
             label: ステータス
             type: ステータス

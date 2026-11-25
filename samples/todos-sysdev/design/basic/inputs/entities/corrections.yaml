@@ -1,9 +1,4 @@
-corrections:
-  - id: COR-001
-    target: FLD-todo.id
-    set:
-      description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-    reason: 一覧と個票で異なる ID の説明を、共通の番号とファイル名の関係を示す代表文にそろえる
+corrections: []
 specifications:
   - id: SPC-class-ENT-category
     target: ENT-category

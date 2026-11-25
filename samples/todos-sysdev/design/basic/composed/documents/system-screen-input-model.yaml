@@ -243,7 +243,6 @@ model:
                   inherited: false
                   declared:
                     key: id
-                    description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               required: true
               pattern: ^TODO-[0-9]{3,}$
@@ -610,7 +609,6 @@ model:
                   inherited: false
                   declared:
                     key: id
-                    description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               required: true
               pattern: ^TODO-[0-9]{3,}$
@@ -6800,7 +6798,6 @@ model:
           type: common#TODO個票
           fields:
             - key: id
-              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
             - key: status
             - key: created_on
             - key: updated_on
@@ -6869,7 +6866,6 @@ model:
                 type: common#TODO一覧の行
                 fields:
                   - key: id
-                    description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
                   - key: title
                   - key: summary
                   - key: category

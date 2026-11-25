@@ -243,7 +243,6 @@ model:
                   inherited: false
                   declared:
                     key: id
-                    description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               required: true
               pattern: ^TODO-[0-9]{3,}$
@@ -610,7 +609,6 @@ model:
                   inherited: false
                   declared:
                     key: id
-                    description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
               required: true
               pattern: ^TODO-[0-9]{3,}$
@@ -6158,7 +6156,6 @@ model:
           type: common#TODO個票
           fields:
             - key: id
-              description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
             - key: status
             - key: created_on
             - key: updated_on
@@ -6227,7 +6224,6 @@ model:
                 type: common#TODO一覧の行
                 fields:
                   - key: id
-                    description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
                   - key: title
                   - key: summary
                   - key: category
@@ -6256,141 +6252,6 @@ model:
     entities: []
     nested: []
     operations: []
-decisions:
-  - target: common
-    path:
-      - definitions
-      - TODO一覧の行
-      - fields
-      - 0
-      - description
-    candidates:
-      - target: common
-        path:
-          - definitions
-          - TODO一覧の行
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-    selected:
-      - target: common
-        path:
-          - definitions
-          - TODO一覧の行
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-  - target: common
-    path:
-      - definitions
-      - TODO個票
-      - fields
-      - 0
-      - description
-    candidates:
-      - target: common
-        path:
-          - definitions
-          - TODO個票
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-    selected:
-      - target: common
-        path:
-          - definitions
-          - TODO個票
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-  - target: todo-detail
-    path:
-      - root
-      - fields
-      - 0
-      - description
-    candidates:
-      - target: todo-detail
-        path:
-          - root
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-    selected:
-      - target: todo-detail
-        path:
-          - root
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-  - target: todo-list
-    path:
-      - root
-      - fields
-      - 0
-      - item
-      - fields
-      - 0
-      - description
-    candidates:
-      - target: todo-list
-        path:
-          - root
-          - fields
-          - 0
-          - item
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
-    selected:
-      - target: todo-list
-        path:
-          - root
-          - fields
-          - 0
-          - item
-          - fields
-          - 0
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: CMP-FIELD-FLD-todo.id
-          path: []
+decisions: []
 pending: []
 builtinPending: []

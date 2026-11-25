@@ -37,7 +37,7 @@
 ## 現在の変換経路
 
 1. `basic-derived` が業務モデルとスキーマ原文を保持し、`basic-targets` が設計 ID と宣言を対応付ける。
-2. `basic-descriptions` が説明を合成する。食い違いは補正で代表文を指定する。TODO の ID は承認済みの `COR-001` を使う。
+2. `basic-descriptions` が説明を合成する。食い違いがあれば生成を止める。業務モデルの食い違いは業務モデルを直す（ADR-0042。TODO の ID の説明は業務モデルの側でそろえ、補正 `COR-001` を無くした）。
 3. `basic-type-changes` → `basic-type-model` が名前付き共通型の補正を原文へ当て、`$schemaModel` で解決する。
 4. `basic-field-uses` → `basic-field-changes` → `basic-field-model` が利用箇所を分けて各側面へ個別補正を当て、再解決する。継承値を明記へ変えない。
 5. `basic-entity-candidates`・`basic-type-candidates` が保存形へ写す。同じ項目の値や入れ子が側面間で食い違えば停止する。

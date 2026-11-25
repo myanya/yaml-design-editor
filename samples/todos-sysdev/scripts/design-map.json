@@ -632,7 +632,8 @@
           "t:basic-field-uses",
           "t:basic-descriptions",
           "t:basic-field-changes"
-        ]
+        ],
+        "note": "項目への個別の判断を、画面・メッセージ・テーブルまで届ける実装でもあります。各定義書を項目の形にして ID で指すようにした後に、なくします（移行計画の段階 5）。"
       },
       {
         "id": "corr-1",
@@ -731,7 +732,7 @@
           "in:design/basic/inputs/entities/*.yaml",
           "in:design/basic/inputs/documents/*.yaml"
         ],
-        "note": "全体の判断（区分の定義）と個別の判断（区分の割当）にあたります。TODO の ID の説明の補正（COR-001）は、業務モデルを直すので無くなります。"
+        "note": "全体の判断（区分の定義）と個別の判断（区分の割当）にあたります。補正はいま 0 件です。"
       },
       {
         "id": "b-ent-work",
@@ -1286,7 +1287,7 @@
           "in:design/basic/inputs/entities/corrections.yaml",
           "in:design/basic/inputs/documents/*.yaml"
         ],
-        "note": "特定の要素だけの決定。いまは区分の割当だけです。TODO の ID の説明の補正（COR-001）は、業務モデルを直すので無くなります。"
+        "note": "特定の要素だけの決定。いまは区分の割当だけです（TODO の ID の説明の補正 COR-001 は、業務モデルを直して無くしました）。"
       },
       {
         "id": "a-typ",

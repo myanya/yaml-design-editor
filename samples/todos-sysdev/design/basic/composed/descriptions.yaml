@@ -758,7 +758,7 @@ items:
     descriptions:
       - id: DRV-DESC-FLD-todo.id.1
         designId: FLD-todo.id
-        value: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
         occurrences:
           - context:
               schema: todo-list
@@ -767,7 +767,7 @@ items:
             key: id
             type: common#TODO番号
             base: id
-            description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+            description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
             declarations:
               - schema: common
                 document: .yde/schemas/business/common.yaml
@@ -794,11 +794,7 @@ items:
                   label: ID
                   type: TODO番号
                   required: true
-                  description: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
-      - id: DRV-DESC-FLD-todo.id.2
-        designId: FLD-todo.id
-        value: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
-        occurrences:
+                  description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
           - context:
               schema: todo-detail
               at: ''
@@ -806,7 +802,7 @@ items:
             key: id
             type: common#TODO番号
             base: id
-            description: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
+            description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
             declarations:
               - schema: common
                 document: .yde/schemas/business/common.yaml
@@ -833,7 +829,7 @@ items:
                   label: ID
                   type: TODO番号
                   required: true
-                  description: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
+                  description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
   - id: CMP-FLD-todo.title
     designId: FLD-todo.title
     kind: field
@@ -2302,35 +2298,19 @@ decisions:
       - target: FLD-todo.id
         path:
           - description
-        value: 一覧内で一意のID。例：TODO-001。個票のIDとファイル名にも使用します。
+        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
         priority: rule
         source:
           id: DRV-DESC-FLD-todo.id.1
-          path: []
-      - target: FLD-todo.id
-        path:
-          - description
-        value: 一覧のIDと一致させ、todos/details/<ID>.yaml に保存します。
-        priority: rule
-        source:
-          id: DRV-DESC-FLD-todo.id.2
-          path: []
-      - target: FLD-todo.id
-        path:
-          - description
-        value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
-        source:
-          id: COR-001
           path: []
     selected:
       - target: FLD-todo.id
         path:
           - description
         value: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-        priority: individual
+        priority: rule
         source:
-          id: COR-001
+          id: DRV-DESC-FLD-todo.id.1
           path: []
   - target: FLD-todo.result
     path:
@@ -2605,9 +2585,4 @@ decisions:
         source:
           id: DRV-DESC-TYP-todo-operations.操作の記録.1
           path: []
-corrections:
-  - id: COR-001
-    target: FLD-todo.id
-    set:
-      description: TODO を識別する番号。一覧と個票で共通に使い、個票のファイル名にも使います（例：TODO-001）。
-    reason: 一覧と個票で異なる ID の説明を、共通の番号とファイル名の関係を示す代表文にそろえる
+corrections: []

@@ -28,7 +28,7 @@
 ほかの設計書の入力は、基本・詳細それぞれの `inputs/documents/corrections.yaml`・`additions.yaml` です。物理設計は `design/detail/inputs/tables/` の入力を使います。
 旧台帳の区分定義は追加へ、各エンティティの区分は `entity-class` の指定へ移しました。
 エンティティと型の確定項目は `design/basic/final/` の `entities.yaml`・`types.yaml`・`classes.yaml` です。導出記録と合成の記録は各段階の `derived/`・`composed/` に残ります。
-説明の食い違い、補正の競合、型・参照の誤り、未処理の指定があれば生成を止めます。TODO の ID は承認済みの `COR-001` を使います。
+説明の食い違い、補正の競合、型・参照の誤り、未処理の指定があれば生成を止めます。業務モデルの説明の食い違いは、業務モデルを直します（TODO の ID の説明は 2026-11-25 にそろえ、補正 `COR-001` を無くしました）。
 
 今回の到達点と残る作業は [生成処理と対応範囲](docs/entity-generation-contract.md) にまとめました。
 区分以外の追加、楽観ロックなどの方式の展開、組込み型の補正、継承した選択肢の子の個別補正は残っています。未対応の入力を確定済みとは扱いません。
