@@ -144,7 +144,7 @@ table.gone th { background: var(--band); font-weight: 700; white-space: nowrap; 
     <h2>箱の色（いまとの差）と線の種類</h2>
     <div class="kinds" id="statuses"></div>
     <div class="legend-grid">
-      <div><label class="legend"><input type="checkbox" id="f-from" checked><span class="sw from"></span>作る元</label><span class="desc">1 つ前の段のモデルを読んで作る</span></div>
+      <div><label class="legend"><input type="checkbox" id="f-from" checked><span class="sw from"></span>作る元</label><span class="desc">1 つ前の段のモデルを読んで作る（ソースコードは、詳細設計かプログラム設計）</span></div>
       <div><label class="legend"><input type="checkbox" id="f-ref" checked><span class="sw ref"></span>同じ段を指す</label><span class="desc">同じ段の項目を ID で指す（値は写さない）</span></div>
       <div><label class="legend"><input type="checkbox" id="f-view" checked><span class="sw view"></span>ビューが読む</label><span class="desc">定義書・設計書として見せる</span></div>
       <div><span class="legend"><span class="sw input"></span>判断が効く</span><span class="desc">その段のモデル全体に効く</span></div>
@@ -176,7 +176,7 @@ table.gone th { background: var(--band); font-weight: 700; white-space: nowrap; 
   <section id="notes-section">
     <h2>この体系の決まり</h2>
     <ol class="findings" id="notes"></ol>
-    <p class="note">箱・線・決まりは <code>scripts/design-map.json</code> の <code>ideal</code> に人が書いたものです。線が決まり（作る元は 1 つ前の段だけ、指すのは同じ段だけ）を守っているかは、スクリプトが確かめます。</p>
+    <p class="note">箱・線・決まりは <code>scripts/design-map.json</code> の <code>ideal</code> に人が書いたものです。線が決まり（作る元は決めた段だけ、指すのは同じ段だけ）を守っているかは、スクリプトが確かめます。</p>
   </section>
 
   <section id="warnings-section" hidden>
@@ -287,6 +287,7 @@ function select(id) {
     <div><div class="stage-name">${esc(layerName(n.layer))}</div><h3 style="font-size:15px">${esc(n.label.join(' '))}</h3></div>
     <div><span class="tag">${esc(KIND[n.kind])}</span>${fixed ? '' : `<span class="tag">${esc(DATA.statuses[n.status])}</span>`}</div>
     ${n.note ? `<p class="none">${esc(n.note)}</p>` : ''}
+    ${n.unit ? `<dl><dt>ファイル</dt><dd>${esc(n.unit)}</dd></dl>` : ''}
     ${fixed ? '' : `<div class="rel"><h3>いまのファイル（${n.current.length}）</h3>${n.current.length ? `<ul class="files">${n.current.map(p => `<li class="path">${esc(p)}</li>`).join('')}</ul>` : `<span class="none">${n.kind === 'view' ? 'ビューなので、ファイルはありません' : 'いまはありません'}</span>`}</div>`}
     <div class="rel"><h3>これが読むもの</h3>${rel(EDGES.filter(e => e.t === current), e => e.s)}</div>
     <div class="rel"><h3>これを読むもの</h3>${rel(EDGES.filter(e => e.s === current), e => e.t)}</div>

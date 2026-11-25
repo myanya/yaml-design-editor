@@ -574,6 +574,8 @@ def build_ideal(workspace, config, files):
     settings = config["ideal"]
     warnings = []
     layer_index = {layer["id"]: index for index, layer in enumerate(settings["layers"])}
+    layer_label = {layer["id"]: "".join(layer["label"]) for layer in settings["layers"]}
+    readable = {layer["id"]: set(layer.get("from", [])) for layer in settings["layers"]}  # 作る元にしてよい段
     nodes = settings["nodes"]
     by_id = {node["id"]: node for node in nodes}
     name = lambda identifier: "".join(by_id[identifier]["label"][:1])
@@ -587,8 +589,9 @@ def build_ideal(workspace, config, files):
                     warnings.append(f"「{name(node['id'])}」が読む「{source}」が、箱にありません")
                     continue
                 gap = layer_index[node["layer"]] - layer_index[by_id[source]["layer"]]
-                if kind == "from" and gap != 1:
-                    warnings.append(f"決まりに反する線: 「{name(node['id'])}」が「{name(source)}」を読みます（作る元は 1 つ前の段だけ）")
+                if kind == "from" and by_id[source]["layer"] not in readable[node["layer"]]:
+                    allowed = "・".join(layer_label[i] for i in sorted(readable[node["layer"]], key=layer_index.get)) or "なし"
+                    warnings.append(f"決まりに反する線: 「{name(node['id'])}」が「{name(source)}」を読みます（作る元にしてよい段は {allowed}）")
                 if kind in ("ref", "view") and gap != 0:
                     warnings.append(f"決まりに反する線: 「{name(node['id'])}」が「{name(source)}」を指します（指すのは同じ段だけ）")
                 edges.append([source, node["id"], kind])
@@ -604,7 +607,8 @@ def build_ideal(workspace, config, files):
                 used.add(hit)
                 current.append(file_nodes[hit]["path"])
         out_nodes.append({"id": node["id"], "layer": node["layer"], "kind": node["kind"], "row": node["row"], "col": node["col"],
-                          "label": node["label"], "status": node["status"], "note": node.get("note", ""), "current": current})
+                          "label": node["label"], "status": node["status"], "note": node.get("note", ""), "unit": node.get("unit", ""),
+                          "current": current})
     gone = [{"path": node["path"], "name": node["name"], "by": node["by"]}
             for identifier, node in sorted(file_nodes.items(), key=lambda item: (item[1]["level"], item[0])) if identifier not in used]
 
