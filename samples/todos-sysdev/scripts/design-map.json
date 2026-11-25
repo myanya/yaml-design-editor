@@ -557,7 +557,7 @@
     ]
   },
   "target": {
-    "comment": "目指す形への対応（docs/design-target-map.html）の設定。段（layers）と、各ファイルをどの段のどのまとまり（groups）に置くかを人が書く。まとまりの間の流れと、目指す形から外れているかどうかは計算する。from は、その段が読んでよい段。",
+    "comment": "目指す形への対応（docs/design-target-map.html）の設定。段（layers）と、いまの各ファイルをどの段のどのまとまり（groups）に置くかを人が書く。まとまりの間の流れと、目指す形から外れているかどうかは計算する。from は、その段が読んでよい段。carries は、そのまとまりが中身を写して持っている段（読むと、その段を読んだのと同じに数える）。",
     "title": "todos-sysdev 目指す形への対応",
     "select": "corr-3",
     "layers": [
@@ -569,30 +569,21 @@
         "from": []
       },
       {
-        "id": "corr",
+        "id": "basic",
         "label": [
-          "補正後",
-          "業務モデル"
+          "抽象システムモデル",
+          "（基本設計）"
         ],
         "from": [
           "bm"
-        ]
-      },
-      {
-        "id": "basic",
-        "label": [
-          "基本設計情報"
-        ],
-        "from": [
-          "corr"
         ],
         "view": "定義書"
       },
       {
         "id": "detail",
         "label": [
-          "詳細設計情報",
-          "（補正含む）"
+          "具体システムモデル",
+          "（詳細設計）"
         ],
         "from": [
           "basic"
@@ -603,7 +594,7 @@
         "id": "prog",
         "label": [
           "プログラム設計",
-          "（目指す形の外）"
+          "（配置）"
         ],
         "from": [
           "detail"
@@ -624,22 +615,8 @@
         ]
       },
       {
-        "id": "corr-in",
-        "layer": "corr",
-        "row": 0,
-        "col": 0,
-        "kind": "input",
-        "label": [
-          "補正の入力"
-        ],
-        "members": [
-          "in:design/basic/inputs/entities/corrections.yaml"
-        ],
-        "note": "同じファイルに、区分の指定（基本設計情報への入力）も入っています。"
-      },
-      {
         "id": "corr-steps",
-        "layer": "corr",
+        "layer": "basic",
         "row": 0,
         "col": 1,
         "kind": "work",
@@ -659,62 +636,70 @@
       },
       {
         "id": "corr-1",
-        "layer": "corr",
+        "layer": "basic",
         "row": 0,
         "col": 2,
-        "kind": "main",
+        "kind": "work",
         "label": [
-          "補正後業務モデル",
+          "補正後の業務モデル",
           "（1 段目）"
         ],
         "members": [
           "t:basic-field-model"
-        ]
+        ],
+        "carries": "bm",
+        "note": "業務モデルに補正を当てて解き直したもの。中身は業務モデルです。"
       },
       {
         "id": "corr-2",
-        "layer": "corr",
+        "layer": "basic",
         "row": 1,
         "col": 1,
-        "kind": "main",
+        "kind": "work",
         "label": [
-          "2 段目",
+          "同（2 段目）",
           "＋エンティティの名称と説明"
         ],
         "members": [
           "t:system-model"
-        ]
+        ],
+        "carries": "bm",
+        "note": "中身は業務モデルです。エンティティの名称と説明だけを、確定したエンティティから重ねています。"
       },
       {
         "id": "corr-3",
-        "layer": "corr",
+        "layer": "basic",
         "row": 1,
         "col": 2,
-        "kind": "main",
+        "kind": "work",
         "label": [
-          "3 段目",
+          "同（3 段目）",
           "＋確定した操作"
         ],
         "members": [
           "t:system-actions-model"
-        ]
+        ],
+        "carries": "bm",
+        "note": "中身は業務モデルです。これを読むことは、業務モデルを読むのと同じに数えます。"
       },
       {
         "id": "corr-4",
-        "layer": "corr",
+        "layer": "basic",
         "row": 1,
         "col": 3,
-        "kind": "main",
+        "kind": "work",
         "label": [
+          "同",
           "＋画面の入力項目"
         ],
         "members": [
           "t:system-screen-input-model"
-        ]
+        ],
+        "carries": "bm"
       },
       {
         "id": "corr-view",
-        "layer": "corr",
+        "layer": "basic",
         "row": 0,
         "col": 4,
         "kind": "view",
@@ -740,18 +725,18 @@
         "kind": "input",
         "label": [
           "基本設計の判断",
-          "（区分・補正・追加）"
+          "（補正・区分・追加）"
         ],
         "members": [
-          "in:design/basic/inputs/entities/additions.yaml",
+          "in:design/basic/inputs/entities/*.yaml",
           "in:design/basic/inputs/documents/*.yaml"
         ],
-        "note": "基本設計の全体の判断（区分の定義）と個別の判断（区分の割当）にあたります（2026-11-25 に決定）。"
+        "note": "全体の判断（区分の定義）と個別の判断（区分の割当）にあたります。TODO の ID の説明の補正（COR-001）は、業務モデルを直すので無くなります。"
       },
       {
         "id": "b-ent-work",
         "layer": "basic",
-        "row": 0,
+        "row": 2,
         "col": 1,
         "kind": "work",
         "label": [
@@ -767,7 +752,7 @@
       {
         "id": "b-ent",
         "layer": "basic",
-        "row": 0,
+        "row": 2,
         "col": 2,
         "kind": "main",
         "shape": "items",
@@ -784,7 +769,7 @@
       {
         "id": "b-ent-view",
         "layer": "basic",
-        "row": 0,
+        "row": 2,
         "col": 4,
         "kind": "view",
         "label": [
@@ -801,7 +786,7 @@
       {
         "id": "b-doc-derived",
         "layer": "basic",
-        "row": 1,
+        "row": 3,
         "col": 0,
         "kind": "work",
         "label": [
@@ -823,7 +808,7 @@
       {
         "id": "b-check",
         "layer": "basic",
-        "row": 1,
+        "row": 3,
         "col": 1,
         "kind": "work",
         "label": [
@@ -838,7 +823,7 @@
       {
         "id": "b-doc",
         "layer": "basic",
-        "row": 1,
+        "row": 3,
         "col": 2,
         "kind": "main",
         "shape": "documents",
@@ -861,7 +846,7 @@
       {
         "id": "b-names",
         "layer": "basic",
-        "row": 1,
+        "row": 3,
         "col": 3,
         "kind": "work",
         "label": [
@@ -874,7 +859,7 @@
       {
         "id": "b-doc-view",
         "layer": "basic",
-        "row": 1,
+        "row": 3,
         "col": 4,
         "kind": "view",
         "asIs": true,
@@ -1154,6 +1139,7 @@
       }
     ],
     "notes": [
+      "補正後の業務モデル（3 段）は、理想では無くなります。中身は業務モデルなので、これを読む詳細設計は、業務モデルを直接読んでいるのと同じに数えています。",
       "情報とビューが分かれているのは、エンティティとテーブルだけです。この 2 つは項目（ENT-・FLD-・TBL-・COL- など）を保存し、定義書・設計書はビューが組み立てます。残りは、文書の形のファイルが情報を兼ねていて、ビューは中身を表示するだけです。"
     ]
   },

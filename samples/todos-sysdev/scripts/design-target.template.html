@@ -104,7 +104,7 @@ dl.stats dt { color: var(--muted); } dl.stats dd { margin: 0; min-width: 0; }
 @media (max-width: 640px) { dl.stats { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.stats dd { margin-bottom: 8px; } }
 footer.note { display: flex; flex-direction: column; gap: 4px; }
 
-svg#map { min-width: 940px; }
+svg#map { min-width: 960px; }
 .band { fill: var(--band); } .band-label { fill: var(--ink); font-size: 13px; font-weight: 700; }
 .band-arrow { fill: var(--muted); font-size: 15px; } .head { fill: var(--muted); font-size: 11px; font-weight: 500; }
 .divider { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
@@ -141,7 +141,7 @@ table.off details summary { cursor: pointer; } table.off .pair { font-family: va
 <div class="wrap">
   <header class="lede">
     <h1 id="title"></h1>
-    <p>目指す形（業務モデル → 補正後業務モデル → 基本設計情報 → 詳細設計情報。定義書と設計書は、それぞれの情報のビュー）の段を帯にして、いまのファイルを置きました。</p>
+    <p>目指す形（業務モデル → 抽象システムモデル → 具体システムモデル → プログラム設計。定義書と設計書は、それぞれのモデルのビュー）の段を帯にして、いまのファイルを置きました。</p>
     <p class="sub" id="lede"></p>
   </header>
 
@@ -154,7 +154,7 @@ table.off details summary { cursor: pointer; } table.off .pair { font-family: va
       <span><i style="background:var(--k-check)"></i>検査</span>
       <span><i style="background:var(--k-view)"></i>ビュー（定義書・設計書）</span>
       <span><i style="border:2px solid var(--off)"></i>目指す形から外れた流れを受けている</span>
-      <span><i style="border:1px dashed var(--ink)"></i>置き場所が未定</span>
+      <span><i style="border:1px dashed var(--ink)"></i>理想では無くなるファイルを含む</span>
     </div>
     <div class="legend-grid">
       <div><label class="legend"><input type="checkbox" id="f-off" checked><span class="sw off"></span>後ろの段を読む ／ <span class="sw offskip"></span>段を飛ばして読む</label><span class="desc">目指す形から外れている流れ</span></div>
@@ -169,7 +169,7 @@ table.off details summary { cursor: pointer; } table.off .pair { font-family: va
     <div class="stage">
       <figure>
         <div class="scroll"><svg id="map" role="img" aria-label="目指す形の段ごとに、いまのファイルのまとまりを置き、まとまりの間の流れと、目指す形から外れている流れを示す図"></svg></div>
-        <figcaption>矢印は「読まれる側 → 読む側」です。上から下へ向かうのが目指す形で、赤い線は下から上へ戻るか、段を飛ばしています。箱の下の字は、ファイルの種類の数と状態です。</figcaption>
+        <figcaption>矢印は「読まれる側 → 読む側」です。上から下へ向かうのが目指す形で、赤い線は下から上へ戻るか、段を飛ばしています（業務モデルを写して持つものを、基本設計より後ろが読む場合を含みます）。箱の下の字は、ファイルの種類の数と状態です。</figcaption>
       </figure>
       <aside class="panel" id="panel" aria-live="polite"></aside>
     </div>
@@ -218,7 +218,7 @@ text('lede', `まとまりは ${GROUPS.length}、目指す形から外れてい�
 // ---- 配置: 段を帯にして上から下へ。列 0〜3 が情報とその途中経過、列 4 がビュー ----
 const NS = 'http://www.w3.org/2000/svg';
 const el = (name, attrs = {}, value) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (value != null) e.textContent = value; return e; };
-const NW = 178, NH = 58, COLW = 192, ROWH = 84, X0 = 118, PAD = 16, GAP = 26, TOP = 34;
+const NW = 178, NH = 58, COLW = 192, ROWH = 84, X0 = 144, PAD = 16, GAP = 26, TOP = 34;
 const W = X0 + COLW * 4 + NW + 14;
 const svg = document.getElementById('map');
 let y = TOP; const bandTop = {}, bandH = {};
@@ -260,11 +260,11 @@ for (const f of FLOWS) {
   edgeLayer.appendChild(f.el);
 }
 for (const g of GROUPS) {
-  const n = el('g', { class: `node k-${g.kind}${g.off ? ' off' : ''}${g.undecided ? ' undecided' : ''}`, tabindex: 0, role: 'button', 'aria-label': label(g) });
+  const n = el('g', { class: `node k-${g.kind}${g.off ? ' off' : ''}${g.gone ? ' undecided' : ''}`, tabindex: 0, role: 'button', 'aria-label': label(g) });
   n.appendChild(el('rect', { x: g.x, y: g.y, width: NW, height: NH, rx: g.kind === 'view' ? 14 : 4 }));
   g.label.forEach((line, k) => n.appendChild(el('text', { x: g.x + 10, y: g.y + (g.label.length === 1 ? 24 : 17) + k * 15, class: 'name' }, line)));
   const count = g.kind === 'view' ? `${g.views.length} ビュー` : `${g.files.length} 種`;
-  const marks = [g.shape === 'documents' ? '文書の形' : '', g.shape === 'items' ? '項目の形' : '', g.asIs ? 'そのまま表示' : '', g.undecided ? '未定' : ''].filter(Boolean);
+  const marks = [g.shape === 'documents' ? '文書の形' : '', g.shape === 'items' ? '項目の形' : '', g.asIs ? 'そのまま表示' : '', g.gone ? `理想に無い ${g.gone}` : ''].filter(Boolean);
   n.appendChild(el('text', { x: g.x + 10, y: g.y + NH - 8, class: 'meta' }, [count, ...marks].join(' · ')));
   if (g.off) n.appendChild(el('text', { x: g.x + NW - 8, y: g.y + NH - 8, 'text-anchor': 'end', class: 'meta warn' }, '外れあり'));
   n.addEventListener('click', () => select(g.id));
@@ -286,7 +286,7 @@ function select(id) {
   for (const f of FLOWS) { const hit = f.s === current || f.t === current; f.el.classList.add(hit ? 'hot' : 'dim'); if (hit) { near.add(f.s); near.add(f.t); } }
   for (const m of GROUPS) { if (m.id === current) m.el.classList.add('sel'); else if (!near.has(m.id)) m.el.classList.add('dim'); }
   const ins = FLOWS.filter(f => f.t === current), outs = FLOWS.filter(f => f.s === current);
-  const tags = [KIND[g.kind], g.shape === 'documents' ? '情報が文書の形（ビューと未分離）' : '', g.shape === 'items' ? '情報が項目の形' : '', g.asIs ? '保存した文書をそのまま表示' : '', g.undecided ? '置き場所が未定' : ''].filter(Boolean);
+  const tags = [KIND[g.kind], g.shape === 'documents' ? '情報が文書の形（ビューと未分離）' : '', g.shape === 'items' ? '情報が項目の形' : '', g.asIs ? '保存した文書をそのまま表示' : '', g.gone ? `理想では無くなるファイルが ${g.gone} 種` : '', g.carries ? '中身は業務モデル' : ''].filter(Boolean);
   panel.innerHTML = `
     <div><div class="stage-name">${esc(layerName(g.layer))}</div><h3 style="font-size:15px">${esc(label(g))}</h3></div>
     <div>${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}${g.off ? '<span class="tag off">外れた流れを受けている</span>' : ''}</div>

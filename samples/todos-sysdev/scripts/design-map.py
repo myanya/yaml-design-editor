@@ -496,6 +496,7 @@ def build_target(workspace, config, files):
     layer_index = {layer["id"]: index for index, layer in enumerate(settings["layers"])}
     allowed = {layer["id"]: set(layer.get("from", [])) | {layer["id"]} for layer in settings["layers"]}
     file_nodes = {node["id"]: node for node in files["nodes"]}
+    outside = files_outside_ideal(config, file_nodes)
 
     group_of, groups = {}, []
     view_root = workspace / ".yde" / "views" / "design"
@@ -522,6 +523,7 @@ def build_target(workspace, config, files):
             "id": raw["id"], "layer": raw["layer"], "row": raw.get("row", 0), "col": raw.get("col", 0), "kind": raw.get("kind", "work"),
             "label": raw["label"], "note": raw.get("note", ""), "shape": raw.get("shape", ""),
             "undecided": bool(raw.get("undecided")), "asIs": bool(raw.get("asIs")), "reads": raw.get("reads", []),
+            "carries": raw.get("carries", ""), "gone": sum(1 for m in members if m in outside),
             "files": [{"path": file_nodes[m]["path"], "by": file_nodes[m]["by"]} for m in sorted(members, key=lambda m: (file_nodes[m]["level"], m))],
             "views": views,
         })
@@ -553,6 +555,8 @@ def build_target(workspace, config, files):
             status = "back"
         elif source_layer not in allowed[target_layer]:
             status = "skip"
+        elif by_id[a]["carries"] and by_id[a]["carries"] not in allowed[target_layer]:
+            status = "skip"  # 前の段を写して持つものを読むのは、その段を読むのと同じ
         out_flows.append({"s": a, "t": b, "status": status, "pairs": sorted(pairs)})
 
     off = [flow for flow in out_flows if flow["status"] in ("back", "skip")]
@@ -562,11 +566,25 @@ def build_target(workspace, config, files):
         ["目指す形どおりの流れ", f"{sum(1 for f in out_flows if f['status'] == 'ok')} 本"],
         ["情報が文書の形のまとまり", "、".join(name(g["id"]) for g in groups if g["shape"] == "documents") or "ありません"],
         ["情報が項目の形のまとまり", "、".join(name(g["id"]) for g in groups if g["shape"] == "items") or "ありません"],
-        ["置き場所が未定のまとまり", "、".join(name(g["id"]) for g in groups if g["undecided"]) or "ありません"],
+        ["理想では無くなるファイルを含むまとまり", "、".join(f"{name(g['id'])}（{g['gone']} 種）" for g in groups if g["gone"]) or "ありません"],
     ]
     return {"title": settings["title"], "select": settings.get("select") if settings.get("select") in by_id else None,
             "layers": settings["layers"], "groups": groups, "flows": out_flows, "stats": stats,
             "notes": settings.get("notes", []), "warnings": warnings}
+
+
+def ideal_hits(pattern, file_nodes):
+    """理想の箱の current（t: は変換定義の出力、in: は人の入力の型）に当たる、いまのファイルの箱。"""
+    return [i for i in file_nodes if i == pattern or (pattern.startswith("in:") and i.startswith("in:") and glob_regex(pattern[3:]).match(i[3:]))]
+
+
+def files_outside_ideal(config, file_nodes):
+    """いまあって、理想のどの箱にも当てていないファイルの箱。"""
+    used = set()
+    for node in config.get("ideal", {}).get("nodes", []):
+        for pattern in node.get("current", []):
+            used.update(ideal_hits(pattern, file_nodes))
+    return set(file_nodes) - used if "ideal" in config else set()
 
 
 def build_ideal(workspace, config, files):
@@ -600,7 +618,7 @@ def build_ideal(workspace, config, files):
     for node in nodes:
         current = []
         for pattern in node.get("current", []):
-            hits = [i for i in file_nodes if i == pattern or (pattern.startswith("in:") and i.startswith("in:") and glob_regex(pattern[3:]).match(i[3:]))]
+            hits = ideal_hits(pattern, file_nodes)
             if not hits:
                 warnings.append(f"「{name(node['id'])}」の current「{pattern}」に当たるファイルが、いまはありません")
             for hit in sorted(hits, key=lambda i: (file_nodes[i]["level"], i)):
