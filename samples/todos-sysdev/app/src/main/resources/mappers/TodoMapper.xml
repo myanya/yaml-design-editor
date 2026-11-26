@@ -867,6 +867,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.ownerNextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 

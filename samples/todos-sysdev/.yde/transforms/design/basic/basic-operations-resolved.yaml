@@ -279,7 +279,7 @@ build:
                     $of: op
           when:
             $copy: when
-          # 自動で入る版（revision）は、値を「受け手のその項目の、次の値」として渡す（読む側は next の場所として解く）
+          # 自動で入る版（revision）は、値を「その項目の、次の値」として渡す。受け手の項目なら next、受け手を入れ子で持つ親の項目なら ownerNext
           value:
             $first:
               - $when:
@@ -291,7 +291,16 @@ build:
                       value:
                         $copy: path
                     - key: $$of
-                      value: next
+                      value:
+                        $first:
+                          - $when:
+                              - not:
+                                  path: subject
+                                  equals:
+                                    $copy: subject
+                                    $of: op
+                            $then: ownerNext
+                          - next
               - $copy: value
           values:
             $copy: values

@@ -67,8 +67,8 @@ public class WebActions {
             (id,form) -> op12.execute(id, (SuspendTodoForm)form),
             (id,form) -> op12.check(id, (SuspendTodoForm)form)));
         actions.put("todo-task.finish",new Action(
-            () -> null,
-            (id,form) -> op13.execute(id),
+            () -> new TodoTaskFinishForm(),
+            (id,form) -> op13.execute(id, (TodoTaskFinishForm)form),
             (id,form) -> List.of()));
     }
 }

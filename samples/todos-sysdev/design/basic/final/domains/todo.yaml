@@ -283,7 +283,10 @@ operations:
       - 版
   - label: 作業項目を済にする
     of: 作業項目
-    inputs: []
+    requires:
+      - '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    inputs:
+      - 版
 rules:
   - label: 期限は作成日以降であること
     level: 守る（破ると断る）

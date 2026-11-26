@@ -7,6 +7,10 @@ starts:
   - screen: todo
     place: 表「作業項目」の行のボタン
 shownWhen: いつも
+carried:
+  version:
+    $copy: version
+    $of: owner
 confirm:
   screen: todo-task.finish/confirm
   request: GET /todo-task/{id}/todo-task.finish/confirm
@@ -16,6 +20,8 @@ execute:
   returns: 起点の画面（starts の画面。画面の ID で受け取る）
   notice: todo-task.finish.done
   refusals:
+    - key: todo-task.finish.version-unchanged
+      message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     - key: check.updated-not-before-created
       message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
     - key: check.closed-has-no-open-task

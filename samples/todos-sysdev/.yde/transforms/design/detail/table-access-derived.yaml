@@ -967,6 +967,11 @@ rules:
                   equals:
                     $copy: id
                     $of: element
+                # 親の値を条件にする前提（同時更新の検出の、親の版）は、読んだ親の行で確かめるので、件数の検査にしない
+                - not:
+                    path: rule.where[0].of
+                    equals:
+                      $copy: rule.match[0].node.bind
               name:
                 $format: count{n}
                 $with:

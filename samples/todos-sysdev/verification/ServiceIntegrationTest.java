@@ -71,7 +71,7 @@ class ServiceIntegrationTest {
         refusal("start-todo.state", () -> todos.startTodo(id, v(id)));
         assertTrue(todos.checkCompleteTodo(id, today, "完了", v(id)).stream().anyMatch(v -> v.key().equals("complete-todo.no-open-task")));
         refusal("complete-todo.no-open-task", () -> todos.completeTodo(id, today, "完了", v(id)));
-        tasks.todoTaskFinish(child);
+        tasks.todoTaskFinish(child, v(id));
         todos.suspendTodo(id, today, "待機", today.plusDays(1), v(id));
         assertEquals("SUSPENDED", status(id));
         todos.resumeTodo(id, today, "再開", v(id));
@@ -101,6 +101,14 @@ class ServiceIntegrationTest {
         todos.addTodoComment(id, today, "最新の画面から", 1L);
         assertEquals(2L, v(id));
         assertEquals(1, count("todo_comments"));
+        // 入れ子の要素（作業項目）の操作も、親の TODO の版を確かめて進める
+        var child = todos.addTodoTask(id, "準備", 2L);
+        assertEquals(3L, v(id));
+        refusal("todo-task.finish.version-unchanged", () -> tasks.todoTaskFinish(child, 2L));
+        assertFalse(jdbc.queryForObject("SELECT done FROM todo_task WHERE id = ?", Boolean.class, child));
+        tasks.todoTaskFinish(child, 3L);
+        assertEquals(4L, v(id));
+        assertTrue(jdbc.queryForObject("SELECT done FROM todo_task WHERE id = ?", Boolean.class, child));
     }
 
     @Test void previewSharesChecksWithoutWritingOrConsumingNumbers() {
@@ -161,13 +169,13 @@ class ServiceIntegrationTest {
         var first = todos.addTodoTask(id, "一つ目", v(id));
         todos.addTodoTask(id, "二つ目", v(id));
         jdbc.update("UPDATE todo SET status = 'CLOSED', completed_on = ?, result = '検証', updated_on = ? WHERE id = ?", today, today.minusDays(1), id);
-        var error = assertThrows(RefusedException.class, () -> tasks.todoTaskFinish(first));
+        var error = assertThrows(RefusedException.class, () -> tasks.todoTaskFinish(first, v(id)));
         assertEquals("check.closed-has-no-open-task", error.getViolation().key());
         assertEquals(id, error.getViolation().values().get("id"));
         assertFalse(jdbc.queryForObject("SELECT done FROM todo_task WHERE id = ?", Boolean.class, first));
         assertEquals(today.minusDays(1), jdbc.queryForObject("SELECT updated_on FROM todo WHERE id = ?", LocalDate.class, id));
         jdbc.update("UPDATE todo SET status = 'OPEN', completed_on = NULL, created_on = ? WHERE id = ?", today.plusDays(1), id);
-        refusal("check.updated-not-before-created", () -> tasks.todoTaskFinish(first));
+        refusal("check.updated-not-before-created", () -> tasks.todoTaskFinish(first, v(id)));
         assertFalse(jdbc.queryForObject("SELECT done FROM todo_task WHERE id = ?", Boolean.class, first));
     }
 

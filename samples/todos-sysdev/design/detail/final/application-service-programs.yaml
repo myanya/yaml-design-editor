@@ -11949,6 +11949,25 @@ services:
               target: todo-task
               receiver: true
               classes: []
+            - key: version
+              name: version
+              accessor: Version
+              path: version
+              type: java.lang.Long
+              base: int
+              constraints:
+                key: version
+                label: 版
+                type: int
+                base: int
+                description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+                required: true
+                builtinType:
+                  name: int
+                  base: int
+                  builtin: true
+                carried: true
+              classes: []
           classes: []
         confirm: []
         tokens:
@@ -12004,8 +12023,53 @@ services:
               );
           - valid: true
             plain: true
+            raw: '        var owner = '
+          - valid: true
+            plain: true
+            raw: 'ServiceChecks.call(new TodoMapper.FindByIdInput(), p -> '
+          - valid: true
+            plain: true
+            raw: '{ '
+          - valid: true
+            plain: true
+            raw: p.setId(
+          - valid: true
+            plain: true
+            raw: original.getTodoId()
+          - valid: true
+            plain: true
+            raw: '); '
+          - valid: true
+            plain: true
+            raw: '}, '
+          - valid: true
+            plain: true
+            raw: todoMapper::findById)
+          - valid: true
+            plain: true
+            raw: ";\n        if (owner == null) throw new "
+          - valid: true
+            errorClass: NotFoundException
+          - valid: true
+            plain: true
+            raw: (
+          - valid: true
+            literal: true
+            value: todo
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: original.getTodoId()
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2-
-                      var rows3 = new java.util.ArrayList<TodoTaskRow>();
+                      var rows5 = new java.util.ArrayList<TodoTaskRow>();
                       if (Boolean.TRUE.equals(
           - valid: true
             plain: true
@@ -12020,10 +12084,10 @@ services:
           - valid: true
             plain: true
             raw: |2
-                          var row3 = new TodoTaskRow();
+                          var row5 = new TodoTaskRow();
           - valid: true
             plain: true
-            raw: '            row3.setDone('
+            raw: '            row5.setDone('
           - valid: true
             plain: true
             raw: 'false'
@@ -12035,27 +12099,27 @@ services:
           - valid: true
             plain: true
             raw: |2
-                          var before3 = original;
+                          var before5 = original;
           - valid: true
             plain: true
             raw: |2
-                          row3.setId(before3.getId());
+                          row5.setId(before5.getId());
           - valid: true
             plain: true
             raw: |2
-                          row3.setTodoId(before3.getTodoId());
+                          row5.setTodoId(before5.getTodoId());
           - valid: true
             plain: true
             raw: |2
-                          row3.setSeq(before3.getSeq());
+                          row5.setSeq(before5.getSeq());
           - valid: true
             plain: true
             raw: |2
-                          row3.setTitle(before3.getTitle());
+                          row5.setTitle(before5.getTitle());
           - valid: true
             plain: true
             raw: |2
-                          row3.setDone(before3.getDone());
+                          row5.setDone(before5.getDone());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -12071,7 +12135,7 @@ services:
               )) {
           - valid: true
             plain: true
-            raw: '                row3.setDone('
+            raw: '                row5.setDone('
           - valid: true
             plain: true
             raw: 'true'
@@ -12086,7 +12150,7 @@ services:
           - valid: true
             plain: true
             raw: |2
-                          rows3.add(row3);
+                          rows5.add(row5);
           - valid: true
             plain: true
             raw: |2
@@ -12094,7 +12158,7 @@ services:
           - valid: true
             plain: true
             raw: |2-
-                      var rows4 = new java.util.ArrayList<TodoRow>();
+                      var rows6 = new java.util.ArrayList<TodoRow>();
                       if (Boolean.TRUE.equals(
           - valid: true
             plain: true
@@ -12109,10 +12173,10 @@ services:
           - valid: true
             plain: true
             raw: |2
-                          var row4 = new TodoRow();
+                          var row6 = new TodoRow();
           - valid: true
             plain: true
-            raw: '            row4.setStatus('
+            raw: '            row6.setStatus('
           - valid: true
             literal: true
             value: OPEN
@@ -12122,7 +12186,7 @@ services:
               );
           - valid: true
             plain: true
-            raw: '            row4.setVersion('
+            raw: '            row6.setVersion('
           - valid: true
             plain: true
             raw: 0L
@@ -12133,7 +12197,7 @@ services:
               );
           - valid: true
             plain: true
-            raw: '            var before4 = '
+            raw: '            var before6 = '
           - valid: true
             plain: true
             raw: ServiceChecks.call(new TodoMapper.FindByIdInput(), p -> p.setId(
@@ -12149,7 +12213,7 @@ services:
               ;
           - valid: true
             plain: true
-            raw: '            if (before4 == null) throw new '
+            raw: '            if (before6 == null) throw new '
           - valid: true
             errorClass: NotFoundException
           - valid: true
@@ -12171,55 +12235,55 @@ services:
           - valid: true
             plain: true
             raw: |2
-                          row4.setId(before4.getId());
+                          row6.setId(before6.getId());
           - valid: true
             plain: true
             raw: |2
-                          row4.setTitle(before4.getTitle());
+                          row6.setTitle(before6.getTitle());
           - valid: true
             plain: true
             raw: |2
-                          row4.setSummary(before4.getSummary());
+                          row6.setSummary(before6.getSummary());
           - valid: true
             plain: true
             raw: |2
-                          row4.setCategory(before4.getCategory());
+                          row6.setCategory(before6.getCategory());
           - valid: true
             plain: true
             raw: |2
-                          row4.setFollows(before4.getFollows());
+                          row6.setFollows(before6.getFollows());
           - valid: true
             plain: true
             raw: |2
-                          row4.setStatus(before4.getStatus());
+                          row6.setStatus(before6.getStatus());
           - valid: true
             plain: true
             raw: |2
-                          row4.setCreatedOn(before4.getCreatedOn());
+                          row6.setCreatedOn(before6.getCreatedOn());
           - valid: true
             plain: true
             raw: |2
-                          row4.setUpdatedOn(before4.getUpdatedOn());
+                          row6.setUpdatedOn(before6.getUpdatedOn());
           - valid: true
             plain: true
             raw: |2
-                          row4.setDueOn(before4.getDueOn());
+                          row6.setDueOn(before6.getDueOn());
           - valid: true
             plain: true
             raw: |2
-                          row4.setCompletedOn(before4.getCompletedOn());
+                          row6.setCompletedOn(before6.getCompletedOn());
           - valid: true
             plain: true
             raw: |2
-                          row4.setDetails(before4.getDetails());
+                          row6.setDetails(before6.getDetails());
           - valid: true
             plain: true
             raw: |2
-                          row4.setResult(before4.getResult());
+                          row6.setResult(before6.getResult());
           - valid: true
             plain: true
             raw: |2
-                          row4.setVersion(before4.getVersion());
+                          row6.setVersion(before6.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -12235,7 +12299,7 @@ services:
               )) {
           - valid: true
             plain: true
-            raw: '                row4.setUpdatedOn('
+            raw: '                row6.setUpdatedOn('
           - valid: true
             plain: true
             raw: today
@@ -12249,15 +12313,117 @@ services:
               {}
           - valid: true
             plain: true
+            raw: '            if (Boolean.TRUE.equals('
+          - valid: true
+            plain: true
+            raw: ServiceChecks.and(Boolean.TRUE
+          - valid: true
+            plain: true
+            raw: )
+          - valid: true
+            plain: true
+            raw: |
+              )) {
+          - valid: true
+            plain: true
+            raw: '                row6.setVersion('
+          - valid: true
+            plain: true
+            raw: (owner.getVersion() + 1L)
+            error: 値の型が書込先の Java 型と一致しません
+          - valid: true
+            plain: true
+            raw: ");\n            } else "
+          - valid: true
+            plain: true
+            raw: |
+              {}
+          - valid: true
+            plain: true
             raw: |2
-                          rows4.add(row4);
+                          rows6.add(row6);
           - valid: true
             plain: true
             raw: |2
                       }
           - valid: true
             plain: true
-            raw: '        for (var checked : rows4) '
+            raw: '        if (!Boolean.TRUE.equals('
+          - valid: true
+            plain: true
+            raw: ServiceChecks.and(Boolean.TRUE
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: ServiceChecks.equal(
+          - valid: true
+            plain: true
+            raw: owner.getVersion()
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: input.getVersion()
+          - valid: true
+            plain: true
+            raw: )
+          - valid: true
+            plain: true
+            raw: )
+          - valid: true
+            plain: true
+            raw: |
+              )) {
+          - valid: true
+            plain: true
+            raw: '            violations.add(ServiceChecks.violation('
+          - valid: true
+            literal: true
+            value: todo-task.finish.version-unchanged
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: 'null'
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: original.getTodoId()
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: 'null'
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: 'null'
+          - valid: true
+            plain: true
+            raw: ', '
+          - valid: true
+            plain: true
+            raw: 'null'
+          - valid: true
+            plain: true
+            raw: |
+              ));
+          - valid: true
+            plain: true
+            raw: |2
+                      }
+          - valid: true
+            plain: true
+            raw: '        for (var checked : rows6) '
           - valid: true
             plain: true
             raw: |
@@ -12370,7 +12536,7 @@ services:
               (violations.getFirst());
           - valid: true
             plain: true
-            raw: '        if (!rows3.isEmpty()) '
+            raw: '        if (!rows5.isEmpty()) '
           - valid: true
             plain: true
             raw: "{\n            "
@@ -12402,7 +12568,7 @@ services:
                       }
           - valid: true
             plain: true
-            raw: '        if (!rows4.isEmpty()) '
+            raw: '        if (!rows6.isEmpty()) '
           - valid: true
             plain: true
             raw: "{\n            "
@@ -12427,6 +12593,15 @@ services:
           - valid: true
             plain: true
             raw: today
+          - valid: true
+            plain: true
+            raw: '); '
+          - valid: true
+            plain: true
+            raw: p.setOwnerNextVersion(
+          - valid: true
+            plain: true
+            raw: (owner.getVersion() + 1L)
           - valid: true
             plain: true
             raw: '); '
@@ -12536,12 +12711,17 @@ services:
           - name: id
             accessor: Id
             type: java.lang.String
+          - name: version
+            accessor: Version
+            type: java.lang.Long
         contract:
           reads:
             - 1
           numbers: []
           steps:
             - read
+            - read-owner
+            - check
             - check
             - write
             - write

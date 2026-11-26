@@ -1283,4 +1283,23 @@ operations:
         target: todo-task
         receiver: true
         classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
     classes: []

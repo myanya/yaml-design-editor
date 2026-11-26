@@ -93,7 +93,7 @@ class TodosWebDesignTest {
     fun `入力を持つ全操作と入れ子を生成し未知の検査やメッセージ不足を拒否する`() {
         val saved = raw(Files.readString(sample.resolve(formsOutput)))
         val forms = rows(saved, "forms")
-        assertEquals(13, forms.size)
+        assertEquals(14, forms.size)
         // 編集の入力の入れ子は「値を消す」だけ（コメント一覧の行は、追加・編集・削除の操作へ移った）
         assertEquals(listOf("EditTodoClear"), rows(forms.single { it["className"] == "EditTodoForm" }, "classes").map { it["name"] })
         val sources = originals().mapValues { (file, text) -> if ("/final/" in file) YamlIO.dumpPlain(YamlIO.fromAny(raw(text))) else text }
@@ -120,7 +120,7 @@ class TodosWebDesignTest {
             val plan = Generators.plan(WorkspaceSession(store), setOf("web-forms-probe"))
             if (change == "valid") {
                 assertEquals(emptyList(), plan.errors)
-                assertEquals(13, rows(raw(plan.outputs.single().text), "forms").size)
+                assertEquals(14, rows(raw(plan.outputs.single().text), "forms").size)
             } else {
                 assertTrue(plan.errors.isNotEmpty(), change)
                 assertTrue(plan.transaction.operations.isEmpty(), change)

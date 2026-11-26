@@ -149,6 +149,43 @@ build:
                           $copy: target.entity
                     entity:
                       $copy: target.entity
+              # 受け手を入れ子で持つ親の値を条件にする前提（同時更新の検出の、親の版）があれば、親の行を読む
+              - $each: require
+                $build:
+                  $when:
+                  - path: rule.match[1].edge.contains
+                    equals: true
+                  - path: rule.match[2].node.entity
+                    equals:
+                      $copy: target.entity
+                      $of: element
+                  - path: rule.where[0].of
+                    equals:
+                      $copy: rule.match[0].node.bind
+                  $then:
+                    step: read-owner
+                    call:
+                      $format: '{n}Mapper.findById'
+                      $with:
+                        'n':
+                          $case:
+                            $copy: rule.match[0].node.entity
+                          $as: pascal
+                    key:
+                      self:
+                        $format: '{p}_id'
+                        $with:
+                          p:
+                            $case:
+                              $copy: rule.match[0].node.entity
+                            $as: snake
+                    missing:
+                      $format: 見つからなければ NotFoundException（error.notFound.{e}）
+                      $with:
+                        e:
+                          $copy: rule.match[0].node.entity
+                    entity:
+                      $copy: rule.match[0].node.entity
               - $when:
                   - path: lifecycle.transitions
                     exists: true
@@ -470,6 +507,47 @@ build:
       id: rule-processes
       document: .yde/transforms/design/detail/processes-derived.yaml
 rules:
+  # 受け手を入れ子で持つ親の値を条件にする前提: 読んだ親の行で確かめる
+  - id: precondition
+    when:
+      - path: rule.match[1].edge.contains
+        equals: true
+      - path: rule.match[2].node.entity
+        equals:
+          $copy: target.entity
+          $of: element
+      - path: rule.where[0].of
+        equals:
+          $copy: rule.match[0].node.bind
+    build:
+      step: check
+      precondition:
+        $format: '{a}.{r}'
+        $with:
+          a:
+            $copy: id
+            $of: element
+          r:
+            $copy: id
+      by: Java（読んだ親の行）
+      rule:
+        $copy: rule.where
+      message:
+        $format: '{a}.{r}'
+        $with:
+          a:
+            $copy: id
+            $of: element
+          r:
+            $copy: id
+      text:
+        $copy: message
+      checkMode: owner
+      subjectAlias:
+        $copy: rule.match[0].node.bind
+      phase: before
+      entity:
+        $copy: rule.match[0].node.entity
   - id: precondition
     when:
       - path: rule.match[1].edge.contains

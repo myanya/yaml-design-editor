@@ -106,6 +106,7 @@ root:
                         type: enum
                         values:
                           - read
+                          - read-owner
                           - number
                           - write
                           - check

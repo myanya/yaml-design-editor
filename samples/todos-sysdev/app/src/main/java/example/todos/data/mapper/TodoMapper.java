@@ -578,5 +578,8 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long ownerNextVersion;
+        public java.lang.Long getOwnerNextVersion() { return ownerNextVersion; }
+        public void setOwnerNextVersion(java.lang.Long value) { this.ownerNextVersion = value; }
     }
 }

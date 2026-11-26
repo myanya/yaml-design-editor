@@ -36,6 +36,7 @@ root:
                   values:
                     - state
                     - current
+                    - owner
                     - prospective
                     - cycle
                     - count

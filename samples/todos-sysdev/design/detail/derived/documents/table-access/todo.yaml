@@ -2003,6 +2003,13 @@ record:
             mode: value
             columnId: COL-todo.updated_on
             column: updated_on
+          - item: version
+            value:
+              $copy: version
+              $of: ownerNext
+            mode: value
+            columnId: COL-todo.version
+            column: version
         where:
           - item: id
             param: todoId

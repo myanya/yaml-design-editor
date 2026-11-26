@@ -5,6 +5,16 @@ record:
   value:
     id: todo-task.finish
     name: 作業項目を済にする（画面設計書）
+    form:
+      class: TodoTaskFinishForm
+      emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+      fields:
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
+      classes: []
     screens:
       - id: todo-task.finish/confirm
         template: todo-task/todo-task.finish/confirm
@@ -24,6 +34,7 @@ record:
             - form:
                 action: POST /todo-task/{id}/todo-task.finish
                 hidden:
+                  - version
                   - flow
                   - from
                 body:

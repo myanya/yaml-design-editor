@@ -47,7 +47,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/data/mapper/TodoMapper.java",
-      "sha256": "66ce7ab8ad3b3636ca312f519838448a1e13ee89248fab9b913985a2c081d3ac"
+      "sha256": "a34d112e32c6a0144af3cf40eb15c1cc4cd537c6eef38429a1791c454dcb2847"
     },
     {
       "path": "app/src/main/java/example/todos/data/mapper/TodoTaskMapper.java",
@@ -151,7 +151,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/input/TodoTaskFinishInput.java",
-      "sha256": "e1310300a52e73886a23ceb1e2c43e6c7e67222dc6e8ae242f8883252a880149"
+      "sha256": "2b322af67800e14f6043ed52bfe11bf7fd2135bbaa70ca1637b0f228448e17f4"
     },
     {
       "path": "app/src/main/java/example/todos/service/runtime/OperationOutcome.java",
@@ -187,7 +187,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoTaskService.java",
-      "sha256": "8c960736659a54b22c0b77c093603b5b1a0c9bb685ad6c9ab2a1c88e96f99e08"
+      "sha256": "455603f1e7abf3a3b102b72041526e97bf9d20eb9a7e3aeae9d4700beeca3609"
     },
     {
       "path": "app/src/main/java/example/todos/TodoApplication.java",
@@ -254,6 +254,10 @@
       "sha256": "c26659c423de8f5866f9d686bc537cdac9ab75751b6e37ae571b78300d1d9600"
     },
     {
+      "path": "app/src/main/java/example/todos/web/form/TodoTaskFinishForm.java",
+      "sha256": "ec90420173a09dccb137158ed9029fa7edce28607f1750c1d726b7cfc9198b1f"
+    },
+    {
       "path": "app/src/main/java/example/todos/web/operation/AddCategoryWebOperation.java",
       "sha256": "7e60845e4bada9dfe2709f8882500f321eeb8c04fe3ed466c8049efc09c49ac0"
     },
@@ -307,7 +311,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/TodoTaskFinishWebOperation.java",
-      "sha256": "ead911955ab13457efb237414a4ed0898da9522227302083b62fb79d38b9ccf8"
+      "sha256": "d0af8282fe91212f01516c6dbb8a1f61ffb0d2f01decec79856391cc4c03c2fc"
     },
     {
       "path": "app/src/main/java/example/todos/web/TagController.java",
@@ -327,7 +331,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebActions.java",
-      "sha256": "1481e3ae81e0a73560312811809d1148abbc6462604bf05755bb476a512ad1ad"
+      "sha256": "86d0c18cc656331a8f40ccc06450896efe32bd2a6201da699bc88021c86128ca"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebBinding.java",
@@ -343,7 +347,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebPage.java",
-      "sha256": "9f799b42331017bb2ef1868045bcee3a683fa004bc7d46e3330836349495daa5"
+      "sha256": "081ae6d8f13c805abcc4b1097413f162bb5185f6da3d5b411fcb3f41097298a9"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebReads.java",
@@ -355,7 +359,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebValidationMessages.java",
-      "sha256": "3f22332c9ecf3d3f29428f6fcc6e369086cc422fc99ab14d5afb348237f51c3d"
+      "sha256": "3ee2a32790c093ed5e337d588bf2993ccfacaad1eaa0de0ef8a7626405e396ad"
     },
     {
       "path": "app/src/main/resources/application.properties",
@@ -371,7 +375,7 @@
     },
     {
       "path": "app/src/main/resources/mappers/TodoMapper.xml",
-      "sha256": "71114598ba842b9b2fb86935780d5e45cc5bc521ec09cff0bd3bbe700890e252"
+      "sha256": "f0be6fbd56015019f7f19cc84b7949910d3263160aa4d1877f11f1d12e5ed0d0"
     },
     {
       "path": "app/src/main/resources/mappers/TodoTaskMapper.xml",
@@ -523,7 +527,7 @@
     },
     {
       "path": "app/src/main/resources/web-model.json",
-      "sha256": "51f50565d4d09372c52ccca0994bfbe2d2bb2ef0a725e8de4f862c19f0ad4173"
+      "sha256": "b75eca4a66dbaeb92aab0823a3dc63cb2d88d95e21e7e5564155fdd3a57b9227"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

@@ -756,12 +756,20 @@ operations:
   - id: todo-task.finish
     name: 作業項目を済にする
     screens: 入力画面と確認画面（ダッシュボードからたどれる）
-    inputs: []
+    inputs:
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo-task
         when: 受け手の ID で読んで、無いとき
         shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: todo-task.finish.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
         when: 更新日は作成日以降であること

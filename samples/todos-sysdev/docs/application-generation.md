@@ -122,10 +122,16 @@ Service は同じ状態設計の許可値と表示名を使い、違反の内容
 
 共通実行部について、同時採番・確定と取り消しの完了までの待機・拒否後の再実行・確認時の非確定を H2 で検証する。
 全操作がこの実行部を使う。親子の一方を書いた後に件数検査で拒否された場合も、操作全体を取り消す。
-古い画面からの更新（A が画面を開いている間に B が保存し、そのあと A が保存する）は、この順番の実行では防げない。
-これは、方式の指定 `optimistic-lock`（`design/basic/inputs/entities/corrections.yaml`）が足す版で検出する。
-画面を出すときに受け手の版を読んで hidden 項目で運び、Service が読んだ行の版と比べ、違えば `<操作>.version-unchanged` で断る。通れば、版を 1 進めて書く。
-確かめる範囲は、操作の画面を開いてから確定するまで。確認の検査を持たない操作は、確定で断る。受け手が入れ子の要素の操作（作業項目を済にする）は、まだ対象外。
+古い画面からの更新（A が画面を開いている間に B が保存し、そのあと A が保存する）は、直列の実行だけでは防げない。
+これは楽観ロックで検出する。方式の指定 `optimistic-lock`（`design/basic/inputs/entities/corrections.yaml`）が、TODO にバージョン（`version`）を足す。
+
+- 画面を表示するときに `version` を読み、hidden フィールドで持ち回す（入力画面の無い操作は、確認画面を表示するときに読む）。
+- Service が、読んだ行の `version` と、受け取った `version` を比較する。不一致なら `<操作>.version-unchanged` で拒否する。
+- 一致すれば、`version + 1` で UPDATE する。
+- 受け手が作業項目の操作（作業項目を済にする）は、親の TODO の行を読んで、同じ比較とインクリメントを行う。
+
+検査の範囲は、操作の画面を開いてから確定するまで。確認用メソッドを持たない操作（コメントの追加など）は、確認を通り、確定で拒否する。
+比較と UPDATE はアトミックではないので、操作を直列に実行する現在の構成が前提になる。
 
 複数のアプリから同じ DB を更新する方式は対象外。将来その構成にする場合は、DB による採番と同時更新の方式を別途設計する。
 
@@ -165,6 +171,23 @@ Windows の PowerShell 7 で、YDE リポジトリのルートから実行する
 # 同じ入力で差分がないことを確かめる（差分があれば失敗）
 ./samples/todos-sysdev/scripts/generate-app.ps1 -Check
 ```
+
+PowerShell の無い環境（Linux・macOS）では、同じ手順の `scripts/generate-app.py` を使う（Python 3。標準ライブラリだけで動く）。
+
+```bash
+python3 samples/todos-sysdev/scripts/generate-app.py
+```
+
+```bash
+python3 samples/todos-sysdev/scripts/generate-app.py --apply
+```
+
+```bash
+python3 samples/todos-sysdev/scripts/generate-app.py --check
+```
+
+2 つのスクリプトは、手順と安全確認が同じで、どちらで作り直しても同じ結果になる（生成記録の並びと書式も同じ）。
+GitHub Actions の `todos-application` が、Windows のジョブで `generate-app.ps1 -Check` を、Linux のジョブで `generate-app.py --check` を実行する。片方を変えたら、もう片方も合わせる。
 
 スクリプトは YDE CLI を一度ビルドしてから、設計だけを一時領域へコピーする。
 検証・確定項目の最新性・全レポート・固定資源を確かめ、生成先の重複と埋まらない穴も検出する。

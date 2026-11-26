@@ -132,7 +132,7 @@ class MapperIntegrationTest {
         assertThat(property(edited, "summary")).isEqualTo("概要");
         assertThat(property(edited, "updatedOn")).isEqualTo(today);
         task("todoTaskFinish", id("TODO-999-TASK-999"));
-        todo("todoTaskFinish", Map.of("todoId", "TODO-999", "contextToday", today));
+        todo("todoTaskFinish", Map.of("todoId", "TODO-999", "contextToday", today, "ownerNextVersion", 2L));
         assertThat(property(task("findById", id("TODO-999-TASK-999")), "done")).isEqualTo(true);
         var all = list(todo("selectTodoDashboardAll", Map.of()));
         assertThat(property(all.stream().filter(r -> property(r, "id").equals("TODO-999")).findFirst().orElseThrow(), "column3")).isEqualTo("1/2");

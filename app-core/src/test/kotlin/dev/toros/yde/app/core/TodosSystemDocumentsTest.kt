@@ -273,8 +273,17 @@ class TodosSystemDocumentsTest {
         assertEquals(listOf(mapOf("of" to "t", "path" to "version", "equals" to "\$version")), map(unchanged, "rule")["where"])
         val advance = rows(complete, "effects").single { it["id"] == "EFF-complete-todo.version" }
         assertEquals(listOf("revision", "FLD-todo.version", null), listOf(advance["auto"], advance["item"], advance["value"]), "値の式は持たない（前の値の次）")
-        // 登録（受け手が無い）・マスタの操作・受け手が入れ子の要素の操作には足さない
-        for (id in listOf("register-todo", "add-category", "todo-task.finish")) {
+        // 受け手が入れ子の要素（作業項目）の操作は、親の TODO のバージョンを運び、親の行で確かめ、親の項目を進める
+        val finish = operation("todo-task.finish")
+        assertEquals(mapOf("\$copy" to "version", "\$of" to "owner"), rows(finish, "inputs").single { it["id"] == "PRM-todo-task.finish.version" }["initial"])
+        val ownerRule = map(rows(finish, "preconditions").single { it["id"] == "PRE-todo-task.finish.version-unchanged" }, "rule")
+        assertEquals(listOf(mapOf("of" to "owner", "path" to "version", "equals" to "\$version")), ownerRule["where"])
+        assertEquals("ENT-todo", rows(finish, "effects").single { it["id"] == "EFF-todo-task.finish.version" }["entity"])
+        val finishSteps = rows(raw(Files.readString(sample.resolve("design/detail/final/processes/todo-task.finish.yaml"))), "steps")
+        assertEquals(listOf("read", "read-owner"), finishSteps.take(2).map { it["step"] }, "受け手を読んだ後に、親の行を読む")
+        assertEquals("owner", finishSteps.single { it["precondition"] == "todo-task.finish.version-unchanged" }["checkMode"])
+        // 登録（受け手が無い）とマスタの操作には足さない
+        for (id in listOf("register-todo", "add-category")) {
             val other = operation(id)
             assertTrue(rows(other, "inputs").none { it["carried"] == true } && rows(other, "effects").none { it["auto"] == "revision" }, id)
         }

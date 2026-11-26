@@ -268,30 +268,86 @@ rules:
     build:
       $copy: .
       $of: list
-  # 受け手のエンティティが持つ、方式が足した版の項目（自動で入る値が revision の項目）。無ければ、何も足さない
+  # 受け手が守られている版の項目（方式が足した、自動で入る値が revision の項目）。
+  # 受け手そのものが持つ場合と、受け手が入れ子の要素で親が持つ場合（nested）がある。無ければ、何も足さない
   - id: revision-items
     with:
       - receiver
     build:
-      $each:
-        $view: basic-model-entities
-      $flatten: true
-      $build:
-        $when:
-          - path: values.record.source
-            equals:
-              $copy: .
-              $of: receiver
-        $then:
-          $each: values.record.items
+      $concat:
+        - $each:
+            $view: basic-model-entities
+          $flatten: true
           $build:
             $when:
-              - path: auto
-                equals: revision
-              - path: addedBy
+              - path: values.record.source
+                equals:
+                  $copy: .
+                  $of: receiver
+            $then:
+              $each: values.record.items
+              $build:
+                $when:
+                  - path: auto
+                    equals: revision
+                  - path: addedBy
+                    exists: true
+                $then:
+                  id:
+                    $copy: id
+                  key:
+                    $copy: key
+                  label:
+                    $copy: label
+                  addedBy:
+                    $copy: addedBy
+                  holder:
+                    $copy: .
+                    $of: receiver
+        - $each:
+            $view: basic-model-entities
+          $bind: child
+          $flatten: true
+          $build:
+            $when:
+              - path: values.record.source
+                equals:
+                  $copy: .
+                  $of: receiver
+              - path: values.record.parent
                 exists: true
             $then:
-              $copy: .
+              $each:
+                $view: basic-model-entities
+              $bind: parent
+              $flatten: true
+              $build:
+                $when:
+                  - path: id
+                    equals:
+                      $copy: values.record.parent
+                      $of: child
+                $then:
+                  $each: values.record.items
+                  $build:
+                    $when:
+                      - path: auto
+                        equals: revision
+                      - path: addedBy
+                        exists: true
+                    $then:
+                      id:
+                        $copy: id
+                      key:
+                        $copy: key
+                      label:
+                        $copy: label
+                      addedBy:
+                        $copy: addedBy
+                      holder:
+                        $copy: values.record.source
+                        $of: parent
+                      nested: true
   # 読んだときの版を運ぶ入力。人は入力せず、画面が受け手から読んで運ぶ（carried）
   - id: revision-input
     with:
@@ -332,7 +388,14 @@ rules:
               $copy: key
               $of: revision
           - key: $$of
-            value: self
+            value:
+              $first:
+                - $when:
+                    - of: revision
+                      path: nested
+                      equals: true
+                  $then: owner
+                - self
   # 版が、読んだときと同じという前提（受け手が、入力と同じ版で在ること）
   - id: revision-precondition
     with:
@@ -364,13 +427,38 @@ rules:
         $of: revision
       rule:
         match:
-          - node:
-              entity:
-                $copy: target.entity
-                $of: act
-              bind: t
+          $first:
+            - $when:
+                - of: revision
+                  path: nested
+                  equals: true
+              $then:
+                - node:
+                    entity:
+                      $copy: holder
+                      $of: revision
+                    bind: owner
+                - edge:
+                    contains: true
+                - node:
+                    entity:
+                      $copy: target.entity
+                      $of: act
+                    bind: t
+            - - node:
+                  entity:
+                    $copy: holder
+                    $of: revision
+                  bind: t
         where:
-          - of: t
+          - of:
+              $first:
+                - $when:
+                    - of: revision
+                      path: nested
+                      equals: true
+                  $then: owner
+                - t
             path:
               $copy: key
               $of: revision
@@ -405,14 +493,14 @@ rules:
       cause: auto
       auto: revision
       subject:
-        $copy: target.entity
-        $of: act
+        $copy: holder
+        $of: revision
       entity:
         $format: ENT-{e}
         $with:
           e:
-            $copy: target.entity
-            $of: act
+            $copy: holder
+            $of: revision
       path:
         $copy: key
         $of: revision

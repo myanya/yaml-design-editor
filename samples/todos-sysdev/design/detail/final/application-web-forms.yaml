@@ -1065,3 +1065,26 @@ forms:
         validations:
           - name: NotNull
     classes: []
+  - id: JFORM-todo-task.finish
+    source: DOC-screen-designs-operations.todo-task.finish
+    className: TodoTaskFinishForm
+    beanName: todoTaskFinishForm
+    fields:
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+    classes: []

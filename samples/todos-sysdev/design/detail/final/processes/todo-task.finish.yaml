@@ -6,6 +6,7 @@ service:
   method: todoTaskFinish
   arguments:
     - id
+    - version
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
@@ -15,6 +16,25 @@ steps:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo-task）
     entity: todo-task
+  - step: read-owner
+    call: TodoMapper.findById
+    key:
+      self: todo_id
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
+  - step: check
+    precondition: todo-task.finish.version-unchanged
+    by: Java（読んだ親の行）
+    rule:
+      - of: owner
+        path: version
+        equals: $version
+    message: todo-task.finish.version-unchanged
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    checkMode: owner
+    subjectAlias: owner
+    phase: before
+    entity: todo
   - step: check
     constraint: updated-not-before-created
     by: Java（書いた後の値）
@@ -46,6 +66,10 @@ steps:
         value:
           $copy: today
           $of: context
+      - item: version
+        value:
+          $copy: version
+          $of: ownerNext
     where:
       - item: id
         param: todoId
@@ -70,6 +94,7 @@ originalService:
   method: todoTaskFinish
   arguments:
     - id
+    - version
 transactionMode: atomic
 designId: DOC-processes.todo-task.finish
 designKind: processes

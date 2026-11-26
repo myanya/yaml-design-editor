@@ -1453,14 +1453,19 @@ operations:
     service: TodoTaskService
     method: todoTaskFinish
     inputClass: TodoTaskFinishInput
+    formClass: TodoTaskFinishForm
+    formSource: DOC-screen-designs-operations.todo-task.finish
     receiver: true
     arguments:
       - accessor: Id
+      - accessor: Version
     confirm: []
     handlerMatches:
       - action: todo-task.finish
         service: TodoTaskService.todoTaskFinish
-    formMatches: []
+    formMatches:
+      - id: JFORM-todo-task.finish
+        className: TodoTaskFinishForm
     checks:
       - valid: true
         error: Controller と Service の実行先が一致しません
@@ -1471,8 +1476,26 @@ operations:
       - valid: true
         error: Service 本体と入力の引数が一致しません
     fields:
-      coverage: []
-      assignments: []
+      coverage:
+        - item: version
+          matches:
+            - name: version
+        - item: version
+          matches:
+            - name: version
+      assignments:
+        - item: version
+          kind: scalar
+          source: version
+          target: version
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setVersion(form.getVersion());
     receiverFields:
       - key: id
         name: id

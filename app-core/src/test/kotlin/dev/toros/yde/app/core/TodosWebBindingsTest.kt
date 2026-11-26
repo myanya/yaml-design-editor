@@ -52,7 +52,7 @@ class TodosWebBindingsTest {
         val generated = raw(requireNotNull(probe(sources(), expectValid = true)))
         val operations = rows(generated, "operations")
         assertEquals(14, operations.size)
-        assertEquals(13, operations.count { it["formClass"] != null }, "入力の無い着手も、読んだときの版を運ぶ Form を持つ（Form が無いのは、作業項目を済にする操作だけ）")
+        assertEquals(14, operations.count { it["formClass"] != null }, "入力の無い操作（着手・作業項目を済にする）も、読んだときのバージョンを運ぶ Form を持つ")
         assertEquals(4, operations.count { rows(it, "confirm").isNotEmpty() })
         assertEquals(raw(Files.readString(sample.resolve(bindingsFile))), generated)
         val edit = operations.single { it["action"] == "edit-todo" }

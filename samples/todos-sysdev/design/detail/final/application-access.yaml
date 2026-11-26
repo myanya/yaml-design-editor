@@ -19284,6 +19284,13 @@ mappers:
               mode: value
               columnId: COL-todo.updated_on
               column: updated_on
+            - item: version
+              value:
+                $copy: version
+                $of: ownerNext
+              mode: value
+              columnId: COL-todo.version
+              column: version
           where:
             - item: id
               param: todoId
@@ -19551,6 +19558,38 @@ mappers:
               param: contextToday
             quoted: true
             unconditional: true
+          - column:
+              id: COL-todo.version
+              column: version
+              item: version
+              source: FLD-todo.version
+              model:
+                id: JCOL-COL-todo.version
+                source: COL-todo.version
+                column: version
+                name: version
+                accessor: Version
+                java:
+                  base: int
+                  name: Long
+                  qualifiedName: java.lang.Long
+                  literal: number
+                sql: INTEGER
+                default:
+                  value: 0
+                  literal: number
+            raw:
+              item: version
+              value:
+                $copy: version
+                $of: ownerNext
+              mode: value
+              columnId: COL-todo.version
+              column: version
+            value:
+              param: ownerNextVersion
+            plain: true
+            unconditional: true
         parameters:
           - name: todoId
             accessor: TodoId
@@ -19562,6 +19601,11 @@ mappers:
             type: java.time.LocalDate
             types:
               - java.time.LocalDate
+          - name: ownerNextVersion
+            accessor: OwnerNextVersion
+            type: java.lang.Long
+            types:
+              - java.lang.Long
         bindings:
           - id: JCOL-COL-todo.id
             source: COL-todo.id
@@ -19907,6 +19951,41 @@ mappers:
                 value:
                   param: contextToday
                 quoted: true
+                unconditional: true
+          - column: version
+            type: java.lang.Long
+            branches:
+              - column:
+                  id: COL-todo.version
+                  column: version
+                  item: version
+                  source: FLD-todo.version
+                  model:
+                    id: JCOL-COL-todo.version
+                    source: COL-todo.version
+                    column: version
+                    name: version
+                    accessor: Version
+                    java:
+                      base: int
+                      name: Long
+                      qualifiedName: java.lang.Long
+                      literal: number
+                    sql: INTEGER
+                    default:
+                      value: 0
+                      literal: number
+                raw:
+                  item: version
+                  value:
+                    $copy: version
+                    $of: ownerNext
+                  mode: value
+                  columnId: COL-todo.version
+                  column: version
+                value:
+                  param: ownerNextVersion
+                plain: true
                 unconditional: true
         conditionReferenceResolved: true
         requiredConditions:

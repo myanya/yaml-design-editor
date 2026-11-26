@@ -491,6 +491,21 @@ rules:
             $build:
               $when:
                 - path: raw.step
+                  equals: read-owner
+              $then:
+                $apply: read-owner
+                $with:
+                  step:
+                    $copy: .
+                  ctx:
+                    $copy: .
+                    $of: ctx
+            $flatten: true
+          - $each: steps
+            $of: ctx
+            $build:
+              $when:
+                - path: raw.step
                   equals: number
               $then:
                 $apply: number
@@ -745,6 +760,60 @@ rules:
             raw: |-
               ;
                       if (original == null) throw new 
+        - - valid: true
+            errorClass:
+              $apply: error-name
+              $with:
+                kind: notFound
+                ctx:
+                  $copy: .
+                  $of: ctx
+        - - valid: true
+            plain: true
+            raw: (
+        - - valid: true
+            literal: true
+            value:
+              $copy: raw.entity
+              $of: step
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: key
+          $with:
+            source:
+              $copy: raw.key
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              );
+  # 受け手を入れ子で持つ親の行を読む（親の値を確かめる・進める操作）
+  - id: read-owner
+    with:
+      - step
+      - ctx
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        var owner = '
+        - $apply: call
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+        - - valid: true
+            plain: true
+            raw: |-
+              ;
+                      if (owner == null) throw new 
         - - valid: true
             errorClass:
               $apply: error-name
@@ -3800,6 +3869,69 @@ rules:
         - - valid: true
             plain: true
             raw: ))
+  # 読んだ親の行で確かめる前提（受け手が入れ子の要素の操作で、親の値を条件にするもの）
+  - id: check
+    with:
+      - step
+      - ctx
+    when:
+      - of: step
+        path: raw.checkMode
+        equals: owner
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: '        if (!Boolean.TRUE.equals('
+        - $apply: conditions
+          $with:
+            conditions:
+              $copy: raw.rule
+              $of: step
+            scope:
+              alias:
+                $copy: raw.subjectAlias
+                $of: step
+              symbols:
+                $each: binding.symbols
+                $of: ctx
+                $build:
+                  $when:
+                    - path: place
+                      equals: owner
+                  $then:
+                    $copy: .
+              inputs:
+                $copy: inputScope.symbols
+                $of: ctx
+        - - valid: true
+            plain: true
+            raw: |
+              )) {
+        - $apply: violation
+          $with:
+            step:
+              $copy: .
+              $of: step
+            ctx:
+              $copy: .
+              $of: ctx
+            left:
+              - valid: true
+                plain: true
+                raw: 'null'
+            right:
+              - valid: true
+                plain: true
+                raw: 'null'
+            state:
+              - valid: true
+                plain: true
+                raw: 'null'
+        - - valid: true
+            plain: true
+            raw: |2
+                      }
   - id: check
     with:
       - step

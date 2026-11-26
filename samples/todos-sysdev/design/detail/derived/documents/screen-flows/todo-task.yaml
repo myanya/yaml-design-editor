@@ -9,6 +9,7 @@ record:
     handlers:
       - action: todo-task.finish
         name: 作業項目を済にする
+        form: TodoTaskFinishForm
         service: TodoTaskService.todoTaskFinish
         returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
         steps:
@@ -33,6 +34,7 @@ record:
               puts:
                 - notice
             refusals:
+              - todo-task.finish.version-unchanged
               - check.updated-not-before-created
               - check.closed-has-no-open-task
   source:

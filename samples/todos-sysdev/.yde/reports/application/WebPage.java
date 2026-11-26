@@ -154,6 +154,17 @@ public class WebPage {{
         if(wanted!=null)for(var r:maps(self.get(s(spec,"table"))))if(Objects.toString(r.get(s(spec,"item")),"").equals(wanted.trim()))return r;
         throw new NotFoundException(s(input,"target")+"."+s(spec,"table"),receiverId);
     }}
+    /** 受け手を入れ子で持つ親の行。受け手の行が持つ親のキー（_parents）から、親の詳細の読出しで読む。 */
+    private Map<String,Object> ownerRow() {{
+        var parents=map(self.get("_parents"));
+        for(var page:catalog.pages.values()) {{
+            String call=s(map(page.get("screen")),"read");var method=catalog.methods.get(call);
+            if(method==null)continue;
+            Object id=parents.get(s(method,"tableId"));
+            if(id!=null){{Object row=read(call,Map.of("id",id.toString()));if(row!=null)return map(row);}}
+        }}
+        throw new IllegalArgumentException("親の行を読めません");
+    }}
     public Map<String,Object> initialValues() {{
         var logical=new LinkedHashMap<String,Object>();
         var rowSpec=rowSpec();
@@ -166,6 +177,7 @@ public class WebPage {{
             int open=path.indexOf("[$");
             if(source.equals("self")&&open>=0){{String rest=path.substring(path.indexOf(']',open)+1);logical.put(entry.getKey(),at(selectedRow(),rest.startsWith(".")?rest.substring(1):rest));}}
             else if(source.equals("self"))logical.put(entry.getKey(),at(self,path));
+            else if(source.equals("owner"))logical.put(entry.getKey(),at(ownerRow(),path));
             else if(source.equals("context")&&path.equals("today"))logical.put(entry.getKey(),today.toString());
             else throw new IllegalArgumentException("未対応の初期値です: "+entry.getKey());
         }}

@@ -180,6 +180,26 @@ rules:
                       columns:
                         $copy: values.record.row.columns
                         $of: primary
+            # 親の行を読む操作（受け手が入れ子の要素で、親の値を確かめる・進める）: 親の行の値と、整数の列の次の値
+            - $each: steps
+              $of: process
+              $bind: ownerStep
+              $flatten: true
+              $build:
+                $when:
+                  - path: step
+                    equals: read-owner
+                $then:
+                  $apply: owner-symbols
+                  $with:
+                    method:
+                      $view: application-method-input
+                      $where:
+                        - path: values.record.call
+                          equals:
+                            $copy: call
+                            $of: ownerStep
+                      $one: true
             - $each: steps
               $of: process
               $build:
@@ -192,6 +212,78 @@ rules:
                   name: numberedId
                   java: numberedId
                   type: java.lang.String
+  - id: owner-symbols
+    with:
+      - method
+    build:
+      $each: values.record.raw.columnBindings
+      $of: method
+      $flatten: true
+      $build:
+        $apply: owner-symbol
+        $with:
+          symbol:
+            $apply: column-symbol
+            $with:
+              binding:
+                $copy: .
+              columns:
+                $copy: values.record.row.columns
+                $of: method
+  - id: owner-symbol
+    with:
+      - symbol
+    build:
+      $concat:
+        - - path:
+              $copy: path
+              $of: symbol
+            place: owner
+            name:
+              $format: owner{n}
+              $with:
+                'n':
+                  $case:
+                    $copy: path
+                    $of: symbol
+                  $as: pascal
+            java:
+              $format: owner.get{a}()
+              $with:
+                a:
+                  $case:
+                    $copy: path
+                    $of: symbol
+                  $as: pascal
+            type:
+              $copy: type
+              $of: symbol
+        - $when:
+            - of: symbol
+              path: type
+              equals: java.lang.Long
+          $then:
+            - path:
+                $copy: path
+                $of: symbol
+              place: ownerNext
+              name:
+                $format: ownerNext{n}
+                $with:
+                  'n':
+                    $case:
+                      $copy: path
+                      $of: symbol
+                    $as: pascal
+              java:
+                $format: (owner.get{a}() + 1L)
+                $with:
+                  a:
+                    $case:
+                      $copy: path
+                      $of: symbol
+                    $as: pascal
+              type: java.lang.Long
   - id: next-symbol
     with:
       - symbol

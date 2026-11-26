@@ -252,6 +252,10 @@ outputs:
     report: app-web-form
     params:
       form: JFORM-suspend-todo
+  - id: OUTPUT-JFORM-todo-task.finish
+    report: app-web-form
+    params:
+      form: JFORM-todo-task.finish
   - id: OUTPUT-app-web-binding
     report: app-web-binding
     params: {}

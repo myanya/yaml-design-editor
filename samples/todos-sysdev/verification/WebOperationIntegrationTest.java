@@ -82,7 +82,7 @@ class WebOperationIntegrationTest {
         assertEquals(id, comment.execute(id, ver(commentForm, id)));
         var taskForm = new AddTodoTaskForm(); taskForm.setTitle("動作確認");
         var taskId = task.execute(id, ver(taskForm, id));
-        assertEquals(taskId, finish.execute(taskId));
+        assertEquals(taskId, finish.execute(taskId, ver(new TodoTaskFinishForm(), id)));
         assertEquals(id, start.execute(id, ver(new StartTodoForm(), id)));
         var suspendForm = new SuspendTodoForm(); suspendForm.setDate(today); suspendForm.setReason("確認待ち"); suspendForm.setResumeOn(today.plusDays(1));
         assertTrue(suspend.check(id, ver(suspendForm, id)).isEmpty());

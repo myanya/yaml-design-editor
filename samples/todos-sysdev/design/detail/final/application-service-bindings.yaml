@@ -3070,6 +3070,13 @@ operations:
         java: input.getId()
         type: java.lang.String
         base: ref
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -3105,6 +3112,76 @@ operations:
         name: nextSeq
         java: (original.getSeq() + 1L)
         type: java.lang.Long
+      - path: id
+        place: owner
+        name: ownerId
+        java: owner.getId()
+        type: java.lang.String
+      - path: title
+        place: owner
+        name: ownerTitle
+        java: owner.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: owner
+        name: ownerSummary
+        java: owner.getSummary()
+        type: java.lang.String
+      - path: category
+        place: owner
+        name: ownerCategory
+        java: owner.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: owner
+        name: ownerFollows
+        java: owner.getFollows()
+        type: java.lang.String
+      - path: status
+        place: owner
+        name: ownerStatus
+        java: owner.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: owner
+        name: ownerCreatedOn
+        java: owner.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: owner
+        name: ownerUpdatedOn
+        java: owner.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: owner
+        name: ownerDueOn
+        java: owner.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: owner
+        name: ownerCompletedOn
+        java: owner.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: owner
+        name: ownerDetails
+        java: owner.getDetails()
+        type: java.lang.String
+      - path: result
+        place: owner
+        name: ownerResult
+        java: owner.getResult()
+        type: java.lang.String
+      - path: version
+        place: owner
+        name: ownerVersion
+        java: owner.getVersion()
+        type: java.lang.Long
+      - path: version
+        place: ownerNext
+        name: ownerNextVersion
+        java: (owner.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -3113,6 +3190,13 @@ operations:
         java: input.getId()
         type: java.lang.String
         base: ref
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo-task.findById
     steps:
       - index: 1
@@ -3135,6 +3219,25 @@ operations:
               type: java.lang.String
             typeMatches: true
       - index: 2
+        kind: read-owner
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: todo_id
+              place: self
+              java: original.getTodoId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 3
         kind: check
         callResolved: true
         keyArityMatches: true
@@ -3142,7 +3245,15 @@ operations:
         setMatches: true
         whereMatches: true
         parameters: []
-      - index: 3
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
         kind: write
         call: TodoTaskMapper.todoTaskFinish
         method: JMTH-todo-task.todoTaskFinish
@@ -3161,7 +3272,7 @@ operations:
               java: input.getId()
               type: java.lang.String
             typeMatches: true
-      - index: 4
+      - index: 6
         kind: write
         call: TodoMapper.todoTaskFinish
         method: JMTH-todo.todoTaskFinish
@@ -3189,7 +3300,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 5
+          - name: ownerNextVersion
+            accessor: OwnerNextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: ownerNext
+              java: (owner.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 7
         kind: check
         call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask

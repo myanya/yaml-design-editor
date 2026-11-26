@@ -2856,6 +2856,7 @@ pages:
           - form:
               action: POST /todo-task/{id}/todo-task.finish
               hidden:
+                - version
                 - flow
                 - from
               body:
@@ -3693,6 +3694,7 @@ controllers:
     handlers:
       - action: todo-task.finish
         name: 作業項目を済にする
+        form: TodoTaskFinishForm
         service: TodoTaskService.todoTaskFinish
         returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
         steps:
@@ -3717,6 +3719,7 @@ controllers:
               puts:
                 - notice
             refusals:
+              - todo-task.finish.version-unchanged
               - check.updated-not-before-created
               - check.closed-has-no-open-task
     routes:
@@ -3979,6 +3982,13 @@ forms:
         item: version
         type: Long
     classes: []
+  - className: TodoTaskFinishForm
+    beanName: todoTaskFinishForm
+    fields:
+      - name: version
+        item: version
+        type: Long
+    classes: []
 operations:
   - action: add-category
     className: AddCategoryWebOperation
@@ -4143,10 +4153,12 @@ operations:
         target: version
   - action: todo-task.finish
     className: TodoTaskFinishWebOperation
+    formClass: TodoTaskFinishForm
     receiver: true
-    noForm: true
     noConfirm: true
-    fieldTargets: []
+    fieldTargets:
+      - source: version
+        target: version
 reads:
   - name: CategoryMapper
     methods:
@@ -5996,7 +6008,11 @@ inputs:
     starts:
       - screen: todo
         place: 表「作業項目」の行のボタン
-    input: {}
+    input:
+      carried:
+        version:
+          $copy: version
+          $of: owner
 messages:
   id: messages
   name: メッセージ定義書
@@ -6085,6 +6101,10 @@ messages:
       kind: 前提の断り
       text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
       source: 操作 cancel-todo の前提 version-unchanged
+    - key: todo-task.finish.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 todo-task.finish の前提 version-unchanged
     - key: check.due-not-before-created
       kind: データの決まり
       text: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
@@ -6582,6 +6602,14 @@ messages:
           kind: 入力の誤り
           text: タグ名の書き方が正しくありません
           source: 形式
+    - form: todoTaskFinishForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.todoTaskFinishForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
   designId: DOC-messages.messages
   designKind: messages
   designPath: design/basic/final/messages.yaml

@@ -347,6 +347,9 @@ processes:
   - source: DOC-processes.todo-task.finish
     transactionMode: atomic
     checks:
+      - mode: owner
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -356,6 +359,9 @@ processes:
     calls:
       - call: TodoTaskMapper.findById
         method: JMTH-todo-task.findById
+        resolved: true
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
         resolved: true
       - call: TodoTaskMapper.todoTaskFinish
         method: JMTH-todo-task.todoTaskFinish

@@ -19,14 +19,18 @@ public class TodoTaskFinishWebOperation {
         this.validator = validator;
     }
 
-    public String execute(String id) {
-        var input = toInput(id);
-        return service.todoTaskFinish(input.getId());
+    public String execute(String id, TodoTaskFinishForm form) {
+        var input = toInput(id, form);
+        return service.todoTaskFinish(input.getId(), input.getVersion());
     }
-    public TodoTaskFinishInput toInput(String id) {
+    public TodoTaskFinishInput toInput(String id, TodoTaskFinishForm form) {
+        if (form == null) throw new IllegalArgumentException("入力フォームがありません");
+        var violations = validator.validate(form);
+        if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
         if (id == null || id.isEmpty()) throw new IllegalArgumentException("対象の ID がありません");
         var input = new TodoTaskFinishInput();
         input.setId(id);
+        input.setVersion(form.getVersion());
         return input;
     }
 }

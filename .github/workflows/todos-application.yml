@@ -50,8 +50,10 @@ jobs:
         run: |
           ./samples/todos-sysdev/scripts/verify-app.ps1 -Application scratchpad/todos-application-index/samples/todos-sysdev/app -Verification scratchpad/todos-application-index/samples/todos-sysdev/verification
 
-  # 設計書の依存マップとファイル単位の生成グラフ（samples/todos-sysdev/docs/ の 2 枚の HTML）が、
-  # いまの変換定義から作り直したものと同じかを確かめる。変換定義を直して作り直し忘れると、ここで止まる
+  # Linux で確かめるもの:
+  # - 設計書の依存関係のページ（samples/todos-sysdev/docs/ の HTML）が、いまの変換定義から作り直したものと同じか
+  # - PowerShell の無い環境用の再生成スクリプト（generate-app.py）でも、app/ と生成記録に差分が出ないか
+  #   （Windows のジョブの generate-app.ps1 -Check と同じ結果になることを、push ごとに確かめる）
   design-maps:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -66,3 +68,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: 設計書の依存マップが最新かを確かめる
         run: python3 samples/todos-sysdev/scripts/design-map.py --check
+      - name: generate-app.py でもアプリの生成物に差分が無いことを確かめる
+        run: python3 samples/todos-sysdev/scripts/generate-app.py --check

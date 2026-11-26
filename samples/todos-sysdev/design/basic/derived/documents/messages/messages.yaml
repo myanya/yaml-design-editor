@@ -90,6 +90,10 @@ record:
         kind: 前提の断り
         text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         source: 操作 cancel-todo の前提 version-unchanged
+      - key: todo-task.finish.version-unchanged
+        kind: 前提の断り
+        text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        source: 操作 todo-task.finish の前提 version-unchanged
       - key: check.due-not-before-created
         kind: データの決まり
         text: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
@@ -587,6 +591,14 @@ record:
             kind: 入力の誤り
             text: タグ名の書き方が正しくありません
             source: 形式
+      - form: todoTaskFinishForm
+        field: version
+        label: 版
+        messages:
+          - key: validation.NotNull.todoTaskFinishForm.version
+            kind: 入力の誤り
+            text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+            source: 必須
   source:
     id: rule-messages
     document: .yde/transforms/design/basic/messages-derived.yaml

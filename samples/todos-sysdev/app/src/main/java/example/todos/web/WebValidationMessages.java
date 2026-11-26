@@ -68,6 +68,7 @@ public class WebValidationMessages extends AbstractMessageSource {
         messages.put("validation.NotNull.addTagForm.name", "タグ名を入力してください");
         messages.put("validation.Size.addTagForm.name", "タグ名は100文字以内で入力してください");
         messages.put("validation.Pattern.addTagForm.name", "タグ名の書き方が正しくありません");
+        messages.put("validation.NotNull.todoTaskFinishForm.version", "版を受け取れませんでした。画面を開き直してから、もう一度操作してください");
     }
 
     @Override
