@@ -21,11 +21,11 @@ public class CompleteTodoWebOperation {
 
     public String execute(String id, CompleteTodoForm form) {
         var input = toInput(id, form);
-        return service.completeTodo(input.getId(), input.getDate(), input.getResult());
+        return service.completeTodo(input.getId(), input.getDate(), input.getResult(), input.getVersion());
     }
     public java.util.List<BusinessViolation> check(String id, CompleteTodoForm form) {
         var input = toInput(id, form);
-        return service.checkCompleteTodo(input.getId(), input.getDate(), input.getResult());
+        return service.checkCompleteTodo(input.getId(), input.getDate(), input.getResult(), input.getVersion());
     }
     public CompleteTodoInput toInput(String id, CompleteTodoForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -36,6 +36,7 @@ public class CompleteTodoWebOperation {
         input.setId(id);
         input.setDate(form.getDate());
         input.setResult(form.getResult());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

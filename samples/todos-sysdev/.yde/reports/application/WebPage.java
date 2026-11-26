@@ -158,7 +158,9 @@ public class WebPage {{
         var logical=new LinkedHashMap<String,Object>();
         var rowSpec=rowSpec();
         if(!rowSpec.isEmpty()){{selectedRow();logical.put(s(rowSpec,"param"),request.getParameter(fieldName(s(rowSpec,"param"))));}}
-        for(var entry:map(map(input.get("input")).get("initial")).entrySet()) {{
+        // 人が入れる入力のはじめの値と、画面が運ぶ値（読んだときの版など）を、同じ読み方で入れる。
+        var sources=new LinkedHashMap<String,Object>(map(map(input.get("input")).get("initial")));sources.putAll(map(map(input.get("input")).get("carried")));
+        for(var entry:sources.entrySet()) {{
             var exp=map(entry.getValue());String source=s(exp,"$of"),path=s(exp,"$copy");
             // 並びの番号で指す読み出し（comments[$row].date）は、番号の指す行から読む。
             int open=path.indexOf("[$");

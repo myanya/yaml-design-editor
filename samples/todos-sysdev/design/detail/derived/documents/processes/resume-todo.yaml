@@ -12,6 +12,7 @@ record:
         - id
         - date
         - note
+        - version
     confirm: []
     transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
     steps:
@@ -32,6 +33,19 @@ record:
         phase: before
         entity: todo
         stateField: status
+      - step: check
+        precondition: resume-todo.version-unchanged
+        by: Java（読んだ行）
+        rule:
+          - of: t
+            path: version
+            equals: $version
+        message: resume-todo.version-unchanged
+        text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        checkMode: current
+        subjectAlias: t
+        phase: before
+        entity: todo
       - step: check
         constraint: updated-not-before-created
         by: Java（書いた後の値）
@@ -69,6 +83,10 @@ record:
             value:
               $copy: today
               $of: context
+          - item: version
+            value:
+              $copy: version
+              $of: next
         where:
           - item: id
             param: id
@@ -100,6 +118,7 @@ record:
         - id
         - date
         - note
+        - version
     transactionMode: atomic
   source:
     id: rule-processes

@@ -15,6 +15,10 @@ document:
   shownWhen:
     - value: OPEN
       label: 未着手
+  carried:
+    version:
+      $copy: version
+      $of: self
   confirm:
     screen: start-todo/confirm
     request: GET /todo/{id}/start-todo/confirm
@@ -30,6 +34,8 @@ document:
     refusals:
       - key: start-todo.state
         message: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+      - key: start-todo.version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
       - key: check.updated-not-before-created
         message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
       - key: check.unfinished-has-no-completed-on

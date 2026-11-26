@@ -321,6 +321,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -355,6 +358,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -383,6 +389,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -397,6 +406,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -432,6 +444,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
         private java.lang.Boolean clearCategory;
         public java.lang.Boolean getClearCategory() { return clearCategory; }
         public void setClearCategory(java.lang.Boolean value) { this.clearCategory = value; }
@@ -469,6 +484,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -483,6 +501,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -497,6 +518,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -517,6 +541,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 
@@ -534,6 +561,9 @@ public interface TodoMapper {
         private java.time.LocalDate contextToday;
         public java.time.LocalDate getContextToday() { return contextToday; }
         public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
     }
 
 

@@ -11,6 +11,10 @@ starts:
   - screen: todo
     place: 画面のボタン
 shownWhen: いつも
+carried:
+  version:
+    $copy: version
+    $of: self
 input:
   screen: add-todo-comment/input
   request: GET /todo/{id}/add-todo-comment
@@ -48,6 +52,8 @@ execute:
   returns: 起点の画面（starts の画面。画面の ID で受け取る）
   notice: add-todo-comment.done
   refusals:
+    - key: add-todo-comment.version-unchanged
+      message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     - key: check.updated-not-before-created
       message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
   onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

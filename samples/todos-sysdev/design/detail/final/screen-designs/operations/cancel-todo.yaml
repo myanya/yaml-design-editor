@@ -12,6 +12,11 @@ form:
         - name: NotNull
         - name: Size
           min: 1
+    - name: version
+      item: version
+      type: Long
+      validations:
+        - name: NotNull
   classes: []
 screens:
   - id: cancel-todo/input
@@ -34,6 +39,7 @@ screens:
             action: POST /todo/{id}/cancel-todo/confirm
             object: CancelTodoForm
             hidden:
+              - version
               - from
             body:
               - field:
@@ -85,6 +91,7 @@ screens:
             action: POST /todo/{id}/cancel-todo
             hidden:
               - reason
+              - version
               - flow
               - from
             body:

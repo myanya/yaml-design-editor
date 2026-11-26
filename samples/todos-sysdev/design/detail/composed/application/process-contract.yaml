@@ -24,6 +24,9 @@ processes:
   - source: DOC-processes.add-todo-comment
     transactionMode: atomic
     checks:
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -43,6 +46,9 @@ processes:
   - source: DOC-processes.add-todo-task
     transactionMode: atomic
     checks:
+      - mode: current
+        entity: todo
+        phase: before
       - mode: current
         entity: todo
         phase: before
@@ -77,6 +83,9 @@ processes:
       - mode: state
         entity: todo
         phase: before
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -103,6 +112,9 @@ processes:
         entity: todo
         phase: before
       - mode: count
+        entity: todo
+        phase: before
+      - mode: current
         entity: todo
         phase: before
       - mode: prospective
@@ -142,6 +154,9 @@ processes:
   - source: DOC-processes.delete-todo-comment
     transactionMode: atomic
     checks:
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -158,6 +173,9 @@ processes:
   - source: DOC-processes.edit-todo
     transactionMode: atomic
     checks:
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -189,6 +207,9 @@ processes:
   - source: DOC-processes.edit-todo-comment
     transactionMode: atomic
     checks:
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -242,6 +263,9 @@ processes:
       - mode: state
         entity: todo
         phase: before
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -267,6 +291,9 @@ processes:
       - mode: state
         entity: todo
         phase: before
+      - mode: current
+        entity: todo
+        phase: before
       - mode: prospective
         entity: todo
         phase: before
@@ -290,6 +317,9 @@ processes:
     transactionMode: atomic
     checks:
       - mode: state
+        entity: todo
+        phase: before
+      - mode: current
         entity: todo
         phase: before
       - mode: prospective

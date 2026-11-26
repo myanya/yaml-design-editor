@@ -21,11 +21,11 @@ public class SuspendTodoWebOperation {
 
     public String execute(String id, SuspendTodoForm form) {
         var input = toInput(id, form);
-        return service.suspendTodo(input.getId(), input.getDate(), input.getReason(), input.getResumeOn());
+        return service.suspendTodo(input.getId(), input.getDate(), input.getReason(), input.getResumeOn(), input.getVersion());
     }
     public java.util.List<BusinessViolation> check(String id, SuspendTodoForm form) {
         var input = toInput(id, form);
-        return service.checkSuspendTodo(input.getId(), input.getDate(), input.getReason(), input.getResumeOn());
+        return service.checkSuspendTodo(input.getId(), input.getDate(), input.getReason(), input.getResumeOn(), input.getVersion());
     }
     public SuspendTodoInput toInput(String id, SuspendTodoForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -37,6 +37,7 @@ public class SuspendTodoWebOperation {
         input.setDate(form.getDate());
         input.setReason(form.getReason());
         input.setResumeOn(form.getResumeOn());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

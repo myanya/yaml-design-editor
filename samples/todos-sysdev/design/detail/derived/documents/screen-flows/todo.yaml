@@ -100,6 +100,7 @@ record:
               puts:
                 - notice
             refusals:
+              - add-todo-comment.version-unchanged
               - check.updated-not-before-created
       - action: edit-todo-comment
         name: コメントを編集する
@@ -139,6 +140,7 @@ record:
               puts:
                 - notice
             refusals:
+              - edit-todo-comment.version-unchanged
               - check.updated-not-before-created
       - action: delete-todo-comment
         name: コメントを削除する
@@ -167,6 +169,7 @@ record:
               puts:
                 - notice
             refusals:
+              - delete-todo-comment.version-unchanged
               - check.updated-not-before-created
       - action: add-todo-task
         name: 作業項目を追加する
@@ -207,6 +210,7 @@ record:
                 - notice
             refusals:
               - add-todo-task.active
+              - add-todo-task.version-unchanged
               - check.updated-not-before-created
               - check.closed-has-no-open-task
       - action: edit-todo
@@ -250,12 +254,14 @@ record:
               puts:
                 - notice
             refusals:
+              - edit-todo.version-unchanged
               - check.due-not-before-created
               - check.updated-not-before-created
               - check.completed-not-before-created
               - check.closed-has-result
       - action: start-todo
         name: TODOに着手する
+        form: StartTodoForm
         service: TodoService.startTodo
         returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
         steps:
@@ -281,6 +287,7 @@ record:
                 - notice
             refusals:
               - start-todo.state
+              - start-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
       - action: suspend-todo
@@ -323,6 +330,7 @@ record:
                 - notice
             refusals:
               - suspend-todo.state
+              - suspend-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
               - check.resume-not-before-suspend
@@ -365,6 +373,7 @@ record:
                 - notice
             refusals:
               - resume-todo.state
+              - resume-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
       - action: complete-todo
@@ -408,6 +417,7 @@ record:
             refusals:
               - complete-todo.state
               - complete-todo.no-open-task
+              - complete-todo.version-unchanged
               - check.updated-not-before-created
               - check.completed-not-before-created
               - check.closed-has-completed-on
@@ -452,6 +462,7 @@ record:
                 - notice
             refusals:
               - cancel-todo.state
+              - cancel-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
   source:

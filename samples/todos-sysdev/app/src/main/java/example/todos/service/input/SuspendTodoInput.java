@@ -14,4 +14,7 @@ public class SuspendTodoInput {
     private java.time.LocalDate resumeOn;
     public java.time.LocalDate getResumeOn() { return resumeOn; }
     public void setResumeOn(java.time.LocalDate value) { this.resumeOn = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
 }

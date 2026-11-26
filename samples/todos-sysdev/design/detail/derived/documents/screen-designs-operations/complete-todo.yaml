@@ -23,6 +23,11 @@ record:
             - name: NotNull
             - name: Size
               min: 1
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
       classes: []
     screens:
       - id: complete-todo/input
@@ -45,6 +50,7 @@ record:
                 action: POST /todo/{id}/complete-todo/confirm
                 object: CompleteTodoForm
                 hidden:
+                  - version
                   - from
                 body:
                   - field:
@@ -104,6 +110,7 @@ record:
                 hidden:
                   - date
                   - result
+                  - version
                   - flow
                   - from
                 body:

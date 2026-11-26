@@ -11,4 +11,7 @@ public class ResumeTodoInput {
     private java.lang.String note;
     public java.lang.String getNote() { return note; }
     public void setNote(java.lang.String value) { this.note = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
 }

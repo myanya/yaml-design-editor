@@ -49,6 +49,11 @@ public class EditTodoForm {
     private EditTodoClear clear;
     public EditTodoClear getClear() { return clear; }
     public void setClear(EditTodoClear value) { this.clear = value; }
+@jakarta.validation.constraints.NotNull(message = "版を受け取れませんでした。画面を開き直してから、もう一度操作してください")
+
+    private Long version;
+    public Long getVersion() { return version; }
+    public void setVersion(Long value) { this.version = value; }
     public static class EditTodoClear {
 
         private Boolean category;

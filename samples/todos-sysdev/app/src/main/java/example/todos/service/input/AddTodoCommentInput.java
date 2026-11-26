@@ -11,4 +11,7 @@ public class AddTodoCommentInput {
     private java.lang.String body;
     public java.lang.String getBody() { return body; }
     public void setBody(java.lang.String value) { this.body = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
 }

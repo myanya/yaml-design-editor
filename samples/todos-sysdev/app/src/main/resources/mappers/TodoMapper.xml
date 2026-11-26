@@ -536,6 +536,10 @@ AND todo_comments.todo_id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -582,6 +586,10 @@ AND todo_comments.seq = #{input.row}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -617,6 +625,10 @@ AND todo_comments.seq = #{input.row}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -634,6 +646,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -683,6 +699,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -714,6 +734,10 @@ AND todo_tags.todo_id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -735,6 +759,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -756,6 +784,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -785,6 +817,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 
@@ -810,6 +846,10 @@ AND todo.id = #{input.id}
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>
       <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
     </choose>
     <where>
 

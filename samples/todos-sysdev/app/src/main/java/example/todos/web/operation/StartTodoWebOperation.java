@@ -19,14 +19,18 @@ public class StartTodoWebOperation {
         this.validator = validator;
     }
 
-    public String execute(String id) {
-        var input = toInput(id);
-        return service.startTodo(input.getId());
+    public String execute(String id, StartTodoForm form) {
+        var input = toInput(id, form);
+        return service.startTodo(input.getId(), input.getVersion());
     }
-    public StartTodoInput toInput(String id) {
+    public StartTodoInput toInput(String id, StartTodoForm form) {
+        if (form == null) throw new IllegalArgumentException("入力フォームがありません");
+        var violations = validator.validate(form);
+        if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
         if (id == null || id.isEmpty()) throw new IllegalArgumentException("対象の ID がありません");
         var input = new StartTodoInput();
         input.setId(id);
+        input.setVersion(form.getVersion());
         return input;
     }
 }

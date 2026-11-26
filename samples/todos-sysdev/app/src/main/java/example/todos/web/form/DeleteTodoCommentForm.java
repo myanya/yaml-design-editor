@@ -11,4 +11,9 @@ public class DeleteTodoCommentForm {
     private Long row;
     public Long getRow() { return row; }
     public void setRow(Long value) { this.row = value; }
+@jakarta.validation.constraints.NotNull(message = "版を受け取れませんでした。画面を開き直してから、もう一度操作してください")
+
+    private Long version;
+    public Long getVersion() { return version; }
+    public void setVersion(Long value) { this.version = value; }
 }

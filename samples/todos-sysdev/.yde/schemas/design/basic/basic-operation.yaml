@@ -143,6 +143,15 @@ definitions:
         type: array
         item:
           type: 入力の定義
+      - key: carried
+        label: 画面が運ぶ
+        type: boolean
+        description: 人は入力せず、画面が受け手から読んで運ぶ入力（入力画面と確認画面では隠し項目にし、確認の表示と入力の誤りの文には出さない）
+      - key: addedBy
+        label: 足した方式の指定
+        type: string
+        pattern: ^SPC-\S+$
+        description: 業務モデルに無く、方式（全体の判断）が足した入力のとき、その指定の ID
       - key: initial
         label: はじめの値
         type: any
@@ -267,6 +276,10 @@ root:
           - key: message
             label: 合わないときの文
             type: string
+          - key: addedBy
+            label: 足した方式の指定
+            type: string
+            pattern: ^SPC-\S+$
           - key: rule
             label: 条件
             type: any
@@ -307,6 +320,11 @@ root:
           - key: auto
             label: 自動で入る値の種類
             type: string
+            description: created・updated（日付）、revision（版。値は前の値の次）
+          - key: addedBy
+            label: 足した方式の指定
+            type: string
+            pattern: ^SPC-\S+$
           - key: 'on'
             label: 起こる時
             type: string

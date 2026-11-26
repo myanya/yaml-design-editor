@@ -23,6 +23,11 @@ record:
             - name: NotNull
             - name: Size
               min: 1
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
       classes: []
     screens:
       - id: add-todo-comment/input
@@ -45,6 +50,7 @@ record:
                 action: POST /todo/{id}/add-todo-comment/confirm
                 object: AddTodoCommentForm
                 hidden:
+                  - version
                   - from
                 body:
                   - field:
@@ -97,6 +103,7 @@ record:
                 hidden:
                   - date
                   - body
+                  - version
                   - flow
                   - from
                 body:

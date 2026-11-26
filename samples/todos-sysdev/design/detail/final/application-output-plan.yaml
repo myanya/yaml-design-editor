@@ -244,6 +244,10 @@ outputs:
     report: app-web-form
     params:
       form: JFORM-resume-todo
+  - id: OUTPUT-JFORM-start-todo
+    report: app-web-form
+    params:
+      form: JFORM-start-todo
   - id: OUTPUT-JFORM-suspend-todo
     report: app-web-form
     params:

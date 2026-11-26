@@ -38,14 +38,54 @@ messages:
     kind: 状態の断り
     text: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
     source: 操作 cancel-todo の Lifecycle（todo-lifecycle）
+  - key: add-todo-comment.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 add-todo-comment の前提 version-unchanged
+  - key: edit-todo-comment.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 edit-todo-comment の前提 version-unchanged
+  - key: delete-todo-comment.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 delete-todo-comment の前提 version-unchanged
   - key: add-todo-task.active
     kind: 前提の断り
     text: '{id} は完了か中止をしているので、作業項目を足せません'
     source: 操作 add-todo-task の前提 active
+  - key: add-todo-task.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 add-todo-task の前提 version-unchanged
+  - key: edit-todo.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 edit-todo の前提 version-unchanged
+  - key: start-todo.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 start-todo の前提 version-unchanged
+  - key: suspend-todo.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 suspend-todo の前提 version-unchanged
+  - key: resume-todo.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 resume-todo の前提 version-unchanged
   - key: complete-todo.no-open-task
     kind: 前提の断り
     text: '{id} には済んでいない作業項目があります（済にしてから完了します）'
     source: 操作 complete-todo の前提 no-open-task
+  - key: complete-todo.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 complete-todo の前提 version-unchanged
+  - key: cancel-todo.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 cancel-todo の前提 version-unchanged
   - key: check.due-not-before-created
     kind: データの決まり
     text: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
@@ -271,6 +311,14 @@ validation:
         kind: 入力の誤り
         text: コメント本文は1文字以上で入力してください
         source: 文字数
+  - form: addTodoCommentForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.addTodoCommentForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: editTodoCommentForm
     field: row
     label: コメントの番号
@@ -295,6 +343,14 @@ validation:
         kind: 入力の誤り
         text: コメント本文は1文字以上で入力してください
         source: 文字数
+  - form: editTodoCommentForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.editTodoCommentForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: deleteTodoCommentForm
     field: row
     label: コメントの番号
@@ -302,6 +358,14 @@ validation:
       - key: validation.NotNull.deleteTodoCommentForm.row
         kind: 入力の誤り
         text: コメントの番号を入力してください
+        source: 必須
+  - form: deleteTodoCommentForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.deleteTodoCommentForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
         source: 必須
   - form: addTodoTaskForm
     field: title
@@ -319,6 +383,14 @@ validation:
         kind: 入力の誤り
         text: 作業の書き方が正しくありません
         source: 形式
+  - form: addTodoTaskForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.addTodoTaskForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: editTodoForm
     field: title
     label: タイトル
@@ -367,6 +439,22 @@ validation:
         kind: 入力の誤り
         text: 期限は年月日で入力してください
         source: 日付として読めない
+  - form: editTodoForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.editTodoForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
+  - form: startTodoForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.startTodoForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: suspendTodoForm
     field: date
     label: 中断日
@@ -399,6 +487,14 @@ validation:
         kind: 入力の誤り
         text: 再開予定日は年月日で入力してください
         source: 日付として読めない
+  - form: suspendTodoForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.suspendTodoForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: resumeTodoForm
     field: date
     label: 再開日
@@ -411,6 +507,14 @@ validation:
         kind: 入力の誤り
         text: 再開日は年月日で入力してください
         source: 日付として読めない
+  - form: resumeTodoForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.resumeTodoForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: completeTodoForm
     field: date
     label: 完了日
@@ -435,6 +539,14 @@ validation:
         kind: 入力の誤り
         text: 完了結果は1文字以上で入力してください
         source: 文字数
+  - form: completeTodoForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.completeTodoForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: cancelTodoForm
     field: reason
     label: 中止理由
@@ -447,6 +559,14 @@ validation:
         kind: 入力の誤り
         text: 中止理由は1文字以上で入力してください
         source: 文字数
+  - form: cancelTodoForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.cancelTodoForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
   - form: addTagForm
     field: name
     label: タグ名

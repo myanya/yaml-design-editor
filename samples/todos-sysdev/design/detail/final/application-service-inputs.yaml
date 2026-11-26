@@ -99,6 +99,25 @@ operations:
           minLength: 1
           multiline: true
         classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
     classes: []
   - id: SINPUT-add-todo-task
     source: DOC-processes.add-todo-task
@@ -133,6 +152,25 @@ operations:
           overrides:
             minLength: 1
         classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
     classes: []
   - id: SINPUT-cancel-todo
     source: DOC-processes.cancel-todo
@@ -164,6 +202,25 @@ operations:
           required: true
           minLength: 1
           multiline: true
+        classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
         classes: []
     classes: []
   - id: SINPUT-complete-todo
@@ -212,6 +269,25 @@ operations:
           minLength: 1
           multiline: true
         classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
     classes: []
   - id: SINPUT-delete-todo-comment
     source: DOC-processes.delete-todo-comment
@@ -248,6 +324,25 @@ operations:
             name: int
             base: int
             builtin: true
+        classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
         classes: []
     classes: []
   - id: SINPUT-edit-todo
@@ -645,6 +740,25 @@ operations:
                 base: boolean
                 builtin: true
             classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
     classes:
       - name: EditTodoClear
         fields:
@@ -792,6 +906,25 @@ operations:
           description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
           minLength: 1
           multiline: true
+        classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
         classes: []
     classes: []
   - id: SINPUT-register-todo
@@ -1000,6 +1133,25 @@ operations:
           base: string
           multiline: true
         classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
     classes: []
   - id: SINPUT-start-todo
     source: DOC-processes.start-todo
@@ -1015,6 +1167,25 @@ operations:
         base: ref
         target: todo
         receiver: true
+        classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
         classes: []
     classes: []
   - id: SINPUT-suspend-todo
@@ -1076,6 +1247,25 @@ operations:
           base: date
           description: 決まっていれば入れます。中断日以降の日付です。
           format: yyyy年M月d日
+        classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
         classes: []
     classes: []
   - id: SINPUT-todo-task.finish

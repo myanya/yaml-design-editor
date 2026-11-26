@@ -295,11 +295,19 @@ operations:
         label: コメント本文
         checks:
           - 必須
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
         when: 受け手の ID で読んで、無いとき
         shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: add-todo-comment.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
         when: 更新日は作成日以降であること
@@ -324,6 +332,10 @@ operations:
       - field: body
         label: コメント本文
         checks: []
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -333,6 +345,10 @@ operations:
         message: error.notFound.todo.comments
         when: 受け取った番号の行を書こうとして、無いとき
         shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: edit-todo-comment.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
         when: 更新日は作成日以降であること
@@ -350,6 +366,10 @@ operations:
         label: コメントの番号
         checks:
           - 必須
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -359,6 +379,10 @@ operations:
         message: error.notFound.todo.comments
         when: 受け取った番号の行を書こうとして、無いとき
         shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: delete-todo-comment.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
         when: 更新日は作成日以降であること
@@ -378,6 +402,10 @@ operations:
           - 必須
           - 最長 100 文字
           - 形式
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -386,6 +414,10 @@ operations:
       - kind: precondition
         message: add-todo-task.active
         when: '{id} は完了か中止をしているので、作業項目を足せません'
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: add-todo-task.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
@@ -427,11 +459,19 @@ operations:
         label: 期限
         checks:
           - 年月日として読める
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
         when: 受け手の ID で読んで、無いとき
         shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: edit-todo.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.due-not-before-created
         when: 期限は作成日以降であること
@@ -459,7 +499,11 @@ operations:
   - id: start-todo
     name: TODOに着手する
     screens: 入力画面と確認画面（ダッシュボードからたどれる）
-    inputs: []
+    inputs:
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -470,6 +514,10 @@ operations:
         when: 受け手の状態が、この操作のできる状態でないとき
         allowed:
           - 未着手
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: start-todo.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
@@ -502,6 +550,10 @@ operations:
         label: 再開予定日
         checks:
           - 年月日として読める
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -512,6 +564,10 @@ operations:
         when: 受け手の状態が、この操作のできる状態でないとき
         allowed:
           - 対応中
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: suspend-todo.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
@@ -541,6 +597,10 @@ operations:
         checks:
           - 必須
           - 年月日として読める
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -551,6 +611,10 @@ operations:
         when: 受け手の状態が、この操作のできる状態でないとき
         allowed:
           - 中断
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: resume-todo.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
@@ -579,6 +643,10 @@ operations:
         label: 完了結果
         checks:
           - 必須
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -593,6 +661,10 @@ operations:
       - kind: precondition
         message: complete-todo.no-open-task
         when: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: complete-todo.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created
@@ -631,6 +703,10 @@ operations:
         label: 中止理由
         checks:
           - 必須
+      - field: version
+        label: 版
+        checks:
+          - 必須
     refusals:
       - kind: not-found
         message: error.notFound.todo
@@ -643,6 +719,10 @@ operations:
           - 未着手
           - 対応中
           - 中断
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: cancel-todo.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule
         message: check.updated-not-before-created

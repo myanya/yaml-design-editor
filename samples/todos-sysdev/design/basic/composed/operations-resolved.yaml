@@ -513,6 +513,17 @@ actions:
         required: true
         minLength: 1
         multiline: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: date
         label: 記録日
@@ -529,12 +540,30 @@ actions:
         required: true
         minLength: 1
         multiline: true
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input:
       initial:
         date:
           $copy: today
           $of: context
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     effects:
       - op: insert
         source: do
@@ -569,6 +598,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -610,6 +650,17 @@ actions:
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         minLength: 1
         multiline: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: date
         label: 記録日
@@ -624,6 +675,12 @@ actions:
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         minLength: 1
         multiline: true
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     rowOf:
       field: comments
       param: row
@@ -667,7 +724,19 @@ actions:
           $of: self
           $in:
             schemaId: todo-detail
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     effects:
       - op: set
         source: do
@@ -723,6 +792,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -751,7 +831,24 @@ actions:
           name: int
           base: int
           builtin: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams: []
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     rowOf:
       field: comments
       param: row
@@ -783,7 +880,19 @@ actions:
           required: true
           multiline: true
     input: {}
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     effects:
       - op: delete
         source: do
@@ -810,6 +919,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -836,6 +956,17 @@ actions:
         pattern: ^[^\r\n]*$
         overrides:
           minLength: 1
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: title
         label: 作業
@@ -847,6 +978,12 @@ actions:
         pattern: ^[^\r\n]*$
         overrides:
           minLength: 1
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input: {}
     require:
       - id: active
@@ -863,6 +1000,18 @@ actions:
                 - OPEN
                 - IN_PROGRESS
                 - SUSPENDED
+          expect: exists
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
           expect: exists
     effects:
       - op: insert
@@ -909,6 +1058,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -1071,6 +1231,17 @@ actions:
               name: boolean
               base: boolean
               builtin: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: title
         label: タイトル
@@ -1213,6 +1384,12 @@ actions:
               name: boolean
               base: boolean
               builtin: true
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input:
       submit: changed
       initial:
@@ -1256,7 +1433,19 @@ actions:
           $of: self
           $in:
             schemaId: todo-detail
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     effects:
       - op: set
         source: do
@@ -1438,6 +1627,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: due-not-before-created
         form: element
@@ -1505,10 +1705,39 @@ actions:
     target:
       entity: todo
     creates: []
-    params: []
+    params:
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams: []
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input: {}
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     lifecycle:
       id: todo-lifecycle
       transitions:
@@ -1579,6 +1808,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -1620,6 +1860,17 @@ actions:
         base: date
         description: 決まっていれば入れます。中断日以降の日付です。
         format: yyyy年M月d日
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: date
         label: 中断日
@@ -1642,12 +1893,30 @@ actions:
         base: date
         description: 決まっていれば入れます。中断日以降の日付です。
         format: yyyy年M月d日
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input:
       initial:
         date:
           $copy: today
           $of: context
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     lifecycle:
       id: todo-lifecycle
       transitions:
@@ -1729,6 +1998,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -1769,6 +2049,17 @@ actions:
         type: common#文章
         base: string
         multiline: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: date
         label: 再開日
@@ -1782,12 +2073,30 @@ actions:
         type: common#文章
         base: string
         multiline: true
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input:
       initial:
         date:
           $copy: today
           $of: context
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     lifecycle:
       id: todo-lifecycle
       transitions:
@@ -1864,6 +2173,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -1899,6 +2219,17 @@ actions:
         required: true
         minLength: 1
         multiline: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: date
         label: 完了日
@@ -1915,6 +2246,12 @@ actions:
         required: true
         minLength: 1
         multiline: true
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input:
       initial:
         date:
@@ -1938,6 +2275,18 @@ actions:
               path: done
               equals: false
           expect: absent
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     lifecycle:
       id: todo-lifecycle
       transitions:
@@ -2026,6 +2375,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element
@@ -2077,6 +2437,17 @@ actions:
         required: true
         minLength: 1
         multiline: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
     inputParams:
       - key: reason
         label: 中止理由
@@ -2086,8 +2457,26 @@ actions:
         required: true
         minLength: 1
         multiline: true
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
     input: {}
-    require: []
+    require:
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
     lifecycle:
       id: todo-lifecycle
       transitions:
@@ -2180,6 +2569,17 @@ actions:
         value:
           $copy: today
           $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
     checks:
       - constraint: updated-not-before-created
         form: element

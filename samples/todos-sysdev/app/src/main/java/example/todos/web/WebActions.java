@@ -59,8 +59,8 @@ public class WebActions {
             (id,form) -> op10.execute(id, (ResumeTodoForm)form),
             (id,form) -> List.of()));
         actions.put("start-todo",new Action(
-            () -> null,
-            (id,form) -> op11.execute(id),
+            () -> new StartTodoForm(),
+            (id,form) -> op11.execute(id, (StartTodoForm)form),
             (id,form) -> List.of()));
         actions.put("suspend-todo",new Action(
             () -> new SuspendTodoForm(),

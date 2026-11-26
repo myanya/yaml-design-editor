@@ -166,6 +166,20 @@ rules:
                   columns:
                     $copy: values.record.row.columns
                     $of: primary
+            # 整数の列には「次の値」の場所（next）も用意する。自動で入る版（revision）の値が、これを指す
+            - $each: values.record.raw.columnBindings
+              $of: primary
+              $build:
+                $apply: next-symbol
+                $with:
+                  symbol:
+                    $apply: column-symbol
+                    $with:
+                      binding:
+                        $copy: .
+                      columns:
+                        $copy: values.record.row.columns
+                        $of: primary
             - $each: steps
               $of: process
               $build:
@@ -178,6 +192,35 @@ rules:
                   name: numberedId
                   java: numberedId
                   type: java.lang.String
+  - id: next-symbol
+    with:
+      - symbol
+    when:
+      - of: symbol
+        path: type
+        equals: java.lang.Long
+    build:
+      path:
+        $copy: path
+        $of: symbol
+      place: next
+      name:
+        $format: next{n}
+        $with:
+          'n':
+            $case:
+              $copy: path
+              $of: symbol
+            $as: pascal
+      java:
+        $format: (original.get{a}() + 1L)
+        $with:
+          a:
+            $case:
+              $copy: path
+              $of: symbol
+            $as: pascal
+      type: java.lang.Long
   - id: column-symbol
     with:
       - binding

@@ -19,6 +19,11 @@ record:
               max: 100
             - name: Pattern
               regexp: ^[^\r\n]*$
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
       classes: []
     screens:
       - id: add-todo-task/input
@@ -41,6 +46,7 @@ record:
                 action: POST /todo/{id}/add-todo-task/confirm
                 object: AddTodoTaskForm
                 hidden:
+                  - version
                   - from
                 body:
                   - field:
@@ -82,6 +88,7 @@ record:
                 action: POST /todo/{id}/add-todo-task
                 hidden:
                   - title
+                  - version
                   - flow
                   - from
                 body:

@@ -35,95 +35,129 @@ build:
   $copy: document
 rules:
   # 補正前の項目: 業務モデルの操作 1 つを、項目の形にする
+  # 補正前の項目: 業務モデルの操作 1 つを、項目の形にする。方式（全体の判断）が足した版の項目を受け手が持つ操作には、
+  # 読んだときの版を運ぶ入力・版が同じという前提・版を進める効果を足す（revision-input・revision-precondition・revision-effect）
   - id: derived-items
     with:
       - row
     build:
       $each: values.model.actions
       $of: row
-      $bind: act
       $build:
-          id:
-            $format: ACT-{id}
-          source:
-            $copy: id
-          # 業務モデルでの並び順（読む側が、操作を業務モデルと同じ順に並べるのに使う）
+        $apply: item
+        $with:
+          act:
+            $copy: .
           seq:
             $number: $position
             $as: '00'
-          kind:
-            $copy: kind
-          label:
-            $copy: label
-          description:
-            $copy: description
-          subject:
-            $copy: subject
-          entity:
-            $format: ENT-{subject}
-          # 受け手（選んだ 1 件に対する操作のとき）
-          receiver:
-            $when:
-              - path: target.entity
-                exists: true
-            $then:
-              $format: ENT-{target.entity}
-          # 新しく作る要素
-          creates:
-            $each: creates
-            $build:
-              $format: ENT-{e}
-              $with:
-                e:
-                  $copy: .
-          # 状態と遷移（states.yaml の項目を指す。状態の名称と値は写さない）
-          lifecycle:
-            $when:
-              - path: lifecycle.id
-                exists: true
-            $then:
-              $format: LCY-{lifecycle.id}
-          entry:
-            $when:
-              - path: lifecycle.entry
-                exists: true
-            $then:
-              $format: TRN-{lifecycle.id}.{id}
-          transition:
-            $when:
-              - path: lifecycle.transitions
-                exists: true
-            $then:
-              $format: TRN-{lifecycle.id}.{id}
-          refusal:
-            $copy: lifecycle.refusal
-          history:
-            $copy: lifecycle.history
-          # 入力の受け方（変えたものだけを送る など）
-          submit:
-            $copy: input.submit
-          # 並びの 1 件を番号で指す操作: どの並びの行を、どの入力で指すか
-          row:
+          revision:
             $apply: first
             $with:
               items:
-                $each: effects
-                $build:
-                  $when:
-                    - path: row
-                      exists: true
-                  $then:
-                    param:
-                      $format: PRM-{a}.{p}
-                      $with:
-                        a:
-                          $copy: id
-                          $of: act
-                        p:
-                          $copy: row.param
-                    item:
-                      $format: FLD-{entity}.{field.key}
-          inputs:
+                $apply: revision-items
+                $with:
+                  receiver:
+                    $copy: target.entity
+  - id: item
+    with:
+      - act
+      - seq
+      - revision
+    build:
+      id:
+        $format: ACT-{id}
+      source:
+        $copy: id
+      # 業務モデルでの並び順（読む側が、操作を業務モデルと同じ順に並べるのに使う）
+      seq:
+        $copy: .
+        $of: seq
+      kind:
+        $copy: kind
+      label:
+        $copy: label
+      description:
+        $copy: description
+      subject:
+        $copy: subject
+      entity:
+        $format: ENT-{subject}
+      # 受け手（選んだ 1 件に対する操作のとき）
+      receiver:
+        $when:
+          - path: target.entity
+            exists: true
+        $then:
+          $format: ENT-{target.entity}
+      # 新しく作る要素
+      creates:
+        $each: creates
+        $build:
+          $format: ENT-{e}
+          $with:
+            e:
+              $copy: .
+      # 状態と遷移（states.yaml の項目を指す。状態の名称と値は写さない）
+      lifecycle:
+        $when:
+          - path: lifecycle.id
+            exists: true
+        $then:
+          $format: LCY-{lifecycle.id}
+      entry:
+        $when:
+          - path: lifecycle.entry
+            exists: true
+        $then:
+          $format: TRN-{lifecycle.id}.{id}
+      transition:
+        $when:
+          - path: lifecycle.transitions
+            exists: true
+        $then:
+          $format: TRN-{lifecycle.id}.{id}
+      refusal:
+        $copy: lifecycle.refusal
+      history:
+        $copy: lifecycle.history
+      # 入力の受け方（変えたものだけを送る など）
+      submit:
+        $copy: input.submit
+      # 並びの 1 件を番号で指す操作: どの並びの行を、どの入力で指すか
+      row:
+        $apply: first
+        $with:
+          items:
+            $each: effects
+            $build:
+              $when:
+                - path: row
+                  exists: true
+              $then:
+                param:
+                  $format: PRM-{a}.{p}
+                  $with:
+                    a:
+                      $copy: id
+                      $of: act
+                    p:
+                      $copy: row.param
+                item:
+                  $format: FLD-{entity}.{field.key}
+      inputs:
+        $apply: with-added
+        $with:
+          added:
+            $apply: revision-input
+            $with:
+              act:
+                $copy: .
+                $of: act
+              revision:
+                $copy: .
+                $of: revision
+          list:
             $each: params
             $build:
               $apply: input
@@ -134,166 +168,382 @@ rules:
                 initials:
                   $copy: input.initial
                   $of: act
-          preconditions:
-            $each: require
-            $build:
-              id:
-                $format: PRE-{a}.{p}
+      preconditions:
+        $apply: with-added
+        $with:
+          added:
+            $apply: revision-precondition
+            $with:
+              act:
+                $copy: .
+                $of: act
+              revision:
+                $copy: .
+                $of: revision
+          list:
+            $apply: preconditions
+            $with:
+              action:
+                $copy: id
+      effects:
+        $apply: with-added
+        $with:
+          added:
+            $apply: revision-effect
+            $with:
+              act:
+                $copy: .
+                $of: act
+              revision:
+                $copy: .
+                $of: revision
+          list:
+            $apply: effects
+            $with:
+              action:
+                $copy: id
+      # この操作で確かめるデータの決まり（決まりの形・厳しさ・条件は rules.yaml を指す）
+      checks:
+        $each: checks
+        $build:
+          rule:
+            $format: RUL-{constraint}
+          items:
+            $copy: items
+          multiple:
+            $copy: multiple
+          params:
+            $when:
+              - path: params
+                exists: true
+            $then:
+              $each: params
+              $build:
+                $format: PRM-{a}.{p}
                 $with:
                   a:
                     $copy: id
                     $of: act
                   p:
-                    $copy: id
-              source:
+                    $copy: .
+      provides:
+        $copy: provides
+      # エンティティから見た書込（entities.yaml の CRUD の項目）
+      writes:
+        $each:
+          $view: basic-model-entities
+        $flatten: true
+        $build:
+          $each: values.record.operations
+          $flatten: true
+          $build:
+            $when:
+              - path: action
+                equals:
+                  $copy: id
+                  $of: act
+            $then:
+              $each: writes
+              $build:
                 $copy: id
-              message:
-                $copy: message
-              rule:
-                $copy: rule
-          effects:
-            $each: effects
-            $build:
-              id:
-                $format: EFF-{a}.{n}
-                $with:
-                  a:
-                    $copy: id
-                    $of: act
-                  'n':
-                    $number: $position
-                    $as: '00'
-              op:
-                $copy: op
-              cause:
-                $copy: source
-              auto:
-                $copy: auto
-              'on':
-                $copy: 'on'
-              of:
-                $copy: of
-              within:
-                $copy: within
-              bind:
-                $copy: bind
-              subject:
-                $copy: entity
+  # 方式が足すものを、業務モデルから来た並びの後ろにつなぐ。足すものが無ければ、並びはそのまま（無い並びは無いまま）
+  - id: with-added
+    with:
+      - list
+      - added
+    when:
+      - of: added
+        path: .
+        exists: true
+    build:
+      $concat:
+        - $copy: .
+          $of: list
+        - - $copy: .
+            $of: added
+  - id: with-added
+    with:
+      - list
+      - added
+    build:
+      $copy: .
+      $of: list
+  # 受け手のエンティティが持つ、方式が足した版の項目（自動で入る値が revision の項目）。無ければ、何も足さない
+  - id: revision-items
+    with:
+      - receiver
+    build:
+      $each:
+        $view: basic-model-entities
+      $flatten: true
+      $build:
+        $when:
+          - path: values.record.source
+            equals:
+              $copy: .
+              $of: receiver
+        $then:
+          $each: values.record.items
+          $build:
+            $when:
+              - path: auto
+                equals: revision
+              - path: addedBy
+                exists: true
+            $then:
+              $copy: .
+  # 読んだときの版を運ぶ入力。人は入力せず、画面が受け手から読んで運ぶ（carried）
+  - id: revision-input
+    with:
+      - act
+      - revision
+    when:
+      - of: revision
+        path: id
+        exists: true
+    build:
+      id:
+        $format: PRM-{a}.{k}
+        $with:
+          a:
+            $copy: id
+            $of: act
+          k:
+            $copy: key
+            $of: revision
+      key:
+        $copy: key
+        $of: revision
+      label:
+        $copy: label
+        $of: revision
+      builtin: int
+      base: int
+      description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+      required: true
+      carried: true
+      addedBy:
+        $copy: addedBy
+        $of: revision
+      initial:
+        $entries:
+          - key: $$copy
+            value:
+              $copy: key
+              $of: revision
+          - key: $$of
+            value: self
+  # 版が、読んだときと同じという前提（受け手が、入力と同じ版で在ること）
+  - id: revision-precondition
+    with:
+      - act
+      - revision
+    when:
+      - of: revision
+        path: id
+        exists: true
+    build:
+      id:
+        $format: PRE-{a}.{k}-unchanged
+        $with:
+          a:
+            $copy: id
+            $of: act
+          k:
+            $copy: key
+            $of: revision
+      source:
+        $format: '{k}-unchanged'
+        $with:
+          k:
+            $copy: key
+            $of: revision
+      message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      addedBy:
+        $copy: addedBy
+        $of: revision
+      rule:
+        match:
+          - node:
               entity:
-                $format: ENT-{entity}
-              schema:
-                $copy: schema
-              path:
-                $copy: path
-              # 書く項目（エンティティの項目のとき。エンティティの並びそのものへ足す効果には無い）
-              item:
-                $when:
-                  - path: field.key
-                    exists: true
-                  - or:
-                      - path: field.item.entity
-                        exists: false
-                      - not:
-                          path: field.item.entity
-                          equals:
-                            $copy: entity
-                $then:
-                  $format: FLD-{entity}.{field.key}
-              # エンティティの並びへ足す効果: 並びのキーと、足す要素のエンティティ
-              collection:
-                $when:
-                  - path: field.item.entity
+                $copy: target.entity
+                $of: act
+              bind: t
+        where:
+          - of: t
+            path:
+              $copy: key
+              $of: revision
+            equals:
+              $format: '{d}{k}'
+              $with:
+                d: $$
+                k:
+                  $copy: key
+                  $of: revision
+        expect: exists
+  # 版を 1 進める効果（自動で入る値。値は「前の値の次」で、式は持たない）
+  - id: revision-effect
+    with:
+      - act
+      - revision
+    when:
+      - of: revision
+        path: id
+        exists: true
+    build:
+      id:
+        $format: EFF-{a}.{k}
+        $with:
+          a:
+            $copy: id
+            $of: act
+          k:
+            $copy: key
+            $of: revision
+      op: set
+      cause: auto
+      auto: revision
+      subject:
+        $copy: target.entity
+        $of: act
+      entity:
+        $format: ENT-{e}
+        $with:
+          e:
+            $copy: target.entity
+            $of: act
+      path:
+        $copy: key
+        $of: revision
+      item:
+        $copy: id
+        $of: revision
+      addedBy:
+        $copy: addedBy
+        $of: revision
+  - id: preconditions
+    with:
+      - action
+    build:
+      $each: require
+      $build:
+        id:
+          $format: PRE-{a}.{p}
+          $with:
+            a:
+              $copy: .
+              $of: action
+            p:
+              $copy: id
+        source:
+          $copy: id
+        message:
+          $copy: message
+        rule:
+          $copy: rule
+  - id: effects
+    with:
+      - action
+    build:
+      $each: effects
+      $build:
+        id:
+          $format: EFF-{a}.{n}
+          $with:
+            a:
+              $copy: .
+              $of: action
+            'n':
+              $number: $position
+              $as: '00'
+        op:
+          $copy: op
+        cause:
+          $copy: source
+        auto:
+          $copy: auto
+        'on':
+          $copy: 'on'
+        of:
+          $copy: of
+        within:
+          $copy: within
+        bind:
+          $copy: bind
+        subject:
+          $copy: entity
+        entity:
+          $format: ENT-{entity}
+        schema:
+          $copy: schema
+        path:
+          $copy: path
+        # 書く項目（エンティティの項目のとき。エンティティの並びそのものへ足す効果には無い）
+        item:
+          $when:
+            - path: field.key
+              exists: true
+            - or:
+                - path: field.item.entity
+                  exists: false
+                - not:
+                    path: field.item.entity
                     equals:
                       $copy: entity
-                $then:
-                  key:
-                    $copy: field.key
-                  element:
-                    $format: ENT-{field.item.entity}
-              row:
-                $when:
-                  - path: row.param
-                    exists: true
-                $then:
-                  $format: PRM-{a}.{p}
-                  $with:
-                    a:
-                      $copy: id
-                      $of: act
-                    p:
-                      $copy: row.param
-              when:
-                $copy: when
+          $then:
+            $format: FLD-{entity}.{field.key}
+        # エンティティの並びへ足す効果: 並びのキーと、足す要素のエンティティ
+        collection:
+          $when:
+            - path: field.item.entity
+              equals:
+                $copy: entity
+          $then:
+            key:
+              $copy: field.key
+            element:
+              $format: ENT-{field.item.entity}
+        row:
+          $when:
+            - path: row.param
+              exists: true
+          $then:
+            $format: PRM-{a}.{p}
+            $with:
+              a:
+                $copy: .
+                $of: action
+              p:
+                $copy: row.param
+        when:
+          $copy: when
+        value:
+          $copy: value
+        values:
+          $copy: values
+        params:
+          $copy: params
+        identifier:
+          $copy: id
+        numbering:
+          $copy: numbering
+        # 足す要素・作る文書に書く項目（業務モデルのキーと値の式）
+        written:
+          $when:
+            - path: written
+              exists: true
+          $then:
+            $each: written
+            $build:
+              key:
+                $copy: key
               value:
                 $copy: value
-              values:
-                $copy: values
-              params:
-                $copy: params
-              identifier:
-                $copy: id
-              numbering:
-                $copy: numbering
-              # 足す要素・作る文書に書く項目（業務モデルのキーと値の式）
-              written:
-                $when:
-                  - path: written
-                    exists: true
-                $then:
-                  $each: written
-                  $build:
-                    key:
-                      $copy: key
-                    value:
-                      $copy: value
-                    base:
-                      $copy: base
-                    item:
-                      $copy: item
-          # この操作で確かめるデータの決まり（決まりの形・厳しさ・条件は rules.yaml を指す）
-          checks:
-            $each: checks
-            $build:
-              rule:
-                $format: RUL-{constraint}
-              items:
-                $copy: items
-              multiple:
-                $copy: multiple
-              params:
-                $when:
-                  - path: params
-                    exists: true
-                $then:
-                  $each: params
-                  $build:
-                    $format: PRM-{a}.{p}
-                    $with:
-                      a:
-                        $copy: id
-                        $of: act
-                      p:
-                        $copy: .
-          provides:
-            $copy: provides
-          # エンティティから見た書込（entities.yaml の CRUD の項目）
-          writes:
-            $each:
-              $view: basic-model-entities
-            $flatten: true
-            $build:
-              $each: values.record.operations
-              $flatten: true
-              $build:
-                $when:
-                  - path: action
-                    equals:
-                      $copy: id
-                      $of: act
-                $then:
-                  $each: writes
-                  $build:
-                    $copy: id
+              base:
+                $copy: base
+              item:
+                $copy: item
   # 入力 1 つ: 設計 ID・キー・名称に、値の決まりを並べ（エンティティの項目と同じ並び）、はじめの値を添える
   - id: input
     with:

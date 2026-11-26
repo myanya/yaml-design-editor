@@ -603,6 +603,43 @@ rules:
                           $copy: values.record.settings
                         reason:
                           $copy: values.record.reason
+                  # 入れ子で持つ要素（親のあるエンティティ）には、版を足さない。足さなかった理由を根拠に残す
+                  - $each:
+                      $view: basic-specifications-input
+                    $bind: policy
+                    $flatten: true
+                    $build:
+                      $when:
+                        - path: values.record.rule
+                          equals: optimistic-lock
+                        - of: node
+                          path: parent
+                          exists: true
+                      $then:
+                        $each:
+                          $view: basic-specifications-input
+                        $build:
+                          $when:
+                            - path: values.record.rule
+                              equals: entity-class
+                            - path: values.record.target
+                              equals:
+                                $copy: id
+                                $of: node
+                            - path: values.record.settings.entityClass
+                              equals:
+                                $copy: values.record.target
+                                $of: policy
+                          $then:
+                            kind: rule
+                            source:
+                              $copy: id
+                              $of: policy
+                            value:
+                              heldBy:
+                                $copy: parent
+                                $of: node
+                            reason: 版は、ひとまとまりの中心（親を持たないエンティティ）に持ちます。入れ子で持つ要素には足しません
                   - $each:
                       $view: basic-specifications-input
                     $build:

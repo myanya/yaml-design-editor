@@ -21,7 +21,7 @@ public class ResumeTodoWebOperation {
 
     public String execute(String id, ResumeTodoForm form) {
         var input = toInput(id, form);
-        return service.resumeTodo(input.getId(), input.getDate(), input.getNote());
+        return service.resumeTodo(input.getId(), input.getDate(), input.getNote(), input.getVersion());
     }
     public ResumeTodoInput toInput(String id, ResumeTodoForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -32,6 +32,7 @@ public class ResumeTodoWebOperation {
         input.setId(id);
         input.setDate(form.getDate());
         input.setNote(form.getNote());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

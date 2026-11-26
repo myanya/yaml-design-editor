@@ -47,7 +47,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/data/mapper/TodoMapper.java",
-      "sha256": "b2c3ca1f7f58af0fcc2e6fc847dfc265cb638742b872c44d13c87b541da1a2c9"
+      "sha256": "66ce7ab8ad3b3636ca312f519838448a1e13ee89248fab9b913985a2c081d3ac"
     },
     {
       "path": "app/src/main/java/example/todos/data/mapper/TodoTaskMapper.java",
@@ -107,31 +107,31 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/input/AddTodoCommentInput.java",
-      "sha256": "013e60717d8dadc3a0c3bc4b6e987e51422e884d01ed4f0e79e997f75ff4ee91"
+      "sha256": "21d9d5ce2b86daf49cc764463baa8efd4b1b91d2b61d35572cba8c345eded175"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/AddTodoTaskInput.java",
-      "sha256": "f2877da02128ebdcd17cde74d7533d1d5ed6fbac10f0a7a7afa71b6b672bf332"
+      "sha256": "2dfe8c41c7c8e2cd0ff7193b2a729dc8d98d34984f0d873d4c84bcabefe38a35"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/CancelTodoInput.java",
-      "sha256": "6d2e3965c523c711232bde4131ada3c529107717b35e04692caaaf586be72ee8"
+      "sha256": "778a7a363b5abb39226fd1a0f19d6734f2cb64915503e6ce3ec0e73654695651"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/CompleteTodoInput.java",
-      "sha256": "7263b7193b1747d2b6d4ce5169c0270e907af3fed7f0b77ebb723c87daf05135"
+      "sha256": "3f0f1b74fcc94d7fb244c38c98a5228efe26c50ad2a675af0a39d72133d57d6e"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/DeleteTodoCommentInput.java",
-      "sha256": "0b5a63dcf762a85e796e6a6f32415167d1e0a4ee11a97a17e99204683c541da6"
+      "sha256": "5fbd37252733ae45c46d5802499e8f075a2d59bd26882437d1a6089562fd9567"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/EditTodoCommentInput.java",
-      "sha256": "bc06a31f4903b59426d242bc0f4f23bf9d6a2485fa73c20bc80f67c8cbddde7f"
+      "sha256": "5aff394d498f39efa28215c60262e37f9e50158305400ddf5507b6f787252f61"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/EditTodoInput.java",
-      "sha256": "26075b4ab535034d6ff7ef27d441796edef29e7c8a6a0787c209edd98ad16b60"
+      "sha256": "80e062405df66f33d244ba6b87399fd6a4cd84800803960e93011d33ad86be91"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/RegisterTodoInput.java",
@@ -139,15 +139,15 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/input/ResumeTodoInput.java",
-      "sha256": "fae4ac20ad82b5e7bcb19ac49ef0a0f700aae7de012acacb53fffc067635a90e"
+      "sha256": "97b87e79e21e3c517b0f8e0cc08acd8e3286d99593173163b281bb94b924cdda"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/StartTodoInput.java",
-      "sha256": "268c190a24cbc0db61df53764fcf09dca37f0a4b70b9359dabb09e80ce9cf33c"
+      "sha256": "77d87ef6b81cebfc5d15dc7548371b8ad00e1e1ae670566c0d584a29cff9b10f"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/SuspendTodoInput.java",
-      "sha256": "80229f1fe85d11c1c1d70e5e53494353e041541fbca24cf2066c5e1a01b6319d"
+      "sha256": "7c233f8830850c85f436d5d3c9cd4c31c0a02587167dcee35613743f1dca71ef"
     },
     {
       "path": "app/src/main/java/example/todos/service/input/TodoTaskFinishInput.java",
@@ -183,7 +183,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoService.java",
-      "sha256": "b961ad0c26067827583f65e71fac28fbc543d07ed835679ccda1bd29cc6f7775"
+      "sha256": "5dab5de2582779e56651b77f6bfdc2d71f8946c9cfe4e5d273f71621ab2f1a36"
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoTaskService.java",
@@ -211,31 +211,31 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/form/AddTodoCommentForm.java",
-      "sha256": "f8a942ffba1743017ebcea669b3af0b0a9cf0806aba6282576137c4346a86f1a"
+      "sha256": "2ea3da0091df383e15602092bf5717998df5a50d48558458ebfd6c4201427a8a"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/AddTodoTaskForm.java",
-      "sha256": "86582c8ac3f83ac2b8684b60c5159ee56cc744e0f88ffba632482308603db409"
+      "sha256": "ee79f3e71b5af445b79e55a08a1b11b8f7bb5422d9f4199280c90e953e9d3c67"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/CancelTodoForm.java",
-      "sha256": "d37bad1a257a72fc705d7e8940652de89b01b5cfd8847ac0b77cdfdf42b9de27"
+      "sha256": "1fda34b1812a427dc5a97f011650748c93c233674d59f225fd5b1a80024e9704"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/CompleteTodoForm.java",
-      "sha256": "23e187dc1bbf94463ffe9889265fd6c8ca5e724411336de365b1bbc39962d27a"
+      "sha256": "56146053608516e683ddb3b8deac9853998293a81a03c8eb30ecddd6671d56f6"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/DeleteTodoCommentForm.java",
-      "sha256": "e4f1f1e33d60e2fd86853a8edf58bc28e66196d50bf1b2f327dbc3e80d128522"
+      "sha256": "f76491b4e3732e3e12e223e05e7eaa6d0d78bd506852f49200df1b591b35abe6"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/EditTodoCommentForm.java",
-      "sha256": "130d176d60230a1c62f552fd561b2cb9c43221a5a2b21a94b4fe90230cb2e742"
+      "sha256": "623bd13245f4d5493a78a556d4803e68310357ac63b1539f564bf30b4f4c467d"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/EditTodoForm.java",
-      "sha256": "d79316340da875273499ea2436d5bf5eda69005e11ad62e620d02e9025e30261"
+      "sha256": "d0a0677c6e3f1b225cea006868ae6ab4c72435c27b1d138dce2a756a603645cd"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/RegisterTodoForm.java",
@@ -243,11 +243,15 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/form/ResumeTodoForm.java",
-      "sha256": "7f35c97dd415727c669799dacd798aa69364bb8e82ce905f987ef6af3d8d9db9"
+      "sha256": "3c60eb2c827b6f44637d396901a62c2d04651b27c21acdbcd1642eb2e6b0dca8"
+    },
+    {
+      "path": "app/src/main/java/example/todos/web/form/StartTodoForm.java",
+      "sha256": "d469a995493179514f517b9b7ca3ca1bbb828b58cdbc3026a5f714e8f4371e4d"
     },
     {
       "path": "app/src/main/java/example/todos/web/form/SuspendTodoForm.java",
-      "sha256": "2b4f4f4178e8ecc809fa3014123c86390080cc43708e832e24f58a7f85bdf106"
+      "sha256": "c26659c423de8f5866f9d686bc537cdac9ab75751b6e37ae571b78300d1d9600"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/AddCategoryWebOperation.java",
@@ -259,31 +263,31 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/AddTodoCommentWebOperation.java",
-      "sha256": "a16fb41362913863cb30b70ec27225bc34f7f650cbbc3f3a7c72ec90cfd40916"
+      "sha256": "f428d54e8bcab3854eff55b494bf30a78395d87eb72604aa96f5801af9f2126c"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/AddTodoTaskWebOperation.java",
-      "sha256": "45a967a4de87922195903c9f76b25794e0f4dfb5687f69cdedf8dadfa66bcbf2"
+      "sha256": "bbaecc5452bc1a4cb2bb38f2484b6311d65a07f84de3d98785bf186657a5b85e"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/CancelTodoWebOperation.java",
-      "sha256": "5f2252133a0ad9e6d0c3c25aa6261e7968fb9bb2c431412634ca9b8d288a1162"
+      "sha256": "4d2b19cf93967ff9d5e7c701cf08a6ab84719af425bc99e5dc1d7793b1d4954a"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/CompleteTodoWebOperation.java",
-      "sha256": "c1a49bf5ff6b768e087dfed400d8e2456fe57068116675e41c79563ed5a0fbda"
+      "sha256": "f4eecb32cc496798e1c38f2fe164f6baa785c6061c13322a90e37b728a68554a"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/DeleteTodoCommentWebOperation.java",
-      "sha256": "d57fb47c0bd1448ddf18e28d740f91262f2a647aabb259ef0ae959e452a1db15"
+      "sha256": "e33c4af691d8f12b5b0ae2c2c36ff2ad05f0704f51b28166276a8ce05e4a8b1d"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/EditTodoCommentWebOperation.java",
-      "sha256": "24e040b236e9722eda5d1df33e056b414e682e08de2d9c1b655d8661fcaee376"
+      "sha256": "5b9f76775453059549624b484e8bfb482ee43a2f37bfbcfe4f59572030444b1f"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/EditTodoWebOperation.java",
-      "sha256": "764ab6942278b71cbfc74e6ca974862a8241899bca992946adce17168a13831f"
+      "sha256": "76f168bedc0b4a49dff33d9cdc5a1da0b93375b820d3ff8b17b884ad40ddbfbb"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/RegisterTodoWebOperation.java",
@@ -291,15 +295,15 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/ResumeTodoWebOperation.java",
-      "sha256": "4b5430c3f0ea5e25817295402bc0e2a6dad9083c751f77863141394506478e8b"
+      "sha256": "c469be1b9cfa4e1d080c5f7aee92fc2f6796b5b8da07c74f7372a9a3e6964c54"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/StartTodoWebOperation.java",
-      "sha256": "2741dff0d4a3d84f331210a91b00f26fba246e66c87a85caa049463730792d7e"
+      "sha256": "e1a33c9a92664f2b29a31ffe1a9cdd16d4633a7e0f7f60a0d79989898c3f7ed5"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/SuspendTodoWebOperation.java",
-      "sha256": "deae6dbfc3bafa25d0ebd8f50a33a6ccf224e7a72981a27668940dace9ab7782"
+      "sha256": "10363e72209cce2c61620d1693e2446ba0b16b0b0473073e25493b92fad4e58e"
     },
     {
       "path": "app/src/main/java/example/todos/web/operation/TodoTaskFinishWebOperation.java",
@@ -323,7 +327,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebActions.java",
-      "sha256": "f505331673280715144661d8861a8e5e97cb146265bdb24f91edc50e6a7e22eb"
+      "sha256": "1481e3ae81e0a73560312811809d1148abbc6462604bf05755bb476a512ad1ad"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebBinding.java",
@@ -339,7 +343,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebPage.java",
-      "sha256": "c3b15e4a67b516a810ef211c3c11a4285b5590cec0c33db0658791d528e3d76a"
+      "sha256": "9f799b42331017bb2ef1868045bcee3a683fa004bc7d46e3330836349495daa5"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebReads.java",
@@ -347,11 +351,11 @@
     },
     {
       "path": "app/src/main/java/example/todos/web/WebRuntime.java",
-      "sha256": "14275b07d5de7d866df8211c093bebda10a3d0230267358abcbecf0c7a936c30"
+      "sha256": "685e166c12489b24c2de5eab2de78e05eb5562b52f64ad12f5db9e76690a8754"
     },
     {
       "path": "app/src/main/java/example/todos/web/WebValidationMessages.java",
-      "sha256": "29b6b91858d6d7a0fbfea049e5a460d7394414409db2d8626f58b3da8efff183"
+      "sha256": "3f22332c9ecf3d3f29428f6fcc6e369086cc422fc99ab14d5afb348237f51c3d"
     },
     {
       "path": "app/src/main/resources/application.properties",
@@ -367,7 +371,7 @@
     },
     {
       "path": "app/src/main/resources/mappers/TodoMapper.xml",
-      "sha256": "522a9355852ec7236a17c4bd469db2dc36daf743c8b5f487b5a3fe50654ec15e"
+      "sha256": "71114598ba842b9b2fb86935780d5e45cc5bc521ec09cff0bd3bbe700890e252"
     },
     {
       "path": "app/src/main/resources/mappers/TodoTaskMapper.xml",
@@ -519,7 +523,7 @@
     },
     {
       "path": "app/src/main/resources/web-model.json",
-      "sha256": "86767aace932466e58ceb53fed50efaa93df32a66d0f73fb6e108c3a7cf75805"
+      "sha256": "51f50565d4d09372c52ccca0994bfbe2d2bb2ef0a725e8de4f862c19f0ad4173"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

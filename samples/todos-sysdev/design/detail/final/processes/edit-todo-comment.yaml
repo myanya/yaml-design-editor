@@ -9,6 +9,7 @@ service:
     - row
     - date
     - body
+    - version
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
@@ -17,6 +18,19 @@ steps:
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
+  - step: check
+    precondition: edit-todo-comment.version-unchanged
+    by: Java（読んだ行）
+    rule:
+      - of: t
+        path: version
+        equals: $version
+    message: edit-todo-comment.version-unchanged
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    checkMode: current
+    subjectAlias: t
+    phase: before
     entity: todo
   - step: check
     constraint: updated-not-before-created
@@ -66,6 +80,10 @@ steps:
         value:
           $copy: today
           $of: context
+      - item: version
+        value:
+          $copy: version
+          $of: next
     where:
       - item: id
         param: id
@@ -80,6 +98,7 @@ originalService:
     - row
     - date
     - body
+    - version
 transactionMode: atomic
 designId: DOC-processes.edit-todo-comment
 designKind: processes

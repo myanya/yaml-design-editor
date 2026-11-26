@@ -21,7 +21,7 @@ public class CancelTodoWebOperation {
 
     public String execute(String id, CancelTodoForm form) {
         var input = toInput(id, form);
-        return service.cancelTodo(input.getId(), input.getReason());
+        return service.cancelTodo(input.getId(), input.getReason(), input.getVersion());
     }
     public CancelTodoInput toInput(String id, CancelTodoForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -31,6 +31,7 @@ public class CancelTodoWebOperation {
         var input = new CancelTodoInput();
         input.setId(id);
         input.setReason(form.getReason());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

@@ -150,6 +150,9 @@ build:
               tableLabel:
                 $copy: rowOf.label
               carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
+          # 画面が運ぶ値: 人は入力せず、画面を出すときに受け手から読んで、hidden 項目で持ち回す（読んだときの版など）
+          carried:
+            $copy: carriedValues
           input:
             $when:
               - path: inputParams
@@ -407,6 +410,9 @@ build:
                     tableLabel:
                       $copy: rowOf.label
                     carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
+                # 画面が運ぶ値: 人は入力せず、画面を出すときに受け手から読んで、hidden 項目で持ち回す（読んだときの版など）
+                carried:
+                  $copy: carriedValues
                 input:
                   $when:
                     - path: inputParams

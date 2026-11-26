@@ -8,4 +8,7 @@ public class AddTodoTaskInput {
     private java.lang.String title;
     public java.lang.String getTitle() { return title; }
     public void setTitle(java.lang.String value) { this.title = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
 }

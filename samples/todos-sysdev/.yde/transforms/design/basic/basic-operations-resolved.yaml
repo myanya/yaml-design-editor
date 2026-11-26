@@ -75,25 +75,56 @@ build:
       params:
         $each: inputs
         $apply: flat
-      # 人が入れる入力: 並びの番号（行が運ぶ値）を除いたもの
+      # 人が入れる入力: 並びの番号（行が運ぶ値）と、画面が運ぶ入力（carried）を除いたもの
       inputParams:
-        $first:
-          - $when:
-              - path: row.param
-                exists: true
-            $then:
-              $each: inputs
-              $build:
-                $when:
-                  - not:
-                      path: id
-                      equals:
-                        $copy: row.param
-                        $of: op
-                $then:
-                  $apply: flat
-          - $each: inputs
+        $each: inputs
+        $build:
+          $when:
+            - or:
+                - path: carried
+                  exists: false
+                - path: carried
+                  equals: false
+            - or:
+                - of: op
+                  path: row.param
+                  exists: false
+                - not:
+                    path: id
+                    equals:
+                      $copy: row.param
+                      $of: op
+          $then:
             $apply: flat
+      # 画面が運ぶ入力の読み元（入力のキー → 受け手から読む式）。入力画面の無い操作でも、確認画面を出すときに読む
+      carriedValues:
+        $apply: non-empty-map
+        $with:
+          entries:
+            $each: inputs
+            $build:
+              $when:
+                - path: carried
+                  equals: true
+                - path: initial
+                  exists: true
+              $then:
+                key:
+                  $copy: key
+                value:
+                  $copy: initial
+      # 画面が運ぶ入力のキー（入力画面と確認画面で隠し項目にする）
+      carried:
+        $apply: non-empty-list
+        $with:
+          items:
+            $each: inputs
+            $build:
+              $when:
+                - path: carried
+                  equals: true
+              $then:
+                $copy: key
       # 並びの 1 件を番号で指す操作: 並びの項目と、番号を受け取る入力
       rowOf:
         $when:
@@ -126,6 +157,11 @@ build:
                 $when:
                   - path: initial
                     exists: true
+                  - or:
+                      - path: carried
+                        exists: false
+                      - path: carried
+                        equals: false
                 $then:
                   key:
                     $copy: key
@@ -243,8 +279,20 @@ build:
                     $of: op
           when:
             $copy: when
+          # 自動で入る版（revision）は、値を「受け手のその項目の、次の値」として渡す（読む側は next の場所として解く）
           value:
-            $copy: value
+            $first:
+              - $when:
+                  - path: auto
+                    equals: revision
+                $then:
+                  $entries:
+                    - key: $$copy
+                      value:
+                        $copy: path
+                    - key: $$of
+                      value: next
+              - $copy: value
           values:
             $copy: values
           params:
@@ -385,6 +433,8 @@ rules:
           $apply: flat
       clearedBy:
         $copy: clearedBy
+      carried:
+        $copy: carried
   # 並びの行の指定: 並びの項目（エンティティの項目）から、キー・名称・要素の項目を引く
   - id: row-of
     with:
@@ -608,6 +658,16 @@ rules:
                   $of: ref
             $then:
               $copy: .
+  - id: non-empty-list
+    with:
+      - items
+    when:
+      - of: items
+        path: .
+        empty: false
+    build:
+      $copy: .
+      $of: items
   - id: non-empty-map
     with:
       - entries

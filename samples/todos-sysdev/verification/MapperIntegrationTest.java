@@ -46,7 +46,8 @@ class MapperIntegrationTest {
     Object property(Object row, String key) { return new BeanWrapperImpl(row).getPropertyValue(key); }
     List<?> list(Object result) { return (List<?>) result; }
     Map<String, Object> id(String id) { return Map.of("id", id); }
-    Map<String, Object> input(String id) { return Map.of("id", id, "contextToday", today); }
+    /** 親の TODO を更新する書込みの入力。版は、Service が「読んだ行の次の値」を渡す（ここでは 1）。 */
+    Map<String, Object> input(String id) { return Map.of("id", id, "contextToday", today, "nextVersion", 1L); }
 
     void insertTodo(String id, String title, String category, LocalDate due) throws Exception {
         var values = new java.util.HashMap<String, Object>(Map.of("id", id, "title", title, "summary", "概要", "createdOn", today.minusDays(3), "updatedOn", today.minusDays(3)));
@@ -123,7 +124,7 @@ class MapperIntegrationTest {
 
         for (String method : List.of("addTodoComment", "addTodoTask", "startTodo", "suspendTodo", "resumeTodo")) assertThat(todo(method, input("TODO-999"))).isEqualTo(1);
         assertThat(property(todo("findById", id("TODO-999")), "status")).isEqualTo("IN_PROGRESS");
-        todo("editTodo", Map.of("id", "TODO-999", "title", "変更", "clearCategory", true, "category", "CAT-002", "clearDueOn", true, "contextToday", today));
+        todo("editTodo", Map.of("id", "TODO-999", "title", "変更", "clearCategory", true, "category", "CAT-002", "clearDueOn", true, "contextToday", today, "nextVersion", 1L));
         Object edited = todo("findById", id("TODO-999"));
         assertThat(property(edited, "title")).isEqualTo("変更");
         assertThat(property(edited, "category")).isNull();
@@ -136,9 +137,9 @@ class MapperIntegrationTest {
         var all = list(todo("selectTodoDashboardAll", Map.of()));
         assertThat(property(all.stream().filter(r -> property(r, "id").equals("TODO-999")).findFirst().orElseThrow(), "column3")).isEqualTo("1/2");
         assertThat(property(all.stream().filter(r -> property(r, "id").equals("TODO-003")).findFirst().orElseThrow(), "column3")).isEqualTo("");
-        todo("completeTodo", Map.of("id", "TODO-999", "date", today, "result", "完了", "contextToday", today));
+        todo("completeTodo", Map.of("id", "TODO-999", "date", today, "result", "完了", "contextToday", today, "nextVersion", 1L));
         assertThat(task("countClosedHasNoOpenTask", Map.of("todoId", "TODO-999"))).isEqualTo(1L);
-        todo("cancelTodo", Map.of("id", "TODO-1000", "reason", "中止", "contextToday", today));
+        todo("cancelTodo", Map.of("id", "TODO-1000", "reason", "中止", "contextToday", today, "nextVersion", 1L));
         assertThat(property(todo("findById", id("TODO-1000")), "status")).isEqualTo("CANCELED");
         assertThat(todo("deleteTodoTags", id("TODO-999"))).isEqualTo(2);
         // コメントの 1 行の更新と削除: 親のキーと並び順（seq）で 1 行だけ。入れなかった列は元のまま。無い行は 0 件

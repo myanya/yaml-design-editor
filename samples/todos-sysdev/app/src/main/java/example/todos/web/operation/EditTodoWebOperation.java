@@ -21,11 +21,11 @@ public class EditTodoWebOperation {
 
     public String execute(String id, EditTodoForm form) {
         var input = toInput(id, form);
-        return service.editTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getClear());
+        return service.editTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getClear(), input.getVersion());
     }
     public java.util.List<BusinessViolation> check(String id, EditTodoForm form) {
         var input = toInput(id, form);
-        return service.checkEditTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getClear());
+        return service.checkEditTodo(input.getId(), input.getTitle(), input.getSummary(), input.getCategory(), input.getTags(), input.getCreatedOn(), input.getDueOn(), input.getDetails(), input.getResult(), input.getClear(), input.getVersion());
     }
     public EditTodoInput toInput(String id, EditTodoForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -51,6 +51,7 @@ public class EditTodoWebOperation {
         valueClear.setResult(form.getClear().getResult());
             input.setClear(valueClear);
         }
+        input.setVersion(form.getVersion());
         return input;
     }
 }

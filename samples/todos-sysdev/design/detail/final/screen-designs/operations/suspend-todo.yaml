@@ -25,6 +25,11 @@ form:
       validations:
         - name: DateTimeFormat
           iso: DATE
+    - name: version
+      item: version
+      type: Long
+      validations:
+        - name: NotNull
   classes: []
 screens:
   - id: suspend-todo/input
@@ -47,6 +52,7 @@ screens:
             action: POST /todo/{id}/suspend-todo/confirm
             object: SuspendTodoForm
             hidden:
+              - version
               - from
             body:
               - field:
@@ -115,6 +121,7 @@ screens:
               - date
               - reason
               - resume_on
+              - version
               - flow
               - from
             body:

@@ -96,6 +96,9 @@ class WebDesignIntegrationTest {
         var form = new EditTodoCommentForm();
         assertTrue(validator.validate(form).stream().anyMatch(v -> v.getPropertyPath().toString().equals("row")));
         form.setRow(1L); form.setDate(LocalDate.of(2026, 11, 21)); form.setBody("確認する");
+        // 読んだときの版（画面が運ぶ hidden 項目）も必須
+        assertTrue(validator.validate(form).stream().anyMatch(v -> v.getPropertyPath().toString().equals("version")));
+        form.setVersion(0L);
         assertTrue(validator.validate(form).isEmpty());
         assertTrue(validator.validate(new DeleteTodoCommentForm()).stream().anyMatch(v -> v.getPropertyPath().toString().equals("row")));
         for (var type : List.of(AddCategoryForm.class, AddTagForm.class, AddTodoCommentForm.class, AddTodoTaskForm.class,

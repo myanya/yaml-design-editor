@@ -13,6 +13,10 @@ starts:
 shownWhen:
   - value: SUSPENDED
     label: 中断
+carried:
+  version:
+    $copy: version
+    $of: self
 input:
   screen: resume-todo/input
   request: GET /todo/{id}/resume-todo
@@ -53,6 +57,8 @@ execute:
   refusals:
     - key: resume-todo.state
       message: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+    - key: resume-todo.version-unchanged
+      message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     - key: check.updated-not-before-created
       message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
     - key: check.unfinished-has-no-completed-on

@@ -56,6 +56,11 @@ form:
       item: clear
       type: EditTodoClear
       validations: []
+    - name: version
+      item: version
+      type: Long
+      validations:
+        - name: NotNull
   classes:
     - name: EditTodoClear
       fields:
@@ -100,6 +105,7 @@ screens:
             action: POST /todo/{id}/edit-todo/confirm
             object: EditTodoForm
             hidden:
+              - version
               - from
             body:
               - field:
@@ -231,6 +237,7 @@ screens:
               - details
               - result
               - clear
+              - version
               - flow
               - from
             body:

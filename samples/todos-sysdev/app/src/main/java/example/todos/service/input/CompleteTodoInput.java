@@ -11,4 +11,7 @@ public class CompleteTodoInput {
     private java.lang.String result;
     public java.lang.String getResult() { return result; }
     public void setResult(java.lang.String value) { this.result = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
 }

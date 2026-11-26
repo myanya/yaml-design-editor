@@ -264,6 +264,26 @@ class TodosSystemDocumentsTest {
         val column = rows(raw(Files.readString(sample.resolve("design/detail/final/tables.yaml"))), "tables")
             .flatMap { rows(it, "columns") }.single { it["id"] == "COL-todo.version" }
         assertEquals(listOf("FLD-todo.version", "SQL-int"), listOf(column["source"], column["sqlType"]))
+        // 受け手がそのエンティティの操作には、読んだときの版を運ぶ入力・版が同じという前提・版を進める効果が足される
+        fun operation(id: String) = raw(Files.readString(sample.resolve("design/basic/final/operations/$id.yaml")))
+        val complete = operation("complete-todo")
+        val carried = rows(complete, "inputs").single { it["id"] == "PRM-complete-todo.version" }
+        assertEquals(listOf(true, "SPC-optimistic-lock", mapOf("\$copy" to "version", "\$of" to "self")), listOf(carried["carried"], carried["addedBy"], carried["initial"]))
+        val unchanged = rows(complete, "preconditions").single { it["id"] == "PRE-complete-todo.version-unchanged" }
+        assertEquals(listOf(mapOf("of" to "t", "path" to "version", "equals" to "\$version")), map(unchanged, "rule")["where"])
+        val advance = rows(complete, "effects").single { it["id"] == "EFF-complete-todo.version" }
+        assertEquals(listOf("revision", "FLD-todo.version", null), listOf(advance["auto"], advance["item"], advance["value"]), "値の式は持たない（前の値の次）")
+        // 登録（受け手が無い）・マスタの操作・受け手が入れ子の要素の操作には足さない
+        for (id in listOf("register-todo", "add-category", "todo-task.finish")) {
+            val other = operation(id)
+            assertTrue(rows(other, "inputs").none { it["carried"] == true } && rows(other, "effects").none { it["auto"] == "revision" }, id)
+        }
+        // 画面設計書では、入力画面と確認画面の hidden 項目になり、入力欄と確認の表示には出ない
+        val design = raw(Files.readString(sample.resolve("design/detail/final/screen-designs/operations/complete-todo.yaml")))
+        assertTrue("label: 版" !in Files.readString(sample.resolve("design/detail/final/screen-designs/operations/complete-todo.yaml")))
+        assertTrue(rows(map(design, "form"), "fields").any { it["item"] == "version" })
+        // 入力画面の無い操作は、画面定義書の carried に読み元を持つ（確認画面を出すときに読む）
+        assertEquals(mapOf("version" to mapOf("\$copy" to "version", "\$of" to "self")), raw(Files.readString(sample.resolve("design/basic/final/screens/operations/start-todo.yaml")))["carried"])
         // 業務モデルを写したモデルには入らない（業務の画面の表示項目にならない）
         assertTrue("version" !in Files.readString(sample.resolve("design/basic/composed/documents/model.yaml")).lines().filter { it.trim().startsWith("key:") }.joinToString())
         // 指定を外すと、項目は出ない

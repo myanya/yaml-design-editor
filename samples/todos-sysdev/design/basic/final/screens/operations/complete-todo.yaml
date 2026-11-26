@@ -13,6 +13,10 @@ starts:
 shownWhen:
   - value: IN_PROGRESS
     label: 対応中
+carried:
+  version:
+    $copy: version
+    $of: self
 input:
   screen: complete-todo/input
   request: GET /todo/{id}/complete-todo
@@ -58,6 +62,8 @@ execute:
       message: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
     - key: complete-todo.no-open-task
       message: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+    - key: complete-todo.version-unchanged
+      message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     - key: check.updated-not-before-created
       message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
     - key: check.completed-not-before-created

@@ -126,6 +126,13 @@ operations:
         java: input.getBody()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -196,6 +203,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -218,6 +230,13 @@ operations:
         java: input.getBody()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -248,6 +267,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
         kind: write
         call: TodoMapper.insertTodoComments
         method: JMTH-todo.insertTodoComments
@@ -257,7 +284,7 @@ operations:
         setMatches: true
         whereMatches: true
         parameters: []
-      - index: 4
+      - index: 5
         kind: write
         call: TodoMapper.addTodoComment
         method: JMTH-todo.addTodoComment
@@ -285,6 +312,15 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
   - id: SPROG-add-todo-task
     source: DOC-processes.add-todo-task
     input: SINPUT-add-todo-task
@@ -303,6 +339,13 @@ operations:
         java: input.getTitle()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -373,6 +416,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
       - path: numberedId
         place: generated
         name: numberedId
@@ -393,6 +441,13 @@ operations:
         java: input.getTitle()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -423,6 +478,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
         kind: number
         call: TodoTaskMapper.maxId
         method: JMTH-todo-task.maxId
@@ -441,7 +504,7 @@ operations:
               java: input.getId()
               type: java.lang.String
             typeMatches: true
-      - index: 4
+      - index: 5
         kind: check
         callResolved: true
         keyArityMatches: true
@@ -449,7 +512,7 @@ operations:
         setMatches: true
         whereMatches: true
         parameters: []
-      - index: 5
+      - index: 6
         kind: write
         call: TodoTaskMapper.insert
         method: JMTH-todo-task.insert
@@ -459,7 +522,7 @@ operations:
         setMatches: true
         whereMatches: true
         parameters: []
-      - index: 6
+      - index: 7
         kind: write
         call: TodoMapper.addTodoTask
         method: JMTH-todo.addTodoTask
@@ -487,7 +550,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 7
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 8
         kind: check
         call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask
@@ -524,6 +596,13 @@ operations:
         java: input.getReason()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -594,6 +673,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -609,6 +693,13 @@ operations:
         java: input.getReason()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -655,6 +746,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 5
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
         kind: write
         call: TodoMapper.cancelTodo
         method: JMTH-todo.cancelTodo
@@ -691,7 +790,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 6
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 7
         kind: write
         call: TodoMapper.insertTodoHistory
         method: JMTH-todo.insertTodoHistory
@@ -726,6 +834,13 @@ operations:
         java: input.getResult()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -796,6 +911,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -818,6 +938,13 @@ operations:
         java: input.getResult()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -899,6 +1026,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 8
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 9
         kind: write
         call: TodoMapper.completeTodo
         method: JMTH-todo.completeTodo
@@ -944,7 +1079,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 9
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 10
         kind: write
         call: TodoMapper.insertTodoHistory
         method: JMTH-todo.insertTodoHistory
@@ -954,7 +1098,7 @@ operations:
         setMatches: true
         whereMatches: true
         parameters: []
-      - index: 10
+      - index: 11
         kind: check
         call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask
@@ -989,6 +1133,13 @@ operations:
         name: row
         ref: $row
         java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
         type: java.lang.Long
         base: int
       - path: today
@@ -1061,6 +1212,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -1074,6 +1230,13 @@ operations:
         name: row
         ref: $row
         java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
         type: java.lang.Long
         base: int
     primary: JMTH-todo.findById
@@ -1106,6 +1269,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
         kind: write
         call: TodoMapper.deleteTodoCommentCommentsRow
         method: JMTH-todo.deleteTodoCommentCommentsRow
@@ -1133,7 +1304,7 @@ operations:
               java: input.getRow()
               type: java.lang.Long
             typeMatches: true
-      - index: 4
+      - index: 5
         kind: write
         call: TodoMapper.deleteTodoComment
         method: JMTH-todo.deleteTodoComment
@@ -1160,6 +1331,15 @@ operations:
               place: context
               java: today
               type: java.time.LocalDate
+            typeMatches: true
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
             typeMatches: true
   - id: SPROG-edit-todo
     source: DOC-processes.edit-todo
@@ -1270,6 +1450,13 @@ operations:
         java: '(input.getClear() == null ? null : input.getClear().getResult())'
         type: java.lang.Boolean
         base: boolean
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -1339,6 +1526,11 @@ operations:
         place: self
         name: version
         java: original.getVersion()
+        type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
         type: java.lang.Long
     inputSymbols:
       - path: id
@@ -1446,6 +1638,13 @@ operations:
         java: '(input.getClear() == null ? null : input.getClear().getResult())'
         type: java.lang.Boolean
         base: boolean
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -1500,6 +1699,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 6
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 7
         kind: write
         call: TodoMapper.editTodo
         method: JMTH-todo.editTodo
@@ -1590,6 +1797,15 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
           - name: clearCategory
             accessor: ClearCategory
             type: java.lang.Boolean
@@ -1626,7 +1842,7 @@ operations:
               java: '(input.getClear() == null ? null : input.getClear().getResult())'
               type: java.lang.Boolean
             typeMatches: true
-      - index: 7
+      - index: 8
         kind: write
         call: TodoMapper.deleteTodoTags
         method: JMTH-todo.deleteTodoTags
@@ -1645,7 +1861,7 @@ operations:
               java: input.getId()
               type: java.lang.String
             typeMatches: true
-      - index: 8
+      - index: 9
         kind: write
         call: TodoMapper.insertTodoTags
         method: JMTH-todo.insertTodoTags
@@ -1655,7 +1871,7 @@ operations:
         setMatches: true
         whereMatches: true
         parameters: []
-      - index: 9
+      - index: 10
         kind: write
         call: TodoMapper.deleteTodoTags
         method: JMTH-todo.deleteTodoTags
@@ -1706,6 +1922,13 @@ operations:
         java: input.getBody()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -1776,6 +1999,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -1805,6 +2033,13 @@ operations:
         java: input.getBody()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -1835,6 +2070,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
         kind: write
         call: TodoMapper.editTodoCommentCommentsRow
         method: JMTH-todo.editTodoCommentCommentsRow
@@ -1880,7 +2123,7 @@ operations:
               java: input.getBody()
               type: java.lang.String
             typeMatches: true
-      - index: 4
+      - index: 5
         kind: write
         call: TodoMapper.editTodoComment
         method: JMTH-todo.editTodoComment
@@ -1907,6 +2150,15 @@ operations:
               place: context
               java: today
               type: java.time.LocalDate
+            typeMatches: true
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
             typeMatches: true
   - id: SPROG-register-todo
     source: DOC-processes.register-todo
@@ -2130,6 +2382,13 @@ operations:
         java: input.getNote()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -2200,6 +2459,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -2222,6 +2486,13 @@ operations:
         java: input.getNote()
         type: java.lang.String
         base: string
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -2268,6 +2539,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 5
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
         kind: write
         call: TodoMapper.resumeTodo
         method: JMTH-todo.resumeTodo
@@ -2295,7 +2574,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 6
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 7
         kind: write
         call: TodoMapper.insertTodoHistory
         method: JMTH-todo.insertTodoHistory
@@ -2316,6 +2604,13 @@ operations:
         java: input.getId()
         type: java.lang.String
         base: ref
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -2386,6 +2681,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -2394,6 +2694,13 @@ operations:
         java: input.getId()
         type: java.lang.String
         base: ref
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -2440,6 +2747,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 5
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 6
         kind: write
         call: TodoMapper.startTodo
         method: JMTH-todo.startTodo
@@ -2467,7 +2782,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 6
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 7
         kind: write
         call: TodoMapper.insertTodoHistory
         method: JMTH-todo.insertTodoHistory
@@ -2509,6 +2833,13 @@ operations:
         java: input.getResumeOn()
         type: java.time.LocalDate
         base: date
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
       - path: today
         place: context
         name: contextToday
@@ -2579,6 +2910,11 @@ operations:
         name: version
         java: original.getVersion()
         type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input
@@ -2608,6 +2944,13 @@ operations:
         java: input.getResumeOn()
         type: java.time.LocalDate
         base: date
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
     primary: JMTH-todo.findById
     steps:
       - index: 1
@@ -2662,6 +3005,14 @@ operations:
         whereMatches: true
         parameters: []
       - index: 6
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 7
         kind: write
         call: TodoMapper.suspendTodo
         method: JMTH-todo.suspendTodo
@@ -2689,7 +3040,16 @@ operations:
               java: today
               type: java.time.LocalDate
             typeMatches: true
-      - index: 7
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 8
         kind: write
         call: TodoMapper.insertTodoHistory
         method: JMTH-todo.insertTodoHistory
@@ -2740,6 +3100,11 @@ operations:
         name: done
         java: original.getDone()
         type: java.lang.Boolean
+      - path: seq
+        place: next
+        name: nextSeq
+        java: (original.getSeq() + 1L)
+        type: java.lang.Long
     inputSymbols:
       - path: id
         place: input

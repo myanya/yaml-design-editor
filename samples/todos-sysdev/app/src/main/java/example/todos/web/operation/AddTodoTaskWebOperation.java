@@ -21,7 +21,7 @@ public class AddTodoTaskWebOperation {
 
     public String execute(String id, AddTodoTaskForm form) {
         var input = toInput(id, form);
-        return service.addTodoTask(input.getId(), input.getTitle());
+        return service.addTodoTask(input.getId(), input.getTitle(), input.getVersion());
     }
     public AddTodoTaskInput toInput(String id, AddTodoTaskForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -31,6 +31,7 @@ public class AddTodoTaskWebOperation {
         var input = new AddTodoTaskInput();
         input.setId(id);
         input.setTitle(form.getTitle());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

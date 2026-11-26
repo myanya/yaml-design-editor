@@ -11,6 +11,10 @@ starts:
   - screen: todo
     place: 画面のボタン
 shownWhen: いつも
+carried:
+  version:
+    $copy: version
+    $of: self
 input:
   screen: edit-todo/input
   request: GET /todo/{id}/edit-todo
@@ -219,6 +223,8 @@ execute:
   returns: 起点の画面（starts の画面。画面の ID で受け取る）
   notice: edit-todo.done
   refusals:
+    - key: edit-todo.version-unchanged
+      message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     - key: check.due-not-before-created
       message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
     - key: check.updated-not-before-created

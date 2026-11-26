@@ -32,6 +32,9 @@ public class EditTodoInput {
     private EditTodoClear clear;
     public EditTodoClear getClear() { return clear; }
     public void setClear(EditTodoClear value) { this.clear = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
     public static class EditTodoClear {
         private java.lang.Boolean category;
         public java.lang.Boolean getCategory() { return category; }

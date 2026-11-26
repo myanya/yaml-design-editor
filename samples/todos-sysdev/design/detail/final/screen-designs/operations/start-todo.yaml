@@ -1,6 +1,16 @@
 # 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
 id: start-todo
 name: TODOに着手する（画面設計書）
+form:
+  class: StartTodoForm
+  emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+  fields:
+    - name: version
+      item: version
+      type: Long
+      validations:
+        - name: NotNull
+  classes: []
 screens:
   - id: start-todo/confirm
     template: todo/start-todo/confirm
@@ -27,6 +37,7 @@ screens:
         - form:
             action: POST /todo/{id}/start-todo
             hidden:
+              - version
               - flow
               - from
             body:

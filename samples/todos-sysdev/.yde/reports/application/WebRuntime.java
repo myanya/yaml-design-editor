@@ -69,6 +69,8 @@ public class WebRuntime {{
             binder.registerCustomEditor(LocalDate.class,new PropertyEditorSupport(){{@Override public void setAsText(String text){{setValue(text==null||text.isEmpty()?null:LocalDate.parse(text));}}}});
             if(stage.equals("input")) binder.bind(new MutablePropertyValues(page.initialValues()));
             else binder.bind(request);
+            // 入力画面の無い操作は確認画面から始まる。画面が運ぶ値（読んだときの版）は、確認画面を出すときに受け手から読む。
+            if(stage.equals("confirm")&&!catalog.pages.containsKey(action+"/input")) binder.bind(new MutablePropertyValues(page.initialValues()));
             page.restoreCollections();
             if(!stage.equals("input")&&!stage.equals("back")&&request.getParameter("_rows")==null) {{binder.setValidator(validator);binder.validate();}}
             page.binding=binder.getBindingResult();

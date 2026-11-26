@@ -145,6 +145,8 @@ build:
                                           exists: true
                                       $then:
                                         - $copy: rowOf.param
+                                    # 画面が運ぶ入力（読んだときの版など）は、受け手から読んで隠し項目で運ぶ
+                                    - $copy: carried
                                     - - from
                                 body:
                                   $concat:

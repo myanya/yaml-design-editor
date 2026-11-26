@@ -20,6 +20,11 @@ record:
           item: note
           type: String
           validations: []
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
       classes: []
     screens:
       - id: resume-todo/input
@@ -42,6 +47,7 @@ record:
                 action: POST /todo/{id}/resume-todo/confirm
                 object: ResumeTodoForm
                 hidden:
+                  - version
                   - from
                 body:
                   - field:
@@ -100,6 +106,7 @@ record:
                 hidden:
                   - date
                   - note
+                  - version
                   - flow
                   - from
                 body:

@@ -15,6 +15,10 @@ document:
     table: comments
     tableLabel: コメント一覧
     carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
+  carried:
+    version:
+      $copy: version
+      $of: self
   input:
     screen: edit-todo-comment/input
     request: GET /todo/{id}/edit-todo-comment
@@ -58,6 +62,8 @@ document:
     returns: 起点の画面（starts の画面。画面の ID で受け取る）
     notice: edit-todo-comment.done
     refusals:
+      - key: edit-todo-comment.version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
       - key: check.updated-not-before-created
         message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
     onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）

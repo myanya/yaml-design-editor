@@ -2779,3 +2779,8 @@ entities:
         value:
           entityClass: CLS-transaction
         reason: データの役割に基づきエンティティ区分を指定する
+      - kind: rule
+        source: SPC-optimistic-lock
+        value:
+          heldBy: ENT-todo
+        reason: 版は、ひとまとまりの中心（親を持たないエンティティ）に持ちます。入れ子で持つ要素には足しません

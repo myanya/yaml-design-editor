@@ -21,7 +21,7 @@ public class AddTodoCommentWebOperation {
 
     public String execute(String id, AddTodoCommentForm form) {
         var input = toInput(id, form);
-        return service.addTodoComment(input.getId(), input.getDate(), input.getBody());
+        return service.addTodoComment(input.getId(), input.getDate(), input.getBody(), input.getVersion());
     }
     public AddTodoCommentInput toInput(String id, AddTodoCommentForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -32,6 +32,7 @@ public class AddTodoCommentWebOperation {
         input.setId(id);
         input.setDate(form.getDate());
         input.setBody(form.getBody());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

@@ -184,6 +184,23 @@ forms:
           - name: NotNull
           - name: Size
             min: 1
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []
   - id: JFORM-add-todo-task
     source: DOC-screen-designs-operations.add-todo-task
@@ -245,6 +262,23 @@ forms:
             max: 100
           - name: Pattern
             regexp: ^[^\r\n]*$
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []
   - id: JFORM-cancel-todo
     source: DOC-screen-designs-operations.cancel-todo
@@ -284,6 +318,23 @@ forms:
           - name: NotNull
           - name: Size
             min: 1
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []
   - id: JFORM-complete-todo
     source: DOC-screen-designs-operations.complete-todo
@@ -346,6 +397,23 @@ forms:
           - name: NotNull
           - name: Size
             min: 1
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []
   - id: JFORM-delete-todo-comment
     source: DOC-screen-designs-operations.delete-todo-comment
@@ -363,6 +431,23 @@ forms:
           - valid: true
             literal: true
             value: コメントの番号を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
           - valid: true
             plain: true
             raw: |
@@ -531,6 +616,23 @@ forms:
         accessor: Clear
         annotations: []
         validations: []
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes:
       - name: EditTodoClear
         fields:
@@ -620,6 +722,23 @@ forms:
         validations:
           - name: Size
             min: 1
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []
   - id: JFORM-register-todo
     source: DOC-screen-designs-operations.register-todo
@@ -814,6 +933,46 @@ forms:
         string: true
         annotations: []
         validations: []
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+    classes: []
+  - id: JFORM-start-todo
+    source: DOC-screen-designs-operations.start-todo
+    className: StartTodoForm
+    beanName: startTodoForm
+    fields:
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []
   - id: JFORM-suspend-todo
     source: DOC-screen-designs-operations.suspend-todo
@@ -888,4 +1047,21 @@ forms:
         validations:
           - name: DateTimeFormat
             iso: DATE
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
     classes: []

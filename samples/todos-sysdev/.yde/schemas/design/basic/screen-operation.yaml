@@ -43,6 +43,10 @@ root:
       label: 行から受け取る値
       type: any
       description: 並びの 1 件を番号で指す操作の番号。その並びの表の行のボタンが運び、人は入力しない（入力・確認の画面では hidden 項目で持ち回す）
+    - key: carried
+      label: 画面が運ぶ値
+      type: any
+      description: 人は入力せず、画面を出すときに受け手から読んで hidden 項目で持ち回す値（入力のキー → 読む式）。同時更新を検出する版など。入力画面の無い操作は、確認画面を出すときに読む
     - key: input
       label: 入力画面
       type: any

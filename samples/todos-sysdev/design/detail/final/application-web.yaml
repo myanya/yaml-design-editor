@@ -1130,6 +1130,7 @@ pages:
               action: POST /todo/{id}/add-todo-comment/confirm
               object: AddTodoCommentForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -1218,6 +1219,7 @@ pages:
               hidden:
                 - date
                 - body
+                - version
                 - flow
                 - from
               body:
@@ -1280,6 +1282,7 @@ pages:
               action: POST /todo/{id}/add-todo-task/confirm
               object: AddTodoTaskForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -1353,6 +1356,7 @@ pages:
               action: POST /todo/{id}/add-todo-task
               hidden:
                 - title
+                - version
                 - flow
                 - from
               body:
@@ -1415,6 +1419,7 @@ pages:
               action: POST /todo/{id}/cancel-todo/confirm
               object: CancelTodoForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -1498,6 +1503,7 @@ pages:
               action: POST /todo/{id}/cancel-todo
               hidden:
                 - reason
+                - version
                 - flow
                 - from
               body:
@@ -1564,6 +1570,7 @@ pages:
               action: POST /todo/{id}/complete-todo/confirm
               object: CompleteTodoForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -1659,6 +1666,7 @@ pages:
               hidden:
                 - date
                 - result
+                - version
                 - flow
                 - from
               body:
@@ -1738,6 +1746,7 @@ pages:
               action: POST /todo/{id}/delete-todo-comment
               hidden:
                 - row
+                - version
                 - flow
                 - from
               body:
@@ -1800,6 +1809,7 @@ pages:
               action: POST /todo/{id}/edit-todo/confirm
               object: EditTodoForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -1991,6 +2001,7 @@ pages:
                 - details
                 - result
                 - clear
+                - version
                 - flow
                 - from
               body:
@@ -2058,6 +2069,7 @@ pages:
                 item: seq
               hidden:
                 - row
+                - version
                 - from
               body:
                 - field:
@@ -2164,6 +2176,7 @@ pages:
                 - row
                 - date
                 - body
+                - version
                 - flow
                 - from
               body:
@@ -2439,6 +2452,7 @@ pages:
               action: POST /todo/{id}/resume-todo/confirm
               object: ResumeTodoForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -2533,6 +2547,7 @@ pages:
               hidden:
                 - date
                 - note
+                - version
                 - flow
                 - from
               body:
@@ -2604,6 +2619,7 @@ pages:
           - form:
               action: POST /todo/{id}/start-todo
               hidden:
+                - version
                 - flow
                 - from
               body:
@@ -2666,6 +2682,7 @@ pages:
               action: POST /todo/{id}/suspend-todo/confirm
               object: SuspendTodoForm
               hidden:
+                - version
                 - from
               body:
                 - field:
@@ -2774,6 +2791,7 @@ pages:
                 - date
                 - reason
                 - resume_on
+                - version
                 - flow
                 - from
               body:
@@ -3120,6 +3138,7 @@ controllers:
               puts:
                 - notice
             refusals:
+              - add-todo-comment.version-unchanged
               - check.updated-not-before-created
       - action: edit-todo-comment
         name: コメントを編集する
@@ -3159,6 +3178,7 @@ controllers:
               puts:
                 - notice
             refusals:
+              - edit-todo-comment.version-unchanged
               - check.updated-not-before-created
       - action: delete-todo-comment
         name: コメントを削除する
@@ -3187,6 +3207,7 @@ controllers:
               puts:
                 - notice
             refusals:
+              - delete-todo-comment.version-unchanged
               - check.updated-not-before-created
       - action: add-todo-task
         name: 作業項目を追加する
@@ -3227,6 +3248,7 @@ controllers:
                 - notice
             refusals:
               - add-todo-task.active
+              - add-todo-task.version-unchanged
               - check.updated-not-before-created
               - check.closed-has-no-open-task
       - action: edit-todo
@@ -3270,12 +3292,14 @@ controllers:
               puts:
                 - notice
             refusals:
+              - edit-todo.version-unchanged
               - check.due-not-before-created
               - check.updated-not-before-created
               - check.completed-not-before-created
               - check.closed-has-result
       - action: start-todo
         name: TODOに着手する
+        form: StartTodoForm
         service: TodoService.startTodo
         returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
         steps:
@@ -3301,6 +3325,7 @@ controllers:
                 - notice
             refusals:
               - start-todo.state
+              - start-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
       - action: suspend-todo
@@ -3343,6 +3368,7 @@ controllers:
                 - notice
             refusals:
               - suspend-todo.state
+              - suspend-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
               - check.resume-not-before-suspend
@@ -3385,6 +3411,7 @@ controllers:
                 - notice
             refusals:
               - resume-todo.state
+              - resume-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
       - action: complete-todo
@@ -3428,6 +3455,7 @@ controllers:
             refusals:
               - complete-todo.state
               - complete-todo.no-open-task
+              - complete-todo.version-unchanged
               - check.updated-not-before-created
               - check.completed-not-before-created
               - check.closed-has-completed-on
@@ -3472,6 +3500,7 @@ controllers:
                 - notice
             refusals:
               - cancel-todo.state
+              - cancel-todo.version-unchanged
               - check.updated-not-before-created
               - check.unfinished-has-no-completed-on
     routes:
@@ -3775,6 +3804,9 @@ forms:
       - name: body
         item: body
         type: String
+      - name: version
+        item: version
+        type: Long
     classes: []
   - className: AddTodoTaskForm
     beanName: addTodoTaskForm
@@ -3782,6 +3814,9 @@ forms:
       - name: title
         item: title
         type: String
+      - name: version
+        item: version
+        type: Long
     classes: []
   - className: CancelTodoForm
     beanName: cancelTodoForm
@@ -3789,6 +3824,9 @@ forms:
       - name: reason
         item: reason
         type: String
+      - name: version
+        item: version
+        type: Long
     classes: []
   - className: CompleteTodoForm
     beanName: completeTodoForm
@@ -3799,12 +3837,18 @@ forms:
       - name: result
         item: result
         type: String
+      - name: version
+        item: version
+        type: Long
     classes: []
   - className: DeleteTodoCommentForm
     beanName: deleteTodoCommentForm
     fields:
       - name: row
         item: row
+        type: Long
+      - name: version
+        item: version
         type: Long
     classes: []
   - className: EditTodoForm
@@ -3837,6 +3881,9 @@ forms:
       - name: clear
         item: clear
         type: EditTodoClear
+      - name: version
+        item: version
+        type: Long
     classes:
       - name: EditTodoClear
         fields:
@@ -3867,6 +3914,9 @@ forms:
       - name: body
         item: body
         type: String
+      - name: version
+        item: version
+        type: Long
     classes: []
   - className: RegisterTodoForm
     beanName: registerTodoForm
@@ -3902,6 +3952,16 @@ forms:
       - name: note
         item: note
         type: String
+      - name: version
+        item: version
+        type: Long
+    classes: []
+  - className: StartTodoForm
+    beanName: startTodoForm
+    fields:
+      - name: version
+        item: version
+        type: Long
     classes: []
   - className: SuspendTodoForm
     beanName: suspendTodoForm
@@ -3915,6 +3975,9 @@ forms:
       - name: resumeOn
         item: resume_on
         type: LocalDate
+      - name: version
+        item: version
+        type: Long
     classes: []
 operations:
   - action: add-category
@@ -3941,6 +4004,8 @@ operations:
         target: date
       - source: body
         target: body
+      - source: version
+        target: version
   - action: add-todo-task
     className: AddTodoTaskWebOperation
     formClass: AddTodoTaskForm
@@ -3949,6 +4014,8 @@ operations:
     fieldTargets:
       - source: title
         target: title
+      - source: version
+        target: version
   - action: cancel-todo
     className: CancelTodoWebOperation
     formClass: CancelTodoForm
@@ -3957,6 +4024,8 @@ operations:
     fieldTargets:
       - source: reason
         target: reason
+      - source: version
+        target: version
   - action: complete-todo
     className: CompleteTodoWebOperation
     formClass: CompleteTodoForm
@@ -3967,6 +4036,8 @@ operations:
         target: date
       - source: result
         target: result
+      - source: version
+        target: version
   - action: delete-todo-comment
     className: DeleteTodoCommentWebOperation
     formClass: DeleteTodoCommentForm
@@ -3975,6 +4046,8 @@ operations:
     fieldTargets:
       - source: row
         target: row
+      - source: version
+        target: version
   - action: edit-todo
     className: EditTodoWebOperation
     formClass: EditTodoForm
@@ -3999,6 +4072,8 @@ operations:
         target: result
       - source: clear
         target: clear
+      - source: version
+        target: version
   - action: edit-todo-comment
     className: EditTodoCommentWebOperation
     formClass: EditTodoCommentForm
@@ -4011,6 +4086,8 @@ operations:
         target: date
       - source: body
         target: body
+      - source: version
+        target: version
   - action: register-todo
     className: RegisterTodoWebOperation
     formClass: RegisterTodoForm
@@ -4040,12 +4117,16 @@ operations:
         target: date
       - source: note
         target: note
+      - source: version
+        target: version
   - action: start-todo
     className: StartTodoWebOperation
+    formClass: StartTodoForm
     receiver: true
-    noForm: true
     noConfirm: true
-    fieldTargets: []
+    fieldTargets:
+      - source: version
+        target: version
   - action: suspend-todo
     className: SuspendTodoWebOperation
     formClass: SuspendTodoForm
@@ -4058,6 +4139,8 @@ operations:
         target: reason
       - source: resumeOn
         target: resumeOn
+      - source: version
+        target: version
   - action: todo-task.finish
     className: TodoTaskFinishWebOperation
     receiver: true
@@ -5674,6 +5757,10 @@ inputs:
         date:
           $copy: today
           $of: context
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: date
         - key: body
@@ -5687,6 +5774,10 @@ inputs:
       - screen: todo
         place: 画面のボタン
     input:
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: title
   - id: cancel-todo
@@ -5699,6 +5790,10 @@ inputs:
       - screen: todo
         place: 画面のボタン
     input:
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: reason
   - id: complete-todo
@@ -5715,6 +5810,10 @@ inputs:
         date:
           $copy: today
           $of: context
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: date
         - key: result
@@ -5723,7 +5822,11 @@ inputs:
     starts:
       - screen: todo
         place: 表「コメント一覧」の行のボタン
-    input: {}
+    input:
+      carried:
+        version:
+          $copy: version
+          $of: self
   - id: edit-todo
     target: todo
     starts:
@@ -5775,6 +5878,10 @@ inputs:
           $of: self
           $in:
             schemaId: todo-detail
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: title
         - key: summary
@@ -5807,6 +5914,10 @@ inputs:
           $of: self
           $in:
             schemaId: todo-detail
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: date
         - key: body
@@ -5837,6 +5948,10 @@ inputs:
         date:
           $copy: today
           $of: context
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: date
         - key: note
@@ -5849,7 +5964,11 @@ inputs:
         place: 区画「すべてのTODO」の行のボタン
       - screen: todo
         place: 画面のボタン
-    input: {}
+    input:
+      carried:
+        version:
+          $copy: version
+          $of: self
   - id: suspend-todo
     target: todo
     starts:
@@ -5864,6 +5983,10 @@ inputs:
         date:
           $copy: today
           $of: context
+      carried:
+        version:
+          $copy: version
+          $of: self
       items:
         - key: date
         - key: reason
@@ -5914,14 +6037,54 @@ messages:
       kind: 状態の断り
       text: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
       source: 操作 cancel-todo の Lifecycle（todo-lifecycle）
+    - key: add-todo-comment.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 add-todo-comment の前提 version-unchanged
+    - key: edit-todo-comment.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 edit-todo-comment の前提 version-unchanged
+    - key: delete-todo-comment.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 delete-todo-comment の前提 version-unchanged
     - key: add-todo-task.active
       kind: 前提の断り
       text: '{id} は完了か中止をしているので、作業項目を足せません'
       source: 操作 add-todo-task の前提 active
+    - key: add-todo-task.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 add-todo-task の前提 version-unchanged
+    - key: edit-todo.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 edit-todo の前提 version-unchanged
+    - key: start-todo.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 start-todo の前提 version-unchanged
+    - key: suspend-todo.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 suspend-todo の前提 version-unchanged
+    - key: resume-todo.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 resume-todo の前提 version-unchanged
     - key: complete-todo.no-open-task
       kind: 前提の断り
       text: '{id} には済んでいない作業項目があります（済にしてから完了します）'
       source: 操作 complete-todo の前提 no-open-task
+    - key: complete-todo.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 complete-todo の前提 version-unchanged
+    - key: cancel-todo.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 cancel-todo の前提 version-unchanged
     - key: check.due-not-before-created
       kind: データの決まり
       text: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
@@ -6147,6 +6310,14 @@ messages:
           kind: 入力の誤り
           text: コメント本文は1文字以上で入力してください
           source: 文字数
+    - form: addTodoCommentForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.addTodoCommentForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: editTodoCommentForm
       field: row
       label: コメントの番号
@@ -6171,6 +6342,14 @@ messages:
           kind: 入力の誤り
           text: コメント本文は1文字以上で入力してください
           source: 文字数
+    - form: editTodoCommentForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.editTodoCommentForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: deleteTodoCommentForm
       field: row
       label: コメントの番号
@@ -6178,6 +6357,14 @@ messages:
         - key: validation.NotNull.deleteTodoCommentForm.row
           kind: 入力の誤り
           text: コメントの番号を入力してください
+          source: 必須
+    - form: deleteTodoCommentForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.deleteTodoCommentForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
           source: 必須
     - form: addTodoTaskForm
       field: title
@@ -6195,6 +6382,14 @@ messages:
           kind: 入力の誤り
           text: 作業の書き方が正しくありません
           source: 形式
+    - form: addTodoTaskForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.addTodoTaskForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: editTodoForm
       field: title
       label: タイトル
@@ -6243,6 +6438,22 @@ messages:
           kind: 入力の誤り
           text: 期限は年月日で入力してください
           source: 日付として読めない
+    - form: editTodoForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.editTodoForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
+    - form: startTodoForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.startTodoForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: suspendTodoForm
       field: date
       label: 中断日
@@ -6275,6 +6486,14 @@ messages:
           kind: 入力の誤り
           text: 再開予定日は年月日で入力してください
           source: 日付として読めない
+    - form: suspendTodoForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.suspendTodoForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: resumeTodoForm
       field: date
       label: 再開日
@@ -6287,6 +6506,14 @@ messages:
           kind: 入力の誤り
           text: 再開日は年月日で入力してください
           source: 日付として読めない
+    - form: resumeTodoForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.resumeTodoForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: completeTodoForm
       field: date
       label: 完了日
@@ -6311,6 +6538,14 @@ messages:
           kind: 入力の誤り
           text: 完了結果は1文字以上で入力してください
           source: 文字数
+    - form: completeTodoForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.completeTodoForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: cancelTodoForm
       field: reason
       label: 中止理由
@@ -6323,6 +6558,14 @@ messages:
           kind: 入力の誤り
           text: 中止理由は1文字以上で入力してください
           source: 文字数
+    - form: cancelTodoForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.cancelTodoForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
     - form: addTagForm
       field: name
       label: タグ名

@@ -16,4 +16,9 @@ public class ResumeTodoForm {
     private String note;
     public String getNote() { return note; }
     public void setNote(String value) { this.note = (value != null && value.isEmpty()) ? null : value; }
+@jakarta.validation.constraints.NotNull(message = "版を受け取れませんでした。画面を開き直してから、もう一度操作してください")
+
+    private Long version;
+    public Long getVersion() { return version; }
+    public void setVersion(Long value) { this.version = value; }
 }

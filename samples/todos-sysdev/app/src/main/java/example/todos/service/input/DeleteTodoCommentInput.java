@@ -8,4 +8,7 @@ public class DeleteTodoCommentInput {
     private java.lang.Long row;
     public java.lang.Long getRow() { return row; }
     public void setRow(java.lang.Long value) { this.row = value; }
+    private java.lang.Long version;
+    public java.lang.Long getVersion() { return version; }
+    public void setVersion(java.lang.Long value) { this.version = value; }
 }

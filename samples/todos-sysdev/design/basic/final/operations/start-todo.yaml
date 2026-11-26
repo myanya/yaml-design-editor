@@ -12,8 +12,34 @@ creates: []
 lifecycle: LCY-todo-lifecycle
 transition: TRN-todo-lifecycle.start-todo
 refusal: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
-inputs: []
-preconditions: []
+inputs:
+  - id: PRM-start-todo.version
+    key: version
+    label: 版
+    builtin: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    carried: true
+    addedBy: SPC-optimistic-lock
+    initial:
+      $copy: version
+      $of: self
+preconditions:
+  - id: PRE-start-todo.version-unchanged
+    source: version-unchanged
+    message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    addedBy: SPC-optimistic-lock
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      where:
+        - of: t
+          path: version
+          equals: $version
+      expect: exists
 effects:
   - id: EFF-start-todo.01
     op: set
@@ -70,6 +96,15 @@ effects:
     value:
       $copy: today
       $of: context
+  - id: EFF-start-todo.version
+    op: set
+    cause: auto
+    auto: revision
+    subject: todo
+    entity: ENT-todo
+    path: version
+    item: FLD-todo.version
+    addedBy: SPC-optimistic-lock
 checks:
   - rule: RUL-updated-not-before-created
     items:

@@ -13,6 +13,7 @@ record:
         - date
         - reason
         - resumeOn
+        - version
     confirm:
       - method: checkSuspendTodo
         arguments:
@@ -20,6 +21,7 @@ record:
           - date
           - reason
           - resumeOn
+          - version
         does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
         constraints:
           - constraint: resume-not-before-suspend
@@ -44,6 +46,19 @@ record:
         phase: before
         entity: todo
         stateField: status
+      - step: check
+        precondition: suspend-todo.version-unchanged
+        by: Java（読んだ行）
+        rule:
+          - of: t
+            path: version
+            equals: $version
+        message: suspend-todo.version-unchanged
+        text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        checkMode: current
+        subjectAlias: t
+        phase: before
+        entity: todo
       - step: check
         constraint: updated-not-before-created
         by: Java（書いた後の値）
@@ -98,6 +113,10 @@ record:
             value:
               $copy: today
               $of: context
+          - item: version
+            value:
+              $copy: version
+              $of: next
         where:
           - item: id
             param: id
@@ -131,6 +150,7 @@ record:
         - date
         - reason
         - resumeOn
+        - version
     transactionMode: atomic
   source:
     id: rule-processes

@@ -41,8 +41,13 @@ class BusinessWebIntegrationTest {
         return String.join("&",pairs);
     }
     String fields(String... kv){var p=new ArrayList<String>();for(int i=0;i<kv.length;i+=2)p.add(enc(kv[i])+"="+enc(kv[i+1]));return String.join("&",p);}
+    /** 入力画面が運ぶ隠し項目（読んだときの版など）。戻り先（from）は、呼ぶ側が決める。 */
+    String carried(String html) {
+        var pairs=new ArrayList<String>();for(String pair:hidden(html).split("&"))if(!pair.isEmpty()&&!pair.startsWith("from="))pairs.add(pair);
+        return pairs.isEmpty()?"":"&"+String.join("&",pairs);
+    }
     String execute(String base,String values) throws Exception {
-        get(base);String confirm=post(base+"/confirm",values+"&from=todo-dashboard");
+        String input=get(base);String confirm=post(base+"/confirm",values+carried(input)+"&from=todo-dashboard");
         assertTrue(confirm.contains("name=\"token\""),confirm);
         var result=request(base,hidden(confirm));assertEquals(302,result.statusCode(),result.body());return confirm;
     }
@@ -87,6 +92,33 @@ class BusinessWebIntegrationTest {
         assertEquals(405,request("/todo/"+id+"/start-todo",null).statusCode());
     }
 
+    @Test void staleScreenIsRefusedWhenAnotherUpdateCameFirst() throws Exception {
+        String today=LocalDate.now().toString();
+        execute("/todo/register-todo",fields("title","同時更新の対象","summary","版の確認"));
+        String id=jdbc.queryForObject("select id from todo where title='同時更新の対象'",String.class);
+        assertEquals(0L,jdbc.queryForObject("select version from todo where id=?",Long.class,id));
+        String base="/todo/"+id+"/add-todo-comment";
+        // A さんが入力画面を開く（読んだときの版 0 を、隠し項目が運ぶ）
+        String opened=get(base);assertTrue(carried(opened).contains("version=0"),carried(opened));
+        // B さんが先に更新する（版が 1 に進む）
+        execute("/todo/"+id+"/add-todo-task",fields("title","B さんの作業"));
+        assertEquals(1L,jdbc.queryForObject("select version from todo where id=?",Long.class,id));
+        // A さんの古い画面からは、確認か確定のどちらかで断られ、何も書かれない（確認の検査を持たない操作は、確定で確かめる）
+        String attempt=post(base+"/confirm",fields("date",today,"body","A さんのコメント")+carried(opened)+"&from=todo-dashboard");
+        if(attempt.contains("name=\"token\""))attempt=post(base,hidden(attempt));
+        assertTrue(attempt.contains("ほかの人が先に更新しました"),attempt);
+        assertEquals(0L,jdbc.queryForObject("select count(*) from todo_comments where todo_id=?",Long.class,id));
+        // 確認画面を出した後に更新が入った場合も、確定で断られる
+        String confirm=post(base+"/confirm",fields("date",today,"body","A さんのコメント")+carried(get(base))+"&from=todo-dashboard");
+        assertTrue(confirm.contains("name=\"token\""),confirm);
+        executeNoForm("/todo/"+id+"/start-todo");
+        String late=post(base,hidden(confirm));assertTrue(late.contains("ほかの人が先に更新しました"),late);
+        assertEquals(0L,jdbc.queryForObject("select count(*) from todo_comments where todo_id=?",Long.class,id));
+        // 開き直せば通り、版が進む
+        execute(base,fields("date",today,"body","開き直したコメント"));
+        assertEquals(3L,jdbc.queryForObject("select version from todo where id=?",Long.class,id));
+    }
+
     @Test void validationBackAndEscapingPreserveInput() throws Exception {
         String invalid=post("/todo/register-todo/confirm",fields("title","長".repeat(101),"summary","","due","not-a-date"));
         assertTrue(invalid.contains("100文字以内")&&invalid.contains("概要を入力してください")&&invalid.contains("not-a-date"),invalid);
@@ -121,9 +153,11 @@ class BusinessWebIntegrationTest {
         String input=get(base+"?row=2"+origin);
         assertTrue(input.contains("二つ目")&&!input.contains("一つ目"),input);
         assertTrue(hidden(input).contains("row=2"),hidden(input));
-        String unchanged=post(base+"/confirm",fields("row","2","date",today,"body","二つ目")+origin);
+        // 入力画面が運ぶ版（hidden）も、番号と一緒に持ち回す
+        String version=java.util.Arrays.stream(hidden(input).split("&")).filter(pair->pair.startsWith("version=")).findFirst().map(pair->"&"+pair).orElseThrow();
+        String unchanged=post(base+"/confirm",fields("row","2","date",today,"body","二つ目")+version+origin);
         assertTrue(unchanged.contains("変更はありません。"),unchanged);
-        String confirm=post(base+"/confirm",fields("row","2","date",today,"body","直した <&>")+origin);
+        String confirm=post(base+"/confirm",fields("row","2","date",today,"body","直した <&>")+version+origin);
         assertTrue(confirm.contains("name=\"token\"")&&confirm.contains("直した &lt;&amp;&gt;"),confirm);
         assertEquals(List.of("一つ目","二つ目"),commentBodies(id));
         assertEquals(302,request(base,hidden(confirm)).statusCode());

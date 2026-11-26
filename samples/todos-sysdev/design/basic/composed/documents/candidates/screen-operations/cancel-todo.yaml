@@ -19,6 +19,10 @@ document:
       label: 対応中
     - value: SUSPENDED
       label: 中断
+  carried:
+    version:
+      $copy: version
+      $of: self
   input:
     screen: cancel-todo/input
     request: GET /todo/{id}/cancel-todo
@@ -52,6 +56,8 @@ document:
     refusals:
       - key: cancel-todo.state
         message: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+      - key: cancel-todo.version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
       - key: check.updated-not-before-created
         message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
       - key: check.unfinished-has-no-completed-on

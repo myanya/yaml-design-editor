@@ -19,6 +19,7 @@ record:
         - details
         - result
         - clear
+        - version
     confirm:
       - method: checkEditTodo
         arguments:
@@ -32,6 +33,7 @@ record:
           - details
           - result
           - clear
+          - version
         does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
         constraints:
           - constraint: due-not-before-created
@@ -53,6 +55,19 @@ record:
         key:
           param: id
         missing: 見つからなければ NotFoundException（error.notFound.todo）
+        entity: todo
+      - step: check
+        precondition: edit-todo.version-unchanged
+        by: Java（読んだ行）
+        rule:
+          - of: t
+            path: version
+            equals: $version
+        message: edit-todo.version-unchanged
+        text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        checkMode: current
+        subjectAlias: t
+        phase: before
         entity: todo
       - step: check
         constraint: due-not-before-created
@@ -181,6 +196,10 @@ record:
             value:
               $copy: today
               $of: context
+          - item: version
+            value:
+              $copy: version
+              $of: next
         where:
           - item: id
             param: id
@@ -229,6 +248,7 @@ record:
         - details
         - result
         - clear
+        - version
     transactionMode: atomic
   source:
     id: rule-processes

@@ -48,6 +48,8 @@ class ServiceIntegrationTest {
         for (var table : List.of("todo", "category", "tag")) jdbc.update("DELETE FROM " + table);
     }
     String register() { return todos.registerTodo("仕事", "概要", null, null, null, null, null); }
+    /** 読んだときの版（同時更新の検出に渡す）。無い ID は null（見つからない扱いは Service が決める）。 */
+    Long v(String id) { var found = jdbc.queryForList("SELECT version FROM todo WHERE id = ?", Long.class, id); return found.isEmpty() ? null : found.get(0); }
     String status(String id) { return jdbc.queryForObject("SELECT status FROM todo WHERE id = ?", String.class, id); }
     int count(String table) { return jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class); }
     void refusal(String key, Runnable operation) {
@@ -62,27 +64,43 @@ class ServiceIntegrationTest {
         assertEquals("TODO-001", id);
         assertEquals(1, count("todo_tags"));
         assertEquals("OPEN", status(id));
-        todos.addTodoComment(id, today, "記録");
-        var child = todos.addTodoTask(id, "準備");
+        todos.addTodoComment(id, today, "記録", v(id));
+        var child = todos.addTodoTask(id, "準備", v(id));
         assertEquals(id + "-S01", child);
-        todos.startTodo(id);
-        refusal("start-todo.state", () -> todos.startTodo(id));
-        assertTrue(todos.checkCompleteTodo(id, today, "完了").stream().anyMatch(v -> v.key().equals("complete-todo.no-open-task")));
-        refusal("complete-todo.no-open-task", () -> todos.completeTodo(id, today, "完了"));
+        todos.startTodo(id, v(id));
+        refusal("start-todo.state", () -> todos.startTodo(id, v(id)));
+        assertTrue(todos.checkCompleteTodo(id, today, "完了", v(id)).stream().anyMatch(v -> v.key().equals("complete-todo.no-open-task")));
+        refusal("complete-todo.no-open-task", () -> todos.completeTodo(id, today, "完了", v(id)));
         tasks.todoTaskFinish(child);
-        todos.suspendTodo(id, today, "待機", today.plusDays(1));
+        todos.suspendTodo(id, today, "待機", today.plusDays(1), v(id));
         assertEquals("SUSPENDED", status(id));
-        todos.resumeTodo(id, today, "再開");
-        todos.completeTodo(id, today, "完了");
+        todos.resumeTodo(id, today, "再開", v(id));
+        todos.completeTodo(id, today, "完了", v(id));
         assertEquals("CLOSED", status(id));
-        var inactive = assertThrows(RefusedException.class, () -> todos.addTodoTask(id, "追加"));
+        var inactive = assertThrows(RefusedException.class, () -> todos.addTodoTask(id, "追加", v(id)));
         assertEquals("add-todo-task.active", inactive.getViolation().key());
         assertEquals(id, inactive.getViolation().values().get("id"));
         var other = register();
-        todos.cancelTodo(other, "中止");
+        todos.cancelTodo(other, "中止", v(other));
         assertEquals("CANCELED", status(other));
-        assertThrows(NotFoundException.class, () -> todos.startTodo("TODO-999"));
+        assertThrows(NotFoundException.class, () -> todos.startTodo("TODO-999", v("TODO-999")));
         assertEquals(7, count("todo_history"));
+    }
+
+    @Test void staleVersionIsRefusedAndEveryUpdateAdvancesTheVersion() {
+        var id = register();
+        assertEquals(0L, v(id), "登録した直後の版は 0");
+        todos.startTodo(id, 0L);
+        assertEquals(1L, v(id), "更新のたびに 1 進む");
+        // 古い画面（版 0）からの更新は断り、何も書かない
+        refusal("add-todo-comment.version-unchanged", () -> todos.addTodoComment(id, today, "古い画面から", 0L));
+        assertEquals(0, count("todo_comments"));
+        assertEquals(1L, v(id));
+        // 確認（書かない検査）でも同じ断りを返す
+        assertTrue(todos.checkSuspendTodo(id, today, "待機", today.plusDays(1), 0L).stream().anyMatch(v -> v.key().equals("suspend-todo.version-unchanged")));
+        todos.addTodoComment(id, today, "最新の画面から", 1L);
+        assertEquals(2L, v(id));
+        assertEquals(1, count("todo_comments"));
     }
 
     @Test void previewSharesChecksWithoutWritingOrConsumingNumbers() {
@@ -91,11 +109,11 @@ class ServiceIntegrationTest {
         assertEquals(0, count("todo"));
         assertTrue(todos.checkRegisterTodo("仕事", "概要", null, null, null, today, null).isEmpty());
         assertEquals("TODO-001", register());
-        todos.startTodo("TODO-001");
+        todos.startTodo("TODO-001", v("TODO-001"));
         int before = count("todo_history");
-        var resume = todos.checkSuspendTodo("TODO-001", today, "待機", today.minusDays(1));
+        var resume = todos.checkSuspendTodo("TODO-001", today, "待機", today.minusDays(1), v("TODO-001"));
         assertTrue(resume.stream().anyMatch(v -> v.key().equals("check.resume-not-before-suspend")));
-        refusal("check.resume-not-before-suspend", () -> todos.suspendTodo("TODO-001", today, "待機", today.minusDays(1)));
+        refusal("check.resume-not-before-suspend", () -> todos.suspendTodo("TODO-001", today, "待機", today.minusDays(1), v("TODO-001")));
         assertEquals("IN_PROGRESS", status("TODO-001"));
         assertEquals(before, count("todo_history"));
     }
@@ -104,17 +122,17 @@ class ServiceIntegrationTest {
         var id = register();
         var category = categories.addCategory("業務");
         var tag = tags.addTag("重要");
-        todos.addTodoComment(id, today, "残る");
-        assertTrue(todos.checkEditTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, null).isEmpty());
+        todos.addTodoComment(id, today, "残る", v(id));
+        assertTrue(todos.checkEditTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, null, v(id)).isEmpty());
         assertEquals(0, count("todo_tags"));
         assertEquals("仕事", jdbc.queryForObject("SELECT title FROM todo WHERE id = ?", String.class, id));
-        todos.editTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, null);
+        todos.editTodo(id, "修正", null, category, List.of(tag), null, today.plusDays(2), "詳細", null, null, v(id));
         assertEquals(1, count("todo_tags"));
         var clear = new EditTodoInput.EditTodoClear();
         clear.setCategory(true);
         clear.setDueOn(true);
         clear.setTags(true);
-        todos.editTodo(id, null, null, category, List.of(tag), null, today.minusDays(1), null, null, clear);
+        todos.editTodo(id, null, null, category, List.of(tag), null, today.minusDays(1), null, null, clear, v(id));
         assertNull(jdbc.queryForObject("SELECT category FROM todo WHERE id = ?", String.class, id));
         assertNull(jdbc.queryForObject("SELECT due_on FROM todo WHERE id = ?", LocalDate.class, id));
         assertEquals(0, count("todo_tags"));
@@ -123,25 +141,25 @@ class ServiceIntegrationTest {
 
     @Test void commentRowIsEditedAndDeletedBySequenceAndMissingRowIsRefused() {
         var id = register();
-        todos.addTodoComment(id, today, "一つ目");
-        todos.addTodoComment(id, today, "二つ目");
-        todos.editTodoComment(id, 2L, null, "直した");
+        todos.addTodoComment(id, today, "一つ目", v(id));
+        todos.addTodoComment(id, today, "二つ目", v(id));
+        todos.editTodoComment(id, 2L, null, "直した", v(id));
         assertEquals("直した", jdbc.queryForObject("SELECT body FROM todo_comments WHERE todo_id = ? AND seq = 2", String.class, id));
         assertEquals("一つ目", jdbc.queryForObject("SELECT body FROM todo_comments WHERE todo_id = ? AND seq = 1", String.class, id));
-        todos.deleteTodoComment(id, 1L);
+        todos.deleteTodoComment(id, 1L, v(id));
         assertEquals(1, count("todo_comments"));
         // 無い行は、親の更新日も含めて何も書かずに断る
         jdbc.update("UPDATE todo SET updated_on = ? WHERE id = ?", today.minusDays(3), id);
-        assertThrows(NotFoundException.class, () -> todos.deleteTodoComment(id, 1L));
-        assertThrows(NotFoundException.class, () -> todos.editTodoComment(id, 7L, null, "無い行"));
+        assertThrows(NotFoundException.class, () -> todos.deleteTodoComment(id, 1L, v(id)));
+        assertThrows(NotFoundException.class, () -> todos.editTodoComment(id, 7L, null, "無い行", v(id)));
         assertEquals(today.minusDays(3), jdbc.queryForObject("SELECT updated_on FROM todo WHERE id = ?", LocalDate.class, id));
         assertEquals(1, count("todo_comments"));
     }
 
     @Test void postWriteFailureRollsBackChildAndParentTogether() {
         var id = register();
-        var first = todos.addTodoTask(id, "一つ目");
-        todos.addTodoTask(id, "二つ目");
+        var first = todos.addTodoTask(id, "一つ目", v(id));
+        todos.addTodoTask(id, "二つ目", v(id));
         jdbc.update("UPDATE todo SET status = 'CLOSED', completed_on = ?, result = '検証', updated_on = ? WHERE id = ?", today, today.minusDays(1), id);
         var error = assertThrows(RefusedException.class, () -> tasks.todoTaskFinish(first));
         assertEquals("check.closed-has-no-open-task", error.getViolation().key());

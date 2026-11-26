@@ -206,6 +206,8 @@ input:
             input:
               initial:
                 $copy: values.record.input.initial
+              carried:
+                $copy: values.record.carried
               items:
                 $each: values.record.input.items
                 $build:

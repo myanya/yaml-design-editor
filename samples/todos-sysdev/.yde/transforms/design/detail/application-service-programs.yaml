@@ -1756,6 +1756,50 @@ rules:
         - - valid: true
             plain: true
             raw: )
+  # 読んだ行の値と、入力の値を比べる（equals: $入力名）。同時更新の検出（読んだときの版と、いまの版）が使う
+  - id: condition
+    with:
+      - condition
+      - scope
+    when:
+      - of: condition
+        path: equals
+        matches: ^\$[^$].*
+    build:
+      $concat:
+        - - valid: true
+            plain: true
+            raw: ServiceChecks.equal(
+        - $apply: path
+          $with:
+            name:
+              $copy: path
+              $of: condition
+            scope:
+              $copy: .
+              $of: scope
+        - - valid: true
+            plain: true
+            raw: ', '
+        - $apply: symbol-token
+          $with:
+            symbol:
+              $apply: first
+              $with:
+                items:
+                  $each: inputs
+                  $of: scope
+                  $build:
+                    $when:
+                      - path: ref
+                        equals:
+                          $copy: equals
+                          $of: condition
+                    $then:
+                      $copy: .
+        - - valid: true
+            plain: true
+            raw: )
   - id: condition
     with:
       - condition
@@ -3780,6 +3824,9 @@ rules:
                 $of: step
               symbols:
                 $copy: currentScope.symbols
+                $of: ctx
+              inputs:
+                $copy: inputScope.symbols
                 $of: ctx
         - - valid: true
             plain: true

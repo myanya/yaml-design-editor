@@ -44,7 +44,7 @@ class TodosSysdevTest {
         assertEquals(listOf("id", "todo_id", "seq", "title", "done"), taskColumns, "入れ子の型は親の ID と並び順を足す")
         val methods = list(doc("design/detail/final/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
-        assertEquals(listOf("completed_on", "result", "status", "updated_on"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update")
+        assertEquals(listOf("completed_on", "result", "status", "updated_on", "version"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update（最後の version は、同時更新を版で検出する方式が足す）")
         val count = list(doc("design/detail/final/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
         assertEquals("complete-todo.no-open-task", count["precondition"])
         val conditions = list(count, "where").map { (it as Map<*, *>).filterKeys { key -> key != "column" && key != "columnId" } }
@@ -119,7 +119,7 @@ class TodosSysdevTest {
         val editCommentDesign = doc("design/detail/final/screen-designs/operations/edit-todo-comment.yaml")
         assertTrue(list(editCommentDesign["form"] as Map<*, *>, "fields").any { it["item"] == "row" })
         val inputForm = (((list(editCommentDesign, "screens").first()["page"] as Map<*, *>)["body"] as List<*>).map { it as Map<*, *> }.single { "form" in it })["form"] as Map<*, *>
-        assertEquals(listOf("row", "from"), inputForm["hidden"])
+        assertEquals(listOf("row", "version", "from"), inputForm["hidden"], "番号（行のボタンが運ぶ）と、読んだときの版（画面が受け手から読んで運ぶ）")
         assertEquals(mapOf("table" to "comments", "param" to "row", "item" to "seq"), inputForm["row"], "初期値は、番号の指す行から読む")
         assertTrue((inputForm["body"] as List<*>).none { ((it as Map<*, *>)["field"] as? Map<*, *>)?.get("item") == "row" }, "番号の入力欄は無い")
         val deleteCommentDesign = doc("design/detail/final/screen-designs/operations/delete-todo-comment.yaml")

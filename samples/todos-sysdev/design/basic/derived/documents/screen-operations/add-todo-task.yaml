@@ -15,6 +15,10 @@ record:
       - screen: todo
         place: 画面のボタン
     shownWhen: いつも
+    carried:
+      version:
+        $copy: version
+        $of: self
     input:
       screen: add-todo-task/input
       request: GET /todo/{id}/add-todo-task
@@ -44,6 +48,8 @@ record:
       refusals:
         - key: add-todo-task.active
           message: '{id} は完了か中止をしているので、作業項目を足せません'
+        - key: add-todo-task.version-unchanged
+          message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         - key: check.updated-not-before-created
           message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
         - key: check.closed-has-no-open-task

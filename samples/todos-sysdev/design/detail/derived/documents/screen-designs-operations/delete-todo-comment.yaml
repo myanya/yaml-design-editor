@@ -14,6 +14,11 @@ record:
           type: Long
           validations:
             - name: NotNull
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
       classes: []
     screens:
       - id: delete-todo-comment/confirm
@@ -49,6 +54,7 @@ record:
                 action: POST /todo/{id}/delete-todo-comment
                 hidden:
                   - row
+                  - version
                   - flow
                   - from
                 body:

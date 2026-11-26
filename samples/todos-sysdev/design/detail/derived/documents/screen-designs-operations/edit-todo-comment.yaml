@@ -26,6 +26,11 @@ record:
           validations:
             - name: Size
               min: 1
+        - name: version
+          item: version
+          type: Long
+          validations:
+            - name: NotNull
       classes: []
     screens:
       - id: edit-todo-comment/input
@@ -53,6 +58,7 @@ record:
                   item: seq
                 hidden:
                   - row
+                  - version
                   - from
                 body:
                   - field:
@@ -123,6 +129,7 @@ record:
                   - row
                   - date
                   - body
+                  - version
                   - flow
                   - from
                 body:

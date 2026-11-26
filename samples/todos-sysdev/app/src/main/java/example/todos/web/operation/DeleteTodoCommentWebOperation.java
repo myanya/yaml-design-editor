@@ -21,7 +21,7 @@ public class DeleteTodoCommentWebOperation {
 
     public String execute(String id, DeleteTodoCommentForm form) {
         var input = toInput(id, form);
-        return service.deleteTodoComment(input.getId(), input.getRow());
+        return service.deleteTodoComment(input.getId(), input.getRow(), input.getVersion());
     }
     public DeleteTodoCommentInput toInput(String id, DeleteTodoCommentForm form) {
         if (form == null) throw new IllegalArgumentException("入力フォームがありません");
@@ -31,6 +31,7 @@ public class DeleteTodoCommentWebOperation {
         var input = new DeleteTodoCommentInput();
         input.setId(id);
         input.setRow(form.getRow());
+        input.setVersion(form.getVersion());
         return input;
     }
 }

@@ -432,6 +432,12 @@ rules:
                 kind: 入力の誤り
                 text:
                   $first:
+                    # 画面が運ぶ入力（人は入力しない）が届かなかったとき
+                    - $when:
+                        - path: def.carried
+                          equals: true
+                      $then:
+                        $format: '{def.label}を受け取れませんでした。画面を開き直してから、もう一度操作してください'
                     - $when:
                         - or:
                             - path: def.base
