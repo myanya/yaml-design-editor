@@ -1,0 +1,177 @@
+id: basic-operation-corrections
+name: 基本設計の操作への個別の判断
+kind: document
+description: >-
+  基本設計の「操作」の項目への個別の判断（ADR-0042）。操作 ACT- と入力 PRM- を ID で指して、値を置き換える。
+  エンティティの項目への補正と同じ書き方（対象の ID と set）。置き換えられるのは、操作の名称・説明・入力の送り方と、入力の名称・決まり・はじめの値。
+  項目を識別する値（id・key・source・seq）と、操作の振る舞い（対象・状態と遷移・前提・効果・確かめる決まり）は変えられない。振る舞いは業務の事実なので、業務モデルを直す。人が書く。
+match: design/basic/inputs/operations/corrections.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: corrections
+      label: 個別の判断
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 判断の ID
+            type: id
+            required: true
+            pattern: ^COR-\S+$
+          - key: target
+            label: 対象
+            type: string
+            required: true
+            pattern: ^(ACT|PRM)-\S+$
+            description: 基本設計の「操作」の項目の ID（操作 ACT- か、入力 PRM-）
+          - key: set
+            label: 置き換える値
+            type: object
+            required: true
+            description: 項目のキーと新しい値。ここに並ぶキーだけを置き換えられる
+            unknownFields: error
+            fields:
+              - key: label
+                label: 名称
+                type: string
+              - key: description
+                label: 説明
+                type: string
+              - key: submit
+                label: 入力の送り方（操作だけ）
+                type: string
+              - key: required
+                label: 必須
+                type: boolean
+              - key: default
+                label: 既定値
+                type: any
+              - key: minLength
+                label: 最小の長さ
+                type: number
+              - key: maxLength
+                label: 最大の長さ
+                type: number
+              - key: min
+                label: 最小
+                type: number
+              - key: max
+                label: 最大
+                type: number
+              - key: pattern
+                label: 形
+                type: string
+              - key: format
+                label: 表示の形
+                type: string
+              - key: multiline
+                label: 複数行
+                type: boolean
+              - key: initial
+                label: はじめの値
+                type: any
+          - key: reason
+            label: 理由
+            type: text
+            required: true
+        unknownFields: error
+        constraints:
+          - id: correction-keeps-identity
+            where:
+              - or:
+                  - path: set.id
+                    exists: true
+                  - path: set.key
+                    exists: true
+                  - path: set.source
+                    exists: true
+                  - path: set.seq
+                    exists: true
+            expect: absent
+            level: error
+            message: 項目を識別する値（id・key・source・seq）は置き換えられません
+          - id: correction-keeps-behavior
+            where:
+              - or:
+                  - path: set.kind
+                    exists: true
+                  - path: set.subject
+                    exists: true
+                  - path: set.entity
+                    exists: true
+                  - path: set.receiver
+                    exists: true
+                  - path: set.creates
+                    exists: true
+                  - path: set.lifecycle
+                    exists: true
+                  - path: set.entry
+                    exists: true
+                  - path: set.transition
+                    exists: true
+                  - path: set.refusal
+                    exists: true
+                  - path: set.history
+                    exists: true
+                  - path: set.row
+                    exists: true
+                  - path: set.inputs
+                    exists: true
+                  - path: set.preconditions
+                    exists: true
+                  - path: set.effects
+                    exists: true
+                  - path: set.checks
+                    exists: true
+                  - path: set.provides
+                    exists: true
+                  - path: set.writes
+                    exists: true
+                  - path: set.decisions
+                    exists: true
+            expect: absent
+            level: error
+            message: 操作の振る舞い（対象・状態と遷移・前提・効果・確かめる決まり）は置き換えられません（業務の事実なので、業務モデルを直します）
+          - id: correction-fits-operation
+            where:
+              - path: target
+                contains: ACT-
+              - or:
+                  - path: set.required
+                    exists: true
+                  - path: set.default
+                    exists: true
+                  - path: set.minLength
+                    exists: true
+                  - path: set.maxLength
+                    exists: true
+                  - path: set.min
+                    exists: true
+                  - path: set.max
+                    exists: true
+                  - path: set.pattern
+                    exists: true
+                  - path: set.format
+                    exists: true
+                  - path: set.multiline
+                    exists: true
+                  - path: set.initial
+                    exists: true
+            expect: absent
+            level: error
+            message: 操作（ACT-）で置き換えられるのは、名称・説明・入力の送り方です（入力の決まりは、入力 PRM- を対象にします）
+          - id: correction-fits-input
+            where:
+              - path: target
+                contains: PRM-
+              - path: set.submit
+                exists: true
+            expect: absent
+            level: error
+            message: 入力の送り方（submit）は、操作（ACT-）を対象にします
+  unknownFields: error

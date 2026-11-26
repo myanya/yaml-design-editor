@@ -20,22 +20,20 @@ inputs:
   - id: PRM-resume-todo.date
     key: date
     label: 再開日
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      required: true
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    required: true
+    format: yyyy年M月d日
     initial:
       $copy: today
       $of: context
   - id: PRM-resume-todo.note
     key: note
     label: メモ
-    definition:
-      type: TYP-common.文章
-      base: string
-      multiline: true
+    type: TYP-common.文章
+    base: string
+    multiline: true
 preconditions: []
 effects:
   - id: EFF-resume-todo.01

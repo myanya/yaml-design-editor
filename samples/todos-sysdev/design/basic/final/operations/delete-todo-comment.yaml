@@ -16,14 +16,13 @@ inputs:
   - id: PRM-delete-todo-comment.row
     key: row
     label: コメントの番号
-    definition:
-      builtin: int
-      base: int
-      description: コメント一覧の何番目か（0 から数えます）
-      required: true
+    builtin: int
+    base: int
+    description: コメント一覧の何番目か（0 から数えます）
+    required: true
+    min: 0.0
+    overrides:
       min: 0.0
-      overrides:
-        min: 0.0
 preconditions: []
 effects:
   - id: EFF-delete-todo-comment.01

@@ -43,7 +43,7 @@ class TodosSystemDocumentsTest {
 
     @Test
     fun `別の設計段階への補正と指定と追加は確定前に止める`() {
-        for ((phase, kind, target) in listOf(Triple("basic", "session-design", "session-design"), Triple("detail", "action-specs", "complete-todo"))) {
+        for ((phase, kind, target) in listOf(Triple("basic", "session-design", "session-design"), Triple("detail", "screen-operations", "complete-todo"))) {
             val input = store()
             val corrections = "design/$phase/inputs/documents/corrections.yaml"
             val additions = "design/$phase/inputs/documents/additions.yaml"
@@ -104,7 +104,7 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(84, shown("system-document-list").size)
+        assertEquals(70, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(14, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
@@ -120,7 +120,7 @@ class TodosSystemDocumentsTest {
     private fun store(corrections: String = "[]", additions: String = "[]", specifications: String = "[]"): InMemoryDocumentStore {
         val files = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
             .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }.toMutableMap()
-        val basicKinds = setOf("action-specs", "domains", "domain-relations", "errors", "messages", "screen-lists", "screen-details", "screen-operations", "screen-transitions")
+        val basicKinds = setOf("domains", "domain-relations", "errors", "messages", "screen-lists", "screen-details", "screen-operations", "screen-transitions")
         fun selected(text: String, phase: String) = (YamlIO.parseToRaw(text) as List<*>).filter {
             ((it as Map<*, *>)["kind"] in basicKinds) == (phase == "basic")
         }
@@ -151,7 +151,6 @@ class TodosSystemDocumentsTest {
               reason: 入力と URL
               changes: [{path: [input, items, 1, maxLength], value: 123}, {path: [execute, request], value: 'POST /todo/{id}/finish'}]
             - {id: SCOR-title, kind: screen-lists, target: DOC-screen-lists.todo-dashboard, set: {name: TODO 全体の確認, url: /overview}, reason: 一覧の名称}
-            - {id: SCOR-action, kind: action-specs, target: DOC-action-specs.cancel-todo, set: {name: TODOを取りやめる}, reason: 操作の名称}
         """.trimIndent().prependIndent("\n  "), """
             - id: SADD-preference
               kind: session-design
@@ -164,6 +163,13 @@ class TodosSystemDocumentsTest {
             corrections:
               - {id: DCOR-901, target: TBL-todo, set: {name: todo_records}, reason: 物理名}
               - {id: DCOR-902, target: COL-todo.result, set: {name: completion_result}, reason: 物理名}
+        """.trimIndent())
+        // 操作への個別の判断は、基本設計の「操作」の項目（操作 ACT-・入力 PRM-）を ID で指す
+        input.write(DocumentId("design/basic/inputs/operations/corrections.yaml"), """
+            inputId: INPUT-basic-operation-corrections
+            corrections:
+              - {id: COR-901, target: ACT-cancel-todo, set: {label: TODOを取りやめる}, reason: 操作の名称}
+              - {id: COR-902, target: PRM-cancel-todo.reason, set: {maxLength: 200}, reason: 入力の上限}
         """.trimIndent())
         val plan = Generators.plan(WorkspaceSession(input))
         assertEquals(emptyList(), plan.errors)
@@ -188,9 +194,14 @@ class TodosSystemDocumentsTest {
         val screen = doc("design/basic/final/screens/operations/complete-todo.yaml")
         assertEquals("未完了の作業があります（確認用）。", rows(map(screen, "execute"), "refusals").single { it["key"] == "complete-todo.no-open-task" }["message"])
         assertEquals("TODO 全体の確認", rows(doc("design/basic/final/screens/transitions/todo-dashboard.yaml"), "screens").single { it["id"] == "todo-dashboard" }["label"])
-        // アクション定義書への補正は、基本設計の「操作」の項目を通って、詳細設計まで届く（詳細設計は操作を項目から読む）
-        assertEquals("TODOを取りやめる", doc("design/basic/final/operations/cancel-todo.yaml")["label"])
+        // 操作への個別の判断は、項目に当たって、当てた判断が項目に残り、詳細設計まで届く（詳細設計は操作を項目から読む）
+        val operation = doc("design/basic/final/operations/cancel-todo.yaml")
+        assertEquals("TODOを取りやめる", operation["label"])
+        assertEquals(200, rows(operation, "inputs").single { it["id"] == "PRM-cancel-todo.reason" }["maxLength"])
+        assertEquals(setOf(listOf("COR-901"), listOf("COR-902")), rows(operation, "decisions").map { it["by"] }.toSet())
         assertEquals("TODOを取りやめる", doc("design/detail/final/processes/cancel-todo.yaml")["name"])
+        val cancelForm = map(doc("design/detail/final/screen-designs/operations/cancel-todo.yaml"), "form")
+        assertEquals(200, rows(rows(cancelForm, "fields").single { it["name"] == "reason" }, "validations").single { it["name"] == "Size" }["max"])
         assertEquals("reviewPreference", rows(doc("design/detail/final/session.yaml"), "attributes").last()["key"])
         assertEquals("validated", doc("design/detail/composed/review.yaml")["status"])
         plan.outputs.forEach { input.write(it.document, it.text) }
@@ -204,7 +215,6 @@ class TodosSystemDocumentsTest {
             "[{id: SCOR-test, kind: table-access, target: DOC-table-access.todo, select: {collection: methods, key: methodId, equals: missing}, set: {name: 不明}, reason: 検証}]",
             "[{id: SCOR-test, kind: processes, target: DOC-processes.complete-todo, set: {typo: 不明}, reason: 検証}]",
             "[{id: SCOR-test, kind: processes, target: DOC-processes.complete-todo, set: {id: cancel-todo}, reason: 検証}]",
-            "[{id: SCOR-test, kind: action-specs, target: DOC-action-specs.complete-todo, set: {effects: []}, reason: 検証}]",
             "[{id: SCOR-test, kind: screen-designs-operations, target: DOC-screen-designs-operations.complete-todo, changes: [{path: [form, class], value: OtherForm}], reason: 検証}]",
         )
         for (corrections in cases) {
@@ -213,6 +223,26 @@ class TodosSystemDocumentsTest {
             val before = input.read(id)?.text
             val plan = Generators.plan(WorkspaceSession(input))
             assertTrue(plan.errors.isNotEmpty(), corrections)
+            assertTrue(plan.transaction.operations.isEmpty(), plan.errors.toString())
+            assertEquals(before, input.read(id)?.text)
+        }
+        // 操作の項目への判断: 無い対象・入力以外の項目・書けないキー・識別する値・振る舞い・対象に合わないキーは、どれも止める
+        val operationCases = listOf(
+            "{id: COR-test, target: ACT-missing, set: {label: 不明}, reason: 検証}" to "ACT-missing",
+            "{id: COR-test, target: PRM-complete-todo.missing, set: {maxLength: 5}, reason: 検証}" to "PRM-complete-todo.missing",
+            "{id: COR-test, target: EFF-complete-todo.01, set: {label: 不明}, reason: 検証}" to "target",
+            "{id: COR-test, target: ACT-complete-todo, set: {typo: 不明}, reason: 検証}" to "typo",
+            "{id: COR-test, target: PRM-complete-todo.result, set: {key: other}, reason: 検証}" to "correction-keeps-identity",
+            "{id: COR-test, target: ACT-complete-todo, set: {effects: []}, reason: 検証}" to "correction-keeps-behavior",
+            "{id: COR-test, target: ACT-complete-todo, set: {maxLength: 5}, reason: 検証}" to "correction-fits-operation",
+        )
+        for ((correction, expected) in operationCases) {
+            val input = store()
+            input.write(DocumentId("design/basic/inputs/operations/corrections.yaml"), "inputId: INPUT-basic-operation-corrections\ncorrections: [$correction]\n")
+            val id = DocumentId("design/detail/final/processes/complete-todo.yaml")
+            val before = input.read(id)?.text
+            val plan = Generators.plan(WorkspaceSession(input))
+            assertTrue(expected in plan.errors.joinToString("\n"), "$correction: ${plan.errors}")
             assertTrue(plan.transaction.operations.isEmpty(), plan.errors.toString())
             assertEquals(before, input.read(id)?.text)
         }

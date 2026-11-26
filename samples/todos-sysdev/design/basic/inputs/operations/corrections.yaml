@@ -1,0 +1,9 @@
+# 操作への個別の判断（基本設計）: 人が書く。基本設計の「操作」の項目（操作 ACT-・入力 PRM-）を ID で指して、値を置き換える。
+# 置き換えられるのは、操作の名称・説明・入力の送り方と、入力の名称・決まり・はじめの値。
+# 業務の事実（操作や入力が足りない・状態・前提・効果が違う）は、ここではなく業務モデルを直す。書き方の例:
+#   - id: COR-101
+#     target: PRM-complete-todo.result   # 置き換える項目
+#     set: { maxLength: 500 }            # 項目のキーと新しい値
+#     reason: 置き換える理由
+inputId: INPUT-basic-operation-corrections
+corrections: []

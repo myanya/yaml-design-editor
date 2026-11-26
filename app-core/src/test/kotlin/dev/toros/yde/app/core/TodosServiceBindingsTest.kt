@@ -82,8 +82,11 @@ class TodosServiceBindingsTest {
     }
 
     private fun probe(input: InMemoryDocumentStore, generator: String) {
-        // 依存生成を省く検査では、確定値を生成物の印のない入力として用意する。
-        TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") && "/final/" in it.toString().replace('\\', '/') }.forEach {
+        // 依存生成を省く検査では、確定値を生成物の印のない入力として用意する（操作の入力は、基本設計の操作の項目を解いた形から読む）。
+        TodosSysdevFiles.inputs(sample).filter {
+            val path = it.toString().replace('\\', '/')
+            path.endsWith(".yaml") && ("/final/" in path || path.endsWith("/composed/operations-resolved.yaml"))
+        }.forEach {
             val path = sample.relativize(it).toString().replace('\\', '/')
             put(input, path, raw(input.read(DocumentId(path))!!.text))
         }

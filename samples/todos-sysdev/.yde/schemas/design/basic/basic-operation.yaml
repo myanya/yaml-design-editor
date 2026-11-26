@@ -7,11 +7,26 @@ description: >-
   source・subject・key・path・schema は導出元（業務モデル）の識別子で、条件と値の式は業務モデルのまま持つ。
   入力の値の定義は、この入力で効く決まり（型の決まりに、入力に書いた上書きを重ねたもの）を持つ。生成物で、手で直さない。
 match: design/basic/final/operations/*.yaml
+entity:
+  type: sysdev-operation
+  defines: true
 definitions:
-  値の定義:
+  入力の定義:
     type: object
-    description: 入力の値の決まり。名前の付いた型は ID で指し、この入力で効く値を持つ（型の決まりを入力が上書きできるので、型だけからは決まらない）
+    description: >-
+      入力・並びの要素・まとまりの項目の決まり。名前の付いた型は ID で指し、この入力で効く値を持つ（型の決まりを入力が上書きできるので、型だけからは決まらない）。
+      エンティティの項目（FLD-）と同じ並びで、個別の判断は「対象の ID と set」で当てる
     fields:
+      - key: id
+        label: 設計項目ID
+        type: id
+        description: 操作の入力のとき、PRM-操作.入力のキー
+      - key: key
+        label: キー
+        type: string
+      - key: label
+        label: 名称
+        type: string
       - key: type
         label: 型
         type: ref
@@ -74,11 +89,23 @@ definitions:
         type: object
         description: ほかの要素を選ぶ入力のとき
         fields:
+          - key: target
+            label: 参照先の種類
+            type: string
+            description: entity＝エンティティの要素
           - key: entity
             label: エンティティ
             type: ref
             idPatterns:
               - ENT-*
+            description: 選ぶ相手のエンティティ（見出しにする項目のキーは、このエンティティのもの）
+          - key: entities
+            label: 選べるエンティティ
+            type: array
+            item:
+              type: ref
+              idPatterns:
+                - ENT-*
           - key: subject
             label: 導出元のエンティティ型
             type: string
@@ -92,11 +119,17 @@ definitions:
           - key: label
             label: 参照先の名称
             type: string
+          - key: idPatternLayers
+            label: ID の形（重ねた層）
+            type: any
           - key: idPatterns
             label: ID の形
             type: array
             item:
               type: string
+          - key: scope
+            label: 探す範囲
+            type: any
           - key: schemas
             label: 参照先のある文書の種類
             type: array
@@ -104,23 +137,16 @@ definitions:
               type: string
       - key: item
         label: 並びの要素
-        type: 値の定義
+        type: 入力の定義
       - key: fields
         label: まとまりの項目
         type: array
         item:
-          type: object
-          fields:
-            - key: key
-              label: キー
-              type: string
-              required: true
-            - key: label
-              label: 名称
-              type: string
-            - key: definition
-              label: 値の定義
-              type: 値の定義
+          type: 入力の定義
+      - key: initial
+        label: はじめの値
+        type: any
+        description: 業務モデルの値の式をそのまま持つ
 root:
   type: object
   fields:
@@ -131,9 +157,9 @@ root:
       description: ACT-業務モデルの操作の ID
     - key: source
       label: 導出元
-      type: string
+      type: ref
       required: true
-      description: 業務モデルの操作の ID
+      description: 業務モデルの操作の ID（定義の索引の操作を指す。設計の対応の検査は、この参照で操作が項目に降りていることを確かめる）
     - key: seq
       label: 並び順
       type: string
@@ -149,6 +175,7 @@ root:
     - key: label
       label: 名称
       type: string
+      role: title
     - key: description
       label: 説明
       type: string
@@ -222,27 +249,7 @@ root:
       label: 入力
       type: array
       item:
-        type: object
-        fields:
-          - key: id
-            label: 設計項目ID
-            type: id
-            required: true
-            description: PRM-操作.入力のキー
-          - key: key
-            label: キー
-            type: string
-            required: true
-          - key: label
-            label: 名称
-            type: string
-          - key: definition
-            label: 値の定義
-            type: 値の定義
-          - key: initial
-            label: はじめの値
-            type: any
-            description: 業務モデルの値の式をそのまま持つ
+        type: 入力の定義
     - key: preconditions
       label: 前提
       type: array
@@ -419,6 +426,12 @@ root:
     - key: provides
       label: 渡す値
       type: any
+    - key: decisions
+      label: 当てた個別の判断
+      type: array
+      description: この操作の項目に当てた個別の判断（どの場所を、どの値に、どの判断で置き換えたか）。判断が無ければ書かない
+      item:
+        type: any
     - key: writes
       label: エンティティから見た書込
       type: array

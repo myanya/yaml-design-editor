@@ -14,14 +14,13 @@ inputs:
   - id: PRM-edit-todo.title
     key: title
     label: タイトル
-    definition:
-      type: TYP-common.一行の文
-      base: string
+    type: TYP-common.一行の文
+    base: string
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
       minLength: 1
-      maxLength: 100
-      pattern: ^[^\r\n]*$
-      overrides:
-        minLength: 1
     initial:
       $copy: title
       $of: self
@@ -30,14 +29,13 @@ inputs:
   - id: PRM-edit-todo.summary
     key: summary
     label: 概要
-    definition:
-      type: TYP-common.一行の文
-      base: string
+    type: TYP-common.一行の文
+    base: string
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
       minLength: 1
-      maxLength: 100
-      pattern: ^[^\r\n]*$
-      overrides:
-        minLength: 1
     initial:
       $copy: summary
       $of: self
@@ -46,21 +44,29 @@ inputs:
   - id: PRM-edit-todo.category
     key: category
     label: カテゴリ
-    definition:
-      type: TYP-common.カテゴリ参照
-      base: ref
-      description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
-      clearedBy: clear.category
-      reference:
-        entity: ENT-category
-        subject: category
-        relation: in-category
-        title: name
-        label: カテゴリ
-        idPatterns:
-          - CAT-*
-        schemas:
+    type: TYP-common.カテゴリ参照
+    base: ref
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    clearedBy: clear.category
+    reference:
+      target: entity
+      entity: ENT-category
+      entities:
+        - ENT-category
+      subject: category
+      relation: in-category
+      title: name
+      label: カテゴリ
+      idPatternLayers:
+        -   - CAT-*
+      idPatterns:
+        - CAT-*
+      scope:
+        schemaIds:
           - category-list
+        documentIds: []
+      schemas:
+        - category-list
     initial:
       $copy: category
       $of: self
@@ -69,25 +75,33 @@ inputs:
   - id: PRM-edit-todo.tags
     key: tags
     label: タグ
-    definition:
-      base: array
-      description: 入力した並びで全体を置き換えます。
-      clearedBy: clear.tags
-      unique: true
-      item:
-        type: TYP-common.タグ参照
-        base: ref
-        description: タグ一覧の ID を 1 件。
-        reference:
-          entity: ENT-tag
-          subject: tag
-          relation: tagged
-          title: name
-          label: タグ
-          idPatterns:
-            - TAG-*
-          schemas:
+    base: array
+    description: 入力した並びで全体を置き換えます。
+    clearedBy: clear.tags
+    unique: true
+    item:
+      type: TYP-common.タグ参照
+      base: ref
+      description: タグ一覧の ID を 1 件。
+      reference:
+        target: entity
+        entity: ENT-tag
+        entities:
+          - ENT-tag
+        subject: tag
+        relation: tagged
+        title: name
+        label: タグ
+        idPatternLayers:
+          -   - TAG-*
+        idPatterns:
+          - TAG-*
+        scope:
+          schemaIds:
             - tag-list
+          documentIds: []
+        schemas:
+          - tag-list
     initial:
       $copy: tags
       $of: self
@@ -96,11 +110,10 @@ inputs:
   - id: PRM-edit-todo.created_on
     key: created_on
     label: 作成日
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    format: yyyy年M月d日
     initial:
       $copy: created_on
       $of: self
@@ -109,12 +122,11 @@ inputs:
   - id: PRM-edit-todo.due_on
     key: due_on
     label: 期限
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      clearedBy: clear.due_on
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    clearedBy: clear.due_on
+    format: yyyy年M月d日
     initial:
       $copy: due_on
       $of: self
@@ -123,11 +135,10 @@ inputs:
   - id: PRM-edit-todo.details
     key: details
     label: 詳細
-    definition:
-      type: TYP-common.文章
-      base: string
-      clearedBy: clear.details
-      multiline: true
+    type: TYP-common.文章
+    base: string
+    clearedBy: clear.details
+    multiline: true
     initial:
       $copy: details
       $of: self
@@ -136,11 +147,10 @@ inputs:
   - id: PRM-edit-todo.result
     key: result
     label: 結果・中止理由
-    definition:
-      type: TYP-common.文章
-      base: string
-      clearedBy: clear.result
-      multiline: true
+    type: TYP-common.文章
+    base: string
+    clearedBy: clear.result
+    multiline: true
     initial:
       $copy: result
       $of: self
@@ -149,36 +159,30 @@ inputs:
   - id: PRM-edit-todo.clear
     key: clear
     label: 値を消す
-    definition:
-      base: object
-      description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
-      default: {}
-      fields:
-        - key: category
-          label: カテゴリを消す
-          definition:
-            builtin: boolean
-            base: boolean
-        - key: tags
-          label: タグを消す
-          definition:
-            builtin: boolean
-            base: boolean
-        - key: due_on
-          label: 期限を消す
-          definition:
-            builtin: boolean
-            base: boolean
-        - key: details
-          label: 詳細を消す
-          definition:
-            builtin: boolean
-            base: boolean
-        - key: result
-          label: 結果・中止理由を消す
-          definition:
-            builtin: boolean
-            base: boolean
+    base: object
+    description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+    default: {}
+    fields:
+      - key: category
+        label: カテゴリを消す
+        builtin: boolean
+        base: boolean
+      - key: tags
+        label: タグを消す
+        builtin: boolean
+        base: boolean
+      - key: due_on
+        label: 期限を消す
+        builtin: boolean
+        base: boolean
+      - key: details
+        label: 詳細を消す
+        builtin: boolean
+        base: boolean
+      - key: result
+        label: 結果・中止理由を消す
+        builtin: boolean
+        base: boolean
 preconditions: []
 effects:
   - id: EFF-edit-todo.01

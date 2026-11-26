@@ -3,7 +3,6 @@ name: 確定した設計書の生成入力
 rows:
   idPattern: DOC-*
   schemaIds:
-    - action-spec
     - dashboard-flow
     - domain-definition
     - domain-relations

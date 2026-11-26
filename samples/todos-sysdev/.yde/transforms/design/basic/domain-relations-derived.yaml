@@ -6,14 +6,14 @@ description: >-
 scope: business
 output: design/basic/derived/documents/domain-relations/domain-relations.yaml
 dependsOn:
-  - system-actions-model
+  - system-model
   - basic-document-input-gate
   - domains
 input:
   $apply: model-input
   $with:
     row:
-      $view: system-actions-model-input
+      $view: system-model-input
       $one: true
 build:
   id:

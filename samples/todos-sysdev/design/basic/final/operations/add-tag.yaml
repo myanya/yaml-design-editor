@@ -13,15 +13,14 @@ inputs:
   - id: PRM-add-tag.name
     key: name
     label: タグ名
-    definition:
-      type: TYP-common.一行の文
-      base: string
-      required: true
+    type: TYP-common.一行の文
+    base: string
+    required: true
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
       minLength: 1
-      maxLength: 100
-      pattern: ^[^\r\n]*$
-      overrides:
-        minLength: 1
 preconditions: []
 effects:
   - id: EFF-add-tag.01

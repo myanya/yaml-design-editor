@@ -7,7 +7,8 @@ scope: business
 each: dashboards
 output: design/basic/derived/documents/screen-transitions/{id}.yaml
 dependsOn:
-  - system-actions-model
+  - system-model
+  - basic-operations-resolved
   - screen-lists
   - screen-details
   - screen-operations
@@ -16,7 +17,10 @@ input:
   $apply: model-input
   $with:
     row:
-      $view: system-actions-model-input
+      $view: system-model-input
+      $one: true
+    operations:
+      $view: basic-operations-resolved-input
       $one: true
 build:
   id:
@@ -389,12 +393,39 @@ rules:
   - id: first-screen
     build:
       $format: '{id}/confirm'
+  # 操作は、型・項目・操作への個別の判断を当てた基本設計の「操作」の項目を解いたもの（basic-operations-resolved）で置き換えて読む
   - id: model-input
     with:
       - row
+      - operations
     build:
-      $copy: values.model
-      $of: row
+      $apply: model-with-operations
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  actions:
+                    $copy: values.actions
+                    $of: operations
+                priority: individual
+                source:
+                  id: basic-operations
+  - id: model-with-operations
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
   - id: linked-document
     with:
       - document

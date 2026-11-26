@@ -12,6 +12,7 @@ dependsOn:
   - basic-entities
   - basic-states
   - basic-rules
+  - basic-types
 input:
   operations:
     $each:
@@ -31,6 +32,11 @@ input:
   rules:
     $each:
       $view: basic-model-rules
+    $build:
+      $copy: values.record
+  types:
+    $each:
+      $view: basic-model-types
     $build:
       $copy: values.record
 build:
@@ -68,7 +74,7 @@ build:
               $copy: .
       params:
         $each: inputs
-        $apply: keyed
+        $apply: flat
       # 人が入れる入力: 並びの番号（行が運ぶ値）を除いたもの
       inputParams:
         $first:
@@ -85,9 +91,9 @@ build:
                         $copy: row.param
                         $of: op
                 $then:
-                  $apply: keyed
+                  $apply: flat
           - $each: inputs
-            $apply: keyed
+            $apply: flat
       # 並びの 1 件を番号で指す操作: 並びの項目と、番号を受け取る入力
       rowOf:
         $when:
@@ -102,7 +108,7 @@ build:
                 ref:
                   $copy: row.item
             param:
-              $apply: input-key
+              $apply: input-record
               $with:
                 ref:
                   $copy: row.param
@@ -111,6 +117,20 @@ build:
       input:
         submit:
           $copy: submit
+        initial:
+          $apply: non-empty-map
+          $with:
+            entries:
+              $each: inputs
+              $build:
+                $when:
+                  - path: initial
+                    exists: true
+                $then:
+                  key:
+                    $copy: key
+                  value:
+                    $copy: initial
       require:
         $each: preconditions
         $build:
@@ -266,88 +286,83 @@ build:
       provides:
         $copy: provides
 rules:
-  # 入力・まとまりの項目（キーと名称に、値の定義を平らに重ねる）
-  - id: keyed
+  # 入力・並びの要素・まとまりの項目: 項目の決まりを、読む側の形（型は業務モデルの型の名前、参照先はエンティティ型）に戻す。
+  # 入力を丸ごと写す読み手があるので、キーは業務モデルと同じ順に並べる
+  - id: flat
     build:
       key:
         $copy: key
       label:
         $copy: label
-      base:
-        $copy: definition.base
-      description:
-        $copy: definition.description
-      required:
-        $copy: definition.required
-      default:
-        $copy: definition.default
-      clearedBy:
-        $copy: definition.clearedBy
-      minLength:
-        $copy: definition.minLength
-      maxLength:
-        $copy: definition.maxLength
-      min:
-        $copy: definition.min
-      max:
-        $copy: definition.max
-      pattern:
-        $copy: definition.pattern
-      format:
-        $copy: definition.format
-      multiline:
-        $copy: definition.multiline
-      unique:
-        $copy: definition.unique
-      values:
-        $copy: definition.values
-      target:
-        $copy: definition.reference.subject
-      targetTitle:
-        $copy: definition.reference.title
-      targetLabel:
-        $copy: definition.reference.label
-      item:
-        $when:
-          - path: definition.item
-            exists: true
-        $then:
-          $apply: bare
-          $at: definition.item
-      fields:
-        $when:
-          - path: definition.fields
-            exists: true
-        $then:
-          $each: definition.fields
-          $apply: keyed
-  # 並びの要素の値の定義
-  - id: bare
-    build:
+      type:
+        $first:
+          - $apply: type-name
+            $with:
+              ref:
+                $copy: type
+          - $copy: builtin
+          - $copy: base
       base:
         $copy: base
       description:
         $copy: description
       required:
         $copy: required
-      minLength:
-        $copy: minLength
-      maxLength:
-        $copy: maxLength
+      default:
+        $copy: default
+      unique:
+        $copy: unique
+      refTarget:
+        $copy: reference.target
+      format:
+        $copy: format
       min:
         $copy: min
       max:
         $copy: max
-      pattern:
-        $copy: pattern
-      format:
-        $copy: format
+      minLength:
+        $copy: minLength
+      maxLength:
+        $copy: maxLength
       multiline:
         $copy: multiline
-      unique:
-        $copy: unique
+      pattern:
+        $copy: pattern
       values:
         $copy: values
+      idPatternLayers:
+        $copy: reference.idPatternLayers
+      scope:
+        $copy: reference.scope
+      relation:
+        $copy: reference.relation
+      idPatterns:
+        $copy: reference.idPatterns
+      schemas:
+        $copy: reference.schemas
+      overrides:
+        $copy: overrides
+      builtinType:
+        $when:
+          - path: builtin
+            exists: true
+        $then:
+          name:
+            $copy: builtin
+          base:
+            $copy: base
+          builtin: true
+      targets:
+        $when:
+          - path: reference.entities
+            exists: true
+        $then:
+          $each: reference.entities
+          $build:
+            $apply: entity-source
+            $with:
+              ref:
+                $copy: .
       target:
         $copy: reference.subject
       targetTitle:
@@ -359,7 +374,7 @@ rules:
           - path: item
             exists: true
         $then:
-          $apply: bare
+          $apply: flat
           $at: item
       fields:
         $when:
@@ -367,7 +382,9 @@ rules:
             exists: true
         $then:
           $each: fields
-          $apply: keyed
+          $apply: flat
+      clearedBy:
+        $copy: clearedBy
   # 並びの行の指定: 並びの項目（エンティティの項目）から、キー・名称・要素の項目を引く
   - id: row-of
     with:
@@ -378,7 +395,12 @@ rules:
         $copy: key
         $of: field
       param:
-        $copy: .
+        $copy: key
+        $of: param
+      # 番号を受け取る入力（名称など）
+      item:
+        $apply: flat
+        $at: .
         $of: param
       entity:
         $apply: entity-source
@@ -513,6 +535,23 @@ rules:
                   $of: ref
             $then:
               $copy: source
+  - id: type-name
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: types
+          $of: model
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: name
   - id: field-record
     with:
       - ref
@@ -551,6 +590,41 @@ rules:
                   $of: ref
             $then:
               $copy: key
+  - id: input-record
+    with:
+      - ref
+      - inputs
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: inputs
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: .
+  - id: non-empty-map
+    with:
+      - entries
+    when:
+      - of: entries
+        path: .
+        empty: false
+    build:
+      $entries:
+        $copy: .
+        $of: entries
+  - id: non-empty-map
+    with:
+      - entries
+    build:
+      $copy: missing
+      $of: entries
   - id: rule-record
     with:
       - ref

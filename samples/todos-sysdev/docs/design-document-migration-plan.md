@@ -22,11 +22,10 @@
 
 ## 対象と受け渡し
 
-現行サンプルでは次の 20 種類、76 文書が対象となる。種類数は一覧・詳細・操作の画面や Controller を分けて数える。
+現行サンプルでは次の 19 種類が対象となる（アクション定義書は 2026-11-26 に項目の形にして、この仕組みの対象から外した。操作への個別の判断は `design/basic/inputs/operations/corrections.yaml` に、項目の ID を対象にして書く）。種類数は一覧・詳細・操作の画面や Controller を分けて数える。
 
 | 設計書 | 種類（kind） | 主な接続 |
 |---|---|---|
-| アクション定義書 | `action-specs` | 入力・前提・状態・効果を後続へ渡す。C/U は基本設計の書込への参照 |
 | 状態の判定 | `status-rules` | Lifecycle の状態・開始・遷移・終了を保存 |
 | 画面定義書 | `screen-lists`・`screen-details`・`screen-operations` | 名称・入力・URL を詳細画面と Controller へ渡す |
 | 画面遷移定義書 | `screen-transitions` | 確定した論理画面から画面一覧を作る |
@@ -92,13 +91,13 @@ additions:
 
 `basic-document-input-gate`・`detail-document-input-gate` が各段階の入力文書を、各合成が対象消失・重複・競合を検査する。
 `system-final` は今回の文書を集め、型・参照・識別子・未処理の入力を `$validate` で確かめる。
-業務の効果・状態・書込などをアクション定義書だけで変える補正も止める。基本設計の C/U や状態の判定と共通の原本なので、業務モデルで変更して導出し直す。
+操作の効果・状態・前提などを、操作への個別の判断で変えることも止める（入力の形 `basic-operation-corrections` が止める）。基本設計の C/U や状態の判定と共通の原本なので、業務モデルで変更して導出し直す。
 Form のクラス名が画面設計書と Controller で異なる場合も止める。片方だけを補正して確定することはできない。
 現在は状態の判定の構造、一覧画面の絞り込み・ボタン・区画の構成、Controller 名、Form のクラス名の変更を後続へ接続していないため、これらを導出値と異なる形に補正・追加しても確定しない。名称・URL・入力制約・物理名・Mapper と Service の呼出名など、上表の受け渡しとは区別する。
 失敗すれば生成計画全体を書き込まず、前回の確定文書と手書き入力を保つ。
 業務の要素と設計書の対応は、スコープを持つワークスペースの対応検査で確かめる。
 
-1. `samples/todos-sysdev` を開き、ダッシュボードの切替欄から「アクション定義書」「処理設計書」「テーブルアクセス設計書」などを選ぶ。各種類に専用のダッシュボードがある。
+1. `samples/todos-sysdev` を開き、ダッシュボードの切替欄から「処理設計書」「テーブルアクセス設計書」などを選ぶ。各種類に専用のダッシュボードがある。
 2. 「対象の設計書」で文書を選び、「概要と根拠」「設計内容」を確認する。候補と「この設計書の一覧」には同じ種類だけが出る。対象を空にすると、その種類の全件を比較できる。一覧の行から詳細も開ける。
 3. 「設計書の全体レビュー」で全設計書と、操作・エンティティの対応を見る。
 4. 操作の設計書で `complete-todo` を開き、基本設計の入力・効果と処理の呼出先を比較する。関連設計書への移動も確認する。
@@ -107,8 +106,8 @@ Form のクラス名が画面設計書と Controller で異なる場合も止め
 7. `origins` で導出元、採用した値、入力の理由を確認する。
 
 補正の試験は作業用コピーで `generate <コピー> --apply` と `report <コピー> ddl` を実行する。
-CLI の個別選択は `view <コピー> system-review --param document=DOC-action-specs.complete-todo`、文書ビューは
-`view <コピー> action-design design/basic/final/actions/complete-todo.yaml` を使う。単独グリッドの `--param` では絞られない。
+CLI の個別選択は `view <コピー> system-review --param document=DOC-processes.complete-todo`、文書ビューは
+`view <コピー> action-design design/basic/final/operations/complete-todo.yaml` を使う。単独グリッドの `--param` では絞られない。
 設計書別のダッシュボードは `design-review-<kind>`。たとえば `view <コピー> design-review-processes --param document=DOC-processes.complete-todo` で処理設計書を確認できる。
 
 `TodosSystemDocumentsTest` は物理名 → Mapper → Service → Controller、画面入力 → Form・メッセージ、

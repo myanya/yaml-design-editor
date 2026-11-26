@@ -4,13 +4,13 @@ description: 画面部品に対応するクラスと CSS 宣言の既定値。�
 scope: business
 output: design/detail/derived/documents/screen-styles/screen-styles.yaml
 dependsOn:
-  - system-actions-model
+  - system-model
   - detail-document-input-gate
 input:
   $apply: model-input
   $with:
     row:
-      $view: system-actions-model-input
+      $view: system-model-input
       $one: true
 build:
   id:

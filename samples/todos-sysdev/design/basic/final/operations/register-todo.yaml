@@ -15,90 +15,110 @@ inputs:
   - id: PRM-register-todo.title
     key: title
     label: タイトル
-    definition:
-      type: TYP-common.一行の文
-      base: string
-      required: true
-      maxLength: 100
-      pattern: ^[^\r\n]*$
+    type: TYP-common.一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
   - id: PRM-register-todo.summary
     key: summary
     label: 概要
-    definition:
-      type: TYP-common.一行の文
-      base: string
-      required: true
-      maxLength: 100
-      pattern: ^[^\r\n]*$
+    type: TYP-common.一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
   - id: PRM-register-todo.category
     key: category
     label: カテゴリ
-    definition:
-      type: TYP-common.カテゴリ参照
-      base: ref
-      description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
-      reference:
-        entity: ENT-category
-        subject: category
-        relation: in-category
-        title: name
-        label: カテゴリ
-        idPatterns:
-          - CAT-*
-        schemas:
+    type: TYP-common.カテゴリ参照
+    base: ref
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    reference:
+      target: entity
+      entity: ENT-category
+      entities:
+        - ENT-category
+      subject: category
+      relation: in-category
+      title: name
+      label: カテゴリ
+      idPatternLayers:
+        -   - CAT-*
+      idPatterns:
+        - CAT-*
+      scope:
+        schemaIds:
           - category-list
+        documentIds: []
+      schemas:
+        - category-list
   - id: PRM-register-todo.tags
     key: tags
     label: タグ
-    definition:
-      base: array
-      unique: true
-      item:
-        type: TYP-common.タグ参照
-        base: ref
-        description: タグ一覧の ID を 1 件。
-        reference:
-          entity: ENT-tag
-          subject: tag
-          relation: tagged
-          title: name
-          label: タグ
-          idPatterns:
-            - TAG-*
-          schemas:
+    base: array
+    unique: true
+    item:
+      type: TYP-common.タグ参照
+      base: ref
+      description: タグ一覧の ID を 1 件。
+      reference:
+        target: entity
+        entity: ENT-tag
+        entities:
+          - ENT-tag
+        subject: tag
+        relation: tagged
+        title: name
+        label: タグ
+        idPatternLayers:
+          -   - TAG-*
+        idPatterns:
+          - TAG-*
+        scope:
+          schemaIds:
             - tag-list
+          documentIds: []
+        schemas:
+          - tag-list
   - id: PRM-register-todo.follows
     key: follows
     label: 元のTODO
-    definition:
-      type: TYP-common.TODO参照
-      base: ref
-      description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
-      reference:
-        entity: ENT-todo
-        subject: todo
-        relation: follow-up-of
-        title: title
-        label: TODO
-        idPatterns:
-          - TODO-*
-        schemas:
+    type: TYP-common.TODO参照
+    base: ref
+    description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+    reference:
+      target: entity
+      entity: ENT-todo
+      entities:
+        - ENT-todo
+      subject: todo
+      relation: follow-up-of
+      title: title
+      label: TODO
+      idPatternLayers:
+        -   - TODO-*
+      idPatterns:
+        - TODO-*
+      scope:
+        schemaIds:
           - todo-list
+        documentIds: []
+      schemas:
+        - todo-list
   - id: PRM-register-todo.due
     key: due
     label: 期限
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    format: yyyy年M月d日
   - id: PRM-register-todo.details
     key: details
     label: 詳細
-    definition:
-      type: TYP-common.文章
-      base: string
-      multiline: true
+    type: TYP-common.文章
+    base: string
+    multiline: true
 preconditions: []
 effects:
   - id: EFF-register-todo.01

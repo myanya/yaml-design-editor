@@ -499,8 +499,8 @@ class TodosSysdevTest {
             assertTrue(concepts("$id-derived").none { it.toString().startsWith("actions") }, "$id の導出は、業務モデルの操作を直接読まない: ${concepts("$id-derived")}")
             assertTrue(concepts("$id-derived").any { it.toString().startsWith("designActions") }, "$id の導出は、操作を基本設計の項目から読む: ${concepts("$id-derived")}")
         }
-        // 操作を解いた形は、基本設計の項目（操作・エンティティ・状態と遷移・データの決まり）だけから作る
-        assertTrue(concepts("basic-operations-resolved").all { c -> listOf("operations", "entities", "lifecycles", "rules").any { c.toString() == it || c.toString().startsWith("$it.") } }, "操作を解いた形: ${concepts("basic-operations-resolved")}")
+        // 操作を解いた形は、基本設計の項目（操作・エンティティ・型・状態と遷移・データの決まり）だけから作る
+        assertTrue(concepts("basic-operations-resolved").all { c -> listOf("operations", "entities", "lifecycles", "rules", "types").any { c.toString() == it || c.toString().startsWith("$it.") } }, "操作を解いた形: ${concepts("basic-operations-resolved")}")
         assertTrue(concepts("processes-derived").none { it.toString().startsWith("constraints") }, "処理設計書の導出は、業務モデルのデータの決まりを直接読まない: ${concepts("processes-derived")}")
         assertTrue(concepts("table-access-derived").none { it.toString().startsWith("constraints") }, "テーブルアクセス設計書の導出も同じ: ${concepts("table-access-derived")}")
         // 一覧の読み出しは、業務モデルのダッシュボードとビューではなく、基本設計の「一覧の検索条件」（designQueries）から読む

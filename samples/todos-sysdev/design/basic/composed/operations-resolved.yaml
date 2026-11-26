@@ -11,19 +11,25 @@ actions:
     params:
       - key: name
         label: カテゴリ名
+        type: common#一行の文
         base: string
         required: true
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
     inputParams:
       - key: name
         label: カテゴリ名
+        type: common#一行の文
         base: string
         required: true
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
     input: {}
     require: []
     effects:
@@ -59,93 +65,193 @@ actions:
     params:
       - key: title
         label: タイトル
+        type: common#一行の文
         base: string
         required: true
         maxLength: 100
         pattern: ^[^\r\n]*$
       - key: summary
         label: 概要
+        type: common#一行の文
         base: string
         required: true
         maxLength: 100
         pattern: ^[^\r\n]*$
       - key: category
         label: カテゴリ
+        type: common#カテゴリ参照
         base: ref
         description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
         target: category
         targetTitle: name
         targetLabel: カテゴリ
       - key: tags
         label: タグ
+        type: array
         base: array
         unique: true
         item:
+          type: common#タグ参照
           base: ref
           description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
           target: tag
           targetTitle: name
           targetLabel: タグ
       - key: follows
         label: 元のTODO
+        type: common#TODO参照
         base: ref
         description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+        refTarget: entity
+        idPatternLayers:
+          -   - TODO-*
+        scope:
+          schemaIds:
+            - todo-list
+          documentIds: []
+        relation: follow-up-of
+        idPatterns:
+          - TODO-*
+        schemas:
+          - todo-list
+        targets:
+          - todo
         target: todo
         targetTitle: title
         targetLabel: TODO
       - key: due
         label: 期限
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         format: yyyy年M月d日
       - key: details
         label: 詳細
+        type: common#文章
         base: string
         multiline: true
     inputParams:
       - key: title
         label: タイトル
+        type: common#一行の文
         base: string
         required: true
         maxLength: 100
         pattern: ^[^\r\n]*$
       - key: summary
         label: 概要
+        type: common#一行の文
         base: string
         required: true
         maxLength: 100
         pattern: ^[^\r\n]*$
       - key: category
         label: カテゴリ
+        type: common#カテゴリ参照
         base: ref
         description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
         target: category
         targetTitle: name
         targetLabel: カテゴリ
       - key: tags
         label: タグ
+        type: array
         base: array
         unique: true
         item:
+          type: common#タグ参照
           base: ref
           description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
           target: tag
           targetTitle: name
           targetLabel: タグ
       - key: follows
         label: 元のTODO
+        type: common#TODO参照
         base: ref
         description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+        refTarget: entity
+        idPatternLayers:
+          -   - TODO-*
+        scope:
+          schemaIds:
+            - todo-list
+          documentIds: []
+        relation: follow-up-of
+        idPatterns:
+          - TODO-*
+        schemas:
+          - todo-list
+        targets:
+          - todo
         target: todo
         targetTitle: title
         targetLabel: TODO
       - key: due
         label: 期限
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         format: yyyy年M月d日
       - key: details
         label: 詳細
+        type: common#文章
         base: string
         multiline: true
     input: {}
@@ -394,12 +500,14 @@ actions:
     params:
       - key: date
         label: 記録日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: body
         label: コメント本文
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
@@ -408,18 +516,24 @@ actions:
     inputParams:
       - key: date
         label: 記録日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: body
         label: コメント本文
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
         minLength: 1
         multiline: true
-    input: {}
+    input:
+      initial:
+        date:
+          $copy: today
+          $of: context
     require: []
     effects:
       - op: insert
@@ -472,17 +586,26 @@ actions:
     params:
       - key: row
         label: コメントの番号
+        type: int
         base: int
         description: コメント一覧の何番目か（0 から数えます）
         required: true
         min: 0.0
+        overrides:
+          min: 0.0
+        builtinType:
+          name: int
+          base: int
+          builtin: true
       - key: date
         label: 記録日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         format: yyyy年M月d日
       - key: body
         label: コメント本文
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         minLength: 1
@@ -490,11 +613,13 @@ actions:
     inputParams:
       - key: date
         label: 記録日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         format: yyyy年M月d日
       - key: body
         label: コメント本文
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         minLength: 1
@@ -502,6 +627,20 @@ actions:
     rowOf:
       field: comments
       param: row
+      item:
+        key: row
+        label: コメントの番号
+        type: int
+        base: int
+        description: コメント一覧の何番目か（0 から数えます）
+        required: true
+        min: 0.0
+        overrides:
+          min: 0.0
+        builtinType:
+          name: int
+          base: int
+          builtin: true
       entity: todo
       label: コメント一覧
       fields:
@@ -517,6 +656,17 @@ actions:
           multiline: true
     input:
       submit: changed
+      initial:
+        date:
+          $copy: comments[$row].date
+          $of: self
+          $in:
+            schemaId: todo-detail
+        body:
+          $copy: comments[$row].body
+          $of: self
+          $in:
+            schemaId: todo-detail
     require: []
     effects:
       - op: set
@@ -590,14 +740,35 @@ actions:
     params:
       - key: row
         label: コメントの番号
+        type: int
         base: int
         description: コメント一覧の何番目か（0 から数えます）
         required: true
         min: 0.0
+        overrides:
+          min: 0.0
+        builtinType:
+          name: int
+          base: int
+          builtin: true
     inputParams: []
     rowOf:
       field: comments
       param: row
+      item:
+        key: row
+        label: コメントの番号
+        type: int
+        base: int
+        description: コメント一覧の何番目か（0 から数えます）
+        required: true
+        min: 0.0
+        overrides:
+          min: 0.0
+        builtinType:
+          name: int
+          base: int
+          builtin: true
       entity: todo
       label: コメント一覧
       fields:
@@ -657,19 +828,25 @@ actions:
     params:
       - key: title
         label: 作業
+        type: common#一行の文
         base: string
         required: true
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
     inputParams:
       - key: title
         label: 作業
+        type: common#一行の文
         base: string
         required: true
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
     input: {}
     require:
       - id: active
@@ -755,155 +932,330 @@ actions:
     params:
       - key: title
         label: タイトル
+        type: common#一行の文
         base: string
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
       - key: summary
         label: 概要
+        type: common#一行の文
         base: string
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
       - key: category
         label: カテゴリ
+        type: common#カテゴリ参照
         base: ref
         description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
-        clearedBy: clear.category
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
         target: category
         targetTitle: name
         targetLabel: カテゴリ
+        clearedBy: clear.category
       - key: tags
         label: タグ
+        type: array
         base: array
         description: 入力した並びで全体を置き換えます。
-        clearedBy: clear.tags
         unique: true
         item:
+          type: common#タグ参照
           base: ref
           description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
           target: tag
           targetTitle: name
           targetLabel: タグ
+        clearedBy: clear.tags
       - key: created_on
         label: 作成日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         format: yyyy年M月d日
       - key: due_on
         label: 期限
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-        clearedBy: clear.due_on
         format: yyyy年M月d日
+        clearedBy: clear.due_on
       - key: details
         label: 詳細
+        type: common#文章
         base: string
-        clearedBy: clear.details
         multiline: true
+        clearedBy: clear.details
       - key: result
         label: 結果・中止理由
+        type: common#文章
         base: string
-        clearedBy: clear.result
         multiline: true
+        clearedBy: clear.result
       - key: clear
         label: 値を消す
+        type: object
         base: object
         description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
         default: {}
         fields:
           - key: category
             label: カテゴリを消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: tags
             label: タグを消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: due_on
             label: 期限を消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: details
             label: 詳細を消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: result
             label: 結果・中止理由を消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
     inputParams:
       - key: title
         label: タイトル
+        type: common#一行の文
         base: string
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
       - key: summary
         label: 概要
+        type: common#一行の文
         base: string
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
       - key: category
         label: カテゴリ
+        type: common#カテゴリ参照
         base: ref
         description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
-        clearedBy: clear.category
+        refTarget: entity
+        idPatternLayers:
+          -   - CAT-*
+        scope:
+          schemaIds:
+            - category-list
+          documentIds: []
+        relation: in-category
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+        targets:
+          - category
         target: category
         targetTitle: name
         targetLabel: カテゴリ
+        clearedBy: clear.category
       - key: tags
         label: タグ
+        type: array
         base: array
         description: 入力した並びで全体を置き換えます。
-        clearedBy: clear.tags
         unique: true
         item:
+          type: common#タグ参照
           base: ref
           description: タグ一覧の ID を 1 件。
+          refTarget: entity
+          idPatternLayers:
+            -   - TAG-*
+          scope:
+            schemaIds:
+              - tag-list
+            documentIds: []
+          relation: tagged
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+          targets:
+            - tag
           target: tag
           targetTitle: name
           targetLabel: タグ
+        clearedBy: clear.tags
       - key: created_on
         label: 作成日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         format: yyyy年M月d日
       - key: due_on
         label: 期限
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-        clearedBy: clear.due_on
         format: yyyy年M月d日
+        clearedBy: clear.due_on
       - key: details
         label: 詳細
+        type: common#文章
         base: string
-        clearedBy: clear.details
         multiline: true
+        clearedBy: clear.details
       - key: result
         label: 結果・中止理由
+        type: common#文章
         base: string
-        clearedBy: clear.result
         multiline: true
+        clearedBy: clear.result
       - key: clear
         label: 値を消す
+        type: object
         base: object
         description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
         default: {}
         fields:
           - key: category
             label: カテゴリを消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: tags
             label: タグを消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: due_on
             label: 期限を消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: details
             label: 詳細を消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
           - key: result
             label: 結果・中止理由を消す
+            type: boolean
             base: boolean
+            builtinType:
+              name: boolean
+              base: boolean
+              builtin: true
     input:
       submit: changed
+      initial:
+        title:
+          $copy: title
+          $of: self
+          $in:
+            schemaId: todo-list
+        summary:
+          $copy: summary
+          $of: self
+          $in:
+            schemaId: todo-list
+        category:
+          $copy: category
+          $of: self
+          $in:
+            schemaId: todo-list
+        tags:
+          $copy: tags
+          $of: self
+          $in:
+            schemaId: todo-list
+        created_on:
+          $copy: created_on
+          $of: self
+          $in:
+            schemaId: todo-detail
+        due_on:
+          $copy: due_on
+          $of: self
+          $in:
+            schemaId: todo-detail
+        details:
+          $copy: details
+          $of: self
+          $in:
+            schemaId: todo-detail
+        result:
+          $copy: result
+          $of: self
+          $in:
+            schemaId: todo-detail
     require: []
     effects:
       - op: set
@@ -1249,12 +1601,14 @@ actions:
     params:
       - key: date
         label: 中断日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: reason
         label: 中断理由
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
@@ -1262,18 +1616,21 @@ actions:
         multiline: true
       - key: resume_on
         label: 再開予定日
+        type: common#年月日
         base: date
         description: 決まっていれば入れます。中断日以降の日付です。
         format: yyyy年M月d日
     inputParams:
       - key: date
         label: 中断日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: reason
         label: 中断理由
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
@@ -1281,10 +1638,15 @@ actions:
         multiline: true
       - key: resume_on
         label: 再開予定日
+        type: common#年月日
         base: date
         description: 決まっていれば入れます。中断日以降の日付です。
         format: yyyy年M月d日
-    input: {}
+    input:
+      initial:
+        date:
+          $copy: today
+          $of: context
     require: []
     lifecycle:
       id: todo-lifecycle
@@ -1397,26 +1759,34 @@ actions:
     params:
       - key: date
         label: 再開日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: note
         label: メモ
+        type: common#文章
         base: string
         multiline: true
     inputParams:
       - key: date
         label: 再開日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: note
         label: メモ
+        type: common#文章
         base: string
         multiline: true
-    input: {}
+    input:
+      initial:
+        date:
+          $copy: today
+          $of: context
     require: []
     lifecycle:
       id: todo-lifecycle
@@ -1516,12 +1886,14 @@ actions:
     params:
       - key: date
         label: 完了日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: result
         label: 完了結果
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
@@ -1530,18 +1902,24 @@ actions:
     inputParams:
       - key: date
         label: 完了日
+        type: common#年月日
         base: date
         description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
         required: true
         format: yyyy年M月d日
       - key: result
         label: 完了結果
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
         minLength: 1
         multiline: true
-    input: {}
+    input:
+      initial:
+        date:
+          $copy: today
+          $of: context
     require:
       - id: no-open-task
         message: '{id} には済んでいない作業項目があります（済にしてから完了します）'
@@ -1693,6 +2071,7 @@ actions:
     params:
       - key: reason
         label: 中止理由
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
@@ -1701,6 +2080,7 @@ actions:
     inputParams:
       - key: reason
         label: 中止理由
+        type: todo-operations#操作の記録
         base: string
         description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
         required: true
@@ -1821,19 +2201,25 @@ actions:
     params:
       - key: name
         label: タグ名
+        type: common#一行の文
         base: string
         required: true
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
     inputParams:
       - key: name
         label: タグ名
+        type: common#一行の文
         base: string
         required: true
         minLength: 1
         maxLength: 100
         pattern: ^[^\r\n]*$
+        overrides:
+          minLength: 1
     input: {}
     require: []
     effects:

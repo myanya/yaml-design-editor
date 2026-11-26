@@ -2,7 +2,8 @@ id: system-screen-input-model
 name: 確定した画面入力を共有する
 scope: business
 dependsOn:
-  - system-actions-model
+  - system-model
+  - basic-operations-resolved
   - screen-operation-candidates
 output: design/basic/composed/documents/system-screen-input-model.yaml
 input:
@@ -12,7 +13,10 @@ input:
       $apply: model-input
       $with:
         row:
-          $view: system-actions-model-input
+          $view: system-model-input
+          $one: true
+        operations:
+          $view: basic-operations-resolved-input
           $one: true
     documents:
       $each:
@@ -24,12 +28,39 @@ build:
   model:
     $copy: .
 rules:
+  # 操作は、型・項目・操作への個別の判断を当てた基本設計の「操作」の項目を解いたもの（basic-operations-resolved）で置き換えて読む
   - id: model-input
     with:
       - row
+      - operations
     build:
-      $copy: values.model
-      $of: row
+      $apply: model-with-operations
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  actions:
+                    $copy: values.actions
+                    $of: operations
+                priority: individual
+                source:
+                  id: basic-operations
+  - id: model-with-operations
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
   - id: contract-result
     with:
       - combined

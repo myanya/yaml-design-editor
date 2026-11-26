@@ -1,27 +1,33 @@
 id: action-design
 name: 操作の設計書（基本から詳細まで）
 kind: document
-schemaId: action-spec
-description: 導出元の操作を参照して、確定した基本設計と詳細設計を並べる。
+schemaId: basic-operation
+description: 基本設計の「操作」の項目 1 件と、その操作の詳細設計を並べる。アクション定義書にあたるビューで、値は確定項目をそのまま読む。
 sections:
   - label: 外から見た振る舞い（アクション定義書）
     fields:
       include:
         - id
-        - name
+        - source
+        - label
         - description
         - kind
-        - subject
+        - entity
+        - receiver
+        - creates
+        - entry
+        - transition
+        - refusal
         - inputs
-        - initial
-        - state
         - preconditions
         - effects
+        - checks
+        - decisions
   - label: 内部の手順（処理設計書）
     grid:
       view: action-design-related
       params:
         source:
-          path: id
+          path: source
   - label: この操作を扱う Controller と Mapper
     backlinks: {}

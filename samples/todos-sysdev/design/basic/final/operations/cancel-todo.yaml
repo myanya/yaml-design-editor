@@ -18,13 +18,12 @@ inputs:
   - id: PRM-cancel-todo.reason
     key: reason
     label: 中止理由
-    definition:
-      type: TYP-todo-operations.操作の記録
-      base: string
-      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-      required: true
-      minLength: 1
-      multiline: true
+    type: TYP-todo-operations.操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    required: true
+    minLength: 1
+    multiline: true
 preconditions: []
 effects:
   - id: EFF-cancel-todo.01

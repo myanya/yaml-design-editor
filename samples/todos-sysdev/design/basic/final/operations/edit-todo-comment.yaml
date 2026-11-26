@@ -17,22 +17,20 @@ inputs:
   - id: PRM-edit-todo-comment.row
     key: row
     label: コメントの番号
-    definition:
-      builtin: int
-      base: int
-      description: コメント一覧の何番目か（0 から数えます）
-      required: true
+    builtin: int
+    base: int
+    description: コメント一覧の何番目か（0 から数えます）
+    required: true
+    min: 0.0
+    overrides:
       min: 0.0
-      overrides:
-        min: 0.0
   - id: PRM-edit-todo-comment.date
     key: date
     label: 記録日
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    format: yyyy年M月d日
     initial:
       $copy: comments[$row].date
       $of: self
@@ -41,12 +39,11 @@ inputs:
   - id: PRM-edit-todo-comment.body
     key: body
     label: コメント本文
-    definition:
-      type: TYP-todo-operations.操作の記録
-      base: string
-      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-      minLength: 1
-      multiline: true
+    type: TYP-todo-operations.操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    minLength: 1
+    multiline: true
     initial:
       $copy: comments[$row].body
       $of: self

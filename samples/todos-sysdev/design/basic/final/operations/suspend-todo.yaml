@@ -21,33 +21,30 @@ inputs:
   - id: PRM-suspend-todo.date
     key: date
     label: 中断日
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      required: true
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    required: true
+    format: yyyy年M月d日
     initial:
       $copy: today
       $of: context
   - id: PRM-suspend-todo.reason
     key: reason
     label: 中断理由
-    definition:
-      type: TYP-todo-operations.操作の記録
-      base: string
-      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-      required: true
-      minLength: 1
-      multiline: true
+    type: TYP-todo-operations.操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    required: true
+    minLength: 1
+    multiline: true
   - id: PRM-suspend-todo.resume_on
     key: resume_on
     label: 再開予定日
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: 決まっていれば入れます。中断日以降の日付です。
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: 決まっていれば入れます。中断日以降の日付です。
+    format: yyyy年M月d日
 preconditions: []
 effects:
   - id: EFF-suspend-todo.01

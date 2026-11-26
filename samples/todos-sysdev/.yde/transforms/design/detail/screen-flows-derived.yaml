@@ -9,7 +9,7 @@ scope: business
 each: entities
 output: design/detail/derived/documents/screen-flows/{id}.yaml
 dependsOn:
-  - system-actions-model
+  - system-model
   - basic-operations-resolved
   - system-access-bindings
   - system-process-bindings
@@ -24,7 +24,7 @@ input:
   $apply: model-input
   $with:
     row:
-      $view: system-actions-model-input
+      $view: system-model-input
       $one: true
     operations:
       $view: basic-operations-resolved-input
@@ -412,7 +412,7 @@ rules:
                   $copy: values.model
                   $of: row
                 source:
-                  id: system-actions-model
+                  id: system-model
             additions: []
             changes:
               - target: model

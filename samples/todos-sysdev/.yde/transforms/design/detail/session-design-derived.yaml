@@ -6,14 +6,14 @@ description: >-
 scope: business
 output: design/detail/derived/documents/session-design/session-design.yaml
 dependsOn:
-  - system-actions-model
+  - system-model
   - basic-operations-resolved
   - detail-document-input-gate
 input:
   $apply: model-input
   $with:
     row:
-      $view: system-actions-model-input
+      $view: system-model-input
       $one: true
     operations:
       $view: basic-operations-resolved-input
@@ -158,7 +158,7 @@ rules:
                   $copy: values.model
                   $of: row
                 source:
-                  id: system-actions-model
+                  id: system-model
             additions: []
             changes:
               - target: model

@@ -1,0 +1,11 @@
+id: basic-operation-corrections-input
+name: 基本設計の生成入力（操作への個別の判断）
+description: 操作の項目への個別の判断を 1 件ずつ読む
+rows:
+  idPattern: COR-*
+  schemaIds:
+    - basic-operation-corrections
+columns:
+  - label: correction
+    path: .
+    fileGlob: design/basic/inputs/operations/corrections.yaml

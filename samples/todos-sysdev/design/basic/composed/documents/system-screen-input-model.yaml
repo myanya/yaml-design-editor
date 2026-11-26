@@ -1889,6 +1889,9 @@ model:
       kind: action
       label: カテゴリを追加する
       description: TODOを分類するカテゴリを作ります。IDは一覧の追加規則で自動採番します。
+      subject: category
+      creates:
+        - category
       params:
         - key: name
           label: カテゴリ名
@@ -1900,34 +1903,6 @@ model:
           pattern: ^[^\r\n]*$
           overrides:
             minLength: 1
-      require: []
-      effects:
-        - op: insert
-          schema: category-list
-          path: categories
-          params:
-            name: $name
-          source: do
-          entity: category
-          field:
-            key: categories
-            base: array
-            item:
-              base: object
-              entity: category
-          written:
-            - key: name
-              value: $name
-              base: string
-          numbering:
-            path: id
-            prefix: CAT-
-            digits: 3
-      creates:
-        - category
-      subject: category
-      checks: []
-      input: {}
       inputParams:
         - key: name
           label: カテゴリ名
@@ -1939,10 +1914,38 @@ model:
           pattern: ^[^\r\n]*$
           overrides:
             minLength: 1
+      input: {}
+      require: []
+      effects:
+        - op: insert
+          source: do
+          entity: category
+          schema: category-list
+          path: categories
+          field:
+            key: categories
+            base: array
+            item:
+              base: object
+              entity: category
+          params:
+            name: $name
+          numbering:
+            path: id
+            prefix: CAT-
+            digits: 3
+          written:
+            - key: name
+              value: $name
+              base: string
+      checks: []
     - id: register-todo
       kind: action
       label: TODOを登録する
       description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
+      subject: todo
+      creates:
+        - todo
       params:
         - key: title
           label: タイトル
@@ -2039,6 +2042,103 @@ model:
           type: common#文章
           base: string
           multiline: true
+      inputParams:
+        - key: title
+          label: タイトル
+          type: common#一行の文
+          base: string
+          required: true
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+        - key: summary
+          label: 概要
+          type: common#一行の文
+          base: string
+          required: true
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+        - key: category
+          label: カテゴリ
+          type: common#カテゴリ参照
+          base: ref
+          description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+          refTarget: entity
+          idPatternLayers:
+            -   - CAT-*
+          scope:
+            schemaIds:
+              - category-list
+            documentIds: []
+          relation: in-category
+          idPatterns:
+            - CAT-*
+          schemas:
+            - category-list
+          targets:
+            - category
+          target: category
+          targetTitle: name
+          targetLabel: カテゴリ
+        - key: tags
+          label: タグ
+          type: array
+          base: array
+          unique: true
+          item:
+            type: common#タグ参照
+            base: ref
+            description: タグ一覧の ID を 1 件。
+            refTarget: entity
+            idPatternLayers:
+              -   - TAG-*
+            scope:
+              schemaIds:
+                - tag-list
+              documentIds: []
+            relation: tagged
+            idPatterns:
+              - TAG-*
+            schemas:
+              - tag-list
+            targets:
+              - tag
+            target: tag
+            targetTitle: name
+            targetLabel: タグ
+        - key: follows
+          label: 元のTODO
+          type: common#TODO参照
+          base: ref
+          description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+          refTarget: entity
+          idPatternLayers:
+            -   - TODO-*
+          scope:
+            schemaIds:
+              - todo-list
+            documentIds: []
+          relation: follow-up-of
+          idPatterns:
+            - TODO-*
+          schemas:
+            - todo-list
+          targets:
+            - todo
+          target: todo
+          targetTitle: title
+          targetLabel: TODO
+        - key: due
+          label: 期限
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        - key: details
+          label: 詳細
+          type: common#文章
+          base: string
+          multiline: true
+      input: {}
       require: []
       lifecycle:
         id: todo-lifecycle
@@ -2048,7 +2148,16 @@ model:
             value: OPEN
       effects:
         - op: create
+          source: do
+          bind: todo
+          entity: todo
           schema: todo-detail
+          values:
+            due_on:
+              $copy: due
+            details:
+              $copy: details
+            comments: []
           id:
             prefix: TODO-
             digits: 3
@@ -2056,15 +2165,6 @@ model:
             path: id
             prefix: TODO-
             digits: 3
-          bind: todo
-          values:
-            due_on:
-              $copy: due
-            details:
-              $copy: details
-            comments: []
-          source: do
-          entity: todo
           written:
             - key: due_on
               value:
@@ -2080,8 +2180,16 @@ model:
               item:
                 base: object
         - op: insert
+          source: do
+          entity: todo
           schema: todo-list
           path: todos
+          field:
+            key: todos
+            base: array
+            item:
+              base: object
+              entity: todo
           value:
             id:
               $copy: id
@@ -2094,14 +2202,6 @@ model:
               $copy: tags
             follows:
               $copy: follows
-          source: do
-          entity: todo
-          field:
-            key: todos
-            base: array
-            item:
-              base: object
-              entity: todo
           written:
             - key: id
               value:
@@ -2129,32 +2229,32 @@ model:
                 $copy: follows
               base: ref
         - op: set
-          schema: todo-detail
-          path: status
-          value: OPEN
           source: lifecycle
           'on': create
           entity: todo
+          schema: todo-detail
+          path: status
           field:
             key: status
             base: enum
+          value: OPEN
         - op: insert
+          source: lifecycle
+          'on': create
+          entity: todo
           schema: todo-detail
           path: history
+          field:
+            key: history
+            base: array
+            item:
+              base: object
           value:
             date:
               $copy: today
               $of: context
             action: register-todo
             to: OPEN
-          source: lifecycle
-          'on': create
-          entity: todo
-          field:
-            key: history
-            base: array
-            item:
-              base: object
           written:
             - key: date
               value:
@@ -2168,32 +2268,29 @@ model:
               value: OPEN
               base: enum
         - op: set
-          schema: todo-detail
-          path: created_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: created
           entity: todo
+          schema: todo-detail
+          path: created_on
           field:
             key: created_on
             base: date
-        - op: set
-          schema: todo-detail
-          path: updated_on
           value:
             $copy: today
             $of: context
+        - op: set
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates:
-        - todo
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: due-not-before-created
           form: element
@@ -2224,74 +2321,517 @@ model:
             - todo.id
         - constraint: in-category.outMax
           form: relation
-          level: warning
           kind: outMax
-          multiple: false
+          level: warning
           items:
             - todo.category
+          multiple: false
           params:
             - category
         - constraint: in-category.types
           form: relation
-          level: warning
           kind: types
-          multiple: false
+          level: warning
           items:
             - todo.category
+          multiple: false
           params:
             - category
         - constraint: tagged.types
           form: relation
-          level: warning
           kind: types
-          multiple: true
+          level: warning
           items:
             - todo.tags
+          multiple: true
           params:
             - tags
         - constraint: follow-up-of.acyclic
           form: relation
-          level: error
           kind: acyclic
-          multiple: false
+          level: error
           items:
             - todo.follows
+          multiple: false
           params:
             - follows
         - constraint: follow-up-of.outMax
           form: relation
-          level: warning
           kind: outMax
-          multiple: false
+          level: warning
           items:
             - todo.follows
+          multiple: false
           params:
             - follows
         - constraint: follow-up-of.types
           form: relation
-          level: warning
           kind: types
-          multiple: false
+          level: warning
           items:
             - todo.follows
+          multiple: false
           params:
             - follows
-      input: {}
+    - id: add-todo-comment
+      kind: action
+      label: TODOにコメントを追加する
+      description: TODOの個票へ、状態に関係なく日付と本文を記録します。
+      subject: todo
+      target:
+        entity: todo
+      creates: []
+      params:
+        - key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        - key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
       inputParams:
+        - key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        - key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+      input:
+        initial:
+          date:
+            $copy: today
+            $of: context
+      require: []
+      effects:
+        - op: insert
+          source: do
+          of: self
+          entity: todo
+          schema: todo-detail
+          path: comments
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          value:
+            date: $date
+            body: $body
+          written:
+            - key: date
+              value: $date
+              base: date
+            - key: body
+              value: $body
+              base: string
+        - op: set
+          source: auto
+          auto: updated
+          entity: todo
+          schema: todo-detail
+          path: updated_on
+          field:
+            key: updated_on
+            base: date
+          value:
+            $copy: today
+            $of: context
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+    - id: edit-todo-comment
+      kind: action
+      label: コメントを編集する
+      description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
+      subject: todo
+      target:
+        entity: todo
+      creates: []
+      params:
+        - key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        - key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        - key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          minLength: 1
+          multiline: true
+      inputParams:
+        - key: date
+          label: 記録日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        - key: body
+          label: コメント本文
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          minLength: 1
+          multiline: true
+      rowOf:
+        field: comments
+        param: row
+        item:
+          key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        entity: todo
+        label: コメント一覧
+        fields:
+          - key: date
+            label: 日付
+            base: date
+            required: true
+            format: yyyy年M月d日
+          - key: body
+            label: コメント本文
+            base: string
+            required: true
+            multiline: true
+      input:
+        submit: changed
+        initial:
+          date:
+            $copy: comments[$row].date
+            $of: self
+            $in:
+              schemaId: todo-detail
+          body:
+            $copy: comments[$row].body
+            $of: self
+            $in:
+              schemaId: todo-detail
+      require: []
+      effects:
+        - op: set
+          source: do
+          of: self
+          entity: todo
+          schema: todo-detail
+          path: comments[$row].date
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          row:
+            param: row
+          when:
+            - path: date
+              exists: true
+          value: $date
+          written:
+            - key: date
+              value: $date
+              base: date
+        - op: set
+          source: do
+          of: self
+          entity: todo
+          schema: todo-detail
+          path: comments[$row].body
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          row:
+            param: row
+          when:
+            - path: body
+              exists: true
+          value: $body
+          written:
+            - key: body
+              value: $body
+              base: string
+        - op: set
+          source: auto
+          auto: updated
+          entity: todo
+          schema: todo-detail
+          path: updated_on
+          field:
+            key: updated_on
+            base: date
+          value:
+            $copy: today
+            $of: context
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+    - id: delete-todo-comment
+      kind: action
+      label: コメントを削除する
+      description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
+      subject: todo
+      target:
+        entity: todo
+      creates: []
+      params:
+        - key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+      inputParams: []
+      rowOf:
+        field: comments
+        param: row
+        item:
+          key: row
+          label: コメントの番号
+          type: int
+          base: int
+          description: コメント一覧の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        entity: todo
+        label: コメント一覧
+        fields:
+          - key: date
+            label: 日付
+            base: date
+            required: true
+            format: yyyy年M月d日
+          - key: body
+            label: コメント本文
+            base: string
+            required: true
+            multiline: true
+      input: {}
+      require: []
+      effects:
+        - op: delete
+          source: do
+          of: self
+          entity: todo
+          schema: todo-detail
+          path: comments[$row]
+          field:
+            key: comments
+            base: array
+            item:
+              base: object
+          row:
+            param: row
+        - op: set
+          source: auto
+          auto: updated
+          entity: todo
+          schema: todo-detail
+          path: updated_on
+          field:
+            key: updated_on
+            base: date
+          value:
+            $copy: today
+            $of: context
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+    - id: add-todo-task
+      kind: action
+      label: 作業項目を追加する
+      description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
+      subject: todo
+      target:
+        entity: todo
+      creates:
+        - todo-task
+      params:
+        - key: title
+          label: 作業
+          type: common#一行の文
+          base: string
+          required: true
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+      inputParams:
+        - key: title
+          label: 作業
+          type: common#一行の文
+          base: string
+          required: true
+          minLength: 1
+          maxLength: 100
+          pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
+      input: {}
+      require:
+        - id: active
+          message: '{id} は完了か中止をしているので、作業項目を足せません'
+          rule:
+            match:
+              - node:
+                  entity: todo
+                  bind: t
+            where:
+              - of: t
+                path: status
+                oneOf:
+                  - OPEN
+                  - IN_PROGRESS
+                  - SUSPENDED
+            expect: exists
+      effects:
+        - op: insert
+          source: do
+          of: self
+          entity: todo
+          schema: todo-detail
+          path: tasks
+          field:
+            key: tasks
+            base: array
+            item:
+              base: object
+              entity: todo-task
+          value:
+            id: ''
+            title: $title
+            done: false
+          numbering:
+            path: id
+            prefix:
+              $format: '{id}-S'
+              $of: owner
+            digits: 2
+          written:
+            - key: id
+              value: ''
+              base: id
+            - key: title
+              value: $title
+              base: string
+            - key: done
+              value: false
+              base: boolean
+        - op: set
+          source: auto
+          auto: updated
+          entity: todo
+          schema: todo-detail
+          path: updated_on
+          field:
+            key: updated_on
+            base: date
+          value:
+            $copy: today
+            $of: context
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+        - constraint: closed-has-no-open-task
+          form: pattern
+          level: error
+          items:
+            - todo-task.done
+            - todo.tasks
+    - id: edit-todo
+      kind: action
+      label: TODOを編集する
+      description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
+      subject: todo
+      target:
+        entity: todo
+      creates: []
+      params:
         - key: title
           label: タイトル
           type: common#一行の文
           base: string
-          required: true
+          minLength: 1
           maxLength: 100
           pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
         - key: summary
           label: 概要
           type: common#一行の文
           base: string
-          required: true
+          minLength: 1
           maxLength: 100
           pattern: ^[^\r\n]*$
+          overrides:
+            minLength: 1
         - key: category
           label: カテゴリ
           type: common#カテゴリ参照
@@ -2314,10 +2854,12 @@ model:
           target: category
           targetTitle: name
           targetLabel: カテゴリ
+          clearedBy: clear.category
         - key: tags
           label: タグ
           type: array
           base: array
+          description: 入力した並びで全体を置き換えます。
           unique: true
           item:
             type: common#タグ参照
@@ -2340,688 +2882,80 @@ model:
             target: tag
             targetTitle: name
             targetLabel: タグ
-        - key: follows
-          label: 元のTODO
-          type: common#TODO参照
-          base: ref
-          description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
-          refTarget: entity
-          idPatternLayers:
-            -   - TODO-*
-          scope:
-            schemaIds:
-              - todo-list
-            documentIds: []
-          relation: follow-up-of
-          idPatterns:
-            - TODO-*
-          schemas:
-            - todo-list
-          targets:
-            - todo
-          target: todo
-          targetTitle: title
-          targetLabel: TODO
-        - key: due
+          clearedBy: clear.tags
+        - key: created_on
+          label: 作成日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          format: yyyy年M月d日
+        - key: due_on
           label: 期限
           type: common#年月日
           base: date
           description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
           format: yyyy年M月d日
+          clearedBy: clear.due_on
         - key: details
           label: 詳細
           type: common#文章
           base: string
           multiline: true
-    - id: add-todo-comment
-      kind: action
-      label: TODOにコメントを追加する
-      description: TODOの個票へ、状態に関係なく日付と本文を記録します。
-      target:
-        entity: todo
-      params:
-        - key: date
-          label: 記録日
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          required: true
-          format: yyyy年M月d日
-        - key: body
-          label: コメント本文
-          type: todo-operations#操作の記録
+          clearedBy: clear.details
+        - key: result
+          label: 結果・中止理由
+          type: common#文章
           base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          required: true
-          minLength: 1
           multiline: true
-      input:
-        initial:
-          date:
-            $copy: today
-            $of: context
-      require: []
-      effects:
-        - op: insert
-          schema: todo-detail
-          path: comments
-          value:
-            date: $date
-            body: $body
-          of: self
-          source: do
-          entity: todo
-          field:
-            key: comments
-            base: array
-            item:
-              base: object
-          written:
-            - key: date
-              value: $date
-              base: date
-            - key: body
-              value: $body
-              base: string
-        - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
-          source: auto
-          auto: updated
-          entity: todo
-          field:
-            key: updated_on
-            base: date
-      creates: []
-      subject: todo
-      checks:
-        - constraint: updated-not-before-created
-          form: element
-          level: error
-          items:
-            - todo.updated_on
-      inputParams:
-        - key: date
-          label: 記録日
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          required: true
-          format: yyyy年M月d日
-        - key: body
-          label: コメント本文
-          type: todo-operations#操作の記録
-          base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          required: true
-          minLength: 1
-          multiline: true
-    - id: edit-todo-comment
-      kind: action
-      label: コメントを編集する
-      description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
-      target:
-        entity: todo
-      params:
-        - key: row
-          label: コメントの番号
-          type: int
-          base: int
-          description: コメント一覧の何番目か（0 から数えます）
-          required: true
-          min: 0.0
-          overrides:
-            min: 0.0
-          builtinType:
-            name: int
-            base: int
-            builtin: true
-        - key: date
-          label: 記録日
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          format: yyyy年M月d日
-        - key: body
-          label: コメント本文
-          type: todo-operations#操作の記録
-          base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          minLength: 1
-          multiline: true
-      input:
-        submit: changed
-        initial:
-          date:
-            $copy: comments[$row].date
-            $of: self
-            $in:
-              schemaId: todo-detail
-          body:
-            $copy: comments[$row].body
-            $of: self
-            $in:
-              schemaId: todo-detail
-      require: []
-      effects:
-        - op: set
-          schema: todo-detail
-          path: comments[$row].date
-          value: $date
-          of: self
-          when:
-            - path: date
-              exists: true
-          source: do
-          entity: todo
-          field:
-            key: comments
-            base: array
-            item:
-              base: object
-          row:
-            param: row
-          written:
-            - key: date
-              value: $date
-              base: date
-        - op: set
-          schema: todo-detail
-          path: comments[$row].body
-          value: $body
-          of: self
-          when:
-            - path: body
-              exists: true
-          source: do
-          entity: todo
-          field:
-            key: comments
-            base: array
-            item:
-              base: object
-          row:
-            param: row
-          written:
-            - key: body
-              value: $body
-              base: string
-        - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
-          source: auto
-          auto: updated
-          entity: todo
-          field:
-            key: updated_on
-            base: date
-      creates: []
-      subject: todo
-      checks:
-        - constraint: updated-not-before-created
-          form: element
-          level: error
-          items:
-            - todo.updated_on
-      inputParams:
-        - key: date
-          label: 記録日
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          format: yyyy年M月d日
-        - key: body
-          label: コメント本文
-          type: todo-operations#操作の記録
-          base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          minLength: 1
-          multiline: true
-      rowOf:
-        field: comments
-        param: row
-        schema: todo-detail
-        entity: todo
-        label: コメント一覧
-        fields:
-          - key: date
-            label: 日付
-            type: common#年月日
-            base: date
-            declarations:
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - 年月日
-                inherited: true
-                declared:
-                  type: date
-                  format: yyyy年M月d日
-                  description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - コメント
-                  - fields
-                  - 0
-                inherited: false
-                declared:
-                  key: date
-                  label: 日付
-                  type: 年月日
-                  required: true
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - TODO個票
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 0
-                inherited: false
-                declared:
-                  key: date
-              - schema: todo-detail
-                document: .yde/schemas/input/6.yaml
-                path:
-                  - root
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 0
-                inherited: false
-                declared:
-                  key: date
-            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-            required: true
-            format: yyyy年M月d日
-          - key: body
-            label: コメント本文
-            type: text
-            base: string
-            declarations:
-              - schema: builtin-types
-                path:
-                  - definitions
-                  - text
-                inherited: true
-                declared:
-                  type: string
-                  display: multiline
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - コメント
-                  - fields
-                  - 1
-                inherited: false
-                declared:
-                  key: body
-                  label: コメント本文
-                  type: text
-                  required: true
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - TODO個票
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 1
-                inherited: false
-                declared:
-                  key: body
-              - schema: todo-detail
-                document: .yde/schemas/input/6.yaml
-                path:
-                  - root
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 1
-                inherited: false
-                declared:
-                  key: body
-            required: true
-            multiline: true
-            builtinType:
-              name: text
-              base: string
-              builtin: true
-              multiline: true
-        item:
-          key: row
-          label: コメントの番号
-          type: int
-          base: int
-          description: コメント一覧の何番目か（0 から数えます）
-          required: true
-          min: 0.0
-          overrides:
-            min: 0.0
-          builtinType:
-            name: int
-            base: int
-            builtin: true
-    - id: delete-todo-comment
-      kind: action
-      label: コメントを削除する
-      description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
-      target:
-        entity: todo
-      params:
-        - key: row
-          label: コメントの番号
-          type: int
-          base: int
-          description: コメント一覧の何番目か（0 から数えます）
-          required: true
-          min: 0.0
-          overrides:
-            min: 0.0
-          builtinType:
-            name: int
-            base: int
-            builtin: true
-      require: []
-      effects:
-        - op: delete
-          schema: todo-detail
-          path: comments[$row]
-          of: self
-          source: do
-          entity: todo
-          field:
-            key: comments
-            base: array
-            item:
-              base: object
-          row:
-            param: row
-        - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
-          source: auto
-          auto: updated
-          entity: todo
-          field:
-            key: updated_on
-            base: date
-      creates: []
-      subject: todo
-      checks:
-        - constraint: updated-not-before-created
-          form: element
-          level: error
-          items:
-            - todo.updated_on
-      input: {}
-      inputParams: []
-      rowOf:
-        field: comments
-        param: row
-        schema: todo-detail
-        entity: todo
-        label: コメント一覧
-        fields:
-          - key: date
-            label: 日付
-            type: common#年月日
-            base: date
-            declarations:
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - 年月日
-                inherited: true
-                declared:
-                  type: date
-                  format: yyyy年M月d日
-                  description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - コメント
-                  - fields
-                  - 0
-                inherited: false
-                declared:
-                  key: date
-                  label: 日付
-                  type: 年月日
-                  required: true
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - TODO個票
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 0
-                inherited: false
-                declared:
-                  key: date
-              - schema: todo-detail
-                document: .yde/schemas/input/6.yaml
-                path:
-                  - root
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 0
-                inherited: false
-                declared:
-                  key: date
-            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-            required: true
-            format: yyyy年M月d日
-          - key: body
-            label: コメント本文
-            type: text
-            base: string
-            declarations:
-              - schema: builtin-types
-                path:
-                  - definitions
-                  - text
-                inherited: true
-                declared:
-                  type: string
-                  display: multiline
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - コメント
-                  - fields
-                  - 1
-                inherited: false
-                declared:
-                  key: body
-                  label: コメント本文
-                  type: text
-                  required: true
-              - schema: common
-                document: .yde/schemas/input/1.yaml
-                path:
-                  - definitions
-                  - TODO個票
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 1
-                inherited: false
-                declared:
-                  key: body
-              - schema: todo-detail
-                document: .yde/schemas/input/6.yaml
-                path:
-                  - root
-                  - fields
-                  - 9
-                  - item
-                  - fields
-                  - 1
-                inherited: false
-                declared:
-                  key: body
-            required: true
-            multiline: true
-            builtinType:
-              name: text
-              base: string
-              builtin: true
-              multiline: true
-        item:
-          key: row
-          label: コメントの番号
-          type: int
-          base: int
-          description: コメント一覧の何番目か（0 から数えます）
-          required: true
-          min: 0.0
-          overrides:
-            min: 0.0
-          builtinType:
-            name: int
-            base: int
-            builtin: true
-    - id: add-todo-task
-      kind: action
-      label: 作業項目を追加する
-      description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
-      target:
-        entity: todo
-      params:
-        - key: title
-          label: 作業
-          type: common#一行の文
-          base: string
-          required: true
-          minLength: 1
-          maxLength: 100
-          pattern: ^[^\r\n]*$
-          overrides:
-            minLength: 1
-      require:
-        - id: active
-          message: '{id} は完了か中止をしているので、作業項目を足せません'
-          rule:
-            match:
-              - node:
-                  entity: todo
-                  bind: t
-            where:
-              - of: t
-                path: status
-                oneOf:
-                  - OPEN
-                  - IN_PROGRESS
-                  - SUSPENDED
-            expect: exists
-      effects:
-        - op: insert
-          schema: todo-detail
-          path: tasks
-          value:
-            id: ''
-            title: $title
-            done: false
-          of: self
-          source: do
-          entity: todo
-          field:
-            key: tasks
-            base: array
-            item:
-              base: object
-              entity: todo-task
-          written:
-            - key: id
-              value: ''
-              base: id
-            - key: title
-              value: $title
-              base: string
-            - key: done
-              value: false
+          clearedBy: clear.result
+        - key: clear
+          label: 値を消す
+          type: object
+          base: object
+          description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+          default: {}
+          fields:
+            - key: category
+              label: カテゴリを消す
+              type: boolean
               base: boolean
-          numbering:
-            path: id
-            prefix:
-              $format: '{id}-S'
-              $of: owner
-            digits: 2
-        - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
-          source: auto
-          auto: updated
-          entity: todo
-          field:
-            key: updated_on
-            base: date
-      creates:
-        - todo-task
-      subject: todo
-      checks:
-        - constraint: updated-not-before-created
-          form: element
-          level: error
-          items:
-            - todo.updated_on
-        - constraint: closed-has-no-open-task
-          form: pattern
-          level: error
-          items:
-            - todo-task.done
-            - todo.tasks
-      input: {}
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: tags
+              label: タグを消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: due_on
+              label: 期限を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: details
+              label: 詳細を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
+            - key: result
+              label: 結果・中止理由を消す
+              type: boolean
+              base: boolean
+              builtinType:
+                name: boolean
+                base: boolean
+                builtin: true
       inputParams:
-        - key: title
-          label: 作業
-          type: common#一行の文
-          base: string
-          required: true
-          minLength: 1
-          maxLength: 100
-          pattern: ^[^\r\n]*$
-          overrides:
-            minLength: 1
-    - id: edit-todo
-      kind: action
-      label: TODOを編集する
-      description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
-      target:
-        entity: todo
-      params:
         - key: title
           label: タイトル
           type: common#一行の文
@@ -3209,187 +3143,185 @@ model:
       require: []
       effects:
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-list
           path: title
-          value: $title
-          of: self
-          when:
-            - path: title
-              exists: true
-          source: do
-          entity: todo
           field:
             key: title
             base: string
+          when:
+            - path: title
+              exists: true
+          value: $title
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-list
           path: summary
-          value: $summary
-          of: self
-          when:
-            - path: summary
-              exists: true
-          source: do
-          entity: todo
           field:
             key: summary
             base: string
+          when:
+            - path: summary
+              exists: true
+          value: $summary
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-list
           path: category
-          value: $category
-          of: self
+          field:
+            key: category
+            base: ref
           when:
             - path: category
               exists: true
-          source: do
-          entity: todo
-          field:
-            key: category
-            base: ref
+          value: $category
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-list
           path: tags
-          value: $tags
-          of: self
+          field:
+            key: tags
+            base: array
+            item:
+              base: ref
           when:
             - path: tags
               exists: true
-          source: do
-          entity: todo
-          field:
-            key: tags
-            base: array
-            item:
-              base: ref
+          value: $tags
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: created_on
-          value: $created_on
-          of: self
-          when:
-            - path: created_on
-              exists: true
-          source: do
-          entity: todo
           field:
             key: created_on
             base: date
+          when:
+            - path: created_on
+              exists: true
+          value: $created_on
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: due_on
-          value: $due_on
-          of: self
-          when:
-            - path: due_on
-              exists: true
-          source: do
-          entity: todo
           field:
             key: due_on
             base: date
+          when:
+            - path: due_on
+              exists: true
+          value: $due_on
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: details
-          value: $details
-          of: self
-          when:
-            - path: details
-              exists: true
-          source: do
-          entity: todo
           field:
             key: details
             base: string
+          when:
+            - path: details
+              exists: true
+          value: $details
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: result
-          value: $result
-          of: self
-          when:
-            - path: result
-              exists: true
-          source: do
-          entity: todo
           field:
             key: result
             base: string
+          when:
+            - path: result
+              exists: true
+          value: $result
         - op: delete
+          source: do
+          of: self
+          entity: todo
           schema: todo-list
           path: category
-          of: self
-          when:
-            - path: clear.category
-              equals: true
-          source: do
-          entity: todo
           field:
             key: category
             base: ref
+          when:
+            - path: clear.category
+              equals: true
         - op: delete
+          source: do
+          of: self
+          entity: todo
           schema: todo-list
           path: tags
-          of: self
-          when:
-            - path: clear.tags
-              equals: true
-          source: do
-          entity: todo
           field:
             key: tags
             base: array
             item:
               base: ref
+          when:
+            - path: clear.tags
+              equals: true
         - op: delete
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: due_on
-          of: self
-          when:
-            - path: clear.due_on
-              equals: true
-          source: do
-          entity: todo
           field:
             key: due_on
             base: date
+          when:
+            - path: clear.due_on
+              equals: true
         - op: delete
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: details
-          of: self
-          when:
-            - path: clear.details
-              equals: true
-          source: do
-          entity: todo
           field:
             key: details
             base: string
+          when:
+            - path: clear.details
+              equals: true
         - op: delete
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: result
-          of: self
-          when:
-            - path: clear.result
-              equals: true
-          source: do
-          entity: todo
           field:
             key: result
             base: string
+          when:
+            - path: clear.result
+              equals: true
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: due-not-before-created
           form: element
@@ -3424,180 +3356,42 @@ model:
             - result
         - constraint: in-category.outMax
           form: relation
-          level: warning
           kind: outMax
-          multiple: false
+          level: warning
           items:
             - todo.category
+          multiple: false
           params:
             - category
         - constraint: in-category.types
           form: relation
-          level: warning
           kind: types
-          multiple: false
+          level: warning
           items:
             - todo.category
+          multiple: false
           params:
             - category
         - constraint: tagged.types
           form: relation
-          level: warning
           kind: types
-          multiple: true
+          level: warning
           items:
             - todo.tags
+          multiple: true
           params:
             - tags
-      inputParams:
-        - key: title
-          label: タイトル
-          type: common#一行の文
-          base: string
-          minLength: 1
-          maxLength: 100
-          pattern: ^[^\r\n]*$
-          overrides:
-            minLength: 1
-        - key: summary
-          label: 概要
-          type: common#一行の文
-          base: string
-          minLength: 1
-          maxLength: 100
-          pattern: ^[^\r\n]*$
-          overrides:
-            minLength: 1
-        - key: category
-          label: カテゴリ
-          type: common#カテゴリ参照
-          base: ref
-          description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
-          refTarget: entity
-          idPatternLayers:
-            -   - CAT-*
-          scope:
-            schemaIds:
-              - category-list
-            documentIds: []
-          relation: in-category
-          idPatterns:
-            - CAT-*
-          schemas:
-            - category-list
-          targets:
-            - category
-          target: category
-          targetTitle: name
-          targetLabel: カテゴリ
-          clearedBy: clear.category
-        - key: tags
-          label: タグ
-          type: array
-          base: array
-          description: 入力した並びで全体を置き換えます。
-          unique: true
-          item:
-            type: common#タグ参照
-            base: ref
-            description: タグ一覧の ID を 1 件。
-            refTarget: entity
-            idPatternLayers:
-              -   - TAG-*
-            scope:
-              schemaIds:
-                - tag-list
-              documentIds: []
-            relation: tagged
-            idPatterns:
-              - TAG-*
-            schemas:
-              - tag-list
-            targets:
-              - tag
-            target: tag
-            targetTitle: name
-            targetLabel: タグ
-          clearedBy: clear.tags
-        - key: created_on
-          label: 作成日
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          format: yyyy年M月d日
-        - key: due_on
-          label: 期限
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          format: yyyy年M月d日
-          clearedBy: clear.due_on
-        - key: details
-          label: 詳細
-          type: common#文章
-          base: string
-          multiline: true
-          clearedBy: clear.details
-        - key: result
-          label: 結果・中止理由
-          type: common#文章
-          base: string
-          multiline: true
-          clearedBy: clear.result
-        - key: clear
-          label: 値を消す
-          type: object
-          base: object
-          description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
-          default: {}
-          fields:
-            - key: category
-              label: カテゴリを消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            - key: tags
-              label: タグを消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            - key: due_on
-              label: 期限を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            - key: details
-              label: 詳細を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
-            - key: result
-              label: 結果・中止理由を消す
-              type: boolean
-              base: boolean
-              builtinType:
-                name: boolean
-                base: boolean
-                builtin: true
     - id: start-todo
       kind: action
       label: TODOに着手する
       description: 未着手の作業を対応中にします。追加の入力はありません。
+      subject: todo
       target:
         entity: todo
+      creates: []
       params: []
+      inputParams: []
+      input: {}
       require: []
       lifecycle:
         id: todo-lifecycle
@@ -3613,17 +3407,24 @@ model:
         refusal: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
       effects:
         - op: set
-          schema: todo-detail
-          path: status
-          value: IN_PROGRESS
           source: lifecycle
           entity: todo
+          schema: todo-detail
+          path: status
           field:
             key: status
             base: enum
+          value: IN_PROGRESS
         - op: insert
+          source: lifecycle
+          entity: todo
           schema: todo-detail
           path: history
+          field:
+            key: history
+            base: array
+            item:
+              base: object
           value:
             date:
               $copy: today
@@ -3633,13 +3434,6 @@ model:
               $copy: status
               $of: self
             to: IN_PROGRESS
-          source: lifecycle
-          entity: todo
-          field:
-            key: history
-            base: array
-            item:
-              base: object
           written:
             - key: date
               value:
@@ -3658,19 +3452,17 @@ model:
               value: IN_PROGRESS
               base: enum
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: updated-not-before-created
           form: element
@@ -3682,15 +3474,37 @@ model:
           level: error
           items:
             - todo.status
-      input: {}
-      inputParams: []
     - id: suspend-todo
       kind: action
       label: TODOを中断する
       description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。
+      subject: todo
       target:
         entity: todo
+      creates: []
       params:
+        - key: date
+          label: 中断日
+          type: common#年月日
+          base: date
+          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+          required: true
+          format: yyyy年M月d日
+        - key: reason
+          label: 中断理由
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+        - key: resume_on
+          label: 再開予定日
+          type: common#年月日
+          base: date
+          description: 決まっていれば入れます。中断日以降の日付です。
+          format: yyyy年M月d日
+      inputParams:
         - key: date
           label: 中断日
           type: common#年月日
@@ -3737,17 +3551,24 @@ model:
             $copy: resume_on
       effects:
         - op: set
-          schema: todo-detail
-          path: status
-          value: SUSPENDED
           source: lifecycle
           entity: todo
+          schema: todo-detail
+          path: status
           field:
             key: status
             base: enum
+          value: SUSPENDED
         - op: insert
+          source: lifecycle
+          entity: todo
           schema: todo-detail
           path: history
+          field:
+            key: history
+            base: array
+            item:
+              base: object
           value:
             date: $date
             action: suspend-todo
@@ -3758,13 +3579,6 @@ model:
             note: $reason
             resume_on:
               $copy: resume_on
-          source: lifecycle
-          entity: todo
-          field:
-            key: history
-            base: array
-            item:
-              base: object
           written:
             - key: date
               value: $date
@@ -3788,19 +3602,17 @@ model:
                 $copy: resume_on
               base: date
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: updated-not-before-created
           form: element
@@ -3820,35 +3632,28 @@ model:
           params:
             - resume_on
             - date
-      inputParams:
+    - id: resume-todo
+      kind: action
+      label: TODOを再開する
+      description: 中断した作業を対応中に戻します。
+      subject: todo
+      target:
+        entity: todo
+      creates: []
+      params:
         - key: date
-          label: 中断日
+          label: 再開日
           type: common#年月日
           base: date
           description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
           required: true
           format: yyyy年M月d日
-        - key: reason
-          label: 中断理由
-          type: todo-operations#操作の記録
+        - key: note
+          label: メモ
+          type: common#文章
           base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          required: true
-          minLength: 1
           multiline: true
-        - key: resume_on
-          label: 再開予定日
-          type: common#年月日
-          base: date
-          description: 決まっていれば入れます。中断日以降の日付です。
-          format: yyyy年M月d日
-    - id: resume-todo
-      kind: action
-      label: TODOを再開する
-      description: 中断した作業を対応中に戻します。
-      target:
-        entity: todo
-      params:
+      inputParams:
         - key: date
           label: 再開日
           type: common#年月日
@@ -3885,17 +3690,24 @@ model:
             $copy: note
       effects:
         - op: set
-          schema: todo-detail
-          path: status
-          value: IN_PROGRESS
           source: lifecycle
           entity: todo
+          schema: todo-detail
+          path: status
           field:
             key: status
             base: enum
+          value: IN_PROGRESS
         - op: insert
+          source: lifecycle
+          entity: todo
           schema: todo-detail
           path: history
+          field:
+            key: history
+            base: array
+            item:
+              base: object
           value:
             date: $date
             action: resume-todo
@@ -3905,13 +3717,6 @@ model:
             to: IN_PROGRESS
             note:
               $copy: note
-          source: lifecycle
-          entity: todo
-          field:
-            key: history
-            base: array
-            item:
-              base: object
           written:
             - key: date
               value: $date
@@ -3932,19 +3737,17 @@ model:
                 $copy: note
               base: string
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: updated-not-before-created
           form: element
@@ -3956,26 +3759,31 @@ model:
           level: error
           items:
             - todo.status
-      inputParams:
+    - id: complete-todo
+      kind: action
+      label: TODOを完了する
+      description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
+      subject: todo
+      target:
+        entity: todo
+      creates: []
+      params:
         - key: date
-          label: 再開日
+          label: 完了日
           type: common#年月日
           base: date
           description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
           required: true
           format: yyyy年M月d日
-        - key: note
-          label: メモ
-          type: common#文章
+        - key: result
+          label: 完了結果
+          type: todo-operations#操作の記録
           base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
           multiline: true
-    - id: complete-todo
-      kind: action
-      label: TODOを完了する
-      description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
-      target:
-        entity: todo
-      params:
+      inputParams:
         - key: date
           label: 完了日
           type: common#年月日
@@ -4030,37 +3838,44 @@ model:
           date: $date
       effects:
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: completed_on
-          value: $date
-          of: self
-          source: do
-          entity: todo
           field:
             key: completed_on
             base: date
+          value: $date
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: result
-          value: $result
-          of: self
-          source: do
-          entity: todo
           field:
             key: result
             base: string
+          value: $result
         - op: set
-          schema: todo-detail
-          path: status
-          value: CLOSED
           source: lifecycle
           entity: todo
+          schema: todo-detail
+          path: status
           field:
             key: status
             base: enum
+          value: CLOSED
         - op: insert
+          source: lifecycle
+          entity: todo
           schema: todo-detail
           path: history
+          field:
+            key: history
+            base: array
+            item:
+              base: object
           value:
             date: $date
             action: complete-todo
@@ -4068,13 +3883,6 @@ model:
               $copy: status
               $of: self
             to: CLOSED
-          source: lifecycle
-          entity: todo
-          field:
-            key: history
-            base: array
-            item:
-              base: object
           written:
             - key: date
               value: $date
@@ -4091,19 +3899,17 @@ model:
               value: CLOSED
               base: enum
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: updated-not-before-created
           form: element
@@ -4138,28 +3944,14 @@ model:
           level: error
           items:
             - todo.status
-      inputParams:
-        - key: date
-          label: 完了日
-          type: common#年月日
-          base: date
-          description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-          required: true
-          format: yyyy年M月d日
-        - key: result
-          label: 完了結果
-          type: todo-operations#操作の記録
-          base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          required: true
-          minLength: 1
-          multiline: true
     - id: cancel-todo
       kind: action
       label: TODOを中止する
       description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
+      subject: todo
       target:
         entity: todo
+      creates: []
       params:
         - key: reason
           label: 中止理由
@@ -4169,6 +3961,16 @@ model:
           required: true
           minLength: 1
           multiline: true
+      inputParams:
+        - key: reason
+          label: 中止理由
+          type: todo-operations#操作の記録
+          base: string
+          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+          required: true
+          minLength: 1
+          multiline: true
+      input: {}
       require: []
       lifecycle:
         id: todo-lifecycle
@@ -4192,27 +3994,34 @@ model:
           note: $reason
       effects:
         - op: set
+          source: do
+          of: self
+          entity: todo
           schema: todo-detail
           path: result
-          value: $reason
-          of: self
-          source: do
-          entity: todo
           field:
             key: result
             base: string
+          value: $reason
         - op: set
-          schema: todo-detail
-          path: status
-          value: CANCELED
           source: lifecycle
           entity: todo
+          schema: todo-detail
+          path: status
           field:
             key: status
             base: enum
+          value: CANCELED
         - op: insert
+          source: lifecycle
+          entity: todo
           schema: todo-detail
           path: history
+          field:
+            key: history
+            base: array
+            item:
+              base: object
           value:
             date:
               $copy: today
@@ -4223,13 +4032,6 @@ model:
               $of: self
             to: CANCELED
             note: $reason
-          source: lifecycle
-          entity: todo
-          field:
-            key: history
-            base: array
-            item:
-              base: object
           written:
             - key: date
               value:
@@ -4251,19 +4053,17 @@ model:
               value: $reason
               base: string
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: updated-not-before-created
           form: element
@@ -4275,20 +4075,13 @@ model:
           level: error
           items:
             - todo.status
-      input: {}
-      inputParams:
-        - key: reason
-          label: 中止理由
-          type: todo-operations#操作の記録
-          base: string
-          description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-          required: true
-          minLength: 1
-          multiline: true
     - id: add-tag
       kind: action
       label: タグを追加する
       description: TODOに付けるタグを作ります。IDは一覧の追加規則で自動採番します。
+      subject: tag
+      creates:
+        - tag
       params:
         - key: name
           label: タグ名
@@ -4300,34 +4093,6 @@ model:
           pattern: ^[^\r\n]*$
           overrides:
             minLength: 1
-      require: []
-      effects:
-        - op: insert
-          schema: tag-list
-          path: tags
-          params:
-            name: $name
-          source: do
-          entity: tag
-          field:
-            key: tags
-            base: array
-            item:
-              base: object
-              entity: tag
-          written:
-            - key: name
-              value: $name
-              base: string
-          numbering:
-            path: id
-            prefix: TAG-
-            digits: 3
-      creates:
-        - tag
-      subject: tag
-      checks: []
-      input: {}
       inputParams:
         - key: name
           label: タグ名
@@ -4339,37 +4104,64 @@ model:
           pattern: ^[^\r\n]*$
           overrides:
             minLength: 1
+      input: {}
+      require: []
+      effects:
+        - op: insert
+          source: do
+          entity: tag
+          schema: tag-list
+          path: tags
+          field:
+            key: tags
+            base: array
+            item:
+              base: object
+              entity: tag
+          params:
+            name: $name
+          numbering:
+            path: id
+            prefix: TAG-
+            digits: 3
+          written:
+            - key: name
+              value: $name
+              base: string
+      checks: []
     - id: todo-task.finish
       kind: method
       label: 作業項目を済にする
+      subject: todo-task
       target:
         entity: todo-task
+      creates: []
       params: []
+      inputParams: []
+      input: {}
       effects:
         - op: set
-          path: done
-          value: true
           source: do
-          schema: todo-detail
           within: todo-task
           entity: todo-task
+          schema: todo-detail
+          path: done
           field:
             key: done
             base: boolean
+          value: true
         - op: set
-          schema: todo-detail
-          path: updated_on
-          value:
-            $copy: today
-            $of: context
           source: auto
           auto: updated
           entity: todo
+          schema: todo-detail
+          path: updated_on
           field:
             key: updated_on
             base: date
-      creates: []
-      subject: todo-task
+          value:
+            $copy: today
+            $of: context
       checks:
         - constraint: updated-not-before-created
           form: element
@@ -4381,8 +4173,6 @@ model:
           level: error
           items:
             - todo-task.done
-      input: {}
-      inputParams: []
   states:
     - id: todo-OPEN
       entity: todo

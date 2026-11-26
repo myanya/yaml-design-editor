@@ -3,7 +3,7 @@ name: 確定した操作と処理から Service の引数を確定する
 scope: design
 dependsOn:
   - processes
-  - action-specs
+  - basic-operations-resolved
   - application-java-types
 output: design/detail/final/application-service-inputs.yaml
 input:
@@ -15,14 +15,24 @@ input:
       $with:
         process:
           $copy: values.record
+        # 操作の入力は、基本設計の「操作」の項目を解いたもの（basic-operations-resolved）から読む
         action:
-          $view: action-specs-input
-          $where:
-            - path: values.record.id
-              equals:
-                $copy: values.record.id
-                $of: processRow
-          $one: true
+          $apply: first
+          $with:
+            items:
+              $each:
+                $view: basic-operations-resolved-input
+              $flatten: true
+              $build:
+                $each: values.actions
+                $build:
+                  $when:
+                    - path: id
+                      equals:
+                        $copy: values.record.id
+                        $of: processRow
+                  $then:
+                    $copy: .
         types:
           $view: application-java-types-input
           $where: []
@@ -80,7 +90,7 @@ rules:
           $copy: .
           $of: process
         fields:
-          $each: values.record.inputs
+          $each: params
           $of: action
           $build:
             $apply: field

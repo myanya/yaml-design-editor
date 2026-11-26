@@ -72,7 +72,7 @@
     "relations": "ent",
     "types": "ent",
     "schemas": "ent",
-    "actions": "act",
+    "actions": "bmO",
     "lifecycles": "bmO",
     "states": "bmO",
     "constraints": "bmO",
@@ -87,10 +87,6 @@
       "parts": {
         "actions": "bmO"
       }
-    },
-    {
-      "transform": "system-actions-model",
-      "id": "SYS-system-actions-model"
     },
     {
       "transform": "system-screen-input-model",
@@ -241,7 +237,7 @@
     },
     {
       "id": "ops",
-      "name": "操作（項目の形）",
+      "name": "操作",
       "column": "basic",
       "lane": "op",
       "transforms": [
@@ -255,13 +251,6 @@
         "EFF-*",
         "SYS-basic-operations-resolved"
       ]
-    },
-    {
-      "id": "act",
-      "name": "アクション定義書",
-      "column": "basic",
-      "lane": "op",
-      "kind": "action-specs"
     },
     {
       "id": "qry",
@@ -625,9 +614,9 @@
       ]
     },
     "notes": [
-      "補正後の業務モデルは 3 段あります。composed/field-model.yaml（補正を当てて解き直したもの）、composed/documents/model.yaml（それにエンティティの名称と説明を重ねたもの）、composed/documents/system-actions-model.yaml（さらに確定した操作を重ねたもの）です。",
-      "エンティティ定義書（final/entities.yaml）は 1 段目から作られ、2 段目に読まれます。アクション定義書（final/actions/）は 2 段目から作られ、3 段目に読まれます。輪にはなっていませんが、補正後の業務モデルと確定した設計書が互い違いに並んでいます。",
-      "ほかの設計書の導出が読むのは 3 段目です。そのため、エンティティ定義書とアクション定義書が確定しないと、ほかの設計書を作り始められません。"
+      "補正後の業務モデルは 2 段あります。composed/field-model.yaml（型と項目への補正を当てて解き直したもの）と、composed/documents/model.yaml（それにエンティティの名称と説明を重ねたもの）です。3 段目（確定した操作を重ねたもの）は、操作を項目の形にして無くしました（2026-11-26）。",
+      "エンティティ定義書（final/entities.yaml）は 1 段目から作られ、2 段目に読まれます。操作の項目（final/operations/）は 2 段目から作られ、操作への個別の判断は項目へ直接当たります。",
+      "ほかの設計書の導出は、操作を「操作を解いた形」（composed/operations-resolved.yaml）から読み、エンティティ・ダッシュボード・たどれる範囲を 2 段目から読みます。"
     ]
   },
   "target": {
@@ -742,35 +731,20 @@
         "note": "中身は業務モデルです。エンティティの名称と説明だけを、確定したエンティティから重ねています。"
       },
       {
-        "id": "corr-3",
-        "layer": "basic",
-        "row": 1,
-        "col": 2,
-        "kind": "work",
-        "label": [
-          "同（3 段目）",
-          "＋確定した操作"
-        ],
-        "members": [
-          "t:system-actions-model"
-        ],
-        "carries": "bm",
-        "note": "中身は業務モデルです。これを読むことは、業務モデルを読むのと同じに数えます。"
-      },
-      {
         "id": "corr-4",
         "layer": "basic",
         "row": 1,
         "col": 3,
         "kind": "work",
         "label": [
-          "同",
+          "同（3 段目）",
           "＋画面の入力項目"
         ],
         "members": [
           "t:system-screen-input-model"
         ],
-        "carries": "bm"
+        "carries": "bm",
+        "note": "2 段目の操作を、基本設計の操作の項目（解いた形）で置き換え、画面の入力項目を重ねたものです。エラー定義書とメッセージ定義書が読みます。"
       },
       {
         "id": "corr-view",
@@ -804,9 +778,10 @@
         ],
         "members": [
           "in:design/basic/inputs/entities/*.yaml",
-          "in:design/basic/inputs/documents/*.yaml"
+          "in:design/basic/inputs/documents/*.yaml",
+          "in:design/basic/inputs/operations/*.yaml"
         ],
-        "note": "全体の判断（区分の定義）と個別の判断（区分の割当）にあたります。補正はいま 0 件です。"
+        "note": "全体の判断（区分の定義）と個別の判断（区分の割当、操作の項目への補正）にあたります。補正はいま 0 件です。"
       },
       {
         "id": "b-ent-work",
@@ -902,11 +877,10 @@
         "col": 0,
         "kind": "work",
         "label": [
-          "アクション・画面ほか",
-          "の導出（9 種）"
+          "画面ほか",
+          "の導出（8 種）"
         ],
         "members": [
-          "t:action-specs-derived",
           "t:domains-derived",
           "t:domain-relations-derived",
           "t:errors-derived",
@@ -940,11 +914,10 @@
         "kind": "main",
         "shape": "documents",
         "label": [
-          "アクション・画面ほか",
-          "（文書の形。9 種）"
+          "画面ほか",
+          "（文書の形。8 種）"
         ],
         "members": [
-          "t:action-specs",
           "t:domains",
           "t:domain-relations",
           "t:errors",
@@ -976,7 +949,6 @@
         "kind": "view",
         "asIs": true,
         "label": [
-          "アクション定義書・",
           "画面定義書 ほか"
         ],
         "views": [
@@ -1000,7 +972,7 @@
         "members": [
           "t:basic-operations"
         ],
-        "note": "2026-11-26 に足しました。操作・入力・前提・効果に ID を振り、エンティティ・項目・型・遷移・データの決まりを ID で指します。型・項目への個別の判断と、アクション定義書への個別の判断が届くように、判断を当てた後の操作（補正後の業務モデルの 3 段目）を読んでいます。判断を項目へ直接当てる形にしたら、業務モデルを直接読む形に変え、アクション定義書（文書の形）をやめます。"
+        "note": "操作・入力・前提・効果に ID を振り、エンティティ・項目・型・遷移・データの決まりを ID で指します。型と項目への補正が入力の決まりに届くように、補正後の業務モデル（2 段目）を読みます。操作への個別の判断（inputs/operations/corrections.yaml）は、項目の ID を対象にして、ここで直接当てます。当てた判断は項目の decisions に残ります。"
       },
       {
         "id": "b-ops-resolved",
@@ -1023,7 +995,8 @@
         "col": 4,
         "kind": "view",
         "label": [
-          "操作の一覧"
+          "操作の一覧と",
+          "アクション定義書"
         ],
         "views": [
           "basic/review/operation-definition*.yaml"
@@ -1442,9 +1415,10 @@
         "status": "merge",
         "current": [
           "in:design/basic/inputs/entities/corrections.yaml",
-          "in:design/basic/inputs/documents/*.yaml"
+          "in:design/basic/inputs/documents/*.yaml",
+          "in:design/basic/inputs/operations/corrections.yaml"
         ],
-        "note": "特定の要素だけの決定。いまは区分の割当だけです（TODO の ID の説明の補正 COR-001 は、業務モデルを直して無くしました）。"
+        "note": "特定の要素だけの決定。いまは区分の割当だけです（TODO の ID の説明の補正 COR-001 は、業務モデルを直して無くしました）。操作への個別の判断は、項目の ID を対象にして書きます（inputs/operations/corrections.yaml。いま 0 件）。"
       },
       {
         "id": "a-typ",
@@ -1562,10 +1536,9 @@
         "label": [
           "操作"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:basic-operations",
-          "t:action-specs"
+          "t:basic-operations"
         ],
         "from": [
           "bO"
@@ -1576,7 +1549,7 @@
           "a-rul"
         ],
         "unit": "操作ごと",
-        "note": "2026-11-26 に項目の形（操作ごとに 1 ファイル）を足しました。操作・入力・前提・効果に ID を振り、エンティティ・項目・型・遷移・データの決まりを ID で指します。詳細設計の 8 種は、業務モデルの操作ではなく、この項目を解いたものから読みます。アクション定義書（文書の形）はまだ残っています。個別の判断（補正）がアクション定義書に当たる作りなので、判断を項目へ直接当てる形にしてから、文書をやめます。"
+        "note": "2026-11-26 に項目の形（操作ごとに 1 ファイル）にしました。操作・入力・前提・効果に ID を振り、エンティティ・項目・型・遷移・データの決まりを ID で指します。操作への個別の判断は、項目の ID を対象にして直接当てます。アクション定義書の文書と、補正後の業務モデルの 3 段目は無くしました。型と項目への補正を受けるために、いまは補正後の業務モデル（2 段目）を読んでいます。"
       },
       {
         "id": "a-err",
@@ -1681,7 +1654,6 @@
         ],
         "status": "role",
         "current": [
-          "t:action-specs-derived",
           "t:domains-derived",
           "t:domain-relations-derived",
           "t:errors-derived",
@@ -1733,12 +1705,13 @@
         "label": [
           "アクション定義書"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "a-op",
           "a-sta",
           "a-rul"
-        ]
+        ],
+        "note": "操作の項目を読むビューです（操作 1 件を 1 枚で見る「操作の設計書」と、一覧・入力・効果の表）。見え方はオーナーのレビュー待ちです。"
       },
       {
         "id": "av-scr",
@@ -2473,7 +2446,7 @@
   },
   "notes": [
     "処理設計書は、データ設計と画面設計の上に乗っていません。内容を読むのはメッセージ定義書と状態の判定だけです。テーブルアクセス設計書からは呼び名の付け替え表だけを受け取り、画面の設計書からは何も受け取りません。呼ぶ Mapper の名前は、業務モデルから同じ命名規則で計算し直しています。",
-    "アクション定義書が、ほぼ全部の上流です。ほかの設計書は、補正後の業務モデルの中の操作として読みます。",
+    "操作（項目の形）が、ほぼ全部の上流です。詳細設計の 8 種と、基本設計の画面・ドメインの定義書が、「操作を解いた形」を通して読みます。",
     "テーブルアクセス設計書の読み出しは、画面定義書を通りません。業務モデルのダッシュボードとビューから直接、検索と件数のメソッドを作っています。",
     "画面定義書（操作）とメッセージ定義書が互いを読みます。画面定義書の候補 → メッセージ定義書 → 画面定義書の確定、の順です。"
   ],

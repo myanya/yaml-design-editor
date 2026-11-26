@@ -1,0 +1,8 @@
+id: basic-operation-corrections
+name: 基本設計の操作への個別の判断の入力
+rows:
+  idPattern: INPUT-basic-operation-corrections
+columns:
+  - label: record
+    path: .
+    fileGlob: design/basic/inputs/operations/corrections.yaml

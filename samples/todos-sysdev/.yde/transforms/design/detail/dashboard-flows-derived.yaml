@@ -5,7 +5,7 @@ scope: business
 each: dashboards
 output: design/detail/derived/documents/dashboard-flows/{id}.yaml
 dependsOn:
-  - system-actions-model
+  - system-model
   - system-access-bindings
   - system-session-bindings
   - screen-lists
@@ -17,7 +17,7 @@ input:
   $apply: model-input
   $with:
     row:
-      $view: system-actions-model-input
+      $view: system-model-input
       $one: true
 build:
   id:

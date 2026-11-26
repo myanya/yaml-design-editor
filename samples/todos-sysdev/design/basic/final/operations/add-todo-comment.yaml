@@ -13,25 +13,23 @@ inputs:
   - id: PRM-add-todo-comment.date
     key: date
     label: 記録日
-    definition:
-      type: TYP-common.年月日
-      base: date
-      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
-      required: true
-      format: yyyy年M月d日
+    type: TYP-common.年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    required: true
+    format: yyyy年M月d日
     initial:
       $copy: today
       $of: context
   - id: PRM-add-todo-comment.body
     key: body
     label: コメント本文
-    definition:
-      type: TYP-todo-operations.操作の記録
-      base: string
-      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
-      required: true
-      minLength: 1
-      multiline: true
+    type: TYP-todo-operations.操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    required: true
+    minLength: 1
+    multiline: true
 preconditions: []
 effects:
   - id: EFF-add-todo-comment.01
