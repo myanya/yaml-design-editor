@@ -1,0 +1,21 @@
+id: rule-definition
+name: データの決まり（一覧）
+description: 基本設計の「データの決まり」の項目一覧を並べる。値は確定項目をそのまま読み、ビューでは計算しない
+rows: { idPattern: "RUL-*", schemaIds: [basic-rule-list] }
+order: { schemaId: basic-rule-list }
+columns:
+  - label: 決まり
+    path: source
+  - label: 名称
+    path: label
+  - label: 決まりの形
+    path: form
+  - label: 厳しさ
+    path: level
+  - label: エンティティ
+    path: entity
+  - label: 読む項目の場所
+    value:
+      path: reads[*]
+  - label: 違反したときの文
+    path: message

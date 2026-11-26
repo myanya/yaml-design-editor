@@ -1,0 +1,340 @@
+# 生成物（basic-rules）: 手で直さず、業務モデルか生成の定義（design/basic/basic-rules.yaml）を直して作り直します（CLI generate）。
+documentId: SYS-basic-rules
+rules:
+  - id: RUL-due-not-before-created
+    source: due-not-before-created
+    label: 期限は作成日以降であること
+    message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO個票
+    reads:
+      - todo.due_on
+      - todo.created_on
+    rule:
+      where:
+        - path: due_on
+          exists: true
+      check:
+        - gte:
+            - path: due_on
+            - path: created_on
+  - id: RUL-updated-not-before-created
+    source: updated-not-before-created
+    label: 更新日は作成日以降であること
+    message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO個票
+    reads:
+      - todo.updated_on
+      - todo.created_on
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+  - id: RUL-completed-not-before-created
+    source: completed-not-before-created
+    label: 完了日は作成日以降であること
+    message: TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO個票
+    reads:
+      - todo.completed_on
+      - todo.created_on
+    rule:
+      where:
+        - path: completed_on
+          exists: true
+      check:
+        - gte:
+            - path: completed_on
+            - path: created_on
+  - id: RUL-closed-has-completed-on
+    source: closed-has-completed-on
+    label: 完了した TODO には完了日があること
+    message: 完了した TODO「{id}」に完了日がありません
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO個票
+    reads:
+      - todo.status
+      - todo.completed_on
+    rule:
+      where:
+        - path: status
+          equals: CLOSED
+        - path: completed_on
+          exists: false
+      expect: absent
+  - id: RUL-closed-has-result
+    source: closed-has-result
+    label: 完了したTODOには結果を記録すること
+    message: 完了した TODO「{id}」に結果がありません
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO個票
+    reads:
+      - todo.status
+      - todo.result
+    rule:
+      where:
+        - path: status
+          equals: CLOSED
+        - path: result
+          empty: true
+      expect: absent
+  - id: RUL-unfinished-has-no-completed-on
+    source: unfinished-has-no-completed-on
+    label: 完了以外のTODOには完了日を残さないこと
+    message: 完了していない TODO「{id}」に完了日が残っています
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO個票
+    reads:
+      - todo.status
+      - todo.completed_on
+    rule:
+      where:
+        - not:
+            path: status
+            equals: CLOSED
+        - path: completed_on
+          exists: true
+      expect: absent
+  - id: RUL-resume-not-before-suspend
+    source: resume-not-before-suspend
+    label: 再開予定日は中断した日以降であること
+    message: 再開予定日（{left}）は、中断した日（{right}）より前にできません
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#状態の記録
+    at: history[*]
+    reads:
+      - todo.history[*].resume_on
+      - todo.history[*].date
+    rule:
+      where:
+        - path: resume_on
+          exists: true
+      check:
+        - gte:
+            - path: resume_on
+            - path: date
+  - id: RUL-follows-not-self
+    source: follows-not-self
+    label: 元のTODOは自分以外であること
+    message: TODO「{id}」の元のTODOに、自分自身は選べません
+    level: error
+    form: element
+    subject: todo
+    entity: ENT-todo
+    declaredIn: common#TODO一覧の行
+    reads:
+      - todo.follows
+      - todo.id
+    rule:
+      where:
+        - path: follows
+          exists: true
+      check:
+        - ne:
+            - path: follows
+            - path: id
+  - id: RUL-closed-has-no-open-task
+    source: closed-has-no-open-task
+    label: 完了したTODOには、済んでいない作業項目が無いこと
+    message: 完了したTODO「{id}」に、済んでいない作業項目があります
+    level: error
+    form: pattern
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-detail
+    reads:
+      - todo.status
+      - todo-task.done
+      - todo.tasks
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+        - edge:
+            contains: true
+        - node:
+            entity: todo-task
+            bind: s
+      where:
+        - of: t
+          path: status
+          equals: CLOSED
+        - of: s
+          path: done
+          equals: false
+      expect: absent
+  - id: RUL-has-detail
+    source: has-detail
+    label: 一覧のTODOには個票があること
+    message: TODO「{id}」に個票がありません（TODOは「TODOを登録する」で一覧と個票を一緒に作ります）
+    level: error
+    form: occurrence
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-list
+    reads:
+      - todo.id
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      check:
+        - gte:
+            - occurrenceCount:
+                of: t
+                schema: todo-detail
+            - 1
+  - id: RUL-in-category.outMax
+    source: in-category.outMax
+    label: 「カテゴリ」は 1 つまで
+    level: warning
+    form: relation
+    kind: outMax
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-relations
+    reads:
+      - todo.category
+    relation: in-category
+    relationLabel: カテゴリ
+    multiple: false
+    limit: 1
+    fields:
+      - item: FLD-todo.category
+        subject: todo
+        key: category
+        multiple: false
+  - id: RUL-in-category.types
+    source: in-category.types
+    label: 「カテゴリ」は、宣言した型（todo → category）の間に引くこと
+    level: warning
+    form: relation
+    kind: types
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-relations
+    reads:
+      - todo.category
+    relation: in-category
+    relationLabel: カテゴリ
+    multiple: false
+    sources:
+      - todo
+    targets:
+      - category
+    fields:
+      - item: FLD-todo.category
+        subject: todo
+        key: category
+        multiple: false
+  - id: RUL-tagged.types
+    source: tagged.types
+    label: 「タグ」は、宣言した型（todo → tag）の間に引くこと
+    level: warning
+    form: relation
+    kind: types
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-relations
+    reads:
+      - todo.tags
+    relation: tagged
+    relationLabel: タグ
+    multiple: true
+    sources:
+      - todo
+    targets:
+      - tag
+    fields:
+      - item: FLD-todo.tags
+        subject: todo
+        key: tags
+        multiple: true
+  - id: RUL-follow-up-of.acyclic
+    source: follow-up-of.acyclic
+    label: 「元のTODO」をたどって、元の要素に戻らないこと（循環しない）
+    level: error
+    form: relation
+    kind: acyclic
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-relations
+    reads:
+      - todo.follows
+    relation: follow-up-of
+    relationLabel: 元のTODO
+    multiple: false
+    fields:
+      - item: FLD-todo.follows
+        subject: todo
+        key: follows
+        multiple: false
+  - id: RUL-follow-up-of.outMax
+    source: follow-up-of.outMax
+    label: 「元のTODO」は 1 つまで
+    level: warning
+    form: relation
+    kind: outMax
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-relations
+    reads:
+      - todo.follows
+    relation: follow-up-of
+    relationLabel: 元のTODO
+    multiple: false
+    limit: 1
+    fields:
+      - item: FLD-todo.follows
+        subject: todo
+        key: follows
+        multiple: false
+  - id: RUL-follow-up-of.types
+    source: follow-up-of.types
+    label: 「元のTODO」は、宣言した型（todo → todo）の間に引くこと
+    level: warning
+    form: relation
+    kind: types
+    subject: todo
+    entity: ENT-todo
+    declaredIn: todo-relations
+    reads:
+      - todo.follows
+    relation: follow-up-of
+    relationLabel: 元のTODO
+    multiple: false
+    sources:
+      - todo
+    targets:
+      - todo
+    fields:
+      - item: FLD-todo.follows
+        subject: todo
+        key: follows
+        multiple: false

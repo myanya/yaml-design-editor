@@ -12,6 +12,7 @@ each: actions
 output: design/detail/derived/documents/processes/{id}.yaml
 dependsOn:
   - system-actions-model
+  - basic-rules
   - system-access-bindings
   - messages
   - detail-document-input-gate
@@ -22,6 +23,11 @@ input:
     row:
       $view: system-actions-model-input
       $one: true
+    rules:
+      $each:
+        $view: basic-model-rules
+      $build:
+        $copy: values.record
 build:
   id:
     $format: DRV-document-processes.{id}
@@ -212,7 +218,7 @@ build:
                 $bind: c
                 $flatten: true
                 $build:
-                  $each: constraints
+                  $each: designRules
                   $of: model
                   $build:
                     $when:
@@ -348,7 +354,7 @@ build:
                 $bind: c
                 $flatten: true
                 $build:
-                  $each: constraints
+                  $each: designRules
                   $of: model
                   $bind: k
                   $build:
@@ -1276,12 +1282,68 @@ rules:
           $as: snake
         k:
           $copy: field.key
+  # データの決まりは、業務モデルではなく、基本設計の「データの決まり」（design/basic/final/rules.yaml）から読む（ADR-0042）。
+  # 確定した決まりを designRules として重ね、この定義の中では designRules を読む
   - id: model-input
     with:
       - row
+      - rules
     build:
-      $copy: values.model
-      $of: row
+      $apply: model-with-rules
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-actions-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  designRules:
+                    $each: .
+                    $of: rules
+                    $build:
+                      id:
+                        $copy: source
+                      level:
+                        $copy: level
+                      form:
+                        $copy: form
+                      kind:
+                        $copy: kind
+                      entity:
+                        $copy: subject
+                      at:
+                        $copy: at
+                      rule:
+                        $copy: rule
+                      fields:
+                        $when:
+                          - path: fields
+                            exists: true
+                        $then:
+                          $each: fields
+                          $build:
+                            entity:
+                              $copy: subject
+                            key:
+                              $copy: key
+                            multiple:
+                              $copy: multiple
+                priority: individual
+                source:
+                  id: basic-rules
+  - id: model-with-rules
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
   - id: linked-document
     with:
       - document

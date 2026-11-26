@@ -491,7 +491,10 @@ class TodosSysdevTest {
         @Suppress("UNCHECKED_CAST")
         val lineage = Generators.lineage(WorkspaceSession(FileSystemDocumentStore(root))).associateBy { it["id"] }
         fun concepts(id: String) = lineage[id]?.get("concepts") as List<*>
-        assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "constraints.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
+        // データの決まりは、業務モデル（constraints）ではなく、基本設計の「データの決まり」（designRules）から読む（ADR-0042）
+        assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "designRules.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
+        assertTrue(concepts("processes-derived").none { it.toString().startsWith("constraints") }, "処理設計書の導出は、業務モデルのデータの決まりを直接読まない: ${concepts("processes-derived")}")
+        assertTrue(concepts("table-access-derived").none { it.toString().startsWith("constraints") }, "テーブルアクセス設計書の導出も同じ: ${concepts("table-access-derived")}")
         assertTrue("relations.cardinality" in concepts("domains-derived") && "lifecycles.transitions" in concepts("domains-derived"), "ドメイン定義書の導出: ${concepts("domains-derived")}")
         assertEquals(emptyList<Any>(), concepts("screen-styles-derived"), "クラスの対応表の導出は業務モデルを読まない（決まった表）")
         assertEquals(null, lineage["basic-entities"]?.get("stage"), "確定項目への移行後は段を再適用しない")

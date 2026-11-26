@@ -1,0 +1,68 @@
+id: basic-rules
+name: 基本設計項目一覧（データの決まり）
+description: >-
+  業務モデルのデータの決まりから、抽象システムモデルの「データの決まり」を項目の形で作る（ADR-0042）。
+  決まりに設計 ID を振り、エンティティと、関係を持つ項目は ID で指す。値はすべて業務モデルから写し、設計の判断は入れない。
+  補正後の業務モデルを通さず、業務モデルを直接読む
+scope: business
+dependsOn:
+  - basic-entities
+output: design/basic/final/rules.yaml
+build:
+  documentId: SYS-basic-rules
+  rules:
+    $each: constraints
+    $build:
+      id:
+        $format: RUL-{id}
+      source:
+        $copy: id
+      label:
+        $copy: label
+      message:
+        $copy: message
+      level:
+        $copy: level
+      form:
+        $copy: form
+      kind:
+        $copy: kind
+      subject:
+        $copy: entity
+      entity:
+        $format: ENT-{entity}
+      declaredIn:
+        $copy: source
+      at:
+        $copy: at
+      reads:
+        $copy: reads
+      rule:
+        $copy: rule
+      relation:
+        $copy: relation
+      relationLabel:
+        $copy: relationLabel
+      multiple:
+        $copy: multiple
+      limit:
+        $copy: limit
+      sources:
+        $copy: sources
+      targets:
+        $copy: targets
+      fields:
+        $when:
+          - path: fields
+            exists: true
+        $then:
+          $each: fields
+          $build:
+            item:
+              $format: FLD-{entity}.{key}
+            subject:
+              $copy: entity
+            key:
+              $copy: key
+            multiple:
+              $copy: multiple

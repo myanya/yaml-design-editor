@@ -1,0 +1,7 @@
+id: basic-model-rules
+name: 基本設計の生成入力（データの決まり）
+description: 確定したデータの決まりの項目一覧を読む。詳細設計の生成は、業務モデルではなくここから決まりを読む
+rows: { idPattern: "RUL-*", schemaIds: [basic-rule-list] }
+order: { schemaId: basic-rule-list }
+columns:
+  - { label: record, path: . }

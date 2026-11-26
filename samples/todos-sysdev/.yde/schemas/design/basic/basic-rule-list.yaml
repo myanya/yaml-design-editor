@@ -1,0 +1,130 @@
+id: basic-rule-list
+name: 基本設計項目一覧（データの決まり）
+kind: document
+description: >-
+  抽象システムモデルの「データの決まり」。業務モデルのデータの決まり（項目の間の決まり・入れ子の要素の決まり・関係の決まり）を、項目の形で持つ（ADR-0042）。
+  エンティティと、関係を持つ項目は ID で指す。source・subject・declaredIn・key・reads は導出元（業務モデル）の識別子で、rule は業務モデルの条件の式（項目はキーで書く）。
+  詳細設計の処理設計書とテーブルアクセス設計書は、業務モデルではなくこの一覧から決まりを読む。生成物で、手で直さない。
+match: design/basic/final/rules.yaml
+root:
+  type: object
+  fields:
+    - key: documentId
+      type: id
+      required: true
+    - key: rules
+      label: データの決まり
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: RUL-業務モデルの決まりの ID
+          - key: source
+            label: 導出元
+            type: string
+            required: true
+            description: 業務モデルの決まりの ID
+          - key: label
+            label: 名称
+            type: string
+          - key: message
+            label: 違反したときの文
+            type: string
+          - key: level
+            label: 厳しさ
+            type: enum
+            values:
+              - value: error
+                label: 誤り（断る）
+              - value: warning
+                label: 警告（断らない）
+          - key: form
+            label: 決まりの形
+            type: enum
+            values:
+              - value: element
+                label: 要素ごと（1 件の中の項目の間）
+              - value: pattern
+                label: 要素のつながり（入れ子の要素など）
+              - value: occurrence
+                label: 書かれた場所
+              - value: relation
+                label: 関係
+          - key: kind
+            label: 関係の決まりの種類
+            type: string
+            description: 関係の決まりのとき（outMax・types・acyclic）
+          - key: subject
+            label: 導出元のエンティティ型
+            type: string
+            required: true
+          - key: entity
+            label: エンティティ
+            type: ref
+            idPatterns:
+              - ENT-*
+            required: true
+          - key: declaredIn
+            label: 書かれた場所
+            type: string
+            description: 業務モデルで、この決まりが書かれているスキーマ
+          - key: at
+            label: 対象の場所
+            type: string
+          - key: reads
+            label: 読む項目の場所
+            type: array
+            description: 導出元（業務モデル）の項目の場所（エンティティ型.項目のキー。並びの中は [*]）。入れ子の項目を設計 ID へ対応付けるのは、項目を ID で指す形にそろえるときに行う
+            item:
+              type: string
+          - key: rule
+            label: 条件
+            type: any
+            description: 業務モデルの条件の式をそのまま持つ（項目は、導出元の項目のキーで書く）
+          - key: relation
+            label: 関係
+            type: string
+            description: 関係の決まりのとき、業務モデルの関係の ID
+          - key: relationLabel
+            label: 関係の名称
+            type: string
+          - key: multiple
+            label: 複数
+            type: boolean
+          - key: limit
+            label: 上限
+            type: number
+          - key: sources
+            label: 関係の元の型
+            type: array
+            item:
+              type: string
+          - key: targets
+            label: 関係の先の型
+            type: array
+            item:
+              type: string
+          - key: fields
+            label: 関係を持つ項目
+            type: array
+            item:
+              type: object
+              fields:
+                - key: item
+                  label: 項目
+                  type: ref
+                  idPatterns:
+                    - FLD-*
+                - key: subject
+                  label: 導出元のエンティティ型
+                  type: string
+                - key: key
+                  label: 導出元の項目のキー
+                  type: string
+                - key: multiple
+                  label: 複数
+                  type: boolean
