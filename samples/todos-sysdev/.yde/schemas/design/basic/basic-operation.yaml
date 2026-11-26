@@ -1,0 +1,425 @@
+id: basic-operation
+name: 基本設計項目一覧（操作）
+kind: document
+description: >-
+  抽象システムモデルの「操作」。業務モデルの操作 1 つを 1 ファイルにし、操作・入力・前提・効果を項目の形で持つ（ADR-0042）。
+  同じ段の項目（エンティティ・項目・型・状態と遷移・データの決まり）は ID で指し、指した先にある値（状態の名称と値・決まりの形と厳しさ・項目の型）は写さない。
+  source・subject・key・path・schema は導出元（業務モデル）の識別子で、条件と値の式は業務モデルのまま持つ。
+  入力の値の定義は、この入力で効く決まり（型の決まりに、入力に書いた上書きを重ねたもの）を持つ。生成物で、手で直さない。
+match: design/basic/final/operations/*.yaml
+definitions:
+  値の定義:
+    type: object
+    description: 入力の値の決まり。名前の付いた型は ID で指し、この入力で効く値を持つ（型の決まりを入力が上書きできるので、型だけからは決まらない）
+    fields:
+      - key: type
+        label: 型
+        type: ref
+        idPatterns:
+          - TYP-*
+        description: 名前の付いた型のとき
+      - key: builtin
+        label: 組込みの型
+        type: string
+        description: 組込みの型をそのまま使うとき、その名前（int・boolean など）
+      - key: base
+        label: 基底の種類
+        type: string
+      - key: description
+        label: 説明
+        type: string
+      - key: required
+        label: 必須
+        type: boolean
+      - key: default
+        label: 既定値
+        type: any
+      - key: clearedBy
+        label: 消去の指定
+        type: any
+        description: この入力の値を消す指定（消去のチェックを受け取る入力の場所）
+      - key: minLength
+        label: 最小の長さ
+        type: number
+      - key: maxLength
+        label: 最大の長さ
+        type: number
+      - key: min
+        label: 最小
+        type: number
+      - key: max
+        label: 最大
+        type: number
+      - key: pattern
+        label: 形
+        type: string
+      - key: format
+        label: 表示の形
+        type: string
+      - key: multiline
+        label: 複数行
+        type: boolean
+      - key: unique
+        label: 重複なし
+        type: boolean
+      - key: values
+        label: 選べる値
+        type: any
+      - key: overrides
+        label: 入力に書いた上書き
+        type: any
+        description: 型の決まりに対して、業務モデルがこの入力に書いた決まり
+      - key: reference
+        label: 参照先
+        type: object
+        description: ほかの要素を選ぶ入力のとき
+        fields:
+          - key: entity
+            label: エンティティ
+            type: ref
+            idPatterns:
+              - ENT-*
+          - key: subject
+            label: 導出元のエンティティ型
+            type: string
+          - key: relation
+            label: 関係
+            type: string
+            description: 業務モデルの関係の ID
+          - key: title
+            label: 見出しにする項目のキー
+            type: string
+          - key: label
+            label: 参照先の名称
+            type: string
+          - key: idPatterns
+            label: ID の形
+            type: array
+            item:
+              type: string
+          - key: schemas
+            label: 参照先のある文書の種類
+            type: array
+            item:
+              type: string
+      - key: item
+        label: 並びの要素
+        type: 値の定義
+      - key: fields
+        label: まとまりの項目
+        type: array
+        item:
+          type: object
+          fields:
+            - key: key
+              label: キー
+              type: string
+              required: true
+            - key: label
+              label: 名称
+              type: string
+            - key: definition
+              label: 値の定義
+              type: 値の定義
+root:
+  type: object
+  fields:
+    - key: id
+      label: 設計項目ID
+      type: id
+      required: true
+      description: ACT-業務モデルの操作の ID
+    - key: source
+      label: 導出元
+      type: string
+      required: true
+      description: 業務モデルの操作の ID
+    - key: kind
+      label: 操作の種類
+      type: enum
+      values:
+        - value: action
+          label: 横断の操作
+        - value: method
+          label: 型の操作
+    - key: label
+      label: 名称
+      type: string
+    - key: description
+      label: 説明
+      type: string
+    - key: subject
+      label: 導出元のエンティティ型
+      type: string
+      required: true
+    - key: entity
+      label: 対象のエンティティ
+      type: ref
+      idPatterns:
+        - ENT-*
+      required: true
+    - key: receiver
+      label: 受け手
+      type: ref
+      idPatterns:
+        - ENT-*
+      description: 選んだ 1 件に対する操作のとき、その要素のエンティティ
+    - key: creates
+      label: 作る要素
+      type: array
+      item:
+        type: ref
+        idPatterns:
+          - ENT-*
+    - key: lifecycle
+      label: 状態の流れ
+      type: ref
+      idPatterns:
+        - LCY-*
+    - key: entry
+      label: はじまり
+      type: ref
+      idPatterns:
+        - TRN-*
+      description: 作った要素を最初の状態に置く操作のとき
+    - key: transition
+      label: 遷移
+      type: ref
+      idPatterns:
+        - TRN-*
+      description: 状態を進める操作のとき。前と後の状態は、指した遷移が持つ
+    - key: refusal
+      label: 状態が合わないときの文
+      type: string
+    - key: history
+      label: 状態の記録に書く値
+      type: any
+      description: 業務モデルの値の式をそのまま持つ
+    - key: submit
+      label: 入力の送り方
+      type: string
+      description: changed＝変えた入力だけを送る
+    - key: row
+      label: 並びの行の指定
+      type: object
+      description: 並びの 1 件を番号で指す操作のとき、どの並びの行を、どの入力で指すか
+      fields:
+        - key: param
+          label: 番号を受け取る入力
+          type: ref
+          idPatterns:
+            - PRM-*
+        - key: item
+          label: 並びの項目
+          type: ref
+          idPatterns:
+            - FLD-*
+    - key: inputs
+      label: 入力
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: PRM-操作.入力のキー
+          - key: key
+            label: キー
+            type: string
+            required: true
+          - key: label
+            label: 名称
+            type: string
+          - key: definition
+            label: 値の定義
+            type: 値の定義
+          - key: initial
+            label: はじめの値
+            type: any
+            description: 業務モデルの値の式をそのまま持つ
+    - key: preconditions
+      label: 前提
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: PRE-操作.前提の ID
+          - key: source
+            label: 導出元
+            type: string
+          - key: message
+            label: 合わないときの文
+            type: string
+          - key: rule
+            label: 条件
+            type: any
+            description: 業務モデルの条件の式をそのまま持つ
+    - key: effects
+      label: 効果
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: EFF-操作.連番
+          - key: op
+            label: 書き方
+            type: enum
+            values:
+              - value: create
+                label: 文書を作る
+              - value: insert
+                label: 並びへ足す
+              - value: set
+                label: 値を入れる
+              - value: delete
+                label: 消す
+          - key: cause
+            label: 起こり
+            type: enum
+            values:
+              - value: do
+                label: 操作に書かれた効果
+              - value: lifecycle
+                label: 状態の流れによる効果
+              - value: auto
+                label: 自動で入る値
+          - key: auto
+            label: 自動で入る値の種類
+            type: string
+          - key: 'on'
+            label: 起こる時
+            type: string
+          - key: of
+            label: 書く相手
+            type: string
+            description: self＝受け手
+          - key: within
+            label: 書く範囲
+            type: string
+            description: 型の操作のとき、受け手の部分木の型
+          - key: bind
+            label: 作った要素の名前
+            type: string
+          - key: subject
+            label: 導出元のエンティティ型
+            type: string
+          - key: entity
+            label: エンティティ
+            type: ref
+            idPatterns:
+              - ENT-*
+          - key: schema
+            label: 書く文書の種類
+            type: string
+          - key: path
+            label: 書く場所
+            type: string
+            description: 導出元（業務モデル）の場所
+          - key: item
+            label: 書く項目
+            type: ref
+            idPatterns:
+              - FLD-*
+          - key: collection
+            label: 足す先の並び
+            type: object
+            description: エンティティの並びそのものへ要素を足すとき
+            fields:
+              - key: key
+                label: 並びのキー
+                type: string
+              - key: element
+                label: 足す要素
+                type: ref
+                idPatterns:
+                  - ENT-*
+          - key: row
+            label: 行の番号を受け取る入力
+            type: ref
+            idPatterns:
+              - PRM-*
+          - key: when
+            label: 書く条件
+            type: any
+          - key: value
+            label: 書く値
+            type: any
+            description: 業務モデルの値の式をそのまま持つ
+          - key: values
+            label: 作る文書に書く値
+            type: any
+          - key: params
+            label: 足す要素に渡す値
+            type: any
+          - key: identifier
+            label: 作る文書の ID の形
+            type: any
+          - key: numbering
+            label: 採番
+            type: any
+          - key: written
+            label: 書く要素の項目
+            type: array
+            item:
+              type: object
+              fields:
+                - key: key
+                  label: キー
+                  type: string
+                - key: value
+                  label: 書く値
+                  type: any
+                - key: base
+                  label: 基底の種類
+                  type: string
+                - key: item
+                  label: 並びの要素
+                  type: any
+    - key: checks
+      label: 確かめるデータの決まり
+      type: array
+      item:
+        type: object
+        fields:
+          - key: rule
+            label: データの決まり
+            type: ref
+            idPatterns:
+              - RUL-*
+            required: true
+          - key: items
+            label: この操作が書く項目の場所
+            type: array
+            item:
+              type: string
+          - key: multiple
+            label: 複数
+            type: boolean
+          - key: params
+            label: 関わる入力
+            type: array
+            item:
+              type: ref
+              idPatterns:
+                - PRM-*
+    - key: provides
+      label: 渡す値
+      type: any
+    - key: writes
+      label: エンティティから見た書込
+      type: array
+      item:
+        type: ref
+        idPatterns:
+          - CRUD-*
+  unknownFields: error

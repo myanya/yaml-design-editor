@@ -1,0 +1,409 @@
+id: basic-operations
+name: 基本設計項目一覧（操作）
+description: >-
+  業務モデルの操作ごとに、抽象システムモデルの「操作」を項目の形で作る（ADR-0042）。
+  操作・入力・前提・効果に設計 ID を振り、同じ段の項目（エンティティ・項目・型・状態と遷移・データの決まり）は ID で指す。
+  条件や値の式は業務モデルのまま持ち、設計の判断は入れない。補正後の業務モデルを通さず、業務モデルを直接読む
+scope: business
+each: actions
+output: design/basic/final/operations/{id}.yaml
+dependsOn:
+  - basic-entities
+  - basic-states
+  - basic-rules
+build:
+  id:
+    $format: ACT-{id}
+  source:
+    $copy: id
+  kind:
+    $copy: kind
+  label:
+    $copy: label
+  description:
+    $copy: description
+  subject:
+    $copy: subject
+  entity:
+    $format: ENT-{subject}
+  # 受け手（選んだ 1 件に対する操作のとき）
+  receiver:
+    $when:
+      - path: target.entity
+        exists: true
+    $then:
+      $format: ENT-{target.entity}
+  # 新しく作る要素
+  creates:
+    $when:
+      - path: creates
+        empty: false
+    $then:
+      $each: creates
+      $build:
+        $format: ENT-{e}
+        $with:
+          e:
+            $copy: .
+  # 状態と遷移（states.yaml の項目を指す。状態の名称と値は写さない）
+  lifecycle:
+    $when:
+      - path: lifecycle.id
+        exists: true
+    $then:
+      $format: LCY-{lifecycle.id}
+  entry:
+    $when:
+      - path: lifecycle.entry
+        exists: true
+    $then:
+      $format: TRN-{lifecycle.id}.{id}
+  transition:
+    $when:
+      - path: lifecycle.transitions
+        exists: true
+    $then:
+      $format: TRN-{lifecycle.id}.{id}
+  refusal:
+    $copy: lifecycle.refusal
+  history:
+    $copy: lifecycle.history
+  # 入力の受け方（変えたものだけを送る など）
+  submit:
+    $copy: input.submit
+  # 並びの 1 件を番号で指す操作: どの並びの行を、どの入力で指すか
+  row:
+    $apply: first
+    $with:
+      items:
+        $each: effects
+        $build:
+          $when:
+            - path: row
+              exists: true
+          $then:
+            param:
+              $format: PRM-{a}.{p}
+              $with:
+                a:
+                  $copy: id
+                  $of: element
+                p:
+                  $copy: row.param
+            item:
+              $format: FLD-{entity}.{field.key}
+  inputs:
+    $when:
+      - path: params
+        empty: false
+    $then:
+      $each: params
+      $apply: input
+  preconditions:
+    $when:
+      - path: require
+        empty: false
+    $then:
+      $each: require
+      $build:
+        id:
+          $format: PRE-{a}.{p}
+          $with:
+            a:
+              $copy: id
+              $of: element
+            p:
+              $copy: id
+        source:
+          $copy: id
+        message:
+          $copy: message
+        rule:
+          $copy: rule
+  effects:
+    $each: effects
+    $build:
+      id:
+        $format: EFF-{a}.{n}
+        $with:
+          a:
+            $copy: id
+            $of: element
+          'n':
+            $number: $position
+            $as: '00'
+      op:
+        $copy: op
+      cause:
+        $copy: source
+      auto:
+        $copy: auto
+      'on':
+        $copy: 'on'
+      of:
+        $copy: of
+      within:
+        $copy: within
+      bind:
+        $copy: bind
+      subject:
+        $copy: entity
+      entity:
+        $format: ENT-{entity}
+      schema:
+        $copy: schema
+      path:
+        $copy: path
+      # 書く項目（エンティティの項目のとき。エンティティの並びそのものへ足す効果には無い）
+      item:
+        $when:
+          - path: field.key
+            exists: true
+          - or:
+              - path: field.item.entity
+                exists: false
+              - not:
+                  path: field.item.entity
+                  equals:
+                    $copy: entity
+        $then:
+          $format: FLD-{entity}.{field.key}
+      # エンティティの並びへ足す効果: 並びのキーと、足す要素のエンティティ
+      collection:
+        $when:
+          - path: field.item.entity
+            equals:
+              $copy: entity
+        $then:
+          key:
+            $copy: field.key
+          element:
+            $format: ENT-{field.item.entity}
+      row:
+        $when:
+          - path: row.param
+            exists: true
+        $then:
+          $format: PRM-{a}.{p}
+          $with:
+            a:
+              $copy: id
+              $of: element
+            p:
+              $copy: row.param
+      when:
+        $copy: when
+      value:
+        $copy: value
+      values:
+        $copy: values
+      params:
+        $copy: params
+      identifier:
+        $copy: id
+      numbering:
+        $copy: numbering
+      # 足す要素・作る文書に書く項目（業務モデルのキーと値の式）
+      written:
+        $when:
+          - path: written
+            exists: true
+        $then:
+          $each: written
+          $build:
+            key:
+              $copy: key
+            value:
+              $copy: value
+            base:
+              $copy: base
+            item:
+              $copy: item
+  # この操作で確かめるデータの決まり（決まりの形・厳しさ・条件は rules.yaml を指す）
+  checks:
+    $when:
+      - path: checks
+        empty: false
+    $then:
+      $each: checks
+      $build:
+        rule:
+          $format: RUL-{constraint}
+        items:
+          $copy: items
+        multiple:
+          $copy: multiple
+        params:
+          $when:
+            - path: params
+              exists: true
+          $then:
+            $each: params
+            $build:
+              $format: PRM-{a}.{p}
+              $with:
+                a:
+                  $copy: id
+                  $of: element
+                p:
+                  $copy: .
+  provides:
+    $copy: provides
+  # エンティティから見た書込（entities.yaml の CRUD の項目）
+  writes:
+    $each:
+      $view: basic-model-entities
+    $flatten: true
+    $build:
+      $each: values.record.operations
+      $flatten: true
+      $build:
+        $when:
+          - path: action
+            equals:
+              $copy: id
+              $of: element
+        $then:
+          $each: writes
+          $build:
+            $copy: id
+rules:
+  # 入力 1 つ: 設計 ID・キー・名称・はじめの値に、値の定義を重ねる
+  - id: input
+    build:
+      id:
+        $format: PRM-{a}.{key}
+        $with:
+          a:
+            $copy: id
+            $of: element
+      key:
+        $copy: key
+      label:
+        $copy: label
+      definition:
+        $apply: definition
+      initial:
+        $apply: initial
+        $with:
+          inputKey:
+            $copy: key
+  # はじめの値（業務モデルの input.initial を、入力のキーで引く）
+  - id: initial
+    with:
+      - inputKey
+    build:
+      $apply: first
+      $with:
+        items:
+          $eachEntry: input.initial
+          $of: element
+          $flatten: true
+          $build:
+            $when:
+              - path: $key
+                equals:
+                  $copy: .
+                  $of: inputKey
+            $then:
+              - $copy: .
+  # 値の定義: 名前の付いた型は ID で指し、この入力で効く決まりを持つ。並びの要素と、まとまりの項目にも同じ規則を当てる
+  - id: definition
+    build:
+      type:
+        $when:
+          - path: type
+            contains: '#'
+        $then:
+          $apply: type-ref
+      builtin:
+        $copy: builtinType.name
+      base:
+        $copy: base
+      description:
+        $copy: description
+      required:
+        $copy: required
+      default:
+        $copy: default
+      clearedBy:
+        $copy: clearedBy
+      minLength:
+        $copy: minLength
+      maxLength:
+        $copy: maxLength
+      min:
+        $copy: min
+      max:
+        $copy: max
+      pattern:
+        $copy: pattern
+      format:
+        $copy: format
+      multiline:
+        $copy: multiline
+      unique:
+        $copy: unique
+      values:
+        $copy: values
+      overrides:
+        $copy: overrides
+      reference:
+        $when:
+          - path: target
+            exists: true
+        $then:
+          entity:
+            $format: ENT-{target}
+          subject:
+            $copy: target
+          relation:
+            $copy: relation
+          title:
+            $copy: targetTitle
+          label:
+            $copy: targetLabel
+          idPatterns:
+            $copy: idPatterns
+          schemas:
+            $copy: schemas
+      item:
+        $when:
+          - path: item
+            exists: true
+        $then:
+          $apply: definition
+          $at: item
+      fields:
+        $when:
+          - path: fields
+            exists: true
+        $then:
+          $each: fields
+          $build:
+            key:
+              $copy: key
+            label:
+              $copy: label
+            definition:
+              $apply: definition
+  - id: type-ref
+    build:
+      $format: TYP-{m}.{n}
+      $with:
+        m:
+          $value:
+            extract:
+              - path: type
+              - ^([^#]+)#
+        'n':
+          $value:
+            extract:
+              - path: type
+              - '#(.+)$'
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items

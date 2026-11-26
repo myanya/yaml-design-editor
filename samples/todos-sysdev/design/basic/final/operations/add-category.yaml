@@ -1,0 +1,46 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-add-category
+source: add-category
+kind: action
+label: カテゴリを追加する
+description: TODOを分類するカテゴリを作ります。IDは一覧の追加規則で自動採番します。
+subject: category
+entity: ENT-category
+creates:
+  - ENT-category
+inputs:
+  - id: PRM-add-category.name
+    key: name
+    label: カテゴリ名
+    definition:
+      type: TYP-common.一行の文
+      base: string
+      required: true
+      minLength: 1
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+      overrides:
+        minLength: 1
+effects:
+  - id: EFF-add-category.01
+    op: insert
+    cause: do
+    subject: category
+    entity: ENT-category
+    schema: category-list
+    path: categories
+    collection:
+      key: categories
+      element: ENT-category
+    params:
+      name: $name
+    numbering:
+      path: id
+      prefix: CAT-
+      digits: 3
+    written:
+      - key: name
+        value: $name
+        base: string
+writes:
+  - CRUD-category.add-category.name

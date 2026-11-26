@@ -1,0 +1,408 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-edit-todo
+source: edit-todo
+kind: action
+label: TODOを編集する
+description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+submit: changed
+inputs:
+  - id: PRM-edit-todo.title
+    key: title
+    label: タイトル
+    definition:
+      type: TYP-common.一行の文
+      base: string
+      minLength: 1
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+      overrides:
+        minLength: 1
+    initial:
+      $copy: title
+      $of: self
+      $in:
+        schemaId: todo-list
+  - id: PRM-edit-todo.summary
+    key: summary
+    label: 概要
+    definition:
+      type: TYP-common.一行の文
+      base: string
+      minLength: 1
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+      overrides:
+        minLength: 1
+    initial:
+      $copy: summary
+      $of: self
+      $in:
+        schemaId: todo-list
+  - id: PRM-edit-todo.category
+    key: category
+    label: カテゴリ
+    definition:
+      type: TYP-common.カテゴリ参照
+      base: ref
+      description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+      clearedBy: clear.category
+      reference:
+        entity: ENT-category
+        subject: category
+        relation: in-category
+        title: name
+        label: カテゴリ
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+    initial:
+      $copy: category
+      $of: self
+      $in:
+        schemaId: todo-list
+  - id: PRM-edit-todo.tags
+    key: tags
+    label: タグ
+    definition:
+      base: array
+      description: 入力した並びで全体を置き換えます。
+      clearedBy: clear.tags
+      unique: true
+      item:
+        type: TYP-common.タグ参照
+        base: ref
+        description: タグ一覧の ID を 1 件。
+        reference:
+          entity: ENT-tag
+          subject: tag
+          relation: tagged
+          title: name
+          label: タグ
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+    initial:
+      $copy: tags
+      $of: self
+      $in:
+        schemaId: todo-list
+  - id: PRM-edit-todo.created_on
+    key: created_on
+    label: 作成日
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      format: yyyy年M月d日
+    initial:
+      $copy: created_on
+      $of: self
+      $in:
+        schemaId: todo-detail
+  - id: PRM-edit-todo.due_on
+    key: due_on
+    label: 期限
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      clearedBy: clear.due_on
+      format: yyyy年M月d日
+    initial:
+      $copy: due_on
+      $of: self
+      $in:
+        schemaId: todo-detail
+  - id: PRM-edit-todo.details
+    key: details
+    label: 詳細
+    definition:
+      type: TYP-common.文章
+      base: string
+      clearedBy: clear.details
+      multiline: true
+    initial:
+      $copy: details
+      $of: self
+      $in:
+        schemaId: todo-detail
+  - id: PRM-edit-todo.result
+    key: result
+    label: 結果・中止理由
+    definition:
+      type: TYP-common.文章
+      base: string
+      clearedBy: clear.result
+      multiline: true
+    initial:
+      $copy: result
+      $of: self
+      $in:
+        schemaId: todo-detail
+  - id: PRM-edit-todo.clear
+    key: clear
+    label: 値を消す
+    definition:
+      base: object
+      description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+      default: {}
+      fields:
+        - key: category
+          label: カテゴリを消す
+          definition:
+            builtin: boolean
+            base: boolean
+        - key: tags
+          label: タグを消す
+          definition:
+            builtin: boolean
+            base: boolean
+        - key: due_on
+          label: 期限を消す
+          definition:
+            builtin: boolean
+            base: boolean
+        - key: details
+          label: 詳細を消す
+          definition:
+            builtin: boolean
+            base: boolean
+        - key: result
+          label: 結果・中止理由を消す
+          definition:
+            builtin: boolean
+            base: boolean
+effects:
+  - id: EFF-edit-todo.01
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: title
+    item: FLD-todo.title
+    when:
+      - path: title
+        exists: true
+    value: $title
+  - id: EFF-edit-todo.02
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: summary
+    item: FLD-todo.summary
+    when:
+      - path: summary
+        exists: true
+    value: $summary
+  - id: EFF-edit-todo.03
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: category
+    item: FLD-todo.category
+    when:
+      - path: category
+        exists: true
+    value: $category
+  - id: EFF-edit-todo.04
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: tags
+    item: FLD-todo.tags
+    when:
+      - path: tags
+        exists: true
+    value: $tags
+  - id: EFF-edit-todo.05
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: created_on
+    item: FLD-todo.created_on
+    when:
+      - path: created_on
+        exists: true
+    value: $created_on
+  - id: EFF-edit-todo.06
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: due_on
+    item: FLD-todo.due_on
+    when:
+      - path: due_on
+        exists: true
+    value: $due_on
+  - id: EFF-edit-todo.07
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: details
+    item: FLD-todo.details
+    when:
+      - path: details
+        exists: true
+    value: $details
+  - id: EFF-edit-todo.08
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: result
+    item: FLD-todo.result
+    when:
+      - path: result
+        exists: true
+    value: $result
+  - id: EFF-edit-todo.09
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: category
+    item: FLD-todo.category
+    when:
+      - path: clear.category
+        equals: true
+  - id: EFF-edit-todo.10
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: tags
+    item: FLD-todo.tags
+    when:
+      - path: clear.tags
+        equals: true
+  - id: EFF-edit-todo.11
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: due_on
+    item: FLD-todo.due_on
+    when:
+      - path: clear.due_on
+        equals: true
+  - id: EFF-edit-todo.12
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: details
+    item: FLD-todo.details
+    when:
+      - path: clear.details
+        equals: true
+  - id: EFF-edit-todo.13
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: result
+    item: FLD-todo.result
+    when:
+      - path: clear.result
+        equals: true
+  - id: EFF-edit-todo.14
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-due-not-before-created
+    items:
+      - todo.due_on
+      - todo.created_on
+    params:
+      - PRM-edit-todo.due_on
+      - PRM-edit-todo.created_on
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+      - todo.created_on
+    params:
+      - PRM-edit-todo.created_on
+  - rule: RUL-completed-not-before-created
+    items:
+      - todo.created_on
+    params:
+      - PRM-edit-todo.created_on
+  - rule: RUL-closed-has-result
+    items:
+      - todo.result
+    params:
+      - PRM-edit-todo.result
+  - rule: RUL-in-category.outMax
+    items:
+      - todo.category
+    multiple: false
+    params:
+      - PRM-edit-todo.category
+  - rule: RUL-in-category.types
+    items:
+      - todo.category
+    multiple: false
+    params:
+      - PRM-edit-todo.category
+  - rule: RUL-tagged.types
+    items:
+      - todo.tags
+    multiple: true
+    params:
+      - PRM-edit-todo.tags
+writes:
+  - CRUD-todo.edit-todo.title
+  - CRUD-todo.edit-todo.summary
+  - CRUD-todo.edit-todo.category
+  - CRUD-todo.edit-todo.tags
+  - CRUD-todo.edit-todo.created_on
+  - CRUD-todo.edit-todo.due_on
+  - CRUD-todo.edit-todo.details
+  - CRUD-todo.edit-todo.result
+  - CRUD-todo.edit-todo.updated_on

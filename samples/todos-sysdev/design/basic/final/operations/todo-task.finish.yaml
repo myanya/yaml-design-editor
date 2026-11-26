@@ -1,0 +1,42 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-todo-task.finish
+source: todo-task.finish
+kind: method
+label: 作業項目を済にする
+subject: todo-task
+entity: ENT-todo-task
+receiver: ENT-todo-task
+effects:
+  - id: EFF-todo-task.finish.01
+    op: set
+    cause: do
+    within: todo-task
+    subject: todo-task
+    entity: ENT-todo-task
+    schema: todo-detail
+    path: done
+    item: FLD-todo-task.done
+    value: true
+  - id: EFF-todo-task.finish.02
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-closed-has-no-open-task
+    items:
+      - todo-task.done
+writes:
+  - CRUD-todo.todo-task.finish.tasks
+  - CRUD-todo.todo-task.finish.updated_on
+  - CRUD-todo-task.todo-task.finish.done

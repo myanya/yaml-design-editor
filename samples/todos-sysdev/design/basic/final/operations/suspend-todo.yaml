@@ -1,0 +1,127 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-suspend-todo
+source: suspend-todo
+kind: action
+label: TODOを中断する
+description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+lifecycle: LCY-todo-lifecycle
+transition: TRN-todo-lifecycle.suspend-todo
+refusal: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+history:
+  date: $date
+  note: $reason
+  resume_on:
+    $copy: resume_on
+inputs:
+  - id: PRM-suspend-todo.date
+    key: date
+    label: 中断日
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      required: true
+      format: yyyy年M月d日
+    initial:
+      $copy: today
+      $of: context
+  - id: PRM-suspend-todo.reason
+    key: reason
+    label: 中断理由
+    definition:
+      type: TYP-todo-operations.操作の記録
+      base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+      required: true
+      minLength: 1
+      multiline: true
+  - id: PRM-suspend-todo.resume_on
+    key: resume_on
+    label: 再開予定日
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: 決まっていれば入れます。中断日以降の日付です。
+      format: yyyy年M月d日
+effects:
+  - id: EFF-suspend-todo.01
+    op: set
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: status
+    item: FLD-todo.status
+    value: SUSPENDED
+  - id: EFF-suspend-todo.02
+    op: insert
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: history
+    item: FLD-todo.history
+    value:
+      date: $date
+      action: suspend-todo
+      from:
+        $copy: status
+        $of: self
+      to: SUSPENDED
+      note: $reason
+      resume_on:
+        $copy: resume_on
+    written:
+      - key: date
+        value: $date
+        base: date
+      - key: action
+        value: suspend-todo
+        base: enum
+      - key: from
+        value:
+          $copy: status
+          $of: self
+        base: enum
+      - key: to
+        value: SUSPENDED
+        base: enum
+      - key: note
+        value: $reason
+        base: string
+      - key: resume_on
+        value:
+          $copy: resume_on
+        base: date
+  - id: EFF-suspend-todo.03
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-unfinished-has-no-completed-on
+    items:
+      - todo.status
+  - rule: RUL-resume-not-before-suspend
+    items:
+      - todo.history
+    params:
+      - PRM-suspend-todo.resume_on
+      - PRM-suspend-todo.date
+writes:
+  - CRUD-todo.suspend-todo.status
+  - CRUD-todo.suspend-todo.history
+  - CRUD-todo.suspend-todo.updated_on

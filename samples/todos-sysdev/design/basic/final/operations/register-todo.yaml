@@ -1,0 +1,314 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-register-todo
+source: register-todo
+kind: action
+label: TODOを登録する
+description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
+subject: todo
+entity: ENT-todo
+creates:
+  - ENT-todo
+lifecycle: LCY-todo-lifecycle
+entry: TRN-todo-lifecycle.register-todo
+inputs:
+  - id: PRM-register-todo.title
+    key: title
+    label: タイトル
+    definition:
+      type: TYP-common.一行の文
+      base: string
+      required: true
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+  - id: PRM-register-todo.summary
+    key: summary
+    label: 概要
+    definition:
+      type: TYP-common.一行の文
+      base: string
+      required: true
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+  - id: PRM-register-todo.category
+    key: category
+    label: カテゴリ
+    definition:
+      type: TYP-common.カテゴリ参照
+      base: ref
+      description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+      reference:
+        entity: ENT-category
+        subject: category
+        relation: in-category
+        title: name
+        label: カテゴリ
+        idPatterns:
+          - CAT-*
+        schemas:
+          - category-list
+  - id: PRM-register-todo.tags
+    key: tags
+    label: タグ
+    definition:
+      base: array
+      unique: true
+      item:
+        type: TYP-common.タグ参照
+        base: ref
+        description: タグ一覧の ID を 1 件。
+        reference:
+          entity: ENT-tag
+          subject: tag
+          relation: tagged
+          title: name
+          label: タグ
+          idPatterns:
+            - TAG-*
+          schemas:
+            - tag-list
+  - id: PRM-register-todo.follows
+    key: follows
+    label: 元のTODO
+    definition:
+      type: TYP-common.TODO参照
+      base: ref
+      description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+      reference:
+        entity: ENT-todo
+        subject: todo
+        relation: follow-up-of
+        title: title
+        label: TODO
+        idPatterns:
+          - TODO-*
+        schemas:
+          - todo-list
+  - id: PRM-register-todo.due
+    key: due
+    label: 期限
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      format: yyyy年M月d日
+  - id: PRM-register-todo.details
+    key: details
+    label: 詳細
+    definition:
+      type: TYP-common.文章
+      base: string
+      multiline: true
+effects:
+  - id: EFF-register-todo.01
+    op: create
+    cause: do
+    bind: todo
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    values:
+      due_on:
+        $copy: due
+      details:
+        $copy: details
+      comments: []
+    identifier:
+      prefix: TODO-
+      digits: 3
+    numbering:
+      path: id
+      prefix: TODO-
+      digits: 3
+    written:
+      - key: due_on
+        value:
+          $copy: due
+        base: date
+      - key: details
+        value:
+          $copy: details
+        base: string
+      - key: comments
+        value: []
+        base: array
+        item:
+          base: object
+  - id: EFF-register-todo.02
+    op: insert
+    cause: do
+    subject: todo
+    entity: ENT-todo
+    schema: todo-list
+    path: todos
+    collection:
+      key: todos
+      element: ENT-todo
+    value:
+      id:
+        $copy: id
+        $of: todo
+      title: $title
+      summary: $summary
+      category:
+        $copy: category
+      tags:
+        $copy: tags
+      follows:
+        $copy: follows
+    written:
+      - key: id
+        value:
+          $copy: id
+          $of: todo
+        base: id
+      - key: title
+        value: $title
+        base: string
+      - key: summary
+        value: $summary
+        base: string
+      - key: category
+        value:
+          $copy: category
+        base: ref
+      - key: tags
+        value:
+          $copy: tags
+        base: array
+        item:
+          base: ref
+      - key: follows
+        value:
+          $copy: follows
+        base: ref
+  - id: EFF-register-todo.03
+    op: set
+    cause: lifecycle
+    'on': create
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: status
+    item: FLD-todo.status
+    value: OPEN
+  - id: EFF-register-todo.04
+    op: insert
+    cause: lifecycle
+    'on': create
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: history
+    item: FLD-todo.history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: register-todo
+      to: OPEN
+    written:
+      - key: date
+        value:
+          $copy: today
+          $of: context
+        base: date
+      - key: action
+        value: register-todo
+        base: enum
+      - key: to
+        value: OPEN
+        base: enum
+  - id: EFF-register-todo.05
+    op: set
+    cause: auto
+    auto: created
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: created_on
+    item: FLD-todo.created_on
+    value:
+      $copy: today
+      $of: context
+  - id: EFF-register-todo.06
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-due-not-before-created
+    items:
+      - todo.due_on
+      - todo.created_on
+    params:
+      - PRM-register-todo.due
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+      - todo.created_on
+  - rule: RUL-follows-not-self
+    items:
+      - todo.follows
+      - todo.id
+    params:
+      - PRM-register-todo.follows
+  - rule: RUL-has-detail
+    items:
+      - todo.id
+  - rule: RUL-in-category.outMax
+    items:
+      - todo.category
+    multiple: false
+    params:
+      - PRM-register-todo.category
+  - rule: RUL-in-category.types
+    items:
+      - todo.category
+    multiple: false
+    params:
+      - PRM-register-todo.category
+  - rule: RUL-tagged.types
+    items:
+      - todo.tags
+    multiple: true
+    params:
+      - PRM-register-todo.tags
+  - rule: RUL-follow-up-of.acyclic
+    items:
+      - todo.follows
+    multiple: false
+    params:
+      - PRM-register-todo.follows
+  - rule: RUL-follow-up-of.outMax
+    items:
+      - todo.follows
+    multiple: false
+    params:
+      - PRM-register-todo.follows
+  - rule: RUL-follow-up-of.types
+    items:
+      - todo.follows
+    multiple: false
+    params:
+      - PRM-register-todo.follows
+writes:
+  - CRUD-todo.register-todo.due_on
+  - CRUD-todo.register-todo.details
+  - CRUD-todo.register-todo.comments
+  - CRUD-todo.register-todo.id
+  - CRUD-todo.register-todo.title
+  - CRUD-todo.register-todo.summary
+  - CRUD-todo.register-todo.category
+  - CRUD-todo.register-todo.tags
+  - CRUD-todo.register-todo.follows
+  - CRUD-todo.register-todo.status
+  - CRUD-todo.register-todo.history
+  - CRUD-todo.register-todo.created_on
+  - CRUD-todo.register-todo.updated_on

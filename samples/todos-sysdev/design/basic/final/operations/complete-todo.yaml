@@ -1,0 +1,158 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-complete-todo
+source: complete-todo
+kind: action
+label: TODOを完了する
+description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+lifecycle: LCY-todo-lifecycle
+transition: TRN-todo-lifecycle.complete-todo
+refusal: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
+history:
+  date: $date
+inputs:
+  - id: PRM-complete-todo.date
+    key: date
+    label: 完了日
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      required: true
+      format: yyyy年M月d日
+    initial:
+      $copy: today
+      $of: context
+  - id: PRM-complete-todo.result
+    key: result
+    label: 完了結果
+    definition:
+      type: TYP-todo-operations.操作の記録
+      base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+      required: true
+      minLength: 1
+      multiline: true
+preconditions:
+  - id: PRE-complete-todo.no-open-task
+    source: no-open-task
+    message: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+        - edge:
+            contains: true
+        - node:
+            entity: todo-task
+            bind: s
+      where:
+        - of: s
+          path: done
+          equals: false
+      expect: absent
+effects:
+  - id: EFF-complete-todo.01
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: completed_on
+    item: FLD-todo.completed_on
+    value: $date
+  - id: EFF-complete-todo.02
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: result
+    item: FLD-todo.result
+    value: $result
+  - id: EFF-complete-todo.03
+    op: set
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: status
+    item: FLD-todo.status
+    value: CLOSED
+  - id: EFF-complete-todo.04
+    op: insert
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: history
+    item: FLD-todo.history
+    value:
+      date: $date
+      action: complete-todo
+      from:
+        $copy: status
+        $of: self
+      to: CLOSED
+    written:
+      - key: date
+        value: $date
+        base: date
+      - key: action
+        value: complete-todo
+        base: enum
+      - key: from
+        value:
+          $copy: status
+          $of: self
+        base: enum
+      - key: to
+        value: CLOSED
+        base: enum
+  - id: EFF-complete-todo.05
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-completed-not-before-created
+    items:
+      - todo.completed_on
+    params:
+      - PRM-complete-todo.date
+  - rule: RUL-closed-has-completed-on
+    items:
+      - todo.status
+      - todo.completed_on
+    params:
+      - PRM-complete-todo.date
+  - rule: RUL-closed-has-result
+    items:
+      - todo.status
+      - todo.result
+    params:
+      - PRM-complete-todo.result
+  - rule: RUL-closed-has-no-open-task
+    items:
+      - todo.status
+writes:
+  - CRUD-todo.complete-todo.completed_on
+  - CRUD-todo.complete-todo.result
+  - CRUD-todo.complete-todo.status
+  - CRUD-todo.complete-todo.history
+  - CRUD-todo.complete-todo.updated_on

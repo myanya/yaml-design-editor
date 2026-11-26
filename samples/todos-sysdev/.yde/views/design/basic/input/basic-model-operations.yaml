@@ -1,0 +1,7 @@
+id: basic-model-operations
+name: 基本設計の生成入力（操作）
+description: 確定した操作の項目一覧を読む。詳細設計の生成は、業務モデルではなくここから操作を読む
+rows: { idPattern: "ACT-*", schemaIds: [basic-operation] }
+order: { schemaId: basic-operation }
+columns:
+  - { label: record, path: . }

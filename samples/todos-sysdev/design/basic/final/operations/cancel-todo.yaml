@@ -1,0 +1,107 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-cancel-todo
+source: cancel-todo
+kind: action
+label: TODOを中止する
+description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+lifecycle: LCY-todo-lifecycle
+transition: TRN-todo-lifecycle.cancel-todo
+refusal: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+history:
+  note: $reason
+inputs:
+  - id: PRM-cancel-todo.reason
+    key: reason
+    label: 中止理由
+    definition:
+      type: TYP-todo-operations.操作の記録
+      base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+      required: true
+      minLength: 1
+      multiline: true
+effects:
+  - id: EFF-cancel-todo.01
+    op: set
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: result
+    item: FLD-todo.result
+    value: $reason
+  - id: EFF-cancel-todo.02
+    op: set
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: status
+    item: FLD-todo.status
+    value: CANCELED
+  - id: EFF-cancel-todo.03
+    op: insert
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: history
+    item: FLD-todo.history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: cancel-todo
+      from:
+        $copy: status
+        $of: self
+      to: CANCELED
+      note: $reason
+    written:
+      - key: date
+        value:
+          $copy: today
+          $of: context
+        base: date
+      - key: action
+        value: cancel-todo
+        base: enum
+      - key: from
+        value:
+          $copy: status
+          $of: self
+        base: enum
+      - key: to
+        value: CANCELED
+        base: enum
+      - key: note
+        value: $reason
+        base: string
+  - id: EFF-cancel-todo.04
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-unfinished-has-no-completed-on
+    items:
+      - todo.status
+writes:
+  - CRUD-todo.cancel-todo.result
+  - CRUD-todo.cancel-todo.status
+  - CRUD-todo.cancel-todo.history
+  - CRUD-todo.cancel-todo.updated_on

@@ -1,0 +1,97 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-add-todo-task
+source: add-todo-task
+kind: action
+label: 作業項目を追加する
+description: 未完了のTODOに、作業項目を足します。番号はTODOの番号に続けて自動で振ります（TODO-004-S04 など）。済にするのは、個票の作業項目の行の「⋯」の「作業項目を済にする」です。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+creates:
+  - ENT-todo-task
+inputs:
+  - id: PRM-add-todo-task.title
+    key: title
+    label: 作業
+    definition:
+      type: TYP-common.一行の文
+      base: string
+      required: true
+      minLength: 1
+      maxLength: 100
+      pattern: ^[^\r\n]*$
+      overrides:
+        minLength: 1
+preconditions:
+  - id: PRE-add-todo-task.active
+    source: active
+    message: '{id} は完了か中止をしているので、作業項目を足せません'
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      where:
+        - of: t
+          path: status
+          oneOf:
+            - OPEN
+            - IN_PROGRESS
+            - SUSPENDED
+      expect: exists
+effects:
+  - id: EFF-add-todo-task.01
+    op: insert
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: tasks
+    item: FLD-todo.tasks
+    value:
+      id: ''
+      title: $title
+      done: false
+    numbering:
+      path: id
+      prefix:
+        $format: '{id}-S'
+        $of: owner
+      digits: 2
+    written:
+      - key: id
+        value: ''
+        base: id
+      - key: title
+        value: $title
+        base: string
+      - key: done
+        value: false
+        base: boolean
+  - id: EFF-add-todo-task.02
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-closed-has-no-open-task
+    items:
+      - todo-task.done
+      - todo.tasks
+writes:
+  - CRUD-todo.add-todo-task.tasks
+  - CRUD-todo.add-todo-task.updated_on
+  - CRUD-todo-task.add-todo-task.id
+  - CRUD-todo-task.add-todo-task.title
+  - CRUD-todo-task.add-todo-task.done

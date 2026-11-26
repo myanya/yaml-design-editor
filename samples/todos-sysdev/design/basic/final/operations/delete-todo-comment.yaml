@@ -1,0 +1,54 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-delete-todo-comment
+source: delete-todo-comment
+kind: action
+label: コメントを削除する
+description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+row:
+  param: PRM-delete-todo-comment.row
+  item: FLD-todo.comments
+inputs:
+  - id: PRM-delete-todo-comment.row
+    key: row
+    label: コメントの番号
+    definition:
+      builtin: int
+      base: int
+      description: コメント一覧の何番目か（0 から数えます）
+      required: true
+      min: 0.0
+      overrides:
+        min: 0.0
+effects:
+  - id: EFF-delete-todo-comment.01
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: comments[$row]
+    item: FLD-todo.comments
+    row: PRM-delete-todo-comment.row
+  - id: EFF-delete-todo-comment.02
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+writes:
+  - CRUD-todo.delete-todo-comment.comments
+  - CRUD-todo.delete-todo-comment.updated_on

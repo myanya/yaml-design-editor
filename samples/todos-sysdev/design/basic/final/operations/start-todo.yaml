@@ -1,0 +1,79 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-start-todo
+source: start-todo
+kind: action
+label: TODOに着手する
+description: 未着手の作業を対応中にします。追加の入力はありません。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+lifecycle: LCY-todo-lifecycle
+transition: TRN-todo-lifecycle.start-todo
+refusal: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+effects:
+  - id: EFF-start-todo.01
+    op: set
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: status
+    item: FLD-todo.status
+    value: IN_PROGRESS
+  - id: EFF-start-todo.02
+    op: insert
+    cause: lifecycle
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: history
+    item: FLD-todo.history
+    value:
+      date:
+        $copy: today
+        $of: context
+      action: start-todo
+      from:
+        $copy: status
+        $of: self
+      to: IN_PROGRESS
+    written:
+      - key: date
+        value:
+          $copy: today
+          $of: context
+        base: date
+      - key: action
+        value: start-todo
+        base: enum
+      - key: from
+        value:
+          $copy: status
+          $of: self
+        base: enum
+      - key: to
+        value: IN_PROGRESS
+        base: enum
+  - id: EFF-start-todo.03
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-unfinished-has-no-completed-on
+    items:
+      - todo.status
+writes:
+  - CRUD-todo.start-todo.status
+  - CRUD-todo.start-todo.history
+  - CRUD-todo.start-todo.updated_on

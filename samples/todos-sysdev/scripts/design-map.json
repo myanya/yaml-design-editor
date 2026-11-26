@@ -240,6 +240,26 @@
       }
     },
     {
+      "id": "ops",
+      "name": "操作（項目の形）",
+      "column": "basic",
+      "lane": "op",
+      "transforms": [
+        "basic-operations"
+      ],
+      "ids": [
+        "ACT-*",
+        "PRM-*",
+        "PRE-*",
+        "EFF-*"
+      ],
+      "reads": {
+        "c": [
+          "bmO"
+        ]
+      }
+    },
+    {
       "id": "act",
       "name": "アクション定義書",
       "column": "basic",
@@ -832,15 +852,16 @@
         "kind": "main",
         "shape": "items",
         "label": [
-          "状態・決まり・検索条件",
-          "（項目の形）"
+          "状態・決まり・検索条件・",
+          "操作（項目の形）"
         ],
         "members": [
           "t:basic-states",
           "t:basic-rules",
-          "t:basic-queries"
+          "t:basic-queries",
+          "t:basic-operations"
         ],
-        "note": "業務モデルを直接読んで作ります（補正後の業務モデルを通しません）。詳細設計の「状態の判定」「処理設計書」「テーブルアクセス設計書」が、これを読みます。"
+        "note": "業務モデルを直接読んで作ります（補正後の業務モデルを通しません）。詳細設計の「状態の判定」「処理設計書」「テーブルアクセス設計書」が、状態・決まり・検索条件を読みます。操作の項目一覧は 2026-11-26 に足したところで、読む側はまだアクション定義書（文書の形）を読んでいます。"
       },
       {
         "id": "b-sta-view",
@@ -849,13 +870,14 @@
         "col": 4,
         "kind": "view",
         "label": [
-          "状態・決まり・",
-          "検索条件の一覧"
+          "状態・決まり・検索条件・",
+          "操作の一覧"
         ],
         "views": [
           "basic/review/state-definition-*.yaml",
           "basic/review/rule-definition.yaml",
-          "basic/review/query-definition.yaml"
+          "basic/review/query-definition.yaml",
+          "basic/review/operation-definition*.yaml"
         ],
         "reads": [
           "b-sta"
@@ -1501,6 +1523,7 @@
         ],
         "status": "reshape",
         "current": [
+          "t:basic-operations",
           "t:action-specs"
         ],
         "from": [
@@ -1511,7 +1534,8 @@
           "a-sta",
           "a-rul"
         ],
-        "unit": "操作ごと"
+        "unit": "操作ごと",
+        "note": "2026-11-26 に項目の形（操作ごとに 1 ファイル）を足しました。操作・入力・前提・効果に ID を振り、エンティティ・項目・型・遷移・データの決まりを ID で指します。アクション定義書（文書の形）はまだ残っていて、詳細設計はそちらを通して読んでいます。読む側を切り替えたあとで、文書をやめます。"
       },
       {
         "id": "a-err",

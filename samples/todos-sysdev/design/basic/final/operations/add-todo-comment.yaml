@@ -1,0 +1,71 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-add-todo-comment
+source: add-todo-comment
+kind: action
+label: TODOにコメントを追加する
+description: TODOの個票へ、状態に関係なく日付と本文を記録します。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+inputs:
+  - id: PRM-add-todo-comment.date
+    key: date
+    label: 記録日
+    definition:
+      type: TYP-common.年月日
+      base: date
+      description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+      required: true
+      format: yyyy年M月d日
+    initial:
+      $copy: today
+      $of: context
+  - id: PRM-add-todo-comment.body
+    key: body
+    label: コメント本文
+    definition:
+      type: TYP-todo-operations.操作の記録
+      base: string
+      description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+      required: true
+      minLength: 1
+      multiline: true
+effects:
+  - id: EFF-add-todo-comment.01
+    op: insert
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: comments
+    item: FLD-todo.comments
+    value:
+      date: $date
+      body: $body
+    written:
+      - key: date
+        value: $date
+        base: date
+      - key: body
+        value: $body
+        base: string
+  - id: EFF-add-todo-comment.02
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+writes:
+  - CRUD-todo.add-todo-comment.comments
+  - CRUD-todo.add-todo-comment.updated_on
