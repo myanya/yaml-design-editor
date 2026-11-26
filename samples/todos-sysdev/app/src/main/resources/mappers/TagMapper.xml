@@ -22,6 +22,7 @@
     <result property="completedOn" column="completed_on" javaType="java.time.LocalDate"/>
     <result property="details" column="details" javaType="java.lang.String"/>
     <result property="result" column="result" javaType="java.lang.String"/>
+    <result property="version" column="version" javaType="java.lang.Long"/>
   </resultMap>
   <resultMap id="row_TodoTaskRow" type="example.todos.data.model.TodoTaskRow">
     <result property="id" column="id" javaType="java.lang.String"/>

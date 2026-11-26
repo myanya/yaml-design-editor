@@ -615,6 +615,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row4.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before4 = original;
           - valid: true
@@ -665,6 +676,10 @@ services:
             plain: true
             raw: |2
                           row4.setResult(before4.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row4.setVersion(before4.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -1197,6 +1212,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row6.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before6 = original;
           - valid: true
@@ -1247,6 +1273,10 @@ services:
             plain: true
             raw: |2
                           row6.setResult(before6.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row6.setVersion(before6.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -1769,6 +1799,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row5.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before5 = original;
           - valid: true
@@ -1819,6 +1860,10 @@ services:
             plain: true
             raw: |2
                           row5.setResult(before5.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row5.setVersion(before5.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -2655,6 +2700,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row8.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before8 = original;
           - valid: true
@@ -2705,6 +2761,10 @@ services:
             plain: true
             raw: |2
                           row8.setResult(before8.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row8.setVersion(before8.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -3881,6 +3941,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row4.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before4 = original;
           - valid: true
@@ -3931,6 +4002,10 @@ services:
             plain: true
             raw: |2
                           row4.setResult(before4.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row4.setVersion(before4.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -4825,6 +4900,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row6.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before6 = original;
           - valid: true
@@ -4875,6 +4961,10 @@ services:
             plain: true
             raw: |2
                           row6.setResult(before6.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row6.setVersion(before6.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -6362,6 +6452,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row4.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before4 = original;
           - valid: true
@@ -6412,6 +6513,10 @@ services:
             plain: true
             raw: |2
                           row4.setResult(before4.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row4.setVersion(before4.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -6978,6 +7083,17 @@ services:
           - valid: true
             literal: true
             value: OPEN
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
+            raw: '            row6.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
           - valid: true
             plain: true
             raw: |
@@ -7943,6 +8059,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row5.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before5 = original;
           - valid: true
@@ -7993,6 +8120,10 @@ services:
             plain: true
             raw: |2
                           row5.setResult(before5.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row5.setVersion(before5.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -8740,6 +8871,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row5.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before5 = original;
           - valid: true
@@ -8790,6 +8932,10 @@ services:
             plain: true
             raw: |2
                           row5.setResult(before5.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row5.setVersion(before5.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -9581,6 +9727,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row6.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: |2
                           var before6 = original;
           - valid: true
@@ -9631,6 +9788,10 @@ services:
             plain: true
             raw: |2
                           row6.setResult(before6.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row6.setVersion(before6.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('
@@ -10612,6 +10773,17 @@ services:
               );
           - valid: true
             plain: true
+            raw: '            row4.setVersion('
+          - valid: true
+            plain: true
+            raw: 0L
+            integer: 0
+          - valid: true
+            plain: true
+            raw: |
+              );
+          - valid: true
+            plain: true
             raw: '            var before4 = '
           - valid: true
             plain: true
@@ -10695,6 +10867,10 @@ services:
             plain: true
             raw: |2
                           row4.setResult(before4.getResult());
+          - valid: true
+            plain: true
+            raw: |2
+                          row4.setVersion(before4.getVersion());
           - valid: true
             plain: true
             raw: '            if (Boolean.TRUE.equals('

@@ -66,6 +66,7 @@ definitions:
       - { key: owner, label: 所属先, type: ref, idPatterns: [ENT-*, TYP-*, FLD-*] }
       - { key: path, label: 項目の場所, type: basic-design-values#場所 }
       - { key: source, label: 業務モデルの項目, type: ref }
+      - { key: addedBy, label: 足した方式の指定, type: string, pattern: '^SPC-\S+$', description: 業務モデルに無く、方式（全体の判断）が足した項目のとき、その指定の ID }
   確定した型:
     type: 確定した値
     fields:

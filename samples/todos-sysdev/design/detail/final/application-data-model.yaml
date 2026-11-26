@@ -195,6 +195,20 @@ models:
           qualifiedName: java.lang.String
           literal: string
         sql: VARCHAR
+      - id: JCOL-COL-todo.version
+        source: COL-todo.version
+        column: version
+        name: version
+        accessor: Version
+        java:
+          base: int
+          name: Long
+          qualifiedName: java.lang.Long
+          literal: number
+        sql: INTEGER
+        default:
+          value: 0
+          literal: number
   - id: JROW-todo_task
     tableId: TBL-todo_task
     table: todo_task

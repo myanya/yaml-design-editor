@@ -2442,6 +2442,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: findDetail
           tableId: TBL-todo
         table: todo
@@ -2587,6 +2591,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: FindDetailInput
         resultClass: FindDetailResult
         conditions:
@@ -2757,6 +2775,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties:
           - name: tags
             accessor: Tags
@@ -3244,6 +3276,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         single: true
         select: true
         conditionReferenceResolved: true
@@ -3331,6 +3377,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: selectAll
           tableId: TBL-todo
         table: todo
@@ -3476,6 +3526,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: SelectAllInput
         resultClass: SelectAllResult
         conditions: []
@@ -3630,6 +3694,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties:
           - name: column0
             accessor: Column0
@@ -3787,6 +3865,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: selectTodoDashboardOverdue
           tableId: TBL-todo
         table: todo
@@ -3932,6 +4014,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: SelectTodoDashboardOverdueInput
         resultClass: SelectTodoDashboardOverdueResult
         conditions:
@@ -4213,6 +4309,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties:
           - name: column0
             accessor: Column0
@@ -4419,6 +4529,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: countTodoDashboardOverdue
           tableId: TBL-todo
         table: todo
@@ -4564,6 +4678,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         conditionSource: selectTodoDashboardOverdue
         inputClass: CountTodoDashboardOverdueInput
         resultClass: CountTodoDashboardOverdueResult
@@ -4842,6 +4970,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -4979,6 +5121,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         count: true
         conditionReferenceResolved: true
         requiredConditions:
@@ -5172,6 +5328,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: selectTodoDashboardAll
           tableId: TBL-todo
         table: todo
@@ -5317,6 +5477,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: SelectTodoDashboardAllInput
         resultClass: SelectTodoDashboardAllResult
         conditions:
@@ -5538,6 +5712,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties:
           - name: column0
             accessor: Column0
@@ -5793,6 +5981,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: countTodoDashboardAll
           tableId: TBL-todo
         table: todo
@@ -5938,6 +6130,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         conditionSource: selectTodoDashboardAll
         inputClass: CountTodoDashboardAllInput
         resultClass: CountTodoDashboardAllResult
@@ -6157,6 +6363,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -6294,6 +6514,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         count: true
         conditionReferenceResolved: true
         requiredConditions: []
@@ -6373,6 +6607,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: findById
           tableId: TBL-todo
         table: todo
@@ -6518,6 +6756,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: FindByIdInput
         resultClass: FindByIdResult
         conditions:
@@ -6688,6 +6940,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -6825,6 +7091,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         single: true
         select: true
         conditionReferenceResolved: true
@@ -6907,6 +7187,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: insert
           tableId: TBL-todo
         table: todo
@@ -7052,6 +7336,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: InsertInput
         resultClass: InsertResult
         conditions: []
@@ -7203,6 +7501,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -7340,6 +7652,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         insert: true
         many: true
         conditionReferenceResolved: true
@@ -7418,6 +7744,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: maxId
           tableId: TBL-todo
         table: todo
@@ -7563,6 +7893,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: MaxIdInput
         resultClass: MaxIdResult
         conditions:
@@ -7745,6 +8089,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -7882,6 +8240,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         max: true
         idMax: true
         conditionReferenceResolved: true
@@ -9299,6 +9671,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: addTodoComment
           tableId: TBL-todo
         table: todo
@@ -9444,6 +9820,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: AddTodoCommentInput
         resultClass: AddTodoCommentResult
         conditions:
@@ -9649,6 +10039,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -9786,6 +10190,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: updated_on
@@ -10333,6 +10751,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: editTodoComment
           tableId: TBL-todo
         table: todo
@@ -10478,6 +10900,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: EditTodoCommentInput
         resultClass: EditTodoCommentResult
         conditions:
@@ -10683,6 +11119,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -10820,6 +11270,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: updated_on
@@ -11204,6 +11668,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: deleteTodoComment
           tableId: TBL-todo
         table: todo
@@ -11349,6 +11817,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: DeleteTodoCommentInput
         resultClass: DeleteTodoCommentResult
         conditions:
@@ -11554,6 +12036,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -11691,6 +12187,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: updated_on
@@ -11816,6 +12326,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: addTodoTask
           tableId: TBL-todo
         table: todo
@@ -11961,6 +12475,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: AddTodoTaskInput
         resultClass: AddTodoTaskResult
         conditions:
@@ -12166,6 +12694,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -12303,6 +12845,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: updated_on
@@ -12516,6 +13072,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: editTodo
           tableId: TBL-todo
         table: todo
@@ -12661,6 +13221,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: EditTodoInput
         resultClass: EditTodoResult
         conditions:
@@ -13281,6 +13855,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -13418,6 +14006,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: title
@@ -14113,6 +14715,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: startTodo
           tableId: TBL-todo
         table: todo
@@ -14258,6 +14864,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: StartTodoInput
         resultClass: StartTodoResult
         conditions:
@@ -14494,6 +15114,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -14631,6 +15265,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: status
@@ -14795,6 +15443,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: suspendTodo
           tableId: TBL-todo
         table: todo
@@ -14940,6 +15592,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: SuspendTodoInput
         resultClass: SuspendTodoResult
         conditions:
@@ -15176,6 +15842,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -15313,6 +15993,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: status
@@ -15477,6 +16171,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: resumeTodo
           tableId: TBL-todo
         table: todo
@@ -15622,6 +16320,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: ResumeTodoInput
         resultClass: ResumeTodoResult
         conditions:
@@ -15858,6 +16570,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -15995,6 +16721,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: status
@@ -16169,6 +16909,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: completeTodo
           tableId: TBL-todo
         table: todo
@@ -16314,6 +17058,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: CompleteTodoInput
         resultClass: CompleteTodoResult
         conditions:
@@ -16614,6 +17372,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -16751,6 +17523,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: completed_on
@@ -16980,6 +17766,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: cancelTodo
           tableId: TBL-todo
         table: todo
@@ -17125,6 +17915,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: CancelTodoInput
         resultClass: CancelTodoResult
         conditions:
@@ -17393,6 +18197,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -17530,6 +18348,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: result
@@ -17719,6 +18551,10 @@ mappers:
               item: result
               name: result
               source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
           methodId: todoTaskFinish
           tableId: TBL-todo
         table: todo
@@ -17864,6 +18700,20 @@ mappers:
                 qualifiedName: java.lang.String
                 literal: string
               sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
         inputClass: TodoTaskFinishInput
         resultClass: TodoTaskFinishResult
         conditions:
@@ -18069,6 +18919,20 @@ mappers:
               literal: string
             sql: VARCHAR
             noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         properties: []
         baseBindings:
           - id: JCOL-COL-todo.id
@@ -18206,6 +19070,20 @@ mappers:
               qualifiedName: java.lang.String
               literal: string
             sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
         update: true
         writeGroups:
           - column: updated_on

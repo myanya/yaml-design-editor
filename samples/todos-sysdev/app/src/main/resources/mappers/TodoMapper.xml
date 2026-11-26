@@ -22,6 +22,7 @@
     <result property="completedOn" column="completed_on" javaType="java.time.LocalDate"/>
     <result property="details" column="details" javaType="java.lang.String"/>
     <result property="result" column="result" javaType="java.lang.String"/>
+    <result property="version" column="version" javaType="java.lang.Long"/>
   </resultMap>
   <resultMap id="row_TodoTaskRow" type="example.todos.data.model.TodoTaskRow">
     <result property="id" column="id" javaType="java.lang.String"/>
@@ -128,6 +129,7 @@
       todo.completed_on,
       todo.details,
       todo.result,
+      todo.version,
 
 
 
@@ -451,6 +453,7 @@ AND todo.category = #{input.category}
       todo.completed_on,
       todo.details,
       todo.result,
+      todo.version,
     </trim>
     FROM todo
     <where>
@@ -467,8 +470,8 @@ AND todo.id = #{input.id}
 
 
   <insert id="insert">
-    INSERT INTO todo (id, title, summary, category, follows, status, created_on, updated_on, due_on, completed_on, details, result)
-    VALUES (#{input.id}, #{input.title}, #{input.summary}, #{input.category}, #{input.follows}, <choose><when test="input.status != null">#{input.status}</when><otherwise>DEFAULT</otherwise></choose>, #{input.createdOn}, #{input.updatedOn}, #{input.dueOn}, #{input.completedOn}, #{input.details}, #{input.result})
+    INSERT INTO todo (id, title, summary, category, follows, status, created_on, updated_on, due_on, completed_on, details, result, version)
+    VALUES (#{input.id}, #{input.title}, #{input.summary}, #{input.category}, #{input.follows}, <choose><when test="input.status != null">#{input.status}</when><otherwise>DEFAULT</otherwise></choose>, #{input.createdOn}, #{input.updatedOn}, #{input.dueOn}, #{input.completedOn}, #{input.details}, #{input.result}, <choose><when test="input.version != null">#{input.version}</when><otherwise>DEFAULT</otherwise></choose>)
   </insert>
 
   <select id="maxId" resultType="java.lang.String">

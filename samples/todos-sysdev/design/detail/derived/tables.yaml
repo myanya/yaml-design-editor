@@ -114,6 +114,11 @@ document:
           name: result
           source: FLD-todo.result
           sqlType: SQL-common.文章
+        - seq: '13'
+          id: COL-todo.version
+          name: version
+          source: FLD-todo.version
+          sqlType: SQL-int
       indexes:
         - seq: '01'
           id: IDX-ix_todo_category

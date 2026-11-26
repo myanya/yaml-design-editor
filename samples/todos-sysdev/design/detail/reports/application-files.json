@@ -71,7 +71,7 @@
     },
     {
       "path": "app/src/main/java/example/todos/data/model/TodoRow.java",
-      "sha256": "21ec7b9f9c0419db382278031868fe0525001ad47a4849d581031550a9e841b5"
+      "sha256": "508d8098dc78c3045ff33cfd5345e5eda346d8cbb9156b8c50f173ef004c200b"
     },
     {
       "path": "app/src/main/java/example/todos/data/model/TodoTagsRow.java",
@@ -183,11 +183,11 @@
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoService.java",
-      "sha256": "35b07094eb6d1d9e274fb4c3310b14ef1d944c874dbd454ab331591b1b25a4a7"
+      "sha256": "b961ad0c26067827583f65e71fac28fbc543d07ed835679ccda1bd29cc6f7775"
     },
     {
       "path": "app/src/main/java/example/todos/service/TodoTaskService.java",
-      "sha256": "3398586fdbdcf7f9fed678cfefa7fb209d4d88528c30d67ae08970728dced080"
+      "sha256": "8c960736659a54b22c0b77c093603b5b1a0c9bb685ad6c9ab2a1c88e96f99e08"
     },
     {
       "path": "app/src/main/java/example/todos/TodoApplication.java",
@@ -359,19 +359,19 @@
     },
     {
       "path": "app/src/main/resources/mappers/CategoryMapper.xml",
-      "sha256": "631f9111b4edf9449c9469b27d389cb26092d5f480eae418d788fa2d1ffd7b6b"
+      "sha256": "85828f216e0f9a3e3c47950bddca765fcde035cd2746b3d81ee15cc7da774551"
     },
     {
       "path": "app/src/main/resources/mappers/TagMapper.xml",
-      "sha256": "b6434ed4e83d7b3c4d89b942c2d2bfb94a935ee3b48a640caff9ad50104d0cc0"
+      "sha256": "f137506206c3d3cbc1ec07b882f99718834922bdc4c6e89decc1905df52fe162"
     },
     {
       "path": "app/src/main/resources/mappers/TodoMapper.xml",
-      "sha256": "fa605c585f23e6621394d7092367841cc84fce90c6326125042a3ba35ea29f1a"
+      "sha256": "522a9355852ec7236a17c4bd469db2dc36daf743c8b5f487b5a3fe50654ec15e"
     },
     {
       "path": "app/src/main/resources/mappers/TodoTaskMapper.xml",
-      "sha256": "d5b93de22770f3129ed64b2358eaad4bea6fa4b1b8ac0406f32e334c12c68764"
+      "sha256": "3e388ac8daf3df3e27f2a92e056d57bd80e6e423233b3cb38f5dfaf220b18454"
     },
     {
       "path": "app/src/main/resources/META-INF/licenses/htmx.txt",
@@ -379,7 +379,7 @@
     },
     {
       "path": "app/src/main/resources/schema.sql",
-      "sha256": "3ff59eee5183ebd49f3930750e25e601effabdad96f0789d75d84a588068dbfe"
+      "sha256": "644814d3153c4c175e2b63899c08a6c7eff58a42528077747c0578035e1aa3ea"
     },
     {
       "path": "app/src/main/resources/static/css/theme.css",
@@ -519,7 +519,7 @@
     },
     {
       "path": "app/src/main/resources/web-model.json",
-      "sha256": "96e2e4fbd84ba702ce82450c31974c531c52e58445c958b5680ed8d0ed1fb93c"
+      "sha256": "86767aace932466e58ceb53fed50efaa93df32a66d0f73fb6e108c3a7cf75805"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

@@ -49,6 +49,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row4 = new TodoRow();
             row4.setStatus("OPEN");
+            row4.setVersion(0L);
             var before4 = original;
             row4.setId(before4.getId());
             row4.setTitle(before4.getTitle());
@@ -62,6 +63,7 @@ public class TodoService {
             row4.setCompletedOn(before4.getCompletedOn());
             row4.setDetails(before4.getDetails());
             row4.setResult(before4.getResult());
+            row4.setVersion(before4.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row4.setUpdatedOn(today);
             } else {}
@@ -112,6 +114,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row6 = new TodoRow();
             row6.setStatus("OPEN");
+            row6.setVersion(0L);
             var before6 = original;
             row6.setId(before6.getId());
             row6.setTitle(before6.getTitle());
@@ -125,6 +128,7 @@ public class TodoService {
             row6.setCompletedOn(before6.getCompletedOn());
             row6.setDetails(before6.getDetails());
             row6.setResult(before6.getResult());
+            row6.setVersion(before6.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row6.setUpdatedOn(today);
             } else {}
@@ -169,6 +173,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row5 = new TodoRow();
             row5.setStatus("OPEN");
+            row5.setVersion(0L);
             var before5 = original;
             row5.setId(before5.getId());
             row5.setTitle(before5.getTitle());
@@ -182,6 +187,7 @@ public class TodoService {
             row5.setCompletedOn(before5.getCompletedOn());
             row5.setDetails(before5.getDetails());
             row5.setResult(before5.getResult());
+            row5.setVersion(before5.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row5.setResult(input.getReason());
             } else {}
@@ -254,6 +260,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row8 = new TodoRow();
             row8.setStatus("OPEN");
+            row8.setVersion(0L);
             var before8 = original;
             row8.setId(before8.getId());
             row8.setTitle(before8.getTitle());
@@ -267,6 +274,7 @@ public class TodoService {
             row8.setCompletedOn(before8.getCompletedOn());
             row8.setDetails(before8.getDetails());
             row8.setResult(before8.getResult());
+            row8.setVersion(before8.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row8.setCompletedOn(input.getDate());
             } else {}
@@ -351,6 +359,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row4 = new TodoRow();
             row4.setStatus("OPEN");
+            row4.setVersion(0L);
             var before4 = original;
             row4.setId(before4.getId());
             row4.setTitle(before4.getTitle());
@@ -364,6 +373,7 @@ public class TodoService {
             row4.setCompletedOn(before4.getCompletedOn());
             row4.setDetails(before4.getDetails());
             row4.setResult(before4.getResult());
+            row4.setVersion(before4.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row4.setUpdatedOn(today);
             } else {}
@@ -424,6 +434,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row6 = new TodoRow();
             row6.setStatus("OPEN");
+            row6.setVersion(0L);
             var before6 = original;
             row6.setId(before6.getId());
             row6.setTitle(before6.getTitle());
@@ -437,6 +448,7 @@ public class TodoService {
             row6.setCompletedOn(before6.getCompletedOn());
             row6.setDetails(before6.getDetails());
             row6.setResult(before6.getResult());
+            row6.setVersion(before6.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, Boolean.valueOf(input.getTitle() != null)))) {
                 row6.setTitle(input.getTitle());
             } else {}
@@ -548,6 +560,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row4 = new TodoRow();
             row4.setStatus("OPEN");
+            row4.setVersion(0L);
             var before4 = original;
             row4.setId(before4.getId());
             row4.setTitle(before4.getTitle());
@@ -561,6 +574,7 @@ public class TodoService {
             row4.setCompletedOn(before4.getCompletedOn());
             row4.setDetails(before4.getDetails());
             row4.setResult(before4.getResult());
+            row4.setVersion(before4.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row4.setUpdatedOn(today);
             } else {}
@@ -614,6 +628,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row6 = new TodoRow();
             row6.setStatus("OPEN");
+            row6.setVersion(0L);
             row6.setId(numberedId);
             row6.setDueOn(input.getDue());
             row6.setDetails(input.getDetails());
@@ -720,6 +735,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row5 = new TodoRow();
             row5.setStatus("OPEN");
+            row5.setVersion(0L);
             var before5 = original;
             row5.setId(before5.getId());
             row5.setTitle(before5.getTitle());
@@ -733,6 +749,7 @@ public class TodoService {
             row5.setCompletedOn(before5.getCompletedOn());
             row5.setDetails(before5.getDetails());
             row5.setResult(before5.getResult());
+            row5.setVersion(before5.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row5.setStatus("IN_PROGRESS");
             } else {}
@@ -793,6 +810,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row5 = new TodoRow();
             row5.setStatus("OPEN");
+            row5.setVersion(0L);
             var before5 = original;
             row5.setId(before5.getId());
             row5.setTitle(before5.getTitle());
@@ -806,6 +824,7 @@ public class TodoService {
             row5.setCompletedOn(before5.getCompletedOn());
             row5.setDetails(before5.getDetails());
             row5.setResult(before5.getResult());
+            row5.setVersion(before5.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row5.setStatus("IN_PROGRESS");
             } else {}
@@ -876,6 +895,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row6 = new TodoRow();
             row6.setStatus("OPEN");
+            row6.setVersion(0L);
             var before6 = original;
             row6.setId(before6.getId());
             row6.setTitle(before6.getTitle());
@@ -889,6 +909,7 @@ public class TodoService {
             row6.setCompletedOn(before6.getCompletedOn());
             row6.setDetails(before6.getDetails());
             row6.setResult(before6.getResult());
+            row6.setVersion(before6.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row6.setStatus("SUSPENDED");
             } else {}

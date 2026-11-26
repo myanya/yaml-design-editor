@@ -72,8 +72,8 @@ class TodosDesignTargetsTest {
             .filter { it["inherited"] == false }.map { it["path"] }
         assertTrue(paths.any { "TODO一覧の行" in it.toString() } && paths.any { "TODO個票" in it.toString() }, paths.toString())
         val legacyFields = rows(raw(Files.readString(sample.resolve("design/basic/final/entities.yaml"))), "entities")
-            .flatMap { rows(it, "items") }.map { it["id"] }.toSet()
-        assertTrue(targets.map { it["designId"] }.containsAll(legacyFields), "既存の全項目 ID を維持する")
+            .flatMap { rows(it, "items") }.filter { it["addedBy"] == null }.map { it["id"] }.toSet()
+        assertTrue(targets.map { it["designId"] }.containsAll(legacyFields), "既存の全項目 ID を維持する（方式が足した項目は、業務モデルの宣言に無いので除く）")
         val legacyTypes = rows(raw(Files.readString(sample.resolve("design/basic/final/types.yaml"))), "types").map { it["id"] }
         assertTrue(targets.map { it["designId"] }.containsAll(legacyTypes), "組込みの型を含め、既存の論理型 ID を維持する")
         val type = targets.single { it["designId"] == "TYP-common.一行の文" }

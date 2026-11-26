@@ -781,7 +781,7 @@
           "in:design/basic/inputs/documents/*.yaml",
           "in:design/basic/inputs/operations/*.yaml"
         ],
-        "note": "全体の判断（区分の定義）と個別の判断（区分の割当、操作の項目への補正）にあたります。補正はいま 0 件です。"
+        "note": "全体の判断（区分の定義、同時更新を版で検出する方式の指定）と個別の判断（区分の割当、操作の項目への補正）にあたります。補正はいま 0 件です。"
       },
       {
         "id": "b-ent-work",
@@ -1399,9 +1399,10 @@
         ],
         "status": "merge",
         "current": [
-          "in:design/basic/inputs/entities/additions.yaml"
+          "in:design/basic/inputs/entities/additions.yaml",
+          "in:design/basic/inputs/entities/corrections.yaml"
         ],
-        "note": "同じ種類すべてに当てる方針。いまは区分（マスタ・トランザクション）の定義だけです。認証・認可や監査項目の方針は、ここに書きます。"
+        "note": "同じ種類すべてに当てる方針。いまは、区分（マスタ・トランザクション）の定義と、同時更新を版で検出する方式の指定（対象は区分。その区分のエンティティに項目「版」を足す）です。方式の指定は、個別の判断と同じファイルの specifications に書いています（段階 6 で置き場所を分けます）。認証・認可や監査項目の方針も、ここに書きます。"
       },
       {
         "id": "a-dec",

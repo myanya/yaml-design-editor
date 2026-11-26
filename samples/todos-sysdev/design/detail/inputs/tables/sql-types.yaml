@@ -89,3 +89,8 @@ mappings:
     literal: string
     sql: VARCHAR
     description: 詳細設計だけの型。マップの項目を写した明細テーブルのキー（業務モデルのマップのキー）
+  - seq: '17'
+    id: SQL-int
+    literal: number
+    sql: INTEGER
+    description: 組込みの整数（型の名前を持たない整数の項目）。方式が足す項目（同時更新を検出する版など）が使う

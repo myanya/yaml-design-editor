@@ -249,6 +249,43 @@ class TodosSystemDocumentsTest {
     }
 
     @Test
+    fun `方式の指定は区分のエンティティに項目を足し テーブルの列まで届く`() {
+        fun entities(text: String) = rows(raw(text), "entities").associateBy { it["id"] }
+        fun items(entity: Map<*, *>) = rows(entity, "items")
+        // サンプルは、区分 CLS-transaction を対象に、同時更新を版で検出する方式（optimistic-lock）を指定している
+        val final = entities(Files.readString(sample.resolve("design/basic/final/entities.yaml")))
+        val version = items(final.getValue("ENT-todo")).single { it["id"] == "FLD-todo.version" }
+        assertEquals("SPC-optimistic-lock", version["addedBy"])
+        assertEquals(listOf("int", true, 0, "revision"), listOf(version["base"], version["required"], version["default"], version["auto"]))
+        assertEquals(items(final.getValue("ENT-todo")).size.toString().padStart(2, '0'), version["seq"], "項番は最後")
+        assertEquals(listOf("rule" to "SPC-optimistic-lock"), rows(version, "origins").map { it["kind"] to it["source"] })
+        // 入れ子で持つ要素（親で守る）と、区分の違うエンティティには足さない
+        for (id in listOf("ENT-todo-task", "ENT-category", "ENT-tag")) assertTrue(items(final.getValue(id)).none { it["addedBy"] != null }, id.toString())
+        val column = rows(raw(Files.readString(sample.resolve("design/detail/final/tables.yaml"))), "tables")
+            .flatMap { rows(it, "columns") }.single { it["id"] == "COL-todo.version" }
+        assertEquals(listOf("FLD-todo.version", "SQL-int"), listOf(column["source"], column["sqlType"]))
+        // 業務モデルを写したモデルには入らない（業務の画面の表示項目にならない）
+        assertTrue("version" !in Files.readString(sample.resolve("design/basic/composed/documents/model.yaml")).lines().filter { it.trim().startsWith("key:") }.joinToString())
+        // 指定を外すと、項目は出ない
+        val corrections = "design/basic/inputs/entities/corrections.yaml"
+        val without = store()
+        val text = without.read(DocumentId(corrections))!!.text
+        val start = text.indexOf("  # 全体の判断（方式）")
+        assertTrue(start > 0, "サンプルの指定の位置")
+        without.write(DocumentId(corrections), text.substring(0, start))
+        val plan = Generators.plan(WorkspaceSession(without))
+        assertEquals(emptyList(), plan.errors)
+        val regenerated = entities(plan.outputs.single { it.document.value == "design/basic/final/entities.yaml" }.text)
+        assertTrue(regenerated.values.flatMap(::items).none { it["key"] == "version" })
+        // 接続していない方式は、確定の前に止める
+        val unknown = store()
+        unknown.write(DocumentId(corrections), text.replace("rule: optimistic-lock", "rule: audit-trail"))
+        val stopped = Generators.plan(WorkspaceSession(unknown))
+        assertTrue(stopped.errors.any { "specifications" in it }, stopped.errors.toString())
+        assertTrue(stopped.transaction.operations.isEmpty())
+    }
+
+    @Test
     fun `別のダッシュボードの画面を遷移定義へ混ぜない`() {
         val input = store()
         input.write(DocumentId(".yde/views/business/category-only.yaml"), """

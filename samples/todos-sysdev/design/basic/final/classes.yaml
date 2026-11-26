@@ -21,6 +21,12 @@ classes:
     label: トランザクション
     description: 業務の出来事（登録・着手・完了など）ごとに増え、状態が変わるデータ。中に入れ子で持つデータも同じ区分
     origins:
+      - kind: rule
+        source: SPC-optimistic-lock
+        value:
+          key: version
+          label: 版
+        reason: 同じ TODO を同時に更新したとき、先の人の変更が黙って消えるのを防ぐ（同時更新を版で検出する）
       - kind: addition
         source: ADD-002
         value:

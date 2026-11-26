@@ -346,8 +346,8 @@ class TodosSysdevTest {
                   - {id: SPC-shape-spec, target: ENT-shape-spec, rule: entity-class, settings: {entityClass: CLS-transaction}, reason: 見本の区分}
             """.trimIndent() + "\n")
             edit("design/detail/inputs/tables/sql-types.yaml") {
-                it + "  - { seq: '91', id: SQL-int, type: TYP-int, sql: INTEGER, literal: number }\n" +
-                    "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR, literal: string }\n" +
+                // 組込みの整数（SQL-int）は、サンプルの型対応表にある（方式が足す項目「版」が使う）
+                it + "  - { seq: '92', id: SQL-shape-list.見本番号, type: TYP-shape-list.見本番号, sql: VARCHAR, literal: string }\n" +
                     "  - { seq: '93', id: SQL-shape-list.仕様番号, type: TYP-shape-list.仕様番号, sql: VARCHAR, literal: string }\n" +
                     "  - { seq: '94', id: SQL-number, type: TYP-number, sql: 'DECIMAL(10, 2)', literal: number }\n"
             }
@@ -378,8 +378,10 @@ class TodosSysdevTest {
             fun columns(t: String) = list(tables.getValue(t), "columns").associateBy { it["name"] }
             columns("shape").let {
                 assertEquals(listOf("id", "name", "period_from", "period_to", "size_width", "size_height",
-                    "empty_text", "spaces_text", "quoted_text", "unset_text", "numeric_text", "zero_count", "rate", "enabled", "fixed_date", "created_on", "owner_tag"),
-                    it.keys.toList(), "object は埋め込み（名前の有無によらない）・初期値のある項目も落とさない")
+                    "empty_text", "spaces_text", "quoted_text", "unset_text", "numeric_text", "zero_count", "rate", "enabled", "fixed_date", "created_on", "owner_tag", "version"),
+                    it.keys.toList(), "object は埋め込み（名前の有無によらない）・初期値のある項目も落とさない。最後の version は、区分への方式の指定（同時更新を版で検出する）が足す")
+                assertEquals("FLD-shape.version", it.getValue("version")["source"], "方式が足す項目は、別の業務モデルのトランザクションのエンティティにも当たる")
+                assertTrue("version" !in columns("shape_spec").keys, "入れ子で持つ要素には足さない（親で守る）")
                 assertEquals(false, it.getValue("period_from")["notNull"], "必須の開始日でも、期間が必須でなければ NOT NULL にしない")
                 assertEquals("期間の開始日", it.getValue("period_from")["label"])
                 assertEquals("FLD-shape.period.from", it.getValue("period_from")["source"], "名前の無い object の中の項目は、入れ子の項目")

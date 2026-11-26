@@ -1905,6 +1905,39 @@ entities:
               default: []
               display: table
               description: 状態の流れ（todo-behavior.yaml）が、状態を変える操作のたびに古い順に 1 行ずつ足します。手で書き足す必要はありません。
+      - id: FLD-todo.version
+        key: version
+        seq: '17'
+        owner: ENT-todo
+        label: 版
+        description: 更新のたびに 1 進む番号です。読んだときの版と保存するときの版を比べて、同時の更新を検出します（方式 optimistic-lock が足す項目で、業務モデルにはありません）。
+        base: int
+        required: true
+        default: 0
+        auto: revision
+        addedBy: SPC-optimistic-lock
+        attributeStates:
+          type: not-applicable
+          base: present
+          required: present
+          default: present
+          auto: present
+          minLength: not-applicable
+          maxLength: not-applicable
+          pattern: not-applicable
+          min: unconstrained
+          max: unconstrained
+          values: not-applicable
+          unique: not-applicable
+          multiline: not-applicable
+          format: not-applicable
+        origins:
+          - kind: rule
+            source: SPC-optimistic-lock
+            value:
+              key: version
+              label: 版
+            reason: 同じ TODO を同時に更新したとき、先の人の変更が黙って消えるのを防ぐ（同時更新を版で検出する）
     operations:
       - seq: '01'
         id: OPS-todo.register-todo
@@ -3953,6 +3986,12 @@ classes:
     label: トランザクション
     description: 業務の出来事（登録・着手・完了など）ごとに増え、状態が変わるデータ。中に入れ子で持つデータも同じ区分
     origins:
+      - kind: rule
+        source: SPC-optimistic-lock
+        value:
+          key: version
+          label: 版
+        reason: 同じ TODO を同時に更新したとき、先の人の変更が黙って消えるのを防ぐ（同時更新を版で検出する）
       - kind: addition
         source: ADD-002
         value:

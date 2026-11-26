@@ -14,6 +14,7 @@ public class TodoRow {
     private java.time.LocalDate completedOn;
     private java.lang.String details;
     private java.lang.String result;
+    private java.lang.Long version;
     public java.lang.String getId() {
         return id;
     }
@@ -108,6 +109,14 @@ public class TodoRow {
 
     public void setResult(java.lang.String result) {
         this.result = result;
+    }
+
+    public java.lang.Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(java.lang.Long version) {
+        this.version = version;
     }
 
 }

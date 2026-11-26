@@ -53,6 +53,7 @@ public class TodoTaskService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row4 = new TodoRow();
             row4.setStatus("OPEN");
+            row4.setVersion(0L);
             var before4 = ServiceChecks.call(new TodoMapper.FindByIdInput(), p -> p.setId(original.getTodoId()), todoMapper::findById);
             if (before4 == null) throw new example.todos.service.error.NotFoundException("todo", original.getTodoId());
             row4.setId(before4.getId());
@@ -67,6 +68,7 @@ public class TodoTaskService {
             row4.setCompletedOn(before4.getCompletedOn());
             row4.setDetails(before4.getDetails());
             row4.setResult(before4.getResult());
+            row4.setVersion(before4.getVersion());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row4.setUpdatedOn(today);
             } else {}

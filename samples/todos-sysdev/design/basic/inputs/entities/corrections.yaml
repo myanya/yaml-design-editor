@@ -24,3 +24,11 @@ specifications:
     settings:
       entityClass: CLS-transaction
     reason: データの役割に基づきエンティティ区分を指定する
+  # 全体の判断（方式）: 区分を対象にすると、その区分のエンティティすべてに当たる（入れ子で持つ要素は、親で守る）
+  - id: SPC-optimistic-lock
+    target: CLS-transaction
+    rule: optimistic-lock
+    settings:
+      key: version
+      label: 版
+    reason: 同じ TODO を同時に更新したとき、先の人の変更が黙って消えるのを防ぐ（同時更新を版で検出する）

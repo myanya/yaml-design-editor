@@ -28,6 +28,7 @@ CREATE TABLE todo (
   completed_on DATE,
   details VARCHAR,
   result VARCHAR,
+  version INTEGER DEFAULT 0 NOT NULL,
   CONSTRAINT pk_todo PRIMARY KEY (id)
 );
 CREATE INDEX ix_todo_category ON todo (category);
