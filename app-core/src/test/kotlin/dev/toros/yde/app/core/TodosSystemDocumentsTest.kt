@@ -151,6 +151,7 @@ class TodosSystemDocumentsTest {
               reason: 入力と URL
               changes: [{path: [input, items, 1, maxLength], value: 123}, {path: [execute, request], value: 'POST /todo/{id}/finish'}]
             - {id: SCOR-title, kind: screen-lists, target: DOC-screen-lists.todo-dashboard, set: {name: TODO 全体の確認, url: /overview}, reason: 一覧の名称}
+            - {id: SCOR-action, kind: action-specs, target: DOC-action-specs.cancel-todo, set: {name: TODOを取りやめる}, reason: 操作の名称}
         """.trimIndent().prependIndent("\n  "), """
             - id: SADD-preference
               kind: session-design
@@ -187,6 +188,9 @@ class TodosSystemDocumentsTest {
         val screen = doc("design/basic/final/screens/operations/complete-todo.yaml")
         assertEquals("未完了の作業があります（確認用）。", rows(map(screen, "execute"), "refusals").single { it["key"] == "complete-todo.no-open-task" }["message"])
         assertEquals("TODO 全体の確認", rows(doc("design/basic/final/screens/transitions/todo-dashboard.yaml"), "screens").single { it["id"] == "todo-dashboard" }["label"])
+        // アクション定義書への補正は、基本設計の「操作」の項目を通って、詳細設計まで届く（詳細設計は操作を項目から読む）
+        assertEquals("TODOを取りやめる", doc("design/basic/final/operations/cancel-todo.yaml")["label"])
+        assertEquals("TODOを取りやめる", doc("design/detail/final/processes/cancel-todo.yaml")["name"])
         assertEquals("reviewPreference", rows(doc("design/detail/final/session.yaml"), "attributes").last()["key"])
         assertEquals("validated", doc("design/detail/composed/review.yaml")["status"])
         plan.outputs.forEach { input.write(it.document, it.text) }

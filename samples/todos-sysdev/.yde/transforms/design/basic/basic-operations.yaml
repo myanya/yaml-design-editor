@@ -3,14 +3,22 @@ name: 基本設計項目一覧（操作）
 description: >-
   業務モデルの操作ごとに、抽象システムモデルの「操作」を項目の形で作る（ADR-0042）。
   操作・入力・前提・効果に設計 ID を振り、同じ段の項目（エンティティ・項目・型・状態と遷移・データの決まり）は ID で指す。
-  条件や値の式は業務モデルのまま持ち、設計の判断は入れない。補正後の業務モデルを通さず、業務モデルを直接読む
+  条件や値の式は業務モデルのまま持つ。型・項目への個別の判断と、アクション定義書への個別の判断が入力に届くように、
+  判断を当てた後の操作（確定した操作を重ねた業務モデル）を読む。判断を項目へ直接当てる形にしたら（移行計画の段階 5）、業務モデルを直接読む形に変える
 scope: business
 each: actions
 output: design/basic/final/operations/{id}.yaml
 dependsOn:
+  - system-actions-model
   - basic-entities
   - basic-states
   - basic-rules
+input:
+  $apply: model-input
+  $with:
+    row:
+      $view: system-actions-model-input
+      $one: true
 build:
   id:
     $format: ACT-{id}
@@ -256,6 +264,12 @@ build:
           $build:
             $copy: id
 rules:
+  - id: model-input
+    with:
+      - row
+    build:
+      $copy: values.model
+      $of: row
   # 入力 1 つ: 設計 ID・キー・名称・はじめの値に、値の定義を重ねる
   - id: input
     build:
