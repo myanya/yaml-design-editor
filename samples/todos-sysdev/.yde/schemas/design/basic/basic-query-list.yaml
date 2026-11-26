@@ -1,0 +1,154 @@
+id: basic-query-list
+name: 基本設計項目一覧（一覧の検索条件）
+kind: document
+description: >-
+  抽象システムモデルの「一覧の検索条件」。ダッシュボードの区画 1 つを、1 つの読み出しとして項目にする（ADR-0042）。
+  業務モデルでは、行の条件・並び・列はビューに、その区画だけの条件はダッシュボードの区画に書かれている。これを区画ごとに 1 つにまとめて持つ。
+  エンティティと列の項目は ID で指す。dashboard・section・view・subject・path・params は導出元（業務モデル）の識別子で、where・filter・match・value は業務モデルの式（項目はキーで書く）。
+  詳細設計のテーブルアクセス設計書は、業務モデルではなくこの一覧から検索・件数・集計を作る。生成物で、手で直さない。
+match: design/basic/final/queries.yaml
+root:
+  type: object
+  fields:
+    - key: documentId
+      type: id
+      required: true
+    - key: queries
+      label: 一覧の検索条件
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: QRY-ダッシュボードの ID.区画の ID
+          - key: label
+            label: 名称
+            type: string
+            description: 区画の名称
+          - key: dashboard
+            label: 導出元のダッシュボード
+            type: string
+            required: true
+          - key: section
+            label: 導出元の区画
+            type: string
+            required: true
+          - key: group
+            label: 区画のまとまり
+            type: string
+          - key: view
+            label: 導出元のビュー
+            type: string
+            required: true
+          - key: viewLabel
+            label: ビューの名称
+            type: string
+          - key: kind
+            label: 読み出しの形
+            type: enum
+            values:
+              - value: grid
+                label: 行の一覧
+              - value: matrix
+                label: 集計（行 × 列の件数）
+          - key: subject
+            label: 導出元のエンティティ型
+            type: string
+            required: true
+          - key: entity
+            label: 行のエンティティ
+            type: ref
+            idPatterns:
+              - ENT-*
+            required: true
+          - key: params
+            label: 受け取る値
+            type: array
+            description: 絞り込みの入力のキー（業務モデルのビューの params）
+            item:
+              type: string
+          - key: match
+            label: 行のつながり
+            type: any
+            description: 業務モデルの式のまま
+          - key: where
+            label: 行の条件
+            type: any
+            description: ビューの行の条件。業務モデルの式のまま
+          - key: filter
+            label: 区画の条件
+            type: any
+            description: その区画だけの条件。業務モデルの式のまま
+          - key: order
+            label: 並び
+            type: any
+          - key: counts
+            label: 数える相手（導出元のエンティティ型）
+            type: string
+            description: 集計のとき
+          - key: countsEntity
+            label: 数える相手
+            type: ref
+            idPatterns:
+              - ENT-*
+          - key: unclassified
+            label: 未分類の行
+            type: boolean
+          - key: axis
+            label: 列の軸
+            type: object
+            description: 集計のとき、列にする項目と値
+            fields:
+              - key: path
+                label: 導出元の項目のキー
+                type: string
+              - key: values
+                label: 値
+                type: any
+          - key: columns
+            label: 列
+            type: array
+            description: 行の一覧のとき
+            item:
+              type: object
+              fields:
+                - key: label
+                  label: 見出し
+                  type: string
+                - key: path
+                  label: 導出元の項目のキー
+                  type: string
+                - key: item
+                  label: 項目
+                  type: ref
+                  idPatterns:
+                    - FLD-*
+                - key: computed
+                  label: 計算する列
+                  type: boolean
+                - key: value
+                  label: 計算の式
+                  type: any
+                  description: 業務モデルの式のまま
+                - key: reference
+                  label: 参照先
+                  type: object
+                  description: 参照の項目のとき、参照先と、表示に使う項目
+                  fields:
+                    - key: subject
+                      label: 導出元のエンティティ型
+                      type: string
+                    - key: entity
+                      label: 参照先のエンティティ
+                      type: ref
+                      idPatterns:
+                        - ENT-*
+                    - key: title
+                      label: 表示に使う項目のキー
+                      type: string
+                    - key: many
+                      label: 複数
+                      type: boolean

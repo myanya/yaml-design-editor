@@ -11,6 +11,7 @@ output: design/detail/derived/documents/table-access/{id}.yaml
 dependsOn:
   - system-actions-model
   - basic-rules
+  - basic-queries
   - detail-tables
   - detail-document-input-gate
 input:
@@ -22,6 +23,11 @@ input:
     rules:
       $each:
         $view: basic-model-rules
+      $build:
+        $copy: values.record
+    queries:
+      $each:
+        $view: basic-model-queries
       $build:
         $copy: values.record
 build:
@@ -251,7 +257,7 @@ rules:
               order:
                 - item: id
               screen: 参照の候補
-        - $each: dashboards
+        - $each: designQueries
           $of: model
           $bind: d
           $flatten: true
@@ -261,7 +267,7 @@ rules:
             $flatten: true
             $build:
               $each: views
-              $of: model
+              $of: d
               $bind: v
               $flatten: true
               $build:
@@ -1328,6 +1334,7 @@ rules:
     with:
       - row
       - rules
+      - queries
     build:
       $apply: model-with-rules
       $with:
@@ -1378,6 +1385,82 @@ rules:
                 priority: individual
                 source:
                   id: basic-rules
+              # 一覧の読み出しは、業務モデルのダッシュボードとビューではなく、基本設計の「一覧の検索条件」
+              # （design/basic/final/queries.yaml）から読む（ADR-0042）。区画ごとの読み出しを、区画 1 つ・ビュー 1 つの組として重ねる
+              - target: model
+                set:
+                  designQueries:
+                    $each: .
+                    $of: queries
+                    $build:
+                      id:
+                        $copy: dashboard
+                      sections:
+                        - id:
+                            $copy: section
+                          view:
+                            $copy: view
+                          filter:
+                            $copy: filter
+                      views:
+                        - id:
+                            $copy: view
+                          kind:
+                            $copy: kind
+                          rows:
+                            $copy: subject
+                          counts:
+                            $copy: counts
+                          match:
+                            $copy: match
+                          params:
+                            $copy: params
+                          where:
+                            $copy: where
+                          order:
+                            $copy: order
+                          columns:
+                            $first:
+                              - $when:
+                                  - path: kind
+                                    equals: matrix
+                                $then:
+                                  path:
+                                    $copy: axis.path
+                                  values:
+                                    $copy: axis.values
+                              - $each: columns
+                                $build:
+                                  label:
+                                    $copy: label
+                                  path:
+                                    $copy: path
+                                  computed:
+                                    $copy: computed
+                                  value:
+                                    $copy: value
+                                  field:
+                                    $first:
+                                      - $when:
+                                          - path: reference.many
+                                            equals: true
+                                        $then:
+                                          item:
+                                            target:
+                                              $copy: reference.subject
+                                            targetTitle:
+                                              $copy: reference.title
+                                      - $when:
+                                          - path: reference
+                                            exists: true
+                                        $then:
+                                          target:
+                                            $copy: reference.subject
+                                          targetTitle:
+                                            $copy: reference.title
+                priority: individual
+                source:
+                  id: basic-queries
   - id: model-with-rules
     with:
       - composed

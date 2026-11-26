@@ -1,0 +1,280 @@
+# 生成物（basic-queries）: 手で直さず、業務モデルか生成の定義（design/basic/basic-queries.yaml）を直して作り直します（CLI generate）。
+documentId: SYS-basic-queries
+queries:
+  - id: QRY-todo-dashboard.overdue
+    label: 期限超過
+    dashboard: todo-dashboard
+    section: overdue
+    group: 注意
+    view: todo-by-due
+    viewLabel: 期限順
+    kind: grid
+    subject: todo
+    entity: ENT-todo
+    params:
+      - tags
+      - category
+    match:
+      - node:
+          entity: todo
+          bind: t
+    where:
+      - of: t
+        path: tags
+        includesAny: $tags
+      - of: t
+        path: category
+        equals: $category
+    filter:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      where:
+        - of: t
+          path: status
+          oneOf:
+            - OPEN
+            - IN_PROGRESS
+        - of: t
+          path: due_on
+          exists: true
+      check:
+        - lt:
+            - of: t
+              in:
+                schemaId: todo-detail
+              path: due_on
+            - $today
+          type: date
+    order:
+      schemaId: todo-detail
+      path: due_on
+    columns:
+      - label: タイトル
+        path: title
+        item: FLD-todo.title
+      - label: ステータス
+        path: status
+        item: FLD-todo.status
+      - label: 期限
+        path: due_on
+        item: FLD-todo.due_on
+      - label: 完了日
+        path: completed_on
+        item: FLD-todo.completed_on
+  - id: QRY-todo-dashboard.all
+    label: すべてのTODO
+    dashboard: todo-dashboard
+    section: all
+    group: 全体
+    view: todo-management
+    viewLabel: TODO管理
+    kind: grid
+    subject: todo
+    entity: ENT-todo
+    params:
+      - tags
+      - category
+    match:
+      - node:
+          entity: todo
+          bind: t
+    where:
+      - of: t
+        path: tags
+        includesAny: $tags
+      - of: t
+        path: category
+        equals: $category
+    order:
+      fileGlob: todos/todo-list.yaml
+    columns:
+      - label: カテゴリ
+        path: category
+        item: FLD-todo.category
+        reference:
+          subject: category
+          entity: ENT-category
+          title: name
+      - label: ステータス
+        path: status
+        item: FLD-todo.status
+      - label: 作業
+        computed: true
+        value:
+          map:
+            format: '{done}/{all}'
+            with:
+              done:
+                count:
+                  all:
+                    match:
+                      - node:
+                          entity: todo
+                          bind: t
+                      - edge:
+                          contains: true
+                      - node:
+                          entity: todo-task
+                          bind: s
+                    where:
+                      - of: s
+                        path: done
+                        equals: true
+                    of: s
+              all:
+                count:
+                  path: tasks[*].id
+          using:
+            0/0: ''
+      - label: タグ
+        path: tags
+        item: FLD-todo.tags
+        reference:
+          subject: tag
+          entity: ENT-tag
+          title: name
+          many: true
+      - label: 期限
+        path: due_on
+        item: FLD-todo.due_on
+      - label: 概要
+        path: summary
+        item: FLD-todo.summary
+      - label: 作成日
+        path: created_on
+        item: FLD-todo.created_on
+      - label: 更新日
+        path: updated_on
+        item: FLD-todo.updated_on
+  - id: QRY-todo-dashboard.categories
+    label: カテゴリ別の状況
+    dashboard: todo-dashboard
+    section: categories
+    group: 全体
+    view: category-status-matrix
+    viewLabel: カテゴリ×ステータス
+    kind: matrix
+    subject: category
+    entity: ENT-category
+    match:
+      - node:
+          entity: category
+          bind: cat
+      - edge:
+          relation: in-category
+          dir: in
+      - node:
+          entity: todo
+          bind: t
+    order:
+      schemaId: category-list
+    counts: todo
+    countsEntity: ENT-todo
+    unclassified: false
+    axis:
+      path: status
+      values:
+        - value: OPEN
+          label: 未着手
+        - value: IN_PROGRESS
+          label: 対応中
+        - value: SUSPENDED
+          label: 中断
+        - value: CLOSED
+          label: 完了
+        - value: CANCELED
+          label: 中止
+  - id: QRY-todo-dashboard.tags
+    label: タグ別の状況
+    dashboard: todo-dashboard
+    section: tags
+    group: 全体
+    view: tag-status-matrix
+    viewLabel: タグ×ステータス
+    kind: matrix
+    subject: tag
+    entity: ENT-tag
+    match:
+      - node:
+          entity: tag
+          bind: tag
+      - edge:
+          relation: tagged
+          dir: in
+      - node:
+          entity: todo
+          bind: t
+    order:
+      schemaId: tag-list
+    counts: todo
+    countsEntity: ENT-todo
+    unclassified: false
+    axis:
+      path: status
+      values:
+        - value: OPEN
+          label: 未着手
+        - value: IN_PROGRESS
+          label: 対応中
+        - value: SUSPENDED
+          label: 中断
+        - value: CLOSED
+          label: 完了
+        - value: CANCELED
+          label: 中止
+  - id: QRY-todo-dashboard.categories-master
+    label: カテゴリ一覧
+    dashboard: todo-dashboard
+    section: categories-master
+    group: マスタ
+    view: category-management
+    viewLabel: カテゴリ一覧
+    kind: grid
+    subject: category
+    entity: ENT-category
+    match:
+      - node:
+          entity: category
+          bind: c
+    order:
+      schemaId: category-list
+    columns:
+      - label: カテゴリ名
+        path: name
+        item: FLD-category.name
+      - label: TODOの数
+        computed: true
+        value:
+          refCount:
+            of: c
+            dir: in
+            relation: in-category
+  - id: QRY-todo-dashboard.tags-master
+    label: タグ一覧
+    dashboard: todo-dashboard
+    section: tags-master
+    group: マスタ
+    view: tag-management
+    viewLabel: タグ一覧
+    kind: grid
+    subject: tag
+    entity: ENT-tag
+    match:
+      - node:
+          entity: tag
+          bind: g
+    order:
+      schemaId: tag-list
+    columns:
+      - label: タグ名
+        path: name
+        item: FLD-tag.name
+      - label: TODOの数
+        computed: true
+        value:
+          refCount:
+            of: g
+            dir: in
+            relation: tagged

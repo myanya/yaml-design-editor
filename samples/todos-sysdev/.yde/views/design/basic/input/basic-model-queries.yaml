@@ -1,0 +1,7 @@
+id: basic-model-queries
+name: 基本設計の生成入力（一覧の検索条件）
+description: 確定した一覧の検索条件の項目一覧を読む。詳細設計の生成は、業務モデルのダッシュボードとビューではなく、ここから読み出しを作る
+rows: { idPattern: "QRY-*", schemaIds: [basic-query-list] }
+order: { schemaId: basic-query-list }
+columns:
+  - { label: record, path: . }

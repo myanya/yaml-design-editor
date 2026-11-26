@@ -1,0 +1,22 @@
+id: query-definition
+name: 一覧の検索条件（一覧）
+description: 基本設計の「一覧の検索条件」の項目一覧を並べる。値は確定項目をそのまま読み、ビューでは計算しない
+rows: { idPattern: "QRY-*", schemaIds: [basic-query-list] }
+order: { schemaId: basic-query-list }
+columns:
+  - label: 区画
+    path: label
+  - label: 読み出しの形
+    path: kind
+  - label: 行のエンティティ
+    path: entity
+  - label: 受け取る値
+    value:
+      path: params[*]
+  - label: 列
+    value:
+      path: columns[*].label
+  - label: 数える相手
+    path: countsEntity
+  - label: 導出元のビュー
+    path: view

@@ -1,0 +1,151 @@
+id: basic-queries
+name: 基本設計項目一覧（一覧の検索条件）
+description: >-
+  業務モデルのダッシュボードの区画とビューから、抽象システムモデルの「一覧の検索条件」を項目の形で作る（ADR-0042）。
+  区画ごとに 1 つの読み出しとし、ビューの行の条件・並び・列と、区画の条件を 1 つにまとめる。エンティティと列の項目は ID で指す。
+  条件と計算の式は業務モデルのまま持ち、設計の判断は入れない。補正後の業務モデルを通さず、業務モデルを直接読む
+scope: business
+dependsOn:
+  - basic-entities
+output: design/basic/final/queries.yaml
+build:
+  $apply: document
+  $with:
+    views:
+      $copy: views
+rules:
+  - id: document
+    with:
+      - views
+    build:
+      documentId: SYS-basic-queries
+      queries:
+        $each: dashboards
+        $bind: d
+        $flatten: true
+        $build:
+          $each: sections
+          $bind: sec
+          $flatten: true
+          $build:
+            $each: .
+            $of: views
+            $bind: v
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: view
+                    $of: sec
+              $then:
+                id:
+                  $format: QRY-{d}.{s}
+                  $with:
+                    d:
+                      $copy: id
+                      $of: d
+                    s:
+                      $copy: id
+                      $of: sec
+                label:
+                  $copy: label
+                  $of: sec
+                dashboard:
+                  $copy: id
+                  $of: d
+                section:
+                  $copy: id
+                  $of: sec
+                group:
+                  $copy: group
+                  $of: sec
+                view:
+                  $copy: id
+                viewLabel:
+                  $copy: label
+                kind:
+                  $copy: kind
+                subject:
+                  $copy: rows
+                entity:
+                  $format: ENT-{rows}
+                params:
+                  $copy: params
+                match:
+                  $copy: match
+                where:
+                  $copy: where
+                filter:
+                  $copy: filter
+                  $of: sec
+                order:
+                  $copy: order
+                counts:
+                  $copy: counts
+                countsEntity:
+                  $when:
+                    - path: counts
+                      exists: true
+                  $then:
+                    $format: ENT-{counts}
+                unclassified:
+                  $copy: unclassified
+                axis:
+                  $when:
+                    - path: kind
+                      equals: matrix
+                  $then:
+                    path:
+                      $copy: columns.path
+                    values:
+                      $copy: columns.values
+                columns:
+                  $when:
+                    - path: kind
+                      notEquals: matrix
+                  $then:
+                    $each: columns
+                    $build:
+                      label:
+                        $copy: label
+                      path:
+                        $copy: path
+                      item:
+                        $when:
+                          - path: path
+                            exists: true
+                        $then:
+                          $format: FLD-{e}.{p}
+                          $with:
+                            e:
+                              $copy: rows
+                              $of: v
+                            p:
+                              $copy: path
+                      computed:
+                        $copy: computed
+                      value:
+                        $copy: value
+                      reference:
+                        $first:
+                          - $when:
+                              - path: field.target
+                                exists: true
+                            $then:
+                              subject:
+                                $copy: field.target
+                              entity:
+                                $format: ENT-{field.target}
+                              title:
+                                $copy: field.targetTitle
+                          - $when:
+                              - path: field.item.target
+                                exists: true
+                            $then:
+                              subject:
+                                $copy: field.item.target
+                              entity:
+                                $format: ENT-{field.item.target}
+                              title:
+                                $copy: field.item.targetTitle
+                              many: true
