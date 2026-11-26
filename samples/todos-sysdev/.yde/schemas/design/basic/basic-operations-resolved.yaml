@@ -1,0 +1,19 @@
+id: basic-operations-resolved
+name: 操作を解いた形（詳細設計の生成入力）
+kind: document
+description: >-
+  基本設計の「操作」の項目一覧を、詳細設計の導出が読む形に解いたもの。操作の項目が ID で指している先（エンティティ・項目・遷移と状態・データの決まり・入力）を、
+  指した先の値に置き換えてある。基本設計の項目だけから作る途中経過で、人が読むための文書ではない。生成物で、手で直さない。
+match: design/basic/composed/operations-resolved.yaml
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: actions
+      label: 操作
+      type: array
+      description: 業務モデルと同じ順に並べた操作。入力・前提・状態・効果・確かめる決まりを、読む側の形で持つ
+      item:
+        type: any

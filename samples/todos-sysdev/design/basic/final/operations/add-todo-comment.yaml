@@ -1,12 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-add-todo-comment
 source: add-todo-comment
+seq: '03'
 kind: action
 label: TODOにコメントを追加する
 description: TODOの個票へ、状態に関係なく日付と本文を記録します。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 inputs:
   - id: PRM-add-todo-comment.date
     key: date
@@ -30,6 +32,7 @@ inputs:
       required: true
       minLength: 1
       multiline: true
+preconditions: []
 effects:
   - id: EFF-add-todo-comment.01
     op: insert

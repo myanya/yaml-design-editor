@@ -1,6 +1,7 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-add-tag
 source: add-tag
+seq: '13'
 kind: action
 label: タグを追加する
 description: TODOに付けるタグを作ります。IDは一覧の追加規則で自動採番します。
@@ -21,6 +22,7 @@ inputs:
       pattern: ^[^\r\n]*$
       overrides:
         minLength: 1
+preconditions: []
 effects:
   - id: EFF-add-tag.01
     op: insert
@@ -42,5 +44,6 @@ effects:
       - key: name
         value: $name
         base: string
+checks: []
 writes:
   - CRUD-tag.add-tag.name

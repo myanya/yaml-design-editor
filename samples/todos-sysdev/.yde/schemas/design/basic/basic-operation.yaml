@@ -134,6 +134,10 @@ root:
       type: string
       required: true
       description: 業務モデルの操作の ID
+    - key: seq
+      label: 並び順
+      type: string
+      description: 業務モデルでの並び順。読む側が、操作を業務モデルと同じ順に並べるのに使う
     - key: kind
       label: 操作の種類
       type: enum

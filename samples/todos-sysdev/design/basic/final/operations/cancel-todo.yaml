@@ -1,12 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-cancel-todo
 source: cancel-todo
+seq: '12'
 kind: action
 label: TODOを中止する
 description: 未着手・対応中・中断の作業を中止し、理由を結果欄と状態の履歴に残します。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 lifecycle: LCY-todo-lifecycle
 transition: TRN-todo-lifecycle.cancel-todo
 refusal: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
@@ -23,6 +25,7 @@ inputs:
       required: true
       minLength: 1
       multiline: true
+preconditions: []
 effects:
   - id: EFF-cancel-todo.01
     op: set

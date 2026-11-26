@@ -1,12 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-edit-todo-comment
 source: edit-todo-comment
+seq: '04'
 kind: action
 label: コメントを編集する
 description: TODOの個票のコメント 1 件の、記録日と本文を直します。変更した項目だけを更新します。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 submit: changed
 row:
   param: PRM-edit-todo-comment.row
@@ -50,6 +52,7 @@ inputs:
       $of: self
       $in:
         schemaId: todo-detail
+preconditions: []
 effects:
   - id: EFF-edit-todo-comment.01
     op: set

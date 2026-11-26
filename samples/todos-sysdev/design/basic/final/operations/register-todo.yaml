@@ -1,6 +1,7 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-register-todo
 source: register-todo
+seq: '02'
 kind: action
 label: TODOを登録する
 description: 一覧と未着手の個票を一度に作成します。TODO番号は、使われている番号の次を自動で振ります。状態（未着手）と状態の履歴の最初の行は、状態の流れ（todo-lifecycle）の入口から入ります。
@@ -98,6 +99,7 @@ inputs:
       type: TYP-common.文章
       base: string
       multiline: true
+preconditions: []
 effects:
   - id: EFF-register-todo.01
     op: create

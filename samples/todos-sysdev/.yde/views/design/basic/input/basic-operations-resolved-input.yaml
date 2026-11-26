@@ -1,0 +1,11 @@
+id: basic-operations-resolved-input
+name: 基本設計の生成入力（操作を解いた形）
+description: 操作の項目一覧を解いたものを読む。詳細設計の生成は、業務モデルの操作ではなくここから読む
+rows:
+  idPattern: SYS-basic-operations-resolved
+  schemaIds:
+    - basic-operations-resolved
+columns:
+  - label: actions
+    path: actions
+    schemaId: basic-operations-resolved

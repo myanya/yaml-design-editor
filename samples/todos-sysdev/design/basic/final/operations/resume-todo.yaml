@@ -1,12 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-resume-todo
 source: resume-todo
+seq: '10'
 kind: action
 label: TODOを再開する
 description: 中断した作業を対応中に戻します。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 lifecycle: LCY-todo-lifecycle
 transition: TRN-todo-lifecycle.resume-todo
 refusal: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
@@ -34,6 +36,7 @@ inputs:
       type: TYP-common.文章
       base: string
       multiline: true
+preconditions: []
 effects:
   - id: EFF-resume-todo.01
     op: set

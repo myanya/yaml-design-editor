@@ -16,6 +16,10 @@ build:
     $format: ACT-{id}
   source:
     $copy: id
+  # 業務モデルでの並び順（読む側が、操作を業務モデルと同じ順に並べるのに使う）
+  seq:
+    $number: $position
+    $as: '00'
   kind:
     $copy: kind
   label:
@@ -35,16 +39,12 @@ build:
       $format: ENT-{target.entity}
   # 新しく作る要素
   creates:
-    $when:
-      - path: creates
-        empty: false
-    $then:
-      $each: creates
-      $build:
-        $format: ENT-{e}
-        $with:
-          e:
-            $copy: .
+    $each: creates
+    $build:
+      $format: ENT-{e}
+      $with:
+        e:
+          $copy: .
   # 状態と遷移（states.yaml の項目を指す。状態の名称と値は写さない）
   lifecycle:
     $when:
@@ -93,33 +93,25 @@ build:
             item:
               $format: FLD-{entity}.{field.key}
   inputs:
-    $when:
-      - path: params
-        empty: false
-    $then:
-      $each: params
-      $apply: input
+    $each: params
+    $apply: input
   preconditions:
-    $when:
-      - path: require
-        empty: false
-    $then:
-      $each: require
-      $build:
-        id:
-          $format: PRE-{a}.{p}
-          $with:
-            a:
-              $copy: id
-              $of: element
-            p:
-              $copy: id
-        source:
-          $copy: id
-        message:
-          $copy: message
-        rule:
-          $copy: rule
+    $each: require
+    $build:
+      id:
+        $format: PRE-{a}.{p}
+        $with:
+          a:
+            $copy: id
+            $of: element
+          p:
+            $copy: id
+      source:
+        $copy: id
+      message:
+        $copy: message
+      rule:
+        $copy: rule
   effects:
     $each: effects
     $build:
@@ -221,32 +213,28 @@ build:
               $copy: item
   # この操作で確かめるデータの決まり（決まりの形・厳しさ・条件は rules.yaml を指す）
   checks:
-    $when:
-      - path: checks
-        empty: false
-    $then:
-      $each: checks
-      $build:
-        rule:
-          $format: RUL-{constraint}
-        items:
-          $copy: items
-        multiple:
-          $copy: multiple
-        params:
-          $when:
-            - path: params
-              exists: true
-          $then:
-            $each: params
-            $build:
-              $format: PRM-{a}.{p}
-              $with:
-                a:
-                  $copy: id
-                  $of: element
-                p:
-                  $copy: .
+    $each: checks
+    $build:
+      rule:
+        $format: RUL-{constraint}
+      items:
+        $copy: items
+      multiple:
+        $copy: multiple
+      params:
+        $when:
+          - path: params
+            exists: true
+        $then:
+          $each: params
+          $build:
+            $format: PRM-{a}.{p}
+            $with:
+              a:
+                $copy: id
+                $of: element
+              p:
+                $copy: .
   provides:
     $copy: provides
   # エンティティから見た書込（entities.yaml の CRUD の項目）

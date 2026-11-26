@@ -6,10 +6,11 @@ description: >-
   の配列＝rows・真偽値＝checkbox）・検査は 必須＝NotNull・文字数＝Size・形式＝Pattern・重なり不可＝UniqueElements・ 空の欄は未入力（null。前後の空白は落とさない）・値を消すは、効果の「when:
   clear.項目」から、その項目の欄の横にチェック・ 変わった項目だけを送る操作は、確認画面に変わる項目だけを「今の値 → 新しい値」で出す（今の値は DB から）・物理パラメータは既定の表から
 scope: business
-each: actions
+each: designActions
 output: design/detail/derived/documents/screen-designs-operations/{id}.yaml
 dependsOn:
   - system-actions-model
+  - basic-operations-resolved
   - messages
   - screen-operations
   - screen-styles
@@ -25,6 +26,9 @@ input:
       $with:
         row:
           $view: system-actions-model-input
+          $one: true
+        operations:
+          $view: basic-operations-resolved-input
           $one: true
     documents:
       $each:
@@ -658,12 +662,39 @@ rules:
           $case:
             $copy: key
           $as: pascal
+  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）を designActions として重ねて読む
   - id: model-input
     with:
       - row
+      - operations
     build:
-      $copy: values.model
-      $of: row
+      $apply: model-with-operations
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-actions-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  designActions:
+                    $copy: values.actions
+                    $of: operations
+                priority: individual
+                source:
+                  id: basic-operations
+  - id: model-with-operations
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
   - id: linked-document
     with:
       - document
@@ -850,8 +881,8 @@ rules:
             changes:
               - target: record
                 set:
-                  actions:
-                    $each: actions
+                  designActions:
+                    $each: designActions
                     $of: original
                     $bind: item
                     $build:

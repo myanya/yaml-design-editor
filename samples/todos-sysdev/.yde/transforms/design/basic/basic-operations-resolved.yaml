@@ -1,0 +1,658 @@
+id: basic-operations-resolved
+name: 操作を解いた形（詳細設計の生成入力）
+description: >-
+  基本設計の「操作」の項目一覧（design/basic/final/operations/）を、詳細設計の導出が読む形に解く（ADR-0042）。
+  操作の項目が ID で指しているもの（エンティティ・項目・遷移と状態・データの決まり・入力）を、指した先の値に置き換えて 1 つの並びにする。
+  入力は基本設計の項目だけで、業務モデルを読まない。同じ解き方を、読む側の定義それぞれに書かないための途中経過で、
+  詳細設計が項目を直接読むようになったら（移行計画の段階 4）なくす
+scope: business
+output: design/basic/composed/operations-resolved.yaml
+dependsOn:
+  - basic-operations
+  - basic-entities
+  - basic-states
+  - basic-rules
+input:
+  operations:
+    $each:
+      $view: basic-model-operations
+    $build:
+      $copy: values.record
+  entities:
+    $each:
+      $view: basic-model-entities
+    $build:
+      $copy: values.record
+  lifecycles:
+    $each:
+      $view: basic-model-states
+    $build:
+      $copy: values.record
+  rules:
+    $each:
+      $view: basic-model-rules
+    $build:
+      $copy: values.record
+build:
+  id: SYS-basic-operations-resolved
+  actions:
+    $each: operations
+    $bind: op
+    $build:
+      id:
+        $copy: source
+      kind:
+        $copy: kind
+      label:
+        $copy: label
+      description:
+        $copy: description
+      subject:
+        $copy: subject
+      target:
+        $when:
+          - path: receiver
+            exists: true
+        $then:
+          entity:
+            $apply: entity-source
+            $with:
+              ref:
+                $copy: receiver
+      creates:
+        $each: creates
+        $build:
+          $apply: entity-source
+          $with:
+            ref:
+              $copy: .
+      params:
+        $each: inputs
+        $apply: keyed
+      # 人が入れる入力: 並びの番号（行が運ぶ値）を除いたもの
+      inputParams:
+        $first:
+          - $when:
+              - path: row.param
+                exists: true
+            $then:
+              $each: inputs
+              $build:
+                $when:
+                  - not:
+                      path: id
+                      equals:
+                        $copy: row.param
+                        $of: op
+                $then:
+                  $apply: keyed
+          - $each: inputs
+            $apply: keyed
+      # 並びの 1 件を番号で指す操作: 並びの項目と、番号を受け取る入力
+      rowOf:
+        $when:
+          - path: row
+            exists: true
+        $then:
+          $apply: row-of
+          $with:
+            field:
+              $apply: field-record
+              $with:
+                ref:
+                  $copy: row.item
+            param:
+              $apply: input-key
+              $with:
+                ref:
+                  $copy: row.param
+                inputs:
+                  $copy: inputs
+      input:
+        submit:
+          $copy: submit
+      require:
+        $each: preconditions
+        $build:
+          id:
+            $copy: source
+          message:
+            $copy: message
+          rule:
+            $copy: rule
+      lifecycle:
+        $when:
+          - path: lifecycle
+            exists: true
+        $then:
+          id:
+            $apply: lifecycle-source
+            $with:
+              ref:
+                $copy: lifecycle
+          entry:
+            $when:
+              - path: entry
+                exists: true
+            $then:
+              - $apply: state-of
+                $with:
+                  ref:
+                    $apply: entry-to
+                    $with:
+                      ref:
+                        $copy: entry
+          transitions:
+            $when:
+              - path: transition
+                exists: true
+            $then:
+              - $apply: transition
+                $with:
+                  record:
+                    $apply: transition-record
+                    $with:
+                      ref:
+                        $copy: transition
+          refusal:
+            $copy: refusal
+          history:
+            $copy: history
+      effects:
+        $each: effects
+        $build:
+          op:
+            $copy: op
+          source:
+            $copy: cause
+          auto:
+            $copy: auto
+          'on':
+            $copy: 'on'
+          of:
+            $copy: of
+          within:
+            $copy: within
+          bind:
+            $copy: bind
+          entity:
+            $copy: subject
+          schema:
+            $copy: schema
+          path:
+            $copy: path
+          field:
+            $first:
+              - $when:
+                  - path: item
+                    exists: true
+                $then:
+                  $apply: effect-field
+                  $with:
+                    field:
+                      $apply: field-record
+                      $with:
+                        ref:
+                          $copy: item
+              - $when:
+                  - path: collection
+                    exists: true
+                $then:
+                  key:
+                    $copy: collection.key
+                  base: array
+                  item:
+                    base: object
+                    entity:
+                      $apply: entity-source
+                      $with:
+                        ref:
+                          $copy: collection.element
+          row:
+            $when:
+              - path: row
+                exists: true
+            $then:
+              param:
+                $apply: input-key
+                $with:
+                  ref:
+                    $copy: row
+                  inputs:
+                    $copy: inputs
+                    $of: op
+          when:
+            $copy: when
+          value:
+            $copy: value
+          values:
+            $copy: values
+          params:
+            $copy: params
+          id:
+            $copy: identifier
+          numbering:
+            $copy: numbering
+          written:
+            $copy: written
+      checks:
+        $each: checks
+        $build:
+          $apply: check
+          $with:
+            rule:
+              $apply: rule-record
+              $with:
+                ref:
+                  $copy: rule
+            items:
+              $copy: items
+            multiple:
+              $copy: multiple
+            params:
+              $when:
+                - path: params
+                  exists: true
+              $then:
+                $each: params
+                $build:
+                  $apply: input-key
+                  $with:
+                    ref:
+                      $copy: .
+                    inputs:
+                      $copy: inputs
+                      $of: op
+      provides:
+        $copy: provides
+rules:
+  # 入力・まとまりの項目（キーと名称に、値の定義を平らに重ねる）
+  - id: keyed
+    build:
+      key:
+        $copy: key
+      label:
+        $copy: label
+      base:
+        $copy: definition.base
+      description:
+        $copy: definition.description
+      required:
+        $copy: definition.required
+      default:
+        $copy: definition.default
+      clearedBy:
+        $copy: definition.clearedBy
+      minLength:
+        $copy: definition.minLength
+      maxLength:
+        $copy: definition.maxLength
+      min:
+        $copy: definition.min
+      max:
+        $copy: definition.max
+      pattern:
+        $copy: definition.pattern
+      format:
+        $copy: definition.format
+      multiline:
+        $copy: definition.multiline
+      unique:
+        $copy: definition.unique
+      values:
+        $copy: definition.values
+      target:
+        $copy: definition.reference.subject
+      targetTitle:
+        $copy: definition.reference.title
+      targetLabel:
+        $copy: definition.reference.label
+      item:
+        $when:
+          - path: definition.item
+            exists: true
+        $then:
+          $apply: bare
+          $at: definition.item
+      fields:
+        $when:
+          - path: definition.fields
+            exists: true
+        $then:
+          $each: definition.fields
+          $apply: keyed
+  # 並びの要素の値の定義
+  - id: bare
+    build:
+      base:
+        $copy: base
+      description:
+        $copy: description
+      required:
+        $copy: required
+      minLength:
+        $copy: minLength
+      maxLength:
+        $copy: maxLength
+      min:
+        $copy: min
+      max:
+        $copy: max
+      pattern:
+        $copy: pattern
+      format:
+        $copy: format
+      multiline:
+        $copy: multiline
+      unique:
+        $copy: unique
+      values:
+        $copy: values
+      target:
+        $copy: reference.subject
+      targetTitle:
+        $copy: reference.title
+      targetLabel:
+        $copy: reference.label
+      item:
+        $when:
+          - path: item
+            exists: true
+        $then:
+          $apply: bare
+          $at: item
+      fields:
+        $when:
+          - path: fields
+            exists: true
+        $then:
+          $each: fields
+          $apply: keyed
+  # 並びの行の指定: 並びの項目（エンティティの項目）から、キー・名称・要素の項目を引く
+  - id: row-of
+    with:
+      - field
+      - param
+    build:
+      field:
+        $copy: key
+        $of: field
+      param:
+        $copy: .
+        $of: param
+      entity:
+        $apply: entity-source
+        $with:
+          ref:
+            $copy: owner
+            $of: field
+      label:
+        $copy: label
+        $of: field
+      fields:
+        $each: item.fields
+        $of: field
+        $build:
+          key:
+            $copy: key
+          label:
+            $copy: label
+          base:
+            $copy: base
+          required:
+            $copy: required
+          format:
+            $copy: format
+          multiline:
+            $copy: multiline
+          values:
+            $copy: values
+          item:
+            $when:
+              - path: item
+                exists: true
+            $then:
+              base:
+                $copy: item.base
+              format:
+                $copy: item.format
+  # 効果が書く項目: キー・基底の種類・並びの要素
+  - id: effect-field
+    with:
+      - field
+    build:
+      key:
+        $copy: key
+        $of: field
+      base:
+        $copy: base
+        $of: field
+      item:
+        $when:
+          - of: field
+            path: item
+            exists: true
+        $then:
+          base:
+            $copy: item.base
+            $of: field
+          entity:
+            $when:
+              - of: field
+                path: item.entity
+                exists: true
+            $then:
+              $apply: entity-source
+              $with:
+                ref:
+                  $copy: item.entity
+                  $of: field
+  # 確かめるデータの決まり: 形・種類・厳しさは、指した決まりから引く
+  - id: check
+    with:
+      - rule
+      - items
+      - multiple
+      - params
+    build:
+      constraint:
+        $copy: source
+        $of: rule
+      form:
+        $copy: form
+        $of: rule
+      kind:
+        $copy: kind
+        $of: rule
+      level:
+        $copy: level
+        $of: rule
+      items:
+        $copy: .
+        $of: items
+      multiple:
+        $copy: .
+        $of: multiple
+      params:
+        $copy: .
+        $of: params
+  # 遷移: 前の状態と後の状態を、指した状態から引く
+  - id: transition
+    with:
+      - record
+    build:
+      from:
+        $each: from
+        $of: record
+        $build:
+          $apply: state-of
+          $with:
+            ref:
+              $copy: .
+      to:
+        $apply: state-of
+        $with:
+          ref:
+            $copy: to
+            $of: record
+  # ここから下は、ID から項目を引く規則
+  - id: entity-source
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: entities
+          $of: model
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: source
+  - id: field-record
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: entities
+          $of: model
+          $flatten: true
+          $build:
+            $each: items
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                $copy: .
+  - id: input-key
+    with:
+      - ref
+      - inputs
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: inputs
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: key
+  - id: rule-record
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: rules
+          $of: model
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: .
+  - id: lifecycle-source
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: lifecycles
+          $of: model
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: source
+  - id: transition-record
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: lifecycles
+          $of: model
+          $flatten: true
+          $build:
+            $each: transitions
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                $copy: .
+  - id: entry-to
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: lifecycles
+          $of: model
+          $flatten: true
+          $build:
+            $each: entries
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                $copy: to
+  - id: state-of
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: lifecycles
+          $of: model
+          $flatten: true
+          $build:
+            $each: states
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                id:
+                  $copy: source
+                label:
+                  $copy: label
+                value:
+                  $copy: value
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items

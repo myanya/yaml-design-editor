@@ -10,6 +10,7 @@ each: entities
 output: design/detail/derived/documents/table-access/{id}.yaml
 dependsOn:
   - system-actions-model
+  - basic-operations-resolved
   - basic-rules
   - basic-queries
   - detail-tables
@@ -19,6 +20,9 @@ input:
   $with:
     row:
       $view: system-actions-model-input
+      $one: true
+    operations:
+      $view: basic-operations-resolved-input
       $one: true
     rules:
       $each:
@@ -475,7 +479,7 @@ rules:
                                 $copy: id
                                 $of: sec
                               $as: pascal
-        - $each: actions
+        - $each: designActions
           $of: model
           $build:
             $when:
@@ -495,7 +499,7 @@ rules:
                 param: id
             operation:
               $copy: id
-        - $each: actions
+        - $each: designActions
           $of: model
           $flatten: true
           $build:
@@ -591,7 +595,7 @@ rules:
                           param: id
                       operation:
                         $copy: id
-        - $each: actions
+        - $each: designActions
           $of: model
           $bind: a
           $flatten: true
@@ -948,7 +952,7 @@ rules:
                       operation:
                         $copy: id
                         $of: a
-        - $each: actions
+        - $each: designActions
           $of: model
           $bind: a
           $flatten: true
@@ -1021,7 +1025,7 @@ rules:
               operation:
                 $copy: id
                 $of: a
-        - $each: actions
+        - $each: designActions
           $of: model
           $bind: a
           $flatten: true
@@ -1333,6 +1337,7 @@ rules:
   - id: model-input
     with:
       - row
+      - operations
       - rules
       - queries
     build:
@@ -1351,6 +1356,10 @@ rules:
             changes:
               - target: model
                 set:
+                  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）
+                  designActions:
+                    $copy: values.actions
+                    $of: operations
                   designRules:
                     $each: .
                     $of: rules

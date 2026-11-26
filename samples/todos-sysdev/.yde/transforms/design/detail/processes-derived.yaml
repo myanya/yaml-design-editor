@@ -8,10 +8,11 @@ description: >-
   入れ子の要素の決まりは書いた後に同じトランザクションで件数を数えて確かめる（違反なら例外で書いたものを取り消す）。断るのはエラーの決まりだけ・ 受け取る値が原因で破れうる Java の決まりは、確認へでも確かめる（confirm
   のメソッド。書かない）。 型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない。断りの文はメッセージのキー（メッセージ定義書）で書く
 scope: business
-each: actions
+each: designActions
 output: design/detail/derived/documents/processes/{id}.yaml
 dependsOn:
   - system-actions-model
+  - basic-operations-resolved
   - basic-rules
   - system-access-bindings
   - messages
@@ -22,6 +23,9 @@ input:
   $with:
     row:
       $view: system-actions-model-input
+      $one: true
+    operations:
+      $view: basic-operations-resolved-input
       $one: true
     rules:
       $each:
@@ -1287,6 +1291,7 @@ rules:
   - id: model-input
     with:
       - row
+      - operations
       - rules
     build:
       $apply: model-with-rules
@@ -1304,6 +1309,10 @@ rules:
             changes:
               - target: model
                 set:
+                  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）
+                  designActions:
+                    $copy: values.actions
+                    $of: operations
                   designRules:
                     $each: .
                     $of: rules

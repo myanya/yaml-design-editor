@@ -492,7 +492,15 @@ class TodosSysdevTest {
         val lineage = Generators.lineage(WorkspaceSession(FileSystemDocumentStore(root))).associateBy { it["id"] }
         fun concepts(id: String) = lineage[id]?.get("concepts") as List<*>
         // データの決まりは、業務モデル（constraints）ではなく、基本設計の「データの決まり」（designRules）から読む（ADR-0042）
-        assertTrue(listOf("actions.effects", "actions.checks", "actions.require", "designRules.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
+        // 操作は、業務モデル（actions）ではなく、基本設計の「操作」の項目一覧を解いたもの（designActions）から読む
+        assertTrue(listOf("designActions.effects", "designActions.checks", "designActions.require", "designRules.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
+        assertTrue(concepts("processes-derived").all { it.toString().startsWith("designActions") || it.toString().startsWith("designRules") }, "処理設計書の導出は、基本設計の項目だけを読む: ${concepts("processes-derived")}")
+        listOf("error-handling", "processes", "screen-designs-details", "screen-designs-lists", "screen-designs-operations", "screen-flows", "session-design", "table-access").forEach { id ->
+            assertTrue(concepts("$id-derived").none { it.toString().startsWith("actions") }, "$id の導出は、業務モデルの操作を直接読まない: ${concepts("$id-derived")}")
+            assertTrue(concepts("$id-derived").any { it.toString().startsWith("designActions") }, "$id の導出は、操作を基本設計の項目から読む: ${concepts("$id-derived")}")
+        }
+        // 操作を解いた形は、基本設計の項目（操作・エンティティ・状態と遷移・データの決まり）だけから作る
+        assertTrue(concepts("basic-operations-resolved").all { c -> listOf("operations", "entities", "lifecycles", "rules").any { c.toString() == it || c.toString().startsWith("$it.") } }, "操作を解いた形: ${concepts("basic-operations-resolved")}")
         assertTrue(concepts("processes-derived").none { it.toString().startsWith("constraints") }, "処理設計書の導出は、業務モデルのデータの決まりを直接読まない: ${concepts("processes-derived")}")
         assertTrue(concepts("table-access-derived").none { it.toString().startsWith("constraints") }, "テーブルアクセス設計書の導出も同じ: ${concepts("table-access-derived")}")
         // 一覧の読み出しは、業務モデルのダッシュボードとビューではなく、基本設計の「一覧の検索条件」（designQueries）から読む
@@ -505,7 +513,7 @@ class TodosSysdevTest {
         assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "basic-entities" }.dependsOn.contains("basic-final"))
         assertEquals(null, lineage["processes"]?.get("stage"))
         assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "processes" }.dependsOn.contains("processes-derived"))
-        assertTrue((lineage["processes-derived"]?.get("reads") as List<*>).contains("actions[*].effects[*].field.key"))
+        assertTrue((lineage["processes-derived"]?.get("reads") as List<*>).contains("designActions[*].effects[*].field.key"))
     }
 
     @Test

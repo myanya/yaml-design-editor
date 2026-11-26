@@ -1,15 +1,19 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-start-todo
 source: start-todo
+seq: '08'
 kind: action
 label: TODOに着手する
 description: 未着手の作業を対応中にします。追加の入力はありません。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 lifecycle: LCY-todo-lifecycle
 transition: TRN-todo-lifecycle.start-todo
 refusal: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+inputs: []
+preconditions: []
 effects:
   - id: EFF-start-todo.01
     op: set

@@ -1,12 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-complete-todo
 source: complete-todo
+seq: '11'
 kind: action
 label: TODOを完了する
 description: 対応中の作業を完了にし、完了日と成果を記録します。済んでいない作業項目があるうちは完了できません。完了したTODOは戻せません（追加の作業は、元のTODOを選んで新しく登録します）。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 lifecycle: LCY-todo-lifecycle
 transition: TRN-todo-lifecycle.complete-todo
 refusal: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）

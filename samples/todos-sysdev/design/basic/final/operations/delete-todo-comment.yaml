@@ -1,12 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-delete-todo-comment
 source: delete-todo-comment
+seq: '05'
 kind: action
 label: コメントを削除する
 description: TODOの個票のコメント 1 件を消します。ほかのコメントは変えません。
 subject: todo
 entity: ENT-todo
 receiver: ENT-todo
+creates: []
 row:
   param: PRM-delete-todo-comment.row
   item: FLD-todo.comments
@@ -22,6 +24,7 @@ inputs:
       min: 0.0
       overrides:
         min: 0.0
+preconditions: []
 effects:
   - id: EFF-delete-todo-comment.01
     op: delete

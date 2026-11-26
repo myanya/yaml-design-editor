@@ -7,12 +7,16 @@ scope: business
 output: design/detail/derived/documents/session-design/session-design.yaml
 dependsOn:
   - system-actions-model
+  - basic-operations-resolved
   - detail-document-input-gate
 input:
   $apply: model-input
   $with:
     row:
       $view: system-actions-model-input
+      $one: true
+    operations:
+      $view: basic-operations-resolved-input
       $one: true
 build:
   id:
@@ -39,7 +43,7 @@ build:
           contents: 二重確定を防ぐトークン（流れの ID → トークン。流れの ID は確認画面の hidden 項目で持つので、タブごとに別）
           purpose: セキュリティ（同じ確定を 2 回通さない・確認画面を経ない確定を断る）
           puts:
-            $each: actions
+            $each: designActions
             $of: model
             $build:
               $when:
@@ -59,7 +63,7 @@ build:
                       $copy: id
                     $as: camel
           reads:
-            $each: actions
+            $each: designActions
             $of: model
             $build:
               $when:
@@ -85,7 +89,7 @@ build:
           purpose: 利便（確定の後のリダイレクト（PRG）の先で 1 回だけ出す）
           puts:
             $concat:
-              - $each: actions
+              - $each: designActions
                 $of: model
                 $build:
                   $when:
@@ -138,9 +142,36 @@ build:
       id: rule-session-design
       document: .yde/transforms/design/detail/session-design-derived.yaml
 rules:
+  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）を designActions として重ねて読む
   - id: model-input
     with:
       - row
+      - operations
     build:
-      $copy: values.model
-      $of: row
+      $apply: model-with-operations
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-actions-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  designActions:
+                    $copy: values.actions
+                    $of: operations
+                priority: individual
+                source:
+                  id: basic-operations
+  - id: model-with-operations
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed

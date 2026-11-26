@@ -1,11 +1,14 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-todo-task.finish
 source: todo-task.finish
+seq: '14'
 kind: method
 label: 作業項目を済にする
 subject: todo-task
 entity: ENT-todo-task
 receiver: ENT-todo-task
+creates: []
+inputs: []
 effects:
   - id: EFF-todo-task.finish.01
     op: set

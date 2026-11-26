@@ -9,6 +9,7 @@ scope: business
 output: design/detail/derived/documents/error-handling/error-handling.yaml
 dependsOn:
   - system-actions-model
+  - basic-operations-resolved
   - errors
   - messages
   - session-design
@@ -19,6 +20,9 @@ input:
   $with:
     row:
       $view: system-actions-model-input
+      $one: true
+    operations:
+      $view: basic-operations-resolved-input
       $one: true
 build:
   id:
@@ -91,7 +95,7 @@ build:
             $apply: error-refusals
             $with:
               rows:
-                $each: actions
+                $each: designActions
                 $of: model
                 $bind: a
                 $build:
@@ -239,12 +243,39 @@ build:
       id: rule-error-handling
       document: .yde/transforms/design/detail/error-handling-derived.yaml
 rules:
+  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）を designActions として重ねて読む
   - id: model-input
     with:
       - row
+      - operations
     build:
-      $copy: values.model
-      $of: row
+      $apply: model-with-operations
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id: model
+                value:
+                  $copy: values.model
+                  $of: row
+                source:
+                  id: system-actions-model
+            additions: []
+            changes:
+              - target: model
+                set:
+                  designActions:
+                    $copy: values.actions
+                    $of: operations
+                priority: individual
+                source:
+                  id: basic-operations
+  - id: model-with-operations
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed
   - id: linked-document
     with:
       - document

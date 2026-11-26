@@ -2,7 +2,7 @@ id: operation-definition
 name: 操作（一覧）
 description: 基本設計の「操作」の項目一覧を並べる。値は確定項目をそのまま読み、ビューでは計算しない。対象・受け手・遷移は、同じ段の項目への参照
 rows: { idPattern: "ACT-*", schemaIds: [basic-operation] }
-order: { schemaId: basic-operation }
+order: { path: seq }
 columns:
   - label: 操作
     path: source
