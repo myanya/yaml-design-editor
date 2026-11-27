@@ -17,7 +17,7 @@
 - `app/` は独立した Gradle プロジェクトです。YDE 本体の settings に登録しません。生成方法・固定資源・検証は `docs/application-generation.md` に従います。生成済みファイルは `scripts/generate-app.ps1` から更新し、記録や競合検査を迂回して上書きしません。
 - アプリの型・操作・画面が変わる変更（業務モデル・生成の定義・ひな形）では、`verification/` の検証テストも合わせて直し、`scripts/verify-app.ps1`（PowerShell が無ければ `scripts/verify-app.sh`）を手元で通します。この検証は `./gradlew test` に入れていません（毎回の待ちが長くなり開発が滞るので、意図して外に出しています。オーナーの判断 2026-11-24）。GitHub Actions の `todos-application` が push ごとに回すので、そこで失敗が見つかったら、そのとき直します。
 - `app/data/` は実行時の保存データで、生成記録にも Git にも入れません。Java パッケージの `data/` は生成ソースとして登録します。コミット前は `scripts/export-app-index.ps1` で Git の登録内容を取り出し、その内容で再生成と独立ビルドを確認します。
-- 画面入力を `screen-operation-candidates` で先に確定し、その同じ入力から Form とメッセージを生成します。表示文を埋める処理で入力を再合成しません。
+- 画面の入力は、操作の入力（`PRM-`）が持ちます。画面を解いた形（`basic-screens-resolved`）の入力から、Form とメッセージを生成します（画面だけの入力の決まりは持ちません）。
 - 詳細設計の台帳・型対応・補正は `detail-tables` で合成して保存します。ビューへ補正の適用を戻さず、DDL と Mapper は同じ物理名を読みます。
 - 詳細設計項目一覧（`design/detail/final/tables.yaml`）には、詳細設計にだけ出てくるものだけを持たせます（基本設計の値は導出元をたどって読む）。SQL の型は型対応表（`design/detail/inputs/tables/sql-types.yaml`。人が書く）で決め、DDL はレポート `ddl` で作り直します（`TodosSysdevTest` が `design/detail/reports/ddl/schema.sql` が最新かを確かめます）。
 - 業務モデルを読む生成には `scope: business` を書きます。確定前の検査は保存スキーマの原文を得るため `scope: design` を使い、業務の値は依存出力から読みます。設計の型は設計のスコープに置き、業務モデルから設計は使いません。

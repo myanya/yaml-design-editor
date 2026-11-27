@@ -1,0 +1,14 @@
+id: UX-383
+title: todos-sysdev で、操作を起点にした設計の対応の検査が、CLI の validate に指摘を出さない
+status: todo
+kind: bug
+origin_on: 2026-11-27
+origin: 画面を項目の形にした後の振り返りで、生成物を消したときに対応の検査が指摘するかを確かめたとき
+memo: |-
+  samples/todos-sysdev の対応の検査（.yde/schemas/design/common/coverage.yaml）のうち、操作（yde-action）を起点にした決まりが、CLI の validate の結果に出ない。
+  作業用コピーで design/detail/final/processes/complete-todo.yaml を消して validate を実行しても、action-has-process（level は error。「操作「complete-todo」に処理設計書がありません」）は出ず、出るのは別の文書の参照切れだけだった。操作の画面の項目を消したときの action-has-screen（warning）も出ない。
+  ダッシュボードを起点にした dashboard-has-screens は、一覧画面の項目を消すと出る（指摘の場所は business/todo-dashboard.yaml）。
+  照合そのものは働いている。同じ照合を使うビュー「操作の設計の対応」（action-trace）では、消した操作の数が 0 になる。
+  画面を項目の形にする前（コミット 6297ba7）でも同じだったので、その作業で起きたものではない。
+  サンプルの README「試し方」の 4 は、validate がこの指摘を出すと書いている。この検査が指摘することを確かめるテストは無い。
+  当たり: 操作の定義の場所（.yde/schemas/business/operations.yaml の中の操作）に付いた指摘が、validate の結果に載っているか。載らないなら、載せるか、指摘の場所を変える。あわせて、消したら指摘が出ることを確かめるテストを足す。
