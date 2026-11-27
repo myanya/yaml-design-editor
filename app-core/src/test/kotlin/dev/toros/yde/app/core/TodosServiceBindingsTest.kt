@@ -48,20 +48,15 @@ class TodosServiceBindingsTest {
     }
 
     @Test
-    fun `状態の補正と物理名と呼出名の補正がServiceの本体まで届く`() {
+    fun `物理名と呼出名の補正がServiceの本体まで届き 状態は状態の型の項目から読む`() {
         val input = store()
         put(input, "design/detail/inputs/tables/corrections.yaml", raw("""
             corrections:
               - {id: DCOR-service-title, target: COL-todo.title, set: {name: subject}, reason: 検証}
         """.trimIndent()))
-        val status = document("design/detail/final/status/todo-lifecycle.yaml")
-        val transitions = rows(status, "transitions").map { transition ->
-            transition.toMutableMap().also { if (it["action"] == "start-todo") it["from"] = listOf("OPEN", "SUSPENDED") }
-        }
+        // 状態の遷移（どの状態のときに操作できるか）は、詳細設計では変えられない（業務の事実。基本設計の「状態と遷移」から運ぶ）
         put(input, "design/detail/inputs/documents/corrections.yaml", mapOf(
             "inputId" to "INPUT-detail-document-corrections", "corrections" to listOf(
-                mapOf("id" to "SCOR-state", "kind" to "status-rules", "target" to "DOC-status-rules.todo-lifecycle",
-                    "set" to mapOf("transitions" to transitions), "reason" to "検証"),
                 mapOf("id" to "SCOR-store", "kind" to "table-access", "target" to "DOC-table-access.todo",
                     "set" to mapOf("mapper" to "TodoStore"), "reason" to "検証"),
             )))
@@ -74,7 +69,7 @@ class TodosServiceBindingsTest {
         assertTrue(rows(start, "steps").any { it["call"] == "TodoStore.startTodo" })
         val process = raw(plan.outputs.single { it.document.value == "design/detail/final/processes/start-todo.yaml" }.text)
         val check = rows(process, "steps").single { it["checkMode"] == "state" }
-        assertEquals(listOf("OPEN", "SUSPENDED"), check["allowed"])
+        assertEquals(listOf("OPEN"), check["allowed"], "できる状態は、状態の型の項目（定数の ID）から定数の名前に解いて読む")
         assertEquals("status", check["stateField"])
         val program = plan.outputs.single { it.generator == "application-service-programs" }.text
         assertTrue("getSubject()" in program)

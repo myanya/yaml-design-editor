@@ -1,70 +1,79 @@
-# 生成物（status-rules）: 手で直さず、業務モデルか生成の定義（design/detail/status-rules.yaml）を直して作り直します（CLI generate）。
-id: todo-lifecycle
-entity: todo
-enum:
-  name: TodoStatus
-  values:
-    - constant: OPEN
-      label: 未着手
-      state: todo-OPEN
-    - constant: IN_PROGRESS
-      label: 対応中
-      state: todo-IN_PROGRESS
-    - constant: SUSPENDED
-      label: 中断
-      state: todo-SUSPENDED
-    - constant: CLOSED
-      label: 完了
-      state: todo-CLOSED
-    - constant: CANCELED
-      label: 中止
-      state: todo-CANCELED
+# 生成物（detail-status）: 手で直さず、業務モデルか生成の定義（design/detail/detail-status.yaml）を直して作り直します（CLI generate）。
+id: ENM-todo-lifecycle
+source: LCY-todo-lifecycle
+lifecycle: todo-lifecycle
+subject: todo
+enum: TodoStatus
+constants:
+  - id: ENC-todo-OPEN
+    source: STA-todo-OPEN
+    state: todo-OPEN
+    constant: OPEN
+    label: 未着手
+  - id: ENC-todo-IN_PROGRESS
+    source: STA-todo-IN_PROGRESS
+    state: todo-IN_PROGRESS
+    constant: IN_PROGRESS
+    label: 対応中
+  - id: ENC-todo-SUSPENDED
+    source: STA-todo-SUSPENDED
+    state: todo-SUSPENDED
+    constant: SUSPENDED
+    label: 中断
+  - id: ENC-todo-CLOSED
+    source: STA-todo-CLOSED
+    state: todo-CLOSED
+    constant: CLOSED
+    label: 完了
+  - id: ENC-todo-CANCELED
+    source: STA-todo-CANCELED
+    state: todo-CANCELED
+    constant: CANCELED
+    label: 中止
 groups:
-  - method: isTodoActive
-    label: 未完了
+  - id: ENG-todo-ACTIVE
+    source: STG-todo-ACTIVE
     state: todo-ACTIVE
-    values:
-      - OPEN
-      - IN_PROGRESS
-      - SUSPENDED
-entry:
-  - action: register-todo
-    to: OPEN
+    method: isTodoActive
+    label: 未完了
+    constants:
+      - ENC-todo-OPEN
+      - ENC-todo-IN_PROGRESS
+      - ENC-todo-SUSPENDED
+entries:
+  - source: TRN-todo-lifecycle.register-todo
+    action: register-todo
+    to: ENC-todo-OPEN
 transitions:
-  - action: complete-todo
+  - source: TRN-todo-lifecycle.complete-todo
+    action: complete-todo
     from:
-      - IN_PROGRESS
-    to: CLOSED
-  - action: cancel-todo
+      - ENC-todo-IN_PROGRESS
+    to: ENC-todo-CLOSED
+  - source: TRN-todo-lifecycle.cancel-todo
+    action: cancel-todo
     from:
-      - OPEN
-      - IN_PROGRESS
-      - SUSPENDED
-    to: CANCELED
-  - action: start-todo
+      - ENC-todo-OPEN
+      - ENC-todo-IN_PROGRESS
+      - ENC-todo-SUSPENDED
+    to: ENC-todo-CANCELED
+  - source: TRN-todo-lifecycle.start-todo
+    action: start-todo
     from:
-      - OPEN
-    to: IN_PROGRESS
-  - action: suspend-todo
+      - ENC-todo-OPEN
+    to: ENC-todo-IN_PROGRESS
+  - source: TRN-todo-lifecycle.suspend-todo
+    action: suspend-todo
     from:
-      - IN_PROGRESS
-    to: SUSPENDED
-  - action: resume-todo
+      - ENC-todo-IN_PROGRESS
+    to: ENC-todo-SUSPENDED
+  - source: TRN-todo-lifecycle.resume-todo
+    action: resume-todo
     from:
-      - SUSPENDED
-    to: IN_PROGRESS
+      - ENC-todo-SUSPENDED
+    to: ENC-todo-IN_PROGRESS
 terminal:
-  - CLOSED
-  - CANCELED
+  - ENC-todo-CLOSED
+  - ENC-todo-CANCELED
 stateFields:
   - status
-designId: DOC-status-rules.todo-lifecycle
-designKind: status-rules
-designPath: design/detail/final/status/todo-lifecycle.yaml
-origins:
-  source:
-    id: rule-status-rules
-    document: .yde/transforms/design/detail/status-rules-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

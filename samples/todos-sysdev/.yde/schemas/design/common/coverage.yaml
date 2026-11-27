@@ -124,7 +124,7 @@ constraints:
                   - node:
                       bind: l
                   - edge:
-                      via: id
+                      via: lifecycle
                       dir: in
                   - node:
                       entity: sysdev-status-rule
@@ -132,7 +132,7 @@ constraints:
                 of: design
           - 1
     level: error
-    message: Lifecycle「{id}」に状態の判定（enum と遷移）がありません（generate で作り直します）
+    message: Lifecycle「{id}」に状態の型（enum と遷移）がありません（generate で作り直します）
   - id: entity-has-spec
     description: どのエンティティ型にも基本設計項目一覧のエンティティがある（導出元 source で業務のエンティティ型を指す）
     match:

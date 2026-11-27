@@ -17,7 +17,7 @@ dependsOn:
   - system-access-bindings
   - messages
   - detail-document-input-gate
-  - status-rules
+  - detail-status
 input:
   $apply: model-input
   $with:
@@ -198,9 +198,9 @@ build:
                       $apply: state-allowed
                       $with:
                         row:
-                          $view: status-rules-input
+                          $view: detail-model-status
                           $where:
-                            - path: values.record.id
+                            - path: values.record.lifecycle
                               equals:
                                 $copy: lifecycle.id
                                 $of: element
@@ -220,9 +220,9 @@ build:
                       $apply: state-field
                       $with:
                         row:
-                          $view: status-rules-input
+                          $view: detail-model-status
                           $where:
-                            - path: values.record.id
+                            - path: values.record.lifecycle
                               equals:
                                 $copy: lifecycle.id
                                 $of: element
@@ -1618,4 +1618,37 @@ rules:
               $copy: .
               $of: action
         $then:
-          $copy: from
+          # できる状態（定数の ID）を、定数の名前にする
+          $each: from
+          $build:
+            $apply: state-constant
+            $with:
+              ref:
+                $copy: .
+              constants:
+                $copy: values.record.constants
+                $of: row
+  - id: state-constant
+    with:
+      - ref
+      - constants
+    build:
+      $apply: state-constant-first
+      $with:
+        items:
+          $each: .
+          $of: constants
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: constant
+  - id: state-constant-first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items

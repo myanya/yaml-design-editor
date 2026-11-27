@@ -1,0 +1,8 @@
+id: detail-decisions
+name: 詳細設計の項目への個別の判断の入力
+rows:
+  idPattern: INPUT-detail-decisions
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/inputs/decisions.yaml

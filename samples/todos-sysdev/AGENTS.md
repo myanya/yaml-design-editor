@@ -46,6 +46,10 @@
   - 検査の範囲は、操作の画面を開いてから確定するまでです。比較と UPDATE はアトミックではないので、操作を直列に実行する現在の構成（`writeConcurrency: local-serialized`）が前提です。
 - `app/` の再生成は、Windows では `scripts/generate-app.ps1`、それ以外では `scripts/generate-app.py` を使います（手順と安全確認は同じで、どちらで作り直しても同じ結果になります。GitHub Actions の `todos-application` が両方の `-Check` / `--check` を実行します）。片方の手順を変えたら、もう片方も合わせます。Service の引数や Form が変わったら、`verification/` の検証テストも直し、`verify-app.sh`（Windows は `verify-app.ps1`）で確かめます。
 - 移行の進み具合（`docs/design-progress.html`）は、目標のファイル体系を「段 × 系統」に置き、箱ごとに済んだこと・残っていることを出します。目標の箱・箱の間の線（作る元・同じ段を指す・ビューが読む）・無くすもの・やることは `scripts/design-map.json` の `plan` に書き、済んだかどうかは、変換定義・ファイルがあるか・何を読んでいるか（`done` の条件）から `scripts/design-map.py` が計算します。「済」を手で書きません。やることを足す・変えるときは `plan.tasks` を直します。
+- `design/detail/final/status/<状態の流れ>.yaml`（状態の型）は、詳細設計で最初に項目の形にした確定項目です。基本設計の「状態と遷移」の項目だけを読み（変換定義 `detail-status` の 1 本。導出と確定に分けない）、型 `ENM-`・定数 `ENC-`・判定 `ENG-` に ID を振り、各要素が作る元（`LCY-`・`STA-`・`STG-`・`TRN-`）を `source` で指します。同じファイルの中の定数は ID で指し、読む側（`application-runtime-model`・`processes-derived`）が定数の名前に解きます。
+- 詳細設計の項目への個別の判断は `design/detail/inputs/decisions.yaml` の 1 ファイルに「対象の ID と `set`」で書きます（ID は `DDEC-`）。詳細設計の種類を項目の形にするたびに、対象と置き換えられる値を、スキーマ `detail-decisions` と、その種類の変換定義に足します。入力の検査は、既存の `detail-document-input-gate` に足します（検査の記録のファイルを増やさない）。
+- 状態の型で置き換えられるのは、enum の名前と、判定のメソッドの名前だけです。遷移は業務の事実なので変えられません。定数の名前も変えられません（enum の定数の名前が、そのままテーブルに保存する値になるため。変えるなら、保存する値と定数の対応を持つ仕組みが先に要ります）。
+- 変換の条件の `matches` は、正規表現が文字列の全体に合うときだけ成り立ちます。接頭辞で分けるときは `startsWith` を使います。
 - **作業の始め方（オーナーの指示。2026-11-27）。** 移行の作業（歩、またはその中のまとまり）を始める前に、次を説明して、オーナーの確認を取ってから着手します。
   - どこを実現するか（[移行の進み具合](docs/design-progress.html) のどの箱か）。
   - どのように実現するか（作る項目の形、読むもの、書く変換定義、変える読み手、消すもの、確かめ方）。

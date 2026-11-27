@@ -2,7 +2,7 @@
 id: APP-runtime
 states:
   - id: JSTATE-todo-lifecycle
-    source: DOC-status-rules.todo-lifecycle
+    source: ENM-todo-lifecycle
     name: TodoStatus
     values:
       - constant: OPEN

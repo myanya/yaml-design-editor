@@ -64,20 +64,25 @@ class TodosServiceFoundationTest {
         val corrections = raw("""
             inputId: INPUT-detail-document-corrections
             corrections:
-              - {id: SCOR-status-name, kind: status-rules, target: DOC-status-rules.todo-lifecycle, set: {}, reason: 検証}
               - {id: SCOR-exception, kind: error-handling, target: DOC-error-handling.error-handling, select: {collection: exceptions, key: kind, equals: refused}, set: {class: OperationRefused}, reason: 検証}
               - {id: SCOR-sequence, kind: table-access, target: DOC-table-access.todo-task, select: {collection: methods, key: methodId, equals: maxSeq}, set: {name: lastPosition}, reason: 検証}
         """.trimIndent()).toMutableMap()
-        val status = (document("design/detail/final/status/todo-lifecycle.yaml")["enum"] as Map<*, *>).toMutableMap()
-        status["name"] = "TaskState"
-        corrections["corrections"] = rows(corrections, "corrections").mapIndexed { index, correction ->
-            if (index != 0) correction else correction.toMutableMap().also { it["set"] = mapOf("enum" to status) }
-        }
+        // 状態の型への個別の判断は、項目の ID（型 ENM-・判定 ENG-）を対象にして、項目へ直接当てる
+        put(input, "design/detail/inputs/decisions.yaml", raw("""
+            inputId: INPUT-detail-decisions
+            decisions:
+              - {id: DDEC-901, target: ENM-todo-lifecycle, set: {enum: TaskState}, reason: 検証}
+              - {id: DDEC-902, target: ENG-todo-ACTIVE, set: {method: isOpenTask}, reason: 検証}
+        """.trimIndent()))
         put(input, "design/detail/inputs/documents/corrections.yaml", corrections)
         val plan = Generators.plan(WorkspaceSession(input), setOf("application-runtime-model", "application-process-gate"))
         assertEquals(emptyList(), plan.errors)
         val runtime = raw(plan.outputs.single { it.generator == "application-runtime-model" }.text)
         assertEquals("TaskState", rows(runtime, "states").single()["name"])
+        assertEquals(listOf("isOpenTask"), rows(rows(runtime, "states").single(), "groups").map { it["method"] })
+        val statusItem = raw(plan.outputs.single { it.document.value == "design/detail/final/status/todo-lifecycle.yaml" }.text)
+        assertEquals(setOf(listOf("DDEC-901"), listOf("DDEC-902")), rows(statusItem, "decisions").map { it["by"] }.toSet(), "当てた判断は項目に残る")
+        assertEquals("ENC-todo-CLOSED", rows(statusItem, "transitions").single { it["action"] == "complete-todo" }["to"], "同じ項目の中の定数は ID で指す")
         assertEquals("OperationRefused", rows(runtime, "errors").single { it["kind"] == "refused" }["name"])
         val process = raw(plan.outputs.single { it.document.value == "design/detail/final/processes/add-todo-task.yaml" }.text)
         val insert = rows(process, "steps").single { it["kind"] == "insert" }

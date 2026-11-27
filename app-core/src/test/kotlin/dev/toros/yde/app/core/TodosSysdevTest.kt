@@ -524,7 +524,7 @@ class TodosSysdevTest {
         // 一覧の読み出しは、業務モデルのダッシュボードとビューではなく、基本設計の「一覧の検索条件」（designQueries）から読む
         assertTrue(listOf("designQueries.views", "designQueries.sections").all { it in concepts("table-access-derived") }, "テーブルアクセス設計書の導出: ${concepts("table-access-derived")}")
         assertTrue(concepts("table-access-derived").none { it.toString().startsWith("dashboards") || it.toString().startsWith("views") }, "テーブルアクセス設計書の導出は、業務モデルのダッシュボードとビューを直接読まない: ${concepts("table-access-derived")}")
-        assertTrue(concepts("status-rules-derived").all { it.toString().startsWith("lifecycles") }, "状態の判定の導出は、基本設計の「状態と遷移」だけを読む: ${concepts("status-rules-derived")}")
+        assertEquals(listOf("documents"), concepts("detail-status"), "状態の型は、基本設計の「状態と遷移」の項目（入力のビュー）だけを読み、業務モデルの概念を読まない")
         assertTrue("relations.cardinality" in concepts("domains-derived") && "lifecycles.transitions" in concepts("domains-derived"), "ドメイン定義書の導出: ${concepts("domains-derived")}")
         assertEquals(emptyList<Any>(), concepts("screen-styles-derived"), "クラスの対応表の導出は業務モデルを読まない（決まった表）")
         assertEquals(null, lineage["basic-entities"]?.get("stage"), "確定項目への移行後は段を再適用しない")

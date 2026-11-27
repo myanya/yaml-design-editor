@@ -126,7 +126,8 @@
     "SADD-*",
     "SCOR-*",
     "SSPC-*",
-    "DCOR-*"
+    "DCOR-*",
+    "DDEC-*"
   ],
   "ignore": [
     "basic-document-input-gate",
@@ -352,10 +353,17 @@
     },
     {
       "id": "status",
-      "name": "状態の判定",
+      "name": "状態の型",
       "column": "detail",
       "lane": "op",
-      "kind": "status-rules"
+      "transforms": [
+        "detail-status"
+      ],
+      "ids": [
+        "ENM-*",
+        "ENC-*",
+        "ENG-*"
+      ]
     },
     {
       "id": "proc",
@@ -1050,7 +1058,8 @@
           "in:design/detail/inputs/tables/*.yaml",
           "in:design/detail/inputs/documents/*.yaml",
           "in:design/detail/inputs/application/java-types.yaml",
-          "in:design/detail/inputs/appearance/*.yaml"
+          "in:design/detail/inputs/appearance/*.yaml",
+          "in:design/detail/inputs/decisions.yaml"
         ]
       },
       {
@@ -1114,6 +1123,38 @@
         ]
       },
       {
+        "id": "d-stt",
+        "layer": "detail",
+        "row": 2,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "状態の型",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:detail-status"
+        ],
+        "note": "基本設計の「状態と遷移」の項目だけを読んで作ります。型（enum）・定数・判定に ID を振り、各要素が作る元（基本設計の項目）を指します。詳細設計の個別の判断（inputs/decisions.yaml）は、項目の ID を対象にして、ここで直接当てます。補正前のファイルと、確定の変換定義はありません。"
+      },
+      {
+        "id": "d-stt-view",
+        "layer": "detail",
+        "row": 2,
+        "col": 3,
+        "kind": "view",
+        "label": [
+          "状態の判定"
+        ],
+        "views": [
+          "detail/review/status-definition*.yaml"
+        ],
+        "reads": [
+          "d-stt"
+        ]
+      },
+      {
         "id": "d-doc-derived",
         "layer": "detail",
         "row": 1,
@@ -1121,11 +1162,10 @@
         "kind": "work",
         "label": [
           "処理・画面ほか",
-          "の導出（11 種）"
+          "の導出（10 種）"
         ],
         "members": [
           "t:table-access-derived",
-          "t:status-rules-derived",
           "t:processes-derived",
           "t:screen-styles-derived",
           "t:session-design-derived",
@@ -1161,11 +1201,10 @@
         "shape": "documents",
         "label": [
           "処理・画面ほか",
-          "（文書の形。11 種）"
+          "（文書の形。10 種）"
         ],
         "members": [
           "t:table-access",
-          "t:status-rules",
           "t:processes",
           "t:screen-styles",
           "t:session-design",
@@ -1858,7 +1897,8 @@
         "current": [
           "in:design/detail/inputs/tables/ledger.yaml",
           "in:design/detail/inputs/tables/corrections.yaml",
-          "in:design/detail/inputs/documents/*.yaml"
+          "in:design/detail/inputs/documents/*.yaml",
+          "in:design/detail/inputs/decisions.yaml"
         ],
         "note": "索引の追加、名前の付け替え、CSS 部品の追加など。"
       },
@@ -1913,14 +1953,15 @@
         "label": [
           "状態の型"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:status-rules"
+          "t:detail-status"
         ],
         "from": [
           "a-sta"
         ],
-        "unit": "1 ファイル"
+        "unit": "1 ファイル",
+        "note": "2026-11-27 に項目の形にしました（縦に通す進め方の最初の 1 本）。基本設計の「状態と遷移」の項目だけを読み、型・定数・判定に ID を振ります。導出と確定の 2 本の変換定義を 1 本にし、補正前のファイルは持ちません。"
       },
       {
         "id": "c-svc",
@@ -2065,7 +2106,6 @@
         "current": [
           "t:detail-tables-derived",
           "t:table-access-derived",
-          "t:status-rules-derived",
           "t:processes-derived",
           "t:screen-styles-derived",
           "t:session-design-derived",
@@ -2143,10 +2183,11 @@
         "label": [
           "状態の判定"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "c-stt"
-        ]
+        ],
+        "note": "状態の型の項目を読むビューです（定数の一覧と、型と遷移の一覧）。見え方はオーナーのレビュー待ちです。"
       },
       {
         "id": "cv-pg",

@@ -1,0 +1,11 @@
+id: detail-decisions-input
+name: 詳細設計の生成入力（項目への個別の判断）
+description: 詳細設計の項目への個別の判断を 1 件ずつ読む
+rows:
+  idPattern: DDEC-*
+  schemaIds:
+    - detail-decisions
+columns:
+  - label: decision
+    path: .
+    fileGlob: design/detail/inputs/decisions.yaml

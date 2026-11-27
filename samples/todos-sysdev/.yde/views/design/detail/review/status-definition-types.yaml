@@ -1,0 +1,24 @@
+id: status-definition-types
+name: 状態の判定（型と遷移）
+description: 詳細設計の「状態の型」を並べる。enum の名前、判定のメソッド、操作ごとのできる状態と移り先を見る
+rows: { idPattern: "ENM-*", schemaIds: [detail-status] }
+columns:
+  - label: enum の名前
+    path: enum
+  - label: 作る元（基本設計の状態の流れ）
+    path: source
+  - label: 定数
+    value:
+      path: constants[*].constant
+  - label: 判定のメソッド
+    value:
+      path: groups[*].method
+  - label: 遷移する操作
+    value:
+      path: transitions[*].action
+  - label: 終わりの状態
+    value:
+      path: terminal[*]
+  - label: 状態を保存する項目
+    value:
+      path: stateFields[*]

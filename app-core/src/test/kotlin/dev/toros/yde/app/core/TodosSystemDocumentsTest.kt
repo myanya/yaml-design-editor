@@ -104,7 +104,7 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(52, shown("system-document-list").size)
+        assertEquals(51, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(14, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))

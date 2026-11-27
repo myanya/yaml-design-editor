@@ -1,0 +1,56 @@
+id: detail-decisions
+name: 詳細設計の項目への個別の判断
+kind: document
+description: >-
+  詳細設計（具体システムモデル）の項目への個別の判断（ADR-0042）。項目を ID で指して、値を置き換える。
+  基本設計の操作・画面への判断と同じ書き方（対象の ID と set）。詳細設計の項目を項目の形にするたびに、対象と、置き換えられる値を足す。
+  いまの対象は、状態の型（ENM-）と判定（ENG-）で、置き換えられるのは名前（enum・method）。
+  状態の遷移・名称・対応する基本設計の項目は変えられない（業務の事実と、基本設計から運ぶ値なので、上流を直す）。
+  定数（ENC-）の名前も変えられない（enum の定数の名前が、そのままテーブルに保存する値になるため）。人が書く。
+match: design/detail/inputs/decisions.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: decisions
+      label: 個別の判断
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 判断の ID
+            type: id
+            required: true
+            pattern: ^DDEC-\S+$
+          - key: target
+            label: 対象
+            type: string
+            required: true
+            pattern: ^(ENM|ENG)-\S+$
+            description: 詳細設計の項目の ID
+          - key: set
+            label: 置き換える値
+            type: object
+            required: true
+            description: 項目のキーと新しい値。ここに並ぶキーだけを置き換えられる
+            unknownFields: error
+            fields:
+              - key: enum
+                label: enum の名前
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]*$
+                description: 状態の型（ENM-）の、Java の enum の名前
+              - key: method
+                label: 判定のメソッドの名前
+                type: string
+                pattern: ^[a-z][A-Za-z0-9]*$
+                description: 判定（ENG-）のメソッドの名前
+          - key: reason
+            label: 理由
+            type: text
+            required: true
+        unknownFields: error
+  unknownFields: error

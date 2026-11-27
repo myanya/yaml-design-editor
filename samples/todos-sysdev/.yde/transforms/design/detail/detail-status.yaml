@@ -1,0 +1,412 @@
+id: detail-status
+name: 詳細設計項目一覧（状態の型）
+description: >-
+  具体システムモデルの「状態の型」を項目の形で作る（ADR-0042）。基本設計の「状態と遷移」（design/basic/final/states.yaml）の項目だけを読み、業務モデルは読まない。
+  状態の流れ 1 つを 1 ファイルにし、型（Java の enum）・定数・判定に設計 ID を振る。各要素は、元になった基本設計の項目（LCY-・STA-・STG-・TRN-）を source で指す。
+  技術スタックの決まり: enum の名前は「エンティティ型の名前 + Status」、定数は状態の保存する値、判定のメソッドは「is + 状態のまとまりの ID」。
+  名称と遷移は、プログラム設計がこの項目だけから作れるように、基本設計から運ぶ。同じファイルの中の定数は ID で指す（定数の名前を変えても、指している側は変わらない）。
+  詳細設計の個別の判断（design/detail/inputs/decisions.yaml）は、項目の ID を対象にして、ここで項目へ直接当てる。当てた判断は、項目の decisions に残す。
+  補正前のファイルは作らない
+scope: design
+dependsOn:
+  - basic-states
+  - detail-document-input-gate
+each: documents
+output: '{file}.yaml'
+input:
+  $apply: documents
+  $with:
+    composed:
+      $apply: composed-items
+      $with:
+        decisions:
+          $each:
+            $view: detail-decisions-input
+          $build:
+            $copy: values.decision
+        items:
+          $each:
+            $view: basic-model-states
+          $build:
+            $apply: item
+            $at: values.record
+build:
+  $copy: document
+rules:
+  # 補正前の項目: 基本設計の状態の流れ 1 つを、状態の型にする
+  - id: item
+    build:
+      id:
+        $format: ENM-{source}
+      source:
+        $copy: id
+      lifecycle:
+        $copy: source
+      subject:
+        $copy: subject
+      enum:
+        $format: '{name}Status'
+        $with:
+          name:
+            $case:
+              $copy: subject
+            $as: pascal
+      constants:
+        $each: states
+        $build:
+          id:
+            $format: ENC-{source}
+          source:
+            $copy: id
+          state:
+            $copy: source
+          constant:
+            $case:
+              $copy: value
+            $as: constant
+          label:
+            $copy: label
+      groups:
+        $each: groups
+        $build:
+          id:
+            $format: ENG-{source}
+          source:
+            $copy: id
+          state:
+            $copy: source
+          method:
+            $format: is{name}
+            $with:
+              name:
+                $case:
+                  $copy: source
+                $as: pascal
+          label:
+            $copy: label
+          constants:
+            $each: states
+            $build:
+              $apply: constant-ref
+      entries:
+        $each: entries
+        $build:
+          source:
+            $copy: id
+          action:
+            $copy: action
+          to:
+            $apply: constant-ref
+            $at: to
+      transitions:
+        $each: transitions
+        $build:
+          source:
+            $copy: id
+          action:
+            $copy: action
+          from:
+            $each: from
+            $build:
+              $apply: constant-ref
+          to:
+            $apply: constant-ref
+            $at: to
+      terminal:
+        $each: terminal
+        $build:
+          $apply: constant-ref
+      # 状態を保存する項目（業務モデルでの場所）
+      stateFields:
+        $group:
+          $each: states
+          $build:
+            $first:
+              - $copy: path
+              - UNRESOLVED
+        $by:
+          $copy: .
+        $build:
+          $copy: key
+  # 基本設計の状態（STA-…）を、この型の定数（ENC-…）に読み替える
+  - id: constant-ref
+    build:
+      $format: ENC-{rest}
+      $with:
+        rest:
+          $value:
+            extract:
+              - path: .
+              - ^STA-(.+)$
+  # 確定した項目を 1 ファイルずつにする。当てた判断があれば、項目に残す
+  - id: documents
+    with:
+      - composed
+    build:
+      documents:
+        $each: records
+        $of: composed
+        $bind: record
+        $build:
+          file:
+            $format: design/detail/final/status/{value.lifecycle}
+          document:
+            $apply: decided
+            $with:
+              value:
+                $copy: value
+              decisions:
+                $each: decisions
+                $of: composed
+                $build:
+                  $when:
+                    - path: target
+                      equals:
+                        $copy: id
+                        $of: record
+                  $then:
+                    path:
+                      $copy: path
+                    value:
+                      $copy: selected[0].value
+                    by:
+                      $each: selected
+                      $build:
+                        $copy: source.id
+  - id: decided
+    with:
+      - value
+      - decisions
+    when:
+      - of: decisions
+        path: .
+        empty: false
+    build:
+      $apply: decided-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: value
+                source:
+                  id: composed
+            additions: []
+            changes:
+              - target: record
+                set:
+                  decisions:
+                    $copy: .
+                    $of: decisions
+                priority: individual
+                source:
+                  id: decisions
+  - id: decided
+    with:
+      - value
+      - decisions
+    build:
+      $copy: .
+      $of: value
+  - id: decided-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  # 個別の判断を当てる。対象は型（ENM-）と判定（ENG-）。定数（ENC-）の名前は、保存する値と同じでなければならないので変えられない。
+  # この変換定義が作らない対象（ほかの種類の項目）への判断は、ここでは見ない。
+  # 対象が見つからない判断と、その対象では置き換えられない値は、対象の無い変更として渡し、合成の誤りで止める
+  - id: composed-items
+    with:
+      - items
+      - decisions
+    build:
+      $compose:
+        derived:
+          $each: .
+          $of: items
+          $build:
+            id:
+              $copy: id
+            value:
+              $copy: .
+            source:
+              id: rule-detail-status
+              document: .yde/transforms/design/detail/detail-status.yaml
+        additions: []
+        changes:
+          $each: .
+          $of: decisions
+          $flatten: true
+          $build:
+            $when:
+              - or:
+                  - path: target
+                    startsWith: ENM-
+                  - path: target
+                    startsWith: ENG-
+            $then:
+              $apply: decision-changes
+              $with:
+                decision:
+                  $copy: .
+                matches:
+                  $apply: target-changes
+                  $with:
+                    decision:
+                      $copy: .
+                    items:
+                      $copy: .
+                      $of: items
+  - id: decision-changes
+    with:
+      - decision
+      - matches
+    when:
+      - of: matches
+        path: .
+        empty: false
+    build:
+      $copy: .
+      $of: matches
+  - id: decision-changes
+    with:
+      - decision
+      - matches
+    build:
+      - target:
+          $copy: target
+          $of: decision
+        set:
+          $copy: set
+          $of: decision
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: decision
+          document: design/detail/inputs/decisions.yaml
+  - id: target-changes
+    with:
+      - decision
+      - items
+    build:
+      $each: .
+      $of: items
+      $bind: owner
+      $flatten: true
+      $build:
+        $concat:
+          - $when:
+              - path: id
+                equals:
+                  $copy: target
+                  $of: decision
+            $then:
+              $apply: member-entries
+              $with:
+                decision:
+                  $copy: .
+                  $of: decision
+                owner:
+                  $copy: id
+                place: []
+                allowed:
+                  - enum
+          - $apply: listed-members
+            $with:
+              decision:
+                $copy: .
+                $of: decision
+              owner:
+                $copy: id
+              collection: groups
+              members:
+                $copy: groups
+              allowed:
+                - method
+  - id: listed-members
+    with:
+      - decision
+      - owner
+      - collection
+      - members
+      - allowed
+    build:
+      $each: .
+      $of: members
+      $flatten: true
+      $build:
+        $when:
+          - path: id
+            equals:
+              $copy: target
+              $of: decision
+        $then:
+          $apply: member-entries
+          $with:
+            decision:
+              $copy: .
+              $of: decision
+            owner:
+              $copy: .
+              $of: owner
+            place:
+              - $copy: .
+                $of: collection
+              - $number: $index
+            allowed:
+              $copy: .
+              $of: allowed
+  - id: member-entries
+    with:
+      - decision
+      - owner
+      - place
+      - allowed
+    build:
+      $eachEntry: set
+      $of: decision
+      $flatten: true
+      $build:
+        $first:
+          - $when:
+              - of: allowed
+                path: .
+                includes: $key
+            $then:
+              - target:
+                  $copy: .
+                  $of: owner
+                path:
+                  $concat:
+                    - $copy: .
+                      $of: place
+                    - - $key
+                value:
+                  $copy: .
+                priority: individual
+                source:
+                  id:
+                    $copy: id
+                    $of: decision
+                  document: design/detail/inputs/decisions.yaml
+          - - target:
+                $format: '{t}（{k} は、この対象では置き換えられません）'
+                $with:
+                  t:
+                    $copy: target
+                    $of: decision
+                  k: $key
+              set:
+                $copy: set
+                $of: decision
+              priority: individual
+              source:
+                id:
+                  $copy: id
+                  $of: decision
+                document: design/detail/inputs/decisions.yaml

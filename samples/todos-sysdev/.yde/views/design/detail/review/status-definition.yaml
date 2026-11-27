@@ -1,0 +1,11 @@
+id: status-definition
+name: 状態の判定（定数）
+description: 詳細設計の「状態の型」の定数を並べる。状態の判定（設計書）にあたるビューで、値は確定項目をそのまま読む
+rows: { idPattern: "ENC-*", schemaIds: [detail-status] }
+columns:
+  - label: 定数の名前
+    path: constant
+  - label: 名称
+    path: label
+  - label: 作る元（基本設計の状態）
+    path: source

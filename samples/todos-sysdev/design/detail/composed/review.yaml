@@ -190,10 +190,6 @@ documents:
     kind: session-design
     source: session
     path: design/detail/final/session.yaml
-  - id: DOC-status-rules.todo-lifecycle
-    kind: status-rules
-    source: todo-lifecycle
-    path: design/detail/final/status/todo-lifecycle.yaml
   - id: DOC-table-access.category
     kind: table-access
     source: category

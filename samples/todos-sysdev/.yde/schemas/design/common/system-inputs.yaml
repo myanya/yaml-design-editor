@@ -22,7 +22,6 @@ definitions:
       - value: screen-styles
       - value: screen-transitions
       - value: session-design
-      - value: status-rules
       - value: table-access
   補正:
     type: object
@@ -186,7 +185,7 @@ definitions:
       - {key: kind, type: 基本設計の種類}
   詳細設計の種類:
     type: 種類
-    values: [dashboard-flows, error-handling, processes, screen-designs-details, screen-designs-lists, screen-designs-operations, screen-flows, screen-styles, session-design, status-rules, table-access]
+    values: [dashboard-flows, error-handling, processes, screen-designs-details, screen-designs-lists, screen-designs-operations, screen-flows, screen-styles, session-design, table-access]
   詳細設計の補正:
     type: 補正
     fields:

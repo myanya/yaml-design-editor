@@ -1,0 +1,6 @@
+id: detail-model-status
+name: 詳細設計の生成入力（状態の型）
+description: 確定した状態の型の項目を読む。プログラム設計と処理の手順は、ここから状態を読む
+rows: { idPattern: "ENM-*", schemaIds: [detail-status] }
+columns:
+  - { label: record, path: . }

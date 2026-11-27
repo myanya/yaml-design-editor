@@ -2,22 +2,22 @@ id: application-runtime-model
 name: 状態型と業務例外の生成値を確定する
 scope: design
 dependsOn:
-  - status-rules
+  - detail-status
   - error-handling
 output: design/detail/final/application-runtime-model.yaml
 input:
   states:
     $each:
-      $view: status-rules-input
+      $view: detail-model-status
     $build:
       $apply: state
       $with:
         source:
           $copy: values.record
         constants:
-          $each: values.record.enum.values
+          $each: values.record.constants
           $build:
-            $copy: constant
+            $copy: id
   errors:
     $each:
       $view: error-handling-input
@@ -94,46 +94,109 @@ rules:
           $flatten: true
           $build:
             - $copy: .
+  # 状態型: 詳細設計の「状態の型」の項目 1 つから作る。項目が ID で指している定数（ENC-…）は、定数の名前に置き換える
   - id: state
     with:
       - source
       - constants
     build:
       id:
-        $format: JSTATE-{id}
-        $with:
-          id:
-            $copy: id
-            $of: source
+        $format: JSTATE-{lifecycle}
+        $of: source
       source:
-        $copy: designId
+        $copy: id
         $of: source
       name:
-        $copy: enum.name
+        $copy: enum
         $of: source
       values:
-        $copy: enum.values
+        $each: constants
         $of: source
+        $build:
+          constant:
+            $copy: constant
+          label:
+            $copy: label
+          state:
+            $copy: state
       groups:
         $first:
-          - $copy: groups
+          - $each: groups
             $of: source
+            $build:
+              method:
+                $copy: method
+              label:
+                $copy: label
+              state:
+                $copy: state
+              values:
+                $each: constants
+                $build:
+                  $apply: constant-name
+                  $with:
+                    ref:
+                      $copy: .
+                    constants:
+                      $copy: constants
+                      $of: source
           - []
       transitions:
         $first:
-          - $copy: transitions
+          - $each: transitions
             $of: source
+            $build:
+              action:
+                $copy: action
+              from:
+                $each: from
+                $build:
+                  $apply: constant-name
+                  $with:
+                    ref:
+                      $copy: .
+                    constants:
+                      $copy: constants
+                      $of: source
+              to:
+                $apply: constant-name
+                $with:
+                  ref:
+                    $copy: to
+                  constants:
+                    $copy: constants
+                    $of: source
           - []
       entry:
         $first:
-          - $copy: entry
+          - $each: entries
             $of: source
+            $build:
+              action:
+                $copy: action
+              to:
+                $apply: constant-name
+                $with:
+                  ref:
+                    $copy: to
+                  constants:
+                    $copy: constants
+                    $of: source
           - []
       terminal:
         $first:
-          - $copy: terminal
+          - $each: terminal
             $of: source
+            $build:
+              $apply: constant-name
+              $with:
+                ref:
+                  $copy: .
+                constants:
+                  $copy: constants
+                  $of: source
           - []
+      # 定数に無い ID を指している所（あれば、スキーマの検査で止まる）
       invalidReferences:
         $concat:
           - $each: transitions
@@ -159,7 +222,7 @@ rules:
                   $then:
                     - $copy: to
             $flatten: true
-          - $each: entry
+          - $each: entries
             $of: source
             $build:
               $when:
@@ -184,7 +247,7 @@ rules:
           - $each: groups
             $of: source
             $build:
-              $each: values
+              $each: constants
               $build:
                 $when:
                   - not:
@@ -205,12 +268,37 @@ rules:
               $copy: action
               $of: transition
             state:
-              $copy: .
+              $apply: constant-name
+              $with:
+                ref:
+                  $copy: .
+                constants:
+                  $copy: constants
+                  $of: source
         $bind: transition
         $flatten: true
       entity:
-        $copy: entity
+        $copy: subject
         $of: source
       stateFields:
         $copy: stateFields
         $of: source
+  # 定数の ID（ENC-…）から、定数の名前を引く
+  - id: constant-name
+    with:
+      - ref
+      - constants
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: constants
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: constant

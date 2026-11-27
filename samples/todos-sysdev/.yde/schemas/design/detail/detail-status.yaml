@@ -1,0 +1,169 @@
+id: detail-status
+name: 詳細設計項目一覧（状態の型）
+kind: document
+description: >-
+  具体システムモデルの「状態の型」。基本設計の状態の流れ 1 つを 1 ファイルにし、型（Java の enum）・定数・判定を項目の形で持つ（ADR-0042）。
+  各要素は、元になった基本設計の項目を source で指す。同じファイルの中の定数は ID で指す。
+  名称と遷移は基本設計から運んだ値で、ここでは変えない（プログラム設計が、この項目だけから状態型を作れるようにするために持つ）。
+  個別の判断で置き換えられるのは、enum・定数・判定のメソッドの名前。生成物で、手で直さない。
+match: design/detail/final/status/*.yaml
+entity:
+  type: sysdev-status-rule
+  defines: true
+root:
+  type: object
+  fields:
+    - key: id
+      label: 設計項目ID
+      type: id
+      required: true
+      description: ENM-状態の流れの ID
+    - key: source
+      label: 作る元
+      type: ref
+      idPatterns:
+        - LCY-*
+      required: true
+      description: 基本設計の「状態と遷移」の、状態の流れ
+    - key: lifecycle
+      label: 導出元の状態の流れ
+      type: ref
+      required: true
+      description: 業務モデルの Lifecycle の ID（設計の対応の検査は、この参照で状態の型があることを確かめる）
+    - key: subject
+      label: 導出元のエンティティ型
+      type: string
+    - key: enum
+      label: enum の名前
+      type: string
+      role: title
+      required: true
+    - key: constants
+      label: 定数
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: ENC-状態の ID
+          - key: source
+            label: 作る元
+            type: ref
+            idPatterns:
+              - STA-*
+            required: true
+          - key: state
+            label: 導出元の状態
+            type: string
+          - key: constant
+            label: 定数の名前
+            type: string
+            required: true
+          - key: label
+            label: 名称
+            type: string
+    - key: groups
+      label: 判定
+      type: array
+      description: 状態のまとまり（未完了 など）に入っているかを確かめるメソッド
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: ENG-状態のまとまりの ID
+          - key: source
+            label: 作る元
+            type: ref
+            idPatterns:
+              - STG-*
+            required: true
+          - key: state
+            label: 導出元の状態のまとまり
+            type: string
+          - key: method
+            label: メソッドの名前
+            type: string
+            required: true
+          - key: label
+            label: 名称
+            type: string
+          - key: constants
+            label: 入る定数
+            type: array
+            item:
+              type: ref
+              idPatterns:
+                - ENC-*
+    - key: entries
+      label: はじまり
+      type: array
+      description: 作った要素を最初の状態に置く操作
+      item:
+        type: object
+        fields:
+          - key: source
+            label: 作る元
+            type: ref
+            idPatterns:
+              - TRN-*
+          - key: action
+            label: 操作
+            type: string
+          - key: to
+            label: 最初の状態
+            type: ref
+            idPatterns:
+              - ENC-*
+    - key: transitions
+      label: 遷移
+      type: array
+      description: 操作ごとの、できる状態と移り先（基本設計から運んだ値。ここでは変えない）
+      item:
+        type: object
+        fields:
+          - key: source
+            label: 作る元
+            type: ref
+            idPatterns:
+              - TRN-*
+          - key: action
+            label: 操作
+            type: string
+          - key: from
+            label: できる状態
+            type: array
+            item:
+              type: ref
+              idPatterns:
+                - ENC-*
+          - key: to
+            label: 移り先
+            type: ref
+            idPatterns:
+              - ENC-*
+    - key: terminal
+      label: 終わりの状態
+      type: array
+      item:
+        type: ref
+        idPatterns:
+          - ENC-*
+    - key: stateFields
+      label: 状態を保存する項目
+      type: array
+      item:
+        type: string
+    - key: decisions
+      label: 当てた個別の判断
+      type: array
+      description: この項目に当てた個別の判断（どの場所を、どの値に、どの判断で置き換えたか）。判断が無ければ書かない
+      item:
+        type: any
+  unknownFields: error
