@@ -2,7 +2,7 @@
 id: SCR-category
 source: category
 kind: detail
-seq: 2-01
+seq: 2-02
 label: カテゴリ詳細
 entity: ENT-category
 url: /category/{id}

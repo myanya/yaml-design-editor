@@ -101,6 +101,10 @@ build:
                                     $of: aid
                               $then:
                                 $apply: button
+                                $with:
+                                  buttons:
+                                    $copy: screen.buttons
+                                    $of: element
                     - $group: sections
                       $by:
                         $first:
@@ -285,6 +289,16 @@ build:
                                                         exists: false
                                                     $then:
                                                       $apply: button
+                                                      $with:
+                                                        buttons:
+                                                          $apply: section-buttons
+                                                          $with:
+                                                            sections:
+                                                              $copy: screen.sections
+                                                              $of: element
+                                                            section:
+                                                              $copy: id
+                                                              $of: sec
         bindings:
           $concat:
             - $each:
@@ -391,12 +405,58 @@ rules:
               $copy: field.target
             $as: pascal
       empty: 未選択（絞らない）
+  # ボタンの名称: 画面の項目を解いた形のボタン（この画面でだけ変えた名称があれば、それ）から引く。無ければ操作の名称
+  - id: button-label
+    with:
+      - buttons
+      - operation
+    build:
+      $apply: contract-first
+      $with:
+        matches:
+          $each: .
+          $of: buttons
+          $build:
+            $when:
+              - path: operation
+                equals:
+                  $copy: .
+                  $of: operation
+            $then:
+              $copy: label
+  # 区画の行のボタン（画面の項目を解いた形）
+  - id: section-buttons
+    with:
+      - sections
+      - section
+    build:
+      $each: .
+      $of: sections
+      $flatten: true
+      $build:
+        $when:
+          - path: id
+            equals:
+              $copy: .
+              $of: section
+        $then:
+          $copy: rowButtons
   - id: button
+    with:
+      - buttons
     build:
       operation:
         $copy: id
       label:
-        $copy: label
+        $first:
+          - $apply: button-label
+            $with:
+              buttons:
+                $copy: .
+                $of: buttons
+              operation:
+                $copy: id
+          - $copy: label
       kind: link
       to:
         $first:
@@ -722,6 +782,10 @@ rules:
                 set:
                   label:
                     $copy: name
+                    $of: document
+                  # 画面の項目を解いた形（ボタンの名称を引く）
+                  screen:
+                    $copy: .
                     $of: document
                   inputs:
                     $each: inputs

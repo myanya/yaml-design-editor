@@ -15,6 +15,7 @@ dependsOn:
   - basic-queries
   - detail-tables
   - detail-document-input-gate
+  - basic-screens-resolved
 input:
   $apply: model-input
   $with:
@@ -23,6 +24,9 @@ input:
       $one: true
     operations:
       $view: basic-operations-resolved-input
+      $one: true
+    screens:
+      $view: basic-screens-resolved-input
       $one: true
     rules:
       $each:
@@ -169,7 +173,7 @@ rules:
       $concat:
         - $when:
             - of: model
-              path: reach.entities
+              path: designReach.entities
               includes:
                 $copy: id
           $then:
@@ -1343,6 +1347,7 @@ rules:
     with:
       - row
       - operations
+      - screens
       - rules
       - queries
     build:
@@ -1365,6 +1370,10 @@ rules:
                   designActions:
                     $copy: values.actions
                     $of: operations
+                  # ダッシュボードからたどれる範囲は、業務モデルではなく、画面の項目（解いた形）から読む
+                  designReach:
+                    $copy: values.reach
+                    $of: screens
                   designRules:
                     $each: .
                     $of: rules

@@ -15,6 +15,7 @@ dependsOn:
   - session-design
   - detail-document-input-gate
   - system-process-bindings
+  - basic-screens-resolved
 input:
   $apply: model-input
   $with:
@@ -23,6 +24,9 @@ input:
       $one: true
     operations:
       $view: basic-operations-resolved-input
+      $one: true
+    screens:
+      $view: basic-screens-resolved-input
       $one: true
 build:
   id:
@@ -116,7 +120,7 @@ build:
                     $first:
                       - $when:
                           - of: model
-                            path: reach.operations
+                            path: designReach.operations
                             includes:
                               $copy: id
                         $then:
@@ -248,6 +252,7 @@ rules:
     with:
       - row
       - operations
+      - screens
     build:
       $apply: model-with-operations
       $with:
@@ -267,6 +272,10 @@ rules:
                   designActions:
                     $copy: values.actions
                     $of: operations
+                  # ダッシュボードからたどれる範囲は、業務モデルではなく、画面の項目（解いた形）から読む
+                  designReach:
+                    $copy: values.reach
+                    $of: screens
                 priority: individual
                 source:
                   id: basic-operations

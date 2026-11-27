@@ -29,6 +29,31 @@ root:
     - key: id
       type: id
       required: true
+    - key: reach
+      label: たどれる範囲
+      type: object
+      description: 画面の項目があるダッシュボード・エンティティ・操作（業務モデルの ID）。詳細設計は、たどれる範囲を業務モデルではなくここから読む
+      fields:
+        - key: dashboards
+          label: ダッシュボード
+          type: array
+          item:
+            type: string
+        - key: entities
+          label: エンティティ
+          type: array
+          item:
+            type: string
+        - key: nested
+          label: 入れ子で持つ要素
+          type: array
+          item:
+            type: string
+        - key: operations
+          label: 操作
+          type: array
+          item:
+            type: string
     - key: lists
       label: 一覧画面
       type: array

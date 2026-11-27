@@ -207,8 +207,12 @@ class TodosSystemDocumentsTest {
         fun resolvedRecord(kind: String, id: String) = rows(resolvedScreens, kind).map { map(it, "record") }.single { it["id"] == id }
         assertEquals("完了", rows(resolvedRecord("details", "todo"), "buttons").single { it["operation"] == "complete-todo" }["label"])
         assertEquals("TODOを完了する", rows(rows(resolvedRecord("lists", "todo-dashboard"), "sections").first(), "rowButtons").single { it["operation"] == "complete-todo" }["label"])
-        // ボタン・区画・絞り込みの名称は、いまは項目と解いた形までで、詳細設計の画面設計書には届かない
-        // （画面設計書が、ボタンと区画を業務モデルから組み立て直しているため。画面の項目から読む形にしたときに届く）
+        // 詳細設計の画面設計書まで届く（詳細画面のそのボタンだけが変わり、操作の名称を写すほかの箇所は変わらない）
+        val detailDesign = plan.outputs.single { it.document.value == "design/detail/final/screen-designs/details/todo.yaml" }.text
+        assertTrue(Regex("""- operation: complete-todo\n\s+label: 完了\n""").containsMatchIn(detailDesign), "詳細画面のボタン")
+        assertTrue("label: TODOを完了する" in detailDesign, "状態の履歴の操作の名称は変わらない")
+        val listDesign = plan.outputs.single { it.document.value == "design/detail/final/screen-designs/lists/todo-dashboard.yaml" }.text
+        assertTrue(Regex("""- operation: complete-todo\n\s+label: TODOを完了する\n""").containsMatchIn(listDesign), "一覧画面の行のボタンは変わらない")
         assertEquals("TODO 全体の確認", rows(doc("design/basic/final/screens/transitions/todo-dashboard.yaml"), "screens").single { it["id"] == "todo-dashboard" }["label"])
         // 操作への個別の判断は、項目に当たって、当てた判断が項目に残り、詳細設計まで届く（詳細設計は操作を項目から読む）
         val operation = doc("design/basic/final/operations/cancel-todo.yaml")

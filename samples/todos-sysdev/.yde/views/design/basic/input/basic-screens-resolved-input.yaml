@@ -1,0 +1,11 @@
+id: basic-screens-resolved-input
+name: 基本設計の生成入力（画面を解いた形のたどれる範囲）
+description: 画面の項目があるダッシュボード・エンティティ・操作を読む。詳細設計は、たどれる範囲を業務モデルではなくここから読む
+rows:
+  idPattern: SYS-basic-screens-resolved
+  schemaIds:
+    - basic-screens-resolved
+columns:
+  - label: reach
+    path: reach
+    schemaId: basic-screens-resolved

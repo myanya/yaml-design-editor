@@ -2,7 +2,7 @@
 id: SCR-tag
 source: tag
 kind: detail
-seq: 2-02
+seq: 2-03
 label: タグ詳細
 entity: ENT-tag
 url: /tag/{id}

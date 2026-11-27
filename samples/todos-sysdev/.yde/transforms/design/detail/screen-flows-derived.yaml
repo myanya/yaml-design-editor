@@ -28,6 +28,9 @@ input:
     operations:
       $view: basic-operations-resolved-input
       $one: true
+    screens:
+      $view: basic-screens-resolved-input
+      $one: true
 build:
   id:
     $format: DRV-document-screen-flows.{id}
@@ -41,11 +44,11 @@ build:
           $when:
             - or:
                 - of: model
-                  path: reach.entities
+                  path: designReach.entities
                   includes:
                     $copy: id
                 - of: model
-                  path: reach.nested
+                  path: designReach.nested
                   includes:
                     $copy: id
           id:
@@ -62,7 +65,7 @@ build:
           screens:
             $when:
               - of: model
-                path: reach.entities
+                path: designReach.entities
                 includes:
                   $copy: id
             $then:
@@ -104,7 +107,7 @@ build:
                     $copy: id
                     $of: element
                 - of: model
-                  path: reach.operations
+                  path: designReach.operations
                   includes:
                     $copy: id
               action:
@@ -400,6 +403,7 @@ rules:
     with:
       - row
       - operations
+      - screens
     build:
       $apply: model-with-operations
       $with:
@@ -419,6 +423,10 @@ rules:
                   designActions:
                     $copy: values.actions
                     $of: operations
+                  # ダッシュボードからたどれる範囲は、業務モデルではなく、画面の項目（解いた形）から読む
+                  designReach:
+                    $copy: values.reach
+                    $of: screens
                 priority: individual
                 source:
                   id: basic-operations

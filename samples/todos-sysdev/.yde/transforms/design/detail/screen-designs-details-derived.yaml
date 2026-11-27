@@ -28,6 +28,9 @@ input:
         operations:
           $view: basic-operations-resolved-input
           $one: true
+        screens:
+          $view: basic-screens-resolved-input
+          $one: true
     documents:
       $each:
         $view: basic-screens-resolved-details
@@ -48,7 +51,7 @@ build:
             document:
               $when:
                 - of: model
-                  path: reach.entities
+                  path: designReach.entities
                   includes:
                     $copy: id
               id:
@@ -114,7 +117,15 @@ build:
                           $build:
                             section:
                               title:
-                                $copy: items[0].field.label
+                                $first:
+                                  - $apply: table-label
+                                    $with:
+                                      tables:
+                                        $copy: screen.tables
+                                        $of: element
+                                      item:
+                                        $copy: key
+                                  - $copy: items[0].field.label
                               body:
                                 - table:
                                     of:
@@ -141,6 +152,16 @@ build:
                                                   $of: element
                                             $then:
                                               $apply: row-button
+                                              $with:
+                                                buttons:
+                                                  $apply: table-buttons
+                                                  $with:
+                                                    tables:
+                                                      $copy: screen.tables
+                                                      $of: element
+                                                    item:
+                                                      $copy: key
+                                                      $of: rt
                         - $group:
                             $apply: fields
                           $by:
@@ -153,7 +174,15 @@ build:
                           $build:
                             section:
                               title:
-                                $copy: items[0].field.label
+                                $first:
+                                  - $apply: table-label
+                                    $with:
+                                      tables:
+                                        $copy: screen.tables
+                                        $of: element
+                                      item:
+                                        $copy: key
+                                  - $copy: items[0].field.label
                               body:
                                 - table:
                                     of:
@@ -182,6 +211,16 @@ build:
                                               $of: t
                                         $then:
                                           $apply: button
+                                          $with:
+                                            buttons:
+                                              $apply: table-buttons
+                                              $with:
+                                                tables:
+                                                  $copy: screen.tables
+                                                  $of: element
+                                                item:
+                                                  $copy: key
+                                                  $of: t
                         - - actions:
                               $each: designActions
                               $of: model
@@ -196,6 +235,10 @@ build:
                                     exists: false
                                 $then:
                                   $apply: button
+                                  $with:
+                                    buttons:
+                                      $copy: screen.buttons
+                                      $of: element
             bindings:
               $concat:
                 - $each:
@@ -312,12 +355,76 @@ rules:
         $copy: .
         $of: list
   # 並びの行のボタン: ふつうのボタンに、番号を運ぶ決まり（受け取る値の名前と、行の並び順の項目）を添える
+  # ボタンの名称: 画面の項目を解いた形のボタン（この画面でだけ変えた名称があれば、それ）から引く。無ければ操作の名称
+  - id: button-label
+    with:
+      - buttons
+      - operation
+    build:
+      $apply: contract-first
+      $with:
+        matches:
+          $each: .
+          $of: buttons
+          $build:
+            $when:
+              - path: operation
+                equals:
+                  $copy: .
+                  $of: operation
+            $then:
+              $copy: label
+  # 表（画面の項目を解いた形）を、項目のキーで引く
+  - id: table-buttons
+    with:
+      - tables
+      - item
+    build:
+      $each: .
+      $of: tables
+      $flatten: true
+      $build:
+        $when:
+          - path: item
+            equals:
+              $copy: .
+              $of: item
+        $then:
+          $copy: rowButtons
+  - id: table-label
+    with:
+      - tables
+      - item
+    build:
+      $apply: contract-first
+      $with:
+        matches:
+          $each: .
+          $of: tables
+          $build:
+            $when:
+              - path: item
+                equals:
+                  $copy: .
+                  $of: item
+            $then:
+              $copy: label
   - id: row-button
+    with:
+      - buttons
     build:
       operation:
         $copy: id
       label:
-        $copy: label
+        $first:
+          - $apply: button-label
+            $with:
+              buttons:
+                $copy: .
+                $of: buttons
+              operation:
+                $copy: id
+          - $copy: label
       kind: link
       to:
         $first:
@@ -344,11 +451,21 @@ rules:
       shownWhen:
         $apply: shown-when
   - id: button
+    with:
+      - buttons
     build:
       operation:
         $copy: id
       label:
-        $copy: label
+        $first:
+          - $apply: button-label
+            $with:
+              buttons:
+                $copy: .
+                $of: buttons
+              operation:
+                $copy: id
+          - $copy: label
       kind: link
       to:
         $first:
@@ -408,6 +525,7 @@ rules:
     with:
       - row
       - operations
+      - screens
     build:
       $apply: model-with-operations
       $with:
@@ -427,6 +545,10 @@ rules:
                   designActions:
                     $copy: values.actions
                     $of: operations
+                  # ダッシュボードからたどれる範囲は、業務モデルではなく、画面の項目（解いた形）から読む
+                  designReach:
+                    $copy: values.reach
+                    $of: screens
                 priority: individual
                 source:
                   id: basic-operations
@@ -648,6 +770,7 @@ rules:
                 priority: individual
                 source:
                   id: contract
+  # 画面の項目を解いた形を、エンティティに重ねる（ボタンと表の名称を引く）
   - id: screen-source
     with:
       - original
@@ -657,8 +780,27 @@ rules:
         of: document
         exists: true
     build:
-      $copy: .
-      $of: original
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: original
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  screen:
+                    $copy: .
+                    $of: document
+                priority: individual
+                source:
+                  id: contract
   - id: screen-source
     with:
       - original

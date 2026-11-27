@@ -1,5 +1,29 @@
 # 生成物（basic-screens-resolved）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens-resolved.yaml）を直して作り直します（CLI generate）。
 id: SYS-basic-screens-resolved
+reach:
+  dashboards:
+    - todo-dashboard
+  entities:
+    - todo
+    - category
+    - tag
+  nested:
+    - todo-task
+  operations:
+    - add-category
+    - register-todo
+    - add-todo-comment
+    - edit-todo-comment
+    - delete-todo-comment
+    - add-todo-task
+    - edit-todo
+    - start-todo
+    - suspend-todo
+    - resume-todo
+    - complete-todo
+    - cancel-todo
+    - add-tag
+    - todo-task.finish
 lists:
   - resolvedId: RSV-list.todo-dashboard
     screen: SCR-todo-dashboard
@@ -243,44 +267,6 @@ lists:
         url: /
       designId: SCR-todo-dashboard
 details:
-  - resolvedId: RSV-detail.category
-    screen: SCR-category
-    record:
-      id: category
-      name: カテゴリ詳細
-      kind: detail
-      url: /category/{id}
-      items:
-        - key: id
-          label: ID
-          type: common#カテゴリ番号
-        - key: name
-          label: カテゴリ名
-          type: common#一行の文
-      tables: []
-      buttons: []
-      originalRoutes:
-        url: /category/{id}
-      designId: SCR-category
-  - resolvedId: RSV-detail.tag
-    screen: SCR-tag
-    record:
-      id: tag
-      name: タグ詳細
-      kind: detail
-      url: /tag/{id}
-      items:
-        - key: id
-          label: ID
-          type: common#タグ番号
-        - key: name
-          label: タグ名
-          type: common#一行の文
-      tables: []
-      buttons: []
-      originalRoutes:
-        url: /tag/{id}
-      designId: SCR-tag
   - resolvedId: RSV-detail.todo
     screen: SCR-todo
     record:
@@ -418,6 +404,44 @@ details:
       originalRoutes:
         url: /todo/{id}
       designId: SCR-todo
+  - resolvedId: RSV-detail.category
+    screen: SCR-category
+    record:
+      id: category
+      name: カテゴリ詳細
+      kind: detail
+      url: /category/{id}
+      items:
+        - key: id
+          label: ID
+          type: common#カテゴリ番号
+        - key: name
+          label: カテゴリ名
+          type: common#一行の文
+      tables: []
+      buttons: []
+      originalRoutes:
+        url: /category/{id}
+      designId: SCR-category
+  - resolvedId: RSV-detail.tag
+    screen: SCR-tag
+    record:
+      id: tag
+      name: タグ詳細
+      kind: detail
+      url: /tag/{id}
+      items:
+        - key: id
+          label: ID
+          type: common#タグ番号
+        - key: name
+          label: タグ名
+          type: common#一行の文
+      tables: []
+      buttons: []
+      originalRoutes:
+        url: /tag/{id}
+      designId: SCR-tag
 operations:
   - resolvedId: RSV-operation.add-category
     screen: SCR-add-category

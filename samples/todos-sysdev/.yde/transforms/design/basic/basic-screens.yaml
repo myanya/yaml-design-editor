@@ -752,184 +752,27 @@ rules:
                           $with:
                             op:
                               $copy: .
-        # 詳細画面: ダッシュボードからたどれるエンティティごと
-        - $each: values.model.entities
+        # 詳細画面: ダッシュボードからたどれるエンティティごと（たどれる順に並べる）
+        - $each: values.model.reach.entities
           $of: row
-          $bind: e
+          $flatten: true
           $build:
-            $when:
-              - of: row
-                path: values.model.reach.entities
-                includes:
-                  $copy: id
-            id:
-              $format: SCR-{id}
-            source:
-              $copy: id
-            kind: detail
-            seq:
-              $format: 2-{n}
-              $with:
-                'n':
-                  $number: $position
-                  $as: '00'
-            label:
-              $format: '{label}詳細'
-            entity:
-              $format: ENT-{id}
-            url:
-              $format: /{t}/{k}
-              $with:
-                t:
-                  $copy: id
-                k: '{id}'
-            # 値の項目: 業務モデルの 2 か所（一覧の行と個票）をまとめて並べる。参照の項目は、参照先の詳細画面へ進む
-            items:
-              $group:
-                $apply: fields
-              $by:
-                $when:
-                  - or:
-                      - not:
-                          path: field.base
-                          oneOf:
-                            - array
-                            - object
-                            - map
-                      - path: field.item.base
-                        equals: ref
-                $then:
-                  $copy: field.key
-              $build:
-                item:
-                  $format: FLD-{e}.{key}
-                  $with:
-                    e:
-                      $copy: id
-                      $of: e
-                    key:
-                      $copy: key
-                link:
-                  $apply: screen-of
-                  $with:
-                    target:
-                      $first:
-                        - $copy: items[0].field.target
-                        - $copy: items[0].field.item.target
-            tables:
-              $concat:
-                # ID の無い繰り返し（コメント・履歴）は表。並びの 1 件を番号で指す操作は、その表の行のボタン
-                - $group:
-                    $apply: fields
-                  $by:
-                    $when:
-                      - path: field.base
-                        equals: array
-                      - path: field.item.base
-                        equals: object
-                      - path: field.item.entity
-                        exists: false
-                    $then:
-                      $copy: field.key
-                  $bind: t
-                  $build:
-                    id:
-                      $format: SEC-{e}.{key}
-                      $with:
-                        e:
-                          $copy: id
-                          $of: e
-                        key:
-                          $copy: key
-                    item:
-                      $format: FLD-{e}.{key}
-                      $with:
-                        e:
-                          $copy: id
-                          $of: e
-                        key:
-                          $copy: key
-                    rowButtons:
-                      $apply: non-empty
-                      $with:
-                        list:
-                          $apply: row-buttons
-                          $with:
-                            operations:
-                              $copy: .
-                              $of: operations
-                            item:
-                              $format: FLD-{e}.{key}
-                              $with:
-                                e:
-                                  $copy: id
-                                  $of: e
-                                key:
-                                  $copy: key
-                            prefix:
-                              $format: '{e}.{key}'
-                              $with:
-                                e:
-                                  $copy: id
-                                  $of: e
-                                key:
-                                  $copy: key
-                # 入れ子の型（作業項目）は表にして、行の右にその型の操作のボタン
-                - $group:
-                    $apply: fields
-                  $by:
-                    $when:
-                      - path: field.item.entity
-                        exists: true
-                    $then:
-                      $copy: field.key
-                  $bind: t
-                  $build:
-                    id:
-                      $format: SEC-{e}.{key}
-                      $with:
-                        e:
-                          $copy: id
-                          $of: e
-                        key:
-                          $copy: key
-                    item:
-                      $format: FLD-{e}.{key}
-                      $with:
-                        e:
-                          $copy: id
-                          $of: e
-                        key:
-                          $copy: key
-                    entity:
-                      $format: ENT-{items[0].field.item.entity}
-                    rowButtons:
-                      $apply: nested-buttons
-                      $with:
-                        operations:
-                          $copy: .
-                          $of: operations
-                        receiver:
-                          $format: ENT-{items[0].field.item.entity}
-                        prefix:
-                          $format: '{e}.{key}'
-                          $with:
-                            e:
-                              $copy: id
-                              $of: e
-                            key:
-                              $copy: key
-            # 画面のボタン: この型を受け手にする操作（並びの 1 件を番号で指す操作は、その並びの表の行のボタンに出す）
-            buttons:
-              $apply: receiver-buttons
-              $with:
-                operations:
-                  $copy: .
-                  $of: operations
-                receiver:
-                  $format: ENT-{id}
-                prefix:
-                  $copy: id
+            $apply: detail-screens
+            $with:
+              reached:
+                $copy: .
+              seq:
+                $format: 2-{n}
+                $with:
+                  'n':
+                    $number: $position
+                    $as: '00'
+              entities:
+                $copy: values.model.entities
+                $of: row
+              operations:
+                $copy: .
+                $of: operations
         # 操作の画面: ダッシュボードからたどれる操作ごと（入力画面・確認画面・確定を 1 つにまとめる）
         - $each: .
           $of: operations
@@ -952,6 +795,188 @@ rules:
                 rules:
                   $copy: .
                   $of: rules
+  # 詳細画面（たどれるエンティティ 1 つ）
+  - id: detail-screens
+    with:
+      - reached
+      - seq
+      - entities
+      - operations
+    build:
+      $each: .
+      $of: entities
+      $bind: e
+      $build:
+        $when:
+          - path: id
+            equals:
+              $copy: .
+              $of: reached
+        id:
+          $format: SCR-{id}
+        source:
+          $copy: id
+        kind: detail
+        seq:
+          $copy: .
+          $of: seq
+        label:
+          $format: '{label}詳細'
+        entity:
+          $format: ENT-{id}
+        url:
+          $format: /{t}/{k}
+          $with:
+            t:
+              $copy: id
+            k: '{id}'
+        # 値の項目: 業務モデルの 2 か所（一覧の行と個票）をまとめて並べる。参照の項目は、参照先の詳細画面へ進む
+        items:
+          $group:
+            $apply: fields
+          $by:
+            $when:
+              - or:
+                  - not:
+                      path: field.base
+                      oneOf:
+                        - array
+                        - object
+                        - map
+                  - path: field.item.base
+                    equals: ref
+            $then:
+              $copy: field.key
+          $build:
+            item:
+              $format: FLD-{e}.{key}
+              $with:
+                e:
+                  $copy: id
+                  $of: e
+                key:
+                  $copy: key
+            link:
+              $apply: screen-of
+              $with:
+                target:
+                  $first:
+                    - $copy: items[0].field.target
+                    - $copy: items[0].field.item.target
+        tables:
+          $concat:
+            # ID の無い繰り返し（コメント・履歴）は表。並びの 1 件を番号で指す操作は、その表の行のボタン
+            - $group:
+                $apply: fields
+              $by:
+                $when:
+                  - path: field.base
+                    equals: array
+                  - path: field.item.base
+                    equals: object
+                  - path: field.item.entity
+                    exists: false
+                $then:
+                  $copy: field.key
+              $bind: t
+              $build:
+                id:
+                  $format: SEC-{e}.{key}
+                  $with:
+                    e:
+                      $copy: id
+                      $of: e
+                    key:
+                      $copy: key
+                item:
+                  $format: FLD-{e}.{key}
+                  $with:
+                    e:
+                      $copy: id
+                      $of: e
+                    key:
+                      $copy: key
+                rowButtons:
+                  $apply: non-empty
+                  $with:
+                    list:
+                      $apply: row-buttons
+                      $with:
+                        operations:
+                          $copy: .
+                          $of: operations
+                        item:
+                          $format: FLD-{e}.{key}
+                          $with:
+                            e:
+                              $copy: id
+                              $of: e
+                            key:
+                              $copy: key
+                        prefix:
+                          $format: '{e}.{key}'
+                          $with:
+                            e:
+                              $copy: id
+                              $of: e
+                            key:
+                              $copy: key
+            # 入れ子の型（作業項目）は表にして、行の右にその型の操作のボタン
+            - $group:
+                $apply: fields
+              $by:
+                $when:
+                  - path: field.item.entity
+                    exists: true
+                $then:
+                  $copy: field.key
+              $bind: t
+              $build:
+                id:
+                  $format: SEC-{e}.{key}
+                  $with:
+                    e:
+                      $copy: id
+                      $of: e
+                    key:
+                      $copy: key
+                item:
+                  $format: FLD-{e}.{key}
+                  $with:
+                    e:
+                      $copy: id
+                      $of: e
+                    key:
+                      $copy: key
+                entity:
+                  $format: ENT-{items[0].field.item.entity}
+                rowButtons:
+                  $apply: nested-buttons
+                  $with:
+                    operations:
+                      $copy: .
+                      $of: operations
+                    receiver:
+                      $format: ENT-{items[0].field.item.entity}
+                    prefix:
+                      $format: '{e}.{key}'
+                      $with:
+                        e:
+                          $copy: id
+                          $of: e
+                        key:
+                          $copy: key
+        # 画面のボタン: この型を受け手にする操作（並びの 1 件を番号で指す操作は、その並びの表の行のボタンに出す）
+        buttons:
+          $apply: receiver-buttons
+          $with:
+            operations:
+              $copy: .
+              $of: operations
+            receiver:
+              $format: ENT-{id}
+            prefix:
+              $copy: id
   # 操作の画面（入力画面・確認画面・確定）
   - id: operation-screen
     with:

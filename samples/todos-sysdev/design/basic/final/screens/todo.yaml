@@ -2,7 +2,7 @@
 id: SCR-todo
 source: todo
 kind: detail
-seq: 2-03
+seq: 2-01
 label: TODO詳細
 entity: ENT-todo
 url: /todo/{id}

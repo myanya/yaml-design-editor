@@ -103,6 +103,9 @@ class TodosSysdevTest {
         // 解いた形では、ボタンの名称と行き先が読む側の書き方になる
         assertEquals(listOf("TODOを登録する" to "register-todo/input"), list(resolved("lists", "todo-dashboard"), "buttons").take(1).map { it["label"] to it["to"] })
         // 画面の項目があるエンティティと操作が、ダッシュボードからたどれる範囲
+        val reach = resolved["reach"] as Map<*, *>
+        assertEquals(listOf(listOf("todo-dashboard"), listOf("todo", "category", "tag"), listOf("todo-task"), 14),
+            listOf(reach["dashboards"], reach["entities"], reach["nested"], (reach["operations"] as List<*>).size), "詳細設計は、たどれる範囲をここから読む")
         val screenFiles = java.nio.file.Files.list(root.resolve("design/basic/final/screens")).use { files -> files.filter { java.nio.file.Files.isRegularFile(it) }.count() }
         assertEquals(18L, screenFiles, "一覧 1・詳細 3・操作 14")
         val session = doc("design/detail/final/session.yaml")

@@ -54,6 +54,51 @@ input:
       $copy: values.record
 build:
   id: SYS-basic-screens-resolved
+  # ダッシュボードからたどれる範囲: 画面の項目があるものが、たどれる（業務モデルの ID で持つ）
+  reach:
+    dashboards:
+      $each: screens
+      $build:
+        $when:
+          - path: kind
+            equals: list
+        $then:
+          $copy: source
+    entities:
+      $each: screens
+      $build:
+        $when:
+          - path: kind
+            equals: detail
+        $then:
+          $copy: source
+    # 詳細画面の表として見せる、入れ子で持つ要素
+    nested:
+      $each: screens
+      $flatten: true
+      $build:
+        $when:
+          - path: kind
+            equals: detail
+        $then:
+          $each: tables
+          $build:
+            $when:
+              - path: entity
+                exists: true
+            $then:
+              $apply: entity-source
+              $with:
+                ref:
+                  $copy: entity
+    operations:
+      $each: screens
+      $build:
+        $when:
+          - path: kind
+            equals: operation
+        $then:
+          $copy: source
   lists:
     $each: screens
     $build:
