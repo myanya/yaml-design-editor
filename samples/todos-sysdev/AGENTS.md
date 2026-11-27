@@ -45,5 +45,5 @@
   - 画面の項目は、運ぶ入力を `hidden`（`PRM-` の並び）に持ちます。読み元は操作の入力が持ち、画面を解いた形で `carried` になります。画面設計書は入力画面と確認画面の `hidden` に入れます。Web の実行部（`.yde/reports/application/WebRuntime.java`・`WebPage.java`）は、入力画面では初期値と一緒に、入力画面の無い操作では確認画面を出すときに、運ぶ値を受け手（または親）から読みます。
   - 検査の範囲は、操作の画面を開いてから確定するまでです。比較と UPDATE はアトミックではないので、操作を直列に実行する現在の構成（`writeConcurrency: local-serialized`）が前提です。
 - `app/` の再生成は、Windows では `scripts/generate-app.ps1`、それ以外では `scripts/generate-app.py` を使います（手順と安全確認は同じで、どちらで作り直しても同じ結果になります。GitHub Actions の `todos-application` が両方の `-Check` / `--check` を実行します）。片方の手順を変えたら、もう片方も合わせます。Service の引数や Form が変わったら、`verification/` の検証テストも直し、`verify-app.sh`（Windows は `verify-app.ps1`）で確かめます。
-- 移行の進み具合（`docs/design-progress.html`）は、目標のファイル体系を「段 × 系統」に置き、箱ごとに済んだこと・残っていることを出します。目標の箱・無くすもの・やることは `scripts/design-map.json` の `plan` に書き、済んだかどうかは、変換定義・ファイルがあるか・何を読んでいるか（`done` の条件）から `scripts/design-map.py` が計算します。「済」を手で書きません。やることを足す・変えるときは `plan.tasks` を直します。
+- 移行の進み具合（`docs/design-progress.html`）は、目標のファイル体系を「段 × 系統」に置き、箱ごとに済んだこと・残っていることを出します。目標の箱・箱の間の線（作る元・同じ段を指す・ビューが読む）・無くすもの・やることは `scripts/design-map.json` の `plan` に書き、済んだかどうかは、変換定義・ファイルがあるか・何を読んでいるか（`done` の条件）から `scripts/design-map.py` が計算します。「済」を手で書きません。やることを足す・変えるときは `plan.tasks` を直します。
 - labs の下のワークスペースは入力にしません。

@@ -687,7 +687,7 @@ def build_plan(workspace, config, files, target, ideal):
         pending = [t for t in mine if not t["done"]]
         marks = [{"key": key, "label": label, "done": all(t["done"] for t in mine if t["aspect"] == key)}
                  for key, label in aspects.items() if any(t["aspect"] == key for t in mine)]
-        if box["layer"] == "source":
+        if box["layer"] in ("bm", "source"):  # 業務モデルとソースコードは変えない
             state = "fixed"
         elif not pending:
             state = "done"
@@ -702,6 +702,19 @@ def build_plan(workspace, config, files, target, ideal):
         mine = [t for t in tasks if t["target"] == group["id"]]
         removals.append({**group, "total": len(mine), "done": sum(t["done"] for t in mine), "layer": None, "lane": None, "files": "", "count": 1,
                          "next": min((t["step"] for t in mine if not t["done"]), default=None)})
+    # 箱の間の線: 作る元は 1 つ上の段（ソースコードは詳細設計かプログラム設計）、指すのとビューは同じ段
+    order = [layer["id"] for layer in settings["layers"]]
+    by_box = {t["id"]: t for t in targets}
+    edges = []
+    for source, sink, kind in settings.get("edges", []):
+        if source not in by_box or sink not in by_box:
+            warnings.append(f"線「{source} → {sink}」の箱がありません")
+            continue
+        a, b = order.index(by_box[source]["layer"]), order.index(by_box[sink]["layer"])
+        fine = (b - a == 1 or (by_box[sink]["layer"] == "source" and 0 < b - a <= 2)) if kind == "from" else a == b
+        if not fine:
+            warnings.append(f"線「{by_box[source]['label']} → {by_box[sink]['label']}」（{kind}）が、段の決まりに合いません")
+        edges.append([source, sink, kind])
     steps = [{**step, "total": sum(1 for t in tasks if t["step"] == step["id"]), "done": sum(1 for t in tasks if t["step"] == step["id"] and t["done"])}
              for step in settings["steps"]]
     current = next((s["id"] for s in steps if s["done"] < s["total"]), None)
@@ -740,9 +753,12 @@ def build_plan(workspace, config, files, target, ideal):
         entry[0] += task["done"]
         entry[1] += 1
     stats.append(["やることの内訳", "、".join(f"{kind} {a} / {b}" for kind, (a, b) in kinds.items())])
+    stats.append(["箱の間の線", f"作る元 {sum(1 for e in edges if e[2] == 'from')} 本、同じ段を指す {sum(1 for e in edges if e[2] == 'ref')} 本、"
+                  f"ビューが読む {sum(1 for e in edges if e[2] == 'view')} 本"])
     stats.append(["無くすもの", "、".join(f"{r['label']} {r['done']} / {r['total']}" for r in removals)])
     return {"title": settings["title"], "summary": summary, "current": current, "steps": steps, "lanes": settings["lanes"],
-            "layers": settings["layers"], "targets": targets, "removals": removals, "tasks": tasks, "totals": totals, "stats": stats,
+            "layers": settings["layers"], "targets": targets, "edges": edges, "removals": removals, "tasks": tasks, "totals": totals,
+            "stats": stats,
             "warnings": sorted(set(warnings))}
 
 

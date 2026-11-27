@@ -3,18 +3,21 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* 配置: 上に全体の進み具合と歩ごとの棒、中央に「段 × 系統」の格子に置いた目標のファイルと選択中の箱の詳細、下に無くすもの・やることの一覧・数えたこと */
+/* 配置: 上に全体の進み具合と歩ごとの棒、中央に「段 × 系統」に置いた目標のファイルと依存関係の線の図と選択中の箱の詳細、下に無くすもの・やることの一覧・数えたこと */
 :root {
   --done: #2f7d4f; --done-fill: #e1f1e6; --formed-fill: #dfeafb; --doing: #a8690c; --doing-fill: #fbeed3; --todo-fill: #ffffff; --track: #e3e7ee;
+  --c-from: #0a66c2; --c-ref: #7d889b; --c-view: #3f8a5c;
   --bg: #f5f6f8; --surface: #ffffff; --band: #eceff4; --ink: #1b2330; --muted: #5b6676; --line: #d3d9e2; --sel: #0a66c2;
   --font: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --done: #6cc08f; --done-fill: #1d3a28; --formed-fill: #1f3555; --doing: #e2a93f; --doing-fill: #4a3a17; --todo-fill: #1a202a; --track: #2a313d;
+  --c-from: #5aa9ff; --c-ref: #8590a3; --c-view: #6cc08f;
   --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48; --sel: #5aa9ff; color-scheme: dark } }
 :root[data-theme="dark"] {
   --done: #6cc08f; --done-fill: #1d3a28; --formed-fill: #1f3555; --doing: #e2a93f; --doing-fill: #4a3a17; --todo-fill: #1a202a; --track: #2a313d;
+  --c-from: #5aa9ff; --c-ref: #8590a3; --c-view: #6cc08f;
   --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48; --sel: #5aa9ff; color-scheme: dark }
 
 [hidden] { display: none !important; }
@@ -58,39 +61,58 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--sel); outl
 .kinds span { display: inline-flex; align-items: center; gap: 6px; }
 .kinds i { width: 22px; height: 13px; border: 1px solid var(--line); border-radius: 3px; display: inline-block; }
 
-/* 格子 */
+/* 図 */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; }
+.legend label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+.legend input { accent-color: var(--sel); margin: 0; }
+.legend .desc { color: var(--muted); }
+.sw { width: 30px; height: 0; border-top: 2px solid; display: inline-block; }
+.sw.from { border-color: var(--c-from); } .sw.ref { border-color: var(--c-ref); border-top-style: dashed; } .sw.view { border-color: var(--c-view); border-top-style: dotted; }
 .stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 340px; } .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+@media (min-width: 1640px) { .wrap { max-width: 1720px; } .stage { grid-template-columns: minmax(0, 1fr) 340px; } .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+figure { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+figcaption { color: var(--muted); font-size: 12.5px; max-width: 60em; }
 .scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
-.grid { display: grid; grid-template-columns: 104px repeat(var(--lanes), minmax(132px, 1fr)); min-width: 900px; }
-.grid > div { padding: 6px; border-top: 1px solid var(--line); border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.grid > .head { border-top: 0; color: var(--muted); font-size: 11.5px; font-weight: 500; padding-block: 6px; }
-.grid > .layer { border-left: 0; background: var(--band); }
-.grid > .head.corner { border-left: 0; background: var(--band); }
-.layer .name { font-weight: 700; font-size: 13px; line-height: 1.4; }
-.layer .place { font-family: var(--mono); font-size: 10.5px; color: var(--muted); word-break: break-all; }
-.layer .reads { font-size: 11px; color: var(--muted); line-height: 1.5; }
-.grid > .down { grid-column: 1 / -1; background: var(--band); padding-block: 2px; color: var(--muted); font-size: 11.5px; flex-direction: row; gap: 8px; border-left: 0; }
-.box { text-align: start; background: var(--todo-fill); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.box:hover { border-color: var(--ink); }
-.box.sel { outline: 2px solid var(--sel); outline-offset: 1px; }
-.box .top { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
-.box .label { font-size: 12.5px; font-weight: 500; line-height: 1.4; }
-.box .chip { font-size: 10.5px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
-.box .files { font-family: var(--mono); font-size: 10px; color: var(--muted); word-break: break-all; line-height: 1.45; }
-.box .marks { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 10.5px; color: var(--muted); }
-.box .marks .ok { color: var(--done); }
-.box .marks .ng { color: var(--doing); }
-.st-done { background: var(--done-fill); border-color: var(--done); }
-.st-done .chip { color: var(--done); font-weight: 700; }
-.st-formed { background: var(--formed-fill); }
-.st-doing { background: var(--doing-fill); border-color: var(--doing); }
-.st-todo { border-style: dashed; border-color: var(--muted); }
-.st-fixed { background: var(--band); cursor: default; }
+svg#map { display: block; width: 100%; min-width: 1080px; height: auto; font-family: var(--font); }
+.band { fill: var(--band); }
+.band-name { fill: var(--ink); font-size: 12.5px; font-weight: 700; }
+.band-sub { fill: var(--muted); font-size: 10px; }
+.lane-head { fill: var(--muted); font-size: 11px; font-weight: 500; }
+.lane-rule { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.mapping { fill: var(--muted); font-size: 11px; font-weight: 500; }
+.node { cursor: pointer; }
+.node rect { fill: var(--todo-fill); stroke: var(--line); stroke-width: 1; }
+.node .label { fill: var(--ink); font-size: 12px; font-weight: 500; }
+.node .chip { fill: var(--muted); font-size: 10px; }
+.node .mark { font-size: 10px; }
+.node .mark.ok { fill: var(--done); } .node .mark.ng { fill: var(--doing); }
+.node.st-done rect { fill: var(--done-fill); stroke: var(--done); }
+.node.st-done .chip { fill: var(--done); font-weight: 700; }
+.node.st-formed rect { fill: var(--formed-fill); }
+.node.st-doing rect { fill: var(--doing-fill); stroke: var(--doing); }
+.node.st-todo rect { stroke: var(--muted); stroke-dasharray: 4 3; }
+.node.st-fixed rect { fill: var(--surface); }
+.node:hover rect { stroke: var(--ink); }
+.node.sel rect { stroke: var(--sel); stroke-width: 2.5; stroke-dasharray: none; }
+.node.dim { opacity: .25; }
+.node:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.edge { fill: none; stroke-width: 1.2; opacity: .62; }
+.edge.from { stroke: var(--c-from); } .edge.ref { stroke: var(--c-ref); stroke-dasharray: 4 3; } .edge.view { stroke: var(--c-view); stroke-dasharray: 1.5 3; }
+.edge.dim { opacity: .04; } .edge.hot { opacity: 1; stroke-width: 1.9; }
+.mk-from { fill: var(--c-from); } .mk-ref { fill: var(--c-ref); } .mk-view { fill: var(--c-view); }
+svg.hide-from .edge.from:not(.hot), svg.hide-ref .edge.ref:not(.hot), svg.hide-view .edge.view:not(.hot) { display: none; }
 
 /* 詳細 */
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .panel .where { color: var(--muted); font-size: 12px; }
+.rel { display: flex; flex-direction: column; gap: 6px; }
+.rel-row { display: grid; grid-template-columns: 9em minmax(0, 1fr); gap: 8px; align-items: start; font-size: 12.5px; }
+.rel-row .k { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); padding-top: 3px; }
+.rel-row .k .sw { width: 16px; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 7px; cursor: pointer; }
+.chips button:hover { border-color: var(--ink); }
+.chips .ok, .deps .ok { color: var(--done); } .chips .ng, .deps .ng { color: var(--doing); } .chips .half, .deps .half { color: var(--sel); }
 .none { color: var(--muted); font-size: 12.5px; }
 .todo-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .todo-list li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); gap: 4px; font-size: 12.5px; line-height: 1.6; }
@@ -108,6 +130,15 @@ button:focus-visible, select:focus-visible { outline: 2px solid var(--sel); outl
 .removal .label { font-weight: 700; font-size: 13px; }
 .removal .count { font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .removal .note { font-size: 12px; }
+
+/* 依存関係の表 */
+table.deps { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 900px; }
+table.deps th, table.deps td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: start; vertical-align: top; }
+table.deps th { background: var(--band); font-weight: 700; white-space: nowrap; }
+table.deps tr.layer th { background: var(--surface); font-size: 13px; padding-top: 12px; }
+table.deps td.name { white-space: nowrap; font-weight: 500; }
+table.deps td.ready { white-space: nowrap; }
+table.deps .item { display: inline-block; margin-right: 10px; white-space: nowrap; }
 
 /* 一覧 */
 .filters { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
@@ -153,11 +184,24 @@ footer.note { display: flex; flex-direction: column; gap: 4px; }
       <span><i style="border-style:dashed;border-color:var(--muted)"></i>まだ（文書の形・未作成）</span>
       <span><i style="background:var(--band)"></i>変えないもの</span>
     </div>
+    <div class="legend">
+      <label><input type="checkbox" id="f-from" checked><span class="sw from"></span>作る元<span class="desc">（1 つ上の段を読んで作る）</span></label>
+      <label><input type="checkbox" id="f-ref" checked><span class="sw ref"></span>同じ段を指す<span class="desc">（ID で指す。値は写さない）</span></label>
+      <label><input type="checkbox" id="f-view"><span class="sw view"></span>ビューが読む<span class="desc">（定義書・設計書として見せる）</span></label>
+    </div>
     <div class="stage">
-      <div class="scroll"><div class="grid" id="grid"></div></div>
+      <figure>
+        <div class="scroll"><svg id="map" role="img" aria-label="業務モデルからソースコードまでの段ごとに、目標のファイルを系統の列に置き、ファイルの間の依存関係と、いまの進み具合を示す図"></svg></div>
+        <figcaption>行は段、列は系統です。矢印は「読まれる側 → 読む側」で、上の段から下の段へ作ります。段をまたぐ線は、列の間と段の間を通します。箱を押すと、その箱が読むもの・その箱を読むものだけが残り（ビューの線も出ます）、下に残っている「やること」が出ます。人が書く判断は、その段の全体に効くので、線は引いていません。</figcaption>
+      </figure>
       <aside class="panel" id="panel" aria-live="polite"></aside>
     </div>
-    <p class="note">行は段、列は系統です。上の段から下の段へ作ります。各段は、1 つ上の段だけを読みます。箱を押すと、その箱に残っていることが出ます。</p>
+  </section>
+
+  <section>
+    <h2>ファイルごとの依存関係</h2>
+    <div class="table-scroll"><table class="deps" id="deps"></table></div>
+    <p class="note">図の線を表にしたものです。印は相手の状態（✓ 目標の形、◐ 形は目標どおり、○ まだ）。「作る元がそろっている」は、作る元と、同じ段で指す相手が、どれも ✓ か ◐ になっていることです。そろっていれば、その箱を目標の形で作り始められます。</p>
   </section>
 
   <section>
@@ -210,26 +254,84 @@ document.getElementById('totals').innerHTML = DATA.totals.map(t =>
 document.getElementById('steps').innerHTML = DATA.steps.map(s =>
   `<div class="step${s.id === DATA.current ? ' now' : ''}${s.done === s.total ? ' fin' : ''}"><span class="n">${s.id}</span><span class="name">${esc(s.name)}</span><span class="does">${esc(s.does)}</span>${bar(s.done, s.total)}<span class="count">${s.done} / ${s.total}</span></div>`).join('');
 
-// ---- 格子 ----
-const grid = document.getElementById('grid');
-grid.style.setProperty('--lanes', DATA.lanes.length);
-let html = '<div class="head corner">段 ＼ 系統</div>' + DATA.lanes.map(l => `<div class="head">${esc(l.label)}</div>`).join('');
-html += `<div class="down"><span>業務モデル（人が書く。変えない）</span><span>↓ アーキテクチャマッピング</span></div>`;
-DATA.layers.forEach((layer, i) => {
-  if (i > 0) html += `<div class="down"><span>↓ ${esc(['', '技術スタックマッピング', 'コードマッピング（前半）', 'コードマッピング（後半）'][i] || '')}</span></div>`;
-  html += `<div class="layer"><span class="name">${layer.label.map(esc).join('<br>')}</span><span class="place">${esc(layer.place)}</span><span class="reads">読むのは ${esc(layer.reads)}</span></div>`;
-  for (const lane of DATA.lanes) {
-    const boxes = DATA.targets.filter(t => t.layer === layer.id && t.lane === lane.id);
-    html += '<div>' + boxes.map(t => {
-      const chip = t.state === 'done' ? '済' : t.state === 'fixed' ? '' : `歩 ${t.next}`;
-      const marks = t.aspects.map(a => `<span class="${a.done ? 'ok' : 'ng'}">${a.done ? '✓' : '○'} ${esc(a.label)}</span>`).join('');
-      return `<button type="button" class="box st-${t.state}" data-id="${esc(t.id)}"${t.state === 'fixed' ? ' tabindex="-1"' : ''}>
-        <span class="top"><span class="label">${esc(t.label)}${t.count > 1 ? ` ×${t.count}` : ''}</span><span class="chip">${chip}</span></span>
-        ${t.files ? `<span class="files">${esc(t.files)}</span>` : ''}${marks ? `<span class="marks">${marks}</span>` : ''}</button>`;
-    }).join('') + '</div>';
-  }
+// ---- 図: 段を帯に、系統を列にして、箱と線を置く ----
+const NS = 'http://www.w3.org/2000/svg';
+const el = (name, attrs = {}, value) => { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (value != null) e.textContent = value; return e; };
+const NW = 156, NH = 40, ROW = 50, COLW = 200, X0 = 112, PAD = 14, GAP = 46, TOP = 30;
+const NODES = DATA.targets, LANES = DATA.lanes, LAYERS = DATA.layers;
+const EDGES = DATA.edges.map(([s, t, type]) => ({ s, t, type }));
+const TYPE = { from: '作る元', ref: '同じ段を指す', view: 'ビューが読む' };
+const svg = document.getElementById('map');
+const W = X0 + COLW * LANES.length + 6;
+let y = TOP; const bandTop = {}, bandH = {};
+for (const layer of LAYERS) {
+  let rows = 1;
+  LANES.forEach((lane, c) => { const cell = NODES.filter(n => n.layer === layer.id && n.lane === lane.id); rows = Math.max(rows, cell.length); cell.forEach((n, i) => { n.x = X0 + COLW * c + (COLW - NW) / 2; n.row = i; n.col = c; }); });
+  bandTop[layer.id] = y; bandH[layer.id] = PAD * 2 + rows * ROW - (ROW - NH); y += bandH[layer.id] + GAP;
+}
+for (const n of NODES) n.y = bandTop[n.layer] + PAD + n.row * ROW;
+svg.setAttribute('viewBox', `0 0 ${W} ${y - GAP + 6}`);
+const defs = el('defs');
+for (const t of Object.keys(TYPE)) { const m = el('marker', { id: 'mk-' + t, viewBox: '0 0 8 8', refX: 7, refY: 4, markerWidth: 7, markerHeight: 7, markerUnits: 'userSpaceOnUse', orient: 'auto' }); m.appendChild(el('path', { d: 'M0,0.6 L8,4 L0,7.4 Z', class: 'mk-' + t })); defs.appendChild(m); }
+svg.appendChild(defs);
+LANES.forEach((lane, c) => svg.appendChild(el('text', { x: X0 + COLW * c + (COLW - NW) / 2, y: 17, class: 'lane-head' }, lane.label)));
+LAYERS.forEach((layer, i) => {
+  svg.appendChild(el('rect', { x: 0, y: bandTop[layer.id], width: W, height: bandH[layer.id], rx: 6, class: 'band' }));
+  layer.label.forEach((line, k) => svg.appendChild(el('text', { x: 10, y: bandTop[layer.id] + PAD + 12 + k * 15, class: 'band-name', style: k ? 'font-size:10.5px;font-weight:400' : '' }, line)));
+  if (layer.mapping) svg.appendChild(el('text', { x: W - 10, y: bandTop[layer.id] - 6, class: 'mapping', 'text-anchor': 'end' }, `${layer.mapping}（読むのは ${layer.reads}）↓`));
 });
-grid.innerHTML = html;
+const edgeLayer = el('g'), nodeLayer = el('g'); svg.appendChild(edgeLayer); svg.appendChild(nodeLayer);
+const nodeById = Object.fromEntries(NODES.map(n => [n.id, n]));
+// 角を丸めた折れ線
+const route = pts => { let d = `M${pts[0][0]},${pts[0][1]}`; for (let i = 1; i < pts.length - 1; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1]; const r = Math.min(6, Math.hypot(x1 - x0, y1 - y0) / 2, Math.hypot(x2 - x1, y2 - y1) / 2); const ux = Math.sign(x1 - x0), uy = Math.sign(y1 - y0), vx = Math.sign(x2 - x1), vy = Math.sign(y2 - y1); d += ` L${x1 - ux * r},${y1 - uy * r} Q${x1},${y1} ${x1 + vx * r},${y1 + vy * r}`; } const last = pts[pts.length - 1]; return d + ` L${last[0]},${last[1]}`; };
+const gutter = c => X0 + COLW * c;  // 列 c の左の通り道（列と列の間）の中央
+const layerIndex = Object.fromEntries(LAYERS.map((l, i) => [l.id, i]));
+for (const e of EDGES) {
+  const a = nodeById[e.s], b = nodeById[e.t]; let d;
+  const ay = a.y + NH / 2, by = b.y + NH / 2;
+  if (a.layer !== b.layer) {
+    // 段をまたぐ線: 箱の横 → 列の間の通り道を下へ → 段の間を横へ → 相手の列の通り道を下へ → 相手の箱の横
+    const right = b.col >= a.col, jitterA = ((a.row % 3) - 1) * 5, jitterB = ((b.row % 3) - 1) * 5;
+    const gxA = gutter(right ? a.col + 1 : a.col) + jitterA;
+    const gxB = (b.col > a.col ? gutter(b.col) : gutter(b.col + 1)) + (b.col === a.col || b.col === a.col + 1 ? jitterA : jitterB);
+    const ax = right ? a.x + NW : a.x, bx = b.col > a.col ? b.x - 1 : b.x + NW + 1;
+    const channel = bandTop[a.layer] + bandH[a.layer] + 9 + (a.col % 5) * 6;
+    const pts = [[ax, ay], [gxA, ay]];
+    if (gxA !== gxB) pts.push([gxA, channel], [gxB, channel]);
+    pts.push([gxB, by], [bx, by]);
+    d = route(pts);
+  } else if (a.col === b.col) {  // 同じ列に積んだ箱どうしは、右側を回る
+    const x = a.x + NW, k = 10 + Math.min(12, Math.abs(by - ay) * 0.1);
+    d = `M${x},${ay} C${x + k},${ay} ${x + k + 1},${by} ${x + 1},${by}`;
+  } else if (b.col > a.col) {
+    const x1 = a.x + NW, x2 = b.x - 1, k = Math.max(14, (x2 - x1) * 0.5);
+    d = `M${x1},${ay} C${x1 + k},${ay} ${x2 - k},${by} ${x2},${by}`;
+  } else {
+    const x1 = a.x, x2 = b.x + NW + 1, k = Math.max(14, (x1 - x2) * 0.5);
+    d = `M${x1},${ay} C${x1 - k},${ay} ${x2 + k},${by} ${x2},${by}`;
+  }
+  e.el = el('path', { d, class: 'edge ' + e.type, 'marker-end': `url(#mk-${e.type})` });
+  edgeLayer.appendChild(e.el);
+}
+for (const n of NODES) {
+  const g = el('g', { class: `node st-${n.state}`, tabindex: 0, role: 'button', 'aria-label': `${n.label}（${STATE[n.state]}）` });
+  g.appendChild(el('rect', { x: n.x, y: n.y, width: NW, height: NH, rx: n.lane === 'view' ? 12 : 4 }));
+  const label = el('text', { x: n.x + 8, y: n.y + 16, class: 'label' }, n.label + (n.count > 1 ? ` ×${n.count}` : ''));
+  g.appendChild(label);
+  const chip = n.state === 'done' ? '済' : n.state === 'fixed' ? '' : `歩 ${n.next}`;
+  if (chip) g.appendChild(el('text', { x: n.x + NW - 7, y: n.y + 16, 'text-anchor': 'end', class: 'chip' }, chip));
+  const marks = el('text', { x: n.x + 8, y: n.y + 31 });
+  n.aspects.forEach((a, i) => { const t = el('tspan', { class: 'mark ' + (a.done ? 'ok' : 'ng'), dx: i ? 6 : 0 }, (a.done ? '✓' : '○') + a.label); marks.appendChild(t); });
+  if (n.state === 'fixed') marks.appendChild(el('tspan', { class: 'chip' }, '変えない'));
+  g.appendChild(marks);
+  g.addEventListener('click', () => select(n.id));
+  g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(n.id); } });
+  n.el = g; nodeLayer.appendChild(g);
+  const room = NW - 16 - (chip ? 26 : 0);
+  if (label.getComputedTextLength && label.getComputedTextLength() > room) { label.setAttribute('textLength', room); label.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+  if (marks.getComputedTextLength && marks.getComputedTextLength() > NW - 14) { marks.setAttribute('textLength', NW - 14); marks.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+}
+for (const t of Object.keys(TYPE)) { const box = document.getElementById('f-' + t); svg.classList.toggle('hide-' + t, !box.checked); box.addEventListener('change', ev => svg.classList.toggle('hide-' + t, !ev.target.checked)); }
 
 // ---- 無くすもの ----
 document.getElementById('removals').innerHTML = DATA.removals.map(r =>
@@ -238,25 +340,59 @@ document.getElementById('removals').innerHTML = DATA.removals.map(r =>
 // ---- 選択と詳細 ----
 const panel = document.getElementById('panel');
 let current = null;
+const markOf = n => n.state === 'done' ? '<span class="ok" title="目標の形">✓</span> ' : n.state === 'formed' ? '<span class="half" title="形は目標どおり">◐</span> ' : n.state === 'fixed' ? '' : '<span class="ng" title="まだ">○</span> ';
+const chipOf = id => { const n = nodeById[id]; return `<button type="button" data-id="${esc(id)}">${markOf(n)}${esc(n.label)}</button>`; };
+function rel(list, pick) {
+  const rows = Object.entries(TYPE).map(([t, name]) => { const ids = list.filter(e => e.type === t).map(pick); return ids.length ? `<div class="rel-row"><span class="k"><span class="sw ${t}"></span>${name}</span><span class="chips">${ids.map(chipOf).join('')}</span></div>` : ''; }).join('');
+  return rows || '<span class="none">ありません</span>';
+}
 function select(id) {
   current = !id || id === current ? null : id;
-  for (const e of document.querySelectorAll('.box, .removal')) e.classList.toggle('sel', e.dataset.id === current);
-  if (!current) { panel.innerHTML = '<h3>箱を選んでください</h3><p class="none">目標のファイルか、無くすものを押すと、済んだことと残っていることが出ます。</p>'; return; }
-  const t = byId[current], tasks = DATA.tasks.filter(k => k.target === current);
-  const layer = DATA.layers.find(l => l.id === t.layer), lane = DATA.lanes.find(l => l.id === t.lane);
+  for (const e of document.querySelectorAll('.removal')) e.classList.toggle('sel', e.dataset.id === current);
+  for (const n of NODES) n.el.classList.remove('sel', 'dim');
+  for (const e of EDGES) e.el.classList.remove('dim', 'hot');
+  if (!current) { panel.innerHTML = '<h3>箱を選んでください</h3><p class="none">目標のファイルを押すと、読むもの・読まれるものと、残っている「やること」が出ます。</p>'; return; }
+  const t = byId[current], tasks = DATA.tasks.filter(k => k.target === current), node = nodeById[current];
+  if (node) {
+    const near = new Set([current]);
+    for (const e of EDGES) { const hit = e.s === current || e.t === current; e.el.classList.add(hit ? 'hot' : 'dim'); if (hit) { near.add(e.s); near.add(e.t); } }
+    for (const n of NODES) { if (n.id === current) n.el.classList.add('sel'); else if (!near.has(n.id)) n.el.classList.add('dim'); }
+  }
+  const layer = LAYERS.find(l => l.id === t.layer), lane = LANES.find(l => l.id === t.lane);
   panel.innerHTML = `
-    <div><div class="where">${layer ? esc(layer.label[0]) + ' ／ ' + esc(lane.label) : '無くすもの'}</div><h3 style="font-size:15px">${esc(t.label)}</h3></div>
-    ${t.files ? `<div class="path">${esc(t.files)}${t.count > 1 ? `（${t.count} ファイル）` : ''}</div>` : ''}
+    <div><div class="where">${layer ? esc(layer.label[0]) + ' ／ ' + esc(lane.label) + ' ／ ' + esc(STATE[t.state]) : '無くすもの'}</div><h3 style="font-size:15px">${esc(t.label)}</h3></div>
+    ${t.files ? `<div class="path">${esc(layer && layer.id !== 'bm' && !t.files.includes('/') ? layer.place : '')}${esc(t.files)}${t.count > 1 ? `（${t.count} ファイル）` : ''}</div>` : ''}
     ${t.note ? `<p class="none">${esc(t.note)}</p>` : ''}
+    ${node ? `<div class="rel"><h3>これが読むもの</h3>${rel(EDGES.filter(e => e.t === current), e => e.s)}</div>
+    <div class="rel"><h3>これを読むもの</h3>${rel(EDGES.filter(e => e.s === current), e => e.t)}</div>` : ''}
     <div><h3>${tasks.length ? `やること（${tasks.filter(k => k.done).length} / ${tasks.length} 済み）` : 'やること'}</h3></div>
-    ${tasks.length ? `<ul class="todo-list">${tasks.map(k => `<li><span class="mark ${k.done ? 'ok' : 'ng'}">${k.done ? '✓' : '○'}</span><span>${esc(k.why)}<br><span class="meta">${esc(k.action)}: <span class="path">${esc(k.subject)}</span> ／ ${esc(stepName(k.step))}</span></span></li>`).join('')}</ul>` : '<p class="none">ありません。いまの形が目標の形です。</p>'}
+    ${tasks.length ? `<ul class="todo-list">${tasks.map(k => `<li><span class="mark ${k.done ? 'ok' : 'ng'}">${k.done ? '✓' : '○'}</span><span>${esc(k.why)}<br><span class="meta">${esc(k.action)}: <span class="path">${esc(k.subject)}</span> ／ ${esc(stepName(k.step))}</span></span></li>`).join('')}</ul>` : `<p class="none">${t.state === 'fixed' ? '変えません。' : 'ありません。いまの形が目標の形です。'}</p>`}
     <button type="button" class="clear" id="clear">選択を外す</button>`;
 }
 document.querySelector('.wrap').addEventListener('click', ev => {
   const b = ev.target.closest('button'); if (!b) return;
-  if (b.id === 'clear') select(null);
-  else if (b.dataset.id && !b.classList.contains('st-fixed')) select(b.dataset.id);
+  if (b.id === 'clear') select(current);
+  else if (b.dataset.id && b.dataset.id !== current) select(b.dataset.id);
 });
+
+// ---- 依存関係の表 ----
+{
+  const item = id => `<span class="item">${markOf(nodeById[id])}${esc(nodeById[id].label)}</span>`;
+  const ok = id => ['done', 'formed', 'fixed'].includes(nodeById[id].state);
+  let rows = '<thead><tr><th>ファイル</th><th>状態</th><th>作る元（1 つ上の段）</th><th>同じ段で指す</th><th>作る元がそろっているか</th></tr></thead><tbody>';
+  for (const layer of LAYERS) {
+    if (layer.id === 'bm') continue;
+    const boxes = NODES.filter(n => n.layer === layer.id && EDGES.some(e => e.t === n.id));
+    rows += `<tr class="layer"><th colspan="5">${esc(layer.label[0])}</th></tr>`;
+    for (const n of boxes) {
+      const from = EDGES.filter(e => e.t === n.id && e.type === 'from').map(e => e.s), ref = EDGES.filter(e => e.t === n.id && e.type !== 'from').map(e => e.s);
+      const waiting = [...from, ...ref].filter(id => !ok(id));
+      const ready = n.state === 'done' || n.state === 'fixed' ? '' : waiting.length ? `<span class="ng">○</span> 待ち（${waiting.map(id => esc(nodeById[id].label)).join('、')}）` : '<span class="ok">✓</span> そろっている';
+      rows += `<tr><td class="name">${esc(n.label)}${n.count > 1 ? ` ×${n.count}` : ''}</td><td class="ready">${markOf(n) || ''}${esc(STATE[n.state])}${n.next ? `（歩 ${n.next}）` : ''}</td><td>${from.map(item).join('') || '―'}</td><td>${ref.map(item).join('') || '―'}</td><td class="ready">${ready}</td></tr>`;
+    }
+  }
+  document.getElementById('deps').innerHTML = rows + '</tbody>';
+}
 
 // ---- 一覧 ----
 const fStep = document.getElementById('f-step'), fState = document.getElementById('f-state');

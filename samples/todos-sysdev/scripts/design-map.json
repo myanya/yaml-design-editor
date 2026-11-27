@@ -2483,7 +2483,7 @@
     "ソースコードはこの図に入れていません（プログラム設計からレポートで作ります。例外は DDL がテーブル設計書を、CSS が画面のクラスの対応表を、入力エラーの文がメッセージ定義書を直接読む 3 か所です）。"
   ],
   "plan": {
-    "comment": "移行の進み具合（5 枚目）。目標の箱（targets）・無くすもの（removals）・やること（tasks）を人が書く。済んだかどうかは、tasks の done を、いまの変換定義・ファイル・読む線から計算する",
+    "comment": "移行の進み具合（5 枚目）。目標の箱（targets）・箱の間の線（edges。作る元 from・同じ段を指す ref・ビューが読む view）・無くすもの（removals）・やること（tasks）を人が書く。済んだかどうかは、tasks の done を、いまの変換定義・ファイル・読む線から計算する",
     "title": "todos-sysdev 移行の進み具合",
     "steps": [
       {
@@ -2545,13 +2545,22 @@
     ],
     "layers": [
       {
+        "id": "bm",
+        "label": [
+          "業務モデル"
+        ],
+        "place": ".yde/schemas/business/ ほか",
+        "reads": "人が書く"
+      },
+      {
         "id": "basic",
         "label": [
           "基本設計",
           "抽象システムモデル"
         ],
         "place": "design/basic/final/",
-        "reads": "業務モデルだけ"
+        "reads": "業務モデルだけ",
+        "mapping": "アーキテクチャマッピング"
       },
       {
         "id": "detail",
@@ -2560,7 +2569,8 @@
           "具体システムモデル"
         ],
         "place": "design/detail/final/",
-        "reads": "基本設計の項目だけ"
+        "reads": "基本設計の項目だけ",
+        "mapping": "技術スタックマッピング"
       },
       {
         "id": "program",
@@ -2568,7 +2578,8 @@
           "プログラム設計"
         ],
         "place": "design/program/final/",
-        "reads": "詳細設計の項目だけ"
+        "reads": "詳細設計の項目だけ",
+        "mapping": "コードマッピング（前半）"
       },
       {
         "id": "source",
@@ -2576,7 +2587,8 @@
           "ソースコード"
         ],
         "place": "app/",
-        "reads": "プログラム設計（DDL と CSS は詳細設計）"
+        "reads": "プログラム設計（DDL と CSS は詳細設計）",
+        "mapping": "コードマッピング（後半）"
       }
     ],
     "aspects": {
@@ -2589,6 +2601,30 @@
       "remove": "無くす"
     },
     "targets": [
+      {
+        "id": "m-s",
+        "layer": "bm",
+        "lane": "data",
+        "label": "項目と型",
+        "files": ".yde/schemas/business/",
+        "count": 1
+      },
+      {
+        "id": "m-o",
+        "layer": "bm",
+        "lane": "biz",
+        "label": "操作・状態・決まり",
+        "files": ".yde/schemas/business/",
+        "count": 1
+      },
+      {
+        "id": "m-v",
+        "layer": "bm",
+        "lane": "screen",
+        "label": "ダッシュボードとビュー",
+        "files": ".yde/views/business/",
+        "count": 1
+      },
       {
         "id": "b-pol",
         "layer": "basic",
@@ -2753,7 +2789,7 @@
         "id": "v-dom",
         "layer": "basic",
         "lane": "view",
-        "label": "ドメイン定義書・関連定義書",
+        "label": "ドメイン定義書",
         "files": "",
         "count": 1
       },
@@ -3017,7 +3053,7 @@
         "id": "s-web",
         "layer": "source",
         "lane": "screen",
-        "label": "Controller・Form・テンプレート・CSS",
+        "label": "Controller・Form・画面・CSS",
         "files": "app/",
         "count": 1
       },
@@ -4391,6 +4427,533 @@
         "table-access",
         "table-access-derived"
       ]
-    }
+    },
+    "edges": [
+      [
+        "m-s",
+        "typ",
+        "from"
+      ],
+      [
+        "m-s",
+        "ent",
+        "from"
+      ],
+      [
+        "m-o",
+        "sta",
+        "from"
+      ],
+      [
+        "m-o",
+        "rul",
+        "from"
+      ],
+      [
+        "m-o",
+        "op",
+        "from"
+      ],
+      [
+        "m-o",
+        "err",
+        "from"
+      ],
+      [
+        "m-o",
+        "msg",
+        "from"
+      ],
+      [
+        "m-v",
+        "qry",
+        "from"
+      ],
+      [
+        "m-v",
+        "scr",
+        "from"
+      ],
+      [
+        "m-o",
+        "scr",
+        "from"
+      ],
+      [
+        "m-v",
+        "trn",
+        "from"
+      ],
+      [
+        "ent",
+        "tbl",
+        "from"
+      ],
+      [
+        "typ",
+        "tbl",
+        "from"
+      ],
+      [
+        "op",
+        "acc",
+        "from"
+      ],
+      [
+        "qry",
+        "acc",
+        "from"
+      ],
+      [
+        "rul",
+        "acc",
+        "from"
+      ],
+      [
+        "sta",
+        "stt",
+        "from"
+      ],
+      [
+        "op",
+        "svc",
+        "from"
+      ],
+      [
+        "rul",
+        "svc",
+        "from"
+      ],
+      [
+        "err",
+        "svc",
+        "from"
+      ],
+      [
+        "err",
+        "eh",
+        "from"
+      ],
+      [
+        "msg",
+        "eh",
+        "from"
+      ],
+      [
+        "scr",
+        "pg",
+        "from"
+      ],
+      [
+        "msg",
+        "pg",
+        "from"
+      ],
+      [
+        "ent",
+        "pg",
+        "from"
+      ],
+      [
+        "trn",
+        "hdl",
+        "from"
+      ],
+      [
+        "scr",
+        "hdl",
+        "from"
+      ],
+      [
+        "trn",
+        "ses",
+        "from"
+      ],
+      [
+        "tbl",
+        "row",
+        "from"
+      ],
+      [
+        "acc",
+        "map",
+        "from"
+      ],
+      [
+        "stt",
+        "rt",
+        "from"
+      ],
+      [
+        "eh",
+        "rt",
+        "from"
+      ],
+      [
+        "svc",
+        "psv",
+        "from"
+      ],
+      [
+        "pg",
+        "frm",
+        "from"
+      ],
+      [
+        "hdl",
+        "web",
+        "from"
+      ],
+      [
+        "pg",
+        "web",
+        "from"
+      ],
+      [
+        "ses",
+        "web",
+        "from"
+      ],
+      [
+        "row",
+        "s-data",
+        "from"
+      ],
+      [
+        "map",
+        "s-data",
+        "from"
+      ],
+      [
+        "tbl",
+        "s-data",
+        "from"
+      ],
+      [
+        "psv",
+        "s-biz",
+        "from"
+      ],
+      [
+        "rt",
+        "s-biz",
+        "from"
+      ],
+      [
+        "web",
+        "s-web",
+        "from"
+      ],
+      [
+        "frm",
+        "s-web",
+        "from"
+      ],
+      [
+        "sty",
+        "s-web",
+        "from"
+      ],
+      [
+        "p-cfg",
+        "s-build",
+        "from"
+      ],
+      [
+        "typ",
+        "ent",
+        "ref"
+      ],
+      [
+        "cls",
+        "ent",
+        "ref"
+      ],
+      [
+        "ent",
+        "sta",
+        "ref"
+      ],
+      [
+        "ent",
+        "rul",
+        "ref"
+      ],
+      [
+        "ent",
+        "qry",
+        "ref"
+      ],
+      [
+        "ent",
+        "op",
+        "ref"
+      ],
+      [
+        "sta",
+        "op",
+        "ref"
+      ],
+      [
+        "rul",
+        "op",
+        "ref"
+      ],
+      [
+        "op",
+        "err",
+        "ref"
+      ],
+      [
+        "rul",
+        "err",
+        "ref"
+      ],
+      [
+        "sta",
+        "err",
+        "ref"
+      ],
+      [
+        "err",
+        "msg",
+        "ref"
+      ],
+      [
+        "scr",
+        "msg",
+        "ref"
+      ],
+      [
+        "ent",
+        "scr",
+        "ref"
+      ],
+      [
+        "op",
+        "scr",
+        "ref"
+      ],
+      [
+        "qry",
+        "scr",
+        "ref"
+      ],
+      [
+        "scr",
+        "trn",
+        "ref"
+      ],
+      [
+        "tbl",
+        "acc",
+        "ref"
+      ],
+      [
+        "acc",
+        "svc",
+        "ref"
+      ],
+      [
+        "stt",
+        "svc",
+        "ref"
+      ],
+      [
+        "svc",
+        "eh",
+        "ref"
+      ],
+      [
+        "sty",
+        "pg",
+        "ref"
+      ],
+      [
+        "svc",
+        "hdl",
+        "ref"
+      ],
+      [
+        "pg",
+        "hdl",
+        "ref"
+      ],
+      [
+        "ses",
+        "hdl",
+        "ref"
+      ],
+      [
+        "acc",
+        "hdl",
+        "ref"
+      ],
+      [
+        "row",
+        "map",
+        "ref"
+      ],
+      [
+        "map",
+        "psv",
+        "ref"
+      ],
+      [
+        "rt",
+        "psv",
+        "ref"
+      ],
+      [
+        "psv",
+        "web",
+        "ref"
+      ],
+      [
+        "frm",
+        "web",
+        "ref"
+      ],
+      [
+        "ent",
+        "v-ent",
+        "view"
+      ],
+      [
+        "typ",
+        "v-ent",
+        "view"
+      ],
+      [
+        "op",
+        "v-ent",
+        "view"
+      ],
+      [
+        "op",
+        "v-op",
+        "view"
+      ],
+      [
+        "sta",
+        "v-op",
+        "view"
+      ],
+      [
+        "rul",
+        "v-op",
+        "view"
+      ],
+      [
+        "scr",
+        "v-scr",
+        "view"
+      ],
+      [
+        "qry",
+        "v-scr",
+        "view"
+      ],
+      [
+        "ent",
+        "v-scr",
+        "view"
+      ],
+      [
+        "trn",
+        "v-trn",
+        "view"
+      ],
+      [
+        "scr",
+        "v-trn",
+        "view"
+      ],
+      [
+        "err",
+        "v-err",
+        "view"
+      ],
+      [
+        "rul",
+        "v-err",
+        "view"
+      ],
+      [
+        "op",
+        "v-err",
+        "view"
+      ],
+      [
+        "msg",
+        "v-msg",
+        "view"
+      ],
+      [
+        "ent",
+        "v-dom",
+        "view"
+      ],
+      [
+        "op",
+        "v-dom",
+        "view"
+      ],
+      [
+        "sta",
+        "v-dom",
+        "view"
+      ],
+      [
+        "rul",
+        "v-dom",
+        "view"
+      ],
+      [
+        "tbl",
+        "w-tbl",
+        "view"
+      ],
+      [
+        "acc",
+        "w-acc",
+        "view"
+      ],
+      [
+        "stt",
+        "w-stt",
+        "view"
+      ],
+      [
+        "svc",
+        "w-svc",
+        "view"
+      ],
+      [
+        "eh",
+        "w-eh",
+        "view"
+      ],
+      [
+        "pg",
+        "w-pg",
+        "view"
+      ],
+      [
+        "sty",
+        "w-pg",
+        "view"
+      ],
+      [
+        "hdl",
+        "w-hdl",
+        "view"
+      ],
+      [
+        "ses",
+        "w-ses",
+        "view"
+      ]
+    ]
   }
 }
