@@ -1,0 +1,26 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-todo-task.finish
+source: todo-task.finish
+kind: operation
+seq: 3-14
+label: 作業項目を済にする
+operation: ACT-todo-task.finish
+hidden:
+  - PRM-todo-task.finish.version
+confirm:
+  id: SCR-todo-task.finish.confirm
+  request: GET /todo-task/{id}/todo-task.finish/confirm
+  shows: []
+execute:
+  request: POST /todo-task/{id}/todo-task.finish
+  notice: todo-task.finish.done
+  refusals:
+    - key: todo-task.finish.version-unchanged
+      cause: precondition
+      precondition: PRE-todo-task.finish.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.closed-has-no-open-task
+      cause: rule
+      rule: RUL-closed-has-no-open-task

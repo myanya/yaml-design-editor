@@ -1,0 +1,47 @@
+id: basic-screens-resolved
+name: 画面を解いた形（読む側の生成入力）
+kind: document
+description: >-
+  基本設計の「画面」の項目一覧を、画面遷移・詳細設計・プログラム設計の導出が読む形に解いたもの。画面の項目が ID で指している先（操作・入力・検索条件・項目・行き先の画面）を、
+  指した先の値に置き換えてある。基本設計の項目だけから作る途中経過で、人が読むための文書ではない。生成物で、手で直さない。
+match: design/basic/composed/screens-resolved.yaml
+definitions:
+  解いた画面:
+    type: object
+    fields:
+      - key: resolvedId
+        label: 解いた形の ID
+        type: id
+        required: true
+        description: RSV-種類.業務モデルの ID
+      - key: screen
+        label: 画面
+        type: ref
+        idPatterns:
+          - SCR-*
+        required: true
+      - key: record
+        label: 読む側の形
+        type: any
+root:
+  type: object
+  fields:
+    - key: id
+      type: id
+      required: true
+    - key: lists
+      label: 一覧画面
+      type: array
+      item:
+        type: 解いた画面
+    - key: details
+      label: 詳細画面
+      type: array
+      item:
+        type: 解いた画面
+    - key: operations
+      label: 操作の画面
+      type: array
+      item:
+        type: 解いた画面
+  unknownFields: error

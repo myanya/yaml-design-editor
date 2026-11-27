@@ -4,7 +4,7 @@ scope: business
 dependsOn:
   - system-model
   - basic-operations-resolved
-  - screen-operation-candidates
+  - basic-screens-resolved
 output: design/basic/composed/documents/system-screen-input-model.yaml
 input:
   $apply: screen-model
@@ -20,7 +20,7 @@ input:
           $one: true
     documents:
       $each:
-        $view: screen-operation-candidates-input
+        $view: basic-screens-resolved-operations
       $build:
         $copy: values.record
 build:

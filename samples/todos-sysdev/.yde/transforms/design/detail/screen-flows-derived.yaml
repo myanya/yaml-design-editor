@@ -15,8 +15,7 @@ dependsOn:
   - system-process-bindings
   - system-session-bindings
   - screen-designs-operations
-  - screen-operations
-  - screen-details
+  - basic-screens-resolved
   - error-handling
   - detail-document-input-gate
   - system-screen-bindings

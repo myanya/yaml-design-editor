@@ -1,0 +1,20 @@
+id: screen-definition-sections
+name: 画面（区画と表）
+description: 基本設計の「画面」の区画（一覧画面）と表（詳細画面）を並べる。名称・行・列は、指した検索条件・項目・エンティティが持つ
+rows: { idPattern: "SEC-*", schemaIds: [basic-screen] }
+columns:
+  - label: 検索条件
+    path: query
+  - label: 項目
+    path: item
+  - label: 入れ子で持つ要素
+    path: entity
+  - label: 行の ID の行き先
+    path: link.to
+  - label: セルの行き先
+    path: cell.to
+  - label: 行のボタン
+    value:
+      path: rowButtons[*].operation
+  - label: 名称（この画面でだけ）
+    path: label

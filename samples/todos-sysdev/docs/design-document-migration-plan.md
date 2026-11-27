@@ -22,12 +22,11 @@
 
 ## 対象と受け渡し
 
-現行サンプルでは次の 19 種類が対象となる（アクション定義書は 2026-11-26 に項目の形にして、この仕組みの対象から外した。操作への個別の判断は `design/basic/inputs/operations/corrections.yaml` に、項目の ID を対象にして書く）。種類数は一覧・詳細・操作の画面や Controller を分けて数える。
+現行サンプルでは次の 16 種類が対象となる（アクション定義書は 2026-11-26 に、画面定義書の 3 種は 2026-11-27 に項目の形にして、この仕組みの対象から外した。操作と画面への個別の判断は `design/basic/inputs/operations/corrections.yaml`・`design/basic/inputs/screens/corrections.yaml` に、項目の ID を対象にして書く）。種類数は一覧・詳細・操作の画面や Controller を分けて数える。
 
 | 設計書 | 種類（kind） | 主な接続 |
 |---|---|---|
 | 状態の判定 | `status-rules` | Lifecycle の状態・開始・遷移・終了を保存 |
-| 画面定義書 | `screen-lists`・`screen-details`・`screen-operations` | 名称・入力・URL を詳細画面と Controller へ渡す |
 | 画面遷移定義書 | `screen-transitions` | 確定した論理画面から画面一覧を作る |
 | エラー定義書 | `errors` | 断りの種類、入力の誤り、既存のデータの決まりの扱い |
 | メッセージ定義書 | `messages` | 確定した画面入力から入力メッセージを生成。本文を処理と画面へ渡す |

@@ -10,147 +10,147 @@ record:
       - id: todo-dashboard
         kind: list
         label: TODOダッシュボード
-        source: DOC-screen-lists.todo-dashboard
+        source: SCR-todo-dashboard
         url: /
       - id: category
         kind: detail
         label: カテゴリ詳細
-        source: DOC-screen-details.category
+        source: SCR-category
         url: /category/{id}
       - id: tag
         kind: detail
         label: タグ詳細
-        source: DOC-screen-details.tag
+        source: SCR-tag
         url: /tag/{id}
       - id: todo
         kind: detail
         label: TODO詳細
-        source: DOC-screen-details.todo
+        source: SCR-todo
         url: /todo/{id}
       - id: add-category/input
         kind: input
         label: カテゴリを追加する（入力）
-        source: DOC-screen-operations.add-category
+        source: SCR-add-category
         request: GET /category/add-category
       - id: add-category/confirm
         kind: confirm
         label: カテゴリを追加する（確認）
-        source: DOC-screen-operations.add-category
+        source: SCR-add-category
         request: POST /category/add-category/confirm
       - id: add-tag/input
         kind: input
         label: タグを追加する（入力）
-        source: DOC-screen-operations.add-tag
+        source: SCR-add-tag
         request: GET /tag/add-tag
       - id: add-tag/confirm
         kind: confirm
         label: タグを追加する（確認）
-        source: DOC-screen-operations.add-tag
+        source: SCR-add-tag
         request: POST /tag/add-tag/confirm
       - id: add-todo-comment/input
         kind: input
         label: TODOにコメントを追加する（入力）
-        source: DOC-screen-operations.add-todo-comment
+        source: SCR-add-todo-comment
         request: GET /todo/{id}/add-todo-comment
       - id: add-todo-comment/confirm
         kind: confirm
         label: TODOにコメントを追加する（確認）
-        source: DOC-screen-operations.add-todo-comment
+        source: SCR-add-todo-comment
         request: POST /todo/{id}/add-todo-comment/confirm
       - id: add-todo-task/input
         kind: input
         label: 作業項目を追加する（入力）
-        source: DOC-screen-operations.add-todo-task
+        source: SCR-add-todo-task
         request: GET /todo/{id}/add-todo-task
       - id: add-todo-task/confirm
         kind: confirm
         label: 作業項目を追加する（確認）
-        source: DOC-screen-operations.add-todo-task
+        source: SCR-add-todo-task
         request: POST /todo/{id}/add-todo-task/confirm
       - id: cancel-todo/input
         kind: input
         label: TODOを中止する（入力）
-        source: DOC-screen-operations.cancel-todo
+        source: SCR-cancel-todo
         request: GET /todo/{id}/cancel-todo
       - id: cancel-todo/confirm
         kind: confirm
         label: TODOを中止する（確認）
-        source: DOC-screen-operations.cancel-todo
+        source: SCR-cancel-todo
         request: POST /todo/{id}/cancel-todo/confirm
       - id: complete-todo/input
         kind: input
         label: TODOを完了する（入力）
-        source: DOC-screen-operations.complete-todo
+        source: SCR-complete-todo
         request: GET /todo/{id}/complete-todo
       - id: complete-todo/confirm
         kind: confirm
         label: TODOを完了する（確認）
-        source: DOC-screen-operations.complete-todo
+        source: SCR-complete-todo
         request: POST /todo/{id}/complete-todo/confirm
       - id: delete-todo-comment/confirm
         kind: confirm
         label: コメントを削除する（確認）
-        source: DOC-screen-operations.delete-todo-comment
+        source: SCR-delete-todo-comment
         request: GET /todo/{id}/delete-todo-comment/confirm
       - id: edit-todo/input
         kind: input
         label: TODOを編集する（入力）
-        source: DOC-screen-operations.edit-todo
+        source: SCR-edit-todo
         request: GET /todo/{id}/edit-todo
       - id: edit-todo/confirm
         kind: confirm
         label: TODOを編集する（確認）
-        source: DOC-screen-operations.edit-todo
+        source: SCR-edit-todo
         request: POST /todo/{id}/edit-todo/confirm
       - id: edit-todo-comment/input
         kind: input
         label: コメントを編集する（入力）
-        source: DOC-screen-operations.edit-todo-comment
+        source: SCR-edit-todo-comment
         request: GET /todo/{id}/edit-todo-comment
       - id: edit-todo-comment/confirm
         kind: confirm
         label: コメントを編集する（確認）
-        source: DOC-screen-operations.edit-todo-comment
+        source: SCR-edit-todo-comment
         request: POST /todo/{id}/edit-todo-comment/confirm
       - id: register-todo/input
         kind: input
         label: TODOを登録する（入力）
-        source: DOC-screen-operations.register-todo
+        source: SCR-register-todo
         request: GET /todo/register-todo
       - id: register-todo/confirm
         kind: confirm
         label: TODOを登録する（確認）
-        source: DOC-screen-operations.register-todo
+        source: SCR-register-todo
         request: POST /todo/register-todo/confirm
       - id: resume-todo/input
         kind: input
         label: TODOを再開する（入力）
-        source: DOC-screen-operations.resume-todo
+        source: SCR-resume-todo
         request: GET /todo/{id}/resume-todo
       - id: resume-todo/confirm
         kind: confirm
         label: TODOを再開する（確認）
-        source: DOC-screen-operations.resume-todo
+        source: SCR-resume-todo
         request: POST /todo/{id}/resume-todo/confirm
       - id: start-todo/confirm
         kind: confirm
         label: TODOに着手する（確認）
-        source: DOC-screen-operations.start-todo
+        source: SCR-start-todo
         request: GET /todo/{id}/start-todo/confirm
       - id: suspend-todo/input
         kind: input
         label: TODOを中断する（入力）
-        source: DOC-screen-operations.suspend-todo
+        source: SCR-suspend-todo
         request: GET /todo/{id}/suspend-todo
       - id: suspend-todo/confirm
         kind: confirm
         label: TODOを中断する（確認）
-        source: DOC-screen-operations.suspend-todo
+        source: SCR-suspend-todo
         request: POST /todo/{id}/suspend-todo/confirm
       - id: todo-task.finish/confirm
         kind: confirm
         label: 作業項目を済にする（確認）
-        source: DOC-screen-operations.todo-task.finish
+        source: SCR-todo-task.finish
         request: GET /todo-task/{id}/todo-task.finish/confirm
     transitions:
       - from: todo-dashboard

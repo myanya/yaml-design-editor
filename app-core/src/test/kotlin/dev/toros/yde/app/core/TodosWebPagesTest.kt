@@ -18,8 +18,8 @@ class TodosWebPagesTest {
     private fun sources() = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
         .associate {
             val file = sample.relativize(it).toString().replace('\\', '/')
-            // この検査は再導出せず、保存済みの確定値を入力として差し替える。
-            file to Files.readString(it).let { text -> if ("/final/" in file) dump(raw(text)) else text }
+            // この検査は再導出せず、保存済みの確定値を入力として差し替える（画面を解いた形も、保存済みの値を読む）。
+            file to Files.readString(it).let { text -> if ("/final/" in file || file.endsWith("/composed/screens-resolved.yaml")) dump(raw(text)) else text }
         }
 
     private fun probe(changes: Map<String, Any?> = emptyMap()): dev.toros.yde.workspace.GenerationPlan {

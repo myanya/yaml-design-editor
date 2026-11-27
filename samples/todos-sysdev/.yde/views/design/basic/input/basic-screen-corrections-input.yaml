@@ -1,0 +1,11 @@
+id: basic-screen-corrections-input
+name: 基本設計の生成入力（画面への個別の判断）
+description: 画面の項目への個別の判断を 1 件ずつ読む
+rows:
+  idPattern: COR-*
+  schemaIds:
+    - basic-screen-corrections
+columns:
+  - label: correction
+    path: .
+    fileGlob: design/basic/inputs/screens/corrections.yaml

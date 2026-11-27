@@ -12,7 +12,7 @@ dependsOn:
   - system-model
   - basic-operations-resolved
   - messages
-  - screen-operations
+  - basic-screens-resolved
   - screen-styles
   - detail-document-input-gate
   - system-screen-bindings
@@ -32,7 +32,7 @@ input:
           $one: true
     documents:
       $each:
-        $view: screen-operations-input
+        $view: basic-screens-resolved-operations
       $build:
         $copy: values.record
 build:

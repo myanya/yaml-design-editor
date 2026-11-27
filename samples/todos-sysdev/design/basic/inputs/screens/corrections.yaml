@@ -1,0 +1,6 @@
+# 基本設計の「画面」の項目への個別の判断（対象の ID と set）。人が書く。
+# 対象: 画面 SCR-（入力画面・確認画面を含む）、絞り込み FLT-、区画と表 SEC-、ボタン BTN-
+# 置き換えられる値: 名称（label）・説明（description）・URL（url）・リクエスト（request・executeRequest・backRequest）
+# 入力の決まり（最大の長さなど）は画面では変えない。操作の入力（PRM-）を対象にして、design/basic/inputs/operations/corrections.yaml に書く
+inputId: INPUT-basic-screen-corrections
+corrections: []

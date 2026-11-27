@@ -1,25 +1,35 @@
 id: screen-design
-name: 操作の画面の設計書（基本から詳細まで）
+name: 画面の設計書（基本から詳細まで）
 kind: document
-schemaId: screen-operation
-description: 導出元の操作を参照して、確定した基本設計と詳細設計を並べる。
+schemaId: basic-screen
+description: 基本設計の「画面」の項目 1 件と、その画面の詳細設計を並べる。画面定義書にあたるビューで、値は確定項目をそのまま読む。
 sections:
   - label: 画面の中身（画面定義書）
     fields:
       include:
         - id
-        - name
-        - target
-        - starts
-        - shownWhen
+        - source
+        - kind
+        - label
+        - description
+        - url
+        - entity
+        - operation
+        - filters
+        - buttons
+        - sections
+        - items
+        - tables
+        - hidden
         - input
         - confirm
         - execute
-  - label: 部品の木とフォーム（画面設計書）
+        - decisions
+  - label: 部品の木とフォーム（操作の画面の画面設計書）
     grid:
       view: screen-design-related
       params:
         source:
-          path: id
-  - label: この操作を扱う Controller
+          path: source
+  - label: この画面を指している項目
     backlinks: {}

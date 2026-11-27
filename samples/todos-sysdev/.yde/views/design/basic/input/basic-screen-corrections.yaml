@@ -1,0 +1,8 @@
+id: basic-screen-corrections
+name: 基本設計の画面への個別の判断の入力
+rows:
+  idPattern: INPUT-basic-screen-corrections
+columns:
+  - label: record
+    path: .
+    fileGlob: design/basic/inputs/screens/corrections.yaml

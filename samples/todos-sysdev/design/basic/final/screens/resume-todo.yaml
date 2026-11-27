@@ -1,0 +1,40 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-resume-todo
+source: resume-todo
+kind: operation
+seq: 3-10
+label: TODOを再開する
+operation: ACT-resume-todo
+hidden:
+  - PRM-resume-todo.version
+input:
+  id: SCR-resume-todo.input
+  request: GET /todo/{id}/resume-todo
+  items:
+    - PRM-resume-todo.date
+    - PRM-resume-todo.note
+confirm:
+  id: SCR-resume-todo.confirm
+  request: POST /todo/{id}/resume-todo/confirm
+  shows:
+    - PRM-resume-todo.date
+    - PRM-resume-todo.note
+  back:
+    request: POST /todo/{id}/resume-todo/back
+    to: SCR-resume-todo.input
+execute:
+  request: POST /todo/{id}/resume-todo
+  notice: resume-todo.done
+  refusals:
+    - key: resume-todo.state
+      cause: state
+      transition: TRN-todo-lifecycle.resume-todo
+    - key: resume-todo.version-unchanged
+      cause: precondition
+      precondition: PRE-resume-todo.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.unfinished-has-no-completed-on
+      cause: rule
+      rule: RUL-unfinished-has-no-completed-on

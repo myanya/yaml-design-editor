@@ -1,0 +1,38 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-cancel-todo
+source: cancel-todo
+kind: operation
+seq: 3-12
+label: TODOを中止する
+operation: ACT-cancel-todo
+hidden:
+  - PRM-cancel-todo.version
+input:
+  id: SCR-cancel-todo.input
+  request: GET /todo/{id}/cancel-todo
+  items:
+    - PRM-cancel-todo.reason
+confirm:
+  id: SCR-cancel-todo.confirm
+  request: POST /todo/{id}/cancel-todo/confirm
+  shows:
+    - PRM-cancel-todo.reason
+  back:
+    request: POST /todo/{id}/cancel-todo/back
+    to: SCR-cancel-todo.input
+execute:
+  request: POST /todo/{id}/cancel-todo
+  notice: cancel-todo.done
+  refusals:
+    - key: cancel-todo.state
+      cause: state
+      transition: TRN-todo-lifecycle.cancel-todo
+    - key: cancel-todo.version-unchanged
+      cause: precondition
+      precondition: PRE-cancel-todo.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.unfinished-has-no-completed-on
+      cause: rule
+      rule: RUL-unfinished-has-no-completed-on

@@ -1,0 +1,1536 @@
+# 生成物（basic-screens-resolved）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens-resolved.yaml）を直して作り直します（CLI generate）。
+id: SYS-basic-screens-resolved
+lists:
+  - resolvedId: RSV-list.todo-dashboard
+    screen: SCR-todo-dashboard
+    record:
+      id: todo-dashboard
+      name: TODOダッシュボード
+      kind: list
+      url: /
+      filters:
+        - key: tags
+          label: タグ
+          type: common#タグ参照
+          multiple: true
+          carried: URL のパラメータ
+        - key: category
+          label: カテゴリ
+          type: common#カテゴリ参照
+          carried: URL のパラメータ
+      buttons:
+        - operation: register-todo
+          label: TODOを登録する
+          to: register-todo/input
+        - operation: add-category
+          label: カテゴリを追加する
+          to: add-category/input
+        - operation: add-tag
+          label: タグを追加する
+          to: add-tag/input
+      sections:
+        - id: overdue
+          label: 期限超過
+          group: 注意
+          view: todo-by-due
+          kind: 一覧
+          rows: todo
+          filter:
+            match:
+              - node:
+                  entity: todo
+                  bind: t
+            where:
+              - of: t
+                path: status
+                oneOf:
+                  - OPEN
+                  - IN_PROGRESS
+              - of: t
+                path: due_on
+                exists: true
+            check:
+              - lt:
+                  - of: t
+                    in:
+                      schemaId: todo-detail
+                    path: due_on
+                  - $today
+                type: date
+          columns:
+            - タイトル
+            - ステータス
+            - 期限
+            - 完了日
+          link:
+            by: 行の ID
+            to: todo
+          rowButtons:
+            - operation: add-todo-comment
+              label: TODOにコメントを追加する
+              shownWhen: いつも
+              to: add-todo-comment/input
+            - operation: add-todo-task
+              label: 作業項目を追加する
+              shownWhen: いつも
+              to: add-todo-task/input
+            - operation: edit-todo
+              label: TODOを編集する
+              shownWhen: いつも
+              to: edit-todo/input
+            - operation: start-todo
+              label: TODOに着手する
+              shownWhen:
+                - value: OPEN
+                  label: 未着手
+              to: start-todo/confirm
+            - operation: suspend-todo
+              label: TODOを中断する
+              shownWhen:
+                - value: IN_PROGRESS
+                  label: 対応中
+              to: suspend-todo/input
+            - operation: resume-todo
+              label: TODOを再開する
+              shownWhen:
+                - value: SUSPENDED
+                  label: 中断
+              to: resume-todo/input
+            - operation: complete-todo
+              label: TODOを完了する
+              shownWhen:
+                - value: IN_PROGRESS
+                  label: 対応中
+              to: complete-todo/input
+            - operation: cancel-todo
+              label: TODOを中止する
+              shownWhen:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+              to: cancel-todo/input
+        - id: all
+          label: すべてのTODO
+          group: 全体
+          view: todo-management
+          kind: 一覧
+          rows: todo
+          columns:
+            - カテゴリ
+            - ステータス
+            - 作業
+            - タグ
+            - 期限
+            - 概要
+            - 作成日
+            - 更新日
+          link:
+            by: 行の ID
+            to: todo
+          rowButtons:
+            - operation: add-todo-comment
+              label: TODOにコメントを追加する
+              shownWhen: いつも
+              to: add-todo-comment/input
+            - operation: add-todo-task
+              label: 作業項目を追加する
+              shownWhen: いつも
+              to: add-todo-task/input
+            - operation: edit-todo
+              label: TODOを編集する
+              shownWhen: いつも
+              to: edit-todo/input
+            - operation: start-todo
+              label: TODOに着手する
+              shownWhen:
+                - value: OPEN
+                  label: 未着手
+              to: start-todo/confirm
+            - operation: suspend-todo
+              label: TODOを中断する
+              shownWhen:
+                - value: IN_PROGRESS
+                  label: 対応中
+              to: suspend-todo/input
+            - operation: resume-todo
+              label: TODOを再開する
+              shownWhen:
+                - value: SUSPENDED
+                  label: 中断
+              to: resume-todo/input
+            - operation: complete-todo
+              label: TODOを完了する
+              shownWhen:
+                - value: IN_PROGRESS
+                  label: 対応中
+              to: complete-todo/input
+            - operation: cancel-todo
+              label: TODOを中止する
+              shownWhen:
+                - value: OPEN
+                  label: 未着手
+                - value: IN_PROGRESS
+                  label: 対応中
+                - value: SUSPENDED
+                  label: 中断
+              to: cancel-todo/input
+        - id: categories
+          label: カテゴリ別の状況
+          group: 全体
+          view: category-status-matrix
+          kind: 集計
+          rows: category
+          columns:
+            - 未着手
+            - 対応中
+            - 中断
+            - 完了
+            - 中止
+          cell:
+            to: todo-dashboard
+            shows: todo
+            by:
+              row: category
+              column: status
+        - id: tags
+          label: タグ別の状況
+          group: 全体
+          view: tag-status-matrix
+          kind: 集計
+          rows: tag
+          columns:
+            - 未着手
+            - 対応中
+            - 中断
+            - 完了
+            - 中止
+          cell:
+            to: todo-dashboard
+            shows: todo
+            by:
+              row: tag
+              column: status
+        - id: categories-master
+          label: カテゴリ一覧
+          group: マスタ
+          view: category-management
+          kind: 一覧
+          rows: category
+          columns:
+            - カテゴリ名
+            - TODOの数
+          link:
+            by: 行の ID
+            to: category
+          rowButtons: []
+        - id: tags-master
+          label: タグ一覧
+          group: マスタ
+          view: tag-management
+          kind: 一覧
+          rows: tag
+          columns:
+            - タグ名
+            - TODOの数
+          link:
+            by: 行の ID
+            to: tag
+          rowButtons: []
+      originalRoutes:
+        url: /
+      designId: SCR-todo-dashboard
+details:
+  - resolvedId: RSV-detail.category
+    screen: SCR-category
+    record:
+      id: category
+      name: カテゴリ詳細
+      kind: detail
+      url: /category/{id}
+      items:
+        - key: id
+          label: ID
+          type: common#カテゴリ番号
+        - key: name
+          label: カテゴリ名
+          type: common#一行の文
+      tables: []
+      buttons: []
+      originalRoutes:
+        url: /category/{id}
+      designId: SCR-category
+  - resolvedId: RSV-detail.tag
+    screen: SCR-tag
+    record:
+      id: tag
+      name: タグ詳細
+      kind: detail
+      url: /tag/{id}
+      items:
+        - key: id
+          label: ID
+          type: common#タグ番号
+        - key: name
+          label: タグ名
+          type: common#一行の文
+      tables: []
+      buttons: []
+      originalRoutes:
+        url: /tag/{id}
+      designId: SCR-tag
+  - resolvedId: RSV-detail.todo
+    screen: SCR-todo
+    record:
+      id: todo
+      name: TODO詳細
+      kind: detail
+      url: /todo/{id}
+      items:
+        - key: id
+          label: ID
+          type: common#TODO番号
+        - key: title
+          label: タイトル
+          type: common#一行の文
+        - key: summary
+          label: 概要
+          type: common#一行の文
+        - key: category
+          label: カテゴリ
+          type: common#カテゴリ参照
+          link: category
+        - key: tags
+          label: タグ
+          type: array
+          many: true
+          link: tag
+        - key: follows
+          label: 元のTODO
+          type: common#TODO参照
+          link: todo
+        - key: status
+          label: ステータス
+          type: common#ステータス
+        - key: created_on
+          label: 作成日
+          type: common#年月日
+        - key: updated_on
+          label: 更新日
+          type: common#年月日
+        - key: due_on
+          label: 期限
+          type: common#年月日
+        - key: completed_on
+          label: 完了日
+          type: common#年月日
+        - key: details
+          label: 詳細
+          type: common#文章
+        - key: result
+          label: 結果
+          type: common#文章
+      tables:
+        - item: comments
+          label: コメント一覧
+          columns:
+            - 日付
+            - コメント本文
+          rowButtons:
+            - operation: edit-todo-comment
+              label: コメントを編集する
+              shownWhen: いつも
+              to: edit-todo-comment/input
+            - operation: delete-todo-comment
+              label: コメントを削除する
+              shownWhen: いつも
+              to: delete-todo-comment/confirm
+        - item: history
+          label: 状態の履歴
+          columns:
+            - 日付
+            - 操作
+            - 前の状態
+            - 後の状態
+            - 理由
+            - 再開予定日
+        - item: tasks
+          label: 作業項目
+          entity: todo-task
+          columns:
+            - ID
+            - 作業
+            - 済
+          rowButtons:
+            - operation: todo-task.finish
+              label: 作業項目を済にする
+              shownWhen: いつも
+              to: todo-task.finish/confirm
+      buttons:
+        - operation: add-todo-comment
+          label: TODOにコメントを追加する
+          shownWhen: いつも
+          to: add-todo-comment/input
+        - operation: add-todo-task
+          label: 作業項目を追加する
+          shownWhen: いつも
+          to: add-todo-task/input
+        - operation: edit-todo
+          label: TODOを編集する
+          shownWhen: いつも
+          to: edit-todo/input
+        - operation: start-todo
+          label: TODOに着手する
+          shownWhen:
+            - value: OPEN
+              label: 未着手
+          to: start-todo/confirm
+        - operation: suspend-todo
+          label: TODOを中断する
+          shownWhen:
+            - value: IN_PROGRESS
+              label: 対応中
+          to: suspend-todo/input
+        - operation: resume-todo
+          label: TODOを再開する
+          shownWhen:
+            - value: SUSPENDED
+              label: 中断
+          to: resume-todo/input
+        - operation: complete-todo
+          label: TODOを完了する
+          shownWhen:
+            - value: IN_PROGRESS
+              label: 対応中
+          to: complete-todo/input
+        - operation: cancel-todo
+          label: TODOを中止する
+          shownWhen:
+            - value: OPEN
+              label: 未着手
+            - value: IN_PROGRESS
+              label: 対応中
+            - value: SUSPENDED
+              label: 中断
+          to: cancel-todo/input
+      originalRoutes:
+        url: /todo/{id}
+      designId: SCR-todo
+operations:
+  - resolvedId: RSV-operation.add-category
+    screen: SCR-add-category
+    record:
+      id: add-category
+      name: カテゴリを追加する
+      kind: operation
+      starts:
+        - screen: todo-dashboard
+          place: 上部のボタン
+      shownWhen: いつも
+      input:
+        screen: add-category/input
+        request: GET /category/add-category
+        items:
+          - key: name
+            label: カテゴリ名
+            type: common#一行の文
+            base: string
+            required: true
+            minLength: 1
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+            overrides:
+              minLength: 1
+      confirm:
+        screen: add-category/confirm
+        request: POST /category/add-category/confirm
+        shows:
+          - カテゴリ名
+        back:
+          request: POST /category/add-category/back
+          to: add-category/input
+      execute:
+        request: POST /category/add-category
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: add-category.done
+        refusals: []
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /category/add-category
+        confirm: POST /category/add-category/confirm
+        back: POST /category/add-category/back
+        execute: POST /category/add-category
+      designId: SCR-add-category
+  - resolvedId: RSV-operation.register-todo
+    screen: SCR-register-todo
+    record:
+      id: register-todo
+      name: TODOを登録する
+      kind: operation
+      starts:
+        - screen: todo-dashboard
+          place: 上部のボタン
+      shownWhen: いつも
+      input:
+        screen: register-todo/input
+        request: GET /todo/register-todo
+        items:
+          - key: title
+            label: タイトル
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+          - key: summary
+            label: 概要
+            type: common#一行の文
+            base: string
+            required: true
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+          - key: category
+            label: カテゴリ
+            type: common#カテゴリ参照
+            base: ref
+            description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+            refTarget: entity
+            idPatternLayers:
+              -   - CAT-*
+            scope:
+              schemaIds:
+                - category-list
+              documentIds: []
+            relation: in-category
+            idPatterns:
+              - CAT-*
+            schemas:
+              - category-list
+            targets:
+              - category
+            target: category
+            targetTitle: name
+            targetLabel: カテゴリ
+          - key: tags
+            label: タグ
+            type: array
+            base: array
+            unique: true
+            item:
+              type: common#タグ参照
+              base: ref
+              description: タグ一覧の ID を 1 件。
+              refTarget: entity
+              idPatternLayers:
+                -   - TAG-*
+              scope:
+                schemaIds:
+                  - tag-list
+                documentIds: []
+              relation: tagged
+              idPatterns:
+                - TAG-*
+              schemas:
+                - tag-list
+              targets:
+                - tag
+              target: tag
+              targetTitle: name
+              targetLabel: タグ
+          - key: follows
+            label: 元のTODO
+            type: common#TODO参照
+            base: ref
+            description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+            refTarget: entity
+            idPatternLayers:
+              -   - TODO-*
+            scope:
+              schemaIds:
+                - todo-list
+              documentIds: []
+            relation: follow-up-of
+            idPatterns:
+              - TODO-*
+            schemas:
+              - todo-list
+            targets:
+              - todo
+            target: todo
+            targetTitle: title
+            targetLabel: TODO
+          - key: due
+            label: 期限
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            format: yyyy年M月d日
+          - key: details
+            label: 詳細
+            type: common#文章
+            base: string
+            multiline: true
+      confirm:
+        screen: register-todo/confirm
+        request: POST /todo/register-todo/confirm
+        shows:
+          - タイトル
+          - 概要
+          - カテゴリ
+          - タグ
+          - 元のTODO
+          - 期限
+          - 詳細
+        back:
+          request: POST /todo/register-todo/back
+          to: register-todo/input
+      execute:
+        request: POST /todo/register-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: register-todo.done
+        refusals:
+          - key: check.due-not-before-created
+            message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.follows-not-self
+            message: TODO「{id}」の元のTODOに、自分自身は選べません
+          - key: check.follow-up-of.acyclic
+            message: 「元のTODO」をたどると、自分（{id}）に戻ります（循環はできません）
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/register-todo
+        confirm: POST /todo/register-todo/confirm
+        back: POST /todo/register-todo/back
+        execute: POST /todo/register-todo
+      designId: SCR-register-todo
+  - resolvedId: RSV-operation.add-todo-comment
+    screen: SCR-add-todo-comment
+    record:
+      id: add-todo-comment
+      name: TODOにコメントを追加する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen: いつも
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: add-todo-comment/input
+        request: GET /todo/{id}/add-todo-comment
+        items:
+          - key: date
+            label: 記録日
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            required: true
+            format: yyyy年M月d日
+          - key: body
+            label: コメント本文
+            type: todo-operations#操作の記録
+            base: string
+            description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+            required: true
+            minLength: 1
+            multiline: true
+        initial:
+          date:
+            $copy: today
+            $of: context
+      confirm:
+        screen: add-todo-comment/confirm
+        request: POST /todo/{id}/add-todo-comment/confirm
+        shows:
+          - 記録日
+          - コメント本文
+        back:
+          request: POST /todo/{id}/add-todo-comment/back
+          to: add-todo-comment/input
+      execute:
+        request: POST /todo/{id}/add-todo-comment
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: add-todo-comment.done
+        refusals:
+          - key: add-todo-comment.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/add-todo-comment
+        confirm: POST /todo/{id}/add-todo-comment/confirm
+        back: POST /todo/{id}/add-todo-comment/back
+        execute: POST /todo/{id}/add-todo-comment
+      designId: SCR-add-todo-comment
+  - resolvedId: RSV-operation.edit-todo-comment
+    screen: SCR-edit-todo-comment
+    record:
+      id: edit-todo-comment
+      name: コメントを編集する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo
+          place: 表「コメント一覧」の行のボタン
+      shownWhen: いつも
+      row:
+        key: row
+        label: コメントの番号
+        table: comments
+        tableLabel: コメント一覧
+        carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: edit-todo-comment/input
+        request: GET /todo/{id}/edit-todo-comment
+        items:
+          - key: date
+            label: 記録日
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            format: yyyy年M月d日
+          - key: body
+            label: コメント本文
+            type: todo-operations#操作の記録
+            base: string
+            description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+            minLength: 1
+            multiline: true
+        initial:
+          date:
+            $copy: comments[$row].date
+            $of: self
+            $in:
+              schemaId: todo-detail
+          body:
+            $copy: comments[$row].body
+            $of: self
+            $in:
+              schemaId: todo-detail
+        submit: changed
+      confirm:
+        screen: edit-todo-comment/confirm
+        request: POST /todo/{id}/edit-todo-comment/confirm
+        shows:
+          - 記録日
+          - コメント本文
+        back:
+          request: POST /todo/{id}/edit-todo-comment/back
+          to: edit-todo-comment/input
+      execute:
+        request: POST /todo/{id}/edit-todo-comment
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: edit-todo-comment.done
+        refusals:
+          - key: edit-todo-comment.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/edit-todo-comment
+        confirm: POST /todo/{id}/edit-todo-comment/confirm
+        back: POST /todo/{id}/edit-todo-comment/back
+        execute: POST /todo/{id}/edit-todo-comment
+      designId: SCR-edit-todo-comment
+  - resolvedId: RSV-operation.delete-todo-comment
+    screen: SCR-delete-todo-comment
+    record:
+      id: delete-todo-comment
+      name: コメントを削除する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo
+          place: 表「コメント一覧」の行のボタン
+      shownWhen: いつも
+      row:
+        key: row
+        label: コメントの番号
+        table: comments
+        tableLabel: コメント一覧
+        carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
+      carried:
+        version:
+          $copy: version
+          $of: self
+      confirm:
+        screen: delete-todo-comment/confirm
+        request: GET /todo/{id}/delete-todo-comment/confirm
+        shows: []
+      execute:
+        request: POST /todo/{id}/delete-todo-comment
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: delete-todo-comment.done
+        refusals:
+          - key: delete-todo-comment.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        confirm: GET /todo/{id}/delete-todo-comment/confirm
+        execute: POST /todo/{id}/delete-todo-comment
+      designId: SCR-delete-todo-comment
+  - resolvedId: RSV-operation.add-todo-task
+    screen: SCR-add-todo-task
+    record:
+      id: add-todo-task
+      name: 作業項目を追加する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen: いつも
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: add-todo-task/input
+        request: GET /todo/{id}/add-todo-task
+        items:
+          - key: title
+            label: 作業
+            type: common#一行の文
+            base: string
+            required: true
+            minLength: 1
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+            overrides:
+              minLength: 1
+      confirm:
+        screen: add-todo-task/confirm
+        request: POST /todo/{id}/add-todo-task/confirm
+        shows:
+          - 作業
+        back:
+          request: POST /todo/{id}/add-todo-task/back
+          to: add-todo-task/input
+      execute:
+        request: POST /todo/{id}/add-todo-task
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: add-todo-task.done
+        refusals:
+          - key: add-todo-task.active
+            message: '{id} は完了か中止をしているので、作業項目を足せません'
+          - key: add-todo-task.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.closed-has-no-open-task
+            message: 完了したTODO「{id}」に、済んでいない作業項目があります
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/add-todo-task
+        confirm: POST /todo/{id}/add-todo-task/confirm
+        back: POST /todo/{id}/add-todo-task/back
+        execute: POST /todo/{id}/add-todo-task
+      designId: SCR-add-todo-task
+  - resolvedId: RSV-operation.edit-todo
+    screen: SCR-edit-todo
+    record:
+      id: edit-todo
+      name: TODOを編集する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen: いつも
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: edit-todo/input
+        request: GET /todo/{id}/edit-todo
+        items:
+          - key: title
+            label: タイトル
+            type: common#一行の文
+            base: string
+            minLength: 1
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+            overrides:
+              minLength: 1
+          - key: summary
+            label: 概要
+            type: common#一行の文
+            base: string
+            minLength: 1
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+            overrides:
+              minLength: 1
+          - key: category
+            label: カテゴリ
+            type: common#カテゴリ参照
+            base: ref
+            description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+            refTarget: entity
+            idPatternLayers:
+              -   - CAT-*
+            scope:
+              schemaIds:
+                - category-list
+              documentIds: []
+            relation: in-category
+            idPatterns:
+              - CAT-*
+            schemas:
+              - category-list
+            targets:
+              - category
+            target: category
+            targetTitle: name
+            targetLabel: カテゴリ
+            clearedBy: clear.category
+          - key: tags
+            label: タグ
+            type: array
+            base: array
+            description: 入力した並びで全体を置き換えます。
+            unique: true
+            item:
+              type: common#タグ参照
+              base: ref
+              description: タグ一覧の ID を 1 件。
+              refTarget: entity
+              idPatternLayers:
+                -   - TAG-*
+              scope:
+                schemaIds:
+                  - tag-list
+                documentIds: []
+              relation: tagged
+              idPatterns:
+                - TAG-*
+              schemas:
+                - tag-list
+              targets:
+                - tag
+              target: tag
+              targetTitle: name
+              targetLabel: タグ
+            clearedBy: clear.tags
+          - key: created_on
+            label: 作成日
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            format: yyyy年M月d日
+          - key: due_on
+            label: 期限
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            format: yyyy年M月d日
+            clearedBy: clear.due_on
+          - key: details
+            label: 詳細
+            type: common#文章
+            base: string
+            multiline: true
+            clearedBy: clear.details
+          - key: result
+            label: 結果・中止理由
+            type: common#文章
+            base: string
+            multiline: true
+            clearedBy: clear.result
+          - key: clear
+            label: 値を消す
+            type: object
+            base: object
+            description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+            default: {}
+            fields:
+              - key: category
+                label: カテゴリを消す
+                type: boolean
+                base: boolean
+                builtinType:
+                  name: boolean
+                  base: boolean
+                  builtin: true
+              - key: tags
+                label: タグを消す
+                type: boolean
+                base: boolean
+                builtinType:
+                  name: boolean
+                  base: boolean
+                  builtin: true
+              - key: due_on
+                label: 期限を消す
+                type: boolean
+                base: boolean
+                builtinType:
+                  name: boolean
+                  base: boolean
+                  builtin: true
+              - key: details
+                label: 詳細を消す
+                type: boolean
+                base: boolean
+                builtinType:
+                  name: boolean
+                  base: boolean
+                  builtin: true
+              - key: result
+                label: 結果・中止理由を消す
+                type: boolean
+                base: boolean
+                builtinType:
+                  name: boolean
+                  base: boolean
+                  builtin: true
+        initial:
+          title:
+            $copy: title
+            $of: self
+            $in:
+              schemaId: todo-list
+          summary:
+            $copy: summary
+            $of: self
+            $in:
+              schemaId: todo-list
+          category:
+            $copy: category
+            $of: self
+            $in:
+              schemaId: todo-list
+          tags:
+            $copy: tags
+            $of: self
+            $in:
+              schemaId: todo-list
+          created_on:
+            $copy: created_on
+            $of: self
+            $in:
+              schemaId: todo-detail
+          due_on:
+            $copy: due_on
+            $of: self
+            $in:
+              schemaId: todo-detail
+          details:
+            $copy: details
+            $of: self
+            $in:
+              schemaId: todo-detail
+          result:
+            $copy: result
+            $of: self
+            $in:
+              schemaId: todo-detail
+        submit: changed
+      confirm:
+        screen: edit-todo/confirm
+        request: POST /todo/{id}/edit-todo/confirm
+        shows:
+          - タイトル
+          - 概要
+          - カテゴリ
+          - タグ
+          - 作成日
+          - 期限
+          - 詳細
+          - 結果・中止理由
+          - 値を消す
+        back:
+          request: POST /todo/{id}/edit-todo/back
+          to: edit-todo/input
+      execute:
+        request: POST /todo/{id}/edit-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: edit-todo.done
+        refusals:
+          - key: edit-todo.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.due-not-before-created
+            message: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.completed-not-before-created
+            message: TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です
+          - key: check.closed-has-result
+            message: 完了した TODO「{id}」に結果がありません
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/edit-todo
+        confirm: POST /todo/{id}/edit-todo/confirm
+        back: POST /todo/{id}/edit-todo/back
+        execute: POST /todo/{id}/edit-todo
+      designId: SCR-edit-todo
+  - resolvedId: RSV-operation.start-todo
+    screen: SCR-start-todo
+    record:
+      id: start-todo
+      name: TODOに着手する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen:
+        - value: OPEN
+          label: 未着手
+      carried:
+        version:
+          $copy: version
+          $of: self
+      confirm:
+        screen: start-todo/confirm
+        request: GET /todo/{id}/start-todo/confirm
+        shows: []
+        stateChange:
+          - from:
+              - 未着手
+            to: 対応中
+      execute:
+        request: POST /todo/{id}/start-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: start-todo.done
+        refusals:
+          - key: start-todo.state
+            message: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
+          - key: start-todo.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.unfinished-has-no-completed-on
+            message: 完了していない TODO「{id}」に完了日が残っています
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        confirm: GET /todo/{id}/start-todo/confirm
+        execute: POST /todo/{id}/start-todo
+      designId: SCR-start-todo
+  - resolvedId: RSV-operation.suspend-todo
+    screen: SCR-suspend-todo
+    record:
+      id: suspend-todo
+      name: TODOを中断する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen:
+        - value: IN_PROGRESS
+          label: 対応中
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: suspend-todo/input
+        request: GET /todo/{id}/suspend-todo
+        items:
+          - key: date
+            label: 中断日
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            required: true
+            format: yyyy年M月d日
+          - key: reason
+            label: 中断理由
+            type: todo-operations#操作の記録
+            base: string
+            description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+            required: true
+            minLength: 1
+            multiline: true
+          - key: resume_on
+            label: 再開予定日
+            type: common#年月日
+            base: date
+            description: 決まっていれば入れます。中断日以降の日付です。
+            format: yyyy年M月d日
+        initial:
+          date:
+            $copy: today
+            $of: context
+      confirm:
+        screen: suspend-todo/confirm
+        request: POST /todo/{id}/suspend-todo/confirm
+        shows:
+          - 中断日
+          - 中断理由
+          - 再開予定日
+        stateChange:
+          - from:
+              - 対応中
+            to: 中断
+        back:
+          request: POST /todo/{id}/suspend-todo/back
+          to: suspend-todo/input
+      execute:
+        request: POST /todo/{id}/suspend-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: suspend-todo.done
+        refusals:
+          - key: suspend-todo.state
+            message: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
+          - key: suspend-todo.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.unfinished-has-no-completed-on
+            message: 完了していない TODO「{id}」に完了日が残っています
+          - key: check.resume-not-before-suspend
+            message: 再開予定日（{left}）は、中断した日（{right}）より前にできません
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/suspend-todo
+        confirm: POST /todo/{id}/suspend-todo/confirm
+        back: POST /todo/{id}/suspend-todo/back
+        execute: POST /todo/{id}/suspend-todo
+      designId: SCR-suspend-todo
+  - resolvedId: RSV-operation.resume-todo
+    screen: SCR-resume-todo
+    record:
+      id: resume-todo
+      name: TODOを再開する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen:
+        - value: SUSPENDED
+          label: 中断
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: resume-todo/input
+        request: GET /todo/{id}/resume-todo
+        items:
+          - key: date
+            label: 再開日
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            required: true
+            format: yyyy年M月d日
+          - key: note
+            label: メモ
+            type: common#文章
+            base: string
+            multiline: true
+        initial:
+          date:
+            $copy: today
+            $of: context
+      confirm:
+        screen: resume-todo/confirm
+        request: POST /todo/{id}/resume-todo/confirm
+        shows:
+          - 再開日
+          - メモ
+        stateChange:
+          - from:
+              - 中断
+            to: 対応中
+        back:
+          request: POST /todo/{id}/resume-todo/back
+          to: resume-todo/input
+      execute:
+        request: POST /todo/{id}/resume-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: resume-todo.done
+        refusals:
+          - key: resume-todo.state
+            message: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
+          - key: resume-todo.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.unfinished-has-no-completed-on
+            message: 完了していない TODO「{id}」に完了日が残っています
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/resume-todo
+        confirm: POST /todo/{id}/resume-todo/confirm
+        back: POST /todo/{id}/resume-todo/back
+        execute: POST /todo/{id}/resume-todo
+      designId: SCR-resume-todo
+  - resolvedId: RSV-operation.complete-todo
+    screen: SCR-complete-todo
+    record:
+      id: complete-todo
+      name: TODOを完了する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen:
+        - value: IN_PROGRESS
+          label: 対応中
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: complete-todo/input
+        request: GET /todo/{id}/complete-todo
+        items:
+          - key: date
+            label: 完了日
+            type: common#年月日
+            base: date
+            description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+            required: true
+            format: yyyy年M月d日
+          - key: result
+            label: 完了結果
+            type: todo-operations#操作の記録
+            base: string
+            description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+            required: true
+            minLength: 1
+            multiline: true
+        initial:
+          date:
+            $copy: today
+            $of: context
+      confirm:
+        screen: complete-todo/confirm
+        request: POST /todo/{id}/complete-todo/confirm
+        shows:
+          - 完了日
+          - 完了結果
+        stateChange:
+          - from:
+              - 対応中
+            to: 完了
+        back:
+          request: POST /todo/{id}/complete-todo/back
+          to: complete-todo/input
+      execute:
+        request: POST /todo/{id}/complete-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: complete-todo.done
+        refusals:
+          - key: complete-todo.state
+            message: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
+          - key: complete-todo.no-open-task
+            message: '{id} には済んでいない作業項目があります（済にしてから完了します）'
+          - key: complete-todo.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.completed-not-before-created
+            message: TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です
+          - key: check.closed-has-completed-on
+            message: 完了した TODO「{id}」に完了日がありません
+          - key: check.closed-has-result
+            message: 完了した TODO「{id}」に結果がありません
+          - key: check.closed-has-no-open-task
+            message: 完了したTODO「{id}」に、済んでいない作業項目があります
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/complete-todo
+        confirm: POST /todo/{id}/complete-todo/confirm
+        back: POST /todo/{id}/complete-todo/back
+        execute: POST /todo/{id}/complete-todo
+      designId: SCR-complete-todo
+  - resolvedId: RSV-operation.cancel-todo
+    screen: SCR-cancel-todo
+    record:
+      id: cancel-todo
+      name: TODOを中止する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo-dashboard
+          place: 区画「期限超過」の行のボタン
+        - screen: todo-dashboard
+          place: 区画「すべてのTODO」の行のボタン
+        - screen: todo
+          place: 画面のボタン
+      shownWhen:
+        - value: OPEN
+          label: 未着手
+        - value: IN_PROGRESS
+          label: 対応中
+        - value: SUSPENDED
+          label: 中断
+      carried:
+        version:
+          $copy: version
+          $of: self
+      input:
+        screen: cancel-todo/input
+        request: GET /todo/{id}/cancel-todo
+        items:
+          - key: reason
+            label: 中止理由
+            type: todo-operations#操作の記録
+            base: string
+            description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+            required: true
+            minLength: 1
+            multiline: true
+      confirm:
+        screen: cancel-todo/confirm
+        request: POST /todo/{id}/cancel-todo/confirm
+        shows:
+          - 中止理由
+        stateChange:
+          - from:
+              - 未着手
+              - 対応中
+              - 中断
+            to: 中止
+        back:
+          request: POST /todo/{id}/cancel-todo/back
+          to: cancel-todo/input
+      execute:
+        request: POST /todo/{id}/cancel-todo
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: cancel-todo.done
+        refusals:
+          - key: cancel-todo.state
+            message: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+          - key: cancel-todo.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.unfinished-has-no-completed-on
+            message: 完了していない TODO「{id}」に完了日が残っています
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /todo/{id}/cancel-todo
+        confirm: POST /todo/{id}/cancel-todo/confirm
+        back: POST /todo/{id}/cancel-todo/back
+        execute: POST /todo/{id}/cancel-todo
+      designId: SCR-cancel-todo
+  - resolvedId: RSV-operation.add-tag
+    screen: SCR-add-tag
+    record:
+      id: add-tag
+      name: タグを追加する
+      kind: operation
+      starts:
+        - screen: todo-dashboard
+          place: 上部のボタン
+      shownWhen: いつも
+      input:
+        screen: add-tag/input
+        request: GET /tag/add-tag
+        items:
+          - key: name
+            label: タグ名
+            type: common#一行の文
+            base: string
+            required: true
+            minLength: 1
+            maxLength: 100
+            pattern: ^[^\r\n]*$
+            overrides:
+              minLength: 1
+      confirm:
+        screen: add-tag/confirm
+        request: POST /tag/add-tag/confirm
+        shows:
+          - タグ名
+        back:
+          request: POST /tag/add-tag/back
+          to: add-tag/input
+      execute:
+        request: POST /tag/add-tag
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: add-tag.done
+        refusals: []
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        input: GET /tag/add-tag
+        confirm: POST /tag/add-tag/confirm
+        back: POST /tag/add-tag/back
+        execute: POST /tag/add-tag
+      designId: SCR-add-tag
+  - resolvedId: RSV-operation.todo-task.finish
+    screen: SCR-todo-task.finish
+    record:
+      id: todo-task.finish
+      name: 作業項目を済にする
+      kind: operation
+      target: todo-task
+      starts:
+        - screen: todo
+          place: 表「作業項目」の行のボタン
+      shownWhen: いつも
+      carried:
+        version:
+          $copy: version
+          $of: owner
+      confirm:
+        screen: todo-task.finish/confirm
+        request: GET /todo-task/{id}/todo-task.finish/confirm
+        shows: []
+      execute:
+        request: POST /todo-task/{id}/todo-task.finish
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: todo-task.finish.done
+        refusals:
+          - key: todo-task.finish.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.closed-has-no-open-task
+            message: 完了したTODO「{id}」に、済んでいない作業項目があります
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        confirm: GET /todo-task/{id}/todo-task.finish/confirm
+        execute: POST /todo-task/{id}/todo-task.finish
+      designId: SCR-todo-task.finish

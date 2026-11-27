@@ -1,0 +1,13 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-category
+source: category
+kind: detail
+seq: 2-01
+label: カテゴリ詳細
+entity: ENT-category
+url: /category/{id}
+items:
+  - item: FLD-category.id
+  - item: FLD-category.name
+tables: []
+buttons: []

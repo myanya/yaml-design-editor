@@ -2,16 +2,14 @@ id: system-screen-bindings
 name: 確定した画面の URL
 scope: business
 dependsOn:
-  - screen-lists
-  - screen-details
-  - screen-operations
+  - basic-screens-resolved
 output: design/basic/composed/documents/system-screen-bindings.yaml
 build:
   id: SYS-system-screen-bindings
   bindings:
     $concat:
       - $each:
-          $view: screen-lists-input
+          $view: basic-screens-resolved-lists
         $flatten: true
         $build:
           - before:
@@ -39,7 +37,7 @@ build:
               - to
               - url
       - $each:
-          $view: screen-details-input
+          $view: basic-screens-resolved-details
         $flatten: true
         $build:
           - before:
@@ -67,7 +65,7 @@ build:
               - to
               - url
       - $each:
-          $view: screen-operations-input
+          $view: basic-screens-resolved-operations
         $flatten: true
         $build:
           - before:

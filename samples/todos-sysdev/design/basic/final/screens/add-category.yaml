@@ -1,0 +1,24 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-add-category
+source: add-category
+kind: operation
+seq: 3-01
+label: カテゴリを追加する
+operation: ACT-add-category
+input:
+  id: SCR-add-category.input
+  request: GET /category/add-category
+  items:
+    - PRM-add-category.name
+confirm:
+  id: SCR-add-category.confirm
+  request: POST /category/add-category/confirm
+  shows:
+    - PRM-add-category.name
+  back:
+    request: POST /category/add-category/back
+    to: SCR-add-category.input
+execute:
+  request: POST /category/add-category
+  notice: add-category.done
+  refusals: []

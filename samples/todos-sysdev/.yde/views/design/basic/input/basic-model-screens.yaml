@@ -1,0 +1,7 @@
+id: basic-model-screens
+name: 基本設計の生成入力（画面）
+description: 確定した画面の項目一覧を読む。入力画面と確認画面も SCR- の ID を持つので、読む側は kind のある行（1 ファイルに 1 つの画面の項目）だけを使う
+rows: { idPattern: "SCR-*", schemaIds: [basic-screen] }
+order: { path: seq }
+columns:
+  - { label: record, path: . }

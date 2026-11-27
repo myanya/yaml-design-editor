@@ -11,7 +11,7 @@
 ## レビューと次の作業
 
 **エンティティ定義書・テーブル設計書を含め、設計書全体の内容をレビューする段階**です。生成や検査の成功を、オーナーのレビュー完了とは扱いません。
-ほかの設計書も導出・補正と指定・追加から確定する経路へ移し、ダッシュボードの切替欄から「処理設計書」「画面定義書」などの設計書を選んで確認できます（操作は項目の形になり、アクション定義書は操作のファイルのビュー「操作の設計書（基本から詳細まで）」で見ます）。
+ほかの設計書も導出・補正と指定・追加から確定する経路へ移し、ダッシュボードの切替欄から「処理設計書」「画面設計書」などの設計書を選んで確認できます（操作と画面は項目の形になり、アクション定義書は操作のファイルのビュー「操作の設計書（基本から詳細まで）」で、画面定義書は画面のファイルのビュー「画面の設計書（基本から詳細まで）」で見ます）。
 「対象の設計書」で文書を選ぶと、概要と根拠・設計内容が切り替わります。「この設計書の一覧」には同じ種類の文書だけが並びます。全体の対応は「設計書の全体レビュー」で確認できます。
 [設計書の確定と全体レビュー](docs/design-document-migration-plan.md)に、対象・受け渡し・入力例・試し方をまとめています。
 計画と未決事項は [ロードマップ](../../docs/ROADMAP.md#p53-業務モデルから作る設計書体系とアプリ生成) にあります。
@@ -79,7 +79,7 @@
 | 状態と遷移（基本設計） | 1 本（Lifecycle ごとの項目） | 基本設計の設計項目（`LCY-todo-lifecycle`・`STA-todo-OPEN`・`TRN-todo-lifecycle.complete-todo`） | 生成（項目の形。業務モデルを直接読む） | ― |
 | エンティティ定義書（基本設計） | エンティティごと（ダッシュボードの入力で選ぶ） | 基本設計の設計項目（`ENT-todo`・`FLD-todo.title`・`OPS-todo.complete-todo`） | ビュー（補正・指定・追加を反映して検査した確定項目を読む） | ― |
 | 画面遷移定義書（基本設計） | ダッシュボードごと | 業務のダッシュボード（`todo-dashboard`） | 生成 | ― |
-| 画面定義書（基本設計） | 一覧画面（ダッシュボードごと）・詳細画面（エンティティ型ごと）・操作の画面（操作ごと） | 業務の ID | 生成 | ― |
+| 画面（基本設計） | 一覧画面（ダッシュボードごと）・詳細画面（エンティティ型ごと）・操作の画面（操作ごと。入力・確認・確定をまとめる） | 基本設計の設計項目（`SCR-todo-dashboard`・`SCR-complete-todo.input`・`BTN-todo.complete-todo`） | 生成（項目の形。画面定義書はビュー） | ― |
 | 画面遷移設計（詳細設計） | エンティティ型ごと・一覧画面はダッシュボードごと | 業務の ID | 生成 | Controller |
 | 画面設計書（詳細設計） | 一覧画面・詳細画面・操作の画面（画面定義書と同じ単位） | 業務の ID | 生成 | View（Thymeleaf の手前の部品の木）・Form |
 | 画面のクラスの対応表（詳細設計） | 1 本 | ― | 生成 | 通常の CSS。配色などは画面デザイン台帳の確定値 |
@@ -235,14 +235,15 @@
    - 台帳のビュー「操作の設計の対応」「エンティティの設計の対応」: 操作・エンティティ型ごとに、どの設計書へ降りているかを一覧できます。
 6. 画面系の生成物を読みます。
    - `design/basic/final/screens/transitions/todo-dashboard.yaml`: 29 の画面と、移り方（区画の行の ID → 詳細・ボタン → 入力 → 確認 → 起点の画面。コメントの編集と削除は、詳細画面の表「コメント一覧」の行のボタンから）。
-   - `design/basic/final/screens/operations/complete-todo.yaml`: 起点の画面（期限超過とすべてのTODO の行のボタン・TODO詳細のボタン）・ボタンを出す状態（対応中）・入力の項目・確認・断りの種類。
+   - `design/basic/final/screens/complete-todo.yaml`: 操作の画面の項目。入力画面と確認画面のリクエスト、入力する項目（`PRM-`）、画面が持ち回す入力、断る理由（遷移・前提・データの決まりを ID で指す）。名称や入力の決まりは写していません。
+   - `design/basic/final/screens/todo-dashboard.yaml` と `todo.yaml`: 一覧画面（絞り込み・上部のボタン・区画と行のボタン）と、詳細画面（見せる項目・表・ボタン）。ボタンは操作（`ACT-`）と行き先の画面（`SCR-`）を指します。
    - `design/detail/final/controllers/todo.yaml` と `design/detail/final/session.yaml`: ハンドラごとの URL と、セッションに置く・読むキー。
 7. 画面設計書と読み出しを読みます。
    - `design/detail/final/screen-designs/operations/complete-todo.yaml`: 入力画面と確認画面の部品の木と、`CompleteTodoForm` の検査（完了結果は `@NotNull` と `@Size(min = 1)`）。
    - `design/detail/final/screen-designs/operations/edit-todo.yaml`: カテゴリの欄の横の「値を消す」（`clear.category`）。
    - `design/detail/final/screen-designs/operations/edit-todo-comment.yaml` と `design/detail/final/screen-designs/details/todo.yaml`: コメント一覧の行のボタン（`row: {param: row, item: seq}`）と、番号を hidden で持ち回す入力画面・「対象の行」を見せる確認画面。
    - `design/detail/final/table-access/todo.yaml` の `selectTodoDashboardOverdue`: 期限超過の区画の条件（status が OPEN か IN_PROGRESS・期限がある・期限が基準日より前）。
-   - YDE で `design/basic/final/screens/operations/complete-todo.yaml` のビュータブ「操作の画面の設計書（基本から詳細まで）」で、画面定義書と画面設計書が 1 つの画面に並ぶこと。
+   - YDE で `design/basic/final/screens/complete-todo.yaml` のビュータブ「画面の設計書（基本から詳細まで）」で、画面の項目（画面定義書にあたる内容）と画面設計書が 1 つの画面に並ぶこと。台帳のビュー「画面（一覧）」「画面（ボタン）」「画面（区画と表）」で、画面の項目を一覧できます。
 8. ドメインの生成物を読みます。`design/basic/final/domains/todo.yaml`（構成・情報・状態の流れ・提供する操作・データの決まり・関係）と `design/basic/final/domain-relations.yaml`（ドメインの一覧・関係・入れ子）。
    ドメイン定義書の「ほかのドメインとの関係」の相手（`to`）は、ほかのドメインの ID への参照です。
 9. エラーとメッセージ系の生成物を読みます。

@@ -1,0 +1,34 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-add-todo-comment
+source: add-todo-comment
+kind: operation
+seq: 3-03
+label: TODOにコメントを追加する
+operation: ACT-add-todo-comment
+hidden:
+  - PRM-add-todo-comment.version
+input:
+  id: SCR-add-todo-comment.input
+  request: GET /todo/{id}/add-todo-comment
+  items:
+    - PRM-add-todo-comment.date
+    - PRM-add-todo-comment.body
+confirm:
+  id: SCR-add-todo-comment.confirm
+  request: POST /todo/{id}/add-todo-comment/confirm
+  shows:
+    - PRM-add-todo-comment.date
+    - PRM-add-todo-comment.body
+  back:
+    request: POST /todo/{id}/add-todo-comment/back
+    to: SCR-add-todo-comment.input
+execute:
+  request: POST /todo/{id}/add-todo-comment
+  notice: add-todo-comment.done
+  refusals:
+    - key: add-todo-comment.version-unchanged
+      cause: precondition
+      precondition: PRE-add-todo-comment.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created

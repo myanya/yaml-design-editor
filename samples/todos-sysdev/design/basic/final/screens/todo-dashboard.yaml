@@ -1,0 +1,106 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-todo-dashboard
+source: todo-dashboard
+kind: list
+seq: 1-01
+label: TODOダッシュボード
+description: 業務の流れで状態ごとの件数と、いま操作できるTODOを示します。気になる状況の件数を選び、一覧のIDから詳細と操作へ進みます。期限超過は未完了で期限が基準日より前のTODOです。
+start: true
+url: /
+filters:
+  - id: FLT-todo-dashboard.tags
+    key: tags
+    label: タグ
+    type: TYP-common.タグ参照
+    multiple: true
+  - id: FLT-todo-dashboard.category
+    key: category
+    label: カテゴリ
+    type: TYP-common.カテゴリ参照
+buttons:
+  - id: BTN-todo-dashboard.register-todo
+    operation: ACT-register-todo
+    to: SCR-register-todo.input
+  - id: BTN-todo-dashboard.add-category
+    operation: ACT-add-category
+    to: SCR-add-category.input
+  - id: BTN-todo-dashboard.add-tag
+    operation: ACT-add-tag
+    to: SCR-add-tag.input
+sections:
+  - id: SEC-todo-dashboard.overdue
+    query: QRY-todo-dashboard.overdue
+    link:
+      to: SCR-todo
+    rowButtons:
+      - id: BTN-todo-dashboard.overdue.add-todo-comment
+        operation: ACT-add-todo-comment
+        to: SCR-add-todo-comment.input
+      - id: BTN-todo-dashboard.overdue.add-todo-task
+        operation: ACT-add-todo-task
+        to: SCR-add-todo-task.input
+      - id: BTN-todo-dashboard.overdue.edit-todo
+        operation: ACT-edit-todo
+        to: SCR-edit-todo.input
+      - id: BTN-todo-dashboard.overdue.start-todo
+        operation: ACT-start-todo
+        to: SCR-start-todo.confirm
+      - id: BTN-todo-dashboard.overdue.suspend-todo
+        operation: ACT-suspend-todo
+        to: SCR-suspend-todo.input
+      - id: BTN-todo-dashboard.overdue.resume-todo
+        operation: ACT-resume-todo
+        to: SCR-resume-todo.input
+      - id: BTN-todo-dashboard.overdue.complete-todo
+        operation: ACT-complete-todo
+        to: SCR-complete-todo.input
+      - id: BTN-todo-dashboard.overdue.cancel-todo
+        operation: ACT-cancel-todo
+        to: SCR-cancel-todo.input
+  - id: SEC-todo-dashboard.all
+    query: QRY-todo-dashboard.all
+    link:
+      to: SCR-todo
+    rowButtons:
+      - id: BTN-todo-dashboard.all.add-todo-comment
+        operation: ACT-add-todo-comment
+        to: SCR-add-todo-comment.input
+      - id: BTN-todo-dashboard.all.add-todo-task
+        operation: ACT-add-todo-task
+        to: SCR-add-todo-task.input
+      - id: BTN-todo-dashboard.all.edit-todo
+        operation: ACT-edit-todo
+        to: SCR-edit-todo.input
+      - id: BTN-todo-dashboard.all.start-todo
+        operation: ACT-start-todo
+        to: SCR-start-todo.confirm
+      - id: BTN-todo-dashboard.all.suspend-todo
+        operation: ACT-suspend-todo
+        to: SCR-suspend-todo.input
+      - id: BTN-todo-dashboard.all.resume-todo
+        operation: ACT-resume-todo
+        to: SCR-resume-todo.input
+      - id: BTN-todo-dashboard.all.complete-todo
+        operation: ACT-complete-todo
+        to: SCR-complete-todo.input
+      - id: BTN-todo-dashboard.all.cancel-todo
+        operation: ACT-cancel-todo
+        to: SCR-cancel-todo.input
+  - id: SEC-todo-dashboard.categories
+    query: QRY-todo-dashboard.categories
+    cell:
+      to: SCR-todo-dashboard
+  - id: SEC-todo-dashboard.tags
+    query: QRY-todo-dashboard.tags
+    cell:
+      to: SCR-todo-dashboard
+  - id: SEC-todo-dashboard.categories-master
+    query: QRY-todo-dashboard.categories-master
+    link:
+      to: SCR-category
+    rowButtons: []
+  - id: SEC-todo-dashboard.tags-master
+    query: QRY-todo-dashboard.tags-master
+    link:
+      to: SCR-tag
+    rowButtons: []

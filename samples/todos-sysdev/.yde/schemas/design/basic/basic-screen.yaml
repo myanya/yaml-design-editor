@@ -1,0 +1,338 @@
+id: basic-screen
+name: 基本設計項目一覧（画面）
+kind: document
+description: >-
+  抽象システムモデルの「画面」。1 画面を 1 ファイルにし、画面・絞り込み・区画・ボタンを項目の形で持つ（ADR-0042）。
+  操作の画面は、入力画面・確認画面・確定を操作ごとの 1 ファイルにまとめる（入力画面と確認画面は、それぞれ画面の ID を持つ）。
+  同じ段の項目（操作・入力・一覧の検索条件・エンティティ・項目・型・遷移・データの決まり）は ID で指し、
+  指した先にある値（ボタンの名称と表示条件、区画の名称と列、入力の決まり、断りの文）は写さない。
+  画面の項目があるエンティティと操作が、ダッシュボードからたどれる範囲になる。source は導出元（業務モデル）の識別子。生成物で、手で直さない。
+match: design/basic/final/screens/*.yaml
+entity:
+  type: sysdev-screen
+  defines: true
+definitions:
+  ボタン:
+    type: object
+    description: 操作を始めるボタン。名称は操作の名称、出す条件は操作の遷移（遷移の前の状態のときだけ出す）から決まる
+    fields:
+      - key: id
+        label: 設計項目ID
+        type: id
+        required: true
+        description: BTN-画面.操作（区画や表の行のボタンは BTN-画面.区画.操作）
+      - key: label
+        label: 名称
+        type: string
+        description: この画面でだけ名称を変えるとき（個別の判断）。書かなければ、操作の名称
+      - key: operation
+        label: 操作
+        type: ref
+        idPatterns:
+          - ACT-*
+        required: true
+      - key: to
+        label: 行き先
+        type: ref
+        idPatterns:
+          - SCR-*
+        required: true
+        description: 操作の入力画面（人が入力する項目が無い操作は、確認画面）
+root:
+  type: object
+  fields:
+    - key: id
+      label: 設計項目ID
+      type: id
+      required: true
+      description: SCR-業務モデルの ID（ダッシュボード・エンティティ型・操作）
+    - key: source
+      label: 導出元
+      type: ref
+      required: true
+      description: 業務モデルのダッシュボード・エンティティ型・操作の ID
+    - key: kind
+      label: 画面の種類
+      type: enum
+      required: true
+      values:
+        - value: list
+          label: 一覧画面
+        - value: detail
+          label: 詳細画面
+        - value: operation
+          label: 操作の画面
+    - key: seq
+      label: 並び順
+      type: string
+      description: 一覧画面・詳細画面・操作の画面の順で、それぞれ業務モデルでの並び順。読む側が画面を並べるのに使う
+    - key: label
+      label: 名称
+      type: string
+      role: title
+    - key: description
+      label: 説明
+      type: string
+    - key: start
+      label: 起点の画面
+      type: boolean
+    - key: url
+      label: URL
+      type: string
+      description: 一覧画面と詳細画面の URL（操作の画面は、入力・確認・確定がそれぞれ持つ）
+    - key: entity
+      label: エンティティ
+      type: ref
+      idPatterns:
+        - ENT-*
+      description: 詳細画面が見せる要素のエンティティ
+    - key: operation
+      label: 操作
+      type: ref
+      idPatterns:
+        - ACT-*
+      description: 操作の画面が受け付ける操作
+    - key: filters
+      label: 絞り込み
+      type: array
+      description: 一覧画面の絞り込みの欄。値は URL のパラメータで持つ
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: FLT-画面.絞り込みのキー
+          - key: key
+            label: キー
+            type: string
+          - key: label
+            label: 名称
+            type: string
+          - key: type
+            label: 型
+            type: ref
+            idPatterns:
+              - TYP-*
+          - key: builtin
+            label: 組込みの型
+            type: string
+          - key: multiple
+            label: 複数
+            type: boolean
+    - key: buttons
+      label: 画面のボタン
+      type: array
+      description: 一覧画面では上部の操作、詳細画面では見せている要素を受け手にする操作
+      item:
+        type: ボタン
+    - key: sections
+      label: 区画
+      type: array
+      description: 一覧画面の区画。名称・行・列・条件は、指した検索条件が持つ
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: SEC-画面.区画
+          - key: label
+            label: 名称
+            type: string
+            description: この画面でだけ名称を変えるとき（個別の判断）。書かなければ、検索条件の名称
+          - key: query
+            label: 一覧の検索条件
+            type: ref
+            idPatterns:
+              - QRY-*
+            required: true
+          - key: link
+            label: 行の ID の行き先
+            type: object
+            fields:
+              - key: to
+                label: 行き先
+                type: ref
+                idPatterns:
+                  - SCR-*
+          - key: cell
+            label: セルの行き先
+            type: object
+            description: 集計の区画のセルを選ぶと、その行と列で絞った一覧へ進む
+            fields:
+              - key: to
+                label: 行き先
+                type: ref
+                idPatterns:
+                  - SCR-*
+          - key: rowButtons
+            label: 行のボタン
+            type: array
+            item:
+              type: ボタン
+    - key: items
+      label: 見せる項目
+      type: array
+      description: 詳細画面に並べる値の項目。名称と型は、指した項目が持つ
+      item:
+        type: object
+        fields:
+          - key: item
+            label: 項目
+            type: ref
+            idPatterns:
+              - FLD-*
+            required: true
+          - key: link
+            label: 行き先
+            type: ref
+            idPatterns:
+              - SCR-*
+            description: 参照の項目のとき、参照先の詳細画面
+    - key: tables
+      label: 表
+      type: array
+      description: 詳細画面の表（繰り返しの項目と、入れ子で持つ要素）。名称と列は、指した項目とエンティティが持つ
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            description: SEC-画面.項目のキー
+          - key: label
+            label: 名称
+            type: string
+            description: この画面でだけ名称を変えるとき（個別の判断）。書かなければ、項目の名称
+          - key: item
+            label: 項目
+            type: ref
+            idPatterns:
+              - FLD-*
+            required: true
+          - key: entity
+            label: 入れ子で持つ要素
+            type: ref
+            idPatterns:
+              - ENT-*
+          - key: rowButtons
+            label: 行のボタン
+            type: array
+            item:
+              type: ボタン
+    - key: hidden
+      label: 画面が持ち回す入力
+      type: array
+      description: 人は入力せず、hidden 項目で持ち回す入力（行のボタンが運ぶ並びの番号と、画面が受け手から読む値）
+      item:
+        type: ref
+        idPatterns:
+          - PRM-*
+    - key: input
+      label: 入力画面
+      type: object
+      description: 人が入力する項目がある操作だけが持つ
+      fields:
+        - key: id
+          label: 設計項目ID
+          type: id
+          required: true
+          description: SCR-操作.input
+        - key: request
+          label: リクエスト
+          type: string
+        - key: items
+          label: 入力する項目
+          type: array
+          item:
+            type: ref
+            idPatterns:
+              - PRM-*
+    - key: confirm
+      label: 確認画面
+      type: object
+      fields:
+        - key: id
+          label: 設計項目ID
+          type: id
+          required: true
+          description: SCR-操作.confirm
+        - key: request
+          label: リクエスト
+          type: string
+        - key: shows
+          label: 見せる入力
+          type: array
+          item:
+            type: ref
+            idPatterns:
+              - PRM-*
+        - key: back
+          label: 入力画面へ戻る
+          type: object
+          fields:
+            - key: request
+              label: リクエスト
+              type: string
+            - key: to
+              label: 行き先
+              type: ref
+              idPatterns:
+                - SCR-*
+    - key: execute
+      label: 確定
+      type: object
+      fields:
+        - key: request
+          label: リクエスト
+          type: string
+        - key: notice
+          label: 完了の知らせ
+          type: string
+          description: メッセージのキー
+        - key: refusals
+          label: 断る理由
+          type: array
+          item:
+            type: object
+            fields:
+              - key: key
+                label: メッセージのキー
+                type: string
+                required: true
+              - key: cause
+                label: 理由の種類
+                type: enum
+                values:
+                  - value: state
+                    label: 状態が合わない
+                  - value: precondition
+                    label: 前提が合わない
+                  - value: rule
+                    label: データの決まりに合わない
+              - key: transition
+                label: 遷移
+                type: ref
+                idPatterns:
+                  - TRN-*
+              - key: precondition
+                label: 前提
+                type: ref
+                idPatterns:
+                  - PRE-*
+              - key: rule
+                label: データの決まり
+                type: ref
+                idPatterns:
+                  - RUL-*
+    - key: decisions
+      label: 当てた個別の判断
+      type: array
+      description: この画面の項目に当てた個別の判断（どの場所を、どの値に、どの判断で置き換えたか）。判断が無ければ書かない
+      item:
+        type: any
+  unknownFields: error

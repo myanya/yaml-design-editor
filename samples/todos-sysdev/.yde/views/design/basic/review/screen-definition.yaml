@@ -1,0 +1,35 @@
+id: screen-definition
+name: 画面（一覧）
+description: 基本設計の「画面」の項目一覧を並べる。値は確定項目をそのまま読み、ビューでは計算しない。操作の画面は、まとまり（種類が operation の行）と、その入力画面・確認画面が 1 行ずつ並ぶ
+rows: { idPattern: "SCR-*", schemaIds: [basic-screen] }
+columns:
+  - label: 名称
+    path: label
+  - label: 種類
+    path: kind
+  - label: URL
+    path: url
+  - label: リクエスト
+    path: request
+  - label: 操作
+    path: operation
+  - label: エンティティ
+    path: entity
+  - label: 絞り込み
+    value:
+      path: filters[*].key
+  - label: 区画
+    value:
+      path: sections[*].query
+  - label: 表
+    value:
+      path: tables[*].item
+  - label: 画面のボタン
+    value:
+      path: buttons[*].operation
+  - label: 入力する項目
+    value:
+      path: items[*]
+  - label: 見せる入力
+    value:
+      path: shows[*]

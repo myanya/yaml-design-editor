@@ -1,0 +1,13 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-tag
+source: tag
+kind: detail
+seq: 2-02
+label: タグ詳細
+entity: ENT-tag
+url: /tag/{id}
+items:
+  - item: FLD-tag.id
+  - item: FLD-tag.name
+tables: []
+buttons: []

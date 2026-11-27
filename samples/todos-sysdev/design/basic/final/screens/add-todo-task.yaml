@@ -1,0 +1,38 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-add-todo-task
+source: add-todo-task
+kind: operation
+seq: 3-06
+label: 作業項目を追加する
+operation: ACT-add-todo-task
+hidden:
+  - PRM-add-todo-task.version
+input:
+  id: SCR-add-todo-task.input
+  request: GET /todo/{id}/add-todo-task
+  items:
+    - PRM-add-todo-task.title
+confirm:
+  id: SCR-add-todo-task.confirm
+  request: POST /todo/{id}/add-todo-task/confirm
+  shows:
+    - PRM-add-todo-task.title
+  back:
+    request: POST /todo/{id}/add-todo-task/back
+    to: SCR-add-todo-task.input
+execute:
+  request: POST /todo/{id}/add-todo-task
+  notice: add-todo-task.done
+  refusals:
+    - key: add-todo-task.active
+      cause: precondition
+      precondition: PRE-add-todo-task.active
+    - key: add-todo-task.version-unchanged
+      cause: precondition
+      precondition: PRE-add-todo-task.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.closed-has-no-open-task
+      cause: rule
+      rule: RUL-closed-has-no-open-task

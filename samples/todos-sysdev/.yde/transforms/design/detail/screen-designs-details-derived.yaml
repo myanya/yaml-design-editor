@@ -11,7 +11,7 @@ dependsOn:
   - system-model
   - basic-operations-resolved
   - messages
-  - screen-details
+  - basic-screens-resolved
   - screen-styles
   - detail-document-input-gate
   - system-screen-bindings
@@ -30,7 +30,7 @@ input:
           $one: true
     documents:
       $each:
-        $view: screen-details-input
+        $view: basic-screens-resolved-details
       $build:
         $copy: values.record
 build:
@@ -219,7 +219,7 @@ build:
           $with:
             matches:
               $each:
-                $view: screen-details-input
+                $view: basic-screens-resolved-details
               $build:
                 $when:
                   - path: values.record.id

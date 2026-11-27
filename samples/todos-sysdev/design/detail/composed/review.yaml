@@ -162,18 +162,6 @@ documents:
     kind: screen-designs-operations
     source: todo-task.finish
     path: design/detail/final/screen-designs/operations/todo-task.finish.yaml
-  - id: DOC-screen-details.category
-    kind: screen-details
-    source: category
-    path: design/basic/final/screens/details/category.yaml
-  - id: DOC-screen-details.tag
-    kind: screen-details
-    source: tag
-    path: design/basic/final/screens/details/tag.yaml
-  - id: DOC-screen-details.todo
-    kind: screen-details
-    source: todo
-    path: design/basic/final/screens/details/todo.yaml
   - id: DOC-screen-flows.category
     kind: screen-flows
     source: category
@@ -190,66 +178,6 @@ documents:
     kind: screen-flows
     source: todo-task
     path: design/detail/final/controllers/todo-task.yaml
-  - id: DOC-screen-lists.todo-dashboard
-    kind: screen-lists
-    source: todo-dashboard
-    path: design/basic/final/screens/lists/todo-dashboard.yaml
-  - id: DOC-screen-operations.add-category
-    kind: screen-operations
-    source: add-category
-    path: design/basic/final/screens/operations/add-category.yaml
-  - id: DOC-screen-operations.add-tag
-    kind: screen-operations
-    source: add-tag
-    path: design/basic/final/screens/operations/add-tag.yaml
-  - id: DOC-screen-operations.add-todo-comment
-    kind: screen-operations
-    source: add-todo-comment
-    path: design/basic/final/screens/operations/add-todo-comment.yaml
-  - id: DOC-screen-operations.add-todo-task
-    kind: screen-operations
-    source: add-todo-task
-    path: design/basic/final/screens/operations/add-todo-task.yaml
-  - id: DOC-screen-operations.cancel-todo
-    kind: screen-operations
-    source: cancel-todo
-    path: design/basic/final/screens/operations/cancel-todo.yaml
-  - id: DOC-screen-operations.complete-todo
-    kind: screen-operations
-    source: complete-todo
-    path: design/basic/final/screens/operations/complete-todo.yaml
-  - id: DOC-screen-operations.delete-todo-comment
-    kind: screen-operations
-    source: delete-todo-comment
-    path: design/basic/final/screens/operations/delete-todo-comment.yaml
-  - id: DOC-screen-operations.edit-todo
-    kind: screen-operations
-    source: edit-todo
-    path: design/basic/final/screens/operations/edit-todo.yaml
-  - id: DOC-screen-operations.edit-todo-comment
-    kind: screen-operations
-    source: edit-todo-comment
-    path: design/basic/final/screens/operations/edit-todo-comment.yaml
-  - id: DOC-screen-operations.register-todo
-    kind: screen-operations
-    source: register-todo
-    path: design/basic/final/screens/operations/register-todo.yaml
-  - id: DOC-screen-operations.resume-todo
-    kind: screen-operations
-    source: resume-todo
-    path: design/basic/final/screens/operations/resume-todo.yaml
-  - id: DOC-screen-operations.start-todo
-    kind: screen-operations
-    source: start-todo
-    path: design/basic/final/screens/operations/start-todo.yaml
-  - id: DOC-screen-operations.suspend-todo
-    kind: screen-operations
-    source: suspend-todo
-    path: design/basic/final/screens/operations/suspend-todo.yaml
-  - id: DOC-screen-operations.todo-task.finish
-    kind: screen-operations
-    source: todo-task.finish
-    path: design/basic/final/screens/operations/todo-task.finish.yaml
   - id: DOC-screen-styles.screen-styles
     kind: screen-styles
     source: screen-styles

@@ -1,0 +1,93 @@
+id: basic-screen-corrections
+name: 基本設計の画面への個別の判断
+kind: document
+description: >-
+  基本設計の「画面」の項目への個別の判断（ADR-0042）。画面 SCR-（入力画面・確認画面を含む）・絞り込み FLT-・区画と表 SEC-・ボタン BTN- を ID で指して、値を置き換える。
+  エンティティの項目・操作への補正と同じ書き方（対象の ID と set）。置き換えられるのは、名称・説明・URL・リクエスト。
+  入力の決まり（最大の長さなど）は、画面では変えない。画面と処理で検査がずれないように、操作の入力（PRM-）への判断に書く。
+  ボタンが始める操作・区画の検索条件・見せる項目は、業務モデルから決まるので変えられない。人が書く。
+match: design/basic/inputs/screens/corrections.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: corrections
+      label: 個別の判断
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 判断の ID
+            type: id
+            required: true
+            pattern: ^COR-\S+$
+          - key: target
+            label: 対象
+            type: string
+            required: true
+            pattern: ^(SCR|FLT|SEC|BTN)-\S+$
+            description: 基本設計の「画面」の項目の ID
+          - key: set
+            label: 置き換える値
+            type: object
+            required: true
+            description: 項目のキーと新しい値。ここに並ぶキーだけを置き換えられる
+            unknownFields: error
+            fields:
+              - key: label
+                label: 名称
+                type: string
+                description: 画面・絞り込み・区画と表・ボタンの名称
+              - key: description
+                label: 説明
+                type: string
+                description: 画面の説明
+              - key: url
+                label: URL
+                type: string
+                description: 一覧画面と詳細画面の URL
+              - key: request
+                label: リクエスト
+                type: string
+                description: 入力画面（SCR-操作.input）と確認画面（SCR-操作.confirm）のリクエスト
+              - key: executeRequest
+                label: 確定のリクエスト
+                type: string
+                description: 操作の画面（SCR-操作）の確定のリクエスト
+              - key: backRequest
+                label: 入力画面へ戻るリクエスト
+                type: string
+                description: 操作の画面（SCR-操作）の、確認画面から入力画面へ戻るリクエスト
+          - key: reason
+            label: 理由
+            type: text
+            required: true
+        unknownFields: error
+        constraints:
+          - id: correction-fits-part
+            where:
+              - or:
+                  - path: target
+                    contains: FLT-
+                  - path: target
+                    contains: SEC-
+                  - path: target
+                    contains: BTN-
+              - or:
+                  - path: set.description
+                    exists: true
+                  - path: set.url
+                    exists: true
+                  - path: set.request
+                    exists: true
+                  - path: set.executeRequest
+                    exists: true
+                  - path: set.backRequest
+                    exists: true
+            expect: absent
+            level: error
+            message: 絞り込み（FLT-）・区画と表（SEC-）・ボタン（BTN-）で置き換えられるのは、名称だけです
+  unknownFields: error

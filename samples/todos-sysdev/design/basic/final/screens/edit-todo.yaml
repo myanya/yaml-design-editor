@@ -1,0 +1,57 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-edit-todo
+source: edit-todo
+kind: operation
+seq: 3-07
+label: TODOを編集する
+operation: ACT-edit-todo
+hidden:
+  - PRM-edit-todo.version
+input:
+  id: SCR-edit-todo.input
+  request: GET /todo/{id}/edit-todo
+  items:
+    - PRM-edit-todo.title
+    - PRM-edit-todo.summary
+    - PRM-edit-todo.category
+    - PRM-edit-todo.tags
+    - PRM-edit-todo.created_on
+    - PRM-edit-todo.due_on
+    - PRM-edit-todo.details
+    - PRM-edit-todo.result
+    - PRM-edit-todo.clear
+confirm:
+  id: SCR-edit-todo.confirm
+  request: POST /todo/{id}/edit-todo/confirm
+  shows:
+    - PRM-edit-todo.title
+    - PRM-edit-todo.summary
+    - PRM-edit-todo.category
+    - PRM-edit-todo.tags
+    - PRM-edit-todo.created_on
+    - PRM-edit-todo.due_on
+    - PRM-edit-todo.details
+    - PRM-edit-todo.result
+    - PRM-edit-todo.clear
+  back:
+    request: POST /todo/{id}/edit-todo/back
+    to: SCR-edit-todo.input
+execute:
+  request: POST /todo/{id}/edit-todo
+  notice: edit-todo.done
+  refusals:
+    - key: edit-todo.version-unchanged
+      cause: precondition
+      precondition: PRE-edit-todo.version-unchanged
+    - key: check.due-not-before-created
+      cause: rule
+      rule: RUL-due-not-before-created
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.completed-not-before-created
+      cause: rule
+      rule: RUL-completed-not-before-created
+    - key: check.closed-has-result
+      cause: rule
+      rule: RUL-closed-has-result

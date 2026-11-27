@@ -16,6 +16,7 @@ input:
               - basic-document-corrections
               - basic-document-additions
               - basic-operation-corrections
+              - basic-screen-corrections
         $then:
           $copy: declared
     documents:
@@ -36,6 +37,12 @@ input:
         $with:
           row:
             $view: basic-operation-corrections
+            $one: true
+      design/basic/inputs/screens/corrections.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: basic-screen-corrections
             $one: true
 build:
   id: SYS-basic-input-check

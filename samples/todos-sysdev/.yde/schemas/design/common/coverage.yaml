@@ -311,10 +311,10 @@ constraints:
                   - node:
                       bind: v
                   - edge:
-                      via: id
+                      via: source
                       dir: in
                   - node:
-                      entity: sysdev-screen-list
+                      entity: sysdev-screen
                       bind: design
                 of: design
           - 1
@@ -365,10 +365,10 @@ constraints:
                   - node:
                       bind: a
                   - edge:
-                      via: id
+                      via: source
                       dir: in
                   - node:
-                      entity: sysdev-screen-operation
+                      entity: sysdev-screen
                       bind: design
                 of: design
           - 1

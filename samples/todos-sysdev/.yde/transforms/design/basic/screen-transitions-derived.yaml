@@ -9,9 +9,7 @@ output: design/basic/derived/documents/screen-transitions/{id}.yaml
 dependsOn:
   - system-model
   - basic-operations-resolved
-  - screen-lists
-  - screen-details
-  - screen-operations
+  - basic-screens-resolved
   - basic-document-input-gate
 input:
   $apply: model-input
@@ -41,7 +39,7 @@ build:
           screens:
             $concat:
               - $each:
-                  $view: screen-lists-input
+                  $view: basic-screens-resolved-lists
                 $build:
                   $when:
                     - path: values.record.id
@@ -60,7 +58,7 @@ build:
                     url:
                       $copy: values.record.url
               - $each:
-                  $view: screen-details-input
+                  $view: basic-screens-resolved-details
                 $build:
                   $when:
                     - path: reach.entities
@@ -79,7 +77,7 @@ build:
                     url:
                       $copy: values.record.url
               - $each:
-                  $view: screen-operations-input
+                  $view: basic-screens-resolved-operations
                 $flatten: true
                 $build:
                   $when:

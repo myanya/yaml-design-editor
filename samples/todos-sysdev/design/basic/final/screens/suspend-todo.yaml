@@ -1,0 +1,45 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-suspend-todo
+source: suspend-todo
+kind: operation
+seq: 3-09
+label: TODOを中断する
+operation: ACT-suspend-todo
+hidden:
+  - PRM-suspend-todo.version
+input:
+  id: SCR-suspend-todo.input
+  request: GET /todo/{id}/suspend-todo
+  items:
+    - PRM-suspend-todo.date
+    - PRM-suspend-todo.reason
+    - PRM-suspend-todo.resume_on
+confirm:
+  id: SCR-suspend-todo.confirm
+  request: POST /todo/{id}/suspend-todo/confirm
+  shows:
+    - PRM-suspend-todo.date
+    - PRM-suspend-todo.reason
+    - PRM-suspend-todo.resume_on
+  back:
+    request: POST /todo/{id}/suspend-todo/back
+    to: SCR-suspend-todo.input
+execute:
+  request: POST /todo/{id}/suspend-todo
+  notice: suspend-todo.done
+  refusals:
+    - key: suspend-todo.state
+      cause: state
+      transition: TRN-todo-lifecycle.suspend-todo
+    - key: suspend-todo.version-unchanged
+      cause: precondition
+      precondition: PRE-suspend-todo.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.unfinished-has-no-completed-on
+      cause: rule
+      rule: RUL-unfinished-has-no-completed-on
+    - key: check.resume-not-before-suspend
+      cause: rule
+      rule: RUL-resume-not-before-suspend

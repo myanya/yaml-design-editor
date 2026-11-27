@@ -527,7 +527,7 @@
     },
     {
       "path": "app/src/main/resources/web-model.json",
-      "sha256": "b75eca4a66dbaeb92aab0823a3dc63cb2d88d95e21e7e5564155fdd3a57b9227"
+      "sha256": "7dfcdd3ba8464587b98d3e8467d6863a879ff3645e7f26a47f7fd67e52622486"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

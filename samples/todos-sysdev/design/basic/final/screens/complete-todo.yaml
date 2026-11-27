@@ -1,0 +1,52 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-complete-todo
+source: complete-todo
+kind: operation
+seq: 3-11
+label: TODOを完了する
+operation: ACT-complete-todo
+hidden:
+  - PRM-complete-todo.version
+input:
+  id: SCR-complete-todo.input
+  request: GET /todo/{id}/complete-todo
+  items:
+    - PRM-complete-todo.date
+    - PRM-complete-todo.result
+confirm:
+  id: SCR-complete-todo.confirm
+  request: POST /todo/{id}/complete-todo/confirm
+  shows:
+    - PRM-complete-todo.date
+    - PRM-complete-todo.result
+  back:
+    request: POST /todo/{id}/complete-todo/back
+    to: SCR-complete-todo.input
+execute:
+  request: POST /todo/{id}/complete-todo
+  notice: complete-todo.done
+  refusals:
+    - key: complete-todo.state
+      cause: state
+      transition: TRN-todo-lifecycle.complete-todo
+    - key: complete-todo.no-open-task
+      cause: precondition
+      precondition: PRE-complete-todo.no-open-task
+    - key: complete-todo.version-unchanged
+      cause: precondition
+      precondition: PRE-complete-todo.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.completed-not-before-created
+      cause: rule
+      rule: RUL-completed-not-before-created
+    - key: check.closed-has-completed-on
+      cause: rule
+      rule: RUL-closed-has-completed-on
+    - key: check.closed-has-result
+      cause: rule
+      rule: RUL-closed-has-result
+    - key: check.closed-has-no-open-task
+      cause: rule
+      rule: RUL-closed-has-no-open-task

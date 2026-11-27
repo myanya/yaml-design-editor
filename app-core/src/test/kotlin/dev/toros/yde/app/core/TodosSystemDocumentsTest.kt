@@ -43,7 +43,7 @@ class TodosSystemDocumentsTest {
 
     @Test
     fun `別の設計段階への補正と指定と追加は確定前に止める`() {
-        for ((phase, kind, target) in listOf(Triple("basic", "session-design", "session-design"), Triple("detail", "screen-operations", "complete-todo"))) {
+        for ((phase, kind, target) in listOf(Triple("basic", "session-design", "session-design"), Triple("detail", "screen-transitions", "todo-dashboard"))) {
             val input = store()
             val corrections = "design/$phase/inputs/documents/corrections.yaml"
             val additions = "design/$phase/inputs/documents/additions.yaml"
@@ -104,7 +104,7 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(70, shown("system-document-list").size)
+        assertEquals(52, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(14, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
@@ -120,7 +120,7 @@ class TodosSystemDocumentsTest {
     private fun store(corrections: String = "[]", additions: String = "[]", specifications: String = "[]"): InMemoryDocumentStore {
         val files = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
             .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }.toMutableMap()
-        val basicKinds = setOf("domains", "domain-relations", "errors", "messages", "screen-lists", "screen-details", "screen-operations", "screen-transitions")
+        val basicKinds = setOf("domains", "domain-relations", "errors", "messages", "screen-transitions")
         fun selected(text: String, phase: String) = (YamlIO.parseToRaw(text) as List<*>).filter {
             ((it as Map<*, *>)["kind"] in basicKinds) == (phase == "basic")
         }
@@ -145,12 +145,6 @@ class TodosSystemDocumentsTest {
               changes: [{path: [service, class], value: CompletionService}, {path: [service, method], value: finish}]
             - {id: SCOR-message, kind: messages, target: DOC-messages.messages, select: {collection: messages, key: key, equals: complete-todo.no-open-task}, set: {text: 未完了の作業があります（確認用）。}, reason: 文の見直し}
             - {id: SCOR-session, kind: session-design, target: DOC-session-design.session-design, select: {collection: attributes, key: role, equals: token}, set: {key: confirmationToken}, reason: セッションのキー}
-            - id: SCOR-input
-              kind: screen-operations
-              target: DOC-screen-operations.complete-todo
-              reason: 入力と URL
-              changes: [{path: [input, items, 1, maxLength], value: 123}, {path: [execute, request], value: 'POST /todo/{id}/finish'}]
-            - {id: SCOR-title, kind: screen-lists, target: DOC-screen-lists.todo-dashboard, set: {name: TODO 全体の確認, url: /overview}, reason: 一覧の名称}
         """.trimIndent().prependIndent("\n  "), """
             - id: SADD-preference
               kind: session-design
@@ -170,6 +164,16 @@ class TodosSystemDocumentsTest {
             corrections:
               - {id: COR-901, target: ACT-cancel-todo, set: {label: TODOを取りやめる}, reason: 操作の名称}
               - {id: COR-902, target: PRM-cancel-todo.reason, set: {maxLength: 200}, reason: 入力の上限}
+              - {id: COR-903, target: PRM-complete-todo.result, set: {maxLength: 123}, reason: 入力の上限}
+        """.trimIndent())
+        // 画面への個別の判断は、基本設計の「画面」の項目（画面 SCR-・絞り込み FLT-・区画と表 SEC-・ボタン BTN-）を ID で指す。
+        // 置き換えられるのは名称・説明・URL・リクエストで、入力の決まりは操作の入力（PRM-）に書く（画面と処理で検査がずれない）
+        input.write(DocumentId("design/basic/inputs/screens/corrections.yaml"), """
+            inputId: INPUT-basic-screen-corrections
+            corrections:
+              - {id: COR-911, target: SCR-todo-dashboard, set: {label: TODO 全体の確認, url: /overview}, reason: 一覧の名称}
+              - {id: COR-912, target: SCR-complete-todo, set: {executeRequest: 'POST /todo/{id}/finish'}, reason: URL}
+              - {id: COR-913, target: BTN-todo.complete-todo, set: {label: 完了}, reason: ボタンの名称}
         """.trimIndent())
         val plan = Generators.plan(WorkspaceSession(input))
         assertEquals(emptyList(), plan.errors)
@@ -191,8 +195,20 @@ class TodosSystemDocumentsTest {
         assertEquals(123, rows(result, "validations").single { it["name"] == "Size" }["max"])
         val validation = rows(doc("design/basic/final/messages.yaml"), "validation").single { it["form"] == "completeTodoForm" && it["field"] == "result" }
         assertTrue(rows(validation, "messages").any { "123" in it["text"].toString() }, validation.toString())
-        val screen = doc("design/basic/final/screens/operations/complete-todo.yaml")
-        assertEquals("未完了の作業があります（確認用）。", rows(map(screen, "execute"), "refusals").single { it["key"] == "complete-todo.no-open-task" }["message"])
+        // 画面の項目に当たって、当てた判断が項目に残る。断りの文は項目に写さず、前提を ID で指す（文はメッセージ定義書が持つ）
+        val screen = doc("design/basic/final/screens/complete-todo.yaml")
+        assertEquals("POST /todo/{id}/finish", map(screen, "execute")["request"])
+        assertEquals(listOf(listOf("COR-912")), rows(screen, "decisions").map { it["by"] })
+        assertEquals("PRE-complete-todo.no-open-task", rows(map(screen, "execute"), "refusals").single { it["key"] == "complete-todo.no-open-task" }["precondition"])
+        assertEquals(listOf("TODO 全体の確認", "/overview"), doc("design/basic/final/screens/todo-dashboard.yaml").let { listOf(it["label"], it["url"]) })
+        // ボタンの名称は、この画面でだけ変わる（ほかの画面のボタンと、操作の名称は変わらない）
+        assertEquals("完了", rows(doc("design/basic/final/screens/todo.yaml"), "buttons").single { it["id"] == "BTN-todo.complete-todo" }["label"])
+        val resolvedScreens = doc("design/basic/composed/screens-resolved.yaml")
+        fun resolvedRecord(kind: String, id: String) = rows(resolvedScreens, kind).map { map(it, "record") }.single { it["id"] == id }
+        assertEquals("完了", rows(resolvedRecord("details", "todo"), "buttons").single { it["operation"] == "complete-todo" }["label"])
+        assertEquals("TODOを完了する", rows(rows(resolvedRecord("lists", "todo-dashboard"), "sections").first(), "rowButtons").single { it["operation"] == "complete-todo" }["label"])
+        // ボタン・区画・絞り込みの名称は、いまは項目と解いた形までで、詳細設計の画面設計書には届かない
+        // （画面設計書が、ボタンと区画を業務モデルから組み立て直しているため。画面の項目から読む形にしたときに届く）
         assertEquals("TODO 全体の確認", rows(doc("design/basic/final/screens/transitions/todo-dashboard.yaml"), "screens").single { it["id"] == "todo-dashboard" }["label"])
         // 操作への個別の判断は、項目に当たって、当てた判断が項目に残り、詳細設計まで届く（詳細設計は操作を項目から読む）
         val operation = doc("design/basic/final/operations/cancel-todo.yaml")
@@ -246,6 +262,27 @@ class TodosSystemDocumentsTest {
             assertTrue(plan.transaction.operations.isEmpty(), plan.errors.toString())
             assertEquals(before, input.read(id)?.text)
         }
+        // 画面の項目への判断: 無い対象・その対象では置き換えられない値・書けないキー（入力の決まりなど）は、どれも止める
+        val screenCases = listOf(
+            "{id: COR-test, target: BTN-missing, set: {label: 不明}, reason: 検証}" to "BTN-missing",
+            "{id: COR-test, target: SCR-complete-todo, set: {url: /x}, reason: 検証}" to "url は、この対象では置き換えられません",
+            "{id: COR-test, target: SCR-todo, set: {executeRequest: POST /x}, reason: 検証}" to "executeRequest は、この対象では置き換えられません",
+            "{id: COR-test, target: SCR-start-todo, set: {backRequest: POST /x}, reason: 検証}" to "backRequest は、この対象では置き換えられません",
+            "{id: COR-test, target: SCR-complete-todo.confirm, set: {label: 不明}, reason: 検証}" to "label は、この対象では置き換えられません",
+            "{id: COR-test, target: BTN-todo.edit-todo, set: {request: GET /x}, reason: 検証}" to "correction-fits-part",
+            "{id: COR-test, target: SCR-complete-todo.input, set: {maxLength: 3}, reason: 検証}" to "maxLength",
+            "{id: COR-test, target: PRM-complete-todo.result, set: {label: 不明}, reason: 検証}" to "target",
+        )
+        for ((correction, expected) in screenCases) {
+            val input = store()
+            input.write(DocumentId("design/basic/inputs/screens/corrections.yaml"), "inputId: INPUT-basic-screen-corrections\ncorrections: [$correction]\n")
+            val id = DocumentId("design/detail/final/processes/complete-todo.yaml")
+            val before = input.read(id)?.text
+            val plan = Generators.plan(WorkspaceSession(input))
+            assertTrue(expected in plan.errors.joinToString("\n"), "$correction: ${plan.errors}")
+            assertTrue(plan.transaction.operations.isEmpty(), plan.errors.toString())
+            assertEquals(before, input.read(id)?.text)
+        }
     }
 
     @Test
@@ -291,8 +328,10 @@ class TodosSystemDocumentsTest {
         val design = raw(Files.readString(sample.resolve("design/detail/final/screen-designs/operations/complete-todo.yaml")))
         assertTrue("label: 版" !in Files.readString(sample.resolve("design/detail/final/screen-designs/operations/complete-todo.yaml")))
         assertTrue(rows(map(design, "form"), "fields").any { it["item"] == "version" })
-        // 入力画面の無い操作は、画面定義書の carried に読み元を持つ（確認画面を出すときに読む）
-        assertEquals(mapOf("version" to mapOf("\$copy" to "version", "\$of" to "self")), raw(Files.readString(sample.resolve("design/basic/final/screens/operations/start-todo.yaml")))["carried"])
+        // 入力画面の無い操作も、画面が持ち回す入力として持つ。読み元は操作の入力が持ち、読む側の形（解いた形）で carried になる（確認画面を出すときに読む）
+        assertEquals(listOf("PRM-start-todo.version"), raw(Files.readString(sample.resolve("design/basic/final/screens/start-todo.yaml")))["hidden"])
+        val startResolved = rows(raw(Files.readString(sample.resolve("design/basic/composed/screens-resolved.yaml"))), "operations").map { map(it, "record") }.single { it["id"] == "start-todo" }
+        assertEquals(mapOf("version" to mapOf("\$copy" to "version", "\$of" to "self")), startResolved["carried"])
         // 業務モデルを写したモデルには入らない（業務の画面の表示項目にならない）
         assertTrue("version" !in Files.readString(sample.resolve("design/basic/composed/documents/model.yaml")).lines().filter { it.trim().startsWith("key:") }.joinToString())
         // 指定を外すと、項目は出ない

@@ -195,7 +195,7 @@ input:
             $copy: values.record
         inputs:
           $each:
-            $view: screen-operations-input
+            $view: basic-screens-resolved-operations
           $build:
             id:
               $copy: values.record.id

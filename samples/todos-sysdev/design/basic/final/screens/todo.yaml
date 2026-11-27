@@ -1,0 +1,69 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-todo
+source: todo
+kind: detail
+seq: 2-03
+label: TODO詳細
+entity: ENT-todo
+url: /todo/{id}
+items:
+  - item: FLD-todo.id
+  - item: FLD-todo.title
+  - item: FLD-todo.summary
+  - item: FLD-todo.category
+    link: SCR-category
+  - item: FLD-todo.tags
+    link: SCR-tag
+  - item: FLD-todo.follows
+    link: SCR-todo
+  - item: FLD-todo.status
+  - item: FLD-todo.created_on
+  - item: FLD-todo.updated_on
+  - item: FLD-todo.due_on
+  - item: FLD-todo.completed_on
+  - item: FLD-todo.details
+  - item: FLD-todo.result
+tables:
+  - id: SEC-todo.comments
+    item: FLD-todo.comments
+    rowButtons:
+      - id: BTN-todo.comments.edit-todo-comment
+        operation: ACT-edit-todo-comment
+        to: SCR-edit-todo-comment.input
+      - id: BTN-todo.comments.delete-todo-comment
+        operation: ACT-delete-todo-comment
+        to: SCR-delete-todo-comment.confirm
+  - id: SEC-todo.history
+    item: FLD-todo.history
+  - id: SEC-todo.tasks
+    item: FLD-todo.tasks
+    entity: ENT-todo-task
+    rowButtons:
+      - id: BTN-todo.tasks.todo-task.finish
+        operation: ACT-todo-task.finish
+        to: SCR-todo-task.finish.confirm
+buttons:
+  - id: BTN-todo.add-todo-comment
+    operation: ACT-add-todo-comment
+    to: SCR-add-todo-comment.input
+  - id: BTN-todo.add-todo-task
+    operation: ACT-add-todo-task
+    to: SCR-add-todo-task.input
+  - id: BTN-todo.edit-todo
+    operation: ACT-edit-todo
+    to: SCR-edit-todo.input
+  - id: BTN-todo.start-todo
+    operation: ACT-start-todo
+    to: SCR-start-todo.confirm
+  - id: BTN-todo.suspend-todo
+    operation: ACT-suspend-todo
+    to: SCR-suspend-todo.input
+  - id: BTN-todo.resume-todo
+    operation: ACT-resume-todo
+    to: SCR-resume-todo.input
+  - id: BTN-todo.complete-todo
+    operation: ACT-complete-todo
+    to: SCR-complete-todo.input
+  - id: BTN-todo.cancel-todo
+    operation: ACT-cancel-todo
+    to: SCR-cancel-todo.input

@@ -18,10 +18,7 @@ definitions:
       - value: screen-designs-details
       - value: screen-designs-lists
       - value: screen-designs-operations
-      - value: screen-details
       - value: screen-flows
-      - value: screen-lists
-      - value: screen-operations
       - value: screen-styles
       - value: screen-transitions
       - value: session-design
@@ -174,7 +171,7 @@ definitions:
         message: コレクションへの追加には collection が必要です
   基本設計の種類:
     type: 種類
-    values: [domains, domain-relations, errors, messages, screen-lists, screen-details, screen-operations, screen-transitions]
+    values: [domains, domain-relations, errors, messages, screen-transitions]
   基本設計の補正:
     type: 補正
     fields:

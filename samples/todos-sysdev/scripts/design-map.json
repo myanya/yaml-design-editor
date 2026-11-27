@@ -92,7 +92,7 @@
       "transform": "system-screen-input-model",
       "id": "SYS-system-screen-input-model",
       "carries": [
-        "scrO"
+        "scr"
       ]
     }
   ],
@@ -271,30 +271,21 @@
       }
     },
     {
-      "id": "scrL",
-      "name": "画面定義書（一覧）",
+      "id": "scr",
+      "name": "画面",
       "column": "basic",
       "lane": "screen",
-      "kind": "screen-lists"
-    },
-    {
-      "id": "scrD",
-      "name": "画面定義書（詳細）",
-      "column": "basic",
-      "lane": "screen",
-      "kind": "screen-details"
-    },
-    {
-      "id": "scrO",
-      "name": "画面定義書（操作）",
-      "column": "basic",
-      "lane": "screen",
-      "kind": "screen-operations",
       "transforms": [
-        "screen-operation-candidates"
+        "basic-screens",
+        "basic-screens-resolved"
       ],
       "ids": [
-        "CAN-screen-operation.*"
+        "SCR-*",
+        "FLT-*",
+        "SEC-*",
+        "BTN-*",
+        "RSV-*",
+        "SYS-basic-screens-resolved"
       ]
     },
     {
@@ -779,9 +770,10 @@
         "members": [
           "in:design/basic/inputs/entities/*.yaml",
           "in:design/basic/inputs/documents/*.yaml",
-          "in:design/basic/inputs/operations/*.yaml"
+          "in:design/basic/inputs/operations/*.yaml",
+          "in:design/basic/inputs/screens/*.yaml"
         ],
-        "note": "全体の判断（区分の定義、同時更新を版で検出する方式の指定）と個別の判断（区分の割当、操作の項目への補正）にあたります。補正はいま 0 件です。"
+        "note": "全体の判断（区分の定義、同時更新を版で検出する方式の指定）と個別の判断（区分の割当、操作と画面の項目への補正）にあたります。補正はいま 0 件です。"
       },
       {
         "id": "b-ent-work",
@@ -877,17 +869,14 @@
         "col": 0,
         "kind": "work",
         "label": [
-          "画面ほか",
-          "の導出（8 種）"
+          "画面遷移ほか",
+          "の導出（5 種）"
         ],
         "members": [
           "t:domains-derived",
           "t:domain-relations-derived",
           "t:errors-derived",
           "t:messages-derived",
-          "t:screen-details-derived",
-          "t:screen-lists-derived",
-          "t:screen-operations-derived",
           "t:screen-transitions-derived"
         ]
       },
@@ -898,11 +887,9 @@
         "col": 1,
         "kind": "work",
         "label": [
-          "画面の入力の候補と",
           "入力の検査"
         ],
         "members": [
-          "t:screen-operation-candidates",
           "t:basic-document-input-gate"
         ]
       },
@@ -914,17 +901,14 @@
         "kind": "main",
         "shape": "documents",
         "label": [
-          "画面ほか",
-          "（文書の形。8 種）"
+          "画面遷移ほか",
+          "（文書の形。5 種）"
         ],
         "members": [
           "t:domains",
           "t:domain-relations",
           "t:errors",
           "t:messages",
-          "t:screen-details",
-          "t:screen-lists",
-          "t:screen-operations",
           "t:screen-transitions"
         ]
       },
@@ -949,7 +933,7 @@
         "kind": "view",
         "asIs": true,
         "label": [
-          "画面定義書 ほか"
+          "画面遷移定義書 ほか"
         ],
         "views": [
           "basic/review/design-review-*.yaml"
@@ -1003,6 +987,53 @@
         ],
         "reads": [
           "b-ops"
+        ]
+      },
+      {
+        "id": "b-scr",
+        "layer": "basic",
+        "row": 5,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "画面",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:basic-screens"
+        ],
+        "note": "1 画面 1 ファイルで、画面・絞り込み・区画と表・ボタンに ID を振り、操作・入力・検索条件・項目・行き先の画面を ID で指します。ボタンの名称と出す条件、区画の名称と列、入力の決まり、断りの文は写しません。操作の画面は、入力画面・確認画面・確定を操作ごとの 1 ファイルにまとめます。画面への個別の判断（inputs/screens/corrections.yaml）は、項目の ID を対象にして、ここで直接当てます。画面の項目があるエンティティと操作が、ダッシュボードからたどれる範囲です。"
+      },
+      {
+        "id": "b-scr-resolved",
+        "layer": "basic",
+        "row": 5,
+        "col": 3,
+        "kind": "work",
+        "label": [
+          "画面を解いた形"
+        ],
+        "members": [
+          "t:basic-screens-resolved"
+        ],
+        "note": "画面の項目が ID で指している先（操作・入力・検索条件・項目・行き先の画面）を、値に置き換えて並べた途中経過です。基本設計の項目と、操作を解いた形だけから作り、業務モデルを読みません。画面遷移・画面の URL・詳細設計の画面設計書・Web のプログラム設計は、画面をここから読みます。読む側が項目を直接読むようになったら（段階 4）なくします。"
+      },
+      {
+        "id": "b-scr-view",
+        "layer": "basic",
+        "row": 5,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "画面の一覧と",
+          "画面定義書"
+        ],
+        "views": [
+          "basic/review/screen-definition*.yaml"
+        ],
+        "reads": [
+          "b-scr"
         ]
       },
       {
@@ -1606,11 +1637,9 @@
         "label": [
           "画面"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:screen-lists",
-          "t:screen-details",
-          "t:screen-operations"
+          "t:basic-screens"
         ],
         "from": [
           "bV",
@@ -1621,7 +1650,8 @@
           "a-op",
           "a-qry"
         ],
-        "unit": "画面ごと"
+        "unit": "画面ごと",
+        "note": "2026-11-27 に項目の形（1 画面 1 ファイル）にしました。画面・絞り込み・区画と表・ボタンに ID を振り、操作・入力・検索条件・項目・行き先の画面を ID で指します。画面への個別の判断は、項目の ID を対象にして直接当てます。画面定義書（一覧・詳細・操作）の文書は無くしました。入力の決まりは画面では変えず、操作の入力への判断に書きます。"
       },
       {
         "id": "a-trn",
@@ -1659,9 +1689,6 @@
           "t:domain-relations-derived",
           "t:errors-derived",
           "t:messages-derived",
-          "t:screen-details-derived",
-          "t:screen-lists-derived",
-          "t:screen-operations-derived",
           "t:screen-transitions-derived"
         ],
         "note": "個別の判断が 0 件ならこうなる、という比較の相手。確定したモデルとの差は、すべて個別の判断で説明できます。"
@@ -1723,12 +1750,13 @@
         "label": [
           "画面定義書"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "a-scr",
           "a-qry",
           "a-ent"
-        ]
+        ],
+        "note": "画面の項目を読むビューです（画面 1 件を 1 枚で見る「画面の設計書」と、画面・ボタン・区画と表の一覧）。見え方はオーナーのレビュー待ちです。"
       },
       {
         "id": "av-trn",
@@ -2447,9 +2475,8 @@
   },
   "notes": [
     "処理設計書は、データ設計と画面設計の上に乗っていません。内容を読むのはメッセージ定義書と状態の判定だけです。テーブルアクセス設計書からは呼び名の付け替え表だけを受け取り、画面の設計書からは何も受け取りません。呼ぶ Mapper の名前は、業務モデルから同じ命名規則で計算し直しています。",
-    "操作（項目の形）が、ほぼ全部の上流です。詳細設計の 8 種と、基本設計の画面・ドメインの定義書が、「操作を解いた形」を通して読みます。",
-    "テーブルアクセス設計書の読み出しは、画面定義書を通りません。業務モデルのダッシュボードとビューから直接、検索と件数のメソッドを作っています。",
-    "画面定義書（操作）とメッセージ定義書が互いを読みます。画面定義書の候補 → メッセージ定義書 → 画面定義書の確定、の順です。"
+    "操作（項目の形）が、ほぼ全部の上流です。詳細設計の 8 種と、基本設計の画面・ドメインの定義書が、「操作を解いた形」を通して読みます。画面（項目の形）は、画面遷移・画面の URL・詳細設計の画面設計書・Web のプログラム設計が、「画面を解いた形」を通して読みます。",
+    "メッセージ定義書とエラー定義書は、画面の入力を重ねた業務モデル（system-screen-input-model）を通して、画面を解いた形の名称と入力を読みます。画面の項目は断りの文を持たず、前提とデータの決まりを ID で指します。"
   ],
   "footnotes": [
     "画面の URL の付け替え表は一覧・詳細・操作の 3 種をまとめているので、そのうちどれを実際に使うかまでは区別していません。",

@@ -1,0 +1,1329 @@
+id: basic-screens
+name: 基本設計項目一覧（画面）
+description: >-
+  抽象システムモデルの「画面」を項目の形で作る（ADR-0042）。1 画面 1 ファイルで、操作の画面は入力・確認・確定を操作ごとの 1 ファイルにまとめる。
+  一覧画面はダッシュボードごと、詳細画面はダッシュボードからたどれるエンティティごと、操作の画面はたどれる操作ごとに作る（たどれる範囲は、画面の項目があることで表す）。
+  画面・絞り込み・区画・ボタンに設計 ID を振り、同じ段の項目（操作・入力・検索条件・エンティティ・項目・遷移・データの決まり）は ID で指す。
+  指した先にある値（ボタンの名称と表示条件、区画の名称と列、入力の決まり、断りの文）は写さない。
+  画面の規則: 絞り込みは URL のパラメータで持つ。上部の操作と、行の型を受け手にする操作はボタンにする。行の ID は詳細画面へ進む。集計のセルは、その行と列で絞った一覧へ進む。
+  受け取る値がある操作は 入力画面 → 確認画面 → 確定、無い操作は 確認画面 → 確定。URL は業務の ID のまま
+scope: business
+dependsOn:
+  - system-model
+  - basic-document-input-gate
+  - basic-operations
+  - basic-queries
+  - basic-rules
+  - basic-entities
+each: documents
+output: '{file}.yaml'
+input:
+  $apply: documents
+  $with:
+    composed:
+      $apply: composed-items
+      $with:
+        corrections:
+          $each:
+            $view: basic-screen-corrections-input
+          $build:
+            $copy: values.correction
+        items:
+          $apply: derived-items
+          $with:
+            row:
+              $view: system-model-input
+              $one: true
+            operations:
+              $each:
+                $view: basic-model-operations
+              $build:
+                $copy: values.record
+            queries:
+              $each:
+                $view: basic-model-queries
+              $build:
+                $copy: values.record
+            rules:
+              $each:
+                $view: basic-model-rules
+              $build:
+                $copy: values.record
+build:
+  $copy: document
+rules:
+  # 確定した項目を 1 ファイルずつにする。当てた判断があれば、項目に残す
+  - id: documents
+    with:
+      - composed
+    build:
+      documents:
+        $each: records
+        $of: composed
+        $bind: record
+        $build:
+          file:
+            $format: design/basic/final/screens/{value.source}
+          document:
+            $apply: decided
+            $with:
+              value:
+                $copy: value
+              decisions:
+                $each: decisions
+                $of: composed
+                $build:
+                  $when:
+                    - path: target
+                      equals:
+                        $copy: id
+                        $of: record
+                  $then:
+                    path:
+                      $copy: path
+                    value:
+                      $copy: selected[0].value
+                    by:
+                      $each: selected
+                      $build:
+                        $copy: source.id
+  - id: decided
+    with:
+      - value
+      - decisions
+    when:
+      - of: decisions
+        path: .
+        empty: false
+    build:
+      $apply: decided-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: value
+                source:
+                  id: composed
+            additions: []
+            changes:
+              - target: record
+                set:
+                  decisions:
+                    $copy: .
+                    $of: decisions
+                priority: individual
+                source:
+                  id: decisions
+  - id: decided
+    with:
+      - value
+      - decisions
+    build:
+      $copy: .
+      $of: value
+  - id: decided-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  # 個別の判断を当てる。対象は画面（SCR-。入力画面・確認画面を含む）・絞り込み（FLT-）・区画と表（SEC-）・ボタン（BTN-）。
+  # 画面の中の項目は、持ち主の画面と場所に直して当てる。対象が見つからない判断と、その対象では置き換えられない値は、
+  # 対象の無い変更として渡し、合成の誤りで止める
+  - id: composed-items
+    with:
+      - items
+      - corrections
+    build:
+      $compose:
+        derived:
+          $each: .
+          $of: items
+          $build:
+            id:
+              $copy: id
+            value:
+              $copy: .
+            source:
+              id: rule-basic-screens
+              document: .yde/transforms/design/basic/basic-screens.yaml
+        additions: []
+        changes:
+          $each: .
+          $of: corrections
+          $flatten: true
+          $build:
+            $apply: correction-changes
+            $with:
+              correction:
+                $copy: .
+              matches:
+                $apply: target-changes
+                $with:
+                  correction:
+                    $copy: .
+                  items:
+                    $copy: .
+                    $of: items
+  - id: correction-changes
+    with:
+      - correction
+      - matches
+    when:
+      - of: matches
+        path: .
+        empty: false
+    build:
+      $copy: .
+      $of: matches
+  - id: correction-changes
+    with:
+      - correction
+      - matches
+    build:
+      - target:
+          $copy: target
+          $of: correction
+        set:
+          $copy: set
+          $of: correction
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: correction
+          document: design/basic/inputs/screens/corrections.yaml
+  # 対象を探して、変更（持ち主の画面・場所・値）にする
+  - id: target-changes
+    with:
+      - correction
+      - items
+    build:
+      $each: .
+      $of: items
+      $bind: owner
+      $flatten: true
+      $build:
+        $concat:
+          # 画面そのもの
+          - $when:
+              - path: id
+                equals:
+                  $copy: target
+                  $of: correction
+            $then:
+              $apply: screen-entries
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                owner:
+                  $copy: .
+          # 入力画面・確認画面
+          - $when:
+              - path: input.id
+                equals:
+                  $copy: target
+                  $of: correction
+            $then:
+              $apply: member-entries
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                owner:
+                  $copy: id
+                place:
+                  - input
+                allowed:
+                  - request
+          - $when:
+              - path: confirm.id
+                equals:
+                  $copy: target
+                  $of: correction
+            $then:
+              $apply: member-entries
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                owner:
+                  $copy: id
+                place:
+                  - confirm
+                allowed:
+                  - request
+          - $apply: listed-members
+            $with:
+              correction:
+                $copy: .
+                $of: correction
+              owner:
+                $copy: id
+              collection: filters
+              members:
+                $copy: filters
+          - $apply: listed-members
+            $with:
+              correction:
+                $copy: .
+                $of: correction
+              owner:
+                $copy: id
+              collection: buttons
+              members:
+                $copy: buttons
+          - $apply: listed-members
+            $with:
+              correction:
+                $copy: .
+                $of: correction
+              owner:
+                $copy: id
+              collection: sections
+              members:
+                $copy: sections
+          - $apply: listed-members
+            $with:
+              correction:
+                $copy: .
+                $of: correction
+              owner:
+                $copy: id
+              collection: tables
+              members:
+                $copy: tables
+          # 区画と表の行のボタン
+          - $each: sections
+            $flatten: true
+            $build:
+              $apply: row-button-members
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                owner:
+                  $copy: id
+                  $of: owner
+                collection: sections
+                at:
+                  $number: $index
+                members:
+                  $copy: rowButtons
+          - $each: tables
+            $flatten: true
+            $build:
+              $apply: row-button-members
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                owner:
+                  $copy: id
+                  $of: owner
+                collection: tables
+                at:
+                  $number: $index
+                members:
+                  $copy: rowButtons
+  # 画面への判断: 名称と説明は、どの画面でも置き換えられる。URL は一覧画面と詳細画面、確定と戻るのリクエストは操作の画面
+  - id: screen-entries
+    with:
+      - correction
+      - owner
+    build:
+      $eachEntry: set
+      $of: correction
+      $flatten: true
+      $build:
+        $first:
+          - $when:
+              - path: $key
+                oneOf:
+                  - label
+                  - description
+            $then:
+              - $apply: change
+                $with:
+                  correction:
+                    $copy: .
+                    $of: correction
+                  owner:
+                    $copy: id
+                    $of: owner
+                  place:
+                    - $key
+                  value:
+                    $copy: .
+          - $when:
+              - path: $key
+                equals: url
+              - of: owner
+                path: kind
+                oneOf:
+                  - list
+                  - detail
+            $then:
+              - $apply: change
+                $with:
+                  correction:
+                    $copy: .
+                    $of: correction
+                  owner:
+                    $copy: id
+                    $of: owner
+                  place:
+                    - url
+                  value:
+                    $copy: .
+          - $when:
+              - path: $key
+                equals: executeRequest
+              - of: owner
+                path: kind
+                equals: operation
+            $then:
+              - $apply: change
+                $with:
+                  correction:
+                    $copy: .
+                    $of: correction
+                  owner:
+                    $copy: id
+                    $of: owner
+                  place:
+                    - execute
+                    - request
+                  value:
+                    $copy: .
+          - $when:
+              - path: $key
+                equals: backRequest
+              - of: owner
+                path: confirm.back
+                exists: true
+            $then:
+              - $apply: change
+                $with:
+                  correction:
+                    $copy: .
+                    $of: correction
+                  owner:
+                    $copy: id
+                    $of: owner
+                  place:
+                    - confirm
+                    - back
+                    - request
+                  value:
+                    $copy: .
+          - - $apply: refused
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                name: $key
+  # 並びの中の項目（絞り込み・ボタン・区画・表）への判断: 置き換えられるのは名称
+  - id: listed-members
+    with:
+      - correction
+      - owner
+      - collection
+      - members
+    build:
+      $each: .
+      $of: members
+      $flatten: true
+      $build:
+        $when:
+          - path: id
+            equals:
+              $copy: target
+              $of: correction
+        $then:
+          $apply: member-entries
+          $with:
+            correction:
+              $copy: .
+              $of: correction
+            owner:
+              $copy: .
+              $of: owner
+            place:
+              - $copy: .
+                $of: collection
+              - $number: $index
+            allowed:
+              - label
+  - id: row-button-members
+    with:
+      - correction
+      - owner
+      - collection
+      - at
+      - members
+    build:
+      $each: .
+      $of: members
+      $flatten: true
+      $build:
+        $when:
+          - path: id
+            equals:
+              $copy: target
+              $of: correction
+        $then:
+          $apply: member-entries
+          $with:
+            correction:
+              $copy: .
+              $of: correction
+            owner:
+              $copy: .
+              $of: owner
+            place:
+              - $copy: .
+                $of: collection
+              - $copy: .
+                $of: at
+              - rowButtons
+              - $number: $index
+            allowed:
+              - label
+  - id: member-entries
+    with:
+      - correction
+      - owner
+      - place
+      - allowed
+    build:
+      $eachEntry: set
+      $of: correction
+      $flatten: true
+      $build:
+        $first:
+          - $when:
+              - of: allowed
+                path: .
+                includes: $key
+            $then:
+              - $apply: change
+                $with:
+                  correction:
+                    $copy: .
+                    $of: correction
+                  owner:
+                    $copy: .
+                    $of: owner
+                  place:
+                    $concat:
+                      - $copy: .
+                        $of: place
+                      - - $key
+                  value:
+                    $copy: .
+          - - $apply: refused
+              $with:
+                correction:
+                  $copy: .
+                  $of: correction
+                name: $key
+  - id: change
+    with:
+      - correction
+      - owner
+      - place
+      - value
+    build:
+      target:
+        $copy: .
+        $of: owner
+      path:
+        $copy: .
+        $of: place
+      value:
+        $copy: .
+        $of: value
+      priority: individual
+      source:
+        id:
+          $copy: id
+          $of: correction
+        document: design/basic/inputs/screens/corrections.yaml
+  # その対象では置き換えられない値: 対象の無い変更にして、合成の誤りで止める
+  - id: refused
+    with:
+      - correction
+      - name
+    build:
+      target:
+        $format: '{t}（{k} は、この対象では置き換えられません）'
+        $with:
+          t:
+            $copy: target
+            $of: correction
+          k:
+            $copy: .
+            $of: name
+      set:
+        $copy: set
+        $of: correction
+      priority: individual
+      source:
+        id:
+          $copy: id
+          $of: correction
+        document: design/basic/inputs/screens/corrections.yaml
+  - id: derived-items
+    with:
+      - row
+      - operations
+      - queries
+      - rules
+    build:
+      $concat:
+        # 一覧画面: ダッシュボードごと
+        - $each: values.model.dashboards
+          $of: row
+          $bind: d
+          $build:
+            id:
+              $format: SCR-{id}
+            source:
+              $copy: id
+            kind: list
+            # 並び順: 一覧画面・詳細画面・操作の画面の順で、それぞれ業務モデルでの順
+            seq:
+              $format: 1-{n}
+              $with:
+                'n':
+                  $number: $position
+                  $as: '00'
+            label:
+              $copy: label
+            description:
+              $copy: description
+            # 起点の画面（既定のダッシュボード）
+            start:
+              $when:
+                - path: default
+                  equals: true
+              $then: true
+            url:
+              $first:
+                - $when:
+                    - path: default
+                      equals: true
+                  $then: /
+                - $format: /{id}
+            filters:
+              $each: inputs
+              $build:
+                id:
+                  $format: FLT-{d}.{k}
+                  $with:
+                    d:
+                      $copy: id
+                      $of: d
+                    k:
+                      $copy: key
+                key:
+                  $copy: key
+                label:
+                  $copy: label
+                type:
+                  $when:
+                    - path: type
+                      contains: '#'
+                  $then:
+                    $apply: type-ref
+                builtin:
+                  $when:
+                    - not:
+                        path: type
+                        contains: '#'
+                  $then:
+                    $copy: type
+                multiple:
+                  $copy: multiple
+            buttons:
+              $each: actions
+              $bind: aid
+              $flatten: true
+              $build:
+                $each: .
+                $of: operations
+                $build:
+                  $when:
+                    - path: source
+                      equals:
+                        $copy: .
+                        $of: aid
+                  id:
+                    $format: BTN-{d}.{a}
+                    $with:
+                      d:
+                        $copy: id
+                        $of: d
+                      a:
+                        $copy: source
+                  operation:
+                    $copy: id
+                  to:
+                    $apply: first-screen
+                    $with:
+                      op:
+                        $copy: .
+            sections:
+              $each: sections
+              $bind: sec
+              $flatten: true
+              $build:
+                $each: .
+                $of: queries
+                $bind: q
+                $build:
+                  $when:
+                    - path: dashboard
+                      equals:
+                        $copy: id
+                        $of: d
+                    - path: section
+                      equals:
+                        $copy: id
+                        $of: sec
+                  id:
+                    $format: SEC-{dashboard}.{section}
+                  query:
+                    $copy: id
+                  # 一覧の区画: 行の ID から、行の型の詳細画面へ
+                  link:
+                    $when:
+                      - path: kind
+                        equals: grid
+                      - path: subject
+                        exists: true
+                    $then:
+                      to:
+                        $format: SCR-{subject}
+                  # 集計の区画: セルから、その行と列で絞った一覧へ
+                  cell:
+                    $when:
+                      - path: kind
+                        equals: matrix
+                    $then:
+                      to:
+                        $format: SCR-{dashboard}
+                  # 行のボタン: 行の型を受け手にする操作。並びの 1 件を番号で指す操作は、行が決まる所（詳細画面のその並びの表）にだけ出す
+                  rowButtons:
+                    $when:
+                      - path: kind
+                        equals: grid
+                    $then:
+                      $each: .
+                      $of: operations
+                      $build:
+                        $when:
+                          - path: receiver
+                            equals:
+                              $copy: entity
+                              $of: q
+                          - path: row
+                            exists: false
+                        id:
+                          $format: BTN-{d}.{s}.{a}
+                          $with:
+                            d:
+                              $copy: dashboard
+                              $of: q
+                            s:
+                              $copy: section
+                              $of: q
+                            a:
+                              $copy: source
+                        operation:
+                          $copy: id
+                        to:
+                          $apply: first-screen
+                          $with:
+                            op:
+                              $copy: .
+        # 詳細画面: ダッシュボードからたどれるエンティティごと
+        - $each: values.model.entities
+          $of: row
+          $bind: e
+          $build:
+            $when:
+              - of: row
+                path: values.model.reach.entities
+                includes:
+                  $copy: id
+            id:
+              $format: SCR-{id}
+            source:
+              $copy: id
+            kind: detail
+            seq:
+              $format: 2-{n}
+              $with:
+                'n':
+                  $number: $position
+                  $as: '00'
+            label:
+              $format: '{label}詳細'
+            entity:
+              $format: ENT-{id}
+            url:
+              $format: /{t}/{k}
+              $with:
+                t:
+                  $copy: id
+                k: '{id}'
+            # 値の項目: 業務モデルの 2 か所（一覧の行と個票）をまとめて並べる。参照の項目は、参照先の詳細画面へ進む
+            items:
+              $group:
+                $apply: fields
+              $by:
+                $when:
+                  - or:
+                      - not:
+                          path: field.base
+                          oneOf:
+                            - array
+                            - object
+                            - map
+                      - path: field.item.base
+                        equals: ref
+                $then:
+                  $copy: field.key
+              $build:
+                item:
+                  $format: FLD-{e}.{key}
+                  $with:
+                    e:
+                      $copy: id
+                      $of: e
+                    key:
+                      $copy: key
+                link:
+                  $apply: screen-of
+                  $with:
+                    target:
+                      $first:
+                        - $copy: items[0].field.target
+                        - $copy: items[0].field.item.target
+            tables:
+              $concat:
+                # ID の無い繰り返し（コメント・履歴）は表。並びの 1 件を番号で指す操作は、その表の行のボタン
+                - $group:
+                    $apply: fields
+                  $by:
+                    $when:
+                      - path: field.base
+                        equals: array
+                      - path: field.item.base
+                        equals: object
+                      - path: field.item.entity
+                        exists: false
+                    $then:
+                      $copy: field.key
+                  $bind: t
+                  $build:
+                    id:
+                      $format: SEC-{e}.{key}
+                      $with:
+                        e:
+                          $copy: id
+                          $of: e
+                        key:
+                          $copy: key
+                    item:
+                      $format: FLD-{e}.{key}
+                      $with:
+                        e:
+                          $copy: id
+                          $of: e
+                        key:
+                          $copy: key
+                    rowButtons:
+                      $apply: non-empty
+                      $with:
+                        list:
+                          $apply: row-buttons
+                          $with:
+                            operations:
+                              $copy: .
+                              $of: operations
+                            item:
+                              $format: FLD-{e}.{key}
+                              $with:
+                                e:
+                                  $copy: id
+                                  $of: e
+                                key:
+                                  $copy: key
+                            prefix:
+                              $format: '{e}.{key}'
+                              $with:
+                                e:
+                                  $copy: id
+                                  $of: e
+                                key:
+                                  $copy: key
+                # 入れ子の型（作業項目）は表にして、行の右にその型の操作のボタン
+                - $group:
+                    $apply: fields
+                  $by:
+                    $when:
+                      - path: field.item.entity
+                        exists: true
+                    $then:
+                      $copy: field.key
+                  $bind: t
+                  $build:
+                    id:
+                      $format: SEC-{e}.{key}
+                      $with:
+                        e:
+                          $copy: id
+                          $of: e
+                        key:
+                          $copy: key
+                    item:
+                      $format: FLD-{e}.{key}
+                      $with:
+                        e:
+                          $copy: id
+                          $of: e
+                        key:
+                          $copy: key
+                    entity:
+                      $format: ENT-{items[0].field.item.entity}
+                    rowButtons:
+                      $apply: nested-buttons
+                      $with:
+                        operations:
+                          $copy: .
+                          $of: operations
+                        receiver:
+                          $format: ENT-{items[0].field.item.entity}
+                        prefix:
+                          $format: '{e}.{key}'
+                          $with:
+                            e:
+                              $copy: id
+                              $of: e
+                            key:
+                              $copy: key
+            # 画面のボタン: この型を受け手にする操作（並びの 1 件を番号で指す操作は、その並びの表の行のボタンに出す）
+            buttons:
+              $apply: receiver-buttons
+              $with:
+                operations:
+                  $copy: .
+                  $of: operations
+                receiver:
+                  $format: ENT-{id}
+                prefix:
+                  $copy: id
+        # 操作の画面: ダッシュボードからたどれる操作ごと（入力画面・確認画面・確定を 1 つにまとめる）
+        - $each: .
+          $of: operations
+          $build:
+            $when:
+              - of: row
+                path: values.model.reach.operations
+                includes:
+                  $copy: source
+            $then:
+              $apply: operation-screen
+              $with:
+                op:
+                  $copy: .
+                visible:
+                  $apply: visible
+                  $with:
+                    op:
+                      $copy: .
+                rules:
+                  $copy: .
+                  $of: rules
+  # 操作の画面（入力画面・確認画面・確定）
+  - id: operation-screen
+    with:
+      - op
+      - visible
+      - rules
+    build:
+      id:
+        $format: SCR-{source}
+      source:
+        $copy: source
+      kind: operation
+      seq:
+        $format: 3-{seq}
+      label:
+        $copy: label
+      operation:
+        $copy: id
+      # 人は入力せず、画面が持ち回す入力（行のボタンが運ぶ並びの番号と、画面が受け手から読む値）
+      hidden:
+        $apply: non-empty
+        $with:
+          list:
+            $each: inputs
+            $build:
+              $when:
+                - or:
+                    - path: carried
+                      equals: true
+                    - path: id
+                      equals:
+                        $copy: row.param
+                        $of: op
+              $then:
+                $copy: id
+      input:
+        $when:
+          - of: visible
+            path: .
+            empty: false
+        $then:
+          id:
+            $format: SCR-{source}.input
+          request:
+            $format: GET {u}
+            $with:
+              u:
+                $apply: url
+          items:
+            $copy: .
+            $of: visible
+      confirm:
+        id:
+          $format: SCR-{source}.confirm
+        request:
+          $first:
+            - $when:
+                - of: visible
+                  path: .
+                  empty: false
+              $then:
+                $format: POST {u}/confirm
+                $with:
+                  u:
+                    $apply: url
+            - $format: GET {u}/confirm
+              $with:
+                u:
+                  $apply: url
+        shows:
+          $copy: .
+          $of: visible
+        back:
+          $when:
+            - of: visible
+              path: .
+              empty: false
+          $then:
+            request:
+              $format: POST {u}/back
+              $with:
+                u:
+                  $apply: url
+            to:
+              $format: SCR-{source}.input
+      execute:
+        request:
+          $format: POST {u}
+          $with:
+            u:
+              $apply: url
+        # 確定の後に出す完了の知らせ（メッセージのキー）
+        notice:
+          $format: '{source}.done'
+        # 断る理由: 状態が合わない・前提が合わない・データの決まりに合わない。文は、指した先（操作・前提・データの決まり）が持つ
+        refusals:
+          $concat:
+            - $when:
+                - path: refusal
+                  exists: true
+              $then:
+                - key:
+                    $format: '{source}.state'
+                  cause: state
+                  transition:
+                    $first:
+                      - $copy: transition
+                      - $copy: entry
+            - $each: preconditions
+              $build:
+                $when:
+                  - path: source
+                    exists: true
+                key:
+                  $format: '{a}.{r}'
+                  $with:
+                    a:
+                      $copy: source
+                      $of: op
+                    r:
+                      $copy: source
+                cause: precondition
+                precondition:
+                  $copy: id
+            - $each: checks
+              $bind: c
+              $flatten: true
+              $build:
+                $each: .
+                $of: rules
+                $build:
+                  $when:
+                    - path: id
+                      equals:
+                        $copy: rule
+                        $of: c
+                    - path: level
+                      equals: error
+                    - or:
+                        - path: form
+                          equals: element
+                        - path: rule.match[1].edge.contains
+                          equals: true
+                        - path: kind
+                          equals: acyclic
+                  key:
+                    $format: check.{source}
+                  cause: rule
+                  rule:
+                    $copy: id
+  # 表の行のボタン: その並びの 1 件を番号で指す操作
+  - id: row-buttons
+    with:
+      - operations
+      - item
+      - prefix
+    build:
+      $each: .
+      $of: operations
+      $build:
+        $when:
+          - path: row.item
+            equals:
+              $copy: .
+              $of: item
+        $then:
+          $apply: button
+          $with:
+            op:
+              $copy: .
+            prefix:
+              $copy: .
+              $of: prefix
+  # 入れ子の型の表の行のボタン: その型を受け手にする操作
+  - id: nested-buttons
+    with:
+      - operations
+      - receiver
+      - prefix
+    build:
+      $each: .
+      $of: operations
+      $build:
+        $when:
+          - path: receiver
+            equals:
+              $copy: .
+              $of: receiver
+        $then:
+          $apply: button
+          $with:
+            op:
+              $copy: .
+            prefix:
+              $copy: .
+              $of: prefix
+  - id: receiver-buttons
+    with:
+      - operations
+      - receiver
+      - prefix
+    build:
+      $each: .
+      $of: operations
+      $build:
+        $when:
+          - path: receiver
+            equals:
+              $copy: .
+              $of: receiver
+          - path: row
+            exists: false
+        $then:
+          $apply: button
+          $with:
+            op:
+              $copy: .
+            prefix:
+              $copy: .
+              $of: prefix
+  - id: button
+    with:
+      - op
+      - prefix
+    build:
+      id:
+        $format: BTN-{p}.{a}
+        $with:
+          p:
+            $copy: .
+            $of: prefix
+          a:
+            $copy: source
+            $of: op
+      operation:
+        $copy: id
+        $of: op
+      to:
+        $apply: first-screen
+        $with:
+          op:
+            $copy: .
+            $of: op
+  # 人が入力する項目: 並びの番号（行が運ぶ値）と、画面が運ぶ入力（carried）を除いたもの
+  - id: visible
+    with:
+      - op
+    build:
+      $each: inputs
+      $of: op
+      $build:
+        $when:
+          - or:
+              - path: carried
+                exists: false
+              - path: carried
+                equals: false
+          - or:
+              - of: op
+                path: row.param
+                exists: false
+              - not:
+                  path: id
+                  equals:
+                    $copy: row.param
+                    $of: op
+        $then:
+          $copy: id
+  # ボタンの行き先: 人が入力する項目がある操作は入力画面、無い操作は確認画面
+  - id: first-screen
+    with:
+      - op
+    build:
+      $apply: first-screen-of
+      $with:
+        op:
+          $copy: .
+          $of: op
+        visible:
+          $apply: visible
+          $with:
+            op:
+              $copy: .
+              $of: op
+  - id: first-screen-of
+    with:
+      - op
+      - visible
+    when:
+      - of: visible
+        path: .
+        empty: false
+    build:
+      $format: SCR-{source}.input
+      $of: op
+  - id: first-screen-of
+    with:
+      - op
+      - visible
+    build:
+      $format: SCR-{source}.confirm
+      $of: op
+  # 操作の URL: 受け手がある操作は、受け手の ID をはさむ
+  - id: url
+    when:
+      - path: receiver
+        exists: true
+    build:
+      $format: /{t}/{k}/{a}
+      $with:
+        t:
+          $copy: subject
+        k: '{id}'
+        a:
+          $copy: source
+  - id: url
+    build:
+      $format: /{t}/{a}
+      $with:
+        t:
+          $copy: subject
+        a:
+          $copy: source
+  - id: screen-of
+    with:
+      - target
+    when:
+      - of: target
+        path: .
+        exists: true
+    build:
+      $format: SCR-{t}
+      $with:
+        t:
+          $copy: .
+          $of: target
+  - id: fields
+    build:
+      $each: aspects
+      $bind: asp
+      $flatten: true
+      $build:
+        $each: fields
+        $build:
+          field:
+            $copy: .
+          schema:
+            $copy: schema
+            $of: asp
+  # 空の並びは出さない
+  - id: non-empty
+    with:
+      - list
+    build:
+      $when:
+        - of: list
+          path: .
+          empty: false
+      $then:
+        $copy: .
+        $of: list
+  - id: type-ref
+    build:
+      $format: TYP-{m}.{n}
+      $with:
+        m:
+          $value:
+            extract:
+              - path: type
+              - ^([^#]+)#
+        'n':
+          $value:
+            extract:
+              - path: type
+              - '#(.+)$'

@@ -1,0 +1,48 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-register-todo
+source: register-todo
+kind: operation
+seq: 3-02
+label: TODOを登録する
+operation: ACT-register-todo
+input:
+  id: SCR-register-todo.input
+  request: GET /todo/register-todo
+  items:
+    - PRM-register-todo.title
+    - PRM-register-todo.summary
+    - PRM-register-todo.category
+    - PRM-register-todo.tags
+    - PRM-register-todo.follows
+    - PRM-register-todo.due
+    - PRM-register-todo.details
+confirm:
+  id: SCR-register-todo.confirm
+  request: POST /todo/register-todo/confirm
+  shows:
+    - PRM-register-todo.title
+    - PRM-register-todo.summary
+    - PRM-register-todo.category
+    - PRM-register-todo.tags
+    - PRM-register-todo.follows
+    - PRM-register-todo.due
+    - PRM-register-todo.details
+  back:
+    request: POST /todo/register-todo/back
+    to: SCR-register-todo.input
+execute:
+  request: POST /todo/register-todo
+  notice: register-todo.done
+  refusals:
+    - key: check.due-not-before-created
+      cause: rule
+      rule: RUL-due-not-before-created
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.follows-not-self
+      cause: rule
+      rule: RUL-follows-not-self
+    - key: check.follow-up-of.acyclic
+      cause: rule
+      rule: RUL-follow-up-of.acyclic

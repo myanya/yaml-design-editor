@@ -1,0 +1,29 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-start-todo
+source: start-todo
+kind: operation
+seq: 3-08
+label: TODOに着手する
+operation: ACT-start-todo
+hidden:
+  - PRM-start-todo.version
+confirm:
+  id: SCR-start-todo.confirm
+  request: GET /todo/{id}/start-todo/confirm
+  shows: []
+execute:
+  request: POST /todo/{id}/start-todo
+  notice: start-todo.done
+  refusals:
+    - key: start-todo.state
+      cause: state
+      transition: TRN-todo-lifecycle.start-todo
+    - key: start-todo.version-unchanged
+      cause: precondition
+      precondition: PRE-start-todo.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.unfinished-has-no-completed-on
+      cause: rule
+      rule: RUL-unfinished-has-no-completed-on

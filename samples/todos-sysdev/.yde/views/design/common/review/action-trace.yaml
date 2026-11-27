@@ -67,7 +67,7 @@ columns:
                 entity: sysdev-process
                 bind: design
           of: design
-  - label: 画面定義書（入力と確認）
+  - label: 画面（基本設計。入力と確認）
     value:
       count:
         all:
@@ -76,10 +76,10 @@ columns:
             - node:
                 bind: a
             - edge:
-                via: id
+                via: source
                 dir: in
             - node:
-                entity: sysdev-screen-operation
+                entity: sysdev-screen
                 bind: design
           of: design
   - label: 扱う Controller と Mapper

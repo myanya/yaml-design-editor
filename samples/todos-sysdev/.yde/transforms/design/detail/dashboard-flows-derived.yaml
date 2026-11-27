@@ -8,7 +8,7 @@ dependsOn:
   - system-model
   - system-access-bindings
   - system-session-bindings
-  - screen-lists
+  - basic-screens-resolved
   - screen-designs-lists
   - error-handling
   - detail-document-input-gate

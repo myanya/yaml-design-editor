@@ -1,0 +1,24 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-add-tag
+source: add-tag
+kind: operation
+seq: 3-13
+label: タグを追加する
+operation: ACT-add-tag
+input:
+  id: SCR-add-tag.input
+  request: GET /tag/add-tag
+  items:
+    - PRM-add-tag.name
+confirm:
+  id: SCR-add-tag.confirm
+  request: POST /tag/add-tag/confirm
+  shows:
+    - PRM-add-tag.name
+  back:
+    request: POST /tag/add-tag/back
+    to: SCR-add-tag.input
+execute:
+  request: POST /tag/add-tag
+  notice: add-tag.done
+  refusals: []

@@ -1,0 +1,11 @@
+id: screen-definition-buttons
+name: 画面（ボタン）
+description: 基本設計の「画面」のボタンを並べる。名称は、この画面でだけ変えたときに持つ（書かなければ操作の名称）。出す条件は、操作の遷移から決まる
+rows: { idPattern: "BTN-*", schemaIds: [basic-screen] }
+columns:
+  - label: 操作
+    path: operation
+  - label: 行き先
+    path: to
+  - label: 名称（この画面でだけ）
+    path: label

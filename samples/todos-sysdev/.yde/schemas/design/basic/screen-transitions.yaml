@@ -52,9 +52,10 @@ root:
             label: 名前
             type: string
           - key: source
-            type: ref
-            idPatterns:
-              - DOC-*
+            label: 画面の項目
+            type: string
+            pattern: ^SCR-\S+$
+            description: 基本設計の「画面」の項目の ID（操作の入力画面と確認画面は、その操作の画面の項目）。画面遷移を項目の形にするときに、参照にする
           - key: url
             type: string
           - key: request

@@ -1,0 +1,11 @@
+id: basic-screens-resolved-operations
+name: 基本設計の生成入力（画面を解いた形の操作の画面）
+description: 画面の項目一覧を解いたものを、画面 1 つずつ読む。読む側は、業務モデルや文書の形の画面定義書ではなく、ここから読む
+rows:
+  idPattern: RSV-operation.*
+  schemaIds:
+    - basic-screens-resolved
+columns:
+  - label: record
+    path: record
+    schemaId: basic-screens-resolved
