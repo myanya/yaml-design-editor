@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応・理想のファイル体系（HTML）を作り直す。
+"""設計書の依存マップ・ファイル単位の生成グラフ・目指す形への対応・理想のファイル体系・移行の進み具合（HTML）を作り直す。
 
 1 枚目（docs/design-dependency-map.html）: 設計書の種類ごとに、ほかのどの設計書から作られているか。
     線は 4 種類: 内容を読む・補正後の業務モデル経由・名前の付け替えだけ・順序だけ。
 2 枚目（docs/design-file-graph.html）: 変換定義 1 本の出力と人の入力を箱にして、どのファイルを読んで、どの順に作られるか。
 3 枚目（docs/design-target-map.html）: 目指す形の段に、いまのファイルのまとまりを置き、外れている流れを出す。
 4 枚目（docs/design-ideal-graph.html）: 理想のファイルの種類と依存関係（設定に人が描く）。いまあって理想に無いファイルを出す。
+5 枚目（docs/design-progress.html）: 目標のファイル体系を「段 × 系統」に置き、箱ごとに済んだこと・残っていることを出す。
+    やること（設定の plan.tasks）が済んだかは、変換定義・ファイルがあるか、何を読んでいるかから計算する。
 
 使い方（リポジトリのどこからでも。Windows は py -3）:
-    python3 samples/todos-sysdev/scripts/design-map.py            # 4 枚とも作り直す（Git に入れる）
+    python3 samples/todos-sysdev/scripts/design-map.py            # 5 枚とも作り直す（Git に入れる）
     python3 samples/todos-sysdev/scripts/design-map.py --check    # 作り直した結果が、いまのファイルと同じかを確かめる（違えば 1）
     python3 samples/todos-sysdev/scripts/design-map.py --workspace 作業用コピー --out 場所.html --files-out 場所.html --target-out 場所.html
 
@@ -647,6 +649,103 @@ def build_ideal(workspace, config, files):
             "stats": stats, "notes": settings.get("notes", []), "warnings": warnings}
 
 
+def build_plan(workspace, config, files, target, ideal):
+    """移行の進み具合: 目標の箱ごとに、やること（plan.tasks）が済んだかを、いまの変換定義・ファイル・読む線から決める。"""
+    settings = config["plan"]
+    baseline = settings["baseline"]
+    node_ids = {n["id"] for n in files["nodes"]}
+    known = set(baseline["transformIds"])
+    warnings = []
+
+    def done(condition, subject):
+        if "gone" in condition:
+            for identifier in condition["gone"]:
+                if identifier not in known:
+                    warnings.append(f"「{subject}」の条件にある変換定義「{identifier}」は、計画を立てた時点にありません（名前を確かめます）")
+            return all(f"t:{identifier}" not in node_ids for identifier in condition["gone"])
+        if "notReads" in condition:
+            reader, sources = condition["notReads"]
+            if f"t:{reader}" not in node_ids:
+                warnings.append(f"「{subject}」の条件にある変換定義「{reader}」がありません")
+                return False
+            return not any(t == f"t:{reader}" and s in sources and kind != "o" for s, t, kind in files["edges"])
+        if "exists" in condition:
+            return any(workspace.glob(condition["exists"]))
+        if "missing" in condition:
+            return not (workspace / condition["missing"]).exists()
+        raise SystemExit(f"plan.tasks の done が読めません: {condition}")
+
+    tasks = [{**task, "done": done(task["done"], task["subject"])} for task in settings["tasks"]]
+    owners = {t["id"] for t in settings["targets"]} | {r["id"] for r in settings["removals"]}
+    for task in tasks:
+        if task["target"] not in owners:
+            warnings.append(f"やること「{task['subject']}」の箱「{task['target']}」がありません")
+    aspects = settings["aspects"]
+    targets = []
+    for box in settings["targets"]:
+        mine = [t for t in tasks if t["target"] == box["id"]]
+        pending = [t for t in mine if not t["done"]]
+        marks = [{"key": key, "label": label, "done": all(t["done"] for t in mine if t["aspect"] == key)}
+                 for key, label in aspects.items() if any(t["aspect"] == key for t in mine)]
+        if box["layer"] == "source":
+            state = "fixed"
+        elif not pending:
+            state = "done"
+        elif any(t["aspect"] in ("shape", "view") for t in pending):  # 形そのものが、まだ目標の形でない
+            state = "doing" if any(t["done"] for t in mine if t["aspect"] in ("shape", "view")) else "todo"
+        else:
+            state = "formed"
+        targets.append({**box, "state": state, "next": min((t["step"] for t in pending), default=None), "aspects": marks,
+                        "note": box.get("note", "")})
+    removals = []
+    for group in settings["removals"]:
+        mine = [t for t in tasks if t["target"] == group["id"]]
+        removals.append({**group, "total": len(mine), "done": sum(t["done"] for t in mine), "layer": None, "lane": None, "files": "", "count": 1,
+                         "next": min((t["step"] for t in mine if not t["done"]), default=None)})
+    steps = [{**step, "total": sum(1 for t in tasks if t["step"] == step["id"]), "done": sum(1 for t in tasks if t["step"] == step["id"] and t["done"])}
+             for step in settings["steps"]]
+    current = next((s["id"] for s in steps if s["done"] < s["total"]), None)
+
+    boxes = [t for t in targets if t["state"] != "fixed"]
+    count = lambda state: sum(1 for t in boxes if t["state"] == state)
+    finished = sum(t["done"] for t in tasks)
+    transforms = sum(1 for identifier in node_ids if identifier.startswith("t:"))
+    outside = len(ideal["gone"]) if ideal else None
+    off = sum(1 for flow in target["flows"] if flow["status"] in ("back", "skip")) if target else None
+    goal = settings["goals"]["transforms"]
+    totals = [{"label": "目標の形になった箱", "value": count("done"), "unit": f"/ {len(boxes)} 箱", "done": count("done"), "of": len(boxes),
+               "note": f"ほかに、形は目標どおりの箱が {count('formed')}"},
+              {"label": "済んだ「やること」", "value": finished, "unit": f"/ {len(tasks)} 件", "done": finished, "of": len(tasks),
+               "note": f"いまは歩 {current}" if current else "すべて済み"},
+              {"label": "変換定義", "value": transforms, "unit": f"本（目標は {goal} 本前後）", "done": baseline["transforms"] - transforms,
+               "of": baseline["transforms"] - goal, "note": f"計画を立てた時点は {baseline['transforms']} 本"}]
+    if outside is not None:
+        totals.append({"label": "理想に無いファイル", "value": outside, "unit": "種（目標は 0）", "done": max(0, baseline["outside"] - outside),
+                       "of": baseline["outside"], "note": f"計画を立てた時点は {baseline['outside']} 種"})
+    if off is not None:
+        totals.append({"label": "目指す形から外れている流れ", "value": off, "unit": "本（目標は 0）", "done": max(0, baseline["off"] - off),
+                       "of": baseline["off"], "note": f"計画を立てた時点は {baseline['off']} 本"})
+    summary = (f"目標の箱 {len(boxes)} のうち、{count('done')} が目標の形、{count('formed')} が形だけ目標どおり（読む元か置き場所が残る）、"
+               f"{count('doing') + count('todo')} がまだです。やること {len(tasks)} 件のうち {finished} 件が済みました。")
+    names = {"basic": "基本設計", "detail": "詳細設計", "program": "プログラム設計"}
+    stats = []
+    for layer, label in names.items():
+        mine = [t for t in boxes if t["layer"] == layer]
+        waiting = [t["label"] for t in mine if t["state"] in ("todo", "doing")]
+        stats.append([f"{label}の箱（{len(mine)}）", f"目標の形 {sum(1 for t in mine if t['state'] == 'done')}、形は目標どおり "
+                      f"{sum(1 for t in mine if t['state'] == 'formed')}、まだ {len(waiting)}" + (f"（{'、'.join(waiting)}）" if waiting else "")])
+    kinds = {}
+    for task in tasks:
+        entry = kinds.setdefault(task["action"], [0, 0])
+        entry[0] += task["done"]
+        entry[1] += 1
+    stats.append(["やることの内訳", "、".join(f"{kind} {a} / {b}" for kind, (a, b) in kinds.items())])
+    stats.append(["無くすもの", "、".join(f"{r['label']} {r['done']} / {r['total']}" for r in removals)])
+    return {"title": settings["title"], "summary": summary, "current": current, "steps": steps, "lanes": settings["lanes"],
+            "layers": settings["layers"], "targets": targets, "removals": removals, "tasks": tasks, "totals": totals, "stats": stats,
+            "warnings": sorted(set(warnings))}
+
+
 def sort_ids(identifiers, by_id):
     return sorted(identifiers, key=lambda i: (by_id[i]["col"], by_id[i]["order"]))
 
@@ -749,6 +848,8 @@ def main():
     parser.add_argument("--files-out", type=Path, help="ファイル単位のグラフ（既定はワークスペースの docs/design-file-graph.html）")
     parser.add_argument("--target-out", type=Path, help="目指す形への対応（既定はワークスペースの docs/design-target-map.html）")
     parser.add_argument("--ideal-out", type=Path, help="理想のファイル体系（既定はワークスペースの docs/design-ideal-graph.html）")
+    parser.add_argument("--progress-out", type=Path, help="移行の進み具合（既定はワークスペースの docs/design-progress.html）")
+    parser.add_argument("--progress-template", type=Path, default=HERE / "design-progress.template.html", help="移行の進み具合のひな形")
     parser.add_argument("--check", action="store_true", help="書かずに、作り直した結果がいまのファイルと同じかを確かめる（違えば終了コード 1）")
     parser.add_argument("--lineage", type=Path, help="generate --lineage の出力ファイル（渡すと CLI を呼ばない）")
     parser.add_argument("--config", type=Path, default=HERE / "design-map.json", help="箱の並べ方の設定")
@@ -783,16 +884,23 @@ def main():
     files["workspace"] = place
     pages.append((arguments.files_out or workspace / "docs" / "design-file-graph.html", arguments.files_template, files,
                   f"箱 {len(files['nodes'])}、線 {len(files['edges'])}"))
+    target = ideal = None
     if "target" in config:
-        data = build_target(workspace, config, files)
+        data = target = build_target(workspace, config, files)
         data["workspace"] = place
         pages.append((arguments.target_out or workspace / "docs" / "design-target-map.html", arguments.target_template, data,
                       f"まとまり {len(data['groups'])}、流れ {len(data['flows'])}"))
     if "ideal" in config:
-        data = build_ideal(workspace, config, files)
+        data = ideal = build_ideal(workspace, config, files)
         data["workspace"] = place
         pages.append((arguments.ideal_out or workspace / "docs" / "design-ideal-graph.html", arguments.ideal_template, data,
                       f"箱 {len(data['nodes'])}、線 {len(data['edges'])}"))
+
+    if "plan" in config:
+        data = build_plan(workspace, config, files, target, ideal)
+        data["workspace"] = place
+        pages.append((arguments.progress_out or workspace / "docs" / "design-progress.html", arguments.progress_template, data,
+                      f"箱 {len(data['targets'])}、やること {len(data['tasks'])}"))
 
     stale = False
     for out, template, data, summary in pages:

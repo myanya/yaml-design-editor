@@ -1,0 +1,281 @@
+<title>__TITLE__</title>
+<!-- 生成物: scripts/design-map.py が、ひな形（design-progress.template.html）と設定（design-map.json の plan）から作る。手で直さず、作り直す -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 配置: 上に全体の進み具合と歩ごとの棒、中央に「段 × 系統」の格子に置いた目標のファイルと選択中の箱の詳細、下に無くすもの・やることの一覧・数えたこと */
+:root {
+  --done: #2f7d4f; --done-fill: #e1f1e6; --formed-fill: #dfeafb; --doing: #a8690c; --doing-fill: #fbeed3; --todo-fill: #ffffff; --track: #e3e7ee;
+  --bg: #f5f6f8; --surface: #ffffff; --band: #eceff4; --ink: #1b2330; --muted: #5b6676; --line: #d3d9e2; --sel: #0a66c2;
+  --font: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --done: #6cc08f; --done-fill: #1d3a28; --formed-fill: #1f3555; --doing: #e2a93f; --doing-fill: #4a3a17; --todo-fill: #1a202a; --track: #2a313d;
+  --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48; --sel: #5aa9ff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --done: #6cc08f; --done-fill: #1d3a28; --formed-fill: #1f3555; --doing: #e2a93f; --doing-fill: #4a3a17; --todo-fill: #1a202a; --track: #2a313d;
+  --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48; --sel: #5aa9ff; color-scheme: dark }
+
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.75; }
+.wrap { max-width: 1360px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; text-wrap: balance; line-height: 1.4; }
+h2 { font-size: 16px; font-weight: 700; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 700; margin: 0; }
+p { margin: 0; max-width: 46em; }
+code, .path { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.lede { display: flex; flex-direction: column; gap: 10px; }
+.sub, .note { color: var(--muted); font-size: 12.5px; max-width: 60em; }
+section { display: flex; flex-direction: column; gap: 12px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+/* 全体の数字 */
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.total { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.total .k { color: var(--muted); font-size: 12px; }
+.total .v { font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.total .v small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.bar { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--done); }
+
+/* 歩 */
+.steps { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.step { display: grid; grid-template-columns: 2.2em minmax(7em, 11em) minmax(0, 1fr) minmax(90px, 200px) 5.5em; gap: 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); }
+.step:first-child { border-top: 0; }
+.step .n { font-family: var(--mono); color: var(--muted); }
+.step .name { font-weight: 700; }
+.step .does { color: var(--muted); font-size: 12.5px; min-width: 0; }
+.step .count { text-align: end; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.step.now { background: var(--formed-fill); }
+.step.now .n::after { content: " ←"; }
+.step.fin .name { color: var(--done); }
+@media (max-width: 760px) { .step { grid-template-columns: 2.2em minmax(0, 1fr) 5.5em; } .step .does { grid-column: 2 / -1; } .step .bar { grid-column: 2 / -1; } }
+
+/* 凡例 */
+.kinds { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; }
+.kinds span { display: inline-flex; align-items: center; gap: 6px; }
+.kinds i { width: 22px; height: 13px; border: 1px solid var(--line); border-radius: 3px; display: inline-block; }
+
+/* 格子 */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 340px; } .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.grid { display: grid; grid-template-columns: 104px repeat(var(--lanes), minmax(132px, 1fr)); min-width: 900px; }
+.grid > div { padding: 6px; border-top: 1px solid var(--line); border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.grid > .head { border-top: 0; color: var(--muted); font-size: 11.5px; font-weight: 500; padding-block: 6px; }
+.grid > .layer { border-left: 0; background: var(--band); }
+.grid > .head.corner { border-left: 0; background: var(--band); }
+.layer .name { font-weight: 700; font-size: 13px; line-height: 1.4; }
+.layer .place { font-family: var(--mono); font-size: 10.5px; color: var(--muted); word-break: break-all; }
+.layer .reads { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.grid > .down { grid-column: 1 / -1; background: var(--band); padding-block: 2px; color: var(--muted); font-size: 11.5px; flex-direction: row; gap: 8px; border-left: 0; }
+.box { text-align: start; background: var(--todo-fill); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.box:hover { border-color: var(--ink); }
+.box.sel { outline: 2px solid var(--sel); outline-offset: 1px; }
+.box .top { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.box .label { font-size: 12.5px; font-weight: 500; line-height: 1.4; }
+.box .chip { font-size: 10.5px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+.box .files { font-family: var(--mono); font-size: 10px; color: var(--muted); word-break: break-all; line-height: 1.45; }
+.box .marks { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 10.5px; color: var(--muted); }
+.box .marks .ok { color: var(--done); }
+.box .marks .ng { color: var(--doing); }
+.st-done { background: var(--done-fill); border-color: var(--done); }
+.st-done .chip { color: var(--done); font-weight: 700; }
+.st-formed { background: var(--formed-fill); }
+.st-doing { background: var(--doing-fill); border-color: var(--doing); }
+.st-todo { border-style: dashed; border-color: var(--muted); }
+.st-fixed { background: var(--band); cursor: default; }
+
+/* 詳細 */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel .where { color: var(--muted); font-size: 12px; }
+.none { color: var(--muted); font-size: 12.5px; }
+.todo-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.todo-list li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); gap: 4px; font-size: 12.5px; line-height: 1.6; }
+.todo-list .mark.ok { color: var(--done); } .todo-list .mark.ng { color: var(--doing); }
+.todo-list .meta { color: var(--muted); font-size: 11.5px; }
+.clear { align-self: flex-start; font-size: 12px; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 9px; cursor: pointer; }
+.clear:hover { color: var(--ink); border-color: var(--ink); }
+
+/* 無くすもの */
+.removals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.removal { text-align: start; background: var(--surface); border: 1px dashed var(--muted); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-width: 0; }
+.removal:hover { border-color: var(--ink); }
+.removal.sel { outline: 2px solid var(--sel); outline-offset: 1px; }
+.removal.st-done { border-style: solid; }
+.removal .label { font-weight: 700; font-size: 13px; }
+.removal .count { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.removal .note { font-size: 12px; }
+
+/* 一覧 */
+.filters { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+.filters select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+.table-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table.tasks { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 860px; }
+table.tasks th, table.tasks td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: start; vertical-align: top; }
+table.tasks th { background: var(--band); font-weight: 700; white-space: nowrap; }
+table.tasks td.state { white-space: nowrap; font-weight: 700; }
+table.tasks td.state.ok { color: var(--done); } table.tasks td.state.ng { color: var(--doing); }
+table.tasks td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+dl.stats { margin: 0; display: grid; grid-template-columns: minmax(0, 17em) minmax(0, 1fr); gap: 8px 20px; max-width: 76em; }
+dl.stats dt { color: var(--muted); } dl.stats dd { margin: 0; min-width: 0; }
+@media (max-width: 640px) { dl.stats { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.stats dd { margin-bottom: 8px; } }
+ul.findings { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 60em; }
+footer.note { display: flex; flex-direction: column; gap: 4px; }
+</style>
+<!--BODY-->
+<div class="wrap">
+  <header class="lede">
+    <h1 id="title"></h1>
+    <p id="lede"></p>
+    <p class="sub">目標のファイル体系に、いまどこまで来ているかを置いたものです。済んだかどうかは、変換定義とファイルがいまあるか・何を読んでいるかから計算しています（人が「済」と書いているのではありません）。</p>
+  </header>
+
+  <section>
+    <h2>全体</h2>
+    <div class="totals" id="totals"></div>
+  </section>
+
+  <section>
+    <h2>歩ごとの進み具合</h2>
+    <div class="steps" id="steps"></div>
+    <p class="note">系統ごとに、基本設計の項目からソースコードまでを通します。通し終えたら、その系統の古い仕組みを消します。</p>
+  </section>
+
+  <section>
+    <h2>目標のファイル体系と、いまの状態</h2>
+    <div class="kinds">
+      <span><i style="background:var(--done-fill);border-color:var(--done)"></i>目標の形（残りなし）</span>
+      <span><i style="background:var(--formed-fill)"></i>形は目標どおり（読む元か置き場所が残る）</span>
+      <span><i style="background:var(--doing-fill);border-color:var(--doing)"></i>作業の途中</span>
+      <span><i style="border-style:dashed;border-color:var(--muted)"></i>まだ（文書の形・未作成）</span>
+      <span><i style="background:var(--band)"></i>変えないもの</span>
+    </div>
+    <div class="stage">
+      <div class="scroll"><div class="grid" id="grid"></div></div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+    <p class="note">行は段、列は系統です。上の段から下の段へ作ります。各段は、1 つ上の段だけを読みます。箱を押すと、その箱に残っていることが出ます。</p>
+  </section>
+
+  <section>
+    <h2>無くすもの</h2>
+    <div class="removals" id="removals"></div>
+    <p class="note">目標のファイル体系には無いものです。項目の形にするための足場と、古い仕組みです。</p>
+  </section>
+
+  <section>
+    <h2>やることの一覧</h2>
+    <div class="filters">
+      <label>歩 <select id="f-step"></select></label>
+      <label>状態 <select id="f-state"><option value="">すべて</option><option value="ng">残っている</option><option value="ok">済んだ</option></select></label>
+      <span class="none" id="f-count"></span>
+    </div>
+    <div class="table-scroll"><table class="tasks" id="tasks"></table></div>
+  </section>
+
+  <section>
+    <h2>数えたこと</h2>
+    <dl class="stats" id="stats"></dl>
+  </section>
+
+  <section id="warnings-section" hidden>
+    <h2>注意（設定と、いまのファイルが合っていない所）</h2>
+    <ul class="findings" id="warnings"></ul>
+  </section>
+
+  <footer class="note" id="footer"></footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const text = (id, value) => { document.getElementById(id).textContent = value; };
+const pct = (a, b) => b ? Math.round(a * 100 / b) : 100;
+const bar = (a, b) => `<div class="bar" role="img" aria-label="${a} / ${b}"><i style="width:${pct(a, b)}%"></i></div>`;
+const STATE = { done: '目標の形', formed: '形は目標どおり', doing: '途中', todo: 'まだ', fixed: '変えない' };
+const stepName = id => { const s = DATA.steps.find(x => x.id === id); return s ? `歩 ${s.id} ${s.name}` : ''; };
+const byId = Object.fromEntries([...DATA.targets, ...DATA.removals].map(t => [t.id, t]));
+
+text('title', DATA.title);
+text('lede', DATA.summary);
+
+// ---- 全体 ----
+document.getElementById('totals').innerHTML = DATA.totals.map(t =>
+  `<div class="total"><span class="k">${esc(t.label)}</span><span class="v">${esc(t.value)} <small>${esc(t.unit)}</small></span>${t.of != null ? bar(t.done, t.of) : ''}<span class="k">${esc(t.note)}</span></div>`).join('');
+
+// ---- 歩 ----
+document.getElementById('steps').innerHTML = DATA.steps.map(s =>
+  `<div class="step${s.id === DATA.current ? ' now' : ''}${s.done === s.total ? ' fin' : ''}"><span class="n">${s.id}</span><span class="name">${esc(s.name)}</span><span class="does">${esc(s.does)}</span>${bar(s.done, s.total)}<span class="count">${s.done} / ${s.total}</span></div>`).join('');
+
+// ---- 格子 ----
+const grid = document.getElementById('grid');
+grid.style.setProperty('--lanes', DATA.lanes.length);
+let html = '<div class="head corner">段 ＼ 系統</div>' + DATA.lanes.map(l => `<div class="head">${esc(l.label)}</div>`).join('');
+html += `<div class="down"><span>業務モデル（人が書く。変えない）</span><span>↓ アーキテクチャマッピング</span></div>`;
+DATA.layers.forEach((layer, i) => {
+  if (i > 0) html += `<div class="down"><span>↓ ${esc(['', '技術スタックマッピング', 'コードマッピング（前半）', 'コードマッピング（後半）'][i] || '')}</span></div>`;
+  html += `<div class="layer"><span class="name">${layer.label.map(esc).join('<br>')}</span><span class="place">${esc(layer.place)}</span><span class="reads">読むのは ${esc(layer.reads)}</span></div>`;
+  for (const lane of DATA.lanes) {
+    const boxes = DATA.targets.filter(t => t.layer === layer.id && t.lane === lane.id);
+    html += '<div>' + boxes.map(t => {
+      const chip = t.state === 'done' ? '済' : t.state === 'fixed' ? '' : `歩 ${t.next}`;
+      const marks = t.aspects.map(a => `<span class="${a.done ? 'ok' : 'ng'}">${a.done ? '✓' : '○'} ${esc(a.label)}</span>`).join('');
+      return `<button type="button" class="box st-${t.state}" data-id="${esc(t.id)}"${t.state === 'fixed' ? ' tabindex="-1"' : ''}>
+        <span class="top"><span class="label">${esc(t.label)}${t.count > 1 ? ` ×${t.count}` : ''}</span><span class="chip">${chip}</span></span>
+        ${t.files ? `<span class="files">${esc(t.files)}</span>` : ''}${marks ? `<span class="marks">${marks}</span>` : ''}</button>`;
+    }).join('') + '</div>';
+  }
+});
+grid.innerHTML = html;
+
+// ---- 無くすもの ----
+document.getElementById('removals').innerHTML = DATA.removals.map(r =>
+  `<button type="button" class="removal${r.done === r.total ? ' st-done' : ''}" data-id="${esc(r.id)}"><span class="label">${esc(r.label)}</span>${bar(r.done, r.total)}<span class="count">${r.done} / ${r.total} を消した${r.done < r.total ? `（${esc(stepName(r.next))}）` : ''}</span><span class="note">${esc(r.note)}</span></button>`).join('');
+
+// ---- 選択と詳細 ----
+const panel = document.getElementById('panel');
+let current = null;
+function select(id) {
+  current = !id || id === current ? null : id;
+  for (const e of document.querySelectorAll('.box, .removal')) e.classList.toggle('sel', e.dataset.id === current);
+  if (!current) { panel.innerHTML = '<h3>箱を選んでください</h3><p class="none">目標のファイルか、無くすものを押すと、済んだことと残っていることが出ます。</p>'; return; }
+  const t = byId[current], tasks = DATA.tasks.filter(k => k.target === current);
+  const layer = DATA.layers.find(l => l.id === t.layer), lane = DATA.lanes.find(l => l.id === t.lane);
+  panel.innerHTML = `
+    <div><div class="where">${layer ? esc(layer.label[0]) + ' ／ ' + esc(lane.label) : '無くすもの'}</div><h3 style="font-size:15px">${esc(t.label)}</h3></div>
+    ${t.files ? `<div class="path">${esc(t.files)}${t.count > 1 ? `（${t.count} ファイル）` : ''}</div>` : ''}
+    ${t.note ? `<p class="none">${esc(t.note)}</p>` : ''}
+    <div><h3>${tasks.length ? `やること（${tasks.filter(k => k.done).length} / ${tasks.length} 済み）` : 'やること'}</h3></div>
+    ${tasks.length ? `<ul class="todo-list">${tasks.map(k => `<li><span class="mark ${k.done ? 'ok' : 'ng'}">${k.done ? '✓' : '○'}</span><span>${esc(k.why)}<br><span class="meta">${esc(k.action)}: <span class="path">${esc(k.subject)}</span> ／ ${esc(stepName(k.step))}</span></span></li>`).join('')}</ul>` : '<p class="none">ありません。いまの形が目標の形です。</p>'}
+    <button type="button" class="clear" id="clear">選択を外す</button>`;
+}
+document.querySelector('.wrap').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.id === 'clear') select(null);
+  else if (b.dataset.id && !b.classList.contains('st-fixed')) select(b.dataset.id);
+});
+
+// ---- 一覧 ----
+const fStep = document.getElementById('f-step'), fState = document.getElementById('f-state');
+fStep.innerHTML = '<option value="">すべて</option>' + DATA.steps.map(s => `<option value="${s.id}">${s.id} ${esc(s.name)}</option>`).join('');
+function table() {
+  const rows = DATA.tasks.filter(k => (!fStep.value || String(k.step) === fStep.value) && (!fState.value || (fState.value === 'ok') === k.done));
+  text('f-count', `${rows.length} 件（全 ${DATA.tasks.length} 件）`);
+  document.getElementById('tasks').innerHTML = '<thead><tr><th>状態</th><th>歩</th><th>目標の箱</th><th>どうする</th><th>対象（変換定義・ファイル）</th><th>内容</th></tr></thead><tbody>' +
+    rows.map(k => `<tr><td class="state ${k.done ? 'ok' : 'ng'}">${k.done ? '✓ 済' : '○ 残'}</td><td class="num">${k.step}</td><td>${esc(byId[k.target].label)}</td><td class="num">${esc(k.action)}</td><td class="path">${esc(k.subject)}</td><td>${esc(k.why)}</td></tr>`).join('') + '</tbody>';
+}
+fStep.addEventListener('change', table); fState.addEventListener('change', table);
+if (DATA.current) fStep.value = String(DATA.current);
+table();
+
+// ---- 数えたこと・注意 ----
+document.getElementById('stats').innerHTML = DATA.stats.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+document.getElementById('warnings').innerHTML = DATA.warnings.map(n => `<li>${esc(n)}</li>`).join('');
+document.getElementById('warnings-section').hidden = !DATA.warnings.length;
+document.getElementById('footer').innerHTML = [`目標の箱・無くすもの・やることは <code>scripts/design-map.json</code> の <code>plan</code> に人が書いたものです。済んだかどうかは、いまの変換定義・ファイル・読む線から <code>scripts/design-map.py</code> が計算します。`, `${esc(DATA.workspace)} について作りました。`].map(x => `<span>${x}</span>`).join('');
+
+select(null);
+</script>

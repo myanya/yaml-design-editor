@@ -271,9 +271,10 @@
 | [ファイル単位の生成グラフ](docs/design-file-graph.html) | 変換定義 1 本の出力と人の入力（97） | どのファイルを読んで、どの順に作られるか |
 | [目指す形への対応](docs/design-target-map.html) | 目指す形の段に置いた、ファイルのまとまり（31） | いまのファイルが目指す形のどこに当たり、どの流れが外れているか |
 | [理想のファイル体系](docs/design-ideal-graph.html) | 理想のファイルの種類（59） | 理想の依存関係と、いまのどのファイルに当たるか、いまあって理想に無いファイル |
+| [移行の進み具合](docs/design-progress.html) | 目標のファイル（段 × 系統）と、無くすもの | 目標のファイル体系のどこまで来たか。箱ごとに済んだこと・残っていること（変換定義とファイルから計算） |
 
 ```bash
-python3 samples/todos-sysdev/scripts/design-map.py            # 4 枚とも作り直す
+python3 samples/todos-sysdev/scripts/design-map.py            # 5 枚とも作り直す
 python3 samples/todos-sysdev/scripts/design-map.py --check    # 最新かを確かめる（違えば失敗）
 ```
 

@@ -2481,5 +2481,1916 @@
   "footnotes": [
     "画面の URL の付け替え表は一覧・詳細・操作の 3 種をまとめているので、そのうちどれを実際に使うかまでは区別していません。",
     "ソースコードはこの図に入れていません（プログラム設計からレポートで作ります。例外は DDL がテーブル設計書を、CSS が画面のクラスの対応表を、入力エラーの文がメッセージ定義書を直接読む 3 か所です）。"
-  ]
+  ],
+  "plan": {
+    "comment": "移行の進み具合（5 枚目）。目標の箱（targets）・無くすもの（removals）・やること（tasks）を人が書く。済んだかどうかは、tasks の done を、いまの変換定義・ファイル・読む線から計算する",
+    "title": "todos-sysdev 移行の進み具合",
+    "steps": [
+      {
+        "id": 1,
+        "name": "状態（試し）",
+        "does": "状態と遷移 → 状態の型 → 状態型（Java の enum）"
+      },
+      {
+        "id": 2,
+        "name": "データ",
+        "does": "エンティティ・操作・検索条件・決まり → テーブル・テーブルへの読み書き → 行モデル・Mapper"
+      },
+      {
+        "id": 3,
+        "name": "業務処理",
+        "does": "エラー・メッセージ → 処理の手順・エラーの扱い → Service・例外"
+      },
+      {
+        "id": 4,
+        "name": "画面",
+        "does": "画面・画面遷移 → 画面の部品と入力・URL と遷移・セッション → Form・Controller と画面"
+      },
+      {
+        "id": 5,
+        "name": "補正の足場",
+        "does": "操作・画面・エンティティ・型を、補正後の業務モデルを通さずに作る"
+      },
+      {
+        "id": 6,
+        "name": "仕上げ",
+        "does": "プログラム設計を別の置き場所へ。人の入力を、段ごとの全体の判断と個別の判断にまとめる"
+      }
+    ],
+    "lanes": [
+      {
+        "id": "in",
+        "label": "人が書く判断"
+      },
+      {
+        "id": "data",
+        "label": "データ"
+      },
+      {
+        "id": "biz",
+        "label": "業務処理"
+      },
+      {
+        "id": "screen",
+        "label": "画面"
+      },
+      {
+        "id": "common",
+        "label": "共通・検査"
+      },
+      {
+        "id": "view",
+        "label": "ビュー（ファイルなし）"
+      }
+    ],
+    "layers": [
+      {
+        "id": "basic",
+        "label": [
+          "基本設計",
+          "抽象システムモデル"
+        ],
+        "place": "design/basic/final/",
+        "reads": "業務モデルだけ"
+      },
+      {
+        "id": "detail",
+        "label": [
+          "詳細設計",
+          "具体システムモデル"
+        ],
+        "place": "design/detail/final/",
+        "reads": "基本設計の項目だけ"
+      },
+      {
+        "id": "program",
+        "label": [
+          "プログラム設計"
+        ],
+        "place": "design/program/final/",
+        "reads": "詳細設計の項目だけ"
+      },
+      {
+        "id": "source",
+        "label": [
+          "ソースコード"
+        ],
+        "place": "app/",
+        "reads": "プログラム設計（DDL と CSS は詳細設計）"
+      }
+    ],
+    "aspects": {
+      "shape": "項目の形",
+      "unit": "ファイルの単位",
+      "making": "作り方",
+      "source": "読む元",
+      "place": "置き場所",
+      "view": "ビュー",
+      "remove": "無くす"
+    },
+    "targets": [
+      {
+        "id": "b-pol",
+        "layer": "basic",
+        "lane": "in",
+        "label": "全体の判断",
+        "files": "design/basic/inputs/（区分の定義・方式の指定）",
+        "count": 1
+      },
+      {
+        "id": "b-dec",
+        "layer": "basic",
+        "lane": "in",
+        "label": "個別の判断",
+        "files": "design/basic/inputs/（区分の割当、項目・操作・画面への判断）",
+        "count": 1
+      },
+      {
+        "id": "typ",
+        "layer": "basic",
+        "lane": "data",
+        "label": "型",
+        "files": "types.yaml",
+        "count": 1
+      },
+      {
+        "id": "cls",
+        "layer": "basic",
+        "lane": "data",
+        "label": "区分",
+        "files": "classes.yaml",
+        "count": 1
+      },
+      {
+        "id": "ent",
+        "layer": "basic",
+        "lane": "data",
+        "label": "エンティティと項目",
+        "files": "entities/<エンティティ>.yaml",
+        "count": 4
+      },
+      {
+        "id": "qry",
+        "layer": "basic",
+        "lane": "data",
+        "label": "一覧の検索条件",
+        "files": "queries.yaml",
+        "count": 1
+      },
+      {
+        "id": "sta",
+        "layer": "basic",
+        "lane": "biz",
+        "label": "状態と遷移",
+        "files": "states.yaml",
+        "count": 1
+      },
+      {
+        "id": "rul",
+        "layer": "basic",
+        "lane": "biz",
+        "label": "データの決まり",
+        "files": "rules.yaml",
+        "count": 1
+      },
+      {
+        "id": "op",
+        "layer": "basic",
+        "lane": "biz",
+        "label": "操作",
+        "files": "operations/<操作>.yaml",
+        "count": 14
+      },
+      {
+        "id": "err",
+        "layer": "basic",
+        "lane": "biz",
+        "label": "エラー",
+        "files": "errors.yaml",
+        "count": 1
+      },
+      {
+        "id": "msg",
+        "layer": "basic",
+        "lane": "biz",
+        "label": "メッセージ",
+        "files": "messages.yaml",
+        "count": 1
+      },
+      {
+        "id": "scr",
+        "layer": "basic",
+        "lane": "screen",
+        "label": "画面",
+        "files": "screens/<画面>.yaml",
+        "count": 18
+      },
+      {
+        "id": "trn",
+        "layer": "basic",
+        "lane": "screen",
+        "label": "画面遷移",
+        "files": "transitions.yaml",
+        "count": 1
+      },
+      {
+        "id": "b-chk",
+        "layer": "basic",
+        "lane": "common",
+        "label": "検査記録",
+        "files": "composed/final.yaml ほか",
+        "count": 2
+      },
+      {
+        "id": "v-ent",
+        "layer": "basic",
+        "lane": "view",
+        "label": "エンティティ定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "v-op",
+        "layer": "basic",
+        "lane": "view",
+        "label": "アクション定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "v-scr",
+        "layer": "basic",
+        "lane": "view",
+        "label": "画面定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "v-trn",
+        "layer": "basic",
+        "lane": "view",
+        "label": "画面遷移定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "v-err",
+        "layer": "basic",
+        "lane": "view",
+        "label": "エラー定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "v-msg",
+        "layer": "basic",
+        "lane": "view",
+        "label": "メッセージ定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "v-dom",
+        "layer": "basic",
+        "lane": "view",
+        "label": "ドメイン定義書・関連定義書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "d-pol",
+        "layer": "detail",
+        "lane": "in",
+        "label": "全体の判断",
+        "files": "design/detail/inputs/（SQL と Java の型対応・テーマ）",
+        "count": 3
+      },
+      {
+        "id": "d-dec",
+        "layer": "detail",
+        "lane": "in",
+        "label": "個別の判断",
+        "files": "design/detail/inputs/（テーブルの台帳、項目への判断）",
+        "count": 1
+      },
+      {
+        "id": "tbl",
+        "layer": "detail",
+        "lane": "data",
+        "label": "テーブル",
+        "files": "tables.yaml",
+        "count": 1
+      },
+      {
+        "id": "acc",
+        "layer": "detail",
+        "lane": "data",
+        "label": "テーブルへの読み書き",
+        "files": "table-access/<エンティティ>.yaml",
+        "count": 4
+      },
+      {
+        "id": "stt",
+        "layer": "detail",
+        "lane": "biz",
+        "label": "状態の型",
+        "files": "status/<状態の流れ>.yaml",
+        "count": 1
+      },
+      {
+        "id": "svc",
+        "layer": "detail",
+        "lane": "biz",
+        "label": "処理の手順",
+        "files": "processes/<操作>.yaml",
+        "count": 14
+      },
+      {
+        "id": "eh",
+        "layer": "detail",
+        "lane": "biz",
+        "label": "エラーの扱い",
+        "files": "error-handling.yaml",
+        "count": 1
+      },
+      {
+        "id": "sty",
+        "layer": "detail",
+        "lane": "screen",
+        "label": "画面のクラスの対応表",
+        "files": "screen-designs/styles.yaml",
+        "count": 1
+      },
+      {
+        "id": "pg",
+        "layer": "detail",
+        "lane": "screen",
+        "label": "画面の部品と入力",
+        "files": "screen-designs/{lists,details,operations}/<画面>.yaml",
+        "count": 18
+      },
+      {
+        "id": "hdl",
+        "layer": "detail",
+        "lane": "screen",
+        "label": "URL と遷移",
+        "files": "controllers/<エンティティ>.yaml ほか",
+        "count": 5
+      },
+      {
+        "id": "ses",
+        "layer": "detail",
+        "lane": "screen",
+        "label": "セッション",
+        "files": "session.yaml",
+        "count": 1
+      },
+      {
+        "id": "d-fix",
+        "layer": "detail",
+        "lane": "common",
+        "label": "型対応とテーマの確定値",
+        "files": "java-types.yaml・application-theme.yaml",
+        "count": 2
+      },
+      {
+        "id": "d-chk",
+        "layer": "detail",
+        "lane": "common",
+        "label": "検査記録",
+        "files": "composed/review.yaml ほか",
+        "count": 3
+      },
+      {
+        "id": "w-tbl",
+        "layer": "detail",
+        "lane": "view",
+        "label": "テーブル設計書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-acc",
+        "layer": "detail",
+        "lane": "view",
+        "label": "テーブルアクセス設計書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-stt",
+        "layer": "detail",
+        "lane": "view",
+        "label": "状態の判定",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-svc",
+        "layer": "detail",
+        "lane": "view",
+        "label": "処理設計書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-eh",
+        "layer": "detail",
+        "lane": "view",
+        "label": "エラー設計書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-pg",
+        "layer": "detail",
+        "lane": "view",
+        "label": "画面設計書",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-hdl",
+        "layer": "detail",
+        "lane": "view",
+        "label": "画面遷移設計",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "w-ses",
+        "layer": "detail",
+        "lane": "view",
+        "label": "セッション情報設計",
+        "files": "",
+        "count": 1
+      },
+      {
+        "id": "p-pol",
+        "layer": "program",
+        "lane": "in",
+        "label": "全体の判断",
+        "files": "design/program/inputs/settings.yaml",
+        "count": 1
+      },
+      {
+        "id": "row",
+        "layer": "program",
+        "lane": "data",
+        "label": "行モデル",
+        "files": "application-data-model.yaml",
+        "count": 1
+      },
+      {
+        "id": "map",
+        "layer": "program",
+        "lane": "data",
+        "label": "Mapper",
+        "files": "application-access.yaml",
+        "count": 1
+      },
+      {
+        "id": "rt",
+        "layer": "program",
+        "lane": "biz",
+        "label": "状態型と例外",
+        "files": "application-runtime-model.yaml",
+        "count": 1
+      },
+      {
+        "id": "psv",
+        "layer": "program",
+        "lane": "biz",
+        "label": "Service",
+        "files": "application-service-{inputs,bindings,programs}.yaml",
+        "count": 3
+      },
+      {
+        "id": "frm",
+        "layer": "program",
+        "lane": "screen",
+        "label": "Form",
+        "files": "application-web-forms.yaml",
+        "count": 1
+      },
+      {
+        "id": "web",
+        "layer": "program",
+        "lane": "screen",
+        "label": "Controller と画面",
+        "files": "application-web-bindings.yaml・application-web.yaml",
+        "count": 2
+      },
+      {
+        "id": "p-cfg",
+        "layer": "program",
+        "lane": "common",
+        "label": "アプリの設定と出力計画",
+        "files": "application.yaml・application-output-plan.yaml",
+        "count": 2
+      },
+      {
+        "id": "p-chk",
+        "layer": "program",
+        "lane": "common",
+        "label": "検査記録",
+        "files": "composed/application/",
+        "count": 3
+      },
+      {
+        "id": "s-data",
+        "layer": "source",
+        "lane": "data",
+        "label": "行モデル・Mapper・DDL",
+        "files": "app/",
+        "count": 1
+      },
+      {
+        "id": "s-biz",
+        "layer": "source",
+        "lane": "biz",
+        "label": "Service・状態・例外",
+        "files": "app/",
+        "count": 1
+      },
+      {
+        "id": "s-web",
+        "layer": "source",
+        "lane": "screen",
+        "label": "Controller・Form・テンプレート・CSS",
+        "files": "app/",
+        "count": 1
+      },
+      {
+        "id": "s-build",
+        "layer": "source",
+        "lane": "common",
+        "label": "ビルドと起動の設定",
+        "files": "app/",
+        "count": 1
+      }
+    ],
+    "removals": [
+      {
+        "id": "g-corr",
+        "label": "補正を当てる途中経過と、補正後の業務モデル",
+        "note": "業務モデルを写して、補正を当て直すためのもの。項目が業務モデルと判断を直接読むようになったら要らない"
+      },
+      {
+        "id": "g-res",
+        "label": "解いた形",
+        "note": "項目を、読む側の古い形に戻す途中経過。読む側が項目を直接読むようになったら要らない"
+      },
+      {
+        "id": "g-bind",
+        "label": "名前の付け替え表",
+        "note": "URL・Mapper・Service・セッションの新旧の名前の対応表。項目を ID で指すようになったら要らない"
+      },
+      {
+        "id": "g-doc",
+        "label": "文書への補正・追加の入力",
+        "note": "文書の形の設計書に当てる入力。判断は項目へ直接当てる"
+      }
+    ],
+    "tasks": [
+      {
+        "target": "typ",
+        "subject": "basic-type-candidates",
+        "action": "消す",
+        "step": 5,
+        "aspect": "source",
+        "why": "型を、業務モデルと判断から直接作る",
+        "done": {
+          "gone": [
+            "basic-type-candidates"
+          ]
+        }
+      },
+      {
+        "target": "ent",
+        "subject": "basic-entity-candidates",
+        "action": "消す",
+        "step": 5,
+        "aspect": "source",
+        "why": "エンティティと項目を、業務モデルと判断から直接作る",
+        "done": {
+          "gone": [
+            "basic-entity-candidates"
+          ]
+        }
+      },
+      {
+        "target": "ent",
+        "subject": "basic-entities",
+        "action": "変える",
+        "step": 5,
+        "aspect": "unit",
+        "why": "エンティティごとのファイルに分ける",
+        "done": {
+          "exists": "design/basic/final/entities/*.yaml"
+        }
+      },
+      {
+        "target": "op",
+        "subject": "basic-operations",
+        "action": "変える",
+        "step": 5,
+        "aspect": "source",
+        "why": "補正後の業務モデルではなく、業務モデルと確定した型・項目を読む",
+        "done": {
+          "notReads": [
+            "basic-operations",
+            [
+              "t:system-model"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "scr",
+        "subject": "basic-screens",
+        "action": "変える",
+        "step": 5,
+        "aspect": "source",
+        "why": "補正後の業務モデルではなく、業務モデルを読む",
+        "done": {
+          "notReads": [
+            "basic-screens",
+            [
+              "t:system-model"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "err",
+        "subject": "errors-derived",
+        "action": "作り直す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "エラーを項目の形で作る変換定義 1 本にする",
+        "done": {
+          "gone": [
+            "errors-derived"
+          ]
+        }
+      },
+      {
+        "target": "err",
+        "subject": "errors",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "エラーを項目の形で作る変換定義 1 本にする",
+        "done": {
+          "gone": [
+            "errors"
+          ]
+        }
+      },
+      {
+        "target": "msg",
+        "subject": "messages-derived",
+        "action": "作り直す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "メッセージを項目の形で作る変換定義 1 本にする",
+        "done": {
+          "gone": [
+            "messages-derived"
+          ]
+        }
+      },
+      {
+        "target": "msg",
+        "subject": "messages",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "メッセージを項目の形で作る変換定義 1 本にする",
+        "done": {
+          "gone": [
+            "messages"
+          ]
+        }
+      },
+      {
+        "target": "trn",
+        "subject": "screen-transitions-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "画面遷移を項目の形で作る変換定義 1 本にする",
+        "done": {
+          "gone": [
+            "screen-transitions-derived"
+          ]
+        }
+      },
+      {
+        "target": "trn",
+        "subject": "screen-transitions",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "画面遷移を項目の形で作る変換定義 1 本にする",
+        "done": {
+          "gone": [
+            "screen-transitions"
+          ]
+        }
+      },
+      {
+        "target": "b-chk",
+        "subject": "basic-final",
+        "action": "変える",
+        "step": 5,
+        "aspect": "source",
+        "why": "業務モデルと判断を直接読んで、型・エンティティ・区分を確定する",
+        "done": {
+          "notReads": [
+            "basic-final",
+            [
+              "t:basic-field-model",
+              "t:basic-entity-candidates",
+              "t:basic-type-candidates"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "b-pol",
+        "subject": "design/basic/inputs/entities/corrections.yaml",
+        "action": "変える",
+        "step": 6,
+        "aspect": "place",
+        "why": "全体の判断（区分の定義・方式の指定）を、個別の判断と別のファイルにする",
+        "done": {
+          "exists": "design/basic/inputs/polic*"
+        }
+      },
+      {
+        "target": "b-dec",
+        "subject": "design/basic/inputs/operations/corrections.yaml",
+        "action": "変える",
+        "step": 6,
+        "aspect": "place",
+        "why": "個別の判断を 1 か所にまとめる",
+        "done": {
+          "missing": "design/basic/inputs/operations/corrections.yaml"
+        }
+      },
+      {
+        "target": "b-dec",
+        "subject": "design/basic/inputs/screens/corrections.yaml",
+        "action": "変える",
+        "step": 6,
+        "aspect": "place",
+        "why": "個別の判断を 1 か所にまとめる",
+        "done": {
+          "missing": "design/basic/inputs/screens/corrections.yaml"
+        }
+      },
+      {
+        "target": "b-dec",
+        "subject": "design/basic/inputs/entities/additions.yaml",
+        "action": "変える",
+        "step": 6,
+        "aspect": "place",
+        "why": "個別の判断を 1 か所にまとめる",
+        "done": {
+          "missing": "design/basic/inputs/entities/additions.yaml"
+        }
+      },
+      {
+        "target": "v-trn",
+        "subject": "画面遷移定義書のビュー",
+        "action": "足す",
+        "step": 4,
+        "aspect": "view",
+        "why": "画面遷移の項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/basic/review/transition-definition*.yaml"
+        }
+      },
+      {
+        "target": "v-err",
+        "subject": "エラー定義書のビュー",
+        "action": "足す",
+        "step": 3,
+        "aspect": "view",
+        "why": "エラーの項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/basic/review/error-definition*.yaml"
+        }
+      },
+      {
+        "target": "v-msg",
+        "subject": "メッセージ定義書のビュー",
+        "action": "足す",
+        "step": 3,
+        "aspect": "view",
+        "why": "メッセージの項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/basic/review/message-definition*.yaml"
+        }
+      },
+      {
+        "target": "v-dom",
+        "subject": "ドメイン定義書のビュー",
+        "action": "足す",
+        "step": 3,
+        "aspect": "view",
+        "why": "エンティティ・操作・状態・決まりの項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/basic/review/domain-definition*.yaml"
+        }
+      },
+      {
+        "target": "v-dom",
+        "subject": "domains-derived",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "ドメイン定義書はファイルを持たず、ビューだけにする",
+        "done": {
+          "gone": [
+            "domains-derived"
+          ]
+        }
+      },
+      {
+        "target": "v-dom",
+        "subject": "domains",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "ドメイン定義書はファイルを持たず、ビューだけにする",
+        "done": {
+          "gone": [
+            "domains"
+          ]
+        }
+      },
+      {
+        "target": "v-dom",
+        "subject": "domain-relations-derived",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "ドメイン定義書はファイルを持たず、ビューだけにする",
+        "done": {
+          "gone": [
+            "domain-relations-derived"
+          ]
+        }
+      },
+      {
+        "target": "v-dom",
+        "subject": "domain-relations",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "ドメイン定義書はファイルを持たず、ビューだけにする",
+        "done": {
+          "gone": [
+            "domain-relations"
+          ]
+        }
+      },
+      {
+        "target": "tbl",
+        "subject": "detail-tables-derived",
+        "action": "消す",
+        "step": 2,
+        "aspect": "making",
+        "why": "導出と確定の 2 本を 1 本にまとめる（判断は項目へ直接当てる）",
+        "done": {
+          "gone": [
+            "detail-tables-derived"
+          ]
+        }
+      },
+      {
+        "target": "acc",
+        "subject": "table-access-derived",
+        "action": "作り直す",
+        "step": 2,
+        "aspect": "shape",
+        "why": "テーブルへの読み書きを、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "table-access-derived"
+          ]
+        }
+      },
+      {
+        "target": "acc",
+        "subject": "table-access",
+        "action": "消す",
+        "step": 2,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "table-access"
+          ]
+        }
+      },
+      {
+        "target": "stt",
+        "subject": "status-rules-derived",
+        "action": "作り直す",
+        "step": 1,
+        "aspect": "shape",
+        "why": "状態の型を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "status-rules-derived"
+          ]
+        }
+      },
+      {
+        "target": "stt",
+        "subject": "status-rules",
+        "action": "消す",
+        "step": 1,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "status-rules"
+          ]
+        }
+      },
+      {
+        "target": "svc",
+        "subject": "processes-derived",
+        "action": "作り直す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "処理の手順を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "processes-derived"
+          ]
+        }
+      },
+      {
+        "target": "svc",
+        "subject": "processes",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "processes"
+          ]
+        }
+      },
+      {
+        "target": "eh",
+        "subject": "error-handling-derived",
+        "action": "作り直す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "エラーの扱いを、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "error-handling-derived"
+          ]
+        }
+      },
+      {
+        "target": "eh",
+        "subject": "error-handling",
+        "action": "消す",
+        "step": 3,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "error-handling"
+          ]
+        }
+      },
+      {
+        "target": "sty",
+        "subject": "screen-styles-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "画面のクラスの対応表を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "screen-styles-derived"
+          ]
+        }
+      },
+      {
+        "target": "sty",
+        "subject": "screen-styles",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "screen-styles"
+          ]
+        }
+      },
+      {
+        "target": "pg",
+        "subject": "screen-designs-lists-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "画面の部品と入力を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "screen-designs-lists-derived"
+          ]
+        }
+      },
+      {
+        "target": "pg",
+        "subject": "screen-designs-lists",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "screen-designs-lists"
+          ]
+        }
+      },
+      {
+        "target": "pg",
+        "subject": "screen-designs-details-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "画面の部品と入力を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "screen-designs-details-derived"
+          ]
+        }
+      },
+      {
+        "target": "pg",
+        "subject": "screen-designs-details",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "screen-designs-details"
+          ]
+        }
+      },
+      {
+        "target": "pg",
+        "subject": "screen-designs-operations-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "画面の部品と入力を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "screen-designs-operations-derived"
+          ]
+        }
+      },
+      {
+        "target": "pg",
+        "subject": "screen-designs-operations",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "screen-designs-operations"
+          ]
+        }
+      },
+      {
+        "target": "hdl",
+        "subject": "screen-flows-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "URL と遷移を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "screen-flows-derived"
+          ]
+        }
+      },
+      {
+        "target": "hdl",
+        "subject": "screen-flows",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "screen-flows"
+          ]
+        }
+      },
+      {
+        "target": "hdl",
+        "subject": "dashboard-flows-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "URL と遷移を、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "dashboard-flows-derived"
+          ]
+        }
+      },
+      {
+        "target": "hdl",
+        "subject": "dashboard-flows",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "dashboard-flows"
+          ]
+        }
+      },
+      {
+        "target": "ses",
+        "subject": "session-design-derived",
+        "action": "作り直す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "セッションを、基本設計の項目だけを読んで項目の形で作る変換定義にする",
+        "done": {
+          "gone": [
+            "session-design-derived"
+          ]
+        }
+      },
+      {
+        "target": "ses",
+        "subject": "session-design",
+        "action": "消す",
+        "step": 4,
+        "aspect": "shape",
+        "why": "確定の変換定義。判断は項目へ直接当てる",
+        "done": {
+          "gone": [
+            "session-design"
+          ]
+        }
+      },
+      {
+        "target": "d-chk",
+        "subject": "system-final",
+        "action": "変える",
+        "step": 4,
+        "aspect": "source",
+        "why": "文書の形の設計書の確定前検査。文書が無くなるので、項目の検査記録に作り直す",
+        "done": {
+          "notReads": [
+            "system-final",
+            [
+              "t:processes",
+              "t:table-access",
+              "t:screen-designs-operations",
+              "t:screen-flows",
+              "t:errors",
+              "t:messages"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "d-dec",
+        "subject": "design/detail/inputs/documents/corrections.yaml",
+        "action": "消す",
+        "step": 4,
+        "aspect": "place",
+        "why": "文書への補正・追加を、項目への判断に置き換える",
+        "done": {
+          "missing": "design/detail/inputs/documents/corrections.yaml"
+        }
+      },
+      {
+        "target": "d-dec",
+        "subject": "design/detail/inputs/documents/additions.yaml",
+        "action": "消す",
+        "step": 4,
+        "aspect": "place",
+        "why": "文書への補正・追加を、項目への判断に置き換える",
+        "done": {
+          "missing": "design/detail/inputs/documents/additions.yaml"
+        }
+      },
+      {
+        "target": "w-acc",
+        "subject": "テーブルアクセス設計書のビュー",
+        "action": "足す",
+        "step": 2,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/access-definition*.yaml"
+        }
+      },
+      {
+        "target": "w-stt",
+        "subject": "状態の判定のビュー",
+        "action": "足す",
+        "step": 1,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/status-definition*.yaml"
+        }
+      },
+      {
+        "target": "w-svc",
+        "subject": "処理設計書のビュー",
+        "action": "足す",
+        "step": 3,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/process-definition*.yaml"
+        }
+      },
+      {
+        "target": "w-eh",
+        "subject": "エラー設計書のビュー",
+        "action": "足す",
+        "step": 3,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/error-handling-definition*.yaml"
+        }
+      },
+      {
+        "target": "w-pg",
+        "subject": "画面設計書のビュー",
+        "action": "足す",
+        "step": 4,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/page-definition*.yaml"
+        }
+      },
+      {
+        "target": "w-hdl",
+        "subject": "画面遷移設計のビュー",
+        "action": "足す",
+        "step": 4,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/handler-definition*.yaml"
+        }
+      },
+      {
+        "target": "w-ses",
+        "subject": "セッション情報設計のビュー",
+        "action": "足す",
+        "step": 4,
+        "aspect": "view",
+        "why": "項目を読むビュー",
+        "done": {
+          "exists": ".yde/views/design/detail/review/session-definition*.yaml"
+        }
+      },
+      {
+        "target": "row",
+        "subject": "application-data-model",
+        "action": "変える",
+        "step": 2,
+        "aspect": "source",
+        "why": "テーブルの項目だけを読む（エンティティ定義書を直接読まない）",
+        "done": {
+          "notReads": [
+            "application-data-model",
+            [
+              "t:basic-entities"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "row",
+        "subject": "application-data-model",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-data-model.yaml"
+        }
+      },
+      {
+        "target": "map",
+        "subject": "application-access",
+        "action": "変える",
+        "step": 2,
+        "aspect": "source",
+        "why": "テーブルへの読み書きの項目を読む",
+        "done": {
+          "gone": [
+            "table-access"
+          ]
+        }
+      },
+      {
+        "target": "map",
+        "subject": "application-access",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-access.yaml"
+        }
+      },
+      {
+        "target": "rt",
+        "subject": "application-runtime-model",
+        "action": "変える",
+        "step": 1,
+        "aspect": "source",
+        "why": "状態の型の項目を読む",
+        "done": {
+          "gone": [
+            "status-rules"
+          ]
+        }
+      },
+      {
+        "target": "rt",
+        "subject": "application-runtime-model",
+        "action": "変える",
+        "step": 3,
+        "aspect": "source",
+        "why": "エラーの扱いの項目を読む",
+        "done": {
+          "gone": [
+            "error-handling"
+          ]
+        }
+      },
+      {
+        "target": "rt",
+        "subject": "application-runtime-model",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-runtime-model.yaml"
+        }
+      },
+      {
+        "target": "psv",
+        "subject": "application-service-inputs",
+        "action": "変える",
+        "step": 3,
+        "aspect": "source",
+        "why": "処理の手順の項目だけを読む（操作を直接読まない）",
+        "done": {
+          "notReads": [
+            "application-service-inputs",
+            [
+              "t:basic-operations-resolved",
+              "t:basic-operations"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "psv",
+        "subject": "application-service-bindings",
+        "action": "変える",
+        "step": 3,
+        "aspect": "source",
+        "why": "処理の手順とテーブルへの読み書きの項目を読む",
+        "done": {
+          "gone": [
+            "processes"
+          ]
+        }
+      },
+      {
+        "target": "psv",
+        "subject": "application-service-programs",
+        "action": "変える",
+        "step": 3,
+        "aspect": "source",
+        "why": "詳細設計の項目だけを読む（エンティティ定義書を直接読まない）",
+        "done": {
+          "notReads": [
+            "application-service-programs",
+            [
+              "t:basic-entities"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "psv",
+        "subject": "application-service-inputs",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-service-inputs.yaml"
+        }
+      },
+      {
+        "target": "psv",
+        "subject": "application-service-bindings",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-service-bindings.yaml"
+        }
+      },
+      {
+        "target": "psv",
+        "subject": "application-service-programs",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-service-programs.yaml"
+        }
+      },
+      {
+        "target": "frm",
+        "subject": "application-web-forms",
+        "action": "変える",
+        "step": 4,
+        "aspect": "source",
+        "why": "画面の部品と入力の項目だけを読む（メッセージ定義書を直接読まない）",
+        "done": {
+          "notReads": [
+            "application-web-forms",
+            [
+              "t:messages"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "frm",
+        "subject": "application-web-forms",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-web-forms.yaml"
+        }
+      },
+      {
+        "target": "web",
+        "subject": "application-web-bindings",
+        "action": "変える",
+        "step": 4,
+        "aspect": "source",
+        "why": "URL と遷移の項目を読む",
+        "done": {
+          "gone": [
+            "screen-flows"
+          ]
+        }
+      },
+      {
+        "target": "web",
+        "subject": "application-web",
+        "action": "変える",
+        "step": 4,
+        "aspect": "source",
+        "why": "詳細設計の項目だけを読む（基本設計の画面・画面遷移・メッセージを直接読まない）",
+        "done": {
+          "notReads": [
+            "application-web",
+            [
+              "t:basic-screens-resolved",
+              "t:basic-screens",
+              "t:screen-transitions",
+              "t:messages"
+            ]
+          ]
+        }
+      },
+      {
+        "target": "web",
+        "subject": "application-web-bindings",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-web-bindings.yaml"
+        }
+      },
+      {
+        "target": "web",
+        "subject": "application-web",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-web.yaml"
+        }
+      },
+      {
+        "target": "p-cfg",
+        "subject": "application-configuration",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application.yaml"
+        }
+      },
+      {
+        "target": "p-cfg",
+        "subject": "application-output-plan",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/final/application-output-plan.yaml"
+        }
+      },
+      {
+        "target": "p-chk",
+        "subject": "application-input-gate ほか 2 本",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "検査記録もプログラム設計の置き場所へ移す",
+        "done": {
+          "exists": "design/program/composed/*"
+        }
+      },
+      {
+        "target": "p-pol",
+        "subject": "design/detail/inputs/application/settings.yaml",
+        "action": "移す",
+        "step": 6,
+        "aspect": "place",
+        "why": "プログラム設計の全体の判断へ移す",
+        "done": {
+          "missing": "design/detail/inputs/application/settings.yaml"
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-derived",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-derived"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-targets",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-targets"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-descriptions",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-descriptions"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-type-changes",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-type-changes"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-type-model",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-type-model"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-field-uses",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-field-uses"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-field-changes",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-field-changes"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "basic-field-model",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "basic-field-model"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "system-model",
+        "action": "消す",
+        "step": 5,
+        "aspect": "remove",
+        "why": "補正の足場",
+        "done": {
+          "gone": [
+            "system-model"
+          ]
+        }
+      },
+      {
+        "target": "g-corr",
+        "subject": "system-screen-input-model",
+        "action": "消す",
+        "step": 3,
+        "aspect": "remove",
+        "why": "補正後の業務モデル（3 段目）。メッセージを項目にしたら要らない",
+        "done": {
+          "gone": [
+            "system-screen-input-model"
+          ]
+        }
+      },
+      {
+        "target": "g-res",
+        "subject": "basic-operations-resolved",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "読む側が項目を直接読むようになったら消す",
+        "done": {
+          "gone": [
+            "basic-operations-resolved"
+          ]
+        }
+      },
+      {
+        "target": "g-res",
+        "subject": "basic-screens-resolved",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "読む側が項目を直接読むようになったら消す",
+        "done": {
+          "gone": [
+            "basic-screens-resolved"
+          ]
+        }
+      },
+      {
+        "target": "g-bind",
+        "subject": "system-screen-bindings",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "最後の読み手（画面の系統）が項目を ID で指すようになったら消す",
+        "done": {
+          "gone": [
+            "system-screen-bindings"
+          ]
+        }
+      },
+      {
+        "target": "g-bind",
+        "subject": "system-access-bindings",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "最後の読み手（画面の系統）が項目を ID で指すようになったら消す",
+        "done": {
+          "gone": [
+            "system-access-bindings"
+          ]
+        }
+      },
+      {
+        "target": "g-bind",
+        "subject": "system-process-bindings",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "最後の読み手（画面の系統）が項目を ID で指すようになったら消す",
+        "done": {
+          "gone": [
+            "system-process-bindings"
+          ]
+        }
+      },
+      {
+        "target": "g-bind",
+        "subject": "system-session-bindings",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "最後の読み手（画面の系統）が項目を ID で指すようになったら消す",
+        "done": {
+          "gone": [
+            "system-session-bindings"
+          ]
+        }
+      },
+      {
+        "target": "g-doc",
+        "subject": "design/basic/inputs/documents/corrections.yaml",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "基本設計の文書の形が無くなる",
+        "done": {
+          "missing": "design/basic/inputs/documents/corrections.yaml"
+        }
+      },
+      {
+        "target": "g-doc",
+        "subject": "design/basic/inputs/documents/additions.yaml",
+        "action": "消す",
+        "step": 4,
+        "aspect": "remove",
+        "why": "基本設計の文書の形が無くなる",
+        "done": {
+          "missing": "design/basic/inputs/documents/additions.yaml"
+        }
+      }
+    ],
+    "goals": {
+      "transforms": 43
+    },
+    "baseline": {
+      "comment": "計画を立てた時点（2026-11-27）の数と、変換定義の名前（無くす対象の書き間違いを見つけるため）",
+      "transforms": 81,
+      "outside": 19,
+      "off": 6,
+      "transformIds": [
+        "application-access",
+        "application-configuration",
+        "application-data-model",
+        "application-form-gate",
+        "application-input-gate",
+        "application-java-types",
+        "application-output-plan",
+        "application-process-gate",
+        "application-runtime-model",
+        "application-service-bindings",
+        "application-service-inputs",
+        "application-service-programs",
+        "application-theme",
+        "application-theme-input-gate",
+        "application-web",
+        "application-web-bindings",
+        "application-web-forms",
+        "basic-classes",
+        "basic-derived",
+        "basic-descriptions",
+        "basic-document-input-gate",
+        "basic-entities",
+        "basic-entity-candidates",
+        "basic-field-changes",
+        "basic-field-model",
+        "basic-field-uses",
+        "basic-final",
+        "basic-operations",
+        "basic-operations-resolved",
+        "basic-queries",
+        "basic-rules",
+        "basic-screens",
+        "basic-screens-resolved",
+        "basic-states",
+        "basic-targets",
+        "basic-type-candidates",
+        "basic-type-changes",
+        "basic-type-model",
+        "basic-types",
+        "dashboard-flows",
+        "dashboard-flows-derived",
+        "detail-document-input-gate",
+        "detail-tables",
+        "detail-tables-derived",
+        "domain-relations",
+        "domain-relations-derived",
+        "domains",
+        "domains-derived",
+        "error-handling",
+        "error-handling-derived",
+        "errors",
+        "errors-derived",
+        "messages",
+        "messages-derived",
+        "processes",
+        "processes-derived",
+        "screen-designs-details",
+        "screen-designs-details-derived",
+        "screen-designs-lists",
+        "screen-designs-lists-derived",
+        "screen-designs-operations",
+        "screen-designs-operations-derived",
+        "screen-flows",
+        "screen-flows-derived",
+        "screen-styles",
+        "screen-styles-derived",
+        "screen-transitions",
+        "screen-transitions-derived",
+        "session-design",
+        "session-design-derived",
+        "status-rules",
+        "status-rules-derived",
+        "system-access-bindings",
+        "system-final",
+        "system-model",
+        "system-process-bindings",
+        "system-screen-bindings",
+        "system-screen-input-model",
+        "system-session-bindings",
+        "table-access",
+        "table-access-derived"
+      ]
+    }
+  }
 }

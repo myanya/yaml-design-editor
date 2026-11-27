@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>todos-sysdev 移行の進み具合</title>
+<!-- 生成物: scripts/design-map.py が、ひな形（design-progress.template.html）と設定（design-map.json の plan）から作る。手で直さず、作り直す -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 配置: 上に全体の進み具合と歩ごとの棒、中央に「段 × 系統」の格子に置いた目標のファイルと選択中の箱の詳細、下に無くすもの・やることの一覧・数えたこと */
+:root {
+  --done: #2f7d4f; --done-fill: #e1f1e6; --formed-fill: #dfeafb; --doing: #a8690c; --doing-fill: #fbeed3; --todo-fill: #ffffff; --track: #e3e7ee;
+  --bg: #f5f6f8; --surface: #ffffff; --band: #eceff4; --ink: #1b2330; --muted: #5b6676; --line: #d3d9e2; --sel: #0a66c2;
+  --font: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --done: #6cc08f; --done-fill: #1d3a28; --formed-fill: #1f3555; --doing: #e2a93f; --doing-fill: #4a3a17; --todo-fill: #1a202a; --track: #2a313d;
+  --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48; --sel: #5aa9ff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --done: #6cc08f; --done-fill: #1d3a28; --formed-fill: #1f3555; --doing: #e2a93f; --doing-fill: #4a3a17; --todo-fill: #1a202a; --track: #2a313d;
+  --bg: #11151c; --surface: #1a202a; --band: #161b23; --ink: #e5e9f0; --muted: #9aa5b6; --line: #313a48; --sel: #5aa9ff; color-scheme: dark }
+
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.75; }
+.wrap { max-width: 1360px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; text-wrap: balance; line-height: 1.4; }
+h2 { font-size: 16px; font-weight: 700; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 700; margin: 0; }
+p { margin: 0; max-width: 46em; }
+code, .path { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.lede { display: flex; flex-direction: column; gap: 10px; }
+.sub, .note { color: var(--muted); font-size: 12.5px; max-width: 60em; }
+section { display: flex; flex-direction: column; gap: 12px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+
+/* 全体の数字 */
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.total { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.total .k { color: var(--muted); font-size: 12px; }
+.total .v { font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.total .v small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.bar { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--done); }
+
+/* 歩 */
+.steps { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.step { display: grid; grid-template-columns: 2.2em minmax(7em, 11em) minmax(0, 1fr) minmax(90px, 200px) 5.5em; gap: 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); }
+.step:first-child { border-top: 0; }
+.step .n { font-family: var(--mono); color: var(--muted); }
+.step .name { font-weight: 700; }
+.step .does { color: var(--muted); font-size: 12.5px; min-width: 0; }
+.step .count { text-align: end; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.step.now { background: var(--formed-fill); }
+.step.now .n::after { content: " ←"; }
+.step.fin .name { color: var(--done); }
+@media (max-width: 760px) { .step { grid-template-columns: 2.2em minmax(0, 1fr) 5.5em; } .step .does { grid-column: 2 / -1; } .step .bar { grid-column: 2 / -1; } }
+
+/* 凡例 */
+.kinds { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; }
+.kinds span { display: inline-flex; align-items: center; gap: 6px; }
+.kinds i { width: 22px; height: 13px; border: 1px solid var(--line); border-radius: 3px; display: inline-block; }
+
+/* 格子 */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 1180px) { .stage { grid-template-columns: minmax(0, 1fr) 340px; } .panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; } }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.grid { display: grid; grid-template-columns: 104px repeat(var(--lanes), minmax(132px, 1fr)); min-width: 900px; }
+.grid > div { padding: 6px; border-top: 1px solid var(--line); border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.grid > .head { border-top: 0; color: var(--muted); font-size: 11.5px; font-weight: 500; padding-block: 6px; }
+.grid > .layer { border-left: 0; background: var(--band); }
+.grid > .head.corner { border-left: 0; background: var(--band); }
+.layer .name { font-weight: 700; font-size: 13px; line-height: 1.4; }
+.layer .place { font-family: var(--mono); font-size: 10.5px; color: var(--muted); word-break: break-all; }
+.layer .reads { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.grid > .down { grid-column: 1 / -1; background: var(--band); padding-block: 2px; color: var(--muted); font-size: 11.5px; flex-direction: row; gap: 8px; border-left: 0; }
+.box { text-align: start; background: var(--todo-fill); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.box:hover { border-color: var(--ink); }
+.box.sel { outline: 2px solid var(--sel); outline-offset: 1px; }
+.box .top { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.box .label { font-size: 12.5px; font-weight: 500; line-height: 1.4; }
+.box .chip { font-size: 10.5px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+.box .files { font-family: var(--mono); font-size: 10px; color: var(--muted); word-break: break-all; line-height: 1.45; }
+.box .marks { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 10.5px; color: var(--muted); }
+.box .marks .ok { color: var(--done); }
+.box .marks .ng { color: var(--doing); }
+.st-done { background: var(--done-fill); border-color: var(--done); }
+.st-done .chip { color: var(--done); font-weight: 700; }
+.st-formed { background: var(--formed-fill); }
+.st-doing { background: var(--doing-fill); border-color: var(--doing); }
+.st-todo { border-style: dashed; border-color: var(--muted); }
+.st-fixed { background: var(--band); cursor: default; }
+
+/* 詳細 */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel .where { color: var(--muted); font-size: 12px; }
+.none { color: var(--muted); font-size: 12.5px; }
+.todo-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.todo-list li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); gap: 4px; font-size: 12.5px; line-height: 1.6; }
+.todo-list .mark.ok { color: var(--done); } .todo-list .mark.ng { color: var(--doing); }
+.todo-list .meta { color: var(--muted); font-size: 11.5px; }
+.clear { align-self: flex-start; font-size: 12px; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 9px; cursor: pointer; }
+.clear:hover { color: var(--ink); border-color: var(--ink); }
+
+/* 無くすもの */
+.removals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.removal { text-align: start; background: var(--surface); border: 1px dashed var(--muted); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-width: 0; }
+.removal:hover { border-color: var(--ink); }
+.removal.sel { outline: 2px solid var(--sel); outline-offset: 1px; }
+.removal.st-done { border-style: solid; }
+.removal .label { font-weight: 700; font-size: 13px; }
+.removal .count { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.removal .note { font-size: 12px; }
+
+/* 一覧 */
+.filters { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+.filters select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; }
+.table-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+table.tasks { border-collapse: collapse; font-size: 12.5px; width: 100%; min-width: 860px; }
+table.tasks th, table.tasks td { border-bottom: 1px solid var(--line); padding: 6px 10px; text-align: start; vertical-align: top; }
+table.tasks th { background: var(--band); font-weight: 700; white-space: nowrap; }
+table.tasks td.state { white-space: nowrap; font-weight: 700; }
+table.tasks td.state.ok { color: var(--done); } table.tasks td.state.ng { color: var(--doing); }
+table.tasks td.num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+dl.stats { margin: 0; display: grid; grid-template-columns: minmax(0, 17em) minmax(0, 1fr); gap: 8px 20px; max-width: 76em; }
+dl.stats dt { color: var(--muted); } dl.stats dd { margin: 0; min-width: 0; }
+@media (max-width: 640px) { dl.stats { grid-template-columns: minmax(0, 1fr); gap: 2px; } dl.stats dd { margin-bottom: 8px; } }
+ul.findings { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 60em; }
+footer.note { display: flex; flex-direction: column; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="lede">
+    <h1 id="title"></h1>
+    <p id="lede"></p>
+    <p class="sub">目標のファイル体系に、いまどこまで来ているかを置いたものです。済んだかどうかは、変換定義とファイルがいまあるか・何を読んでいるかから計算しています（人が「済」と書いているのではありません）。</p>
+  </header>
+
+  <section>
+    <h2>全体</h2>
+    <div class="totals" id="totals"></div>
+  </section>
+
+  <section>
+    <h2>歩ごとの進み具合</h2>
+    <div class="steps" id="steps"></div>
+    <p class="note">系統ごとに、基本設計の項目からソースコードまでを通します。通し終えたら、その系統の古い仕組みを消します。</p>
+  </section>
+
+  <section>
+    <h2>目標のファイル体系と、いまの状態</h2>
+    <div class="kinds">
+      <span><i style="background:var(--done-fill);border-color:var(--done)"></i>目標の形（残りなし）</span>
+      <span><i style="background:var(--formed-fill)"></i>形は目標どおり（読む元か置き場所が残る）</span>
+      <span><i style="background:var(--doing-fill);border-color:var(--doing)"></i>作業の途中</span>
+      <span><i style="border-style:dashed;border-color:var(--muted)"></i>まだ（文書の形・未作成）</span>
+      <span><i style="background:var(--band)"></i>変えないもの</span>
+    </div>
+    <div class="stage">
+      <div class="scroll"><div class="grid" id="grid"></div></div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+    <p class="note">行は段、列は系統です。上の段から下の段へ作ります。各段は、1 つ上の段だけを読みます。箱を押すと、その箱に残っていることが出ます。</p>
+  </section>
+
+  <section>
+    <h2>無くすもの</h2>
+    <div class="removals" id="removals"></div>
+    <p class="note">目標のファイル体系には無いものです。項目の形にするための足場と、古い仕組みです。</p>
+  </section>
+
+  <section>
+    <h2>やることの一覧</h2>
+    <div class="filters">
+      <label>歩 <select id="f-step"></select></label>
+      <label>状態 <select id="f-state"><option value="">すべて</option><option value="ng">残っている</option><option value="ok">済んだ</option></select></label>
+      <span class="none" id="f-count"></span>
+    </div>
+    <div class="table-scroll"><table class="tasks" id="tasks"></table></div>
+  </section>
+
+  <section>
+    <h2>数えたこと</h2>
+    <dl class="stats" id="stats"></dl>
+  </section>
+
+  <section id="warnings-section" hidden>
+    <h2>注意（設定と、いまのファイルが合っていない所）</h2>
+    <ul class="findings" id="warnings"></ul>
+  </section>
+
+  <footer class="note" id="footer"></footer>
+</div>
+
+<script>
+const DATA = {"title":"todos-sysdev 移行の進み具合","summary":"目標の箱 51 のうち、10 が目標の形、19 が形だけ目標どおり（読む元か置き場所が残る）、22 がまだです。やること 98 件のうち 0 件が済みました。","current":1,"steps":[{"id":1,"name":"状態（試し）","does":"状態と遷移 → 状態の型 → 状態型（Java の enum）","total":4,"done":0},{"id":2,"name":"データ","does":"エンティティ・操作・検索条件・決まり → テーブル・テーブルへの読み書き → 行モデル・Mapper","total":6,"done":0},{"id":3,"name":"業務処理","does":"エラー・メッセージ → 処理の手順・エラーの扱い → Service・例外","total":22,"done":0},{"id":4,"name":"画面","does":"画面・画面遷移 → 画面の部品と入力・URL と遷移・セッション → Form・Controller と画面","total":34,"done":0},{"id":5,"name":"補正の足場","does":"操作・画面・エンティティ・型を、補正後の業務モデルを通さずに作る","total":15,"done":0},{"id":6,"name":"仕上げ","does":"プログラム設計を別の置き場所へ。人の入力を、段ごとの全体の判断と個別の判断にまとめる","total":17,"done":0}],"lanes":[{"id":"in","label":"人が書く判断"},{"id":"data","label":"データ"},{"id":"biz","label":"業務処理"},{"id":"screen","label":"画面"},{"id":"common","label":"共通・検査"},{"id":"view","label":"ビュー（ファイルなし）"}],"layers":[{"id":"basic","label":["基本設計","抽象システムモデル"],"place":"design/basic/final/","reads":"業務モデルだけ"},{"id":"detail","label":["詳細設計","具体システムモデル"],"place":"design/detail/final/","reads":"基本設計の項目だけ"},{"id":"program","label":["プログラム設計"],"place":"design/program/final/","reads":"詳細設計の項目だけ"},{"id":"source","label":["ソースコード"],"place":"app/","reads":"プログラム設計（DDL と CSS は詳細設計）"}],"targets":[{"id":"b-pol","layer":"basic","lane":"in","label":"全体の判断","files":"design/basic/inputs/（区分の定義・方式の指定）","count":1,"state":"formed","next":6,"aspects":[{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"b-dec","layer":"basic","lane":"in","label":"個別の判断","files":"design/basic/inputs/（区分の割当、項目・操作・画面への判断）","count":1,"state":"formed","next":6,"aspects":[{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"typ","layer":"basic","lane":"data","label":"型","files":"types.yaml","count":1,"state":"formed","next":5,"aspects":[{"key":"source","label":"読む元","done":false}],"note":""},{"id":"cls","layer":"basic","lane":"data","label":"区分","files":"classes.yaml","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"ent","layer":"basic","lane":"data","label":"エンティティと項目","files":"entities/<エンティティ>.yaml","count":4,"state":"formed","next":5,"aspects":[{"key":"unit","label":"ファイルの単位","done":false},{"key":"source","label":"読む元","done":false}],"note":""},{"id":"qry","layer":"basic","lane":"data","label":"一覧の検索条件","files":"queries.yaml","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"sta","layer":"basic","lane":"biz","label":"状態と遷移","files":"states.yaml","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"rul","layer":"basic","lane":"biz","label":"データの決まり","files":"rules.yaml","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"op","layer":"basic","lane":"biz","label":"操作","files":"operations/<操作>.yaml","count":14,"state":"formed","next":5,"aspects":[{"key":"source","label":"読む元","done":false}],"note":""},{"id":"err","layer":"basic","lane":"biz","label":"エラー","files":"errors.yaml","count":1,"state":"todo","next":3,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"msg","layer":"basic","lane":"biz","label":"メッセージ","files":"messages.yaml","count":1,"state":"todo","next":3,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"scr","layer":"basic","lane":"screen","label":"画面","files":"screens/<画面>.yaml","count":18,"state":"formed","next":5,"aspects":[{"key":"source","label":"読む元","done":false}],"note":""},{"id":"trn","layer":"basic","lane":"screen","label":"画面遷移","files":"transitions.yaml","count":1,"state":"todo","next":4,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"b-chk","layer":"basic","lane":"common","label":"検査記録","files":"composed/final.yaml ほか","count":2,"state":"formed","next":5,"aspects":[{"key":"source","label":"読む元","done":false}],"note":""},{"id":"v-ent","layer":"basic","lane":"view","label":"エンティティ定義書","files":"","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"v-op","layer":"basic","lane":"view","label":"アクション定義書","files":"","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"v-scr","layer":"basic","lane":"view","label":"画面定義書","files":"","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"v-trn","layer":"basic","lane":"view","label":"画面遷移定義書","files":"","count":1,"state":"todo","next":4,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"v-err","layer":"basic","lane":"view","label":"エラー定義書","files":"","count":1,"state":"todo","next":3,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"v-msg","layer":"basic","lane":"view","label":"メッセージ定義書","files":"","count":1,"state":"todo","next":3,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"v-dom","layer":"basic","lane":"view","label":"ドメイン定義書・関連定義書","files":"","count":1,"state":"todo","next":3,"aspects":[{"key":"shape","label":"項目の形","done":false},{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"d-pol","layer":"detail","lane":"in","label":"全体の判断","files":"design/detail/inputs/（SQL と Java の型対応・テーマ）","count":3,"state":"done","next":null,"aspects":[],"note":""},{"id":"d-dec","layer":"detail","lane":"in","label":"個別の判断","files":"design/detail/inputs/（テーブルの台帳、項目への判断）","count":1,"state":"formed","next":4,"aspects":[{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"tbl","layer":"detail","lane":"data","label":"テーブル","files":"tables.yaml","count":1,"state":"formed","next":2,"aspects":[{"key":"making","label":"作り方","done":false}],"note":""},{"id":"acc","layer":"detail","lane":"data","label":"テーブルへの読み書き","files":"table-access/<エンティティ>.yaml","count":4,"state":"todo","next":2,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"stt","layer":"detail","lane":"biz","label":"状態の型","files":"status/<状態の流れ>.yaml","count":1,"state":"todo","next":1,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"svc","layer":"detail","lane":"biz","label":"処理の手順","files":"processes/<操作>.yaml","count":14,"state":"todo","next":3,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"eh","layer":"detail","lane":"biz","label":"エラーの扱い","files":"error-handling.yaml","count":1,"state":"todo","next":3,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"sty","layer":"detail","lane":"screen","label":"画面のクラスの対応表","files":"screen-designs/styles.yaml","count":1,"state":"todo","next":4,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"pg","layer":"detail","lane":"screen","label":"画面の部品と入力","files":"screen-designs/{lists,details,operations}/<画面>.yaml","count":18,"state":"todo","next":4,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"hdl","layer":"detail","lane":"screen","label":"URL と遷移","files":"controllers/<エンティティ>.yaml ほか","count":5,"state":"todo","next":4,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"ses","layer":"detail","lane":"screen","label":"セッション","files":"session.yaml","count":1,"state":"todo","next":4,"aspects":[{"key":"shape","label":"項目の形","done":false}],"note":""},{"id":"d-fix","layer":"detail","lane":"common","label":"型対応とテーマの確定値","files":"java-types.yaml・application-theme.yaml","count":2,"state":"done","next":null,"aspects":[],"note":""},{"id":"d-chk","layer":"detail","lane":"common","label":"検査記録","files":"composed/review.yaml ほか","count":3,"state":"formed","next":4,"aspects":[{"key":"source","label":"読む元","done":false}],"note":""},{"id":"w-tbl","layer":"detail","lane":"view","label":"テーブル設計書","files":"","count":1,"state":"done","next":null,"aspects":[],"note":""},{"id":"w-acc","layer":"detail","lane":"view","label":"テーブルアクセス設計書","files":"","count":1,"state":"todo","next":2,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"w-stt","layer":"detail","lane":"view","label":"状態の判定","files":"","count":1,"state":"todo","next":1,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"w-svc","layer":"detail","lane":"view","label":"処理設計書","files":"","count":1,"state":"todo","next":3,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"w-eh","layer":"detail","lane":"view","label":"エラー設計書","files":"","count":1,"state":"todo","next":3,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"w-pg","layer":"detail","lane":"view","label":"画面設計書","files":"","count":1,"state":"todo","next":4,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"w-hdl","layer":"detail","lane":"view","label":"画面遷移設計","files":"","count":1,"state":"todo","next":4,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"w-ses","layer":"detail","lane":"view","label":"セッション情報設計","files":"","count":1,"state":"todo","next":4,"aspects":[{"key":"view","label":"ビュー","done":false}],"note":""},{"id":"p-pol","layer":"program","lane":"in","label":"全体の判断","files":"design/program/inputs/settings.yaml","count":1,"state":"formed","next":6,"aspects":[{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"row","layer":"program","lane":"data","label":"行モデル","files":"application-data-model.yaml","count":1,"state":"formed","next":2,"aspects":[{"key":"source","label":"読む元","done":false},{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"map","layer":"program","lane":"data","label":"Mapper","files":"application-access.yaml","count":1,"state":"formed","next":2,"aspects":[{"key":"source","label":"読む元","done":false},{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"rt","layer":"program","lane":"biz","label":"状態型と例外","files":"application-runtime-model.yaml","count":1,"state":"formed","next":1,"aspects":[{"key":"source","label":"読む元","done":false},{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"psv","layer":"program","lane":"biz","label":"Service","files":"application-service-{inputs,bindings,programs}.yaml","count":3,"state":"formed","next":3,"aspects":[{"key":"source","label":"読む元","done":false},{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"frm","layer":"program","lane":"screen","label":"Form","files":"application-web-forms.yaml","count":1,"state":"formed","next":4,"aspects":[{"key":"source","label":"読む元","done":false},{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"web","layer":"program","lane":"screen","label":"Controller と画面","files":"application-web-bindings.yaml・application-web.yaml","count":2,"state":"formed","next":4,"aspects":[{"key":"source","label":"読む元","done":false},{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"p-cfg","layer":"program","lane":"common","label":"アプリの設定と出力計画","files":"application.yaml・application-output-plan.yaml","count":2,"state":"formed","next":6,"aspects":[{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"p-chk","layer":"program","lane":"common","label":"検査記録","files":"composed/application/","count":3,"state":"formed","next":6,"aspects":[{"key":"place","label":"置き場所","done":false}],"note":""},{"id":"s-data","layer":"source","lane":"data","label":"行モデル・Mapper・DDL","files":"app/","count":1,"state":"fixed","next":null,"aspects":[],"note":""},{"id":"s-biz","layer":"source","lane":"biz","label":"Service・状態・例外","files":"app/","count":1,"state":"fixed","next":null,"aspects":[],"note":""},{"id":"s-web","layer":"source","lane":"screen","label":"Controller・Form・テンプレート・CSS","files":"app/","count":1,"state":"fixed","next":null,"aspects":[],"note":""},{"id":"s-build","layer":"source","lane":"common","label":"ビルドと起動の設定","files":"app/","count":1,"state":"fixed","next":null,"aspects":[],"note":""}],"removals":[{"id":"g-corr","label":"補正を当てる途中経過と、補正後の業務モデル","note":"業務モデルを写して、補正を当て直すためのもの。項目が業務モデルと判断を直接読むようになったら要らない","total":10,"done":0,"layer":null,"lane":null,"files":"","count":1,"next":3},{"id":"g-res","label":"解いた形","note":"項目を、読む側の古い形に戻す途中経過。読む側が項目を直接読むようになったら要らない","total":2,"done":0,"layer":null,"lane":null,"files":"","count":1,"next":4},{"id":"g-bind","label":"名前の付け替え表","note":"URL・Mapper・Service・セッションの新旧の名前の対応表。項目を ID で指すようになったら要らない","total":4,"done":0,"layer":null,"lane":null,"files":"","count":1,"next":4},{"id":"g-doc","label":"文書への補正・追加の入力","note":"文書の形の設計書に当てる入力。判断は項目へ直接当てる","total":2,"done":0,"layer":null,"lane":null,"files":"","count":1,"next":4}],"tasks":[{"target":"typ","subject":"basic-type-candidates","action":"消す","step":5,"aspect":"source","why":"型を、業務モデルと判断から直接作る","done":false},{"target":"ent","subject":"basic-entity-candidates","action":"消す","step":5,"aspect":"source","why":"エンティティと項目を、業務モデルと判断から直接作る","done":false},{"target":"ent","subject":"basic-entities","action":"変える","step":5,"aspect":"unit","why":"エンティティごとのファイルに分ける","done":false},{"target":"op","subject":"basic-operations","action":"変える","step":5,"aspect":"source","why":"補正後の業務モデルではなく、業務モデルと確定した型・項目を読む","done":false},{"target":"scr","subject":"basic-screens","action":"変える","step":5,"aspect":"source","why":"補正後の業務モデルではなく、業務モデルを読む","done":false},{"target":"err","subject":"errors-derived","action":"作り直す","step":3,"aspect":"shape","why":"エラーを項目の形で作る変換定義 1 本にする","done":false},{"target":"err","subject":"errors","action":"消す","step":3,"aspect":"shape","why":"エラーを項目の形で作る変換定義 1 本にする","done":false},{"target":"msg","subject":"messages-derived","action":"作り直す","step":3,"aspect":"shape","why":"メッセージを項目の形で作る変換定義 1 本にする","done":false},{"target":"msg","subject":"messages","action":"消す","step":3,"aspect":"shape","why":"メッセージを項目の形で作る変換定義 1 本にする","done":false},{"target":"trn","subject":"screen-transitions-derived","action":"作り直す","step":4,"aspect":"shape","why":"画面遷移を項目の形で作る変換定義 1 本にする","done":false},{"target":"trn","subject":"screen-transitions","action":"消す","step":4,"aspect":"shape","why":"画面遷移を項目の形で作る変換定義 1 本にする","done":false},{"target":"b-chk","subject":"basic-final","action":"変える","step":5,"aspect":"source","why":"業務モデルと判断を直接読んで、型・エンティティ・区分を確定する","done":false},{"target":"b-pol","subject":"design/basic/inputs/entities/corrections.yaml","action":"変える","step":6,"aspect":"place","why":"全体の判断（区分の定義・方式の指定）を、個別の判断と別のファイルにする","done":false},{"target":"b-dec","subject":"design/basic/inputs/operations/corrections.yaml","action":"変える","step":6,"aspect":"place","why":"個別の判断を 1 か所にまとめる","done":false},{"target":"b-dec","subject":"design/basic/inputs/screens/corrections.yaml","action":"変える","step":6,"aspect":"place","why":"個別の判断を 1 か所にまとめる","done":false},{"target":"b-dec","subject":"design/basic/inputs/entities/additions.yaml","action":"変える","step":6,"aspect":"place","why":"個別の判断を 1 か所にまとめる","done":false},{"target":"v-trn","subject":"画面遷移定義書のビュー","action":"足す","step":4,"aspect":"view","why":"画面遷移の項目を読むビュー","done":false},{"target":"v-err","subject":"エラー定義書のビュー","action":"足す","step":3,"aspect":"view","why":"エラーの項目を読むビュー","done":false},{"target":"v-msg","subject":"メッセージ定義書のビュー","action":"足す","step":3,"aspect":"view","why":"メッセージの項目を読むビュー","done":false},{"target":"v-dom","subject":"ドメイン定義書のビュー","action":"足す","step":3,"aspect":"view","why":"エンティティ・操作・状態・決まりの項目を読むビュー","done":false},{"target":"v-dom","subject":"domains-derived","action":"消す","step":3,"aspect":"shape","why":"ドメイン定義書はファイルを持たず、ビューだけにする","done":false},{"target":"v-dom","subject":"domains","action":"消す","step":3,"aspect":"shape","why":"ドメイン定義書はファイルを持たず、ビューだけにする","done":false},{"target":"v-dom","subject":"domain-relations-derived","action":"消す","step":3,"aspect":"shape","why":"ドメイン定義書はファイルを持たず、ビューだけにする","done":false},{"target":"v-dom","subject":"domain-relations","action":"消す","step":3,"aspect":"shape","why":"ドメイン定義書はファイルを持たず、ビューだけにする","done":false},{"target":"tbl","subject":"detail-tables-derived","action":"消す","step":2,"aspect":"making","why":"導出と確定の 2 本を 1 本にまとめる（判断は項目へ直接当てる）","done":false},{"target":"acc","subject":"table-access-derived","action":"作り直す","step":2,"aspect":"shape","why":"テーブルへの読み書きを、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"acc","subject":"table-access","action":"消す","step":2,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"stt","subject":"status-rules-derived","action":"作り直す","step":1,"aspect":"shape","why":"状態の型を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"stt","subject":"status-rules","action":"消す","step":1,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"svc","subject":"processes-derived","action":"作り直す","step":3,"aspect":"shape","why":"処理の手順を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"svc","subject":"processes","action":"消す","step":3,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"eh","subject":"error-handling-derived","action":"作り直す","step":3,"aspect":"shape","why":"エラーの扱いを、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"eh","subject":"error-handling","action":"消す","step":3,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"sty","subject":"screen-styles-derived","action":"作り直す","step":4,"aspect":"shape","why":"画面のクラスの対応表を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"sty","subject":"screen-styles","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"pg","subject":"screen-designs-lists-derived","action":"作り直す","step":4,"aspect":"shape","why":"画面の部品と入力を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"pg","subject":"screen-designs-lists","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"pg","subject":"screen-designs-details-derived","action":"作り直す","step":4,"aspect":"shape","why":"画面の部品と入力を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"pg","subject":"screen-designs-details","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"pg","subject":"screen-designs-operations-derived","action":"作り直す","step":4,"aspect":"shape","why":"画面の部品と入力を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"pg","subject":"screen-designs-operations","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"hdl","subject":"screen-flows-derived","action":"作り直す","step":4,"aspect":"shape","why":"URL と遷移を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"hdl","subject":"screen-flows","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"hdl","subject":"dashboard-flows-derived","action":"作り直す","step":4,"aspect":"shape","why":"URL と遷移を、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"hdl","subject":"dashboard-flows","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"ses","subject":"session-design-derived","action":"作り直す","step":4,"aspect":"shape","why":"セッションを、基本設計の項目だけを読んで項目の形で作る変換定義にする","done":false},{"target":"ses","subject":"session-design","action":"消す","step":4,"aspect":"shape","why":"確定の変換定義。判断は項目へ直接当てる","done":false},{"target":"d-chk","subject":"system-final","action":"変える","step":4,"aspect":"source","why":"文書の形の設計書の確定前検査。文書が無くなるので、項目の検査記録に作り直す","done":false},{"target":"d-dec","subject":"design/detail/inputs/documents/corrections.yaml","action":"消す","step":4,"aspect":"place","why":"文書への補正・追加を、項目への判断に置き換える","done":false},{"target":"d-dec","subject":"design/detail/inputs/documents/additions.yaml","action":"消す","step":4,"aspect":"place","why":"文書への補正・追加を、項目への判断に置き換える","done":false},{"target":"w-acc","subject":"テーブルアクセス設計書のビュー","action":"足す","step":2,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"w-stt","subject":"状態の判定のビュー","action":"足す","step":1,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"w-svc","subject":"処理設計書のビュー","action":"足す","step":3,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"w-eh","subject":"エラー設計書のビュー","action":"足す","step":3,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"w-pg","subject":"画面設計書のビュー","action":"足す","step":4,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"w-hdl","subject":"画面遷移設計のビュー","action":"足す","step":4,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"w-ses","subject":"セッション情報設計のビュー","action":"足す","step":4,"aspect":"view","why":"項目を読むビュー","done":false},{"target":"row","subject":"application-data-model","action":"変える","step":2,"aspect":"source","why":"テーブルの項目だけを読む（エンティティ定義書を直接読まない）","done":false},{"target":"row","subject":"application-data-model","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"map","subject":"application-access","action":"変える","step":2,"aspect":"source","why":"テーブルへの読み書きの項目を読む","done":false},{"target":"map","subject":"application-access","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"rt","subject":"application-runtime-model","action":"変える","step":1,"aspect":"source","why":"状態の型の項目を読む","done":false},{"target":"rt","subject":"application-runtime-model","action":"変える","step":3,"aspect":"source","why":"エラーの扱いの項目を読む","done":false},{"target":"rt","subject":"application-runtime-model","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"psv","subject":"application-service-inputs","action":"変える","step":3,"aspect":"source","why":"処理の手順の項目だけを読む（操作を直接読まない）","done":false},{"target":"psv","subject":"application-service-bindings","action":"変える","step":3,"aspect":"source","why":"処理の手順とテーブルへの読み書きの項目を読む","done":false},{"target":"psv","subject":"application-service-programs","action":"変える","step":3,"aspect":"source","why":"詳細設計の項目だけを読む（エンティティ定義書を直接読まない）","done":false},{"target":"psv","subject":"application-service-inputs","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"psv","subject":"application-service-bindings","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"psv","subject":"application-service-programs","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"frm","subject":"application-web-forms","action":"変える","step":4,"aspect":"source","why":"画面の部品と入力の項目だけを読む（メッセージ定義書を直接読まない）","done":false},{"target":"frm","subject":"application-web-forms","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"web","subject":"application-web-bindings","action":"変える","step":4,"aspect":"source","why":"URL と遷移の項目を読む","done":false},{"target":"web","subject":"application-web","action":"変える","step":4,"aspect":"source","why":"詳細設計の項目だけを読む（基本設計の画面・画面遷移・メッセージを直接読まない）","done":false},{"target":"web","subject":"application-web-bindings","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"web","subject":"application-web","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"p-cfg","subject":"application-configuration","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"p-cfg","subject":"application-output-plan","action":"移す","step":6,"aspect":"place","why":"プログラム設計の置き場所へ移す","done":false},{"target":"p-chk","subject":"application-input-gate ほか 2 本","action":"移す","step":6,"aspect":"place","why":"検査記録もプログラム設計の置き場所へ移す","done":false},{"target":"p-pol","subject":"design/detail/inputs/application/settings.yaml","action":"移す","step":6,"aspect":"place","why":"プログラム設計の全体の判断へ移す","done":false},{"target":"g-corr","subject":"basic-derived","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-targets","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-descriptions","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-type-changes","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-type-model","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-field-uses","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-field-changes","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"basic-field-model","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"system-model","action":"消す","step":5,"aspect":"remove","why":"補正の足場","done":false},{"target":"g-corr","subject":"system-screen-input-model","action":"消す","step":3,"aspect":"remove","why":"補正後の業務モデル（3 段目）。メッセージを項目にしたら要らない","done":false},{"target":"g-res","subject":"basic-operations-resolved","action":"消す","step":4,"aspect":"remove","why":"読む側が項目を直接読むようになったら消す","done":false},{"target":"g-res","subject":"basic-screens-resolved","action":"消す","step":4,"aspect":"remove","why":"読む側が項目を直接読むようになったら消す","done":false},{"target":"g-bind","subject":"system-screen-bindings","action":"消す","step":4,"aspect":"remove","why":"最後の読み手（画面の系統）が項目を ID で指すようになったら消す","done":false},{"target":"g-bind","subject":"system-access-bindings","action":"消す","step":4,"aspect":"remove","why":"最後の読み手（画面の系統）が項目を ID で指すようになったら消す","done":false},{"target":"g-bind","subject":"system-process-bindings","action":"消す","step":4,"aspect":"remove","why":"最後の読み手（画面の系統）が項目を ID で指すようになったら消す","done":false},{"target":"g-bind","subject":"system-session-bindings","action":"消す","step":4,"aspect":"remove","why":"最後の読み手（画面の系統）が項目を ID で指すようになったら消す","done":false},{"target":"g-doc","subject":"design/basic/inputs/documents/corrections.yaml","action":"消す","step":4,"aspect":"remove","why":"基本設計の文書の形が無くなる","done":false},{"target":"g-doc","subject":"design/basic/inputs/documents/additions.yaml","action":"消す","step":4,"aspect":"remove","why":"基本設計の文書の形が無くなる","done":false}],"totals":[{"label":"目標の形になった箱","value":10,"unit":"/ 51 箱","done":10,"of":51,"note":"ほかに、形は目標どおりの箱が 19"},{"label":"済んだ「やること」","value":0,"unit":"/ 98 件","done":0,"of":98,"note":"いまは歩 1"},{"label":"変換定義","value":81,"unit":"本（目標は 43 本前後）","done":0,"of":38,"note":"計画を立てた時点は 81 本"},{"label":"理想に無いファイル","value":19,"unit":"種（目標は 0）","done":0,"of":19,"note":"計画を立てた時点は 19 種"},{"label":"目指す形から外れている流れ","value":6,"unit":"本（目標は 0）","done":0,"of":6,"note":"計画を立てた時点は 6 本"}],"stats":[["基本設計の箱（21）","目標の形 7、形は目標どおり 7、まだ 7（エラー、メッセージ、画面遷移、画面遷移定義書、エラー定義書、メッセージ定義書、ドメイン定義書・関連定義書）"],["詳細設計の箱（21）","目標の形 3、形は目標どおり 3、まだ 15（テーブルへの読み書き、状態の型、処理の手順、エラーの扱い、画面のクラスの対応表、画面の部品と入力、URL と遷移、セッション、テーブルアクセス設計書、状態の判定、処理設計書、エラー設計書、画面設計書、画面遷移設計、セッション情報設計）"],["プログラム設計の箱（9）","目標の形 0、形は目標どおり 9、まだ 0"],["やることの内訳","消す 0 / 41、変える 0 / 19、作り直す 0 / 14、足す 0 / 11、移す 0 / 13"],["無くすもの","補正を当てる途中経過と、補正後の業務モデル 0 / 10、解いた形 0 / 2、名前の付け替え表 0 / 4、文書への補正・追加の入力 0 / 2"]],"warnings":[],"workspace":"samples/todos-sysdev"};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const text = (id, value) => { document.getElementById(id).textContent = value; };
+const pct = (a, b) => b ? Math.round(a * 100 / b) : 100;
+const bar = (a, b) => `<div class="bar" role="img" aria-label="${a} / ${b}"><i style="width:${pct(a, b)}%"></i></div>`;
+const STATE = { done: '目標の形', formed: '形は目標どおり', doing: '途中', todo: 'まだ', fixed: '変えない' };
+const stepName = id => { const s = DATA.steps.find(x => x.id === id); return s ? `歩 ${s.id} ${s.name}` : ''; };
+const byId = Object.fromEntries([...DATA.targets, ...DATA.removals].map(t => [t.id, t]));
+
+text('title', DATA.title);
+text('lede', DATA.summary);
+
+// ---- 全体 ----
+document.getElementById('totals').innerHTML = DATA.totals.map(t =>
+  `<div class="total"><span class="k">${esc(t.label)}</span><span class="v">${esc(t.value)} <small>${esc(t.unit)}</small></span>${t.of != null ? bar(t.done, t.of) : ''}<span class="k">${esc(t.note)}</span></div>`).join('');
+
+// ---- 歩 ----
+document.getElementById('steps').innerHTML = DATA.steps.map(s =>
+  `<div class="step${s.id === DATA.current ? ' now' : ''}${s.done === s.total ? ' fin' : ''}"><span class="n">${s.id}</span><span class="name">${esc(s.name)}</span><span class="does">${esc(s.does)}</span>${bar(s.done, s.total)}<span class="count">${s.done} / ${s.total}</span></div>`).join('');
+
+// ---- 格子 ----
+const grid = document.getElementById('grid');
+grid.style.setProperty('--lanes', DATA.lanes.length);
+let html = '<div class="head corner">段 ＼ 系統</div>' + DATA.lanes.map(l => `<div class="head">${esc(l.label)}</div>`).join('');
+html += `<div class="down"><span>業務モデル（人が書く。変えない）</span><span>↓ アーキテクチャマッピング</span></div>`;
+DATA.layers.forEach((layer, i) => {
+  if (i > 0) html += `<div class="down"><span>↓ ${esc(['', '技術スタックマッピング', 'コードマッピング（前半）', 'コードマッピング（後半）'][i] || '')}</span></div>`;
+  html += `<div class="layer"><span class="name">${layer.label.map(esc).join('<br>')}</span><span class="place">${esc(layer.place)}</span><span class="reads">読むのは ${esc(layer.reads)}</span></div>`;
+  for (const lane of DATA.lanes) {
+    const boxes = DATA.targets.filter(t => t.layer === layer.id && t.lane === lane.id);
+    html += '<div>' + boxes.map(t => {
+      const chip = t.state === 'done' ? '済' : t.state === 'fixed' ? '' : `歩 ${t.next}`;
+      const marks = t.aspects.map(a => `<span class="${a.done ? 'ok' : 'ng'}">${a.done ? '✓' : '○'} ${esc(a.label)}</span>`).join('');
+      return `<button type="button" class="box st-${t.state}" data-id="${esc(t.id)}"${t.state === 'fixed' ? ' tabindex="-1"' : ''}>
+        <span class="top"><span class="label">${esc(t.label)}${t.count > 1 ? ` ×${t.count}` : ''}</span><span class="chip">${chip}</span></span>
+        ${t.files ? `<span class="files">${esc(t.files)}</span>` : ''}${marks ? `<span class="marks">${marks}</span>` : ''}</button>`;
+    }).join('') + '</div>';
+  }
+});
+grid.innerHTML = html;
+
+// ---- 無くすもの ----
+document.getElementById('removals').innerHTML = DATA.removals.map(r =>
+  `<button type="button" class="removal${r.done === r.total ? ' st-done' : ''}" data-id="${esc(r.id)}"><span class="label">${esc(r.label)}</span>${bar(r.done, r.total)}<span class="count">${r.done} / ${r.total} を消した${r.done < r.total ? `（${esc(stepName(r.next))}）` : ''}</span><span class="note">${esc(r.note)}</span></button>`).join('');
+
+// ---- 選択と詳細 ----
+const panel = document.getElementById('panel');
+let current = null;
+function select(id) {
+  current = !id || id === current ? null : id;
+  for (const e of document.querySelectorAll('.box, .removal')) e.classList.toggle('sel', e.dataset.id === current);
+  if (!current) { panel.innerHTML = '<h3>箱を選んでください</h3><p class="none">目標のファイルか、無くすものを押すと、済んだことと残っていることが出ます。</p>'; return; }
+  const t = byId[current], tasks = DATA.tasks.filter(k => k.target === current);
+  const layer = DATA.layers.find(l => l.id === t.layer), lane = DATA.lanes.find(l => l.id === t.lane);
+  panel.innerHTML = `
+    <div><div class="where">${layer ? esc(layer.label[0]) + ' ／ ' + esc(lane.label) : '無くすもの'}</div><h3 style="font-size:15px">${esc(t.label)}</h3></div>
+    ${t.files ? `<div class="path">${esc(t.files)}${t.count > 1 ? `（${t.count} ファイル）` : ''}</div>` : ''}
+    ${t.note ? `<p class="none">${esc(t.note)}</p>` : ''}
+    <div><h3>${tasks.length ? `やること（${tasks.filter(k => k.done).length} / ${tasks.length} 済み）` : 'やること'}</h3></div>
+    ${tasks.length ? `<ul class="todo-list">${tasks.map(k => `<li><span class="mark ${k.done ? 'ok' : 'ng'}">${k.done ? '✓' : '○'}</span><span>${esc(k.why)}<br><span class="meta">${esc(k.action)}: <span class="path">${esc(k.subject)}</span> ／ ${esc(stepName(k.step))}</span></span></li>`).join('')}</ul>` : '<p class="none">ありません。いまの形が目標の形です。</p>'}
+    <button type="button" class="clear" id="clear">選択を外す</button>`;
+}
+document.querySelector('.wrap').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (b.id === 'clear') select(null);
+  else if (b.dataset.id && !b.classList.contains('st-fixed')) select(b.dataset.id);
+});
+
+// ---- 一覧 ----
+const fStep = document.getElementById('f-step'), fState = document.getElementById('f-state');
+fStep.innerHTML = '<option value="">すべて</option>' + DATA.steps.map(s => `<option value="${s.id}">${s.id} ${esc(s.name)}</option>`).join('');
+function table() {
+  const rows = DATA.tasks.filter(k => (!fStep.value || String(k.step) === fStep.value) && (!fState.value || (fState.value === 'ok') === k.done));
+  text('f-count', `${rows.length} 件（全 ${DATA.tasks.length} 件）`);
+  document.getElementById('tasks').innerHTML = '<thead><tr><th>状態</th><th>歩</th><th>目標の箱</th><th>どうする</th><th>対象（変換定義・ファイル）</th><th>内容</th></tr></thead><tbody>' +
+    rows.map(k => `<tr><td class="state ${k.done ? 'ok' : 'ng'}">${k.done ? '✓ 済' : '○ 残'}</td><td class="num">${k.step}</td><td>${esc(byId[k.target].label)}</td><td class="num">${esc(k.action)}</td><td class="path">${esc(k.subject)}</td><td>${esc(k.why)}</td></tr>`).join('') + '</tbody>';
+}
+fStep.addEventListener('change', table); fState.addEventListener('change', table);
+if (DATA.current) fStep.value = String(DATA.current);
+table();
+
+// ---- 数えたこと・注意 ----
+document.getElementById('stats').innerHTML = DATA.stats.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+document.getElementById('warnings').innerHTML = DATA.warnings.map(n => `<li>${esc(n)}</li>`).join('');
+document.getElementById('warnings-section').hidden = !DATA.warnings.length;
+document.getElementById('footer').innerHTML = [`目標の箱・無くすもの・やることは <code>scripts/design-map.json</code> の <code>plan</code> に人が書いたものです。済んだかどうかは、いまの変換定義・ファイル・読む線から <code>scripts/design-map.py</code> が計算します。`, `${esc(DATA.workspace)} について作りました。`].map(x => `<span>${x}</span>`).join('');
+
+select(null);
+</script>
+</body>
+</html>
