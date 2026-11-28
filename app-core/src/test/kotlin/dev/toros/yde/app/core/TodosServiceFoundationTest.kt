@@ -32,11 +32,11 @@ class TodosServiceFoundationTest {
         assertFalse(update.containsKey("when"), "最初の代入の条件で更新全体を止めない")
         val title = rows(update, "set").single { it["item"] == "title" }
         assertEquals(listOf(mapOf("path" to "title", "exists" to true)), title["when"])
-        assertTrue(steps.any { it["kind"] == "delete" && it["call"] == "TodoMapper.deleteTodoTags" &&
+        assertTrue(steps.any { it["kind"] == "delete" && it["call"] == "MTH-todo.deleteTodoTags" &&
             it["when"] == listOf(mapOf("path" to "clear.tags", "equals" to true)) })
         // 並びの番号で指す操作: 明細の 1 行を並び順（seq）で指し、行の鍵と「行が無いとき」を手順に残す。全件の削除や入れ直しにはしない
         val editComment = rows(document("design/detail/final/processes/edit-todo-comment.yaml"), "steps")
-        val rowUpdate = editComment.single { it["call"] == "TodoMapper.editTodoCommentCommentsRow" }
+        val rowUpdate = editComment.single { it["call"] == "MTH-todo.editTodoCommentCommentsRow" }
         assertEquals("update", rowUpdate["kind"])
         assertEquals(mapOf("item" to "seq", "param" to "row"), rowUpdate["rowKey"])
         assertEquals(listOf("date", "body"), rows(rowUpdate, "set").map { it["item"] })
@@ -46,11 +46,11 @@ class TodosServiceFoundationTest {
         assertTrue(editComment.none { it["kind"] == "insert" || it["kind"] == "delete" }, "1 行の書き換えは、消して入れ直さない")
         val deleteComment = rows(document("design/detail/final/processes/delete-todo-comment.yaml"), "steps")
         val rowDelete = deleteComment.single { it["kind"] == "delete" }
-        assertEquals("TodoMapper.deleteTodoCommentCommentsRow", rowDelete["call"])
+        assertEquals("MTH-todo.deleteTodoCommentCommentsRow", rowDelete["call"], "呼ぶ Mapper のメソッドは ID で参照する")
         assertEquals(mapOf("item" to "seq", "param" to "row"), rowDelete["rowKey"])
         assertFalse(rowDelete.containsKey("key"), "親のキーだけの全件削除にしない")
         val child = document("design/detail/final/processes/todo-task.finish.yaml")
-        assertTrue(rows(child, "steps").filter { it["step"] == "check" }.all { it["entity"] == "todo" })
+        assertTrue(rows(child, "steps").filter { it["step"] == "check" }.all { it["entity"] == "ENT-todo" })
         val after = rows(child, "steps").single { it["phase"] == "after" }
         assertEquals(mapOf("self" to "todo_id"), after["key"])
         val check = document("design/detail/composed/application/process-contract.yaml")
@@ -87,7 +87,8 @@ class TodosServiceFoundationTest {
         val process = raw(plan.outputs.single { it.document.value == "design/detail/final/processes/add-todo-task.yaml" }.text)
         val insert = rows(process, "steps").single { it["kind"] == "insert" }
         val sequence = (((insert["values"] as Map<*, *>)["seq"] as Map<*, *>)["sequence"] as Map<*, *>)
-        assertEquals("TodoTaskMapper.lastPosition", sequence["call"])
+        assertEquals("MTH-todo-task.maxSeq", sequence["call"], "メソッドの名前を変えても、ステップが参照する ID は変わらない")
+        assertTrue("TodoTaskMapper.lastPosition" in plan.outputs.single { it.generator == "application-process-gate" }.text, "変更後の名前は、ID から解決して下流に出る")
     }
 
     private fun probe(input: InMemoryDocumentStore, generator: String) {
@@ -95,9 +96,12 @@ class TodosServiceFoundationTest {
         val files = if (generator == "application-runtime-model") {
             listOf("design/detail/final/status/todo-lifecycle.yaml", "design/detail/final/error-handling.yaml")
         } else {
-            Files.list(sample.resolve("design/detail/final/processes")).use { paths ->
-                paths.map { "design/detail/final/processes/${it.fileName}" }.toList()
-            } + "design/detail/final/application-access.yaml"
+            // 処理の手順は、Mapper のメソッド・メッセージ・状態の定数を ID で参照するので、参照先のレコードも入力にする
+            listOf("processes", "table-access", "status").flatMap { directory ->
+                Files.list(sample.resolve("design/detail/final/$directory")).use { paths ->
+                    paths.map { "design/detail/final/$directory/${it.fileName}" }.toList()
+                }
+            } + "design/detail/final/application-access.yaml" + "design/basic/final/messages.yaml"
         }
         files.forEach { put(input, it, raw(input.read(DocumentId(it))!!.text)) }
         val definition = TodosSysdevFiles.definition(sample, "transforms", generator)
@@ -184,7 +188,7 @@ class TodosServiceFoundationTest {
         probe(input, "application-process-gate")
         assertEquals(emptyList(), Generators.plan(WorkspaceSession(input), setOf("service-foundation-probe")).errors)
         val file = "design/detail/final/processes/add-todo-task.yaml"
-        input.write(DocumentId(file), input.read(DocumentId(file))!!.text.replace("TodoTaskMapper.maxSeq", "TodoTaskMapper.missing"))
+        input.write(DocumentId(file), input.read(DocumentId(file))!!.text.replace("MTH-todo-task.maxSeq", "MTH-todo-task.missing"))
         val plan = Generators.plan(WorkspaceSession(input), setOf("service-foundation-probe"))
         assertTrue(plan.errors.any { "呼び先に対応する" in it }, plan.errors.toString())
         assertTrue(plan.transaction.operations.isEmpty())

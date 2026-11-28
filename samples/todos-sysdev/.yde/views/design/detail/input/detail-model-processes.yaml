@@ -1,0 +1,6 @@
+id: detail-model-processes
+name: 詳細設計の生成入力（処理の手順）
+description: 処理の手順のレコード（PRC-）を、操作ごとに 1 件ずつ読む
+rows: { idPattern: "PRC-*", schemaIds: [detail-process] }
+columns:
+  - { label: record, path: . }

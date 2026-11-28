@@ -2,7 +2,7 @@
 id: APP-service-inputs
 operations:
   - id: SINPUT-add-category
-    source: DOC-processes.add-category
+    source: PRC-add-category
     action: add-category
     service: CategoryService
     method: addCategory
@@ -28,7 +28,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-add-tag
-    source: DOC-processes.add-tag
+    source: PRC-add-tag
     action: add-tag
     service: TagService
     method: addTag
@@ -54,7 +54,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-add-todo-comment
-    source: DOC-processes.add-todo-comment
+    source: PRC-add-todo-comment
     action: add-todo-comment
     service: TodoService
     method: addTodoComment
@@ -120,7 +120,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-add-todo-task
-    source: DOC-processes.add-todo-task
+    source: PRC-add-todo-task
     action: add-todo-task
     service: TodoService
     method: addTodoTask
@@ -173,7 +173,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-cancel-todo
-    source: DOC-processes.cancel-todo
+    source: PRC-cancel-todo
     action: cancel-todo
     service: TodoService
     method: cancelTodo
@@ -224,7 +224,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-complete-todo
-    source: DOC-processes.complete-todo
+    source: PRC-complete-todo
     action: complete-todo
     service: TodoService
     method: completeTodo
@@ -290,7 +290,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-delete-todo-comment
-    source: DOC-processes.delete-todo-comment
+    source: PRC-delete-todo-comment
     action: delete-todo-comment
     service: TodoService
     method: deleteTodoComment
@@ -346,7 +346,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-delete-todo-task
-    source: DOC-processes.delete-todo-task
+    source: PRC-delete-todo-task
     action: delete-todo-task
     service: TodoService
     method: deleteTodoTask
@@ -402,7 +402,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-edit-todo
-    source: DOC-processes.edit-todo
+    source: PRC-edit-todo
     action: edit-todo
     service: TodoService
     method: editTodo
@@ -899,7 +899,7 @@ operations:
                 builtin: true
             classes: []
   - id: SINPUT-edit-todo-comment
-    source: DOC-processes.edit-todo-comment
+    source: PRC-edit-todo-comment
     action: edit-todo-comment
     service: TodoService
     method: editTodoComment
@@ -984,7 +984,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-register-todo
-    source: DOC-processes.register-todo
+    source: PRC-register-todo
     action: register-todo
     service: TodoService
     method: registerTodo
@@ -1147,7 +1147,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-resume-todo
-    source: DOC-processes.resume-todo
+    source: PRC-resume-todo
     action: resume-todo
     service: TodoService
     method: resumeTodo
@@ -1210,7 +1210,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-start-todo
-    source: DOC-processes.start-todo
+    source: PRC-start-todo
     action: start-todo
     service: TodoService
     method: startTodo
@@ -1245,7 +1245,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-suspend-todo
-    source: DOC-processes.suspend-todo
+    source: PRC-suspend-todo
     action: suspend-todo
     service: TodoService
     method: suspendTodo
@@ -1325,7 +1325,7 @@ operations:
         classes: []
     classes: []
   - id: SINPUT-todo-task.finish
-    source: DOC-processes.todo-task.finish
+    source: PRC-todo-task.finish
     action: todo-task.finish
     service: TodoTaskService
     method: todoTaskFinish

@@ -1,6 +1,35 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: add-todo-comment
-name: TODOにコメントを追加する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-add-todo-comment
+source: ACT-add-todo-comment
+operation: add-todo-comment
+label: TODOにコメントを追加する
+inputs:
+  - key: date
+    label: 記録日
+    type: common#年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    required: true
+    format: yyyy年M月d日
+  - key: body
+    label: コメント本文
+    type: todo-operations#操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    required: true
+    minLength: 1
+    multiline: true
+  - key: version
+    label: 版
+    type: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+    carried: true
 service:
   class: TodoService
   method: addTodoComment
@@ -12,39 +41,42 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: read
-    call: TodoMapper.findById
+  - id: STP-add-todo-comment.01
+    step: read
+    call: MTH-todo.findById
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
-    entity: todo
-  - step: check
-    precondition: add-todo-comment.version-unchanged
+    entity: ENT-todo
+  - id: STP-add-todo-comment.02
+    step: check
+    precondition: PRE-add-todo-comment.version-unchanged
     by: Java（読んだ行）
     rule:
       - of: t
         path: version
         equals: $version
-    message: add-todo-comment.version-unchanged
-    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    message: MSG-add-todo-comment.version-unchanged
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    constraint: updated-not-before-created
+    entity: ENT-todo
+  - id: STP-add-todo-comment.03
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
         - gte:
             - path: updated_on
             - path: created_on
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: write
-    call: TodoMapper.insertTodoComments
+    entity: ENT-todo
+  - id: STP-add-todo-comment.04
+    step: write
+    call: MTH-todo.insertTodoComments
     kind: insert
     values:
       todo_id: $id
@@ -52,11 +84,12 @@ steps:
       body: $body
     seq:
       mode: next
-      call: TodoMapper.maxSeqTodoComments
+      call: MTH-todo.maxSeqTodoComments
       key:
         param: id
-  - step: write
-    call: TodoMapper.addTodoComment
+  - id: STP-add-todo-comment.05
+    step: write
+    call: MTH-todo.addTodoComment
     kind: update
     set:
       - item: updated_on
@@ -73,22 +106,4 @@ steps:
         value:
           param: id
 subject: todo
-originalService:
-  class: TodoService
-  method: addTodoComment
-  arguments:
-    - id
-    - date
-    - body
-    - version
 transactionMode: atomic
-designId: DOC-processes.add-todo-comment
-designKind: processes
-designPath: design/detail/final/processes/add-todo-comment.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

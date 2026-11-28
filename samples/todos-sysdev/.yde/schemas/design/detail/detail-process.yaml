@@ -1,0 +1,92 @@
+id: detail-process
+name: 詳細設計項目一覧（処理の手順）
+kind: document
+description: >-
+  具体システムモデルの「処理の手順」。操作 1 つを 1 ファイルにし、処理（PRC-。Service のメソッド 1 つ）と、1 トランザクションの中のステップ（STP-）を持つ。
+  ステップは、呼ぶ Mapper のメソッド（MTH-）・事前条件（PRE-）・状態エラーのエラーケース（ERR-）・制約（RUL-）・メッセージ（MSG-）・
+  エンティティ（ENT-）・状態の定数（ENC-）を ID で参照する（名前とメッセージのテキストはコピーしない）。
+  オーバーライド（design/detail/inputs/decisions.yaml）で変更できるのは、Service のクラス名（serviceClass）とメソッド名（serviceMethod）。
+  処理設計書は、このレコードを読むビュー。生成物（.yde/transforms/design/detail/detail-processes.yaml）で、手で直さない
+match: design/detail/final/processes/*.yaml
+entity:
+  type: sysdev-process
+  defines: true
+root:
+  type: object
+  fields:
+    - { key: id, label: 設計項目ID, type: id, required: true, pattern: '^PRC-\S+$', description: PRC-操作 }
+    - key: source
+      label: 生成元
+      type: ref
+      required: true
+      idPatterns: [ACT-*]
+      description: 基本設計の操作
+    - { key: operation, label: 操作, type: ref, required: true, description: 業務モデルの操作 }
+    - { key: label, label: 名前, type: string, role: title }
+    - key: inputs
+      label: 入力パラメータ
+      type: array
+      description: Service が受け取る入力パラメータの定義（基本設計の操作の入力 PRM- を、型などの参照先を解決して運ぶ）。Service の入力のプログラム設計が、基本設計を読まずにここを読む
+      item:
+        type: any
+    - key: service
+      label: Service
+      type: object
+      required: true
+      fields:
+        - { key: class, label: クラス, type: string, required: true, pattern: '^[A-Z][A-Za-z0-9]*$' }
+        - { key: method, label: メソッド, type: string, required: true, pattern: '^[a-z][A-Za-z0-9]*$' }
+        - { key: arguments, label: 引数, type: array, item: { type: string } }
+    - key: confirm
+      label: 確認時のチェック（書かない）
+      type: array
+      item:
+        type: object
+        fields:
+          - { key: method, label: メソッド, type: string, required: true }
+          - { key: arguments, label: 引数, type: array, item: { type: string } }
+          - { key: does, label: 内容, type: string }
+          - key: constraints
+            label: チェックする制約
+            type: array
+            item:
+              type: object
+              fields:
+                - { key: constraint, label: 制約, type: ref, required: true, idPatterns: [RUL-*] }
+                - { key: field, label: エラーを表示する入力, type: string }
+                - { key: message, label: メッセージ, type: ref, required: true, idPatterns: [MSG-*] }
+    - { key: transaction, label: トランザクション, type: string }
+    - key: steps
+      label: ステップ
+      type: array
+      display: list
+      item:
+        type: object
+        unknownFields: allow
+        fields:
+          - { key: id, label: 設計項目ID, type: id, required: true, pattern: '^STP-\S+$', description: STP-操作.連番 }
+          - key: step
+            label: 種類
+            type: enum
+            required: true
+            values:
+              - { value: read, label: 読む }
+              - { value: read-owner, label: 親を読む }
+              - { value: number, label: 採番 }
+              - { value: check, label: チェック }
+              - { value: write, label: 書く }
+          - { key: call, label: 呼ぶ Mapper のメソッド, type: ref, idPatterns: [MTH-*] }
+          - { key: precondition, label: 事前条件, type: ref, idPatterns: [PRE-*] }
+          - { key: error, label: エラーケース（状態エラー）, type: ref, idPatterns: [ERR-*] }
+          - { key: constraint, label: 制約, type: ref, idPatterns: [RUL-*] }
+          - { key: message, label: メッセージ, type: ref, idPatterns: [MSG-*] }
+          - { key: entity, label: エンティティ, type: ref, idPatterns: [ENT-*] }
+          - key: allowed
+            label: 実行できる状態
+            type: array
+            item: { type: ref, idPatterns: [ENC-*] }
+          - { key: by, label: チェックの実装方式, type: string }
+    - { key: subject, label: 対象のエンティティ型, type: string }
+    - { key: transactionMode, label: トランザクションの方式, type: string }
+    - { key: decisions, label: 適用したオーバーライド, type: any }
+  unknownFields: error

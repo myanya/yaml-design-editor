@@ -104,14 +104,13 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(43, shown("system-document-list").size)
+        assertEquals(28, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(15, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
         val individual = shown("action-design-related", mapOf("source" to "complete-todo")).single()
         assertEquals(process["steps"], cell(individual, "steps"))
-        val cross = shown("system-document-content", mapOf("document" to "DOC-processes.complete-todo")).single()
-        assertEquals(process, cell(cross, "内容"))
+        assertEquals(listOf("PRC-complete-todo", "ACT-complete-todo"), listOf(process["id"], process["source"]), "処理の手順は ID 付きレコードで、基本設計の操作を参照する")
         val detailed = raw(Files.readString(sample.resolve("design/detail/final/screen-designs/operations/complete-todo.yaml")))
         val screen = shown("screen-design-related", mapOf("source" to "complete-todo")).single()
         assertEquals(detailed["form"], cell(screen, "form"))
@@ -136,11 +135,6 @@ class TodosSystemDocumentsTest {
     @Test
     fun `物理名と呼出先と画面入力とメッセージとセッションの補正を後段へ渡す`() {
         val input = store("""
-            - id: SCOR-service
-              kind: processes
-              target: DOC-processes.complete-todo
-              reason: 呼出名
-              changes: [{path: [service, class], value: CompletionService}, {path: [service, method], value: finish}]
             - {id: SCOR-session, kind: session-design, target: DOC-session-design.session-design, select: {collection: attributes, key: role, equals: token}, set: {key: confirmationToken}, reason: セッションのキー}
         """.trimIndent().prependIndent("\n  "), """
             - id: SADD-preference
@@ -167,6 +161,7 @@ class TodosSystemDocumentsTest {
             decisions:
               - {id: DDEC-901, target: ACC-todo, set: {mapper: TodoStore}, reason: 保存先}
               - {id: DDEC-902, target: MTH-todo.completeTodo, set: {name: saveCompletion}, reason: 呼出名}
+              - {id: DDEC-903, target: PRC-complete-todo, set: {serviceClass: CompletionService, serviceMethod: finish}, reason: 呼出名}
         """.trimIndent())
         // 操作への個別の判断は、基本設計の「操作」の項目（操作 ACT-・入力 PRM-）を ID で指す
         input.write(DocumentId("design/basic/inputs/operations/corrections.yaml"), """
@@ -196,8 +191,13 @@ class TodosSystemDocumentsTest {
         val mapperSql = plan.outputs.single { it.document.value == "design/detail/final/application-access.yaml" }.text
         assertTrue("todo_records" in mapperSql && "completion_result" in mapperSql, "物理名の補正は、テーブルの項目から Mapper のプログラム設計へ届く")
         val process = doc("design/detail/final/processes/complete-todo.yaml")
-        assertEquals("TodoStore.saveCompletion", rows(process, "steps").first { it["step"] == "write" }["call"])
-        assertEquals("未完了の作業があります（確認用）。", rows(process, "steps").single { it["precondition"] == "complete-todo.no-open-task" }["text"])
+        // ステップは、Mapper のメソッドとメッセージを ID で参照する（名前とテキストはコピーしない）。変更後の名前とテキストは、参照先のレコードと、下流のプログラム設計に出る
+        assertEquals("MTH-todo.completeTodo", rows(process, "steps").first { it["step"] == "write" }["call"])
+        assertEquals("MSG-complete-todo.no-open-task", rows(process, "steps").single { it["precondition"] == "PRE-complete-todo.no-open-task" }["message"])
+        assertEquals(listOf<Any?>("CompletionService", "finish"), map(process, "service").let { listOf(it["class"], it["method"]) })
+        val serviceBindings = plan.outputs.single { it.document.value == "design/detail/final/application-service-bindings.yaml" }.text
+        val servicePrograms = plan.outputs.single { it.document.value == "design/detail/final/application-service-programs.yaml" }.text
+        assertTrue("TodoStore.saveCompletion" in serviceBindings && "CompletionService" in servicePrograms, "名前のオーバーライドは、ID から解決して Service のプログラム設計へ届く")
         val handler = rows(doc("design/detail/final/controllers/todo.yaml"), "handlers").single { it["action"] == "complete-todo" }
         assertEquals("CompletionService.finish", handler["service"])
         val execute = rows(handler, "steps").last()
@@ -234,7 +234,7 @@ class TodosSystemDocumentsTest {
         assertEquals("TODOを取りやめる", operation["label"])
         assertEquals(200, rows(operation, "inputs").single { it["id"] == "PRM-cancel-todo.reason" }["maxLength"])
         assertEquals(setOf(listOf("COR-901"), listOf("COR-902")), rows(operation, "decisions").map { it["by"] }.toSet())
-        assertEquals("TODOを取りやめる", doc("design/detail/final/processes/cancel-todo.yaml")["name"])
+        assertEquals("TODOを取りやめる", doc("design/detail/final/processes/cancel-todo.yaml")["label"])
         val cancelForm = map(doc("design/detail/final/screen-designs/operations/cancel-todo.yaml"), "form")
         assertEquals(200, rows(rows(cancelForm, "fields").single { it["name"] == "reason" }, "validations").single { it["name"] == "Size" }["max"])
         assertEquals("reviewPreference", rows(doc("design/detail/final/session.yaml"), "attributes").last()["key"])
@@ -246,9 +246,9 @@ class TodosSystemDocumentsTest {
     @Test
     fun `存在しない対象と選択先と不正な型と識別子変更では前回の出力を保存したまま止まる`() {
         val cases = listOf(
-            "[{id: SCOR-test, kind: processes, target: DOC-processes.missing, set: {name: 不明}, reason: 検証}]",
-            "[{id: SCOR-test, kind: processes, target: DOC-processes.complete-todo, set: {typo: 不明}, reason: 検証}]",
-            "[{id: SCOR-test, kind: processes, target: DOC-processes.complete-todo, set: {id: cancel-todo}, reason: 検証}]",
+            "[{id: SCOR-test, kind: session-design, target: DOC-session-design.missing, set: {name: 不明}, reason: 検証}]",
+            "[{id: SCOR-test, kind: session-design, target: DOC-session-design.session-design, set: {typo: 不明}, reason: 検証}]",
+            "[{id: SCOR-test, kind: session-design, target: DOC-session-design.session-design, set: {id: other}, reason: 検証}]",
             "[{id: SCOR-test, kind: screen-designs-operations, target: DOC-screen-designs-operations.complete-todo, changes: [{path: [form, class], value: OtherForm}], reason: 検証}]",
         )
         for (corrections in cases) {
@@ -336,7 +336,7 @@ class TodosSystemDocumentsTest {
         assertEquals("ENT-todo", rows(finish, "effects").single { it["id"] == "EFF-todo-task.finish.version" }["entity"])
         val finishSteps = rows(raw(Files.readString(sample.resolve("design/detail/final/processes/todo-task.finish.yaml"))), "steps")
         assertEquals(listOf("read", "read-owner"), finishSteps.take(2).map { it["step"] }, "受け手を読んだ後に、親の行を読む")
-        assertEquals("owner", finishSteps.single { it["precondition"] == "todo-task.finish.version-unchanged" }["checkMode"])
+        assertEquals("owner", finishSteps.single { it["precondition"] == "PRE-todo-task.finish.version-unchanged" }["checkMode"])
         // 登録（受け手が無い）とマスタの操作には足さない
         for (id in listOf("register-todo", "add-category")) {
             val other = operation(id)

@@ -1,0 +1,6 @@
+id: detail-model-status-constants
+name: 詳細設計の生成入力（状態の定数）
+description: 状態の型の定数（ENC-）を 1 件ずつ読む。定数を ID で参照している側が、定数の名前を解決するのに使う
+rows: { idPattern: "ENC-*", schemaIds: [detail-status] }
+columns:
+  - { label: record, path: . }

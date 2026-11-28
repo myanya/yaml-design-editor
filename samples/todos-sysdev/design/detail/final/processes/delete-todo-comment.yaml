@@ -1,6 +1,33 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: delete-todo-comment
-name: コメントを削除する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-delete-todo-comment
+source: ACT-delete-todo-comment
+operation: delete-todo-comment
+label: コメントを削除する
+inputs:
+  - key: row
+    label: コメントの番号
+    type: int
+    base: int
+    description: コメント一覧の何番目か（0 から数えます）
+    required: true
+    min: 0.0
+    overrides:
+      min: 0.0
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+  - key: version
+    label: 版
+    type: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+    carried: true
 service:
   class: TodoService
   method: deleteTodoComment
@@ -11,39 +38,42 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: read
-    call: TodoMapper.findById
+  - id: STP-delete-todo-comment.01
+    step: read
+    call: MTH-todo.findById
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
-    entity: todo
-  - step: check
-    precondition: delete-todo-comment.version-unchanged
+    entity: ENT-todo
+  - id: STP-delete-todo-comment.02
+    step: check
+    precondition: PRE-delete-todo-comment.version-unchanged
     by: Java（読んだ行）
     rule:
       - of: t
         path: version
         equals: $version
-    message: delete-todo-comment.version-unchanged
-    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    message: MSG-delete-todo-comment.version-unchanged
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    constraint: updated-not-before-created
+    entity: ENT-todo
+  - id: STP-delete-todo-comment.03
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
         - gte:
             - path: updated_on
             - path: created_on
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: write
-    call: TodoMapper.deleteTodoCommentCommentsRow
+    entity: ENT-todo
+  - id: STP-delete-todo-comment.04
+    step: write
+    call: MTH-todo.deleteTodoCommentCommentsRow
     kind: delete
     where:
       - item: todo_id
@@ -59,8 +89,9 @@ steps:
       param: row
     missing: 行が無ければ NotFoundException（error.notFound.todo.comments）
     missingEntity: todo.comments
-  - step: write
-    call: TodoMapper.deleteTodoComment
+  - id: STP-delete-todo-comment.05
+    step: write
+    call: MTH-todo.deleteTodoComment
     kind: update
     set:
       - item: updated_on
@@ -77,21 +108,4 @@ steps:
         value:
           param: id
 subject: todo
-originalService:
-  class: TodoService
-  method: deleteTodoComment
-  arguments:
-    - id
-    - row
-    - version
 transactionMode: atomic
-designId: DOC-processes.delete-todo-comment
-designKind: processes
-designPath: design/detail/final/processes/delete-todo-comment.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

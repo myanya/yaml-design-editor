@@ -1,0 +1,6 @@
+id: basic-model-messages
+name: 基本設計の生成入力（メッセージ 1 件）
+description: メッセージ定義のレコード（MSG-）を 1 件ずつ読む。メッセージを ID で参照している側が、キーとテキストを解決するのに使う
+rows: { idPattern: "MSG-*", schemaIds: [basic-message-list] }
+columns:
+  - { label: record, path: . }

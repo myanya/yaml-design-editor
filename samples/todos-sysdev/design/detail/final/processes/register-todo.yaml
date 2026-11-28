@@ -1,6 +1,104 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: register-todo
-name: TODOを登録する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-register-todo
+source: ACT-register-todo
+operation: register-todo
+label: TODOを登録する
+inputs:
+  - key: title
+    label: タイトル
+    type: common#一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+  - key: summary
+    label: 概要
+    type: common#一行の文
+    base: string
+    required: true
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+  - key: category
+    label: カテゴリ
+    type: common#カテゴリ参照
+    base: ref
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    refTarget: entity
+    idPatternLayers:
+      -   - CAT-*
+    scope:
+      schemaIds:
+        - category-list
+      documentIds: []
+    relation: in-category
+    idPatterns:
+      - CAT-*
+    schemas:
+      - category-list
+    targets:
+      - category
+    target: category
+    targetTitle: name
+    targetLabel: カテゴリ
+  - key: tags
+    label: タグ
+    type: array
+    base: array
+    unique: true
+    item:
+      type: common#タグ参照
+      base: ref
+      description: タグ一覧の ID を 1 件。
+      refTarget: entity
+      idPatternLayers:
+        -   - TAG-*
+      scope:
+        schemaIds:
+          - tag-list
+        documentIds: []
+      relation: tagged
+      idPatterns:
+        - TAG-*
+      schemas:
+        - tag-list
+      targets:
+        - tag
+      target: tag
+      targetTitle: name
+      targetLabel: タグ
+  - key: follows
+    label: 元のTODO
+    type: common#TODO参照
+    base: ref
+    description: 完了したTODOに追加の作業が要るときに、その元のTODOを選びます。
+    refTarget: entity
+    idPatternLayers:
+      -   - TODO-*
+    scope:
+      schemaIds:
+        - todo-list
+      documentIds: []
+    relation: follow-up-of
+    idPatterns:
+      - TODO-*
+    schemas:
+      - todo-list
+    targets:
+      - todo
+    target: todo
+    targetTitle: title
+    targetLabel: TODO
+  - key: due
+    label: 期限
+    type: common#年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    format: yyyy年M月d日
+  - key: details
+    label: 詳細
+    type: common#文章
+    base: string
+    multiline: true
 service:
   class: TodoService
   method: registerTodo
@@ -24,26 +122,28 @@ confirm:
       - details
     does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
     constraints:
-      - constraint: due-not-before-created
+      - constraint: RUL-due-not-before-created
         field: due
-        message: check.due-not-before-created
-      - constraint: follows-not-self
+        message: MSG-check.due-not-before-created
+      - constraint: RUL-follows-not-self
         field: follows
-        message: check.follows-not-self
-      - constraint: follow-up-of.acyclic
+        message: MSG-check.follows-not-self
+      - constraint: RUL-follow-up-of.acyclic
         field: follows
-        message: check.follow-up-of.acyclic
+        message: MSG-check.follow-up-of.acyclic
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: number
-    entity: todo
-    call: TodoMapper.maxId
+  - id: STP-register-todo.01
+    step: number
+    entity: ENT-todo
+    call: MTH-todo.maxId
     rule:
       path: id
       prefix: TODO-
       digits: 3
-  - step: check
-    constraint: due-not-before-created
+  - id: STP-register-todo.02
+    step: check
+    constraint: RUL-due-not-before-created
     by: Java（書いた後の値）
     rule:
       where:
@@ -54,24 +154,26 @@ steps:
             - path: due_on
             - path: created_on
     field: due
-    message: check.due-not-before-created
+    message: MSG-check.due-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: updated-not-before-created
+    entity: ENT-todo
+  - id: STP-register-todo.03
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
         - gte:
             - path: updated_on
             - path: created_on
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: follows-not-self
+    entity: ENT-todo
+  - id: STP-register-todo.04
+    step: check
+    constraint: RUL-follows-not-self
     by: Java（書いた後の値）
     rule:
       where:
@@ -82,23 +184,25 @@ steps:
             - path: follows
             - path: id
     field: follows
-    message: check.follows-not-self
+    message: MSG-check.follows-not-self
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: follow-up-of.acyclic
+    entity: ENT-todo
+  - id: STP-register-todo.05
+    step: check
+    constraint: RUL-follow-up-of.acyclic
     by: Java（参照の先をたどる）
     follow: follows
-    call: TodoMapper.findById
+    call: MTH-todo.findById
     how: 書く参照の先から、同じ項目の参照を findById でたどり、受け手（作る操作は作る要素）に戻れば断る
     field: follows
-    message: check.follow-up-of.acyclic
+    message: MSG-check.follow-up-of.acyclic
     checkMode: cycle
     phase: before
-    entity: todo
-  - step: write
-    call: TodoMapper.insert
+    entity: ENT-todo
+  - id: STP-register-todo.06
+    step: write
+    call: MTH-todo.insert
     kind: insert
     values:
       id:
@@ -120,8 +224,9 @@ steps:
       updated_on:
         $copy: today
         $of: context
-  - step: write
-    call: TodoMapper.insertTodoTags
+  - id: STP-register-todo.07
+    step: write
+    call: MTH-todo.insertTodoTags
     kind: insert
     each:
       $copy: tags
@@ -130,8 +235,9 @@ steps:
       start: 1
     ownerKey:
       generated: numberedId
-  - step: write
-    call: TodoMapper.insertTodoHistory
+  - id: STP-register-todo.08
+    step: write
+    call: MTH-todo.insertTodoHistory
     kind: insert
     values:
       todo_id:
@@ -143,29 +249,8 @@ steps:
       to: OPEN
     seq:
       mode: next
-      call: TodoMapper.maxSeqTodoHistory
+      call: MTH-todo.maxSeqTodoHistory
       key:
         generated: numberedId
 subject: todo
-originalService:
-  class: TodoService
-  method: registerTodo
-  arguments:
-    - title
-    - summary
-    - category
-    - tags
-    - follows
-    - due
-    - details
 transactionMode: atomic
-designId: DOC-processes.register-todo
-designKind: processes
-designPath: design/detail/final/processes/register-todo.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

@@ -1,6 +1,28 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: cancel-todo
-name: TODOを中止する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-cancel-todo
+source: ACT-cancel-todo
+operation: cancel-todo
+label: TODOを中止する
+inputs:
+  - key: reason
+    label: 中止理由
+    type: todo-operations#操作の記録
+    base: string
+    description: 完了結果・中止理由・中断理由・コメントとして残す空でない文章。
+    required: true
+    minLength: 1
+    multiline: true
+  - key: version
+    label: 版
+    type: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+    carried: true
 service:
   class: TodoService
   method: cancelTodo
@@ -11,52 +33,55 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: read
-    call: TodoMapper.findById
+  - id: STP-cancel-todo.01
+    step: read
+    call: MTH-todo.findById
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
-    entity: todo
-  - step: check
-    precondition: cancel-todo.state
+    entity: ENT-todo
+  - id: STP-cancel-todo.02
+    step: check
+    error: ERR-cancel-todo.state
     by: Java（読んだ行の状態）
     allowed:
-      - OPEN
-      - IN_PROGRESS
-      - SUSPENDED
-    message: cancel-todo.state
-    text: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
+      - ENC-todo-OPEN
+      - ENC-todo-IN_PROGRESS
+      - ENC-todo-SUSPENDED
+    message: MSG-cancel-todo.state
     checkMode: state
     phase: before
-    entity: todo
+    entity: ENT-todo
     stateField: status
-  - step: check
-    precondition: cancel-todo.version-unchanged
+  - id: STP-cancel-todo.03
+    step: check
+    precondition: PRE-cancel-todo.version-unchanged
     by: Java（読んだ行）
     rule:
       - of: t
         path: version
         equals: $version
-    message: cancel-todo.version-unchanged
-    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    message: MSG-cancel-todo.version-unchanged
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    constraint: updated-not-before-created
+    entity: ENT-todo
+  - id: STP-cancel-todo.04
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
         - gte:
             - path: updated_on
             - path: created_on
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: unfinished-has-no-completed-on
+    entity: ENT-todo
+  - id: STP-cancel-todo.05
+    step: check
+    constraint: RUL-unfinished-has-no-completed-on
     by: Java（書いた後の値）
     rule:
       where:
@@ -66,12 +91,13 @@ steps:
         - path: completed_on
           exists: true
       expect: absent
-    message: check.unfinished-has-no-completed-on
+    message: MSG-check.unfinished-has-no-completed-on
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: write
-    call: TodoMapper.cancelTodo
+    entity: ENT-todo
+  - id: STP-cancel-todo.06
+    step: write
+    call: MTH-todo.cancelTodo
     kind: update
     set:
       - item: result
@@ -91,8 +117,9 @@ steps:
         param: id
         value:
           param: id
-  - step: write
-    call: TodoMapper.insertTodoHistory
+  - id: STP-cancel-todo.07
+    step: write
+    call: MTH-todo.insertTodoHistory
     kind: insert
     values:
       todo_id: $id
@@ -107,25 +134,8 @@ steps:
       note: $reason
     seq:
       mode: next
-      call: TodoMapper.maxSeqTodoHistory
+      call: MTH-todo.maxSeqTodoHistory
       key:
         param: id
 subject: todo
-originalService:
-  class: TodoService
-  method: cancelTodo
-  arguments:
-    - id
-    - reason
-    - version
 transactionMode: atomic
-designId: DOC-processes.cancel-todo
-designKind: processes
-designPath: design/detail/final/processes/cancel-todo.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

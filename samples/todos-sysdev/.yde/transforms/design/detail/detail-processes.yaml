@@ -1,51 +1,72 @@
-id: processes-derived
-name: 処理設計書（Service）
+id: detail-processes
+name: 詳細設計項目一覧（処理の手順）
 description: >-
-  操作ごとに Service のメソッドと手順を書く。手順は、テーブルアクセス設計書の Mapper のメソッドを呼ぶ形で書く（名前の決まりは同じ）。 決め打ちの規則: 1 操作＝1
-  トランザクション・受け手を先に読む（findById）・状態の前提（Lifecycle）は読んだ行の状態で確かめる（Java）・ 業務モデルの前提は、受け手の中の要素の条件なら件数（Mapper の
-  count）、受け手の値の条件なら読んだ行（Java）で確かめる・ 採番は使われている番号の次（maxId）・書く手順は、同じテーブルへの値をまとめた insert か update と、明細の行（並び順は maxSeq の次）・
-  データの決まり（業務モデルの操作の checks＝書くと破れうる決まり）は、要素ごとの決まりと循環の決まりは書いた後の値を計算して書く前に Java で、
-  入れ子の要素の決まりは書いた後に同じトランザクションで件数を数えて確かめる（違反なら例外で書いたものを取り消す）。断るのはエラーの決まりだけ・ 受け取る値が原因で破れうる Java の決まりは、確認へでも確かめる（confirm
-  のメソッド。書かない）。 型・桁・形式の入力検査は Controller（Bean Validation）で行い、ここには書かない。断りの文はメッセージのキー（メッセージ定義書）で書く
+  具体システムモデルの「処理の手順」を、ID 付きレコードで作る（ADR-0042）。操作 1 つを 1 ファイルにし、処理（PRC-。Service のメソッド 1 つ）と
+  ステップ（STP-）に設計 ID を振る。ステップは、呼ぶ Mapper のメソッド（MTH-）・事前条件（PRE-）・制約（RUL-）・メッセージ（MSG-）・
+  エンティティ（ENT-）・状態の定数（ENC-）を ID で参照する（名前とメッセージのテキストはコピーしない）。
+  入力は、基本設計のレコード（操作・エンティティ・型・状態と遷移・制約）と、同じ詳細設計のレコード（テーブルへの読み書き・状態の型）だけで、
+  業務モデル・中間ファイル（操作を解いた形）・名前のマッピングテーブルは読まない。
+  手順の決まり: 1 操作 1 トランザクション・受け手を先に読む（findById）・状態の事前条件は読んだ行の状態で判定・
+  受け手の中の要素の条件は件数（count）で、受け手の値の条件は読んだ行で判定・採番は使われている番号の次（maxId）・
+  制約は、要素ごとの制約と循環は書く前に、入れ子の要素の制約は書いた後に同じトランザクションで件数を数えて判定する。
+  型・桁・形式の入力バリデーションは Controller で行い、ここには書かない。
+  詳細設計のオーバーライド（design/detail/inputs/decisions.yaml）は、レコードの ID を対象にして、ここで直接適用する（Service のクラス名とメソッド名）。
+  補正前のファイルは作らない
 scope: business
 each: designActions
-output: design/detail/derived/documents/processes/{id}.yaml
+output: design/detail/final/processes/{id}.yaml
 dependsOn:
-  - system-model
-  - basic-operations-resolved
+  - basic-operations
+  - basic-entities
+  - basic-types
+  - basic-states
   - basic-rules
-  - system-access-bindings
-  - basic-messages
-  - detail-document-input-gate
+  - detail-table-access
   - detail-status
+  - detail-document-input-gate
 input:
-  $apply: model-input
-  $with:
-    row:
-      $view: system-model-input
-      $one: true
-    operations:
-      $view: basic-operations-resolved-input
-      $one: true
-    rules:
-      $each:
-        $view: basic-model-rules
-      $build:
-        $copy: values.record
+  # 操作のレコード（ACT-）が ID で参照している先（エンティティ・項目・遷移と状態・制約・入力）を解決して、下のルールが読む形にする
+  designActions:
+    $each:
+      $view: basic-model-operations
+    $build:
+      $apply: resolved-action
+      $at: values.record
+  designRules:
+    $each:
+      $view: basic-model-rules
+    $build:
+      $apply: design-rule
+      $at: values.record
+  # オーバーライドのうち、処理（PRC-）を対象にするもの
+  designDecisions:
+    $each:
+      $view: detail-decisions-input
+    $flatten: true
+    $build:
+      $when:
+        - path: values.decision.target
+          startsWith: PRC-
+      $then:
+        - $copy: values.decision
 build:
-  id:
-    $format: DRV-document-processes.{id}
-  record:
-    id:
-      $format: DOC-processes.{id}
-    value:
+  $apply: decided-item
+  $with:
+    item:
       $apply: linked-document
       $with:
         document:
           id:
+            $format: PRC-{id}
+          source:
+            $format: ACT-{id}
+          operation:
             $copy: id
-          name:
+          label:
             $copy: label
+          # Service が受け取る入力パラメータの定義（基本設計の操作の入力を、参照先を解決して運ぶ。次の段の Service の入力のプログラム設計が読む）
+          inputs:
+            $copy: params
           service:
             class:
               $format: '{name}Service'
@@ -115,13 +136,13 @@ build:
                 $each: items
                 $build:
                   constraint:
-                    $copy: constraint
+                    $format: RUL-{constraint}
                   field:
                     $case:
                       $copy: params[0]
                     $as: camel
                   message:
-                    $format: check.{c}
+                    $format: MSG-check.{c}
                     $with:
                       c:
                         $copy: constraint
@@ -465,48 +486,799 @@ build:
                       $copy: rule.expect
           subject:
             $copy: subject
-          originalService:
-            class:
-              $format: '{name}Service'
-              $with:
-                name:
-                  $case:
-                    $copy: subject
-                  $as: pascal
-            method:
-              $case:
-                $copy: id
-              $as: camel
-            arguments:
-              $concat:
-                - $when:
-                    - path: target.entity
-                      exists: true
-                  $then:
-                    - id
-                - $each: params
-                  $build:
-                    $case:
-                      $copy: key
-                    $as: camel
           transactionMode: atomic
+        # 呼ぶ Mapper のメソッドは ID（MTH-）で指す。既定の呼び名（エンティティ型の名前 + Mapper . 既定のメソッド名）から ID を引く
         bindings:
-          $concat:
-            - $each:
-                $view: system-access-bindings-input
-              $flatten: true
-              $build:
-                $copy: values.bindings
-        messages:
           $each:
-            $view: messages-input
+            $view: detail-model-table-access
+          $bind: mapper
           $flatten: true
           $build:
-            $copy: values.record.messages
-    source:
-      id: rule-processes
-      document: .yde/transforms/design/detail/processes-derived.yaml
+            $each: values.record.methods
+            $build:
+              before:
+                $format: '{c}Mapper.{m}'
+                $with:
+                  c:
+                    $case:
+                      $copy: values.record.entity
+                      $of: mapper
+                    $as: pascal
+                  m:
+                    $value:
+                      extract:
+                        - path: id
+                        - ^MTH-[^.]+\.(.*)$
+              after:
+                $copy: id
+              roles:
+                - call
 rules:
+  # ---- 操作のレコードの解決（ID で参照している先を引く）
+  - id: resolved-action
+    build:
+      $apply: resolved-action-body
+      $with:
+        act:
+          $copy: .
+  - id: resolved-action-body
+    with:
+      - act
+    build:
+      id:
+        $copy: source
+      kind:
+        $copy: kind
+      label:
+        $copy: label
+      description:
+        $copy: description
+      subject:
+        $copy: subject
+      target:
+        $when:
+          - path: receiver
+            exists: true
+        $then:
+          entity:
+            $apply: entity-source
+            $with:
+              ref:
+                $copy: receiver
+      creates:
+        $each: creates
+        $build:
+          $apply: entity-source
+          $with:
+            ref:
+              $copy: .
+      params:
+        $each: inputs
+        $apply: flat
+      # 人が入れる入力: 並びの番号（行が運ぶ値）と、画面が運ぶ入力（carried）を除いたもの
+      inputParams:
+        $each: inputs
+        $build:
+          $when:
+            - or:
+                - path: carried
+                  exists: false
+                - path: carried
+                  equals: false
+            - or:
+                - of: act
+                  path: row.param
+                  exists: false
+                - not:
+                    path: id
+                    equals:
+                      $copy: row.param
+                      $of: act
+          $then:
+            $apply: flat
+      # 画面が運ぶ入力の読み元（入力のキー → 受け手から読む式）。入力画面の無い操作でも、確認画面を出すときに読む
+      carriedValues:
+        $apply: non-empty-map
+        $with:
+          entries:
+            $each: inputs
+            $build:
+              $when:
+                - path: carried
+                  equals: true
+                - path: initial
+                  exists: true
+              $then:
+                key:
+                  $copy: key
+                value:
+                  $copy: initial
+      # 画面が運ぶ入力のキー（入力画面と確認画面で隠し項目にする）
+      carried:
+        $apply: non-empty-list
+        $with:
+          items:
+            $each: inputs
+            $build:
+              $when:
+                - path: carried
+                  equals: true
+              $then:
+                $copy: key
+      # 並びの 1 件を番号で指す操作: 並びの項目と、番号を受け取る入力
+      rowOf:
+        $when:
+          - path: row
+            exists: true
+        $then:
+          $apply: row-of
+          $with:
+            field:
+              $apply: field-record
+              $with:
+                ref:
+                  $copy: row.item
+            param:
+              $apply: input-record
+              $with:
+                ref:
+                  $copy: row.param
+                inputs:
+                  $copy: inputs
+      input:
+        submit:
+          $copy: submit
+        initial:
+          $apply: non-empty-map
+          $with:
+            entries:
+              $each: inputs
+              $build:
+                $when:
+                  - path: initial
+                    exists: true
+                  - or:
+                      - path: carried
+                        exists: false
+                      - path: carried
+                        equals: false
+                $then:
+                  key:
+                    $copy: key
+                  value:
+                    $copy: initial
+      require:
+        $each: preconditions
+        $build:
+          id:
+            $copy: source
+          message:
+            $copy: message
+          rule:
+            $copy: rule
+      lifecycle:
+        $when:
+          - path: lifecycle
+            exists: true
+        $then:
+          id:
+            $apply: lifecycle-source
+            $with:
+              ref:
+                $copy: lifecycle
+          entry:
+            $when:
+              - path: entry
+                exists: true
+            $then:
+              - $apply: state-of
+                $with:
+                  ref:
+                    $apply: entry-to
+                    $with:
+                      ref:
+                        $copy: entry
+          transitions:
+            $when:
+              - path: transition
+                exists: true
+            $then:
+              - $apply: transition
+                $with:
+                  record:
+                    $apply: transition-record
+                    $with:
+                      ref:
+                        $copy: transition
+          refusal:
+            $copy: refusal
+          history:
+            $copy: history
+      effects:
+        $each: effects
+        $build:
+          op:
+            $copy: op
+          source:
+            $copy: cause
+          auto:
+            $copy: auto
+          'on':
+            $copy: 'on'
+          of:
+            $copy: of
+          within:
+            $copy: within
+          bind:
+            $copy: bind
+          entity:
+            $copy: subject
+          schema:
+            $copy: schema
+          path:
+            $copy: path
+          field:
+            $first:
+              - $when:
+                  - path: item
+                    exists: true
+                $then:
+                  $apply: effect-field
+                  $with:
+                    field:
+                      $apply: field-record
+                      $with:
+                        ref:
+                          $copy: item
+              - $when:
+                  - path: collection
+                    exists: true
+                $then:
+                  key:
+                    $copy: collection.key
+                  base: array
+                  item:
+                    base: object
+                    entity:
+                      $apply: entity-source
+                      $with:
+                        ref:
+                          $copy: collection.element
+          row:
+            $when:
+              - path: row
+                exists: true
+            $then:
+              param:
+                $apply: input-key
+                $with:
+                  ref:
+                    $copy: row
+                  inputs:
+                    $copy: inputs
+                    $of: act
+          when:
+            $copy: when
+          # 自動で入る版（revision）は、値を「その項目の、次の値」として渡す。受け手の項目なら next、受け手を入れ子で持つ親の項目なら ownerNext
+          value:
+            $first:
+              - $when:
+                  - path: auto
+                    equals: revision
+                $then:
+                  $entries:
+                    - key: $$copy
+                      value:
+                        $copy: path
+                    - key: $$of
+                      value:
+                        $first:
+                          - $when:
+                              - not:
+                                  path: subject
+                                  equals:
+                                    $copy: subject
+                                    $of: act
+                            $then: ownerNext
+                          - next
+              - $copy: value
+          values:
+            $copy: values
+          params:
+            $copy: params
+          id:
+            $copy: identifier
+          numbering:
+            $copy: numbering
+          written:
+            $copy: written
+      checks:
+        $each: checks
+        $build:
+          $apply: check
+          $with:
+            rule:
+              $apply: rule-record
+              $with:
+                ref:
+                  $copy: rule
+            items:
+              $copy: items
+            multiple:
+              $copy: multiple
+            params:
+              $when:
+                - path: params
+                  exists: true
+              $then:
+                $each: params
+                $build:
+                  $apply: input-key
+                  $with:
+                    ref:
+                      $copy: .
+                    inputs:
+                      $copy: inputs
+                      $of: act
+      provides:
+        $copy: provides
+  # 入力・並びの要素・まとまりの項目: 項目の決まりを、読む側の形（型は業務モデルの型の名前、参照先はエンティティ型）に戻す。
+  # 入力を丸ごと写す読み手があるので、キーは業務モデルと同じ順に並べる
+  - id: flat
+    build:
+      key:
+        $copy: key
+      label:
+        $copy: label
+      type:
+        $first:
+          - $apply: type-name
+            $with:
+              ref:
+                $copy: type
+          - $copy: builtin
+          - $copy: base
+      base:
+        $copy: base
+      description:
+        $copy: description
+      required:
+        $copy: required
+      default:
+        $copy: default
+      unique:
+        $copy: unique
+      refTarget:
+        $copy: reference.target
+      format:
+        $copy: format
+      min:
+        $copy: min
+      max:
+        $copy: max
+      minLength:
+        $copy: minLength
+      maxLength:
+        $copy: maxLength
+      multiline:
+        $copy: multiline
+      pattern:
+        $copy: pattern
+      values:
+        $copy: values
+      idPatternLayers:
+        $copy: reference.idPatternLayers
+      scope:
+        $copy: reference.scope
+      relation:
+        $copy: reference.relation
+      idPatterns:
+        $copy: reference.idPatterns
+      schemas:
+        $copy: reference.schemas
+      overrides:
+        $copy: overrides
+      builtinType:
+        $when:
+          - path: builtin
+            exists: true
+        $then:
+          name:
+            $copy: builtin
+          base:
+            $copy: base
+          builtin: true
+      targets:
+        $when:
+          - path: reference.entities
+            exists: true
+        $then:
+          $each: reference.entities
+          $build:
+            $apply: entity-source
+            $with:
+              ref:
+                $copy: .
+      target:
+        $copy: reference.subject
+      targetTitle:
+        $copy: reference.title
+      targetLabel:
+        $copy: reference.label
+      item:
+        $when:
+          - path: item
+            exists: true
+        $then:
+          $apply: flat
+          $at: item
+      fields:
+        $when:
+          - path: fields
+            exists: true
+        $then:
+          $each: fields
+          $apply: flat
+      clearedBy:
+        $copy: clearedBy
+      carried:
+        $copy: carried
+  # 並びの行の指定: 並びの項目（エンティティの項目）から、キー・名称・要素の項目を引く
+  - id: row-of
+    with:
+      - field
+      - param
+    build:
+      field:
+        $copy: key
+        $of: field
+      param:
+        $copy: key
+        $of: param
+      # 番号を受け取る入力（名称など）
+      item:
+        $apply: flat
+        $at: .
+        $of: param
+      entity:
+        $apply: entity-source
+        $with:
+          ref:
+            $copy: owner
+            $of: field
+      label:
+        $copy: label
+        $of: field
+      fields:
+        $each: item.fields
+        $of: field
+        $build:
+          key:
+            $copy: key
+          label:
+            $copy: label
+          base:
+            $copy: base
+          required:
+            $copy: required
+          format:
+            $copy: format
+          multiline:
+            $copy: multiline
+          values:
+            $copy: values
+          item:
+            $when:
+              - path: item
+                exists: true
+            $then:
+              base:
+                $copy: item.base
+              format:
+                $copy: item.format
+  # 効果が書く項目: キー・基底の種類・並びの要素
+  - id: effect-field
+    with:
+      - field
+    build:
+      key:
+        $copy: key
+        $of: field
+      base:
+        $copy: base
+        $of: field
+      item:
+        $when:
+          - of: field
+            path: item
+            exists: true
+        $then:
+          base:
+            $copy: item.base
+            $of: field
+          entity:
+            $when:
+              - of: field
+                path: item.entity
+                exists: true
+            $then:
+              $apply: entity-source
+              $with:
+                ref:
+                  $copy: item.entity
+                  $of: field
+  # 確かめるデータの決まり: 形・種類・厳しさは、指した決まりから引く
+  - id: check
+    with:
+      - rule
+      - items
+      - multiple
+      - params
+    build:
+      constraint:
+        $copy: source
+        $of: rule
+      form:
+        $copy: form
+        $of: rule
+      kind:
+        $copy: kind
+        $of: rule
+      level:
+        $copy: level
+        $of: rule
+      items:
+        $copy: .
+        $of: items
+      multiple:
+        $copy: .
+        $of: multiple
+      params:
+        $copy: .
+        $of: params
+  # 遷移: 前の状態と後の状態を、指した状態から引く
+  - id: transition
+    with:
+      - record
+    build:
+      from:
+        $each: from
+        $of: record
+        $build:
+          $apply: state-of
+          $with:
+            ref:
+              $copy: .
+      to:
+        $apply: state-of
+        $with:
+          ref:
+            $copy: to
+            $of: record
+  # ここから下は、ID から項目を引く規則
+  - id: entity-source
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-entities
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: values.record.source
+  - id: type-name
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-types
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: values.record.name
+  - id: field-record
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-entities
+          $flatten: true
+          $build:
+            $each: values.record.items
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                $copy: .
+  - id: input-key
+    with:
+      - ref
+      - inputs
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: inputs
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: key
+  - id: input-record
+    with:
+      - ref
+      - inputs
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: inputs
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: .
+  - id: non-empty-list
+    with:
+      - items
+    when:
+      - of: items
+        path: .
+        empty: false
+    build:
+      $copy: .
+      $of: items
+  - id: non-empty-map
+    with:
+      - entries
+    when:
+      - of: entries
+        path: .
+        empty: false
+    build:
+      $entries:
+        $copy: .
+        $of: entries
+  - id: non-empty-map
+    with:
+      - entries
+    build:
+      $copy: missing
+      $of: entries
+  - id: rule-record
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-rules
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: values.record
+  - id: lifecycle-source
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-states
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              $copy: values.record.source
+  - id: transition-record
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-states
+          $flatten: true
+          $build:
+            $each: values.record.transitions
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                $copy: .
+  - id: entry-to
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-states
+          $flatten: true
+          $build:
+            $each: values.record.entries
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                $copy: to
+  - id: state-of
+    with:
+      - ref
+    build:
+      $apply: first
+      $with:
+        items:
+          $each:
+            $view: basic-model-states
+          $flatten: true
+          $build:
+            $each: values.record.states
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $then:
+                id:
+                  $copy: source
+                label:
+                  $copy: label
+                value:
+                  $copy: value
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  # ---- 処理の手順
   # 受け手を入れ子で持つ親の値を条件にする前提: 読んだ親の行で確かめる
   - id: precondition
     when:
@@ -1366,87 +2138,163 @@ rules:
           $copy: field.key
   # データの決まりは、業務モデルではなく、基本設計の「データの決まり」（design/basic/final/rules.yaml）から読む（ADR-0042）。
   # 確定した決まりを designRules として重ね、この定義の中では designRules を読む
-  - id: model-input
-    with:
-      - row
-      - operations
-      - rules
+  - id: design-rule
     build:
-      $apply: model-with-rules
-      $with:
-        composed:
-          $compose:
-            derived:
-              - id: model
-                value:
-                  $copy: values.model
-                  $of: row
-                source:
-                  id: system-model
-            additions: []
-            changes:
-              - target: model
-                set:
-                  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）
-                  designActions:
-                    $copy: values.actions
-                    $of: operations
-                  designRules:
-                    $each: .
-                    $of: rules
-                    $build:
-                      id:
-                        $copy: source
-                      level:
-                        $copy: level
-                      form:
-                        $copy: form
-                      kind:
-                        $copy: kind
-                      entity:
-                        $copy: subject
-                      at:
-                        $copy: at
-                      rule:
-                        $copy: rule
-                      fields:
-                        $when:
-                          - path: fields
-                            exists: true
-                        $then:
-                          $each: fields
-                          $build:
-                            entity:
-                              $copy: subject
-                            key:
-                              $copy: key
-                            multiple:
-                              $copy: multiple
-                priority: individual
-                source:
-                  id: basic-rules
-  - id: model-with-rules
-    with:
-      - composed
-    build:
-      $copy: records[0].value
-      $of: composed
+      id:
+        $copy: source
+      level:
+        $copy: level
+      form:
+        $copy: form
+      kind:
+        $copy: kind
+      entity:
+        $copy: subject
+      at:
+        $copy: at
+      rule:
+        $copy: rule
+      fields:
+        $when:
+          - path: fields
+            exists: true
+        $then:
+          $each: fields
+          $build:
+            entity:
+              $copy: subject
+            key:
+              $copy: key
+            multiple:
+              $copy: multiple
+  # 呼ぶメソッドの既定の呼び名を ID（MTH-）に置き換え、ステップに ID（STP-）を振る
   - id: linked-document
     with:
       - document
       - bindings
-      - messages
     build:
-      $apply: linked-tree
-      $of: document
+      $apply: numbered-steps
       $with:
-        bindings:
+        document:
+          $apply: linked-tree
+          $of: document
+          $with:
+            bindings:
+              $copy: .
+              $of: bindings
+            role: document
+  # ステップの頭に ID を足し、参照を ID にする（メッセージ MSG-・事前条件 PRE-・制約 RUL-・エンティティ ENT-）。
+  # メッセージのテキストはコピーしない（メッセージのレコードが持つ）。業務モデルの式（rule など）の中は変えない
+  - id: numbered-steps
+    with:
+      - document
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: document
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  steps:
+                    $each: steps
+                    $of: document
+                    $build:
+                      $entries:
+                        $concat:
+                          - - key: id
+                              value:
+                                $format: STP-{o}.{n}
+                                $with:
+                                  o:
+                                    $copy: operation
+                                    $of: document
+                                  'n':
+                                    $number: $position
+                                    $as: '00'
+                          - $eachEntry: .
+                            $flatten: true
+                            $build:
+                              $apply: step-entry
+                priority: individual
+                source:
+                  id: contract
+  - id: step-entry
+    when:
+      - path: $key
+        equals: text
+    build: []
+  - id: step-entry
+    when:
+      - path: $key
+        equals: message
+    build:
+      - key: $key
+        value:
+          $format: MSG-{v}
+          $with:
+            v:
+              $copy: .
+  # 状態の事前条件（操作のできる状態か）は、操作の事前条件（PRE-）ではないので、エラーケース（ERR-操作.state）を参照する
+  - id: step-entry
+    when:
+      - path: $key
+        equals: precondition
+      - path: .
+        matches: .*\.state
+    build:
+      - key: error
+        value:
+          $format: ERR-{v}
+          $with:
+            v:
+              $copy: .
+  - id: step-entry
+    when:
+      - path: $key
+        equals: precondition
+    build:
+      - key: $key
+        value:
+          $format: PRE-{v}
+          $with:
+            v:
+              $copy: .
+  - id: step-entry
+    when:
+      - path: $key
+        equals: constraint
+    build:
+      - key: $key
+        value:
+          $format: RUL-{v}
+          $with:
+            v:
+              $copy: .
+  - id: step-entry
+    when:
+      - path: $key
+        equals: entity
+    build:
+      - key: $key
+        value:
+          $format: ENT-{v}
+          $with:
+            v:
+              $copy: .
+  - id: step-entry
+    build:
+      - key: $key
+        value:
           $copy: .
-          $of: bindings
-        role: document
-        messages:
-          $copy: .
-          $of: messages
   - id: contract-result
     with:
       - combined
@@ -1463,7 +2311,6 @@ rules:
     with:
       - bindings
       - role
-      - messages
     build:
       $first:
         - $apply: linked-map
@@ -1480,14 +2327,6 @@ rules:
                         $copy: .
                         $of: bindings
                       role: $key
-                      messages:
-                        $copy: .
-                        $of: messages
-            node:
-              $copy: .
-            messages:
-              $copy: .
-              $of: messages
         - $each: .
           $build:
             $apply: linked-tree
@@ -1498,9 +2337,6 @@ rules:
               role:
                 $copy: .
                 $of: role
-              messages:
-                $copy: .
-                $of: messages
         - $apply: linked-scalar
           $with:
             leaf:
@@ -1540,63 +2376,14 @@ rules:
   - id: linked-map
     with:
       - entries
-      - node
-      - messages
     when:
       - path: .
         of: entries
         exists: true
     build:
       $entries:
-        $concat:
-          - $copy: .
-            $of: entries
-          - $when:
-              - path: text
-                of: node
-                exists: true
-              - path: message
-                of: node
-                exists: true
-            $then:
-              - key: text
-                value:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: .
-                      $of: messages
-                      $build:
-                        $when:
-                          - path: key
-                            equals:
-                              $copy: message
-                              $of: node
-                        $then:
-                          $copy: text
-          - $when:
-              - path: key
-                of: node
-                exists: true
-              - path: message
-                of: node
-                exists: true
-            $then:
-              - key: message
-                value:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: .
-                      $of: messages
-                      $build:
-                        $when:
-                          - path: key
-                            equals:
-                              $copy: key
-                              $of: node
-                        $then:
-                          $copy: text
+        $copy: .
+        $of: entries
   - id: state-field
     with:
       - row
@@ -1618,16 +2405,8 @@ rules:
               $copy: .
               $of: action
         $then:
-          # できる状態（定数の ID）を、定数の名前にする
-          $each: from
-          $build:
-            $apply: state-constant
-            $with:
-              ref:
-                $copy: .
-              constants:
-                $copy: values.record.constants
-                $of: row
+          # できる状態は、状態の定数の ID（ENC-）のまま持つ
+          $copy: from
   - id: state-constant
     with:
       - ref
@@ -1652,3 +2431,237 @@ rules:
     build:
       $copy: '[0]'
       $of: items
+  # ---- オーバーライド（個別の判断）を適用する。対象は処理（PRC-）で、変更できるのは Service のクラス名（serviceClass）とメソッド名（serviceMethod）。
+  # この操作の処理へのオーバーライドだけを適用する。どの操作にも無い対象と、変更できない属性は、対象の無い変更として合成に渡し、エラーで止める
+  - id: decided-item
+    with:
+      - item
+    build:
+      $apply: decided
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id:
+                  $copy: id
+                  $of: item
+                value:
+                  $copy: .
+                  $of: item
+                source:
+                  id: rule-detail-processes
+                  document: .yde/transforms/design/detail/detail-processes.yaml
+            additions: []
+            changes:
+              $each: designDecisions
+              $of: model
+              $bind: dec
+              $flatten: true
+              $build:
+                $apply: process-decision
+                $with:
+                  decision:
+                    $copy: .
+                  item:
+                    $copy: .
+                    $of: item
+                  known:
+                    $each: designActions
+                    $of: model
+                    $flatten: true
+                    $build:
+                      $apply: known-process
+                      $with:
+                        decision:
+                          $copy: .
+                          $of: dec
+  - id: known-process
+    with:
+      - decision
+    build:
+      $apply: same-id
+      $with:
+        id:
+          $format: PRC-{id}
+        target:
+          $copy: target
+          $of: decision
+  - id: same-id
+    with:
+      - id
+      - target
+    when:
+      - of: id
+        path: .
+        equals:
+          $copy: .
+          $of: target
+    build:
+      - true
+  - id: same-id
+    with:
+      - id
+      - target
+    build: []
+  - id: process-decision
+    with:
+      - decision
+      - item
+      - known
+    when:
+      - of: decision
+        path: target
+        equals:
+          $copy: id
+          $of: item
+    build:
+      $eachEntry: set
+      $of: decision
+      $flatten: true
+      $build:
+        $apply: process-change
+        $with:
+          decision:
+            $copy: .
+            $of: decision
+          item:
+            $copy: .
+            $of: item
+  - id: process-decision
+    with:
+      - decision
+      - item
+      - known
+    when:
+      - of: known
+        path: .
+        empty: true
+    build:
+      - target:
+          $copy: target
+          $of: decision
+        set:
+          $copy: set
+          $of: decision
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: decision
+          document: design/detail/inputs/decisions.yaml
+  - id: process-decision
+    with:
+      - decision
+      - item
+      - known
+    build: []
+  - id: process-change
+    with:
+      - decision
+      - item
+    when:
+      - path: $key
+        equals: serviceClass
+    build:
+      - target:
+          $copy: id
+          $of: item
+        path:
+          - service
+          - class
+        value:
+          $copy: .
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: decision
+          document: design/detail/inputs/decisions.yaml
+  - id: process-change
+    with:
+      - decision
+      - item
+    when:
+      - path: $key
+        equals: serviceMethod
+    build:
+      - target:
+          $copy: id
+          $of: item
+        path:
+          - service
+          - method
+        value:
+          $copy: .
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: decision
+          document: design/detail/inputs/decisions.yaml
+  - id: process-change
+    with:
+      - decision
+      - item
+    build:
+      - target:
+          $format: '{t}（{k} は、この対象では変更できません）'
+          $with:
+            t:
+              $copy: target
+              $of: decision
+            k: $key
+        set:
+          $copy: set
+          $of: decision
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: decision
+          document: design/detail/inputs/decisions.yaml
+  # 適用したオーバーライドを、レコードの decisions に残す
+  - id: decided
+    with:
+      - composed
+    when:
+      - of: composed
+        path: decisions
+        empty: false
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: records[0].value
+                  $of: composed
+                source:
+                  id: composed
+            additions: []
+            changes:
+              - target: record
+                set:
+                  decisions:
+                    $each: decisions
+                    $of: composed
+                    $build:
+                      path:
+                        $copy: path
+                      value:
+                        $copy: selected[0].value
+                      by:
+                        $each: selected
+                        $build:
+                          $copy: source.id
+                priority: individual
+                source:
+                  id: decisions
+  - id: decided
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed

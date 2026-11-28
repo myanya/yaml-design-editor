@@ -5,12 +5,12 @@ services:
     name: CategoryService
     operations:
       - id: JOP-add-category
-        source: DOC-processes.add-category
+        source: PRC-add-category
         service: CategoryService
         method: addCategory
         input:
           id: SINPUT-add-category
-          source: DOC-processes.add-category
+          source: PRC-add-category
           action: add-category
           service: CategoryService
           method: addCategory
@@ -202,12 +202,12 @@ services:
     name: TagService
     operations:
       - id: JOP-add-tag
-        source: DOC-processes.add-tag
+        source: PRC-add-tag
         service: TagService
         method: addTag
         input:
           id: SINPUT-add-tag
-          source: DOC-processes.add-tag
+          source: PRC-add-tag
           action: add-tag
           service: TagService
           method: addTag
@@ -399,12 +399,12 @@ services:
     name: TodoService
     operations:
       - id: JOP-add-todo-comment
-        source: DOC-processes.add-todo-comment
+        source: PRC-add-todo-comment
         service: TodoService
         method: addTodoComment
         input:
           id: SINPUT-add-todo-comment
-          source: DOC-processes.add-todo-comment
+          source: PRC-add-todo-comment
           action: add-todo-comment
           service: TodoService
           method: addTodoComment
@@ -1057,12 +1057,12 @@ services:
             - write
           confirms: []
       - id: JOP-add-todo-task
-        source: DOC-processes.add-todo-task
+        source: PRC-add-todo-task
         service: TodoService
         method: addTodoTask
         input:
           id: SINPUT-add-todo-task
-          source: DOC-processes.add-todo-task
+          source: PRC-add-todo-task
           action: add-todo-task
           service: TodoService
           method: addTodoTask
@@ -1959,12 +1959,12 @@ services:
             - check
           confirms: []
       - id: JOP-cancel-todo
-        source: DOC-processes.cancel-todo
+        source: PRC-cancel-todo
         service: TodoService
         method: cancelTodo
         input:
           id: SINPUT-cancel-todo
-          source: DOC-processes.cancel-todo
+          source: PRC-cancel-todo
           action: cancel-todo
           service: TodoService
           method: cancelTodo
@@ -2966,12 +2966,12 @@ services:
             - write
           confirms: []
       - id: JOP-complete-todo
-        source: DOC-processes.complete-todo
+        source: PRC-complete-todo
         service: TodoService
         method: completeTodo
         input:
           id: SINPUT-complete-todo
-          source: DOC-processes.complete-todo
+          source: PRC-complete-todo
           action: complete-todo
           service: TodoService
           method: completeTodo
@@ -4367,12 +4367,12 @@ services:
           confirms:
             - sameArguments: true
       - id: JOP-delete-todo-comment
-        source: DOC-processes.delete-todo-comment
+        source: PRC-delete-todo-comment
         service: TodoService
         method: deleteTodoComment
         input:
           id: SINPUT-delete-todo-comment
-          source: DOC-processes.delete-todo-comment
+          source: PRC-delete-todo-comment
           action: delete-todo-comment
           service: TodoService
           method: deleteTodoComment
@@ -4985,12 +4985,12 @@ services:
             - write
           confirms: []
       - id: JOP-delete-todo-task
-        source: DOC-processes.delete-todo-task
+        source: PRC-delete-todo-task
         service: TodoService
         method: deleteTodoTask
         input:
           id: SINPUT-delete-todo-task
-          source: DOC-processes.delete-todo-task
+          source: PRC-delete-todo-task
           action: delete-todo-task
           service: TodoService
           method: deleteTodoTask
@@ -5764,12 +5764,12 @@ services:
             - check
           confirms: []
       - id: JOP-edit-todo
-        source: DOC-processes.edit-todo
+        source: PRC-edit-todo
         service: TodoService
         method: editTodo
         input:
           id: SINPUT-edit-todo
-          source: DOC-processes.edit-todo
+          source: PRC-edit-todo
           action: edit-todo
           service: TodoService
           method: editTodo
@@ -7899,12 +7899,12 @@ services:
           confirms:
             - sameArguments: true
       - id: JOP-edit-todo-comment
-        source: DOC-processes.edit-todo-comment
+        source: PRC-edit-todo-comment
         service: TodoService
         method: editTodoComment
         input:
           id: SINPUT-edit-todo-comment
-          source: DOC-processes.edit-todo-comment
+          source: PRC-edit-todo-comment
           action: edit-todo-comment
           service: TodoService
           method: editTodoComment
@@ -8570,12 +8570,12 @@ services:
             - write
           confirms: []
       - id: JOP-register-todo
-        source: DOC-processes.register-todo
+        source: PRC-register-todo
         service: TodoService
         method: registerTodo
         input:
           id: SINPUT-register-todo
-          source: DOC-processes.register-todo
+          source: PRC-register-todo
           action: register-todo
           service: TodoService
           method: registerTodo
@@ -9662,12 +9662,12 @@ services:
           confirms:
             - sameArguments: true
       - id: JOP-resume-todo
-        source: DOC-processes.resume-todo
+        source: PRC-resume-todo
         service: TodoService
         method: resumeTodo
         input:
           id: SINPUT-resume-todo
-          source: DOC-processes.resume-todo
+          source: PRC-resume-todo
           action: resume-todo
           service: TodoService
           method: resumeTodo
@@ -10636,12 +10636,12 @@ services:
             - write
           confirms: []
       - id: JOP-start-todo
-        source: DOC-processes.start-todo
+        source: PRC-start-todo
         service: TodoService
         method: startTodo
         input:
           id: SINPUT-start-todo
-          source: DOC-processes.start-todo
+          source: PRC-start-todo
           action: start-todo
           service: TodoService
           method: startTodo
@@ -11565,12 +11565,12 @@ services:
             - write
           confirms: []
       - id: JOP-suspend-todo
-        source: DOC-processes.suspend-todo
+        source: PRC-suspend-todo
         service: TodoService
         method: suspendTodo
         input:
           id: SINPUT-suspend-todo
-          source: DOC-processes.suspend-todo
+          source: PRC-suspend-todo
           action: suspend-todo
           service: TodoService
           method: suspendTodo
@@ -12720,12 +12720,12 @@ services:
     name: TodoTaskService
     operations:
       - id: JOP-todo-task.finish
-        source: DOC-processes.todo-task.finish
+        source: PRC-todo-task.finish
         service: TodoTaskService
         method: todoTaskFinish
         input:
           id: SINPUT-todo-task.finish
-          source: DOC-processes.todo-task.finish
+          source: PRC-todo-task.finish
           action: todo-task.finish
           service: TodoTaskService
           method: todoTaskFinish

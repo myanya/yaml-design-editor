@@ -4,7 +4,7 @@ kind: document
 description: >-
   詳細設計（具体システムモデル）の項目への個別の判断（ADR-0042）。項目を ID で指して、値を置き換える。
   基本設計の操作・画面への判断と同じ書き方（対象の ID と set）。詳細設計の項目を項目の形にするたびに、対象と、置き換えられる値を足す。
-  いまの対象は、状態の型（ENM-）と判定（ENG-）、テーブルへの読み書きのまとまり（ACC-）とメソッド（MTH-）で、置き換えられるのは名前（enum・method・mapper・name）。
+  いまの対象は、状態の型（ENM-）と判定（ENG-）、テーブルへの読み書きのまとまり（ACC-）とメソッド（MTH-）、処理（PRC-）で、変更できるのは名前（enum・method・mapper・name・serviceClass・serviceMethod）。
   状態の遷移・名称・対応する基本設計の項目は変えられない（業務の事実と、基本設計から運ぶ値なので、上流を直す）。
   定数（ENC-）の名前も変えられない（enum の定数の名前が、そのままテーブルに保存する値になるため）。人が書く。
 match: design/detail/inputs/decisions.yaml
@@ -29,7 +29,7 @@ root:
             label: 対象
             type: string
             required: true
-            pattern: ^(ENM|ENG|ACC|MTH)-\S+$
+            pattern: ^(ENM|ENG|ACC|MTH|PRC)-\S+$
             description: 詳細設計の項目の ID
           - key: set
             label: 置き換える値
@@ -58,6 +58,16 @@ root:
                 type: string
                 pattern: ^[a-z][A-Za-z0-9]*$
                 description: テーブルへの読み書きのメソッド（MTH-）の名前。メソッドの ID は変わらない
+              - key: serviceClass
+                label: Service のクラス名
+                type: string
+                pattern: ^[A-Z][A-Za-z0-9]*$
+                description: 処理（PRC-）の、Service のクラス名（既定はエンティティ型の名前 + Service）
+              - key: serviceMethod
+                label: Service のメソッド名
+                type: string
+                pattern: ^[a-z][A-Za-z0-9]*$
+                description: 処理（PRC-）の、Service のメソッド名（既定は操作の名前）
           - key: reason
             label: 理由
             type: text

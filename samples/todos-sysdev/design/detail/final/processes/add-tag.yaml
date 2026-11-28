@@ -1,6 +1,19 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: add-tag
-name: タグを追加する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-add-tag
+source: ACT-add-tag
+operation: add-tag
+label: タグを追加する
+inputs:
+  - key: name
+    label: タグ名
+    type: common#一行の文
+    base: string
+    required: true
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
 service:
   class: TagService
   method: addTag
@@ -9,34 +22,21 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: number
-    entity: tag
-    call: TagMapper.maxId
+  - id: STP-add-tag.01
+    step: number
+    entity: ENT-tag
+    call: MTH-tag.maxId
     rule:
       path: id
       prefix: TAG-
       digits: 3
-  - step: write
-    call: TagMapper.insert
+  - id: STP-add-tag.02
+    step: write
+    call: MTH-tag.insert
     kind: insert
     values:
       id:
         generated: numberedId
       name: $name
 subject: tag
-originalService:
-  class: TagService
-  method: addTag
-  arguments:
-    - name
 transactionMode: atomic
-designId: DOC-processes.add-tag
-designKind: processes
-designPath: design/detail/final/processes/add-tag.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

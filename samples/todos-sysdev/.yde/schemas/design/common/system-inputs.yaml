@@ -10,7 +10,6 @@ definitions:
     values:
       - value: dashboard-flows
       - value: error-handling
-      - value: processes
       - value: screen-designs-details
       - value: screen-designs-lists
       - value: screen-designs-operations
@@ -180,7 +179,7 @@ definitions:
       - {key: kind, type: 基本設計の種類}
   詳細設計の種類:
     type: 種類
-    values: [dashboard-flows, error-handling, processes, screen-designs-details, screen-designs-lists, screen-designs-operations, screen-flows, screen-styles, session-design]
+    values: [dashboard-flows, error-handling, screen-designs-details, screen-designs-lists, screen-designs-operations, screen-flows, screen-styles, session-design]
   詳細設計の補正:
     type: 補正
     fields:

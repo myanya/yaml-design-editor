@@ -1,6 +1,19 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: add-category
-name: カテゴリを追加する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-add-category
+source: ACT-add-category
+operation: add-category
+label: カテゴリを追加する
+inputs:
+  - key: name
+    label: カテゴリ名
+    type: common#一行の文
+    base: string
+    required: true
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
 service:
   class: CategoryService
   method: addCategory
@@ -9,34 +22,21 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: number
-    entity: category
-    call: CategoryMapper.maxId
+  - id: STP-add-category.01
+    step: number
+    entity: ENT-category
+    call: MTH-category.maxId
     rule:
       path: id
       prefix: CAT-
       digits: 3
-  - step: write
-    call: CategoryMapper.insert
+  - id: STP-add-category.02
+    step: write
+    call: MTH-category.insert
     kind: insert
     values:
       id:
         generated: numberedId
       name: $name
 subject: category
-originalService:
-  class: CategoryService
-  method: addCategory
-  arguments:
-    - name
 transactionMode: atomic
-designId: DOC-processes.add-category
-designKind: processes
-designPath: design/detail/final/processes/add-category.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

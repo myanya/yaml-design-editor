@@ -67,7 +67,7 @@ class TodosServiceProgramsTest {
         for (change in listOf("comparison", "reference", "target", "type")) {
             val document = original.toMutableMap()
             document["steps"] = rows(original, "steps").map { step -> step.toMutableMap().also {
-                if (it["constraint"] == "due-not-before-created") {
+                if (it["constraint"] == "RUL-due-not-before-created") {
                     when (change) {
                         "comparison" -> it["rule"] = mapOf("check" to listOf(mapOf("mystery" to listOf(mapOf("path" to "due_on")))))
                         "reference" -> it["rule"] = mapOf("check" to listOf(mapOf("gte" to listOf(mapOf("path" to "missing"), mapOf("path" to "created_on")))))

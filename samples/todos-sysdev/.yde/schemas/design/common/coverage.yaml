@@ -46,7 +46,7 @@ constraints:
                   - node:
                       bind: a
                   - edge:
-                      via: id
+                      via: operation
                       dir: in
                   - node:
                       entity: sysdev-process

@@ -4,7 +4,6 @@ scope: design
 dependsOn:
   - dashboard-flows
   - error-handling
-  - processes
   - screen-designs-details
   - screen-designs-lists
   - screen-designs-operations
@@ -205,32 +204,6 @@ rules:
                           $copy: id
           - $each:
               $view: error-handling-derived-input
-            $bind: derived
-            $build:
-              $when:
-                - path: values.record.value
-                  exists: true
-              $then:
-                target:
-                  $copy: values.record.id
-                expected:
-                  $copy: values.record.value.id
-                actual:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: .
-                      $of: documents
-                      $build:
-                        $when:
-                          - path: designId
-                            equals:
-                              $copy: values.record.id
-                              $of: derived
-                        $then:
-                          $copy: id
-          - $each:
-              $view: processes-derived-input
             $bind: derived
             $build:
               $when:
@@ -749,24 +722,6 @@ rules:
                   - refusals
                   - screens
                   - settings
-          $then:
-            input:
-              $copy: id
-              $of: input
-            collection:
-              $copy: collection
-              $of: input
-            reason: このコレクションへの追加には対応していません
-        - $when:
-            - path: kind
-              of: input
-              equals: processes
-            - not:
-                of: input
-                path: collection
-                oneOf:
-                  - confirm
-                  - steps
           $then:
             input:
               $copy: id

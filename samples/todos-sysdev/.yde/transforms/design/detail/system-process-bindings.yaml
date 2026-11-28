@@ -2,13 +2,13 @@ id: system-process-bindings
 name: 設計書間で共有する system-process-bindings
 scope: business
 dependsOn:
-  - processes
+  - detail-processes
 output: design/detail/composed/documents/system-process-bindings.yaml
 build:
   id: SYS-system-process-bindings
   bindings:
     $each:
-      $view: processes-input
+      $view: detail-model-processes
     $bind: service
     $flatten: true
     $build:
@@ -16,10 +16,18 @@ build:
         - - before:
               $format: '{c}.{m}'
               $with:
+                # 既定の呼び名: エンティティ型の名前 + Service . 操作の名前
                 c:
-                  $copy: values.record.originalService.class
+                  $format: '{name}Service'
+                  $with:
+                    name:
+                      $case:
+                        $copy: values.record.subject
+                      $as: pascal
                 m:
-                  $copy: values.record.originalService.method
+                  $case:
+                    $copy: values.record.operation
+                  $as: camel
             after:
               $format: '{c}.{m}'
               $with:
@@ -37,11 +45,16 @@ build:
               $format: '{c}.check{m}'
               $with:
                 c:
-                  $copy: values.record.originalService.class
-                  $of: service
+                  $format: '{name}Service'
+                  $with:
+                    name:
+                      $case:
+                        $copy: values.record.subject
+                        $of: service
+                      $as: pascal
                 m:
                   $case:
-                    $copy: values.record.id
+                    $copy: values.record.operation
                     $of: service
                   $as: pascal
             after:

@@ -178,12 +178,12 @@ class TodosSysdevTest {
         val confirm = list(complete, "confirm").single()
         assertEquals("checkCompleteTodo", confirm["method"])
         assertEquals(
-            listOf("completed-not-before-created" to "date", "closed-has-completed-on" to "date", "closed-has-result" to "result"),
+            listOf("RUL-completed-not-before-created" to "date", "RUL-closed-has-completed-on" to "date", "RUL-closed-has-result" to "result"),
             list(confirm, "constraints").map { it["constraint"] to it["field"] }, "受け取る値が原因で破れうる決まりは、確認へでも確かめる",
         )
         val steps = list(complete, "steps")
-        assertTrue(steps.indexOfLast { it["step"] == "write" } < steps.indexOfFirst { it["constraint"] == "closed-has-no-open-task" }, "入れ子の要素の決まりは書いた後に数える")
-        assertTrue(steps.single { it["constraint"] == "closed-has-no-open-task" }["by"].toString().startsWith("SQL"), "確かめ方は、詳細設計の処理の手順が持つ")
+        assertTrue(steps.indexOfLast { it["step"] == "write" } < steps.indexOfFirst { it["constraint"] == "RUL-closed-has-no-open-task" }, "入れ子の要素の決まりは書いた後に数える")
+        assertTrue(steps.single { it["constraint"] == "RUL-closed-has-no-open-task" }["by"].toString().startsWith("SQL"), "確かめ方は、詳細設計の処理の手順が持つ")
         // 使うメッセージのキー（処理設計書・エラー定義書・一覧の 0 件・フォームの検査）は、どれもメッセージ定義書にある
         // 断りと知らせのキーは、基本設計のメッセージの項目が持つ。入力の検査のキー（Form と検査の名前を含む）は、Form のプログラム設計が組み立てる
         val messages = doc("design/basic/final/messages.yaml")
@@ -198,7 +198,11 @@ class TodosSysdevTest {
             }
         }
         val used = mutableListOf<String>()
-        java.nio.file.Files.list(root.resolve("design/detail/final/processes")).use { s -> s.toList() }.forEach { collect(doc("design/detail/final/processes/${it.fileName}"), used, setOf("message")) }
+        // 処理の手順は、メッセージを ID（MSG-）で参照する。参照先がメッセージ定義にあることを確かめる
+        val referenced = mutableListOf<String>()
+        java.nio.file.Files.list(root.resolve("design/detail/final/processes")).use { s -> s.toList() }.forEach { collect(doc("design/detail/final/processes/${it.fileName}"), referenced, setOf("message")) }
+        assertTrue(referenced.size > 40 && referenced.all { it.startsWith("MSG-") }, "処理の手順のメッセージの参照: ${referenced.take(3)}")
+        assertEquals(emptyList(), referenced.distinct().filter { id -> items.none { it["id"] == id } }, "処理の手順が参照するメッセージは、どれもメッセージ定義にある")
         collect(doc("design/detail/final/screen-designs/lists/todo-dashboard.yaml"), used, setOf("empty"))
         java.nio.file.Files.list(root.resolve("design/detail/final/screen-designs/operations")).use { s -> s.toList() }.forEach { f ->
             val form = doc("design/detail/final/screen-designs/operations/${f.fileName}")["form"] as? Map<*, *> ?: return@forEach
@@ -518,15 +522,16 @@ class TodosSysdevTest {
         fun concepts(id: String) = lineage[id]?.get("concepts") as List<*>
         // データの決まりは、業務モデル（constraints）ではなく、基本設計の「データの決まり」（designRules）から読む（ADR-0042）
         // 操作は、業務モデル（actions）ではなく、基本設計の「操作」の項目一覧を解いたもの（designActions）から読む
-        assertTrue(listOf("designActions.effects", "designActions.checks", "designActions.require", "designRules.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
-        assertTrue(concepts("processes-derived").all { it.toString().startsWith("designActions") || it.toString().startsWith("designRules") }, "処理設計書の導出は、基本設計の項目だけを読む: ${concepts("processes-derived")}")
-        listOf("error-handling", "processes", "screen-designs-details", "screen-designs-lists", "screen-designs-operations", "screen-flows", "session-design").forEach { id ->
+        assertTrue(listOf("designActions.effects", "designActions.checks", "designActions.require", "designRules.rule").all { it in concepts("detail-processes") }, "処理の手順: ${concepts("detail-processes")}")
+        assertTrue(concepts("detail-processes").all { c -> listOf("designActions", "designRules", "designDecisions").any { c.toString().startsWith(it) } }, "処理の手順は、基本設計と詳細設計のレコードだけを読む: ${concepts("detail-processes")}")
+        val processDefinition = Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "detail-processes" }
+        assertEquals(setOf("basic-operations", "basic-entities", "basic-types", "basic-states", "basic-rules", "detail-table-access", "detail-status", "detail-document-input-gate"), processDefinition.dependsOn.toSet(), "業務モデル・中間ファイル（操作を解いた形）・名前のマッピングテーブルに依存しない")
+        listOf("error-handling", "screen-designs-details", "screen-designs-lists", "screen-designs-operations", "screen-flows", "session-design").forEach { id ->
             assertTrue(concepts("$id-derived").none { it.toString().startsWith("actions") }, "$id の導出は、業務モデルの操作を直接読まない: ${concepts("$id-derived")}")
             assertTrue(concepts("$id-derived").any { it.toString().startsWith("designActions") }, "$id の導出は、操作を基本設計の項目から読む: ${concepts("$id-derived")}")
         }
         // 操作を解いた形は、基本設計の項目（操作・エンティティ・型・状態と遷移・データの決まり）だけから作る
         assertTrue(concepts("basic-operations-resolved").all { c -> listOf("operations", "entities", "lifecycles", "rules", "types").any { c.toString() == it || c.toString().startsWith("$it.") } }, "操作を解いた形: ${concepts("basic-operations-resolved")}")
-        assertTrue(concepts("processes-derived").none { it.toString().startsWith("constraints") }, "処理設計書の導出は、業務モデルのデータの決まりを直接読まない: ${concepts("processes-derived")}")
         // テーブルへの読み書きは、基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）だけを入口で組んで読む。業務モデルも、解いた形も読まない
         val access = concepts("detail-table-access").map { it.toString().substringBefore(".") }.toSet()
         assertEquals(setOf("entities", "designActions", "designRules", "designQueries", "designReach", "designDetails", "designSoftDeleted", "designDecisions"), access, "テーブルへの読み書き: ${concepts("detail-table-access")}")
@@ -536,9 +541,8 @@ class TodosSysdevTest {
         assertEquals(emptyList<Any>(), concepts("screen-styles-derived"), "クラスの対応表の導出は業務モデルを読まない（決まった表）")
         assertEquals(null, lineage["basic-entities"]?.get("stage"), "確定項目への移行後は段を再適用しない")
         assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "basic-entities" }.dependsOn.contains("basic-final"))
-        assertEquals(null, lineage["processes"]?.get("stage"))
-        assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "processes" }.dependsOn.contains("processes-derived"))
-        assertTrue((lineage["processes-derived"]?.get("reads") as List<*>).contains("designActions[*].effects[*].field.key"))
+        assertEquals(null, lineage["detail-processes"]?.get("stage"))
+        assertTrue((lineage["detail-processes"]?.get("reads") as List<*>).contains("designActions[*].effects[*].field.key"))
     }
 
     @Test

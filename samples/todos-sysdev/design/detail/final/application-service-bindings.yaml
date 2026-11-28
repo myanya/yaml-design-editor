@@ -2,7 +2,7 @@
 id: APP-service-bindings
 operations:
   - id: SPROG-add-category
-    source: DOC-processes.add-category
+    source: PRC-add-category
     input: SINPUT-add-category
     symbols:
       - path: name
@@ -52,7 +52,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-add-tag
-    source: DOC-processes.add-tag
+    source: PRC-add-tag
     input: SINPUT-add-tag
     symbols:
       - path: name
@@ -102,7 +102,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-add-todo-comment
-    source: DOC-processes.add-todo-comment
+    source: PRC-add-todo-comment
     input: SINPUT-add-todo-comment
     symbols:
       - path: id
@@ -322,7 +322,7 @@ operations:
               type: java.lang.Long
             typeMatches: true
   - id: SPROG-add-todo-task
-    source: DOC-processes.add-todo-task
+    source: PRC-add-todo-task
     input: SINPUT-add-todo-task
     symbols:
       - path: id
@@ -579,7 +579,7 @@ operations:
               type: java.lang.String
             typeMatches: true
   - id: SPROG-cancel-todo
-    source: DOC-processes.cancel-todo
+    source: PRC-cancel-todo
     input: SINPUT-cancel-todo
     symbols:
       - path: id
@@ -810,7 +810,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-complete-todo
-    source: DOC-processes.complete-todo
+    source: PRC-complete-todo
     input: SINPUT-complete-todo
     symbols:
       - path: id
@@ -1118,7 +1118,7 @@ operations:
               type: java.lang.String
             typeMatches: true
   - id: SPROG-delete-todo-comment
-    source: DOC-processes.delete-todo-comment
+    source: PRC-delete-todo-comment
     input: SINPUT-delete-todo-comment
     symbols:
       - path: id
@@ -1342,7 +1342,7 @@ operations:
               type: java.lang.Long
             typeMatches: true
   - id: SPROG-delete-todo-task
-    source: DOC-processes.delete-todo-task
+    source: PRC-delete-todo-task
     input: SINPUT-delete-todo-task
     symbols:
       - path: id
@@ -1593,7 +1593,7 @@ operations:
               type: java.lang.String
             typeMatches: true
   - id: SPROG-edit-todo
-    source: DOC-processes.edit-todo
+    source: PRC-edit-todo
     input: SINPUT-edit-todo
     symbols:
       - path: id
@@ -2142,7 +2142,7 @@ operations:
               type: java.lang.String
             typeMatches: true
   - id: SPROG-edit-todo-comment
-    source: DOC-processes.edit-todo-comment
+    source: PRC-edit-todo-comment
     input: SINPUT-edit-todo-comment
     symbols:
       - path: id
@@ -2412,7 +2412,7 @@ operations:
               type: java.lang.Long
             typeMatches: true
   - id: SPROG-register-todo
-    source: DOC-processes.register-todo
+    source: PRC-register-todo
     input: SINPUT-register-todo
     symbols:
       - path: title
@@ -2609,7 +2609,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-resume-todo
-    source: DOC-processes.resume-todo
+    source: PRC-resume-todo
     input: SINPUT-resume-todo
     symbols:
       - path: id
@@ -2845,7 +2845,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-start-todo
-    source: DOC-processes.start-todo
+    source: PRC-start-todo
     input: SINPUT-start-todo
     symbols:
       - path: id
@@ -3053,7 +3053,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-suspend-todo
-    source: DOC-processes.suspend-todo
+    source: PRC-suspend-todo
     input: SINPUT-suspend-todo
     symbols:
       - path: id
@@ -3311,7 +3311,7 @@ operations:
         whereMatches: true
         parameters: []
   - id: SPROG-todo-task.finish
-    source: DOC-processes.todo-task.finish
+    source: PRC-todo-task.finish
     input: SINPUT-todo-task.finish
     symbols:
       - path: id

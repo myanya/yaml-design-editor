@@ -69,7 +69,7 @@ class TodosServiceBindingsTest {
         assertTrue(rows(start, "steps").any { it["call"] == "TodoStore.startTodo" })
         val process = raw(plan.outputs.single { it.document.value == "design/detail/final/processes/start-todo.yaml" }.text)
         val check = rows(process, "steps").single { it["checkMode"] == "state" }
-        assertEquals(listOf("OPEN"), check["allowed"], "できる状態は、状態の型の項目（定数の ID）から定数の名前に解いて読む")
+        assertEquals(listOf("ENC-todo-OPEN"), check["allowed"], "実行できる状態は、状態の型の定数を ID で参照する（定数の名前は、読む側が解決する）")
         assertEquals("status", check["stateField"])
         val program = plan.outputs.single { it.generator == "application-service-programs" }.text
         assertTrue("getSubject()" in program)

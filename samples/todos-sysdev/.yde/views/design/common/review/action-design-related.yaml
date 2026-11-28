@@ -9,7 +9,7 @@ rows:
         bind: design
   where:
     - of: design
-      path: id
+      path: operation
       equals: $source
   rowKey: design
 columns:

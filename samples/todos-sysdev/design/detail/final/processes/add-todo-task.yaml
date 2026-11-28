@@ -1,6 +1,30 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: add-todo-task
-name: 作業項目を追加する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-add-todo-task
+source: ACT-add-todo-task
+operation: add-todo-task
+label: 作業項目を追加する
+inputs:
+  - key: title
+    label: 作業
+    type: common#一行の文
+    base: string
+    required: true
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
+  - key: version
+    label: 版
+    type: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+    carried: true
 service:
   class: TodoService
   method: addTodoTask
@@ -11,14 +35,16 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: read
-    call: TodoMapper.findById
+  - id: STP-add-todo-task.01
+    step: read
+    call: MTH-todo.findById
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
-    entity: todo
-  - step: check
-    precondition: add-todo-task.active
+    entity: ENT-todo
+  - id: STP-add-todo-task.02
+    step: check
+    precondition: PRE-add-todo-task.active
     by: Java（読んだ行）
     rule:
       - of: t
@@ -27,48 +53,50 @@ steps:
           - OPEN
           - IN_PROGRESS
           - SUSPENDED
-    message: add-todo-task.active
-    text: '{id} は完了か中止をしているので、作業項目を足せません'
+    message: MSG-add-todo-task.active
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    precondition: add-todo-task.version-unchanged
+    entity: ENT-todo
+  - id: STP-add-todo-task.03
+    step: check
+    precondition: PRE-add-todo-task.version-unchanged
     by: Java（読んだ行）
     rule:
       - of: t
         path: version
         equals: $version
-    message: add-todo-task.version-unchanged
-    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    message: MSG-add-todo-task.version-unchanged
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: number
-    entity: todo-task
-    call: TodoTaskMapper.maxId
+    entity: ENT-todo
+  - id: STP-add-todo-task.04
+    step: number
+    entity: ENT-todo-task
+    call: MTH-todo-task.maxId
     rule:
       path: id
       prefix:
         $format: '{id}-S'
         $of: owner
       digits: 2
-  - step: check
-    constraint: updated-not-before-created
+  - id: STP-add-todo-task.05
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
         - gte:
             - path: updated_on
             - path: created_on
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: write
-    call: TodoTaskMapper.insert
+    entity: ENT-todo
+  - id: STP-add-todo-task.06
+    step: write
+    call: MTH-todo-task.insert
     kind: insert
     values:
       id:
@@ -78,11 +106,12 @@ steps:
       todo_id: $id
       seq:
         sequence:
-          call: TodoTaskMapper.maxSeq
+          call: MTH-todo-task.maxSeq
           key:
             param: id
-  - step: write
-    call: TodoMapper.addTodoTask
+  - id: STP-add-todo-task.07
+    step: write
+    call: MTH-todo.addTodoTask
     kind: update
     set:
       - item: updated_on
@@ -98,35 +127,19 @@ steps:
         param: id
         value:
           param: id
-  - step: check
-    constraint: closed-has-no-open-task
+  - id: STP-add-todo-task.08
+    step: check
+    constraint: RUL-closed-has-no-open-task
     by: SQL（件数。書いた後）
-    call: TodoTaskMapper.countClosedHasNoOpenTask
+    call: MTH-todo-task.countClosedHasNoOpenTask
     key:
       param: id
     expect: 0 件なら通す
     violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
-    message: check.closed-has-no-open-task
+    message: MSG-check.closed-has-no-open-task
     checkMode: count
     phase: after
-    entity: todo
+    entity: ENT-todo
     countExpectation: absent
 subject: todo
-originalService:
-  class: TodoService
-  method: addTodoTask
-  arguments:
-    - id
-    - title
-    - version
 transactionMode: atomic
-designId: DOC-processes.add-todo-task
-designKind: processes
-designPath: design/detail/final/processes/add-todo-task.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

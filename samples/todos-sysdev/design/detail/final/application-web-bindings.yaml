@@ -3,7 +3,7 @@ id: APP-web-bindings
 operations:
   - id: JWEB-add-category
     action: add-category
-    source: DOC-processes.add-category
+    source: PRC-add-category
     controllerService: CategoryService.addCategory
     className: AddCategoryWebOperation
     service: CategoryService
@@ -53,7 +53,7 @@ operations:
     receiverFields: []
   - id: JWEB-add-tag
     action: add-tag
-    source: DOC-processes.add-tag
+    source: PRC-add-tag
     controllerService: TagService.addTag
     className: AddTagWebOperation
     service: TagService
@@ -103,7 +103,7 @@ operations:
     receiverFields: []
   - id: JWEB-add-todo-comment
     action: add-todo-comment
-    source: DOC-processes.add-todo-comment
+    source: PRC-add-todo-comment
     controllerService: TodoService.addTodoComment
     className: AddTodoCommentWebOperation
     service: TodoService
@@ -201,7 +201,7 @@ operations:
         classes: []
   - id: JWEB-add-todo-task
     action: add-todo-task
-    source: DOC-processes.add-todo-task
+    source: PRC-add-todo-task
     controllerService: TodoService.addTodoTask
     className: AddTodoTaskWebOperation
     service: TodoService
@@ -280,7 +280,7 @@ operations:
         classes: []
   - id: JWEB-cancel-todo
     action: cancel-todo
-    source: DOC-processes.cancel-todo
+    source: PRC-cancel-todo
     controllerService: TodoService.cancelTodo
     className: CancelTodoWebOperation
     service: TodoService
@@ -359,7 +359,7 @@ operations:
         classes: []
   - id: JWEB-complete-todo
     action: complete-todo
-    source: DOC-processes.complete-todo
+    source: PRC-complete-todo
     controllerService: TodoService.completeTodo
     className: CompleteTodoWebOperation
     service: TodoService
@@ -458,7 +458,7 @@ operations:
         classes: []
   - id: JWEB-delete-todo-comment
     action: delete-todo-comment
-    source: DOC-processes.delete-todo-comment
+    source: PRC-delete-todo-comment
     controllerService: TodoService.deleteTodoComment
     className: DeleteTodoCommentWebOperation
     service: TodoService
@@ -537,7 +537,7 @@ operations:
         classes: []
   - id: JWEB-delete-todo-task
     action: delete-todo-task
-    source: DOC-processes.delete-todo-task
+    source: PRC-delete-todo-task
     controllerService: TodoService.deleteTodoTask
     className: DeleteTodoTaskWebOperation
     service: TodoService
@@ -616,7 +616,7 @@ operations:
         classes: []
   - id: JWEB-edit-todo
     action: edit-todo
-    source: DOC-processes.edit-todo
+    source: PRC-edit-todo
     controllerService: TodoService.editTodo
     className: EditTodoWebOperation
     service: TodoService
@@ -968,7 +968,7 @@ operations:
         classes: []
   - id: JWEB-edit-todo-comment
     action: edit-todo-comment
-    source: DOC-processes.edit-todo-comment
+    source: PRC-edit-todo-comment
     controllerService: TodoService.editTodoComment
     className: EditTodoCommentWebOperation
     service: TodoService
@@ -1085,7 +1085,7 @@ operations:
         classes: []
   - id: JWEB-register-todo
     action: register-todo
-    source: DOC-processes.register-todo
+    source: PRC-register-todo
     controllerService: TodoService.registerTodo
     className: RegisterTodoWebOperation
     service: TodoService
@@ -1250,7 +1250,7 @@ operations:
     receiverFields: []
   - id: JWEB-resume-todo
     action: resume-todo
-    source: DOC-processes.resume-todo
+    source: PRC-resume-todo
     controllerService: TodoService.resumeTodo
     className: ResumeTodoWebOperation
     service: TodoService
@@ -1348,7 +1348,7 @@ operations:
         classes: []
   - id: JWEB-start-todo
     action: start-todo
-    source: DOC-processes.start-todo
+    source: PRC-start-todo
     controllerService: TodoService.startTodo
     className: StartTodoWebOperation
     service: TodoService
@@ -1408,7 +1408,7 @@ operations:
         classes: []
   - id: JWEB-suspend-todo
     action: suspend-todo
-    source: DOC-processes.suspend-todo
+    source: PRC-suspend-todo
     controllerService: TodoService.suspendTodo
     className: SuspendTodoWebOperation
     service: TodoService
@@ -1526,7 +1526,7 @@ operations:
         classes: []
   - id: JWEB-todo-task.finish
     action: todo-task.finish
-    source: DOC-processes.todo-task.finish
+    source: PRC-todo-task.finish
     controllerService: TodoTaskService.todoTaskFinish
     className: TodoTaskFinishWebOperation
     service: TodoTaskService

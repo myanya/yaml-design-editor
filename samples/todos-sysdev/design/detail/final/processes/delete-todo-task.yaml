@@ -1,6 +1,33 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: delete-todo-task
-name: 作業項目を削除する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-delete-todo-task
+source: ACT-delete-todo-task
+operation: delete-todo-task
+label: 作業項目を削除する
+inputs:
+  - key: row
+    label: 作業項目の番号
+    type: int
+    base: int
+    description: 作業項目の何番目か（0 から数えます）
+    required: true
+    min: 0.0
+    overrides:
+      min: 0.0
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+  - key: version
+    label: 版
+    type: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+    carried: true
 service:
   class: TodoService
   method: deleteTodoTask
@@ -11,14 +38,16 @@ service:
 confirm: []
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: read
-    call: TodoMapper.findById
+  - id: STP-delete-todo-task.01
+    step: read
+    call: MTH-todo.findById
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
-    entity: todo
-  - step: check
-    precondition: delete-todo-task.active
+    entity: ENT-todo
+  - id: STP-delete-todo-task.02
+    step: check
+    precondition: PRE-delete-todo-task.active
     by: Java（読んだ行）
     rule:
       - of: t
@@ -27,39 +56,40 @@ steps:
           - OPEN
           - IN_PROGRESS
           - SUSPENDED
-    message: delete-todo-task.active
-    text: '{id} は完了か中止をしているので、作業項目を消せません'
+    message: MSG-delete-todo-task.active
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    precondition: delete-todo-task.version-unchanged
+    entity: ENT-todo
+  - id: STP-delete-todo-task.03
+    step: check
+    precondition: PRE-delete-todo-task.version-unchanged
     by: Java（読んだ行）
     rule:
       - of: t
         path: version
         equals: $version
-    message: delete-todo-task.version-unchanged
-    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    message: MSG-delete-todo-task.version-unchanged
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    constraint: updated-not-before-created
+    entity: ENT-todo
+  - id: STP-delete-todo-task.04
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
         - gte:
             - path: updated_on
             - path: created_on
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: write
-    call: TodoTaskMapper.deleteTodoTaskTasksRow
+    entity: ENT-todo
+  - id: STP-delete-todo-task.05
+    step: write
+    call: MTH-todo-task.deleteTodoTaskTasksRow
     kind: delete
     where:
       - item: todo_id
@@ -75,8 +105,9 @@ steps:
       param: row
     missing: 行が無ければ NotFoundException（error.notFound.todo.tasks）
     missingEntity: todo.tasks
-  - step: write
-    call: TodoMapper.deleteTodoTask
+  - id: STP-delete-todo-task.06
+    step: write
+    call: MTH-todo.deleteTodoTask
     kind: update
     set:
       - item: updated_on
@@ -92,35 +123,19 @@ steps:
         param: id
         value:
           param: id
-  - step: check
-    constraint: closed-has-no-open-task
+  - id: STP-delete-todo-task.07
+    step: check
+    constraint: RUL-closed-has-no-open-task
     by: SQL（件数。書いた後）
-    call: TodoTaskMapper.countClosedHasNoOpenTask
+    call: MTH-todo-task.countClosedHasNoOpenTask
     key:
       param: id
     expect: 0 件なら通す
     violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
-    message: check.closed-has-no-open-task
+    message: MSG-check.closed-has-no-open-task
     checkMode: count
     phase: after
-    entity: todo
+    entity: ENT-todo
     countExpectation: absent
 subject: todo
-originalService:
-  class: TodoService
-  method: deleteTodoTask
-  arguments:
-    - id
-    - row
-    - version
 transactionMode: atomic
-designId: DOC-processes.delete-todo-task
-designKind: processes
-designPath: design/detail/final/processes/delete-todo-task.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

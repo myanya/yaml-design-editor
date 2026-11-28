@@ -4,6 +4,7 @@ scope: design
 dependsOn:
   - application-service-inputs
   - application-access
+  - basic-messages
 output: design/detail/final/application-service-bindings.yaml
 input:
   operations:
@@ -14,14 +15,23 @@ input:
       $with:
         input:
           $copy: values.record
+        # 処理の手順のレコードを、生成元の ID（PRC-）で 1 件引く
         process:
-          $view: processes-input
-          $where:
-            - path: values.record.designId
-              equals:
-                $copy: values.record.source
-                $of: inputRow
-          $one: true
+          values:
+            record:
+              $apply: first
+              $with:
+                items:
+                  $each:
+                    $view: detail-model-processes
+                    $where:
+                      - path: id
+                        equals:
+                          $copy: values.record.source
+                          $of: inputRow
+                  $build:
+                    $apply: process-document
+                    $at: values.record
     $bind: inputRow
   contracts:
     $each: schemas
@@ -45,6 +55,343 @@ build:
             operations:
               $copy: operations
 rules:
+  # ---- 処理の手順のレコード（PRC-・STP-）を読む入力アダプタ。ID で参照している先（Mapper のメソッド・メッセージ・状態の定数）を解決して、
+  #      下のルールが読む形にする。同じアダプタが、処理の手順を読む変換定義それぞれにある（ルールを定義の間で共有できないため。UX-384）
+  - id: process-document
+    build:
+      id:
+        $copy: operation
+      name:
+        $copy: label
+      service:
+        $copy: service
+      confirm:
+        $each: confirm
+        $build:
+          method:
+            $copy: method
+          arguments:
+            $copy: arguments
+          does:
+            $copy: does
+          constraints:
+            $each: constraints
+            $build:
+              constraint:
+                $value:
+                  extract:
+                    - path: constraint
+                    - ^RUL-(.*)$
+              field:
+                $copy: field
+              message:
+                $apply: process-message-key
+                $with:
+                  ref:
+                    $copy: message
+      transaction:
+        $copy: transaction
+      steps:
+        $each: steps
+        $bind: processStep
+        $build:
+          $apply: process-calls
+          $with:
+            node:
+              $entries:
+                $eachEntry: .
+                $flatten: true
+                $build:
+                  $apply: process-step-entry
+                  $with:
+                    step:
+                      $copy: .
+                      $of: processStep
+      subject:
+        $copy: subject
+      originalService:
+        class:
+          $format: '{name}Service'
+          $with:
+            name:
+              $case:
+                $copy: subject
+              $as: pascal
+        method:
+          $case:
+            $copy: operation
+          $as: camel
+        arguments:
+          $copy: service.arguments
+      transactionMode:
+        $copy: transactionMode
+      inputs:
+        $copy: inputs
+      designId:
+        $copy: id
+      designKind: processes
+      designPath:
+        $format: design/detail/final/processes/{operation}.yaml
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: id
+    build: []
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: message
+      - or:
+          - of: step
+            path: precondition
+            exists: true
+          - of: step
+            path: error
+            exists: true
+    build:
+      - key: message
+        value:
+          $apply: process-message-key
+          $with:
+            ref:
+              $copy: .
+      - key: text
+        value:
+          $apply: process-message-text
+          $with:
+            ref:
+              $copy: .
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: message
+    build:
+      - key: message
+        value:
+          $apply: process-message-key
+          $with:
+            ref:
+              $copy: .
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: precondition
+    build:
+      - key: precondition
+        value:
+          $value:
+            extract:
+              - path: .
+              - ^PRE-(.*)$
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: error
+    build:
+      - key: precondition
+        value:
+          $value:
+            extract:
+              - path: .
+              - ^ERR-(.*)$
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: constraint
+    build:
+      - key: constraint
+        value:
+          $value:
+            extract:
+              - path: .
+              - ^RUL-(.*)$
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: entity
+    build:
+      - key: entity
+        value:
+          $value:
+            extract:
+              - path: .
+              - ^ENT-(.*)$
+  - id: process-step-entry
+    with:
+      - step
+    when:
+      - path: $key
+        equals: allowed
+    build:
+      - key: allowed
+        value:
+          $each: .
+          $build:
+            $apply: process-constant-name
+            $with:
+              ref:
+                $copy: .
+  - id: process-step-entry
+    with:
+      - step
+    build:
+      - key: $key
+        value:
+          $copy: .
+  - id: process-message-key
+    with:
+      - ref
+    build:
+      $apply: process-pick-key
+      $with:
+        row:
+          $view: basic-model-messages
+          $where:
+            - path: id
+              equals:
+                $copy: .
+                $of: ref
+          $one: true
+  - id: process-pick-key
+    with:
+      - row
+    build:
+      $copy: values.record.key
+      $of: row
+  - id: process-message-text
+    with:
+      - ref
+    build:
+      $apply: process-pick-text
+      $with:
+        row:
+          $view: basic-model-messages
+          $where:
+            - path: id
+              equals:
+                $copy: .
+                $of: ref
+          $one: true
+  - id: process-pick-text
+    with:
+      - row
+    build:
+      $copy: values.record.text
+      $of: row
+  - id: process-constant-name
+    with:
+      - ref
+    build:
+      $apply: process-pick-constant
+      $with:
+        row:
+          $view: detail-model-status-constants
+          $where:
+            - path: id
+              equals:
+                $copy: .
+                $of: ref
+          $one: true
+  - id: process-pick-constant
+    with:
+      - row
+    build:
+      $copy: values.record.constant
+      $of: row
+  # 入れ子の中も歩いて、呼ぶメソッドの ID（call: MTH-）を、呼び名（Mapper 名.メソッド名）にする
+  - id: process-calls
+    with:
+      - node
+    build:
+      $first:
+        - $apply: process-calls-map
+          $with:
+            entries:
+              $eachEntry: .
+              $of: node
+              $flatten: true
+              $build:
+                $first:
+                  - $when:
+                      - path: $key
+                        equals: call
+                    $then:
+                      - key: $key
+                        value:
+                          $apply: process-call-name
+                          $with:
+                            ref:
+                              $copy: .
+                  - - key: $key
+                      value:
+                        $apply: process-calls
+                        $with:
+                          node:
+                            $copy: .
+        - $each: .
+          $of: node
+          $build:
+            $apply: process-calls
+            $with:
+              node:
+                $copy: .
+        - $copy: .
+          $of: node
+  - id: process-calls-map
+    with:
+      - entries
+    when:
+      - of: entries
+        path: .
+        exists: true
+    build:
+      $entries:
+        $copy: .
+        $of: entries
+  - id: process-call-name
+    with:
+      - ref
+    build:
+      $first:
+        - $apply: process-pick-call
+          $with:
+            row:
+              $view: detail-model-methods
+              $where:
+                - path: id
+                  equals:
+                    $copy: .
+                    $of: ref
+              $one: true
+        - $copy: .
+          $of: ref
+  - id: process-pick-call
+    with:
+      - row
+    build:
+      $format: '{m}.{n}'
+      $with:
+        m:
+          $copy: values.mapper
+          $of: row
+        'n':
+          $copy: values.name
+          $of: row
+  # ---- 入力アダプタ ここまで ----
   - id: first
     with:
       - items

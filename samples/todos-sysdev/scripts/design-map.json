@@ -360,10 +360,16 @@
     },
     {
       "id": "proc",
-      "name": "処理設計書",
+      "name": "処理の手順",
       "column": "detail",
       "lane": "op",
-      "kind": "processes"
+      "transforms": [
+        "detail-processes"
+      ],
+      "ids": [
+        "PRC-*",
+        "STP-*"
+      ]
     },
     {
       "id": "sdL",
@@ -1150,6 +1156,38 @@
         "note": "基本設計の「状態と遷移」の項目だけを読んで作ります。型（enum）・定数・判定に ID を振り、各要素が作る元（基本設計の項目）を指します。詳細設計の個別の判断（inputs/decisions.yaml）は、項目の ID を対象にして、ここで直接当てます。補正前のファイルと、確定の変換定義はありません。"
       },
       {
+        "id": "d-prc",
+        "layer": "detail",
+        "row": 4,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "処理の手順",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:detail-processes"
+        ],
+        "note": "基本設計のレコード（操作・エンティティ・型・状態と遷移・制約）と、同じ詳細設計のレコード（テーブルへの読み書き・状態の型）だけを読んで作ります。処理（PRC-）とステップ（STP-）に ID を振り、ステップは、呼ぶ Mapper のメソッド・事前条件・エラーケース・制約・メッセージ・エンティティ・状態の定数を ID で参照します（名前とメッセージのテキストはコピーしません）。オーバーライド（inputs/decisions.yaml）は、Service のクラス名とメソッド名を直接適用します。補正前のファイル、確定の変換定義、Mapper の名前のマッピングテーブルへの依存はありません。"
+      },
+      {
+        "id": "d-prc-view",
+        "layer": "detail",
+        "row": 4,
+        "col": 3,
+        "kind": "view",
+        "label": [
+          "処理設計書"
+        ],
+        "views": [
+          "detail/review/process-definition*.yaml"
+        ],
+        "reads": [
+          "d-prc"
+        ]
+      },
+      {
         "id": "d-acc",
         "layer": "detail",
         "row": 3,
@@ -1205,10 +1243,9 @@
         "kind": "work",
         "label": [
           "処理・画面ほか",
-          "の導出（9 種）"
+          "の導出（8 種）"
         ],
         "members": [
-          "t:processes-derived",
           "t:screen-styles-derived",
           "t:session-design-derived",
           "t:screen-designs-lists-derived",
@@ -1243,10 +1280,9 @@
         "shape": "documents",
         "label": [
           "処理・画面ほか",
-          "（文書の形。9 種）"
+          "（文書の形。8 種）"
         ],
         "members": [
-          "t:processes",
           "t:screen-styles",
           "t:session-design",
           "t:screen-designs-lists",
@@ -2017,20 +2053,25 @@
         "label": [
           "処理の手順"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:processes"
+          "t:detail-processes"
         ],
         "from": [
           "a-op",
+          "a-ent",
+          "a-typ",
+          "a-sta",
           "a-rul",
-          "a-err"
+          "a-err",
+          "a-msg"
         ],
         "refs": [
           "c-acc",
           "c-stt"
         ],
-        "unit": "操作ごと"
+        "unit": "操作ごと",
+        "note": "2026-11-28 に ID 付きレコードにしました。処理（PRC-）とステップ（STP-）に ID を振り、呼ぶ Mapper のメソッド・事前条件・エラーケース・制約・メッセージ・エンティティ・状態の定数を ID で参照します。導出と確定の 2 本の変換定義を 1 本にし、補正前のファイルは持ちません。"
       },
       {
         "id": "c-sty",
@@ -2149,7 +2190,6 @@
         ],
         "status": "role",
         "current": [
-          "t:processes-derived",
           "t:screen-styles-derived",
           "t:session-design-derived",
           "t:screen-designs-lists-derived",
@@ -2213,7 +2253,7 @@
         "label": [
           "処理設計書"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "c-svc"
         ]

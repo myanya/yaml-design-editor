@@ -1,6 +1,161 @@
-# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
-id: edit-todo
-name: TODOを編集する
+# 生成物（detail-processes）: 手で直さず、業務モデルか生成の定義（design/detail/detail-processes.yaml）を直して作り直します（CLI generate）。
+id: PRC-edit-todo
+source: ACT-edit-todo
+operation: edit-todo
+label: TODOを編集する
+inputs:
+  - key: title
+    label: タイトル
+    type: common#一行の文
+    base: string
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
+  - key: summary
+    label: 概要
+    type: common#一行の文
+    base: string
+    minLength: 1
+    maxLength: 100
+    pattern: ^[^\r\n]*$
+    overrides:
+      minLength: 1
+  - key: category
+    label: カテゴリ
+    type: common#カテゴリ参照
+    base: ref
+    description: カテゴリ一覧の ID を 1 件。未分類なら省略します。
+    refTarget: entity
+    idPatternLayers:
+      -   - CAT-*
+    scope:
+      schemaIds:
+        - category-list
+      documentIds: []
+    relation: in-category
+    idPatterns:
+      - CAT-*
+    schemas:
+      - category-list
+    targets:
+      - category
+    target: category
+    targetTitle: name
+    targetLabel: カテゴリ
+    clearedBy: clear.category
+  - key: tags
+    label: タグ
+    type: array
+    base: array
+    description: 入力した並びで全体を置き換えます。
+    unique: true
+    item:
+      type: common#タグ参照
+      base: ref
+      description: タグ一覧の ID を 1 件。
+      refTarget: entity
+      idPatternLayers:
+        -   - TAG-*
+      scope:
+        schemaIds:
+          - tag-list
+        documentIds: []
+      relation: tagged
+      idPatterns:
+        - TAG-*
+      schemas:
+        - tag-list
+      targets:
+        - tag
+      target: tag
+      targetTitle: name
+      targetLabel: タグ
+    clearedBy: clear.tags
+  - key: created_on
+    label: 作成日
+    type: common#年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    format: yyyy年M月d日
+  - key: due_on
+    label: 期限
+    type: common#年月日
+    base: date
+    description: YYYY-MM-DD 形式で入力します（例 2026-09-22）。
+    format: yyyy年M月d日
+    clearedBy: clear.due_on
+  - key: details
+    label: 詳細
+    type: common#文章
+    base: string
+    multiline: true
+    clearedBy: clear.details
+  - key: result
+    label: 結果・中止理由
+    type: common#文章
+    base: string
+    multiline: true
+    clearedBy: clear.result
+  - key: clear
+    label: 値を消す
+    type: object
+    base: object
+    description: チェックした項目を消去します。同じ項目に入力した値より消去が優先します。
+    default: {}
+    fields:
+      - key: category
+        label: カテゴリを消す
+        type: boolean
+        base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
+      - key: tags
+        label: タグを消す
+        type: boolean
+        base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
+      - key: due_on
+        label: 期限を消す
+        type: boolean
+        base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
+      - key: details
+        label: 詳細を消す
+        type: boolean
+        base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
+      - key: result
+        label: 結果・中止理由を消す
+        type: boolean
+        base: boolean
+        builtinType:
+          name: boolean
+          base: boolean
+          builtin: true
+  - key: version
+    label: 版
+    type: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    builtinType:
+      name: int
+      base: int
+      builtin: true
+    carried: true
 service:
   class: TodoService
   method: editTodo
@@ -32,41 +187,43 @@ confirm:
       - version
     does: 受け手を読み（あれば）、入力の値で書いた後の値を計算し、次の決まりを確かめる（書かない）。違反は欄の名前とメッセージのキーの並びで返す
     constraints:
-      - constraint: due-not-before-created
+      - constraint: RUL-due-not-before-created
         field: dueOn
-        message: check.due-not-before-created
-      - constraint: updated-not-before-created
+        message: MSG-check.due-not-before-created
+      - constraint: RUL-updated-not-before-created
         field: createdOn
-        message: check.updated-not-before-created
-      - constraint: completed-not-before-created
+        message: MSG-check.updated-not-before-created
+      - constraint: RUL-completed-not-before-created
         field: createdOn
-        message: check.completed-not-before-created
-      - constraint: closed-has-result
+        message: MSG-check.completed-not-before-created
+      - constraint: RUL-closed-has-result
         field: result
-        message: check.closed-has-result
+        message: MSG-check.closed-has-result
 transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
 steps:
-  - step: read
-    call: TodoMapper.findById
+  - id: STP-edit-todo.01
+    step: read
+    call: MTH-todo.findById
     key:
       param: id
     missing: 見つからなければ NotFoundException（error.notFound.todo）
-    entity: todo
-  - step: check
-    precondition: edit-todo.version-unchanged
+    entity: ENT-todo
+  - id: STP-edit-todo.02
+    step: check
+    precondition: PRE-edit-todo.version-unchanged
     by: Java（読んだ行）
     rule:
       - of: t
         path: version
         equals: $version
-    message: edit-todo.version-unchanged
-    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    message: MSG-edit-todo.version-unchanged
     checkMode: current
     subjectAlias: t
     phase: before
-    entity: todo
-  - step: check
-    constraint: due-not-before-created
+    entity: ENT-todo
+  - id: STP-edit-todo.03
+    step: check
+    constraint: RUL-due-not-before-created
     by: Java（書いた後の値）
     rule:
       where:
@@ -77,12 +234,13 @@ steps:
             - path: due_on
             - path: created_on
     field: dueOn
-    message: check.due-not-before-created
+    message: MSG-check.due-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: updated-not-before-created
+    entity: ENT-todo
+  - id: STP-edit-todo.04
+    step: check
+    constraint: RUL-updated-not-before-created
     by: Java（書いた後の値）
     rule:
       check:
@@ -90,12 +248,13 @@ steps:
             - path: updated_on
             - path: created_on
     field: createdOn
-    message: check.updated-not-before-created
+    message: MSG-check.updated-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: completed-not-before-created
+    entity: ENT-todo
+  - id: STP-edit-todo.05
+    step: check
+    constraint: RUL-completed-not-before-created
     by: Java（書いた後の値）
     rule:
       where:
@@ -106,12 +265,13 @@ steps:
             - path: completed_on
             - path: created_on
     field: createdOn
-    message: check.completed-not-before-created
+    message: MSG-check.completed-not-before-created
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: check
-    constraint: closed-has-result
+    entity: ENT-todo
+  - id: STP-edit-todo.06
+    step: check
+    constraint: RUL-closed-has-result
     by: Java（書いた後の値）
     rule:
       where:
@@ -121,12 +281,13 @@ steps:
           empty: true
       expect: absent
     field: result
-    message: check.closed-has-result
+    message: MSG-check.closed-has-result
     checkMode: prospective
     phase: before
-    entity: todo
-  - step: write
-    call: TodoMapper.editTodo
+    entity: ENT-todo
+  - id: STP-edit-todo.07
+    step: write
+    call: MTH-todo.editTodo
     kind: update
     set:
       - item: title
@@ -201,16 +362,18 @@ steps:
         param: id
         value:
           param: id
-  - step: write
-    call: TodoMapper.deleteTodoTags
+  - id: STP-edit-todo.08
+    step: write
+    call: MTH-todo.deleteTodoTags
     kind: delete
     when:
       - path: tags
         exists: true
     key:
       param: id
-  - step: write
-    call: TodoMapper.insertTodoTags
+  - id: STP-edit-todo.09
+    step: write
+    call: MTH-todo.insertTodoTags
     kind: insert
     each: $tags
     seq:
@@ -221,8 +384,9 @@ steps:
         exists: true
     ownerKey:
       param: id
-  - step: write
-    call: TodoMapper.deleteTodoTags
+  - id: STP-edit-todo.10
+    step: write
+    call: MTH-todo.deleteTodoTags
     kind: delete
     when:
       - path: clear.tags
@@ -230,29 +394,4 @@ steps:
     key:
       param: id
 subject: todo
-originalService:
-  class: TodoService
-  method: editTodo
-  arguments:
-    - id
-    - title
-    - summary
-    - category
-    - tags
-    - createdOn
-    - dueOn
-    - details
-    - result
-    - clear
-    - version
 transactionMode: atomic
-designId: DOC-processes.edit-todo
-designKind: processes
-designPath: design/detail/final/processes/edit-todo.yaml
-origins:
-  source:
-    id: rule-processes
-    document: .yde/transforms/design/detail/processes-derived.yaml
-    path: []
-  decisions: []
-  inputs: []

@@ -116,9 +116,9 @@ Form のクラス名が画面設計書と Controller で異なる場合も止め
 7. `origins` で導出元、採用した値、入力の理由を確認する。
 
 補正の試験は作業用コピーで `generate <コピー> --apply` と `report <コピー> ddl` を実行する。
-CLI の個別選択は `view <コピー> system-review --param document=DOC-processes.complete-todo`、文書ビューは
+CLI の個別選択は `view <コピー> system-review --param document=DOC-screen-designs-operations.complete-todo`、文書ビューは
 `view <コピー> action-design design/basic/final/operations/complete-todo.yaml` を使う。単独グリッドの `--param` では絞られない。
-設計書別のダッシュボードは `design-review-<kind>`。たとえば `view <コピー> design-review-processes --param document=DOC-processes.complete-todo` で処理設計書を確認できる。
+設計書別のダッシュボードは `design-review-<kind>`（文書の形で残っている種類だけ）。ID 付きレコードにした種類は、レコードを読むビューで確認する（処理設計書は `view <コピー> process-definition`・`process-definition-steps`）。
 
 `TodosSystemDocumentsTest` は物理名 → Mapper → Service → Controller、画面入力 → Form・メッセージ、
 セッション、追加と補正、競合と対象消失、未対応入力、段階を間違えた入力の拒否、再生成を確認する。

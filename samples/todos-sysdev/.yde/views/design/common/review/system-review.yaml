@@ -8,7 +8,7 @@ inputs:
     type: ref
     idPatterns:
       - DOC-*
-    default: DOC-processes.complete-todo
+    default: DOC-screen-designs-operations.complete-todo
 sections:
   - id: summary
     label: 選んだ設計書

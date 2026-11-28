@@ -1,7 +1,7 @@
 # 生成物（application-process-gate）: 手で直さず、業務モデルか生成の定義（design/detail/application-process-gate.yaml）を直して作り直します（CLI generate）。
 id: SYS-application-process-check
 processes:
-  - source: DOC-processes.add-category
+  - source: PRC-add-category
     transactionMode: atomic
     checks: []
     calls:
@@ -11,7 +11,7 @@ processes:
       - call: CategoryMapper.insert
         method: JMTH-category.insert
         resolved: true
-  - source: DOC-processes.add-tag
+  - source: PRC-add-tag
     transactionMode: atomic
     checks: []
     calls:
@@ -21,7 +21,7 @@ processes:
       - call: TagMapper.insert
         method: JMTH-tag.insert
         resolved: true
-  - source: DOC-processes.add-todo-comment
+  - source: PRC-add-todo-comment
     transactionMode: atomic
     checks:
       - mode: current
@@ -43,7 +43,7 @@ processes:
       - call: TodoMapper.addTodoComment
         method: JMTH-todo.addTodoComment
         resolved: true
-  - source: DOC-processes.add-todo-task
+  - source: PRC-add-todo-task
     transactionMode: atomic
     checks:
       - mode: current
@@ -77,7 +77,7 @@ processes:
       - call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask
         resolved: true
-  - source: DOC-processes.cancel-todo
+  - source: PRC-cancel-todo
     transactionMode: atomic
     checks:
       - mode: state
@@ -105,7 +105,7 @@ processes:
       - call: TodoMapper.maxSeqTodoHistory
         method: JMTH-todo.maxSeqTodoHistory
         resolved: true
-  - source: DOC-processes.complete-todo
+  - source: PRC-complete-todo
     transactionMode: atomic
     checks:
       - mode: state
@@ -151,7 +151,7 @@ processes:
       - call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask
         resolved: true
-  - source: DOC-processes.delete-todo-comment
+  - source: PRC-delete-todo-comment
     transactionMode: atomic
     checks:
       - mode: current
@@ -170,7 +170,7 @@ processes:
       - call: TodoMapper.deleteTodoComment
         method: JMTH-todo.deleteTodoComment
         resolved: true
-  - source: DOC-processes.delete-todo-task
+  - source: PRC-delete-todo-task
     transactionMode: atomic
     checks:
       - mode: current
@@ -198,7 +198,7 @@ processes:
       - call: TodoTaskMapper.countClosedHasNoOpenTask
         method: JMTH-todo-task.countClosedHasNoOpenTask
         resolved: true
-  - source: DOC-processes.edit-todo
+  - source: PRC-edit-todo
     transactionMode: atomic
     checks:
       - mode: current
@@ -232,7 +232,7 @@ processes:
       - call: TodoMapper.deleteTodoTags
         method: JMTH-todo.deleteTodoTags
         resolved: true
-  - source: DOC-processes.edit-todo-comment
+  - source: PRC-edit-todo-comment
     transactionMode: atomic
     checks:
       - mode: current
@@ -251,7 +251,7 @@ processes:
       - call: TodoMapper.editTodoComment
         method: JMTH-todo.editTodoComment
         resolved: true
-  - source: DOC-processes.register-todo
+  - source: PRC-register-todo
     transactionMode: atomic
     checks:
       - mode: prospective
@@ -285,7 +285,7 @@ processes:
       - call: TodoMapper.maxSeqTodoHistory
         method: JMTH-todo.maxSeqTodoHistory
         resolved: true
-  - source: DOC-processes.resume-todo
+  - source: PRC-resume-todo
     transactionMode: atomic
     checks:
       - mode: state
@@ -313,7 +313,7 @@ processes:
       - call: TodoMapper.maxSeqTodoHistory
         method: JMTH-todo.maxSeqTodoHistory
         resolved: true
-  - source: DOC-processes.start-todo
+  - source: PRC-start-todo
     transactionMode: atomic
     checks:
       - mode: state
@@ -341,7 +341,7 @@ processes:
       - call: TodoMapper.maxSeqTodoHistory
         method: JMTH-todo.maxSeqTodoHistory
         resolved: true
-  - source: DOC-processes.suspend-todo
+  - source: PRC-suspend-todo
     transactionMode: atomic
     checks:
       - mode: state
@@ -372,7 +372,7 @@ processes:
       - call: TodoMapper.maxSeqTodoHistory
         method: JMTH-todo.maxSeqTodoHistory
         resolved: true
-  - source: DOC-processes.todo-task.finish
+  - source: PRC-todo-task.finish
     transactionMode: atomic
     checks:
       - mode: owner

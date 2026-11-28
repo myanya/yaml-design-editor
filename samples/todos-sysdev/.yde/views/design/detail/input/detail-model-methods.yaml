@@ -1,0 +1,12 @@
+id: detail-model-methods
+name: 詳細設計の生成入力（Mapper のメソッド）
+description: テーブルへの読み書きのメソッド（MTH-）を 1 件ずつ読む。Mapper の名前は、メソッドを持つまとまり（ACC-）から引く。メソッドを ID で参照している側が、呼び名（Mapper 名.メソッド名）を解決するのに使う
+rows:
+  match:
+    - node: { id: "ACC-*", bind: a }
+    - edge: { contains: true }
+    - node: { id: "MTH-*", bind: m }
+  rowKey: m
+columns:
+  - { label: name, of: m, path: name }
+  - { label: mapper, of: a, path: mapper }

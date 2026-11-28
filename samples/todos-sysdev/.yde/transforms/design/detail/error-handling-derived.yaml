@@ -474,11 +474,11 @@ rules:
                   set:
                     confirm:
                       $each:
-                        $view: processes-input
+                        $view: detail-model-processes
                       $flatten: true
                       $build:
                         $when:
-                          - path: values.record.id
+                          - path: values.record.operation
                             equals:
                               $copy: operation
                               $of: refusal

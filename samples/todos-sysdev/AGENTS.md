@@ -28,11 +28,17 @@
   - メッセージ `MSG-<キー>` は、テキストの生成元を `source` で参照します。バリデーションメッセージ（`MSG-input.<操作>.<入力>.<チェック>`）は、キーを持たず、操作・入力パラメータ・チェックの種類で持ちます。メッセージキー（`validation.NotNull.addCategoryForm.name` のように Form クラス名と Bean Validation のコードを含む）は、Form のプログラム設計（`application-web-forms` の `validationMessages`）が組み立てます。
   - アプリに埋め込むメッセージカタログ（`web-model.json` の `messages`）は、Web のプログラム設計（`application-web`）がキーとテキストだけを出力します。
   - 基本設計のレコードへのオーバーライド（個別の判断）は `design/basic/inputs/decisions.yaml` の 1 ファイルに「対象の ID と `set`」で書きます（ID は `BDEC-`）。いまの対象はメッセージのテキスト（`text`）です。操作と画面へのオーバーライド（`inputs/operations/`・`inputs/screens/`）は、歩 6 でここへ移します。
-- `design/detail/final/status/<状態の流れ>.yaml`（状態の型）は、詳細設計で最初に項目の形にした確定項目です。基本設計の「状態と遷移」の項目だけを読み（変換定義 `detail-status` の 1 本。導出と確定に分けない）、型 `ENM-`・定数 `ENC-`・判定 `ENG-` に ID を振り、各要素が作る元（`LCY-`・`STA-`・`STG-`・`TRN-`）を `source` で指します。同じファイルの中の定数は ID で指し、読む側（`application-runtime-model`・`processes-derived`）が定数の名前に解きます。
+- `design/detail/final/status/<状態の流れ>.yaml`（状態の型）は、詳細設計で最初に項目の形にした確定項目です。基本設計の「状態と遷移」の項目だけを読み（変換定義 `detail-status` の 1 本。導出と確定に分けない）、型 `ENM-`・定数 `ENC-`・判定 `ENG-` に ID を振り、各要素が作る元（`LCY-`・`STA-`・`STG-`・`TRN-`）を `source` で指します。同じファイルの中の定数は ID で指し、読む側（`application-runtime-model`・`detail-processes`）が定数の名前に解きます。
 - `design/detail/final/table-access/<エンティティ>.yaml`（テーブルへの読み書き）も項目の形です。変換定義は `detail-table-access` の 1 本で、基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）と、同じ詳細設計のテーブルの項目だけを読みます（業務モデルも、解いた形も読まない）。エンティティ型ごとのまとまり `ACC-`（Mapper 1 つ）とメソッド `MTH-` に ID を振り、メソッドは作る元（`sources`。`ACT-`・`QRY-`・`SCR-`・`ENT-`）を指し、テーブルとカラムは ID（`TBL-`・`COL-`）で指します（名前を写さない）。前提・データの決まり・同じ条件のメソッドも ID（`PRE-`・`RUL-`・`MTH-`）です。Mapper のプログラム設計（`application-access`）は、入口の規則（`access-document`）で ID から名前を引いて読みます。
   - プログラム設計の Mapper の ID が `MAP-` なので、詳細設計の側は `ACC-` にしています（同じ ID は使えない）。
   - ID で 1 件読むメソッド（`findDetail`）と参照の候補（`selectAll`）は、詳細画面（画面の項目の `kind: detail`）があるエンティティに作ります。画面を解いた形の「たどれる範囲」ではなく、画面の項目を直接読みます。詳細画面の無いエンティティ（明細の形によっては、1 件読む読み出しをまだ作れない）には作りません。
   - 基本設計の項目を読む側の形に組む規則（`item-entity`・`item-action`）は、この定義の中に持っています。変換定義の規則は定義の間で共有できないためです（devtrack UX-384）。
+- `design/detail/final/processes/<操作>.yaml`（処理の手順）も ID 付きレコードです。変換定義は `detail-processes` の 1 本で、入力は基本設計のレコード（操作・エンティティ・型・状態と遷移・制約）と、同じ詳細設計のレコード（テーブルへの読み書き・状態の型）だけです（業務モデル・中間ファイル「操作を解いた形」・Mapper の名前のマッピングテーブルは読まない）。
+  - 処理 `PRC-<操作>`（Service のメソッド 1 つ）とステップ `STP-<操作>.<連番>` に ID を振ります。ステップは、呼ぶ Mapper のメソッド `MTH-`・事前条件 `PRE-`・状態エラーのエラーケース `ERR-<操作>.state`・制約 `RUL-`・メッセージ `MSG-`・エンティティ `ENT-`・状態の定数 `ENC-` を ID で参照します。メッセージのテキストと Mapper の呼び名はコピーしません。業務モデルの式（`rule` など）の中は変えません。
+  - 操作のレコードが ID で参照している先の解決は、この変換定義の中のルール（`resolved-action` 以下）で行います。中間ファイル「操作を解いた形」（`basic-operations-resolved`）と同じルールで、画面の設計書（歩 4 の対象）がまだその中間ファイルを読んでいるため、いまは両方にあります。
+  - 処理のレコードは、Service が受け取る入力パラメータの定義（`inputs`。基本設計の操作の入力を、参照先を解決したもの）も持ちます。Service の入力のプログラム設計（`application-service-inputs`）は、基本設計も中間ファイルも読まず、これを読みます。
+  - オーバーライドは `decisions.yaml` に書きます（対象 `PRC-`。`serviceClass`・`serviceMethod`）。
+  - 処理の手順を入力にする変換定義（`application-service-inputs`・`application-service-bindings`・`application-service-programs`・`application-process-gate`）は、入力アダプタ（`process-document` 以下のルール）で、ID から名前・テキスト・定数名を解決してから読みます。同じアダプタが 4 本にあります（ルールを変換定義の間で共有できないため。devtrack UX-384）。直すときは 4 本をそろえます。
 - 詳細設計の方式の指定（全体の判断）は `design/detail/inputs/specifications.yaml` に「方式（`rule`）と対象」で書きます（ID は `DSPC-`。対象は基本設計のエンティティ `ENT-` か区分 `CLS-`）。規則が項目を足す・変えるもので、個別の項目の値を置き換える個別の判断（`decisions.yaml`）とは分けます。いまの方式は論理削除（`soft-delete`）です。
   - `detail-tables` が、対象のエンティティの主のテーブルに、削除の印のカラム（`deleted`。`role: deleted`・`addedBy` に指定の ID）を足します。対象が見つからない指定は、生成が止まります。
   - `detail-table-access` は、方式の指定を読まず、テーブルの項目（削除の印のカラムがあるか）から決めます。消すメソッドは印を立てる update（`softDelete: true`）に、読む・数える・集計のメソッドと、一緒に読む明細・件数の式には「削除されていない」の条件を足します。最大の値（番号と並び順の採番）と足すメソッドは変えません（消した行の番号を使い回さない）。
