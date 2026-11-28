@@ -4,6 +4,7 @@ entities:
     label: カテゴリ
     description: TODO を分ける区分です。1 件の TODO は、カテゴリの 1 つに入るか、どれにも入りません（未分類）。
     source: category
+    title: FLD-category.name
     numbering:
       item: FLD-category.id
       path: id
@@ -172,6 +173,7 @@ entities:
     label: タグ
     description: TODO に付ける目印です。1 件の TODO に、いくつでも付けられます。
     source: tag
+    title: FLD-tag.name
     numbering:
       item: FLD-tag.id
       path: id
@@ -340,6 +342,7 @@ entities:
     label: TODO
     description: やることを 1 件ずつ管理する単位です。タイトル・概要・分類（カテゴリとタグ）を一覧に、進み具合（状態・日付・結果・作業項目・コメント・状態の履歴）を個票に書きます。
     source: todo
+    title: FLD-todo.title
     numbering:
       item: FLD-todo.id
       path: id
@@ -2539,6 +2542,7 @@ entities:
     source: todo-task
     parent: ENT-todo
     parentField: FLD-todo.tasks
+    title: FLD-todo-task.title
     numbering:
       item: FLD-todo-task.id
       path: id

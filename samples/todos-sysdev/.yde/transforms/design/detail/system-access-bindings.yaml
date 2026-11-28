@@ -2,13 +2,13 @@ id: system-access-bindings
 name: 設計書間で共有する system-access-bindings
 scope: business
 dependsOn:
-  - table-access
+  - detail-table-access
 output: design/detail/composed/documents/system-access-bindings.yaml
 build:
   id: SYS-system-access-bindings
   bindings:
     $each:
-      $view: table-access-input
+      $view: detail-model-table-access
     $bind: mapper
     $flatten: true
     $build:
@@ -21,11 +21,14 @@ build:
                 $with:
                   c:
                     $case:
-                      $copy: values.record.id
+                      $copy: values.record.entity
                       $of: mapper
                     $as: pascal
                   m:
-                    $copy: methodId
+                    $value:
+                      extract:
+                        - path: id
+                        - ^MTH-[^.]+\.(.*)$
               after:
                 $format: '{c}.{m}'
                 $with:
@@ -45,11 +48,14 @@ build:
                 $with:
                   c:
                     $case:
-                      $copy: values.record.id
+                      $copy: values.record.entity
                       $of: mapper
                     $as: pascal
                   m:
-                    $copy: methodId
+                    $value:
+                      extract:
+                        - path: id
+                        - ^MTH-[^.]+\.(.*)$
               after:
                 $format: '{c}.{m} の次'
                 $with:

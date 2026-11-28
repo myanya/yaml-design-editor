@@ -190,22 +190,6 @@ documents:
     kind: session-design
     source: session
     path: design/detail/final/session.yaml
-  - id: DOC-table-access.category
-    kind: table-access
-    source: category
-    path: design/detail/final/table-access/category.yaml
-  - id: DOC-table-access.tag
-    kind: table-access
-    source: tag
-    path: design/detail/final/table-access/tag.yaml
-  - id: DOC-table-access.todo
-    kind: table-access
-    source: todo
-    path: design/detail/final/table-access/todo.yaml
-  - id: DOC-table-access.todo-task
-    kind: table-access
-    source: todo-task
-    path: design/detail/final/table-access/todo-task.yaml
 inputs:
   corrections: []
   specifications: []

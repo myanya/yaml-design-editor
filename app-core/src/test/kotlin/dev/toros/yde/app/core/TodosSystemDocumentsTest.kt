@@ -104,7 +104,7 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(51, shown("system-document-list").size)
+        assertEquals(47, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(14, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
@@ -136,8 +136,6 @@ class TodosSystemDocumentsTest {
     @Test
     fun `物理名と呼出先と画面入力とメッセージとセッションの補正を後段へ渡す`() {
         val input = store("""
-            - {id: SCOR-mapper, kind: table-access, target: DOC-table-access.todo, set: {mapper: TodoStore}, reason: 保存先}
-            - {id: SCOR-method, kind: table-access, target: DOC-table-access.todo, select: {collection: methods, key: methodId, equals: completeTodo}, set: {name: saveCompletion}, reason: 呼出名}
             - id: SCOR-service
               kind: processes
               target: DOC-processes.complete-todo
@@ -157,6 +155,13 @@ class TodosSystemDocumentsTest {
             corrections:
               - {id: DCOR-901, target: TBL-todo, set: {name: todo_records}, reason: 物理名}
               - {id: DCOR-902, target: COL-todo.result, set: {name: completion_result}, reason: 物理名}
+        """.trimIndent())
+        // テーブルへの読み書きへの個別の判断は、詳細設計の項目（まとまり ACC-・メソッド MTH-）を ID で指す
+        input.write(DocumentId("design/detail/inputs/decisions.yaml"), """
+            inputId: INPUT-detail-decisions
+            decisions:
+              - {id: DDEC-901, target: ACC-todo, set: {mapper: TodoStore}, reason: 保存先}
+              - {id: DDEC-902, target: MTH-todo.completeTodo, set: {name: saveCompletion}, reason: 呼出名}
         """.trimIndent())
         // 操作への個別の判断は、基本設計の「操作」の項目（操作 ACT-・入力 PRM-）を ID で指す
         input.write(DocumentId("design/basic/inputs/operations/corrections.yaml"), """
@@ -179,9 +184,12 @@ class TodosSystemDocumentsTest {
         assertEquals(emptyList(), plan.errors)
         fun doc(path: String) = raw(plan.outputs.single { it.document.value == path }.text)
         val access = doc("design/detail/final/table-access/todo.yaml")
-        val method = rows(access, "methods").single { it["methodId"] == "completeTodo" }
-        assertEquals("todo_records", method["table"])
-        assertEquals("completion_result", rows(method, "set").single { it["item"] == "result" }["column"])
+        val method = rows(access, "methods").single { it["id"] == "MTH-todo.completeTodo" }
+        assertEquals(listOf("TodoStore", "saveCompletion"), listOf(access["mapper"], method["name"]), "名前の判断は項目へ直接当たる")
+        assertEquals("TBL-todo", method["table"], "テーブルは ID で指す（名前を写さない）")
+        assertEquals("COL-todo.result", rows(method, "set").single { it["item"] == "result" }["column"])
+        val mapperSql = plan.outputs.single { it.document.value == "design/detail/final/application-access.yaml" }.text
+        assertTrue("todo_records" in mapperSql && "completion_result" in mapperSql, "物理名の補正は、テーブルの項目から Mapper のプログラム設計へ届く")
         val process = doc("design/detail/final/processes/complete-todo.yaml")
         assertEquals("TodoStore.saveCompletion", rows(process, "steps").first { it["step"] == "write" }["call"])
         assertEquals("未完了の作業があります（確認用）。", rows(process, "steps").single { it["precondition"] == "complete-todo.no-open-task" }["text"])
@@ -232,7 +240,6 @@ class TodosSystemDocumentsTest {
     fun `存在しない対象と選択先と不正な型と識別子変更では前回の出力を保存したまま止まる`() {
         val cases = listOf(
             "[{id: SCOR-test, kind: processes, target: DOC-processes.missing, set: {name: 不明}, reason: 検証}]",
-            "[{id: SCOR-test, kind: table-access, target: DOC-table-access.todo, select: {collection: methods, key: methodId, equals: missing}, set: {name: 不明}, reason: 検証}]",
             "[{id: SCOR-test, kind: processes, target: DOC-processes.complete-todo, set: {typo: 不明}, reason: 検証}]",
             "[{id: SCOR-test, kind: processes, target: DOC-processes.complete-todo, set: {id: cancel-todo}, reason: 検証}]",
             "[{id: SCOR-test, kind: screen-designs-operations, target: DOC-screen-designs-operations.complete-todo, changes: [{path: [form, class], value: OtherForm}], reason: 検証}]",

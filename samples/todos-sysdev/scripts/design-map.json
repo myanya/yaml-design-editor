@@ -345,10 +345,16 @@
     },
     {
       "id": "tacc",
-      "name": "テーブルアクセス設計書",
+      "name": "テーブルへの読み書き",
       "column": "detail",
       "lane": "data",
-      "kind": "table-access"
+      "transforms": [
+        "detail-table-access"
+      ],
+      "ids": [
+        "ACC-*",
+        "MTH-*"
+      ]
     },
     {
       "id": "status",
@@ -1125,6 +1131,38 @@
         "note": "基本設計の「状態と遷移」の項目だけを読んで作ります。型（enum）・定数・判定に ID を振り、各要素が作る元（基本設計の項目）を指します。詳細設計の個別の判断（inputs/decisions.yaml）は、項目の ID を対象にして、ここで直接当てます。補正前のファイルと、確定の変換定義はありません。"
       },
       {
+        "id": "d-acc",
+        "layer": "detail",
+        "row": 3,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "テーブルへの読み書き",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:detail-table-access"
+        ],
+        "note": "基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）と、同じ詳細設計のテーブルの項目だけを読んで作ります。エンティティ型ごとのまとまり（ACC-）とメソッド（MTH-）に ID を振り、メソッドは作る元（操作・検索条件・詳細画面・エンティティ）を指し、テーブルとカラムは ID で指します（名前を写しません）。個別の判断（inputs/decisions.yaml）は、Mapper とメソッドの名前を、項目へ直接当てます。補正前のファイルと、確定の変換定義はありません。"
+      },
+      {
+        "id": "d-acc-view",
+        "layer": "detail",
+        "row": 3,
+        "col": 3,
+        "kind": "view",
+        "label": [
+          "テーブルアクセス設計書"
+        ],
+        "views": [
+          "detail/review/access-definition*.yaml"
+        ],
+        "reads": [
+          "d-acc"
+        ]
+      },
+      {
         "id": "d-stt-view",
         "layer": "detail",
         "row": 2,
@@ -1148,10 +1186,9 @@
         "kind": "work",
         "label": [
           "処理・画面ほか",
-          "の導出（10 種）"
+          "の導出（9 種）"
         ],
         "members": [
-          "t:table-access-derived",
           "t:processes-derived",
           "t:screen-styles-derived",
           "t:session-design-derived",
@@ -1187,10 +1224,9 @@
         "shape": "documents",
         "label": [
           "処理・画面ほか",
-          "（文書の形。10 種）"
+          "（文書の形。9 種）"
         ],
         "members": [
-          "t:table-access",
           "t:processes",
           "t:screen-styles",
           "t:session-design",
@@ -1916,19 +1952,22 @@
         "label": [
           "テーブルへの読み書き"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:table-access"
+          "t:detail-table-access"
         ],
         "from": [
+          "a-ent",
           "a-op",
           "a-qry",
-          "a-rul"
+          "a-rul",
+          "a-scr"
         ],
         "refs": [
           "c-tbl"
         ],
-        "unit": "エンティティごと"
+        "unit": "エンティティごと",
+        "note": "2026-11-28 に項目の形にしました。基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）と、テーブルの項目だけを読みます。まとまり（ACC-）とメソッド（MTH-）に ID を振り、テーブルとカラムは ID で指します。導出と確定の 2 本の変換定義を 1 本にし、補正前のファイルは持ちません。"
       },
       {
         "id": "c-stt",
@@ -2090,7 +2129,6 @@
         ],
         "status": "role",
         "current": [
-          "t:table-access-derived",
           "t:processes-derived",
           "t:screen-styles-derived",
           "t:session-design-derived",
@@ -2140,10 +2178,11 @@
         "label": [
           "テーブルアクセス設計書"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "c-acc"
-        ]
+        ],
+        "note": "テーブルへの読み書きの項目を読むビューです（メソッドの一覧と、Mapper の一覧）。見え方はオーナーのレビュー待ちです。"
       },
       {
         "id": "cv-svc",
@@ -4518,6 +4557,16 @@
       [
         "typ",
         "tbl",
+        "from"
+      ],
+      [
+        "ent",
+        "acc",
+        "from"
+      ],
+      [
+        "scr",
+        "acc",
         "from"
       ],
       [

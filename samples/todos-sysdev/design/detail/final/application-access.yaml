@@ -2,7 +2,7 @@
 id: APP-access
 mappers:
   - id: MAP-category
-    source: DOC-table-access.category
+    source: ACC-category
     name: CategoryMapper
     methods:
       - name: findDetail
@@ -19,9 +19,6 @@ mappers:
               column: id
           includes: []
           names: []
-          operations: []
-          screens:
-            - category
           columnBindings:
             - columnId: COL-category.id
               item: id
@@ -170,9 +167,6 @@ mappers:
             - item: id
               columnId: COL-category.id
               column: id
-          operations: []
-          screens:
-            - 参照の候補
           columnBindings:
             - columnId: COL-category.id
               item: id
@@ -314,9 +308,6 @@ mappers:
           via:
             relation: in-category
             dir: in
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-category.id
               item: id
@@ -503,9 +494,6 @@ mappers:
           name: countTodoDashboardCategories
           kind: count
           table: category
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-category.id
               item: id
@@ -632,9 +620,6 @@ mappers:
               columnId: COL-category.id
               column: id
           params: []
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-category.id
               item: id
@@ -767,9 +752,6 @@ mappers:
           name: countTodoDashboardCategoriesMaster
           kind: count
           table: category
-          operations: []
-          screens:
-            - todo-dashboard
           whereFrom: selectTodoDashboardCategoriesMaster
           columnBindings:
             - columnId: COL-category.id
@@ -881,9 +863,6 @@ mappers:
           table: category
           columns:
             mode: all
-          operations:
-            - add-category
-          screens: []
           columnBindings:
             - columnId: COL-category.id
               item: id
@@ -1002,9 +981,6 @@ mappers:
             path: id
             prefix: CAT-
             digits: 3
-          operations:
-            - add-category
-          screens: []
           columnId: COL-category.id
           column: id
           columnBindings:
@@ -1154,7 +1130,7 @@ mappers:
         id: JMTH-category.maxId
         mapper: CategoryMapper
   - id: MAP-tag
-    source: DOC-table-access.tag
+    source: ACC-tag
     name: TagMapper
     methods:
       - name: findDetail
@@ -1171,9 +1147,6 @@ mappers:
               column: id
           includes: []
           names: []
-          operations: []
-          screens:
-            - tag
           columnBindings:
             - columnId: COL-tag.id
               item: id
@@ -1322,9 +1295,6 @@ mappers:
             - item: id
               columnId: COL-tag.id
               column: id
-          operations: []
-          screens:
-            - 参照の候補
           columnBindings:
             - columnId: COL-tag.id
               item: id
@@ -1466,9 +1436,6 @@ mappers:
           via:
             relation: tagged
             dir: in
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-tag.id
               item: id
@@ -1680,9 +1647,6 @@ mappers:
           name: countTodoDashboardTags
           kind: count
           table: tag
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-tag.id
               item: id
@@ -1809,9 +1773,6 @@ mappers:
               columnId: COL-tag.id
               column: id
           params: []
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-tag.id
               item: id
@@ -1949,9 +1910,6 @@ mappers:
           name: countTodoDashboardTagsMaster
           kind: count
           table: tag
-          operations: []
-          screens:
-            - todo-dashboard
           whereFrom: selectTodoDashboardTagsMaster
           columnBindings:
             - columnId: COL-tag.id
@@ -2063,9 +2021,6 @@ mappers:
           table: tag
           columns:
             mode: all
-          operations:
-            - add-tag
-          screens: []
           columnBindings:
             - columnId: COL-tag.id
               item: id
@@ -2184,9 +2139,6 @@ mappers:
             path: id
             prefix: TAG-
             digits: 3
-          operations:
-            - add-tag
-          screens: []
           columnId: COL-tag.id
           column: id
           columnBindings:
@@ -2336,7 +2288,7 @@ mappers:
         id: JMTH-tag.maxId
         mapper: TagMapper
   - id: MAP-todo
-    source: DOC-table-access.todo
+    source: ACC-todo
     name: TodoMapper
     methods:
       - name: findDetail
@@ -2390,9 +2342,6 @@ mappers:
               name: title
               columnId: COL-todo.follows
               column: follows
-          operations: []
-          screens:
-            - todo
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -3325,9 +3274,6 @@ mappers:
             - item: id
               columnId: COL-todo.id
               column: id
-          operations: []
-          screens:
-            - 参照の候補
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -3813,9 +3759,6 @@ mappers:
             - tags
             - category
             - today
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -4476,9 +4419,6 @@ mappers:
           name: countTodoDashboardOverdue
           kind: count
           table: todo
-          operations: []
-          screens:
-            - todo-dashboard
           whereFrom: selectTodoDashboardOverdue
           columnBindings:
             - columnId: COL-todo.id
@@ -5276,9 +5216,6 @@ mappers:
           params:
             - tags
             - category
-          operations: []
-          screens:
-            - todo-dashboard
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -5928,9 +5865,6 @@ mappers:
           name: countTodoDashboardAll
           kind: count
           table: todo
-          operations: []
-          screens:
-            - todo-dashboard
           whereFrom: selectTodoDashboardAll
           columnBindings:
             - columnId: COL-todo.id
@@ -6546,18 +6480,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - add-todo-comment
-            - edit-todo-comment
-            - delete-todo-comment
-            - add-todo-task
-            - edit-todo
-            - start-todo
-            - suspend-todo
-            - resume-todo
-            - complete-todo
-            - cancel-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -7135,9 +7057,6 @@ mappers:
           table: todo
           columns:
             mode: all
-          operations:
-            - register-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -7690,9 +7609,6 @@ mappers:
             path: id
             prefix: TODO-
             digits: 3
-          operations:
-            - register-todo
-          screens: []
           columnId: COL-todo.id
           column: id
           columnBindings:
@@ -8284,10 +8200,6 @@ mappers:
           table: todo_tags
           columns:
             mode: all
-          operations:
-            - register-todo
-            - edit-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo_tags.todo_id
               item: todo_id
@@ -8434,14 +8346,6 @@ mappers:
           table: todo_history
           columns:
             mode: all
-          operations:
-            - register-todo
-            - start-todo
-            - suspend-todo
-            - resume-todo
-            - complete-todo
-            - cancel-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo_history.todo_id
               item: todo_id
@@ -8782,14 +8686,6 @@ mappers:
               param: id
               columnId: COL-todo_history.todo_id
               column: todo_id
-          operations:
-            - register-todo
-            - start-todo
-            - suspend-todo
-            - resume-todo
-            - complete-todo
-            - cancel-todo
-          screens: []
           columnId: COL-todo_history.seq
           column: seq
           columnBindings:
@@ -9178,9 +9074,6 @@ mappers:
           table: todo_comments
           columns:
             mode: all
-          operations:
-            - add-todo-comment
-          screens: []
           columnBindings:
             - columnId: COL-todo_comments.todo_id
               item: todo_id
@@ -9369,9 +9262,6 @@ mappers:
               param: id
               columnId: COL-todo_comments.todo_id
               column: todo_id
-          operations:
-            - add-todo-comment
-          screens: []
           columnId: COL-todo_comments.seq
           column: seq
           columnBindings:
@@ -9626,9 +9516,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - add-todo-comment
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -10369,9 +10256,6 @@ mappers:
               param: row
               columnId: COL-todo_comments.seq
               column: seq
-          operations:
-            - edit-todo-comment
-          screens: []
           columnBindings:
             - columnId: COL-todo_comments.todo_id
               item: todo_id
@@ -10785,9 +10669,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - edit-todo-comment
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -11511,9 +11392,6 @@ mappers:
               param: row
               columnId: COL-todo_comments.seq
               column: seq
-          operations:
-            - delete-todo-comment
-          screens: []
           columnBindings:
             - columnId: COL-todo_comments.todo_id
               item: todo_id
@@ -11781,9 +11659,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - delete-todo-comment
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -12518,9 +12393,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - add-todo-task
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -13343,9 +13215,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - edit-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -14861,9 +14730,6 @@ mappers:
               param: id
               columnId: COL-todo_tags.todo_id
               column: todo_id
-          operations:
-            - edit-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo_tags.todo_id
               item: todo_id
@@ -15065,9 +14931,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - start-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -15872,9 +15735,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - suspend-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -16679,9 +16539,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - resume-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -17496,9 +17353,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - complete-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -18432,9 +18286,6 @@ mappers:
               param: id
               columnId: COL-todo.id
               column: id
-          operations:
-            - cancel-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -19296,9 +19147,6 @@ mappers:
               param: todoId
               columnId: COL-todo.id
               column: id
-          operations:
-            - todo-task.finish
-          screens: []
           columnBindings:
             - columnId: COL-todo.id
               item: id
@@ -20007,7 +19855,7 @@ mappers:
         id: JMTH-todo.todoTaskFinish
         mapper: TodoMapper
   - id: MAP-todo-task
-    source: DOC-table-access.todo-task
+    source: ACC-todo-task
     name: TodoTaskMapper
     methods:
       - name: findById
@@ -20022,9 +19870,6 @@ mappers:
               param: id
               columnId: COL-todo_task.id
               column: id
-          operations:
-            - todo-task.finish
-          screens: []
           columnBindings:
             - columnId: COL-todo_task.id
               item: id
@@ -20288,9 +20133,6 @@ mappers:
           table: todo_task
           columns:
             mode: all
-          operations:
-            - add-todo-task
-          screens: []
           columnBindings:
             - columnId: COL-todo_task.id
               item: id
@@ -20531,9 +20373,6 @@ mappers:
               $format: '{id}-S'
               $of: owner
             digits: 2
-          operations:
-            - add-todo-task
-          screens: []
           columnId: COL-todo_task.id
           column: id
           columnBindings:
@@ -20820,9 +20659,6 @@ mappers:
               param: id
               columnId: COL-todo_task.todo_id
               column: todo_id
-          operations:
-            - add-todo-task
-          screens: []
           columnId: COL-todo_task.seq
           column: seq
           columnBindings:
@@ -21114,9 +20950,6 @@ mappers:
               param: id
               columnId: COL-todo_task.id
               column: id
-          operations:
-            - todo-task.finish
-          screens: []
           columnBindings:
             - columnId: COL-todo_task.id
               item: id
@@ -21455,9 +21288,6 @@ mappers:
               column: done
           precondition: complete-todo.no-open-task
           expect: absent
-          operations:
-            - complete-todo
-          screens: []
           columnBindings:
             - columnId: COL-todo_task.id
               item: id
@@ -21768,11 +21598,6 @@ mappers:
               column: done
           constraint: closed-has-no-open-task
           expect: absent
-          operations:
-            - add-todo-task
-            - complete-todo
-            - todo-task.finish
-          screens: []
           columnBindings:
             - columnId: COL-todo_task.id
               item: id

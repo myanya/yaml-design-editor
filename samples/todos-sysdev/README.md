@@ -87,7 +87,7 @@
 | 処理設計書（詳細設計） | 操作ごと | 業務の操作 ID | 生成 | Service |
 | 状態の型（詳細設計） | Lifecycle ごと | 詳細設計の設計項目（`ENM-todo-lifecycle`・`ENC-todo-OPEN`・`ENG-todo-ACTIVE`） | 生成（項目の形。基本設計の「状態と遷移」の項目だけを読む。状態の判定はビュー） | 状態の enum と遷移の判定 |
 | テーブル設計書（詳細設計） | テーブルごと（ダッシュボードの入力で選ぶ） | 詳細設計の設計項目（`TBL-todo`・`COL-todo.title`・`IDX-ix_todo_category`・`FK-fk_todo_category`） | ビュー（詳細の補正を重ね、確定した基本設計項目・区分と型対応表を読む） | schema.sql（DDL のレポート） |
-| テーブルアクセス設計書（詳細設計） | エンティティ型ごと | 業務のエンティティ型 | 生成 | Repository（MyBatis の Mapper） |
+| テーブルへの読み書き（詳細設計。テーブルアクセス設計書はビュー） | エンティティ型ごと | 詳細設計の設計項目（`ACC-todo`・`MTH-todo.findById`） | 生成（項目の形。基本設計の項目とテーブルの項目だけから） | Repository（MyBatis の Mapper） |
 | エラー定義書（基本設計） | 1 本（操作ごとの断りを中に） | 操作は業務の操作 ID | 生成 | ― |
 | メッセージ定義書（基本設計） | 1 本 | メッセージのキー | 生成 | messages.properties |
 | エラー設計書（詳細設計） | 1 本 | ― | 生成 | 例外のクラス・@ControllerAdvice・エラー画面・application.properties |

@@ -36,6 +36,13 @@ build:
             exists: true
         $then:
           $format: FLD-{owner.entity}.{owner.field}
+      # 表題にする項目（参照の候補と、参照先の名称の表示に使う）。次の段（テーブルへの読み書き）が要るので運ぶ
+      title:
+        $when:
+          - path: title
+            exists: true
+        $then:
+          $format: FLD-{id}.{title}
       numbering:
         $when:
           - path: numbering

@@ -2,18 +2,19 @@ id: application-access
 name: 確定したテーブルアクセスから Mapper の受け渡しと SQL を確定する
 scope: design
 dependsOn:
-  - table-access
+  - detail-table-access
   - application-data-model
 output: design/detail/final/application-access.yaml
 input:
   mappers:
     $each:
-      $view: table-access-input
+      $view: detail-model-table-access
     $build:
       $apply: mapper
       $with:
         document:
-          $copy: values.record
+          $apply: access-document
+          $at: values.record
   contracts:
     $each: schemas
     $of: model
@@ -36,6 +37,257 @@ build:
             mappers:
               $copy: mappers
 rules:
+  # テーブルへの読み書きの項目（ACC-・MTH-）を、下の規則が読む形に入口で 1 度だけ組む。
+  # 項目は、テーブルとカラムを ID で指している。名前は、同じ詳細設計のテーブルの項目から ID で引く
+  - id: access-document
+    build:
+      id:
+        $copy: entity
+      name:
+        $copy: label
+      mapper:
+        $copy: mapper
+      tables:
+        $each: tables
+        $build:
+          $apply: access-table-name
+          $with:
+            ref:
+              $copy: .
+      methods:
+        $each: methods
+        $build:
+          $apply: access-method
+          $with:
+            method:
+              $copy: .
+            table:
+              $apply: access-table
+              $with:
+                ref:
+                  $copy: table
+      designId:
+        $copy: id
+  - id: access-table
+    with:
+      - ref
+    build:
+      $apply: record
+      $with:
+        row:
+          $view: application-physical-table-input
+          $where:
+            - path: id
+              equals:
+                $copy: .
+                $of: ref
+          $one: true
+  - id: access-table-name
+    with:
+      - ref
+    build:
+      $apply: access-name
+      $with:
+        table:
+          $apply: access-table
+          $with:
+            ref:
+              $copy: .
+              $of: ref
+        fallback:
+          $copy: .
+          $of: ref
+  - id: access-name
+    with:
+      - table
+      - fallback
+    build:
+      $first:
+        - $copy: name
+          $of: table
+        - $copy: .
+          $of: fallback
+  - id: access-column-name
+    with:
+      - ref
+    build:
+      $apply: access-column-record
+      $with:
+        row:
+          $view: application-columns-input
+          $where:
+            - path: id
+              equals:
+                $copy: .
+                $of: ref
+          $one: true
+  - id: access-column-record
+    with:
+      - row
+    build:
+      $copy: values.record.name
+      $of: row
+  - id: access-method
+    with:
+      - method
+      - table
+    build:
+      $entries:
+        $concat:
+          - $apply: access-entries
+            $with:
+              node:
+                $copy: .
+                $of: method
+              top: true
+          - - key: columnBindings
+              value:
+                $each: columns
+                $of: table
+                $build:
+                  columnId:
+                    $copy: id
+                  item:
+                    $copy: item
+                  name:
+                    $copy: name
+                  source:
+                    $copy: source
+            - key: methodId
+              value:
+                $value:
+                  extract:
+                    - path: id
+                    - ^MTH-[^.]+\.(.*)$
+            - key: tableId
+              value:
+                $copy: id
+                $of: table
+  # 入れ子の中も同じ決まりで歩く: table・counts・via は名前に、column は ID と名前の 2 つに
+  - id: access-walk
+    with:
+      - node
+    build:
+      $first:
+        - $apply: access-map
+          $with:
+            entries:
+              $apply: access-entries
+              $with:
+                node:
+                  $copy: .
+                  $of: node
+                top: false
+        - $each: .
+          $of: node
+          $build:
+            $apply: access-walk
+            $with:
+              node:
+                $copy: .
+        - $copy: .
+          $of: node
+  - id: access-map
+    with:
+      - entries
+    when:
+      - of: entries
+        path: .
+        exists: true
+    build:
+      $entries:
+        $copy: .
+        $of: entries
+  - id: access-entries
+    with:
+      - node
+      - top
+    build:
+      $eachEntry: .
+      $of: node
+      $flatten: true
+      $build:
+        $first:
+          - $when:
+              - of: top
+                path: .
+                equals: true
+              - path: $key
+                oneOf:
+                  - id
+                  - sources
+            $then: []
+          - $when:
+              - path: $key
+                oneOf:
+                  - table
+                  - counts
+                  - via
+            $then:
+              - key: $key
+                value:
+                  $apply: access-table-name
+                  $with:
+                    ref:
+                      $copy: .
+          - $when:
+              - path: $key
+                equals: column
+            $then:
+              - key: columnId
+                value:
+                  $copy: .
+              - key: column
+                value:
+                  $apply: access-column-name
+                  $with:
+                    ref:
+                      $copy: .
+          - $when:
+              - of: top
+                path: .
+                equals: true
+              - path: $key
+                equals: precondition
+            $then:
+              - key: $key
+                value:
+                  $value:
+                    extract:
+                      - path: .
+                      - ^PRE-(.*)$
+          - $when:
+              - of: top
+                path: .
+                equals: true
+              - path: $key
+                equals: whereFrom
+            $then:
+              - key: $key
+                value:
+                  $value:
+                    extract:
+                      - path: .
+                      - ^MTH-[^.]+\.(.*)$
+          - $when:
+              - of: top
+                path: .
+                equals: true
+              - path: $key
+                equals: constraint
+            $then:
+              - key: $key
+                value:
+                  $value:
+                    extract:
+                      - path: .
+                      - ^RUL-(.*)$
+          - - key: $key
+              value:
+                $apply: access-walk
+                $with:
+                  node:
+                    $copy: .
   - id: first
     with:
       - items

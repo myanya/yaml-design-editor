@@ -55,10 +55,10 @@ class TodosServiceBindingsTest {
               - {id: DCOR-service-title, target: COL-todo.title, set: {name: subject}, reason: 検証}
         """.trimIndent()))
         // 状態の遷移（どの状態のときに操作できるか）は、詳細設計では変えられない（業務の事実。基本設計の「状態と遷移」から運ぶ）
-        put(input, "design/detail/inputs/documents/corrections.yaml", mapOf(
-            "inputId" to "INPUT-detail-document-corrections", "corrections" to listOf(
-                mapOf("id" to "SCOR-store", "kind" to "table-access", "target" to "DOC-table-access.todo",
-                    "set" to mapOf("mapper" to "TodoStore"), "reason" to "検証"),
+        // Mapper の名前は、テーブルへの読み書きの項目（ACC-）への個別の判断で替える
+        put(input, "design/detail/inputs/decisions.yaml", mapOf(
+            "inputId" to "INPUT-detail-decisions", "decisions" to listOf(
+                mapOf("id" to "DDEC-store", "target" to "ACC-todo", "set" to mapOf("mapper" to "TodoStore"), "reason" to "検証"),
             )))
         val plan = Generators.plan(WorkspaceSession(input), setOf("application-service-programs"))
         assertEquals(emptyList(), plan.errors)

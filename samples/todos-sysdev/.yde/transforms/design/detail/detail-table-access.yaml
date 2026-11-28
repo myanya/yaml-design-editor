@@ -1,33 +1,41 @@
-id: table-access-derived
-name: テーブルアクセス設計書（Repository）
+id: detail-table-access
+name: 詳細設計項目一覧（テーブルへの読み書き）
 description: >-
-  詳細設計。エンティティ型ごとに Mapper を 1 つ作り、その型のテーブル（主のテーブルと明細テーブル）を読み書きするメソッドを書く。 メソッドは操作をまたいで 1 つにまとめ、使う操作を operations に並べる。同じテーブルへの値の書き込みは、操作ごとに 1 つの update にまとめる。
-  列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書の columns の item から引く（SQL の文字は③で MyBatis の XML に作る）。 決め打ちの規則: 受け手は findById で読む・作る操作は insert（すべての列）・採番は maxId（使われている番号の最大）・
-  明細の並び順は maxSeq・値を書く操作は操作ごとの update（書く列だけ）・配列を置き換える操作は明細を消して入れ直す・ 前提のうち「受け手の中の要素の条件」は件数を数える count（ほかの前提は Service が読んだ行で確かめる）・ データの決まりのうち「入れ子の要素の条件」も件数を数える
-  count（書いた後に、同じトランザクションで数える）
+  具体システムモデルの「テーブルへの読み書き」を項目の形で作る（ADR-0042）。エンティティ型ごとに 1 ファイルにし、読み書きのまとまり（ACC-。Mapper 1 つ）と、
+  そのテーブル（主のテーブルと明細テーブル）を読み書きするメソッド（MTH-）に設計 ID を振る。
+  入力は基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）と、同じ詳細設計のテーブルの項目だけで、業務モデルも解いた形も読まない。
+  メソッドは作る元（sources。操作 ACT-・検索条件 QRY-・詳細画面 SCR-・エンティティ ENT-）を指し、テーブルとカラムは ID（TBL-・COL-）で指す（名前を写さない）。
+  決め打ちの規則: 受け手は findById で読む・作る要素は insert（番号は maxId、明細の並び順は maxSeq）・値を書く操作は操作ごとの update（書く列だけ）・
+  配列を置き換える操作は明細を消して入れ直す・前提のうち「受け手の中の要素の条件」と、要素をまたぐデータの決まりは件数を数える count。
+  ID で 1 件読むメソッド（findDetail）と参照の候補（selectAll）は、詳細画面（画面の項目の kind: detail）があるエンティティに作る。
+  詳細設計の個別の判断（design/detail/inputs/decisions.yaml）は、項目の ID を対象にして、ここで項目へ直接当てる（Mapper とメソッドの名前）。
+  補正前のファイルは作らない
 scope: business
 each: entities
-output: design/detail/derived/documents/table-access/{id}.yaml
+output: design/detail/final/table-access/{id}.yaml
 dependsOn:
-  - system-model
-  - basic-operations-resolved
+  - basic-entities
+  - basic-operations
   - basic-rules
   - basic-queries
+  - basic-screens
   - detail-tables
   - detail-document-input-gate
-  - basic-screens-resolved
 input:
   $apply: model-input
   $with:
-    row:
-      $view: system-model-input
-      $one: true
-    operations:
-      $view: basic-operations-resolved-input
-      $one: true
-    screens:
-      $view: basic-screens-resolved-input
-      $one: true
+    entities:
+      $each:
+        $view: basic-model-entities
+      $build:
+        $apply: item-entity
+        $at: values.record
+    actions:
+      $each:
+        $view: basic-model-operations
+      $build:
+        $apply: item-action
+        $at: values.record
     rules:
       $each:
         $view: basic-model-rules
@@ -38,19 +46,30 @@ input:
         $view: basic-model-queries
       $build:
         $copy: values.record
+    screens:
+      $each:
+        $view: basic-model-screens
+      $build:
+        $copy: values.record
+    decisions:
+      $each:
+        $view: detail-decisions-input
+      $build:
+        $copy: values.decision
 build:
-  id:
-    $format: DRV-document-table-access.{id}
-  record:
-    id:
-      $format: DOC-table-access.{id}
-    value:
+  $apply: decided-item
+  $with:
+    item:
       $apply: physical-access
       $with:
         document:
           id:
+            $format: ACC-{id}
+          source:
+            $format: ENT-{id}
+          entity:
             $copy: id
-          name:
+          label:
             $format: '{label}の読み書き'
           mapper:
             $format: '{n}Mapper'
@@ -82,6 +101,14 @@ build:
             $by:
               $copy: name
             $build:
+              id:
+                $format: MTH-{e}.{m}
+                $with:
+                  e:
+                    $copy: id
+                    $of: element
+                  m:
+                    $copy: key
               name:
                 $copy: key
               kind:
@@ -126,23 +153,50 @@ build:
                 $copy: items[0].via
               params:
                 $copy: items[0].params
-              operations:
-                $group: items
+              # 作る元: 操作（ACT-）・一覧の検索条件（QRY-）・詳細画面（SCR-。ID で 1 件読む）・エンティティ（ENT-。参照の候補）
+              sources:
+                $group:
+                  $each: items
+                  $flatten: true
+                  $build:
+                    $first:
+                      - $when:
+                          - path: operation
+                            exists: true
+                        $then:
+                          - $format: ACT-{operation}
+                      - $when:
+                          - path: query
+                            exists: true
+                        $then:
+                          - $copy: query
+                      - $when:
+                          - path: detail
+                            exists: true
+                        $then:
+                          - $copy: detail
+                      - - $format: ENT-{e}
+                          $with:
+                            e:
+                              $copy: id
+                              $of: element
                 $by:
-                  $copy: operation
+                  $copy: .
                 $build:
                   $copy: key
-              screens:
-                $group: items
-                $by:
-                  $copy: screen
-                $build:
-                  $copy: key
+              # 同じ条件で数えるメソッドは、条件を持つメソッドを ID で指す
               whereFrom:
-                $copy: items[0].whereFrom
-    source:
-      id: rule-table-access
-      document: .yde/transforms/design/detail/table-access-derived.yaml
+                $when:
+                  - path: items[0].whereFrom
+                    exists: true
+                $then:
+                  $format: MTH-{e}.{w}
+                  $with:
+                    e:
+                      $copy: id
+                      $of: element
+                    w:
+                      $copy: items[0].whereFrom
 rules:
   - id: fields
     build:
@@ -248,6 +302,22 @@ rules:
                       - $copy: items[0].field.item.targetTitle
               screen:
                 $copy: id
+              # 作る元: このエンティティの詳細画面
+              detail:
+                $apply: contract-first
+                $with:
+                  matches:
+                    $each: designDetails
+                    $of: model
+                    $flatten: true
+                    $build:
+                      $when:
+                        - path: entity
+                          equals:
+                            $copy: id
+                            $of: element
+                      $then:
+                        - $copy: screen
             - name: selectAll
               kind: select
               table:
@@ -336,6 +406,9 @@ rules:
                           screen:
                             $copy: id
                             $of: d
+                          query:
+                            $copy: query
+                            $of: d
                         - name:
                             $format: count{d}{s}
                             $with:
@@ -356,6 +429,9 @@ rules:
                             $as: snake
                           screen:
                             $copy: id
+                            $of: d
+                          query:
+                            $copy: query
                             $of: d
                     - - name:
                           $format: select{d}{s}
@@ -449,6 +525,9 @@ rules:
                         screen:
                           $copy: id
                           $of: d
+                        query:
+                          $copy: query
+                          $of: d
                       - name:
                           $format: count{d}{s}
                           $with:
@@ -469,6 +548,9 @@ rules:
                           $as: snake
                         screen:
                           $copy: id
+                          $of: d
+                        query:
+                          $copy: query
                           $of: d
                         whereFrom:
                           $format: select{d}{s}
@@ -1024,7 +1106,7 @@ rules:
               expect:
                 $copy: rule.expect
               precondition:
-                $format: '{a}.{r}'
+                $format: 'PRE-{a}.{r}'
                 $with:
                   a:
                     $copy: id
@@ -1145,7 +1227,7 @@ rules:
                 expect:
                   $copy: rule.expect
                 constraint:
-                  $copy: id
+                  $format: RUL-{id}
                 operation:
                   $copy: id
                   $of: a
@@ -1343,153 +1425,480 @@ rules:
           $copy: field.key
   # データの決まりは、業務モデルではなく、基本設計の「データの決まり」（design/basic/final/rules.yaml）から読む（ADR-0042）。
   # 確定した決まりを designRules として重ね、この定義の中では designRules を読む
+  # 入力は基本設計の項目だけ（エンティティ・操作・データの決まり・一覧の検索条件）。業務モデルも、解いた形も読まない（ADR-0042）。
+  # 下の規則（methods など）が読む形に、入口で 1 度だけ組む
   - id: model-input
     with:
-      - row
-      - operations
-      - screens
+      - entities
+      - actions
       - rules
       - queries
+      - screens
+      - decisions
     build:
-      $apply: model-with-rules
-      $with:
-        composed:
-          $compose:
-            derived:
-              - id: model
-                value:
-                  $copy: values.model
-                  $of: row
-                source:
-                  id: system-model
-            additions: []
-            changes:
-              - target: model
-                set:
-                  # 業務モデルの操作ではなく、基本設計の「操作」の項目一覧を解いたもの（basic-operations-resolved）
-                  designActions:
-                    $copy: values.actions
-                    $of: operations
-                  # ダッシュボードからたどれる範囲は、業務モデルではなく、画面の項目（解いた形）から読む
-                  designReach:
-                    $copy: values.reach
-                    $of: screens
-                  designRules:
-                    $each: .
-                    $of: rules
+      entities:
+        $copy: .
+        $of: entities
+      # 個別の判断のうち、読み書きのまとまり（ACC-）とメソッド（MTH-）を対象にするもの。対象の ID から、どのエンティティの項目かを取り出しておく
+      designDecisions:
+        $each: .
+        $of: decisions
+        $flatten: true
+        $build:
+          $when:
+            - or:
+                - path: target
+                  startsWith: ACC-
+                - path: target
+                  startsWith: MTH-
+          $then:
+            - id:
+                $copy: id
+              target:
+                $copy: target
+              set:
+                $copy: set
+              entity:
+                $value:
+                  extract:
+                    - path: target
+                    - ^(?:ACC|MTH)-([^.]+)
+      designActions:
+        $copy: .
+        $of: actions
+      # ID で 1 件読むメソッドと、参照の候補を読むメソッドは、詳細画面があるエンティティに作る（画面の項目の kind: detail）
+      designReach:
+        entities:
+          $each: .
+          $of: screens
+          $flatten: true
+          $build:
+            $when:
+              - path: kind
+                equals: detail
+            $then:
+              - $value:
+                  extract:
+                    - path: entity
+                    - ^ENT-(.*)$
+      designDetails:
+        $each: .
+        $of: screens
+        $flatten: true
+        $build:
+          $when:
+            - path: kind
+              equals: detail
+          $then:
+            - entity:
+                $value:
+                  extract:
+                    - path: entity
+                    - ^ENT-(.*)$
+              screen:
+                $copy: id
+      designRules:
+        $each: .
+        $of: rules
+        $build:
+          id:
+            $copy: source
+          level:
+            $copy: level
+          form:
+            $copy: form
+          kind:
+            $copy: kind
+          entity:
+            $copy: subject
+          at:
+            $copy: at
+          rule:
+            $copy: rule
+          fields:
+            $when:
+              - path: fields
+                exists: true
+            $then:
+              $each: fields
+              $build:
+                entity:
+                  $copy: subject
+                key:
+                  $copy: key
+                multiple:
+                  $copy: multiple
+      designQueries:
+        $each: .
+        $of: queries
+        $build:
+          id:
+            $copy: dashboard
+          query:
+            $copy: id
+          sections:
+            - id:
+                $copy: section
+              view:
+                $copy: view
+              filter:
+                $copy: filter
+          views:
+            - id:
+                $copy: view
+              kind:
+                $copy: kind
+              rows:
+                $copy: subject
+              counts:
+                $copy: counts
+              match:
+                $copy: match
+              params:
+                $copy: params
+              where:
+                $copy: where
+              order:
+                $copy: order
+              columns:
+                $first:
+                  - $when:
+                      - path: kind
+                        equals: matrix
+                    $then:
+                      path:
+                        $copy: axis.path
+                      values:
+                        $copy: axis.values
+                  - $each: columns
                     $build:
-                      id:
-                        $copy: source
-                      level:
-                        $copy: level
-                      form:
-                        $copy: form
-                      kind:
-                        $copy: kind
-                      entity:
-                        $copy: subject
-                      at:
-                        $copy: at
-                      rule:
-                        $copy: rule
-                      fields:
-                        $when:
-                          - path: fields
-                            exists: true
-                        $then:
-                          $each: fields
-                          $build:
-                            entity:
-                              $copy: subject
-                            key:
-                              $copy: key
-                            multiple:
-                              $copy: multiple
-                priority: individual
-                source:
-                  id: basic-rules
-              # 一覧の読み出しは、業務モデルのダッシュボードとビューではなく、基本設計の「一覧の検索条件」
-              # （design/basic/final/queries.yaml）から読む（ADR-0042）。区画ごとの読み出しを、区画 1 つ・ビュー 1 つの組として重ねる
-              - target: model
-                set:
-                  designQueries:
-                    $each: .
-                    $of: queries
-                    $build:
-                      id:
-                        $copy: dashboard
-                      sections:
-                        - id:
-                            $copy: section
-                          view:
-                            $copy: view
-                          filter:
-                            $copy: filter
-                      views:
-                        - id:
-                            $copy: view
-                          kind:
-                            $copy: kind
-                          rows:
-                            $copy: subject
-                          counts:
-                            $copy: counts
-                          match:
-                            $copy: match
-                          params:
-                            $copy: params
-                          where:
-                            $copy: where
-                          order:
-                            $copy: order
-                          columns:
-                            $first:
-                              - $when:
-                                  - path: kind
-                                    equals: matrix
-                                $then:
-                                  path:
-                                    $copy: axis.path
-                                  values:
-                                    $copy: axis.values
-                              - $each: columns
-                                $build:
-                                  label:
-                                    $copy: label
-                                  path:
-                                    $copy: path
-                                  computed:
-                                    $copy: computed
-                                  value:
-                                    $copy: value
-                                  field:
-                                    $first:
-                                      - $when:
-                                          - path: reference.many
-                                            equals: true
-                                        $then:
-                                          item:
-                                            target:
-                                              $copy: reference.subject
-                                            targetTitle:
-                                              $copy: reference.title
-                                      - $when:
-                                          - path: reference
-                                            exists: true
-                                        $then:
-                                          target:
-                                            $copy: reference.subject
-                                          targetTitle:
-                                            $copy: reference.title
-                priority: individual
-                source:
-                  id: basic-queries
-  - id: model-with-rules
+                      label:
+                        $copy: label
+                      path:
+                        $copy: path
+                      computed:
+                        $copy: computed
+                      value:
+                        $copy: value
+                      field:
+                        $first:
+                          - $when:
+                              - path: reference.many
+                                equals: true
+                            $then:
+                              item:
+                                target:
+                                  $copy: reference.subject
+                                targetTitle:
+                                  $copy: reference.title
+                          - $when:
+                              - path: reference
+                                exists: true
+                            $then:
+                              target:
+                                $copy: reference.subject
+                              targetTitle:
+                                $copy: reference.title
+  # エンティティの項目（ENT-・FLD-）を、下の規則が読む形にする
+  - id: item-entity
+    build:
+      id:
+        $copy: source
+      label:
+        $copy: label
+      title:
+        $value:
+          extract:
+            - path: title
+            - '[^.]+$'
+      numbering:
+        $when:
+          - path: numbering
+            exists: true
+        $then:
+          path:
+            $copy: numbering.path
+          prefix:
+            $copy: numbering.prefix
+          digits:
+            $copy: numbering.digits
+      owner:
+        $when:
+          - path: parent
+            exists: true
+        $then:
+          entity:
+            $value:
+              extract:
+                - path: parent
+                - ^ENT-(.*)$
+          field:
+            $value:
+              extract:
+                - path: parentField
+                - '[^.]+$'
+      aspects:
+        - schema:
+            $copy: documents[0]
+          fields:
+            $each: items
+            $apply: item-field
+  - id: item-field
+    build:
+      key:
+        $copy: key
+      base:
+        $copy: base
+      entity:
+        $value:
+          extract:
+            - path: entity
+            - ^ENT-(.*)$
+      target:
+        $value:
+          extract:
+            - path: reference.entities[0]
+            - ^ENT-(.*)$
+      targetTitle:
+        $apply: title-of
+        $with:
+          ref:
+            $copy: reference.entities[0]
+      fields:
+        $each: fields
+        $apply: item-field
+      item:
+        $apply: item-field
+        $at: item
+      value:
+        $apply: item-field
+        $at: value
+  # 参照先のエンティティの、表題の項目のキー
+  - id: title-of
     with:
-      - composed
+      - ref
+    when:
+      - of: ref
+        path: .
+        exists: true
     build:
-      $copy: records[0].value
-      $of: composed
+      $apply: contract-first
+      $with:
+        matches:
+          $each:
+            $view: basic-model-entities
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              - $value:
+                  extract:
+                    - path: values.record.title
+                    - '[^.]+$'
+  # エンティティの項目の ID から、業務モデルの名前
+  - id: entity-source
+    with:
+      - ref
+    when:
+      - of: ref
+        path: .
+        exists: true
+    build:
+      $apply: contract-first
+      $with:
+        matches:
+          $each:
+            $view: basic-model-entities
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              - $copy: values.record.source
+  # 操作の項目（ACT-・EFF-・PRE-）を、下の規則が読む形にする。効果が指す項目（FLD-）は ID で引く
+  - id: item-action
+    build:
+      $apply: item-action-body
+      $with:
+        act:
+          $copy: .
+  - id: item-action-body
+    with:
+      - act
+    build:
+      id:
+        $copy: source
+      target:
+        $when:
+          - path: receiver
+            exists: true
+        $then:
+          entity:
+            $apply: entity-source
+            $with:
+              ref:
+                $copy: receiver
+      creates:
+        $each: creates
+        $build:
+          $apply: entity-source
+          $with:
+            ref:
+              $copy: .
+      require:
+        $each: preconditions
+        $build:
+          id:
+            $copy: source
+          message:
+            $copy: message
+          rule:
+            $copy: rule
+      effects:
+        $each: effects
+        $bind: e
+        $build:
+          op:
+            $copy: op
+          source:
+            $copy: cause
+          auto:
+            $copy: auto
+          of:
+            $copy: of
+          entity:
+            $copy: subject
+          schema:
+            $copy: schema
+          path:
+            $copy: path
+          field:
+            $first:
+              - $when:
+                  - path: item
+                    exists: true
+                $then:
+                  $apply: effect-field
+                  $with:
+                    row:
+                      $view: basic-model-fields
+                      $where:
+                        - path: id
+                          equals:
+                            $copy: item
+                            $of: e
+                      $one: true
+              - $when:
+                  - path: collection
+                    exists: true
+                $then:
+                  key:
+                    $copy: collection.key
+                  base: array
+                  item:
+                    base: object
+                    entity:
+                      $apply: entity-source
+                      $with:
+                        ref:
+                          $copy: collection.element
+          row:
+            $when:
+              - path: row
+                exists: true
+            $then:
+              param:
+                $apply: contract-first
+                $with:
+                  matches:
+                    $each: inputs
+                    $of: act
+                    $flatten: true
+                    $build:
+                      $when:
+                        - path: id
+                          equals:
+                            $copy: row
+                            $of: e
+                      $then:
+                        - $copy: key
+          when:
+            $copy: when
+          # 自動で入る版（revision）は、値を「その項目の、次の値」として渡す
+          value:
+            $first:
+              - $when:
+                  - path: auto
+                    equals: revision
+                $then:
+                  $entries:
+                    - key: $$copy
+                      value:
+                        $copy: path
+                    - key: $$of
+                      value:
+                        $first:
+                          - $when:
+                              - not:
+                                  path: subject
+                                  equals:
+                                    $copy: subject
+                                    $of: act
+                            $then: ownerNext
+                          - next
+              - $copy: value
+          values:
+            $copy: values
+          params:
+            $copy: params
+          id:
+            $copy: identifier
+          numbering:
+            $copy: numbering
+          written:
+            $copy: written
+      checks:
+        $each: checks
+        $build:
+          constraint:
+            $value:
+              extract:
+                - path: rule
+                - ^RUL-(.*)$
+          items:
+            $copy: items
+  - id: effect-field
+    with:
+      - row
+    build:
+      key:
+        $copy: values.record.key
+        $of: row
+      base:
+        $copy: values.record.base
+        $of: row
+      item:
+        $when:
+          - of: row
+            path: values.record.item
+            exists: true
+        $then:
+          base:
+            $copy: values.record.item.base
+            $of: row
+          entity:
+            $apply: entity-source
+            $with:
+              ref:
+                $copy: values.record.item.entity
+                $of: row
   - id: physical-access
     with:
       - document
@@ -1584,27 +1993,9 @@ rules:
             changes:
               - target: record
                 set:
-                  methodId:
-                    $copy: name
-                    $of: method
-                  tableId:
+                  table:
                     $copy: id
                     $of: table
-                  table:
-                    $copy: name
-                    $of: table
-                  columnBindings:
-                    $each: columns
-                    $of: table
-                    $build:
-                      columnId:
-                        $copy: id
-                      item:
-                        $copy: item
-                      name:
-                        $copy: name
-                      source:
-                        $copy: source
                 priority: individual
                 source:
                   id: contract
@@ -1653,8 +2044,19 @@ rules:
                           - path: $key
                             equals: table
                         $then:
-                          $copy: name
+                          $copy: id
                           $of: table
+                      # 数える要素のテーブル（counts）と、条件が通る明細テーブル（via）も、テーブルの ID で指す
+                      - $when:
+                          - path: $key
+                            oneOf:
+                              - counts
+                              - via
+                        $then:
+                          $apply: physical-table-name
+                          $with:
+                            name:
+                              $copy: .
                       - $apply: physical-walk
                         $with:
                           table:
@@ -1714,7 +2116,7 @@ rules:
       - fallback
     build:
       $first:
-        - $copy: name
+        - $copy: id
           $of: table
         - $copy: .
           $of: fallback
@@ -1737,21 +2139,6 @@ rules:
                 path: item
                 exists: true
             $then:
-              - key: columnId
-                value:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: columns
-                      $of: table
-                      $build:
-                        $when:
-                          - path: item
-                            equals:
-                              $copy: item
-                              $of: node
-                        $then:
-                          $copy: id
               - key: column
                 value:
                   $apply: contract-first
@@ -1766,4 +2153,279 @@ rules:
                               $copy: item
                               $of: node
                         $then:
-                          $copy: name
+                          $copy: id
+  # 個別の判断を当てる。対象は読み書きのまとまり（ACC-。Mapper の名前 mapper）とメソッド（MTH-。名前 name）。
+  # このエンティティの項目への判断だけを当てる。どのエンティティにも無い対象と、その対象では置き換えられない値は、
+  # 対象の無い変更として合成に渡し、エラーで止める
+  - id: decided-item
+    with:
+      - item
+    build:
+      $apply: decided
+      $with:
+        composed:
+          $compose:
+            derived:
+              - id:
+                  $copy: id
+                  $of: item
+                value:
+                  $copy: .
+                  $of: item
+                source:
+                  id: rule-detail-table-access
+                  document: .yde/transforms/design/detail/detail-table-access.yaml
+            additions: []
+            changes:
+              $each: designDecisions
+              $of: model
+              $bind: dec
+              $flatten: true
+              $build:
+                $apply: entity-decision
+                $with:
+                  decision:
+                    $copy: .
+                  item:
+                    $copy: .
+                    $of: item
+                  known:
+                    $each: entities
+                    $of: model
+                    $flatten: true
+                    $build:
+                      $when:
+                        - path: id
+                          equals:
+                            $copy: entity
+                            $of: dec
+                      $then:
+                        - $copy: id
+  - id: entity-decision
+    with:
+      - decision
+      - item
+      - known
+    when:
+      - of: decision
+        path: entity
+        equals:
+          $copy: entity
+          $of: item
+    build:
+      $apply: decision-changes
+      $with:
+        decision:
+          $copy: .
+          $of: decision
+        matches:
+          $concat:
+            - $when:
+                - of: item
+                  path: id
+                  equals:
+                    $copy: target
+                    $of: decision
+              $then:
+                $apply: member-entries
+                $with:
+                  decision:
+                    $copy: .
+                    $of: decision
+                  owner:
+                    $copy: id
+                    $of: item
+                  place: []
+                  allowed:
+                    - mapper
+            - $apply: listed-members
+              $with:
+                decision:
+                  $copy: .
+                  $of: decision
+                owner:
+                  $copy: id
+                  $of: item
+                collection: methods
+                members:
+                  $copy: methods
+                  $of: item
+                allowed:
+                  - name
+  - id: entity-decision
+    with:
+      - decision
+      - item
+      - known
+    when:
+      - of: known
+        path: .
+        empty: true
+    build:
+      $apply: decision-changes
+      $with:
+        decision:
+          $copy: .
+          $of: decision
+        matches: []
+  - id: entity-decision
+    with:
+      - decision
+      - item
+      - known
+    build: []
+  - id: decision-changes
+    with:
+      - decision
+      - matches
+    when:
+      - of: matches
+        path: .
+        empty: false
+    build:
+      $copy: .
+      $of: matches
+  - id: decision-changes
+    with:
+      - decision
+      - matches
+    build:
+      - target:
+          $copy: target
+          $of: decision
+        set:
+          $copy: set
+          $of: decision
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: decision
+          document: design/detail/inputs/decisions.yaml
+  - id: listed-members
+    with:
+      - decision
+      - owner
+      - collection
+      - members
+      - allowed
+    build:
+      $each: .
+      $of: members
+      $flatten: true
+      $build:
+        $when:
+          - path: id
+            equals:
+              $copy: target
+              $of: decision
+        $then:
+          $apply: member-entries
+          $with:
+            decision:
+              $copy: .
+              $of: decision
+            owner:
+              $copy: .
+              $of: owner
+            place:
+              - $copy: .
+                $of: collection
+              - $number: $index
+            allowed:
+              $copy: .
+              $of: allowed
+  - id: member-entries
+    with:
+      - decision
+      - owner
+      - place
+      - allowed
+    build:
+      $eachEntry: set
+      $of: decision
+      $flatten: true
+      $build:
+        $first:
+          - $when:
+              - of: allowed
+                path: .
+                includes: $key
+            $then:
+              - target:
+                  $copy: .
+                  $of: owner
+                path:
+                  $concat:
+                    - $copy: .
+                      $of: place
+                    - - $key
+                value:
+                  $copy: .
+                priority: individual
+                source:
+                  id:
+                    $copy: id
+                    $of: decision
+                  document: design/detail/inputs/decisions.yaml
+          - - target:
+                $format: '{t}（{k} は、この対象では置き換えられません）'
+                $with:
+                  t:
+                    $copy: target
+                    $of: decision
+                  k: $key
+              set:
+                $copy: set
+                $of: decision
+              priority: individual
+              source:
+                id:
+                  $copy: id
+                  $of: decision
+                document: design/detail/inputs/decisions.yaml
+  # 当てた判断を、項目の decisions に残す（どの場所を、どの値に、どの判断で）
+  - id: decided
+    with:
+      - composed
+    when:
+      - of: composed
+        path: decisions
+        empty: false
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: records[0].value
+                  $of: composed
+                source:
+                  id: composed
+            additions: []
+            changes:
+              - target: record
+                set:
+                  decisions:
+                    $each: decisions
+                    $of: composed
+                    $build:
+                      path:
+                        $copy: path
+                      value:
+                        $copy: selected[0].value
+                      by:
+                        $each: selected
+                        $build:
+                          $copy: source.id
+                priority: individual
+                source:
+                  id: decisions
+  - id: decided
+    with:
+      - composed
+    build:
+      $copy: records[0].value
+      $of: composed

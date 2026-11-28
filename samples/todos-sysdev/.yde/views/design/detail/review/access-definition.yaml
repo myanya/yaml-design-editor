@@ -1,0 +1,21 @@
+id: access-definition
+name: テーブルアクセス設計書（メソッド）
+description: 詳細設計の「テーブルへの読み書き」のメソッドを並べる。テーブルアクセス設計書にあたるビューで、値は確定した項目（design/detail/final/table-access/）から読む。テーブルの名前は、メソッドが ID で指すテーブルの項目から引く
+rows: { idPattern: "MTH-*", schemaIds: [detail-table-access] }
+columns:
+  - label: メソッド
+    path: name
+  - label: 種類
+    path: kind
+  - label: テーブル
+    value:
+      via: table
+      path: name
+  - label: 作る元（操作・検索条件・エンティティ）
+    path: sources
+  - label: 操作の前提
+    path: precondition
+  - label: データの決まり
+    path: constraint
+  - label: 設計項目ID
+    path: id

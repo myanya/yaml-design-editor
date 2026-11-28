@@ -78,13 +78,28 @@ constraints:
           bind: a
     check:
       - gte:
-          - refCount:
-              of: a
-              dir: in
-              via: operations
+          - count:
+              all:
+                from: a
+                match:
+                  - node:
+                      bind: a
+                  - edge:
+                      via: source
+                      dir: in
+                  - node:
+                      entity: sysdev-operation
+                      bind: op
+                  - edge:
+                      via: sources
+                      dir: in
+                  - node:
+                      entity: sysdev-table-access
+                      bind: design
+                of: design
           - 1
     level: error
-    message: 操作「{id}」の読み書きがテーブルアクセス設計書にありません
+    message: 操作「{id}」の読み書きが、テーブルへの読み書きの項目にありません（基本設計の「操作」の項目を、作る元に持つメソッドが無い）
   - id: action-has-error-definition
     description: どの操作もエラー定義書に載っている（断りの種類と出す場所）
     match:
@@ -252,7 +267,7 @@ constraints:
                   - node:
                       bind: e
                   - edge:
-                      via: id
+                      via: entity
                       dir: in
                   - node:
                       entity: sysdev-table-access

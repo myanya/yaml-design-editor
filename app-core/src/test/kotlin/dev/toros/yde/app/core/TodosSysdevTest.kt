@@ -45,8 +45,8 @@ class TodosSysdevTest {
         val methods = list(doc("design/detail/final/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
         assertEquals(listOf("completed_on", "result", "status", "updated_on", "version"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update（最後の version は、同時更新を版で検出する方式が足す）")
-        val count = list(doc("design/detail/final/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "complete-todo.no-open-task" }
-        assertEquals("complete-todo.no-open-task", count["precondition"])
+        val count = list(doc("design/detail/final/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "PRE-complete-todo.no-open-task" }
+        assertEquals(listOf("ACT-complete-todo"), count["sources"], "メソッドは、作る元（基本設計の操作）と、前提の項目を ID で指す")
         val conditions = list(count, "where").map { (it as Map<*, *>).filterKeys { key -> key != "column" && key != "columnId" } }
         assertEquals<List<*>>(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), conditions)
         val todo = list(doc("design/basic/final/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
@@ -516,17 +516,18 @@ class TodosSysdevTest {
         // 操作は、業務モデル（actions）ではなく、基本設計の「操作」の項目一覧を解いたもの（designActions）から読む
         assertTrue(listOf("designActions.effects", "designActions.checks", "designActions.require", "designRules.rule").all { it in concepts("processes-derived") }, "処理設計書の導出: ${concepts("processes-derived")}")
         assertTrue(concepts("processes-derived").all { it.toString().startsWith("designActions") || it.toString().startsWith("designRules") }, "処理設計書の導出は、基本設計の項目だけを読む: ${concepts("processes-derived")}")
-        listOf("error-handling", "processes", "screen-designs-details", "screen-designs-lists", "screen-designs-operations", "screen-flows", "session-design", "table-access").forEach { id ->
+        listOf("error-handling", "processes", "screen-designs-details", "screen-designs-lists", "screen-designs-operations", "screen-flows", "session-design").forEach { id ->
             assertTrue(concepts("$id-derived").none { it.toString().startsWith("actions") }, "$id の導出は、業務モデルの操作を直接読まない: ${concepts("$id-derived")}")
             assertTrue(concepts("$id-derived").any { it.toString().startsWith("designActions") }, "$id の導出は、操作を基本設計の項目から読む: ${concepts("$id-derived")}")
         }
         // 操作を解いた形は、基本設計の項目（操作・エンティティ・型・状態と遷移・データの決まり）だけから作る
         assertTrue(concepts("basic-operations-resolved").all { c -> listOf("operations", "entities", "lifecycles", "rules", "types").any { c.toString() == it || c.toString().startsWith("$it.") } }, "操作を解いた形: ${concepts("basic-operations-resolved")}")
         assertTrue(concepts("processes-derived").none { it.toString().startsWith("constraints") }, "処理設計書の導出は、業務モデルのデータの決まりを直接読まない: ${concepts("processes-derived")}")
-        assertTrue(concepts("table-access-derived").none { it.toString().startsWith("constraints") }, "テーブルアクセス設計書の導出も同じ: ${concepts("table-access-derived")}")
-        // 一覧の読み出しは、業務モデルのダッシュボードとビューではなく、基本設計の「一覧の検索条件」（designQueries）から読む
-        assertTrue(listOf("designQueries.views", "designQueries.sections").all { it in concepts("table-access-derived") }, "テーブルアクセス設計書の導出: ${concepts("table-access-derived")}")
-        assertTrue(concepts("table-access-derived").none { it.toString().startsWith("dashboards") || it.toString().startsWith("views") }, "テーブルアクセス設計書の導出は、業務モデルのダッシュボードとビューを直接読まない: ${concepts("table-access-derived")}")
+        // テーブルへの読み書きは、基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）だけを入口で組んで読む。業務モデルも、解いた形も読まない
+        val access = concepts("detail-table-access").map { it.toString().substringBefore(".") }.toSet()
+        assertEquals(setOf("entities", "designActions", "designRules", "designQueries", "designReach", "designDetails", "designDecisions"), access, "テーブルへの読み書き: ${concepts("detail-table-access")}")
+        val accessDefinition = Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "detail-table-access" }
+        assertEquals(setOf("basic-entities", "basic-operations", "basic-rules", "basic-queries", "basic-screens", "detail-tables", "detail-document-input-gate"), accessDefinition.dependsOn.toSet(), "作る元は基本設計の項目と、同じ詳細設計のテーブルの項目")
         assertEquals(listOf("documents"), concepts("detail-status"), "状態の型は、基本設計の「状態と遷移」の項目（入力のビュー）だけを読み、業務モデルの概念を読まない")
         assertTrue("relations.cardinality" in concepts("domains-derived") && "lifecycles.transitions" in concepts("domains-derived"), "ドメイン定義書の導出: ${concepts("domains-derived")}")
         assertEquals(emptyList<Any>(), concepts("screen-styles-derived"), "クラスの対応表の導出は業務モデルを読まない（決まった表）")

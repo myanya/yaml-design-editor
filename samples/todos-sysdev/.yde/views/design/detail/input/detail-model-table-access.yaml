@@ -1,0 +1,6 @@
+id: detail-model-table-access
+name: 詳細設計の生成入力（テーブルへの読み書き）
+description: テーブルへの読み書きの項目（ACC-）を、エンティティ型ごとに 1 件ずつ読む
+rows: { idPattern: "ACC-*", schemaIds: [detail-table-access] }
+columns:
+  - { label: record, path: . }

@@ -179,6 +179,7 @@ definitions:
       - { key: numbering, label: 採番, type: 候補の採番 }
       - { key: parent, label: 保有元のエンティティ, type: 生成対象, pattern: '^ENT-\S+$' }
       - { key: parentField, label: 保有元の項目, type: 生成対象, pattern: '^FLD-\S+$' }
+      - { key: title, label: 表題の項目, type: 生成対象, pattern: '^FLD-\S+$' }
       - { key: items, label: 項目, type: array, item: { type: 候補の項目 } }
       - { key: operations, label: 操作と書込, type: array, item: { type: 候補の操作 } }
   確定したエンティティ:
@@ -217,6 +218,12 @@ definitions:
         type: ref
         idPatterns:
           - FLD-*
+      - key: title
+        label: 表題の項目
+        type: ref
+        idPatterns:
+          - FLD-*
+        description: 一覧や参照の候補で、この要素の名前として見せる項目
       - key: items
         label: 項目
         type: array

@@ -47,7 +47,7 @@ columns:
             - node:
                 bind: e
             - edge:
-                via: id
+                via: entity
                 dir: in
             - node:
                 entity: sysdev-table-access

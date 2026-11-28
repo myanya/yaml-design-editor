@@ -33,11 +33,11 @@ class TodosMappersTest {
         // 並びの番号で指す操作は、明細テーブルの 1 行を、親のキーと並び順（seq）で指す update・delete になる
         val table = rows(raw(Files.readString(sample.resolve("design/detail/final/table-access/todo.yaml"))), "methods").associateBy { it["name"] }
         val editRow = table.getValue("editTodoCommentCommentsRow")
-        assertEquals(listOf("update", "todo_comments"), listOf(editRow["kind"], editRow["table"]))
+        assertEquals(listOf("update", "TBL-todo_comments"), listOf(editRow["kind"], editRow["table"]))
         assertEquals(listOf("date", "body"), rows(editRow, "set").map { it["item"] })
         assertEquals(listOf("todo_id" to "id", "seq" to "row"), rows(editRow, "where").map { it["item"] to it["param"] })
         val deleteRow = table.getValue("deleteTodoCommentCommentsRow")
-        assertEquals(listOf("delete", "todo_comments"), listOf(deleteRow["kind"], deleteRow["table"]))
+        assertEquals(listOf("delete", "TBL-todo_comments"), listOf(deleteRow["kind"], deleteRow["table"]))
         assertEquals(listOf("todo_id" to "id", "seq" to "row"), rows(deleteRow, "where").map { it["item"] to it["param"] })
         // 番号の無い入れ替え（タグ）の全件削除は、親のキーだけで消す（番号つきの効果では作らない）
         assertEquals(listOf("todo_id" to "id"), rows(table.getValue("deleteTodoTags"), "where").map { it["item"] to it["param"] })
@@ -59,11 +59,12 @@ class TodosMappersTest {
             corrections:
               - {id: DCOR-mapper-title, target: COL-todo.title, set: {name: subject}, reason: 検証}
         """)
-        write(input, "design/detail/inputs/documents/corrections.yaml", """
-            inputId: INPUT-detail-document-corrections
-            corrections:
-              - {id: SCOR-mapper, kind: table-access, target: DOC-table-access.todo, set: {mapper: TodoStore}, reason: 検証}
-              - {id: SCOR-select, kind: table-access, target: DOC-table-access.todo, select: {collection: methods, key: methodId, equals: selectTodoDashboardAll}, set: {name: readAll}, reason: 検証}
+        // 名前の判断は、テーブルへの読み書きの項目（まとまり ACC-・メソッド MTH-）を ID で指す
+        write(input, "design/detail/inputs/decisions.yaml", """
+            inputId: INPUT-detail-decisions
+            decisions:
+              - {id: DDEC-mapper, target: ACC-todo, set: {mapper: TodoStore}, reason: 検証}
+              - {id: DDEC-select, target: MTH-todo.selectTodoDashboardAll, set: {name: readAll}, reason: 検証}
         """)
         val plan = Generators.plan(WorkspaceSession(input), setOf("application-access"))
         assertEquals(emptyList(), plan.errors)
@@ -77,19 +78,22 @@ class TodosMappersTest {
     }
 
     @Test
-    fun `不明な条件参照は確定前に拒否して元の出力を保つ`() {
-        val input = store()
-        val original = input.read(DocumentId("design/detail/final/application-access.yaml"))!!.text
-        write(input, "design/detail/inputs/documents/corrections.yaml", """
-            inputId: INPUT-detail-document-corrections
-            corrections:
-              - {id: SCOR-source, kind: table-access, target: DOC-table-access.todo, select: {collection: methods, key: methodId, equals: countTodoDashboardAll}, set: {whereFrom: missingMethod}, reason: 検証}
-        """)
-        val plan = Generators.plan(WorkspaceSession(input), setOf("application-access"))
-        assertTrue(plan.errors.isNotEmpty())
-        assertTrue(plan.errors.any { "同じ条件" in it }, plan.errors.toString())
-        assertTrue(plan.transaction.operations.isEmpty())
-        assertEquals(original, input.read(DocumentId("design/detail/final/application-access.yaml"))!!.text)
+    fun `無い対象と置き換えられない値への判断は確定前に拒否して元の出力を保つ`() {
+        val original = Files.readString(sample.resolve("design/detail/final/application-access.yaml"))
+        val cases = listOf(
+            "{id: DDEC-x, target: MTH-todo.missingMethod, set: {name: other}, reason: 検証}",
+            "{id: DDEC-x, target: ACC-missing, set: {mapper: OtherMapper}, reason: 検証}",
+            "{id: DDEC-x, target: MTH-todo.findById, set: {mapper: OtherMapper}, reason: 検証}",
+            "{id: DDEC-x, target: ACC-todo, set: {name: other}, reason: 検証}",
+        )
+        for (case in cases) {
+            val input = store()
+            write(input, "design/detail/inputs/decisions.yaml", "inputId: INPUT-detail-decisions\ndecisions:\n  - $case\n")
+            val plan = Generators.plan(WorkspaceSession(input), setOf("application-access"))
+            assertTrue(plan.errors.any { "detail-table-access" in it && "DDEC-x" in it }, "$case: ${plan.errors}")
+            assertTrue(plan.transaction.operations.isEmpty(), case)
+            assertEquals(original, input.read(DocumentId("design/detail/final/application-access.yaml"))!!.text)
+        }
     }
 
     @Test

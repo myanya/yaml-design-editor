@@ -50,13 +50,25 @@
 # design/detail/inputs/documents/corrections.yaml
 inputId: INPUT-detail-document-corrections
 corrections:
-  - id: SCOR-mapper-name
-    kind: table-access
-    target: DOC-table-access.todo
-    select: {collection: methods, key: methodId, equals: completeTodo}
+  - id: SCOR-exception-name
+    kind: error-handling
+    target: DOC-error-handling.error-handling
+    select: {collection: exceptions, key: kind, equals: refused}
+    set: {class: OperationRefused}
+    reason: 例外のクラス名を統一する
+specifications: []
+```
+
+項目の形にした種類（状態の型・テーブルへの読み書き）は、文書への補正ではなく、項目の ID を対象にした個別の判断で書く。
+
+```yaml
+# design/detail/inputs/decisions.yaml
+inputId: INPUT-detail-decisions
+decisions:
+  - id: DDEC-001
+    target: MTH-todo.completeTodo
     set: {name: saveCompletion}
     reason: 保存のメソッド名を統一する
-specifications: []
 ```
 
 `select` は先頭のコレクションからキーの値で一つを選び、順番が変わっても同じ項目を補正する。

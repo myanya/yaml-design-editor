@@ -1,0 +1,16 @@
+id: UX-384
+title: 変換定義の規則を、定義の間で共有できない（同じ規則を定義ごとに写している）
+status: todo
+kind: feature
+origin_on: 2026-11-28
+origin: todos-sysdev で、テーブルへの読み書きを基本設計の項目だけから作る変換定義にしたとき
+memo: |-
+  変換定義（.yde/transforms）の rules は、その定義の中でしか使えない。別の定義の規則を呼ぶ・取り込む語彙が無い。
+  samples/todos-sysdev では、基本設計の項目（ENT-・FLD-・ACT-）を読む側の形に組む規則が、読む定義ごとに要る。
+  いま同じ趣旨の規則が 3 か所にある: detail-tables の restored-entity / restored-field、detail-table-access の item-entity / item-field / item-action、basic-operations-resolved の effect-field ほか。
+  これを避けるために「解いた形」（design/basic/composed/operations-resolved.yaml・screens-resolved.yaml）という途中のファイルを置いていたが、
+  ADR-0042 の「各段は 1 つ前の段のモデルだけを読む・途中のファイルを持たない」とぶつかる。途中のファイルを無くすと、規則の写しが増える。
+  個別の判断を当てる規則（decision-changes・listed-members・member-entries・decided）も、detail-status と detail-table-access に同じものがある。
+  当たり: 規則だけを持つ定義（出力を持たない）を別の定義から取り込む語彙（例 `uses: [定義ID]`）か、ワークスペースで共有する規則の置き場。
+  決める点: 同名の規則の優先、取り込んだ規則の中の `$of: model` の意味、系譜（lineage）と依存（dependsOn）への載せ方。
+  いまは困っていないこと: ID で 1 件引く書き方（`$view` ＋ `$where` ＋ `$one`）は、既存の語彙で書けて速さも問題ない。

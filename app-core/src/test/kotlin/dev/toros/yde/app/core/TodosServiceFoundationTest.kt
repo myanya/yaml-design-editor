@@ -65,7 +65,6 @@ class TodosServiceFoundationTest {
             inputId: INPUT-detail-document-corrections
             corrections:
               - {id: SCOR-exception, kind: error-handling, target: DOC-error-handling.error-handling, select: {collection: exceptions, key: kind, equals: refused}, set: {class: OperationRefused}, reason: 検証}
-              - {id: SCOR-sequence, kind: table-access, target: DOC-table-access.todo-task, select: {collection: methods, key: methodId, equals: maxSeq}, set: {name: lastPosition}, reason: 検証}
         """.trimIndent()).toMutableMap()
         // 状態の型への個別の判断は、項目の ID（型 ENM-・判定 ENG-）を対象にして、項目へ直接当てる
         put(input, "design/detail/inputs/decisions.yaml", raw("""
@@ -73,6 +72,7 @@ class TodosServiceFoundationTest {
             decisions:
               - {id: DDEC-901, target: ENM-todo-lifecycle, set: {enum: TaskState}, reason: 検証}
               - {id: DDEC-902, target: ENG-todo-ACTIVE, set: {method: isOpenTask}, reason: 検証}
+              - {id: DDEC-903, target: MTH-todo-task.maxSeq, set: {name: lastPosition}, reason: 検証}
         """.trimIndent()))
         put(input, "design/detail/inputs/documents/corrections.yaml", corrections)
         val plan = Generators.plan(WorkspaceSession(input), setOf("application-runtime-model", "application-process-gate"))

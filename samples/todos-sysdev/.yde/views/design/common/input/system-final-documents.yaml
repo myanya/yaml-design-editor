@@ -17,7 +17,6 @@ rows:
     - screen-styles
     - screen-transitions
     - session-design
-    - table-access
 columns:
   - label: record
     path: .

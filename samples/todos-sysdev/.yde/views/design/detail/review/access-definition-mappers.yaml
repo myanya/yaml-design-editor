@@ -1,0 +1,15 @@
+id: access-definition-mappers
+name: テーブルアクセス設計書（Mapper）
+description: 詳細設計の「テーブルへの読み書き」を、エンティティ型ごとのまとまり（Mapper 1 つ）で並べる。当てた個別の判断は、項目の decisions に残る
+rows: { idPattern: "ACC-*", schemaIds: [detail-table-access] }
+columns:
+  - label: Mapper
+    path: mapper
+  - label: 名前
+    path: label
+  - label: 作る元（基本設計のエンティティ）
+    path: source
+  - label: テーブル
+    path: tables
+  - label: 設計項目ID
+    path: id

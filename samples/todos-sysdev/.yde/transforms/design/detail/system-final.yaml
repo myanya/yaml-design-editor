@@ -16,7 +16,6 @@ dependsOn:
   - screen-styles
   - screen-transitions
   - session-design
-  - table-access
   - detail-tables
   - basic-types
   - basic-entities
@@ -522,32 +521,6 @@ rules:
                           $copy: id
           - $each:
               $view: session-design-derived-input
-            $bind: derived
-            $build:
-              $when:
-                - path: values.record.value
-                  exists: true
-              $then:
-                target:
-                  $copy: values.record.id
-                expected:
-                  $copy: values.record.value.id
-                actual:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: .
-                      $of: documents
-                      $build:
-                        $when:
-                          - path: designId
-                            equals:
-                              $copy: values.record.id
-                              $of: derived
-                        $then:
-                          $copy: id
-          - $each:
-              $view: table-access-derived-input
             $bind: derived
             $build:
               $when:
@@ -1104,23 +1077,6 @@ rules:
                 oneOf:
                   - attributes
                   - notKept
-          $then:
-            input:
-              $copy: id
-              $of: input
-            collection:
-              $copy: collection
-              $of: input
-            reason: このコレクションへの追加には対応していません
-        - $when:
-            - path: kind
-              of: input
-              equals: table-access
-            - not:
-                of: input
-                path: collection
-                oneOf:
-                  - methods
           $then:
             input:
               $copy: id

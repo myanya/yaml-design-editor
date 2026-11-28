@@ -1,9 +1,12 @@
-id: table-access
-name: テーブルアクセス設計書（Repository）
+id: detail-table-access
+name: 詳細設計項目一覧（テーブルへの読み書き）
 kind: document
 description: >-
-  詳細設計。エンティティ型ごとの Mapper と、そのテーブル（主のテーブルと明細テーブル）を読み書きするメソッド。メソッドは操作をまたいで 1 つにまとめ、 使う操作を並べる。列は業務モデルの項目のキー（item）で書き、カラム名はテーブル設計書から引く。MyBatis の XML に書く SQL の元。
-  生成物（.yde/transforms/design/detail/table-access.yaml）で、手で直さない
+  具体システムモデルの「テーブルへの読み書き」。エンティティ型ごとに 1 ファイルで、Mapper 1 つ（読み書きのまとまり ACC-）と、
+  そのテーブル（主のテーブルと明細テーブル）を読み書きするメソッド（MTH-）。メソッドは操作をまたいで 1 つにまとめる。
+  メソッドは作る元（sources。操作 ACT-・一覧の検索条件 QRY-・詳細画面 SCR-・エンティティ ENT-）を指し、テーブルとカラムは ID（TBL-・COL-）で指す（名前を写さない）。
+  個別の判断で置き換えられるのは、Mapper の名前（mapper）とメソッドの名前（name）。メソッドの ID は、判断で名前を替えても変わらない。
+  生成物（.yde/transforms/design/detail/detail-table-access.yaml）で、手で直さない
 match: design/detail/final/table-access/*.yaml
 entity:
   type: sysdev-table-access
@@ -11,16 +14,24 @@ entity:
 root:
   type: object
   fields:
-    - key: designId
-      type: id
-      label: 設計項目ID
-      required: true
-      pattern: ^DOC-\S+$
     - key: id
+      label: 設計項目ID
+      type: id
+      required: true
+      pattern: ^ACC-\S+$
+      description: ACC-エンティティ型
+    - key: source
+      label: 作る元
+      type: ref
+      required: true
+      idPatterns:
+        - ENT-*
+      description: 基本設計のエンティティ
+    - key: entity
       label: エンティティ型
       type: ref
       required: true
-    - key: name
+    - key: label
       label: 名前
       type: string
       role: title
@@ -28,11 +39,14 @@ root:
       label: Mapper
       type: string
       required: true
+      description: Mapper の名前（既定はエンティティ型の名前 + Mapper）
     - key: tables
       label: テーブル
       type: array
       item:
-        type: string
+        type: ref
+        idPatterns:
+          - TBL-*
     - key: methods
       label: メソッド
       type: array
@@ -40,6 +54,12 @@ root:
       item:
         type: object
         fields:
+          - key: id
+            label: 設計項目ID
+            type: id
+            required: true
+            pattern: ^MTH-\S+$
+            description: MTH-エンティティ型.既定のメソッド名
           - key: name
             label: メソッド
             type: string
@@ -50,7 +70,7 @@ root:
             type: enum
             values:
               - value: select
-                label: 1 件を読む
+                label: 読む
               - value: insert
                 label: 足す
               - value: update
@@ -65,14 +85,21 @@ root:
                 label: 集計
           - key: table
             label: テーブル
-            type: string
+            type: ref
             required: true
+            idPatterns:
+              - TBL-*
           - key: columns
             label: 列
             type: any
           - key: item
             label: 読む項目
             type: string
+          - key: column
+            label: 読むカラム
+            type: ref
+            idPatterns:
+              - COL-*
           - key: set
             label: 書く項目
             type: array
@@ -92,11 +119,15 @@ root:
             label: 採番の決まり
             type: any
           - key: precondition
-            label: 業務モデルの前提
+            label: 操作の前提
             type: ref
+            idPatterns:
+              - PRE-*
           - key: constraint
-            label: 業務モデルのデータの決まり
-            type: string
+            label: データの決まり
+            type: ref
+            idPatterns:
+              - RUL-*
           - key: expect
             label: 通す件数
             type: enum
@@ -129,7 +160,9 @@ root:
               type: any
           - key: counts
             label: 数える要素のテーブル
-            type: string
+            type: ref
+            idPatterns:
+              - TBL-*
           - key: via
             label: 数える要素への線
             type: any
@@ -138,43 +171,25 @@ root:
             type: array
             item:
               type: string
-          - key: operations
-            label: 使う操作
+          - key: sources
+            label: 作る元
             type: array
             item:
               type: ref
-          - key: screens
-            label: 使う画面
-            type: array
-            item:
-              type: string
-          - key: methodId
-            type: string
-            required: true
-          - key: tableId
-            type: ref
-            idPatterns:
-              - TBL-*
-          - key: columnBindings
-            type: any
-          - key: columnId
-            type: ref
-            idPatterns:
-              - COL-*
-          - key: column
-            type: string
+              idPatterns:
+                - ACT-*
+                - QRY-*
+                - SCR-*
+                - ENT-*
+            description: このメソッドが要る理由（使う操作・一覧の検索条件・詳細画面・参照の候補にするエンティティ）
           - key: whereFrom
-            label: 同じ条件を読むメソッドID
-            type: string
-    - key: designKind
-      type: system-inputs#種類
-      label: 設計書の種類
-      required: true
-    - key: designPath
-      type: string
-      label: 保存先
-      required: true
-    - key: origins
+            label: 同じ条件を読むメソッド
+            type: ref
+            idPatterns:
+              - MTH-*
+            description: 件数を数えるメソッドが、条件を持つメソッドを指す
+        unknownFields: error
+    - key: decisions
+      label: 当てた判断
       type: any
-      label: 根拠
   unknownFields: error

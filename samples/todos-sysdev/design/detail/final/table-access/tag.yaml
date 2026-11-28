@@ -1,69 +1,46 @@
-# 生成物（table-access）: 手で直さず、業務モデルか生成の定義（design/detail/table-access.yaml）を直して作り直します（CLI generate）。
-id: tag
-name: タグの読み書き
+# 生成物（detail-table-access）: 手で直さず、業務モデルか生成の定義（design/detail/detail-table-access.yaml）を直して作り直します（CLI generate）。
+id: ACC-tag
+source: ENT-tag
+entity: tag
+label: タグの読み書き
 mapper: TagMapper
 tables:
-  - tag
+  - TBL-tag
 methods:
-  - name: findDetail
+  - id: MTH-tag.findDetail
+    name: findDetail
     kind: select
-    table: tag
+    table: TBL-tag
     where:
       - item: id
         param: id
-        columnId: COL-tag.id
-        column: id
+        column: COL-tag.id
     includes: []
     names: []
-    operations: []
-    screens:
-      - tag
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: findDetail
-    tableId: TBL-tag
-  - name: selectAll
+    sources:
+      - SCR-tag
+  - id: MTH-tag.selectAll
+    name: selectAll
     kind: select
-    table: tag
+    table: TBL-tag
     columns:
       - id
       - name
     order:
       - item: id
-        columnId: COL-tag.id
-        column: id
-    operations: []
-    screens:
-      - 参照の候補
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: selectAll
-    tableId: TBL-tag
-  - name: selectTodoDashboardTags
+        column: COL-tag.id
+    sources:
+      - ENT-tag
+  - id: MTH-tag.selectTodoDashboardTags
+    name: selectTodoDashboardTags
     kind: aggregate
-    table: tag
+    table: TBL-tag
     order:
       - item: id
-        columnId: COL-tag.id
-        column: id
+        column: COL-tag.id
     groupBy:
       - item: id
-        columnId: COL-tag.id
-        column: id
+        column: COL-tag.id
       - item: status
         of: todo
         values:
@@ -72,52 +49,28 @@ methods:
           - SUSPENDED
           - CLOSED
           - CANCELED
-    counts: todo
+    counts: TBL-todo
     via:
       relation: tagged
       dir: in
-    operations: []
-    screens:
-      - todo-dashboard
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: selectTodoDashboardTags
-    tableId: TBL-tag
-  - name: countTodoDashboardTags
+    sources:
+      - QRY-todo-dashboard.tags
+  - id: MTH-tag.countTodoDashboardTags
+    name: countTodoDashboardTags
     kind: count
-    table: tag
-    operations: []
-    screens:
-      - todo-dashboard
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: countTodoDashboardTags
-    tableId: TBL-tag
-  - name: selectTodoDashboardTagsMaster
+    table: TBL-tag
+    sources:
+      - QRY-todo-dashboard.tags
+  - id: MTH-tag.selectTodoDashboardTagsMaster
+    name: selectTodoDashboardTagsMaster
     kind: select
-    table: tag
+    table: TBL-tag
     columns:
       - item: id
-        columnId: COL-tag.id
-        column: id
+        column: COL-tag.id
       - label: タグ名
         item: name
-        columnId: COL-tag.name
-        column: name
+        column: COL-tag.name
       - label: TODOの数
         computed:
           count: 参照してくる要素
@@ -126,96 +79,38 @@ methods:
     where: []
     order:
       - item: id
-        columnId: COL-tag.id
-        column: id
+        column: COL-tag.id
     params: []
-    operations: []
-    screens:
-      - todo-dashboard
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: selectTodoDashboardTagsMaster
-    tableId: TBL-tag
-  - name: countTodoDashboardTagsMaster
+    sources:
+      - QRY-todo-dashboard.tags-master
+  - id: MTH-tag.countTodoDashboardTagsMaster
+    name: countTodoDashboardTagsMaster
     kind: count
-    table: tag
-    operations: []
-    screens:
-      - todo-dashboard
-    whereFrom: selectTodoDashboardTagsMaster
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: countTodoDashboardTagsMaster
-    tableId: TBL-tag
-  - name: insert
+    table: TBL-tag
+    sources:
+      - QRY-todo-dashboard.tags-master
+    whereFrom: MTH-tag.selectTodoDashboardTagsMaster
+  - id: MTH-tag.insert
+    name: insert
     kind: insert
-    table: tag
+    table: TBL-tag
     columns:
       mode: all
-    operations:
-      - add-tag
-    screens: []
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: insert
-    tableId: TBL-tag
-  - name: maxId
+    sources:
+      - ACT-add-tag
+  - id: MTH-tag.maxId
+    name: maxId
     kind: max
-    table: tag
+    table: TBL-tag
     item: id
     where:
       - item: id
         startsWith: TAG-
-        columnId: COL-tag.id
-        column: id
+        column: COL-tag.id
     numbering:
       path: id
       prefix: TAG-
       digits: 3
-    operations:
-      - add-tag
-    screens: []
-    columnId: COL-tag.id
-    column: id
-    columnBindings:
-      - columnId: COL-tag.id
-        item: id
-        name: id
-        source: FLD-tag.id
-      - columnId: COL-tag.name
-        item: name
-        name: name
-        source: FLD-tag.name
-    methodId: maxId
-    tableId: TBL-tag
-designId: DOC-table-access.tag
-designKind: table-access
-designPath: design/detail/final/table-access/tag.yaml
-origins:
-  source:
-    id: rule-table-access
-    document: .yde/transforms/design/detail/table-access-derived.yaml
-    path: []
-  decisions: []
-  inputs: []
+    sources:
+      - ACT-add-tag
+    column: COL-tag.id
