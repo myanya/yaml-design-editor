@@ -10,14 +10,6 @@ documents:
     kind: error-handling
     source: error-handling
     path: design/detail/final/error-handling.yaml
-  - id: DOC-errors.errors
-    kind: errors
-    source: errors
-    path: design/basic/final/errors.yaml
-  - id: DOC-messages.messages
-    kind: messages
-    source: messages
-    path: design/basic/final/messages.yaml
   - id: DOC-processes.add-category
     kind: processes
     source: add-category

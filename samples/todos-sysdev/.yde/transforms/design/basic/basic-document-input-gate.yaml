@@ -17,6 +17,7 @@ input:
               - basic-document-additions
               - basic-operation-corrections
               - basic-screen-corrections
+              - basic-decisions
         $then:
           $copy: declared
     documents:
@@ -37,6 +38,13 @@ input:
         $with:
           row:
             $view: basic-operation-corrections
+            $one: true
+      # 基本設計の項目への個別の判断（対象の ID と set）
+      design/basic/inputs/decisions.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: basic-decisions
             $one: true
       design/basic/inputs/screens/corrections.yaml:
         $apply: input-document

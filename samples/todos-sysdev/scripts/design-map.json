@@ -81,13 +81,6 @@
       "parts": {
         "actions": "bmO"
       }
-    },
-    {
-      "transform": "system-screen-input-model",
-      "id": "SYS-system-screen-input-model",
-      "carries": [
-        "scr"
-      ]
     }
   ],
   "renames": [
@@ -122,6 +115,7 @@
     "SSPC-*",
     "DCOR-*",
     "DDEC-*",
+    "BDEC-*",
     "DSPC-*"
   ],
   "ignore": [
@@ -293,17 +287,30 @@
     },
     {
       "id": "msg",
-      "name": "メッセージ定義書",
+      "name": "メッセージ",
       "column": "basic",
       "lane": "msg",
-      "kind": "messages"
+      "transforms": [
+        "basic-messages"
+      ],
+      "ids": [
+        "MSG-*",
+        "SYS-basic-messages"
+      ]
     },
     {
       "id": "err",
-      "name": "エラー定義書",
+      "name": "エラー",
       "column": "basic",
       "lane": "msg",
-      "kind": "errors"
+      "transforms": [
+        "basic-errors"
+      ],
+      "ids": [
+        "ERR-*",
+        "ERK-*",
+        "SYS-basic-errors"
+      ]
     },
     {
       "id": "tbl",
@@ -716,22 +723,6 @@
         "note": "中身は業務モデルです。エンティティの名称と説明だけを、確定したエンティティから重ねています。"
       },
       {
-        "id": "corr-4",
-        "layer": "basic",
-        "row": 1,
-        "col": 3,
-        "kind": "work",
-        "label": [
-          "同（3 段目）",
-          "＋画面の入力項目"
-        ],
-        "members": [
-          "t:system-screen-input-model"
-        ],
-        "carries": "bm",
-        "note": "2 段目の操作を、基本設計の操作の項目（解いた形）で置き換え、画面の入力項目を重ねたものです。エラー定義書とメッセージ定義書が読みます。"
-      },
-      {
         "id": "corr-view",
         "layer": "basic",
         "row": 0,
@@ -765,7 +756,8 @@
           "in:design/basic/inputs/entities/*.yaml",
           "in:design/basic/inputs/documents/*.yaml",
           "in:design/basic/inputs/operations/*.yaml",
-          "in:design/basic/inputs/screens/*.yaml"
+          "in:design/basic/inputs/screens/*.yaml",
+          "in:design/basic/inputs/decisions.yaml"
         ],
         "note": "全体の判断（区分の定義、同時更新を版で検出する方式の指定）と個別の判断（区分の割当、操作と画面の項目への補正）にあたります。補正はいま 0 件です。"
       },
@@ -863,12 +855,9 @@
         "col": 0,
         "kind": "work",
         "label": [
-          "画面遷移ほか",
-          "の導出（3 種）"
+          "画面遷移の導出"
         ],
         "members": [
-          "t:errors-derived",
-          "t:messages-derived",
           "t:screen-transitions-derived"
         ]
       },
@@ -893,13 +882,46 @@
         "kind": "main",
         "shape": "documents",
         "label": [
-          "画面遷移ほか",
-          "（文書の形。3 種）"
+          "画面遷移",
+          "（文書の形）"
         ],
         "members": [
-          "t:errors",
-          "t:messages",
           "t:screen-transitions"
+        ]
+      },
+      {
+        "id": "b-err",
+        "layer": "basic",
+        "row": 6,
+        "col": 2,
+        "kind": "main",
+        "shape": "items",
+        "label": [
+          "エラー・メッセージ",
+          "（項目の形）"
+        ],
+        "members": [
+          "t:basic-errors",
+          "t:basic-messages"
+        ],
+        "note": "基本設計の項目（操作・データの決まり・一覧の検索条件・エンティティ・画面）だけを読んで作ります。断り（ERR-）は、種類・操作・原因・出すメッセージを ID で指し、メッセージ（MSG-）は、文を作る元を指します。入力の検査の文は、どの入力のどの検査かで持ちます。文の個別の判断（inputs/decisions.yaml）は、項目へ直接当てます。補正前のファイルと、確定の変換定義はありません。"
+      },
+      {
+        "id": "b-err-view",
+        "layer": "basic",
+        "row": 6,
+        "col": 3,
+        "kind": "view",
+        "label": [
+          "エラー定義書・",
+          "メッセージ定義書"
+        ],
+        "views": [
+          "basic/review/error-definition*.yaml",
+          "basic/review/message-definition*.yaml"
+        ],
+        "reads": [
+          "b-err"
         ]
       },
       {
@@ -1650,9 +1672,9 @@
         "label": [
           "エラー"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:errors"
+          "t:basic-errors"
         ],
         "from": [
           "bO"
@@ -1660,9 +1682,12 @@
         "refs": [
           "a-op",
           "a-rul",
-          "a-sta"
+          "a-sta",
+          "a-msg",
+          "a-scr"
         ],
-        "unit": "1 ファイル"
+        "unit": "1 ファイル",
+        "note": "2026-11-28 に項目の形にしました。操作が断るとき 1 件を 1 項目（ERR-）にし、種類・操作・原因・出すメッセージを ID で指します。どう確かめるか（Java か SQL か）は持たず、詳細設計の処理の手順が持ちます。"
       },
       {
         "id": "a-msg",
@@ -1673,18 +1698,23 @@
         "label": [
           "メッセージ"
         ],
-        "status": "reshape",
+        "status": "same",
         "current": [
-          "t:messages"
+          "t:basic-messages"
         ],
         "from": [
           "bO"
         ],
         "refs": [
-          "a-err",
+          "a-op",
+          "a-rul",
+          "a-sta",
+          "a-ent",
+          "a-qry",
           "a-scr"
         ],
-        "unit": "1 ファイル"
+        "unit": "1 ファイル",
+        "note": "2026-11-28 に項目の形にしました。文 1 件を 1 項目（MSG-）にし、文を作る元を指します。入力の検査の文は、どの入力のどの検査かで持ち、キー（Form と検査の名前を含む）は Form のプログラム設計が組み立てます。"
       },
       {
         "id": "a-scr",
@@ -1743,8 +1773,6 @@
         ],
         "status": "role",
         "current": [
-          "t:errors-derived",
-          "t:messages-derived",
           "t:screen-transitions-derived"
         ],
         "note": "個別の判断が 0 件ならこうなる、という比較の相手。確定したモデルとの差は、すべて個別の判断で説明できます。"
@@ -1838,7 +1866,7 @@
         "label": [
           "エラー定義書"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "a-err",
           "a-rul",
@@ -1854,7 +1882,7 @@
         "label": [
           "メッセージ定義書"
         ],
-        "status": "reshape",
+        "status": "same",
         "reads": [
           "a-msg"
         ]
@@ -2533,7 +2561,7 @@
   "notes": [
     "処理設計書は、データ設計と画面設計の上に乗っていません。内容を読むのはメッセージ定義書と状態の判定だけです。テーブルアクセス設計書からは呼び名の付け替え表だけを受け取り、画面の設計書からは何も受け取りません。呼ぶ Mapper の名前は、業務モデルから同じ命名規則で計算し直しています。",
     "操作（項目の形）が、ほぼ全部の上流です。詳細設計の 8 種と、基本設計の画面・ドメインの定義書が、「操作を解いた形」を通して読みます。画面（項目の形）は、画面遷移・画面の URL・詳細設計の画面設計書・Web のプログラム設計が、「画面を解いた形」を通して読みます。",
-    "メッセージ定義書とエラー定義書は、画面の入力を重ねた業務モデル（system-screen-input-model）を通して、画面を解いた形の名称と入力を読みます。画面の項目は断りの文を持たず、前提とデータの決まりを ID で指します。"
+    "エラーとメッセージ（項目の形）は、基本設計の項目（操作・データの決まり・一覧の検索条件・エンティティ・画面）だけを読みます。断りは出すメッセージを ID で指し、メッセージは文を作る元を指します。入力の検査の文のキーは、Form のプログラム設計が組み立てます。"
   ],
   "footnotes": [
     "画面の URL の付け替え表は一覧・詳細・操作の 3 種をまとめているので、そのうちどれを実際に使うかまでは区別していません。",

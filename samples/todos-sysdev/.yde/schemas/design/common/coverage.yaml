@@ -101,7 +101,7 @@ constraints:
     level: error
     message: 操作「{id}」の読み書きが、テーブルへの読み書きの項目にありません（基本設計の「操作」の項目を、作る元に持つメソッドが無い）
   - id: action-has-error-definition
-    description: どの操作もエラー定義書に載っている（断りの種類と出す場所）
+    description: どの操作にも、基本設計の「エラー」の項目（断り）がある
     match:
       - node:
           entity: yde-action
@@ -115,15 +115,21 @@ constraints:
                   - node:
                       bind: a
                   - edge:
-                      via: id
+                      via: source
                       dir: in
                   - node:
-                      entity: sysdev-error-definition
+                      entity: sysdev-operation
+                      bind: op
+                  - edge:
+                      via: operation
+                      dir: in
+                  - node:
+                      entity: sysdev-error-list
                       bind: design
                 of: design
           - 1
     level: error
-    message: 操作「{id}」がエラー定義書にありません（generate で作り直します）
+    message: 操作「{id}」の断りが、基本設計の「エラー」の項目にありません（generate で作り直します）
   - id: lifecycle-has-status-rule
     description: どの Lifecycle にも状態の判定がある
     match:

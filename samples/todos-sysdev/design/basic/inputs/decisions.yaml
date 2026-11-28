@@ -1,0 +1,7 @@
+# 基本設計の項目への個別の判断（対象の ID と set）。人が書く。
+# 対象と、置き換えられる値:
+#   メッセージ MSG-…: text（文）
+# 書き方の例:
+#   - {id: BDEC-001, target: MSG-complete-todo.no-open-task, set: {text: 未完了の作業があります。}, reason: 文の見直し}
+inputId: INPUT-basic-decisions
+decisions: []

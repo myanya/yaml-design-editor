@@ -1128,3 +1128,120 @@ forms:
         validations:
           - name: NotNull
     classes: []
+validationMessages:
+  - key: validation.NotNull.addCategoryForm.name
+    text: カテゴリ名を入力してください
+  - key: validation.Size.addCategoryForm.name
+    text: カテゴリ名は100文字以内で入力してください
+  - key: validation.Pattern.addCategoryForm.name
+    text: カテゴリ名の書き方が正しくありません
+  - key: validation.NotNull.registerTodoForm.title
+    text: タイトルを入力してください
+  - key: validation.Size.registerTodoForm.title
+    text: タイトルは100文字以内で入力してください
+  - key: validation.Pattern.registerTodoForm.title
+    text: タイトルの書き方が正しくありません
+  - key: validation.NotNull.registerTodoForm.summary
+    text: 概要を入力してください
+  - key: validation.Size.registerTodoForm.summary
+    text: 概要は100文字以内で入力してください
+  - key: validation.Pattern.registerTodoForm.summary
+    text: 概要の書き方が正しくありません
+  - key: validation.UniqueElements.registerTodoForm.tags
+    text: タグに同じものを 2 回選べません
+  - key: validation.typeMismatch.registerTodoForm.due
+    text: 期限は年月日で入力してください
+  - key: validation.NotNull.addTodoCommentForm.date
+    text: 記録日を入力してください
+  - key: validation.typeMismatch.addTodoCommentForm.date
+    text: 記録日は年月日で入力してください
+  - key: validation.NotNull.addTodoCommentForm.body
+    text: コメント本文を入力してください
+  - key: validation.Size.addTodoCommentForm.body
+    text: コメント本文は1文字以上で入力してください
+  - key: validation.NotNull.addTodoCommentForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.editTodoCommentForm.row
+    text: コメントの番号を入力してください
+  - key: validation.typeMismatch.editTodoCommentForm.date
+    text: 記録日は年月日で入力してください
+  - key: validation.Size.editTodoCommentForm.body
+    text: コメント本文は1文字以上で入力してください
+  - key: validation.NotNull.editTodoCommentForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.deleteTodoCommentForm.row
+    text: コメントの番号を入力してください
+  - key: validation.NotNull.deleteTodoCommentForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.addTodoTaskForm.title
+    text: 作業を入力してください
+  - key: validation.Size.addTodoTaskForm.title
+    text: 作業は100文字以内で入力してください
+  - key: validation.Pattern.addTodoTaskForm.title
+    text: 作業の書き方が正しくありません
+  - key: validation.NotNull.addTodoTaskForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.deleteTodoTaskForm.row
+    text: 作業項目の番号を入力してください
+  - key: validation.NotNull.deleteTodoTaskForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.Size.editTodoForm.title
+    text: タイトルは100文字以内で入力してください
+  - key: validation.Pattern.editTodoForm.title
+    text: タイトルの書き方が正しくありません
+  - key: validation.Size.editTodoForm.summary
+    text: 概要は100文字以内で入力してください
+  - key: validation.Pattern.editTodoForm.summary
+    text: 概要の書き方が正しくありません
+  - key: validation.UniqueElements.editTodoForm.tags
+    text: タグに同じものを 2 回選べません
+  - key: validation.typeMismatch.editTodoForm.createdOn
+    text: 作成日は年月日で入力してください
+  - key: validation.typeMismatch.editTodoForm.dueOn
+    text: 期限は年月日で入力してください
+  - key: validation.NotNull.editTodoForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.startTodoForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.suspendTodoForm.date
+    text: 中断日を入力してください
+  - key: validation.typeMismatch.suspendTodoForm.date
+    text: 中断日は年月日で入力してください
+  - key: validation.NotNull.suspendTodoForm.reason
+    text: 中断理由を入力してください
+  - key: validation.Size.suspendTodoForm.reason
+    text: 中断理由は1文字以上で入力してください
+  - key: validation.typeMismatch.suspendTodoForm.resumeOn
+    text: 再開予定日は年月日で入力してください
+  - key: validation.NotNull.suspendTodoForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.resumeTodoForm.date
+    text: 再開日を入力してください
+  - key: validation.typeMismatch.resumeTodoForm.date
+    text: 再開日は年月日で入力してください
+  - key: validation.NotNull.resumeTodoForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.completeTodoForm.date
+    text: 完了日を入力してください
+  - key: validation.typeMismatch.completeTodoForm.date
+    text: 完了日は年月日で入力してください
+  - key: validation.NotNull.completeTodoForm.result
+    text: 完了結果を入力してください
+  - key: validation.Size.completeTodoForm.result
+    text: 完了結果は1文字以上で入力してください
+  - key: validation.NotNull.completeTodoForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.cancelTodoForm.reason
+    text: 中止理由を入力してください
+  - key: validation.Size.cancelTodoForm.reason
+    text: 中止理由は1文字以上で入力してください
+  - key: validation.NotNull.cancelTodoForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+  - key: validation.NotNull.addTagForm.name
+    text: タグ名を入力してください
+  - key: validation.Size.addTagForm.name
+    text: タグ名は100文字以内で入力してください
+  - key: validation.Pattern.addTagForm.name
+    text: タグ名の書き方が正しくありません
+  - key: validation.NotNull.todoTaskFinishForm.version
+    text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください

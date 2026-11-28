@@ -1,0 +1,66 @@
+id: basic-error-list
+name: 基本設計項目一覧（エラー）
+kind: document
+description: >-
+  抽象システムモデルの「エラー」。操作が断るとき 1 件を 1 項目（ERR-）にし、種類（ERK-）・操作・原因・出すメッセージを ID で指す。
+  持つのは「何を断るか・どこに出すか」まで。どう確かめるか（Java か SQL か）と HTTP の応答は、詳細設計（処理の手順・エラーの扱い）が持つ。
+  エラー定義書は、この項目を読むビュー。生成物（.yde/transforms/design/basic/basic-errors.yaml）で、手で直さない
+match: design/basic/final/errors.yaml
+entity:
+  type: sysdev-error-list
+  defines: true
+root:
+  type: object
+  fields:
+    - key: documentId
+      type: id
+      required: true
+    - key: kinds
+      label: 断りの種類
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: 設計項目ID, type: id, required: true, pattern: '^ERK-\S+$' }
+          - { key: label, label: 名称, type: string, required: true, role: title }
+          - { key: when, label: いつ, type: string }
+          - { key: shownAt, label: どこに出すか, type: string }
+        unknownFields: error
+    - key: errors
+      label: 断り
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: 設計項目ID, type: id, required: true, pattern: '^ERR-\S+$', description: ERR-操作.名前 }
+          - key: kind
+            label: 種類
+            type: ref
+            required: true
+            idPatterns: [ERK-*]
+          - key: operation
+            label: 操作
+            type: ref
+            required: true
+            idPatterns: [ACT-*]
+          - key: cause
+            label: 原因
+            type: ref
+            idPatterns: [ENT-*, FLD-*, TRN-*, PRE-*, RUL-*, SCR-*]
+            description: 見つからない＝受け手のエンティティか並びの項目・状態＝状態の遷移・前提＝操作の前提・決まり＝データの決まり・二重の確定＝操作の画面
+          - key: inputs
+            label: 欄の横にも出す入力
+            type: array
+            item:
+              type: ref
+              idPatterns: [PRM-*]
+            description: 受け取る値が原因の決まりの違反は、その入力の欄の横にも出す
+          - key: message
+            label: 出すメッセージ
+            type: ref
+            required: true
+            idPatterns: [MSG-*]
+        unknownFields: error
+  unknownFields: error

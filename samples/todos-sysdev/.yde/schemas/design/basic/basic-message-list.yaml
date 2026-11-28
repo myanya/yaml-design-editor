@@ -1,0 +1,64 @@
+id: basic-message-list
+name: 基本設計項目一覧（メッセージ）
+kind: document
+description: >-
+  抽象システムモデルの「メッセージ」。画面に出す文 1 件を 1 項目（MSG-）にし、文を作る元（状態の遷移・前提・データの決まり・操作・エンティティ・項目）を source で指す。
+  入力の検査のメッセージは、どの操作のどの入力（PRM-）の、どの検査（check）かで持つ（キーは持たない。画面の部品の名前を含むキーは、読む側が組み立てる）。
+  個別の判断（design/basic/inputs/decisions.yaml）で置き換えられるのは、文（text）。当てた判断は decisions に残る。
+  メッセージ定義書は、この項目を読むビュー。生成物（.yde/transforms/design/basic/basic-messages.yaml）で、手で直さない
+match: design/basic/final/messages.yaml
+entity:
+  type: sysdev-message-list
+  defines: true
+root:
+  type: object
+  fields:
+    - key: documentId
+      type: id
+      required: true
+    - key: holes
+      label: 文の穴
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: name, label: 名前, type: string, required: true }
+          - { key: means, label: 意味, type: string }
+    - key: messages
+      label: メッセージ
+      type: array
+      display: table
+      item:
+        type: object
+        fields:
+          - { key: id, label: 設計項目ID, type: id, required: true, pattern: '^MSG-\S+$' }
+          - { key: key, label: キー, type: string, description: 断りと知らせのキー（操作.名前・check.決まり・error.種類 など）。入力の検査のメッセージには無い }
+          - { key: kind, label: 種類, type: string, required: true }
+          - { key: text, label: 文, type: string, required: true, role: title }
+          - key: source
+            label: 文を作る元
+            type: ref
+            idPatterns: [TRN-*, PRE-*, RUL-*, ACT-*, ENT-*, FLD-*]
+          - key: operation
+            label: 操作（入力の検査）
+            type: ref
+            idPatterns: [ACT-*]
+          - key: input
+            label: 入力（入力の検査）
+            type: ref
+            idPatterns: [PRM-*]
+          - key: check
+            label: 検査（入力の検査）
+            type: enum
+            values:
+              - { value: required, label: 必須 }
+              - { value: length, label: 文字数 }
+              - { value: pattern, label: 形式 }
+              - { value: date, label: 日付として読めない }
+              - { value: unique, label: 重なり不可 }
+        unknownFields: error
+    - key: decisions
+      label: 当てた判断
+      type: any
+  unknownFields: error

@@ -1,0 +1,280 @@
+id: basic-errors
+name: 基本設計項目一覧（エラー）
+description: >-
+  抽象システムモデルの「エラー」を項目の形で作る（ADR-0042）。操作が断るとき 1 件を 1 項目（ERR-）にし、種類（ERK-）・操作（ACT-）・
+  原因（受け手のエンティティ ENT-・並びの項目 FLD-・状態の遷移 TRN-・前提 PRE-・データの決まり RUL-）・出すメッセージ（MSG-）を ID で指す。
+  入力の欄に出す決まりは、その入力（PRM-）も指す。
+  持つのは「何を断るか・どこに出すか」まで。どう確かめるか（Java か SQL か）と HTTP の応答は、詳細設計（処理の手順・エラーの扱い）が持つ。
+  入力は基本設計の項目（操作・データの決まり・画面）だけで、業務モデルも解いた形も読まない。補正前のファイルは作らない
+scope: business
+dependsOn:
+  - basic-operations
+  - basic-rules
+  - basic-screens
+output: design/basic/final/errors.yaml
+input:
+  actions:
+    $each:
+      $view: basic-model-operations
+    $build:
+      $copy: values.record
+  rules:
+    $each:
+      $view: basic-model-rules
+    $build:
+      $copy: values.record
+  screens:
+    $each:
+      $view: basic-model-screens
+    $build:
+      $copy: values.record
+build:
+  documentId: SYS-basic-errors
+  kinds:
+    - id: ERK-input
+      label: 入力の誤り
+      when: 確認へを押したとき（入力の検査）
+      shownAt: 入力画面（欄の横と、上のまとめ）
+    - id: ERK-input-rule
+      label: 受け取る値が原因のデータの決まりの違反
+      when: 確認へを押したとき（書く前に確かめる）と、確定のとき
+      shownAt: 入力画面（欄の横と、上のまとめ）と、確認画面の断りの文
+    - id: ERK-state
+      label: 状態の断り
+      when: 確定のとき
+      shownAt: 確認画面の断りの文
+    - id: ERK-precondition
+      label: 前提の断り
+      when: 確定のとき
+      shownAt: 確認画面の断りの文
+    - id: ERK-rule
+      label: データの決まりの違反
+      when: 確定のとき（書いた後の値で）
+      shownAt: 確認画面の断りの文
+    - id: ERK-empty
+      label: 絞り込みの結果が 0 件（正常）
+      when: 一覧画面を出すとき
+      shownAt: 一覧画面の表の代わりの文
+    - id: ERK-not-found
+      label: ID を指定して見つからない
+      when: 詳細画面・操作の画面で受け手を読んだとき
+      shownAt: 見つからない画面
+    - id: ERK-token
+      label: 二重の確定・時間切れ
+      when: 確定のとき（確認画面を経ていない・確定済み・時間切れ）
+      shownAt: 起点の画面へ戻し、知らせで出す
+    - id: ERK-unexpected
+      label: 想定外
+      when: いつでも
+      shownAt: エラー画面（受付番号だけ。中身は出さない）
+  errors:
+    $each: actions
+    $bind: a
+    $flatten: true
+    $build:
+      $concat:
+        # 受け手を ID で読んで、無いとき
+        - $when:
+            - path: receiver
+              exists: true
+          $then:
+            - id:
+                $format: ERR-{source}.not-found
+              kind: ERK-not-found
+              operation:
+                $copy: id
+              cause:
+                $copy: receiver
+              message:
+                $format: MSG-error.notFound.{e}
+                $with:
+                  e:
+                    $value:
+                      extract:
+                        - path: receiver
+                        - ^ENT-(.*)$
+        # 並びの 1 件を番号で指す操作: 指した行が無いとき
+        - $group:
+            $each: effects
+            $flatten: true
+            $build:
+              $when:
+                - path: row
+                  exists: true
+              $then:
+                - $copy: item
+          $by:
+            $copy: .
+          $build:
+            id:
+              $format: ERR-{a}.row.{f}
+              $with:
+                a:
+                  $copy: source
+                  $of: a
+                f:
+                  $value:
+                    extract:
+                      - path: key
+                      - '[^.]+$'
+            kind: ERK-not-found
+            operation:
+              $copy: id
+              $of: a
+            cause:
+              $copy: key
+            message:
+              $format: MSG-error.notFound.{f}
+              $with:
+                f:
+                  $value:
+                    extract:
+                      - path: key
+                      - ^FLD-(.*)$
+        # 受け手の状態が、この操作のできる状態でないとき
+        - $when:
+            - path: refusal
+              exists: true
+          $then:
+            - id:
+                $format: ERR-{source}.state
+              kind: ERK-state
+              operation:
+                $copy: id
+              cause:
+                $copy: transition
+              message:
+                $format: MSG-{source}.state
+        # 前提を満たさないとき
+        - $each: preconditions
+          $build:
+            id:
+              $format: ERR-{a}.{r}
+              $with:
+                a:
+                  $copy: source
+                  $of: a
+                r:
+                  $copy: source
+            kind: ERK-precondition
+            operation:
+              $copy: id
+              $of: a
+            cause:
+              $copy: id
+            message:
+              $format: MSG-{a}.{r}
+              $with:
+                a:
+                  $copy: source
+                  $of: a
+                r:
+                  $copy: source
+        # データの決まりを破るとき（守らないと断る決まりのうち、操作のときに確かめるもの）
+        - $each: checks
+          $bind: c
+          $flatten: true
+          $build:
+            $each: rules
+            $of: model
+            $flatten: true
+            $build:
+              $when:
+                - path: id
+                  equals:
+                    $copy: rule
+                    $of: c
+                - path: level
+                  equals: error
+                - or:
+                    - path: form
+                      equals: element
+                    - path: form
+                      equals: pattern
+                    - path: kind
+                      equals: acyclic
+              $then:
+                - id:
+                    $format: ERR-{a}.check.{r}
+                    $with:
+                      a:
+                        $copy: source
+                        $of: a
+                      r:
+                        $copy: source
+                  kind:
+                    $first:
+                      - $when:
+                          - of: c
+                            path: params
+                            exists: true
+                          - not:
+                              path: form
+                              equals: pattern
+                        $then: ERK-input-rule
+                      - ERK-rule
+                  operation:
+                    $copy: id
+                    $of: a
+                  cause:
+                    $copy: id
+                  # 受け取る値が原因のとき: その入力の欄の横にも出す
+                  inputs:
+                    $when:
+                      - of: c
+                        path: params
+                        exists: true
+                      - not:
+                          path: form
+                          equals: pattern
+                    $then:
+                      $copy: params
+                      $of: c
+                  message:
+                    $format: MSG-check.{source}
+        # 二重の確定・時間切れ（画面のある操作）
+        - $apply: token-error
+          $with:
+            action:
+              $copy: .
+            screens:
+              $each: screens
+              $of: model
+              $flatten: true
+              $build:
+                $when:
+                  - path: operation
+                    equals:
+                      $copy: id
+                      $of: a
+                $then:
+                  - $copy: id
+rules:
+  - id: token-error
+    with:
+      - action
+      - screens
+    when:
+      - of: screens
+        path: .
+        empty: false
+    build:
+      - id:
+          $format: ERR-{a}.token
+          $with:
+            a:
+              $copy: source
+              $of: action
+        kind: ERK-token
+        operation:
+          $copy: id
+          $of: action
+        cause:
+          $copy: '[0]'
+          $of: screens
+        message: MSG-error.token
+  - id: token-error
+    with:
+      - action
+      - screens
+    build: []

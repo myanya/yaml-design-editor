@@ -1,0 +1,48 @@
+id: basic-decisions
+name: 基本設計の項目への個別の判断
+kind: document
+description: >-
+  基本設計（抽象システムモデル）の項目への個別の判断（ADR-0042）。項目を ID で指して、値を置き換える（対象の ID と set）。
+  基本設計の種類を項目の形にするたびに、対象と、置き換えられる値を足す。いまの対象は、メッセージ（MSG-）で、置き換えられるのは文（text）。
+  操作と画面への判断は、いまは別のファイル（inputs/operations/・inputs/screens/）にあり、あとでここへ移す。人が書く。
+match: design/basic/inputs/decisions.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: decisions
+      label: 個別の判断
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 判断の ID
+            type: id
+            required: true
+            pattern: ^BDEC-\S+$
+          - key: target
+            label: 対象
+            type: string
+            required: true
+            pattern: ^MSG-\S+$
+            description: 基本設計の項目の ID
+          - key: set
+            label: 置き換える値
+            type: object
+            required: true
+            description: 項目のキーと新しい値。ここに並ぶキーだけを置き換えられる
+            unknownFields: error
+            fields:
+              - key: text
+                label: 文
+                type: string
+                description: メッセージ（MSG-）の文
+          - key: reason
+            label: 理由
+            type: text
+            required: true
+        unknownFields: error
+  unknownFields: error

@@ -1,0 +1,11 @@
+id: basic-decisions-input
+name: 基本設計の生成入力（項目への個別の判断）
+description: 基本設計の項目への個別の判断を 1 件ずつ読む
+rows:
+  idPattern: BDEC-*
+  schemaIds:
+    - basic-decisions
+columns:
+  - label: decision
+    path: .
+    fileGlob: design/basic/inputs/decisions.yaml

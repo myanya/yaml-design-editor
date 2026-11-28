@@ -1,0 +1,21 @@
+id: message-definition
+name: メッセージ定義書
+description: 基本設計の「メッセージ」の項目（画面に出す文 1 件を 1 行）を並べる。メッセージ定義書にあたるビューで、値は確定項目をそのまま読む。入力の検査の文は、キーの代わりに、操作・入力・検査を持つ
+rows: { idPattern: "MSG-*", schemaIds: [basic-message-list] }
+columns:
+  - label: 種類
+    path: kind
+  - label: キー
+    path: key
+  - label: 文
+    path: text
+  - label: 文を作る元
+    path: source
+  - label: 操作（入力の検査）
+    value: { via: operation, path: label }
+  - label: 入力（入力の検査）
+    value: { via: input, path: label }
+  - label: 検査（入力の検査）
+    path: check
+  - label: 設計項目ID
+    path: id

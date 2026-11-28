@@ -1,10 +1,11 @@
 id: messages-input
-name: '生成入力（確定項目: messages）'
+name: 基本設計の生成入力（メッセージ）
+description: メッセージの項目一覧（MSG-）を、1 ファイルまとめて読む。断りと知らせは key で引き、入力の検査のメッセージは operation・input・check で引く
 rows:
-  idPattern: DOC-messages.*
+  idPattern: SYS-basic-messages
   schemaIds:
-    - message-definition
+    - basic-message-list
 columns:
   - label: record
     path: .
-    schemaId: message-definition
+    schemaId: basic-message-list

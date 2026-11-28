@@ -11,7 +11,7 @@ output: design/detail/derived/documents/screen-designs-operations/{id}.yaml
 dependsOn:
   - system-model
   - basic-operations-resolved
-  - messages
+  - basic-messages
   - basic-screens-resolved
   - screen-styles
   - detail-document-input-gate

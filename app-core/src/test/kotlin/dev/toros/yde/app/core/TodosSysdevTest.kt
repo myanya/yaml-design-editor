@@ -162,13 +162,18 @@ class TodosSysdevTest {
     fun `エラーとメッセージ系の設計書は業務モデルから計算で作る`() {
         fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
+        // エラー（基本設計）は項目の形: 操作が断るとき 1 件を 1 項目にし、種類・操作・原因・出すメッセージを ID で指す。
+        // どう確かめるか（Java か SQL か）は持たない（詳細設計の処理の手順が持つ）
         val errors = doc("design/basic/final/errors.yaml")
-        val rules = list(errors, "constraints").associateBy { it["constraint"] }
-        assertEquals("SQL", rules["closed-has-no-open-task"]?.get("by"))
-        assertEquals("対象外", rules["has-detail"]?.get("by"), "一覧の行と個票は 1 テーブルなので、書かれた場所の決まりは起きない")
-        assertEquals("対象外", rules["in-category.outMax"]?.get("by"), "警告は断らない")
-        assertEquals(listOf("suspend-todo"), rules["resume-not-before-suspend"]?.get("operations"), "中断の行の決まりは、再開予定日を書く操作だけが確かめる")
-        assertEquals(listOf("complete-todo"), rules["closed-has-completed-on"]?.get("operations"), "状態を完了以外に書く操作は、完了の決まりを確かめない")
+        val refusals = list(errors, "errors")
+        fun operationsOf(rule: String) = refusals.filter { it["cause"] == "RUL-$rule" }.map { it["operation"] }
+        assertEquals(listOf<Any?>("ACT-suspend-todo"), operationsOf("resume-not-before-suspend"), "中断の行の決まりは、再開予定日を書く操作だけが確かめる")
+        assertEquals(listOf<Any?>("ACT-complete-todo"), operationsOf("closed-has-completed-on"), "状態を完了以外に書く操作は、完了の決まりを確かめない")
+        assertEquals(emptyList<Any?>(), operationsOf("has-detail") + operationsOf("in-category.outMax"), "書かれた場所の決まりと、警告の決まりは断らない")
+        val completeResult = refusals.single { it["id"] == "ERR-complete-todo.check.closed-has-result" }
+        assertEquals(listOf("ERK-input-rule", listOf("PRM-complete-todo.result"), "MSG-check.closed-has-result"), listOf(completeResult["kind"], completeResult["inputs"], completeResult["message"]), "受け取る値が原因の決まりは、その入力の欄の横にも出す")
+        assertEquals(listOf("ERK-state", "TRN-todo-lifecycle.complete-todo"), refusals.single { it["id"] == "ERR-complete-todo.state" }.let { listOf(it["kind"], it["cause"]) })
+        assertTrue(listOf("constraints", "operations").none { it in errors.keys } && refusals.none { "by" in it.keys }, "確かめ方と、入力の検査の写しは持たない")
         val complete = doc("design/detail/final/processes/complete-todo.yaml")
         val confirm = list(complete, "confirm").single()
         assertEquals("checkCompleteTodo", confirm["method"])
@@ -178,9 +183,14 @@ class TodosSysdevTest {
         )
         val steps = list(complete, "steps")
         assertTrue(steps.indexOfLast { it["step"] == "write" } < steps.indexOfFirst { it["constraint"] == "closed-has-no-open-task" }, "入れ子の要素の決まりは書いた後に数える")
+        assertTrue(steps.single { it["constraint"] == "closed-has-no-open-task" }["by"].toString().startsWith("SQL"), "確かめ方は、詳細設計の処理の手順が持つ")
         // 使うメッセージのキー（処理設計書・エラー定義書・一覧の 0 件・フォームの検査）は、どれもメッセージ定義書にある
+        // 断りと知らせのキーは、基本設計のメッセージの項目が持つ。入力の検査のキー（Form と検査の名前を含む）は、Form のプログラム設計が組み立てる
         val messages = doc("design/basic/final/messages.yaml")
-        val keys = (list(messages, "messages").map { it["key"].toString() } + list(messages, "validation").flatMap { list(it, "messages").map { m -> m["key"].toString() } }).toSet()
+        val items = list(messages, "messages")
+        assertTrue(items.filter { "check" in it.keys }.all { "key" !in it.keys && it["input"].toString().startsWith("PRM-") }, "入力の検査の文は、キーを持たず、入力と検査で持つ")
+        val keys = (items.mapNotNull { it["key"]?.toString() } + list(doc("design/detail/final/application-web-forms.yaml"), "validationMessages").map { it["key"].toString() }).toSet()
+        assertEquals(emptyList(), refusals.map { it["message"] }.distinct().filter { id -> items.none { it["id"] == id } }, "断りが指すメッセージは、どれもメッセージの項目にある")
         fun collect(x: Any?, out: MutableList<String>, names: Set<String>) {
             when (x) {
                 is Map<*, *> -> x.forEach { (k, v) -> if (k in names && v is String && "." in v && " " !in v) out += v else collect(v, out, names) }
@@ -189,7 +199,6 @@ class TodosSysdevTest {
         }
         val used = mutableListOf<String>()
         java.nio.file.Files.list(root.resolve("design/detail/final/processes")).use { s -> s.toList() }.forEach { collect(doc("design/detail/final/processes/${it.fileName}"), used, setOf("message")) }
-        collect(list(errors, "operations"), used, setOf("message"))
         collect(doc("design/detail/final/screen-designs/lists/todo-dashboard.yaml"), used, setOf("empty"))
         java.nio.file.Files.list(root.resolve("design/detail/final/screen-designs/operations")).use { s -> s.toList() }.forEach { f ->
             val form = doc("design/detail/final/screen-designs/operations/${f.fileName}")["form"] as? Map<*, *> ?: return@forEach

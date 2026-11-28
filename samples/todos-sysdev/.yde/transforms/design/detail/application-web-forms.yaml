@@ -3,7 +3,7 @@ name: 確定画面設計の Form を出力用に検査する
 scope: design
 dependsOn:
   - screen-designs-operations
-  - messages
+  - basic-messages
 output: design/detail/final/application-web-forms.yaml
 input:
   $validate:
@@ -32,6 +32,22 @@ input:
                 raw:
                   $copy: values.record
                 messages:
+                  $apply: validation-catalogue
+                  $with:
+                    record:
+                      $apply: record
+                      $with:
+                        row:
+                          $view: messages-input
+                          $one: true
+        # 入力の検査のメッセージ（キーと文）。キーは、Form の名前・項目の名前・検査の実装の名前から、ここで組み立てる
+        validationMessages:
+          $apply: validation-messages
+          $with:
+            catalogue:
+              $apply: validation-catalogue
+              $with:
+                record:
                   $apply: record
                   $with:
                     row:
@@ -46,6 +62,104 @@ build:
       $build:
         - $copy: .
 rules:
+  # 基本設計のメッセージの項目（入力の検査。どの操作のどの入力の、どの検査か）を、Form の項目ごとのキーと文に組む。
+  # Form の名前は「操作の名前 + Form」、項目の名前は入力のキー、検査の名前は Bean Validation の誤りのコード
+  - id: validation-catalogue
+    with:
+      - record
+    build:
+      validation:
+        $group:
+          $each: messages
+          $of: record
+          $flatten: true
+          $build:
+            $when:
+              - path: check
+                exists: true
+            $then:
+              - $apply: validation-entry
+                $with:
+                  form:
+                    $format: '{f}Form'
+                    $with:
+                      f:
+                        $case:
+                          $value:
+                            extract:
+                              - path: operation
+                              - ^ACT-(.*)$
+                        $as: camel
+                  field:
+                    $case:
+                      $value:
+                        extract:
+                          - path: input
+                          - '[^.]+$'
+                    $as: camel
+                  code:
+                    $map:
+                      $copy: check
+                    $using:
+                      required: NotNull
+                      length: Size
+                      pattern: Pattern
+                      date: typeMismatch
+                      unique: UniqueElements
+        $by:
+          $format: '{form}.{field}'
+        $build:
+          form:
+            $copy: items[0].form
+          field:
+            $copy: items[0].field
+          messages:
+            $each: items
+            $build:
+              key:
+                $copy: key
+              text:
+                $copy: text
+  - id: validation-entry
+    with:
+      - form
+      - field
+      - code
+    build:
+      form:
+        $copy: .
+        $of: form
+      field:
+        $copy: .
+        $of: field
+      key:
+        $format: validation.{c}.{f}.{k}
+        $with:
+          c:
+            $copy: .
+            $of: code
+          f:
+            $copy: .
+            $of: form
+          k:
+            $copy: .
+            $of: field
+      text:
+        $copy: text
+  - id: validation-messages
+    with:
+      - catalogue
+    build:
+      $each: validation
+      $of: catalogue
+      $flatten: true
+      $build:
+        $each: messages
+        $build:
+          key:
+            $copy: key
+          text:
+            $copy: text
   - id: form
     with:
       - raw

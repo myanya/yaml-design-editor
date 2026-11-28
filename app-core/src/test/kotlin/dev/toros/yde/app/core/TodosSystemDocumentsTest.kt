@@ -104,7 +104,7 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(45, shown("system-document-list").size)
+        assertEquals(43, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(15, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
@@ -120,7 +120,7 @@ class TodosSystemDocumentsTest {
     private fun store(corrections: String = "[]", additions: String = "[]", specifications: String = "[]"): InMemoryDocumentStore {
         val files = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
             .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }.toMutableMap()
-        val basicKinds = setOf("errors", "messages", "screen-transitions")
+        val basicKinds = setOf("screen-transitions")
         fun selected(text: String, phase: String) = (YamlIO.parseToRaw(text) as List<*>).filter {
             ((it as Map<*, *>)["kind"] in basicKinds) == (phase == "basic")
         }
@@ -141,7 +141,6 @@ class TodosSystemDocumentsTest {
               target: DOC-processes.complete-todo
               reason: 呼出名
               changes: [{path: [service, class], value: CompletionService}, {path: [service, method], value: finish}]
-            - {id: SCOR-message, kind: messages, target: DOC-messages.messages, select: {collection: messages, key: key, equals: complete-todo.no-open-task}, set: {text: 未完了の作業があります（確認用）。}, reason: 文の見直し}
             - {id: SCOR-session, kind: session-design, target: DOC-session-design.session-design, select: {collection: attributes, key: role, equals: token}, set: {key: confirmationToken}, reason: セッションのキー}
         """.trimIndent().prependIndent("\n  "), """
             - id: SADD-preference
@@ -155,6 +154,12 @@ class TodosSystemDocumentsTest {
             corrections:
               - {id: DCOR-901, target: TBL-todo, set: {name: todo_records}, reason: 物理名}
               - {id: DCOR-902, target: COL-todo.result, set: {name: completion_result}, reason: 物理名}
+        """.trimIndent())
+        // メッセージの文への個別の判断は、基本設計の項目（メッセージ MSG-）を ID で指す
+        input.write(DocumentId("design/basic/inputs/decisions.yaml"), """
+            inputId: INPUT-basic-decisions
+            decisions:
+              - {id: BDEC-901, target: MSG-complete-todo.no-open-task, set: {text: 未完了の作業があります（確認用）。}, reason: 文の見直し}
         """.trimIndent())
         // テーブルへの読み書きへの個別の判断は、詳細設計の項目（まとまり ACC-・メソッド MTH-）を ID で指す
         input.write(DocumentId("design/detail/inputs/decisions.yaml"), """
@@ -201,8 +206,10 @@ class TodosSystemDocumentsTest {
         val form = map(doc("design/detail/final/screen-designs/operations/complete-todo.yaml"), "form")
         val result = rows(form, "fields").single { it["name"] == "result" }
         assertEquals(123, rows(result, "validations").single { it["name"] == "Size" }["max"])
-        val validation = rows(doc("design/basic/final/messages.yaml"), "validation").single { it["form"] == "completeTodoForm" && it["field"] == "result" }
-        assertTrue(rows(validation, "messages").any { "123" in it["text"].toString() }, validation.toString())
+        val validation = rows(doc("design/basic/final/messages.yaml"), "messages").filter { it["input"] == "PRM-complete-todo.result" }
+        assertTrue(validation.any { it["check"] == "length" && "123" in it["text"].toString() }, validation.toString())
+        val formMessages = rows(doc("design/detail/final/application-web-forms.yaml"), "validationMessages").associate { it["key"] to it["text"] }
+        assertTrue("123" in formMessages["validation.Size.completeTodoForm.result"].toString(), "入力の検査のキーは、Form のプログラム設計が組み立てる")
         // 画面の項目に当たって、当てた判断が項目に残る。断りの文は項目に写さず、前提を ID で指す（文はメッセージ定義書が持つ）
         val screen = doc("design/basic/final/screens/complete-todo.yaml")
         assertEquals("POST /todo/{id}/finish", map(screen, "execute")["request"])

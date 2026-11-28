@@ -1,0 +1,783 @@
+id: basic-messages
+name: 基本設計項目一覧（メッセージ）
+description: >-
+  抽象システムモデルの「メッセージ」を項目の形で作る（ADR-0042）。メッセージ 1 件を 1 項目（MSG-）にし、作る元（状態の遷移 TRN-・前提 PRE-・データの決まり RUL-・操作 ACT-・
+  エンティティ ENT-・項目 FLD-）を source で指す。入力の検査のメッセージは、どの操作のどの入力（PRM-）の、どの検査かで持つ
+  （画面の部品の名前や検査の実装の名前は持たない。メッセージのキーは、読む側が組み立てる）。
+  入力は基本設計の項目（操作・データの決まり・一覧の検索条件・エンティティ・画面）だけで、業務モデルも解いた形も読まない。
+  基本設計の項目への個別の判断（design/basic/inputs/decisions.yaml）は、項目の ID を対象にして、ここで項目へ直接当てる（文 text）。
+  補正前のファイルは作らない
+scope: business
+dependsOn:
+  - basic-operations
+  - basic-rules
+  - basic-queries
+  - basic-entities
+  - basic-screens
+  - basic-document-input-gate
+output: design/basic/final/messages.yaml
+input:
+  $apply: document
+  $with:
+    composed:
+      $apply: composed-items
+      $with:
+        decisions:
+          $each:
+            $view: basic-decisions-input
+          $build:
+            $copy: values.decision
+        items:
+          $apply: messages
+          $with:
+            actions:
+              $each:
+                $view: basic-model-operations
+              $build:
+                $copy: values.record
+            rules:
+              $each:
+                $view: basic-model-rules
+              $build:
+                $copy: values.record
+            queries:
+              $each:
+                $view: basic-model-queries
+              $build:
+                $copy: values.record
+            entities:
+              $each:
+                $view: basic-model-entities
+              $build:
+                $copy: values.record
+            screens:
+              $each:
+                $view: basic-model-screens
+              $build:
+                $copy: values.record
+build:
+  $copy: .
+rules:
+  # 補正前の項目: 断り・知らせ・入力の検査のメッセージ
+  - id: messages
+    with:
+      - actions
+      - rules
+      - queries
+      - entities
+      - screens
+    build:
+      $concat:
+        # 状態の断り: 操作のできる状態でないとき
+        - $each: .
+          $of: actions
+          $build:
+            $when:
+              - path: refusal
+                exists: true
+            id:
+              $format: MSG-{source}.state
+            key:
+              $format: '{source}.state'
+            kind: 状態の断り
+            text:
+              $copy: refusal
+            source:
+              $first:
+                - $copy: transition
+                - $copy: id
+        # 前提の断り
+        - $each: .
+          $of: actions
+          $bind: a
+          $flatten: true
+          $build:
+            $each: preconditions
+            $build:
+              id:
+                $format: MSG-{a}.{r}
+                $with:
+                  a:
+                    $copy: source
+                    $of: a
+                  r:
+                    $copy: source
+              key:
+                $format: '{a}.{r}'
+                $with:
+                  a:
+                    $copy: source
+                    $of: a
+                  r:
+                    $copy: source
+              kind: 前提の断り
+              text:
+                $first:
+                  - $copy: message
+                  - $format: '{a}.{r}'
+                    $with:
+                      a:
+                        $copy: source
+                        $of: a
+                      r:
+                        $copy: source
+              source:
+                $copy: id
+        # データの決まりの違反（守らないと断る決まりのうち、操作のときに確かめられるもの）
+        - $each: .
+          $of: rules
+          $build:
+            $when:
+              - path: level
+                equals: error
+              - or:
+                  - path: form
+                    equals: element
+                  - path: rule.match[1].edge.contains
+                    equals: true
+                  - path: kind
+                    equals: acyclic
+            id:
+              $format: MSG-check.{source}
+            key:
+              $format: check.{source}
+            kind: データの決まり
+            text:
+              $first:
+                - $copy: message
+                - $when:
+                    - path: kind
+                      equals: acyclic
+                  $then:
+                    $format: 「{r}」をたどると、自分（{id}）に戻ります（循環はできません）
+                    $with:
+                      r:
+                        $copy: relationLabel
+                      id: '{id}'
+                - $copy: label
+            source:
+              $copy: id
+        # 完了の知らせ
+        - $each: .
+          $of: actions
+          $build:
+            id:
+              $format: MSG-{source}.done
+            key:
+              $format: '{source}.done'
+            kind: 完了の知らせ
+            text:
+              $first:
+                - $format: '{s}しました（{id}）'
+                  $with:
+                    s:
+                      $value:
+                        extract:
+                          - path: label
+                          - ^(.*)する$
+                    id: '{id}'
+                - $format: 「{l}」が済みました（{id}）
+                  $with:
+                    l:
+                      $copy: label
+                    id: '{id}'
+            source:
+              $copy: id
+        # 絞り込みの結果が 0 件（一覧に出すエンティティごと）
+        - $group:
+            $each: .
+            $of: queries
+            $build:
+              $copy: entity
+          $by:
+            $copy: .
+          $bind: g
+          $build:
+            $apply: entity-message
+            $with:
+              entity:
+                $apply: entity-of
+                $with:
+                  ref:
+                    $copy: key
+                  entities:
+                    $copy: .
+                    $of: entities
+              prefix: list.empty
+              kind: 絞り込みの結果
+        # ID を指定して見つからない（詳細画面のあるエンティティと、操作の受け手）
+        - $group:
+            $concat:
+              - $each: .
+                $of: screens
+                $flatten: true
+                $build:
+                  $when:
+                    - path: kind
+                      equals: detail
+                  $then:
+                    - $copy: entity
+              - $each: .
+                $of: actions
+                $flatten: true
+                $build:
+                  $when:
+                    - path: receiver
+                      exists: true
+                  $then:
+                    - $copy: receiver
+          $by:
+            $copy: .
+          $bind: g
+          $build:
+            $apply: entity-message
+            $with:
+              entity:
+                $apply: entity-of
+                $with:
+                  ref:
+                    $copy: key
+                  entities:
+                    $copy: .
+                    $of: entities
+              prefix: error.notFound
+              kind: 見つからない
+        # 並びの 1 件を番号で指す操作: その行が無いとき
+        - $group:
+            $each: .
+            $of: actions
+            $flatten: true
+            $build:
+              $each: effects
+              $flatten: true
+              $build:
+                $when:
+                  - path: row
+                    exists: true
+                $then:
+                  - $copy: item
+          $by:
+            $copy: .
+          $bind: g
+          $build:
+            $apply: row-message
+            $with:
+              field:
+                $apply: field-of
+                $with:
+                  ref:
+                    $copy: key
+              entities:
+                $copy: .
+                $of: entities
+        - - id: MSG-error.token
+            key: error.token
+            kind: 二重の確定・時間切れ
+            text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
+          - id: MSG-error.unexpected
+            key: error.unexpected
+            kind: 想定外
+            text: 処理できませんでした。時間をおいてやり直してください（受付番号 {no}）
+        # 入力の検査: 画面のある操作の入力ごと・検査ごと
+        - $each: .
+          $of: actions
+          $bind: a
+          $flatten: true
+          $build:
+            $apply: operation-input-messages
+            $with:
+              action:
+                $copy: .
+              screens:
+                $each: .
+                $of: screens
+                $flatten: true
+                $build:
+                  $when:
+                    - path: operation
+                      equals:
+                        $copy: id
+                        $of: a
+                  $then:
+                    - $copy: id
+  - id: entity-of
+    with:
+      - ref
+      - entities
+    build:
+      $apply: first
+      $with:
+        items:
+          $each: .
+          $of: entities
+          $flatten: true
+          $build:
+            $when:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: ref
+            $then:
+              - $copy: .
+  - id: entity-message
+    with:
+      - entity
+      - prefix
+      - kind
+    build:
+      id:
+        $format: MSG-{p}.{e}
+        $with:
+          p:
+            $copy: .
+            $of: prefix
+          e:
+            $copy: source
+            $of: entity
+      key:
+        $format: '{p}.{e}'
+        $with:
+          p:
+            $copy: .
+            $of: prefix
+          e:
+            $copy: source
+            $of: entity
+      kind:
+        $copy: .
+        $of: kind
+      text:
+        $apply: entity-text
+        $with:
+          label:
+            $copy: label
+            $of: entity
+          prefix:
+            $copy: .
+            $of: prefix
+      source:
+        $copy: id
+        $of: entity
+  - id: entity-text
+    with:
+      - label
+      - prefix
+    when:
+      - of: prefix
+        path: .
+        equals: list.empty
+    build:
+      $format: 該当する{l}はありません
+      $with:
+        l:
+          $copy: .
+          $of: label
+  - id: entity-text
+    with:
+      - label
+      - prefix
+    build:
+      $format: '{l}「{id}」は見つかりません'
+      $with:
+        l:
+          $copy: .
+          $of: label
+        id: '{id}'
+  # 項目（FLD-）を ID で 1 件引く
+  - id: field-of
+    with:
+      - ref
+    build:
+      $apply: record-of
+      $with:
+        row:
+          $view: basic-model-fields
+          $where:
+            - path: id
+              equals:
+                $copy: .
+                $of: ref
+          $one: true
+  - id: record-of
+    with:
+      - row
+    build:
+      $copy: values.record
+      $of: row
+  - id: row-message
+    with:
+      - field
+      - entities
+    build:
+      $apply: row-message-text
+      $with:
+        field:
+          $copy: .
+          $of: field
+        entity:
+          $apply: entity-of
+          $with:
+            ref:
+              $copy: owner
+              $of: field
+            entities:
+              $copy: .
+              $of: entities
+  - id: row-message-text
+    with:
+      - field
+      - entity
+    build:
+      id:
+        $format: MSG-error.notFound.{e}.{f}
+        $with:
+          e:
+            $copy: source
+            $of: entity
+          f:
+            $copy: key
+            $of: field
+      key:
+        $format: error.notFound.{e}.{f}
+        $with:
+          e:
+            $copy: source
+            $of: entity
+          f:
+            $copy: key
+            $of: field
+      kind: 見つからない
+      text:
+        $format: '{e}「{id}」の{f}に、指定した行はありません'
+        $with:
+          e:
+            $copy: label
+            $of: entity
+          f:
+            $copy: label
+            $of: field
+          id: '{id}'
+      source:
+        $copy: id
+        $of: field
+  # 入力の検査のメッセージ: 画面のある操作だけ。まとまり（object）の入力そのものには無い
+  - id: operation-input-messages
+    with:
+      - action
+      - screens
+    when:
+      - of: screens
+        path: .
+        empty: false
+    build:
+      $each: inputs
+      $of: action
+      $flatten: true
+      $build:
+        $when:
+          - not:
+              path: base
+              equals: object
+          - or:
+              - path: item.base
+                exists: false
+              - not:
+                  path: item.base
+                  equals: object
+        $then:
+          $apply: input-messages
+          $with:
+            action:
+              $copy: .
+              $of: action
+  - id: operation-input-messages
+    with:
+      - action
+      - screens
+    build: []
+  - id: input-messages
+    with:
+      - action
+    build:
+      $concat:
+        - $when:
+            - path: required
+              equals: true
+          $then:
+            - $apply: input-message
+              $with:
+                action:
+                  $copy: .
+                  $of: action
+                check: required
+                text:
+                  $first:
+                    # 画面が運ぶ入力（人は入力しない）が届かなかったとき
+                    - $when:
+                        - path: carried
+                          equals: true
+                      $then:
+                        $format: '{label}を受け取れませんでした。画面を開き直してから、もう一度操作してください'
+                    - $when:
+                        - or:
+                            - path: base
+                              oneOf:
+                                - ref
+                                - enum
+                            - path: item.base
+                              equals: ref
+                      $then:
+                        $format: '{label}を選んでください'
+                    - $format: '{label}を入力してください'
+        - $when:
+            - path: maxLength
+              exists: true
+          $then:
+            - $apply: input-message
+              $with:
+                action:
+                  $copy: .
+                  $of: action
+                check: length
+                text:
+                  $first:
+                    - $when:
+                        - path: minLength
+                          gt: 1
+                      $then:
+                        $format: '{label}は{minLength}文字以上{maxLength}文字以内で入力してください'
+                    - $format: '{label}は{maxLength}文字以内で入力してください'
+        - $when:
+            - path: maxLength
+              exists: false
+            - path: minLength
+              exists: true
+          $then:
+            - $apply: input-message
+              $with:
+                action:
+                  $copy: .
+                  $of: action
+                check: length
+                text:
+                  $format: '{label}は{minLength}文字以上で入力してください'
+        - $when:
+            - path: pattern
+              exists: true
+          $then:
+            - $apply: input-message
+              $with:
+                action:
+                  $copy: .
+                  $of: action
+                check: pattern
+                text:
+                  $format: '{label}の書き方が正しくありません'
+        - $when:
+            - path: base
+              equals: date
+          $then:
+            - $apply: input-message
+              $with:
+                action:
+                  $copy: .
+                  $of: action
+                check: date
+                text:
+                  $format: '{label}は年月日で入力してください'
+        - $when:
+            - path: unique
+              exists: true
+          $then:
+            - $apply: input-message
+              $with:
+                action:
+                  $copy: .
+                  $of: action
+                check: unique
+                text:
+                  $format: '{label}に同じものを 2 回選べません'
+  - id: input-message
+    with:
+      - action
+      - check
+      - text
+    build:
+      id:
+        $format: MSG-input.{a}.{k}.{c}
+        $with:
+          a:
+            $copy: source
+            $of: action
+          k:
+            $copy: key
+          c:
+            $copy: .
+            $of: check
+      kind: 入力の誤り
+      text:
+        $copy: .
+        $of: text
+      operation:
+        $copy: id
+        $of: action
+      input:
+        $copy: id
+      check:
+        $copy: .
+        $of: check
+  - id: first
+    with:
+      - items
+    build:
+      $copy: '[0]'
+      $of: items
+  # 文書の形: 当てた判断を decisions に残す
+  - id: document
+    with:
+      - composed
+    build:
+      $apply: decided
+      $with:
+        value:
+          documentId: SYS-basic-messages
+          holes:
+            - name: id
+              means: 受け手の ID（作る操作は作った要素の ID。データの決まりは、決まりの起点の要素の ID）
+            - name: state
+              means: 受け手の今の状態の名前
+            - name: left
+              means: データの決まりの check の左の値（画面の表示の形）
+            - name: right
+              means: データの決まりの check の右の値（画面の表示の形）
+            - name: 'no'
+              means: 受付番号（ログと突き合わせる）
+          messages:
+            $each: records
+            $of: composed
+            $build:
+              $copy: value
+        decisions:
+          $each: decisions
+          $of: composed
+          $build:
+            target:
+              $copy: target
+            path:
+              $copy: path
+            value:
+              $copy: selected[0].value
+            by:
+              $each: selected
+              $build:
+                $copy: source.id
+  - id: decided
+    with:
+      - value
+      - decisions
+    when:
+      - of: decisions
+        path: .
+        empty: false
+    build:
+      $apply: decided-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: value
+                source:
+                  id: composed
+            additions: []
+            changes:
+              - target: record
+                set:
+                  decisions:
+                    $copy: .
+                    $of: decisions
+                priority: individual
+                source:
+                  id: decisions
+  - id: decided
+    with:
+      - value
+      - decisions
+    build:
+      $copy: .
+      $of: value
+  - id: decided-result
+    with:
+      - combined
+    build:
+      $copy: records[0].value
+      $of: combined
+  # 個別の判断を当てる。対象はメッセージ（MSG-）で、置き換えられるのは文（text）。
+  # 対象が見つからない判断と、その対象では置き換えられない値は、合成がエラーで止める
+  - id: composed-items
+    with:
+      - items
+      - decisions
+    build:
+      $compose:
+        derived:
+          $each: .
+          $of: items
+          $build:
+            id:
+              $copy: id
+            value:
+              $copy: .
+            source:
+              id: rule-basic-messages
+              document: .yde/transforms/design/basic/basic-messages.yaml
+        additions: []
+        changes:
+          $each: .
+          $of: decisions
+          $bind: decision
+          $flatten: true
+          $build:
+            $when:
+              - path: target
+                startsWith: MSG-
+            $then:
+              $eachEntry: set
+              $flatten: true
+              $build:
+                $first:
+                  - $when:
+                      - path: $key
+                        equals: text
+                    $then:
+                      - target:
+                          $copy: target
+                          $of: decision
+                        path:
+                          - $key
+                        value:
+                          $copy: .
+                        priority: individual
+                        source:
+                          id:
+                            $copy: id
+                            $of: decision
+                          document: design/basic/inputs/decisions.yaml
+                  - - target:
+                        $format: '{t}（{k} は、この対象では置き換えられません）'
+                        $with:
+                          t:
+                            $copy: target
+                            $of: decision
+                          k: $key
+                      set:
+                        $copy: set
+                        $of: decision
+                      priority: individual
+                      source:
+                        id:
+                          $copy: id
+                          $of: decision
+                        document: design/basic/inputs/decisions.yaml

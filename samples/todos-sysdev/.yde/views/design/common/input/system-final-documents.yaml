@@ -4,9 +4,7 @@ rows:
   idPattern: DOC-*
   schemaIds:
     - dashboard-flow
-    - error-definition
     - error-handling
-    - message-definition
     - process
     - screen-design-detail
     - screen-design-list

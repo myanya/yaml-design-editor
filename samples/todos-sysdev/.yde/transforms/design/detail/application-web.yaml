@@ -12,7 +12,7 @@ dependsOn:
   - application-web-bindings
   - application-access
   - application-data-model
-  - messages
+  - basic-messages
   - application-theme
   - session-design
 output: design/detail/final/application-web.yaml
@@ -215,8 +215,10 @@ input:
                     $copy: key
                   clearedBy:
                     $copy: clearedBy
+        # 画面に出す断りと知らせの文。実行時に引くのはキーと文だけなので、その 2 つだけを運ぶ
+        # （入力の検査の文は、Form のプログラム設計がキーを組み立てる）
         messages:
-          $apply: record
+          $apply: message-catalogue
           $with:
             row:
               $view: messages-input
@@ -276,6 +278,23 @@ build:
       $build:
         - $copy: .
 rules:
+  - id: message-catalogue
+    with:
+      - row
+    build:
+      messages:
+        $each: values.record.messages
+        $of: row
+        $flatten: true
+        $build:
+          $when:
+            - path: key
+              exists: true
+          $then:
+            - key:
+                $copy: key
+              text:
+                $copy: text
   - id: record
     with:
       - row

@@ -11,7 +11,7 @@ build:
     $apply: record
     $with:
       row:
-        $view: messages-input
+        $view: application-validation-messages-input
         $one: true
 rules:
   - id: config

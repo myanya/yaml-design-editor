@@ -543,7 +543,7 @@
     },
     {
       "path": "app/src/main/resources/web-model.json",
-      "sha256": "f4da59b73cc004ac2669bd022ce4943c98f58dbe0e9cfe5b12861707644c2939"
+      "sha256": "89a3ea7dd2e421588cf2defc025118ca16ef5b580968bc58048f27d76ff6b210"
     },
     {
       "path": "app/src/test/java/example/todos/TodoApplicationTest.java",

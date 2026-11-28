@@ -15,7 +15,7 @@ dependsOn:
   - basic-operations-resolved
   - basic-rules
   - system-access-bindings
-  - messages
+  - basic-messages
   - detail-document-input-gate
   - detail-status
 input:

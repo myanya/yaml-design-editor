@@ -13,10 +13,8 @@ public class WebValidationMessages extends AbstractMessageSource {{
     private final Map<String, String> messages = new LinkedHashMap<>();
 
     public WebValidationMessages() {{
-{#each record.validation}
-{#each messages}
+{#each record.validationMessages}
         messages.put({key:java-string}, {text:java-string});
-{/each}
 {/each}
     }
 

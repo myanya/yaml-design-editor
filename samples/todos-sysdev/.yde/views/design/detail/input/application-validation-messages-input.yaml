@@ -1,0 +1,11 @@
+id: application-validation-messages-input
+name: 確定した Form のプログラム設計（入力の検査のメッセージ）
+description: Form のプログラム設計を 1 ファイルまとめて読む。入力の検査のメッセージ（キーと文）の一覧 validationMessages を、メッセージの Java ソースのレポートが読む
+rows:
+  idPattern: APP-web-forms
+  schemaIds:
+    - application-web-forms
+columns:
+  - label: record
+    path: .
+    schemaId: application-web-forms

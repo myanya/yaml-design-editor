@@ -10,8 +10,6 @@ definitions:
     values:
       - value: dashboard-flows
       - value: error-handling
-      - value: errors
-      - value: messages
       - value: processes
       - value: screen-designs-details
       - value: screen-designs-lists
@@ -167,7 +165,7 @@ definitions:
         message: コレクションへの追加には collection が必要です
   基本設計の種類:
     type: 種類
-    values: [errors, messages, screen-transitions]
+    values: [screen-transitions]
   基本設計の補正:
     type: 補正
     fields:

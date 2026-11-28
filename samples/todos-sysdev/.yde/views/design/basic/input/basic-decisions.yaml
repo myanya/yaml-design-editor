@@ -1,0 +1,8 @@
+id: basic-decisions
+name: 基本設計の項目への個別の判断の入力
+rows:
+  idPattern: INPUT-basic-decisions
+columns:
+  - label: record
+    path: .
+    fileGlob: design/basic/inputs/decisions.yaml

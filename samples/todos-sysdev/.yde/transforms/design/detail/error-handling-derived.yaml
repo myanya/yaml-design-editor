@@ -10,8 +10,7 @@ output: design/detail/derived/documents/error-handling/error-handling.yaml
 dependsOn:
   - system-model
   - basic-operations-resolved
-  - errors
-  - messages
+  - basic-messages
   - session-design
   - detail-document-input-gate
   - system-process-bindings
