@@ -76,18 +76,6 @@ rules:
                       $copy: id
                       $of: columnSource
                 $one: true
-              base:
-                $apply: column-base
-                $with:
-                  column: {$copy: .}
-                  row:
-                    $view: application-columns-input
-                    $where: [{path: id, equals: {$copy: id, $of: columnSource}}]
-                    $one: true
-                  sql:
-                    $view: application-sql-base-input
-                    $where: [{path: id, equals: {$copy: sqlType, $of: columnSource}}]
-                    $one: true
               types:
                 $copy: values.record.mappings
                 $of: types
@@ -97,7 +85,6 @@ rules:
       - column
       - row
       - types
-      - base
     build:
       id:
         $format: JCOL-{id}
@@ -131,8 +118,8 @@ rules:
               $when:
                 - path: base
                   equals:
-                      $copy: .
-                      $of: base
+                      $copy: base
+                      $of: column
               $then:
                 $copy: .
       sql:
@@ -141,43 +128,33 @@ rules:
       default:
         $apply: default
         $with:
+          column:
+            $copy: .
+            $of: column
           row:
-            $view: table-definition-defaults
-            $where:
-              - path: id
-                equals:
-                  $copy: id
-                  $of: column
-            $one: true
-  - id: column-base
-    with: [column, row, sql]
-    build:
-      $first:
-        - {$copy: values.base, $of: row}
-        - $when: [{of: column, path: sqlType, equals: SQL-seq}]
-          $then: int
-        - $when: [{of: column, path: sqlType, equals: SQL-key}]
-          $then: string
-        - {$copy: values.base, $of: sql}
+            $copy: .
+            $of: row
   - id: first
     with:
       - matches
     build:
       $copy: '[0]'
       $of: matches
+  # 初期値は列が運んでいる（空文字・false・0 も値）。出力方法は型対応（同じ詳細設計の項目）から
   - id: default
     with:
+      - column
       - row
     when:
-      - path: values.初期値
-        of: row
+      - path: default
+        of: column
         exists: true
     build:
       value:
-        $copy: values.初期値
-        $of: row
+        $copy: default
+        $of: column
       literal:
-        $copy: values.初期値の出力方法
+        $copy: values.literal
         $of: row
   - id: validated-result
     with:

@@ -296,7 +296,10 @@ class TodosSysdevTest {
         assertEquals("TYP-common.年月日", list(types.getValue("TYP-common.コメント"), "fields").first()["type"], "行の型の項目も論理型を参照する")
         val tables = list(doc("design/detail/final/tables.yaml"), "tables").associateBy { it["name"] }
         val title = list(tables.getValue("todo"), "columns").single { it["name"] == "title" }
-        assertEquals(setOf("seq", "id", "name", "source", "sqlType", "item", "table"), title.keys.map { it.toString() }.toSet(), "基本設計の値（名称・必須・文字数）は持たず、後続が参照する物理項目の対応を持つ")
+        assertEquals(setOf("seq", "id", "name", "source", "sqlType", "item", "table", "base", "maxLength"), title.keys.map { it.toString() }.toSet(), "名称・必須は持たず、次の段（行モデル）が要る基底の種類と文字数は運ぶ（ADR-0042）")
+        assertEquals(listOf("string", 100), listOf(title["base"], title["maxLength"]))
+        val defaults = list(doc("design/detail/final/tables.yaml"), "tables").flatMap { list(it, "columns") }.filter { "default" in it.keys }.associate { it["id"] to it["default"] }
+        assertEquals<Map<*, *>>(mapOf("COL-todo.status" to "OPEN", "COL-todo.version" to 0, "COL-todo_task.done" to false), defaults, "初期値も運ぶ（false・0 も値）")
         assertEquals("SQL-common.一行の文", title["sqlType"])
         val tags = tables.getValue("todo_tags")
         assertEquals("TODOのタグ", tags["label"], "明細テーブルの日本語名は詳細設計だけのもの")

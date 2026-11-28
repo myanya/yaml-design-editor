@@ -18,8 +18,8 @@
 - アプリの型・操作・画面が変わる変更（業務モデル・生成の定義・ひな形）では、`verification/` の検証テストも合わせて直し、`scripts/verify-app.ps1`（PowerShell が無ければ `scripts/verify-app.sh`）を手元で通します。この検証は `./gradlew test` に入れていません（毎回の待ちが長くなり開発が滞るので、意図して外に出しています。オーナーの判断 2026-11-24）。GitHub Actions の `todos-application` が push ごとに回すので、そこで失敗が見つかったら、そのとき直します。
 - `app/data/` は実行時の保存データで、生成記録にも Git にも入れません。Java パッケージの `data/` は生成ソースとして登録します。コミット前は `scripts/export-app-index.ps1` で Git の登録内容を取り出し、その内容で再生成と独立ビルドを確認します。
 - 画面の入力は、操作の入力（`PRM-`）が持ちます。画面を解いた形（`basic-screens-resolved`）の入力から、Form とメッセージを生成します（画面だけの入力の決まりは持ちません）。
-- 詳細設計の台帳・型対応・補正は `detail-tables` で合成して保存します。ビューへ補正の適用を戻さず、DDL と Mapper は同じ物理名を読みます。
-- 詳細設計項目一覧（`design/detail/final/tables.yaml`）には、詳細設計にだけ出てくるものだけを持たせます（基本設計の値は導出元をたどって読む）。SQL の型は型対応表（`design/detail/inputs/tables/sql-types.yaml`。人が書く）で決め、DDL はレポート `ddl` で作り直します（`TodosSysdevTest` が `design/detail/reports/ddl/schema.sql` が最新かを確かめます）。
+- テーブルの項目は、変換定義 `detail-tables` の 1 本で作ります（基本設計の項目からの導出と、台帳・型対応・補正の合成を 1 本で行い、補正前のファイルは作りません。当てた補正は `decisions` に残ります）。ビューへ補正の適用を戻さず、DDL と Mapper は同じ物理名を読みます。
+- 詳細設計項目一覧（`design/detail/final/tables.yaml`）には、詳細設計にだけ出てくるものと、次の段が要るので運ぶもの（カラムの `base`・`maxLength`・`default`）を持たせます。行モデルのプログラム設計（`application-data-model`）はカラムの項目だけを読み、基本設計を読みません。名称・必須・選択肢は、テーブル設計書のビューが導出元をたどって読みます。SQL の型は型対応表（`design/detail/inputs/tables/sql-types.yaml`。人が書く）で決め、DDL はレポート `ddl` で作り直します（`TodosSysdevTest` が `design/detail/reports/ddl/schema.sql` が最新かを確かめます）。
 - 業務モデルを読む生成には `scope: business` を書きます。確定前の検査は保存スキーマの原文を得るため `scope: design` を使い、業務の値は依存出力から読みます。設計の型は設計のスコープに置き、業務モデルから設計は使いません。
 - 名前の決まり（ケバブからの機械的な変換だけ・URL は業務の ID のまま）と、データ系・画面系・エラーとメッセージ系の決まり（テーブル・カラムの名前・型の対応・採番・前提とデータの決まりの確かめ方・断りの出し方）は README の通りです。
 - データの決まりの確かめ方（Java・SQL・対象外）は、エラー定義書・処理設計書・テーブルアクセス設計書・メッセージ定義書・Controller の生成の定義に同じ条件で書いています。1 つを直したら、ほかもそろえます（使うキーがメッセージ定義書にあるかは `TodosSysdevTest` が確かめます）。

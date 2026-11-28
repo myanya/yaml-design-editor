@@ -1,5 +1,6 @@
 id: application-columns-input
-name: 確定した物理列と型の根拠
+name: 確定した物理列と SQL の型
+description: 列の項目だけを読む（基底の種類・長さ・初期値は、列が基本設計から運んでいる）。型対応（SQL-）は同じ詳細設計の項目なので、参照でたどる
 rows:
   idPattern: COL-*
   schemaIds:
@@ -7,31 +8,14 @@ rows:
 columns:
   - label: record
     path: .
-  - label: base
-    value:
-      first:
-        - via: source
-          path: item.base
-        - via: source
-          path: value.base
-        - via: source
-          path: base
   - label: sql
     value:
       format:
         via: sqlType
         path: sql
-      scopes:
-        - via: source
       with:
         maxLength:
-          first:
-            - via: source
-              path: item.maxLength
-            - via: source
-              path: value.maxLength
-            - via: source
-              path: maxLength
+          path: maxLength
   - label: literal
     value:
       via: sqlType

@@ -16,6 +16,7 @@ tables:
         primaryKey: 1
         item: id
         table: TBL-category
+        base: id
       - seq: '02'
         id: COL-category.name
         name: name
@@ -23,6 +24,8 @@ tables:
         sqlType: SQL-common.一行の文
         item: name
         table: TBL-category
+        base: string
+        maxLength: 100
     foreignKeys: []
     indexes: []
   - seq: '02'
@@ -41,6 +44,7 @@ tables:
         primaryKey: 1
         item: id
         table: TBL-tag
+        base: id
       - seq: '02'
         id: COL-tag.name
         name: name
@@ -48,6 +52,8 @@ tables:
         sqlType: SQL-common.一行の文
         item: name
         table: TBL-tag
+        base: string
+        maxLength: 100
     foreignKeys: []
     indexes: []
   - seq: '03'
@@ -66,6 +72,7 @@ tables:
         primaryKey: 1
         item: id
         table: TBL-todo
+        base: id
       - seq: '02'
         id: COL-todo.title
         name: title
@@ -73,6 +80,8 @@ tables:
         sqlType: SQL-common.一行の文
         item: title
         table: TBL-todo
+        base: string
+        maxLength: 100
       - seq: '03'
         id: COL-todo.summary
         name: summary
@@ -80,6 +89,8 @@ tables:
         sqlType: SQL-common.一行の文
         item: summary
         table: TBL-todo
+        base: string
+        maxLength: 100
       - seq: '04'
         id: COL-todo.category
         name: category
@@ -89,6 +100,7 @@ tables:
         referencesColumn: COL-category.id
         item: category
         table: TBL-todo
+        base: ref
       - seq: '05'
         id: COL-todo.follows
         name: follows
@@ -98,6 +110,7 @@ tables:
         referencesColumn: COL-todo.id
         item: follows
         table: TBL-todo
+        base: ref
       - seq: '06'
         id: COL-todo.status
         name: status
@@ -105,6 +118,8 @@ tables:
         sqlType: SQL-common.ステータス
         item: status
         table: TBL-todo
+        base: enum
+        default: OPEN
       - seq: '07'
         id: COL-todo.created_on
         name: created_on
@@ -112,6 +127,7 @@ tables:
         sqlType: SQL-common.年月日
         item: created_on
         table: TBL-todo
+        base: date
       - seq: '08'
         id: COL-todo.updated_on
         name: updated_on
@@ -119,6 +135,7 @@ tables:
         sqlType: SQL-common.年月日
         item: updated_on
         table: TBL-todo
+        base: date
       - seq: '09'
         id: COL-todo.due_on
         name: due_on
@@ -126,6 +143,7 @@ tables:
         sqlType: SQL-common.年月日
         item: due_on
         table: TBL-todo
+        base: date
       - seq: '10'
         id: COL-todo.completed_on
         name: completed_on
@@ -133,6 +151,7 @@ tables:
         sqlType: SQL-common.年月日
         item: completed_on
         table: TBL-todo
+        base: date
       - seq: '11'
         id: COL-todo.details
         name: details
@@ -140,6 +159,7 @@ tables:
         sqlType: SQL-common.文章
         item: details
         table: TBL-todo
+        base: string
       - seq: '12'
         id: COL-todo.result
         name: result
@@ -147,6 +167,7 @@ tables:
         sqlType: SQL-common.文章
         item: result
         table: TBL-todo
+        base: string
       - seq: '13'
         id: COL-todo.version
         name: version
@@ -154,6 +175,8 @@ tables:
         sqlType: SQL-int
         item: version
         table: TBL-todo
+        base: int
+        default: 0
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_category
@@ -209,6 +232,7 @@ tables:
         primaryKey: 1
         item: id
         table: TBL-todo_task
+        base: id
       - seq: '02'
         id: COL-todo_task.todo_id
         name: todo_id
@@ -221,6 +245,7 @@ tables:
         referencesColumn: COL-todo.id
         item: todo_id
         table: TBL-todo_task
+        base: id
       - seq: '03'
         id: COL-todo_task.seq
         name: seq
@@ -231,6 +256,7 @@ tables:
         notNull: true
         item: seq
         table: TBL-todo_task
+        base: int
       - seq: '04'
         id: COL-todo_task.title
         name: title
@@ -238,6 +264,8 @@ tables:
         sqlType: SQL-common.一行の文
         item: title
         table: TBL-todo_task
+        base: string
+        maxLength: 100
       - seq: '05'
         id: COL-todo_task.done
         name: done
@@ -245,6 +273,8 @@ tables:
         sqlType: SQL-boolean
         item: done
         table: TBL-todo_task
+        base: boolean
+        default: false
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_task_todo
@@ -285,6 +315,7 @@ tables:
         referencesColumn: COL-todo.id
         item: todo_id
         table: TBL-todo_tags
+        base: id
       - seq: '02'
         id: COL-todo_tags.seq
         name: seq
@@ -296,6 +327,7 @@ tables:
         primaryKey: 2
         item: seq
         table: TBL-todo_tags
+        base: int
       - seq: '03'
         id: COL-todo_tags.tag_id
         name: tag_id
@@ -307,6 +339,7 @@ tables:
         referencesColumn: COL-tag.id
         item: tags
         table: TBL-todo_tags
+        base: ref
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_tags_todo
@@ -363,6 +396,7 @@ tables:
         referencesColumn: COL-todo.id
         item: todo_id
         table: TBL-todo_comments
+        base: id
       - seq: '02'
         id: COL-todo_comments.seq
         name: seq
@@ -374,6 +408,7 @@ tables:
         primaryKey: 2
         item: seq
         table: TBL-todo_comments
+        base: int
       - seq: '03'
         id: COL-todo_comments.date
         name: date
@@ -381,6 +416,7 @@ tables:
         sqlType: SQL-common.年月日
         item: date
         table: TBL-todo_comments
+        base: date
       - seq: '04'
         id: COL-todo_comments.body
         name: body
@@ -388,6 +424,7 @@ tables:
         sqlType: SQL-text
         item: body
         table: TBL-todo_comments
+        base: string
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_comments_todo
@@ -421,6 +458,7 @@ tables:
         referencesColumn: COL-todo.id
         item: todo_id
         table: TBL-todo_history
+        base: id
       - seq: '02'
         id: COL-todo_history.seq
         name: seq
@@ -432,6 +470,7 @@ tables:
         primaryKey: 2
         item: seq
         table: TBL-todo_history
+        base: int
       - seq: '03'
         id: COL-todo_history.date
         name: date
@@ -439,6 +478,7 @@ tables:
         sqlType: SQL-common.年月日
         item: date
         table: TBL-todo_history
+        base: date
       - seq: '04'
         id: COL-todo_history.action
         name: action
@@ -446,6 +486,7 @@ tables:
         sqlType: SQL-common.TODOの操作
         item: action
         table: TBL-todo_history
+        base: enum
       - seq: '05'
         id: COL-todo_history.from_
         name: from_
@@ -453,6 +494,7 @@ tables:
         sqlType: SQL-common.ステータス
         item: from
         table: TBL-todo_history
+        base: enum
       - seq: '06'
         id: COL-todo_history.to_
         name: to_
@@ -460,6 +502,7 @@ tables:
         sqlType: SQL-common.ステータス
         item: to
         table: TBL-todo_history
+        base: enum
       - seq: '07'
         id: COL-todo_history.note
         name: note
@@ -467,6 +510,7 @@ tables:
         sqlType: SQL-common.文章
         item: note
         table: TBL-todo_history
+        base: string
       - seq: '08'
         id: COL-todo_history.resume_on
         name: resume_on
@@ -474,6 +518,7 @@ tables:
         sqlType: SQL-common.年月日
         item: resume_on
         table: TBL-todo_history
+        base: date
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_history_todo

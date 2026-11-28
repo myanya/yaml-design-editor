@@ -1,0 +1,7 @@
+id: basic-model-fields
+name: 基本設計の生成入力（項目）
+description: 確定項目一覧の項目（FLD-）を 1 件ずつ読む。ID で 1 件を引くときに使う
+rows: { idPattern: "FLD-*", schemaIds: [basic-entity-list] }
+order: { schemaId: basic-entity-list }
+columns:
+  - { label: record, path: . }

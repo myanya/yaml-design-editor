@@ -330,7 +330,6 @@
       "column": "detail",
       "lane": "data",
       "transforms": [
-        "detail-tables-derived",
         "detail-tables"
       ],
       "ids": [
@@ -1060,19 +1059,6 @@
           "in:design/detail/inputs/application/java-types.yaml",
           "in:design/detail/inputs/appearance/*.yaml",
           "in:design/detail/inputs/decisions.yaml"
-        ]
-      },
-      {
-        "id": "d-tbl-derived",
-        "layer": "detail",
-        "row": 0,
-        "col": 1,
-        "kind": "work",
-        "label": [
-          "テーブルの導出"
-        ],
-        "members": [
-          "t:detail-tables-derived"
         ]
       },
       {
@@ -2104,7 +2090,6 @@
         ],
         "status": "role",
         "current": [
-          "t:detail-tables-derived",
           "t:table-access-derived",
           "t:processes-derived",
           "t:screen-styles-derived",
