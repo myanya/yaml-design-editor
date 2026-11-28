@@ -1,0 +1,17 @@
+id: domain-definition
+name: ドメイン定義書
+kind: dashboard
+description: >-
+  業務の言葉で、何があり（エンティティと項目）、どう変わり（状態と遷移）、何ができ（操作）、何を守り（データの決まり）、どうつながるか（関連と保有）を 1 枚で読む。
+  ファイルは持たず、基本設計の項目（エンティティ・状態と遷移・操作・データの決まり）を読むビューを並べる（ADR-0042「設計書は、モデルをレビューしやすくするビュー」）。
+  ドメイン関連定義書にあたる内容は、「関連」と、エンティティ一覧の「親エンティティ」（保有）で読む
+inputs:
+  - { key: entity, label: エンティティ, type: basic-entity-list#エンティティ参照, default: ENT-todo }
+sections:
+  - { id: members, label: エンティティ（親エンティティは保有の関係）, group: 何があるか, view: entity-definition-list }
+  - { id: items, label: 項目, group: 何があるか, view: entity-definition-review-items }
+  - { id: relations, label: 関連（参照）, group: どうつながるか, view: domain-definition-relations }
+  - { id: states, label: 状態, group: どう変わるか, view: state-definition-states }
+  - { id: transitions, label: はじまりと遷移, group: どう変わるか, view: state-definition-transitions }
+  - { id: operations, label: 操作, group: 何ができるか, view: operation-definition }
+  - { id: rules, label: データの決まり, group: 何を守るか, view: rule-definition }

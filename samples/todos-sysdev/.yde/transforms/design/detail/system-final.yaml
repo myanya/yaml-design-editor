@@ -3,8 +3,6 @@ name: 全設計書の確定前検査
 scope: design
 dependsOn:
   - dashboard-flows
-  - domain-relations
-  - domains
   - error-handling
   - errors
   - messages
@@ -183,58 +181,6 @@ rules:
         $concat:
           - $each:
               $view: dashboard-flows-derived-input
-            $bind: derived
-            $build:
-              $when:
-                - path: values.record.value
-                  exists: true
-              $then:
-                target:
-                  $copy: values.record.id
-                expected:
-                  $copy: values.record.value.id
-                actual:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: .
-                      $of: documents
-                      $build:
-                        $when:
-                          - path: designId
-                            equals:
-                              $copy: values.record.id
-                              $of: derived
-                        $then:
-                          $copy: id
-          - $each:
-              $view: domain-relations-derived-input
-            $bind: derived
-            $build:
-              $when:
-                - path: values.record.value
-                  exists: true
-              $then:
-                target:
-                  $copy: values.record.id
-                expected:
-                  $copy: values.record.value.id
-                actual:
-                  $apply: contract-first
-                  $with:
-                    matches:
-                      $each: .
-                      $of: documents
-                      $build:
-                        $when:
-                          - path: designId
-                            equals:
-                              $copy: values.record.id
-                              $of: derived
-                        $then:
-                          $copy: id
-          - $each:
-              $view: domains-derived-input
             $bind: derived
             $build:
               $when:
@@ -837,47 +783,6 @@ rules:
                 path: collection
                 oneOf:
                   - screens
-          $then:
-            input:
-              $copy: id
-              $of: input
-            collection:
-              $copy: collection
-              $of: input
-            reason: このコレクションへの追加には対応していません
-        - $when:
-            - path: kind
-              of: input
-              equals: domain-relations
-            - not:
-                of: input
-                path: collection
-                oneOf:
-                  - domains
-                  - relations
-                  - holdings
-          $then:
-            input:
-              $copy: id
-              $of: input
-            collection:
-              $copy: collection
-              $of: input
-            reason: このコレクションへの追加には対応していません
-        - $when:
-            - path: kind
-              of: input
-              equals: domains
-            - not:
-                of: input
-                path: collection
-                oneOf:
-                  - members
-                  - information
-                  - states
-                  - operations
-                  - rules
-                  - relations
           $then:
             input:
               $copy: id

@@ -9,8 +9,6 @@ definitions:
     type: enum
     values:
       - value: dashboard-flows
-      - value: domain-relations
-      - value: domains
       - value: error-handling
       - value: errors
       - value: messages
@@ -169,7 +167,7 @@ definitions:
         message: コレクションへの追加には collection が必要です
   基本設計の種類:
     type: 種類
-    values: [domains, domain-relations, errors, messages, screen-transitions]
+    values: [errors, messages, screen-transitions]
   基本設計の補正:
     type: 補正
     fields:

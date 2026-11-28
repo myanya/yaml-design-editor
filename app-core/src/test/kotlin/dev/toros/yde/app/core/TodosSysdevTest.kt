@@ -213,30 +213,25 @@ class TodosSysdevTest {
     }
 
     /**
-     * ドメイン定義書とドメイン関連定義書は、業務モデルから計算で作る: ドメインは集約（入れ子の持ち主がいない型と、その中の型）で、
-     * todos では TODO（作業項目を含む）・カテゴリ・タグの 3 つ。業務の言葉で書き、関係は出る向きと入る向きの両方。
+     * ドメイン定義書とドメイン関連定義書は、ファイルを持たない（ADR-0042「設計書は、モデルをレビューしやすくするビュー」）。
+     * 基本設計の項目（エンティティ・状態と遷移・操作・データの決まり）を読むビューを、ダッシュボード「ドメイン定義書」に並べる。
      */
     @Test
-    fun `ドメインの設計書は集約ごとに計算で作る`() {
-        fun doc(path: String) = dev.toros.yde.yaml.YamlIO.toAny(dev.toros.yde.yaml.YamlIO.parseFirst(java.nio.file.Files.readString(root.resolve(path)))!!) as Map<*, *>
-        fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
-        val names = java.nio.file.Files.list(root.resolve("design/basic/final/domains")).use { s -> s.map { it.fileName.toString() }.sorted().toList() }
-        assertEquals(listOf("category.yaml", "tag.yaml", "todo.yaml"), names, "入れ子の型（作業項目）は集約の中なので、ドメインにしない")
-        val todo = doc("design/basic/final/domains/todo.yaml")
-        assertEquals(listOf("集約の中心", "「TODO」の中にだけある"), list(todo, "members").map { it["role"] })
-        val items = list(list(todo, "information")[0], "items").associateBy { it["key"] }
-        assertEquals("一行の文（100 文字まで）", items["title"]?.get("kind"))
-        assertEquals("カテゴリを 1 つ指す", items["category"]?.get("kind"))
-        assertEquals("作業項目の並び", items["tasks"]?.get("kind"))
-        assertEquals(listOf("未着手", "対応中", "中断", "完了", "中止"), items["status"]?.get("choices"))
-        val text = java.nio.file.Files.readString(root.resolve("design/basic/final/domains/todo.yaml"))
-        assertTrue(listOf("VARCHAR", "Mapper", "テーブル", "Controller").none { it in text }, "ドメイン定義書はシステムの言葉を書かない")
-        assertEquals(listOf("出る" to "category", "出る" to "tag", "出る" to "todo", "入る" to "todo"), list(todo, "relations").map { it["direction"] to it["to"] })
-        val category = doc("design/basic/final/domains/category.yaml")
-        assertEquals(listOf("このカテゴリのTODO"), list(category, "relations").map { it["label"] }, "関係は入る向きにも出る（逆向きの名前で）")
-        val relations = doc("design/basic/final/domain-relations.yaml")
-        assertEquals(listOf("in-category", "tagged", "follow-up-of"), list(relations, "relations").map { it["relation"] })
-        assertEquals(listOf("todo" to "todo-task"), list(relations, "holdings").map { it["from"] to it["to"] })
+    fun `ドメイン定義書はファイルを持たず 基本設計の項目を読むビューで見る`() {
+        val ws = Workspace.open(root)
+        val views = Views.load(ws.root, ws.schemas)
+        assertEquals(emptyList(), views.errors)
+        fun shown(name: String) = Views.resolve(assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, emptyMap())
+        fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) = row.cells.single { it.column.label == label }.value?.let(dev.toros.yde.yaml.YamlIO::toAny)
+        // 関連（参照）は、エンティティの項目のうち、ほかのエンティティを指す項目から読む
+        val relations = shown("domain-definition-relations")
+        assertEquals(listOf("in-category" to "1 つまで", "tagged" to "いくつでも", "follow-up-of" to "1 つまで"), relations.map { cell(it, "関連の名前") to cell(it, "いくつ") })
+        assertEquals(listOf<Any?>("TODO"), relations.map { cell(it, "持つ側") }.distinct())
+        // 保有（作業項目は TODO の中にだけある）は、エンティティ一覧の親エンティティで読む
+        assertEquals(listOf<Any?>("TODO"), shown("entity-definition-list").map { cell(it, "親エンティティ") }.filter { it != null && it != "" })
+        val dashboard = java.nio.file.Files.readString(root.resolve(".yde/views/design/basic/review/domain-definition.yaml"))
+        assertTrue(listOf("entity-definition-list", "state-definition-states", "operation-definition", "rule-definition", "domain-definition-relations").all { "view: $it" in dashboard })
+        assertTrue(listOf("design/basic/final/domains", "design/basic/final/domain-relations.yaml", "design/basic/derived/documents/domains").none { java.nio.file.Files.exists(root.resolve(it)) }, "ドメイン定義書のファイルは無い")
     }
 
     /**
@@ -529,7 +524,6 @@ class TodosSysdevTest {
         val accessDefinition = Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "detail-table-access" }
         assertEquals(setOf("basic-entities", "basic-operations", "basic-rules", "basic-queries", "basic-screens", "detail-tables", "detail-document-input-gate"), accessDefinition.dependsOn.toSet(), "作る元は基本設計の項目と、同じ詳細設計のテーブルの項目")
         assertEquals(listOf("documents"), concepts("detail-status"), "状態の型は、基本設計の「状態と遷移」の項目（入力のビュー）だけを読み、業務モデルの概念を読まない")
-        assertTrue("relations.cardinality" in concepts("domains-derived") && "lifecycles.transitions" in concepts("domains-derived"), "ドメイン定義書の導出: ${concepts("domains-derived")}")
         assertEquals(emptyList<Any>(), concepts("screen-styles-derived"), "クラスの対応表の導出は業務モデルを読まない（決まった表）")
         assertEquals(null, lineage["basic-entities"]?.get("stage"), "確定項目への移行後は段を再適用しない")
         assertTrue(Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "basic-entities" }.dependsOn.contains("basic-final"))

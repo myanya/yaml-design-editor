@@ -4,8 +4,6 @@ rows:
   idPattern: DOC-*
   schemaIds:
     - dashboard-flow
-    - domain-definition
-    - domain-relations
     - error-definition
     - error-handling
     - message-definition

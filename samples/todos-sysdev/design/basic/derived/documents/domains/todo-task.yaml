@@ -1,7 +1,0 @@
-# 生成物（domains-derived）: 手で直さず、業務モデルか生成の定義（design/basic/domains-derived.yaml）を直して作り直します（CLI generate）。
-id: DRV-document-domains.todo-task
-record:
-  id: DOC-domains.todo-task
-  source:
-    id: rule-domains
-    document: .yde/transforms/design/basic/domains-derived.yaml

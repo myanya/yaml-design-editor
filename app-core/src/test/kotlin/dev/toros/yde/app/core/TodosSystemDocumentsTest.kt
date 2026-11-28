@@ -104,7 +104,7 @@ class TodosSystemDocumentsTest {
             assertNotNull(views.view(name)), ws.index, ws::treeOf, ws::schemaFor, params)
         fun cell(row: dev.toros.yde.semantic.VirtualRow, label: String) =
             row.cells.single { it.column.label == label }.value?.let(YamlIO::toAny)
-        assertEquals(49, shown("system-document-list").size)
+        assertEquals(45, shown("system-document-list").size)
         assertEquals(setOf("category", "tag", "todo", "todo-task"), shown("entity-trace").map { it.id }.toSet())
         assertEquals(15, shown("action-trace").size)
         val process = raw(Files.readString(sample.resolve("design/detail/final/processes/complete-todo.yaml")))
@@ -120,7 +120,7 @@ class TodosSystemDocumentsTest {
     private fun store(corrections: String = "[]", additions: String = "[]", specifications: String = "[]"): InMemoryDocumentStore {
         val files = TodosSysdevFiles.inputs(sample).filter { it.toString().endsWith(".yaml") }
             .associate { sample.relativize(it).toString().replace('\\', '/') to Files.readString(it) }.toMutableMap()
-        val basicKinds = setOf("domains", "domain-relations", "errors", "messages", "screen-transitions")
+        val basicKinds = setOf("errors", "messages", "screen-transitions")
         fun selected(text: String, phase: String) = (YamlIO.parseToRaw(text) as List<*>).filter {
             ((it as Map<*, *>)["kind"] in basicKinds) == (phase == "basic")
         }

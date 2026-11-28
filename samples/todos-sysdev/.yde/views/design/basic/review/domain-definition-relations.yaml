@@ -1,0 +1,39 @@
+id: domain-definition-relations
+name: ドメイン定義書（関連）
+description: エンティティの間の関連（参照）を並べる。基本設計のエンティティの項目のうち、ほかのエンティティを指す項目（1 件の参照と、参照の並び）から読む。値は確定項目をそのまま読み、ビューでは計算しない
+rows:
+  match:
+    - node:
+        id: "FLD-*"
+        bind: f
+  rowKey: f
+  where:
+    - or:
+        - of: f
+          path: reference.entities
+          exists: true
+        - of: f
+          path: item.reference.entities
+          exists: true
+order: { schemaId: basic-entity-list }
+columns:
+  - label: 持つ側
+    value: { via: owner, path: label }
+  - label: 項目
+    path: label
+  - label: 参照先
+    value:
+      first:
+        - path: reference.entities
+        - path: item.reference.entities
+  - label: 関連の名前
+    value:
+      first:
+        - path: reference.relation
+        - path: item.reference.relation
+  - label: いくつ
+    value:
+      map: { path: base }
+      using: { ref: 1 つまで, array: いくつでも }
+  - label: 説明
+    path: description

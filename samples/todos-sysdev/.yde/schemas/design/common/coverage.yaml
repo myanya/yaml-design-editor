@@ -294,6 +294,9 @@ constraints:
         notEquals: table-definition
       - of: v
         path: id
+        notEquals: domain-definition
+      - of: v
+        path: id
         notEquals: system-review
       - of: v
         path: id

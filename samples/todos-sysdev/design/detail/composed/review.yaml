@@ -6,22 +6,6 @@ documents:
     kind: dashboard-flows
     source: todo-dashboard
     path: design/detail/final/controllers/dashboards/todo-dashboard.yaml
-  - id: DOC-domain-relations.domain-relations
-    kind: domain-relations
-    source: domain-relations
-    path: design/basic/final/domain-relations.yaml
-  - id: DOC-domains.category
-    kind: domains
-    source: category
-    path: design/basic/final/domains/category.yaml
-  - id: DOC-domains.tag
-    kind: domains
-    source: tag
-    path: design/basic/final/domains/tag.yaml
-  - id: DOC-domains.todo
-    kind: domains
-    source: todo
-    path: design/basic/final/domains/todo.yaml
   - id: DOC-error-handling.error-handling
     kind: error-handling
     source: error-handling

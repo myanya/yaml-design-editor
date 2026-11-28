@@ -55,12 +55,6 @@
       ]
     },
     {
-      "id": "domain",
-      "label": [
-        "ドメイン"
-      ]
-    },
-    {
       "id": "arch",
       "label": [
         "方式"
@@ -310,20 +304,6 @@
       "column": "basic",
       "lane": "msg",
       "kind": "errors"
-    },
-    {
-      "id": "dom",
-      "name": "ドメイン定義書",
-      "column": "basic",
-      "lane": "domain",
-      "kind": "domains"
-    },
-    {
-      "id": "domrel",
-      "name": "ドメイン関連定義書",
-      "column": "basic",
-      "lane": "domain",
-      "kind": "domain-relations"
     },
     {
       "id": "tbl",
@@ -884,11 +864,9 @@
         "kind": "work",
         "label": [
           "画面遷移ほか",
-          "の導出（5 種）"
+          "の導出（3 種）"
         ],
         "members": [
-          "t:domains-derived",
-          "t:domain-relations-derived",
           "t:errors-derived",
           "t:messages-derived",
           "t:screen-transitions-derived"
@@ -916,11 +894,9 @@
         "shape": "documents",
         "label": [
           "画面遷移ほか",
-          "（文書の形。5 種）"
+          "（文書の形。3 種）"
         ],
         "members": [
-          "t:domains",
-          "t:domain-relations",
           "t:errors",
           "t:messages",
           "t:screen-transitions"
@@ -955,6 +931,25 @@
         "reads": [
           "b-doc"
         ]
+      },
+      {
+        "id": "b-dom-view",
+        "layer": "basic",
+        "row": 6,
+        "col": 4,
+        "kind": "view",
+        "label": [
+          "ドメイン定義書"
+        ],
+        "views": [
+          "basic/review/domain-definition*.yaml"
+        ],
+        "reads": [
+          "b-ent",
+          "b-sta",
+          "b-ops"
+        ],
+        "note": "ファイルを持たないビューです。エンティティ・状態と遷移・操作・データの決まりの項目を読むビューを、1 枚のダッシュボードに並べます。"
       },
       {
         "id": "b-ops",
@@ -1748,8 +1743,6 @@
         ],
         "status": "role",
         "current": [
-          "t:domains-derived",
-          "t:domain-relations-derived",
           "t:errors-derived",
           "t:messages-derived",
           "t:screen-transitions-derived"
@@ -1875,18 +1868,14 @@
         "label": [
           "ドメイン定義書・関連定義書"
         ],
-        "status": "viewonly",
-        "current": [
-          "t:domains",
-          "t:domain-relations"
-        ],
+        "status": "same",
         "reads": [
           "a-ent",
           "a-op",
           "a-sta",
           "a-rul"
         ],
-        "note": "ほかのファイルの入力になっていないので、ファイルを持たずビューだけにします。"
+        "note": "2026-11-28 に、ファイルを持たないビューにしました（ダッシュボード「ドメイン定義書」。エンティティ・状態と遷移・操作・データの決まりの項目を読むビューを並べ、関連は、ほかのエンティティを指す項目から読みます）。"
       },
       {
         "id": "c-policy",
