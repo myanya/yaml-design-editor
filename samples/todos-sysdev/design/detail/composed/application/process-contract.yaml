@@ -170,6 +170,34 @@ processes:
       - call: TodoMapper.deleteTodoComment
         method: JMTH-todo.deleteTodoComment
         resolved: true
+  - source: DOC-processes.delete-todo-task
+    transactionMode: atomic
+    checks:
+      - mode: current
+        entity: todo
+        phase: before
+      - mode: current
+        entity: todo
+        phase: before
+      - mode: prospective
+        entity: todo
+        phase: before
+      - mode: count
+        entity: todo
+        phase: after
+    calls:
+      - call: TodoMapper.findById
+        method: JMTH-todo.findById
+        resolved: true
+      - call: TodoTaskMapper.deleteTodoTaskTasksRow
+        method: JMTH-todo-task.deleteTodoTaskTasksRow
+        resolved: true
+      - call: TodoMapper.deleteTodoTask
+        method: JMTH-todo.deleteTodoTask
+        resolved: true
+      - call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        resolved: true
   - source: DOC-processes.edit-todo
     transactionMode: atomic
     checks:

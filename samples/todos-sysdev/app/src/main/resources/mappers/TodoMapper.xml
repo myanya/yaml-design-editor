@@ -30,6 +30,7 @@
     <result property="seq" column="seq" javaType="java.lang.Long"/>
     <result property="title" column="title" javaType="java.lang.String"/>
     <result property="done" column="done" javaType="java.lang.Boolean"/>
+    <result property="deleted" column="deleted" javaType="java.lang.Boolean"/>
   </resultMap>
   <resultMap id="row_TodoTagsRow" type="example.todos.data.model.TodoTagsRow">
     <result property="todoId" column="todo_id" javaType="java.lang.String"/>
@@ -193,7 +194,7 @@ AND todo.id = #{input.id}
     SELECT c.*
     FROM todo_task c
 
-    WHERE c.todo_id = #{k0}
+    WHERE c.todo_id = #{k0} AND c.deleted = false
     ORDER BY c.seq
   </select>
 
@@ -366,11 +367,27 @@ AND c.done = true
 
 
 
+
+
+AND c.deleted = false
+
+
+
+
+
 )
  AS column3Done,
 
 
 (SELECT COUNT(*) FROM todo_task c WHERE c.todo_id = todo.id
+
+
+AND c.deleted = false
+
+
+
+
+
 )
  AS column3All,
 
@@ -642,6 +659,27 @@ AND todo.id = #{input.id}
   </update>
 
   <update id="addTodoTask">
+    UPDATE todo SET
+    updated_on = <choose>
+      <when test="true">#{input.contextToday}</when>
+      <otherwise>updated_on</otherwise>
+    </choose>,
+    version = <choose>
+      <when test="true">#{input.nextVersion}</when>
+      <otherwise>version</otherwise>
+    </choose>
+    <where>
+
+AND todo.id = #{input.id}
+
+
+
+
+
+</where>
+  </update>
+
+  <update id="deleteTodoTask">
     UPDATE todo SET
     updated_on = <choose>
       <when test="true">#{input.contextToday}</when>

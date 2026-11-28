@@ -118,7 +118,8 @@ root:
                     - seq
                     - key
                     - element
-                  description: 基本設計の項目をそのまま写したカラムには無い。parent＝親のキー（親のテーブルの主キーを指す）・seq＝並び順・key＝マップのキー・element＝配列・マップの要素（参照・スカラー）
+                    - deleted
+                  description: 基本設計の項目をそのまま写したカラムには無い。parent＝親のキー（親のテーブルの主キーを指す）・seq＝並び順・key＝マップのキー・element＝配列・マップの要素（参照・スカラー）・deleted＝削除の印（論理削除の方式が足す）
                 - key: label
                   label: カラム日本語名（足したカラム・埋め込みだけ）
                   type: string
@@ -165,6 +166,11 @@ root:
                   label: 最大の長さ
                   type: number
                   description: 導出元の項目の最大の長さ（あるときだけ）。SQL の型の穴（VARCHAR({maxLength})）を埋める
+                - key: addedBy
+                  label: 足した方式の指定
+                  type: string
+                  pattern: ^DSPC-\S+$
+                  description: 詳細設計の方式の指定（design/detail/inputs/specifications.yaml）が足したカラムなら、その指定の ID
                 - key: default
                   label: 初期値
                   type: any

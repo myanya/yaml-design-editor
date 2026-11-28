@@ -455,6 +455,46 @@ forms:
         validations:
           - name: NotNull
     classes: []
+  - id: JFORM-delete-todo-task
+    source: DOC-screen-designs-operations.delete-todo-task
+    className: DeleteTodoTaskForm
+    beanName: deleteTodoTaskForm
+    fields:
+      - name: row
+        item: row
+        type: Long
+        accessor: Row
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 作業項目の番号を入力してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+      - name: version
+        item: version
+        type: Long
+        accessor: Version
+        annotations:
+          - valid: true
+            plain: true
+            raw: '@jakarta.validation.constraints.NotNull(message = '
+          - valid: true
+            literal: true
+            value: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          - valid: true
+            plain: true
+            raw: |
+              )
+        validations:
+          - name: NotNull
+    classes: []
   - id: JFORM-edit-todo
     source: DOC-screen-designs-operations.edit-todo
     className: EditTodoForm

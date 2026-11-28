@@ -272,6 +272,20 @@ models:
         default:
           value: false
           literal: boolean
+      - id: JCOL-COL-todo_task.deleted
+        source: COL-todo_task.deleted
+        column: deleted
+        name: deleted
+        accessor: Deleted
+        java:
+          base: boolean
+          name: Boolean
+          qualifiedName: java.lang.Boolean
+          literal: boolean
+        sql: BOOLEAN
+        default:
+          value: false
+          literal: boolean
   - id: JROW-todo_tags
     tableId: TBL-todo_tags
     table: todo_tags

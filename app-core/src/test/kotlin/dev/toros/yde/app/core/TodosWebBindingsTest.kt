@@ -51,8 +51,8 @@ class TodosWebBindingsTest {
     fun `全操作の入力と確認用メソッドを同じ確定値から接続する`() {
         val generated = raw(requireNotNull(probe(sources(), expectValid = true)))
         val operations = rows(generated, "operations")
-        assertEquals(14, operations.size)
-        assertEquals(14, operations.count { it["formClass"] != null }, "入力の無い操作（着手・作業項目を済にする）も、読んだときのバージョンを運ぶ Form を持つ")
+        assertEquals(15, operations.size)
+        assertEquals(15, operations.count { it["formClass"] != null }, "入力の無い操作（着手・作業項目を済にする）も、読んだときのバージョンを運ぶ Form を持つ")
         assertEquals(4, operations.count { rows(it, "confirm").isNotEmpty() })
         assertEquals(raw(Files.readString(sample.resolve(bindingsFile))), generated)
         val edit = operations.single { it["action"] == "edit-todo" }

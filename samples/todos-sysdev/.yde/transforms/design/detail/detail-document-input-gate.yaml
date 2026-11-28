@@ -16,6 +16,7 @@ input:
               - detail-document-corrections
               - detail-document-additions
               - detail-decisions
+              - detail-specifications
         $then:
           $copy: declared
     documents:
@@ -37,6 +38,13 @@ input:
         $with:
           row:
             $view: detail-decisions
+            $one: true
+      # 詳細設計の方式の指定（全体の判断）
+      design/detail/inputs/specifications.yaml:
+        $apply: input-document
+        $with:
+          row:
+            $view: detail-specifications
             $one: true
 build:
   id: SYS-detail-input-check

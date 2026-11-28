@@ -88,6 +88,11 @@ screens:
     label: コメントを削除する（確認）
     source: SCR-delete-todo-comment
     request: GET /todo/{id}/delete-todo-comment/confirm
+  - id: delete-todo-task/confirm
+    kind: confirm
+    label: 作業項目を削除する（確認）
+    source: SCR-delete-todo-task
+    request: GET /todo/{id}/delete-todo-task/confirm
   - id: edit-todo/input
     kind: input
     label: TODOを編集する（入力）
@@ -266,6 +271,9 @@ transitions:
     by: 表「コメント一覧」の行のボタン「コメントを削除する」
     to: delete-todo-comment/confirm
   - from: todo
+    by: 表「作業項目」の行のボタン「作業項目を削除する」
+    to: delete-todo-task/confirm
+  - from: todo
     by: 表「作業項目」の行のボタン「作業項目を済にする」
     to: todo-task.finish/confirm
   - from: add-category/input
@@ -319,6 +327,10 @@ transitions:
     by: ボタン「入力へ戻る」
     to: add-todo-task/input
   - from: add-todo-task/confirm
+    by: ボタン「確定」
+    to: 起点の画面
+    note: 完了の知らせを出す
+  - from: delete-todo-task/confirm
     by: ボタン「確定」
     to: 起点の画面
     note: 完了の知らせを出す

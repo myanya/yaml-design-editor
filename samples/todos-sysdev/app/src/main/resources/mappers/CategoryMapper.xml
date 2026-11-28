@@ -30,6 +30,7 @@
     <result property="seq" column="seq" javaType="java.lang.Long"/>
     <result property="title" column="title" javaType="java.lang.String"/>
     <result property="done" column="done" javaType="java.lang.Boolean"/>
+    <result property="deleted" column="deleted" javaType="java.lang.Boolean"/>
   </resultMap>
   <resultMap id="row_TodoTagsRow" type="example.todos.data.model.TodoTagsRow">
     <result property="todoId" column="todo_id" javaType="java.lang.String"/>

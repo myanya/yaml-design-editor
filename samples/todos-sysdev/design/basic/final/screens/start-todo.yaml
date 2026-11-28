@@ -2,7 +2,7 @@
 id: SCR-start-todo
 source: start-todo
 kind: operation
-seq: 3-08
+seq: 3-09
 label: TODOに着手する
 operation: ACT-start-todo
 hidden:

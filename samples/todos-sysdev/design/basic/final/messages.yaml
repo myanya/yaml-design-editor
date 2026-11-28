@@ -58,6 +58,14 @@ messages:
     kind: 前提の断り
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: 操作 add-todo-task の前提 version-unchanged
+  - key: delete-todo-task.active
+    kind: 前提の断り
+    text: '{id} は完了か中止をしているので、作業項目を消せません'
+    source: 操作 delete-todo-task の前提 active
+  - key: delete-todo-task.version-unchanged
+    kind: 前提の断り
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    source: 操作 delete-todo-task の前提 version-unchanged
   - key: edit-todo.version-unchanged
     kind: 前提の断り
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
@@ -154,6 +162,10 @@ messages:
     kind: 完了の知らせ
     text: 作業項目を追加しました（{id}）
     source: 操作 add-todo-task の名前
+  - key: delete-todo-task.done
+    kind: 完了の知らせ
+    text: 作業項目を削除しました（{id}）
+    source: 操作 delete-todo-task の名前
   - key: edit-todo.done
     kind: 完了の知らせ
     text: TODOを編集しました（{id}）
@@ -217,6 +229,10 @@ messages:
   - key: error.notFound.todo.comments
     kind: 見つからない
     text: TODO「{id}」のコメント一覧に、指定した行はありません
+    source: 行の番号を指定して書いて、その行が無いとき（404）
+  - key: error.notFound.todo.tasks
+    kind: 見つからない
+    text: TODO「{id}」の作業項目に、指定した行はありません
     source: 行の番号を指定して書いて、その行が無いとき（404）
   - key: error.token
     kind: 二重の確定・時間切れ
@@ -392,6 +408,22 @@ validation:
     label: 版
     messages:
       - key: validation.NotNull.addTodoTaskForm.version
+        kind: 入力の誤り
+        text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+        source: 必須
+  - form: deleteTodoTaskForm
+    field: row
+    label: 作業項目の番号
+    messages:
+      - key: validation.NotNull.deleteTodoTaskForm.row
+        kind: 入力の誤り
+        text: 作業項目の番号を入力してください
+        source: 必須
+  - form: deleteTodoTaskForm
+    field: version
+    label: 版
+    messages:
+      - key: validation.NotNull.deleteTodoTaskForm.version
         kind: 入力の誤り
         text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
         source: 必須

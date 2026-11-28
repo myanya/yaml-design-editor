@@ -275,6 +275,19 @@ tables:
         table: TBL-todo_task
         base: boolean
         default: false
+      - seq: '06'
+        id: COL-todo_task.deleted
+        name: deleted
+        role: deleted
+        label: 削除の印
+        description: 消した行に true を立てる（論理削除）。読む・数える読み書きは、false の行だけを対象にする
+        sqlType: SQL-boolean
+        notNull: true
+        default: false
+        addedBy: DSPC-001
+        item: deleted
+        table: TBL-todo_task
+        base: boolean
     foreignKeys:
       - seq: '01'
         id: FK-fk_todo_task_todo

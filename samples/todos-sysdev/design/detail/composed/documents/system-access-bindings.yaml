@@ -433,6 +433,18 @@ bindings:
     after: TodoMapper.addTodoTask の次
     roles:
       - seq
+  - before: TodoMapper.deleteTodoTask
+    after: TodoMapper.deleteTodoTask
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoMapper.deleteTodoTask の次
+    after: TodoMapper.deleteTodoTask の次
+    roles:
+      - seq
   - before: TodoMapper.editTodo
     after: TodoMapper.editTodo
     roles:
@@ -575,6 +587,18 @@ bindings:
       - service
   - before: TodoTaskMapper.maxSeq の次
     after: TodoTaskMapper.maxSeq の次
+    roles:
+      - seq
+  - before: TodoTaskMapper.deleteTodoTaskTasksRow
+    after: TodoTaskMapper.deleteTodoTaskTasksRow
+    roles:
+      - call
+      - calls
+      - reads
+      - read
+      - service
+  - before: TodoTaskMapper.deleteTodoTaskTasksRow の次
+    after: TodoTaskMapper.deleteTodoTaskTasksRow の次
     roles:
       - seq
   - before: TodoTaskMapper.todoTaskFinish

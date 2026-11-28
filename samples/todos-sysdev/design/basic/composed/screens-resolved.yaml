@@ -16,6 +16,7 @@ reach:
     - edit-todo-comment
     - delete-todo-comment
     - add-todo-task
+    - delete-todo-task
     - edit-todo
     - start-todo
     - suspend-todo
@@ -354,6 +355,10 @@ details:
               label: 作業項目を済にする
               shownWhen: いつも
               to: todo-task.finish/confirm
+            - operation: delete-todo-task
+              label: 作業項目を削除する
+              shownWhen: いつも
+              to: delete-todo-task/confirm
       buttons:
         - operation: add-todo-comment
           label: TODOにコメントを追加する
@@ -872,6 +877,49 @@ operations:
         back: POST /todo/{id}/add-todo-task/back
         execute: POST /todo/{id}/add-todo-task
       designId: SCR-add-todo-task
+  - resolvedId: RSV-operation.delete-todo-task
+    screen: SCR-delete-todo-task
+    record:
+      id: delete-todo-task
+      name: 作業項目を削除する
+      kind: operation
+      target: todo
+      starts:
+        - screen: todo
+          place: 表「作業項目」の行のボタン
+      shownWhen: いつも
+      row:
+        key: row
+        label: 作業項目の番号
+        table: tasks
+        tableLabel: 作業項目
+        carried: 行のボタンが運ぶ（URL のパラメータ）。入力・確認の画面では hidden 項目で持ち回す
+      carried:
+        version:
+          $copy: version
+          $of: self
+      confirm:
+        screen: delete-todo-task/confirm
+        request: GET /todo/{id}/delete-todo-task/confirm
+        shows: []
+      execute:
+        request: POST /todo/{id}/delete-todo-task
+        returns: 起点の画面（starts の画面。画面の ID で受け取る）
+        notice: delete-todo-task.done
+        refusals:
+          - key: delete-todo-task.active
+            message: '{id} は完了か中止をしているので、作業項目を消せません'
+          - key: delete-todo-task.version-unchanged
+            message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+          - key: check.updated-not-before-created
+            message: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
+          - key: check.closed-has-no-open-task
+            message: 完了したTODO「{id}」に、済んでいない作業項目があります
+        onRefusal: 確認画面に断りの文を出す（受け取る値が原因のデータの決まりは、確認へで入力画面の欄の横にも。エラー定義書）
+      originalRoutes:
+        confirm: GET /todo/{id}/delete-todo-task/confirm
+        execute: POST /todo/{id}/delete-todo-task
+      designId: SCR-delete-todo-task
   - resolvedId: RSV-operation.edit-todo
     screen: SCR-edit-todo
     record:

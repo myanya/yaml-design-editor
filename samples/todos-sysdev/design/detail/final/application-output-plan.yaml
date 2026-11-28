@@ -135,6 +135,10 @@ outputs:
     report: app-service-input
     params:
       operation: SINPUT-delete-todo-comment
+  - id: OUTPUT-SINPUT-delete-todo-task
+    report: app-service-input
+    params:
+      operation: SINPUT-delete-todo-task
   - id: OUTPUT-SINPUT-edit-todo
     report: app-service-input
     params:
@@ -228,6 +232,10 @@ outputs:
     report: app-web-form
     params:
       form: JFORM-delete-todo-comment
+  - id: OUTPUT-JFORM-delete-todo-task
+    report: app-web-form
+    params:
+      form: JFORM-delete-todo-task
   - id: OUTPUT-JFORM-edit-todo
     report: app-web-form
     params:
@@ -290,6 +298,10 @@ outputs:
     report: app-web-operation
     params:
       webOperation: JWEB-delete-todo-comment
+  - id: OUTPUT-JWEB-delete-todo-task
+    report: app-web-operation
+    params:
+      webOperation: JWEB-delete-todo-task
   - id: OUTPUT-JWEB-edit-todo
     report: app-web-operation
     params:
@@ -374,6 +386,10 @@ outputs:
     report: app-web-page
     params:
       page: WPAGE-delete-todo-comment/confirm
+  - id: OUTPUT-WPAGE-delete-todo-task/confirm
+    report: app-web-page
+    params:
+      page: WPAGE-delete-todo-task/confirm
   - id: OUTPUT-WPAGE-edit-todo-comment/confirm
     report: app-web-page
     params:

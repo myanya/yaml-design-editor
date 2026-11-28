@@ -41,12 +41,14 @@ public class TodoTaskService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row5 = new TodoTaskRow();
             row5.setDone(false);
+            row5.setDeleted(false);
             var before5 = original;
             row5.setId(before5.getId());
             row5.setTodoId(before5.getTodoId());
             row5.setSeq(before5.getSeq());
             row5.setTitle(before5.getTitle());
             row5.setDone(before5.getDone());
+            row5.setDeleted(before5.getDeleted());
             if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
                 row5.setDone(true);
             } else {}

@@ -1,0 +1,126 @@
+# 生成物（processes）: 手で直さず、業務モデルか生成の定義（design/detail/processes.yaml）を直して作り直します（CLI generate）。
+id: delete-todo-task
+name: 作業項目を削除する
+service:
+  class: TodoService
+  method: deleteTodoTask
+  arguments:
+    - id
+    - row
+    - version
+confirm: []
+transaction: 1 操作 1 トランザクション（全部書けたときだけ確定する）
+steps:
+  - step: read
+    call: TodoMapper.findById
+    key:
+      param: id
+    missing: 見つからなければ NotFoundException（error.notFound.todo）
+    entity: todo
+  - step: check
+    precondition: delete-todo-task.active
+    by: Java（読んだ行）
+    rule:
+      - of: t
+        path: status
+        oneOf:
+          - OPEN
+          - IN_PROGRESS
+          - SUSPENDED
+    message: delete-todo-task.active
+    text: '{id} は完了か中止をしているので、作業項目を消せません'
+    checkMode: current
+    subjectAlias: t
+    phase: before
+    entity: todo
+  - step: check
+    precondition: delete-todo-task.version-unchanged
+    by: Java（読んだ行）
+    rule:
+      - of: t
+        path: version
+        equals: $version
+    message: delete-todo-task.version-unchanged
+    text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    checkMode: current
+    subjectAlias: t
+    phase: before
+    entity: todo
+  - step: check
+    constraint: updated-not-before-created
+    by: Java（書いた後の値）
+    rule:
+      check:
+        - gte:
+            - path: updated_on
+            - path: created_on
+    message: check.updated-not-before-created
+    checkMode: prospective
+    phase: before
+    entity: todo
+  - step: write
+    call: TodoTaskMapper.deleteTodoTaskTasksRow
+    kind: delete
+    where:
+      - item: todo_id
+        param: id
+        value:
+          param: id
+      - item: seq
+        param: row
+        value:
+          param: row
+    rowKey:
+      item: seq
+      param: row
+    missing: 行が無ければ NotFoundException（error.notFound.todo.tasks）
+    missingEntity: todo.tasks
+  - step: write
+    call: TodoMapper.deleteTodoTask
+    kind: update
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+      - item: version
+        value:
+          $copy: version
+          $of: next
+    where:
+      - item: id
+        param: id
+        value:
+          param: id
+  - step: check
+    constraint: closed-has-no-open-task
+    by: SQL（件数。書いた後）
+    call: TodoTaskMapper.countClosedHasNoOpenTask
+    key:
+      param: id
+    expect: 0 件なら通す
+    violation: 例外（RefusedException）を投げ、書いたものをトランザクションごと取り消す
+    message: check.closed-has-no-open-task
+    checkMode: count
+    phase: after
+    entity: todo
+    countExpectation: absent
+subject: todo
+originalService:
+  class: TodoService
+  method: deleteTodoTask
+  arguments:
+    - id
+    - row
+    - version
+transactionMode: atomic
+designId: DOC-processes.delete-todo-task
+designKind: processes
+designPath: design/detail/final/processes/delete-todo-task.yaml
+origins:
+  source:
+    id: rule-processes
+    document: .yde/transforms/design/detail/processes-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

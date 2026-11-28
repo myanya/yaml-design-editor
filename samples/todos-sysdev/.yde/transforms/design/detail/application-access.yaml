@@ -1996,6 +1996,15 @@ rules:
         order:
           $copy: order
           $of: node
+        # 一緒に読む明細を絞る条件（論理削除の「削除されていない」）。決まった値との一致だけ
+        filters:
+          $each: where
+          $of: node
+          $build:
+            column:
+              $copy: column
+            value:
+              $format: '{equals}'
   - id: type-of-column
     with:
       - column

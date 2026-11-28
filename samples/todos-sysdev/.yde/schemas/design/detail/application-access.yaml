@@ -830,6 +830,22 @@ root:
                                   required: true
                                   pattern: ^[a-z][a-z0-9_]*$
                               unknownFields: allow
+                          - key: filters
+                            label: 明細を絞る条件
+                            type: array
+                            description: 一緒に読む明細のうち、読む行を絞る条件（カラムと、決まった値）。論理削除の「削除されていない」に使う
+                            item:
+                              type: object
+                              fields:
+                                - key: column
+                                  type: string
+                                  required: true
+                                  pattern: ^[a-z][a-z0-9_]*$
+                                - key: value
+                                  type: string
+                                  required: true
+                                  pattern: ^(true|false|-?[0-9]+)$
+                              unknownFields: error
                           - key: target
                             type: object
                             fields:

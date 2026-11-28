@@ -2107,6 +2107,82 @@ model:
           items:
             - todo-task.done
             - todo.tasks
+    - id: delete-todo-task
+      kind: action
+      label: 作業項目を削除する
+      description: 未完了のTODOの作業項目 1 件を消します。ほかの作業項目は変えません（残った作業項目の番号は振り直しません）。
+      target:
+        entity: todo
+      params:
+        - key: row
+          label: 作業項目の番号
+          type: int
+          base: int
+          description: 作業項目の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+      require:
+        - id: active
+          message: '{id} は完了か中止をしているので、作業項目を消せません'
+          rule:
+            match:
+              - node:
+                  entity: todo
+                  bind: t
+            where:
+              - of: t
+                path: status
+                oneOf:
+                  - OPEN
+                  - IN_PROGRESS
+                  - SUSPENDED
+            expect: exists
+      effects:
+        - op: delete
+          schema: todo-detail
+          path: tasks[$row]
+          of: self
+          source: do
+          entity: todo
+          field:
+            key: tasks
+            base: array
+            item:
+              base: object
+              entity: todo-task
+          row:
+            param: row
+        - op: set
+          schema: todo-detail
+          path: updated_on
+          value:
+            $copy: today
+            $of: context
+          source: auto
+          auto: updated
+          entity: todo
+          field:
+            key: updated_on
+            base: date
+      creates: []
+      subject: todo
+      checks:
+        - constraint: updated-not-before-created
+          form: element
+          level: error
+          items:
+            - todo.updated_on
+        - constraint: closed-has-no-open-task
+          form: pattern
+          level: error
+          items:
+            - todo.tasks
     - id: edit-todo
       kind: action
       label: TODOを編集する
@@ -5116,6 +5192,35 @@ model:
                     id: ''
                     title: $title
                     done: false
+                  of: self
+          - id: delete-todo-task
+            label: 作業項目を削除する
+            description: 未完了のTODOの作業項目 1 件を消します。ほかの作業項目は変えません（残った作業項目の番号は振り直しません）。
+            target:
+              entity: todo
+            params:
+              - key: row
+                label: 作業項目の番号
+                type: int
+                min: 0
+                required: true
+                description: 作業項目の何番目か（0 から数えます）
+            require:
+              - id: active
+                match:
+                  - node:
+                      entity: todo
+                      bind: t
+                where:
+                  - of: t
+                    state: todo-ACTIVE
+                expect: exists
+                message: '{id} は完了か中止をしているので、作業項目を消せません'
+            do:
+              - delete:
+                  in:
+                    schemaId: todo-detail
+                  path: tasks[$row]
                   of: self
           - id: edit-todo
             label: TODOを編集する

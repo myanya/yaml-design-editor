@@ -42,6 +42,9 @@ tables:
       - id: BTN-todo.tasks.todo-task.finish
         operation: ACT-todo-task.finish
         to: SCR-todo-task.finish.confirm
+      - id: BTN-todo.tasks.delete-todo-task
+        operation: ACT-delete-todo-task
+        to: SCR-delete-todo-task.confirm
 buttons:
   - id: BTN-todo.add-todo-comment
     operation: ACT-add-todo-comment

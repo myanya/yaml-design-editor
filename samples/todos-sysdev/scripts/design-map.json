@@ -127,7 +127,8 @@
     "SCOR-*",
     "SSPC-*",
     "DCOR-*",
-    "DDEC-*"
+    "DDEC-*",
+    "DSPC-*"
   ],
   "ignore": [
     "basic-document-input-gate",
@@ -1064,7 +1065,8 @@
           "in:design/detail/inputs/documents/*.yaml",
           "in:design/detail/inputs/application/java-types.yaml",
           "in:design/detail/inputs/appearance/*.yaml",
-          "in:design/detail/inputs/decisions.yaml"
+          "in:design/detail/inputs/decisions.yaml",
+          "in:design/detail/inputs/specifications.yaml"
         ]
       },
       {
@@ -1920,7 +1922,8 @@
           "in:design/detail/inputs/tables/ledger.yaml",
           "in:design/detail/inputs/tables/corrections.yaml",
           "in:design/detail/inputs/documents/*.yaml",
-          "in:design/detail/inputs/decisions.yaml"
+          "in:design/detail/inputs/decisions.yaml",
+          "in:design/detail/inputs/specifications.yaml"
         ],
         "note": "索引の追加、名前の付け替え、CSS 部品の追加など。"
       },
@@ -3799,6 +3802,17 @@
         "why": "文書への補正・追加を、項目への判断に置き換える",
         "done": {
           "missing": "design/detail/inputs/documents/additions.yaml"
+        }
+      },
+      {
+        "target": "acc",
+        "subject": "論理削除（詳細設計の方式の指定）",
+        "action": "足す",
+        "step": 2,
+        "aspect": "making",
+        "why": "詳細設計の全体の判断から、規則で項目を足す・変える例（技術検証）。テーブルに削除の印を足し、消すを「印を立てる」に、読む側に条件を足す",
+        "done": {
+          "exists": "design/detail/inputs/specifications.yaml"
         }
       },
       {

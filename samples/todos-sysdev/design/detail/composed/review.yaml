@@ -62,6 +62,10 @@ documents:
     kind: processes
     source: delete-todo-comment
     path: design/detail/final/processes/delete-todo-comment.yaml
+  - id: DOC-processes.delete-todo-task
+    kind: processes
+    source: delete-todo-task
+    path: design/detail/final/processes/delete-todo-task.yaml
   - id: DOC-processes.edit-todo
     kind: processes
     source: edit-todo
@@ -134,6 +138,10 @@ documents:
     kind: screen-designs-operations
     source: delete-todo-comment
     path: design/detail/final/screen-designs/operations/delete-todo-comment.yaml
+  - id: DOC-screen-designs-operations.delete-todo-task
+    kind: screen-designs-operations
+    source: delete-todo-task
+    path: design/detail/final/screen-designs/operations/delete-todo-task.yaml
   - id: DOC-screen-designs-operations.edit-todo
     kind: screen-designs-operations
     source: edit-todo

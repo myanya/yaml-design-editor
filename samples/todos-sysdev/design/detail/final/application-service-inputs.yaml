@@ -345,6 +345,62 @@ operations:
           carried: true
         classes: []
     classes: []
+  - id: SINPUT-delete-todo-task
+    source: DOC-processes.delete-todo-task
+    action: delete-todo-task
+    service: TodoService
+    method: deleteTodoTask
+    className: DeleteTodoTaskInput
+    arguments:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
+      - key: row
+        name: row
+        accessor: Row
+        path: row
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: row
+          label: 作業項目の番号
+          type: int
+          base: int
+          description: 作業項目の何番目か（0 から数えます）
+          required: true
+          min: 0.0
+          overrides:
+            min: 0.0
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+        classes: []
+      - key: version
+        name: version
+        accessor: Version
+        path: version
+        type: java.lang.Long
+        base: int
+        constraints:
+          key: version
+          label: 版
+          type: int
+          base: int
+          description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+          required: true
+          builtinType:
+            name: int
+            base: int
+            builtin: true
+          carried: true
+        classes: []
+    classes: []
   - id: SINPUT-edit-todo
     source: DOC-processes.edit-todo
     action: edit-todo

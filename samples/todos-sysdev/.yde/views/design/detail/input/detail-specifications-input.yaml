@@ -1,0 +1,11 @@
+id: detail-specifications-input
+name: 詳細設計の生成入力（方式の指定）
+description: 詳細設計の方式の指定を 1 件ずつ読む
+rows:
+  idPattern: DSPC-*
+  schemaIds:
+    - detail-specifications
+columns:
+  - label: specification
+    path: .
+    fileGlob: design/detail/inputs/specifications.yaml

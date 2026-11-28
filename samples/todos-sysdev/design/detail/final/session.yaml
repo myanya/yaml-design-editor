@@ -23,6 +23,7 @@ attributes:
       - TodoController.editTodoCommentConfirm
       - TodoController.deleteTodoCommentConfirm
       - TodoController.addTodoTaskConfirm
+      - TodoController.deleteTodoTaskConfirm
       - TodoController.editTodoConfirm
       - TodoController.startTodoConfirm
       - TodoController.suspendTodoConfirm
@@ -38,6 +39,7 @@ attributes:
       - TodoController.editTodoComment
       - TodoController.deleteTodoComment
       - TodoController.addTodoTask
+      - TodoController.deleteTodoTask
       - TodoController.editTodo
       - TodoController.startTodo
       - TodoController.suspendTodo
@@ -58,6 +60,7 @@ attributes:
       - TodoController.editTodoComment
       - TodoController.deleteTodoComment
       - TodoController.addTodoTask
+      - TodoController.deleteTodoTask
       - TodoController.editTodo
       - TodoController.startTodo
       - TodoController.suspendTodo

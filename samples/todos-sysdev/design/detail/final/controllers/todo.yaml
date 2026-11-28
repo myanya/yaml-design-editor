@@ -209,6 +209,37 @@ handlers:
           - add-todo-task.version-unchanged
           - check.updated-not-before-created
           - check.closed-has-no-open-task
+  - action: delete-todo-task
+    name: 作業項目を削除する
+    form: DeleteTodoTaskForm
+    service: TodoService.deleteTodoTask
+    returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+    steps:
+      - handler: deleteTodoTaskConfirm
+        request: GET /todo/{id}/delete-todo-task/confirm
+        screen: delete-todo-task/confirm
+        does: 受け手を読み、行のボタンが運んだ番号をフォームに受けて検査し（@Validated）、確認画面を出す（番号は hidden 項目）
+        reads:
+          - TodoMapper.findById
+        calls: []
+        session:
+          puts:
+            - token
+      - handler: deleteTodoTask
+        request: POST /todo/{id}/delete-todo-task
+        does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+        session:
+          reads:
+            - token
+          removes:
+            - token
+          puts:
+            - notice
+        refusals:
+          - delete-todo-task.active
+          - delete-todo-task.version-unchanged
+          - check.updated-not-before-created
+          - check.closed-has-no-open-task
   - action: edit-todo
     name: TODOを編集する
     form: EditTodoForm

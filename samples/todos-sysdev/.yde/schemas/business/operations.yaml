@@ -144,6 +144,23 @@ actions:
           path: tasks
           value: { id: '', title: $title, done: false }
           of: self
+  - id: delete-todo-task
+    label: 作業項目を削除する
+    description: 未完了のTODOの作業項目 1 件を消します。ほかの作業項目は変えません（残った作業項目の番号は振り直しません）。
+    target: { entity: todo }
+    params:
+      - { key: row, label: 作業項目の番号, type: int, min: 0, required: true, description: 作業項目の何番目か（0 から数えます） }
+    require:
+      - id: active
+        match: [{ node: { entity: todo, bind: t } }]
+        where: [{ of: t, state: todo-ACTIVE }]
+        expect: exists
+        message: "{id} は完了か中止をしているので、作業項目を消せません"
+    do:
+      - delete:
+          in: { schemaId: todo-detail }
+          path: "tasks[$row]"
+          of: self
   - id: edit-todo
     label: TODOを編集する
     description: 現在値を表示し、変更した項目だけを更新します。状態と完了日は変えません（着手・完了・再開・中止の操作で変えます）。空文字への変更と消去は別で、消去は「値を消す」で指定します。

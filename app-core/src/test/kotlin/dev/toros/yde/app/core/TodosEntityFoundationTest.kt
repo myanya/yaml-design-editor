@@ -233,7 +233,7 @@ class TodosEntityFoundationTest {
         }
         // C/U の書込は 56 個（子のエンティティの中への作用＝作業項目を済にする → TODO の作業項目を U、を含む。
         // コメントの編集と削除は、TODO のコメント一覧と更新日を書く）
-        assertEquals(56, writes)
+        assertEquals(58, writes)
         val todo = rows(ws, "entity-definition-items", "ENT-todo")
         assertEquals(listOf("ENT-tag"), value(todo.single { it.id == "FLD-todo.tags" }, "要素の参照先"))
         assertEquals("ENT-todo-task", value(todo.single { it.id == "FLD-todo.tasks" }, "要素のエンティティ"))

@@ -1,29 +1,22 @@
 id: table-definition-defaults
 name: テーブル設計書（初期値の出力）
-description: 初期値を持つカラムの出力用の一覧。導出元の default を path の列でそのまま受け取り、空文字や空白を保つ。 値の式による文字の読み取りは空白を値なしにするため、DDL はこの一覧の値を使う。型対応表が出力方法を決める 補正と台帳の追加は保存済みの確定値に含む。
+description: 初期値を持つカラムの出力用の一覧。初期値は、カラムの項目が運んでいる値（基本設計の項目の default と、詳細設計の方式が足したカラムの default）を path の列でそのまま受け取り、空文字や空白を保つ。 値の式による文字の読み取りを通さない
 rows:
   match:
     - node:
         id: COL-*
         bind: c
-    - edge:
-        via: source
-    - node:
-        id: FLD-*
-        bind: f
   rowKey: c
   where:
-    - of: f
+    - of: c
       path: default
       exists: true
 order:
   schemaId: detail-table-list
 columns:
   - label: カラム
-    of: c
     path: id
   - label: 初期値
-    of: f
     path: default
   - label: 初期値の出力方法
     value:

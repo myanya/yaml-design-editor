@@ -40,7 +40,7 @@ class TodosServiceProgramsTest {
         val services = rows(document, "services")
         val operations = services.flatMap { rows(it, "operations") }
         assertEquals(4, services.size)
-        assertEquals(14, operations.size)
+        assertEquals(15, operations.size)
         assertTrue(operations.flatMap { rows(it, "tokens") }.all { it["valid"] == true })
         val text = code(document)
         assertTrue("cursor = linked.getFollows()" in text)

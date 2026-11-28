@@ -1,7 +1,7 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-suspend-todo
 source: suspend-todo
-seq: '09'
+seq: '10'
 kind: action
 label: TODOを中断する
 description: 対応中の作業を一時止めます。理由と再開予定日を状態の履歴に残します。完了や中止と違い、再開できます。

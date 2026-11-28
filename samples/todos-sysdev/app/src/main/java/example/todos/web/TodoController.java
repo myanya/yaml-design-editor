@@ -86,6 +86,14 @@ public class TodoController {
     public String addTodoTask(HttpServletRequest request,HttpServletResponse response,Model model) {
         return runtime.handle(request,response,model);
     }
+    @RequestMapping(path="/todo/{id}/delete-todo-task/confirm",method=RequestMethod.GET)
+    public String deleteTodoTaskConfirm(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
+    @RequestMapping(path="/todo/{id}/delete-todo-task",method=RequestMethod.POST)
+    public String deleteTodoTask(HttpServletRequest request,HttpServletResponse response,Model model) {
+        return runtime.handle(request,response,model);
+    }
     @RequestMapping(path="/todo/{id}/edit-todo",method=RequestMethod.GET)
     public String editTodoInput(HttpServletRequest request,HttpServletResponse response,Model model) {
         return runtime.handle(request,response,model);

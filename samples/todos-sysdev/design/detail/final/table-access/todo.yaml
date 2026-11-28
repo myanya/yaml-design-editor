@@ -40,6 +40,10 @@ methods:
         order:
           - item: seq
             column: COL-todo_task.seq
+        where:
+          - item: deleted
+            equals: false
+            column: COL-todo_task.deleted
     names:
       - item: category
         table: TBL-category
@@ -153,10 +157,17 @@ methods:
                   - item: done
                     op: equals
                     value: true
+                  - item: deleted
+                    op: equals
+                    value: false
               all:
                 count: 入れ子の要素
                 item: tasks
                 parent: 行の ID
+                where:
+                  - item: deleted
+                    op: equals
+                    value: false
           replace:
             0/0: ''
       - label: タグ
@@ -216,6 +227,7 @@ methods:
       - ACT-edit-todo-comment
       - ACT-delete-todo-comment
       - ACT-add-todo-task
+      - ACT-delete-todo-task
       - ACT-edit-todo
       - ACT-start-todo
       - ACT-suspend-todo
@@ -438,6 +450,29 @@ methods:
         column: COL-todo.id
     sources:
       - ACT-add-todo-task
+  - id: MTH-todo.deleteTodoTask
+    name: deleteTodoTask
+    kind: update
+    table: TBL-todo
+    set:
+      - item: updated_on
+        value:
+          $copy: today
+          $of: context
+        mode: value
+        column: COL-todo.updated_on
+      - item: version
+        value:
+          $copy: version
+          $of: next
+        mode: value
+        column: COL-todo.version
+    where:
+      - item: id
+        param: id
+        column: COL-todo.id
+    sources:
+      - ACT-delete-todo-task
   - id: MTH-todo.editTodo
     name: editTodo
     kind: update

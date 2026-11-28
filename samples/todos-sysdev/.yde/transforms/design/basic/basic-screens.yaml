@@ -950,22 +950,45 @@ rules:
                       $copy: key
                 entity:
                   $format: ENT-{items[0].field.item.entity}
+                # 行のボタン: その型を受け手にする操作と、この並びの 1 件を番号で指す操作（要素を消す操作など）
                 rowButtons:
-                  $apply: nested-buttons
-                  $with:
-                    operations:
-                      $copy: .
-                      $of: operations
-                    receiver:
-                      $format: ENT-{items[0].field.item.entity}
-                    prefix:
-                      $format: '{e}.{key}'
+                  $concat:
+                    - $apply: nested-buttons
                       $with:
-                        e:
-                          $copy: id
-                          $of: e
-                        key:
-                          $copy: key
+                        operations:
+                          $copy: .
+                          $of: operations
+                        receiver:
+                          $format: ENT-{items[0].field.item.entity}
+                        prefix:
+                          $format: '{e}.{key}'
+                          $with:
+                            e:
+                              $copy: id
+                              $of: e
+                            key:
+                              $copy: key
+                    - $apply: row-buttons
+                      $with:
+                        operations:
+                          $copy: .
+                          $of: operations
+                        item:
+                          $format: FLD-{e}.{key}
+                          $with:
+                            e:
+                              $copy: id
+                              $of: e
+                            key:
+                              $copy: key
+                        prefix:
+                          $format: '{e}.{key}'
+                          $with:
+                            e:
+                              $copy: id
+                              $of: e
+                            key:
+                              $copy: key
         # 画面のボタン: この型を受け手にする操作（並びの 1 件を番号で指す操作は、その並びの表の行のボタンに出す）
         buttons:
           $apply: receiver-buttons

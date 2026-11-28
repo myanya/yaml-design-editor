@@ -275,6 +275,16 @@ rules:
                         $as: snake
                       order:
                         - item: seq
+                      # 論理削除の型は、削除されていない行だけを読む
+                      where:
+                        $when:
+                          - of: model
+                            path: designSoftDeleted
+                            includes:
+                              $copy: id
+                        $then:
+                          - item: deleted
+                            equals: false
               names:
                 $group:
                   $apply: fields
@@ -925,6 +935,53 @@ rules:
                       operation:
                         $copy: id
                         $of: a
+                # 並びの番号で指す削除のうち、要素がエンティティ（作業項目など）のもの: その型のテーブルの 1 行を、親のキーと並び順で消す
+                - $when:
+                    - path: op
+                      equals: delete
+                    - path: field.base
+                      equals: array
+                    - path: field.item.entity
+                      equals:
+                        $copy: id
+                        $of: element
+                    - path: row
+                      exists: true
+                  $then:
+                    - name:
+                        $format: '{m}{f}Row'
+                        $with:
+                          m:
+                            $case:
+                              $copy: id
+                              $of: a
+                            $as: camel
+                          f:
+                            $case:
+                              $copy: field.key
+                            $as: pascal
+                      kind: delete
+                      table:
+                        $case:
+                          $copy: id
+                          $of: element
+                        $as: snake
+                      where:
+                        - item:
+                            $format: '{p}_id'
+                            $with:
+                              p:
+                                $case:
+                                  $copy: owner.entity
+                                  $of: element
+                                $as: snake
+                          param: id
+                        - item: seq
+                          param:
+                            $copy: row.param
+                      operation:
+                        $copy: id
+                        $of: a
                 - $when:
                     - path: entity
                       equals:
@@ -1384,8 +1441,21 @@ rules:
         $as: snake
       parent: 行の ID
       where:
-        $each: count.all.where
-        $apply: cond
+        $concat:
+          - $first:
+              - $each: count.all.where
+                $apply: cond
+              - []
+          # 論理削除の型は、削除されていない行だけを数える
+          - $when:
+              - of: model
+                path: designSoftDeleted
+                includes:
+                  $copy: count.all.match[2].node.entity
+            $then:
+              - item: deleted
+                op: equals
+                value: false
   - id: expr
     when:
       - path: count.path
@@ -1398,6 +1468,15 @@ rules:
             - path: count.path
             - ^[^\[]+
       parent: 行の ID
+      # 入れ子の要素が論理削除の型なら、削除されていない行だけを数える
+      where:
+        $apply: nested-soft-conditions
+        $with:
+          field:
+            $value:
+              extract:
+                - path: count.path
+                - ^[^\[]+
   - id: expr
     when:
       - path: refCount
@@ -1481,6 +1560,23 @@ rules:
                   extract:
                     - path: entity
                     - ^ENT-(.*)$
+      # 論理削除のエンティティ: 同じ詳細設計のテーブルの項目から決める（主のテーブルに、削除の印のカラムがある）
+      designSoftDeleted:
+        $each:
+          $view: physical-tables-input
+        $flatten: true
+        $build:
+          $apply: soft-deleted-entity
+          $with:
+            flags:
+              $each: values.record.columns
+              $flatten: true
+              $build:
+                $when:
+                  - path: role
+                    equals: deleted
+                $then:
+                  - true
       designDetails:
         $each: .
         $of: screens
@@ -1959,8 +2055,17 @@ rules:
       $apply: physical-method-result
       $with:
         method:
-          $copy: .
-          $of: method
+          $apply: soft-method-of
+          $with:
+            method:
+              $copy: .
+              $of: method
+            table:
+              $apply: physical-find-table
+              $with:
+                name:
+                  $copy: table
+                  $of: method
         table:
           $apply: physical-find-table
           $with:
@@ -2429,3 +2534,171 @@ rules:
     build:
       $copy: records[0].value
       $of: composed
+  # ---- 論理削除（詳細設計の方式の指定 soft-delete）。テーブルに削除の印のカラムがあるとき:
+  #   消すメソッド → 印を立てる update（まだ消していない行だけ）
+  #   読む・数える・集計のメソッド → 「削除されていない」の条件を足す
+  #   最大の値（番号・並び順の採番）と足すメソッドは変えない（消した行の番号を使い回さない）
+  - id: soft-deleted-entity
+    with:
+      - flags
+    when:
+      - of: flags
+        path: .
+        empty: false
+      - path: values.record.source
+        startsWith: ENT-
+    build:
+      - $value:
+          extract:
+            - path: values.record.source
+            - ^ENT-(.*)$
+  - id: soft-deleted-entity
+    with:
+      - flags
+    build: []
+  - id: nested-soft-conditions
+    with:
+      - field
+    build:
+      $each: entities
+      $of: model
+      $flatten: true
+      $build:
+        $when:
+          - path: owner.entity
+            equals:
+              $copy: id
+              $of: element
+          - path: owner.field
+            equals:
+              $copy: .
+              $of: field
+          - of: model
+            path: designSoftDeleted
+            includes:
+              $copy: id
+        $then:
+          - item: deleted
+            op: equals
+            value: false
+  - id: soft-method-of
+    with:
+      - method
+      - table
+    build:
+      $apply: soft-method
+      $with:
+        method:
+          $copy: .
+          $of: method
+        flags:
+          $each: columns
+          $of: table
+          $flatten: true
+          $build:
+            $when:
+              - path: role
+                equals: deleted
+            $then:
+              - $copy: item
+  - id: soft-method
+    with:
+      - method
+      - flags
+    when:
+      - of: flags
+        path: .
+        empty: false
+      - of: method
+        path: kind
+        equals: delete
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: method
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  kind: update
+                  set:
+                    - item:
+                        $copy: '[0]'
+                        $of: flags
+                      value: true
+                      mode: value
+                  where:
+                    $concat:
+                      - $first:
+                          - $copy: where
+                            $of: method
+                          - []
+                      - - item:
+                            $copy: '[0]'
+                            $of: flags
+                          equals: false
+                  softDelete: true
+                priority: individual
+                source:
+                  id: contract
+  - id: soft-method
+    with:
+      - method
+      - flags
+    when:
+      - of: flags
+        path: .
+        empty: false
+      - of: method
+        path: kind
+        oneOf:
+          - select
+          - count
+          - aggregate
+      - of: method
+        path: whereFrom
+        exists: false
+    build:
+      $apply: contract-result
+      $with:
+        combined:
+          $compose:
+            derived:
+              - id: record
+                value:
+                  $copy: .
+                  $of: method
+                source:
+                  id: contract
+            additions: []
+            changes:
+              - target: record
+                set:
+                  where:
+                    $concat:
+                      - $first:
+                          - $copy: where
+                            $of: method
+                          - []
+                      - - item:
+                            $copy: '[0]'
+                            $of: flags
+                          equals: false
+                priority: individual
+                source:
+                  id: contract
+  - id: soft-method
+    with:
+      - method
+      - flags
+    build:
+      $copy: .
+      $of: method

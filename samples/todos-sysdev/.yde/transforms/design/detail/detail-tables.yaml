@@ -13,6 +13,7 @@ scope: business
 dependsOn:
   - basic-types
   - basic-entities
+  - detail-document-input-gate
 input:
   entities:
     $each:
@@ -20,6 +21,22 @@ input:
     $build:
       $apply: restored-entity
       $at: values.record
+  # 論理削除（方式の指定 soft-delete）の対象のエンティティ。対象が区分なら、その区分のエンティティすべて
+  softDeleted:
+    $each:
+      $view: detail-specifications-input
+    $flatten: true
+    $build:
+      $when:
+        - path: values.specification.rule
+          equals: soft-delete
+      $then:
+        $apply: specified-entities
+        $with:
+          target:
+            $copy: values.specification.target
+          by:
+            $copy: id
 output: design/detail/final/tables.yaml
 build:
   $apply: physical
@@ -242,6 +259,34 @@ build:
                                     $copy: id
                                     $of: ent
                                   optional: false
+                      # 論理削除の対象なら、削除の印のカラムを最後に足す（業務モデルにも基本設計にも無い、詳細設計のカラム）
+                      - $each: softDeleted
+                        $of: model
+                        $flatten: true
+                        $build:
+                          $when:
+                            - path: entity
+                              equals:
+                                $copy: id
+                                $of: ent
+                          $then:
+                            - id:
+                                $format: COL-{t}.deleted
+                                $with:
+                                  t:
+                                    $case:
+                                      $copy: id
+                                      $of: ent
+                                    $as: snake
+                              name: deleted
+                              role: deleted
+                              label: 削除の印
+                              description: 消した行に true を立てる（論理削除）。読む・数える読み書きは、false の行だけを対象にする
+                              sqlType: SQL-boolean
+                              notNull: true
+                              default: false
+                              addedBy:
+                                $copy: by
                   $by:
                     $copy: id
                   $apply: column
@@ -564,17 +609,40 @@ rules:
                   id: ledger
                   document: design/detail/inputs/tables/ledger.yaml
             changes:
-              $each:
-                $view: detail-corrections-input
-              $build:
-                target:
-                  $copy: values.record.target
-                set:
-                  $copy: values.record.set
-                priority: individual
-                source:
-                  id:
-                    $copy: id
+              $concat:
+                - $each:
+                    $view: detail-corrections-input
+                  $build:
+                    target:
+                      $copy: values.record.target
+                    set:
+                      $copy: values.record.set
+                    priority: individual
+                    source:
+                      id:
+                        $copy: id
+                # 方式の指定の対象が、基本設計のエンティティにも区分にも無いときは、対象の無い変更として合成に渡し、エラーで止める
+                - $each:
+                    $view: detail-specifications-input
+                  $bind: spec
+                  $flatten: true
+                  $build:
+                    $apply: unmatched-specification
+                    $with:
+                      specification:
+                        $copy: values.specification
+                      matched:
+                        $each: softDeleted
+                        $of: model
+                        $flatten: true
+                        $build:
+                          $when:
+                            - path: by
+                              equals:
+                                $copy: id
+                                $of: spec
+                          $then:
+                            - $copy: entity
   - id: flatten
     with:
       - document
@@ -1037,6 +1105,69 @@ rules:
         $copy: items[0].referencesTable
       referencesColumn:
         $copy: items[0].referencesColumn
+      default:
+        $when:
+          - path: items[0].default
+            exists: true
+        $then:
+          $copy: items[0].default
+      addedBy:
+        $copy: items[0].addedBy
+  - id: unmatched-specification
+    with:
+      - specification
+      - matched
+    when:
+      - of: matched
+        path: .
+        empty: true
+    build:
+      - target:
+          $format: '{t}（方式の指定の対象が、基本設計のエンティティにも区分にもありません）'
+          $with:
+            t:
+              $copy: target
+              $of: specification
+        set:
+          rule:
+            $copy: rule
+            $of: specification
+        priority: individual
+        source:
+          id:
+            $copy: id
+            $of: specification
+          document: design/detail/inputs/specifications.yaml
+  - id: unmatched-specification
+    with:
+      - specification
+      - matched
+    build: []
+  - id: specified-entities
+    with:
+      - target
+      - by
+    build:
+      $each:
+        $view: basic-model-entities
+      $flatten: true
+      $build:
+        $when:
+          - or:
+              - path: id
+                equals:
+                  $copy: .
+                  $of: target
+              - path: values.record.entityClass
+                equals:
+                  $copy: .
+                  $of: target
+        $then:
+          - entity:
+              $copy: values.record.source
+            by:
+              $copy: .
+              $of: by
   - id: cols
     with:
       - ctx

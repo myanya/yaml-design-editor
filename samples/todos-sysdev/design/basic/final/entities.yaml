@@ -2184,6 +2184,33 @@ entities:
           - kind: derived
             source: add-todo-task
       - seq: '06'
+        id: OPS-todo.delete-todo-task
+        action: delete-todo-task
+        label: 作業項目を削除する
+        crud: U
+        writes:
+          - id: CRUD-todo.delete-todo-task.tasks
+            entity: ENT-todo
+            operation: OPS-todo.delete-todo-task
+            item: FLD-todo.tasks
+            crud: U
+            element:
+              - D
+            origins:
+              - kind: derived
+                source: OPS-todo.delete-todo-task
+          - id: CRUD-todo.delete-todo-task.updated_on
+            entity: ENT-todo
+            operation: OPS-todo.delete-todo-task
+            item: FLD-todo.updated_on
+            crud: U
+            origins:
+              - kind: derived
+                source: OPS-todo.delete-todo-task
+        origins:
+          - kind: derived
+            source: delete-todo-task
+      - seq: '07'
         id: OPS-todo.edit-todo
         action: edit-todo
         label: TODOを編集する
@@ -2268,7 +2295,7 @@ entities:
         origins:
           - kind: derived
             source: edit-todo
-      - seq: '07'
+      - seq: '08'
         id: OPS-todo.start-todo
         action: start-todo
         label: TODOに着手する
@@ -2308,7 +2335,7 @@ entities:
         origins:
           - kind: derived
             source: start-todo
-      - seq: '08'
+      - seq: '09'
         id: OPS-todo.suspend-todo
         action: suspend-todo
         label: TODOを中断する
@@ -2350,7 +2377,7 @@ entities:
         origins:
           - kind: derived
             source: suspend-todo
-      - seq: '09'
+      - seq: '10'
         id: OPS-todo.resume-todo
         action: resume-todo
         label: TODOを再開する
@@ -2391,7 +2418,7 @@ entities:
         origins:
           - kind: derived
             source: resume-todo
-      - seq: '10'
+      - seq: '11'
         id: OPS-todo.complete-todo
         action: complete-todo
         label: TODOを完了する
@@ -2447,7 +2474,7 @@ entities:
         origins:
           - kind: derived
             source: complete-todo
-      - seq: '11'
+      - seq: '12'
         id: OPS-todo.cancel-todo
         action: cancel-todo
         label: TODOを中止する
@@ -2496,7 +2523,7 @@ entities:
         origins:
           - kind: derived
             source: cancel-todo
-      - seq: '12'
+      - seq: '13'
         id: OPS-todo.todo-task.finish
         action: todo-task.finish
         label: 作業項目を済にする

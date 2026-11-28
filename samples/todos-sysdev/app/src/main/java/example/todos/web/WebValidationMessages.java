@@ -39,6 +39,8 @@ public class WebValidationMessages extends AbstractMessageSource {
         messages.put("validation.Size.addTodoTaskForm.title", "作業は100文字以内で入力してください");
         messages.put("validation.Pattern.addTodoTaskForm.title", "作業の書き方が正しくありません");
         messages.put("validation.NotNull.addTodoTaskForm.version", "版を受け取れませんでした。画面を開き直してから、もう一度操作してください");
+        messages.put("validation.NotNull.deleteTodoTaskForm.row", "作業項目の番号を入力してください");
+        messages.put("validation.NotNull.deleteTodoTaskForm.version", "版を受け取れませんでした。画面を開き直してから、もう一度操作してください");
         messages.put("validation.Size.editTodoForm.title", "タイトルは100文字以内で入力してください");
         messages.put("validation.Pattern.editTodoForm.title", "タイトルの書き方が正しくありません");
         messages.put("validation.Size.editTodoForm.summary", "概要は100文字以内で入力してください");

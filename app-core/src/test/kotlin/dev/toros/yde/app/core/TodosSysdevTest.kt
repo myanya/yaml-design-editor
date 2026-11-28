@@ -41,14 +41,14 @@ class TodosSysdevTest {
         val historyColumns = list(tables.getValue("todo_history"), "columns").map { (it as Map<*, *>)["name"] }
         assertEquals(listOf("todo_id", "seq", "date", "action", "from_", "to_", "note", "resume_on"), historyColumns, "予約語は末尾に _")
         val taskColumns = list(tables.getValue("todo_task"), "columns").map { (it as Map<*, *>)["name"] }
-        assertEquals(listOf("id", "todo_id", "seq", "title", "done"), taskColumns, "入れ子の型は親の ID と並び順を足す")
+        assertEquals(listOf("id", "todo_id", "seq", "title", "done", "deleted"), taskColumns, "入れ子の型は親の ID と並び順を足す。最後の deleted は、詳細設計の方式の指定（論理削除）が足す")
         val methods = list(doc("design/detail/final/table-access/todo.yaml"), "methods").map { it as Map<*, *> }
         val complete = methods.single { it["name"] == "completeTodo" }
         assertEquals(listOf("completed_on", "result", "status", "updated_on", "version"), list(complete, "set").map { (it as Map<*, *>)["item"] }, "同じテーブルへの値は 1 つの update（最後の version は、同時更新を版で検出する方式が足す）")
         val count = list(doc("design/detail/final/table-access/todo-task.yaml"), "methods").map { it as Map<*, *> }.single { it["precondition"] == "PRE-complete-todo.no-open-task" }
         assertEquals(listOf("ACT-complete-todo"), count["sources"], "メソッドは、作る元（基本設計の操作）と、前提の項目を ID で指す")
         val conditions = list(count, "where").map { (it as Map<*, *>).filterKeys { key -> key != "column" && key != "columnId" } }
-        assertEquals<List<*>>(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false)), conditions)
+        assertEquals<List<*>>(listOf(mapOf("item" to "todo_id", "param" to "id"), mapOf("item" to "done", "equals" to false), mapOf("item" to "deleted", "equals" to false)), conditions, "最後の条件は、論理削除の方式が足す（消した作業項目は数えない）")
         val todo = list(doc("design/basic/final/entities.yaml"), "entities").map { it as Map<*, *> }.single { it["id"] == "ENT-todo" }
         val operations = list(todo, "operations").map { it as Map<*, *> }
         fun status(action: String) = list(operations.single { it["action"] == action }, "writes")
@@ -69,7 +69,7 @@ class TodosSysdevTest {
         fun list(m: Map<*, *>, key: String) = (m[key] as List<*>).map { it as Map<*, *> }
         val transitions = doc("design/basic/final/screens/transitions/todo-dashboard.yaml")
         val kinds = list(transitions, "screens").groupingBy { it["kind"].toString() }.eachCount()
-        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 11, "confirm" to 14), kinds)
+        assertEquals(mapOf("list" to 1, "detail" to 3, "input" to 11, "confirm" to 15), kinds)
         // 画面は項目の形（1 画面 1 ファイル）。操作・入力・行き先の画面は ID で指し、指した先にある値（名称・出す条件）は写さない
         assertTrue(java.nio.file.Files.notExists(root.resolve("design/basic/final/screens/todo-task.yaml")), "入れ子の型は詳細画面にしない")
         // 読む側が使う形（画面を解いた形）では、指した先の値に置き換わっている
@@ -104,10 +104,10 @@ class TodosSysdevTest {
         assertEquals(listOf("TODOを登録する" to "register-todo/input"), list(resolved("lists", "todo-dashboard"), "buttons").take(1).map { it["label"] to it["to"] })
         // 画面の項目があるエンティティと操作が、ダッシュボードからたどれる範囲
         val reach = resolved["reach"] as Map<*, *>
-        assertEquals(listOf(listOf("todo-dashboard"), listOf("todo", "category", "tag"), listOf("todo-task"), 14),
+        assertEquals(listOf(listOf("todo-dashboard"), listOf("todo", "category", "tag"), listOf("todo-task"), 15),
             listOf(reach["dashboards"], reach["entities"], reach["nested"], (reach["operations"] as List<*>).size), "詳細設計は、たどれる範囲をここから読む")
         val screenFiles = java.nio.file.Files.list(root.resolve("design/basic/final/screens")).use { files -> files.filter { java.nio.file.Files.isRegularFile(it) }.count() }
-        assertEquals(18L, screenFiles, "一覧 1・詳細 3・操作 14")
+        assertEquals(19L, screenFiles, "一覧 1・詳細 3・操作 15")
         val session = doc("design/detail/final/session.yaml")
         assertEquals(listOf("csrf", "token", "notice"), list(session, "attributes").map { it["key"] })
         val index = dev.toros.yde.app.core.Workspace.open(root).index
@@ -299,7 +299,7 @@ class TodosSysdevTest {
         assertEquals(setOf("seq", "id", "name", "source", "sqlType", "item", "table", "base", "maxLength"), title.keys.map { it.toString() }.toSet(), "名称・必須は持たず、次の段（行モデル）が要る基底の種類と文字数は運ぶ（ADR-0042）")
         assertEquals(listOf("string", 100), listOf(title["base"], title["maxLength"]))
         val defaults = list(doc("design/detail/final/tables.yaml"), "tables").flatMap { list(it, "columns") }.filter { "default" in it.keys }.associate { it["id"] to it["default"] }
-        assertEquals<Map<*, *>>(mapOf("COL-todo.status" to "OPEN", "COL-todo.version" to 0, "COL-todo_task.done" to false), defaults, "初期値も運ぶ（false・0 も値）")
+        assertEquals<Map<*, *>>(mapOf("COL-todo.status" to "OPEN", "COL-todo.version" to 0, "COL-todo_task.done" to false, "COL-todo_task.deleted" to false), defaults, "初期値も運ぶ（false・0 も値）。削除の印の初期値は、方式が足す")
         assertEquals("SQL-common.一行の文", title["sqlType"])
         val tags = tables.getValue("todo_tags")
         assertEquals("TODOのタグ", tags["label"], "明細テーブルの日本語名は詳細設計だけのもの")
@@ -525,7 +525,7 @@ class TodosSysdevTest {
         assertTrue(concepts("processes-derived").none { it.toString().startsWith("constraints") }, "処理設計書の導出は、業務モデルのデータの決まりを直接読まない: ${concepts("processes-derived")}")
         // テーブルへの読み書きは、基本設計の項目（エンティティ・操作・データの決まり・一覧の検索条件・画面）だけを入口で組んで読む。業務モデルも、解いた形も読まない
         val access = concepts("detail-table-access").map { it.toString().substringBefore(".") }.toSet()
-        assertEquals(setOf("entities", "designActions", "designRules", "designQueries", "designReach", "designDetails", "designDecisions"), access, "テーブルへの読み書き: ${concepts("detail-table-access")}")
+        assertEquals(setOf("entities", "designActions", "designRules", "designQueries", "designReach", "designDetails", "designSoftDeleted", "designDecisions"), access, "テーブルへの読み書き: ${concepts("detail-table-access")}")
         val accessDefinition = Generators.definitions(WorkspaceSession(FileSystemDocumentStore(root))).first.single { it.id == "detail-table-access" }
         assertEquals(setOf("basic-entities", "basic-operations", "basic-rules", "basic-queries", "basic-screens", "detail-tables", "detail-document-input-gate"), accessDefinition.dependsOn.toSet(), "作る元は基本設計の項目と、同じ詳細設計のテーブルの項目")
         assertEquals(listOf("documents"), concepts("detail-status"), "状態の型は、基本設計の「状態と遷移」の項目（入力のビュー）だけを読み、業務モデルの概念を読まない")

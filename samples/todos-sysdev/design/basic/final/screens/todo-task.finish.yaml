@@ -2,7 +2,7 @@
 id: SCR-todo-task.finish
 source: todo-task.finish
 kind: operation
-seq: 3-14
+seq: 3-15
 label: 作業項目を済にする
 operation: ACT-todo-task.finish
 hidden:

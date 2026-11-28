@@ -111,6 +111,7 @@ public class TodoService {
         if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
             var row6 = new TodoTaskRow();
             row6.setDone(false);
+            row6.setDeleted(false);
             row6.setId(numberedId);
             row6.setTitle(input.getTitle());
             row6.setDone(ServiceChecks.orDefault(false, false));
@@ -429,6 +430,72 @@ public class TodoService {
         }
         if (!rows5.isEmpty()) {
             ServiceChecks.call(new TodoMapper.DeleteTodoCommentInput(), p -> { p.setId(input.getId()); p.setContextToday(today); p.setNextVersion((original.getVersion() + 1L)); }, todoMapper::deleteTodoComment);
+        }
+        if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
+        return new OperationOutcome(input.getId(), violations);
+    }
+    public String deleteTodoTask(java.lang.String id, java.lang.Long row, java.lang.Long version) {
+        var input = new DeleteTodoTaskInput();
+        input.setId(id);
+        input.setRow(row);
+        input.setVersion(version);
+        return runner.execute(() -> rundeleteTodoTask(input, false)).id();
+    }
+    private OperationOutcome rundeleteTodoTask(DeleteTodoTaskInput input, boolean preview) {
+        var today = java.time.LocalDate.now(clock);
+        var violations = new java.util.ArrayList<BusinessViolation>();
+        var original = ServiceChecks.call(new TodoMapper.FindByIdInput(), p -> { p.setId(input.getId()); }, todoMapper::findById);
+        if (original == null) throw new example.todos.service.error.NotFoundException("todo", input.getId());
+        var rows6 = new java.util.ArrayList<TodoRow>();
+        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+            var row6 = new TodoRow();
+            row6.setStatus("OPEN");
+            row6.setVersion(0L);
+            var before6 = original;
+            row6.setId(before6.getId());
+            row6.setTitle(before6.getTitle());
+            row6.setSummary(before6.getSummary());
+            row6.setCategory(before6.getCategory());
+            row6.setFollows(before6.getFollows());
+            row6.setStatus(before6.getStatus());
+            row6.setCreatedOn(before6.getCreatedOn());
+            row6.setUpdatedOn(before6.getUpdatedOn());
+            row6.setDueOn(before6.getDueOn());
+            row6.setCompletedOn(before6.getCompletedOn());
+            row6.setDetails(before6.getDetails());
+            row6.setResult(before6.getResult());
+            row6.setVersion(before6.getVersion());
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                row6.setUpdatedOn(today);
+            } else {}
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                row6.setVersion((original.getVersion() + 1L));
+            } else {}
+            rows6.add(row6);
+        }
+        if (!Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, ServiceChecks.oneOf(original.getStatus(), java.util.Arrays.asList("OPEN", "IN_PROGRESS", "SUSPENDED"))))) {
+            violations.add(ServiceChecks.violation("delete-todo-task.active", null, input.getId(), null, null, null));
+        }
+        if (!Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE, ServiceChecks.equal(original.getVersion(), input.getVersion())))) {
+            violations.add(ServiceChecks.violation("delete-todo-task.version-unchanged", null, input.getId(), null, null, null));
+        }
+        for (var checked : rows6) {
+            if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+                if (Boolean.FALSE.equals(ServiceChecks.atLeast(checked.getUpdatedOn(), checked.getCreatedOn()))) {
+            violations.add(ServiceChecks.violation("check.updated-not-before-created", null, input.getId(), null, checked.getUpdatedOn(), checked.getCreatedOn()));
+                }
+            }
+        }
+        if (preview) return new OperationOutcome(input.getId(), violations);
+        if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
+        if (Boolean.TRUE.equals(ServiceChecks.and(Boolean.TRUE))) {
+            if (ServiceChecks.call(new TodoTaskMapper.DeleteTodoTaskTasksRowInput(), p -> { p.setId(input.getId()); p.setRow(input.getRow()); }, todoTaskMapper::deleteTodoTaskTasksRow) == 0) throw new example.todos.service.error.NotFoundException("todo.tasks", input.getId());
+        }
+        if (!rows6.isEmpty()) {
+            ServiceChecks.call(new TodoMapper.DeleteTodoTaskInput(), p -> { p.setId(input.getId()); p.setContextToday(today); p.setNextVersion((original.getVersion() + 1L)); }, todoMapper::deleteTodoTask);
+        }
+        if (!ServiceChecks.zero(ServiceChecks.call(new TodoTaskMapper.CountClosedHasNoOpenTaskInput(), p -> { p.setTodoId(input.getId()); }, todoTaskMapper::countClosedHasNoOpenTask))) {
+            violations.add(ServiceChecks.violation("check.closed-has-no-open-task", null, input.getId(), null, null, null));
         }
         if (!violations.isEmpty()) throw new example.todos.service.error.RefusedException(violations.getFirst());
         return new OperationOutcome(input.getId(), violations);

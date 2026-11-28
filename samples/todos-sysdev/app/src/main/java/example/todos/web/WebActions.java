@@ -13,7 +13,7 @@ public class WebActions {
     record Action(Supplier<Object> form, BiFunction<String,Object,String> execute,
                   BiFunction<String,Object,List<BusinessViolation>> check) {}
     final Map<String,Action> actions=new LinkedHashMap<>();
-    public WebActions(AddCategoryWebOperation op0, AddTagWebOperation op1, AddTodoCommentWebOperation op2, AddTodoTaskWebOperation op3, CancelTodoWebOperation op4, CompleteTodoWebOperation op5, DeleteTodoCommentWebOperation op6, EditTodoWebOperation op7, EditTodoCommentWebOperation op8, RegisterTodoWebOperation op9, ResumeTodoWebOperation op10, StartTodoWebOperation op11, SuspendTodoWebOperation op12, TodoTaskFinishWebOperation op13) {
+    public WebActions(AddCategoryWebOperation op0, AddTagWebOperation op1, AddTodoCommentWebOperation op2, AddTodoTaskWebOperation op3, CancelTodoWebOperation op4, CompleteTodoWebOperation op5, DeleteTodoCommentWebOperation op6, DeleteTodoTaskWebOperation op7, EditTodoWebOperation op8, EditTodoCommentWebOperation op9, RegisterTodoWebOperation op10, ResumeTodoWebOperation op11, StartTodoWebOperation op12, SuspendTodoWebOperation op13, TodoTaskFinishWebOperation op14) {
         actions.put("add-category",new Action(
             () -> new AddCategoryForm(),
             (id,form) -> op0.execute((AddCategoryForm)form),
@@ -42,33 +42,37 @@ public class WebActions {
             () -> new DeleteTodoCommentForm(),
             (id,form) -> op6.execute(id, (DeleteTodoCommentForm)form),
             (id,form) -> List.of()));
+        actions.put("delete-todo-task",new Action(
+            () -> new DeleteTodoTaskForm(),
+            (id,form) -> op7.execute(id, (DeleteTodoTaskForm)form),
+            (id,form) -> List.of()));
         actions.put("edit-todo",new Action(
             () -> new EditTodoForm(),
-            (id,form) -> op7.execute(id, (EditTodoForm)form),
-            (id,form) -> op7.check(id, (EditTodoForm)form)));
+            (id,form) -> op8.execute(id, (EditTodoForm)form),
+            (id,form) -> op8.check(id, (EditTodoForm)form)));
         actions.put("edit-todo-comment",new Action(
             () -> new EditTodoCommentForm(),
-            (id,form) -> op8.execute(id, (EditTodoCommentForm)form),
+            (id,form) -> op9.execute(id, (EditTodoCommentForm)form),
             (id,form) -> List.of()));
         actions.put("register-todo",new Action(
             () -> new RegisterTodoForm(),
-            (id,form) -> op9.execute((RegisterTodoForm)form),
-            (id,form) -> op9.check((RegisterTodoForm)form)));
+            (id,form) -> op10.execute((RegisterTodoForm)form),
+            (id,form) -> op10.check((RegisterTodoForm)form)));
         actions.put("resume-todo",new Action(
             () -> new ResumeTodoForm(),
-            (id,form) -> op10.execute(id, (ResumeTodoForm)form),
+            (id,form) -> op11.execute(id, (ResumeTodoForm)form),
             (id,form) -> List.of()));
         actions.put("start-todo",new Action(
             () -> new StartTodoForm(),
-            (id,form) -> op11.execute(id, (StartTodoForm)form),
+            (id,form) -> op12.execute(id, (StartTodoForm)form),
             (id,form) -> List.of()));
         actions.put("suspend-todo",new Action(
             () -> new SuspendTodoForm(),
-            (id,form) -> op12.execute(id, (SuspendTodoForm)form),
-            (id,form) -> op12.check(id, (SuspendTodoForm)form)));
+            (id,form) -> op13.execute(id, (SuspendTodoForm)form),
+            (id,form) -> op13.check(id, (SuspendTodoForm)form)));
         actions.put("todo-task.finish",new Action(
             () -> new TodoTaskFinishForm(),
-            (id,form) -> op13.execute(id, (TodoTaskFinishForm)form),
+            (id,form) -> op14.execute(id, (TodoTaskFinishForm)form),
             (id,form) -> List.of()));
     }
 }

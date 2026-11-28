@@ -29,7 +29,7 @@ class TodosMappersTest {
             rows(source, "methods").map { source["mapper"].toString() + "." + it["name"] }
         }.toSet()
         assertEquals(expected, mappers.flatMap { m -> rows(m, "methods").map { m["name"].toString() + "." + it["name"] } }.toSet())
-        assertEquals(51, expected.size)
+        assertEquals(53, expected.size)
         // 並びの番号で指す操作は、明細テーブルの 1 行を、親のキーと並び順（seq）で指す update・delete になる
         val table = rows(raw(Files.readString(sample.resolve("design/detail/final/table-access/todo.yaml"))), "methods").associateBy { it["name"] }
         val editRow = table.getValue("editTodoCommentCommentsRow")
@@ -94,6 +94,45 @@ class TodosMappersTest {
             assertTrue(plan.transaction.operations.isEmpty(), case)
             assertEquals(original, input.read(DocumentId("design/detail/final/application-access.yaml"))!!.text)
         }
+    }
+
+    @Test
+    fun `論理削除は方式の指定で切り替わり 指定を外すと行を消し 無い対象は止まる`() {
+        fun plan(specifications: String): dev.toros.yde.workspace.GenerationPlan {
+            val input = store()
+            write(input, "design/detail/inputs/specifications.yaml", "inputId: INPUT-detail-specifications\nspecifications: $specifications\n")
+            return Generators.plan(WorkspaceSession(input), setOf("application-access"))
+        }
+        fun doc(plan: dev.toros.yde.workspace.GenerationPlan, path: String) = raw(plan.outputs.single { it.document.value == path }.text)
+        fun taskColumns(plan: dev.toros.yde.workspace.GenerationPlan) = rows(rows(doc(plan, "design/detail/final/tables.yaml"), "tables").single { it["id"] == "TBL-todo_task" }, "columns")
+        fun taskMethods(plan: dev.toros.yde.workspace.GenerationPlan) = rows(doc(plan, "design/detail/final/table-access/todo-task.yaml"), "methods").associateBy { it["id"].toString().substringAfter(".") }
+        fun flagged(method: Map<*, *>) = (method["where"] as? List<*>).orEmpty().any { (it as Map<*, *>)["column"] == "COL-todo_task.deleted" && it["equals"] == false }
+        // 指定あり（サンプルの状態）: 印のカラムが足され、消すメソッドは印を立て、読む・数えるメソッドは印の無い行だけを見る
+        val on = plan("[{id: DSPC-001, rule: soft-delete, target: ENT-todo-task, reason: 検証}]")
+        assertEquals(emptyList(), on.errors)
+        val flag = taskColumns(on).last()
+        assertEquals(listOf("deleted", "deleted", "DSPC-001", false, true), listOf(flag["name"], flag["role"], flag["addedBy"], flag["default"], flag["notNull"]))
+        val soft = taskMethods(on)
+        val softDelete = soft.getValue("deleteTodoTaskTasksRow")
+        assertEquals(listOf("update", true), listOf(softDelete["kind"], softDelete["softDelete"]))
+        assertEquals(listOf("COL-todo_task.deleted" to true), rows(softDelete, "set").map { it["column"] to it["value"] })
+        assertEquals(listOf("ACT-delete-todo-task"), softDelete["sources"], "操作の項目（効果は消す）は変わらない")
+        assertTrue(listOf("findById", "countCompleteTodoNoOpenTask", "countClosedHasNoOpenTask", "deleteTodoTaskTasksRow").all { flagged(soft.getValue(it)) })
+        assertTrue(listOf("maxId", "maxSeq", "insert", "todoTaskFinish").none { flagged(soft.getValue(it)) }, "採番は消した行も数える（番号を使い回さない）")
+        val detail = rows(doc(on, "design/detail/final/table-access/todo.yaml"), "methods").single { it["name"] == "findDetail" }
+        assertEquals(listOf(mapOf("item" to "deleted", "equals" to false, "column" to "COL-todo_task.deleted")), rows(detail, "includes").single { it["item"] == "tasks" }["where"], "一緒に読む明細も、消していない行だけ")
+        // 指定を外す: カラムも条件も無くなり、行を消す
+        val off = plan("[]")
+        assertEquals(emptyList(), off.errors)
+        assertTrue(taskColumns(off).none { it["name"] == "deleted" })
+        val hard = taskMethods(off)
+        assertEquals(listOf("delete", null), listOf(hard.getValue("deleteTodoTaskTasksRow")["kind"], hard.getValue("deleteTodoTaskTasksRow")["softDelete"]))
+        assertTrue(hard.values.none { flagged(it) })
+        assertTrue("deleted" !in off.outputs.single { it.generator == "application-access" }.text)
+        // 対象が、基本設計のエンティティにも区分にも無い指定は、何も書かずに止める
+        val missing = plan("[{id: DSPC-x, rule: soft-delete, target: ENT-missing, reason: 検証}]")
+        assertTrue(missing.errors.any { "detail-tables" in it && "DSPC-x" in it }, missing.errors.toString())
+        assertTrue(missing.transaction.operations.isEmpty())
     }
 
     @Test

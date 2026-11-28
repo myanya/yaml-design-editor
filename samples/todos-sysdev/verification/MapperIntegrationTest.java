@@ -157,12 +157,22 @@ class MapperIntegrationTest {
         assertThat(todo("deleteTodoComment", input("TODO-999"))).isEqualTo(1);
         assertThat(list(property(todo("findDetail", id("TODO-999")), "comments"))).hasSize(1);
         assertThat(todo("maxSeqTodoComments", id("TODO-999"))).isEqualTo(2L);
+        // 作業項目の 1 行の削除は論理削除: 親のキーと並び順（seq）で 1 行に印を立てる。消した行・無い行は 0 件。読む側には出ず、採番は消した行も数える
+        assertThat(list(property(todo("findDetail", id("TODO-999")), "tasks"))).hasSize(2);
+        assertThat(task("deleteTodoTaskTasksRow", Map.of("id", "TODO-999", "row", 2L))).isEqualTo(1);
+        assertThat(task("deleteTodoTaskTasksRow", Map.of("id", "TODO-999", "row", 2L))).isEqualTo(0);
+        assertThat(task("deleteTodoTaskTasksRow", Map.of("id", "TODO-999", "row", 9L))).isEqualTo(0);
+        assertThat(todo("deleteTodoTask", input("TODO-999"))).isEqualTo(1);
+        assertThat(list(property(todo("findDetail", id("TODO-999")), "tasks"))).hasSize(1);
+        assertThat(task("findById", id("TODO-999-TASK-999"))).isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM todo_task WHERE todo_id = 'TODO-999'", Integer.class)).isEqualTo(2);
+        assertThat(task("maxSeq", id("TODO-999"))).isEqualTo(2L);
         assertThat(list(property(todo("findDetail", id("TODO-999")), "tags"))).isEmpty();
         assertThat(list(property(todo("findDetail", id("TODO-1000")), "tags"))).hasSize(1);
         var expected = new HashSet<String>();
         for (var type : List.of(CategoryMapper.class, TagMapper.class, TodoMapper.class, TodoTaskMapper.class))
             for (var method : type.getDeclaredMethods()) expected.add(type.getSimpleName() + "." + method.getName());
         assertThat(called).containsExactlyInAnyOrderElementsOf(expected);
-        assertThat(called).hasSize(51);
+        assertThat(called).hasSize(53);
     }
 }

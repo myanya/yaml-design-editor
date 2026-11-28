@@ -2330,6 +2330,11 @@ mappers:
                 - item: seq
                   columnId: COL-todo_task.seq
                   column: seq
+              where:
+                - item: deleted
+                  equals: false
+                  columnId: COL-todo_task.deleted
+                  column: deleted
           names:
             - item: category
               table: category
@@ -3043,10 +3048,27 @@ mappers:
                     default:
                       value: false
                       literal: boolean
+                  - id: JCOL-COL-todo_task.deleted
+                    source: COL-todo_task.deleted
+                    column: deleted
+                    name: deleted
+                    accessor: Deleted
+                    java:
+                      base: boolean
+                      name: Boolean
+                      qualifiedName: java.lang.Boolean
+                      literal: boolean
+                    sql: BOOLEAN
+                    default:
+                      value: false
+                      literal: boolean
               order:
                 - item: seq
                   columnId: COL-todo_task.seq
                   column: seq
+              filters:
+                - column: deleted
+                  value: 'false'
               rowMap: true
             methodName: findDetail
           - name: categoryDisplay
@@ -5169,10 +5191,17 @@ mappers:
                         - item: done
                           op: equals
                           value: true
+                        - item: deleted
+                          op: equals
+                          value: false
                     all:
                       count: 入れ子の要素
                       item: tasks
                       parent: 行の ID
+                      where:
+                        - item: deleted
+                          op: equals
+                          value: false
                 replace:
                   0/0: ''
             - label: タグ
@@ -5713,6 +5742,19 @@ mappers:
                       literal: true
                       plain: true
                       symbol: =
+                    - raw:
+                        item: deleted
+                        op: equals
+                        value: false
+                      column: deleted
+                      table: todo_task
+                      type: java.lang.Boolean
+                      operator: equals
+                      constant: false
+                      compare: true
+                      literal: true
+                      plain: true
+                      symbol: =
               - name: column3All
                 accessor: Column3All
                 key: all
@@ -5724,6 +5766,20 @@ mappers:
                     keys:
                       - column: todo_id
                         parentColumn: id
+                  conditions:
+                    - raw:
+                        item: deleted
+                        op: equals
+                        value: false
+                      column: deleted
+                      table: todo_task
+                      type: java.lang.Boolean
+                      operator: equals
+                      constant: false
+                      compare: true
+                      literal: true
+                      plain: true
+                      symbol: =
             replacements:
               - from: 0/0
                 to: ''
@@ -13100,6 +13156,740 @@ mappers:
         call: TodoMapper.addTodoTask
         id: JMTH-todo.addTodoTask
         mapper: TodoMapper
+      - name: deleteTodoTask
+        source: deleteTodoTask
+        kind: update
+        raw:
+          name: deleteTodoTask
+          kind: update
+          table: todo
+          set:
+            - item: updated_on
+              value:
+                $copy: today
+                $of: context
+              mode: value
+              columnId: COL-todo.updated_on
+              column: updated_on
+            - item: version
+              value:
+                $copy: version
+                $of: next
+              mode: value
+              columnId: COL-todo.version
+              column: version
+          where:
+            - item: id
+              param: id
+              columnId: COL-todo.id
+              column: id
+          columnBindings:
+            - columnId: COL-todo.id
+              item: id
+              name: id
+              source: FLD-todo.id
+            - columnId: COL-todo.title
+              item: title
+              name: title
+              source: FLD-todo.title
+            - columnId: COL-todo.summary
+              item: summary
+              name: summary
+              source: FLD-todo.summary
+            - columnId: COL-todo.category
+              item: category
+              name: category
+              source: FLD-todo.category
+            - columnId: COL-todo.follows
+              item: follows
+              name: follows
+              source: FLD-todo.follows
+            - columnId: COL-todo.status
+              item: status
+              name: status
+              source: FLD-todo.status
+            - columnId: COL-todo.created_on
+              item: created_on
+              name: created_on
+              source: FLD-todo.created_on
+            - columnId: COL-todo.updated_on
+              item: updated_on
+              name: updated_on
+              source: FLD-todo.updated_on
+            - columnId: COL-todo.due_on
+              item: due_on
+              name: due_on
+              source: FLD-todo.due_on
+            - columnId: COL-todo.completed_on
+              item: completed_on
+              name: completed_on
+              source: FLD-todo.completed_on
+            - columnId: COL-todo.details
+              item: details
+              name: details
+              source: FLD-todo.details
+            - columnId: COL-todo.result
+              item: result
+              name: result
+              source: FLD-todo.result
+            - columnId: COL-todo.version
+              item: version
+              name: version
+              source: FLD-todo.version
+          methodId: deleteTodoTask
+          tableId: TBL-todo
+        table: todo
+        tableId: TBL-todo
+        row:
+          id: JROW-todo
+          tableId: TBL-todo
+          table: todo
+          className: TodoRow
+          columns:
+            - id: JCOL-COL-todo.id
+              source: COL-todo.id
+              column: id
+              name: id
+              accessor: Id
+              java:
+                base: id
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo.title
+              source: COL-todo.title
+              column: title
+              name: title
+              accessor: Title
+              java:
+                base: string
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR(100)
+            - id: JCOL-COL-todo.summary
+              source: COL-todo.summary
+              column: summary
+              name: summary
+              accessor: Summary
+              java:
+                base: string
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR(100)
+            - id: JCOL-COL-todo.category
+              source: COL-todo.category
+              column: category
+              name: category
+              accessor: Category
+              java:
+                base: ref
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo.follows
+              source: COL-todo.follows
+              column: follows
+              name: follows
+              accessor: Follows
+              java:
+                base: ref
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo.status
+              source: COL-todo.status
+              column: status
+              name: status
+              accessor: Status
+              java:
+                base: enum
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+              default:
+                value: OPEN
+                literal: string
+            - id: JCOL-COL-todo.created_on
+              source: COL-todo.created_on
+              column: created_on
+              name: createdOn
+              accessor: CreatedOn
+              java:
+                base: date
+                name: LocalDate
+                qualifiedName: java.time.LocalDate
+                literal: date
+              sql: DATE
+            - id: JCOL-COL-todo.updated_on
+              source: COL-todo.updated_on
+              column: updated_on
+              name: updatedOn
+              accessor: UpdatedOn
+              java:
+                base: date
+                name: LocalDate
+                qualifiedName: java.time.LocalDate
+                literal: date
+              sql: DATE
+            - id: JCOL-COL-todo.due_on
+              source: COL-todo.due_on
+              column: due_on
+              name: dueOn
+              accessor: DueOn
+              java:
+                base: date
+                name: LocalDate
+                qualifiedName: java.time.LocalDate
+                literal: date
+              sql: DATE
+            - id: JCOL-COL-todo.completed_on
+              source: COL-todo.completed_on
+              column: completed_on
+              name: completedOn
+              accessor: CompletedOn
+              java:
+                base: date
+                name: LocalDate
+                qualifiedName: java.time.LocalDate
+                literal: date
+              sql: DATE
+            - id: JCOL-COL-todo.details
+              source: COL-todo.details
+              column: details
+              name: details
+              accessor: Details
+              java:
+                base: string
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo.result
+              source: COL-todo.result
+              column: result
+              name: result
+              accessor: Result
+              java:
+                base: string
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo.version
+              source: COL-todo.version
+              column: version
+              name: version
+              accessor: Version
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+              default:
+                value: 0
+                literal: number
+        inputClass: DeleteTodoTaskInput
+        resultClass: DeleteTodoTaskResult
+        conditions:
+          - raw:
+              item: id
+              param: id
+              columnId: COL-todo.id
+              column: id
+            column: id
+            table: todo
+            type: java.lang.String
+            param: id
+            operator: equals
+            compare: true
+            optionalTest: input.id != null and input.id != ''
+            quoted: true
+            symbol: =
+        writes:
+          - column:
+              id: COL-todo.updated_on
+              column: updated_on
+              item: updated_on
+              source: FLD-todo.updated_on
+              model:
+                id: JCOL-COL-todo.updated_on
+                source: COL-todo.updated_on
+                column: updated_on
+                name: updatedOn
+                accessor: UpdatedOn
+                java:
+                  base: date
+                  name: LocalDate
+                  qualifiedName: java.time.LocalDate
+                  literal: date
+                sql: DATE
+            raw:
+              item: updated_on
+              value:
+                $copy: today
+                $of: context
+              mode: value
+              columnId: COL-todo.updated_on
+              column: updated_on
+            value:
+              param: contextToday
+            quoted: true
+            unconditional: true
+          - column:
+              id: COL-todo.version
+              column: version
+              item: version
+              source: FLD-todo.version
+              model:
+                id: JCOL-COL-todo.version
+                source: COL-todo.version
+                column: version
+                name: version
+                accessor: Version
+                java:
+                  base: int
+                  name: Long
+                  qualifiedName: java.lang.Long
+                  literal: number
+                sql: INTEGER
+                default:
+                  value: 0
+                  literal: number
+            raw:
+              item: version
+              value:
+                $copy: version
+                $of: next
+              mode: value
+              columnId: COL-todo.version
+              column: version
+            value:
+              param: nextVersion
+            plain: true
+            unconditional: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            types:
+              - java.lang.String
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            types:
+              - java.time.LocalDate
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            types:
+              - java.lang.Long
+        bindings:
+          - id: JCOL-COL-todo.id
+            source: COL-todo.id
+            column: id
+            name: id
+            accessor: Id
+            java:
+              base: id
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo.title
+            source: COL-todo.title
+            column: title
+            name: title
+            accessor: Title
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR(100)
+            noDefault: true
+          - id: JCOL-COL-todo.summary
+            source: COL-todo.summary
+            column: summary
+            name: summary
+            accessor: Summary
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR(100)
+            noDefault: true
+          - id: JCOL-COL-todo.category
+            source: COL-todo.category
+            column: category
+            name: category
+            accessor: Category
+            java:
+              base: ref
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo.follows
+            source: COL-todo.follows
+            column: follows
+            name: follows
+            accessor: Follows
+            java:
+              base: ref
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo.status
+            source: COL-todo.status
+            column: status
+            name: status
+            accessor: Status
+            java:
+              base: enum
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            default:
+              value: OPEN
+              literal: string
+          - id: JCOL-COL-todo.created_on
+            source: COL-todo.created_on
+            column: created_on
+            name: createdOn
+            accessor: CreatedOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+            noDefault: true
+          - id: JCOL-COL-todo.updated_on
+            source: COL-todo.updated_on
+            column: updated_on
+            name: updatedOn
+            accessor: UpdatedOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+            noDefault: true
+          - id: JCOL-COL-todo.due_on
+            source: COL-todo.due_on
+            column: due_on
+            name: dueOn
+            accessor: DueOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+            noDefault: true
+          - id: JCOL-COL-todo.completed_on
+            source: COL-todo.completed_on
+            column: completed_on
+            name: completedOn
+            accessor: CompletedOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+            noDefault: true
+          - id: JCOL-COL-todo.details
+            source: COL-todo.details
+            column: details
+            name: details
+            accessor: Details
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo.result
+            source: COL-todo.result
+            column: result
+            name: result
+            accessor: Result
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
+        properties: []
+        baseBindings:
+          - id: JCOL-COL-todo.id
+            source: COL-todo.id
+            column: id
+            name: id
+            accessor: Id
+            java:
+              base: id
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo.title
+            source: COL-todo.title
+            column: title
+            name: title
+            accessor: Title
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR(100)
+          - id: JCOL-COL-todo.summary
+            source: COL-todo.summary
+            column: summary
+            name: summary
+            accessor: Summary
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR(100)
+          - id: JCOL-COL-todo.category
+            source: COL-todo.category
+            column: category
+            name: category
+            accessor: Category
+            java:
+              base: ref
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo.follows
+            source: COL-todo.follows
+            column: follows
+            name: follows
+            accessor: Follows
+            java:
+              base: ref
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo.status
+            source: COL-todo.status
+            column: status
+            name: status
+            accessor: Status
+            java:
+              base: enum
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            default:
+              value: OPEN
+              literal: string
+          - id: JCOL-COL-todo.created_on
+            source: COL-todo.created_on
+            column: created_on
+            name: createdOn
+            accessor: CreatedOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+          - id: JCOL-COL-todo.updated_on
+            source: COL-todo.updated_on
+            column: updated_on
+            name: updatedOn
+            accessor: UpdatedOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+          - id: JCOL-COL-todo.due_on
+            source: COL-todo.due_on
+            column: due_on
+            name: dueOn
+            accessor: DueOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+          - id: JCOL-COL-todo.completed_on
+            source: COL-todo.completed_on
+            column: completed_on
+            name: completedOn
+            accessor: CompletedOn
+            java:
+              base: date
+              name: LocalDate
+              qualifiedName: java.time.LocalDate
+              literal: date
+            sql: DATE
+          - id: JCOL-COL-todo.details
+            source: COL-todo.details
+            column: details
+            name: details
+            accessor: Details
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo.result
+            source: COL-todo.result
+            column: result
+            name: result
+            accessor: Result
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo.version
+            source: COL-todo.version
+            column: version
+            name: version
+            accessor: Version
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            default:
+              value: 0
+              literal: number
+        update: true
+        writeGroups:
+          - column: updated_on
+            type: java.time.LocalDate
+            branches:
+              - column:
+                  id: COL-todo.updated_on
+                  column: updated_on
+                  item: updated_on
+                  source: FLD-todo.updated_on
+                  model:
+                    id: JCOL-COL-todo.updated_on
+                    source: COL-todo.updated_on
+                    column: updated_on
+                    name: updatedOn
+                    accessor: UpdatedOn
+                    java:
+                      base: date
+                      name: LocalDate
+                      qualifiedName: java.time.LocalDate
+                      literal: date
+                    sql: DATE
+                raw:
+                  item: updated_on
+                  value:
+                    $copy: today
+                    $of: context
+                  mode: value
+                  columnId: COL-todo.updated_on
+                  column: updated_on
+                value:
+                  param: contextToday
+                quoted: true
+                unconditional: true
+          - column: version
+            type: java.lang.Long
+            branches:
+              - column:
+                  id: COL-todo.version
+                  column: version
+                  item: version
+                  source: FLD-todo.version
+                  model:
+                    id: JCOL-COL-todo.version
+                    source: COL-todo.version
+                    column: version
+                    name: version
+                    accessor: Version
+                    java:
+                      base: int
+                      name: Long
+                      qualifiedName: java.lang.Long
+                      literal: number
+                    sql: INTEGER
+                    default:
+                      value: 0
+                      literal: number
+                raw:
+                  item: version
+                  value:
+                    $copy: version
+                    $of: next
+                  mode: value
+                  columnId: COL-todo.version
+                  column: version
+                value:
+                  param: nextVersion
+                plain: true
+                unconditional: true
+        conditionReferenceResolved: true
+        requiredConditions:
+          - raw:
+              item: id
+              param: id
+              columnId: COL-todo.id
+              column: id
+            column: id
+            table: todo
+            type: java.lang.String
+            param: id
+            operator: equals
+            compare: true
+            optionalTest: input.id != null and input.id != ''
+            quoted: true
+            symbol: =
+        call: TodoMapper.deleteTodoTask
+        id: JMTH-todo.deleteTodoTask
+        mapper: TodoMapper
       - name: editTodo
         source: editTodo
         kind: update
@@ -19870,6 +20660,10 @@ mappers:
               param: id
               columnId: COL-todo_task.id
               column: id
+            - item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
           columnBindings:
             - columnId: COL-todo_task.id
               item: id
@@ -19889,6 +20683,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: findById
           tableId: TBL-todo_task
         table: todo_task
@@ -19957,6 +20754,20 @@ mappers:
               default:
                 value: false
                 literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
         inputClass: FindByIdInput
         resultClass: FindByIdResult
         conditions:
@@ -19973,6 +20784,20 @@ mappers:
             compare: true
             optionalTest: input.id != null and input.id != ''
             quoted: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
             symbol: =
         parameters:
           - name: id
@@ -20043,6 +20868,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -20103,6 +20942,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         single: true
         select: true
         conditionReferenceResolved: true
@@ -20120,6 +20973,20 @@ mappers:
             compare: true
             optionalTest: input.id != null and input.id != ''
             quoted: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
             symbol: =
         call: TodoTaskMapper.findById
         id: JMTH-todo-task.findById
@@ -20152,6 +21019,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: insert
           tableId: TBL-todo_task
         table: todo_task
@@ -20211,6 +21081,20 @@ mappers:
               column: done
               name: done
               accessor: Done
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
               java:
                 base: boolean
                 name: Boolean
@@ -20287,6 +21171,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -20347,6 +21245,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         insert: true
         many: true
         conditionReferenceResolved: true
@@ -20394,6 +21306,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: maxId
           tableId: TBL-todo_task
         table: todo_task
@@ -20453,6 +21368,20 @@ mappers:
               column: done
               name: done
               accessor: Done
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
               java:
                 base: boolean
                 name: Boolean
@@ -20565,6 +21494,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -20616,6 +21559,20 @@ mappers:
             column: done
             name: done
             accessor: Done
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
             java:
               base: boolean
               name: Boolean
@@ -20680,6 +21637,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: maxSeq
           tableId: TBL-todo_task
         table: todo_task
@@ -20739,6 +21699,20 @@ mappers:
               column: done
               name: done
               accessor: Done
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
               java:
                 base: boolean
                 name: Boolean
@@ -20851,6 +21825,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -20911,6 +21899,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         max: true
         numericMax: true
         conditionReferenceResolved: true
@@ -20931,6 +21933,459 @@ mappers:
             symbol: =
         call: TodoTaskMapper.maxSeq
         id: JMTH-todo-task.maxSeq
+        mapper: TodoTaskMapper
+      - name: deleteTodoTaskTasksRow
+        source: deleteTodoTaskTasksRow
+        kind: update
+        raw:
+          name: deleteTodoTaskTasksRow
+          kind: update
+          table: todo_task
+          where:
+            - item: todo_id
+              param: id
+              columnId: COL-todo_task.todo_id
+              column: todo_id
+            - item: seq
+              param: row
+              columnId: COL-todo_task.seq
+              column: seq
+            - item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+          set:
+            - item: deleted
+              value: true
+              mode: value
+              columnId: COL-todo_task.deleted
+              column: deleted
+          softDelete: true
+          columnBindings:
+            - columnId: COL-todo_task.id
+              item: id
+              name: id
+              source: FLD-todo-task.id
+            - columnId: COL-todo_task.todo_id
+              item: todo_id
+              name: todo_id
+            - columnId: COL-todo_task.seq
+              item: seq
+              name: seq
+            - columnId: COL-todo_task.title
+              item: title
+              name: title
+              source: FLD-todo-task.title
+            - columnId: COL-todo_task.done
+              item: done
+              name: done
+              source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
+          methodId: deleteTodoTaskTasksRow
+          tableId: TBL-todo_task
+        table: todo_task
+        tableId: TBL-todo_task
+        row:
+          id: JROW-todo_task
+          tableId: TBL-todo_task
+          table: todo_task
+          className: TodoTaskRow
+          columns:
+            - id: JCOL-COL-todo_task.id
+              source: COL-todo_task.id
+              column: id
+              name: id
+              accessor: Id
+              java:
+                base: id
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo_task.todo_id
+              source: COL-todo_task.todo_id
+              column: todo_id
+              name: todoId
+              accessor: TodoId
+              java:
+                base: id
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR
+            - id: JCOL-COL-todo_task.seq
+              source: COL-todo_task.seq
+              column: seq
+              name: seq
+              accessor: Seq
+              java:
+                base: int
+                name: Long
+                qualifiedName: java.lang.Long
+                literal: number
+              sql: INTEGER
+            - id: JCOL-COL-todo_task.title
+              source: COL-todo_task.title
+              column: title
+              name: title
+              accessor: Title
+              java:
+                base: string
+                name: String
+                qualifiedName: java.lang.String
+                literal: string
+              sql: VARCHAR(100)
+            - id: JCOL-COL-todo_task.done
+              source: COL-todo_task.done
+              column: done
+              name: done
+              accessor: Done
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
+        inputClass: DeleteTodoTaskTasksRowInput
+        resultClass: DeleteTodoTaskTasksRowResult
+        conditions:
+          - raw:
+              item: todo_id
+              param: id
+              columnId: COL-todo_task.todo_id
+              column: todo_id
+            column: todo_id
+            table: todo_task
+            type: java.lang.String
+            param: id
+            operator: equals
+            compare: true
+            optionalTest: input.id != null and input.id != ''
+            quoted: true
+            symbol: =
+          - raw:
+              item: seq
+              param: row
+              columnId: COL-todo_task.seq
+              column: seq
+            column: seq
+            table: todo_task
+            type: java.lang.Long
+            param: row
+            operator: equals
+            compare: true
+            optionalTest: input.row != null
+            plain: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
+            symbol: =
+        writes:
+          - column:
+              id: COL-todo_task.deleted
+              column: deleted
+              item: deleted
+              role: deleted
+              model:
+                id: JCOL-COL-todo_task.deleted
+                source: COL-todo_task.deleted
+                column: deleted
+                name: deleted
+                accessor: Deleted
+                java:
+                  base: boolean
+                  name: Boolean
+                  qualifiedName: java.lang.Boolean
+                  literal: boolean
+                sql: BOOLEAN
+                default:
+                  value: false
+                  literal: boolean
+            raw:
+              item: deleted
+              value: true
+              mode: value
+              columnId: COL-todo_task.deleted
+              column: deleted
+            value:
+              constant: true
+            literal: true
+            plain: true
+            unconditional: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            types:
+              - java.lang.String
+          - name: row
+            accessor: Row
+            type: java.lang.Long
+            types:
+              - java.lang.Long
+        bindings:
+          - id: JCOL-COL-todo_task.id
+            source: COL-todo_task.id
+            column: id
+            name: id
+            accessor: Id
+            java:
+              base: id
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo_task.todo_id
+            source: COL-todo_task.todo_id
+            column: todo_id
+            name: todoId
+            accessor: TodoId
+            java:
+              base: id
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+            noDefault: true
+          - id: JCOL-COL-todo_task.seq
+            source: COL-todo_task.seq
+            column: seq
+            name: seq
+            accessor: Seq
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+            noDefault: true
+          - id: JCOL-COL-todo_task.title
+            source: COL-todo_task.title
+            column: title
+            name: title
+            accessor: Title
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR(100)
+            noDefault: true
+          - id: JCOL-COL-todo_task.done
+            source: COL-todo_task.done
+            column: done
+            name: done
+            accessor: Done
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
+        properties: []
+        baseBindings:
+          - id: JCOL-COL-todo_task.id
+            source: COL-todo_task.id
+            column: id
+            name: id
+            accessor: Id
+            java:
+              base: id
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo_task.todo_id
+            source: COL-todo_task.todo_id
+            column: todo_id
+            name: todoId
+            accessor: TodoId
+            java:
+              base: id
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR
+          - id: JCOL-COL-todo_task.seq
+            source: COL-todo_task.seq
+            column: seq
+            name: seq
+            accessor: Seq
+            java:
+              base: int
+              name: Long
+              qualifiedName: java.lang.Long
+              literal: number
+            sql: INTEGER
+          - id: JCOL-COL-todo_task.title
+            source: COL-todo_task.title
+            column: title
+            name: title
+            accessor: Title
+            java:
+              base: string
+              name: String
+              qualifiedName: java.lang.String
+              literal: string
+            sql: VARCHAR(100)
+          - id: JCOL-COL-todo_task.done
+            source: COL-todo_task.done
+            column: done
+            name: done
+            accessor: Done
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
+        update: true
+        writeGroups:
+          - column: deleted
+            type: java.lang.Boolean
+            branches:
+              - column:
+                  id: COL-todo_task.deleted
+                  column: deleted
+                  item: deleted
+                  role: deleted
+                  model:
+                    id: JCOL-COL-todo_task.deleted
+                    source: COL-todo_task.deleted
+                    column: deleted
+                    name: deleted
+                    accessor: Deleted
+                    java:
+                      base: boolean
+                      name: Boolean
+                      qualifiedName: java.lang.Boolean
+                      literal: boolean
+                    sql: BOOLEAN
+                    default:
+                      value: false
+                      literal: boolean
+                raw:
+                  item: deleted
+                  value: true
+                  mode: value
+                  columnId: COL-todo_task.deleted
+                  column: deleted
+                value:
+                  constant: true
+                literal: true
+                plain: true
+                unconditional: true
+        conditionReferenceResolved: true
+        requiredConditions:
+          - raw:
+              item: todo_id
+              param: id
+              columnId: COL-todo_task.todo_id
+              column: todo_id
+            column: todo_id
+            table: todo_task
+            type: java.lang.String
+            param: id
+            operator: equals
+            compare: true
+            optionalTest: input.id != null and input.id != ''
+            quoted: true
+            symbol: =
+          - raw:
+              item: seq
+              param: row
+              columnId: COL-todo_task.seq
+              column: seq
+            column: seq
+            table: todo_task
+            type: java.lang.Long
+            param: row
+            operator: equals
+            compare: true
+            optionalTest: input.row != null
+            plain: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
+            symbol: =
+        call: TodoTaskMapper.deleteTodoTaskTasksRow
+        id: JMTH-todo-task.deleteTodoTaskTasksRow
         mapper: TodoTaskMapper
       - name: todoTaskFinish
         source: todoTaskFinish
@@ -20969,6 +22424,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: todoTaskFinish
           tableId: TBL-todo_task
         table: todo_task
@@ -21028,6 +22486,20 @@ mappers:
               column: done
               name: done
               accessor: Done
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
               java:
                 base: boolean
                 name: Boolean
@@ -21155,6 +22627,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -21206,6 +22692,20 @@ mappers:
             column: done
             name: done
             accessor: Done
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
             java:
               base: boolean
               name: Boolean
@@ -21286,6 +22786,10 @@ mappers:
               equals: false
               columnId: COL-todo_task.done
               column: done
+            - item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
           precondition: complete-todo.no-open-task
           expect: absent
           columnBindings:
@@ -21307,6 +22811,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: countCompleteTodoNoOpenTask
           tableId: TBL-todo_task
         table: todo_task
@@ -21375,6 +22882,20 @@ mappers:
               default:
                 value: false
                 literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
         inputClass: CountCompleteTodoNoOpenTaskInput
         resultClass: CountCompleteTodoNoOpenTaskResult
         conditions:
@@ -21398,6 +22919,20 @@ mappers:
               columnId: COL-todo_task.done
               column: done
             column: done
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
             table: todo_task
             type: java.lang.Boolean
             operator: equals
@@ -21475,6 +23010,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -21535,6 +23084,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         count: true
         conditionReferenceResolved: true
         requiredConditions:
@@ -21558,6 +23121,20 @@ mappers:
               columnId: COL-todo_task.done
               column: done
             column: done
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
             table: todo_task
             type: java.lang.Boolean
             operator: equals
@@ -21596,6 +23173,10 @@ mappers:
               equals: false
               columnId: COL-todo_task.done
               column: done
+            - item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
           constraint: closed-has-no-open-task
           expect: absent
           columnBindings:
@@ -21617,6 +23198,9 @@ mappers:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
           methodId: countClosedHasNoOpenTask
           tableId: TBL-todo_task
         table: todo_task
@@ -21685,6 +23269,20 @@ mappers:
               default:
                 value: false
                 literal: boolean
+            - id: JCOL-COL-todo_task.deleted
+              source: COL-todo_task.deleted
+              column: deleted
+              name: deleted
+              accessor: Deleted
+              java:
+                base: boolean
+                name: Boolean
+                qualifiedName: java.lang.Boolean
+                literal: boolean
+              sql: BOOLEAN
+              default:
+                value: false
+                literal: boolean
         inputClass: CountClosedHasNoOpenTaskInput
         resultClass: CountClosedHasNoOpenTaskResult
         conditions:
@@ -21723,6 +23321,20 @@ mappers:
               columnId: COL-todo_task.done
               column: done
             column: done
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
             table: todo_task
             type: java.lang.Boolean
             operator: equals
@@ -21805,6 +23417,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         properties: []
         baseBindings:
           - id: JCOL-COL-todo_task.id
@@ -21865,6 +23491,20 @@ mappers:
             default:
               value: false
               literal: boolean
+          - id: JCOL-COL-todo_task.deleted
+            source: COL-todo_task.deleted
+            column: deleted
+            name: deleted
+            accessor: Deleted
+            java:
+              base: boolean
+              name: Boolean
+              qualifiedName: java.lang.Boolean
+              literal: boolean
+            sql: BOOLEAN
+            default:
+              value: false
+              literal: boolean
         count: true
         conditionReferenceResolved: true
         requiredConditions:
@@ -21903,6 +23543,20 @@ mappers:
               columnId: COL-todo_task.done
               column: done
             column: done
+            table: todo_task
+            type: java.lang.Boolean
+            operator: equals
+            constant: false
+            compare: true
+            literal: true
+            plain: true
+            symbol: =
+          - raw:
+              item: deleted
+              equals: false
+              columnId: COL-todo_task.deleted
+              column: deleted
+            column: deleted
             table: todo_task
             type: java.lang.Boolean
             operator: equals

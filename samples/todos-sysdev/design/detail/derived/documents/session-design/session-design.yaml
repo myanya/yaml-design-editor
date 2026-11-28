@@ -27,6 +27,7 @@ record:
           - TodoController.editTodoCommentConfirm
           - TodoController.deleteTodoCommentConfirm
           - TodoController.addTodoTaskConfirm
+          - TodoController.deleteTodoTaskConfirm
           - TodoController.editTodoConfirm
           - TodoController.startTodoConfirm
           - TodoController.suspendTodoConfirm
@@ -42,6 +43,7 @@ record:
           - TodoController.editTodoComment
           - TodoController.deleteTodoComment
           - TodoController.addTodoTask
+          - TodoController.deleteTodoTask
           - TodoController.editTodo
           - TodoController.startTodo
           - TodoController.suspendTodo
@@ -62,6 +64,7 @@ record:
           - TodoController.editTodoComment
           - TodoController.deleteTodoComment
           - TodoController.addTodoTask
+          - TodoController.deleteTodoTask
           - TodoController.editTodo
           - TodoController.startTodo
           - TodoController.suspendTodo

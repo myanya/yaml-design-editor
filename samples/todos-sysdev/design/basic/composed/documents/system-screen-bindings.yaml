@@ -249,6 +249,30 @@ bindings:
       - action
       - to
       - url
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: GET /todo/{id}/delete-todo-task/confirm
+    after: GET /todo/{id}/delete-todo-task/confirm
+    roles:
+      - request
+      - action
+      - to
+      - url
+  - roles:
+      - request
+      - action
+      - to
+      - url
+  - before: POST /todo/{id}/delete-todo-task
+    after: POST /todo/{id}/delete-todo-task
+    roles:
+      - request
+      - action
+      - to
+      - url
   - before: GET /todo/{id}/edit-todo
     after: GET /todo/{id}/edit-todo
     roles:

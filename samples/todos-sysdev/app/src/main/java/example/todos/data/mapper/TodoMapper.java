@@ -414,6 +414,23 @@ public interface TodoMapper {
 
 
 
+    int deleteTodoTask(@Param("input") DeleteTodoTaskInput input);
+
+    class DeleteTodoTaskInput {
+        private java.lang.String id;
+        public java.lang.String getId() { return id; }
+        public void setId(java.lang.String value) { this.id = value; }
+        private java.time.LocalDate contextToday;
+        public java.time.LocalDate getContextToday() { return contextToday; }
+        public void setContextToday(java.time.LocalDate value) { this.contextToday = value; }
+        private java.lang.Long nextVersion;
+        public java.lang.Long getNextVersion() { return nextVersion; }
+        public void setNextVersion(java.lang.Long value) { this.nextVersion = value; }
+    }
+
+
+
+
     int editTodo(@Param("input") EditTodoInput input);
 
     class EditTodoInput {

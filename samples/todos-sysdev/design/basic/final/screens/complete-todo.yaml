@@ -2,7 +2,7 @@
 id: SCR-complete-todo
 source: complete-todo
 kind: operation
-seq: 3-11
+seq: 3-12
 label: TODOを完了する
 operation: ACT-complete-todo
 hidden:

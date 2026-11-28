@@ -48,6 +48,12 @@ bindings:
       - service
       - calls
       - call
+  - before: TodoService.deleteTodoTask
+    after: TodoService.deleteTodoTask
+    roles:
+      - service
+      - calls
+      - call
   - before: TodoService.editTodo
     after: TodoService.editTodo
     roles:

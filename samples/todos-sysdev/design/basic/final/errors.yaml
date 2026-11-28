@@ -80,6 +80,7 @@ constraints:
       - edit-todo-comment
       - delete-todo-comment
       - add-todo-task
+      - delete-todo-task
       - edit-todo
       - start-todo
       - suspend-todo
@@ -155,6 +156,7 @@ constraints:
     message: check.closed-has-no-open-task
     operations:
       - add-todo-task
+      - delete-todo-task
       - complete-todo
       - todo-task.finish
   - constraint: has-detail
@@ -417,6 +419,49 @@ operations:
         shownAt: 確認画面（確定のとき）
       - kind: precondition
         message: add-todo-task.version-unchanged
+        when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.updated-not-before-created
+        when: 更新日は作成日以降であること
+        by: Java
+        shownAt: 確認画面（確定のとき）
+      - kind: rule
+        message: check.closed-has-no-open-task
+        when: 完了したTODOには、済んでいない作業項目が無いこと
+        by: SQL
+        shownAt: 確認画面（確定のとき）
+      - kind: token
+        message: error.token
+        when: トークンが無い・違う（確定済み・時間切れ・確認画面を経ない確定）
+        shownAt: 起点の画面へ戻し、知らせで出す
+  - id: delete-todo-task
+    name: 作業項目を削除する
+    screens: 入力画面と確認画面（ダッシュボードからたどれる）
+    inputs:
+      - field: row
+        label: 作業項目の番号
+        checks:
+          - 必須
+      - field: version
+        label: 版
+        checks:
+          - 必須
+    refusals:
+      - kind: not-found
+        message: error.notFound.todo
+        when: 受け手の ID で読んで、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: not-found
+        message: error.notFound.todo.tasks
+        when: 受け取った番号の行を書こうとして、無いとき
+        shownAt: 見つからない画面（404）
+      - kind: precondition
+        message: delete-todo-task.active
+        when: '{id} は完了か中止をしているので、作業項目を消せません'
+        shownAt: 確認画面（確定のとき）
+      - kind: precondition
+        message: delete-todo-task.version-unchanged
         when: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
         shownAt: 確認画面（確定のとき）
       - kind: rule

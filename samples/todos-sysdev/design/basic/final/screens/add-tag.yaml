@@ -2,7 +2,7 @@
 id: SCR-add-tag
 source: add-tag
 kind: operation
-seq: 3-13
+seq: 3-14
 label: タグを追加する
 operation: ACT-add-tag
 input:

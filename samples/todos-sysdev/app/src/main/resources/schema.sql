@@ -42,6 +42,7 @@ CREATE TABLE todo_task (
   seq INTEGER NOT NULL,
   title VARCHAR(100) NOT NULL,
   done BOOLEAN DEFAULT FALSE NOT NULL,
+  deleted BOOLEAN DEFAULT FALSE NOT NULL,
   CONSTRAINT pk_todo_task PRIMARY KEY (id)
 );
 CREATE INDEX ix_todo_task_todo_id ON todo_task (todo_id);

@@ -30,6 +30,7 @@
     <result property="seq" column="seq" javaType="java.lang.Long"/>
     <result property="title" column="title" javaType="java.lang.String"/>
     <result property="done" column="done" javaType="java.lang.Boolean"/>
+    <result property="deleted" column="deleted" javaType="java.lang.Boolean"/>
   </resultMap>
   <resultMap id="row_TodoTagsRow" type="example.todos.data.model.TodoTagsRow">
     <result property="todoId" column="todo_id" javaType="java.lang.String"/>
@@ -62,11 +63,20 @@
       todo_task.seq,
       todo_task.title,
       todo_task.done,
+      todo_task.deleted,
     </trim>
     FROM todo_task
     <where>
 
 AND todo_task.id = #{input.id}
+
+
+
+
+
+
+
+AND todo_task.deleted = false
 
 
 
@@ -78,8 +88,8 @@ AND todo_task.id = #{input.id}
 
 
   <insert id="insert">
-    INSERT INTO todo_task (id, todo_id, seq, title, done)
-    VALUES (#{input.id}, #{input.todoId}, #{input.seq}, #{input.title}, <choose><when test="input.done != null">#{input.done}</when><otherwise>DEFAULT</otherwise></choose>)
+    INSERT INTO todo_task (id, todo_id, seq, title, done, deleted)
+    VALUES (#{input.id}, #{input.todoId}, #{input.seq}, #{input.title}, <choose><when test="input.done != null">#{input.done}</when><otherwise>DEFAULT</otherwise></choose>, <choose><when test="input.deleted != null">#{input.deleted}</when><otherwise>DEFAULT</otherwise></choose>)
   </insert>
 
   <select id="maxId" resultType="java.lang.String">
@@ -109,6 +119,39 @@ AND todo_task.todo_id = #{input.id}
 </where>
 
   </select>
+
+  <update id="deleteTodoTaskTasksRow">
+    UPDATE todo_task SET
+    deleted = <choose>
+      <when test="true">true</when>
+      <otherwise>deleted</otherwise>
+    </choose>
+    <where>
+
+AND todo_task.todo_id = #{input.id}
+
+
+
+
+
+
+
+AND todo_task.seq = #{input.row}
+
+
+
+
+
+
+
+AND todo_task.deleted = false
+
+
+
+
+
+</where>
+  </update>
 
   <update id="todoTaskFinish">
     UPDATE todo_task SET
@@ -145,6 +188,14 @@ AND todo_task.done = false
 
 
 
+
+
+AND todo_task.deleted = false
+
+
+
+
+
 </where>
   </select>
 
@@ -170,6 +221,14 @@ AND todo.status = &apos;CLOSED&apos;
 
 
 AND todo_task.done = false
+
+
+
+
+
+
+
+AND todo_task.deleted = false
 
 
 

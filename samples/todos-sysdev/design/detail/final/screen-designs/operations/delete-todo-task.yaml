@@ -1,0 +1,67 @@
+# 生成物（screen-designs-operations）: 手で直さず、業務モデルか生成の定義（design/detail/screen-designs-operations.yaml）を直して作り直します（CLI generate）。
+id: delete-todo-task
+name: 作業項目を削除する（画面設計書）
+form:
+  class: DeleteTodoTaskForm
+  emptyAsNull: 空の欄は未入力（null）として受け取る（前後の空白は落とさない）
+  fields:
+    - name: row
+      item: row
+      type: Long
+      validations:
+        - name: NotNull
+    - name: version
+      item: version
+      type: Long
+      validations:
+        - name: NotNull
+  classes: []
+screens:
+  - id: delete-todo-task/confirm
+    template: todo/delete-todo-task/confirm
+    page:
+      title: 作業項目を削除する（確認）
+      width: m
+      body:
+        - notice:
+            kind: refusal
+        - facts:
+            of: todo
+            title: 対象
+            items:
+              - item: id
+                label: ID
+              - item: title
+        - facts:
+            title: 対象の行（作業項目）
+            of: row
+            row:
+              table: tasks
+              param: row
+              item: seq
+        - form:
+            action: POST /todo/{id}/delete-todo-task
+            hidden:
+              - row
+              - version
+              - flow
+              - from
+            body:
+              - actions:
+                  - label: 確定
+                    kind: submit
+                    emphasis: primary
+                  - label: やめる
+                    kind: link
+                    to: 起点の画面
+                    emphasis: secondary
+designId: DOC-screen-designs-operations.delete-todo-task
+designKind: screen-designs-operations
+designPath: design/detail/final/screen-designs/operations/delete-todo-task.yaml
+origins:
+  source:
+    id: rule-screen-designs-operations
+    document: .yde/transforms/design/detail/screen-designs-operations-derived.yaml
+    path: []
+  decisions: []
+  inputs: []

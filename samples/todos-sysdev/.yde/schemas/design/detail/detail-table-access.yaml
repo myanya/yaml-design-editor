@@ -182,6 +182,10 @@ root:
                 - SCR-*
                 - ENT-*
             description: このメソッドが要る理由（使う操作・一覧の検索条件・詳細画面・参照の候補にするエンティティ）
+          - key: softDelete
+            label: 論理削除
+            type: boolean
+            description: 操作の効果は「消す」だが、テーブルに削除の印のカラムがあるので、印を立てる update にしたメソッド
           - key: whereFrom
             label: 同じ条件を読むメソッド
             type: ref

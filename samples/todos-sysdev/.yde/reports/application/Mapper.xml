@@ -72,7 +72,7 @@ WHERE {count.incoming.alias}.{count.incoming.reference} = {table}.{count.incomin
     SELECT {#if collection.target}n.{collection.target.column}{/if}{#if collection.directScalar}c.{collection.column}{/if}{#if collection.rowMap}c.*{/if}
     FROM {collection.query.table} c
 {#if collection.target}    JOIN {collection.target.table} n ON {#each collection.target.keys}c.{column} = n.{parentColumn}{#if more} AND {/if}{/each}{/if}
-    WHERE {#each collection.query.keys}c.{column} = #{{k{index}}}{#if more} AND {/if}{/each}
+    WHERE {#each collection.query.keys}c.{column} = #{{k{index}}}{#if more} AND {/if}{/each}{#if collection.filters}{#each collection.filters} AND c.{column} = {value}{/each}{/if}
 {#if collection.order}    ORDER BY {#each collection.order}c.{column}{#if more}, {/if}{/each}{/if}
   </select>
 {/if}{/each}{/if}

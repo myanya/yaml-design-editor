@@ -1,0 +1,8 @@
+id: detail-specifications
+name: 詳細設計の方式の指定の入力
+rows:
+  idPattern: INPUT-detail-specifications
+columns:
+  - label: record
+    path: .
+    fileGlob: design/detail/inputs/specifications.yaml

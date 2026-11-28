@@ -15,6 +15,9 @@ methods:
       - item: id
         param: id
         column: COL-todo_task.id
+      - item: deleted
+        equals: false
+        column: COL-todo_task.deleted
     sources:
       - ACT-todo-task.finish
   - id: MTH-todo-task.insert
@@ -55,6 +58,28 @@ methods:
     sources:
       - ACT-add-todo-task
     column: COL-todo_task.seq
+  - id: MTH-todo-task.deleteTodoTaskTasksRow
+    name: deleteTodoTaskTasksRow
+    kind: update
+    table: TBL-todo_task
+    where:
+      - item: todo_id
+        param: id
+        column: COL-todo_task.todo_id
+      - item: seq
+        param: row
+        column: COL-todo_task.seq
+      - item: deleted
+        equals: false
+        column: COL-todo_task.deleted
+    sources:
+      - ACT-delete-todo-task
+    set:
+      - item: deleted
+        value: true
+        mode: value
+        column: COL-todo_task.deleted
+    softDelete: true
   - id: MTH-todo-task.todoTaskFinish
     name: todoTaskFinish
     kind: update
@@ -81,6 +106,9 @@ methods:
       - item: done
         equals: false
         column: COL-todo_task.done
+      - item: deleted
+        equals: false
+        column: COL-todo_task.deleted
     precondition: PRE-complete-todo.no-open-task
     expect: absent
     sources:
@@ -105,9 +133,13 @@ methods:
       - item: done
         equals: false
         column: COL-todo_task.done
+      - item: deleted
+        equals: false
+        column: COL-todo_task.deleted
     constraint: RUL-closed-has-no-open-task
     expect: absent
     sources:
       - ACT-add-todo-task
+      - ACT-delete-todo-task
       - ACT-complete-todo
       - ACT-todo-task.finish

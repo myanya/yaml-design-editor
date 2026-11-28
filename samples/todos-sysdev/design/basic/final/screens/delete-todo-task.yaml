@@ -1,0 +1,30 @@
+# 生成物（basic-screens）: 手で直さず、業務モデルか生成の定義（design/basic/basic-screens.yaml）を直して作り直します（CLI generate）。
+id: SCR-delete-todo-task
+source: delete-todo-task
+kind: operation
+seq: 3-07
+label: 作業項目を削除する
+operation: ACT-delete-todo-task
+hidden:
+  - PRM-delete-todo-task.row
+  - PRM-delete-todo-task.version
+confirm:
+  id: SCR-delete-todo-task.confirm
+  request: GET /todo/{id}/delete-todo-task/confirm
+  shows: []
+execute:
+  request: POST /todo/{id}/delete-todo-task
+  notice: delete-todo-task.done
+  refusals:
+    - key: delete-todo-task.active
+      cause: precondition
+      precondition: PRE-delete-todo-task.active
+    - key: delete-todo-task.version-unchanged
+      cause: precondition
+      precondition: PRE-delete-todo-task.version-unchanged
+    - key: check.updated-not-before-created
+      cause: rule
+      rule: RUL-updated-not-before-created
+    - key: check.closed-has-no-open-task
+      cause: rule
+      rule: RUL-closed-has-no-open-task

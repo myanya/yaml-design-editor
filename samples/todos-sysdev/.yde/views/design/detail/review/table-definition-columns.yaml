@@ -94,23 +94,16 @@ columns:
               - node:
                   id: COL-*
                   bind: c
-              - edge:
-                  via: source
-              - node:
-                  id: FLD-*
-                  bind: f
             where:
-              - of: f
+              - of: c
                 path: default
                 exists: true
-            of: f
+            of: c
       using:
         '0': 設定なし
         '1': 設定あり
   - label: 初期値
-    value:
-      via: source
-      path: default
+    path: default
   - label: 初期値の出力方法
     value:
       via: sqlType

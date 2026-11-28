@@ -1,0 +1,44 @@
+id: detail-specifications
+name: 詳細設計の方式の指定
+kind: document
+description: >-
+  詳細設計（具体システムモデル）の全体の判断のうち、方式の指定（ADR-0042）。方式（rule）と対象を書くと、詳細設計の変換定義の規則が、項目を足す・変える。
+  基本設計の方式の指定（楽観ロックなど）と同じ書き方。個別の項目の値を置き換えるのは、個別の判断（decisions.yaml）に書く。
+  いまの方式は soft-delete（論理削除）。対象のエンティティのテーブルに削除の印のカラムを足し、消す読み書きを「印を立てる」に、読む・数える読み書きに「削除されていない」の条件を足す。人が書く。
+match: design/detail/inputs/specifications.yaml
+root:
+  type: object
+  fields:
+    - key: inputId
+      type: id
+      required: true
+    - key: specifications
+      label: 方式の指定
+      type: array
+      item:
+        type: object
+        fields:
+          - key: id
+            label: 指定の ID
+            type: id
+            required: true
+            pattern: ^DSPC-\S+$
+          - key: rule
+            label: 方式
+            type: enum
+            required: true
+            values:
+              - value: soft-delete
+                label: 論理削除（消さずに、削除の印を立てる）
+          - key: target
+            label: 対象
+            type: string
+            required: true
+            pattern: ^(ENT|CLS)-\S+$
+            description: 基本設計のエンティティ（ENT-）か、区分（CLS-。その区分のエンティティすべて）の ID。無い対象は、テーブルの生成が止める
+          - key: reason
+            label: 理由
+            type: text
+            required: true
+        unknownFields: error
+  unknownFields: error

@@ -39,9 +39,9 @@ class TodosWebPagesTest {
         assertEquals(emptyList(), plan.errors)
         val model = raw(plan.outputs.single().text)
         assertEquals(raw(Files.readString(sample.resolve("design/detail/final/application-web.yaml"))), model)
-        assertEquals(29, rows(model, "pages").size)
+        assertEquals(30, rows(model, "pages").size)
         assertEquals(5, rows(model, "controllers").size)
-        assertEquals(54, rows(model, "controllers").sumOf { rows(it, "routes").size })
+        assertEquals(56, rows(model, "controllers").sumOf { rows(it, "routes").size })
         assertEquals(4, rows(model, "readServices").size)
         assertEquals(1, rows(model, "readServices").count { it["standalone"] == true })
     }

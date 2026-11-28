@@ -1081,6 +1081,143 @@ actions:
         items:
           - todo-task.done
           - todo.tasks
+  - id: delete-todo-task
+    kind: action
+    label: 作業項目を削除する
+    description: 未完了のTODOの作業項目 1 件を消します。ほかの作業項目は変えません（残った作業項目の番号は振り直しません）。
+    subject: todo
+    target:
+      entity: todo
+    creates: []
+    params:
+      - key: row
+        label: 作業項目の番号
+        type: int
+        base: int
+        description: 作業項目の何番目か（0 から数えます）
+        required: true
+        min: 0.0
+        overrides:
+          min: 0.0
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+      - key: version
+        label: 版
+        type: int
+        base: int
+        description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+        required: true
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+        carried: true
+    inputParams: []
+    carriedValues:
+      version:
+        $copy: version
+        $of: self
+    carried:
+      - version
+    rowOf:
+      field: tasks
+      param: row
+      item:
+        key: row
+        label: 作業項目の番号
+        type: int
+        base: int
+        description: 作業項目の何番目か（0 から数えます）
+        required: true
+        min: 0.0
+        overrides:
+          min: 0.0
+        builtinType:
+          name: int
+          base: int
+          builtin: true
+      entity: todo
+      label: 作業項目
+    input: {}
+    require:
+      - id: active
+        message: '{id} は完了か中止をしているので、作業項目を消せません'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: status
+              oneOf:
+                - OPEN
+                - IN_PROGRESS
+                - SUSPENDED
+          expect: exists
+      - id: version-unchanged
+        message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+        rule:
+          match:
+            - node:
+                entity: todo
+                bind: t
+          where:
+            - of: t
+              path: version
+              equals: $version
+          expect: exists
+    effects:
+      - op: delete
+        source: do
+        of: self
+        entity: todo
+        schema: todo-detail
+        path: tasks[$row]
+        field:
+          key: tasks
+          base: array
+          item:
+            base: object
+            entity: todo-task
+        row:
+          param: row
+      - op: set
+        source: auto
+        auto: updated
+        entity: todo
+        schema: todo-detail
+        path: updated_on
+        field:
+          key: updated_on
+          base: date
+        value:
+          $copy: today
+          $of: context
+      - op: set
+        source: auto
+        auto: revision
+        entity: todo
+        path: version
+        field:
+          key: version
+          base: int
+        value:
+          $copy: version
+          $of: next
+    checks:
+      - constraint: updated-not-before-created
+        form: element
+        level: error
+        items:
+          - todo.updated_on
+      - constraint: closed-has-no-open-task
+        form: pattern
+        level: error
+        items:
+          - todo.tasks
   - id: edit-todo
     kind: action
     label: TODOを編集する

@@ -1785,6 +1785,75 @@ pages:
           </form>
     routeMatches:
       - handler: deleteTodoCommentConfirm
+  - id: WPAGE-delete-todo-task/confirm
+    key: delete-todo-task/confirm
+    template: todo/delete-todo-task/confirm
+    screen:
+      id: delete-todo-task/confirm
+      template: todo/delete-todo-task/confirm
+      page:
+        title: 作業項目を削除する（確認）
+        width: m
+        body:
+          - notice:
+              kind: refusal
+          - facts:
+              of: todo
+              title: 対象
+              items:
+                - item: id
+                  label: ID
+                - item: title
+          - facts:
+              title: 対象の行（作業項目）
+              of: row
+              row:
+                table: tasks
+                param: row
+                item: seq
+          - form:
+              action: POST /todo/{id}/delete-todo-task
+              hidden:
+                - row
+                - version
+                - flow
+                - from
+              body:
+                - actions:
+                    - label: 確定
+                      kind: submit
+                      emphasis: primary
+                    - label: やめる
+                      kind: link
+                      to: 起点の画面
+                      emphasis: secondary
+    html:
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: notice(${page.node('page.body[0].notice')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[1].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: facts(${page.node('page.body[2].facts')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          <form class="form" method="post" th:action="${page.url(page.node('page.body[3].form').action)}" th:with="node=${page.node('page.body[3].form')}"><th:block th:replace="~{fragments/business :: hidden(${node})}"></th:block>
+      - valid: true
+        plain: true
+        raw: |
+          <div th:replace="~{fragments/business :: actions(${page.node('page.body[3].form.body[0].actions')})}"></div>
+      - valid: true
+        plain: true
+        raw: |
+          </form>
+    routeMatches:
+      - handler: deleteTodoTaskConfirm
   - id: WPAGE-edit-todo/input
     key: edit-todo/input
     template: todo/edit-todo/input
@@ -3252,6 +3321,37 @@ controllers:
               - add-todo-task.version-unchanged
               - check.updated-not-before-created
               - check.closed-has-no-open-task
+      - action: delete-todo-task
+        name: 作業項目を削除する
+        form: DeleteTodoTaskForm
+        service: TodoService.deleteTodoTask
+        returnTo: 起点の画面（パラメータ from の画面の ID。画面遷移定義書にある画面だけを受け取る）
+        steps:
+          - handler: deleteTodoTaskConfirm
+            request: GET /todo/{id}/delete-todo-task/confirm
+            screen: delete-todo-task/confirm
+            does: 受け手を読み、行のボタンが運んだ番号をフォームに受けて検査し（@Validated）、確認画面を出す（番号は hidden 項目）
+            reads:
+              - TodoMapper.findById
+            calls: []
+            session:
+              puts:
+                - token
+          - handler: deleteTodoTask
+            request: POST /todo/{id}/delete-todo-task
+            does: トークンを照合して消す（無い・違うなら InvalidTokenException）→ Service で入力検査・状態・前提・データの決まりを確かめ直して書く → 断れば（RefusedException）確認画面に断りの文を出す。書けたら完了の知らせを置き、起点の画面へリダイレクトする
+            session:
+              reads:
+                - token
+              removes:
+                - token
+              puts:
+                - notice
+            refusals:
+              - delete-todo-task.active
+              - delete-todo-task.version-unchanged
+              - check.updated-not-before-created
+              - check.closed-has-no-open-task
       - action: edit-todo
         name: TODOを編集する
         form: EditTodoForm
@@ -3590,6 +3690,14 @@ controllers:
       - handler: addTodoTask
         path: /todo/{id}/add-todo-task
         method: POST
+      - handler: deleteTodoTaskConfirm
+        path: /todo/{id}/delete-todo-task/confirm
+        method: GET
+        screenMatches:
+          - screen: delete-todo-task/confirm
+      - handler: deleteTodoTask
+        path: /todo/{id}/delete-todo-task
+        method: POST
       - handler: editTodoInput
         path: /todo/{id}/edit-todo
         method: GET
@@ -3854,6 +3962,16 @@ forms:
         item: version
         type: Long
     classes: []
+  - className: DeleteTodoTaskForm
+    beanName: deleteTodoTaskForm
+    fields:
+      - name: row
+        item: row
+        type: Long
+      - name: version
+        item: version
+        type: Long
+    classes: []
   - className: EditTodoForm
     beanName: editTodoForm
     fields:
@@ -4051,6 +4169,16 @@ operations:
   - action: delete-todo-comment
     className: DeleteTodoCommentWebOperation
     formClass: DeleteTodoCommentForm
+    receiver: true
+    noConfirm: true
+    fieldTargets:
+      - source: row
+        target: row
+      - source: version
+        target: version
+  - action: delete-todo-task
+    className: DeleteTodoTaskWebOperation
+    formClass: DeleteTodoTaskForm
     receiver: true
     noConfirm: true
     fieldTargets:
@@ -5089,6 +5217,9 @@ reads:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
         properties: []
         projections: []
       - name: countCompleteTodoNoOpenTask
@@ -5123,6 +5254,9 @@ reads:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
         properties: []
         projections: []
       - name: countClosedHasNoOpenTask
@@ -5157,6 +5291,9 @@ reads:
               item: done
               name: done
               source: FLD-todo-task.done
+            - columnId: COL-todo_task.deleted
+              item: deleted
+              name: deleted
         properties: []
         projections: []
 rows:
@@ -5261,6 +5398,11 @@ rows:
         source: COL-todo_task.done
         mapping:
           - item: done
+      - name: deleted
+        source: COL-todo_task.deleted
+        mapping:
+          - item: deleted
+            role: deleted
   - className: TodoTagsRow
     columns:
       - name: todoId
@@ -5428,6 +5570,11 @@ transitions:
         label: コメントを削除する（確認）
         source: SCR-delete-todo-comment
         request: GET /todo/{id}/delete-todo-comment/confirm
+      - id: delete-todo-task/confirm
+        kind: confirm
+        label: 作業項目を削除する（確認）
+        source: SCR-delete-todo-task
+        request: GET /todo/{id}/delete-todo-task/confirm
       - id: edit-todo/input
         kind: input
         label: TODOを編集する（入力）
@@ -5606,6 +5753,9 @@ transitions:
         by: 表「コメント一覧」の行のボタン「コメントを削除する」
         to: delete-todo-comment/confirm
       - from: todo
+        by: 表「作業項目」の行のボタン「作業項目を削除する」
+        to: delete-todo-task/confirm
+      - from: todo
         by: 表「作業項目」の行のボタン「作業項目を済にする」
         to: todo-task.finish/confirm
       - from: add-category/input
@@ -5659,6 +5809,10 @@ transitions:
         by: ボタン「入力へ戻る」
         to: add-todo-task/input
       - from: add-todo-task/confirm
+        by: ボタン「確定」
+        to: 起点の画面
+        note: 完了の知らせを出す
+      - from: delete-todo-task/confirm
         by: ボタン「確定」
         to: 起点の画面
         note: 完了の知らせを出す
@@ -5834,6 +5988,16 @@ inputs:
     starts:
       - screen: todo
         place: 表「コメント一覧」の行のボタン
+    input:
+      carried:
+        version:
+          $copy: version
+          $of: self
+  - id: delete-todo-task
+    target: todo
+    starts:
+      - screen: todo
+        place: 表「作業項目」の行のボタン
     input:
       carried:
         version:
@@ -6073,6 +6237,14 @@ messages:
       kind: 前提の断り
       text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
       source: 操作 add-todo-task の前提 version-unchanged
+    - key: delete-todo-task.active
+      kind: 前提の断り
+      text: '{id} は完了か中止をしているので、作業項目を消せません'
+      source: 操作 delete-todo-task の前提 active
+    - key: delete-todo-task.version-unchanged
+      kind: 前提の断り
+      text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+      source: 操作 delete-todo-task の前提 version-unchanged
     - key: edit-todo.version-unchanged
       kind: 前提の断り
       text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
@@ -6169,6 +6341,10 @@ messages:
       kind: 完了の知らせ
       text: 作業項目を追加しました（{id}）
       source: 操作 add-todo-task の名前
+    - key: delete-todo-task.done
+      kind: 完了の知らせ
+      text: 作業項目を削除しました（{id}）
+      source: 操作 delete-todo-task の名前
     - key: edit-todo.done
       kind: 完了の知らせ
       text: TODOを編集しました（{id}）
@@ -6232,6 +6408,10 @@ messages:
     - key: error.notFound.todo.comments
       kind: 見つからない
       text: TODO「{id}」のコメント一覧に、指定した行はありません
+      source: 行の番号を指定して書いて、その行が無いとき（404）
+    - key: error.notFound.todo.tasks
+      kind: 見つからない
+      text: TODO「{id}」の作業項目に、指定した行はありません
       source: 行の番号を指定して書いて、その行が無いとき（404）
     - key: error.token
       kind: 二重の確定・時間切れ
@@ -6407,6 +6587,22 @@ messages:
       label: 版
       messages:
         - key: validation.NotNull.addTodoTaskForm.version
+          kind: 入力の誤り
+          text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
+          source: 必須
+    - form: deleteTodoTaskForm
+      field: row
+      label: 作業項目の番号
+      messages:
+        - key: validation.NotNull.deleteTodoTaskForm.row
+          kind: 入力の誤り
+          text: 作業項目の番号を入力してください
+          source: 必須
+    - form: deleteTodoTaskForm
+      field: version
+      label: 版
+      messages:
+        - key: validation.NotNull.deleteTodoTaskForm.version
           kind: 入力の誤り
           text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
           source: 必須
@@ -6688,6 +6884,7 @@ session:
         - TodoController.editTodoCommentConfirm
         - TodoController.deleteTodoCommentConfirm
         - TodoController.addTodoTaskConfirm
+        - TodoController.deleteTodoTaskConfirm
         - TodoController.editTodoConfirm
         - TodoController.startTodoConfirm
         - TodoController.suspendTodoConfirm
@@ -6703,6 +6900,7 @@ session:
         - TodoController.editTodoComment
         - TodoController.deleteTodoComment
         - TodoController.addTodoTask
+        - TodoController.deleteTodoTask
         - TodoController.editTodo
         - TodoController.startTodo
         - TodoController.suspendTodo
@@ -6723,6 +6921,7 @@ session:
         - TodoController.editTodoComment
         - TodoController.deleteTodoComment
         - TodoController.addTodoTask
+        - TodoController.deleteTodoTask
         - TodoController.editTodo
         - TodoController.startTodo
         - TodoController.suspendTodo

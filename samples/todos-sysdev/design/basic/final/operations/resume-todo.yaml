@@ -1,7 +1,7 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-resume-todo
 source: resume-todo
-seq: '10'
+seq: '11'
 kind: action
 label: TODOを再開する
 description: 中断した作業を対応中に戻します。

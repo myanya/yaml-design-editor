@@ -52,6 +52,20 @@ public interface TodoTaskMapper {
 
 
 
+    int deleteTodoTaskTasksRow(@Param("input") DeleteTodoTaskTasksRowInput input);
+
+    class DeleteTodoTaskTasksRowInput {
+        private java.lang.String id;
+        public java.lang.String getId() { return id; }
+        public void setId(java.lang.String value) { this.id = value; }
+        private java.lang.Long row;
+        public java.lang.Long getRow() { return row; }
+        public void setRow(java.lang.Long value) { this.row = value; }
+    }
+
+
+
+
     int todoTaskFinish(@Param("input") TodoTaskFinishInput input);
 
     class TodoTaskFinishInput {

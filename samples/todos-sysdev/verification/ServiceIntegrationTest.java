@@ -164,6 +164,36 @@ class ServiceIntegrationTest {
         assertEquals(1, count("todo_comments"));
     }
 
+    /** 作業項目の削除は論理削除（詳細設計の方式の指定 soft-delete）: 行は残して印を立て、読む・数える側は印の無い行だけを見る。 */
+    @Test void taskIsSoftDeletedBySequenceAndHiddenFromReadsAndChecks() {
+        var id = register();
+        var first = todos.addTodoTask(id, "一つ目", v(id));
+        var second = todos.addTodoTask(id, "二つ目", v(id));
+        todos.deleteTodoTask(id, 1L, v(id));
+        assertEquals(2, count("todo_task"), "行は消さない");
+        assertEquals(List.of(first), jdbc.queryForList("SELECT id FROM todo_task WHERE todo_id = ? AND deleted = TRUE", String.class, id));
+        // 消した作業項目は、もう無いものとして扱う（済にできない・もう一度は消せない）。無い行と同じく、親の更新日も含めて何も書かずに断る
+        jdbc.update("UPDATE todo SET updated_on = ? WHERE id = ?", today.minusDays(3), id);
+        assertThrows(NotFoundException.class, () -> tasks.todoTaskFinish(first, v(id)));
+        assertThrows(NotFoundException.class, () -> todos.deleteTodoTask(id, 1L, v(id)));
+        assertThrows(NotFoundException.class, () -> todos.deleteTodoTask(id, 9L, v(id)));
+        assertEquals(today.minusDays(3), jdbc.queryForObject("SELECT updated_on FROM todo WHERE id = ?", LocalDate.class, id));
+        // 消した行の番号と並び順は使い回さない
+        var third = todos.addTodoTask(id, "三つ目", v(id));
+        assertEquals(id + "-S03", third);
+        assertEquals(3L, jdbc.queryForObject("SELECT seq FROM todo_task WHERE id = ?", Long.class, third));
+        // 済んでいない作業項目も、消してあれば完了を妨げない
+        todos.startTodo(id, v(id));
+        refusal("complete-todo.no-open-task", () -> todos.completeTodo(id, today, "完了", v(id)));
+        todos.deleteTodoTask(id, 2L, v(id));
+        tasks.todoTaskFinish(third, v(id));
+        todos.completeTodo(id, today, "完了", v(id));
+        assertEquals("CLOSED", status(id));
+        assertEquals(List.of(second), jdbc.queryForList("SELECT id FROM todo_task WHERE todo_id = ? AND deleted = TRUE AND seq = 2", String.class, id));
+        // 完了・中止した TODO の作業項目は消せない
+        refusal("delete-todo-task.active", () -> todos.deleteTodoTask(id, 3L, v(id)));
+    }
+
     @Test void postWriteFailureRollsBackChildAndParentTogether() {
         var id = register();
         var first = todos.addTodoTask(id, "一つ目", v(id));

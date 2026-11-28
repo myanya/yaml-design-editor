@@ -2,7 +2,7 @@
 id: SCR-suspend-todo
 source: suspend-todo
 kind: operation
-seq: 3-09
+seq: 3-10
 label: TODOを中断する
 operation: ACT-suspend-todo
 hidden:

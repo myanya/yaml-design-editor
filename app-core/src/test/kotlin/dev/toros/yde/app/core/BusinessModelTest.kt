@@ -120,7 +120,7 @@ class BusinessModelTest {
         val reach = dashboard["reach"] as Map<*, *>
         assertEquals(listOf("todo", "category", "tag"), reach["entities"])
         assertEquals(listOf("todo-task"), reach["nested"])
-        assertEquals(14, (reach["operations"] as List<*>).size)
+        assertEquals(15, (reach["operations"] as List<*>).size)
         assertTrue("todo-task.finish" in (reach["operations"] as List<*>), "入れ子の型の操作も、詳細画面の表からたどれる")
         assertEquals(reach, model["reach"], "ダッシュボードが 1 つなら、和も同じ")
         // 区画の条件の State の名前は、値の条件へ置き換える（YDE の読み込みと同じ）

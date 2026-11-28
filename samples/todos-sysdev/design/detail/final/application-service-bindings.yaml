@@ -1341,6 +1341,257 @@ operations:
               java: (original.getVersion() + 1L)
               type: java.lang.Long
             typeMatches: true
+  - id: SPROG-delete-todo-task
+    source: DOC-processes.delete-todo-task
+    input: SINPUT-delete-todo-task
+    symbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: row
+        place: input
+        name: row
+        ref: $row
+        java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
+      - path: today
+        place: context
+        name: contextToday
+        java: today
+        type: java.time.LocalDate
+      - path: id
+        place: self
+        name: id
+        java: original.getId()
+        type: java.lang.String
+      - path: title
+        place: self
+        name: title
+        java: original.getTitle()
+        type: java.lang.String
+      - path: summary
+        place: self
+        name: summary
+        java: original.getSummary()
+        type: java.lang.String
+      - path: category
+        place: self
+        name: category
+        java: original.getCategory()
+        type: java.lang.String
+      - path: follows
+        place: self
+        name: follows
+        java: original.getFollows()
+        type: java.lang.String
+      - path: status
+        place: self
+        name: status
+        java: original.getStatus()
+        type: java.lang.String
+      - path: created_on
+        place: self
+        name: createdOn
+        java: original.getCreatedOn()
+        type: java.time.LocalDate
+      - path: updated_on
+        place: self
+        name: updatedOn
+        java: original.getUpdatedOn()
+        type: java.time.LocalDate
+      - path: due_on
+        place: self
+        name: dueOn
+        java: original.getDueOn()
+        type: java.time.LocalDate
+      - path: completed_on
+        place: self
+        name: completedOn
+        java: original.getCompletedOn()
+        type: java.time.LocalDate
+      - path: details
+        place: self
+        name: details
+        java: original.getDetails()
+        type: java.lang.String
+      - path: result
+        place: self
+        name: result
+        java: original.getResult()
+        type: java.lang.String
+      - path: version
+        place: self
+        name: version
+        java: original.getVersion()
+        type: java.lang.Long
+      - path: version
+        place: next
+        name: nextVersion
+        java: (original.getVersion() + 1L)
+        type: java.lang.Long
+    inputSymbols:
+      - path: id
+        place: input
+        name: id
+        ref: $id
+        java: input.getId()
+        type: java.lang.String
+        base: ref
+      - path: row
+        place: input
+        name: row
+        ref: $row
+        java: input.getRow()
+        type: java.lang.Long
+        base: int
+      - path: version
+        place: input
+        name: version
+        ref: $version
+        java: input.getVersion()
+        type: java.lang.Long
+        base: int
+    primary: JMTH-todo.findById
+    steps:
+      - index: 1
+        kind: read
+        call: TodoMapper.findById
+        method: JMTH-todo.findById
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+      - index: 2
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 3
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 4
+        kind: check
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters: []
+      - index: 5
+        kind: write
+        call: TodoTaskMapper.deleteTodoTaskTasksRow
+        method: JMTH-todo-task.deleteTodoTaskTasksRow
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: row
+            accessor: Row
+            type: java.lang.Long
+            binding:
+              path: row
+              place: input
+              java: input.getRow()
+              type: java.lang.Long
+            typeMatches: true
+      - index: 6
+        kind: write
+        call: TodoMapper.deleteTodoTask
+        method: JMTH-todo.deleteTodoTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: id
+            accessor: Id
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
+          - name: contextToday
+            accessor: ContextToday
+            type: java.time.LocalDate
+            binding:
+              path: today
+              place: context
+              java: today
+              type: java.time.LocalDate
+            typeMatches: true
+          - name: nextVersion
+            accessor: NextVersion
+            type: java.lang.Long
+            binding:
+              path: version
+              place: next
+              java: (original.getVersion() + 1L)
+              type: java.lang.Long
+            typeMatches: true
+      - index: 7
+        kind: check
+        call: TodoTaskMapper.countClosedHasNoOpenTask
+        method: JMTH-todo-task.countClosedHasNoOpenTask
+        callResolved: true
+        keyArityMatches: true
+        stateResolved: true
+        setMatches: true
+        whereMatches: true
+        parameters:
+          - name: todoId
+            accessor: TodoId
+            type: java.lang.String
+            binding:
+              path: id
+              place: input
+              java: input.getId()
+              type: java.lang.String
+            typeMatches: true
   - id: SPROG-edit-todo
     source: DOC-processes.edit-todo
     input: SINPUT-edit-todo
@@ -3106,6 +3357,11 @@ operations:
         place: self
         name: done
         java: original.getDone()
+        type: java.lang.Boolean
+      - path: deleted
+        place: self
+        name: deleted
+        java: original.getDeleted()
         type: java.lang.Boolean
       - path: seq
         place: next

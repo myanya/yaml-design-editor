@@ -1,7 +1,7 @@
 # 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
 id: ACT-start-todo
 source: start-todo
-seq: '08'
+seq: '09'
 kind: action
 label: TODOに着手する
 description: 未着手の作業を対応中にします。追加の入力はありません。

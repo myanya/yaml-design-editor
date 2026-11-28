@@ -535,6 +535,85 @@ operations:
         target: todo
         receiver: true
         classes: []
+  - id: JWEB-delete-todo-task
+    action: delete-todo-task
+    source: DOC-processes.delete-todo-task
+    controllerService: TodoService.deleteTodoTask
+    className: DeleteTodoTaskWebOperation
+    service: TodoService
+    method: deleteTodoTask
+    inputClass: DeleteTodoTaskInput
+    formClass: DeleteTodoTaskForm
+    formSource: DOC-screen-designs-operations.delete-todo-task
+    receiver: true
+    arguments:
+      - accessor: Id
+      - accessor: Row
+      - accessor: Version
+    confirm: []
+    handlerMatches:
+      - action: delete-todo-task
+        service: TodoService.deleteTodoTask
+    formMatches:
+      - id: JFORM-delete-todo-task
+        className: DeleteTodoTaskForm
+    checks:
+      - valid: true
+        error: Controller と Service の実行先が一致しません
+      - valid: true
+        error: Controller と Form のクラスが一致しません
+      - valid: true
+        error: Controller と Service の確認用メソッドが一致しません
+      - valid: true
+        error: Service 本体と入力の引数が一致しません
+    fields:
+      coverage:
+        - item: row
+          matches:
+            - name: row
+        - item: version
+          matches:
+            - name: version
+        - item: row
+          matches:
+            - name: row
+        - item: version
+          matches:
+            - name: version
+      assignments:
+        - item: row
+          kind: scalar
+          source: row
+          target: row
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setRow(form.getRow());
+        - item: version
+          kind: scalar
+          source: version
+          target: version
+          checks:
+            - valid: true
+              error: Form と Service 入力の型が一致しません
+          tokens:
+            - valid: true
+              plain: true
+              raw: |2
+                        input.setVersion(form.getVersion());
+    receiverFields:
+      - key: id
+        name: id
+        accessor: Id
+        type: java.lang.String
+        base: ref
+        target: todo
+        receiver: true
+        classes: []
   - id: JWEB-edit-todo
     action: edit-todo
     source: DOC-processes.edit-todo
@@ -1527,6 +1606,9 @@ controllerCoverage:
   - action: add-todo-task
     matches:
       - id: JOP-add-todo-task
+  - action: delete-todo-task
+    matches:
+      - id: JOP-delete-todo-task
   - action: edit-todo
     matches:
       - id: JOP-edit-todo

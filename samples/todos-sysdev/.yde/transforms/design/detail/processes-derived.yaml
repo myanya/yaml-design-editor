@@ -1087,14 +1087,12 @@ rules:
                     f:
                       $copy: field.key
                       $of: e
-          # 番号で指した 1 行の削除
+          # 番号で指した 1 行の削除。並びの要素がエンティティ（作業項目など）なら、その型の Mapper が消す
           - $when:
               - path: op
                 equals: delete
               - path: field.base
                 equals: array
-              - path: field.item.entity
-                exists: false
               - path: row
                 exists: true
             $then:
@@ -1107,7 +1105,9 @@ rules:
                   $with:
                     'n':
                       $case:
-                        $copy: entity
+                        $first:
+                          - $copy: field.item.entity
+                          - $copy: entity
                       $as: pascal
                     m:
                       $case:

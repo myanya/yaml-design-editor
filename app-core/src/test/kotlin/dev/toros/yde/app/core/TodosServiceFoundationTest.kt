@@ -54,7 +54,7 @@ class TodosServiceFoundationTest {
         val after = rows(child, "steps").single { it["phase"] == "after" }
         assertEquals(mapOf("self" to "todo_id"), after["key"])
         val check = document("design/detail/composed/application/process-contract.yaml")
-        assertEquals(14, rows(check, "processes").size)
+        assertEquals(15, rows(check, "processes").size)
         assertTrue(rows(check, "processes").all { it["transactionMode"] == "atomic" && rows(it, "calls").all { call -> call["method"] != null } })
     }
 

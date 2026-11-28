@@ -7,6 +7,7 @@ public class TodoTaskRow {
     private java.lang.Long seq;
     private java.lang.String title;
     private java.lang.Boolean done;
+    private java.lang.Boolean deleted;
     public java.lang.String getId() {
         return id;
     }
@@ -45,6 +46,14 @@ public class TodoTaskRow {
 
     public void setDone(java.lang.Boolean done) {
         this.done = done;
+    }
+
+    public java.lang.Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(java.lang.Boolean deleted) {
+        this.deleted = deleted;
     }
 
 }

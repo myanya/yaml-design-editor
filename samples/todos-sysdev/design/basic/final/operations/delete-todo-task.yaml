@@ -1,0 +1,110 @@
+# 生成物（basic-operations）: 手で直さず、業務モデルか生成の定義（design/basic/basic-operations.yaml）を直して作り直します（CLI generate）。
+id: ACT-delete-todo-task
+source: delete-todo-task
+seq: '07'
+kind: action
+label: 作業項目を削除する
+description: 未完了のTODOの作業項目 1 件を消します。ほかの作業項目は変えません（残った作業項目の番号は振り直しません）。
+subject: todo
+entity: ENT-todo
+receiver: ENT-todo
+creates: []
+row:
+  param: PRM-delete-todo-task.row
+  item: FLD-todo.tasks
+inputs:
+  - id: PRM-delete-todo-task.row
+    key: row
+    label: 作業項目の番号
+    builtin: int
+    base: int
+    description: 作業項目の何番目か（0 から数えます）
+    required: true
+    min: 0.0
+    overrides:
+      min: 0.0
+  - id: PRM-delete-todo-task.version
+    key: version
+    label: 版
+    builtin: int
+    base: int
+    description: 画面を開いたときに読んだ版です。確定するときの版と比べて、その間のほかの更新を検出します（人は入力しません。画面が運びます）。
+    required: true
+    carried: true
+    addedBy: SPC-optimistic-lock
+    initial:
+      $copy: version
+      $of: self
+preconditions:
+  - id: PRE-delete-todo-task.active
+    source: active
+    message: '{id} は完了か中止をしているので、作業項目を消せません'
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      where:
+        - of: t
+          path: status
+          oneOf:
+            - OPEN
+            - IN_PROGRESS
+            - SUSPENDED
+      expect: exists
+  - id: PRE-delete-todo-task.version-unchanged
+    source: version-unchanged
+    message: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
+    addedBy: SPC-optimistic-lock
+    rule:
+      match:
+        - node:
+            entity: todo
+            bind: t
+      where:
+        - of: t
+          path: version
+          equals: $version
+      expect: exists
+effects:
+  - id: EFF-delete-todo-task.01
+    op: delete
+    cause: do
+    of: self
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: tasks[$row]
+    item: FLD-todo.tasks
+    row: PRM-delete-todo-task.row
+  - id: EFF-delete-todo-task.02
+    op: set
+    cause: auto
+    auto: updated
+    subject: todo
+    entity: ENT-todo
+    schema: todo-detail
+    path: updated_on
+    item: FLD-todo.updated_on
+    value:
+      $copy: today
+      $of: context
+  - id: EFF-delete-todo-task.version
+    op: set
+    cause: auto
+    auto: revision
+    subject: todo
+    entity: ENT-todo
+    path: version
+    item: FLD-todo.version
+    addedBy: SPC-optimistic-lock
+checks:
+  - rule: RUL-updated-not-before-created
+    items:
+      - todo.updated_on
+  - rule: RUL-closed-has-no-open-task
+    items:
+      - todo.tasks
+writes:
+  - CRUD-todo.delete-todo-task.tasks
+  - CRUD-todo.delete-todo-task.updated_on

@@ -24,7 +24,7 @@ class TodosServiceBindingsTest {
     @Test
     fun `全操作の引数と入れ子の型と親のキーを保持する`() {
         val inputs = rows(document("design/detail/final/application-service-inputs.yaml"), "operations")
-        assertEquals(14, inputs.size)
+        assertEquals(15, inputs.size)
         val edit = inputs.single { it["action"] == "edit-todo" }
         assertEquals("java.time.LocalDate", rows(edit, "arguments").single { it["name"] == "createdOn" }["type"])
         assertTrue(rows(edit, "arguments").none { it["name"] == "comments" }, "コメントは編集の入力に無い")

@@ -2,7 +2,7 @@
 id: SCR-resume-todo
 source: resume-todo
 kind: operation
-seq: 3-10
+seq: 3-11
 label: TODOを再開する
 operation: ACT-resume-todo
 hidden:

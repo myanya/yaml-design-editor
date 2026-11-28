@@ -97,6 +97,13 @@ refusals:
       - NotFoundException
       - RefusedException
     confirm: []
+  - operation: delete-todo-task
+    service: TodoService.deleteTodoTask
+    handler: TodoController.deleteTodoTask
+    throws:
+      - NotFoundException
+      - RefusedException
+    confirm: []
   - operation: edit-todo
     service: TodoService.editTodo
     handler: TodoController.editTodo

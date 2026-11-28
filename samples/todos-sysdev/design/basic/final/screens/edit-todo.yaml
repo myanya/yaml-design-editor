@@ -2,7 +2,7 @@
 id: SCR-edit-todo
 source: edit-todo
 kind: operation
-seq: 3-07
+seq: 3-08
 label: TODOを編集する
 operation: ACT-edit-todo
 hidden:

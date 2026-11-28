@@ -1,7 +1,7 @@
 # アプリの生成と独立ビルド
 
 独立した Spring Boot プロジェクトの基本構造、物理テーブルの Java 行モデル、Mapper と XML、共通 DDL、状態型・業務例外・全操作の Service、業務の Controller と画面を生成する。
-H2 で実際の保存・検索・更新・削除と業務処理を確認できる。29 画面・14 操作、入力検査、確認・実行・通知を接続した。
+H2 で実際の保存・検索・更新・削除と業務処理を確認できる。30 画面・15 操作、入力検査、確認・実行・通知を接続した。
 設計書の内容と画面のオーナーレビューは継続する。対応範囲は [作業計画](application-generation-plan.md) と [業務画面の生成と確認](web-generation.md) にまとめる。
 
 ## 入力と出力
@@ -18,7 +18,7 @@ H2 で実際の保存・検索・更新・削除と業務処理を確認でき�
 | データアクセス | `data/mapper/` のインターフェースと入力・結果の型、`resources/mappers/` の MyBatis XML |
 | DB | レビュー用 DDL と同じレポートから出す `resources/schema.sql` |
 | 状態と例外 | `service/state/` の状態型と、`service/error/` の違反・業務例外 |
-| 業務処理 | `service/` の 4 Service・14 操作、入力型・確認処理・共通実行部 |
+| 業務処理 | `service/` の 4 Service・15 操作、入力型・確認処理・共通実行部 |
 | 画面入力 | `web/form/` の入力型と、`web/operation/` の Service 呼出し |
 | 業務画面 | `web/` の 5 Controller と共通処理、29 の Thymeleaf、共通部品、表示用 JSON |
 | 読出し | 既存の Service の詳細取得と、一覧の `TodoDashboardService` |
@@ -60,7 +60,7 @@ Java クラス名・型・対象数を PowerShell で計算しない。行モデ
 
 `final/table-access/` と行モデルから `final/application-access.yaml` を作る。条件・列・型を解決し、検査を通った値だけをレポートとレビュー用ビューへ渡す。
 検索の件数は `whereFrom` で元のメソッド ID を指定し、同じ条件を共有する。挿入の全列指定は `{mode: all}` で表す。
-ビュー `application-mapper-methods`（「Java の Mapper と SQL の対応」）で、51 メソッドの入力型・取得項目・条件・更新内容を確認できる。
+ビュー `application-mapper-methods`（「Java の Mapper と SQL の対応」）で、53 メソッドの入力型・取得項目・条件・更新内容を確認できる。
 
 - 現在の検索、件数、最大値、挿入、更新、削除を生成する。引数は型付きの Input、取得結果は行モデルを継承する Result にする。
 - 配列の絞り込みは `EXISTS` を使い、複数タグに一致しても親を重複させない。空入力を省く条件と、省かず不一致にする条件を区別する。
