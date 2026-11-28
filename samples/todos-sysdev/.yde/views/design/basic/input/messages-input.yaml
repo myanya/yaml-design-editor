@@ -1,6 +1,6 @@
 id: messages-input
 name: 基本設計の生成入力（メッセージ）
-description: メッセージの項目一覧（MSG-）を、1 ファイルまとめて読む。断りと知らせは key で引き、入力の検査のメッセージは operation・input・check で引く
+description: メッセージ定義のレコード（MSG-）を、1 ファイルまとめて読む。エラーと通知のメッセージは key で引き、バリデーションメッセージは operation・input・check で引く
 rows:
   idPattern: SYS-basic-messages
   schemaIds:

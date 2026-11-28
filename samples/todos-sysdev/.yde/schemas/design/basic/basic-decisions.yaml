@@ -3,7 +3,7 @@ name: 基本設計の項目への個別の判断
 kind: document
 description: >-
   基本設計（抽象システムモデル）の項目への個別の判断（ADR-0042）。項目を ID で指して、値を置き換える（対象の ID と set）。
-  基本設計の種類を項目の形にするたびに、対象と、置き換えられる値を足す。いまの対象は、メッセージ（MSG-）で、置き換えられるのは文（text）。
+  基本設計の種類を項目の形にするたびに、対象と、置き換えられる値を足す。いまの対象は、メッセージ（MSG-）で、置き換えられるのはテキスト（text）。
   操作と画面への判断は、いまは別のファイル（inputs/operations/・inputs/screens/）にあり、あとでここへ移す。人が書く。
 match: design/basic/inputs/decisions.yaml
 root:
@@ -37,9 +37,9 @@ root:
             unknownFields: error
             fields:
               - key: text
-                label: 文
+                label: テキスト
                 type: string
-                description: メッセージ（MSG-）の文
+                description: メッセージ（MSG-）のテキスト
           - key: reason
             label: 理由
             type: text

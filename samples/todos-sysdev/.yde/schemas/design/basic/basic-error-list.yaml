@@ -2,8 +2,8 @@ id: basic-error-list
 name: 基本設計項目一覧（エラー）
 kind: document
 description: >-
-  抽象システムモデルの「エラー」。操作が断るとき 1 件を 1 項目（ERR-）にし、種類（ERK-）・操作・原因・出すメッセージを ID で指す。
-  持つのは「何を断るか・どこに出すか」まで。どう確かめるか（Java か SQL か）と HTTP の応答は、詳細設計（処理の手順・エラーの扱い）が持つ。
+  抽象システムモデルの「エラー」。操作がエラーになるケース 1 件を 1 レコード（ERR-）にし、種類（ERK-）・操作・原因・出すメッセージを ID で指す。
+  持つのは「何を断るか・表示場所」まで。チェックの実装方式（アプリ側の判定か SQL か）と HTTP ステータスは、詳細設計（処理の手順・エラーの扱い）が持つ。
   エラー定義書は、この項目を読むビュー。生成物（.yde/transforms/design/basic/basic-errors.yaml）で、手で直さない
 match: design/basic/final/errors.yaml
 entity:
@@ -16,7 +16,7 @@ root:
       type: id
       required: true
     - key: kinds
-      label: 断りの種類
+      label: エラー種別
       type: array
       display: table
       item:
@@ -24,11 +24,11 @@ root:
         fields:
           - { key: id, label: 設計項目ID, type: id, required: true, pattern: '^ERK-\S+$' }
           - { key: label, label: 名称, type: string, required: true, role: title }
-          - { key: when, label: いつ, type: string }
-          - { key: shownAt, label: どこに出すか, type: string }
+          - { key: when, label: 発生タイミング, type: string }
+          - { key: shownAt, label: 表示場所, type: string }
         unknownFields: error
     - key: errors
-      label: 断り
+      label: エラーケース
       type: array
       display: table
       item:
@@ -51,7 +51,7 @@ root:
             idPatterns: [ENT-*, FLD-*, TRN-*, PRE-*, RUL-*, SCR-*]
             description: 見つからない＝受け手のエンティティか並びの項目・状態＝状態の遷移・前提＝操作の前提・決まり＝データの決まり・二重の確定＝操作の画面
           - key: inputs
-            label: 欄の横にも出す入力
+            label: 入力欄にも表示する入力パラメータ
             type: array
             item:
               type: ref

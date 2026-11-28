@@ -1,8 +1,8 @@
 id: basic-messages
 name: 基本設計項目一覧（メッセージ）
 description: >-
-  抽象システムモデルの「メッセージ」を項目の形で作る（ADR-0042）。メッセージ 1 件を 1 項目（MSG-）にし、作る元（状態の遷移 TRN-・前提 PRE-・データの決まり RUL-・操作 ACT-・
-  エンティティ ENT-・項目 FLD-）を source で指す。入力の検査のメッセージは、どの操作のどの入力（PRM-）の、どの検査かで持つ
+  抽象システムモデルの「メッセージ」を項目の形で作る（ADR-0042）。メッセージ 1 件を 1 レコード（MSG-）にし、作る元（状態の遷移 TRN-・前提 PRE-・データの決まり RUL-・操作 ACT-・
+  エンティティ ENT-・項目 FLD-）を source で指す。バリデーションメッセージは、どの操作のどの入力（PRM-）の、どの検査かで持つ
   （画面の部品の名前や検査の実装の名前は持たない。メッセージのキーは、読む側が組み立てる）。
   入力は基本設計の項目（操作・データの決まり・一覧の検索条件・エンティティ・画面）だけで、業務モデルも解いた形も読まない。
   基本設計の項目への個別の判断（design/basic/inputs/decisions.yaml）は、項目の ID を対象にして、ここで項目へ直接当てる（文 text）。
@@ -58,7 +58,7 @@ input:
 build:
   $copy: .
 rules:
-  # 補正前の項目: 断り・知らせ・入力の検査のメッセージ
+  # 補正前の項目: エラーケース・知らせ・バリデーションメッセージ
   - id: messages
     with:
       - actions
@@ -68,7 +68,7 @@ rules:
       - screens
     build:
       $concat:
-        # 状態の断り: 操作のできる状態でないとき
+        # 状態のエラーケース: 操作のできる状態でないとき
         - $each: .
           $of: actions
           $build:
@@ -79,14 +79,14 @@ rules:
               $format: MSG-{source}.state
             key:
               $format: '{source}.state'
-            kind: 状態の断り
+            kind: 状態エラー
             text:
               $copy: refusal
             source:
               $first:
                 - $copy: transition
                 - $copy: id
-        # 前提の断り
+        # 前提のエラーケース
         - $each: .
           $of: actions
           $bind: a
@@ -110,7 +110,7 @@ rules:
                     $of: a
                   r:
                     $copy: source
-              kind: 前提の断り
+              kind: 事前条件エラー
               text:
                 $first:
                   - $copy: message
@@ -141,7 +141,7 @@ rules:
               $format: MSG-check.{source}
             key:
               $format: check.{source}
-            kind: データの決まり
+            kind: 制約違反
             text:
               $first:
                 - $copy: message
@@ -165,7 +165,7 @@ rules:
               $format: MSG-{source}.done
             key:
               $format: '{source}.done'
-            kind: 完了の知らせ
+            kind: 完了通知
             text:
               $first:
                 - $format: '{s}しました（{id}）'
@@ -204,7 +204,7 @@ rules:
                     $copy: .
                     $of: entities
               prefix: list.empty
-              kind: 絞り込みの結果
+              kind: 検索結果 0 件
         # ID を指定して見つからない（詳細画面のあるエンティティと、操作の受け手）
         - $group:
             $concat:
@@ -241,7 +241,7 @@ rules:
                     $copy: .
                     $of: entities
               prefix: error.notFound
-              kind: 見つからない
+              kind: 対象なし
         # 並びの 1 件を番号で指す操作: その行が無いとき
         - $group:
             $each: .
@@ -272,13 +272,13 @@ rules:
                 $of: entities
         - - id: MSG-error.token
             key: error.token
-            kind: 二重の確定・時間切れ
+            kind: 二重送信・タイムアウト
             text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
           - id: MSG-error.unexpected
             key: error.unexpected
-            kind: 想定外
+            kind: 想定外エラー
             text: 処理できませんでした。時間をおいてやり直してください（受付番号 {no}）
-        # 入力の検査: 画面のある操作の入力ごと・検査ごと
+        # 入力バリデーション: 画面のある操作の入力ごと・検査ごと
         - $each: .
           $of: actions
           $bind: a
@@ -446,7 +446,7 @@ rules:
           f:
             $copy: key
             $of: field
-      kind: 見つからない
+      kind: 対象なし
       text:
         $format: '{e}「{id}」の{f}に、指定した行はありません'
         $with:
@@ -460,7 +460,7 @@ rules:
       source:
         $copy: id
         $of: field
-  # 入力の検査のメッセージ: 画面のある操作だけ。まとまり（object）の入力そのものには無い
+  # バリデーションメッセージ: 画面のある操作だけ。まとまり（object）の入力そのものには無い
   - id: operation-input-messages
     with:
       - action
@@ -614,7 +614,7 @@ rules:
           c:
             $copy: .
             $of: check
-      kind: 入力の誤り
+      kind: 入力エラー
       text:
         $copy: .
         $of: text
@@ -714,7 +714,7 @@ rules:
     build:
       $copy: records[0].value
       $of: combined
-  # 個別の判断を当てる。対象はメッセージ（MSG-）で、置き換えられるのは文（text）。
+  # 個別の判断を当てる。対象はメッセージ（MSG-）で、置き換えられるのはテキスト（text）。
   # 対象が見つからない判断と、その対象では置き換えられない値は、合成がエラーで止める
   - id: composed-items
     with:

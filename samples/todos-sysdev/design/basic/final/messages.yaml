@@ -14,626 +14,626 @@ holes:
 messages:
   - id: MSG-start-todo.state
     key: start-todo.state
-    kind: 状態の断り
+    kind: 状態エラー
     text: 「{id}」は「{state}」なので、「TODOに着手する」はできません（できるのは「未着手」のとき）
     source: TRN-todo-lifecycle.start-todo
   - id: MSG-suspend-todo.state
     key: suspend-todo.state
-    kind: 状態の断り
+    kind: 状態エラー
     text: 「{id}」は「{state}」なので、「TODOを中断する」はできません（できるのは「対応中」のとき）
     source: TRN-todo-lifecycle.suspend-todo
   - id: MSG-resume-todo.state
     key: resume-todo.state
-    kind: 状態の断り
+    kind: 状態エラー
     text: 「{id}」は「{state}」なので、「TODOを再開する」はできません（できるのは「中断」のとき）
     source: TRN-todo-lifecycle.resume-todo
   - id: MSG-complete-todo.state
     key: complete-todo.state
-    kind: 状態の断り
+    kind: 状態エラー
     text: 「{id}」は「{state}」なので、「TODOを完了する」はできません（できるのは「対応中」のとき）
     source: TRN-todo-lifecycle.complete-todo
   - id: MSG-cancel-todo.state
     key: cancel-todo.state
-    kind: 状態の断り
+    kind: 状態エラー
     text: 「{id}」は「{state}」なので、「TODOを中止する」はできません（できるのは「未完了」のとき）
     source: TRN-todo-lifecycle.cancel-todo
   - id: MSG-add-todo-comment.version-unchanged
     key: add-todo-comment.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-add-todo-comment.version-unchanged
   - id: MSG-edit-todo-comment.version-unchanged
     key: edit-todo-comment.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-edit-todo-comment.version-unchanged
   - id: MSG-delete-todo-comment.version-unchanged
     key: delete-todo-comment.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-delete-todo-comment.version-unchanged
   - id: MSG-add-todo-task.active
     key: add-todo-task.active
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は完了か中止をしているので、作業項目を足せません'
     source: PRE-add-todo-task.active
   - id: MSG-add-todo-task.version-unchanged
     key: add-todo-task.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-add-todo-task.version-unchanged
   - id: MSG-delete-todo-task.active
     key: delete-todo-task.active
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は完了か中止をしているので、作業項目を消せません'
     source: PRE-delete-todo-task.active
   - id: MSG-delete-todo-task.version-unchanged
     key: delete-todo-task.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-delete-todo-task.version-unchanged
   - id: MSG-edit-todo.version-unchanged
     key: edit-todo.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-edit-todo.version-unchanged
   - id: MSG-start-todo.version-unchanged
     key: start-todo.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-start-todo.version-unchanged
   - id: MSG-suspend-todo.version-unchanged
     key: suspend-todo.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-suspend-todo.version-unchanged
   - id: MSG-resume-todo.version-unchanged
     key: resume-todo.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-resume-todo.version-unchanged
   - id: MSG-complete-todo.no-open-task
     key: complete-todo.no-open-task
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} には済んでいない作業項目があります（済にしてから完了します）'
     source: PRE-complete-todo.no-open-task
   - id: MSG-complete-todo.version-unchanged
     key: complete-todo.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-complete-todo.version-unchanged
   - id: MSG-cancel-todo.version-unchanged
     key: cancel-todo.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-cancel-todo.version-unchanged
   - id: MSG-todo-task.finish.version-unchanged
     key: todo-task.finish.version-unchanged
-    kind: 前提の断り
+    kind: 事前条件エラー
     text: '{id} は、ほかの人が先に更新しました（画面を開き直してから、もう一度操作します）'
     source: PRE-todo-task.finish.version-unchanged
   - id: MSG-check.due-not-before-created
     key: check.due-not-before-created
-    kind: データの決まり
+    kind: 制約違反
     text: TODO「{id}」の期限（{left}）が、作成日（{right}）より前です
     source: RUL-due-not-before-created
   - id: MSG-check.updated-not-before-created
     key: check.updated-not-before-created
-    kind: データの決まり
+    kind: 制約違反
     text: TODO「{id}」の更新日（{left}）が、作成日（{right}）より前です
     source: RUL-updated-not-before-created
   - id: MSG-check.completed-not-before-created
     key: check.completed-not-before-created
-    kind: データの決まり
+    kind: 制約違反
     text: TODO「{id}」の完了日（{left}）が、作成日（{right}）より前です
     source: RUL-completed-not-before-created
   - id: MSG-check.closed-has-completed-on
     key: check.closed-has-completed-on
-    kind: データの決まり
+    kind: 制約違反
     text: 完了した TODO「{id}」に完了日がありません
     source: RUL-closed-has-completed-on
   - id: MSG-check.closed-has-result
     key: check.closed-has-result
-    kind: データの決まり
+    kind: 制約違反
     text: 完了した TODO「{id}」に結果がありません
     source: RUL-closed-has-result
   - id: MSG-check.unfinished-has-no-completed-on
     key: check.unfinished-has-no-completed-on
-    kind: データの決まり
+    kind: 制約違反
     text: 完了していない TODO「{id}」に完了日が残っています
     source: RUL-unfinished-has-no-completed-on
   - id: MSG-check.resume-not-before-suspend
     key: check.resume-not-before-suspend
-    kind: データの決まり
+    kind: 制約違反
     text: 再開予定日（{left}）は、中断した日（{right}）より前にできません
     source: RUL-resume-not-before-suspend
   - id: MSG-check.follows-not-self
     key: check.follows-not-self
-    kind: データの決まり
+    kind: 制約違反
     text: TODO「{id}」の元のTODOに、自分自身は選べません
     source: RUL-follows-not-self
   - id: MSG-check.closed-has-no-open-task
     key: check.closed-has-no-open-task
-    kind: データの決まり
+    kind: 制約違反
     text: 完了したTODO「{id}」に、済んでいない作業項目があります
     source: RUL-closed-has-no-open-task
   - id: MSG-check.follow-up-of.acyclic
     key: check.follow-up-of.acyclic
-    kind: データの決まり
+    kind: 制約違反
     text: 「元のTODO」をたどると、自分（{id}）に戻ります（循環はできません）
     source: RUL-follow-up-of.acyclic
   - id: MSG-add-category.done
     key: add-category.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: カテゴリを追加しました（{id}）
     source: ACT-add-category
   - id: MSG-register-todo.done
     key: register-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOを登録しました（{id}）
     source: ACT-register-todo
   - id: MSG-add-todo-comment.done
     key: add-todo-comment.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOにコメントを追加しました（{id}）
     source: ACT-add-todo-comment
   - id: MSG-edit-todo-comment.done
     key: edit-todo-comment.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: コメントを編集しました（{id}）
     source: ACT-edit-todo-comment
   - id: MSG-delete-todo-comment.done
     key: delete-todo-comment.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: コメントを削除しました（{id}）
     source: ACT-delete-todo-comment
   - id: MSG-add-todo-task.done
     key: add-todo-task.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: 作業項目を追加しました（{id}）
     source: ACT-add-todo-task
   - id: MSG-delete-todo-task.done
     key: delete-todo-task.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: 作業項目を削除しました（{id}）
     source: ACT-delete-todo-task
   - id: MSG-edit-todo.done
     key: edit-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOを編集しました（{id}）
     source: ACT-edit-todo
   - id: MSG-start-todo.done
     key: start-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOに着手しました（{id}）
     source: ACT-start-todo
   - id: MSG-suspend-todo.done
     key: suspend-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOを中断しました（{id}）
     source: ACT-suspend-todo
   - id: MSG-resume-todo.done
     key: resume-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOを再開しました（{id}）
     source: ACT-resume-todo
   - id: MSG-complete-todo.done
     key: complete-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOを完了しました（{id}）
     source: ACT-complete-todo
   - id: MSG-cancel-todo.done
     key: cancel-todo.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: TODOを中止しました（{id}）
     source: ACT-cancel-todo
   - id: MSG-add-tag.done
     key: add-tag.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: タグを追加しました（{id}）
     source: ACT-add-tag
   - id: MSG-todo-task.finish.done
     key: todo-task.finish.done
-    kind: 完了の知らせ
+    kind: 完了通知
     text: 作業項目を済にしました（{id}）
     source: ACT-todo-task.finish
   - id: MSG-list.empty.todo
     key: list.empty.todo
-    kind: 絞り込みの結果
+    kind: 検索結果 0 件
     text: 該当するTODOはありません
     source: ENT-todo
   - id: MSG-list.empty.category
     key: list.empty.category
-    kind: 絞り込みの結果
+    kind: 検索結果 0 件
     text: 該当するカテゴリはありません
     source: ENT-category
   - id: MSG-list.empty.tag
     key: list.empty.tag
-    kind: 絞り込みの結果
+    kind: 検索結果 0 件
     text: 該当するタグはありません
     source: ENT-tag
   - id: MSG-error.notFound.todo
     key: error.notFound.todo
-    kind: 見つからない
+    kind: 対象なし
     text: TODO「{id}」は見つかりません
     source: ENT-todo
   - id: MSG-error.notFound.category
     key: error.notFound.category
-    kind: 見つからない
+    kind: 対象なし
     text: カテゴリ「{id}」は見つかりません
     source: ENT-category
   - id: MSG-error.notFound.tag
     key: error.notFound.tag
-    kind: 見つからない
+    kind: 対象なし
     text: タグ「{id}」は見つかりません
     source: ENT-tag
   - id: MSG-error.notFound.todo-task
     key: error.notFound.todo-task
-    kind: 見つからない
+    kind: 対象なし
     text: 作業項目「{id}」は見つかりません
     source: ENT-todo-task
   - id: MSG-error.notFound.todo.comments
     key: error.notFound.todo.comments
-    kind: 見つからない
+    kind: 対象なし
     text: TODO「{id}」のコメント一覧に、指定した行はありません
     source: FLD-todo.comments
   - id: MSG-error.notFound.todo.tasks
     key: error.notFound.todo.tasks
-    kind: 見つからない
+    kind: 対象なし
     text: TODO「{id}」の作業項目に、指定した行はありません
     source: FLD-todo.tasks
   - id: MSG-error.token
     key: error.token
-    kind: 二重の確定・時間切れ
+    kind: 二重送信・タイムアウト
     text: この操作は確定済みか、時間が経って無効になりました。もう一度やり直してください
   - id: MSG-error.unexpected
     key: error.unexpected
-    kind: 想定外
+    kind: 想定外エラー
     text: 処理できませんでした。時間をおいてやり直してください（受付番号 {no}）
   - id: MSG-input.add-category.name.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: カテゴリ名を入力してください
     operation: ACT-add-category
     input: PRM-add-category.name
     check: required
   - id: MSG-input.add-category.name.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: カテゴリ名は100文字以内で入力してください
     operation: ACT-add-category
     input: PRM-add-category.name
     check: length
   - id: MSG-input.add-category.name.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: カテゴリ名の書き方が正しくありません
     operation: ACT-add-category
     input: PRM-add-category.name
     check: pattern
   - id: MSG-input.register-todo.title.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タイトルを入力してください
     operation: ACT-register-todo
     input: PRM-register-todo.title
     check: required
   - id: MSG-input.register-todo.title.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タイトルは100文字以内で入力してください
     operation: ACT-register-todo
     input: PRM-register-todo.title
     check: length
   - id: MSG-input.register-todo.title.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タイトルの書き方が正しくありません
     operation: ACT-register-todo
     input: PRM-register-todo.title
     check: pattern
   - id: MSG-input.register-todo.summary.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 概要を入力してください
     operation: ACT-register-todo
     input: PRM-register-todo.summary
     check: required
   - id: MSG-input.register-todo.summary.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 概要は100文字以内で入力してください
     operation: ACT-register-todo
     input: PRM-register-todo.summary
     check: length
   - id: MSG-input.register-todo.summary.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 概要の書き方が正しくありません
     operation: ACT-register-todo
     input: PRM-register-todo.summary
     check: pattern
   - id: MSG-input.register-todo.tags.unique
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タグに同じものを 2 回選べません
     operation: ACT-register-todo
     input: PRM-register-todo.tags
     check: unique
   - id: MSG-input.register-todo.due.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 期限は年月日で入力してください
     operation: ACT-register-todo
     input: PRM-register-todo.due
     check: date
   - id: MSG-input.add-todo-comment.date.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 記録日を入力してください
     operation: ACT-add-todo-comment
     input: PRM-add-todo-comment.date
     check: required
   - id: MSG-input.add-todo-comment.date.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 記録日は年月日で入力してください
     operation: ACT-add-todo-comment
     input: PRM-add-todo-comment.date
     check: date
   - id: MSG-input.add-todo-comment.body.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: コメント本文を入力してください
     operation: ACT-add-todo-comment
     input: PRM-add-todo-comment.body
     check: required
   - id: MSG-input.add-todo-comment.body.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: コメント本文は1文字以上で入力してください
     operation: ACT-add-todo-comment
     input: PRM-add-todo-comment.body
     check: length
   - id: MSG-input.add-todo-comment.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-add-todo-comment
     input: PRM-add-todo-comment.version
     check: required
   - id: MSG-input.edit-todo-comment.row.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: コメントの番号を入力してください
     operation: ACT-edit-todo-comment
     input: PRM-edit-todo-comment.row
     check: required
   - id: MSG-input.edit-todo-comment.date.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 記録日は年月日で入力してください
     operation: ACT-edit-todo-comment
     input: PRM-edit-todo-comment.date
     check: date
   - id: MSG-input.edit-todo-comment.body.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: コメント本文は1文字以上で入力してください
     operation: ACT-edit-todo-comment
     input: PRM-edit-todo-comment.body
     check: length
   - id: MSG-input.edit-todo-comment.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-edit-todo-comment
     input: PRM-edit-todo-comment.version
     check: required
   - id: MSG-input.delete-todo-comment.row.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: コメントの番号を入力してください
     operation: ACT-delete-todo-comment
     input: PRM-delete-todo-comment.row
     check: required
   - id: MSG-input.delete-todo-comment.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-delete-todo-comment
     input: PRM-delete-todo-comment.version
     check: required
   - id: MSG-input.add-todo-task.title.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 作業を入力してください
     operation: ACT-add-todo-task
     input: PRM-add-todo-task.title
     check: required
   - id: MSG-input.add-todo-task.title.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 作業は100文字以内で入力してください
     operation: ACT-add-todo-task
     input: PRM-add-todo-task.title
     check: length
   - id: MSG-input.add-todo-task.title.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 作業の書き方が正しくありません
     operation: ACT-add-todo-task
     input: PRM-add-todo-task.title
     check: pattern
   - id: MSG-input.add-todo-task.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-add-todo-task
     input: PRM-add-todo-task.version
     check: required
   - id: MSG-input.delete-todo-task.row.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 作業項目の番号を入力してください
     operation: ACT-delete-todo-task
     input: PRM-delete-todo-task.row
     check: required
   - id: MSG-input.delete-todo-task.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-delete-todo-task
     input: PRM-delete-todo-task.version
     check: required
   - id: MSG-input.edit-todo.title.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タイトルは100文字以内で入力してください
     operation: ACT-edit-todo
     input: PRM-edit-todo.title
     check: length
   - id: MSG-input.edit-todo.title.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タイトルの書き方が正しくありません
     operation: ACT-edit-todo
     input: PRM-edit-todo.title
     check: pattern
   - id: MSG-input.edit-todo.summary.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 概要は100文字以内で入力してください
     operation: ACT-edit-todo
     input: PRM-edit-todo.summary
     check: length
   - id: MSG-input.edit-todo.summary.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 概要の書き方が正しくありません
     operation: ACT-edit-todo
     input: PRM-edit-todo.summary
     check: pattern
   - id: MSG-input.edit-todo.tags.unique
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タグに同じものを 2 回選べません
     operation: ACT-edit-todo
     input: PRM-edit-todo.tags
     check: unique
   - id: MSG-input.edit-todo.created_on.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 作成日は年月日で入力してください
     operation: ACT-edit-todo
     input: PRM-edit-todo.created_on
     check: date
   - id: MSG-input.edit-todo.due_on.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 期限は年月日で入力してください
     operation: ACT-edit-todo
     input: PRM-edit-todo.due_on
     check: date
   - id: MSG-input.edit-todo.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-edit-todo
     input: PRM-edit-todo.version
     check: required
   - id: MSG-input.start-todo.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-start-todo
     input: PRM-start-todo.version
     check: required
   - id: MSG-input.suspend-todo.date.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 中断日を入力してください
     operation: ACT-suspend-todo
     input: PRM-suspend-todo.date
     check: required
   - id: MSG-input.suspend-todo.date.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 中断日は年月日で入力してください
     operation: ACT-suspend-todo
     input: PRM-suspend-todo.date
     check: date
   - id: MSG-input.suspend-todo.reason.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 中断理由を入力してください
     operation: ACT-suspend-todo
     input: PRM-suspend-todo.reason
     check: required
   - id: MSG-input.suspend-todo.reason.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 中断理由は1文字以上で入力してください
     operation: ACT-suspend-todo
     input: PRM-suspend-todo.reason
     check: length
   - id: MSG-input.suspend-todo.resume_on.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 再開予定日は年月日で入力してください
     operation: ACT-suspend-todo
     input: PRM-suspend-todo.resume_on
     check: date
   - id: MSG-input.suspend-todo.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-suspend-todo
     input: PRM-suspend-todo.version
     check: required
   - id: MSG-input.resume-todo.date.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 再開日を入力してください
     operation: ACT-resume-todo
     input: PRM-resume-todo.date
     check: required
   - id: MSG-input.resume-todo.date.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 再開日は年月日で入力してください
     operation: ACT-resume-todo
     input: PRM-resume-todo.date
     check: date
   - id: MSG-input.resume-todo.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-resume-todo
     input: PRM-resume-todo.version
     check: required
   - id: MSG-input.complete-todo.date.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 完了日を入力してください
     operation: ACT-complete-todo
     input: PRM-complete-todo.date
     check: required
   - id: MSG-input.complete-todo.date.date
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 完了日は年月日で入力してください
     operation: ACT-complete-todo
     input: PRM-complete-todo.date
     check: date
   - id: MSG-input.complete-todo.result.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 完了結果を入力してください
     operation: ACT-complete-todo
     input: PRM-complete-todo.result
     check: required
   - id: MSG-input.complete-todo.result.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 完了結果は1文字以上で入力してください
     operation: ACT-complete-todo
     input: PRM-complete-todo.result
     check: length
   - id: MSG-input.complete-todo.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-complete-todo
     input: PRM-complete-todo.version
     check: required
   - id: MSG-input.cancel-todo.reason.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 中止理由を入力してください
     operation: ACT-cancel-todo
     input: PRM-cancel-todo.reason
     check: required
   - id: MSG-input.cancel-todo.reason.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 中止理由は1文字以上で入力してください
     operation: ACT-cancel-todo
     input: PRM-cancel-todo.reason
     check: length
   - id: MSG-input.cancel-todo.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-cancel-todo
     input: PRM-cancel-todo.version
     check: required
   - id: MSG-input.add-tag.name.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タグ名を入力してください
     operation: ACT-add-tag
     input: PRM-add-tag.name
     check: required
   - id: MSG-input.add-tag.name.length
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タグ名は100文字以内で入力してください
     operation: ACT-add-tag
     input: PRM-add-tag.name
     check: length
   - id: MSG-input.add-tag.name.pattern
-    kind: 入力の誤り
+    kind: 入力エラー
     text: タグ名の書き方が正しくありません
     operation: ACT-add-tag
     input: PRM-add-tag.name
     check: pattern
   - id: MSG-input.todo-task.finish.version.required
-    kind: 入力の誤り
+    kind: 入力エラー
     text: 版を受け取れませんでした。画面を開き直してから、もう一度操作してください
     operation: ACT-todo-task.finish
     input: PRM-todo-task.finish.version

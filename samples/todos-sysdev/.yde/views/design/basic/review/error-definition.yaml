@@ -1,21 +1,21 @@
 id: error-definition
-name: エラー定義書（断り）
-description: 基本設計の「エラー」の項目（操作が断るとき 1 件を 1 行）を並べる。エラー定義書にあたるビューで、値は確定項目をそのまま読み、種類・操作・出す文は、ID で指した先から引く
+name: エラー定義書（エラーケース）
+description: 基本設計のエラー定義のレコード（操作がエラーになるケース 1 件を 1 行）を一覧する。エラー定義書にあたるビューで、エラー種別・操作・メッセージは、ID で参照した先のレコードから取得する
 rows: { idPattern: "ERR-*", schemaIds: [basic-error-list] }
 columns:
   - label: 操作
     value: { via: operation, path: label }
   - label: 種類
     value: { via: kind, path: label }
-  - label: いつ
+  - label: 発生タイミング
     value: { via: kind, path: when }
-  - label: どこに出すか
+  - label: 表示場所
     value: { via: kind, path: shownAt }
   - label: 原因
     path: cause
-  - label: 欄の横にも出す入力
+  - label: 入力欄にも表示する入力パラメータ
     path: inputs
-  - label: 出す文
+  - label: メッセージ
     value: { via: message, path: text }
   - label: 設計項目ID
     path: id

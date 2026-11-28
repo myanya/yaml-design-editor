@@ -2,39 +2,39 @@
 documentId: SYS-basic-errors
 kinds:
   - id: ERK-input
-    label: 入力の誤り
-    when: 確認へを押したとき（入力の検査）
+    label: 入力エラー
+    when: 確認へを押したとき（入力バリデーション）
     shownAt: 入力画面（欄の横と、上のまとめ）
   - id: ERK-input-rule
-    label: 受け取る値が原因のデータの決まりの違反
+    label: 入力値が原因の制約違反
     when: 確認へを押したとき（書く前に確かめる）と、確定のとき
-    shownAt: 入力画面（欄の横と、上のまとめ）と、確認画面の断りの文
+    shownAt: 入力画面（欄の横と、上のまとめ）と、確認画面のエラーメッセージ
   - id: ERK-state
-    label: 状態の断り
+    label: 状態エラー
     when: 確定のとき
-    shownAt: 確認画面の断りの文
+    shownAt: 確認画面のエラーメッセージ
   - id: ERK-precondition
-    label: 前提の断り
+    label: 事前条件エラー
     when: 確定のとき
-    shownAt: 確認画面の断りの文
+    shownAt: 確認画面のエラーメッセージ
   - id: ERK-rule
-    label: データの決まりの違反
+    label: 制約違反
     when: 確定のとき（書いた後の値で）
-    shownAt: 確認画面の断りの文
+    shownAt: 確認画面のエラーメッセージ
   - id: ERK-empty
-    label: 絞り込みの結果が 0 件（正常）
+    label: 検索結果 0 件（正常）
     when: 一覧画面を出すとき
     shownAt: 一覧画面の表の代わりの文
   - id: ERK-not-found
-    label: ID を指定して見つからない
+    label: 対象なし（ID 指定）
     when: 詳細画面・操作の画面で受け手を読んだとき
     shownAt: 見つからない画面
   - id: ERK-token
-    label: 二重の確定・時間切れ
+    label: 二重送信・タイムアウト
     when: 確定のとき（確認画面を経ていない・確定済み・時間切れ）
     shownAt: 起点の画面へ戻し、知らせで出す
   - id: ERK-unexpected
-    label: 想定外
+    label: 想定外エラー
     when: いつでも
     shownAt: エラー画面（受付番号だけ。中身は出さない）
 errors:

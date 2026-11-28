@@ -1,13 +1,13 @@
 id: error-definition-kinds
-name: エラー定義書（断りの種類）
-description: 基本設計の「エラー」の、断りの種類（いつ・どこに出すか）を並べる
+name: エラー定義書（エラー種別）
+description: 基本設計のエラー種別（発生タイミングと表示場所）を一覧する
 rows: { idPattern: "ERK-*", schemaIds: [basic-error-list] }
 columns:
   - label: 種類
     path: label
-  - label: いつ
+  - label: 発生タイミング
     path: when
-  - label: どこに出すか
+  - label: 表示場所
     path: shownAt
   - label: 設計項目ID
     path: id
